@@ -1,0 +1,89 @@
+/* Study G, the window. The page: a short headline with the download, the pinned window with its
+   three steps above it, the AIs, the closing download. Cream in light and dark (lib/theme.ts). */
+
+.page { --head: 84px; --seg: 62vh; width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; color: #2a1d10; }
+@media (max-width: 760px) { .page { --head: 72px; --seg: 58svh; } }
+
+/* ── The headline and the download ── */
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; column-gap: 48px; padding: 18px 0 0; }
+.h1 { margin: 0; font-size: clamp(36px, 4.15vw, 62px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.04; text-wrap: balance; }
+.h1 span { display: block; color: #a68a6c; }
+.ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ctas > div { margin: 0; }
+.head .ctas { flex-direction: column; align-items: stretch; padding-bottom: 4px; }
+.head .ctas a { justify-content: center; }
+.iphone { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 24px; border-radius: 14px; font-size: 16px; font-weight: 700; color: #2a1a0c;
+  background: #f3e4d0; text-decoration: none; transition: background-color 0.15s, transform 0.12s; box-sizing: border-box; }
+.iphone svg { width: 17px; height: 17px; fill: none; stroke: #a08467; stroke-width: 1.5; stroke-linecap: round; }
+@media (hover: hover) { .iphone:hover { background: #ecd9c0; } }
+.iphone:active { transform: scale(0.97); }
+.iphone:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+/* On an iPhone the Mac download hides (Download), and this is the one to press. */
+:global(:root[data-platform="ios"]) .iphone { background: #2a1a0c; color: #fff; }
+
+/* ── The window, pinned for three steps ── */
+.track { position: relative; margin-top: 30px; height: calc(100vh - var(--head) + 2 * var(--seg)); }
+.stage { position: sticky; top: var(--head); height: calc(100vh - var(--head)); display: flex; flex-direction: column; gap: 18px; padding: 4px 0 24px; box-sizing: border-box; }
+@supports (height: 100svh) {
+  .track { height: calc(100svh - var(--head) + 2 * var(--seg)); }
+  .stage { height: calc(100svh - var(--head)); }
+}
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.step { display: grid; gap: 5px; width: 100%; margin: 0; padding: 10px 14px 12px; border: 0; border-radius: 16px; background: none; font: inherit; text-align: left; cursor: pointer; color: inherit;
+  transition: background-color 0.2s; }
+.stepTitle { display: flex; align-items: center; gap: 10px; font-size: clamp(20px, 1.75vw, 25px); font-weight: 750; letter-spacing: -0.02em; color: #c7b49f; transition: color 0.3s; }
+.stepTitle svg { flex: none; color: #d6c6b3; transition: color 0.3s; }
+.stepLine { font-size: 15.5px; line-height: 1.4; color: #c9b8a4; text-wrap: pretty; transition: color 0.3s; }
+.step[data-on] .stepTitle { color: #2a1d10; }
+.step[data-on] .stepTitle svg { color: #d97a17; }
+.step[data-on] .stepLine { color: #74604c; }
+@media (hover: hover) {
+  .step:hover { background: rgba(120, 70, 20, 0.05); }
+  .step:not([data-on]):hover .stepTitle { color: #8a7259; }
+  .step:not([data-on]):hover .stepLine { color: #a8927b; }
+}
+.step:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.phoneLine { display: none; }
+
+.fit { position: relative; flex: 1; min-height: 0; }
+.scaled { position: absolute; left: 50%; top: 0; transform-origin: top center; transform: translateX(-50%) scale(var(--k, 0.9)); }
+.forPhone { display: none; }
+
+/* ── The AIs ── */
+.ais { display: grid; gap: 28px; padding: 96px 0 0; }
+.aiTitle { margin: 0; font-size: clamp(30px, 3.2vw, 46px); font-weight: 750; letter-spacing: -0.03em; line-height: 1.06; }
+.aiRow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 18px 44px; }
+.aiRow li { display: inline-flex; align-items: center; gap: 12px; font-size: clamp(20px, 1.8vw, 26px); font-weight: 700; letter-spacing: -0.015em; }
+.aiRow li svg { color: #2a1d10; }
+.study { margin: 0; max-width: 36em; font-size: clamp(17px, 1.4vw, 19px); line-height: 1.5; color: #74604c; text-wrap: pretty; }
+.study a { color: #2a1d10; font-weight: 600; white-space: nowrap; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 3px; transition: color 0.15s; }
+@media (hover: hover) { .study a:hover { color: #a85700; } }
+
+/* ── The closing download ── */
+.end { display: grid; gap: 26px; justify-items: start; padding: 128px 0 140px; }
+.endTitle { margin: 0; font-size: clamp(36px, 4.15vw, 62px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.04; }
+.fine { margin: -8px 0 0; font-size: 14px; font-weight: 600; color: #8a7a68; }
+
+/* ── Narrow windows ── */
+@media (max-width: 1000px) {
+  .stepLine { font-size: 14.5px; }
+}
+@media (max-width: 760px) {
+  .head { grid-template-columns: minmax(0, 1fr); row-gap: 22px; padding-top: 8px; }
+  .h1 { font-size: clamp(32px, 9vw, 44px); }
+  .head .ctas { flex-direction: row; }
+  .track { margin-top: 26px; }
+  .stage { gap: 6px; padding-bottom: 14px; }
+  .steps { gap: 4px; }
+  .step { padding: 8px 6px; justify-items: center; }
+  .stepTitle { font-size: 16px; gap: 6px; }
+  .stepTitle svg { width: 19px; height: 19px; }
+  .stepLine { display: none; }
+  .phoneLine { display: block; margin: 0 0 6px; min-height: 2.8em; font-size: 15px; line-height: 1.4; color: #74604c; text-align: center; text-wrap: balance; }
+  .forMac { display: none; }
+  .forPhone { display: block; }
+  .ais { padding-top: 72px; gap: 22px; }
+  .aiRow { gap: 16px 28px; }
+  .end { padding: 88px 0 96px; }
+}

@@ -1,0 +1,179 @@
+/* The window. Drawn at the app's own size (1180 × 720 for the Mac, 393 × 852 for the iPhone) and
+   scaled as one piece by the page to fit, so it reads like a capture at any width. Colours from the
+   Nov 13 captures: white surfaces, warm greys, the app's orange. */
+
+@font-face { font-family: "Excalifont"; src: url("./excalifont-latin.woff2") format("woff2"); font-display: block; }
+
+.mac, .phone { --ink: #1d1b19; --sub: #6e665d; --faint: #9a9189; --sel: #ebe8e4; --hover: #f4f2ef; --orange: #dd6a0b;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif; color: var(--ink); text-align: left; -webkit-font-smoothing: antialiased; }
+:where(.mac, .phone) button { font: inherit; color: inherit; border: 0; background: none; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
+.mac button:focus-visible, .phone button:focus-visible { outline: 2.5px solid #f0901a; outline-offset: 1px; }
+
+/* ── The Mac window ── */
+.mac { width: 1180px; height: 720px; display: grid; grid-template-columns: 320px minmax(0, 1fr); background: #fff; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 0 0 0.5px rgba(40, 20, 0, 0.22), 0 1px 2px rgba(60, 30, 5, 0.06), 0 30px 60px -20px rgba(60, 30, 5, 0.26), 0 70px 120px -50px rgba(60, 30, 5, 0.32); }
+
+.list { display: flex; flex-direction: column; min-height: 0; box-shadow: inset -0.5px 0 0 rgba(0, 0, 0, 0.12); }
+.listBar { height: 64px; flex: none; display: flex; align-items: center; padding: 0 12px 0 18px; gap: 10px; }
+.lights { display: inline-flex; gap: 8px; margin-right: 6px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #e3e0dc; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12); }
+.listTitle { display: grid; line-height: 1.2; }
+.listTitle b { font-size: 15px; font-weight: 700; }
+.listTitle small { font-size: 12px; color: var(--sub); }
+.listMore { margin-left: auto; color: var(--faint); display: inline-flex; }
+.create { display: inline-flex; gap: 2px; }
+.tool { width: 36px; height: 34px; border-radius: 9px; display: inline-grid; place-items: center; color: #3b3632; transition: background-color 0.15s, color 0.15s, transform 0.12s; }
+.tool[data-on] { background: #fbe6cf; color: #b85500; }
+@media (hover: hover) { .tool:not([data-on]):hover { background: var(--hover); } .tool[data-on]:hover { background: #f8dcbd; } }
+.tool:active { transform: scale(0.94); }
+
+.listBody { flex: 1; overflow: hidden; padding: 4px 10px 0; }
+.listHead { margin: 14px 10px 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.item { display: grid; width: 100%; gap: 2px; padding: 11px 14px 12px; border-radius: 11px; transition: background-color 0.25s; }
+.item b { display: flex; align-items: center; gap: 7px; font-size: 14.5px; font-weight: 700; }
+.item b em { font-style: normal; font-size: 11px; font-weight: 600; color: var(--sub); padding: 1px 6px; border-radius: 5px; background: #f1ede8; }
+.item > span { font-size: 13.5px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .time { color: var(--ink); }
+.item small { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--sub); }
+.item small svg { color: var(--faint); }
+.item[data-on] { background: var(--sel); }
+@media (hover: hover) { .item[tabindex="0"]:not([data-on]):hover { background: var(--hover); } }
+.item[tabindex="-1"] { cursor: default; }
+
+.detail { position: relative; min-width: 0; display: flex; flex-direction: column; }
+.detailBar { height: 64px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 20px 0 22px; color: #a8a29b; }
+.crumb { margin-left: 12px; font-size: 14px; font-weight: 600; color: #6e665d; }
+.detailTools { margin-left: auto; display: inline-flex; align-items: center; gap: 20px; color: #a8a29b; }
+.aa { font-size: 17px; font-weight: 500; letter-spacing: -0.02em; }
+
+/* The three panes share the detail area; one shows at a time. */
+.pane { position: absolute; inset: 64px 0 0; opacity: 0; visibility: hidden; transform: translateY(10px); filter: blur(5px);
+  transition: opacity 0.32s ease-in, transform 0.32s ease-in, filter 0.32s ease-in, visibility 0s 0.32s; }
+.pane[data-on] { opacity: 1; visibility: visible; transform: none; filter: none; transition: opacity 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s, transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s, filter 0.45s ease-out 0.08s, visibility 0s; }
+
+/* ── The note ── */
+.note { padding: 22px 56px 0 44px; }
+.noteTitle { margin: 0 0 18px; font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+.noteSay { margin: 0 0 18px; font-size: 16px; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.checks li { display: flex; align-items: center; gap: 12px; min-height: 33px; font-size: 16px; border-radius: 8px; margin: 0 -8px; padding: 0 8px; }
+.checks li > i { flex: none; width: 19px; height: 19px; border-radius: 50%; box-shadow: inset 0 0 0 1.4px #bdb6ae; display: grid; place-items: center; color: #fff; }
+.checks li[data-done] { color: #a59d95; text-decoration: line-through; }
+.checks li[data-done] > i { background: var(--orange); box-shadow: none; }
+.checks li em, .habitMark { display: inline-flex; align-items: center; gap: 4px; margin-left: 12px; padding: 2px 8px 2px 6px; border-radius: 99px; background: #fff1de; color: #a85700; font-style: normal; font-size: 12px; font-weight: 650; text-decoration: none; }
+
+/* What the AI just added: the line opens, lit in the app's orange, and settles. */
+.added { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s; }
+.added[data-in] { max-height: 40px; opacity: 1; background: rgba(240, 144, 26, 0.13); animation: settle 2.6s ease-out 1.2s both; }
+@keyframes settle { to { background: rgba(240, 144, 26, 0.06); } }
+
+/* ── The whiteboard ── */
+.board { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 40px 70px; }
+.drawing { width: 100%; height: auto; max-height: 100%; overflow: visible; }
+.stroke { fill: none; stroke: #1e1e1e; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.fill { opacity: 0; }
+.hand { font-family: "Excalifont", "Bradley Hand", "Chalkboard SE", cursive; fill: #1e1e1e; opacity: 0; }
+.drawing [data-ai] .stroke { stroke: #1e1e1e; }
+.boardMark { opacity: 0; }
+.markBg { fill: #fff1de; }
+.markText { font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; font-weight: 650; fill: #a85700; }
+
+/* Drawn in order when its step comes up; the AI's part after the moment. */
+.drawing[data-on] g:not([data-ai]) > .stroke, .drawing[data-moment] g[data-ai] > .stroke { stroke-dashoffset: 0; transition: stroke-dashoffset 0.5s cubic-bezier(0.45, 0.1, 0.3, 1) calc(0.25s + var(--d) * 0.16s); }
+.drawing[data-on] g:not([data-ai]) > .fill, .drawing[data-on] g:not([data-ai]) > .hand,
+.drawing[data-moment] g[data-ai] > .fill, .drawing[data-moment] g[data-ai] > .hand, .drawing[data-moment] .boardMark { opacity: 1; transition: opacity 0.35s ease-out calc(0.55s + var(--d) * 0.16s); }
+
+.boardTools { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 16px; background: #fff;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 6px 18px -6px rgba(0, 0, 0, 0.16); color: #3b3632; }
+.boardTools > span { width: 34px; height: 32px; display: grid; place-items: center; border-radius: 9px; }
+.boardTools > span:nth-child(-n+2) { color: #b9b3ac; }
+.boardTools > span[data-on] { background: #f0ede9; }
+.boardTools .aa { font-size: 15px; }
+.gap { width: 14px; }
+.zoom { position: absolute; right: 22px; bottom: 26px; font-size: 12px; color: var(--sub); }
+
+/* ── The app ── */
+.app { position: absolute; inset: 0; display: grid; grid-template-columns: 178px minmax(0, 1fr); background: #fffdfb; border-top: 0.5px solid rgba(0, 0, 0, 0.06); }
+.app[data-phone] { grid-template-columns: minmax(0, 1fr); background: #fff; border: 0; }
+.appNav { display: grid; align-content: start; gap: 4px; padding: 18px 10px; background: #f4f1ee; }
+.appNav b { font-size: 15px; margin: 0 8px 12px; }
+.appNav span { font-size: 13.5px; padding: 7px 10px; border-radius: 8px; color: #6b5a48; }
+.appNav span[data-on] { background: #efe2d6; color: var(--ink); font-weight: 600; }
+.appMain { padding: 18px 30px 0; min-width: 0; }
+.appDate { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #74604c; }
+.appTitle { margin: 2px 0 16px; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: #2a1d10; }
+.appCols { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.app[data-phone] .appCols { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.appCard { background: #f4f1ee; border-radius: 14px; padding: 14px 16px; }
+.appCard[data-row] { display: flex; align-items: center; gap: 16px; }
+.appCard[data-row] div { display: grid; gap: 1px; }
+.appCard small { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #74604c; }
+.appCard b { font-size: 21px; font-weight: 800; color: #2a1d10; }
+.appCard span { font-size: 13.5px; color: #6b5a48; }
+.ring circle:last-of-type { transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.appHead { margin: 16px 4px 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #74604c; }
+.appCols > div:last-child > .appHead { margin-top: 0; }
+.app[data-phone] .appCols > div:last-child > .appHead { margin-top: 16px; }
+.week { display: grid; grid-template-columns: minmax(0, 1fr) repeat(7, 15px); gap: 9px 6px; align-items: center; font-size: 13.5px; color: #2a1d10; }
+.week b { font-size: 10.5px; color: #74604c; text-align: center; }
+.week b[data-today] { color: #c0660f; }
+.week i { width: 15px; height: 15px; border-radius: 50%; background: #ebe5df; transition: background-color 0.4s; }
+.week i[data-d] { background: var(--orange); }
+.week i[data-p] { background: #fbe9d8; box-shadow: inset 0 0 0 1.2px var(--orange); }
+.habits { background: #f4f1ee; border-radius: 14px; overflow: hidden; }
+.habit { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px 12px 16px; box-shadow: 0 0.5px 0 rgba(80, 45, 10, 0.1); transition: background-color 0.6s; }
+.habit > div { display: grid; gap: 2px; min-width: 0; }
+.habit b { display: inline-flex; align-items: center; gap: 4px; font-size: 15.5px; font-weight: 700; color: #2a1d10; }
+.habit b svg { color: #6b5a48; }
+.habit > div > span { font-size: 12.5px; color: #6b5a48; }
+.habit > div > span em { font-style: normal; color: #b05a00; }
+.habit .habitMark { color: #a85700; font-size: 12px; justify-self: start; margin: 4px 0 0; max-height: 0; opacity: 0; padding-block: 0; overflow: hidden; transition: max-height 0.35s, opacity 0.3s 0.1s, padding 0.35s; }
+.habit[data-in] { background: rgba(240, 144, 26, 0.1); }
+.habit[data-in] .habitMark { max-height: 24px; opacity: 1; padding-block: 2px; }
+.check { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: transparent; box-shadow: inset 0 0 0 1.6px #a08f7e;
+  transition: background-color 0.3s, color 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.check[data-done] { background: var(--orange); color: #fff; box-shadow: none; }
+.habit[data-in] .check { animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes pop { 40% { transform: scale(1.12); } }
+.counter { flex: none; display: inline-flex; gap: 8px; }
+.counter i { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 20px; background: #e9e4de; color: #2a1d10; }
+.counter i[data-plus] { background: #fff; box-shadow: inset 0 0 0 2.4px var(--orange); color: var(--orange); }
+
+/* ── The iPhone ── */
+.phone { width: 393px; height: 852px; padding: 11px; box-sizing: content-box; border-radius: 66px; background: #1c1a19;
+  box-shadow: inset 0 0 0 1.5px #3b3735, 0 0 0 0.5px rgba(40, 20, 0, 0.3), 0 40px 80px -30px rgba(60, 30, 5, 0.45); }
+.screen { position: relative; width: 393px; height: 852px; border-radius: 55px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.status { height: 54px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 34px 0 46px; font-size: 16px; position: relative; }
+.island { position: absolute; left: 50%; top: 11px; width: 124px; height: 36px; margin-left: -62px; border-radius: 20px; background: #000; }
+.bars { display: inline-flex; align-items: flex-end; gap: 2px; }
+.bars i { width: 3.4px; background: var(--ink); border-radius: 1px; }
+.bars i:nth-child(1) { height: 4px; } .bars i:nth-child(2) { height: 6px; } .bars i:nth-child(3) { height: 8px; } .bars i:nth-child(4) { height: 10px; }
+.bars em { width: 24px; height: 11px; margin-left: 7px; border-radius: 3.5px; background: var(--ink); }
+.phoneTop { flex: none; display: flex; justify-content: space-between; padding: 6px 18px 0; }
+.round { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: var(--ink); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 4px 14px -4px rgba(0, 0, 0, 0.16); }
+.phoneBody { position: relative; flex: 1; }
+.phoneBody .pane { inset: 0; }
+.phone .note { padding: 18px 24px 0; }
+.phone .noteTitle { font-size: 32px; margin-bottom: 12px; }
+.phone .noteSay, .phone .checks li { font-size: 17px; }
+.phone .checks li { min-height: 38px; }
+.phone .checks li > i { width: 22px; height: 22px; }
+.phone .board { padding: 10px 14px 20px; }
+.phone .appMain { padding: 14px 20px 0; }
+.phone .appTitle { font-size: 32px; margin-bottom: 14px; }
+.phone .habit { padding: 13px 14px 13px 16px; }
+.phone .habit b { font-size: 17px; }
+.phone .habit > div > span { font-size: 13.5px; }
+.phone .check { width: 44px; height: 44px; }
+.phoneBar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 18px 26px 30px; background: linear-gradient(rgba(255, 255, 255, 0), #fff 30%); }
+.searchPill, .createPill { display: flex; align-items: center; height: 56px; border-radius: 30px; background: #fffdfa; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 8px 22px -8px rgba(60, 30, 5, 0.22); }
+.searchPill { flex: 1; gap: 10px; padding: 0 20px; font-size: 18px; color: #8a8279; }
+.searchPill svg { color: var(--ink); }
+.createPill { gap: 2px; padding: 0 6px; }
+.createPill .tool { width: 50px; height: 46px; border-radius: 23px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pane, .pane[data-on] { transition: opacity 0.2s, visibility 0s; transform: none; filter: none; }
+}
+/* Still (?t=, Reduce Motion): everything at rest, at its end state. */
+:global([data-still]) .mac *, :global([data-still]) .phone * { transition: none !important; animation: none !important; }
