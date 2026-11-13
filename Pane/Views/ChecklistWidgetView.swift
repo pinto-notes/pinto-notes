@@ -17,17 +17,24 @@ enum ChecklistWidgetContent: Equatable, Sendable {
     case noLists
     /// The note picked for this widget is locked or deleted.
     case gone
-    /// Privacy mode is on in the app: nothing of the note shows (PrivacyMode).
+    /// Privacy mode is on in the app and this is a note's lines, its preview (PrivacyMode).
     case hidden
 
     /// The widget's kind; the app redraws it by this (ModelContext.checklistWidgetKind).
     static let kind = "ChecklistWidget"
 
     /// The picked note: as a checklist when it has one, else its lines. With none picked, a
-    /// pinned checklist or the newest, else the newest note.
+    /// pinned checklist or the newest, else the newest note. While privacy mode is on (`hidden`)
+    /// a note's lines are its preview, so they're Hidden; a checklist stays, since you tick it here.
     static func resolve(picked: UUID?, title: String? = nil, lists: [ChecklistShelf.List],
                         previews: [ChecklistShelf.Preview] = [], recents: [ChecklistShelf.Recent] = [], hidden: Bool = false) -> Self {
-        if hidden { return .hidden }
+        let content = shown(picked: picked, lists: lists, previews: previews, recents: recents)
+        if hidden, case .note = content { return .hidden }
+        return content
+    }
+
+    private static func shown(picked: UUID?, lists: [ChecklistShelf.List], previews: [ChecklistShelf.Preview],
+                              recents: [ChecklistShelf.Recent]) -> Self {
         if let picked {
             if let l = lists.first(where: { $0.id == picked }) { return .list(l) }
             if let n = previews.first(where: { $0.id == picked }) { return .note(n) }

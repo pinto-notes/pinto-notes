@@ -167,7 +167,7 @@ struct MenuBarPanel: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16))
                 .foregroundStyle(.green)
-            Text(MenuBarList.savedLine(title, hidden: privacy.isOn))
+            Text("Saved \u{201C}\(title)\u{201D}")
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 0)
@@ -204,7 +204,6 @@ struct MenuBarPanel: View {
                         Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.secondary)
                     }
                     Text(note.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                        .privacyBlur()
                 }
                 Text(MenuBarList.previewLine(note.preview, hidden: privacy.isOn))
                     .font(.system(size: 12))

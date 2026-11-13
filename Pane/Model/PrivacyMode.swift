@@ -5,8 +5,10 @@ import UIKit
 import WidgetKit
 #endif
 
-// Privacy mode (Emil, 13 November 2026): your notes blurred on screen, so a shared screen, a
-// recording or someone beside you doesn't read them. The line you're writing on stays clear. It
+// Privacy mode (Emil, 13 November 2026): the previews under each title in the note list hidden,
+// so a shared screen, a recording or someone beside you doesn't read every note at a glance.
+// Titles and the note you have open stay as they are: you have to be able to work (Emil, the
+// same day, after an earlier build blurred the editor too). It
 // turns itself on when your screen is shared, after asking (the cover, PrivacyCover), and off
 // again when the sharing stops; turned on by hand, it stays on until you turn it off.
 
@@ -36,8 +38,8 @@ final class PrivacyMode {
         var title: String {
             switch self {
             case .ask: "Ask"
-            case .hide: "Hide notes"
-            case .nothing: "Show notes"
+            case .hide: "Hide previews"
+            case .nothing: "Show previews"
             }
         }
     }
@@ -59,7 +61,7 @@ final class PrivacyMode {
     private(set) var sharing = false
     /// The frosted notice over the window, asking.
     private(set) var asking = false
-    /// "Show notes" was chosen for this sharing session: not asked again until it stops.
+    /// "Show previews" was chosen for this sharing session: not asked again until it stops.
     private var declined = false
     private var detector: ScreenShareDetector?
 
@@ -67,11 +69,11 @@ final class PrivacyMode {
         didSet { store.set(whenShared.rawValue, forKey: Self.whenSharedKey) }
     }
 
-    /// Notes are hidden: blurred titles and text, Hidden in the widget and the menu bar.
+    /// Previews are hidden: in the list, the sidebar's cards, search, the menu bar and the widget.
     var isOn: Bool { source != nil || asking }
     var isManual: Bool { source == .manual }
 
-    /// Told each time `isOn` changes (the iPhone's widget and control, the editor).
+    /// Told each time `isOn` changes (the iPhone's widget and control).
     var changed: @MainActor (Bool) -> Void = { _ in }
 
     init(store: UserDefaults) {

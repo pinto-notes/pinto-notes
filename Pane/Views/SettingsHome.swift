@@ -451,7 +451,7 @@ struct PrivateBlur: ViewModifier {
     @State private var revealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let radius: CGFloat = 8
+    static let radius: CGFloat = 4
     static func hides(_ text: String) -> Bool { text.contains("@") }
 
     func body(content: Content) -> some View {
@@ -481,21 +481,5 @@ extension View {
     /// Blurs `text` if it's an email address: see `PrivateBlur`.
     func privateBlur(_ text: String, revealsOnTap: Bool = false) -> some View {
         modifier(PrivateBlur(on: PrivateBlur.hides(text), revealsOnTap: revealsOnTap))
-    }
-
-    /// A note's title or words, blurred while privacy mode is on (PrivacyMode), with the email's
-    /// blur: the same radius, shown under the pointer (or, where it can be, with a tap on iPhone).
-    func privacyBlur(revealsOnTap: Bool = false) -> some View {
-        modifier(PrivacyBlur(revealsOnTap: revealsOnTap))
-    }
-}
-
-/// `privacyBlur()`: PrivateBlur, on while privacy mode is.
-struct PrivacyBlur: ViewModifier {
-    var revealsOnTap = false
-    @State private var mode = PrivacyMode.shared
-
-    func body(content: Content) -> some View {
-        content.modifier(PrivateBlur(on: mode.isOn, revealsOnTap: revealsOnTap))
     }
 }

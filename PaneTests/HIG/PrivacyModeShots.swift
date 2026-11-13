@@ -8,8 +8,8 @@ import UIKit
 import AppKit
 #endif
 
-/// Privacy mode's pictures: the editor (the caret's line clear), the list (titles blurred, no
-/// previews) and the cover, light and dark, offscreen. Runs only when AMBER_HIG_SHOTS is set. Mac:
+/// Privacy mode's pictures, all with it on: the editor (sharp, as always), the list (titles, no
+/// previews), the cover, the eye, Settings and the widget, light and dark, offscreen. Runs only when AMBER_HIG_SHOTS is set. Mac:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/PrivacyModeShots`; iPhone:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=…'
 /// -only-testing:PaneTests/PrivacyModeShots CODE_SIGNING_ALLOWED=NO`.
@@ -70,7 +70,7 @@ import AppKit
         let mode = dark ? "dark" : "light"
         Self.on()
         defer { PrivacyModeInteractionReset.reset() }
-        // The editor, the caret on the boat line.
+        // The editor, with privacy mode on: nothing of it blurred.
         let h = await EditorHarness(Self.note, width: 720, height: 420, dark: dark)
         defer { h.close() }
         await h.caret(after: "Book the boat")
@@ -86,7 +86,7 @@ import AppKit
         try Self.render(Self.rows(notes).modelContainer(c).frame(width: 320, height: 300), dark: dark, to: dir.appending(path: "mac-list-\(mode).png"))
         let behind = HStack(spacing: 0) {
             Self.rows(notes).frame(width: 300)
-            Text(Self.note).privacyBlur().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(24).background(Color.notePage)
+            Text(Self.note).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).padding(24).background(Color.notePage)
         }
         try Self.render(behind.overlay { PrivacyCoverView(mode: Self.asking()) }.modelContainer(c).frame(width: 900, height: 560),
                         dark: dark, to: dir.appending(path: "mac-cover-\(mode).png"))
@@ -137,7 +137,7 @@ import AppKit
         let (c, notes) = try Self.library()
         for dark in [false, true] {
             let mode = dark ? "dark" : "light"
-            // The editor, the caret on the boat line.
+            // The editor, with privacy mode on: nothing of it blurred.
             let host = UIViewController()
             host.view.backgroundColor = Palette.page
             let text = PaneTextView(frame: CGRect(x: 0, y: 60, width: 402, height: 814))

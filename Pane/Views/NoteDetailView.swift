@@ -2460,7 +2460,6 @@ struct NoteBreadcrumbs: View {
                     .padding(.horizontal, ButtonSize.compact.padding * 0.75)
                     // Room kept for it all the time now, so a long title can't crowd out Share and •••.
                     .frame(maxWidth: Self.titleWidth, alignment: .leading)
-                    .privacyBlur()
             }
             .opacity(titled ? 1 : 0)
             .accessibilityHidden(!titled)

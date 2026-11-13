@@ -2093,7 +2093,7 @@ struct NoteRow: View {
         // The room before the title: a lock, the unseen AI dot, shared or a pin, one at a time.
         let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
         let app = NoteAppMark.has(note)
-        // Privacy mode: the title blurred, nothing of the text (PrivacyMode).
+        // Privacy mode: the title, nothing of the text (PrivacyMode).
         let hidden = PrivacyMode.shared.isOn
         let picture = hidden ? nil : Self.picture(of: note)
         let found = hidden ? nil : self.found
@@ -2105,7 +2105,6 @@ struct NoteRow: View {
                         .tracking(DesignLook.isCandidate ? -0.15 : 0)
                         .foregroundStyle(ink)
                         .lineLimit(large ? 3 : 1)
-                        .privacyBlur()
                     if app {
                         AppMarkView(size: RowMetrics.markSize)
                             .accessibilityIdentifier("note.app")

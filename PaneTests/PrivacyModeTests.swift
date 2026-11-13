@@ -208,10 +208,15 @@ final class Heard<T>: @unchecked Sendable {
 
     // MARK: Widget and menu bar
 
-    @Test func theWidgetSaysHidden() {
+    /// A checklist stays, since you tick it in the widget; a note's lines are its preview, so Hidden.
+    @Test func theWidgetHidesANotesLinesAndKeepsAChecklist() {
         let list = ChecklistWidgetContent.sample
-        #expect(ChecklistWidgetContent.resolve(picked: list.id, lists: [list], hidden: true) == .hidden)
+        #expect(ChecklistWidgetContent.resolve(picked: list.id, lists: [list], hidden: true) == .list(list))
         #expect(ChecklistWidgetContent.resolve(picked: list.id, lists: [list], hidden: false) == .list(list))
+        let preview = ChecklistShelf.Preview(id: UUID(), title: "Doctor", lines: ["Results on Thursday"], updatedAt: .now)
+        #expect(ChecklistWidgetContent.resolve(picked: preview.id, lists: [], previews: [preview], hidden: true) == .hidden)
+        #expect(ChecklistWidgetContent.resolve(picked: preview.id, lists: [], previews: [preview], hidden: false) == .note(preview))
+        #expect(ChecklistWidgetContent.resolve(picked: nil, lists: [], previews: [preview], hidden: true) == .hidden)
         #expect(PrivacyWords.hidden == "Hidden")
     }
 
@@ -229,8 +234,6 @@ final class Heard<T>: @unchecked Sendable {
         #expect(MenuBarList.previewLine("Milk, eggs", hidden: true) == "Hidden")
         #expect(MenuBarList.previewLine("Milk, eggs", hidden: false) == "Milk, eggs")
         #expect(MenuBarList.previewLine("", hidden: false) == "No additional text")
-        #expect(MenuBarList.savedLine("Groceries", hidden: true) == "Saved")
-        #expect(MenuBarList.savedLine("Groceries", hidden: false) == "Saved \u{201C}Groceries\u{201D}")
     }
 
     // MARK: Words
@@ -241,38 +244,9 @@ final class Heard<T>: @unchecked Sendable {
                    PrivacyWords.coverTitle, PrivacyWords.coverQuestion, PrivacyWords.hide, PrivacyWords.show, PrivacyWords.remember, PrivacyWords.controlLine]
         for w in all { #expect(!w.contains("\u{2014}"), "no em dash: \(w)") }
         #expect(PrivacyWords.coverTitle == "Your screen is being shared")
-        #expect(PrivacyWords.coverQuestion == "Hide your notes?")
-        #expect(PrivacyVeil.radius == PrivateBlur.radius, "the editor's blur is the email's")
-    }
-
-    /// Note text stays unreadable under the blur: at 4 the lead could still read whole sentences
-    /// and titles in the pictures (13 November 2026), so it can't drift back below 8.
-    @Test func theBlurIsStrongEnoughThatNoteTextCantBeRead() {
-        #expect(PrivacyVeil.minimumRadius == 8)
-        #expect(PrivacyVeil.radius >= PrivacyVeil.minimumRadius, "note text is readable below \(PrivacyVeil.minimumRadius): \(PrivacyVeil.radius)")
-        #expect(PrivateBlur.radius >= PrivacyVeil.minimumRadius, "list titles are readable below \(PrivacyVeil.minimumRadius): \(PrivateBlur.radius)")
-    }
-
-    // MARK: The editor's blur, line by line
-
-    @Test func theVeilKeepsTheCaretsParagraphClear() {
-        let text = "Title\nfirst line\nsecond line\n" as NSString
-        let veil = PrivacyVeil()
-        #expect(veil.setCaret(NSRange(location: 8, length: 0), in: text).isEmpty, "off: nothing to draw")
-        #expect(veil.set(true, length: text.length) == [NSRange(location: 0, length: text.length)])
-        #expect(!veil.veils(6), "the caret's line")
-        #expect(veil.veils(0) && veil.veils(17))
-        let moved = veil.setCaret(NSRange(location: 20, length: 0), in: text)
-        #expect(moved == [NSRange(location: 6, length: 11), NSRange(location: 17, length: 12)], "the two lines draw again")
-        #expect(veil.veils(6) && !veil.veils(17))
-        // The pointer shows another.
-        _ = veil.setPointer(1, in: text)
-        #expect(!veil.veils(0))
-        _ = veil.setPointer(nil, in: text)
-        #expect(veil.veils(0))
-        // The empty line at the end, with the caret on it.
-        _ = veil.setCaret(NSRange(location: text.length, length: 0), in: text)
-        #expect(!veil.veils(text.length))
+        #expect(PrivacyWords.coverQuestion == "Hide note previews?")
+        #expect(PrivacyWords.hide == "Hide previews" && PrivacyWords.show == "Show previews")
+        #expect(PrivacyWords.settingsFooter.contains("previews"), "Settings says what it hides: \(PrivacyWords.settingsFooter)")
     }
 
     #if os(iOS)

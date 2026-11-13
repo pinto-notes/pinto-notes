@@ -5,19 +5,12 @@ import SwiftUI
 import Testing
 @testable import Pane
 
-/// Privacy mode in the real editor, list, cover and menu, offscreen (Emil, 13 November 2026).
+/// Privacy mode in the real editor (untouched), list, cover and menu, offscreen (Emil, 13 November 2026).
 @MainActor @Suite(.serialized) struct PrivacyModeInteractionTests {
     /// Every test leaves the app's own privacy mode off, asking, and watching nothing.
     static func reset() { PrivacyModeInteractionReset.reset() }
 
     static let note = "Secret plan\nBuy the ring on Friday\nTell nobody at work\n"
-
-    static func fragment(_ h: EditorHarness, at offset: Int) -> DecoratedLayoutFragment? {
-        guard let tlm = h.view.textLayoutManager, let tcm = tlm.textContentManager,
-              let loc = tcm.location(tcm.documentRange.location, offsetBy: offset) else { return nil }
-        tlm.ensureLayout(for: tcm.documentRange)
-        return tlm.textLayoutFragment(for: loc) as? DecoratedLayoutFragment
-    }
 
     static func offset(_ h: EditorHarness, _ s: String) -> Int { (h.text as NSString).range(of: s).location }
 
@@ -28,84 +21,46 @@ import Testing
         guard let rep = view.bitmapImageRepForCachingDisplay(in: bounds) else { return 1 }
         view.cacheDisplay(in: bounds, to: rep)
         let sx = CGFloat(rep.pixelsWide) / bounds.width, sy = CGFloat(rep.pixelsHigh) / bounds.height
-        var low: CGFloat = 1
         let r = rect.intersection(bounds)
-        var y = r.minY
-        while y < r.maxY {
-            var x = r.minX
-            while x < min(r.maxX, r.minX + 400) {
-                let py = view.isFlipped ? (y - bounds.minY) * sy : (bounds.maxY - y) * sy
-                if let c = rep.colorAt(x: Int((x - bounds.minX) * sx), y: Int(py))?.usingColorSpace(.sRGB) {
-                    // Over the white page: the text view draws no background of its own.
-                    let lum = 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent
-                    low = min(low, 1 - c.alphaComponent * (1 - lum / max(c.alphaComponent, 0.001)))
-                }
-                x += 0.5
+        return darkest(rep, in: CGRect(x: (r.minX - bounds.minX) * sx, y: view.isFlipped ? (r.minY - bounds.minY) * sy : (bounds.maxY - r.maxY) * sy,
+                                       width: min(r.width, 400) * sx, height: r.height * sy))
+    }
+
+    /// The darkest pixel in `rect` (pixels, from the top), composited over white.
+    static func darkest(_ rep: NSBitmapImageRep, in rect: CGRect) -> CGFloat {
+        var low: CGFloat = 1
+        for y in Int(rect.minY)..<min(Int(rect.maxY), rep.pixelsHigh) {
+            for x in Int(rect.minX)..<min(Int(rect.maxX), rep.pixelsWide) {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                let lum = 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent
+                low = min(low, 1 - c.alphaComponent * (1 - lum / max(c.alphaComponent, 0.001)))
             }
-            y += 0.5
         }
         return low
     }
 
-    /// Every line blurred but the caret's; the pointer shows the one it's over; VoiceOver reads all.
-    @Test func theEditorBlursEveryLineButTheCaretsAndThePointers() async throws {
+    /// The note you have open is never blurred: privacy mode only hides previews (Emil, 13
+    /// November 2026: "we can't be hiding the notes that you have open"). Every line draws as
+    /// sharp with it on as with it off, and you can type.
+    @Test func theOpenNoteIsNeverBlurred() async throws {
         Self.reset()
         defer { Self.reset() }
         let h = await EditorHarness(Self.note)
         defer { h.close() }
-        let title = 0, ring = Self.offset(h, "Buy the")
-        var nobody = Self.offset(h, "Tell nobody")
         await h.caret(after: "Buy the")
-        #expect(Self.fragment(h, at: ring)?.veiled == false, "off: nothing blurred")
-        let sharpBefore = Self.darkest(h, in: h.lineRect(at: nobody))
-
+        let lines = ["Secret plan", "Buy the", "Tell nobody"]
+        let off = lines.map { Self.darkest(h, in: h.lineRect(at: Self.offset(h, $0))) }
         PrivacyMode.shared.setManual(true)
-        await h.settle(0.1)
-        #expect(Self.fragment(h, at: ring)?.veiled == false, "the caret's line stays clear, so you can write")
-        #expect(Self.fragment(h, at: title)?.veiled == true)
-        #expect(Self.fragment(h, at: nobody)?.veiled == true)
-        // Drawn blurred: the line's darkest pixel is far lighter than the text's ink.
-        let blurred = Self.darkest(h, in: h.lineRect(at: nobody))
-        let caretLine = Self.darkest(h, in: h.lineRect(at: ring))
-        #expect(sharpBefore < 0.35, "sharp text has dark ink: \(sharpBefore)")
-        #expect(caretLine < 0.35, "the caret's line drawn sharp: \(caretLine)")
-        print("privacy-blur: darkest pixel sharp \(sharpBefore), caret line \(caretLine), blurred \(blurred)")
-        #expect(blurred > sharpBefore + 0.25, "blurred: \(blurred) against \(sharpBefore)")
-
-        // Typing still lands on the clear line.
+        await h.settle(0.2)
+        let on = lines.map { Self.darkest(h, in: h.lineRect(at: Self.offset(h, $0))) }
+        print("privacy-editor: darkest pixel per line off \(off), on \(on)")
+        for (i, line) in lines.enumerated() {
+            #expect(off[i] < 0.35 && on[i] < 0.35, "\(line) drawn sharp: off \(off[i]), on \(on[i])")
+            #expect(abs(off[i] - on[i]) < 0.02, "\(line) looks the same with privacy mode on: off \(off[i]), on \(on[i])")
+        }
         await h.type(" evening")
         #expect(h.text.contains("Buy the evening ring"))
-        #expect(Self.fragment(h, at: ring)?.veiled == false)
-        nobody = Self.offset(h, "Tell nobody")
-        #expect(Self.fragment(h, at: nobody)?.veiled == true)
-
-        // The pointer over the last line shows it, while it's there.
-        let rect = h.lineRect(at: nobody)
-        let inWindow = h.view.convert(CGPoint(x: rect.minX + 30, y: rect.midY), to: nil)
-        let moved = try #require(NSEvent.mouseEvent(with: .mouseMoved, location: inWindow, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                    windowNumber: h.window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0))
-        h.view.mouseMoved(with: moved)
-        await h.settle()
-        #expect(Self.fragment(h, at: nobody)?.veiled == false, "under the pointer it reads")
-        #expect(Self.fragment(h, at: title)?.veiled == true)
-        let exited = try #require(NSEvent.enterExitEvent(with: .mouseExited, location: inWindow, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                                                         windowNumber: h.window.windowNumber, context: nil, eventNumber: 0, trackingNumber: 0, userData: nil))
-        h.view.mouseExited(with: exited)
-        await h.settle()
-        #expect(Self.fragment(h, at: nobody)?.veiled == true, "the pointer gone, it blurs again")
-
-        // The caret moves: its new line clears, the old one blurs.
-        await h.caret(after: "Secret")
-        #expect(Self.fragment(h, at: title)?.veiled == false)
-        #expect(Self.fragment(h, at: ring)?.veiled == true)
-
-        // VoiceOver reads the whole note: the text itself is untouched.
-        let spoken = h.view.accessibilityValue() as? String ?? h.view.string
-        #expect(spoken.contains("Tell nobody at work") && spoken.contains("Secret plan"))
-
-        PrivacyMode.shared.setManual(false)
-        await h.settle(0.1)
-        #expect(Self.fragment(h, at: nobody)?.veiled == false, "off: every line clear")
+        #expect(Self.darkest(h, in: h.lineRect(at: Self.offset(h, "Tell nobody"))) < 0.35)
     }
 
     static func library() throws -> (ModelContainer, Note) {
@@ -115,8 +70,8 @@ import Testing
         return (c, note)
     }
 
-    /// In the list a note's title is blurred (VoiceOver still names it) and its preview is gone.
-    @Test func theListBlursTitlesAndDropsPreviews() async throws {
+    /// In the list the title shows as always (sharp, and VoiceOver names it); the preview is gone.
+    @Test func theListShowsTitlesAndHidesPreviews() async throws {
         Self.reset()
         defer { Self.reset() }
         let (c, note) = try Self.library()
@@ -125,22 +80,35 @@ import Testing
         await ax.settle()
         let row = try #require(ax.find("note.Salary talk"))
         #expect(row.text.contains("Ask for the raise"), "off: the preview shows: \(row.text)")
+        let titleOff = try Self.titleInk(note, c)
         PrivacyMode.shared.setManual(true)
         await ax.settle()
         let hidden = try #require(ax.find("note.Salary talk"))
         #expect(!hidden.text.contains("Ask for the raise"), "on: no preview: \(hidden.text)")
-        #expect(hidden.text.contains("Salary talk"), "VoiceOver still hears the title")
-        #expect(try SettingsHomeTests.source("Pane/Views/NoteListView.swift").contains(".lineLimit(large ? 3 : 1)\n                        .privacyBlur()"), "the row's title is blurred")
-        // The folder's hover card, AI Changes and the sidebar's AI line blur titles too.
-        for (file, call) in [("Pane/Views/SidebarView.swift", ".lineLimit(2).privacyBlur()"), ("Pane/Views/AIChangesView.swift", ".privacyBlur()"),
-                             ("Pane/Views/SidebarAILine.swift", ".privacyBlur()"), ("Pane/Views/MenuBarPanel.swift", ".privacyBlur()"),
-                             ("Pane/Views/AIChangesView.swift", "veiled: PrivacyMode.shared.isOn")] {
-            #expect(try SettingsHomeTests.source(file).contains(call), "\(file) shows note words unblurred")
+        #expect(hidden.text.contains("Salary talk"), "VoiceOver hears the title")
+        let titleOn = try Self.titleInk(note, c)
+        print("privacy-list: title's darkest pixel off \(titleOff), on \(titleOn)")
+        #expect(titleOn < 0.35 && abs(titleOn - titleOff) < 0.02, "the title is drawn sharp: off \(titleOff), on \(titleOn)")
+        // Nothing blurs a title or a note's words any more (the earlier build's modifier is gone).
+        for file in ["Pane/Views/NoteListView.swift", "Pane/Views/SidebarView.swift", "Pane/Views/MenuBarPanel.swift", "Pane/Views/NoteDetailView.swift",
+                     "Pane/Views/AIChangesView.swift", "Pane/Views/SidebarAILine.swift", "Pane/Views/NoteWindow.swift", "Pane/Editor/MarkdownEditor.swift"] {
+            let source = try SettingsHomeTests.source(file)
+            #expect(!source.contains("privacyBlur") && !source.contains("veil"), "\(file) blurs note words")
         }
+        // The folder's hover card drops its preview too.
+        #expect(try SettingsHomeTests.source("Pane/Views/SidebarView.swift").contains("!PrivacyMode.shared.isOn, note.preview != NoteText.noPreview"))
     }
 
-    /// The (fake) detector says sharing started: the cover is up, and the notes are hidden while it is.
-    /// Remember this with Hide notes keeps the choice.
+    /// The darkest pixel of the row's title line (its top third), rendered as the list draws it.
+    static func titleInk(_ note: Note, _ c: ModelContainer) throws -> CGFloat {
+        let r = ImageRenderer(content: NoteRow(note: note).modelContainer(c).frame(width: 320).environment(\.colorScheme, .light))
+        r.scale = 2
+        let rep = NSBitmapImageRep(cgImage: try #require(r.cgImage))
+        return darkest(rep, in: CGRect(x: 0, y: 0, width: rep.pixelsWide, height: rep.pixelsHigh / 2))
+    }
+
+    /// The (fake) detector says sharing started: the cover is up, and previews are hidden while it is.
+    /// Remember this with Hide previews keeps the choice.
     @Test func theCoverAppearsAndRemembers() async throws {
         Self.reset()
         defer { Self.reset() }
@@ -154,16 +122,18 @@ import Testing
         fake.say(true)
         await ax.settle(800)
         #expect(ax.find("privacy.cover") != nil, "the cover is up: \(ax.ids())")
-        #expect(PrivacyMode.shared.isOn, "the notes are hidden while it asks")
+        #expect(PrivacyMode.shared.isOn, "previews are hidden while it asks")
         let words = ax.ids()
         #expect(words.contains("privacy.hide") && words.contains("privacy.show") && words.contains("privacy.remember"))
         try #require(ax.find("privacy.remember")).press()
         await ax.settle()
-        try #require(ax.find("privacy.hide")).press()
+        // The box redraws the card; its buttons come back in the tree a moment later on a busy run.
+        for _ in 0..<20 where ax.find("privacy.hide") == nil { await ax.settle() }
+        try #require(ax.find("privacy.hide"), "Hide previews after Remember this: \(ax.ids())").press()
         await ax.settle(800)
-        #expect(ax.find("privacy.cover") == nil, "gone after Hide notes")
+        #expect(ax.find("privacy.cover") == nil, "gone after Hide previews")
         #expect(PrivacyMode.shared.isOn && PrivacyMode.shared.source == .automatic)
-        #expect(PrivacyMode.shared.whenShared == .hide, "Remember this kept Hide notes")
+        #expect(PrivacyMode.shared.whenShared == .hide, "Remember this kept Hide previews")
         fake.say(false)
         #expect(!PrivacyMode.shared.isOn, "sharing stopped: off again")
     }
@@ -190,7 +160,7 @@ import Testing
     /// Settings › Privacy has privacy mode and what happens when your screen is shared.
     @Test func settingsPrivacyHasIt() throws {
         #expect(try SettingsHomeTests.source("Pane/Views/PrivacySecurity.swift").contains("PrivacyModeSection()"))
-        #expect(PrivacyMode.WhenShared.allCases.map(\.title) == ["Ask", "Hide notes", "Show notes"])
+        #expect(PrivacyMode.WhenShared.allCases.map(\.title) == ["Ask", "Hide previews", "Show previews"])
     }
 }
 #endif

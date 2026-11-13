@@ -85,41 +85,6 @@ final class EditorCore {
     /// Called after a restyle, so the view can place live views.
     var onCardsChanged: () -> Void = {}
 
-    // MARK: Privacy mode
-
-    /// The lines privacy mode blurs (PrivacyVeil).
-    var veil: PrivacyVeil { layoutDelegate.veil }
-    private var veilWatcher: VeilWatcher?
-
-    /// Follows privacy mode in this editor: every line blurs or clears as it turns on or off.
-    /// `length` is the text's; `changed` hears each turn (iPhone: the touch that shows a line).
-    func followPrivacy(length: @escaping @MainActor () -> Int, changed: @escaping @MainActor (Bool) -> Void = { _ in }) {
-        let apply: @MainActor () -> Void = { [weak self] in
-            guard let self else { return }
-            let on = PrivacyMode.shared.isOn
-            self.redrawVeil(self.veil.set(on, length: length()))
-            changed(on)
-        }
-        apply()
-        let watcher = VeilWatcher(apply)
-        NotificationCenter.default.addObserver(watcher, selector: #selector(VeilWatcher.fire), name: PrivacyMode.didChange, object: nil)
-        veilWatcher = watcher
-    }
-
-    /// Draws these lines again (the same way an AI's tint does).
-    func redrawVeil(_ ranges: [NSRange]) {
-        guard !ranges.isEmpty else { return }
-        layoutDelegate.tint.redraw(ranges)
-    }
-
-    /// The paragraph under `point` (text container coordinates), as an offset; nil over none.
-    static func paragraphOffset(at point: CGPoint?, layout: NSTextLayoutManager?) -> Int? {
-        guard let point, let tlm = layout, let tcm = tlm.textContentManager,
-              let f = tlm.textLayoutFragment(for: point), f.layoutFragmentFrame.insetBy(dx: 0, dy: -1).contains(CGPoint(x: f.layoutFragmentFrame.midX, y: point.y)),
-              let start = f.textElement?.elementRange?.location else { return nil }
-        return tcm.offset(from: tcm.documentRange.location, to: start)
-    }
-
     /// An empty 2×2 table after the caret's line; returns the edit and the table's index.
     func newGridEdit(text: String, selection: NSRange) -> (TextEdit, Int) {
         let ns = text as NSString
@@ -227,8 +192,7 @@ final class EditorCore {
                 #endif
                 target.apply(edit)
             }
-            // Privacy mode blurs a table as it does the text; the pointer shows it.
-            out.append(("g\(g.index)", f, AnyView(view.privacyBlur()), .grid(g, request: request, selected: isSelected)))
+            out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
         for e in embeds where !folds.isHidden(e.range.location) {
             // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
@@ -264,7 +228,7 @@ final class EditorCore {
             default: break
             }
             #endif
-            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite).privacyBlur()),
+            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)),
                         .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
         }
         return out
@@ -986,18 +950,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: nil, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         observeChangeHighlight()
-        if veilPress == nil {
-            let press = UILongPressGestureRecognizer(target: self, action: #selector(veilTouched(_:)))
-            press.minimumPressDuration = 0
-            press.cancelsTouchesInView = false
-            press.delaysTouchesBegan = false
-            press.delaysTouchesEnded = false
-            press.delegate = self
-            press.isEnabled = false
-            addGestureRecognizer(press)
-            veilPress = press
-        }
-        core.followPrivacy(length: { [weak self] in (self?.text as NSString?)?.length ?? 0 }) { [weak self] on in self?.veilPress?.isEnabled = on }
         core.watchDays { [weak self] in
             guard let self else { return }
             self.core.dayChanged(storage: self.textStorage, selection: self.editingSelection)
@@ -1784,8 +1736,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     /// The last body we reported or received, to tell outside edits from our own.
-    /// Privacy mode: a line under your finger shows while you touch it.
-    private var veilPress: UILongPressGestureRecognizer?
     var lastReported = ""
     /// Hashes of recent texts we reported, not yet all written to the note.
     private var reported: [Int] = []
@@ -2017,7 +1967,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     func textViewDidChangeSelection(_ textView: UITextView) {
         guard markedTextRange == nil else { return }
-        core.redrawVeil(core.veil.setCaret(selectedRange, in: text as NSString))
         revealFolds()
         if core.disarm(unless: selectedRange) { layoutCards() }
         if isFirstResponder, let fix = core.caretFix(text, selectedRange, byKeyboard: false) {
@@ -2166,18 +2115,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
             if g.range.location > 0 { selectedRange = NSRange(location: g.range.location - 1, length: 0) }
             else { apply(TextEdit(range: NSRange(location: 0, length: 0), replacement: "\n", caret: 0)) }
         }
-    }
-
-    // MARK: Privacy mode
-
-    /// The line under your finger shows while you touch it, and blurs again when you let go.
-    @objc private func veilTouched(_ g: UILongPressGestureRecognizer) {
-        var point: CGPoint?
-        if g.state == .began || g.state == .changed {
-            let p = g.location(in: self)
-            point = CGPoint(x: p.x - textContainerInset.left, y: p.y - textContainerInset.top)
-        }
-        core.redrawVeil(core.veil.setPointer(EditorCore.paragraphOffset(at: point, layout: textLayoutManager), in: text as NSString))
     }
 
     // MARK: Checkbox taps
@@ -2713,7 +2650,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         remember(text)
         core.observe(textStorage!)
         observeChangeHighlight()
-        core.followPrivacy(length: { [weak self] in (self?.string as NSString?)?.length ?? 0 })
         core.watchDays { [weak self] in
             guard let self, let storage = self.textStorage else { return }
             self.core.dayChanged(storage: storage, selection: self.editingSelection)
@@ -3678,7 +3614,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func textViewDidChangeSelection(_ notification: Notification) {
         guard !hasMarkedText(), let storage = textStorage else { return }
-        core.redrawVeil(core.veil.setCaret(selectedRange(), in: string as NSString))
         revealFolds()
         let disarmed = core.disarm(unless: selectedRange())
         // A picture or a file the selection takes in shows selected (or no longer does).
@@ -4247,13 +4182,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         cardHosts.first { $0.value.frame.contains(p) }?.key
     }
 
-    // MARK: Privacy mode
-
-    /// The line under the pointer shows (privacy mode); nil, it blurs again.
-    func veilPointer(_ point: CGPoint?) {
-        core.redrawVeil(core.veil.setPointer(EditorCore.paragraphOffset(at: point, layout: textLayoutManager), in: string as NSString))
-    }
-
     override func cursorUpdate(with event: NSEvent) {
         if card(at: convert(event.locationInWindow, from: nil)) != nil { return }
         super.cursorUpdate(with: event)
@@ -4262,7 +4190,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     /// Over a checkbox the pointer is an arrow, not the text I-beam, like Notes.
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        if core.veil.on { veilPointer(card(at: p) == nil ? CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y) : nil) }
         // Over someone's caret, their name shows.
         if !caretViews.isEmpty || hoveredCaret != nil { hoverCaret(at: p) }
         if card(at: p) != nil { return }

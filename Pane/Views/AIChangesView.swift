@@ -91,15 +91,13 @@ struct AIChangeRow: View {
             VersionAuthorMark(author: .ai(change.ai), size: markSize)
                 .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
             VStack(alignment: .leading, spacing: 2) {
-                // Privacy mode blurs the note and what changed in it, as in the list.
-                Text(model.title(change)).font(titleFont).lineLimit(1).privacyBlur()
+                Text(model.title(change)).font(titleFont).lineLimit(1)
                 // What it did, readable before you pick it (council round 3, 11-04: one 11 pt
                 // line with the AI and the time cut it off); who and when under it, small.
                 // Cut in the middle, so "and 2 more" stays when a long name fills the two lines
                 // (council round 11).
                 Text(model.summary(change)).font(summaryFont).lineLimit(2).truncationMode(.middle)
                     .fixedSize(horizontal: false, vertical: true)
-                    .privacyBlur()
                 Text(line).font(lineFont).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
             }
         }
@@ -141,7 +139,7 @@ struct AIChangeDetail: View {
                         AIChangeKey(added: !diff.added.isEmpty, removed: !diff.removed.isEmpty)
                             .padding(.horizontal, 20).padding(.top, 10)
                     }
-                    VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed, veiled: PrivacyMode.shared.isOn)
+                    VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
                         .accessibilityIdentifier("aiChanges.diff")
                 }
             } else if let failed = model.detailFailed {

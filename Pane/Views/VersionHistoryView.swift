@@ -326,10 +326,10 @@ struct VersionPreview: View {
     var body: some View {
         Group {
             if let diff = model.comparison {
-                VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed, veiled: PrivacyMode.shared.isOn)
+                VersionTextView(text: diff.text, changed: diff.added, removed: diff.removed)
                     .accessibilityIdentifier("history.comparison")
             } else if let text = model.previewText {
-                VersionTextView(text: text, changed: model.changed, veiled: PrivacyMode.shared.isOn)
+                VersionTextView(text: text, changed: model.changed)
                     .accessibilityIdentifier("history.preview")
             } else if let failed = model.previewFailed {
                 ContentUnavailableView("Can't show this version", systemImage: "exclamationmark.triangle", description: Text(failed))

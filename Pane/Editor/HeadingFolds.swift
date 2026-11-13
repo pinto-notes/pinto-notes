@@ -622,8 +622,6 @@ extension PaneTextView {
         if core.folds.hovered != nil { changeFolds { $0.hovered = nil } }
         // Another person's caret shows its name only while the pointer is on it.
         hoverCaret(at: nil)
-        // Privacy mode: the line the pointer was over blurs again.
-        if core.veil.pointer != nil { veilPointer(nil) }
     }
 
     override func updateTrackingAreas() {

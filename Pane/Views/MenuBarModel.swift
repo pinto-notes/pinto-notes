@@ -35,11 +35,6 @@ enum MenuBarList {
     static func previewLine(_ preview: String, hidden: Bool) -> String {
         hidden ? PrivacyWords.hidden : preview.isEmpty ? "No additional text" : preview
     }
-
-    /// After a quick note: its title, unless privacy mode is on.
-    static func savedLine(_ title: String, hidden: Bool) -> String {
-        hidden ? "Saved" : "Saved \u{201C}\(title)\u{201D}"
-    }
 }
 
 /// A note typed into the menu bar: the first line is its title, and it goes where new notes go.
