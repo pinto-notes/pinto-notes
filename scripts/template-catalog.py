@@ -10,6 +10,9 @@ web = root / "web"
 out = root / "Pane/Resources/Templates"
 order = re.findall(r'"([a-z0-9-]+)"', re.search(r"export const ORDER = \[(.*?)\];", (web / "lib/templates.ts").read_text(), re.S).group(1))
 grounds = dict(re.findall(r'"([a-z0-9-]+)": \{ ground: "#([0-9a-f]{6})"', (web / "lib/template-covers.ts").read_text()))
+# The words a person might say for each template, with why it fits them, and the ask that carries
+# their words (Search in the templates library): the app's only, never the site's.
+words = json.loads((web / "content/template-words.json").read_text())
 
 catalog = []
 for slug in order:
@@ -25,15 +28,21 @@ for slug in order:
         # More like this: the templates for the same need, nearest first.
         "related": t.get("related", []),
     })
+    catalog[-1].update(words.get(slug, {}))
     # A sub-note the example files, whole (the demo's first), for the viewer to show open beside
     # the note that lists it: a recipe box's index says a recipe is filed, the recipe is what you get.
     opened = next((c["args"]["content"] for c in t.get("demo", []) if c.get("tool") == "create"
                    and c["args"].get("path", "").startswith(f'{t["folder"]}/{t["title"]}/') and c["args"].get("content", "").count("\n") > 4), None)
     if opened:
         catalog[-1]["opened"] = opened
-    if "--check" not in sys.argv:
+    # --json writes the catalog alone, leaving the pictures as they are.
+    if "--check" not in sys.argv and "--json" not in sys.argv:
         subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "80", "-Z", "360",
                         str(web / f"public/templates/covers/{slug}.webp"), "--out", str(out / f"template-cover-{slug}.jpg")],
+                       check=True, capture_output=True)
+        # The cover at 800 px, for the templates library's front page: its wide cards.
+        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82", "-Z", "800",
+                        str(web / f"public/templates/covers/{slug}.webp"), "--out", str(out / f"template-cover-{slug}-large.jpg")],
                        check=True, capture_output=True)
         for look in ("light", "dark") if t.get("app") else ():
             subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82", "-Z", "960",
