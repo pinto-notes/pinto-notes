@@ -75,12 +75,45 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
     }
 
     override var renderingSurfaceBounds: CGRect {
+        let bounds = surface
+        // Blurred, the text spreads a little past its edges.
+        guard veiled else { return bounds }
+        let pad = PrivacyVeil.radius * 3
+        return bounds.insetBy(dx: -pad, dy: -pad)
+    }
+
+    private var surface: CGRect {
         // A heading's chevron sits in the margin (HeadingFolds).
         let base = super.renderingSurfaceBounds.union(foldSurface)
         guard decoration != nil || highlighted || hasDates else { return base }
         let left = -layoutFragmentFrame.minX
         let lead = highlighted ? Self.changeLead : 4
         return base.union(CGRect(x: left - lead, y: -14, width: containerWidth + lead + 4, height: layoutFragmentFrame.height + 28))
+    }
+
+    // MARK: Privacy mode
+
+    /// Blurred by privacy mode (PrivacyVeil): any line but the caret's and the pointer's.
+    var veiled: Bool {
+        guard let tlm = textLayoutManager, let veil = (tlm.delegate as? DecoratingLayoutDelegate)?.veil, veil.on,
+              let tcm = tlm.textContentManager, let start = textElement?.elementRange?.location else { return false }
+        return veil.veils(tcm.offset(from: tcm.documentRange.location, to: start))
+    }
+
+    /// The last blurred picture of this line, while its look is the same.
+    private var veilCache: (key: String, image: CGImage)?
+
+    override func draw(at point: CGPoint, in context: CGContext) {
+        guard veiled else { drawLine(at: point, in: context); return }
+        var key = "\(textElement.map { ObjectIdentifier($0).hashValue } ?? 0)|\(highlight)"
+        #if os(macOS)
+        key += NSAppearance.currentDrawing().name.rawValue
+        #else
+        key += "\(UITraitCollection.current.userInterfaceStyle.rawValue)"
+        #endif
+        PrivacyVeil.drawBlurred(rect: surface, at: point, in: context, cache: &veilCache, key: key) { bitmap in
+            drawLine(at: .zero, in: bitmap)
+        }
     }
 
     /// Vertical center of the first line's text, for markers.
@@ -240,7 +273,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         }
     }
 
-    override func draw(at point: CGPoint, in context: CGContext) {
+    private func drawLine(at point: CGPoint, in context: CGContext) {
         let strength = highlight
         if strength > 0 {
             // A marker-pen highlight behind the changed words, each line its own rounded run
@@ -455,6 +488,8 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
 final class DecoratingLayoutDelegate: NSObject, NSTextLayoutManagerDelegate {
     /// Lines an AI just changed, for the fragments to tint.
     let tint = ChangeTint()
+    /// Privacy mode: the lines to blur.
+    let veil = PrivacyVeil()
 
     func textLayoutManager(_ textLayoutManager: NSTextLayoutManager, textLayoutFragmentFor location: any NSTextLocation, in textElement: NSTextElement) -> NSTextLayoutFragment {
         DecoratedLayoutFragment(textElement: textElement, range: textElement.elementRange)

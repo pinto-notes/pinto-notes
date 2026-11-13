@@ -18,6 +18,8 @@ struct VersionTextView {
     let text: String
     let changed: [NSRange]
     var removed: [NSRange] = []
+    /// Privacy mode: every line blurred (PrivacyVeil).
+    var veiled = false
 
     #if os(macOS)
     static let removedColor = NSColor.secondaryLabelColor
@@ -50,6 +52,16 @@ struct VersionTextView {
     final class Coordinator {
         let layoutDelegate = DecoratingLayoutDelegate()
         var shown: (String, [NSRange], [NSRange])?
+
+        /// Blurs or clears every line; true when that changed.
+        func veil(_ on: Bool, storage: NSTextStorage) -> Bool {
+            let ranges = layoutDelegate.veil.set(on, length: storage.length)
+            guard !ranges.isEmpty else { return false }
+            storage.beginEditing()
+            storage.edited(.editedAttributes, range: NSRange(location: 0, length: storage.length), changeInLength: 0)
+            storage.endEditing()
+            return true
+        }
     }
 }
 
@@ -111,6 +123,7 @@ extension VersionTextView: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView, let storage = view.textStorage else { return }
+        _ = context.coordinator.veil(veiled, storage: storage)
         if let shown = context.coordinator.shown, shown.0 == text, shown.1 == changed, shown.2 == removed { return }
         context.coordinator.shown = (text, changed, removed)
         view.string = text
@@ -135,6 +148,7 @@ extension VersionTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ view: UITextView, context: Context) {
+        _ = context.coordinator.veil(veiled, storage: view.textStorage)
         if let shown = context.coordinator.shown, shown.0 == text, shown.1 == changed, shown.2 == removed { return }
         context.coordinator.shown = (text, changed, removed)
         view.text = text
