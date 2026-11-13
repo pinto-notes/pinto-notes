@@ -116,9 +116,10 @@ import Testing
         // start where Apple's do (11 and 14.5 pt down); the date line follows 19 pt below them in
         // both, Apple's gap in a row with a folder line. The shipped look (D, DesignLook.calmList)
         // trades the hairlines for air: `calmAir` above and below each row, a folder line a size
-        // smaller (one point less), and a 36 pt heading row for its smaller, quieter heading.
+        // smaller (one point less). Headings are Notes' 40 pt row in every look (the heading back to
+        // Notes' size, 7 November 2026), its hairline on the row's bottom edge (NoteListSeparatorTests).
         let air = RowMetrics.calmAir, calm = DesignLook.calmList
-        let headingRow: CGFloat = calm ? 36 : 40
+        let headingRow: CGFloat = 40
         for (scope, height, titleTop) in [(Scope.all, 68.0 + 2 * air - (calm ? 1 : 0), 8.0 + air), (.folder(ideas.id), 56.0 + 2 * air, 11.0 + air)] {
             let h = await Host(c, scope: scope)
             defer { h.close() }

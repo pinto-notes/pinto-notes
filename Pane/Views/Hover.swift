@@ -83,8 +83,9 @@ extension View {
     /// A list row that takes a light fill under the pointer, in the selection's own place
     /// (`reach`: how far the selection reaches past the row's content). `id` names the row for
     /// captures. `pointer` hears the pointer come onto the row and leave it.
-    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false, pointer: ((Bool) -> Void)? = nil) -> some View {
-        modifier(HoverRow(id: id, reach: reach, selected: selected, pointer: pointer))
+    /// `line`: the row's id in a notes list, whose hover hides the hairlines beside it (RowLine).
+    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false, line: UUID? = nil, pointer: ((Bool) -> Void)? = nil) -> some View {
+        modifier(HoverRow(id: id, reach: reach, selected: selected, line: line, pointer: pointer))
     }
 
     /// A plain button or control with a shape of its own: a light fill under the pointer, behind
@@ -128,10 +129,11 @@ private struct HoverRow: ViewModifier {
     let id: String
     let reach: EdgeInsets
     var selected = false
+    var line: UUID?
     var pointer: ((Bool) -> Void)?
 
     func body(content: Content) -> some View {
-        HoverRowReader(id: id, reach: reach, selected: selected, pointer: pointer) { _ in content }
+        HoverRowReader(id: id, reach: reach, selected: selected, line: line, pointer: pointer) { _ in content }
     }
 }
 
@@ -144,6 +146,8 @@ struct HoverRowReader<Content: View>: View {
     var selected = false
     /// C and D's note rows: the selection is a card a step lighter than the list, with sm corners.
     var card = false
+    /// A notes list row's id: its hover hides the hairlines on either side of its fill (RowLine).
+    var line: UUID?
     var pointer: ((Bool) -> Void)?
     @ViewBuilder let content: (Bool) -> Content
     @State private var hovering = false
@@ -170,6 +174,8 @@ struct HoverRowReader<Content: View>: View {
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
+            .onChange(of: on) { _, now in if let line { RowLineHover.shared.set(line, now) } }
+            .onDisappear { if let line, on { RowLineHover.shared.set(line, false) } }
             #if DEBUG || QA
             .onChange(of: hovering) { HoverProbe.rowChanges += 1 }
             #endif
