@@ -21,7 +21,8 @@ enum AccountName {
 #if os(macOS)
 /// The account at the foot of the sidebar, like the Mac App Store's: your photo (or initials) in a
 /// circle and your name. Clicking it opens Settings at Account (Emil, 6 November 2026: the menu it
-/// used to open said nothing Settings doesn't). It never opens Connect an AI.
+/// used to open said nothing Settings doesn't); a click never opens Connect an AI. Its right-click
+/// menu holds Connect an AI, Templates and Import Notes (AccountMenuItems).
 struct AccountButton: View {
     let backend: Backend
     /// Captures: a second line with the email, when it is a real one (the alternative look).
@@ -104,6 +105,19 @@ struct AccountButton: View {
         }
         .onChange(of: offline?.source.reach, initial: true) { _, now in
             if let now { offline?.status.noticed(now) }
+        }
+        // Your account's menu: the homes of the setup rows once they've left the foot, Connect an
+        // AI first and one click away (Emil, 12 November 2026: "it was easy to connect another AI").
+        // A click still opens Settings at Account (Emil, 6 November 2026).
+        .contextMenu {
+            Button(AccountMenuItems.settings, systemImage: "person.crop.circle") { Self.open() }
+            Divider()
+            ForEach(AccountMenuItems.items) { item in
+                Button(item.title, systemImage: item.symbol) { item.open() }
+            }
+        }
+        .accessibilityActions {
+            ForEach(AccountMenuItems.items) { item in Button(item.title) { item.open() } }
         }
         .help(away.map { OfflineCopy.title($0) } ?? "Account settings")
         .accessibilityLabel(away.flatMap { OfflineCopy.line($0) }.map { "\(name). \($0). More about this" } ?? "\(name), Settings")

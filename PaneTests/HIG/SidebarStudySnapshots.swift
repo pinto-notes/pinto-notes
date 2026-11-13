@@ -101,7 +101,7 @@ import Testing
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
     }
 
-    /// The foot (Templates, Connect an AI, Import, the account) under the folder rows, at rest and
+    /// The foot (Templates and the account) under the folder rows, at rest and
     /// with a folder, a row and the account under the pointer, light and dark: every pill the same
     /// shape, in the same place, the icons and names on one line. Into a folder with
     /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/foot(dark:)'`.
@@ -123,7 +123,7 @@ import Testing
                 .modelContainer(lib)
         }
         try await AppSnapshotTests.render(sidebar([]), name: "sidebar-foot-rest-\(mode)", dark: dark)
-        try await AppSnapshotTests.render(sidebar(["Travel", "sidebar.connectAI", "sidebar.account"]), name: "sidebar-foot-hover-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(["Travel", "sidebar.templates", "sidebar.account"]), name: "sidebar-foot-hover-\(mode)", dark: dark)
         try await AppSnapshotTests.render(sidebar(["*"]), name: "sidebar-foot-hover-all-\(mode)", dark: dark)
     }
 
@@ -166,6 +166,23 @@ import Testing
                 let view = window(SidebarStudy(), library: lib, over: card(start, search: search))
                 try await AppSnapshotTests.shoot(view, name: "mac-settings-card-\(name)", size: Self.size, dark: dark, wait: 1.2)
             }
+        }
+    }
+
+    /// Settings › General with Import Notes…, what the sidebar's notice says Settings does, light
+    /// and dark. `AMBER_HIG_SHOTS=/path scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsGeneral(dark:)'`.
+    @Test(arguments: [false, true])
+    func settingsGeneral(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let lib = try Self.library()
+        var v = try await AppSnapshotTests.settingsFixture()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        v.start = .general
+        v.close = {}
+        try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
+            try await AppSnapshotTests.shoot(window(SidebarStudy(), library: lib, over: v), name: "settings-general-import-\(dark ? "dark" : "light")",
+                                             size: Self.size, dark: dark, wait: 1.2)
         }
     }
 

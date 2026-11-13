@@ -134,7 +134,8 @@ extension SettingsHomeTests {
         #expect(!SettingsIndex.matches("STORAGE", available: all).isEmpty && SettingsIndex.matches("STORAGE", available: all).allSatisfy { $0.page == .storage },
                 "storage has its own page")
         #expect(SettingsIndex.matches("sync", available: all).allSatisfy { $0.page == .account })
-        #expect(SettingsIndex.matches("apple", available: all).isEmpty, "no Sign in with Apple row any more")
+        // Only Import Notes… (from Apple Notes): no Sign in with Apple row any more.
+        #expect(SettingsIndex.matches("apple", available: all).map(\.id) == ["settings.importNotes"], "no Sign in with Apple row any more")
         #expect(SettingsIndex.matches("terms", available: all).map(\.page) == [.security])
         #expect(SettingsIndex.matches("", available: all).isEmpty)
         #expect(SettingsIndex.matches("recovery", available: [.account, .appearance], recoveryKey: true).isEmpty, "not on a page that isn't there")

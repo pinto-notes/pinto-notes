@@ -107,7 +107,7 @@ struct SettingsView: View {
             if let client = backend.client { AIConnectionPage(client: client, preview: connections) }
         case .addAI:
             if let client = backend.client { AddAIPage(client: client, preview: connections) }
-        case .general: GeneralSettingsPage()
+        case .general: GeneralSettingsPage(close: closeSettings)
         case .todaysNote: TodaysNoteSettingsPage()
         case .shortcuts:
             #if os(macOS)
@@ -276,6 +276,8 @@ enum GeneralCopy {
     static let typeShortcut = "Type a shortcut\u{2026}"
     static let cancelRecording = "Cancel"
     static let login = "Open at login"
+    static let importNotes = "Import Notes\u{2026}"
+    static let importDetail = "From Apple Notes, Obsidian, Notion and more."
 }
 
 /// What General's menus offer: your folders, and the notes a day can start from.

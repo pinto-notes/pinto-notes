@@ -93,6 +93,8 @@ struct SidebarAILine: View {
                         Text(SidebarAICopy.when(last.at, now: t.date))
                     }
                 }
+                // Its gap under it is its own: with no line, the foot keeps no room for it.
+                .padding(.bottom, SidebarStyle.pillGap)
             }
             // Nothing for an AI that's only connected: "Grok connected" read as a notification and
             // said less than Connect an AI under it (Emil, 8 November 2026). Only what one did.
