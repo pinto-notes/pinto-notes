@@ -267,6 +267,111 @@ import AppKit
         #expect(rig.elements.contains { $0["id"] as? String == "last" })
     }
 
+    // MARK: Lag
+
+    /// Draws in the page as a person does: pointer events on the drawing surface, inside the web
+    /// view (nothing reaches the system). `amber.__lag.seed(n)` adds n strokes at once;
+    /// `amber.__lag.stroke(moves, y)` draws one with the pencil. An offscreen page draws no frames,
+    /// so the times it returns leave out drawing.
+    static let lagKit = """
+    (() => {
+      const api = amber._canvas.api;
+      const surface = () => document.querySelector("canvas.excalidraw__canvas.interactive") || document.querySelectorAll("canvas")[1];
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
+      const settle = async () => { await tick(); await tick(); await new Promise((r) => setTimeout(r, 0)); };
+      let n = 0;
+      const stroke = (i) => {
+        const pts = []; for (let k = 0; k < 60; k++) pts.push([k * 3, Math.sin(k / 5) * 20]);
+        return { type: "freedraw", id: "s" + i, x: (i % 30) * 30, y: Math.floor(i / 30) * 30, width: 180, height: 40, angle: 0,
+          strokeColor: "#2a1d10", backgroundColor: "transparent", fillStyle: "solid", strokeWidth: 2, strokeStyle: "solid", roughness: 1, opacity: 100,
+          groupIds: [], frameId: null, roundness: null, seed: 100 + i, version: 2, versionNonce: 7 + i, isDeleted: false, boundElements: null,
+          updated: Date.now(), link: null, locked: false, points: pts, pressures: [], simulatePressure: true, lastCommittedPoint: null };
+      };
+      const ev = (type, x, y, buttons) => {
+        const r = surface().getBoundingClientRect();
+        const init = { clientX: r.left + x, clientY: r.top + y, pointerId: 1, pointerType: "mouse", isPrimary: true, button: 0, buttons, bubbles: true, cancelable: true, view: window };
+        (type === "pointerdown" ? surface() : (type === "pointerup" ? window : surface())).dispatchEvent(new PointerEvent(type, init));
+      };
+      return {
+        seed: (count) => { const els = api.getSceneElementsIncludingDeleted().slice(); for (let i = 0; i < count; i++) els.push(stroke(n++)); api.updateScene({ elements: els }); return els.length; },
+        stroke: async (moves, y0 = 300) => {
+          api.setActiveTool({ type: "freedraw" });
+          await settle();
+          const times = [];
+          ev("pointerdown", 100, y0, 1);
+          await settle();
+          for (let k = 1; k <= moves; k++) {
+            const t = performance.now();
+            ev("pointermove", 100 + k * 2, y0 + Math.sin(k / 4) * 30, 1);
+            await settle();
+            times.push(performance.now() - t);
+          }
+          const t = performance.now();
+          ev("pointerup", 100 + moves * 2, y0, 0);
+          await settle();
+          const up = performance.now() - t;
+          times.sort((a, b) => a - b);
+          return { saved: (amber.data.values.scene.elements || []).length, median: times[Math.floor(times.length / 2)], p90: times[Math.floor(times.length * 0.9)], up, count: api.getSceneElementsIncludingDeleted().length };
+        },
+      };
+    })()
+    """
+
+    /// A stroke is saved once, on canvases of 10, 100 and 500 strokes, through the app's data store
+    /// (to a file, as on a person's Mac), with the store's reply and the app's push back to the page.
+    /// Before (13 November 2026, "it gets laggier and laggier"): two saves a stroke, because the page
+    /// took its own save, back from the app, for someone else's and merged it in (every element
+    /// rebuilt and redrawn) and saved again; each save cost the main thread 5, 18 and 80 ms at 10,
+    /// 100 and 500 strokes (after: 2, 6 and about 25 ms, once). The times are printed (PERF), never
+    /// checked.
+    @Test func aStrokeIsSavedOnceHoweverBigTheDrawing() async throws {
+        let rig = try await Rig(scene: CanvasNote.emptyScene(), size: CGSize(width: 1000, height: 700), dark: false)
+        defer { rig.close() }
+        let dir = FileManager.default.temporaryDirectory.appending(path: "canvas-lag-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = NotePageDataStore(file: dir.appending(path: "data.json"))
+        let id = UUID()
+        store.set(id, rig.doc)
+        var mainMs: [Double] = []
+        rig.sandbox.onData = { [weak rig] message in
+            guard let rig else { throw NotePage.OpError("Gone.") }
+            let t = Date()
+            let (after, encoded, _) = try NotePageData.applyEncoded(try NotePageData.Op(message), to: store.doc(id))
+            store.set(id, after, encoded: encoded)
+            mainMs.append(Date().timeIntervalSince(t) * 1000)
+            rig.doc = after
+            rig.saves += 1
+            // The app's push of the store's change, as an echo the page must see as its own.
+            Task { @MainActor in rig.sandbox.push(body: "Canvas", data: store.doc(id)) }
+            return ["data": after]
+        }
+        let web = rig.sandbox.webView
+        try await run(web, until: "!!(window.amber && window.amber._canvas)")
+        _ = try await web.evaluateJavaScript("amber.__lag = \(Self.lagKit); 1")
+        var have = 0
+        for size in [10, 100, 500] {
+            _ = try await web.callAsyncJavaScript("return amber.__lag.seed(\(size - have))", contentWorld: .page)
+            have = size
+            for _ in 0..<40 where (rig.elements.count < size) { try await Task.sleep(for: .milliseconds(50)) }
+            try await Task.sleep(for: .milliseconds(500))
+            let saves = rig.saves
+            mainMs = []
+            let strokes = 3
+            for s in 0..<strokes {
+                _ = try await web.callAsyncJavaScript("return await amber.__lag.stroke(40, \(150 + s * 120))", contentWorld: .page)
+                for _ in 0..<40 where rig.saves < saves + s + 1 { try await Task.sleep(for: .milliseconds(50)) }
+                // Long enough for a second save, should the echo start one.
+                try await Task.sleep(for: .milliseconds(600))
+            }
+            #expect(rig.saves - saves == strokes, "\(size) strokes: one save a stroke, \(rig.saves - saves) for \(strokes)")
+            #expect(rig.elements.count == size + strokes, "every stroke is in the saved scene: \(rig.elements.count)")
+            have += strokes
+            store.waitForSave()
+            let mb = Double(store.docs[id]?.count ?? 0) / 1_048_576
+            print("PERF canvas save strokes=\(size) scene=\(String(format: "%.2f", mb))MB saves/stroke=\(Double(rig.saves - saves) / Double(strokes)) mainMs=\(mainMs.map { Int($0.rounded()) })")
+        }
+    }
+
     // MARK: Pictures
 
     /// The canvas with a small flowchart, light and dark, for the hand-back: drawn only when

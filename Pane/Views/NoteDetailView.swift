@@ -1163,7 +1163,7 @@ struct NoteDetailView: View {
         case .canvasBackground:
             Menu("Background", systemImage: "square.fill.on.square") {
                 ForEach(CanvasBackground.all, id: \.hex) { bg in
-                    Toggle(bg.name, isOn: Binding(get: { canvasControls.state.background.lowercased() == bg.hex }, set: { _ in canvasControls.send(.background(bg.hex)) }))
+                    Toggle(bg.name, isOn: Binding(get: { canvasControls.background.lowercased() == bg.hex }, set: { _ in canvasControls.send(.background(bg.hex)) }))
                 }
             }
             .accessibilityIdentifier("canvas.background")

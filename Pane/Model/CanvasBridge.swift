@@ -297,21 +297,28 @@ final class CanvasController {
         deliver?(command)
     }
 
+    /// Undo, Redo and the background, apart from `state`: the note pane's toolbar and menus read
+    /// these, so they don't depend on the selection's bounds, which change on every move of a drag.
+    /// Each is set only when it changes (an @Observable property tells its readers on every set,
+    /// even of the same value).
+    private(set) var canUndo = false
+    private(set) var canRedo = false
+    private(set) var background = "#ffffff"
+
     func receive(_ message: Any) {
         guard let m = message as? [String: Any] else { return }
         let next = CanvasState(m)
-        connected = true
+        if !connected { connected = true }
         if next != state { state = next }
+        if canUndo != next.canUndo { canUndo = next.canUndo }
+        if canRedo != next.canRedo { canRedo = next.canRedo }
+        if background != next.background { background = next.background }
         if !next.stylable, showingStyle { showingStyle = false }
     }
 
     func pick(_ tool: CanvasTool) { send(.tool(tool)) }
     func run(_ action: CanvasCommand.Action) { send(.action(action)) }
     func set(_ key: CanvasCommand.StyleKey, _ value: CanvasCommand.Value) { send(.style(key, value)) }
-
-    /// The menu's titles for Undo and Redo.
-    var canUndo: Bool { state.canUndo }
-    var canRedo: Bool { state.canRedo }
 }
 
 /// The open canvas, for the menus (Edit, View).

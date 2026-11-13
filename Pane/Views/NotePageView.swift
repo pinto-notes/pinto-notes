@@ -189,6 +189,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
     /// The page is a canvas (Canvas): its last strokes are saved when it goes.
     private(set) var isCanvas = false
+    /// The note's data as this page's own last change left it: the reply already took it to the
+    /// page, so the view's push of the same data is skipped (on a canvas of 500 strokes it sent a
+    /// megabyte back after every stroke).
+    var wrote: Data?
 
     func load(html stored: String, body: String, data: NotePageData.Doc = NotePageData.empty(), restore: String? = nil) {
         let ucc = webView.configuration.userContentController
@@ -539,11 +543,12 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage, replyHandler: @escaping @MainActor @Sendable (Any?, String?) -> Void) {
         if message.name == "amberData" {
-            // As JSON into the task: the message's own objects can't cross into it.
-            let json = try? JSONSerialization.data(withJSONObject: message.body)
+            // The message's own objects, as they are: made on the main thread and only used there (the
+            // task is the main actor's). They were copied through JSON first, two more passes over a
+            // canvas's whole drawing on every save. Anything JSON can't hold (a date) isn't taken.
+            nonisolated(unsafe) let body: Any = JSONSerialization.isValidJSONObject(message.body) ? message.body : [String: Any]()
             Task { @MainActor in
                 do {
-                    let body: Any = json.flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? [String: Any]()
                     var reply = try await onData(body)
                     reply["ok"] = true
                     replyHandler(reply, nil)
@@ -702,7 +707,11 @@ struct NotePageView: View {
                 }
                 s.onFailure = onFailure
                 s.onFocus = onFocus
-                s.onData = onData
+                s.onData = { [weak s, noteID] m in
+                    let reply = try await onData(m)
+                    s?.wrote = NotePageDataStore.shared.docs[noteID]
+                    return reply
+                }
                 if let canvas {
                     s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
                     canvas.deliver = { [weak s] c in s?.canvas(c) }
@@ -738,7 +747,10 @@ struct NotePageView: View {
         .onChange(of: insetBottom) { _, now in sandbox?.setInsets(bottom: now) }
         .onChange(of: zoom) { _, now in sandbox?.webView.pageZoom = now }
         .onChange(of: ready) { _, now in if now, insetBottom > 0 { sandbox?.setInsets(bottom: insetBottom) } }
-        .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, _ in if preview == nil { sandbox?.push(body: text, data: NotePageDataStore.shared.doc(noteID)) } }
+        .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, now in
+            guard preview == nil, let sandbox, now != sandbox.wrote else { return }
+            sandbox.push(body: text, data: NotePageDataStore.shared.doc(noteID))
+        }
     }
 
     /// "Claude updated this app · Switch", while you're in the middle of something.
@@ -1220,8 +1232,8 @@ enum NotePageActions {
         default:
             let store = NotePageDataStore.shared
             let before = store.doc(note.id)
-            let (after, made) = try NotePageData.apply(try NotePageData.Op(message), to: before)
-            store.set(note.id, after)
+            let (after, encoded, made) = try NotePageData.applyEncoded(try NotePageData.Op(message), to: before)
+            store.set(note.id, after, encoded: encoded)
             return (["data": after].merging(made.map { ["id": $0] } ?? [:]) { a, _ in a }, before)
         }
     }

@@ -90,14 +90,38 @@ enum NotePageData {
 
     /// The document after `op`, and the new record's id for an add. Throws past the size limit.
     static func apply(_ op: Op, to doc: Doc, now: Date = .now, newID: () -> String = { UUID().uuidString.lowercased() }) throws -> (Doc, String?) {
-        var d = decode(encode(doc))
+        let (d, data, made) = try applyEncoded(op, to: doc, now: now, newID: newID)
+        _ = data
+        return (d, made)
+    }
+
+    /// `apply`, with the document as the store keeps it (`encode`), for `NotePageDataStore.set`.
+    /// One pass over the document: a canvas saves its whole drawing each time, and the copy through
+    /// JSON, the size check and the store's encoding were three passes per save on the main thread
+    /// (80 ms a save at 500 strokes, growing with the drawing).
+    static func applyEncoded(_ op: Op, to doc: Doc, now: Date = .now, newID: () -> String = { UUID().uuidString.lowercased() }) throws -> (Doc, Data, String?) {
+        let (d, made) = try applying(op, to: doc, now: now, newID: newID)
+        // Anything JSON can't hold (a date from a page) is refused here, never stored as "{}".
+        guard JSONSerialization.isValidJSONObject(d), let data = try? JSONSerialization.data(withJSONObject: d, options: [.sortedKeys, .fragmentsAllowed]) else {
+            throw NotePage.OpError("Only JSON values (text, numbers, true and false, lists and objects) can be kept.")
+        }
+        if data.count > maxBytes {
+            throw NotePage.OpError(String(format: "This app's data would be %.1f MB; the limit is 4 MB. Keep photos and recordings as files.", Double(data.count) / 1_048_576))
+        }
+        return (d, data, made)
+    }
+
+    private static func applying(_ op: Op, to doc: Doc, now: Date, newID: () -> String) throws -> (Doc, String?) {
+        // Value types all the way down (decoded JSON and the page's message): changed in place, no
+        // copy through JSON first.
+        var d = doc
         var values = d["values"] as? Doc ?? Doc()
         var collections = d["collections"] as? Doc ?? Doc()
         let stamp = ISO8601DateFormatter().string(from: now)
         var made: String?
         if case .batch(let ops) = op {
             var doc = d
-            for o in ops { let r = try apply(o, to: doc, now: now, newID: newID); doc = r.0; made = r.1 ?? made }
+            for o in ops { let r = try applying(o, to: doc, now: now, newID: newID); doc = r.0; made = r.1 ?? made }
             return (doc, made)
         }
         switch op {
@@ -132,10 +156,6 @@ enum NotePageData {
             collections[name] = list
         }
         d = ["values": values, "collections": collections]
-        let bytes = encode(d).count
-        if bytes > maxBytes {
-            throw NotePage.OpError(String(format: "This app's data would be %.1f MB; the limit is 4 MB. Keep photos and recordings as files.", Double(bytes) / 1_048_576))
-        }
         return (d, made)
     }
 
@@ -204,6 +224,9 @@ final class NotePageDataStore {
     struct Arrival: Equatable { var by: String; var at: Date; var before: Data? }
     private(set) var arrivals: [UUID: Arrival] = [:]
     @ObservationIgnored private let file: URL?
+    /// The file is written here, in order, off the main thread: encoding every app's data to it took
+    /// 26 ms a save on a canvas of 500 strokes, in the middle of drawing.
+    @ObservationIgnored private let writer = DispatchQueue(label: "pinto.note-page-data.save", qos: .utility)
 
     private struct Saved: Codable { var docs: [UUID: Data]; var synced: [UUID: Data]; var dirty: Set<UUID> }
 
@@ -218,11 +241,24 @@ final class NotePageDataStore {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/note-page-data.json")
     }
 
-    func doc(_ id: UUID) -> NotePageData.Doc { NotePageData.decode(docs[id]) }
+    /// The last document decoded, by note, with the bytes it came from: a canvas reads its whole
+    /// drawing back before each save.
+    @ObservationIgnored private var decoded: [UUID: (data: Data, doc: NotePageData.Doc)] = [:]
 
-    /// A change from the page (or Undo): kept here and pushed with the next sync.
-    func set(_ id: UUID, _ doc: NotePageData.Doc?) {
-        docs[id] = doc.map(NotePageData.encode)
+    func doc(_ id: UUID) -> NotePageData.Doc {
+        guard let data = docs[id] else { return NotePageData.decode(nil) }
+        if let c = decoded[id], c.data == data { return c.doc }
+        let doc = NotePageData.decode(data)
+        decoded[id] = (data, doc)
+        return doc
+    }
+
+    /// A change from the page (or Undo): kept here and pushed with the next sync. `encoded` is
+    /// `doc` as `NotePageData.encode` gives it, when the caller has it already.
+    func set(_ id: UUID, _ doc: NotePageData.Doc?, encoded: Data? = nil) {
+        let data = doc.map { encoded ?? NotePageData.encode($0) }
+        docs[id] = data
+        if let data, let doc { decoded[id] = (data, doc) } else { decoded[id] = nil }
         dirty.insert(id)
         save()
         SyncSignal.changed()
@@ -256,13 +292,22 @@ final class NotePageDataStore {
     }
 
     func forgetAll() {
-        docs = [:]; synced = [:]; dirty = []
-        if let file { try? FileManager.default.removeItem(at: file) }
+        docs = [:]; synced = [:]; dirty = []; decoded = [:]
+        // After any write still queued, so none brings the file back.
+        if let file { writer.async { try? FileManager.default.removeItem(at: file) } }
     }
 
     private func save() {
-        guard let file, let data = try? JSONEncoder().encode(Saved(docs: docs, synced: synced, dirty: dirty)) else { return }
-        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        guard let file else { return }
+        // Copies of three values (the bytes themselves are shared): safe to encode on the queue.
+        let saved = Saved(docs: docs, synced: synced, dirty: dirty)
+        writer.async {
+            guard let data = try? JSONEncoder().encode(saved) else { return }
+            try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        }
     }
+
+    /// Waits for the file to be written (tests; the app on quit).
+    nonisolated func waitForSave() { writer.sync {} }
 }

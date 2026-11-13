@@ -959,6 +959,7 @@ import AppKit
             #expect(abs((s.unpushed[note.id] ?? .distantPast).timeIntervalSince(kept.unpushed ?? .now)) < 0.001)
             #expect(s[other] == arrived)
         }
+        data.waitForSave()
         for d in [data, NotePageDataStore(file: dataFile)] { #expect(d.docs[note.id] == kept.doc) }
         // On again: the app is back as it was.
         #expect(NoteApps.page(note.id, in: store, enabled: true) == v2 && NoteAppMark.has(note, in: store, enabled: true))

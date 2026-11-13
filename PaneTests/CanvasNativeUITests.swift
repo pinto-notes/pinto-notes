@@ -404,6 +404,65 @@ import UIKit
             #expect(try Self.collapsed(w) == [true, false], "and back as they were")
         }
     }
+
+    /// Drawing in the app as it ships (13 November 2026, "it gets laggier and laggier"): each stroke
+    /// is saved once, the save isn't pushed back to the page that made it, and neither a stroke nor
+    /// dragging a shape redraws the note pane on every move.
+    /// Before: two saves a stroke (the page merged its own save back in and saved again), each one
+    /// sent back to the page a second time, and the note pane redrawn on every move of a drag.
+    @Test func strokesSaveOnceAndDontRedrawTheNotePane() async throws {
+        let c = try Self.canvasLibrary()
+        let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
+            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1280, height: 800))
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w, 20)
+            var found: WKWebView?
+            for _ in 0..<100 where found == nil {
+                found = NotePageLive.view(note.id)
+                if found == nil { await MacWindowChromeTests.settle(w, 1) }
+            }
+            let web = try #require(found, "the canvas opened")
+            try await CanvasTests().run(web, until: "!!(window.amber && window.amber._canvas)")
+            _ = try await web.evaluateJavaScript("""
+            amber.__lag = \(CanvasTests.lagKit);
+            window.__saves = 0; window.__heard = 0;
+            const set = amber.store.set; amber.store.set = (k, v) => { __saves++; return set(k, v); };
+            amber.onChange(() => { __heard++; });
+            window.__heard = 0; 1
+            """)
+            await MacWindowChromeTests.settle(w, 5)
+            RenderProbe.begin(in: c.mainContext)
+            defer { RenderProbe.end(in: c.mainContext) }
+            let strokes = 4
+            for s in 0..<strokes {
+                _ = try await web.callAsyncJavaScript("return await amber.__lag.stroke(40, \(300 + s * 60))", contentWorld: .page)
+                await MacWindowChromeTests.settle(w, 8)
+            }
+            let saves = try await web.evaluateJavaScript("__saves") as? Int ?? -1
+            let heard = try await web.evaluateJavaScript("__heard") as? Int ?? -1
+            let strokeRenders = RenderProbe.values(in: c.mainContext)["NoteDetailView"] ?? 0
+            #expect(saves == strokes, "one save a stroke: \(saves) for \(strokes)")
+            #expect(heard == strokes, "the page hears of each save once, by the store's reply, not again by a push: \(heard)")
+            #expect(strokeRenders <= 2, "\(strokes) strokes of 40 moves redraw the note pane at most twice (Undo turning on): \(strokeRenders)")
+
+            // A drag of the selected box, as the page reports it: its bounds on every move. The bar over
+            // the selection follows; the note pane stays. (The engine moves a drag on animation frames,
+            // which an offscreen page doesn't get, so the page's reports stand in for the drag.)
+            let canvas = try #require((web as? NotePageWebView)?.canvas)
+            RenderProbe.begin(in: c.mainContext)
+            for k in 0..<30 {
+                canvas.receive(["tool": "selection", "selection": ["rectangle"], "busy": k < 29, "canUndo": true,
+                                "bounds": ["x": 100 + k * 2, "y": 120 + k, "width": 200, "height": 100],
+                                "style": [String: Any](), "zoom": 1, "background": "#ffffff"])
+                await MacWindowChromeTests.settle(w, 1)
+            }
+            let dragRenders = RenderProbe.values(in: c.mainContext)["NoteDetailView"] ?? 0
+            #expect(canvas.state.bounds?.minX == 158, "the controller has the last move")
+            #expect(dragRenders <= 2, "a drag of 30 moves redraws the note pane at most twice: \(dragRenders)")
+            print("PERF canvas app strokes=\(strokes) saves=\(saves) heard=\(heard) noteDetailRenders stroke=\(strokeRenders) drag=\(dragRenders)")
+        }
+    }
     #endif
 
     #if os(iOS)

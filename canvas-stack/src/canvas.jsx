@@ -42,6 +42,26 @@ export function normalize(elements) {
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+/** A scene's fingerprint: each element's id, version and nonce (the engine changes both on every
+ *  edit), what's kept of the view, and the files. Cheap next to the whole scene as JSON: the page's
+ *  own save comes back to it twice (the store's reply, then the app's push), and with this it's seen
+ *  as its own at once instead of merged in again (which redrew every element and saved a second
+ *  time: the lag grew with the drawing). */
+export function fingerprint(scene) {
+  if (!scene || !Array.isArray(scene.elements)) return "";
+  const a = scene.appState || {};
+  let out = `${a.viewBackgroundColor}|${a.gridSize}|${a.gridStep}|${a.gridModeEnabled}|${Object.keys(scene.files || {}).join(",")}|`;
+  for (const e of scene.elements) out += e ? `${e.id}:${e.version}:${e.versionNonce};` : "-;";
+  return out;
+}
+
+/** Changes that are kept, not pans and zooms: cheap enough for every frame of a stroke. */
+function changeKey(elements, appState, files) {
+  let v = 0;
+  for (const e of elements) v += e.version;
+  return `${elements.length}|${v}|${appState.viewBackgroundColor}|${appState.gridModeEnabled}|${files ? Object.keys(files).length : 0}`;
+}
+
 /** Three-way, by element id: base is what this page last saved (or received). */
 export function merge(local, remote, base) {
   const byId = (l) => new Map(l.map((e) => [e.id, e]));
@@ -249,16 +269,17 @@ function Canvas({ initial }) {
   useEffect(() => {
     if (!api) return;
     let timer = null;
-    let lastSent = JSON.stringify(initial.stored);
+    // What this page last saved or received, by fingerprint.
+    let lastSent = fingerprint(initial.stored);
     let base = initial.elements;
     let lastVersion = null;
 
     const save = () => {
       timer = null;
       const scene = sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
-      const json = JSON.stringify(scene);
-      if (json === lastSent) return;
-      lastSent = json;
+      const print = fingerprint(scene);
+      if (print === lastSent) return;
+      lastSent = print;
       base = scene.elements;
       amber.store.set("scene", scene);
     };
@@ -267,7 +288,7 @@ function Canvas({ initial }) {
 
     const off = api.onChange((elements, appState, files) => {
       // Pans and zooms change nothing that's kept.
-      const v = JSON.stringify([elements.map((e) => [e.id, e.version]), appState.viewBackgroundColor, appState.gridModeEnabled, Object.keys(files || {}).length]);
+      const v = changeKey(elements, appState, files);
       if (v === lastVersion) return;
       if (lastVersion !== null) schedule();
       lastVersion = v;
@@ -276,7 +297,8 @@ function Canvas({ initial }) {
     // From elsewhere: another device or an AI.
     const unlisten = amber.onChange((note, data) => {
       const scene = data && data.values && data.values.scene;
-      if (!scene || JSON.stringify(scene) === lastSent) return;
+      // Its own save, back as the store's reply and the app's push: nothing to merge.
+      if (!scene || fingerprint(scene) === lastSent) return;
       const { elements: remote } = normalize(scene.elements);
       const merged = merge(api.getSceneElementsIncludingDeleted(), remote, base);
       const files = Object.values(scene.files || {});
@@ -284,7 +306,7 @@ function Canvas({ initial }) {
       const bg = scene.appState && scene.appState.viewBackgroundColor;
       api.updateScene({ elements: merged, ...(bg ? { appState: { viewBackgroundColor: bg } } : {}), captureUpdate: CaptureUpdateAction.NEVER });
       base = remote;
-      lastSent = JSON.stringify(scene);
+      lastSent = fingerprint(scene);
       if (scene.elements.some((e) => e && typeof e.seed !== "number")) remeasure();
       // Ours had changes theirs didn't (or theirs was in the short form): saved back merged.
       if (!same(merged.map((e) => [e.id, e.version]), remote.map((e) => [e.id, e.version]))) schedule();
