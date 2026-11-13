@@ -934,3 +934,35 @@ extension ButtonStyle where Self == BarIconButtonStyle {
     static var barIcon: BarIconButtonStyle { .init() }
 }
 #endif
+
+// MARK: Covers and icons (CoverControls)
+
+/// A quiet button: grey label, a light fill under the pointer.
+struct TitleActionStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .labelStyle(.titleAndIcon)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Color.muted)
+            .padding(.horizontal, 8)
+            .frame(height: TitleActions.height)
+            .hoverHighlight(Capsule())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .contentShape(Capsule())
+    }
+}
+
+/// A small dark pill over a photo: readable on any picture.
+struct CoverButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .frame(height: 24)
+            .background(Capsule().fill(.black.opacity(configuration.isPressed ? 0.6 : 0.45)))
+            .hoverOverlay(Capsule(), .hoverLighten)
+            .contentShape(Capsule())
+    }
+}
+
