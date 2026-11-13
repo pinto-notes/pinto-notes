@@ -16,7 +16,9 @@ import SwiftData
 enum CanvasNote {
     /// In the page's HTML: this app is a canvas (the list's glyph, no data receipts, no scrolling).
     static let marker = #"<meta name="pinto-canvas" content="1">"#
-    static let symbol = "scribble.variable"
+    /// Shapes, not a scribble: beside the compose pencil a scribble read as a second New Note
+    /// (create study, 13 November 2026). The list marks canvases with it too.
+    static let symbol = "square.on.circle"
     static let title = "Canvas"
 
     /// Whether a page (one HTML file, or a project as a note's page stores it) is the canvas.

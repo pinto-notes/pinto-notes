@@ -77,8 +77,8 @@ import Testing
         let p = MakeAnApp.newAppPrompt("  a water tracker.  ")
         #expect(p.hasPrefix("In Pinto Notes, make me a new note that is an app: a water tracker. Make it with create (type app"))
         #expect(p.contains("see_app") && !p.contains(".."))
-        #expect(MakeAnApp.examples.map(\.name) == ["Habit tracker", "Trip plan", "Workout log"])
-        #expect(MakeAnApp.templatesPage.path() == "/templates")
+        #expect(MakeAnApp.newAppTitle == "New app")
+        #expect(MakeAnApp.opensWith("ChatGPT") == "Opens ChatGPT with this typed in. The app appears here when it\u{2019}s built.")
         // The tip is a feature of its own, so its "shown" mark travels with the account.
         #expect(Feature(rawValue: "newApp") != nil && Feature.newApp.tip.id == "newApp")
     }
@@ -168,7 +168,7 @@ import Testing
                 try await Task.sleep(for: .milliseconds(400))
                 host.frame = CGRect(origin: .zero, size: host.fittingSize)
                 host.layoutSubtreeIfNeeded()
-                #expect(host.fittingSize.width == 420 && host.fittingSize.height < (state == "none" ? 440 : 360), "new app \(state) is \(host.fittingSize.height) pt tall")
+                #expect(host.fittingSize.width == 760 && host.fittingSize.height < (state == "none" ? 720 : 560), "new app \(state) is \(host.fittingSize.height) pt tall")
                 let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
                 host.cacheDisplay(in: host.bounds, to: rep)
                 try #require(rep.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: dir).appending(path: "new-app-mac-\(state)-\(dark ? "dark" : "light").png"))

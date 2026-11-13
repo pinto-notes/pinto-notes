@@ -37,27 +37,19 @@ final class DailyNotesUITests: XCTestCase {
         XCTAssertTrue(folderList.exists, "back reaches the folder list")
     }
 
-    private func hold() {
-        compose.press(forDuration: 1.0)
-        XCTAssertTrue(app.buttons["Today\u{2019}s Note"].firstMatch.waitForExistence(timeout: 3), "holding New Note offers Today's Note")
-    }
-
     func testTodaysNoteFromTheCalendarAndTheMenu() {
-        // Holding New Note: New Note, Today's Note, New App, and nothing about templates.
-        hold()
-        XCTAssertTrue(app.buttons["New Note"].firstMatch.exists)
-        XCTAssertTrue(app.buttons["New App"].firstMatch.exists)
-        XCTAssertFalse(app.buttons["New Template\u{2026}"].exists)
-        shot("daily-menu")
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap()
-        Thread.sleep(forTimeInterval: 0.5)
+        // New Note, New Canvas and New App, each its own button in the bottom bar (CreateBarItems).
+        XCTAssertTrue(app.buttons["sidebar.newNote"].firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["sidebar.newCanvas"].firstMatch.exists)
+        XCTAssertTrue(app.buttons["sidebar.newApp"].firstMatch.exists)
+        shot("daily-create")
 
         // Today's note in one press: the calendar beside New Note. In Daily, titled with the date.
         let today = Date().formatted(date: .long, time: .omitted)
         let calendar = app.buttons["sidebar.today"].firstMatch
-        XCTAssertTrue(calendar.exists, "the calendar button is in the bottom bar")
+        XCTAssertTrue(calendar.exists, "the calendar button is in the top bar")
         XCTAssertEqual(calendar.label, "Today\u{2019}s note")
-        XCTAssertEqual(calendar.frame.midY, compose.frame.midY, accuracy: 4, "beside New Note")
+        XCTAssertLessThan(calendar.frame.midY, compose.frame.midY, "at the top, above the create buttons")
         shot("daily-folders-calendar")
         calendar.tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
@@ -72,9 +64,8 @@ final class DailyNotesUITests: XCTestCase {
         shot("daily-list-calendar")
         backToFolders()
 
-        // Again, from the menu: the same note, not a second one.
-        hold()
-        app.buttons["Today\u{2019}s Note"].firstMatch.tap()
+        // Again, from the calendar: the same note, not a second one.
+        app.buttons["sidebar.today"].firstMatch.tap()
         XCTAssertTrue(editor.waitForExistence(timeout: 3))
         XCTAssertTrue((editor.value as? String ?? "").contains("Slept well"), "the same note opens again")
         app.navigationBars.element(boundBy: 0).buttons.element(boundBy: 0).tap()

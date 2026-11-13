@@ -82,6 +82,7 @@
 		0A6B9A9A19248ECD421938B7 /* NoteLockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2856CB2ECE7B50E11419DC6C /* NoteLockTests.swift */; };
 		0A86AB7D095A52739A9CD44B /* LegalLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F653B9FD402A31DD6E0FAE8 /* LegalLinksTests.swift */; };
 		0A9CEFB1375921718DF57CCF /* ConnectWebGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB80888B06B4A1F6FBC61797 /* ConnectWebGuide.swift */; };
+		0B13129E0A20812C2E74581E /* AppTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F406A92E2D9829C7FBA591 /* AppTemplates.swift */; };
 		0B1A600BBD3B2646B0BB41BD /* PersonaR7Shots.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE23F9691285F7E666E3698E /* PersonaR7Shots.swift */; };
 		0B539237013F58EB4BE10E60 /* NoteLinksSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6B2946C2164583F9A89F59B /* NoteLinksSection.swift */; };
 		0B6ECA502D42CD2E9BE658D5 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */; };
@@ -167,6 +168,7 @@
 		1946A0BD6053D3E2572492E4 /* SidebarCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D9729365D09DFD5585A159 /* SidebarCardTests.swift */; };
 		197DDF6AAC9C2FE91649E1C1 /* stack.json in Resources */ = {isa = PBXBuildFile; fileRef = 1936CFFEE4A4126D37AE43CB /* stack.json */; };
 		1999145D74CE3751FED107A2 /* FilmScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E986333ADF78B16A0249D6D /* FilmScenes.swift */; };
+		1A33A421BF07751CE52DD1B0 /* CreateButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84434D82FBADFEC8A11D65BD /* CreateButtons.swift */; };
 		1A5A85C992C1235208BFEA68 /* AppleNoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83DEA036A9A2462F2C9E4C72 /* AppleNoteStore.swift */; };
 		1B626BB31DE9127A5C9A4942 /* AIBrands.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A577BB66BD92398A2312A7 /* AIBrands.swift */; };
 		1B6693232BAAB8384122A494 /* template-app-study-flashcards-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7FFCC88CB19BF7AB1F88EB91 /* template-app-study-flashcards-light.jpg */; };
@@ -202,6 +204,7 @@
 		1F6B824701CE535CA576F3DA /* ComposeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C6D15833CF6120B65D7384A /* ComposeButton.swift */; };
 		1F74A3D7518501D3904CEC01 /* template-app-study-flashcards-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = EAA28AE0B39B98BD511A0610 /* template-app-study-flashcards-stage-light.jpg */; };
 		1F9BA6FE76B5AAC079EFDB66 /* NoteDates.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6C9464F9C134E363D175AAA /* NoteDates.swift */; };
+		1FAB3C4A7A6FD9C2E3F2CA2F /* AppTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F406A92E2D9829C7FBA591 /* AppTemplates.swift */; };
 		200B4D52729EDEF49B3B26D6 /* ShareLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD2A5599581D39A27243D0F /* ShareLinks.swift */; };
 		202B8D4D7554C63A1BC582FF /* SettingsHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B21B489F3B2310C6D64E325 /* SettingsHome.swift */; };
 		20767E92AA81BC59DAEB557F /* JoinLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AC5205EF7FD68D7C5065C73 /* JoinLink.swift */; };
@@ -439,6 +442,7 @@
 		4FB99424722755006F85AA6F /* ImportSheetSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFCF2559532191C12C06E031 /* ImportSheetSnapshots.swift */; };
 		4FC4BAB52328E4AB05251F6D /* KeyDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0AC08F58F5BE90DD5AAD44 /* KeyDevices.swift */; };
 		5036F4C2F4DF9F584BAAF731 /* CellText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7637BBECC7048C6C96F739D2 /* CellText.swift */; };
+		5039CE1BDD1D6E7794FF8815 /* CreateButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84434D82FBADFEC8A11D65BD /* CreateButtons.swift */; };
 		504F9E95EFAF31EC15B202D2 /* topojson.js in Resources */ = {isa = PBXBuildFile; fileRef = 1B6942657FF41A9E90A2C2DA /* topojson.js */; };
 		506F693B69F99AEB479F3631 /* guide-obsidian-reveal.png in Resources */ = {isa = PBXBuildFile; fileRef = C48FDD0CD9435FF308CB4B27 /* guide-obsidian-reveal.png */; };
 		50D01368AA5CAE217F498EFD /* PaneShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E8FEA213572C6D1C3F514576 /* PaneShare.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -975,6 +979,7 @@
 		BF22BC2D75B122260C58A5AA /* template-cover-reading-list.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 472B57B000C78170B499D31C /* template-cover-reading-list.jpg */; };
 		BF2B915D732726B9367D9C98 /* ConnectAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39EF6421870B0C2E8060E578 /* ConnectAI.swift */; };
 		BFA444849B687C47057C7C56 /* FolderFileViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE5233DC533CE9F350228FC /* FolderFileViews.swift */; };
+		BFAB7A58BC927FE883E1736F /* CreateButtonsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDB90E4D35C577498EE4DA27 /* CreateButtonsTests.swift */; };
 		BFC91164BF5ADB3C6A84F7E7 /* FormatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 861593B83F34E79512C05D62 /* FormatPanel.swift */; };
 		BFDBA6B667FC72D780347D41 /* ListHeaderBandShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8332F12A12D4CE63A3B2E47 /* ListHeaderBandShots.swift */; };
 		BFDF3C9393A36DF8CCECB495 /* FolderEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80ED8E565162161E573657B5 /* FolderEditTests.swift */; };
@@ -1398,6 +1403,7 @@
 		138C228FA740D92E0D104154 /* PressSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PressSelect.swift; sourceTree = "<group>"; };
 		142A54FFDD38D3A56601E692 /* SetupCardsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupCardsTests.swift; sourceTree = "<group>"; };
 		14CD141158D5B7F6272D4DA9 /* GridTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTableTests.swift; sourceTree = "<group>"; };
+		14F406A92E2D9829C7FBA591 /* AppTemplates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplates.swift; sourceTree = "<group>"; };
 		14F9F8FBEB782DAC56C7A390 /* WikiLinksUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiLinksUITests.swift; sourceTree = "<group>"; };
 		15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesTests.swift; sourceTree = "<group>"; };
 		158E191E0A9E3A46FEF74289 /* UsageTelemetryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageTelemetryTests.swift; sourceTree = "<group>"; };
@@ -1795,6 +1801,7 @@
 		838D9EC7F0FD5DBA2BB0453B /* ShareAlertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareAlertTests.swift; sourceTree = "<group>"; };
 		83B44CA360C16D31A44CFE10 /* AppleNotesImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleNotesImporter.swift; sourceTree = "<group>"; };
 		83DEA036A9A2462F2C9E4C72 /* AppleNoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleNoteStore.swift; sourceTree = "<group>"; };
+		84434D82FBADFEC8A11D65BD /* CreateButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateButtons.swift; sourceTree = "<group>"; };
 		8450FC9F429344947762FEB3 /* Identity.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Identity.xcconfig; sourceTree = "<group>"; };
 		8467A42E32C85E25C52CA019 /* template-app-habit-tracker-stage-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-habit-tracker-stage-dark.jpg"; sourceTree = "<group>"; };
 		84CD20246C83DA20F0BE392A /* Pane-mac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Pane-mac.entitlements"; sourceTree = "<group>"; };
@@ -1977,6 +1984,7 @@
 		BC21DF51FFD468B83B80F5C1 /* firstopen-meal-plan.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-meal-plan.jpg"; sourceTree = "<group>"; };
 		BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestAppsMacShots.swift; sourceTree = "<group>"; };
 		BD38656BCD103CC6D2D01B8F /* BackForwardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackForwardTests.swift; sourceTree = "<group>"; };
+		BDB90E4D35C577498EE4DA27 /* CreateButtonsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateButtonsTests.swift; sourceTree = "<group>"; };
 		BDC967E6E0078C8E1DC7378A /* template-cover-recipe-box.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-recipe-box.jpg"; sourceTree = "<group>"; };
 		BE138616AC9DDE47DC5537AD /* TableShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableShots.swift; sourceTree = "<group>"; };
 		BE58FBFB7169CFFC6987E06D /* FirstOpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstOpen.swift; sourceTree = "<group>"; };
@@ -2309,6 +2317,7 @@
 				83DEA036A9A2462F2C9E4C72 /* AppleNoteStore.swift */,
 				187BCDDD3155D5979CC60AC7 /* ApplePins.swift */,
 				D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */,
+				14F406A92E2D9829C7FBA591 /* AppTemplates.swift */,
 				5A37C9F239F34435A2AC59C8 /* Backlinks.swift */,
 				FE2168B61AFA1D3A7AD6CF68 /* CanvasNote.swift */,
 				88F1B99F935635F64B00833B /* ChecklistShelf.swift */,
@@ -2486,6 +2495,7 @@
 				FC438BD287857509B0345BE3 /* ConnectOnMac.swift */,
 				D3EC9A80F1FA536F59220975 /* ConnectTerminalGuide.swift */,
 				DB80888B06B4A1F6FBC61797 /* ConnectWebGuide.swift */,
+				84434D82FBADFEC8A11D65BD /* CreateButtons.swift */,
 				5D94335681A191B7DF159080 /* DeleteAccount.swift */,
 				A40FBDDB40A6791A4C81086B /* DesignSystem.swift */,
 				24B79ECE631EFE9C39379331 /* DestructiveTint.swift */,
@@ -2894,6 +2904,7 @@
 				51F46BEBBA374A2A5D8E4CCA /* ConnectOnMacTests.swift */,
 				8291C51A34B1C3189637F8B4 /* ConnectSnapshotTests.swift */,
 				78A71ADD7448F96F3FFDB188 /* ConnectWebGuideTests.swift */,
+				BDB90E4D35C577498EE4DA27 /* CreateButtonsTests.swift */,
 				EFDE9BAF7491846BB39F864F /* DailyNotesTests.swift */,
 				2AA02ED549CE37D8148F24D5 /* DateFoldTests.swift */,
 				6ACA8D5B7797EDE74894433D /* DeleteAccountTests.swift */,
@@ -4055,6 +4066,7 @@
 				43E8DD34AC58272ECB351FB5 /* ConnectOnMacTests.swift in Sources */,
 				2A1222002E0A3A15AB75B59B /* ConnectSnapshotTests.swift in Sources */,
 				976C1F32ADB32D8A0146615A /* ConnectWebGuideTests.swift in Sources */,
+				BFAB7A58BC927FE883E1736F /* CreateButtonsTests.swift in Sources */,
 				EDB8331EE3212C29270FFFB3 /* DailyNotesEditorTests.swift in Sources */,
 				C9880B10F8914D32C315F269 /* DailyNotesTests.swift in Sources */,
 				5E8C4D6B48FBCE8078A25B77 /* DateChipShots.swift in Sources */,
@@ -4367,6 +4379,7 @@
 				44B3FAAC19C20D8B7D45688A /* AppIdentity.swift in Sources */,
 				5E153129A4B637873EE0F5A4 /* AppMark.swift in Sources */,
 				EBA52C007B952E15C5C98BED /* AppPlace.swift in Sources */,
+				0B13129E0A20812C2E74581E /* AppTemplates.swift in Sources */,
 				4F5ECB8E15BB67904C3D0B66 /* AppearanceMode.swift in Sources */,
 				35BDB660A042C3C428EA504D /* AppearanceSettings.swift in Sources */,
 				1A5A85C992C1235208BFEA68 /* AppleNoteStore.swift in Sources */,
@@ -4414,6 +4427,7 @@
 				109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */,
 				D92E5ED0953F386C71530F89 /* ConnectTerminalGuide.swift in Sources */,
 				0A9CEFB1375921718DF57CCF /* ConnectWebGuide.swift in Sources */,
+				5039CE1BDD1D6E7794FF8815 /* CreateButtons.swift in Sources */,
 				0366C9B2B821FBA700B2095B /* DailyNotes.swift in Sources */,
 				E1A83EADA533E099B72CE9F3 /* DebouncedSave.swift in Sources */,
 				5DF4070A3BE600B9F2D1F641 /* DecoratedLayoutFragment.swift in Sources */,
@@ -4732,6 +4746,7 @@
 				3B7105221B24D815E7438BDD /* AppIdentity.swift in Sources */,
 				53FAB7BE6A0B731C0DCE88CD /* AppMark.swift in Sources */,
 				ADE87078E8EB51FDBDB28D54 /* AppPlace.swift in Sources */,
+				1FAB3C4A7A6FD9C2E3F2CA2F /* AppTemplates.swift in Sources */,
 				A7F80890829ABB6C407FC56C /* AppearanceMode.swift in Sources */,
 				31E9AF4640309AD90FB88C4D /* AppearanceSettings.swift in Sources */,
 				71483BBB227DB12096545F5F /* AppleNoteStore.swift in Sources */,
@@ -4779,6 +4794,7 @@
 				D49F57F54EB1B22444DB5F5C /* ConnectScan.swift in Sources */,
 				869B647A072CA82980DBAFC7 /* ConnectTerminalGuide.swift in Sources */,
 				9CD76482DDF2AB1F6C7FF89D /* ConnectWebGuide.swift in Sources */,
+				1A33A421BF07751CE52DD1B0 /* CreateButtons.swift in Sources */,
 				3E7B104863C6334EDB0E808D /* DailyNotes.swift in Sources */,
 				CDB3416573535BFCAD1C622E /* DebouncedSave.swift in Sources */,
 				0E5A93367DF00F588EC6C7A3 /* DecoratedLayoutFragment.swift in Sources */,

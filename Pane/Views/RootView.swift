@@ -123,7 +123,7 @@ struct RootView: View {
         // it still went to 621 and cut the note off).
         let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
         #endif
-        return popups(imports(lifecycle(split)).newAppSheet())
+        return popups(imports(lifecycle(split)).newAppSheet(scope: scope))
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNoteCommand)
@@ -932,6 +932,9 @@ struct RootView: View {
                 MultipleSelectionView(count: shown.count, items: shown.contains { context.attachment($0) != nil })
             } else if !behindSetupCard && !listEmpty {
                 listSearching ? EmptyDetailView(title: EmptyDetailView.pickResult) : EmptyDetailView(newNote: newNote)
+            } else if !behindSetupCard, scope == .all || scope == nil, FirstOneView.libraryIsEmpty(context) {
+                // A new account with nothing in it: the three things to make (CreateButtons.swift).
+                FirstOneView(newNote: newNote)
             } else {
                 Color.clear
             }
@@ -1403,6 +1406,15 @@ extension FocusedValues {
 
 #if os(macOS)
 struct PaneCommands: Commands {
+    /// The File menu's keys for making things: ⌘N, ⌥⌘N, ⌃⌘N (CreateKind.keys says them).
+    static func shortcut(_ kind: CreateKind) -> KeyboardShortcut {
+        switch kind {
+        case .note: KeyboardShortcut("n")
+        case .canvas: KeyboardShortcut("n", modifiers: [.command, .option])
+        case .app: KeyboardShortcut("n", modifiers: [.command, .control])
+        }
+    }
+
     /// A Format menu item (or its shortcut) was used: one feature_used each time.
     private func format(_ run: () -> Void) {
         Usage.count(.formatUsed)
@@ -1432,17 +1444,23 @@ struct PaneCommands: Commands {
                 .keyboardShortcut(",")
         }
         CommandGroup(replacing: .newItem) {
-            Button("New Note") { newNote?() }
+            // The three things to make, each with New Note's key and one modifier more
+            // (CreateKind.keys), then New Folder.
+            Button(CreateKind.note.menuTitle) { newNote?() }
                 .keyboardShortcut("n")
                 .disabled(newNote == nil)
+            if NoteApps.enabled {
+                Button(CreateKind.canvas.menuTitle) { NewCanvas.shared.ask() }
+                    .keyboardShortcut(Self.shortcut(.canvas))
+                    .disabled(newNote == nil)
+                Button(CreateKind.app.menuTitle) { NewApp.shared.open() }
+                    .keyboardShortcut(Self.shortcut(.app))
+                    .disabled(newNote == nil)
+            }
             // ⇧⌘N is New Folder in Notes and Finder.
             Button("New Folder") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(newNote == nil)
-            Button("New Canvas") { NewCanvas.shared.ask() }
-                .disabled(newNote == nil || !NoteApps.enabled)
-            Button("New App…") { NewApp.shared.open() }
-                .disabled(newNote == nil || !NoteApps.enabled)
             // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.
             Button("Today\u{2019}s Note") { todaysNote?.open() }
                 .keyboardShortcut("t")

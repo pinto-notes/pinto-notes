@@ -648,7 +648,12 @@ struct NoteListView: View {
             } else {
                 // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
                 // holds no new notes: the note it made went elsewhere.
-                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
+                SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, search: $search)
+                // Today's note at the top left, where the create study put it (B-iphone-bar); the
+                // bottom bar's right is the three create buttons now.
+                ToolbarItem(placement: .topBarLeading) {
+                    TodayButton().tint(.primary)
+                }
             }
             #else
             // One layout with the sidebar shown or hidden: anything that changed with the sidebar
@@ -657,15 +662,17 @@ struct NoteListView: View {
             // sometimes apart and sometimes together (Emil, 6 November 2026).
             ToolbarSpacer(.flexible)
             ToolbarItem {
-                HStack(spacing: 0) {
-                    listMore
-                    // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in
-                    // Recently Deleted, which holds no new notes, like Notes.
-                    if scope != .trash {
-                        ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
-                    }
+                listMore.labelStyle(.iconOnly)
+            }
+            // New Note, New Canvas and New App, one glass group of their own beside ••• (create
+            // study, B-mac). The fixed space keeps the two groups apart every time. Not in
+            // Recently Deleted, which holds no new notes, like Notes.
+            if scope != .trash {
+                ToolbarSpacer(.fixed)
+                ToolbarItem {
+                    ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
+                        .labelStyle(.iconOnly)
                 }
-                .labelStyle(.iconOnly)
             }
             #endif
         }
@@ -968,17 +975,18 @@ struct NoteListView: View {
             // The last note with the tag lost it (or went to Recently Deleted).
             ContentUnavailableView("No Notes", systemImage: "number", description: Text("No notes have #\(name)."))
         } else if Self.offersWaysToStart(scope: scope) {
-            // Nothing in the whole library (a new account, or one whose first run didn't come):
-            // the two ways to start, in place (newcomer audit #19), New Note the one in the accent.
-            // Words only, like Notes (Emil, 11-03: no app icon on the empty states).
-            ContentUnavailableView {
-                Text("No Notes")
-            } description: {
-                Text(Self.emptyLine)
-            } actions: {
-                // Side by side, or one above the other when the column is too narrow for both
-                // (Emil, 3 November 2026: Bring Your Notes ran past the column's edge).
-                EmptyLibraryActions(onNewNote: onNewNote, imports: imports)
+            // Nothing in the whole library (a new account, or one whose first run didn't come).
+            // One screen at a time (iPhone): "Make your first one" here, a card for each kind
+            // (FirstOneView). Beside a note pane (Mac, iPad) the cards are in that pane, and the
+            // list only says it's empty (empty-mac).
+            if Self.firstOneInList(stacked: stacked) {
+                ScrollView {
+                    FirstOneView(newNote: onNewNote, compact: true)
+                        .padding(.vertical, 24)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+            } else {
+                ContentUnavailableView { Text("No Notes") }
             }
         } else {
             // "No Notes", and the one way to start one here (council round 16: the note pane said
@@ -997,9 +1005,16 @@ struct NoteListView: View {
     /// folder that's empty has the compose button).
     static func offersWaysToStart(scope: Scope) -> Bool { scope == .all }
 
-    /// The empty library's line and its second button.
-    static let emptyLine = "Write a note, or bring your notes from Apple Notes, Obsidian, Bear, Evernote or Google Keep."
-    static let bringNotes = "Bring Your Notes\u{2026}"
+    /// Where the empty library's cards go: in the list when it's the only thing on screen, else
+    /// in the note pane beside it (RootView.noNote).
+    static func firstOneInList(stacked: Bool) -> Bool {
+        #if os(macOS)
+        false
+        #else
+        stacked
+        #endif
+    }
+
 
     @ViewBuilder
     private func deleteButton(_ note: Note) -> some View {
@@ -1186,31 +1201,22 @@ struct NoteListView: View {
 /// binding, and the action is the same action. Hiding or showing the sidebar hands the split
 /// view's columns over again, and without this the list was worked out again on every toggle.
 #if os(macOS)
-/// The list's New Note. While the note open is an untouched new one, New Note would only put the
-/// cursor back in it (RootView.newNote), so it is off, and looks it: the pencil greyed, as a
-/// disabled toolbar button is (Emil, 2 November 2026). A view of its own: it reads the open note's
-/// text, and only it is worked out again as that note is written in.
+/// The list's create buttons: New Note, New Canvas and New App (CreateButtons). While the note open
+/// is an untouched new one, New Note would only put the cursor back in it (RootView.newNote), so it
+/// is off, and looks it: the pencil greyed, as a disabled toolbar button is (Emil, 2 November 2026).
+/// A view of its own: it reads the open note's text, and only it is worked out again as that note
+/// is written in.
 struct ListCompose: View {
     let selected: UUID?
     let newNote: () -> Void
     @Environment(\.modelContext) private var context
 
     var body: some View {
-        let off = Self.isOff(selected: selected, in: context)
-        ComposeButton(newNote: newNote, off: off) {
-            // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-            Label { Text("New Note") } icon: {
-                ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift)
-                    .foregroundStyle(Self.iconStyle(off: off))
-            }
+        HStack(spacing: 0) {
+            CreateButtons(newNote: newNote, noteOff: Self.isOff(selected: selected, in: context))
         }
-        .disabled(off)
-        .help(off ? "This note is new and empty" : "New Note (⌘N). Click and hold for New App.")
-        .accessibilityLabel("New Note")
-        .newAppTip()
         // The menu bar's quick capture is the other way to start a note.
         .paneTip(MenuBarTip(), arrowEdge: .top)
-        .accessibilityIdentifier("list.newNote")
     }
 
     /// Off on an untouched new note: one that is empty and not in Recently Deleted.
@@ -2319,42 +2325,6 @@ struct ListSearchField: NSViewRepresentable {
     }
 }
 #endif
-
-/// The empty library's two ways to start: side by side, or one above the other when the column
-/// is too narrow for both (Emil, 3 November 2026: Bring Your Notes ran past the column's edge).
-struct EmptyLibraryActions: View {
-    let onNewNote: () -> Void
-    let imports: ImportActions?
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) { buttons }
-            VStack(spacing: 10) { buttons }
-        }
-    }
-
-    @ViewBuilder
-    private var buttons: some View {
-        Button("New Note", action: onNewNote)
-            .buttonStyle(.amberProminent)
-            .fixedSize()
-            .accessibilityIdentifier("empty.newNote")
-        if let imports {
-            // In the ink: one orange control on the screen. On the Mac it opens the choice of
-            // sources, as Import notes in the sidebar does, not Apple Notes' import alone.
-            Button(NoteListView.bringNotes) {
-                #if os(macOS)
-                NotificationCenter.default.post(name: .paneImportNotes, object: nil)
-                #else
-                imports.appleNotes()
-                #endif
-            }
-            .tint(Color.ink)
-            .fixedSize()
-            .accessibilityIdentifier("empty.bringNotes")
-        }
-    }
-}
 
 #if os(iOS)
 /// The notes list's style: grouped cards one screen at a time (iPhone), the Mac's plain list as a

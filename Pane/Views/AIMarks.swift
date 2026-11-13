@@ -340,7 +340,7 @@ struct AppMarkView: View {
     }
 }
 
-/// A canvas note's mark after its title in the list (Canvas): a scribble, in the app mark's grey.
+/// A canvas note's mark after its title in the list (Canvas): shapes, in the app mark's grey.
 struct CanvasMarkView: View {
     var size: CGFloat = 13
     var body: some View {
