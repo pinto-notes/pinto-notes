@@ -1,0 +1,208 @@
+/* Study F: "Say it to any AI". Cream page, the site's type. The sentence is the headline; the Mac
+   window beside it shows what the AI made. */
+
+.main { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 136px; }
+@media (max-width: 760px) { .main { gap: 88px; } }
+
+/* ── The first screen ── */
+.hero { display: grid; grid-template-columns: minmax(0, 0.74fr) minmax(0, 1.26fr); grid-template-areas: "words stage"; column-gap: clamp(32px, 4vw, 64px);
+  align-items: center; min-height: calc(100svh - 84px); padding: 8px 0 32px; box-sizing: border-box; }
+.words { grid-area: words; min-width: 0; display: grid; gap: 22px; justify-items: start; }
+.stageCol { grid-area: stage; min-width: 0; display: grid; gap: 18px; }
+
+/* The sentence: the full sentence sits invisible underneath, so the block never changes height as it types. */
+.say { margin: 0; display: grid; font-size: clamp(44px, min(4.5vw, 7.6vh), 74px); font-weight: 750; letter-spacing: -0.032em; line-height: 1.02; color: var(--ink); text-wrap: balance; }
+.sayGhost, .sayLive { grid-area: 1 / 1; }
+.sayGhost { visibility: hidden; }
+.caret { display: inline-block; width: 0.07em; height: 0.82em; margin-left: 0.04em; vertical-align: -0.06em; border-radius: 2px; background: var(--amber); opacity: 0; }
+.caret[data-on] { opacity: 1; }
+
+/* The AI row: who you said it to. Quiet words with their logos; the chosen one in ink, underlined. */
+.ais { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: -4px; }
+.ai { display: inline-flex; align-items: center; gap: 7px; padding: 6px 0; border: 0; background: none; font: inherit; font-size: 15.5px; font-weight: 650; color: #a08a72;
+  cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
+.ai:hover { color: var(--ink); }
+.ai[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--amber); }
+.ai:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
+
+.then { margin: 4px 0 0; max-width: 24em; display: grid; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.4; color: var(--muted); }
+.then > span { grid-area: 1 / 1; }
+.ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+.ctas > div { margin: 0; }
+.iphone { display: inline-flex; align-items: center; gap: 9px; min-height: 50px; padding: 0 22px; border-radius: 14px; font-size: 16px; font-weight: 700; color: #2a1a0c;
+  background: #f3e4d0; text-decoration: none; transition: background-color 0.15s; }
+.iphone:hover { background: #ecd9c0; }
+/* On an iPhone (lib/platform.ts marks <html>) the Mac download is hidden, and this one fills. */
+:global(:root[data-platform="ios"]) .ctas > div:first-child { display: none; }
+:global(:root[data-platform="ios"]) .iphone { background: #2a1a0c; color: #fff; }
+:global(:root[data-platform="ios"]) .iphone:hover { background: #3d2814; }
+:global(:root[data-platform="ios"]) .iphone svg { stroke: currentColor; }
+.iphone svg { width: 17px; height: 17px; fill: none; stroke: #a08467; stroke-width: 1.5; stroke-linecap: round; }
+.fine { margin: -8px 0 0; font-size: 13.5px; font-weight: 600; color: #8a7a68; }
+
+/* The tabs: the app's three create buttons, with their names. A thin bar runs while it plays on its own. */
+.tabs { display: flex; gap: 6px; justify-content: center; }
+.tab { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 11px; border: 0; border-radius: 12px; background: none; font: inherit;
+  font-size: 16px; font-weight: 650; color: #a08a72; cursor: pointer; transition: color 0.15s, background-color 0.15s; }
+.tab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tab:hover { color: var(--ink); background: rgba(120, 70, 20, 0.06); }
+.tab[aria-selected="true"] { color: var(--ink); }
+.tab[aria-selected="true"] svg { color: #d97a17; }
+.tab::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 3px; height: 2px; border-radius: 1px; background: rgba(120, 70, 20, 0.12); opacity: 0; }
+.tab[aria-selected="true"]::after { opacity: 1; background: var(--amber); }
+.tabBar { position: absolute; z-index: 1; left: 16px; right: 16px; bottom: 3px; height: 2px; border-radius: 1px; background: var(--amber); transform-origin: left; }
+.tab:has(.tabBar)::after { background: rgba(240, 144, 26, 0.22); }
+.tab:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* The stage: the window is drawn at a fixed size and scaled to the column, like a screenshot. */
+.stage { position: relative; width: 100%; }
+.window { position: absolute; top: 0; left: 0; transform-origin: 0 0; box-sizing: border-box; border-radius: 18px; background: #fff; overflow: hidden; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.1), 0 2px 6px rgba(80, 45, 10, 0.05), 0 50px 90px -40px rgba(60, 30, 5, 0.42); display: flex; flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif; }
+.window[data-compact] { border-radius: 30px; }
+.surface { position: relative; flex: 1; min-height: 0; }
+@media (prefers-reduced-motion: no-preference) { .surface { animation: surfaceIn 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; } }
+@keyframes surfaceIn { from { opacity: 0; filter: blur(4px); } }
+
+/* The window's toolbar */
+.bar { flex: none; height: 56px; display: flex; align-items: center; gap: 6px; padding: 0 14px 0 18px; color: #6e6e73; }
+.bar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lights { display: inline-flex; gap: 8px; margin-right: 16px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #e3e3e3; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12); }
+.barIcon { margin: 0 6px; }
+.barIconMuted { margin: 0 6px; opacity: 0.45; }
+.barTitle { margin-left: 8px; font-size: 14.5px; font-weight: 650; color: #555; }
+.backCircle { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #f2f2f2; }
+.backCircle svg { width: 18px; height: 18px; }
+.cluster { margin-left: auto; display: inline-flex; align-items: center; gap: 14px; height: 38px; padding: 0 14px; border-radius: 19px; background: #f6f6f6; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06); }
+.cluster svg { width: 20px; height: 20px; }
+.aa { font-size: 16px; font-weight: 500; }
+.bar[data-compact] { height: 64px; padding: 14px 18px 0; color: #d97a17; }
+.backText { display: inline-flex; align-items: center; gap: 2px; font-size: 17px; font-weight: 500; }
+.backText svg { width: 22px; height: 22px; stroke-width: 2; }
+.barRight { margin-left: auto; display: inline-flex; gap: 18px; }
+
+/* 1. The note, as the app draws it */
+.note { padding: 18px 44px 0; }
+[data-compact] .note { padding: 6px 22px 0; }
+.noteTitle { margin: 0 0 14px; font-size: 34px; font-weight: 750; letter-spacing: -0.015em; min-height: 1.2em; }
+.noteIntro { margin: 0 0 16px; font-size: 16.5px; line-height: 1.45; }
+.check { margin: 0 0 0 -8px; padding: 0; list-style: none; display: grid; gap: 2px; }
+.check li { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 8px; font-size: 16.5px; }
+.check li i { flex: none; width: 19px; height: 19px; border-radius: 50%; box-shadow: inset 0 0 0 1.3px #b9b9b9; }
+[data-compact] .check li { font-size: 17px; padding: 8px; }
+.mention { margin: 24px 0 0; padding-top: 14px; border-top: 1px solid #ececec; font-size: 13.5px; font-weight: 600; color: #8e8e93; }
+
+/* 2. The whiteboard */
+.boardWrap { position: absolute; inset: 0; }
+.boardCanvas { position: absolute; inset: 0 22px 84px; display: grid; place-items: center; }
+[data-compact] .boardCanvas { inset: 0 16px 84px; }
+.board { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hand { font-family: var(--hand), "Virgil", "Comic Sans MS", cursive; }
+.tools { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 16px; background: #fff;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 6px 18px -6px rgba(0, 0, 0, 0.18); color: #1d1b19; }
+.tools svg { width: 36px; height: 36px; padding: 7px; box-sizing: border-box; border-radius: 9px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+  transition: background-color 0.18s; }
+.tools svg[data-on] { background: #ececf0; }
+.tools .toolMuted { color: #b0b0b5; }
+.toolGap { width: 18px; }
+.zoom { position: absolute; right: 22px; bottom: 30px; font-size: 13px; color: #8e8e93; }
+
+/* 3. The app: the Habit tracker template's Today screen */
+.app { position: absolute; inset: 0; display: flex; background: #fffdfb; color: #2a1d10; border-top: 1px solid #f0ebe6; }
+.appSide { flex: none; width: 196px; padding: 22px 12px; box-sizing: border-box; background: #f4f1ee; border-right: 1px solid #e8e2dc; display: grid; align-content: start; gap: 4px; }
+.appSide b { margin: 0 0 16px 10px; font-size: 17px; font-weight: 700; }
+.appSide span { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 14.5px; font-weight: 550; color: #6b5a48; }
+.appSide span[data-on] { background: #ede0d4; color: #2a1d10; }
+.appSide svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.appSide span[data-on] svg { color: #d97a17; }
+.appMain { flex: 1; min-width: 0; padding: 26px 28px 0 30px; }
+[data-compact] .appMain { padding: 10px 20px 0; }
+.appDate, .appLabel { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #7a6450; }
+.appTitle { margin: 2px 0 18px; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+.appCols { display: grid; grid-template-columns: 1fr 1.1fr; gap: 18px; align-items: start; }
+[data-compact] .appCols { grid-template-columns: 1fr; gap: 14px; }
+.appLeft { display: grid; gap: 14px; }
+.ringCard { display: flex; align-items: center; gap: 18px; padding: 16px 18px; border-radius: 16px; background: #f4f1ee; }
+.ringCard b { display: block; margin: 2px 0; font-size: 22px; font-weight: 800; }
+.ringCard span { font-size: 14px; color: #6b5a48; }
+.ring { width: 88px; height: 88px; flex: none; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke: #e8e2dc; stroke-width: 9; }
+.ring circle[data-on] { stroke: #d96f0a; stroke-linecap: round; }
+.ring text { transform: rotate(90deg); transform-origin: 50px 50px; font-size: 20px; font-weight: 800; fill: #2a1d10; }
+.weekCard { padding: 12px 14px; border-radius: 16px; background: #f4f1ee; display: grid; gap: 7px; }
+.weekHead, .weekRow { display: grid; grid-template-columns: 1fr repeat(7, 16px); gap: 4px; align-items: center; }
+.weekHead span { font-size: 11px; font-weight: 700; color: #7a6450; text-align: center; }
+.weekRow > span { font-size: 13.5px; }
+.weekRow i { width: 15px; height: 15px; border-radius: 50%; background: #ebe6e1; transition: background-color 0.2s; }
+.weekRow i[data-v="1"] { background: #d96f0a; }
+.weekRow i[data-v="h"] { background: #fff; box-shadow: inset 0 0 0 1.3px #d96f0a; }
+.habits ul { margin: 6px 0 0; padding: 0; list-style: none; border-radius: 16px; background: #f4f1ee; overflow: hidden; }
+.habits li { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-top: 1px solid #e8dfd6; }
+.habits li:first-child { border-top: 0; }
+.habits li > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.habits li b { display: inline-flex; align-items: center; gap: 2px; font-size: 16px; font-weight: 700; }
+.habits li b svg { width: 14px; height: 14px; fill: none; stroke: #6b5a48; stroke-width: 2; }
+.habits li > div > span { font-size: 13px; color: #6b5a48; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.habits li em { font-style: normal; color: #b35d00; }
+.done { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #d96f0a; }
+.done svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.open { flex: none; width: 38px; height: 38px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #a08a72; }
+.count { flex: none; display: inline-flex; gap: 8px; }
+.count i { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #e8e2dc; font-style: normal; font-size: 20px; color: #2a1d10; }
+.count i[data-ring] { background: #fff; color: #d96f0a; box-shadow: inset 0 0 0 2.5px #d96f0a; }
+.appFoot { margin: 10px 2px 0; font-size: 13px; color: #6b5a48; }
+
+/* ── Below: the AIs ── */
+.title { margin: 0; font-size: clamp(32px, 3.6vw, 52px); line-height: 1.05; font-weight: 780; letter-spacing: -0.03em; text-wrap: balance; color: var(--ink); }
+.lede { margin: 0; max-width: 30em; font-size: clamp(17px, 1.5vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.inline { color: var(--ink); font-weight: 650; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 3px; transition: color 0.15s; }
+.inline:hover { color: var(--link); }
+.any { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px 64px; align-items: start; }
+.anyHead { display: grid; gap: 16px; }
+.logos { grid-column: 1; margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 14px 28px; color: var(--ink); }
+.logos li { display: inline-flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; }
+.logos svg { width: 30px; height: 30px; }
+.study { grid-column: 2; grid-row: 1 / span 2; margin: 0; padding: 32px 34px; border-radius: 26px; background: var(--card); box-shadow: 0 0 0 1px var(--line); display: grid; gap: 22px; align-content: start; }
+.study figcaption { font-size: 15px; font-weight: 650; color: var(--muted); }
+.bars { display: grid; gap: 18px; }
+.bars p { margin: 0; display: grid; grid-template-columns: 112px 1fr 64px; align-items: center; gap: 14px; font-size: 15px; font-weight: 600; color: var(--muted); }
+.bars i { height: 14px; border-radius: 7px; background: linear-gradient(to right, #c9b39a calc(var(--v) * 100%), rgba(120, 70, 20, 0.08) 0); }
+.bars p[data-pinto] { color: var(--ink); }
+.bars p[data-pinto] i { background: linear-gradient(to right, var(--amber) calc(var(--v) * 100%), rgba(120, 70, 20, 0.08) 0); }
+.bars b { font-size: 22px; font-weight: 800; color: var(--ink); text-align: right; letter-spacing: -0.01em; }
+.study .inline { justify-self: start; font-size: 15.5px; }
+
+/* ── The basics ── */
+.basics ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; }
+.basics li { display: grid; gap: 6px; align-content: start; }
+.basics img { width: 56px; height: 56px; margin-bottom: 8px; }
+.basics h3 { margin: 0; font-size: 18px; font-weight: 750; color: var(--ink); }
+.basics p { margin: 0; font-size: 15.5px; line-height: 1.4; color: var(--muted); }
+
+/* ── The download ── */
+.closing { display: grid; justify-items: center; text-align: center; gap: 22px; padding-bottom: 24px; }
+.closing img { border-radius: 22px; }
+.closingCta { justify-items: center; }
+
+/* ── Narrow windows and phones: the sentence, who to, what it makes, the download; then the window ── */
+@media (max-width: 1080px) {
+  .hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "words" "stage"; row-gap: 36px; min-height: 0; padding-top: 24px; }
+  }
+@media (max-width: 760px) {
+  .say { font-size: clamp(38px, 10.6vw, 56px); }
+  .words { gap: 16px; }
+  .ais { gap: 2px 12px; }
+  .ai { font-size: 13.5px; gap: 5px; }
+  .then { font-size: 17.5px; }
+  .tabs { justify-content: space-between; gap: 0; }
+  .tab { padding: 9px 8px 11px; font-size: 15px; gap: 6px; }
+  .tab::after, .tabBar { left: 8px; right: 8px; }
+  .any { grid-template-columns: minmax(0, 1fr); }
+  .logos, .study { grid-column: 1; grid-row: auto; }
+  .logos { gap: 14px 24px; }
+  .study { padding: 24px 22px; }
+  .bars p { grid-template-columns: 1fr 64px; row-gap: 8px; }
+  .bars i { grid-column: 1 / -1; grid-row: 2; }
+  .basics ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 20px; }
+}
