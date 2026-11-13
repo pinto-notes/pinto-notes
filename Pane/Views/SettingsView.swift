@@ -109,6 +109,7 @@ struct SettingsView: View {
             if let client = backend.client { AddAIPage(client: client, preview: connections) }
         case .general: GeneralSettingsPage(close: closeSettings)
         case .todaysNote: TodaysNoteSettingsPage()
+        case .experimental: ExperimentalSettingsPage()
         case .shortcuts:
             #if os(macOS)
             KeyboardShortcutsSettingsPage()

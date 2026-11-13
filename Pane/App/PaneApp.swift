@@ -141,6 +141,7 @@ struct PaneApp: App {
         NoteVault.shared = inMemory ? NoteVault(keyStore: captureFaceID ? CaptureFaceIDKeyStore() as LockKeyStore : MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)
             : NoteVault(keyStore: KeychainKeyStore(), drivesSync: true)
         Capture.lockedNotesFromArguments(container.mainContext)
+        Capture.recipesFromArguments(container.mainContext)
         // Amber Notes Beta only: the two-device check of shared notes, from a local steps file.
         CollabScript.runIfRequested(context: container.mainContext, signIn: { email, password in try await backend.signIn(email: email, password: password) },
                                     skipIntro: {

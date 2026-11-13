@@ -940,3 +940,71 @@ extension ButtonStyle where Self == BarIconButtonStyle {
     static var barIcon: BarIconButtonStyle { .init() }
 }
 #endif
+
+// MARK: Covers and icons (CoverControls)
+
+/// A quiet button: grey label, a light fill under the pointer.
+struct TitleActionStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .labelStyle(.titleAndIcon)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(Color.muted)
+            .padding(.horizontal, 8)
+            .frame(height: TitleActions.height)
+            .hoverHighlight(Capsule())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .contentShape(Capsule())
+    }
+}
+
+/// A small dark pill over a photo: readable on any picture.
+struct CoverButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .frame(height: 24)
+            .background(Capsule().fill(.black.opacity(configuration.isPressed ? 0.6 : 0.45)))
+            .hoverOverlay(Capsule(), .hoverLighten)
+            .contentShape(Capsule())
+    }
+}
+
+
+// MARK: Gallery cards (FolderGallery)
+
+/// A card in a folder's gallery: a light fill around it under the pointer, dimmed while pressed.
+struct GalleryCardStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(8)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .padding(-8)
+    }
+}
+
+// MARK: Icon picker (IconPicker)
+
+/// An emoji in the icon picker: a light fill under the pointer, darker while pressed.
+struct IconCellStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .hoverHighlight(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(Color.primary.opacity(configuration.isPressed ? 0.12 : 0), in: .rect(cornerRadius: 8, style: .continuous))
+    }
+}
+
+// MARK: Cover picker (CoverPicker)
+
+/// A ready-made cover's swatch: a ring under the pointer, dimmed while pressed.
+struct CoverSwatchStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(2)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}

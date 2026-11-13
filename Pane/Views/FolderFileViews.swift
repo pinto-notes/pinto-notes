@@ -1,3 +1,4 @@
+import ImageIO
 import QuickLook
 import QuickLookThumbnailing
 import SwiftData
@@ -274,9 +275,26 @@ struct FileThumbnail: View {
         // A page or picture says more than an icon; a spreadsheet's or text's thumbnail is mostly blank.
         let t = file.type
         guard FileStore.exists(file), t.conforms(to: .pdf) || t.conforms(to: .image) || t.conforms(to: .movie) else { image = nil; return }
+        // A picture is decoded here at twice the pixels it fills: the system's thumbnail came out
+        // about half as sharp as the row (Emil, 13 November 2026: "make this nicer").
+        if t.conforms(to: .image) {
+            let url = FileStore.url(for: file.id, filename: file.filename), pixels = side * scale * 2
+            if let sharp = await Task.detached(priority: .utility, operation: { Self.decode(url, pixels: pixels) }).value {
+                image = sharp
+                return
+            }
+        }
         let request = QLThumbnailGenerator.Request(fileAt: FileStore.url(for: file.id, filename: file.filename),
                                                    size: CGSize(width: side, height: side), scale: scale, representationTypes: .thumbnail)
         image = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request).cgImage
+    }
+
+    /// A picture's thumbnail, its longest side `pixels`, turned the way the photo was taken.
+    nonisolated static func decode(_ url: URL, pixels: CGFloat) -> CGImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                        kCGImageSourceThumbnailMaxPixelSize: Int(pixels.rounded(.up)), kCGImageSourceShouldCacheImmediately: true]
+        return CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
     }
 }
 

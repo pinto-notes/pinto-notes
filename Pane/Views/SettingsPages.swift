@@ -2176,3 +2176,29 @@ struct SettingsSubPageRow: View {
         #endif
     }
 }
+
+/// Experimental: features to try, each with a switch, off until turned on (Experiments). Turning
+/// one off hides it; what it kept stays for when it's on again.
+struct ExperimentalSettingsPage: View {
+    /// Read so the switches redraw when one changes.
+    @AppStorage(Experiment.covers.key) private var coversOn = false
+    @AppStorage(Experiment.gallery.key) private var galleryOn = false
+
+    var body: some View {
+        let _ = (coversOn, galleryOn)
+        SettingsPageForm {
+            Section {
+                ForEach(Experiment.allCases) { e in
+                    Toggle(isOn: Binding(get: { Experiments.isOn(e) }, set: { Experiments.set(e, $0) })) {
+                        Text(e.title)
+                        Text(e.detail)
+                    }
+                    .settingsSwitch()
+                    .accessibilityIdentifier("settings.experiment.\(e.rawValue)")
+                }
+            } footer: {
+                Text("These may change or go away. Turning one off hides it; nothing in your notes is lost.")
+            }
+        }
+    }
+}

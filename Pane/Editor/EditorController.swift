@@ -159,6 +159,75 @@ final class EditorController {
     private nonisolated static let log = Logger(subsystem: "dev.emilwagman.pane", category: "files")
 
     /// Inserts embed lines for files at the caret, each on its own line.
+    /// Makes a picture the note's cover (NoteCover), in place of the one it had.
+    func setCover(_ file: Attachment) {
+        guard file.isImage else { return }
+        let line = NoteCover.line(id: file.id, filename: file.filename)
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.setting(line, in: text), selection: sel) }
+    }
+
+    /// A picture already in the note becomes its cover, moved from its line to the top.
+    func makeCover(line: String, from range: NSRange) {
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.setting(line, in: text, moving: range), selection: sel) }
+    }
+
+    /// Asks for a picture to be the cover (the note's screen shows Photos or the file picker, or
+    /// keeps a ready-made one).
+    @ObservationIgnored var pickCover: (CoverSource) -> Void = { _ in }
+
+    /// Change Cover on the banner: the cover picker by it (Mac), or the photo library.
+    func changeCover() {
+        #if os(macOS)
+        if let view = target as? PaneTextView { view.presentCoverPicker(fromTitle: false); return }
+        #endif
+        pickCover(.photos)
+    }
+
+    /// Icons a new one starts from, like Notion's random pick; the emoji panel opens to change it.
+    static let startIcons = ["🍋", "🌿", "📒", "✨", "🌻", "🍓", "🪴", "📚", "☕️", "🍊", "🌙", "🎈"]
+
+    /// Add Icon: on the Mac the icon picker opens by the title (IconPicker), and the icon goes in
+    /// once one is picked; on iPhone an emoji goes in front of the title, selected, to swap it.
+    func addIcon() {
+        #if os(macOS)
+        if let view = target as? PaneTextView { view.presentIconPicker(); return }
+        #endif
+        let icon = Self.startIcons.randomElement()!
+        perform { text, _ in NoteCover.iconEdit(icon, in: text) }
+        openEmojiPanel()
+    }
+
+    /// Puts `icon` in front of the title, in place of the one it had; nil takes it away.
+    func setIcon(_ icon: String?) {
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.settingIcon(icon, in: text), selection: sel) }
+    }
+
+    /// The icon picker again (Mac), or the icon selected with the emoji panel open, to pick another.
+    func changeIcon() {
+        #if os(macOS)
+        if let view = target as? PaneTextView { view.presentIconPicker(); return }
+        #endif
+        guard let t = target else { return }
+        let ns = t.currentText as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, let length = NoteCover.iconLength(ns.substring(from: at)) else { return }
+        let emoji = ns.substring(from: at).first.map { String($0) } ?? ""
+        t.apply(TextEdit(range: NSRange(location: at, length: (emoji as NSString).length), replacement: emoji, caret: at, selection: NSRange(location: at, length: (emoji as NSString).length)))
+        _ = length
+        openEmojiPanel()
+    }
+
+    private func openEmojiPanel() {
+        target?.focusEditor()
+        #if os(macOS)
+        DispatchQueue.main.async { NSApp.orderFrontCharacterPalette(nil) }
+        #endif
+    }
+
+    func removeCover() {
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.removing(from: text), selection: sel) }
+    }
+
     func insertFiles(_ files: [Attachment]) {
         guard !files.isEmpty else { return }
         insertLines(files.map(\.markdown))

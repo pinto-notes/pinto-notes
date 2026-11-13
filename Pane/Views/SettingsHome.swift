@@ -23,6 +23,8 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// AI Connections' pages one level down: one connected AI (the one `AISelection` holds), and
     /// Add an AI, the onboarding picker's rows (Emil, 7 November 2026: as Bluetooth has it).
     case aiConnection, addAI
+    /// Features to try, each with a switch (Experiments; Emil, 12 November 2026), last.
+    case experimental
     var id: String { rawValue }
 
     /// The page a page one level down opens from: Account's for your details and how you sign in.
@@ -39,7 +41,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// General, Appearance and Keyboard shortcuts; the features with settings of their own (AI
     /// Connections first, the reason people use Pinto); Privacy and Storage; Help and feedback. No
     /// headings: the gaps group them (Emil, 7 November 2026).
-    static let groups: [[SettingsPage]] = [[.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help]]
+    static let groups: [[SettingsPage]] = [[.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help], [.experimental]]
 
     var title: String {
         switch self {
@@ -58,6 +60,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .shortcuts: SettingsNames.shortcuts
         case .aiConnection: AISelection.title
         case .addAI: "Add an AI"
+        case .experimental: SettingsNames.experimental
         }
     }
 
@@ -79,6 +82,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .shortcuts: SettingsIcons.shortcuts
         case .aiConnection: SettingsIcons.ai
         case .addAI: "plus"
+        case .experimental: SettingsIcons.experimental
         }
     }
 
@@ -86,7 +90,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
     /// works, signed out too) and Help and feedback always; AI Connections and Storage with an
     /// account. Keys for apps is parked (Emil, 6 November 2026): nothing leads to it.
     static func available(signedIn: Bool, hasClient: Bool, demoStorage: Bool = false) -> Set<SettingsPage> {
-        var out: Set<SettingsPage> = [.account, .general, .appearance, .todaysNote, .security, .help]
+        var out: Set<SettingsPage> = [.account, .general, .appearance, .todaysNote, .security, .help, .experimental]
         #if os(macOS)
         out.insert(.shortcuts)  // the Mac's menus; iPhone has none to list
         #endif
@@ -114,6 +118,7 @@ enum SettingsNames {
     static let help = "Help and feedback"
     static let todaysNote = "Today\u{2019}s note"
     static let shortcuts = "Keyboard shortcuts"
+    static let experimental = "Experimental"
 }
 
 /// Settings' page symbols, the same on the Mac and iPhone: one outline family.
@@ -128,6 +133,7 @@ enum SettingsIcons {
     static let help = "questionmark.circle"
     static let todaysNote = "calendar"
     static let shortcuts = "command"
+    static let experimental = "flask"
 }
 
 #if os(macOS)
@@ -212,6 +218,8 @@ enum SettingsIndex {
         e("Today\u{2019}s note template", .todaysNote, "settings.today.template", also: ["Template", "Daily note template"]),
         e("Open today\u{2019}s note when Pinto starts", .todaysNote, "settings.today.launch", also: ["Open on launch", "Daily note"]),
         e(GeneralCopy.importNotes, .general, "settings.importNotes", also: ["Import", "Import notes", "Apple Notes", "Obsidian", "Notion", "Bear", "Evernote"]),
+        e("Covers and icons", .experimental, "settings.experiment.covers", also: ["Cover", "Icon", "Emoji", "Experimental", "Beta"]),
+        e("Gallery view", .experimental, "settings.experiment.gallery", also: ["Gallery", "Cards", "View as Gallery", "Experimental", "Beta"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),

@@ -41,8 +41,11 @@ struct EmbedView: View {
             NSMaxRange(embed.range) <= ns.length ? ns.substring(with: embed.range) : nil
         }
         let rewrite = self.rewrite
+        let controller = self.controller, range = embed.range
         return { size in
-            if let line, let new = ImageSizes.relabel(line, to: size) { rewrite(new) }
+            guard let line, let new = ImageSizes.relabel(line, to: size) else { return }
+            // Cover makes it the note's cover: moved up above the title (NoteCover).
+            if size == .cover, let controller { controller.makeCover(line: new, from: range) } else { rewrite(new) }
         }
     }
 

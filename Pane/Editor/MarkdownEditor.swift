@@ -75,6 +75,10 @@ final class EditorCore {
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
+    /// Room above the title for the note's cover (NoteCover): the view adds it to the text's top
+    /// inset (TextKit leaves out space before a document's first paragraph) and the banner is
+    /// placed in it (`overlays`).
+    private(set) var coverRoom: CGFloat = 0
     /// Looks up a file so images can be sized (set by the text view).
     var resolveAttachment: (UUID) -> Attachment? = { _ in nil }
     /// Called after a restyle, so the view can place live views.
@@ -189,13 +193,24 @@ final class EditorCore {
             }
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
+        let cover = NoteCover.find(embeds, in: storage.string as NSString)
         for e in embeds where !folds.isHidden(e.range.location) {
             // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
             var maxW = CGFloat.infinity
             if case .note(let id, _) = e.kind, NoteWidgets.isApp(id) { maxW = NoteWidgets.maxWidth }
             // A picture has its own width (ImageSizes): the text's, or less.
             if case .image = e.kind { maxW = ImageSizes.size(for: e).width }
-            guard let f = frame(at: e.range.location, height: e.height, maxWidth: maxW) else { continue }
+            var placed: CGRect?
+            if e.range == cover?.range {
+                // The cover: a banner in the room the styler left above the title.
+                let title = MarkdownStyler.titleLocation(storage.string as NSString)
+                placed = frame(at: title, height: e.height, maxWidth: maxW).map {
+                    $0.offsetBy(dx: 0, dy: -(e.height + NoteCover.gap))
+                }
+            } else {
+                placed = frame(at: e.range.location, height: e.height, maxWidth: maxW)
+            }
+            guard let f = placed else { continue }
             let remove = {
                 let ns = target.currentText as NSString
                 var r = ns.lineRange(for: e.range)
@@ -223,7 +238,12 @@ final class EditorCore {
             default: break
             }
             #endif
-            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)),
+            let embedView = EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)
+            // The cover's banner shows Change Cover and Remove under the pointer.
+            let shown = e.range == cover?.range && controller?.readOnly != true
+                ? AnyView(CoverHover(content: embedView, change: { [weak controller] in controller?.changeCover() }, remove: { [weak controller] in controller?.removeCover() }))
+                : AnyView(embedView)
+            out.append((e.key, f, shown,
                         .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
         }
         return out
@@ -297,6 +317,7 @@ final class EditorCore {
         if lastRegions.count > 6 { lastRegions.removeFirst() }
         let blocks = styler.apply(to: storage, active: selection ?? NSRange(location: NSNotFound, length: 0), region: region, structure: structure)
         folds.apply(to: storage, code: structure.code, selection: selection)
+        coverRoom = NoteCover.find(blocks.embeds, in: storage.string as NSString).map { $0.height + NoteCover.gap } ?? 0
         publish(blocks)
     }
 
@@ -985,7 +1006,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The whole width, as on the Mac: no reading column (Emil, 31 October 2026).
         let side: CGFloat = 20
         let hasDate = !(headerLabel.text ?? "").isEmpty
-        let inset = UIEdgeInsets(top: hasDate ? 44 : 14, left: side, bottom: 120 + (controller?.bottomReserve ?? 0), right: side)
+        let inset = UIEdgeInsets(top: (hasDate ? 44 : 14) + core.coverRoom, left: side, bottom: 120 + (controller?.bottomReserve ?? 0), right: side)
         if textContainerInset != inset { textContainerInset = inset }
         headerLabel.frame = CGRect(x: 0, y: DateFold.labelTop, width: bounds.width, height: DateFold.labelHeight)
         foldDate(hasDate)
@@ -2605,7 +2626,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
-        core.onCardsChanged = { [weak self] in self?.queueCardLayout() }
+        core.onCardsChanged = { [weak self] in
+            guard let self else { return }
+            // A cover came, went or changed size: the text's top moves for its banner.
+            if self.coverRoom != self.core.coverRoom { self.coverRoom = self.core.coverRoom; self.setInsets(width: self.frame.width) }
+            self.queueCardLayout()
+        }
         drawsBackground = false
         isRichText = false
         allowsUndo = true
@@ -2644,6 +2670,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 MainActor.assumeIsolated { self?.textSizeChanged() }
             }
         }
+        if experimentsObserver == nil {
+            // Settings › Experimental: the icon drawn large, or as text again.
+            experimentsObserver = NotificationCenter.default.addObserver(forName: Experiments.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
         if noteFontObserver == nil {
             // Settings › Appearance › Font: every line restyled in the new face, as for the size.
             noteFontObserver = NotificationCenter.default.addObserver(forName: NoteFont.didChange, object: nil, queue: .main) { [weak self] _ in
@@ -2666,6 +2698,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     private var textSizeObserver: NSObjectProtocol?
     private var noteFontObserver: NSObjectProtocol?
+    private var experimentsObserver: NSObjectProtocol?
+    private var iconPopover: NSPopover?
+    private var coverPopover: NSPopover?
 
     /// View › Bigger or Smaller: every line restyled at the new size, the cards moved to where the
     /// text now is. The caret and scroll stay where they were.
@@ -2763,19 +2798,29 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.setImageBox(width: width, height: height, storage: textStorage!, selection: editingSelection)
     }
 
+    /// The cover's room above the title, as last applied to the insets (EditorCore.coverRoom).
+    private var coverRoom: CGFloat = 0
+
     private func setInsets(width: CGFloat) {
+        // The cover's room goes above the text: the inset is the same above and below, so it's
+        // half of it each side and the text is drawn that much lower (`textContainerOrigin`).
         if DesignLook.readingPage {
             let side = Self.textSide(width: width)
-            let inset = NSSize(width: side, height: headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop)
+            let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + coverRoom / 2)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: max(0, width - side * 2), height: 16)
         } else {
-            let inset = NSSize(width: 20, height: headerLabel.stringValue.isEmpty ? 14 : 44)
+            let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + coverRoom / 2)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: 0, y: 14, width: width, height: 16)
         }
+    }
+
+    override var textContainerOrigin: NSPoint {
+        let o = super.textContainerOrigin
+        return NSPoint(x: o.x, y: o.y + coverRoom / 2)
     }
 
     /// What each live view last showed, so one whose content is the same isn't given it again.
@@ -3920,6 +3965,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func keyDown(with event: NSEvent) {
+        hideTitleActions()
         // Recently Deleted: typing asks to recover the note first, like Notes. Moving around and
         // the ⌘ shortcuts (Copy, Select All) still work.
         if controller?.readOnly == true, Self.edits(event) {
@@ -4201,9 +4247,124 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         super.cursorUpdate(with: event)
     }
 
+    // MARK: Add Icon and Add Cover beside the title
+
+    private var titleActionsHost: NSHostingView<TitleActions>?
+
+    /// The title's first line, in this view.
+    func titleLineRect() -> CGRect? {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return nil }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, let loc = tcm.location(tcm.documentRange.location, offsetBy: at),
+              let frag = tlm.textLayoutFragment(for: loc), let line = frag.textLineFragments.first else { return nil }
+        let o = textContainerOrigin, b = line.typographicBounds, f = frag.layoutFragmentFrame
+        // Where the words end, not the line's whole width.
+        let end = line.locationForCharacter(at: line.characterRange.length)
+        return CGRect(x: o.x + f.minX + b.minX, y: o.y + f.minY + b.minY, width: max(0, end.x), height: b.height)
+    }
+
+    /// Shows the title's buttons while the pointer is on the title or just above it, where they fit.
+    func updateTitleActions(at p: CGPoint) {
+        guard controller?.readOnly != true, Experiments.isOn(.covers), let title = titleLineRect() else { hideTitleActions(); return }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        let needsIcon = NoteCover.iconLength(ns.substring(from: at)) == nil
+        let needsCover = NoteCover.find(core.embeds, in: ns) == nil
+        let near = p.y >= title.minY - 20 && p.y <= title.maxY + 4
+        guard near, needsIcon || needsCover else { hideTitleActions(); return }
+        let width = TitleActions.width(icon: needsIcon, cover: needsCover)
+        let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
+        guard title.maxX + 16 <= right - width else { hideTitleActions(); return }
+        // Right after the title's words, where the eye is (Notion puts them by the title too); at the
+        // column's end they sat far from it, and Add Cover's menu ran off the window.
+        let frame = CGRect(x: title.maxX + 14, y: title.midY - TitleActions.height / 2, width: width, height: TitleActions.height)
+        let view = TitleActions(icon: needsIcon, cover: needsCover,
+                                addIcon: { [weak self] in self?.hideTitleActions(); self?.controller?.addIcon() },
+                                addCover: { [weak self] in self?.presentCoverPicker(fromTitle: true) })
+        if let host = titleActionsHost {
+            host.rootView = view
+            host.frame = frame
+        } else {
+            let host = NSHostingView(rootView: view)
+            host.sizingOptions = []
+            host.frame = frame
+            addSubview(host)
+            titleActionsHost = host
+        }
+    }
+
+    /// The icon picker, by the title's start (IconPicker): picking closes it.
+    func presentIconPicker() {
+        guard let controller, let title = titleLineRect() else { return }
+        hideTitleActions()
+        iconPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = IconPicker.size
+        popover.contentViewController = NSHostingController(rootView: IconPicker(current: NoteCover.icon(of: string)) { [weak self, weak popover, weak controller] icon in
+            controller?.setIcon(icon)
+            popover?.close()
+            self?.window?.makeFirstResponder(self)
+        })
+        let anchor = CGRect(x: title.minX, y: title.minY, width: min(title.width, 60), height: title.height)
+        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+        iconPopover = popover
+    }
+
+    /// The cover picker (CoverPicker): under Add Cover by the title, or under the banner's Change
+    /// Cover. Picking closes it.
+    func presentCoverPicker(fromTitle: Bool) {
+        guard let controller, let title = titleLineRect() else { return }
+        let anchor: CGRect
+        if fromTitle, let buttons = titleActionsFrame {
+            anchor = CGRect(x: buttons.maxX - 90, y: buttons.minY, width: 90, height: buttons.height)
+        } else {
+            // The banner's bottom right corner, where Change Cover sits.
+            let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
+            anchor = CGRect(x: right - 120, y: title.minY - NoteCover.gap - 40, width: 100, height: 30)
+        }
+        hideTitleActions()
+        coverPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = CoverPicker.size
+        popover.contentViewController = NSHostingController(rootView: CoverPicker { [weak popover, weak controller] source in
+            popover?.close()
+            controller?.pickCover(source)
+        })
+        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+        coverPopover = popover
+    }
+
+    /// Add Icon and Add Cover are showing (tests).
+    var titleActionsShown: Bool { titleActionsHost != nil }
+    var titleActionsFrame: CGRect? { titleActionsHost.map { $0.frame } }
+
+    func hideTitleActions() {
+        titleActionsHost?.removeFromSuperview()
+        titleActionsHost = nil
+    }
+
+    /// The pointer left the text: the title's buttons go, unless it's on them.
+    func pointerLeft(_ event: NSEvent) {
+        if let host = titleActionsHost, !host.frame.contains(convert(event.locationInWindow, from: nil)) { hideTitleActions() }
+    }
+
+    /// A click on the icon opens the emoji panel to change it.
+    private func clickedIcon(at p: CGPoint) -> Bool {
+        guard controller?.readOnly != true, Experiments.isOn(.covers), let title = titleLineRect() else { return false }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard NoteCover.iconLength(ns.substring(from: at)) != nil else { return false }
+        let iconWidth = (EditorMetrics.title * 1.9 * 1.2).rounded()
+        return p.y >= title.minY && p.y <= title.maxY && p.x >= title.minX && p.x <= title.minX + iconWidth
+    }
+
     /// Over a checkbox the pointer is an arrow, not the text I-beam, like Notes.
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        updateTitleActions(at: p)
         // Over someone's caret, their name shows.
         if !caretViews.isEmpty || hoveredCaret != nil { hoverCaret(at: p) }
         if card(at: p) != nil { return }
@@ -4227,6 +4388,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if event.clickCount == 1, clickedIcon(at: p) {
+            controller?.changeIcon()
+            return
+        }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
         // A heading's chevron collapses or opens its section; the caret stays where it is.
         if event.clickCount == 1, let h = foldToggle(at: point) {

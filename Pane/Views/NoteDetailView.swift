@@ -17,6 +17,9 @@ struct NoteDetailView: View {
     @State private var importing = false
     /// Dev: an app built outside (scripts/build-app.ts), from a file, into this note.
     @State private var importingApp = false
+    /// Add Cover: a picture for the note's banner (NoteCover).
+    @State private var pickingCover = false
+    @State private var pickingCoverPhoto = false
     @State private var saver = DebouncedSave()
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
@@ -127,6 +130,15 @@ struct NoteDetailView: View {
         chrome(editor)
             .quickLookPreview(previewBinding)
             .fileImporter(isPresented: $importing, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true, onCompletion: attach)
+            .background {
+                Color.clear.fileImporter(isPresented: $pickingCover, allowedContentTypes: [.image]) { result in
+                    guard case .success(let url) = result, let file = context.addAttachments([url]).first else { return }
+                    controller.setCover(file)
+                }
+                .modifier(PhotoAttach(isPresented: $pickingCoverPhoto) { urls in
+                    if let file = context.addAttachments(urls).first(where: \.isImage) { controller.setCover(file) }
+                })
+            }
             #if DEBUG || QA
             .background {
                 Color.clear.fileImporter(isPresented: $importingApp, allowedContentTypes: [.json, .html, .plainText]) { result in
@@ -1505,6 +1517,15 @@ struct NoteDetailView: View {
         let sync = self.sync
         controller.resolveAttachment = { id in context.attachment(id) }
         controller.sharePicture = { sharePicture() }
+        controller.pickCover = { [$pickingCover, $pickingCoverPhoto, controller] source in
+            switch source {
+            case .photos: $pickingCoverPhoto.wrappedValue = true
+            case .file: $pickingCover.wrappedValue = true
+            case .pattern(let p):
+                // Drawn to a picture and kept like any other cover.
+                if let url = p.render(), let file = context.addAttachments([url]).first { controller.setCover(file) }
+            }
+        }
         controller.canSharePicture = { [note] in !note.isLocked && note.trashedAt == nil }
         controller.resolveNoteModel = { id in context.note(id) }
         // A note dragged in from the list is linked by its title. Not this note to itself.
@@ -1659,6 +1680,27 @@ struct NoteDetailView: View {
             }
             .disabled(note.isShared)
             Divider()
+            // The note's cover: a photo across the top (NoteCover), while the experiment is on.
+            if Experiments.isOn(.covers) {
+            Group {
+                let hasCover = NoteCover.find(in: note.body) != nil
+                Menu(hasCover ? "Change Cover" : "Add Cover", systemImage: "photo.artframe") {
+                    Button("Choose from Photos…", systemImage: "photo.on.rectangle") { pickingCoverPhoto = true }
+                    Button("Choose File…", systemImage: "folder") { pickingCover = true }
+                    Divider()
+                    ForEach(CoverPattern.allCases) { p in Button(p.title) { controller.pickCover(.pattern(p)) } }
+                }
+                .accessibilityIdentifier("attach.cover")
+                Button("Add Icon", systemImage: "face.smiling") { controller.addIcon() }
+                    .accessibilityIdentifier("attach.icon")
+                if hasCover {
+                    Button("Remove Cover", systemImage: "rectangle.slash") { controller.removeCover() }
+                        .accessibilityIdentifier("attach.removeCover")
+                }
+            }
+            .disabled(note.isShared)
+            Divider()
+            }
             Group {
                 Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
                     .accessibilityIdentifier("attach.noteLink")
@@ -2202,10 +2244,16 @@ struct NoteToolbarStage<Pane: View>: View {
     var place: Note? = nil
     /// A breadcrumb's folder, shown in the list.
     var openScope: (Scope) -> Void = { _ in }
+    /// A note opened from a folder's gallery: Back with no note before it goes to the cards, so the
+    /// toolbar has one way back, not two (FolderGallery). Its folder's name, for the help.
+    var backToGallery: (title: String, go: () -> Void)? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     /// The width the breadcrumbs get in this column (NoteBreadcrumbs.room).
     @State private var crumbRoom: CGFloat = NoteBreadcrumbs.titleWidth
+
+    /// Back leads to the note before this one, and from the first note opened from a gallery to its cards.
+    static func backGoesToGallery(canGoBack: Bool, inGallery: Bool) -> Bool { inGallery && !canGoBack }
     #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
@@ -2238,11 +2286,14 @@ struct NoteToolbarStage<Pane: View>: View {
                     // they sit beside the window's buttons.
                     ToolbarItemGroup(placement: ownWindow ? .navigation : .automatic) {
                         Group {
-                            Button("Back", systemImage: "chevron.backward") { history.back() }
-                                .help("Back (⌘[)")
+                            Button("Back", systemImage: "chevron.backward") {
+                                if Self.backGoesToGallery(canGoBack: history.canGoBack, inGallery: backToGallery != nil) { backToGallery?.go() } else { history.back() }
+                            }
+                                .help(!history.canGoBack && backToGallery != nil ? "Back to \(backToGallery!.title) (⌘[)" : "Back (⌘[)")
                                 .keyboardShortcut("[", modifiers: .command)
-                                .disabled(!showsItems || !history.canGoBack)
+                                .disabled(!showsItems || !(history.canGoBack || backToGallery != nil))
                                 .buttonStyle(.barIcon)
+                                .accessibilityIdentifier("note.back")
                             Button("Forward", systemImage: "chevron.forward") { history.forward() }
                                 .help("Forward (⌘])")
                                 .keyboardShortcut("]", modifiers: .command)

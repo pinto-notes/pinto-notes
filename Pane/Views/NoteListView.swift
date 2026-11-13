@@ -770,6 +770,13 @@ struct NoteListView: View {
     #if os(macOS)
     private var listMore: some View {
         Menu {
+            // A folder as cards led by their pictures (FolderGallery), as in Apple Notes.
+            if Experiments.isOn(.gallery) {
+                Button("View as Gallery", systemImage: "square.grid.2x2") { orderStore.setGallery(true, for: scope) }
+                    .disabled(scope == .trash)
+                    .accessibilityIdentifier("list.viewAsGallery")
+                Divider()
+            }
             ListOrderMenu(store: orderStore, scope: scope)
             Divider()
             Button("New Folder", systemImage: "folder.badge.plus") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
