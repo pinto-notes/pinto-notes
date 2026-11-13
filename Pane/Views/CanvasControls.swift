@@ -682,6 +682,9 @@ struct CanvasTitleField: View {
                     .focused($focused)
                     .onSubmit { commit() }
                     .onExitCommand { text = note.title; focused = false }
+                    .help("Rename")
+                    .accessibilityLabel("Whiteboard name")
+                    .accessibilityIdentifier("canvas.title")
             }
             .frame(height: 24)
             .background(focused ? Color.primary.opacity(0.07) : .clear, in: .rect(cornerRadius: 6))
@@ -689,9 +692,6 @@ struct CanvasTitleField: View {
             .onChange(of: note.id) { _, _ in text = note.title }
             .onChange(of: note.title) { _, t in if !focused { text = t } }
             .onChange(of: focused) { _, now in if !now { commit() } }
-            .help("Rename")
-            .accessibilityLabel("Whiteboard name")
-            .accessibilityIdentifier("canvas.title")
     }
 
     private func commit() {

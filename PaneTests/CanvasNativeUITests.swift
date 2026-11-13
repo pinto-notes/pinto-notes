@@ -333,7 +333,7 @@ import UIKit
             await MacWindowChromeTests.settle(w, 20)
             #expect(try Self.collapsed(w) == [false, false], "the canvas leaves the columns open")
             // The tools are in the window's toolbar, where a note's are, and its name beside where it is.
-            for id in ["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.shapes", "canvas.title", "note.fullScreen"] {
+            for id in ["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.arrow", "canvas.tool.eraser", "canvas.title", "note.fullScreen"] {
                 let found = await MacEmptyDetailTests.waitForElement(id, in: w)
                 #expect(found != nil || MacEmptyDetailTests.element(id, in: w) != nil, "\(id) in the toolbar")
             }
