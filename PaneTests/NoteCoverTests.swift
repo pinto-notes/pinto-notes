@@ -107,4 +107,17 @@ import Testing
         #expect(max(image.width, image.height) <= 128, "and no bigger than needed")
     }
     #endif
+
+    /// The banner stays a banner in a wide, tall window: 220 points at most, under a third of it.
+    @Test func theCoverNeverTakesTheScreen() {
+        let keep = (ImageSizes.column, ImageSizes.viewHeight)
+        defer { (ImageSizes.column, ImageSizes.viewHeight) = keep }
+        let e = LineEmbed(kind: .image(id, name: "x.jpg|cover"), range: NSRange(location: 0, length: 1), index: 0)
+        ImageSizes.column = 760; ImageSizes.viewHeight = 840
+        #expect(ImageSizes.size(for: e).height == 220)
+        ImageSizes.column = 760; ImageSizes.viewHeight = 500
+        #expect(ImageSizes.size(for: e).height == 150)
+        ImageSizes.column = 400; ImageSizes.viewHeight = 900
+        #expect(ImageSizes.size(for: e).height == 125)
+    }
 }

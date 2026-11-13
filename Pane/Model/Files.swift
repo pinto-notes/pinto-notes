@@ -192,6 +192,8 @@ enum ImageSizes {
     /// The text's width and the window's height, from the editor (EditorCore.setImageBox).
     nonisolated(unsafe) static var column: CGFloat = 520
     nonisolated(unsafe) static var viewHeight: CGFloat = 900
+    /// The tallest a cover's banner gets.
+    static let coverMax: CGFloat = 220
     /// Cards and note apps line up with this width.
     static let maxWidth: CGFloat = 520
 
@@ -222,7 +224,9 @@ enum ImageSizes {
         let own = natural[id] ?? .infinity
         switch size {
         case .cover:
-            return CGSize(width: column, height: min(max(column / 2.6, 120), viewHeight * 0.45))
+            // A banner, not the page: at most 220 points and under a third of the window. In a wide
+            // window it took a third of the screen before the title (Emil, 13 November 2026).
+            return CGSize(width: column, height: min(max(column / 3.2, 120), Self.coverMax, max(viewHeight * 0.3, 120)))
         case .small:
             let w = min(column * 0.4, 260, own)
             return CGSize(width: w, height: min(w / a, 260))

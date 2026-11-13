@@ -80,6 +80,8 @@ final class ListOrderStore {
     }
 
     @ObservationIgnored private let defaults: UserDefaults
+    /// Where this store keeps its choices (tests switch experiments on there).
+    var storedIn: UserDefaults { defaults }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -107,7 +109,10 @@ final class ListOrderStore {
     }
     static let galleriesKey = "list.gallery.byFolder"
 
-    func showsGallery(_ scope: Scope) -> Bool { scope != .trash && galleries.contains(Self.key(of: scope)) }
+    /// Only while Settings › Experimental › Gallery view is on; the folders' choices stay meanwhile.
+    func showsGallery(_ scope: Scope) -> Bool {
+        scope != .trash && Experiments.isOn(.gallery, defaults: defaults) && galleries.contains(Self.key(of: scope))
+    }
 
     func setGallery(_ on: Bool, for scope: Scope) {
         guard scope != .trash else { return }

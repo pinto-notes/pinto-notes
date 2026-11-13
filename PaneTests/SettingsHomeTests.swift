@@ -18,7 +18,7 @@ import Carbon.HIToolbox
         let groups = SettingsPage.groups(available: all)
         // General, Appearance, Keyboard shortcuts; the features (AI first); Privacy, Storage; Help
         // (Emil, 7 November 2026). Keyboard shortcuts is the Mac's.
-        #expect(groups == [[.account], [.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help]])
+        #expect(groups == [[.account], [.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help], [.experimental]])
         #expect(SettingsPage.todaysNote.title == "Today\u{2019}s note" && SettingsPage.todaysNote.symbol == "calendar")
         #expect(SettingsPage.shortcuts.title == "Keyboard shortcuts" && SettingsPage.shortcuts.symbol == "command")
         #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
@@ -34,9 +34,9 @@ import Carbon.HIToolbox
     /// Signed out there are still Account (Sign in), General, Appearance, Privacy and
     /// Help and feedback; AI Connections and Storage come with an account.
     @Test func signedOutThereAreFivePages() {
-        #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .shortcuts, .todaysNote, .security, .help])
+        #expect(SettingsView(backend: Backend(), sync: nil).available == [.account, .general, .appearance, .shortcuts, .todaysNote, .security, .help, .experimental])
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
-        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .shortcuts, .todaysNote, .security, .storage, .help, .personal, .signIn, .encryption, .aiConnection, .addAI])
+        #expect(SettingsView(backend: backend, sync: nil).available == [.account, .ai, .general, .appearance, .shortcuts, .todaysNote, .security, .storage, .help, .experimental, .personal, .signIn, .encryption, .aiConnection, .addAI])
         #expect(SettingsPage.available(signedIn: false, hasClient: false, demoStorage: true).contains(.storage), "captures show Storage")
     }
 
@@ -45,7 +45,7 @@ import Carbon.HIToolbox
     @Test func macAndIPhoneListTheSamePages() async throws {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         let pages = SettingsView(backend: backend, sync: nil).pages
-        #expect(pages == [.account, .general, .appearance, .shortcuts, .ai, .todaysNote, .security, .storage, .help])
+        #expect(pages == [.account, .general, .appearance, .shortcuts, .ai, .todaysNote, .security, .storage, .help, .experimental])
         let f = try await Self.layout(.general, window: CGSize(width: 1180, height: 760))
         let drawn = pages.compactMap { p in f["tab.\(p.rawValue)"].map { (p, $0.minY) } }.sorted { $0.1 < $1.1 }.map(\.0)
         #expect(drawn == pages, "the sidebar, top to bottom: \(drawn)")

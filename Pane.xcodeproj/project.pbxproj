@@ -117,6 +117,7 @@
 		1083082C020B49A0A7213EB6 /* AccountNotices.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED7F107D0DDA0B69E2BCE603 /* AccountNotices.swift */; };
 		109B20C5787E217ED3BB8F40 /* ConnectScan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */; };
 		10E125DEB27CD7EB75A784D2 /* FileRowClickTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63CE49D5ADFD8035C941B77 /* FileRowClickTests.swift */; };
+		10FC42728582EC8A60B3366F /* Experiments.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2420E650B7A0CC0A5560E8 /* Experiments.swift */; };
 		11762F8C4D3EBA91FE271470 /* WikiSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */; };
 		118A771F56BC19168609D257 /* CodePanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89F68B0B9451351F57688FF /* CodePanelTests.swift */; };
 		11EE0BA64EC791EC1300D18F /* template-app-trip-plan-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */; };
@@ -504,6 +505,7 @@
 		6227BD09E6FD1904B755DF98 /* TelemetryDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D0EF12121044139ED543 /* TelemetryDiagnostics.swift */; };
 		623BADD562672437712E238E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9676DA5BDCEE33EF5357B9BF /* Assets.xcassets */; };
 		6280E775B1AFF2B8F8DC4F8F /* TypedTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D3C041048DAAB22B2FC870 /* TypedTable.swift */; };
+		628D4E2E8BFC2619A9DB2CF2 /* Experiments.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2420E650B7A0CC0A5560E8 /* Experiments.swift */; };
 		62EE9D8413DB56BAF56B362C /* FolderNamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9C11CA35DEAE3BB321C892 /* FolderNamingTests.swift */; };
 		6304DF87289EE4B4E097FB92 /* MemoryCollabServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31B34B51B88407DD35D083F /* MemoryCollabServer.swift */; };
 		63275A4C35ED4EFF7754101F /* d3.js in Resources */ = {isa = PBXBuildFile; fileRef = F9539637FC0845A1B6AD2C29 /* d3.js */; };
@@ -2126,6 +2128,7 @@
 		FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteHistoryTests.swift; sourceTree = "<group>"; };
 		FBA8BFC138D396F3BF6ED0B5 /* AIReviewCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewCardTests.swift; sourceTree = "<group>"; };
 		FBAE6116415336DA1C500A87 /* FormatPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPopover.swift; sourceTree = "<group>"; };
+		FC2420E650B7A0CC0A5560E8 /* Experiments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Experiments.swift; sourceTree = "<group>"; };
 		FC2E45AC3676FB940406D0F9 /* SharedDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDocument.swift; sourceTree = "<group>"; };
 		FC438BD287857509B0345BE3 /* ConnectOnMac.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectOnMac.swift; sourceTree = "<group>"; };
 		FC894B0D3C73CC7040468483 /* KeyFlowSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyFlowSnapshots.swift; sourceTree = "<group>"; };
@@ -2255,6 +2258,7 @@
 				65FB59D737154755BEABF6C8 /* ENEXReader.swift */,
 				97BBCF0A4A8EA967BB4FAE0E /* ENMLToMarkdown.swift */,
 				C50F24771D014A8D43AD8481 /* EvernoteImport.swift */,
+				FC2420E650B7A0CC0A5560E8 /* Experiments.swift */,
 				D3E39767B1556B484757CE36 /* Files.swift */,
 				8F4CFF72D9674A50F39589DE /* FolderFiles.swift */,
 				025496AD1008785E931A6425 /* HeardFrom.swift */,
@@ -4294,6 +4298,7 @@
 				50FE1DAB68AC298BD9412253 /* EmbedViews.swift in Sources */,
 				15DFFDBFF48AEC62306795ED /* Encryption.swift in Sources */,
 				302278DA16D32BC03E132AB7 /* EvernoteImport.swift in Sources */,
+				628D4E2E8BFC2619A9DB2CF2 /* Experiments.swift in Sources */,
 				6026A52F6BDF670B11D40A7D /* FeatureUsage.swift in Sources */,
 				F7D33BF9A78FE9F4F285086E /* FileExport.swift in Sources */,
 				E269E6CE6C29AD8F633022CE /* Files.swift in Sources */,
@@ -4660,6 +4665,7 @@
 				F85280FCFD2B30F92510732B /* EmbedViews.swift in Sources */,
 				36CE7C6E4FA3BBA4BE51F371 /* Encryption.swift in Sources */,
 				85B167443F5306A56A6853A5 /* EvernoteImport.swift in Sources */,
+				10FC42728582EC8A60B3366F /* Experiments.swift in Sources */,
 				410BA3F54914B156835E733A /* FeatureUsage.swift in Sources */,
 				4317173F1496865E53725B90 /* FileExport.swift in Sources */,
 				C23E87D238AFF3935F64E24B /* Files.swift in Sources */,

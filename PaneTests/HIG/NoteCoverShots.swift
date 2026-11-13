@@ -88,6 +88,11 @@ import Testing
         // No toolbar in a borderless window: without its fade, the title row shows as it does under one.
         NoteDetailView.captureWithoutToolbar = true
         defer { NoteDetailView.captureWithoutToolbar = false }
+        // Both experiments on for the pictures, and back as they were after (the test host shares
+        // the app's settings).
+        let keep = Experiment.allCases.map { ($0, d.object(forKey: $0.key)) }
+        for e in Experiment.allCases { d.set(true, forKey: e.key); ListOrderStore.shared.storedIn.set(true, forKey: e.key) }
+        defer { for (e, v) in keep { if let v { d.set(v, forKey: e.key) } else { d.removeObject(forKey: e.key) } } }
         let only = env["NOTE_COVER_ONLY"].map { Set($0.split(separator: ",").map(String.init)) }
         let shots: [(String, Bool, Bool, Bool, Bool, Bool)] = [  // name, covers, dark, hover title, gallery, open a note
             ("1-add-buttons", false, false, true, false, true), ("2-cover", true, false, false, false, true), ("3-cover-dark", true, true, false, false, true),

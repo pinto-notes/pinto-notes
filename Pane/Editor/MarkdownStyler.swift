@@ -331,7 +331,7 @@ struct MarkdownStyler {
                     // The website's display type: heavy and tight.
                     storage.addAttribute(.font, value: Self.titleFont, range: lineRange)
                     // The note's icon: the emoji it starts with, large (NoteCover).
-                    if let icon = NoteCover.iconLength(line) {
+                    if Experiments.isOn(.covers), let icon = NoteCover.iconLength(line) {
                         storage.addAttribute(.font, value: PFont.systemFont(ofSize: (EditorMetrics.title * 1.9).rounded()), range: NSRange(location: lineRange.location, length: min(icon, lineRange.length)))
                     }
                     let p = baseParagraph()

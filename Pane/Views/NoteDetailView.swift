@@ -1662,7 +1662,8 @@ struct NoteDetailView: View {
             }
             .disabled(note.isShared)
             Divider()
-            // The note's cover: a photo across the top (NoteCover).
+            // The note's cover: a photo across the top (NoteCover), while the experiment is on.
+            if Experiments.isOn(.covers) {
             Group {
                 let hasCover = NoteCover.find(in: note.body) != nil
                 Menu(hasCover ? "Change Cover" : "Add Cover", systemImage: "photo.artframe") {
@@ -1679,6 +1680,7 @@ struct NoteDetailView: View {
             }
             .disabled(note.isShared)
             Divider()
+            }
             Group {
                 Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
                     .accessibilityIdentifier("attach.noteLink")
@@ -2121,8 +2123,14 @@ struct NoteToolbarStage<Pane: View>: View {
     var place: Note? = nil
     /// A breadcrumb's folder, shown in the list.
     var openScope: (Scope) -> Void = { _ in }
+    /// A note opened from a folder's gallery: Back with no note before it goes to the cards, so the
+    /// toolbar has one way back, not two (FolderGallery). Its folder's name, for the help.
+    var backToGallery: (title: String, go: () -> Void)? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
+
+    /// Back leads to the note before this one, and from the first note opened from a gallery to its cards.
+    static func backGoesToGallery(canGoBack: Bool, inGallery: Bool) -> Bool { inGallery && !canGoBack }
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
@@ -2150,11 +2158,14 @@ struct NoteToolbarStage<Pane: View>: View {
                     // they sit beside the window's buttons.
                     ToolbarItemGroup(placement: ownWindow ? .navigation : .automatic) {
                         Group {
-                            Button("Back", systemImage: "chevron.backward") { history.back() }
-                                .help("Back (⌘[)")
+                            Button("Back", systemImage: "chevron.backward") {
+                                if Self.backGoesToGallery(canGoBack: history.canGoBack, inGallery: backToGallery != nil) { backToGallery?.go() } else { history.back() }
+                            }
+                                .help(!history.canGoBack && backToGallery != nil ? "Back to \(backToGallery!.title) (⌘[)" : "Back (⌘[)")
                                 .keyboardShortcut("[", modifiers: .command)
-                                .disabled(!showsItems || !history.canGoBack)
+                                .disabled(!showsItems || !(history.canGoBack || backToGallery != nil))
                                 .buttonStyle(.barIcon)
+                                .accessibilityIdentifier("note.back")
                             Button("Forward", systemImage: "chevron.forward") { history.forward() }
                                 .help("Forward (⌘])")
                                 .keyboardShortcut("]", modifiers: .command)

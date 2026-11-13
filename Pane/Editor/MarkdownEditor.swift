@@ -2688,6 +2688,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
                 MainActor.assumeIsolated { self?.textSizeChanged() }
             }
         }
+        if experimentsObserver == nil {
+            // Settings › Experimental: the icon drawn large, or as text again.
+            experimentsObserver = NotificationCenter.default.addObserver(forName: Experiments.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
         if noteFontObserver == nil {
             // Settings › Appearance › Font: every line restyled in the new face, as for the size.
             noteFontObserver = NotificationCenter.default.addObserver(forName: NoteFont.didChange, object: nil, queue: .main) { [weak self] _ in
@@ -2710,6 +2716,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     private var textSizeObserver: NSObjectProtocol?
     private var noteFontObserver: NSObjectProtocol?
+    private var experimentsObserver: NSObjectProtocol?
 
     /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
     /// where the text now is. The caret and scroll stay where they were.
@@ -4237,7 +4244,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Shows the title's buttons while the pointer is on the title or just above it, where they fit.
     func updateTitleActions(at p: CGPoint) {
-        guard controller?.readOnly != true, let title = titleLineRect() else { hideTitleActions(); return }
+        guard controller?.readOnly != true, Experiments.isOn(.covers), let title = titleLineRect() else { hideTitleActions(); return }
         let ns = string as NSString
         let at = MarkdownStyler.titleLocation(ns)
         let needsIcon = NoteCover.iconLength(ns.substring(from: at)) == nil
@@ -4281,7 +4288,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// A click on the icon opens the emoji panel to change it.
     private func clickedIcon(at p: CGPoint) -> Bool {
-        guard controller?.readOnly != true, let title = titleLineRect() else { return false }
+        guard controller?.readOnly != true, Experiments.isOn(.covers), let title = titleLineRect() else { return false }
         let ns = string as NSString
         let at = MarkdownStyler.titleLocation(ns)
         guard NoteCover.iconLength(ns.substring(from: at)) != nil else { return false }

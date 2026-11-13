@@ -115,7 +115,7 @@ import Testing
                                                 (.security, "privacy"), (.storage, "storage"), (.help, "help"),
                                                 (.personal, "personal"), (.signIn, "signin"), (.encryption, "encryption"),
                                                 (.todaysNote, "todays-note"), (.shortcuts, "shortcuts"),
-                                                (.aiConnection, "ai-connection"), (.addAI, "add-ai")]
+                                                (.aiConnection, "ai-connection"), (.addAI, "add-ai"), (.experimental, "experimental")]
         var rows: [[(String, NSBitmapImageRep)]] = []
         try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
             for (place, name) in pages {

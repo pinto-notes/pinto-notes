@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
 @testable import Pane
 
@@ -15,6 +16,7 @@ import Testing
 
     @Test func eachFolderKeepsItsOwnChoiceOnTheDevice() {
         let defaults = MemoryDefaults()
+        defaults.set(true, forKey: Experiment.gallery.key)
         let store = ListOrderStore(defaults: defaults)
         let recipes = Scope.folder(UUID()), work = Scope.folder(UUID())
         #expect(!store.showsGallery(recipes))
@@ -26,8 +28,21 @@ import Testing
         #expect(!ListOrderStore(defaults: defaults).showsGallery(recipes))
     }
 
+    /// Off in Settings › Experimental, no folder is a gallery; each keeps its choice for when it's on.
+    @Test func theExperimentSwitchHidesEveryGallery() {
+        let defaults = MemoryDefaults()
+        let store = ListOrderStore(defaults: defaults)
+        let recipes = Scope.folder(UUID())
+        store.setGallery(true, for: recipes)
+        #expect(!store.showsGallery(recipes))
+        defaults.set(true, forKey: Experiment.gallery.key)
+        #expect(store.showsGallery(recipes))
+    }
+
     @Test func recentlyDeletedIsNeverAGallery() {
-        let store = ListOrderStore(defaults: MemoryDefaults())
+        let defaults = MemoryDefaults()
+        defaults.set(true, forKey: Experiment.gallery.key)
+        let store = ListOrderStore(defaults: defaults)
         store.setGallery(true, for: .trash)
         #expect(!store.showsGallery(.trash))
     }
@@ -56,3 +71,16 @@ extension FolderGalleryTests {
         #expect(GalleryFace.firstLines(of: body) == "Oat milk\nLemons\nLater\nBasil")
     }
 }
+
+#if os(macOS)
+extension FolderGalleryTests {
+    /// One way back in a note opened from the cards: the toolbar's Back, to the note before, then
+    /// to the cards. No second arrow beside it.
+    @Test func backLeadsToTheCardsOnceNoNoteIsBefore() {
+        typealias Stage = NoteToolbarStage<EmptyView>
+        #expect(Stage.backGoesToGallery(canGoBack: false, inGallery: true))
+        #expect(!Stage.backGoesToGallery(canGoBack: true, inGallery: true))
+        #expect(!Stage.backGoesToGallery(canGoBack: false, inGallery: false))
+    }
+}
+#endif

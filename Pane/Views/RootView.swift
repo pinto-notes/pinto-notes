@@ -54,6 +54,8 @@ struct RootView: View {
     /// Every tag in the library, for the sidebar's Tags and the tags offered while one is typed.
     @State private var tags = TagIndex()
     @State private var justCreated: UUID?
+    /// Settings › Experimental › Gallery view, read so the window changes when it's switched.
+    @AppStorage(Experiment.gallery.key) private var galleryExperiment = false
     /// The scope is being put back as it was at launch: a gallery keeps the note that was open.
     @State private var restoringScope = false
     #if os(iOS)
@@ -527,7 +529,10 @@ struct RootView: View {
 
     #if os(macOS)
     /// The folder shown as a gallery, when the one open is (ListOrderStore.showsGallery).
-    private var galleryScope: Scope? { scope.flatMap { ListOrderStore.shared.showsGallery($0) ? $0 : nil } }
+    private var galleryScope: Scope? {
+        let _ = galleryExperiment
+        return scope.flatMap { ListOrderStore.shared.showsGallery($0) ? $0 : nil }
+    }
 
     /// A folder as a gallery: the sidebar, and the cards in the list's and the note's place. A
     /// card opens its note there, with a way back to the cards, as in Apple Notes.
@@ -539,16 +544,8 @@ struct RootView: View {
                 if shown.isEmpty, let s = galleryScope {
                     FolderGallery(scope: s, library: library, open: { selectedNote = $0 }, newNote: newNote)
                 } else {
+                    // Back (⌘[) goes to the cards once there's no note before this one.
                     detail
-                        .toolbar {
-                            ToolbarItem(placement: .navigation) {
-                                Button { selection = [] } label: {
-                                    Label(galleryScope.map { FolderGallery.title(of: $0, context: context) } ?? "Back", systemImage: "chevron.backward")
-                                }
-                                .help("Back to the gallery")
-                                .accessibilityIdentifier("gallery.back")
-                            }
-                        }
                 }
             }
             .navigationSplitViewColumnWidth(min: 360, ideal: 760)
@@ -939,7 +936,8 @@ struct RootView: View {
                              openScope: { s in
                                  scope = s
                                  if visibility == .detailOnly { visibility = .doubleColumn }
-                             }) {
+                             },
+                             backToGallery: galleryScope.map { s in (FolderGallery.title(of: s, context: context), { selection = [] }) }) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
