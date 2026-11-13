@@ -17,6 +17,8 @@ struct NoteDetailView: View {
     @State private var importing = false
     /// Dev: an app built outside (scripts/build-app.ts), from a file, into this note.
     @State private var importingApp = false
+    /// Add Cover: a picture for the note's banner (NoteCover).
+    @State private var pickingCover = false
     @State private var saver = DebouncedSave()
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
@@ -129,6 +131,12 @@ struct NoteDetailView: View {
         chrome(editor)
             .quickLookPreview(previewBinding)
             .fileImporter(isPresented: $importing, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true, onCompletion: attach)
+            .background {
+                Color.clear.fileImporter(isPresented: $pickingCover, allowedContentTypes: [.image]) { result in
+                    guard case .success(let url) = result, let file = context.addAttachments([url]).first else { return }
+                    controller.setCover(file)
+                }
+            }
             #if DEBUG || QA
             .background {
                 Color.clear.fileImporter(isPresented: $importingApp, allowedContentTypes: [.json, .html, .plainText]) { result in
@@ -1641,6 +1649,18 @@ struct NoteDetailView: View {
                     .accessibilityIdentifier("attach.photo")
                 Button("Attach File…", systemImage: "doc") { importing = true }
                     .accessibilityIdentifier("attach.file")
+            }
+            .disabled(note.isShared)
+            Divider()
+            // The note's cover: a photo across the top (NoteCover).
+            Group {
+                let hasCover = NoteCover.find(in: note.body) != nil
+                Button(hasCover ? "Change Cover…" : "Add Cover…", systemImage: "photo.artframe") { pickingCover = true }
+                    .accessibilityIdentifier("attach.cover")
+                if hasCover {
+                    Button("Remove Cover", systemImage: "rectangle.slash") { controller.removeCover() }
+                        .accessibilityIdentifier("attach.removeCover")
+                }
             }
             .disabled(note.isShared)
             Divider()

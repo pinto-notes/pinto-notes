@@ -159,6 +159,22 @@ final class EditorController {
     private nonisolated static let log = Logger(subsystem: "dev.emilwagman.pane", category: "files")
 
     /// Inserts embed lines for files at the caret, each on its own line.
+    /// Makes a picture the note's cover (NoteCover), in place of the one it had.
+    func setCover(_ file: Attachment) {
+        guard file.isImage else { return }
+        let line = NoteCover.line(id: file.id, filename: file.filename)
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.setting(line, in: text), selection: sel) }
+    }
+
+    /// A picture already in the note becomes its cover, moved from its line to the top.
+    func makeCover(line: String, from range: NSRange) {
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.setting(line, in: text, moving: range), selection: sel) }
+    }
+
+    func removeCover() {
+        perform { text, sel in NoteCover.edit(from: text, to: NoteCover.removing(from: text), selection: sel) }
+    }
+
     func insertFiles(_ files: [Attachment]) {
         guard !files.isEmpty else { return }
         insertLines(files.map(\.markdown))

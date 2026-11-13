@@ -80,6 +80,10 @@ final class EditorCore {
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
+    /// Room above the title for the note's cover (NoteCover): the view adds it to the text's top
+    /// inset (TextKit leaves out space before a document's first paragraph) and the banner is
+    /// placed in it (`overlays`).
+    private(set) var coverRoom: CGFloat = 0
     /// Looks up a file so images can be sized (set by the text view).
     var resolveAttachment: (UUID) -> Attachment? = { _ in nil }
     /// Called after a restyle, so the view can place live views.
@@ -194,13 +198,24 @@ final class EditorCore {
             }
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
+        let cover = NoteCover.find(embeds, in: storage.string as NSString)
         for e in embeds where !folds.isHidden(e.range.location) {
             // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
             var maxW = CGFloat.infinity
             if case .note(let id, _) = e.kind, NoteWidgets.isApp(id) { maxW = NoteWidgets.maxWidth }
             // A picture has its own width (ImageSizes): the text's, or less.
             if case .image = e.kind { maxW = ImageSizes.size(for: e).width }
-            guard let f = frame(at: e.range.location, height: e.height, maxWidth: maxW) else { continue }
+            var placed: CGRect?
+            if e.range == cover?.range {
+                // The cover: a banner in the room the styler left above the title.
+                let title = MarkdownStyler.titleLocation(storage.string as NSString)
+                placed = frame(at: title, height: e.height, maxWidth: maxW).map {
+                    $0.offsetBy(dx: 0, dy: -(e.height + NoteCover.gap))
+                }
+            } else {
+                placed = frame(at: e.range.location, height: e.height, maxWidth: maxW)
+            }
+            guard let f = placed else { continue }
             let remove = {
                 let ns = target.currentText as NSString
                 var r = ns.lineRange(for: e.range)
@@ -302,6 +317,7 @@ final class EditorCore {
         if lastRegions.count > 6 { lastRegions.removeFirst() }
         let blocks = styler.apply(to: storage, active: selection ?? NSRange(location: NSNotFound, length: 0), region: region, structure: structure)
         folds.apply(to: storage, code: structure.code, selection: selection)
+        coverRoom = NoteCover.find(blocks.embeds, in: storage.string as NSString).map { $0.height + NoteCover.gap } ?? 0
         publish(blocks)
     }
 
@@ -983,7 +999,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         let side: CGFloat = 20
         let hasDate = !(headerLabel.text ?? "").isEmpty
         let foot = footHeight
-        let inset = UIEdgeInsets(top: hasDate ? 44 : 14, left: side, bottom: 120 + (controller?.bottomReserve ?? 0) + (foot > 0 ? EditorFoot.gap + foot : 0), right: side)
+        let inset = UIEdgeInsets(top: (hasDate ? 44 : 14) + core.coverRoom, left: side, bottom: 120 + (controller?.bottomReserve ?? 0) + (foot > 0 ? EditorFoot.gap + foot : 0), right: side)
         if textContainerInset != inset { textContainerInset = inset }
         headerLabel.frame = CGRect(x: 0, y: DateFold.labelTop, width: bounds.width, height: DateFold.labelHeight)
         foldDate(hasDate)
@@ -2623,7 +2639,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
-        core.onCardsChanged = { [weak self] in self?.queueCardLayout() }
+        core.onCardsChanged = { [weak self] in
+            guard let self else { return }
+            // A cover came, went or changed size: the text's top moves for its banner.
+            if self.coverRoom != self.core.coverRoom { self.coverRoom = self.core.coverRoom; self.setInsets(width: self.frame.width) }
+            self.queueCardLayout()
+        }
         drawsBackground = false
         isRichText = false
         allowsUndo = true
@@ -2781,17 +2802,21 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.setImageBox(width: width, height: height, storage: textStorage!, selection: editingSelection)
     }
 
+    /// The cover's room above the title, as last applied to the insets (EditorCore.coverRoom).
+    private var coverRoom: CGFloat = 0
+
     private func setInsets(width: CGFloat) {
         // The foot's room goes under the text: the inset is the same above and below, so it's
         // half of it each side and the text is drawn that much higher (`textContainerOrigin`).
+        // The cover's room goes above it the same way, half each side and the text drawn lower.
         if DesignLook.readingPage {
             let side = Self.textSide(width: width)
-            let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + footExtra / 2)
+            let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + footExtra / 2 + coverRoom / 2)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: max(0, width - side * 2), height: 16)
         } else {
-            let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + footExtra / 2)
+            let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + footExtra / 2 + coverRoom / 2)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: 0, y: 14, width: width, height: 16)
@@ -2809,7 +2834,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     override var textContainerOrigin: NSPoint {
         let o = super.textContainerOrigin
-        return NSPoint(x: o.x, y: o.y - footExtra / 2)
+        return NSPoint(x: o.x, y: o.y - footExtra / 2 + coverRoom / 2)
     }
 
     func setFoot(_ model: NoteLinks?) {
