@@ -1223,8 +1223,8 @@ struct ListCompose: View {
 }
 #endif
 
-extension NoteListView: @MainActor Equatable {
-    static func == (a: NoteListView, b: NoteListView) -> Bool { a.scope == b.scope }
+extension NoteListView: @MainActor CustomEquatable {
+    static func isEqual(_ a: NoteListView, _ b: NoteListView) -> Bool { a.scope == b.scope }
 }
 
 /// What the list needs to know about a note to place it: plain values, read from the note once
@@ -1946,7 +1946,7 @@ enum RowMetrics {
 /// A note's row as the list holds it: the row, its hover and its menu. Equal values mean an
 /// unchanged row. The note's model is looked up here, where the row is drawn: SwiftUI builds the
 /// list's rows for every note whenever the list changes, and only the rows on screen draw.
-private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
+private struct NoteListItem<Menu: View>: View, @MainActor CustomEquatable {
     let entry: NoteEntry
     let query: String
     let showFolder: Bool
@@ -1965,7 +1965,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
     #endif
     @Environment(\.modelContext) private var context
 
-    static func == (a: NoteListItem, b: NoteListItem) -> Bool {
+    static func isEqual(_ a: NoteListItem, _ b: NoteListItem) -> Bool {
         a.entry.pid == b.entry.pid && a.entry.same(as: b.entry) && a.query == b.query && a.showFolder == b.showFolder
             && a.datedByCreation == b.datedByCreation && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
             && a.quiet == b.quiet && a.top == b.top
@@ -2006,7 +2006,7 @@ private struct NoteListItem<Menu: View>: View, @MainActor Equatable {
 
 /// A note in the list with its drag and swipe actions. Equal inputs mean an unchanged row:
 /// its note's own changes still reach NoteRow, which observes the note.
-private struct ListRow: View, @MainActor Equatable {
+private struct ListRow: View, @MainActor CustomEquatable {
     let note: Note
     let query: String
     let showFolder: Bool
@@ -2018,7 +2018,7 @@ private struct ListRow: View, @MainActor Equatable {
     let togglePin: () -> Void
     let remove: () -> Void
 
-    static func == (a: ListRow, b: ListRow) -> Bool {
+    static func isEqual(_ a: ListRow, _ b: ListRow) -> Bool {
         a.note === b.note && a.query == b.query && a.showFolder == b.showFolder && a.datedByCreation == b.datedByCreation
             && a.dragWith == b.dragWith && (a.dragWith == nil || a.selectedCount == b.selectedCount)
     }

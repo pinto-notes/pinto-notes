@@ -2036,7 +2036,7 @@ private struct HostAskAlert: ViewModifier {
 /// without it). So the pane only makes its items, where their state is, and hands them up.
 /// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
 /// in a toolbar that stays: the items are brought up to date in place, like any other view.
-struct NoteToolbarParts: Equatable, @unchecked Sendable {
+struct NoteToolbarParts: CustomEquatable, @unchecked Sendable {
     /// The writing controls belong to the persistent stage. Only Attach opens this pane's UI.
     var writingDisabled: Bool
     /// A line the pane has to say while an app shows ("Added to (folder) Habits"): in the bar,
@@ -2052,7 +2052,7 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
-    static func == (a: NoteToolbarParts, b: NoteToolbarParts) -> Bool { a.made == b.made }
+    static func isEqual(_ a: NoteToolbarParts, _ b: NoteToolbarParts) -> Bool { a.made == b.made }
 
     nonisolated(unsafe) private static var count = 0
     private static func next() -> Int {

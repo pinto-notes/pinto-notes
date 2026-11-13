@@ -1282,7 +1282,7 @@ struct EmptyDetailView: View {
 /// `importActions` as changed on every pass of RootView (iPhone, 2026-11-02: both worked out again
 /// on every note opened, ios-render-audit-2026-11-02.md). The closures now live in one box the
 /// window keeps, and the value handed down is only that box: the same bits on every pass.
-struct ImportActions: Equatable {
+struct ImportActions: CustomEquatable {
     @MainActor final class Box {
         var appleNotes: () -> Void = {}
         var from: (ImportKind) -> Void = { _ in }
@@ -1300,7 +1300,7 @@ struct ImportActions: Equatable {
         self.box = box
     }
 
-    static func == (a: ImportActions, b: ImportActions) -> Bool { a.box === b.box }
+    static func isEqual(_ a: ImportActions, _ b: ImportActions) -> Bool { a.box === b.box }
 }
 
 extension EnvironmentValues {
@@ -1809,12 +1809,12 @@ struct ListWidthKeeper: NSViewRepresentable {
 
 #if os(macOS)
 /// The sidebar button's action, and whether the sidebar shows now.
-struct ToggleSidebarAction: Equatable {
+struct ToggleSidebarAction: CustomEquatable {
     let shown: Bool
     let run: () -> Void
     func callAsFunction() { run() }
     var title: String { shown ? "Hide Sidebar" : "Show Sidebar" }
-    static func == (a: Self, b: Self) -> Bool { a.shown == b.shown }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { a.shown == b.shown }
 }
 
 extension EnvironmentValues {
