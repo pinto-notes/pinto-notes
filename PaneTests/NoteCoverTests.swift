@@ -139,6 +139,10 @@ import Testing
         #expect(IconEmoji.search("curry").contains("🍛"))
         #expect(IconEmoji.search("lemon").contains("🍋"))
         #expect(IconEmoji.search("zzzz nothing").isEmpty)
+        // The recording's "cart" found nothing: 🛒 sat outside every kind's range.
+        #expect(IconEmoji.search("cart").contains("🛒"))
+        #expect(IconEmoji.search("rocket").contains("🚀"))
+        #expect(Set(IconEmoji.search("lemon")).count == IconEmoji.search("lemon").count, "each emoji once")
         #expect(IconEmoji.groups[0].emojis.contains("🍝"), "food first")
     }
 }

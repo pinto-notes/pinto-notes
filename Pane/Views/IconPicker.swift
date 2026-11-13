@@ -13,16 +13,24 @@ enum IconEmoji {
     static let groups: [Group] = [
         Group(title: "Food and drink", symbol: "fork.knife", emojis: scalars(0x1F345...0x1F37F, 0x1F950...0x1F96F, 0x1F9C0...0x1F9CB, 0x1FAD0...0x1FADB)),
         Group(title: "Plants and animals", symbol: "leaf", emojis: scalars(0x1F330...0x1F344, 0x1F490...0x1F490, 0x1FAB4...0x1FABB, 0x1F400...0x1F43F, 0x1F980...0x1F9AE)),
-        Group(title: "Things", symbol: "lightbulb", emojis: scalars(0x1F4A1...0x1F4FF, 0x1F50A...0x1F53D, 0x1F380...0x1F393, 0x1F3A0...0x1F3CA, 0x1F9F0...0x1F9FF)),
+        Group(title: "Things", symbol: "lightbulb", emojis: scalars(0x1F4A1...0x1F4FF, 0x1F50A...0x1F53D, 0x1F380...0x1F393, 0x1F3A0...0x1F3CA, 0x1F6CB...0x1F6D7, 0x1F9F0...0x1F9FF)),
         Group(title: "Travel and places", symbol: "airplane", emojis: scalars(0x1F680...0x1F6C5, 0x1F3D4...0x1F3F0, 0x1F30D...0x1F320)),
         Group(title: "Faces", symbol: "face.smiling", emojis: scalars(0x1F600...0x1F64F, 0x1F970...0x1F97A, 0x1F910...0x1F92F)),
         Group(title: "Symbols", symbol: "heart", emojis: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "✨", "⭐️", "🔥", "✅", "❗️", "❓", "💡", "📌"] + scalars(0x1F493...0x1F49F)),
     ]
 
-    /// Every emoji with its name in lower case, for search ("curry and rice").
-    static let named: [(emoji: String, name: String)] = groups.flatMap(\.emojis).map { e in
-        (e, e.unicodeScalars.first.flatMap { $0.properties.name }?.lowercased() ?? "")
+    /// Every emoji with its name in lower case, for search ("curry and rice"): the kinds' first, in
+    /// their order, then every other emoji, so a search finds one the kinds leave out (🛒 for "cart").
+    static let named: [(emoji: String, name: String)] = (groups.flatMap(\.emojis) + scalars(0x1F300...0x1FAFF)).map { e in
+        (e, ((e.unicodeScalars.first.flatMap { $0.properties.name } ?? "") + " " + (aliases[e] ?? "")).lowercased())
     }
+
+    /// Everyday words Unicode's names miss (🛒 is a "shopping trolley").
+    static let aliases: [String: String] = [
+        "🛒": "cart groceries", "📝": "note", "✅": "done todo", "📅": "date", "🗓️": "calendar", "💼": "work job",
+        "🏋️": "gym workout", "💪": "strong gym", "🧺": "groceries", "💰": "money", "💸": "money spend", "🏠": "home",
+        "✈️": "travel flight", "🎁": "present", "📚": "reading", "🍽️": "dinner meal", "☕️": "coffee", "🍰": "dessert",
+    ]
 
     /// The emojis whose name holds every word typed, in the order they're listed.
     static func search(_ query: String) -> [String] {
