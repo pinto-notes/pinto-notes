@@ -17,6 +17,7 @@ import Testing
         #expect(ByID(id: 1, note: "a") != ByID(id: 2, note: "a"))
     }
 
+    #if os(macOS)  // AmberButtonTests, which reads the app's sources, is Mac only
     @Test func noAppTypeWritesItsOwnEqualsOperator() throws {
         let declared = try Regex(#"^\s*(?:@\w+\s+|private\s+|fileprivate\s+|public\s+|nonisolated\s+)*(?:static\s+)?func\s+==\s*[(<]"#)
         var found: [String] = []
@@ -28,4 +29,5 @@ import Testing
         }
         #expect(found.isEmpty, "Conform to CustomEquatable and write static func isEqual instead of ==: \(found)")
     }
+    #endif
 }
