@@ -1,0 +1,172 @@
+/* Study E, three doors. The first screen is the headline and a triptych that fills the rest of the
+   window: three paper-cut moments, each with the real piece of Pinto on it. Under it, the AIs and the
+   download. Cream throughout (lib/theme.ts keeps /lab/home-e cream in dark mode). */
+
+@font-face { font-family: "Excalifont E"; src: url("/lab/home-e/excalifont.woff2") format("woff2"); font-display: block; }
+
+.main { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: 150px; }
+@media (max-width: 760px) { .main { gap: 96px; } }
+
+/* ── The first screen ── */
+.hero { box-sizing: border-box; min-height: calc(100svh - 84px); max-height: 1100px; display: flex; flex-direction: column; gap: clamp(22px, 3.4vh, 36px);
+  padding: 4px max(28px, calc(50vw - 704px)) 28px; }
+.head { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); column-gap: clamp(32px, 5vw, 88px); align-items: end; }
+.h1 { margin: 0; font-size: clamp(44px, min(5.1vw, 8.4vh), 80px); font-weight: 750; letter-spacing: -0.035em; line-height: 1; color: #2a1d10; text-wrap: balance; }
+.mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
+.side { display: grid; gap: 22px; justify-items: start; padding-bottom: 4px; }
+.lede { margin: 0; font-size: clamp(17px, 1.35vw, 20px); line-height: 1.42; color: #4a3826; text-wrap: pretty; }
+
+/* The triptych. Each door is its own container, so the piece of UI on it scales with the door. */
+.doors { flex: 1; min-height: 430px; max-height: 780px; display: flex; gap: 14px; }
+.door { position: relative; flex: 1 1 0; min-width: 0; border-radius: 28px; overflow: hidden; isolation: isolate; background: #2a2236;
+  container: door / size; --x: 50%; --y: 50%;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.06), 0 36px 70px -36px rgba(60, 30, 5, 0.5); }
+.doors[data-open] .door { flex-grow: 0.74; }
+.doors[data-open] .door[data-on] { flex-grow: 1.95; }
+.door[data-door="notes"] { --x: 3%; background: #4b4a6e; }
+.door[data-door="whiteboards"] { --x: 90%; background: #1f2a44; }
+.door[data-door="apps"] { --x: 9%; background: #8a8fa8; }
+
+.art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--x) var(--y); z-index: 0; }
+/* A flat veil low in the door carries the white title; the scene stays clear above it. */
+.door::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top, rgba(20, 11, 4, 0.66) 0%, rgba(20, 11, 4, 0.34) 20%, rgba(20, 11, 4, 0) 42%); }
+
+.label { position: absolute; z-index: 2; left: clamp(20px, 7cqi, 32px); right: 72px; bottom: clamp(20px, 5cqh, 30px); color: #fff; pointer-events: none; }
+.title { margin: 0; font-size: clamp(30px, min(9cqi, 7cqh), 46px); font-weight: 700; letter-spacing: -0.03em; line-height: 1; white-space: nowrap; }
+.line { margin: 0; max-width: 25em; max-height: 0; opacity: 0; overflow: hidden; font-size: clamp(16px, 1.25vw, 18.5px); line-height: 1.38; font-weight: 500; color: rgba(255, 247, 236, 0.92); text-wrap: pretty; }
+.door[data-on] .line { max-height: 5em; margin-top: 10px; opacity: 1; }
+
+/* The whole door is the button; the plus says so. */
+.hit { position: absolute; inset: 0; z-index: 3; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: inherit; -webkit-tap-highlight-color: transparent; }
+.hit:focus-visible { outline: 3px solid var(--amber); outline-offset: -3px; }
+.plus { position: absolute; right: clamp(18px, 5cqi, 26px); bottom: clamp(20px, 5cqh, 30px); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #fff6ea; }
+.plus svg { width: 14px; height: 14px; fill: none; stroke: #2a1d10; stroke-width: 1.8; stroke-linecap: round; }
+.door[data-on] .plus { opacity: 0; transform: scale(0.6) rotate(45deg); }
+@media (hover: hover) { .door:hover .plus { background: #fff; transform: scale(1.08); } .door[data-on]:hover .plus { opacity: 0; } }
+
+/* The piece of Pinto on each door, sized by the door. */
+.piece { position: absolute; z-index: 2; pointer-events: none; }
+.door[data-door="notes"] .piece { right: 6cqi; top: 6cqh; width: clamp(228px, 58cqi, 330px); }
+.door[data-door="whiteboards"] .piece { left: 6cqi; top: 6cqh; width: clamp(256px, 82cqi, 540px); }
+.door[data-door="apps"] .piece { right: 6cqi; top: 5cqh; width: clamp(228px, 56cqi, 312px); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .door { transition: flex-grow 0.7s cubic-bezier(0.2, 0.8, 0.15, 1), flex-basis 0.6s cubic-bezier(0.2, 0.8, 0.15, 1); }
+  .art { transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.15, 1); }
+  .door[data-on] .art { transform: scale(1.025); }
+  .line { transition: opacity 0.35s ease-out 0.12s, max-height 0.5s ease-out, margin-top 0.5s ease-out; }
+  .plus { transition: opacity 0.25s, transform 0.25s, background-color 0.15s; }
+}
+
+/* ── Maya's note: the iPhone app's note, drawn in units of the card ── */
+.note { container-type: inline-size; box-sizing: border-box; padding: 8cqw 7.5cqw 8cqw; border-radius: 9cqw; background: #fbfaf7; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 30px 60px -26px rgba(0, 0, 0, 0.6); }
+.nBack { margin: 0 0 3cqw; font-size: 5cqw; font-weight: 600; color: #d97a17; }
+.nDate { margin: 0 0 1cqw; font-size: 4cqw; color: #8a7a68; text-align: center; }
+.nTitle { margin: 0 0 3cqw; font-size: 10.5cqw; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.nList { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.6cqw; }
+.nList li { display: flex; align-items: center; gap: 3cqw; padding: 2.8cqw 2.2cqw; margin: 0 -2.2cqw; border-radius: 2.8cqw; font-size: 5.1cqw; white-space: nowrap; }
+.nList i { flex: none; width: 5.4cqw; height: 5.4cqw; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #c9bcae; }
+.nList i[data-on] { background: #d97a17; box-shadow: none; }
+.nList li:has(i[data-on]) { color: #8f8478; text-decoration: line-through; text-decoration-color: rgba(120, 100, 80, 0.5); }
+.chip { display: inline-flex; align-items: center; gap: 1cqw; margin-left: auto; padding: 0.8cqw 2.2cqw; border-radius: 4cqw; background: #fff1de; color: #a85700; font-style: normal; font-size: 3.5cqw; font-weight: 650; }
+.nPara { margin: 4cqw 0 0; font-size: 5.1cqw; line-height: 1.4; }
+
+/* ── Jonas's whiteboard: the Mac window, its drawing in the app's hand-drawn look ── */
+.board { container-type: inline-size; border-radius: 2.6cqw; background: #fff; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 30px 60px -24px rgba(0, 0, 0, 0.7); }
+.bBar { display: flex; align-items: center; gap: 2.2cqw; height: 8cqw; padding: 0 3cqw; font-size: 2.8cqw; color: #2b2b2b; }
+.bBar b { font-weight: 600; }
+.lights { display: flex; gap: 1.2cqw; }
+.lights i { width: 2.2cqw; height: 2.2cqw; border-radius: 50%; background: #dedcd9; }
+.bBack { display: grid; place-items: center; width: 5cqw; height: 5cqw; margin-left: 1cqw; border-radius: 50%; background: #f1f0ee; color: #6d6d6d; font-size: 3.6cqw; line-height: 1; }
+.bInk { display: block; width: 100%; height: auto; box-sizing: border-box; padding: 1cqw 2.5cqw 4cqw; overflow: visible; }
+.stroke { fill: none; stroke: #1e1e1e; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+.fill { opacity: 1; }
+.ink { font-family: "Excalifont E", "Comic Sans MS", cursive; font-size: 18px; text-anchor: middle; dominant-baseline: central; fill: #1e1e1e; }
+.cursorName { font: 600 11px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+
+/* ── Sara's app: the habit tracker template's Today screen on iPhone ── */
+.app { container-type: inline-size; box-sizing: border-box; padding: 7cqw 6cqw 4cqw; border-radius: 9cqw; background: #fdfcfa; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 30px 60px -26px rgba(0, 0, 0, 0.55); }
+.aTop { margin: 0; display: flex; align-items: center; gap: 2cqw; font-size: 4.4cqw; color: #8a7a68; }
+.aTop b { font-weight: 600; }
+.aTop span { padding: 0.6cqw 2cqw; border-radius: 2cqw; background: #f1ece5; font-size: 3.4cqw; font-weight: 600; }
+.aTitle { margin: 1.5cqw 0 4cqw; font-size: 10.5cqw; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.aWeek { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4cqw; }
+.aWeek span { display: grid; justify-items: center; gap: 1.4cqw; }
+.aWeek small { font-size: 3.4cqw; font-weight: 600; color: #8a7a68; }
+.aWeek i { width: 6.4cqw; height: 6.4cqw; border-radius: 50%; background: #efe8df; }
+.aWeek span[data-on] i { background: #d97a17; }
+.aWeek span[data-now] i { box-shadow: 0 0 0 0.8cqw #fdfcfa, 0 0 0 1.4cqw #d97a17; }
+.aList { margin: 0; padding: 0; list-style: none; display: grid; gap: 2cqw; }
+.aList li { display: flex; align-items: center; justify-content: space-between; gap: 3cqw; padding: 3cqw 3.4cqw; border-radius: 4.4cqw; background: #f5f0ea; }
+.aList li > span { display: grid; gap: 0.6cqw; min-width: 0; }
+.aList b { font-size: 4.8cqw; font-weight: 650; white-space: nowrap; }
+.aList small { display: flex; align-items: center; gap: 1cqw; font-size: 3.5cqw; color: #8a7a68; white-space: nowrap; }
+.aList li[data-ai] small { color: #b4593b; font-weight: 600; }
+.aList i { flex: none; display: grid; place-items: center; width: 8cqw; height: 8cqw; border-radius: 50%; box-shadow: inset 0 0 0 1.3px #d6cbbd; }
+.aList i svg { width: 62%; height: 62%; fill: none; stroke: transparent; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.aList i[data-on] { background: #d97a17; box-shadow: none; }
+.aList i[data-on] svg { stroke: #fff; }
+.aTabs { display: flex; justify-content: space-around; margin-top: 4cqw; font-size: 3.4cqw; font-weight: 600; color: #9a8c7d; }
+.aTabs [data-on] { color: #d97a17; }
+
+/* ── Motion: once on arrival (and the whiteboard again each time its door opens). Each animation runs
+   from its start to the resting state, so frozen (?t=) or Reduce Motion simply shows the result. ── */
+@media (prefers-reduced-motion: no-preference) {
+  .nList li { animation: rowIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) calc(1.1s + var(--k) * 0.35s) backwards; }
+  .nList li[data-ai] { animation: rowIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) calc(1.1s + var(--k) * 0.35s) backwards, fresh 2.4s ease-out calc(1.1s + var(--k) * 0.35s) backwards; }
+  .stroke { animation: draw 0.36s ease-out calc(0.9s + var(--s) * 0.13s) backwards; }
+  .fill, .ink, .cursor { animation: fadeIn 0.4s ease-out calc(0.9s + var(--s) * 0.13s) backwards; }
+  .aList li[data-ai] { animation: fresh 2.4s ease-out 2.2s backwards; }
+  .aList li[data-ai] i { animation: tick 0.45s cubic-bezier(0.3, 1.6, 0.5, 1) 2.2s backwards; }
+}
+.hero[data-still] * { animation: none !important; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } }
+@keyframes fresh { from { background: rgba(240, 144, 26, 0.2); } 60% { background: rgba(240, 144, 26, 0.14); } }
+@keyframes draw { from { stroke-dashoffset: 1; opacity: 0; } 2% { opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes tick { from { background: transparent; box-shadow: inset 0 0 0 1.3px #d6cbbd; transform: scale(0.7); } }
+
+/* ── The AIs ── */
+.ai { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 40px 72px; align-items: end; }
+.aiTitle { margin: 0; font-size: clamp(34px, 4.3vw, 60px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.03; color: #2a1d10; text-wrap: balance; }
+.aiTitle span { color: #a08467; }
+.aiSay { margin: 22px 0 0; max-width: 34em; font-size: clamp(17px, 1.4vw, 19px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.aiRow { margin: 0; padding: 0 0 6px; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 20px; }
+.aiRow li { display: flex; align-items: center; gap: 14px; font-size: 18px; font-weight: 650; color: #2a1d10; white-space: nowrap; }
+.aiMark { flex: none; display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: #fffaf3; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 10px 22px -14px rgba(60, 30, 5, 0.45); }
+.aiMark[data-ai="claude"] { color: #d97757; }
+
+/* ── Phones and narrow windows: the words, then the doors stacked, one open at a time ── */
+@media (max-width: 900px) {
+  .head { grid-template-columns: minmax(0, 1fr); row-gap: 18px; }
+  .ai { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .hero { min-height: 0; max-height: none; padding: 2px var(--gutter) 0; gap: 22px; }
+  .h1 { font-size: clamp(38px, 10.4vw, 56px); line-height: 1.02; }
+  .lede { font-size: 17.5px; }
+  .side { gap: 18px; }
+  .doors { flex: none; flex-direction: column; min-height: 0; max-height: none; gap: 10px; }
+  .door, .doors[data-open] .door { flex: 0 0 80px; border-radius: 22px; --y: 58%; }
+  .doors[data-open] .door[data-on], .doors:not([data-open]) > .door:first-child { flex-basis: 352px; --y: 50%; }
+  .doors:not([data-open]) > .door:first-child .line { max-height: 5em; margin-top: 8px; opacity: 1; }
+  .doors:not([data-open]) > .door:first-child .plus { opacity: 0; }
+  .door .piece { opacity: 0; visibility: hidden; }
+  .door[data-on] .piece, .doors:not([data-open]) > .door:first-child .piece { opacity: 1; visibility: visible; }
+  .door[data-door="notes"] .piece { right: 5cqi; top: 16px; width: 56cqi; }
+  .door[data-door="whiteboards"] .piece { left: 5cqi; top: 16px; width: 90cqi; }
+  .door[data-door="apps"] .piece { right: 5cqi; top: 14px; width: 54cqi; }
+  .title { font-size: 30px; }
+  .line { font-size: 15.5px; }
+  .label { left: 20px; bottom: 22px; }
+  .plus { bottom: 24px; right: 18px; width: 32px; height: 32px; }
+  .door::after { background: linear-gradient(to top, rgba(20, 11, 4, 0.68) 0%, rgba(20, 11, 4, 0.3) 26%, rgba(20, 11, 4, 0) 52%); }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  .piece { transition: opacity 0.35s ease-out 0.15s; }
+}
