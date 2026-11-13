@@ -152,9 +152,10 @@ import UIKit
     }
     #else
     /// What the iPhone shots show, checked on the Mac too: Settings' first screen ends with Help
-    /// and feedback, there signed in and out, and it opens by a link like any other page.
+    /// and feedback, then Experimental on its own (12 November 2026), there signed in and out, and
+    /// Help opens by a link like any other page.
     @Test func iPhoneSettingsEndWithHelp() {
-        #expect(SettingsPage.groups.last == [.help])
+        #expect(SettingsPage.groups.suffix(2) == [[.help], [.experimental]])
         #expect(SettingsView(backend: Backend(), sync: nil).pages.contains(.help))
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
         route.open(.help)

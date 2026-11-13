@@ -15,17 +15,9 @@ import Testing
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1280, height: 800))
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 4)
-            // SwiftUI builds its accessibility tree once an assistive app asks; say one did.
-            NSApp.accessibilitySetValue(true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
-            defer { NSApp.accessibilitySetValue(false, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")) }
-            await MacWindowChromeTests.settle(w, 2)
-            let item = try #require(w.toolbar?.items.first { $0.label == "New Note" && !$0.isHidden }, "New Note in the toolbar")
-            let view = try #require(item.view)
-            let button = try #require(MacEmptyDetailTests.element("list.newNote", in: view) ?? MacEmptyDetailTests.element("list.newNote", in: w.contentView!.superview!),
-                                      "the New Note button")
-            // A menu with a primary action is a segmented control: its click is its segment's press.
-            let segment = (button.value(forKey: "accessibilityChildren") as? [NSObject])?.first ?? button
-            _ = segment.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            // The list's New Note, in the toolbar item it shares with the list's ••• (7 November 2026).
+            #expect(await MacWindowChromeTests.composeItem(w) != nil, "New Note in the toolbar")
+            try #require(await MacWindowChromeTests.pressNewNote(w), "the New Note button")
             let clock = ContinuousClock(), start = clock.now
             func focused() -> PaneTextView? {
                 guard let v = w.firstResponder as? PaneTextView, v.string.isEmpty else { return nil }

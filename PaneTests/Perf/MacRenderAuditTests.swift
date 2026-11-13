@@ -63,7 +63,10 @@ import Testing
         let counts = RenderProbe.values(in: context)
         #expect(counts["RootView"] == nil)
         #expect(window.title == title, "typing does not update the empty window title")
-        #expect(counts["PaneTextView.layoutCards", default: 0] <= 24, "styling and later geometry share requests within each turn")
+        // This note (25,000 characters) is styled in three parts since the first part shrank to
+        // 6,000 characters for opening speed (ac0772a9, fast delete branch): one geometry request
+        // for each part's turn, shared within it.
+        #expect(counts["PaneTextView.layoutCards", default: 0] <= 36, "styling and later geometry share requests within each turn")
         DebouncedSave.flushAll()
         await NoteOpenTests.settle(window)
         RenderProbe.begin(in: context)

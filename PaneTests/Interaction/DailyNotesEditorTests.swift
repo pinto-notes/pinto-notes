@@ -16,7 +16,9 @@ import Testing
         let all = items(main)
         let t = all.filter { $0.keyEquivalent == "t" && $0.keyEquivalentModifierMask.intersection(.deviceIndependentFlagsMask) == .command }
         #expect(t.map(\.title) == ["Today\u{2019}s Note"])
-        #expect(!all.contains { $0.title.localizedCaseInsensitiveContains("template") }, "no templates of your own in the menus")
+        // File › New from Template… opens the Templates library, the site's templates (Emil, 12
+        // November 2026); nothing in the menus makes or lists templates of your own.
+        #expect(!all.contains { $0.title.localizedCaseInsensitiveContains("template") && $0.title != AppMenuWords.newFromTemplate }, "no templates of your own in the menus")
     }
 
     @Test func goToNoteRunsTodaysNote() {

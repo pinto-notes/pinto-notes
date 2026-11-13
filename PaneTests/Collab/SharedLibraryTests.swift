@@ -854,7 +854,8 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(AIEdit.listLine(note, by: "Claude") == "Edited by Sara's Claude")
         let receipt = try #require(AIEdit.markSeen(note))
         #expect(receipt.previous == "Offsite plan\n- Venue", "the tint and the margin marks start from here")
-        #expect(receipt.summary == "Sara's Claude changed 1 line")
+        // Named by what it did (the AI edit mark, bc759c5a); the review's title still counts lines.
+        #expect(receipt.summary == "Sara's Claude added \u{201C}Budget\u{201D}")
         #expect(receipt.by == "Claude", "the mark is the AI's own")
         #expect(receipt.undoLabel == "Undo Sara's Claude's changes")
         #expect(AIReview(receipt)?.title == "Sara's Claude changed 1 line")
@@ -862,7 +863,7 @@ extension NetworkFaults.SharedLibraryTests {
         // Sara's phone: her own AI, named as in a note of her own.
         await waitUntil { mine.aiEditedAt != nil }
         #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil)
-        #expect(try #require(AIEdit.markSeen(mine)).summary == "Claude changed 1 line")
+        #expect(try #require(AIEdit.markSeen(mine)).summary == "Claude added \u{201C}Budget\u{201D}")
     }
 
     /// Undo on that receipt takes the AI's change out of the document, as your edit, for everyone.
@@ -996,7 +997,7 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil)
         let receipt = try #require(AIEdit.markSeen(mine))
         #expect(receipt.previous == "Offsite plan\n- Venue\n- Dates", "only its own line is the AI's")
-        #expect(receipt.summary == "Claude changed 1 line")
+        #expect(receipt.summary == "Claude added \u{201C}Budget\u{201D}")
         // Undo takes out its line and leaves Emil's.
         try await AIEdit.undo(receipt, on: mine, library: phone.library)
         #expect(onPhone.text == "Offsite plan\n- Venue\n- Dates")

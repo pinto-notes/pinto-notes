@@ -44,6 +44,41 @@ import Testing
         }
     }
 
+    /// The toolbar item that holds the list's New Note, while it stands in the window's toolbar.
+    /// Since 7 November 2026 compose shares one item with the list's ••• (one island, NoteListView),
+    /// and the item takes More's label: it is found by the button's identifier, list.newNote.
+    /// SwiftUI builds its accessibility tree once an assistive app asks: says one did meanwhile.
+    static func composeItem(_ w: NSWindow, tries: Int = 20) async -> NSToolbarItem? {
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+        defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+        for _ in 0..<tries {
+            await settle(w, 1)
+            let item = (w.toolbar?.items ?? []).first { item in
+                guard !item.isHidden, let v = item.view, v.window != nil else { return false }
+                return MacEmptyDetailTests.element("list.newNote", in: v) != nil
+            }
+            if let item { return item }
+        }
+        return nil
+    }
+
+    /// Presses the list's New Note as an assistive app does. A menu with a primary action is a
+    /// segmented control: its click is its segment's press. False when it isn't there.
+    static func pressNewNote(_ w: NSWindow) async -> Bool {
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+        defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+        for _ in 0..<30 {
+            await settle(w, 1)
+            guard let frame = w.contentView?.superview, let button = MacEmptyDetailTests.element("list.newNote", in: frame) else { continue }
+            let segment = (button.value(forKey: "accessibilityChildren") as? [NSObject])?.first ?? button
+            _ = segment.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            return true
+        }
+        return false
+    }
+
     /// A toolbar item, by its label, while it stands in the window's toolbar.
     static func toolbarItem(_ w: NSWindow, _ label: String) -> NSToolbarItem? {
         w.toolbar?.items.first { $0.label == label && $0.view?.window != nil }

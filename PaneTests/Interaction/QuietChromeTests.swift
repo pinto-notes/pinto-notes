@@ -152,7 +152,8 @@ import Testing
     /// A note drags from anywhere on its card, not only its words.
     @Test func aNoteDragsFromItsWholeCard() throws {
         let list = try SettingsHomeTests.source("Pane/Views/NoteListView.swift")
-        let row = try #require(list.range(of: "private struct ListRow").map { String(list[$0.lowerBound...].prefix(1600)) })
+        // The row's declaration through its body (it grew past 1,600 characters with its tags and drag chip).
+        let row = try #require(list.range(of: "private struct ListRow").map { String(list[$0.lowerBound...].prefix(4000)) })
         let shape = try #require(row.range(of: ".contentShape(Rectangle().inset(by: -6))"))
         let drag = try #require(row.range(of: ".draggable(PaneDragItem(kind: .note"))
         #expect(shape.lowerBound < drag.lowerBound, "the shape comes before the drag")

@@ -96,7 +96,10 @@ extension MacEmptyDetailTests {
                 // isn't among them.
                 let items = try MacWindowChromeTests.items(w)
                 print("PERF empty note pane toolbar (\(mode)): " + items.map { "\($0.label.isEmpty ? "(blank)" : $0.label)@\($0.column)" }.joined(separator: ", "))
-                #expect(items.filter { $0.label == "New Note" }.map(\.column) == [1], "\(mode): compose only with the list")
+                // Compose shares the list's item with its ••• (one island since 7 November 2026).
+                let compose = try #require(await MacWindowChromeTests.composeItem(w)?.view, "\(mode): New Note in the toolbar")
+                let frame = compose.convert(compose.bounds, to: nil)
+                #expect(items.filter { $0.frame == frame }.map(\.column) == [1], "\(mode): compose only with the list")
                 #expect(try !Self.greyBand(w), "\(mode): no grey band over the empty note pane")
 
                 // The ground: the same page colour in the toolbar's band as under it.

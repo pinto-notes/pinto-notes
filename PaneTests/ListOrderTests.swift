@@ -9,7 +9,9 @@ import Testing
 @MainActor @Suite struct ListOrderTests {
     let context: ModelContext
     let calendar = Calendar.current
-    let now = Date.now
+    /// Midday, so notes edited minutes "ago" are today at any hour (run just after midnight, they
+    /// were yesterday's and the headings test failed).
+    let now = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: .now) ?? .now
 
     init() throws {
         context = ModelContext(try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))

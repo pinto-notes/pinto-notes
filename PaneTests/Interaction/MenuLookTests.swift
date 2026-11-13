@@ -163,9 +163,9 @@ extension MenuLookTests {
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1180, height: 760))
             defer { w.close() }
             await MacWindowChromeTests.settle(w)
-            @MainActor func controls() -> [String]? {
-                (w.toolbar?.items.first { $0.label == "New Note" }?.view).map { Self.controls($0) }
-            }
+            // New Note shares the list's toolbar item with its ••• (7 November 2026).
+            let item = try #require(await MacWindowChromeTests.composeItem(w), "New Note in the toolbar")
+            @MainActor func controls() -> [String]? { item.view.map { Self.controls($0) } }
             @MainActor func settle(until ok: @MainActor ([String]) -> Bool) async -> [String]? {
                 for _ in 0..<40 {
                     if let now = controls(), ok(now) { return now }
@@ -205,7 +205,7 @@ extension MenuLookTests {
         #expect(editor.string.contains("Groceries"), "the note's text: \(editor.string.prefix(60))")
         #expect(editor.isEditable)
         #expect(w.toolbar?.items.contains { $0.label == "More" } == true, "the note's own ••• menu")
-        #expect(w.toolbar?.items.contains { $0.label == "New Note" } != true, "no list, so no compose")
+        #expect(await MacWindowChromeTests.composeItem(w, tries: 5) == nil, "no list, so no compose")
     }
 
     /// At its first size a note's window shows every tool: no » menu holding Share and More
@@ -247,7 +247,7 @@ extension MenuLookTests {
         await MacWindowChromeTests.settle(w)
         let split = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
         #expect(split.arrangedSubviews.filter { !$0.isHidden }.count == 2, "the list and the note")
-        #expect(w.toolbar?.items.contains { $0.label == "New Note" } == true, "the list's New Note")
+        #expect(await MacWindowChromeTests.composeItem(w) != nil, "the list's New Note")
         #expect(w.title == folder.name || w.title.isEmpty)
     }
 
