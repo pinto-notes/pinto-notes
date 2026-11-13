@@ -79,7 +79,7 @@ ship() {
   xcodebuild archive -project "$CLEAN/Pane.xcodeproj" -scheme Pane -configuration Release \
     -destination "$dest" -archivePath "$archive" -allowProvisioningUpdates "${auth[@]}" "${beta[@]}" \
     DEVELOPMENT_TEAM=$TEAM CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
-    PROVISIONING_PROFILE_SPECIFIER= CURRENT_PROJECT_VERSION=$BUILD ${VERSION:+MARKETING_VERSION=$VERSION} "$@" \
+    PROVISIONING_PROFILE_SPECIFIER= PANE_TEAM_BUILD=NO CURRENT_PROJECT_VERSION=$BUILD ${VERSION:+MARKETING_VERSION=$VERSION} "$@" \
     > "$OUT/$platform-$BUILD-archive.log" 2>&1 || { grep -E " error: " "$OUT/$platform-$BUILD-archive.log" | head -20; return 1; }
   # A release build without the PostHog key reports nothing; the 1.2 builds went to review that way.
   [[ $CHANNEL != release ]] || "$MAIN/scripts/check-telemetry-key.sh" "$archive" || return 1

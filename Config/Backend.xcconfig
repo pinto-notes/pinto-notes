@@ -21,4 +21,10 @@ PANE_AUTH_HOST =
 // Config/Backend.local.xcconfig. Debug builds and the Simulator never send, key or not.
 PANE_POSTHOG_KEY =
 PANE_POSTHOG_HOST = https:/$()/eu.i.posthog.com
+// Whether this build is one of ours: every build made on a team machine (Xcode, install-mac.sh,
+// agents' runs on the Air or a VM) says YES, so its telemetry carries internal: true and stays out
+// of the numbers. Only the builds people get say NO: scripts/release-mac.sh and
+// scripts/testflight.sh pass PANE_TEAM_BUILD=NO, and check-telemetry-key.sh stops a release
+// archive that still says YES.
+PANE_TEAM_BUILD = YES
 #include? "Backend.local.xcconfig"

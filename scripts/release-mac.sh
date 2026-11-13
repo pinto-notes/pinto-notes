@@ -91,8 +91,10 @@ rm -rf "$DIST" && mkdir -p "$DIST"
 xcodebuild -project "$CLEAN/Pane.xcodeproj" -scheme AmberNotesDirect -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath "$DD" -archivePath "$DIST/AmberNotes.xcarchive" \
   -allowProvisioningUpdates "${auth[@]}" "${beta[@]}" DEVELOPMENT_TEAM=4UM3XVUN9Y CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
-  MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" archive | grep -E ": error: |\*\* ARCHIVE" || true
+  PANE_TEAM_BUILD=NO MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" archive | grep -E ": error: |\*\* ARCHIVE" || true
 [[ -d $DIST/AmberNotes.xcarchive ]] || { echo "Archive failed." >&2; exit 1; }
+# The key must be there, and the build must not say it is one of ours (its users would be left out).
+"$CLEAN/scripts/check-telemetry-key.sh" "$DIST/AmberNotes.xcarchive" || exit 1
 
 echo "→ Export with Developer ID"
 cat > "$DIST/ExportDeveloperID.plist" <<EOF

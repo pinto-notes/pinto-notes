@@ -383,8 +383,9 @@ struct TelemetryContext: Equatable, Sendable {
     var deviceClass: DeviceClass
     var channel: BuildChannel
     var distribution: Distribution
-    /// A Pinto Notes team member's own device (`PintoInternal`, set by the install scripts), so
-    /// their testing can be left out of the numbers. Sent only when true.
+    /// One of ours: a build made on a team machine (`PaneTeamBuild`, Config/Backend.xcconfig), or a
+    /// device marked `PintoInternal` by the install scripts, so testing is left out of the numbers.
+    /// Sent only when true.
     var isInternal = false
 
     enum Key: String, CaseIterable {
@@ -397,11 +398,19 @@ struct TelemetryContext: Equatable, Sendable {
     /// Whether `defaults` marks this device as the team's. `scripts/install-mac.sh` writes the
     /// default; `scripts/install-phone.sh` launches the app once with `-PintoInternal YES`, which
     /// only lasts that launch, so it's kept here.
-    static func isInternal(_ defaults: UserDefaults, arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+    static func isInternal(_ defaults: UserDefaults, arguments: [String] = ProcessInfo.processInfo.arguments,
+                           info: [String: Any] = Bundle.main.infoDictionary ?? [:]) -> Bool {
+        if isTeamBuild(info) { return true }
         if let i = arguments.firstIndex(of: "-" + internalKey), i + 1 < arguments.count, ["YES", "1", "true"].contains(arguments[i + 1]) {
             defaults.set(true, forKey: internalKey)
         }
         return defaults.bool(forKey: internalKey)
+    }
+
+    /// Whether the build itself says it is one of ours. Release scripts build with NO; anything
+    /// else (an unset or unexpanded value) counts as a person's build, so a mistake never hides users.
+    static func isTeamBuild(_ info: [String: Any]) -> Bool {
+        (info["PaneTeamBuild"] as? String) == "YES"
     }
 
     var properties: [String: Any] {
@@ -436,7 +445,7 @@ struct TelemetryContext: Equatable, Sendable {
                                 appBuild: VersionNumber(info["CFBundleVersion"] as? String),
                                 osVersion: VersionNumber("\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"),
                                 platform: platform, deviceClass: device, channel: TelemetryGate.channel, distribution: distribution,
-                                isInternal: isInternal(.standard))
+                                isInternal: isInternal(.standard, info: info))
     }
 }
 

@@ -50,3 +50,10 @@ Deno.test({ name: "an empty key (no Backend.local.xcconfig) or a key that isn't 
   assertEquals(r.code, 1);
   assert(!r.text.includes("phx_personalKeyNotForApps"));
 } });
+
+Deno.test({ name: "a team build (PaneTeamBuild = YES) is stopped, so shipped users are never tagged ours", ignore: !onMac, fn: async () => {
+  const r = await check(await archive(false, { PanePostHogKey: KEY, PaneTeamBuild: "YES" }));
+  assertEquals(r.code, 1);
+  assert(r.text.includes("Team build"));
+  assertEquals((await check(await archive(true, { PanePostHogKey: KEY, PaneTeamBuild: "NO" }))).code, 0);
+} });

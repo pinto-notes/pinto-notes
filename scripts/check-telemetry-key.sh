@@ -3,7 +3,7 @@
 #
 #   scripts/check-telemetry-key.sh build/testflight/ios-2610102255.xcarchive
 #
-# Exits 1 when the Info.plist has no phc_ PanePostHogKey: that build would send no telemetry
+# Exits 1 when the Info.plist has no phc_ PanePostHogKey, or says PaneTeamBuild = YES (see below): that build would send no telemetry
 # (docs/Technical/app-telemetry.md). The iPhone and Mac 1.2 builds sent to App Review on 10-10
 # were archived before telemetry reached main, and nothing said so; testflight.sh now runs this
 # before it uploads.
@@ -22,5 +22,12 @@ if [[ $key == phc_?* ]]; then
   echo "PostHog key: present ($(basename "$app"))"
 else
   echo "PostHog key: absent ($(basename "$app")): this build would send no telemetry." >&2
+  exit 1
+fi
+# A team build tags every event internal: true, and reports leave those out: shipped to people, it
+# would hide all of them. Release scripts pass PANE_TEAM_BUILD=NO.
+team=$(plutil -extract PaneTeamBuild raw -o - "$plist" 2>/dev/null || true)
+if [[ $team == YES ]]; then
+  echo "Team build: this archive says PaneTeamBuild = YES, so its users would be left out of the numbers. Archive with PANE_TEAM_BUILD=NO." >&2
   exit 1
 fi

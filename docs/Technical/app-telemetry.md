@@ -61,7 +61,7 @@ This is enforced by the types, not by care at each call:
 | `device_class` | `iphone`, `ipad`, `mac` (never the model) |
 | `channel` | `release`, `beta` (`debug` builds never send) |
 | `distribution` | `app_store` (App Store and TestFlight), `direct` (the Mac download) |
-| `internal` | `true` on a Pinto Notes team member's own device, so their tests are left out of the numbers. Everyone else's events don't carry it. Set by `scripts/install-mac.sh` and `scripts/install-phone.sh` (the `PintoInternal` default) |
+| `internal` | `true` on a Pinto Notes team member's own device, so their tests are left out of the numbers. Everyone else's events don't carry it. Set by every build made on a team machine (`PaneTeamBuild`, `PANE_TEAM_BUILD = YES` in `Config/Backend.xcconfig`; `scripts/release-mac.sh` and `scripts/testflight.sh` build with `NO`, and `scripts/check-telemetry-key.sh` stops a release archive that says `YES`), and by `scripts/install-mac.sh` and `scripts/install-phone.sh` (the `PintoInternal` default) |
 
 ## Product events
 

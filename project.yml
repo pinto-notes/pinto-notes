@@ -107,6 +107,7 @@ targets:
         PaneAccent: $(PANE_ACCENT)
         PanePostHogKey: $(PANE_POSTHOG_KEY)
         PanePostHogHost: $(PANE_POSTHOG_HOST)
+        PaneTeamBuild: $(PANE_TEAM_BUILD)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSAppleEventsUsageDescription: Pinto Notes reads the Apple Notes you choose to import. It never changes them.
