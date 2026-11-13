@@ -341,6 +341,13 @@ enum NoteCover {
         return blank ? n : n + 1
     }
 
+    /// `icon` and a space in front of the title, the icon selected (to be swapped in the emoji panel).
+    static func iconEdit(_ icon: String, in text: String) -> TextEdit {
+        let at = MarkdownStyler.titleLocation(text as NSString)
+        let length = (icon as NSString).length
+        return TextEdit(range: NSRange(location: at, length: 0), replacement: icon + " ", caret: at, selection: NSRange(location: at, length: length))
+    }
+
     /// The length (UTF-16) of the emoji a title starts with, and the space after it: the icon.
     static func iconLength(_ title: String) -> Int? {
         guard let first = title.first, isEmoji(first) else { return nil }

@@ -243,7 +243,12 @@ final class EditorCore {
             default: break
             }
             #endif
-            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)),
+            let embedView = EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)
+            // The cover's banner shows Change Cover and Remove under the pointer.
+            let shown = e.range == cover?.range && controller?.readOnly != true
+                ? AnyView(CoverHover(content: embedView, pickCover: { [weak controller] in controller?.pickCover($0) }, remove: { [weak controller] in controller?.removeCover() }))
+                : AnyView(embedView)
+            out.append((e.key, f, shown,
                         .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
         }
         return out
@@ -3931,6 +3936,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func keyDown(with event: NSEvent) {
+        hideTitleActions()
         // Recently Deleted: typing asks to recover the note first, like Notes. Moving around and
         // the ⌘ shortcuts (Copy, Select All) still work.
         if controller?.readOnly == true, Self.edits(event) {
@@ -4212,9 +4218,79 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         super.cursorUpdate(with: event)
     }
 
+    // MARK: Add Icon and Add Cover beside the title
+
+    private var titleActionsHost: NSHostingView<TitleActions>?
+
+    /// The title's first line, in this view.
+    func titleLineRect() -> CGRect? {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return nil }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, let loc = tcm.location(tcm.documentRange.location, offsetBy: at),
+              let frag = tlm.textLayoutFragment(for: loc), let line = frag.textLineFragments.first else { return nil }
+        let o = textContainerOrigin, b = line.typographicBounds, f = frag.layoutFragmentFrame
+        // Where the words end, not the line's whole width.
+        let end = line.locationForCharacter(at: line.characterRange.length)
+        return CGRect(x: o.x + f.minX + b.minX, y: o.y + f.minY + b.minY, width: max(0, end.x), height: b.height)
+    }
+
+    /// Shows the title's buttons while the pointer is on the title or just above it, where they fit.
+    func updateTitleActions(at p: CGPoint) {
+        guard controller?.readOnly != true, let title = titleLineRect() else { hideTitleActions(); return }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        let needsIcon = NoteCover.iconLength(ns.substring(from: at)) == nil
+        let needsCover = NoteCover.find(core.embeds, in: ns) == nil
+        let near = p.y >= title.minY - 20 && p.y <= title.maxY + 4
+        guard near, needsIcon || needsCover else { hideTitleActions(); return }
+        let width = TitleActions.width(icon: needsIcon, cover: needsCover)
+        let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
+        guard title.maxX + 16 <= right - width else { hideTitleActions(); return }
+        let frame = CGRect(x: right - width, y: title.midY - TitleActions.height / 2, width: width, height: TitleActions.height)
+        let view = TitleActions(icon: needsIcon, cover: needsCover,
+                                addIcon: { [weak self] in self?.hideTitleActions(); self?.controller?.addIcon() },
+                                pickCover: { [weak self] in self?.hideTitleActions(); self?.controller?.pickCover($0) })
+        if let host = titleActionsHost {
+            host.rootView = view
+            host.frame = frame
+        } else {
+            let host = NSHostingView(rootView: view)
+            host.sizingOptions = []
+            host.frame = frame
+            addSubview(host)
+            titleActionsHost = host
+        }
+    }
+
+    /// Add Icon and Add Cover are showing (tests).
+    var titleActionsShown: Bool { titleActionsHost != nil }
+    var titleActionsFrame: CGRect? { titleActionsHost.map { $0.frame } }
+
+    func hideTitleActions() {
+        titleActionsHost?.removeFromSuperview()
+        titleActionsHost = nil
+    }
+
+    /// The pointer left the text: the title's buttons go, unless it's on them.
+    func pointerLeft(_ event: NSEvent) {
+        if let host = titleActionsHost, !host.frame.contains(convert(event.locationInWindow, from: nil)) { hideTitleActions() }
+    }
+
+    /// A click on the icon opens the emoji panel to change it.
+    private func clickedIcon(at p: CGPoint) -> Bool {
+        guard controller?.readOnly != true, let title = titleLineRect() else { return false }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard NoteCover.iconLength(ns.substring(from: at)) != nil else { return false }
+        let iconWidth = (EditorMetrics.title * 1.9 * 1.2).rounded()
+        return p.y >= title.minY && p.y <= title.maxY && p.x >= title.minX && p.x <= title.minX + iconWidth
+    }
+
     /// Over a checkbox the pointer is an arrow, not the text I-beam, like Notes.
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        updateTitleActions(at: p)
         // Over someone's caret, their name shows.
         if !caretViews.isEmpty || hoveredCaret != nil { hoverCaret(at: p) }
         if card(at: p) != nil { return }
@@ -4238,6 +4314,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if event.clickCount == 1, clickedIcon(at: p) {
+            controller?.changeIcon()
+            return
+        }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
         // A heading's chevron collapses or opens its section; the caret stays where it is.
         if event.clickCount == 1, let h = foldToggle(at: point) {

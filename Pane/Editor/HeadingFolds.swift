@@ -622,6 +622,7 @@ extension PaneTextView {
         if core.folds.hovered != nil { changeFolds { $0.hovered = nil } }
         // Another person's caret shows its name only while the pointer is on it.
         hoverCaret(at: nil)
+        pointerLeft(event)
     }
 
     override func updateTrackingAreas() {

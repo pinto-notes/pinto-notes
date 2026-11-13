@@ -19,6 +19,7 @@ struct NoteDetailView: View {
     @State private var importingApp = false
     /// Add Cover: a picture for the note's banner (NoteCover).
     @State private var pickingCover = false
+    @State private var pickingCoverPhoto = false
     @State private var saver = DebouncedSave()
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
@@ -136,6 +137,9 @@ struct NoteDetailView: View {
                     guard case .success(let url) = result, let file = context.addAttachments([url]).first else { return }
                     controller.setCover(file)
                 }
+                .modifier(PhotoAttach(isPresented: $pickingCoverPhoto) { urls in
+                    if let file = context.addAttachments(urls).first(where: \.isImage) { controller.setCover(file) }
+                })
             }
             #if DEBUG || QA
             .background {
@@ -1492,6 +1496,12 @@ struct NoteDetailView: View {
         let sync = self.sync
         controller.resolveAttachment = { id in context.attachment(id) }
         controller.sharePicture = { sharePicture() }
+        controller.pickCover = { [$pickingCover, $pickingCoverPhoto] source in
+            switch source {
+            case .photos: $pickingCoverPhoto.wrappedValue = true
+            case .file: $pickingCover.wrappedValue = true
+            }
+        }
         controller.canSharePicture = { [note] in !note.isLocked && note.trashedAt == nil }
         controller.resolveNoteModel = { id in context.note(id) }
         // A note dragged in from the list is linked by its title. Not this note to itself.
@@ -1655,8 +1665,13 @@ struct NoteDetailView: View {
             // The note's cover: a photo across the top (NoteCover).
             Group {
                 let hasCover = NoteCover.find(in: note.body) != nil
-                Button(hasCover ? "Change Cover…" : "Add Cover…", systemImage: "photo.artframe") { pickingCover = true }
-                    .accessibilityIdentifier("attach.cover")
+                Menu(hasCover ? "Change Cover" : "Add Cover", systemImage: "photo.artframe") {
+                    Button("Choose from Photos…", systemImage: "photo.on.rectangle") { pickingCoverPhoto = true }
+                    Button("Choose File…", systemImage: "folder") { pickingCover = true }
+                }
+                .accessibilityIdentifier("attach.cover")
+                Button("Add Icon", systemImage: "face.smiling") { controller.addIcon() }
+                    .accessibilityIdentifier("attach.icon")
                 if hasCover {
                     Button("Remove Cover", systemImage: "rectangle.slash") { controller.removeCover() }
                         .accessibilityIdentifier("attach.removeCover")

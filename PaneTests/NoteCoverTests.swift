@@ -83,4 +83,28 @@ import Testing
         core.restyle(storage, selection: nil, force: true)
         #expect(core.coverRoom == 0, "no cover, no room")
     }
+
+    @Test func addIconPutsASelectedEmojiBeforeTheTitle() {
+        let text = "\nLemon pasta\nBoil."
+        let edit = NoteCover.iconEdit("🍋", in: text)
+        let applied = (text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
+        #expect(applied == "\n🍋 Lemon pasta\nBoil.")
+        #expect(edit.selection == NSRange(location: 1, length: 2), "the icon is selected, so the emoji panel's pick replaces it")
+        #expect(NoteCover.iconLength("🍋 Lemon pasta") != nil, "and it reads as the icon")
+        #expect(EditorController.startIcons.allSatisfy { NoteCover.iconLength($0 + " Title") != nil }, "every starting icon counts as one")
+    }
+
+    #if os(macOS)
+    @Test func listThumbnailsAreDecodedSharp() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "thumb-\(UUID())")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appending(path: "photo.png")
+        let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 1500, pixelsHigh: 1000, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        try #require(rep.representation(using: .png, properties: [:])).write(to: url)
+        let image = try #require(FileThumbnail.decode(url, pixels: 32 * 2 * 2))
+        #expect(min(image.width, image.height) >= 64, "the short side still fills a 32-point square at 2x: \(image.width)x\(image.height)")
+        #expect(max(image.width, image.height) <= 128, "and no bigger than needed")
+    }
+    #endif
 }

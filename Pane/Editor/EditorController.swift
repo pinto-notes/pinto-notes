@@ -171,6 +171,38 @@ final class EditorController {
         perform { text, sel in NoteCover.edit(from: text, to: NoteCover.setting(line, in: text, moving: range), selection: sel) }
     }
 
+    /// Asks for a picture to be the cover (the note's screen shows Photos or the file picker).
+    @ObservationIgnored var pickCover: (CoverSource) -> Void = { _ in }
+
+    /// Icons a new one starts from, like Notion's random pick; the emoji panel opens to change it.
+    static let startIcons = ["🍋", "🌿", "📒", "✨", "🌻", "🍓", "🪴", "📚", "☕️", "🍊", "🌙", "🎈"]
+
+    /// Add Icon: an emoji in front of the title, selected, and the emoji panel to swap it.
+    func addIcon() {
+        let icon = Self.startIcons.randomElement()!
+        perform { text, _ in NoteCover.iconEdit(icon, in: text) }
+        openEmojiPanel()
+    }
+
+    /// The icon selected and the emoji panel open, to pick another.
+    func changeIcon() {
+        guard let t = target else { return }
+        let ns = t.currentText as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, let length = NoteCover.iconLength(ns.substring(from: at)) else { return }
+        let emoji = ns.substring(from: at).first.map { String($0) } ?? ""
+        t.apply(TextEdit(range: NSRange(location: at, length: (emoji as NSString).length), replacement: emoji, caret: at, selection: NSRange(location: at, length: (emoji as NSString).length)))
+        _ = length
+        openEmojiPanel()
+    }
+
+    private func openEmojiPanel() {
+        target?.focusEditor()
+        #if os(macOS)
+        DispatchQueue.main.async { NSApp.orderFrontCharacterPalette(nil) }
+        #endif
+    }
+
     func removeCover() {
         perform { text, sel in NoteCover.edit(from: text, to: NoteCover.removing(from: text), selection: sel) }
     }
