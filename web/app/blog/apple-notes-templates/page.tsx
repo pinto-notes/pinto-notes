@@ -98,7 +98,8 @@ export default function Page() {
       <p>
         A template in Apple Notes is a blank form. It&apos;s great for the first day. By the third week of a habit list you&apos;re
         scrolling through copies of the same checklist, counting ticks by hand to see whether you kept your streak, and nothing ever adds
-        up on its own. And whatever you told ChatGPT about your week stays in the chat; it can&apos;t reach the note.
+        up on its own. And whatever you told ChatGPT about your week stays in the chat; it can&apos;t reach the note. (Sums are the
+        exception: a <a href="/blog/apple-notes-budget-template">budget note</a> can total itself with Math Results.)
       </p>
 
       <h2 id="amber-notes">Templates that fill themselves in</h2>

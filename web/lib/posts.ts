@@ -277,6 +277,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-budget-template",
+    title: "Apple Notes budget template that adds itself up",
+    description: "Apple Notes has no budget template, but a note can still do the sums. A monthly budget to paste in, where it stops, and a free budget note that keeps itself.",
+    excerpt: "A budget in Apple Notes that totals itself with Math Results, ready to paste in. Where it runs out, and a budget note that tracks spending for you.",
+    category: "Apple Notes",
+    date: "2026-11-13",
+    updated: "2026-11-13",
+    image: SHOTS.budgetApp,
+    thumb: cover("honey", "budget-template", 1600, 1000, "A paper page with lines and a bar chart beside a small stack of coins"),
+    draft: false,
+  },
+  {
     slug: "apple-notes-version-history",
     title: "Does Apple Notes have version history? No. What to do",
     description: "Apple Notes keeps no earlier versions of a note. What Undo, shared notes and backups can still get back, and notes apps that keep every version.",
