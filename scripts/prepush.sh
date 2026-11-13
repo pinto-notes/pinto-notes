@@ -163,7 +163,7 @@ if [[ ${1:-} == --tests ]]; then
   # scripts/ci/select-tests.py knows which suites a test file holds and their full names: a suite
   # written inside "extension Outer {" is Outer/Suite to xcodebuild, and matches nothing without it.
   python3 scripts/ci/select-tests.py --suites-of ${(M)changed:#PaneTests/*.swift} | while IFS=$'\t' read -r f suites; do
-    for suite in ${=suites}; do only+=("-only-testing:PaneTests/$suite"); done
+    for suite in ${=suites}; do only+=("-only-testing:$suite"); done
     touched+=("$f:${(j:|:)${(@)${=suites}:t}}")
   done
   # Always: the smoke tests and the suites that check the whole app at once ("every primary button

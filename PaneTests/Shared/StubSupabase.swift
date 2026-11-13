@@ -43,6 +43,7 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) private static var _rpcAnswers: [String: @Sendable ([String: Any]) -> Any] = [:]
 
     nonisolated(unsafe) private static var _tooFast = false
+
     /// Writes are refused with PostgREST's "too many requests".
     static var tooFast: Bool {
         get { lock.withLock { _tooFast } }
@@ -50,6 +51,7 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
     }
 
     nonisolated(unsafe) private static var _account: String?
+
     /// Row-level security, for tests that switch accounts: the account making the requests sees and
     /// changes only its own rows, and writing over another account's row is refused (42501), as on
     /// the real server. Nil (the default): one account, every row visible.
@@ -86,6 +88,7 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
     }
 
     nonisolated(unsafe) private static var _onRequest: (@Sendable (_ method: String, _ path: String) -> Void)?
+
     /// Runs as each request reaches the server, before it's answered (outside the stub's lock): what
     /// happens elsewhere while a request is on its way. Cleared by `reset`.
     static var onRequest: (@Sendable (_ method: String, _ path: String) -> Void)? {
@@ -109,13 +112,17 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
 
     /// "METHOD /path?query" of every request that reached the server.
     static var requests: [String] { lock.withLock { _requests } }
+
     /// Each request with when it reached the server, in order.
     static var timedRequests: [(request: String, at: Date)] { lock.withLock { Array(zip(_requests, _requestTimes)) } }
+
     /// Every request body that reached the server, as text (bytes that aren't text come out as
     /// replacement characters).
     static var bodies: [String] { lock.withLock { _bodies } }
+
     /// The files bucket: path → bytes, as uploaded.
     static var objects: [String: Data] { lock.withLock { _objects } }
+
     /// RPCs called, with their parameters.
     static var rpcCalls: [(name: String, params: [String: Any])] { lock.withLock { _rpcCalls } }
 

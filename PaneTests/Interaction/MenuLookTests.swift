@@ -10,19 +10,8 @@ import Testing
 /// title on every item whose icon is red; the list's New Note greyed while it can't make one; and
 /// a note's or a folder's own window. Menus are got by handing a right-click event made here to
 /// the views (never posted); windows are never shown.
-@MainActor @Suite(.serialized) struct MenuLookTests {
+extension MenuLookTests {
     // MARK: Helpers
-
-    static func titleColor(_ item: NSMenuItem?) -> NSColor? {
-        guard let a = item?.attributedTitle, a.length > 0 else { return nil }
-        return a.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
-    }
-
-    /// Red as the system red is: strong red, little green or blue.
-    static func isRed(_ color: NSColor?) -> Bool {
-        guard let c = color?.usingColorSpace(.sRGB) else { return false }
-        return c.redComponent > 0.8 && c.greenComponent < 0.45 && c.blueComponent < 0.45
-    }
 
     static func offscreenWindow(_ size: CGSize, styled: Bool = false) -> NSWindow {
         let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),

@@ -115,14 +115,3 @@ private final class FakeSetup: SetupService, @unchecked Sendable {
     }
 }
 
-#if os(macOS)
-extension AIEditSnapshots {
-    /// The Settings sync line, as it reads once synced.
-    @Test func syncStatusLine() async throws {
-        guard AppSnapshotTests.dir != nil else { return }
-        let form = Form { LabeledContent("Sync") { SyncStatusLabel(status: .synced(.now.addingTimeInterval(-300))) } }
-            .formStyle(.grouped).frame(width: 520)
-        try await AppSnapshotTests.render(form, name: "settings-sync-line", dark: false)
-    }
-}
-#endif

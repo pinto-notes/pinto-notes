@@ -6,18 +6,7 @@ import Testing
 /// never sees it, and one that has it on sees its switch until it turns it off. Real accounts
 /// against the fake key server (KeyCopyTests.Server); what Security shows is read from the rule its
 /// body uses (PrivacySecuritySection.showsProtection), as LockedNotesSection.shown is.
-@MainActor @Suite(.serialized) struct AdvancedProtectionHiddenTests {
-    /// An account as most have it: Pinto Notes keeps a copy, Advanced protection off.
-    static func standard() async -> AccountCrypto { await AddDeviceSnapshots.readyWithCopy() }
-
-    /// An account that turned Advanced protection on before it was retired.
-    static func strict() async throws -> AccountCrypto {
-        let crypto = await standard()
-        try await crypto.markRecoveryKeySaved()
-        try await crypto.keepOnDevicesOnly(device: UUID())
-        return crypto
-    }
-
+extension AdvancedProtectionHiddenTests {
     @Test func shownOnlyToAccountsThatHaveItOn() {
         #expect(!AdvancedProtection.offered, "nobody is offered it any more")
         #expect(AdvancedProtection.shown(.strict))
