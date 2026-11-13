@@ -1867,8 +1867,8 @@ extension View {
 /// then every folder row. Nothing it is given changes what it shows: the selection reaches it
 /// through its binding, the folders and counts through its queries, and the action is the same
 /// action. So two of them are always equal.
-extension SidebarView: @MainActor Equatable {
-    static func == (a: SidebarView, b: SidebarView) -> Bool { true }
+extension SidebarView: @MainActor CustomEquatable {
+    static func isEqual(_ a: SidebarView, _ b: SidebarView) -> Bool { true }
 }
 
 /// A folder row with its sub-folders; accepts dropped notes and folders. Not an equatable view:
@@ -2150,8 +2150,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
 /// it reads itself), the files, the selection, the drop. Not for the sidebar's actions, made new
 /// on every pass but doing the same things: as inputs they worked every folder row out again with
 /// each pass (180 rows against 72 for three saves).
-extension FolderTree: @MainActor Equatable {
-    static func == (a: FolderTree, b: FolderTree) -> Bool {
+extension FolderTree: @MainActor CustomEquatable {
+    static func isEqual(_ a: FolderTree, _ b: FolderTree) -> Bool {
         a.folder.id == b.folder.id && a.files == b.files && a.selection == b.selection
             && a.notesID == b.notesID && a.depth == b.depth && a.picked == b.picked
     }

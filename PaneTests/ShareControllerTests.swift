@@ -5,24 +5,7 @@ import Testing
 
 /// Share with people, as the buttons drive it (ShareController over a sample backend): Share Link,
 /// the link switch, Remove, Leave, and what the sheet says when something fails or takes too long.
-@MainActor @Suite(.serialized) struct ShareControllerTests {
-    static let me = CollabGallery.emil
-    static let sara = CollabGallery.sara
-
-    static func owner(link: ShareState.Access = .off) -> ShareState {
-        ShareState(link: link == .off ? nil : URL(string: "https://pintonotes.com/s/sEbHaDgYXLDfpSMmrziRgA#gIfSqgKHVsQcWBm2RTA0aw"), access: link, people: [
-            .init(id: me, name: "Emil Wagman", isMe: true, role: "owner"),
-            .init(id: sara, name: "Sara Lind", role: "editor", safetyCode: "4821 0937 5512"),
-        ])
-    }
-
-    static func member() -> ShareState {
-        ShareState(people: [
-            .init(id: sara, name: "Sara Lind", isMe: true, role: "editor"),
-            .init(id: me, name: "Emil Wagman", role: "owner", safetyCode: "4821 0937 5512"),
-        ])
-    }
-
+extension ShareControllerTests {
     static func controller(_ state: ShareState) -> (ShareController, SampleShare) {
         let backend = SampleShare(state)
         return (ShareController(note: Note(body: "Team offsite"), backend: backend), backend)

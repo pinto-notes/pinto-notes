@@ -9,7 +9,7 @@ import Carbon.HIToolbox
 /// Settings on the Mac, a card with its pages in a sidebar: four pages, every setting found by its
 /// words (or sent to the menu item it moved to), links landing on their page, and how you sign in
 /// said plainly.
-@MainActor @Suite(.serialized) struct SettingsHomeTests {
+extension SettingsHomeTests {
     /// The same rows as iPhone's Settings, with the same names (Emil, 7 November 2026: "copy this
     /// onto Mac as well so it's fully consistent"): you, then AI Connections, General, Appearance;
     /// Privacy, Storage; Help and feedback.
@@ -56,10 +56,6 @@ import Carbon.HIToolbox
         #expect(picked == ["link", "slider.horizontal.3", "textformat.size"])
         #expect(Set(picked).count == 3 && !picked.contains { $0.contains(".fill") })
         for p in SettingsPage.allCases { #expect(NSImage(systemSymbolName: p.symbol, accessibilityDescription: nil) != nil, "\(p.symbol) exists") }
-    }
-
-    static func source(_ path: String) throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: path), encoding: .utf8)
     }
 
     /// A link into Settings (a card, the storage warning, the account menu) opens its own page.

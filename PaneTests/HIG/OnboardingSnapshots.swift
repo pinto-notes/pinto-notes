@@ -10,37 +10,8 @@ import UIKit
 /// and an iPhone at the default and the largest text size. Offscreen: nothing touches the screen. Runs only when
 /// AMBER_HIG_SHOTS is set. Mac: `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh
 /// PaneTests/OnboardingSnapshots`; iPhone: the same test on a simulator.
-@MainActor @Suite(.serialized) struct OnboardingSnapshots {
+extension OnboardingSnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
-
-    struct Shot {
-        let name: String
-        let step: Onboarding.Step
-        var preview = OnboardingFlow.Preview()
-        /// Where the flow began: Bring when the name was known.
-        var first: Onboarding.Step = .name
-    }
-
-    static let withAboutMe = TrialNote.body + TrialNote.sample
-
-    static let shots: [Shot] = [
-        Shot(name: "2-name-prefilled", step: .name, preview: .init(name: "Sara Lindqvist")),
-        Shot(name: "2-name-empty", step: .name),
-        Shot(name: "3-bring", step: .bring),
-        Shot(name: "3-bring-after-import", step: .bring, preview: .init(brought: 35)),
-        Shot(name: "3-bring-name-known", step: .bring, first: .bring),
-        Shot(name: "4-connect", step: .connect),
-        Shot(name: "4-connect-connected", step: .connect, preview: .init(connected: ["Claude Code"])),
-        Shot(name: "5-try-it-chatgpt", step: .tryIt, preview: .init(connected: ["ChatGPT"])),
-        Shot(name: "5-try-it-chatgpt-asked", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT")),
-        Shot(name: "5-try-it-claude", step: .tryIt, preview: .init(connected: ["Claude"])),
-        Shot(name: "5-try-it-claude-asked", step: .tryIt, preview: .init(connected: ["Claude"], asked: "Claude")),
-        Shot(name: "5-try-it-both", step: .tryIt, preview: .init(connected: ["ChatGPT", "Claude"])),
-        Shot(name: "5-try-it-claude-code", step: .tryIt, preview: .init(connected: ["Claude Code"])),
-        Shot(name: "5-try-it-claude-code-copied", step: .tryIt, preview: .init(connected: ["Claude Code"], copied: true)),
-        Shot(name: "5-try-it-it-worked", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", note: withAboutMe, arrived: true)),
-        Shot(name: "5-try-it-nothing-yet", step: .tryIt, preview: .init(connected: ["ChatGPT"], asked: "ChatGPT", late: true)),
-    ]
 
     /// The sign-in states newcomer audit 8, 23 and 24 were about.
     static var signInStates: [(String, EmailSignInFlow, SignInView.Way?)] {
@@ -57,14 +28,6 @@ import UIKit
             ("signin-create-met", flow(.create, password: String(repeating: "p", count: 12)), nil),
             ("signin-google-busy", EmailSignInFlow(), .google),
         ]
-    }
-
-    static func flow(_ shot: Shot) -> some View {
-        let store = OnboardingStore(defaults: TestDefaults())
-        store.showForPreview(shot.step, first: shot.first)
-        return OnboardingFlow(store: store, backend: Backend(), preview: shot.preview, finish: { _ in })
-            .tint(Color(PColor.paneAccent))
-            .environment(\.locale, Locale(identifier: "en_US"))
     }
 
     #if os(macOS)
@@ -131,13 +94,6 @@ import UIKit
     #endif
 
     // MARK: Connect an AI, the sheet (Settings and notes open the same view)
-
-    static let twoConnected: [Connection] = [
-        Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now.addingTimeInterval(-86_400 * 3),
-                   last_used_at: .now.addingTimeInterval(-3_600), revoked_at: nil, redirect_host: "chatgpt.com"),
-        Connection(id: UUID(), name: "Claude Code", kind: "token", created_at: .now.addingTimeInterval(-86_400),
-                   last_used_at: nil, revoked_at: nil, redirect_host: nil),
-    ]
 
     static let sheets: [(name: String, rows: [Connection])] = [
         ("7-connect-sheet-none", []), ("7-connect-sheet-two-connected", twoConnected),

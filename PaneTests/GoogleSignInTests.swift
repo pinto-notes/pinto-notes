@@ -5,7 +5,7 @@ import Supabase
 import Testing
 @testable import Pane
 
-@Suite struct GoogleSignInTests {
+extension GoogleSignInTests {
     @Test func googleAlwaysShowsItsChooserAndPutsTheHintFirst() {
         let plain = Backend.googleQuery(hint: nil)
         #expect(plain.map(\.name) == ["prompt"])
@@ -30,15 +30,6 @@ import Testing
         let client = SupabaseClient(supabaseURL: base, supabaseKey: "key",
                                     options: SupabaseClientOptions(auth: .init(storage: MemoryStorage(), autoRefreshToken: false)))
         return try client.auth.getOAuthSignInURL(provider: provider, redirectTo: Backend.webCallback, queryParams: Backend.googleQuery(hint: "sara+notes@example.com"))
-    }
-
-    final class MemoryStorage: AuthLocalStorage, @unchecked Sendable {
-        private let lock = NSLock()
-        private var items: [String: Data] = [:]
-        func store(key: String, value: Data) { lock.withLock { items[key] = value } }
-        func retrieve(key: String) -> Data? { lock.withLock { items[key] } }
-        func remove(key: String) { lock.withLock { items[key] = nil } }
-        var keys: [String] { lock.withLock { items.keys.sorted() } }
     }
 
     @Test func aBuildWithoutASignInHostOpensTheBackendsOwn() throws {

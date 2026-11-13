@@ -2,9 +2,6 @@ import Foundation
 import Testing
 @testable import Pane
 
-/// Suites that set the (global) network faults run one at a time.
-@Suite(.serialized) enum NetworkFaults {}
-
 extension NetworkFaults {
 /// The debug network fault layer itself: launch arguments, and what each fault does to a request.
 @Suite struct NetFaultTests {

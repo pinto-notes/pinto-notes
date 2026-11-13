@@ -6,7 +6,7 @@ import Testing
 /// Add a device through the real server functions, on the LOCAL Supabase stack only: two
 /// sessions of one account hand the key over, list themselves, and one removes the other.
 /// Skipped unless `scripts/add-device-e2e.sh` sets the stack's address and two test users.
-@MainActor @Suite(.serialized) struct AddDeviceLiveTests {
+extension AddDeviceLiveTests {
     struct Env {
         let url: URL, key: String, email: String, other: String, password: String
 
@@ -17,14 +17,6 @@ import Testing
                   let password = e["PANE_LOCAL_PASSWORD"] else { return nil }
             return Env(url: url, key: key, email: email, other: other, password: password)
         }
-    }
-
-    final class MemoryStorage: AuthLocalStorage, @unchecked Sendable {
-        private var values: [String: Data] = [:]
-        private let lock = NSLock()
-        func store(key: String, value: Data) throws { lock.withLock { values[key] = value } }
-        func retrieve(key: String) throws -> Data? { lock.withLock { values[key] } }
-        func remove(key: String) throws { lock.withLock { _ = values.removeValue(forKey: key) } }
     }
 
     /// A signed-in session of its own, as a second device has.

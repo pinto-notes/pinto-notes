@@ -47,7 +47,11 @@ const config: NextConfig = {
   // shows (any lib/<name>/entries.ts, like the AI feature tracker had). A server render (Google's crawler gets one) must find
   // those files in the function bundle, or the page fails with ENOENT: every page with a card for the
   // tracker returned 500 to Google on 25 Oct 2026. The index and its pages show cards too.
-  outputFileTracingIncludes: Object.fromEntries(["/blog", "/blog/**"].map((route) => [route, BLOG_SOURCES])),
+  outputFileTracingIncludes: {
+    ...Object.fromEntries(["/blog", "/blog/**"].map((route) => [route, BLOG_SOURCES])),
+    // A shared note's share card (app/og/n) is drawn per request, so its fonts and icon ship with the function.
+    "/og/n/**": ["./lib/og/Inter-*.ttf", "./public/mark.png"],
+  },
   poweredByHeader: false,
   // The MCP proxy (middleware.ts) forwards the query exactly as sent. Without this, req.url in
   // middleware has 127.0.0.1 and [::1] turned into "localhost", query included.

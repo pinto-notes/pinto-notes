@@ -12,8 +12,8 @@ import UIKit
 /// window and sheets, light and dark. Offscreen; runs only when AMBER_HIG_SHOTS is set. Mac:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/AddDeviceSnapshots`; iPhone: the
 /// same test on a simulator (`xcodebuild test -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/AddDeviceSnapshots CODE_SIGNING_ALLOWED=NO`).
-@MainActor @Suite(.serialized) struct AddDeviceSnapshots {
+/// -only-testing:PaneHIGTests/AddDeviceSnapshots CODE_SIGNING_ALLOWED=NO`).
+extension AddDeviceSnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
 
     static let qr = E2EE.addDeviceQR(secret: Data((0x80 ..< 0x90).map { UInt8($0) }))
@@ -24,39 +24,6 @@ import UIKit
                                                  answer: "", bind: Data())
     static let iPhone = AddDeviceApproval.Candidate(id: UUID(), name: "iPhone", platform: "ios", publicKey: Data(), askedAt: .now, answer: "", bind: Data())
 
-    /// Signed in, the account has a key, this device doesn't. Background loops off.
-    static func waiting() async throws -> AccountCrypto {
-        let user = UUID(), keychain = KeyStartupTests.FakeKeychain(cloud: KeyStartupTests.Cloud(), autoReceive: false)
-        let crypto = AccountCrypto(store: keychain, defaults: UserDefaults(suiteName: "add-device-shots-\(UUID())")!, sleep: { _ in throw CancellationError() })
-        let server = KeyStartupTests.FakeServer()
-        server.row = try StoredKey.generate().serverRow(user: user)
-        await crypto.attach(account: user, server: server)
-        return crypto
-    }
-
-    /// A device with the key. `backedUp`: it keeps the key in iCloud Keychain.
-    static func ready(backedUp: Bool, recoverySaved: Bool = false) async throws -> AccountCrypto {
-        let keychain = KeyStartupTests.FakeKeychain(cloud: KeyStartupTests.Cloud())
-        keychain.syncs = backedUp
-        let crypto = AccountCrypto(store: keychain, defaults: UserDefaults(suiteName: "add-device-shots-\(UUID())")!, sleep: { _ in throw CancellationError() })
-        await crypto.attach(account: UUID(), server: KeyStartupTests.FakeServer())
-        crypto.welcomeShown()
-        if recoverySaved { try await crypto.markRecoveryKeySaved() }
-        return crypto
-    }
-
-    /// A new account as most have it now: Pinto Notes keeps a locked copy of the key, so signing
-    /// in opens the notes on a new device (KeyCopy), and Advanced protection is off.
-    static func readyWithCopy() async -> AccountCrypto {
-        let server = KeyCopyTests.Server()
-        let keychain = KeyStartupTests.FakeKeychain(cloud: KeyStartupTests.Cloud())
-        keychain.syncs = true
-        let crypto = AccountCrypto(store: keychain, defaults: UserDefaults(suiteName: "add-device-shots-\(UUID())")!, sleep: { _ in throw CancellationError() })
-        await crypto.attach(account: UUID(), server: server, copies: server)
-        crypto.welcomeShown()
-        return crypto
-    }
-
     static func gate(_ crypto: AccountCrypto, _ screen: KeyGateView.Screen = .auto, _ state: NewDeviceSession.State? = nil) -> KeyGateView {
         KeyGateView(crypto: crypto, backend: Backend(), screen: screen,
                     session: NewDeviceSession(crypto: crypto, server: nil, preview: state ?? .showing(qr: qr, code: code)))
@@ -65,19 +32,6 @@ import UIKit
     static func sheet(_ crypto: AccountCrypto, _ phase: AddDeviceSheet.Phase = .reading, typing: Bool? = nil, problem: String? = nil) -> AddDeviceSheet {
         AddDeviceSheet(crypto: crypto, server: nil, initial: phase, typing: typing, camera: .on, previewProblem: problem)
     }
-
-    /// The list as a device with the key sees it: one Mac added from here.
-    static func devices(_ others: [KeyDevice]) -> KeyDevices {
-        let d = KeyDevices(device: UUID(), identity: DeviceIdentity(store: MemoryDeviceIdentityStore()))
-        d.setForTesting(others)
-        return d
-    }
-
-    static let added = KeyDevice(id: UUID(), name: "Sara\u{2019}s MacBook Air", platform: "macos", how: .added, backedUp: false,
-                                 addedAt: .now.addingTimeInterval(-6 * 86400), seenAt: .now, removing: false)
-    /// A second iPhone, which the system only calls "iPhone", not seen for six weeks.
-    static let stale = KeyDevice(id: UUID(), name: "iPhone", platform: "ios", how: .keychain, backedUp: true,
-                                 addedAt: .now.addingTimeInterval(-200 * 86400), seenAt: .now.addingTimeInterval(-44 * 86400), removing: false)
 
     #if os(iOS)
     static func privacy(_ crypto: AccountCrypto, _ devices: KeyDevices) -> some View {

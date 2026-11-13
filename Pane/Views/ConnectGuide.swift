@@ -23,7 +23,7 @@ import UIKit
 // MARK: Pure pieces (tested)
 
 /// What connecting one web AI takes, and where.
-struct WebConnectPlan: Equatable {
+struct WebConnectPlan: CustomEquatable {
     let ai: String
     /// True when the page opens on Amber Notes itself, so there's no address to paste.
     let prefills: Bool
@@ -37,7 +37,7 @@ struct WebConnectPlan: Equatable {
     /// Another way to add it, for apps that don't show the main page: a line, a button, the page.
     var fallback: (line: String, button: String, page: @Sendable (String) -> URL)? = nil
 
-    static func == (a: WebConnectPlan, b: WebConnectPlan) -> Bool { a.ai == b.ai }
+    static func isEqual(_ a: WebConnectPlan, _ b: WebConnectPlan) -> Bool { a.ai == b.ai }
 
     /// The most specific page that exists for adding Amber Notes.
     func setupPage(server: String) -> URL { page(server) }

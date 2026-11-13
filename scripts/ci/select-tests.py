@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Which tests a pull request runs before it merges: scripts/ci/select-tests.py <file of changed paths>
 (and, for scripts/prepush.sh, the suites of given test files: select-tests.py --suites-of <test file>...,
-and the tests every check runs: select-tests.py --always)
+and the tests every check runs: select-tests.py --always; for scripts/qa-test.sh, the test target of
+each name: select-tests.py --map PaneTests/Suite[/test()] ...)
+
+The tests are four test targets, one per group of folders (TARGETS below, the same as project.yml):
+a test edit then compiles only its own target's module again. Names keep working the old way,
+PaneTests/Suite: --map gives each its target, and the -only-testing arguments printed here name it.
 
 Prints xcodebuild's -only-testing arguments, one per line, and says on stderr what it chose and why.
 Everything else runs every night on dev (the full suite), so this is about being fast and
@@ -37,6 +42,15 @@ except FileNotFoundError:
     times = {}
 cost = lambda suite: float(times.get(suite, 5))
 
+# The test target of each folder under PaneTests (project.yml says the same); the top-level files
+# are PaneTests. PaneTests/Harness and PaneTests/Shared hold no tests: they are compiled into each.
+TARGETS = {"Interaction": "PaneInteractionTests", "HIG": "PaneHIGTests",
+           "Network": "PaneSystemTests", "Collab": "PaneSystemTests", "Perf": "PaneSystemTests"}
+ALL_TARGETS = ["PaneTests", "PaneInteractionTests", "PaneHIGTests", "PaneSystemTests"]
+def target_of(rel):
+    parts = rel.split("/")
+    return TARGETS.get(parts[1], "PaneTests") if len(parts) > 2 else "PaneTests"
+
 decl = re.compile(r"^\s*(?:@[\w.]+(?:\([^)]*\))?\s+)*(?:(?:public|private|fileprivate|final|internal|nonisolated)\s+)*(?:struct|class|enum|actor|protocol)\s+(\w+)", re.M)
 suites_in, text_of, inside = {}, {}, {}
 for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
@@ -63,11 +77,36 @@ for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
 suites_in = {f: [s for s in ss if s not in inside.values()] for f, ss in suites_in.items()}
 perf = {s for f, ss in suites_in.items() if f.startswith("PaneTests/Perf/") for s in ss}
 all_suites = {s for ss in suites_in.values() for s in ss}
+target = {s: target_of(f) for f, ss in sorted(suites_in.items()) for s in ss}
 
-path = lambda suite: f"{inside[suite]}/{suite}" if suite in inside else suite
+# Target/Suite, or Target/Outer/Suite for a suite nested in another: as xcodebuild names it.
+path = lambda suite: f"{target.get(suite, 'PaneTests')}/" + (f"{inside[suite]}/{suite}" if suite in inside else suite)
+
+def mapped(name):
+    """The -only-testing names for PaneTests/Suite[/test()] (or Suite, or Outer/Suite): in the target
+    that holds the suite now. A target's own name passes as it is; PaneTests alone is every unit
+    test target; a name that matches no suite passes as it is, and runs nothing."""
+    parts = name.split("/")
+    if parts[0] in ALL_TARGETS and parts[0] != "PaneTests":
+        return [name]
+    rest = parts[1:] if parts[0] == "PaneTests" else parts
+    if not rest:
+        return ALL_TARGETS
+    if rest[0] in all_suites:                       # Suite, or a nested Suite without its Outer/
+        return [path(rest[0]) + "".join("/" + r for r in rest[1:])]
+    if rest[0] in inside.values():                   # Outer/Suite, or Outer alone (every suite in it)
+        held = sorted({target[s] for s, o in inside.items() if o == rest[0] and (len(rest) == 1 or s == rest[1])})
+        if held:
+            return [f"{t}/" + "/".join(rest) for t in held]
+    return ["PaneTests/" + "/".join(rest)]
+
+if sys.argv[1] == "--map":
+    for n in sys.argv[2:]:
+        print("\n".join(mapped(n)))
+    sys.exit(0)
 if sys.argv[1] == "--suites-of":
     # For scripts/prepush.sh: the suites of these test files, one line per file that has any, as
-    # <file> <tab> <Suite or Outer/Suite>, ...
+    # <file> <tab> <Target/Suite or Target/Outer/Suite>, ...
     for f in sys.argv[2:]:
         # A file that is iPhone-only as a whole has no tests in the Mac run the check makes: asked
         # for, it only failed the check with "no test of it ran" (PhoneRenderTests, 2026-11-02).
@@ -84,9 +123,9 @@ if sys.argv[1] == "--always":
     # For scripts/prepush.sh: the smoke tests and the whole-app suites, as -only-testing arguments.
     for t in smoke:
         suite, test = t.split("/", 1)
-        print(f"-only-testing:PaneTests/{path(suite)}/{test}")
+        print(f"-only-testing:{path(suite)}/{test}")
     for s in always_suites:
-        print(f"-only-testing:PaneTests/{path(s)}")
+        print(f"-only-testing:{path(s)}")
     sys.exit(0)
 changed = [l.strip() for l in open(sys.argv[1]) if l.strip()]
 
@@ -137,9 +176,9 @@ for t in smoke:                                     # 1 (single tests: Suite/tes
     if suite not in all_suites:
         sys.exit(f"error: scripts/ci/smoke-tests.txt names {suite}, and no test file declares it")
     if suite not in why:
-        print(f"-only-testing:PaneTests/{path(suite)}/{test}")
+        print(f"-only-testing:{path(suite)}/{test}")
 for s in chosen:
-    print(f"-only-testing:PaneTests/{path(s)}")
+    print(f"-only-testing:{path(s)}")
 print(f"{len(smoke)} smoke tests; {len(chosen)} suites, about {planned:.0f} s of them planned (limit {BUDGET:.0f} s):", file=sys.stderr)
 for s in chosen:
     print(f"  {s} ({cost(s):.0f} s): {why[s]}", file=sys.stderr)

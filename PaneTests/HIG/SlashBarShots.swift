@@ -9,7 +9,7 @@ import UIKit
 /// The iPhone keyboard bar while a `/query` is typed: the commands in the tools' place, drawn
 /// from the simulator's test host (nothing on the Mac's screen), light and dark. On the Mac the
 /// suite checks what the controller offers (the bar and the list read the same commands).
-/// `TEST_RUNNER_PANE_SLASH_SHOTS=/path xcodebuild test … -only-testing:PaneTests/SlashBarShots`
+/// `TEST_RUNNER_PANE_SLASH_SHOTS=/path xcodebuild test … -only-testing:PaneHIGTests/SlashBarShots`
 @MainActor @Suite(.serialized) struct SlashBarShots {
     @Test func theControllerOffersAndTakesBackCommands() {
         let c = EditorController()

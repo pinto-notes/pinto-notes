@@ -7,16 +7,7 @@ import ZIPFoundation
 /// The Google Keep import from a Takeout download: text and checklists, labels as folders or
 /// tags, pins, archive and trash, images (with Takeout's .jpeg/.jpg mix-up), dates, and what
 /// can't come over said in the summary.
-@MainActor @Suite(.serialized) struct KeepImportTests {
-    /// A Takeout download: Takeout/Keep with a .json and .html per note, images and Labels.txt.
-    static func takeout() throws -> URL {
-        let src = try #require(Bundle(for: KeepFixtureToken.self).url(forResource: "Keep", withExtension: nil))
-        let dir = FileManager.default.temporaryDirectory.appending(path: "keep-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try FileManager.default.copyItem(at: src.appending(path: "Takeout"), to: dir.appending(path: "Takeout"))
-        return dir.appending(path: "Takeout")
-    }
-
+extension KeepImportTests {
     typealias Imported = MarkdownImportTests.Imported
 
     static func importing(_ url: URL, options: ImportOptions = ImportOptions(), container: ModelContainer? = nil) async throws -> Imported {
@@ -107,8 +98,6 @@ import ZIPFoundation
         #expect(again.summary.notes == 0 && again.summary.alreadyImported == 5 && again.files.count == 2)
     }
 }
-
-private final class KeepFixtureToken {}
 
 extension KeepImportTests {
     /// A folder with no Keep notes is shown by its own name, with what to choose instead
