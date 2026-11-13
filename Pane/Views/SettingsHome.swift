@@ -222,6 +222,7 @@ enum SettingsIndex {
         e("Gallery view", .experimental, "settings.experiment.gallery", also: ["Gallery", "Cards", "View as Gallery", "Experimental", "Beta"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
+        e(PrivacyWords.name, .security, "settings.privacyMode", also: ["Privacy mode", "Blur", "Screen sharing", "Screen recording", "Meetings", "Previews", "Calls", "Teams", "Meet", "Zoom"]),
         e("Light or dark mode", .appearance, "settings.mode.system"), e("Theme", .appearance, "settings.theme.default"),
         e("Font", .appearance, "settings.font", also: ["Typeface", "Serif", "Rounded", "Mono", "Monospace", "New York"]),
         e("Storage used", .storage, "settings.storage", also: ["Space", "Recently Deleted", "Earlier versions", "Full"]),

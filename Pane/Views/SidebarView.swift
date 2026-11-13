@@ -2369,6 +2369,7 @@ private struct FolderPreview: View {
             Text(note.title).font(.subheadline.weight(.semibold)).lineLimit(2)
             if !note.isLocked, note.preview != NoteText.noPreview {
                 Text(note.preview).font(.caption).foregroundStyle(.secondary).lineLimit(6)
+                    .previewBlur(revealsOnHover: false)
             }
         }
         .padding(10)

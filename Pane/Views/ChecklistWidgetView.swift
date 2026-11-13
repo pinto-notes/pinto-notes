@@ -17,14 +17,24 @@ enum ChecklistWidgetContent: Equatable, Sendable {
     case noLists
     /// The note picked for this widget is locked or deleted.
     case gone
+    /// A note's lines while privacy mode is on in the app: there, but blurred (PreviewBlur).
+    case blurred(ChecklistShelf.Preview)
 
     /// The widget's kind; the app redraws it by this (ModelContext.checklistWidgetKind).
     static let kind = "ChecklistWidget"
 
     /// The picked note: as a checklist when it has one, else its lines. With none picked, a
-    /// pinned checklist or the newest, else the newest note.
+    /// pinned checklist or the newest, else the newest note. While privacy mode is on (`hidden`)
+    /// a note's lines are its preview, so they're blurred; a checklist stays, since you tick it here.
     static func resolve(picked: UUID?, title: String? = nil, lists: [ChecklistShelf.List],
-                        previews: [ChecklistShelf.Preview] = [], recents: [ChecklistShelf.Recent] = []) -> Self {
+                        previews: [ChecklistShelf.Preview] = [], recents: [ChecklistShelf.Recent] = [], hidden: Bool = false) -> Self {
+        let content = shown(picked: picked, lists: lists, previews: previews, recents: recents)
+        if hidden, case .note(let n) = content { return .blurred(n) }
+        return content
+    }
+
+    private static func shown(picked: UUID?, lists: [ChecklistShelf.List], previews: [ChecklistShelf.Preview],
+                              recents: [ChecklistShelf.Recent]) -> Self {
         if let picked {
             if let l = lists.first(where: { $0.id == picked }) { return .list(l) }
             if let n = previews.first(where: { $0.id == picked }) { return .note(n) }
@@ -102,24 +112,9 @@ struct ChecklistWidgetView: View {
             // small widget is one tap area, so a Link wouldn't work there.
             .widgetURL(QuickLink.note(list.id).url)
         case .note(let n):
-            VStack(alignment: .leading, spacing: 4) {
-                Text(n.title)
-                    .font(.system(size: ChecklistWidgetLayout.text, weight: .semibold))
-                    .foregroundStyle(ChecklistWidgetView.accent)
-                    .lineLimit(1)
-                    .widgetAccentable()
-                    .frame(height: 20)
-                    .accessibilityIdentifier("widget.title")
-                ForEach(Array(n.lines.prefix(medium ? 6 : 5).enumerated()), id: \.offset) { _, line in
-                    Text(line)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.primary.opacity(0.8))
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .widgetURL(QuickLink.note(n.id).url)
+            note(n, blurred: false)
+        case .blurred(let n):
+            note(n, blurred: true)
         case .waiting(let id, let title):
             message(title, QuickWords.noteWaiting)
                 .widgetURL(QuickLink.note(id).url)
@@ -130,6 +125,30 @@ struct ChecklistWidgetView: View {
             // Opens the app on its list.
             message(QuickWords.listGone, QuickWords.listGoneLine)
         }
+    }
+
+    /// A note without a checklist: its title and first lines (blurred while privacy mode is on).
+    private func note(_ n: ChecklistShelf.Preview, blurred: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(n.title)
+                .font(.system(size: ChecklistWidgetLayout.text, weight: .semibold))
+                .foregroundStyle(ChecklistWidgetView.accent)
+                .lineLimit(1)
+                .widgetAccentable()
+                .frame(height: 20)
+                .accessibilityIdentifier("widget.title")
+            ForEach(Array(n.lines.prefix(medium ? 6 : 5).enumerated()), id: \.offset) { _, line in
+                Text(line)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary.opacity(0.8))
+                    .lineLimit(1)
+                    .modifier(PreviewBlur(on: blurred, revealsOnHover: false))
+                    .accessibilityIdentifier("widget.line")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(QuickLink.note(n.id).url)
     }
 
     /// The note's title and how many items are left.

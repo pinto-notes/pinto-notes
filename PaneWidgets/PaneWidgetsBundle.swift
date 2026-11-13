@@ -8,5 +8,6 @@ struct PaneWidgetsBundle: WidgetBundle {
     var body: some Widget {
         ChecklistWidget()
         NewNoteControl()
+        PrivacyModeControl()
     }
 }

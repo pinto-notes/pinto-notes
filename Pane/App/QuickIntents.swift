@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import SwiftUI
 
 // Ways into Pinto Notes from outside it (2026-11-04), shared by the app and the widget extension
 // (PaneWidgets): the links the widget opens, the words both say, and New Note, which Control
@@ -21,6 +22,56 @@ enum QuickWords {
     static func unticked(_ item: String, in note: String) -> String { "\u{201C}\(item)\u{201D} in \(note) is ticked already." }
     static func noItem(_ query: String, in note: String) -> String { "There\u{2019}s no \u{201C}\(query)\u{201D} in \(note)." }
     static func found(_ n: Int) -> String { n == 0 ? "No notes found." : n == 1 ? "Found 1 note." : "Found \(n) notes." }
+}
+
+/// The words privacy mode says, in the app, the widget and Control Centre (PrivacyMode).
+enum PrivacyWords {
+    static let menuTitle = "Privacy Mode"
+    static let name = "Privacy mode"
+    static let turnOff = "Turn off privacy mode"
+    static let help = "Privacy mode is on, so the note list is blurred. Click to turn it off."
+    /// The Mac's: titles blur too, until you point at the list (ListTitleReveal).
+    static let settingsFooter = "Blurs note previews, and note titles until you point at the list. The note you have open still shows."
+    static let settingsFooterPhone = "Blurs the previews under each title in the note list. Titles and the note you have open still show."
+    static let whenSharedTitle = "When your screen is shared"
+    static let whenSharedFooter = "Privacy mode turns on while your screen is shared or recorded, and off again when it stops."
+    /// The Mac's: it hears calls too (CallDetection).
+    static let whenSharedTitleMac = "In calls and when sharing your screen"
+    static let whenSharedFooterMac = "Privacy mode turns on during a call or while your screen is shared or recorded, and off again when it ends."
+    static let coverTitle = "Your screen is being shared"
+    static let coverTitleCall = "You\u{2019}re in a call"
+    static let coverQuestion = "Blur note previews?"
+    static let hide = "Blur previews"
+    static let show = "Show previews"
+    static let remember = "Remember this"
+    static let controlKind = "PrivacyModeControl"
+    static let controlLine = "Blurs note previews in Pinto Notes."
+}
+
+/// A note's preview while privacy mode is on: still there, in its place, but blurred too much to
+/// read (Emil, 13 November 2026: "visibly blurred, not hidden"), so the list keeps its shape and
+/// you can see something is there. On the Mac, pointing at it shows it, like the email blur
+/// (PrivateBlur). It fades in and out, at once with Reduce Motion. Shared with the widget.
+struct PreviewBlur: ViewModifier {
+    var on: Bool
+    var revealsOnHover = true
+    @State private var revealed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// At 4 whole sentences could still be read (the pictures, 13 November 2026).
+    static let radius: CGFloat = 8
+    /// PrivacyModeTests keeps `radius` at least this.
+    static let minimumRadius: CGFloat = 8
+
+    func body(content: Content) -> some View {
+        content
+            .blur(radius: on && !revealed ? Self.radius : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: on)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: revealed)
+            #if os(macOS)
+            .onHover { if revealsOnHover { revealed = $0 } }
+            #endif
+    }
 }
 
 /// Links into the app: `pintonotes://note/<id>` opens a note, `pintonotes://new` a new one.
@@ -63,3 +114,26 @@ struct NewNoteIntent: AppIntent {
         return .result()
     }
 }
+
+/// Privacy mode from Control Centre (PrivacyModeControl): on or off, as you set it there. It
+/// lands in the App Group, which the app takes up when it comes forward; run in the app, at once.
+struct SetPrivacyModeIntent: SetValueIntent {
+    static let title: LocalizedStringResource = "Privacy Mode"
+    static let description = IntentDescription("Blurs your notes in Pinto Notes, or shows them again.")
+
+    @Parameter(title: "Privacy mode") var value: Bool
+
+    init() {}
+
+    @MainActor func perform() async throws -> some IntentResult {
+        var p = ChecklistShelf.privacy()
+        p.manual = value
+        p.hidden = value
+        ChecklistShelf.savePrivacy(p)
+        #if !WIDGET_EXTENSION
+        PrivacyMode.shared.setManual(value)
+        #endif
+        return .result()
+    }
+}
+

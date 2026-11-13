@@ -286,6 +286,7 @@ struct PrivacyPage: View {
             Section {
                 SettingsSubPageRow(page: .encryption, id: "privacy.encryption", detail: Self.encryptionLine(advanced: crypto.protection == .strict))
             }
+            PrivacyModeSection()
             DiagnosticsSection()
             LegalRowsSection()
         }
