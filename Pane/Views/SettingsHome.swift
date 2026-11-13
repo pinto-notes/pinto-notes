@@ -451,7 +451,7 @@ struct PrivateBlur: ViewModifier {
     @State private var revealed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static let radius: CGFloat = 4
+    static let radius: CGFloat = 8
     static func hides(_ text: String) -> Bool { text.contains("@") }
 
     func body(content: Content) -> some View {

@@ -17,8 +17,11 @@ final class PrivacyVeil: @unchecked Sendable {
     /// The paragraph under the pointer or your finger.
     private(set) var pointer: NSRange?
 
-    /// The email blur's radius (PrivateBlur), so both blurs look alike.
-    static let radius: CGFloat = 4
+    /// The email blur's radius (PrivateBlur), so both blurs look alike. At 4, sentences and titles
+    /// could still be read in the pictures (13 November 2026).
+    static let radius: CGFloat = 8
+    /// Below this, note text can be read through the blur (PrivacyModeTests guards it).
+    static let minimumRadius: CGFloat = 8
 
     /// Whether the paragraph starting at `offset` is drawn blurred.
     func veils(_ offset: Int) -> Bool {

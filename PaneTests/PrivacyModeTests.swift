@@ -245,6 +245,14 @@ final class Heard<T>: @unchecked Sendable {
         #expect(PrivacyVeil.radius == PrivateBlur.radius, "the editor's blur is the email's")
     }
 
+    /// Note text stays unreadable under the blur: at 4 the lead could still read whole sentences
+    /// and titles in the pictures (13 November 2026), so it can't drift back below 8.
+    @Test func theBlurIsStrongEnoughThatNoteTextCantBeRead() {
+        #expect(PrivacyVeil.minimumRadius == 8)
+        #expect(PrivacyVeil.radius >= PrivacyVeil.minimumRadius, "note text is readable below \(PrivacyVeil.minimumRadius): \(PrivacyVeil.radius)")
+        #expect(PrivateBlur.radius >= PrivacyVeil.minimumRadius, "list titles are readable below \(PrivacyVeil.minimumRadius): \(PrivateBlur.radius)")
+    }
+
     // MARK: The editor's blur, line by line
 
     @Test func theVeilKeepsTheCaretsParagraphClear() {

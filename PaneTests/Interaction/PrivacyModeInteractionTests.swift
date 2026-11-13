@@ -69,6 +69,7 @@ import Testing
         let caretLine = Self.darkest(h, in: h.lineRect(at: ring))
         #expect(sharpBefore < 0.35, "sharp text has dark ink: \(sharpBefore)")
         #expect(caretLine < 0.35, "the caret's line drawn sharp: \(caretLine)")
+        print("privacy-blur: darkest pixel sharp \(sharpBefore), caret line \(caretLine), blurred \(blurred)")
         #expect(blurred > sharpBefore + 0.25, "blurred: \(blurred) against \(sharpBefore)")
 
         // Typing still lands on the clear line.
