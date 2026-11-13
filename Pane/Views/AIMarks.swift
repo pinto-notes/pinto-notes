@@ -339,3 +339,14 @@ struct AppMarkView: View {
         }
     }
 }
+
+/// A canvas note's mark after its title in the list (Canvas): a scribble, in the app mark's grey.
+struct CanvasMarkView: View {
+    var size: CGFloat = 13
+    var body: some View {
+        Image(systemName: CanvasNote.symbol)
+            .font(.system(size: size * 0.86, weight: .semibold))
+            .foregroundStyle(Color.muted)
+            .accessibilityLabel("Canvas")
+    }
+}

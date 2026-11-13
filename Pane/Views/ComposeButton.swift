@@ -28,6 +28,9 @@ struct ComposeButton<Label: View>: View {
             Button("New Note", systemImage: "square.and.pencil", action: newNote)
             Button("Today\u{2019}s Note", systemImage: "calendar") { todaysNote?.open() }
                 .accessibilityIdentifier("compose.today")
+            Button("New Canvas", systemImage: CanvasNote.symbol) { NewCanvas.shared.ask() }
+                .accessibilityIdentifier("compose.newCanvas")
+                .disabled(!NoteApps.enabled)
             Button("New App", systemImage: NoteAppMark.symbol) { NewApp.shared.open() }
                 .accessibilityIdentifier("compose.newApp")
         } label: {

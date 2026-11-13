@@ -170,6 +170,21 @@ enum NotePageLibraries {
     struct Stack: Decodable { var versions: [String: String]; var licenses: [String: String]; var map: [String: String]; var modules: [String: String] }
     static let stack: Stack? = resource("stack.json").flatMap { try? JSONDecoder().decode(Stack.self, from: $0) }
 
+    /// A file of the canvas, by its path after amber-lib:///canvas/: canvas.js, canvas.css, and the
+    /// fonts at fonts/<Family>/<file>.woff2 (the bundle keeps them flat). Nothing else.
+    static func canvasFile(_ path: String) -> (data: Data, type: String)? {
+        let parts = path.split(separator: "/").map(String.init)
+        let name: String
+        switch parts.count {
+        case 1 where ["canvas.js", "canvas.css"].contains(parts[0]): name = parts[0]
+        case 3 where parts[0] == "fonts" && parts[2].hasSuffix(".woff2") && !parts[2].contains(".."): name = parts[2]
+        default: return nil
+        }
+        guard let data = resource(name) else { return nil }
+        let type = name.hasSuffix(".js") ? "text/javascript" : name.hasSuffix(".css") ? "text/css" : "font/woff2"
+        return (data, type)
+    }
+
     static func bundledData(_ name: String) -> Data? {
         guard let lib = bundled.first(where: { $0.name == name }) else { return nil }
         let base = (lib.file as NSString).deletingPathExtension, ext = (lib.file as NSString).pathExtension
@@ -218,6 +233,11 @@ final class LibraryScheme: NSObject, WKURLSchemeHandler {
             if rest.hasPrefix("src/"), let src = kit.src[String(rest.dropFirst(4))] { reply(Data(src.utf8), type: "text/plain"); return }
             let key = rest == "index.js" ? "index.jsx" : rest
             if let js = kit.compiled[key] { reply(Data(js.utf8)); return }
+            task.didFailWithError(URLError(.fileDoesNotExist)); return
+        }
+        // The canvas (Canvas, Pane/Resources/Canvas): its script, styles and fonts, from the app.
+        if path.hasPrefix("canvas/") {
+            if let (data, type) = NotePageLibraries.canvasFile(String(path.dropFirst("canvas/".count))) { reply(data, type: type); return }
             task.didFailWithError(URLError(.fileDoesNotExist)); return
         }
         if path.hasPrefix("npm/") {

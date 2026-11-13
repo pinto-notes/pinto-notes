@@ -2098,7 +2098,10 @@ struct NoteRow: View {
                         .tracking(DesignLook.isCandidate ? -0.15 : 0)
                         .foregroundStyle(ink)
                         .lineLimit(large ? 3 : 1)
-                    if app {
+                    if app, CanvasNote.has(note) {
+                        CanvasMarkView(size: RowMetrics.markSize)
+                            .accessibilityIdentifier("note.canvas")
+                    } else if app {
                         AppMarkView(size: RowMetrics.markSize)
                             .accessibilityIdentifier("note.app")
                     }

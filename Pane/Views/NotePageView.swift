@@ -29,7 +29,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Requests and navigations the sandbox stopped (for the Dev readout and tests).
     private(set) var blocked: [String] = []
 
-    static let policy = "default-src 'none'; script-src 'unsafe-inline' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib:; img-src data: amber-app: amber-file:; font-src data: amber-app:; media-src data: amber-app: amber-file:; "
+    static let policy = "default-src 'none'; script-src 'unsafe-inline' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib:; img-src data: amber-app: amber-file:; font-src data: amber-app: amber-lib:; media-src data: amber-app: amber-file:; "
         + "connect-src amber-app:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
 
     /// Every request is blocked; the page's own document is given as a string, not loaded.
@@ -142,13 +142,26 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// A departed page must stop calling into the old SwiftUI state. These callbacks can hold
     /// the view's state, which in turn owns the sandbox.
     func disconnect() {
-        webView.stopLoading()
         onReady = {}
         onFailure = { _ in }
         onFocus = { _ in }
         onUpdate = { _ in }
-        onData = { _ in throw NotePage.OpError("Not available.") }
         files = { _ in nil }
+        // A canvas saves a moment after you stop drawing: its last strokes are sent now, and its
+        // data handler stays half a second longer for them (the sandbox lives that long too).
+        if isCanvas {
+            isCanvas = false
+            webView.evaluateJavaScript("window.amber && window.amber._flush && window.amber._flush()") { [self] _, _ in
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    self.webView.stopLoading()
+                    self.onData = { _ in throw NotePage.OpError("Not available.") }
+                }
+            }
+            return
+        }
+        webView.stopLoading()
+        onData = { _ in throw NotePage.OpError("Not available.") }
     }
 
     /// Shows `html` with `body` as its note. The document's own <!doctype> gives way to the policy.
@@ -163,6 +176,9 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Shown inside its parent note, smaller: the page gets the class amber-widget on <html>.
     var isWidget = false
 
+    /// The page is a canvas (Canvas): its last strokes are saved when it goes.
+    private(set) var isCanvas = false
+
     func load(html stored: String, body: String, data: NotePageData.Doc = NotePageData.empty(), restore: String? = nil) {
         let ucc = webView.configuration.userContentController
         ucc.removeAllUserScripts()
@@ -171,6 +187,11 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         let project = NotePageProject.parse(stored) ?? NotePageProject(files: ["/index.html": ""])
         app.project = project
         let html = project.index
+        isCanvas = CanvasNote.isCanvas(html)
+        #if os(iOS)
+        // A canvas pans and zooms itself: the web view never scrolls under a finger or the Pencil.
+        if isCanvas { webView.scrollView.isScrollEnabled = false; webView.scrollView.bounces = false }
+        #endif
         libraries.allowed = Set(NotePageLibraries.declared(in: html).compactMap { if case .npm(let r) = $0 { r } else { nil } })
         ucc.addUserScript(WKUserScript(source: Self.bootstrap(data: NotePage.data(of: body), store: data, restore: restore, widget: isWidget),
                                        injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))

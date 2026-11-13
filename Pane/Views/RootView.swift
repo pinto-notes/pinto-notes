@@ -674,6 +674,7 @@ struct RootView: View {
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
             // New Note from Control Centre, the Lock Screen, the Action button or Siri.
             .onChange(of: NoteOpener.shared.newNoteAsked) { _, asked in if asked { openAskedFromOutside() } }
+            .onChange(of: NewCanvas.shared.asks) { _, _ in newCanvas() }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
             .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openPlace(place) }
             .modifier(AIChangesPresenter())
@@ -972,6 +973,18 @@ struct RootView: View {
         if scope == nil { scope = Scope.opening(note) }
         #endif
         justCreated = note.id
+        selectedNote = note.id
+    }
+
+    /// New Canvas: an empty canvas in the folder you're in, open at once (Canvas).
+    private func newCanvas() {
+        guard !behindSetupCard, NewCanvas.shared.claim() else { return }
+        let target: Scope = scope == .trash ? .all : (scope ?? .all)
+        if scope == .trash { scope = .all }
+        let note = CanvasNote.make(in: target, context: context)
+        #if os(iOS)
+        if scope == nil { scope = Scope.opening(note) }
+        #endif
         selectedNote = note.id
     }
 
@@ -1426,6 +1439,8 @@ struct PaneCommands: Commands {
             Button("New Folder") { NotificationCenter.default.post(name: .paneNewFolder, object: nil) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
                 .disabled(newNote == nil)
+            Button("New Canvas") { NewCanvas.shared.ask() }
+                .disabled(newNote == nil || !NoteApps.enabled)
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
             // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.

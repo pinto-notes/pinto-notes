@@ -974,7 +974,8 @@ struct NoteDetailView: View {
                                                              open: followAppLink)
         // A change you made gets a receipt; the app saving on its own is quiet (Undo still reaches it
         // through version history).
-        if let before, (message as? [String: Any])?["_user"] as? Bool == true { dataChanged(before: before) }
+        // A canvas has its own Undo for every stroke: no receipt for each one.
+        if let before, (message as? [String: Any])?["_user"] as? Bool == true, !CanvasNote.isCanvas(notePage?.html) { dataChanged(before: before) }
         return reply
     }
 

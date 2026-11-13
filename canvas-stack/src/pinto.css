@@ -1,0 +1,57 @@
+/* The drawing board in Pinto's look: the note's ground, the system font, the amber accent
+   (the --amber-* tokens the app gives every page, light and dark). */
+html, body, #canvas { height: 100%; margin: 0; overflow: hidden; background: var(--amber-bg); }
+body { font-family: var(--amber-font); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+
+.excalidraw, .excalidraw.theme--dark {
+  --ui-font: var(--amber-font);
+  --color-primary: var(--amber-accent);
+  --color-primary-darker: var(--amber-accent-text);
+  --color-primary-darkest: var(--amber-accent-text);
+  --color-primary-hover: var(--amber-accent-text);
+  --color-primary-light: var(--amber-accent-soft);
+  --color-brand-hover: var(--amber-accent-text);
+  --color-brand-active: var(--amber-accent-text);
+  --color-surface-primary-container: var(--amber-accent-soft);
+  --color-on-primary-container: var(--amber-accent-text);
+  --focus-highlight-color: var(--amber-accent-soft);
+  --select-highlight-color: var(--amber-accent);
+  --island-bg-color: var(--amber-bg);
+  --default-bg-color: var(--amber-bg);
+  --popup-bg-color: var(--amber-bg);
+  --sidebar-bg-color: var(--amber-bg);
+  --text-primary-color: var(--amber-text);
+  --color-on-surface: var(--amber-text);
+  --link-color: var(--amber-accent-text);
+  --border-radius-lg: 12px;
+  --border-radius-md: 8px;
+  --shadow-island: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.08);
+  font-family: var(--amber-font);
+}
+/* Neutral greys for buttons and panels, as Apple's fills, not the engine's lavender. */
+.excalidraw { --color-surface-lowest: #FFFFFF; --color-surface-low: #F2F2F7; --color-surface-mid: #E5E5EA; --color-surface-high: #D1D1D6; --button-hover-bg: #E5E5EA; }
+.excalidraw.theme--dark {
+  --color-surface-lowest: #000000; --color-surface-low: #1C1C1E; --color-surface-mid: #2C2C2E; --color-surface-high: #3A3A3C; --button-hover-bg: #2C2C2E;
+  /* The canvas is drawn light and inverted: all the way, so white paper is pure black, as Pinto's notes are. */
+  --theme-filter: invert(100%) hue-rotate(180deg);
+  --island-bg-color: #1C1C1E;
+  --popup-bg-color: #1C1C1E;
+  --sidebar-bg-color: #1C1C1E;
+  --default-bg-color: #000000;
+  --shadow-island: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Not here: the help button and dialog (links to the drawing engine's site), the shape library
+   (it browses a website), and anything that would reach the network. */
+.excalidraw .help-icon,
+.excalidraw .HelpDialog,
+.excalidraw .default-sidebar-trigger,
+.excalidraw .sidebar-trigger,
+.excalidraw .dropdown-menu-item[data-testid="toolbar-embeddable"],
+.excalidraw .dropdown-menu-item[data-testid="toolbar-magicframe"],
+.excalidraw .dropdown-menu-item[data-testid="toolbar-text-to-diagram"],
+.excalidraw .dropdown-menu-item[data-testid="toolbar-mermaid"] { display: none !important; }
+
+/* Welcome: Pinto's type, quiet. */
+.excalidraw .welcome-screen-center__heading { font-family: var(--amber-font); font-size: 1.25rem; font-weight: 500; color: var(--amber-text-secondary); }
+.excalidraw .welcome-screen-decor { font-family: var(--amber-font); color: var(--amber-text-secondary); }

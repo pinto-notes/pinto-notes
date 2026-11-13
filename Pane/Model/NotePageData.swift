@@ -170,7 +170,10 @@ enum NotePageData {
             return out
         }
         let b = decode(encode(base)), m = decode(encode(mine)), t = decode(encode(theirs))
-        let values = three(b["values"] as! Doc, m["values"] as! Doc, t["values"] as! Doc)
+        var values = three(b["values"] as! Doc, m["values"] as! Doc, t["values"] as! Doc)
+        // A canvas's drawing changed on both: merged by element, not one side's whole drawing.
+        let (bs, ms, ts) = ((b["values"] as! Doc)["scene"], (m["values"] as! Doc)["scene"], (t["values"] as! Doc)["scene"])
+        if !same(ms, bs), !same(ts, bs), let scene = CanvasNote.merge(base: bs, mine: ms, theirs: ts) { values["scene"] = scene }
         var collections = Doc()
         let bc = b["collections"] as! Doc, mc = m["collections"] as! Doc, tc = t["collections"] as! Doc
         for name in Set(bc.keys).union(mc.keys).union(tc.keys) {
