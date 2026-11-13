@@ -753,6 +753,14 @@ struct SidebarView: View {
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
+            // Today's note at the top, as in a folder's notes: the bottom bar's right is the three
+            // create buttons now (CreateBarItems).
+            if stacked {
+                ToolbarItem(placement: .topBarTrailing) {
+                    TodayButton(identifier: "sidebar.today").tint(.primary)
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }

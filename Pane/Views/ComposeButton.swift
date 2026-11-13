@@ -1,44 +1,18 @@
 import SwiftUI
 import TipKit
 
-/// The compose button. A tap or click makes a new note at once, as it always has. Pressing and
-/// holding (iPhone, iPad) or clicking and holding (Mac) offers New Note, Today's Note (DailyNotes)
-/// and New App. New App opens the sheet where your AI builds an app as a new note
-/// (MakeAppSheet, `init(newApp:)`); on the Mac it is also File › New App.
+/// New Note on its own (a file's toolbar): one press makes a note. New Canvas and New App are their
+/// own buttons beside it where notes are listed (CreateButtons); the press-and-hold menu that hid
+/// them is gone (create study, 13 November 2026).
 struct ComposeButton<Label: View>: View {
     let newNote: () -> Void
-    /// Off: a plain button, disabled. A menu with a primary action becomes a segmented control in
-    /// the Mac's toolbar, and `.disabled` stopped its clicks but left it drawn as on (Emil, 2
-    /// November 2026: "only interaction is disabled"); a disabled button is drawn greyed.
+    /// Off: drawn greyed, and does nothing.
     var off = false
     @ViewBuilder let label: () -> Label
-    @Environment(\.todaysNote) private var todaysNote
 
     var body: some View {
-        if off {
-            Button(action: {}, label: label)
-                .disabled(true)
-        } else {
-            menu
-        }
-    }
-
-    private var menu: some View {
-        Menu {
-            Button("New Note", systemImage: "square.and.pencil", action: newNote)
-            Button("Today\u{2019}s Note", systemImage: "calendar") { todaysNote?.open() }
-                .accessibilityIdentifier("compose.today")
-            Button("New Canvas", systemImage: CanvasNote.symbol) { NewCanvas.shared.ask() }
-                .accessibilityIdentifier("compose.newCanvas")
-                .disabled(!NoteApps.enabled)
-            Button("New App", systemImage: NoteAppMark.symbol) { NewApp.shared.open() }
-                .accessibilityIdentifier("compose.newApp")
-        } label: {
-            label()
-        } primaryAction: {
-            newNote()
-        }
-        .menuIndicator(.hidden)
+        Button(action: newNote, label: label)
+            .disabled(off)
     }
 }
 
@@ -74,51 +48,36 @@ struct TodayButton: View {
     }
 }
 
-/// Asks the window to show New App (from the compose button's menu, or File › New App).
+/// Asks the window for New App's start page (its button beside New Note, File › New App…, ⌃⌘N):
+/// a new note that opens on the start page (AppStart), as New Canvas opens a new canvas.
 @MainActor @Observable
 final class NewApp {
     static let shared = NewApp()
-    var showing = false
+    /// Counts up per ask; the window makes one start per change.
+    var asks = 0
 
-    func open() {
+    @ObservationIgnored private var taken = 0
+
+    func ask() {
         guard NoteApps.enabled else { return }
         FeatureUse.mark(.newApp)
-        showing = true
+        asks += 1
+    }
+
+    /// One window makes it, however many are open: the first to claim the ask.
+    func claim() -> Bool {
+        guard taken < asks else { return false }
+        taken = asks
+        return true
     }
 }
 
-extension View {
-    /// New App's one-off tip on this compose button. Shown here, it is remembered for the account.
-    func newAppTip() -> some View {
-        paneTip(NewAppTip(), arrowEdge: .top)
-            .task {
-                for await show in NewAppTip().shouldDisplayUpdates where show {
-                    FeatureUse.remember(.newApp)
-                    break
-                }
-            }
-    }
-
-    /// New App over this view, when asked.
-    func newAppSheet() -> some View { modifier(NewAppSheetHost()) }
-}
-
-private struct NewAppSheetHost: ViewModifier {
-    @Bindable private var request = NewApp.shared
-
-    func body(content: Content) -> some View {
-        content.sheet(isPresented: $request.showing) { MakeAppSheet(newApp: ()) }
-    }
-}
-
-/// The first time only, by the compose button: that holding it offers New App. Once per account:
-/// shown or dismissed here, it never shows on another device either (FeatureUse), and it waits
-/// while the first-run flow is on screen, like every tip.
+/// Was the first-time tip that holding compose offers New App. New App is a button of its own now
+/// (CreateButtons), so the tip is never shown; the type stays so New App's use is still marked for
+/// the account and counted (FeatureUse.mark(.newApp), TipLog), as before.
 struct NewAppTip: Tip {
     var id: String { "newApp" }
-    var title: Text { Text("Hold for New App") }
-    var message: Text? { Text("Press and hold the compose button, and your AI builds an app as a new note.") }
-    var image: Image? { TipGlyph.image(NoteAppMark.symbol) }
+    var title: Text { Text("New App") }
     var rules: [Rule] { tipRules(Feature.newApp) }
     var options: [any TipOption] { [Tips.MaxDisplayCount(1)] }
 }
@@ -126,13 +85,11 @@ struct NewAppTip: Tip {
 #if os(iOS)
 
 /// The iPhone bottom bar of the folders screen and of a folder's notes, one look for both: the
-/// search field, and New Note at the right, as in Notes and Mail.
+/// search field, and the three create buttons at the right (CreateBarItems).
 struct SearchComposeBar: ToolbarContent {
     let newNote: () -> Void
     /// Recently Deleted holds no new notes: no New Note there, like Notes.
     var hidesCompose = false
-    /// New App's one-off tip, shown on one of the two buttons only.
-    var tip = false
     var identifier = "list.newNote"
     /// The screen's search words, for the field iPad needs drawn here (BarSearchField).
     var search: Binding<String>? = nil
@@ -156,40 +113,19 @@ struct SearchComposeBar: ToolbarContent {
             ToolbarSpacer(.fixed, placement: .bottomBar)
         }
         if !hidesCompose {
-            Compose(newNote: newNote, tip: tip, identifier: identifier)
+            Compose(newNote: newNote, identifier: identifier)
         }
     }
 
-    /// New Note alone (iPad's folders, where the list beside them has the search). Holding it
-    /// still offers New App.
+    /// New Note, New Canvas and New App, one glass group (CreateBarItems). Today's note is at the
+    /// top left of the list now (NoteListView), where the study put it.
     struct Compose: ToolbarContent {
         let newNote: () -> Void
-        var disabled = false
-        var tip = false
         var identifier = "list.newNote"
 
         var body: some ToolbarContent {
-            ToolbarItem(placement: .bottomBar) {
-                TodayButton(identifier: identifier.replacingOccurrences(of: "newNote", with: "today"))
-                    .tint(.primary)
-            }
-            ToolbarSpacer(.fixed, placement: .bottomBar)
-            ToolbarItem(placement: .bottomBar) {
-                ComposeButton(newNote: newNote) { SwiftUI.Label("New Note", systemImage: "square.and.pencil") }
-                    .tint(.primary)
-                    .modifier(NewAppTipHere(on: tip))
-                    .disabled(disabled)
-                    .accessibilityIdentifier(identifier)
-            }
+            CreateBarItems(newNote: newNote, identifier: identifier)
         }
-    }
-}
-
-private struct NewAppTipHere: ViewModifier {
-    let on: Bool
-
-    func body(content: Content) -> some View {
-        if on { content.newAppTip() } else { content }
     }
 }
 #endif
