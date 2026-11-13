@@ -162,11 +162,37 @@ import AppKit
 
     static let size = CGSize(width: 1469, height: 920)
 
-    /// A busy machine takes a moment to open what was made: up to 3 seconds.
-    static func waitUntilOpen(_ id: UUID, in w: NSWindow) async {
-        for _ in 0..<30 where UserDefaults.standard.string(forKey: "lastNote") != id.uuidString {
+    /// The words of the list's selected row in this window (its title first), as VoiceOver reads
+    /// them. Read from the window itself: "lastNote" is shared by every window a test run leaves
+    /// alive, and one of them wrote it in a full run.
+    static func selectedRow(_ w: NSWindow) -> String {
+        guard let table = try? MacEmptyDetailTests.list(w), table.selectedRowIndexes.count == 1,
+              let row = table.rowView(atRow: table.selectedRow, makeIfNecessary: false) else { return "" }
+        var words: [String] = []
+        func look(_ e: Any, _ depth: Int) {
+            guard depth < 30, let o = e as? NSObject else { return }
+            for key in ["accessibilityLabel", "accessibilityValue"] where o.responds(to: NSSelectorFromString(key)) {
+                if let t = o.value(forKey: key) as? String, !t.isEmpty { words.append(t) }
+            }
+            if o.responds(to: #selector(NSAccessibilityProtocol.accessibilityChildren)) {
+                for c in o.value(forKey: "accessibilityChildren") as? [Any] ?? [] { look(c, depth + 1) }
+            }
+        }
+        look(row, 0)
+        return words.joined(separator: " ")
+    }
+
+    /// Waits up to 3 seconds (a busy machine) for the list's selected row to be `title`.
+    static func waitUntilOpen(_ title: String, in w: NSWindow) async -> Bool {
+        let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+        NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+        defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+        for _ in 0..<30 {
+            if selectedRow(w).contains(title) { return true }
             await MacWindowChromeTests.settle(w, 1)
         }
+        print("selected row: \(selectedRow(w))")
+        return false
     }
 
     /// `id` anywhere in the window, its toolbar included (MacEmptyDetailTests looks in the content only).
@@ -211,8 +237,7 @@ import AppKit
                 #expect(made.count == before + 1, "a new canvas")
                 let newest = try #require(made.max { $0.createdAt < $1.createdAt })
                 #expect(CanvasNote.has(newest), "it is a canvas")
-                await Self.waitUntilOpen(newest.id, in: w)
-                #expect(UserDefaults.standard.string(forKey: "lastNote") == newest.id.uuidString, "and it is open")
+                #expect(await Self.waitUntilOpen(newest.title, in: w), "and it is open")
                 // New Note: a note, open, with the cursor in it.
                 let note = try #require(await Self.find("list.newNote", in: w))
                 _ = note.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
@@ -229,10 +254,7 @@ import AppKit
                 let started = try #require(try live().max { $0.createdAt < $1.createdAt })
                 defer { AppStart.shared.finish(started.id) }
                 #expect(started.title == "New app" && AppStart.shared.shows(started.id))
-                await Self.waitUntilOpen(started.id, in: w)
-                let open = UserDefaults.standard.string(forKey: "lastNote").flatMap(UUID.init(uuidString:)).flatMap { ctx.note($0) }
-                let startTitles = try live().filter { AppStart.shared.starts[$0.id] != nil }.map(\.title)
-                #expect(open?.id == started.id, "and it is open (open: \(open?.title ?? "none"), deleted \(open?.deletedAt != nil), starts \(startTitles))")
+                #expect(await Self.waitUntilOpen("New app", in: w), "and it is open")
                 #expect(await Self.find("newApp.page", in: w) != nil, "on its start page")
             }
         }
@@ -331,7 +353,7 @@ import AppKit
             #expect(try live().count == count, "no new note")
             #expect(note.title == "Habit tracker" && NotePageStore.shared[note.id] != nil, "the start is the app now")
             #expect(!AppStart.shared.shows(note.id))
-            #expect(UserDefaults.standard.string(forKey: "lastNote") == note.id.uuidString, "still open, no jump")
+            #expect(await Self.waitUntilOpen("Habit tracker", in: w), "still open, no jump")
             #expect(MacEmptyDetailTests.element("newApp.page", in: try #require(w.contentView)) == nil, "the start page has gone")
             if let dir = Self.dir {
                 try #require(try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "create-mac-newapp-made-light.png"))
