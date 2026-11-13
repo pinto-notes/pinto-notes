@@ -361,10 +361,14 @@ enum WindowFrameMemory {
     /// The default until 29 October 2026 ("no one would use it as small as it is by default"):
     /// a saved frame of exactly this size is still treated as never chosen.
     static let smallDefault = CGSize(width: 1180, height: 760)
+    /// Earlier defaults: a saved frame of exactly one of these sizes was never chosen, so it gets
+    /// today's default too.
+    static let oldDefaults: [CGSize] = [smallDefault, CGSize(width: 1200, height: 780)]
     /// The notes window's size when nothing is saved: one size on every screen. It grew with the
     /// screen for a while (88% of its height), which read as far too tall; about 1200×780 was
-    /// "pretty good" (Emil, 2 November 2026).
-    static let standard = CGSize(width: 1200, height: 780)
+    /// "pretty good" (Emil, 2 November 2026). With canvases and apps beside notes, 1400×900
+    /// (Emil, 13 November 2026: "it has become more of a workspace, we should be more confident").
+    static let standard = CGSize(width: 1400, height: 900)
 
     /// The standard size, smaller only on a screen it doesn't fit (40 pt clear on each side).
     static func defaultSize(on screen: CGSize?) -> CGSize {
@@ -382,7 +386,7 @@ enum WindowFrameMemory {
     static func frame(saved: CGRect?, screens: [CGRect], main: CGRect) -> CGRect {
         // Anything smaller than the notes window's minimum is the sign-in card, never a real choice.
         // A window still at the old fixed default was never resized: it gets the new default.
-        if let saved, saved.width >= minimum.width, saved.height >= minimum.height, saved.size != smallDefault,
+        if let saved, saved.width >= minimum.width, saved.height >= minimum.height, !oldDefaults.contains(saved.size),
            let screen = screens.max(by: { area($0.intersection(saved)) < area($1.intersection(saved)) }),
            area(screen.intersection(saved)) >= min(area(saved) * 0.5, 200 * 150),
            // The title bar has to be reachable, or you couldn't move the window back.
