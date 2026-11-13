@@ -401,6 +401,7 @@ struct ImportGuideFlow: View {
                                     shouldStop: { stopRequested })
         summary = result
         ImportFunnel.finished(kind.funnelSource, result)
+        WelcomeNote.importFinished(imported: result.notes, context: context)
         trail = []
         stage = .success
         EvernoteInbox.clear()
