@@ -22,8 +22,10 @@ import Testing
     }
 
     /// One size on every screen (Emil, 2 November 2026: 88% of the screen's height was "sooo
-    /// tall", about 1200×780 "pretty good"), smaller only where it doesn't fit.
+    /// tall", about 1200×780 "pretty good"; 13 November 2026: bigger, "more of a workspace"),
+    /// smaller only where it doesn't fit.
     @Test func theDefaultIsOneSizeThatFits() {
+        #expect(WindowFrameMemory.standard == CGSize(width: 1400, height: 900))
         // A 14" MacBook Pro at either setting, and a 27" display: the same window.
         #expect(WindowFrameMemory.defaultSize(on: CGSize(width: 1512, height: 982)) == WindowFrameMemory.standard)
         #expect(WindowFrameMemory.defaultSize(on: CGSize(width: 1728, height: 1084)) == WindowFrameMemory.standard)
@@ -37,6 +39,8 @@ import Testing
         // Saved on every move, so a window that was only moved holds the old fixed size.
         let old = CGRect(x: 100, y: 100, width: 1180, height: 760)
         #expect(WindowFrameMemory.frame(saved: old, screens: [laptop], main: laptop).size == WindowFrameMemory.defaultSize(on: laptop.size))
+        let lastDefault = CGRect(x: 100, y: 100, width: 1200, height: 780)
+        #expect(WindowFrameMemory.frame(saved: lastDefault, screens: [laptop], main: laptop).size == WindowFrameMemory.defaultSize(on: laptop.size))
         let card = CGRect(x: 300, y: 200, width: 900, height: 632)
         #expect(CardWindow.notesFrame(from: card, saved: old, screen: laptop).size == WindowFrameMemory.defaultSize(on: laptop.size))
     }
