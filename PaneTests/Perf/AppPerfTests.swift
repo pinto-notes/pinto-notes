@@ -310,22 +310,20 @@ extension AppPerfTests {
         var body: some View { NoteListView(scope: box.scope, selection: .constant([]), onNewNote: {}) }
     }
 
-    /// From a folder of 25 notes back to All Notes with 2,000: the list is built new, as it is at
-    /// launch. As one list whose rows changed, SwiftUI sized every row that came back, 3 to 4 s on
-    /// the main thread. The switch back may cost a few first displays, not twenty of them.
+    /// From a folder of 25 notes back to All Notes with 2,000: the same list with other rows, in
+    /// less than a first display. Built new for each folder (from 9 October 2026, when one list
+    /// whose rows changed took 3 to 4 s to size every row that came back), the switch cost about
+    /// 150 ms here and 70 ms of a folder switch in the window; kept, 20 to 35 ms (Emil, 13
+    /// November 2026: folder switching "not fast enough"). Another folder still starts at its
+    /// top, as a new list did, wherever the last one was scrolled to.
     ///
     /// How it is measured: five switches each way, judged by their median. Each sample has to wait
     /// for the main queue to turn (that is when the list hears of the change), and whatever else
     /// is queued there runs in that wait and is timed with it. On a loaded runner one sample in
-    /// a run was a second or more while the others were 110 to 320 ms, and judged by the worst
-    /// of three the test failed at least four first attempts in two days (2026-10-09 and -10: worst samples 1,027,
-    /// 1,057, 1,189 and 1,801 ms beside medians of 235, 251, 273 and 320 ms). A list that is slow
-    /// to rebuild is slow every time, so the median still catches it; the limit is unchanged
-    /// (see PerfTiming). The limit is five first displays; a switch back is usually about 1.4 of
-    /// them, so the 3 to 4 s case (twenty) fails and a 2x slowdown (about 2.8) shows in the
-    /// PERF line without failing, as before. Every sample is printed, with how long it waited,
-    /// laid out and drew.
-    @Test(.timeLimit(.minutes(5))) func switchingBackToAllNotesBuildsTheListNew() async throws {
+    /// a run was a second or more while the others were 110 to 320 ms (2026-10-09 and -10), so the
+    /// worst sample isn't the judge (see PerfTiming). Every sample is printed, with how long it
+    /// waited, laid out and drew.
+    @Test(.timeLimit(.minutes(5))) func switchingBackToAllNotesIsTheSameListAtOnce() async throws {
         let (c, notes) = try library(notes: 2_000, big: false)
         let ctx = c.mainContext
         let small = ctx.createFolder(named: "Small")
@@ -357,17 +355,25 @@ extension AppPerfTests {
         #expect(allNotes.numberOfRows > 1_000)
 
         var toFolder: [Sample] = [], back: [Sample] = []
+        let scroll = try #require(allNotes.enclosingScrollView)
+        func atTop() -> Bool { abs(scroll.contentView.bounds.minY + scroll.contentInsets.top) < 1 }
         for _ in 0..<5 {
+            // Far down All Notes, as after reading through it.
+            scroll.contentView.scroll(to: NSPoint(x: 0, y: allNotes.rect(ofRow: 1_000).minY))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            #expect(!atTop())
             box.scope = .folder(small.id)
             toFolder.append(await show())
             try? await Task.sleep(for: .milliseconds(200))
             let inFolder = try #require(table())
-            #expect(inFolder !== allNotes, "a folder is another list, not the same one with other rows")
+            #expect(inFolder === allNotes, "another folder is the same list with other rows")
             #expect(inFolder.numberOfRows < 100)
+            #expect(atTop(), "a folder starts at its top")
             box.scope = .all
             back.append(await show())
             try? await Task.sleep(for: .milliseconds(200))
             #expect((table()?.numberOfRows ?? 0) > 1_000)
+            #expect(atTop(), "and so does All Notes, coming back")
         }
         func median(_ samples: [Sample]) -> Double { PerfTiming.median(samples.map(\.total)) }
         func list(_ samples: [Sample]) -> String {
@@ -375,8 +381,8 @@ extension AppPerfTests {
         }
         print("PERF list of 2000 notes: first display \(String(format: "%.0f", first)) ms, to a folder of 25 \(String(format: "%.0f", median(toFolder))) ms, back to All Notes \(String(format: "%.0f", median(back))) ms (medians of 5)")
         print("PERF list of 2000 notes, each switch in order, ms: to the folder \(list(toFolder)); back \(list(back))")
-        #expect(median(back) < max(first, 100) * 5, "back to All Notes costs about what showing the list first did")
-        #expect(median(toFolder) < max(first, 100) * 5)
+        #expect(median(back) < max(first, 100), "back to All Notes costs less than showing the list first did")
+        #expect(median(toFolder) < max(first, 100))
     }
 
     /// Milliseconds before the slack (CI multiplies by its slack of 4). Derived from CI's Debug runs

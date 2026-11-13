@@ -92,8 +92,9 @@ import Testing
         }
         let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
         let table = try #require(split.arrangedSubviews.first.flatMap { find(NSTableView.self, in: $0) })
+        // Where you were, as the app reads it back: written to the defaults a moment after the click.
         func remembered() -> Scope? {
-            UserDefaults.standard.data(forKey: "lastScope").flatMap { try? JSONDecoder().decode(Scope.self, from: $0) }
+            (LaunchSpot.value(forKey: "lastScope") as? Data).flatMap { try? JSONDecoder().decode(Scope.self, from: $0) }
         }
         var selected: [Scope] = []
         // Twice over every row, with Recently Deleted (the last row) in between, as Emil clicked.

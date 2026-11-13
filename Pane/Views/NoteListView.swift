@@ -364,17 +364,19 @@ struct NoteListView: View {
         // Only the list animates an untouched note going away. The destination editor opens
         // in the selection's original transaction, without a fade or a layout interpolation.
         .animation(.easeOut(duration: 0.2), value: library.discardedEmptyNotes)
-        // Another folder or another library is another list, built new. Kept as one list,
-        // SwiftUI worked out the difference row by row and sized every row that came or went:
-        // 3 to 4 s on the main thread going from a folder back to All Notes with 2,000. A search
-        // stays the same list: a new one took the keys away from the search field.
-        // A new list starts at its top: it shows the open note's row again.
+        // Another library (more than 200 notes come or gone in one save) is another list, built
+        // new. Another folder is the same list with other rows: built new, a switch took about
+        // 250 ms, 70 of them making the table again; SwiftUI now shows the other rows in about
+        // 30 ms, even from a folder of 25 to All Notes with 2,000 (Emil, 13 November 2026). It
+        // once took 3 to 4 s, before the list kept its notes as plain values (NoteEntry). A new
+        // folder still starts at its top (ShowsSelectedRow). A search stays the same list: a new
+        // one took the keys away from the search field.
         .modifier(ListLockFlow(request: $lockRequest))
-        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil) { id in
+        .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil, scope: scope) { id in
             (noteSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }
                 ?? mixedSections.flatMap { ShowsSelectedRow.row(of: id, in: $0, collapsed: collapsed) }).map { leadingRows + $0 }
         })
-        .id(ListIdentity(scope: scope, library: library.wholesale))
+        .id(ListIdentity(scope: .all, library: library.wholesale))
         #if os(macOS)
         .modifier(OpensTopNote(scope: scope, top: visible.first?.id, lists: { id in visible.contains { $0.id == id } }, selection: $selection))
         #endif
@@ -1408,8 +1410,12 @@ struct ShowsSelectedRow: ViewModifier {
     /// Rows always on screen when a list starts at its top, in any window the notes fit in.
     static let firstRows = 6
 
-    init(selected: UUID?, row: @escaping (UUID) -> Int?) {
+    /// The folder (or tag) shown: another one starts at its top.
+    var scope: Scope? = nil
+
+    init(selected: UUID?, scope: Scope? = nil, row: @escaping (UUID) -> Int?) {
         self.selected = selected
+        self.scope = scope
         self.row = row
     }
 
@@ -1429,6 +1435,12 @@ struct ShowsSelectedRow: ViewModifier {
                 DispatchQueue.main.async {
                     if let at, at >= Self.firstRows { finder.reveal(row: at) }
                 }
+            }
+            // Another folder: the same table with other rows, shown as a new list was, from its
+            // top, or at the open note's row when it's in this list too (All Notes).
+            .onChange(of: scope) {
+                finder.toTop()
+                if let at = selected.flatMap(row), at >= Self.firstRows { finder.reveal(once: at) }
             }
             // A note opened from elsewhere (a link, search, the menu bar) whose row is off screen:
             // the list comes to it, as Notes' does. A row already in view stays where it is.
@@ -1480,6 +1492,26 @@ struct ShowsSelectedRow: ViewModifier {
                 walk(root)
                 table = found
                 return found
+            }
+
+            /// `reveal`, once the table has the row: the table takes another folder's rows when
+            /// it next lays out, which can be a turn or two after the list's update.
+            func reveal(once row: Int, turns: Int = 10) {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    if let table = self.find(), row < table.numberOfRows { self.reveal(row: row) }
+                    else if turns > 0 { self.reveal(once: row, turns: turns - 1) }
+                }
+            }
+
+            /// Back to the list's top, its first row just under the toolbar.
+            func toTop() {
+                guard let table = find(), let scroll = table.enclosingScrollView else { return }
+                let clip = scroll.contentView
+                let top = -scroll.contentInsets.top
+                guard clip.bounds.minY != top else { return }
+                clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: top))
+                scroll.reflectScrolledClipView(clip)
             }
 
             /// Centres `row` when any of it is out of view (under the toolbar or past the foot).

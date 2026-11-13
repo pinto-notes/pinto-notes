@@ -182,7 +182,7 @@ import UniformTypeIdentifiers
             await MacWindowChromeTests.settle(w, 5)
         }
         let median = times.sorted()[times.count / 2]
-        #expect(median < 300 * PerfBudget.slack, "a folder opens in \(Int(median)) ms")
+        #expect(median < 200 * PerfBudget.slack, "a folder opens in \(Int(median)) ms")
     }
     /// Where you were is kept for the next launch, but not in the click that opens a folder: as
     /// @AppStorage, writing it updated every view that reads a default, about a tenth of a switch.
