@@ -118,6 +118,8 @@ import Testing
             if hoverTitle, let tv = MacWindowChromeTests.find(PaneTextView.self, in: host), let title = tv.titleLineRect() {
                 tv.updateTitleActions(at: CGPoint(x: title.midX, y: title.midY))
                 #expect(tv.titleActionsShown, "Add Icon and Add Cover show with the pointer on the title: \(title), width \(tv.bounds.width)")
+                // Right after the title's words, not at the column's far end.
+                #expect(abs((tv.titleActionsFrame?.minX ?? 0) - (title.maxX + 14)) < 1)
                 try? await Task.sleep(for: .seconds(0.4))
             }
             try Self.draw(host, to: dir.appending(path: "\(name).png"))

@@ -4247,7 +4247,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         let width = TitleActions.width(icon: needsIcon, cover: needsCover)
         let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
         guard title.maxX + 16 <= right - width else { hideTitleActions(); return }
-        let frame = CGRect(x: right - width, y: title.midY - TitleActions.height / 2, width: width, height: TitleActions.height)
+        // Right after the title's words, where the eye is (Notion puts them by the title too); at the
+        // column's end they sat far from it, and Add Cover's menu ran off the window.
+        let frame = CGRect(x: title.maxX + 14, y: title.midY - TitleActions.height / 2, width: width, height: TitleActions.height)
         let view = TitleActions(icon: needsIcon, cover: needsCover,
                                 addIcon: { [weak self] in self?.hideTitleActions(); self?.controller?.addIcon() },
                                 pickCover: { [weak self] in self?.hideTitleActions(); self?.controller?.pickCover($0) })
