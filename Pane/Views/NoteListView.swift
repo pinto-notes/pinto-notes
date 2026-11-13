@@ -2093,10 +2093,8 @@ struct NoteRow: View {
         // The room before the title: a lock, the unseen AI dot, shared or a pin, one at a time.
         let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
         let app = NoteAppMark.has(note)
-        // Privacy mode: the title, nothing of the text (PrivacyMode).
-        let hidden = PrivacyMode.shared.isOn
-        let picture = hidden ? nil : Self.picture(of: note)
-        let found = hidden ? nil : self.found
+        let picture = Self.picture(of: note)
+        let found = self.found
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 HStack(spacing: 5) {
@@ -2143,7 +2141,7 @@ struct NoteRow: View {
                     .fixedSize()
                     .accessibilityIdentifier("note.date")
                     // C and D: "date · preview", one quiet line under the title.
-                    if calm, !hidden || note.isLocked { Text("·").foregroundStyle(muted).accessibilityHidden(true) }
+                    if calm { Text("·").foregroundStyle(muted).accessibilityHidden(true) }
                     if note.isLocked {
                         // Like Notes: the date and "Locked", nothing of the text. The lock is
                         // before the title (NoteRowStatus). VoiceOver hears it once, in the value.
@@ -2151,13 +2149,11 @@ struct NoteRow: View {
                             .foregroundStyle(muted)
                             .lineLimit(1)
                             .accessibilityHidden(true)
-                    } else if hidden {
-                        // The date only.
-                        EmptyView()
                     } else if let first = found?.lines.first {
                         // Searching: the first line that holds the text, the text in bold.
                         SearchLines.text(first, rest: muted)
                             .lineLimit(large ? 2 : 1)
+                            .previewBlur()
                     } else if let ai {
                         HStack(spacing: 4) {
                             AIGlyph(ai: ai, size: 11)
@@ -2165,10 +2161,13 @@ struct NoteRow: View {
                         }
                         .foregroundStyle(Color.amberInk)
                         .lineLimit(1)
+                        .previewBlur()
                     } else {
                         Text(note.preview)
                             .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
+                            // Privacy mode blurs it in place, so the row keeps its shape.
+                            .previewBlur()
                             .accessibilityIdentifier("note.preview")
                     }
                 }
@@ -2186,6 +2185,7 @@ struct NoteRow: View {
                         }
                     }
                     .font(RowMetrics.detail)
+                    .previewBlur()
                 }
                 if folderLine, let f = note.folder {
                     HStack(spacing: DesignLook.calmList ? 4 : 5) {
@@ -2204,6 +2204,7 @@ struct NoteRow: View {
             if let picture {
                 Spacer(minLength: 0)
                 FileThumbnail(file: picture, side: RowMetrics.thumbnail, iconWhileLoading: false)
+                    .previewBlur()
                     .accessibilityIdentifier("note.thumbnail")
             }
         }
@@ -2214,7 +2215,7 @@ struct NoteRow: View {
         // Shared once, whether with people (its mark, even while the AI dot has its place) or by a
         // link (the link by the date).
         .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || (note.isShared && note.trashedAt == nil) ? "Shared" : nil, note.isLocked ? "Locked" : nil,
-                             hidden ? nil : ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
+                             ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
     }
 

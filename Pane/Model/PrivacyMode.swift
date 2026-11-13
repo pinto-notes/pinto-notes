@@ -5,7 +5,7 @@ import UIKit
 import WidgetKit
 #endif
 
-// Privacy mode (Emil, 13 November 2026): the previews under each title in the note list hidden,
+// Privacy mode (Emil, 13 November 2026): the previews under each title in the note list blurred,
 // so a shared screen, a recording or someone beside you doesn't read every note at a glance.
 // Titles and the note you have open stay as they are: you have to be able to work (Emil, the
 // same day, after an earlier build blurred the editor too). It
@@ -38,8 +38,8 @@ final class PrivacyMode {
         var title: String {
             switch self {
             case .ask: "Ask"
-            case .hide: "Hide previews"
-            case .nothing: "Show previews"
+            case .hide: PrivacyWords.hide
+            case .nothing: PrivacyWords.show
             }
         }
     }
@@ -69,7 +69,7 @@ final class PrivacyMode {
         didSet { store.set(whenShared.rawValue, forKey: Self.whenSharedKey) }
     }
 
-    /// Previews are hidden: in the list, the sidebar's cards, search, the menu bar and the widget.
+    /// Previews are blurred: in the list, the sidebar's cards, search, the menu bar and the widget.
     var isOn: Bool { source != nil || asking }
     var isManual: Bool { source == .manual }
 

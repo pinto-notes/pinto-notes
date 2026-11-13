@@ -18,7 +18,6 @@ struct MenuBarPanel: View {
     @State private var saved: String?
     @State private var savedToken = 0
     @FocusState private var fieldFocused: Bool
-    @State private var privacy = PrivacyMode.shared
 
     init(backend: Backend, sync: SyncEngine?, query: String = "") {
         self.backend = backend
@@ -198,18 +197,7 @@ struct MenuBarPanel: View {
 
     private func row(_ note: Note, highlighted: Bool) -> some View {
         Button { reveal(note.id) } label: {
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 5) {
-                    if note.isPinned {
-                        Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.secondary)
-                    }
-                    Text(note.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
-                }
-                Text(MenuBarList.previewLine(note.preview, hidden: privacy.isOn))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Self.rowText(note)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
@@ -219,6 +207,23 @@ struct MenuBarPanel: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("menubar.note.\(note.title)")
+    }
+
+    /// A row's title and its preview (blurred while privacy mode is on).
+    static func rowText(_ note: Note) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 5) {
+                if note.isPinned {
+                    Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.secondary)
+                }
+                Text(note.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            }
+            Text(note.preview.isEmpty ? "No additional text" : note.preview)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .previewBlur()
+        }
     }
 
     private func rowFill(_ highlighted: Bool) -> AnyShapeStyle {

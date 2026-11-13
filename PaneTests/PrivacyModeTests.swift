@@ -208,16 +208,15 @@ final class Heard<T>: @unchecked Sendable {
 
     // MARK: Widget and menu bar
 
-    /// A checklist stays, since you tick it in the widget; a note's lines are its preview, so Hidden.
-    @Test func theWidgetHidesANotesLinesAndKeepsAChecklist() {
+    /// A checklist stays, since you tick it in the widget; a note's lines are its preview, so blurred.
+    @Test func theWidgetBlursANotesLinesAndKeepsAChecklist() {
         let list = ChecklistWidgetContent.sample
         #expect(ChecklistWidgetContent.resolve(picked: list.id, lists: [list], hidden: true) == .list(list))
         #expect(ChecklistWidgetContent.resolve(picked: list.id, lists: [list], hidden: false) == .list(list))
         let preview = ChecklistShelf.Preview(id: UUID(), title: "Doctor", lines: ["Results on Thursday"], updatedAt: .now)
-        #expect(ChecklistWidgetContent.resolve(picked: preview.id, lists: [], previews: [preview], hidden: true) == .hidden)
+        #expect(ChecklistWidgetContent.resolve(picked: preview.id, lists: [], previews: [preview], hidden: true) == .blurred(preview))
         #expect(ChecklistWidgetContent.resolve(picked: preview.id, lists: [], previews: [preview], hidden: false) == .note(preview))
-        #expect(ChecklistWidgetContent.resolve(picked: nil, lists: [], previews: [preview], hidden: true) == .hidden)
-        #expect(PrivacyWords.hidden == "Hidden")
+        #expect(ChecklistWidgetContent.resolve(picked: nil, lists: [], previews: [preview], hidden: true) == .blurred(preview))
     }
 
     @Test func theAppLeavesPrivacyModeForTheWidgetAndControl() throws {
@@ -230,23 +229,25 @@ final class Heard<T>: @unchecked Sendable {
         #expect(ChecklistShelf.privacy() == .init(hidden: true, manual: true))
     }
 
-    @Test func theMenuBarSaysHidden() {
-        #expect(MenuBarList.previewLine("Milk, eggs", hidden: true) == "Hidden")
-        #expect(MenuBarList.previewLine("Milk, eggs", hidden: false) == "Milk, eggs")
-        #expect(MenuBarList.previewLine("", hidden: false) == "No additional text")
+    /// Previews stay unreadable under the blur: at 4 whole sentences could be read in the
+    /// pictures (13 November 2026), so it can't drift back below 8.
+    @Test func thePreviewBlurIsStrongEnoughThatPreviewsCantBeRead() {
+        #expect(PreviewBlur.minimumRadius == 8)
+        #expect(PreviewBlur.radius >= PreviewBlur.minimumRadius, "previews are readable below \(PreviewBlur.minimumRadius): \(PreviewBlur.radius)")
     }
 
     // MARK: Words
 
     @Test func theCopyIsPlain() {
-        let all = [PrivacyWords.menuTitle, PrivacyWords.name, PrivacyWords.hiddenLine, PrivacyWords.turnOff, PrivacyWords.help,
+        let all = [PrivacyWords.menuTitle, PrivacyWords.name, PrivacyWords.turnOff, PrivacyWords.help,
                    PrivacyWords.settingsFooter, PrivacyWords.settingsFooterPhone, PrivacyWords.whenSharedTitle, PrivacyWords.whenSharedFooter,
                    PrivacyWords.coverTitle, PrivacyWords.coverQuestion, PrivacyWords.hide, PrivacyWords.show, PrivacyWords.remember, PrivacyWords.controlLine]
         for w in all { #expect(!w.contains("\u{2014}"), "no em dash: \(w)") }
         #expect(PrivacyWords.coverTitle == "Your screen is being shared")
-        #expect(PrivacyWords.coverQuestion == "Hide note previews?")
-        #expect(PrivacyWords.hide == "Hide previews" && PrivacyWords.show == "Show previews")
-        #expect(PrivacyWords.settingsFooter.contains("previews"), "Settings says what it hides: \(PrivacyWords.settingsFooter)")
+        #expect(PrivacyWords.coverQuestion == "Blur note previews?")
+        #expect(PrivacyWords.hide == "Blur previews" && PrivacyWords.show == "Show previews")
+        #expect(PrivacyWords.settingsFooter == "Blurs the previews under each title in the note list. Titles and the note you have open still show.")
+        for w in all { #expect(!w.contains("Hidden") && !w.contains("Hides") && !w.contains("hidden"), "it blurs, it doesn't hide: \(w)") }
     }
 
     #if os(iOS)

@@ -26,6 +26,21 @@ struct PrivacyCover: ViewModifier {
 
 extension View {
     func privacyCover() -> some View { modifier(PrivacyCover()) }
+
+    /// A note's preview, blurred while privacy mode is on (PreviewBlur).
+    func previewBlur(revealsOnHover: Bool = true) -> some View {
+        modifier(PrivacyPreviewBlur(revealsOnHover: revealsOnHover))
+    }
+}
+
+/// `previewBlur()`: PreviewBlur, on while privacy mode is.
+struct PrivacyPreviewBlur: ViewModifier {
+    var revealsOnHover = true
+    @State private var mode = PrivacyMode.shared
+
+    func body(content: Content) -> some View {
+        content.modifier(PreviewBlur(on: mode.isOn, revealsOnHover: revealsOnHover))
+    }
 }
 
 /// "Your screen is being shared. Hide your notes?" over the whole window, frosted (solid with

@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import SwiftUI
 
 // Ways into Pinto Notes from outside it (2026-11-04), shared by the app and the widget extension
 // (PaneWidgets): the links the widget opens, the words both say, and New Note, which Control
@@ -27,21 +28,45 @@ enum QuickWords {
 enum PrivacyWords {
     static let menuTitle = "Privacy Mode"
     static let name = "Privacy mode"
-    static let hidden = "Hidden"
-    static let hiddenLine = "Privacy mode is on."
     static let turnOff = "Turn off privacy mode"
-    static let help = "Privacy mode is on, so note previews are hidden. Click to turn it off."
-    static let settingsFooter = "Hides the previews under each title in the note list. Titles and the note you have open still show."
-    static let settingsFooterPhone = "Hides the previews under each title in the note list. Titles and the note you have open still show."
+    static let help = "Privacy mode is on, so note previews are blurred. Click to turn it off."
+    static let settingsFooter = "Blurs the previews under each title in the note list. Titles and the note you have open still show."
+    static let settingsFooterPhone = "Blurs the previews under each title in the note list. Titles and the note you have open still show."
     static let whenSharedTitle = "When your screen is shared"
     static let whenSharedFooter = "Privacy mode turns on while your screen is shared or recorded, and off again when it stops."
     static let coverTitle = "Your screen is being shared"
-    static let coverQuestion = "Hide note previews?"
-    static let hide = "Hide previews"
+    static let coverQuestion = "Blur note previews?"
+    static let hide = "Blur previews"
     static let show = "Show previews"
     static let remember = "Remember this"
     static let controlKind = "PrivacyModeControl"
-    static let controlLine = "Hides note previews in Pinto Notes."
+    static let controlLine = "Blurs note previews in Pinto Notes."
+}
+
+/// A note's preview while privacy mode is on: still there, in its place, but blurred too much to
+/// read (Emil, 13 November 2026: "visibly blurred, not hidden"), so the list keeps its shape and
+/// you can see something is there. On the Mac, pointing at it shows it, like the email blur
+/// (PrivateBlur). It fades in and out, at once with Reduce Motion. Shared with the widget.
+struct PreviewBlur: ViewModifier {
+    var on: Bool
+    var revealsOnHover = true
+    @State private var revealed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// At 4 whole sentences could still be read (the pictures, 13 November 2026).
+    static let radius: CGFloat = 8
+    /// PrivacyModeTests keeps `radius` at least this.
+    static let minimumRadius: CGFloat = 8
+
+    func body(content: Content) -> some View {
+        content
+            .blur(radius: on && !revealed ? Self.radius : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: on)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: revealed)
+            #if os(macOS)
+            .onHover { if revealsOnHover { revealed = $0 } }
+            #endif
+    }
 }
 
 /// Links into the app: `pintonotes://note/<id>` opens a note, `pintonotes://new` a new one.
