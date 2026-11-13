@@ -299,10 +299,30 @@ final class CoreAudioMicSource: MicSource, @unchecked Sendable {
     /// The processes among `objects` capturing input now, with their bundle ids.
     static func users(_ objects: [AudioObjectID]) -> Set<MicUser> {
         var out = Set<MicUser>()
-        for object in objects where u32(object, kAudioProcessPropertyIsRunningInput) != 0 {
+        for object in objects where capturing(
+            runningInput: u32(object, kAudioProcessPropertyIsRunningInput) != 0,
+            running: u32(object, kAudioProcessPropertyIsRunning) != 0,
+            inputDevices: inputDeviceCount(object)
+        ) {
             out.insert(MicUser(pid: pid(object), bundleID: bundleID(object)))
         }
         return out
+    }
+
+    /// Whether a process is capturing. Chrome 157 on macOS 27 never sets IsRunningInput while it
+    /// records (seen on the Air, 13 November 2026, with a page using the microphone); it shows as
+    /// running with an input device instead, and both clear within 2 s of the page stopping. An app
+    /// that only plays sound runs with no input device, so it doesn't count.
+    static func capturing(runningInput: Bool, running: Bool, inputDevices: Int) -> Bool {
+        runningInput || (running && inputDevices > 0)
+    }
+
+    /// How many input devices a process has open.
+    private static func inputDeviceCount(_ object: AudioObjectID) -> Int {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyDevices, mScope: kAudioObjectPropertyScopeInput, mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(object, &address, 0, nil, &size) == noErr else { return 0 }
+        return Int(size) / MemoryLayout<AudioObjectID>.size
     }
 
     private static func pid(_ object: AudioObjectID) -> Int32 {

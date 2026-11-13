@@ -183,6 +183,19 @@ final class FakeMic: MicSource, @unchecked Sendable {
         #expect(mode.isOn && mode.isManual)
     }
 
+    // MARK: What counts as capturing
+
+    #if os(macOS)
+    /// Chrome on macOS 27 records without IsRunningInput; it runs with an input device open.
+    @Test func chromeCapturingWithoutTheInputFlagCounts() {
+        #expect(CoreAudioMicSource.capturing(runningInput: true, running: true, inputDevices: 1))
+        #expect(CoreAudioMicSource.capturing(runningInput: false, running: true, inputDevices: 1), "Chrome 157, macOS 27")
+        #expect(!CoreAudioMicSource.capturing(runningInput: false, running: true, inputDevices: 0), "only playing sound")
+        #expect(!CoreAudioMicSource.capturing(runningInput: false, running: false, inputDevices: 1), "device open, stopped")
+        #expect(!CoreAudioMicSource.capturing(runningInput: false, running: false, inputDevices: 0))
+    }
+    #endif
+
     // MARK: Words
 
     @Test func theCallCopy() {
