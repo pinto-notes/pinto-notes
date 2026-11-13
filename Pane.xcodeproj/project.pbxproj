@@ -539,6 +539,7 @@
 		50FE1DAB68AC298BD9412253 /* EmbedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C26CCB578DED7A0AE1BD8B5 /* EmbedViews.swift */; };
 		5133A59BCA717182624304EE /* DemoHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E11FB95A2E7F9A4A70976E7 /* DemoHistory.swift */; };
 		519784AF828861ADDC7EA1B2 /* WindowFrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B4C9E01692839A12003BD7 /* WindowFrameTests.swift */; };
+		525959DE191F2DC62AB9B313 /* NewNoteRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BB55891265F2BE9A6AA8A0B /* NewNoteRowTests.swift */; };
 		529C261D914A6A470A812848 /* E2EESyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E820108DA2C23C11D35865C /* E2EESyncTests.swift */; };
 		52CB8F9900514857A5EFEA87 /* PDFZoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 451925FBA71291F8A2590004 /* PDFZoomTests.swift */; };
 		52D8616A96F20BA371599895 /* LifecycleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08062ADED61309CC7CE5FA8F /* LifecycleUITests.swift */; };
@@ -2045,6 +2046,7 @@
 		79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-narrow-light.jpg"; sourceTree = "<group>"; };
 		7B6CFEFC21164DC4BF35FD88 /* template-cover-budget-log-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-budget-log-large.jpg"; sourceTree = "<group>"; };
 		7B9A71A0661D6C254392D6E3 /* AddDeviceLiveTests+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AddDeviceLiveTests+Shared.swift"; sourceTree = "<group>"; };
+		7BB55891265F2BE9A6AA8A0B /* NewNoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteRowTests.swift; sourceTree = "<group>"; };
 		7C185FEE26E531C3246CEA6F /* template-app-budget-log-stage-card-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-budget-log-stage-card-dark.jpg"; sourceTree = "<group>"; };
 		7C5A3BE24CB24DDD03944249 /* amber-base.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = "amber-base.css"; sourceTree = "<group>"; };
 		7C8A65D2F56CED822826A99B /* FileOutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOutTests.swift; sourceTree = "<group>"; };
@@ -3112,6 +3114,7 @@
 				B05E11F2F0BFF1B7B2F3AF2D /* MoveToPickerTests.swift */,
 				D82B1491DE222D4C7AFA3D82 /* MultiSelectTests.swift */,
 				59FC61801B23E8E0B43198F9 /* NewNoteFocusTests.swift */,
+				7BB55891265F2BE9A6AA8A0B /* NewNoteRowTests.swift */,
 				088C3E4F5EB9C0F6C0037D85 /* NoteListGeometryTests.swift */,
 				E03711D9DFC91CE824CD5986 /* NoteListSeparatorTests.swift */,
 				25EBE4952652DEA4F4C367D6 /* NoteOpenClickTests.swift */,
@@ -5194,6 +5197,7 @@
 				016781ED6B6F2ED79DBF1DA8 /* NSTableView+HeadingRow.swift in Sources */,
 				9AEBE2A62F8F7A626C7921A9 /* NetworkFaults.swift in Sources */,
 				81746756BEEF6FB7C7B8A42F /* NewNoteFocusTests.swift in Sources */,
+				525959DE191F2DC62AB9B313 /* NewNoteRowTests.swift in Sources */,
 				12CF8C86890468A343D9C7C7 /* NoteListGeometryTests.swift in Sources */,
 				C851A85D32E6587E34CD557F /* NoteListSeparatorTests.swift in Sources */,
 				C1A4BC9329D294B62C365060 /* NoteOpenClickTests.swift in Sources */,

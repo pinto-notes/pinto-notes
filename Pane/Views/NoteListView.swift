@@ -427,6 +427,8 @@ struct NoteListView: View {
         // one took the keys away from the search field.
         .modifier(ListLockFlow(request: $lockRequest))
         .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil, scope: scope, row: rowOf))
+        // A new "Today" with its first note: measured, not left at the table's guess.
+        .modifier(MeasuresNewSections(headings: noteSections?.map(\.0) ?? mixedSections?.map(\.0) ?? []))
         .id(ListIdentity(scope: .all, library: library.wholesale))
         #if os(macOS)
         .modifier(OpensTopNote(scope: scope, top: visible.first?.id, lists: { id in visible.contains { $0.id == id } }, selection: $selection))
@@ -1594,7 +1596,7 @@ struct ShowsSelectedRow: ViewModifier {
             }
     }
 
-    private struct TableFinder: NSViewRepresentable {
+    fileprivate struct TableFinder: NSViewRepresentable {
         let probe: Probe
 
         func makeNSView(context: Context) -> Probe { probe }
@@ -1604,7 +1606,7 @@ struct ShowsSelectedRow: ViewModifier {
             private weak var table: NSTableView?
 
             /// The table whose scroll view covers this view: the list's, not the sidebar's.
-            private func find() -> NSTableView? {
+            fileprivate func find() -> NSTableView? {
                 if let table, table.window === window { return table }
                 guard let window, let root = window.contentView else { return nil }
                 let mine = convert(bounds, to: nil)
@@ -1715,6 +1717,39 @@ struct ShowsSelectedRow: ViewModifier {
             rows += items.count
         }
         return nil
+    }
+}
+#endif
+
+#if os(macOS)
+/// A section that comes with its first row (New Note in a folder with no "Today" yet) is put in
+/// with the table's estimated heights, 28 pt for the heading and 24 for the row, and in the
+/// window's middle column nothing asks again until the list scrolls. Each row clips to its
+/// bounds, so the new 62 pt row showed its top half with a hard edge across it (Emil, 12 November
+/// 2026, NewNoteRowTests). A row added to a section already there is measured; a heading coming
+/// or going isn't. So when the headings change, the rows in view are measured again, a turn
+/// later, once the table has them.
+struct MeasuresNewSections: ViewModifier {
+    /// The list's section headings, in order.
+    let headings: [String]
+    @State private var finder = ShowsSelectedRow.TableFinder.Probe()
+
+    func body(content: Content) -> some View {
+        content
+            .background(ShowsSelectedRow.TableFinder(probe: finder))
+            .onChange(of: headings) {
+                DispatchQueue.main.async { finder.measureRowsInView() }
+            }
+    }
+}
+
+extension ShowsSelectedRow.TableFinder.Probe {
+    /// The table asks the list again for the heights of the rows in view.
+    func measureRowsInView() {
+        guard let table = find() else { return }
+        let rows = table.rows(in: table.visibleRect)
+        guard rows.length > 0 else { return }
+        table.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: rows.location..<rows.location + rows.length))
     }
 }
 #endif
