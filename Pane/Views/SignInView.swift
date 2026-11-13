@@ -342,7 +342,6 @@ struct SignInView: View {
                     Text(flow.email)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .privateBlur(flow.email, revealsOnTap: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .animation(nil) { $0.opacity(flow.showsEmailField ? 0 : 1) }
                         .accessibilityHidden(flow.showsEmailField)

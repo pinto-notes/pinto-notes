@@ -44,6 +44,10 @@ import Testing
         #expect(AppIdentity.dataFolder(bundleID: nil) == "Pane")
         #expect(AppIdentity.dataFolder(bundleID: "com.kim.notes") == "com.kim.notes")
         #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.panes") == "dev.emilwagman.panes")
+        // Our id with any other suffix is a build of its own too (13 November 2026: a test build as
+        // dev.emilwagman.pane.canvastest opened the installed app's real notes).
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pane.canvastest") == "dev.emilwagman.pane.canvastest")
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pane.debug") == "dev.emilwagman.pane.debug")
     }
 
     /// A build of your own never replaces itself with Pinto Notes: the Mac download's updater runs

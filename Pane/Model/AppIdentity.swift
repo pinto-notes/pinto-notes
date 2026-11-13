@@ -28,14 +28,19 @@ enum AppIdentity {
         #endif
     }()
     /// The app's folder in Application Support, and its library's name (Pane.store): "Pane" for
-    /// Pinto Notes and its Beta. A build under a bundle id of its own (scripts/make-it-yours.sh) gets
-    /// a folder named after that id: the Mac app runs outside the sandbox, so with "Pane" it would
-    /// open an installed Pinto Notes' library, and signing in there as another account clears it.
+    /// Pinto Notes and its Beta only. Any other bundle id, ours with a suffix too, gets a folder named
+    /// after that id: the Mac app runs outside the sandbox, so with "Pane" it would open an installed
+    /// Pinto Notes' library, and signing in there as another account clears it. (13 November 2026: a
+    /// test build as dev.emilwagman.pane.canvastest opened Emil's real notes under a sign-in sheet.)
     static let dataFolder = dataFolder(bundleID: info("PaneBundleID"), devRun: devRun)
+
+    /// The bundle ids whose library is Pinto Notes' own: the app, and the sandboxed Beta (its
+    /// container keeps it apart). Nothing is matched by prefix.
+    static let sharesPintoLibrary: Set<String> = ["dev.emilwagman.pane", "dev.emilwagman.pane.beta"]
 
     static func dataFolder(bundleID: String?, devRun: Bool = false) -> String {
         if devRun { return "Pane-devrun" }
-        guard let id = bundleID, id != "dev.emilwagman.pane", !id.hasPrefix("dev.emilwagman.pane.") else { return "Pane" }
+        guard let id = bundleID, !sharesPintoLibrary.contains(id) else { return "Pane" }
         return id
     }
     /// Whether the Mac download takes updates (Updater.swift): only Pinto Notes' own app, with a
