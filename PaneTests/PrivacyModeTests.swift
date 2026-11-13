@@ -13,15 +13,6 @@ final class Heard<T>: @unchecked Sendable {
     var all: [T] { lock.withLock { items } }
 }
 
-/// A detector the test drives: it says sharing started or stopped when told.
-@MainActor final class FakeShareDetector: ScreenShareDetector {
-    private var changed: (@MainActor (Bool) -> Void)?
-    private(set) var started = false
-    func start(_ changed: @escaping @MainActor (Bool) -> Void) { self.changed = changed; started = true }
-    func stop() { changed = nil; started = false }
-    func say(_ sharing: Bool) { changed?(sharing) }
-}
-
 /// Privacy mode (Emil, 13 November 2026): on by hand, or by itself while the screen is shared,
 /// after the cover asks. Ships on and automatic on both platforms.
 @MainActor @Suite struct PrivacyModeTests {

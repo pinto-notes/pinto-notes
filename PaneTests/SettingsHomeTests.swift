@@ -771,26 +771,7 @@ extension SettingsHomeTests {
 /// Every page is one view on both apps, built from the rows the search index lists: each row
 /// the index names is on its page, drawn, and search finds it by its words. Drawn on the Mac;
 /// iPhone builds its pages from the same views (SettingsView.page).
-@MainActor @Suite(.serialized) struct SettingsPageRowTests {
-    static func ids(_ page: SettingsPage, backend: Backend, crypto: AccountCrypto = .shared, height: CGFloat = 1600) async throws -> [String] {
-        let view = SettingsView(backend: backend, sync: nil, crypto: crypto, devices: AddDeviceSnapshots.devices([SecurityPageSnapshots.mac]),
-                                connections: SecurityPageSnapshots.ais)
-        let lib = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let ax = OffscreenAX(view.page(page).modelContainer(lib), size: CGSize(width: SettingsCard.pageWidth, height: height))
-        defer { ax.close() }
-        await ax.settle(600)
-        // Under load the offscreen page can answer nothing at first, or its last sections a beat
-        // later: read until two non-empty reads agree.
-        var ids = ax.ids()
-        for _ in 0..<12 {
-            await ax.settle(250)
-            let again = ax.ids()
-            if !again.isEmpty, Set(again) == Set(ids) { break }
-            ids = again
-        }
-        return ids
-    }
-
+extension SettingsPageRowTests {
     /// Privacy is two rows, Encryption and Diagnostics (Emil, 7 November 2026); what it had is on
     /// Encryption, one level down, the devices (with Remove… and Add a device) on Account, and each
     /// AI's Disconnect on AI Connections.

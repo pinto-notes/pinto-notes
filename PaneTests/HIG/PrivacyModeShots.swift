@@ -188,13 +188,3 @@ import AppKit
     #endif
 }
 
-/// Leaves the app's privacy mode off, asking, watching nothing (shared by the suites).
-@MainActor enum PrivacyModeInteractionReset {
-    static func reset() {
-        let m = PrivacyMode.shared
-        m.stopWatching()
-        m.sharingChanged(false)
-        m.setManual(false)
-        m.whenShared = .ask
-    }
-}

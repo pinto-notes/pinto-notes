@@ -1909,7 +1909,7 @@ enum NoteMoreMenu {
 /// November 2026: the list under the note's text matched any "to play" for a note called To Play).
 /// Looked up from the link index as the menu's items are made: the view is equal to itself while
 /// the note is the same, and is made again only when `LinkChanges` goes up, never for typing.
-struct LinkedFromMenu: View, Equatable {
+struct LinkedFromMenu: View, CustomEquatable {
     let note: Note
     let open: (UUID) -> Void
     private let id: UUID
@@ -1925,7 +1925,7 @@ struct LinkedFromMenu: View, Equatable {
     /// A menu lists at most this many, the newest; a last, greyed item says how many more link here.
     static let shown = 50
 
-    nonisolated static func == (a: Self, b: Self) -> Bool { a.id == b.id }
+    nonisolated static func isEqual(_ a: Self, _ b: Self) -> Bool { a.id == b.id }
 
     var body: some View {
         let _ = LinkChanges.shared.version
