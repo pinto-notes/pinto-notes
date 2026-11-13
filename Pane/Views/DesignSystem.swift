@@ -822,11 +822,11 @@ extension ButtonStyle where Self == TextLinkStyle {
     static var textLink: TextLinkStyle { .init() }
 }
 
-/// Link and Undo: small, solid, black on white or white on black, never amber.
+/// A notice's action, such as Undo: small, solid, black on white or white on black, never amber.
 struct LinkButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: NoteLinksSection.small, weight: .semibold))
+            .font(.system(size: Self.size, weight: .semibold))
             .foregroundStyle(Color(Palette.inkButtonLabel))
             .padding(.horizontal, 12)
             #if os(macOS)
@@ -841,6 +841,12 @@ struct LinkButtonStyle: ButtonStyle {
             #endif
             .contentShape(.rect)
     }
+
+    #if os(macOS)
+    static let size: CGFloat = 13
+    #else
+    static let size: CGFloat = 15
+    #endif
 }
 
 #if os(macOS)

@@ -6,7 +6,8 @@ import Testing
 @testable import Pane
 
 /// Before and after pictures for the persona council's editor round (4 November 2026): Untick
-/// All, the links foot, text size, the empty note pane and Notion on the import list. The same
+/// All, text size, the empty note pane and Notion on the import list. (The links foot it also
+/// drew went on 12 November 2026: what links here is in the note's ••• menu now.) The same
 /// file draws the before on release/1.3 (with the after-only parts compiled out) and the after on
 /// the branch. Real notes windows, titled and never shown; nothing touches the screen.
 /// Runs only when PERSONA_SHOTS is set; PERSONA_SIDE names the side:
@@ -34,8 +35,6 @@ extension PersonaEditorShots {
         try await body()
     }
 
-    static let linkKeys = ["noteLinks.linkedShown", "noteLinks.mentionsShown", "noteLinks.footShown"]
-
     // MARK: - 1. Untick All (Maya)
 
     /// Groceries with three ticked items; after: Untick All from there, the notice with Undo.
@@ -55,38 +54,6 @@ extension PersonaEditorShots {
                 #expect(!tv.string.contains("- [x]"))
                 #endif
                 try Self.save(try Self.picture(w), "untick-all", "groceries-\(m.name)")
-            }
-        }
-    }
-
-    // MARK: - 2. The links foot (Elena, Jonas)
-
-    /// A short note (Sintra) and the end of a long one (Lisbon), as each opens; after: folded,
-    /// then unfolded.
-    @Test func linksFoot() async throws {
-        guard Self.dir != nil else { return }
-        let c = try Self.library()
-        try await Self.keeping(Self.linkKeys) {
-            var states: [(name: String, shown: Bool?)] = [("", nil)]
-            #if !PERSONA_BEFORE
-            states = [("-folded", false), ("-unfolded", true)]
-            #endif
-            for state in states {
-                Self.linkKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-                #if !PERSONA_BEFORE
-                if let shown = state.shown { UserDefaults.standard.set(shown, forKey: NoteLinksSection.shownKey) }
-                #endif
-                for m in Self.modes {
-                    try await Self.window(c, note: "Sintra", dark: m.dark) { w in
-                        await MacWindowChromeTests.settle(w, 10)
-                        try Self.save(try Self.picture(w), "links-foot", "short-note\(state.name)-\(m.name)")
-                    }
-                    try await Self.window(c, note: "Lisbon", dark: m.dark) { w in
-                        await MacWindowChromeTests.settle(w, 10)
-                        try await Self.scrollToEnd(w)
-                        try Self.save(try Self.picture(w), "links-foot", "long-note-end\(state.name)-\(m.name)")
-                    }
-                }
             }
         }
     }

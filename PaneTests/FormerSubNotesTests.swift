@@ -124,7 +124,7 @@ import Testing
         // Opened: the More menu is a note's, with nothing of sub-notes. On iPhone Share is its own
         // button beside More (NoteMoreMenuTests), so it isn't in the menu.
         let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, phone: true, dev: false)
-        #expect(groups == [[.pin, .lock, .makeApp], [.duplicate], [.moveTo, .history], [.delete]])
+        #expect(groups == [[.pin, .lock, .makeApp], [.duplicate], [.moveTo, .linkedFrom, .history], [.delete]])
         // Its own text is just its text: no card, nothing hidden.
         #expect(LineEmbed.find(in: acme.body).isEmpty, "the link to it in the other note is no card")
 
@@ -196,7 +196,7 @@ import Testing
         #expect(LinkPolicy.action(for: URL(string: "pane-note:\(agenda.id.uuidString.lowercased())")!) == .note(agenda.id))
         // Autocomplete offers it.
         #expect(WikiDirectory.suggestions("Agen", excluding: plan.id, in: ctx).contains("Agenda"))
-        // "Linked from": both notes, the one it was under included.
+        // Linked From: both notes, the one it was under included.
         #expect(Set(ctx.backlinks(to: agenda).map(\.id)) == [plan.id, acme.id])
         // Renamed: the wiki links follow, and the note link still leads to it by its id.
         agenda.body = "Meeting agenda\nWhat we cover"

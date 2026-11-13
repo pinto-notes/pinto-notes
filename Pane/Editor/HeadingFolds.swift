@@ -580,9 +580,6 @@ extension PaneTextView {
             setSelectedRange(NSRange(location: at, length: 0))
             #endif
         }
-        #if os(macOS)
-        DispatchQueue.main.async { [weak self] in self?.placeFoot() }
-        #endif
     }
 
     func toggleFold(_ location: Int) { changeFolds { $0.toggle(location) } }

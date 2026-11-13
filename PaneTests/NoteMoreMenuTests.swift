@@ -14,15 +14,27 @@ import Testing
     /// A note shared with people offers no lock, no app and no Version History (all parked for
     /// shared notes in 1.3): pin, move and delete, as each person's own.
     @Test func aSharedNoteOffersOnlyWhatWorksForSharedNotes() {
-        #expect(groups(shared: true) == [[.openInNewWindow], [.pin], [.duplicate], [.moveTo], [.delete]])
-        #expect(groups(shared: true, phone: true) == [[.pin], [.duplicate], [.moveTo], [.delete]])
-        #expect(groups(shared: true, dev: true) == [[.openInNewWindow], [.pin], [.duplicate], [.moveTo], [.delete]])
-        #expect(groups(hasApp: true, shared: true) == [[.openInNewWindow], [.pin], [.duplicate], [.moveTo], [.delete]])
+        #expect(groups(shared: true) == [[.openInNewWindow], [.pin], [.duplicate], [.moveTo, .linkedFrom], [.delete]])
+        #expect(groups(shared: true, phone: true) == [[.pin], [.duplicate], [.moveTo, .linkedFrom], [.delete]])
+        #expect(groups(shared: true, dev: true) == [[.openInNewWindow], [.pin], [.duplicate], [.moveTo, .linkedFrom], [.delete]])
+        #expect(groups(hasApp: true, shared: true) == [[.openInNewWindow], [.pin], [.duplicate], [.moveTo, .linkedFrom], [.delete]])
         #expect(groups(trashed: true, shared: true) == [[.recover, .delete]])
     }
 
     @Test func aPlainNoteOnTheMac() {
-        #expect(groups() == [[.openInNewWindow], [.pin, .lock, .makeApp], [.duplicate], [.moveTo, .history], [.delete]])
+        #expect(groups() == [[.openInNewWindow], [.pin, .lock, .makeApp], [.duplicate], [.moveTo, .linkedFrom, .history], [.delete]])
+    }
+
+    /// Linked From sits beside Move to (LinkedFromMenu shows it only when a note links here), for
+    /// a shared note too; a locked note's and a deleted one's menus don't have it (Emil, 12
+    /// November 2026: what links here moved from under the note's text into this menu).
+    @Test func linkedFromIsBesideMoveTo() {
+        for phone in [false, true] {
+            #expect(groups(phone: phone).first { $0.contains(.moveTo) } == [.moveTo, .linkedFrom, .history])
+            #expect(groups(shared: true, phone: phone).joined().contains(.linkedFrom))
+            #expect(!groups(locked: true, vaultOpen: true, phone: phone).joined().contains(.linkedFrom))
+            #expect(!groups(trashed: true, phone: phone).joined().contains(.linkedFrom))
+        }
     }
 
     /// The note's ··· and its row in the list both duplicate it; a locked note's text can't be copied.
@@ -34,19 +46,19 @@ import Testing
 
     /// In the note's own window there's no other window to open it in.
     @Test func itsOwnWindowOffersNoOther() {
-        #expect(groups(inOwnWindow: true) == [[.pin, .lock, .makeApp], [.duplicate], [.moveTo, .history], [.delete]])
+        #expect(groups(inOwnWindow: true) == [[.pin, .lock, .makeApp], [.duplicate], [.moveTo, .linkedFrom, .history], [.delete]])
         #expect(!groups(locked: true, vaultOpen: true, inOwnWindow: true).joined().contains(.openInNewWindow))
     }
 
     /// Share has its own button beside More on iPhone (as in Notes, 28 October 2026), so it isn't
     /// in the menu too: the same menu as the Mac's.
     @Test func theSameMenuOnIPhoneWithSharingBesideIt() {
-        #expect(groups(phone: true) == [[.pin, .lock, .makeApp], [.duplicate], [.moveTo, .history], [.delete]])
+        #expect(groups(phone: true) == [[.pin, .lock, .makeApp], [.duplicate], [.moveTo, .linkedFrom, .history], [.delete]])
         #expect(!groups(phone: true).joined().contains(.share))
     }
 
     @Test func whatANoteIsChangesTheFirstGroupOnly() {
-        #expect(groups(hasApp: true) == [[.openInNewWindow], [.pin, .lock, .appInfo], [.duplicate], [.moveTo, .history], [.delete]])
+        #expect(groups(hasApp: true) == [[.openInNewWindow], [.pin, .lock, .appInfo], [.duplicate], [.moveTo, .linkedFrom, .history], [.delete]])
         // A locked note that is open can be locked again or have its lock removed; closed, neither.
         #expect(groups(locked: true, vaultOpen: true) == [[.openInNewWindow], [.pin, .lockNow, .removeLock], [.moveTo], [.delete]])
         #expect(groups(locked: true) == [[.openInNewWindow], [.pin], [.moveTo], [.delete]])

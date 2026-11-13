@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftData
 
 /// Obsidian's wiki links, `[[Title]]`, `[[Folder/Title]]`, `[[Title|shown text]]` and
@@ -347,6 +348,16 @@ private extension Array where Element: Equatable {
     }
 }
 
+/// Goes up whenever where notes link, or what notes and folders are called, may have changed:
+/// Linked From (the note's ••• menu, `LinkedFromMenu`) reads it, so its list is looked up again
+/// only then, never for a save of typing that touches neither.
+@MainActor @Observable
+final class LinkChanges {
+    static let shared = LinkChanges()
+    private(set) var version = 0
+    func bump() { version &+= 1 }
+}
+
 /// The library's titles as a `WikiIndex`, built once and again after the store saves, so styling
 /// a note on every keystroke doesn't fetch every note.
 @MainActor
@@ -356,10 +367,10 @@ enum WikiDirectory {
     private static weak var cachedContext: ModelContext?
     private static var observer: NSObjectProtocol?
     /// Goes up each time a title or folder changes.
-    private(set) static var generation = 0
+    private(set) static var generation = 0 { didSet { LinkChanges.shared.bump() } }
     private static var lastSignature: [String] = []
 
-    /// Where each note that links to others links, by its id: what "Linked from" is worked out
+    /// Where each note that links to others links, by its id: what Linked From is worked out
     /// from, instead of every note's text being searched each time a note opens.
     private static var outgoing: LinkGraph?
     private static weak var outgoingContext: ModelContext?
@@ -430,6 +441,7 @@ enum WikiDirectory {
         outgoing = read.outgoing
         outgoingContext = context
         folderPaths = read.paths
+        LinkChanges.shared.bump()
         // What was saved while it was read is read again from the context, which has it.
         let again = savedWhileReading
         savedWhileReading = []
@@ -505,6 +517,7 @@ enum WikiDirectory {
         cached = nil
         outgoing = nil
         folderPaths = [:]
+        LinkChanges.shared.bump()
     }
 
     /// A save, taken into the index and the links note by note: most saves are a note being typed
@@ -521,14 +534,20 @@ enum WikiDirectory {
         }
         if outgoingContext === context, outgoing != nil {
             if let changes, !changes.folders {
-                for n in changes.notes { outgoing?[n.id] = OutgoingLinks(of: n, folders: context.folderPath(n.folder)) }
+                for n in changes.notes {
+                    let links = OutgoingLinks(of: n, folders: context.folderPath(n.folder))
+                    // Most saves are typing that doesn't touch a link: Linked From isn't made again for those.
+                    if outgoing?[n.id] != links { outgoing?[n.id] = links; LinkChanges.shared.bump() }
+                }
             } else {
                 outgoing = nil
+                LinkChanges.shared.bump()
             }
         }
         guard var index = cached, context === cachedContext else { return }
         guard let changes, !changes.folders else {
             cached = nil
+            LinkChanges.shared.bump()
             return
         }
         let changed = index.take(changes.notes.map { n in
@@ -674,6 +693,18 @@ extension ModelContext {
         }
         // Locked, trashed and deleted notes have no links in the index.
         return found.sorted { (index.updated(of: $0) ?? .distantPast) > (index.updated(of: $1) ?? .distantPast) }
+    }
+
+    /// Linked From's list: the first `limit` notes that link to `note`, newest first, and how many
+    /// link to it in all. Only those first ones are read (a note linked from 2,000 others reads 50).
+    func linkedFrom(_ note: Note, limit: Int) -> (notes: [Note], total: Int) {
+        let ids = backlinkIDs(to: note)
+        guard !ids.isEmpty else { return ([], 0) }
+        let first = Array(ids.prefix(limit))
+        let read = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { first.contains($0.id) }))) ?? []
+        let byID = Dictionary(read.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let notes = first.compactMap { byID[$0] }.filter { $0.deletedAt == nil && $0.trashedAt == nil && !$0.isLocked }
+        return (notes, ids.count - (first.count - notes.count))
     }
 
     /// After `note` was renamed from `oldTitle`, points the wiki links that led to it under its

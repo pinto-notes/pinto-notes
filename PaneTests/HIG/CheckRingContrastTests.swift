@@ -50,12 +50,5 @@ import UIKit
             #expect(ratio >= 3, "\(style.rawValue): \(ratio):1")
         }
     }
-
-    /// The foot under a note lines up with the text: the text view's padding counts too (the iPad
-    /// pass: the foot sat about 5 points left of the text).
-    @Test func theFootLinesUpWithTheText() {
-        let f = PaneTextView.footFrame(inset: UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16), padding: 5, width: 400, y: 100, height: 40)
-        #expect(f == CGRect(x: 21, y: 100, width: 358, height: 40))
-    }
 }
 #endif
