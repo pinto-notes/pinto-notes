@@ -3277,6 +3277,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             }
         }
         switch selector {
+        case #selector(cancelOperation(_:)):
+            // Writing focus: Esc brings the columns back (ColumnsLayout).
+            if controller?.onEscape() == true { return true }
         case #selector(insertNewline(_:)):
             // Undo goes back a line at a time: without this, ⌘Z took everything typed since the
             // caret last moved, a whole new note back to its empty title (persona council r7d, a
@@ -3318,6 +3321,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         remember(string)
         core.onChange(string)
         controller?.typingChanged(text: string, selection: editingSelection)
+        controller?.onTyped()
         layoutWikiSuggestions()
         // A line more or less moves the foot even when the view keeps its height, once it's laid out.
         DispatchQueue.main.async { [weak self] in self?.placeFoot() }

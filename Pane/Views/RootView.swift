@@ -33,6 +33,10 @@ struct RootView: View {
     @State private var peeking = CanvasEdgePeekFlag.startShown
     /// The sidebar step, kept per window (SidebarToggle.next).
     @SceneStorage("sidebarStep") private var storedStep = SidebarToggle.name(.all)
+    /// Settings › Experimental › Layout: how the columns are laid out (ColumnsLayout).
+    @AppStorage(ColumnsLayout.key) private var layoutName = ColumnsLayout.today.rawValue
+    /// Writing focus: typing folded the columns away (WritingFocus).
+    @State private var writingFocus = WritingFocus()
     #endif
     #if os(iOS)
     /// The open notes, for the list beside the note to draw (OpenNotes).
@@ -151,7 +155,7 @@ struct RootView: View {
             // sidebar's buttons, and kept that when the sidebar came back (council round 3).
             .background(ListWidthKeeper(probe: listWidth))
             // The note alone: the list folded away by its split view item (ListFold).
-            .background(ListFold(folded: visibility == .detailOnly))
+            .background(ListFold(folded: visibility == .detailOnly, widths: (layout.folderWidths.ideal, layout.listWidths.ideal)))
             .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
@@ -405,14 +409,25 @@ struct RootView: View {
             sidebarFit.changed(to: new)
             if !canvasFocus.applying { storedStep = SidebarToggle.name(canvasFocus.isFocused ? (canvasFocus.before ?? new) : new) }
             if new != .detailOnly { peeking = false }
+            // Two columns has no folders column: anything that shows it shows the list instead.
+            if layout == .twoColumns, new == .all { DispatchQueue.main.async { visibility = .doubleColumn } }
         }
-        .onAppear { if let v = SidebarToggle.visibility(named: storedStep), v != visibility { visibility = v } }
+        .onAppear {
+            if let v = SidebarToggle.visibility(named: storedStep), v != visibility { visibility = v }
+            if layout == .twoColumns, visibility == .all { visibility = .doubleColumn }
+            editor.onTyped = { typedInNote() }
+            editor.onEscape = { escapeWritingFocus() }
+        }
+        // Settings › Experimental › Layout takes effect at once.
+        .onChange(of: layoutName) { old, _ in layoutChanged(from: ColumnsLayout(rawValue: old) ?? .today) }
         // A canvas opens with both columns folded away; a text note after it puts them back
         // (Emil, 13 November 2026: "the folders and the list take too much room").
         .onChange(of: shownNote, initial: true) { _, id in
             let canvas = id.flatMap { context.note($0) }.map { CanvasNote.has($0) } ?? false
+            writingFocus.opened(id)
+            if canvas, writingFocus.isFocused { _ = writingFocus.escape() }
             if let v = canvasFocus.opened(id, isCanvas: canvas, visibility: visibility) { setColumns(v, focus: true) }
-            peeking = CanvasEdgePeekFlag.startShown && canvasFocus.isFocused
+            peeking = CanvasEdgePeekFlag.startShown && (canvasFocus.isFocused || writingFocus.isFocused)
         }
         // The list column shows its own title; no window title in the bar.
         .toolbar(removing: .title)
@@ -529,9 +544,9 @@ struct RootView: View {
                 // keys it looked like it couldn't). Ours, not the system's, so it stays in its
                 // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
                 .toolbar(removing: .sidebarToggle)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+                .navigationSplitViewColumnWidth(min: layout.folderWidths.min, ideal: layout.folderWidths.ideal, max: layout.folderWidths.max)
                 .environment(\.toggleSidebar, sidebarStep)
-                .environment(\.columnsToolbarHidden, canvasFocused)
+                .environment(\.columnsToolbarHidden, canvasFocused || writingFocused)
                 #else
                 // iPad: room for the title beside the account button.
                 .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
@@ -542,11 +557,13 @@ struct RootView: View {
                 .environment(library)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
-                .environment(\.columnsToolbarHidden, canvasFocused)
+                .environment(\.columnsToolbarHidden, canvasFocused || writingFocused)
                 // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,
                 // and More and New Note need with the sidebar hidden: a narrower list had to grow
                 // and shrink back on every toggle (Emil, 6 November 2026). So a toggle only slides.
-                .navigationSplitViewColumnWidth(min: 330, ideal: 330, max: 440)
+                .navigationSplitViewColumnWidth(min: layout.listWidths.min, ideal: layout.listWidths.ideal, max: layout.listWidths.max)
+                // Two columns: the list's title switches folders (ListFolderMenu).
+                .environment(\.pickScope, pickScope)
                 #else
                 // Large text needs the room more here than in the note beside it.
                 // A window wider than tall and under 1,000 pt (iPhone Duo open like a book): the list is
@@ -925,14 +942,16 @@ struct RootView: View {
                     noNote
                 }
             }
-            // A focused canvas: the note list slides in over it from the window's left edge.
+            // A focused canvas, or a note typing folded the columns from: the note list slides in
+            // over it from the window's left edge.
             .overlay(alignment: .leading) {
-                if focused {
+                if focused || writingFocused {
                     CanvasEdgePeek(shown: $peeking) {
                         NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                             .equatable()
                             .environment(library)
                             .environment(\.columnsToolbarHidden, true)
+                            .environment(\.pickScope, pickScope)
                     }
                 }
             }
@@ -973,11 +992,47 @@ struct RootView: View {
     private var canvasFocused: Bool { canvasFocus.isFocused && visibility == .detailOnly }
 
     /// The sidebar button and View › Hide Sidebar: folders, list and note; list and note; the note.
+    /// Two columns: list and note; the note.
     private var sidebarStep: ToggleSidebarAction {
         ToggleSidebarAction(visibility: visibility) {
             canvasFocus.userChanged()
-            setColumns(SidebarToggle.next(visibility), focus: false)
+            writingFocus.userChanged()
+            setColumns(layout.next(visibility), focus: false)
         }
+    }
+
+    /// The layout picked in Settings › Experimental (ColumnsLayout).
+    private var layout: ColumnsLayout { ColumnsLayout(rawValue: layoutName) ?? .today }
+
+    /// Typing folded the columns away and they're still away.
+    private var writingFocused: Bool { writingFocus.isFocused && visibility == .detailOnly }
+
+    /// Two columns: the list's title menu picks the folder.
+    private var pickScope: ((Scope) -> Void)? {
+        layout == .twoColumns ? { s in scope = s } : nil
+    }
+
+    /// A keystroke in the open text note: in Writing focus, the first one folds the columns away.
+    private func typedInNote() {
+        guard layout == .writingFocus, !canvasFocus.isFocused,
+              let v = writingFocus.typed(in: shownNote, visibility: visibility) else { return }
+        setColumns(v, focus: true)
+        peeking = CanvasEdgePeekFlag.startShown
+    }
+
+    /// Esc in the note's text: the columns typing folded away come back. False: the text's own Esc.
+    private func escapeWritingFocus() -> Bool {
+        guard let v = writingFocus.escape() else { return false }
+        setColumns(v, focus: true)
+        return true
+    }
+
+    /// Another layout picked: the window takes it now, no relaunch.
+    private func layoutChanged(from old: ColumnsLayout) {
+        if layout != .writingFocus, let v = writingFocus.escape() { setColumns(v, focus: true) }
+        guard !canvasFocused else { return }
+        if layout == .twoColumns, visibility == .all { setColumns(.doubleColumn, focus: false) }
+        if old == .twoColumns, layout != .twoColumns, visibility == .doubleColumn { setColumns(.all, focus: false) }
     }
 
     /// The back control on a focused canvas: the columns as they were, the canvas still open.
@@ -1976,10 +2031,22 @@ struct ListWidthKeeper: NSViewRepresentable {
 /// view controller: SwiftUI's split view has no way to on the Mac.
 struct ListFold: NSViewRepresentable {
     let folded: Bool
+    /// The folders' and the list's widths for the layout picked (ColumnsLayout): a change sets them
+    /// at once, which a column's ideal width alone doesn't do to a window already open.
+    var widths: (folders: CGFloat, list: CGFloat)? = nil
+
+    final class Coordinator { var widths: (CGFloat, CGFloat)? }
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSView { NSView() }
 
     func updateNSView(_ view: NSView, context: Context) {
+        if let w = widths {
+            if let last = context.coordinator.widths, last != w {
+                DispatchQueue.main.async { [weak view] in Self.setWidths(w, in: view?.window) }
+            }
+            context.coordinator.widths = w
+        }
         let folded = folded
         DispatchQueue.main.async { [weak view] in
             guard let item = Self.listItem(in: view?.window) else { return }
@@ -2003,14 +2070,30 @@ struct ListFold: NSViewRepresentable {
         }
     }
 
+    /// The folders and the list at `widths`, those that show.
+    static func setWidths(_ widths: (folders: CGFloat, list: CGFloat), in window: NSWindow?) {
+        guard let split = splitView(in: window), let controller = split.delegate as? NSSplitViewController,
+              controller.splitViewItems.count >= 3 else { return }
+        let list = controller.splitViewItems[1]
+        let folders = controller.splitViewItems[0]
+        let foldersShown = !folders.isCollapsed && !folders.viewController.view.isHidden
+        let start = foldersShown ? widths.folders : 0
+        if foldersShown { split.setPosition(widths.folders, ofDividerAt: 0) }
+        if !list.isCollapsed { split.setPosition(start + widths.list, ofDividerAt: 1) }
+    }
+
     /// The list's split view item: the middle of the window's three.
-    static func listItem(in window: NSWindow?) -> NSSplitViewItem? {
+    static func splitView(in window: NSWindow?) -> NSSplitView? {
         func find(_ v: NSView) -> NSSplitView? {
             if let s = v as? NSSplitView, s.arrangedSubviews.count >= 3 { return s }
             for k in v.subviews { if let f = find(k) { return f } }
             return nil
         }
-        guard let split = window?.contentView.flatMap(find), let controller = split.delegate as? NSSplitViewController,
+        return window?.contentView.flatMap(find)
+    }
+
+    static func listItem(in window: NSWindow?) -> NSSplitViewItem? {
+        guard let split = splitView(in: window), let controller = split.delegate as? NSSplitViewController,
               controller.splitViewItems.count >= 3 else { return nil }
         return controller.splitViewItems[1]
     }

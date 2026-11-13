@@ -2155,3 +2155,31 @@ struct SettingsSubPageRow: View {
         #endif
     }
 }
+
+/// Experimental: features to try, off until picked (Emil, 12 November 2026). The Mac's Layout picks
+/// how the notes window lays out its columns (ColumnsLayout); a window changes as soon as it's picked.
+struct ExperimentalSettingsPage: View {
+    @AppStorage(ColumnsLayout.key) private var layout = ColumnsLayout.today.rawValue
+
+    var body: some View {
+        SettingsPageForm {
+            #if os(macOS)
+            Section {
+                Picker(selection: $layout) {
+                    ForEach(ColumnsLayout.allCases) { l in Text(l.title).tag(l.rawValue) }
+                } label: {
+                    Text("Layout")
+                    Text((ColumnsLayout(rawValue: layout) ?? .today).detail)
+                }
+                .accessibilityIdentifier("settings.experiment.layout")
+            } footer: {
+                Text("These may change or go away. Nothing in your notes changes.")
+            }
+            #else
+            Section {
+                Text("Nothing to try on iPhone yet.").foregroundStyle(.secondary)
+            }
+            #endif
+        }
+    }
+}

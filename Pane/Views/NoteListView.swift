@@ -8,6 +8,8 @@ struct NoteListView: View {
     #if os(macOS)
     @Environment(\.listSidebarHidden) private var listSidebarHidden
     @Environment(\.columnsToolbarHidden) private var columnsToolbarHidden
+    /// Two columns (ColumnsLayout): the title is a menu that switches folders.
+    @Environment(\.pickScope) private var pickScope
     #endif
     let scope: Scope
     /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
@@ -658,6 +660,9 @@ struct NoteListView: View {
             // sometimes apart and sometimes together (Emil, 6 November 2026).
             // Not while a canvas has the window, nor from the list peeking in over it (CanvasFocus):
             // hidden items still took their room, and pushed the note's share and ••• to the middle.
+            if let pickScope, !columnsToolbarHidden {
+                ToolbarItem(placement: .navigation) { ListFolderMenu(scope: scope, title: title, pick: pickScope) }
+            }
             if !columnsToolbarHidden {
             ToolbarSpacer(.flexible)
             ToolbarItem {

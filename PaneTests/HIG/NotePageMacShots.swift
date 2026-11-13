@@ -56,6 +56,8 @@ import WebKit
         func want(_ scene: String) -> Bool { scenes?.contains(scene) ?? true }
         try await canvas(dir, want("canvas"))
         guard scenes != ["canvas"] else { return }
+        try await layouts(dir, want("layouts"))
+        guard scenes != ["layouts"] else { return }
         try await toolbar(dir, want("toolbar"))
         try await libraries(dir, want("lib"))
         try await training(dir, want("training"))
@@ -117,6 +119,40 @@ import WebKit
                 if !select { _ = try? await web.evaluateJavaScript("amber._canvas.api.setActiveTool({ type: 'rectangle' }); 1") }
             }
             try? await Task.sleep(for: .seconds(1.2))
+            try await MacStoreShots.shoot(dir, name, [("main", w)])
+        }
+    }
+
+    /// Settings › Experimental › Layout, each option with a text note open (Emil, 13 November 2026):
+    /// today's, narrower columns, Writing focus after a keystroke (the columns folded) and with the
+    /// list peeking in, and Two columns with its folder menu in the list's title.
+    func layouts(_ dir: URL, _ on: Bool) async throws {
+        guard on else { return }
+        let d = UserDefaults.standard
+        defer {
+            d.removeObject(forKey: ColumnsLayout.key)
+            CanvasEdgePeekFlag.startShown = false
+        }
+        for (name, layout, type, peek) in [("layout-today", ColumnsLayout.today, false, false), ("layout-narrow", .narrow, false, false),
+                                           ("layout-writing-focus", .writingFocus, true, false), ("layout-writing-peek", .writingFocus, true, true),
+                                           ("layout-two-columns", .twoColumns, false, false)] {
+            d.set(layout.rawValue, forKey: ColumnsLayout.key)
+            CanvasEdgePeekFlag.startShown = false
+            let c = try Self.library()
+            let w = await AppSnapshotTests.withLastNote(c, "Groceries") {
+                MacStoreShots.window(RootView().modelContainer(c).environment(SetupStore()), size: CGSize(width: 1440, height: 900), dark: false)
+            }
+            defer { w.orderOut(nil); w.close() }
+            try? await Task.sleep(for: .seconds(2))
+            // The list peeks in as the columns fold (CanvasEdgePeekFlag, pictures only).
+            CanvasEdgePeekFlag.startShown = peek
+            if type, let text = w.contentView.flatMap({ MacWindowChromeTests.find(PaneTextView.self, in: $0) }) {
+                w.makeFirstResponder(text)
+                text.setSelectedRange(NSRange(location: (text.string as NSString).length, length: 0))
+                text.insertText("\nEggs", replacementRange: text.selectedRange())
+                try? await Task.sleep(for: .seconds(1))
+            }
+            try? await Task.sleep(for: .seconds(1))
             try await MacStoreShots.shoot(dir, name, [("main", w)])
         }
     }
