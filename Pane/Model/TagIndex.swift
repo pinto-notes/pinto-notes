@@ -26,9 +26,10 @@ final class TagIndex {
         return made
     }
 
-    /// Tags for what's typed after a `#`.
+    /// Tags for what's typed after a `#`: only those that can be written that way (a label with a
+    /// space can't).
     func suggestions(_ typed: String, in context: ModelContext) -> [String] {
-        Tags.suggestions(typed, from: entries(in: context))
+        Tags.suggestions(typed, from: entries(in: context).filter { Tags.writable($0.name) })
     }
 
     /// The name a tag is listed by (its most common spelling), for a tag as written in a note.
@@ -36,8 +37,16 @@ final class TagIndex {
         entries(in: context).first { $0.name.lowercased() == tag.lowercased() }?.name ?? tag
     }
 
+    @ObservationIgnored private var experimentObserver: NSObjectProtocol?
+
     private func start(_ context: ModelContext) {
         self.context = context
+        // Tags on or off (Experiments): labels count, or don't, from now.
+        if experimentObserver == nil {
+            experimentObserver = NotificationCenter.default.addObserver(forName: Experiments.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { if let self, let c = self.context { self.load(c) } }
+            }
+        }
         if ((try? context.fetchCount(FetchDescriptor<Note>())) ?? 0) > LibraryNotes.readHere { loadElsewhere(context.container) } else { load(context) }
         if let observer { NotificationCenter.default.removeObserver(observer) }
         observer = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: context, queue: nil) { [weak self] n in
@@ -48,12 +57,16 @@ final class TagIndex {
         }
     }
 
-    /// A note's tags, read without Observation hearing of it. None for a note in Recently Deleted.
+    /// A note's tags, read without Observation hearing of it: its labels (NoteLabels) and the tags
+    /// written in its text. None for a note in Recently Deleted.
     nonisolated private static func tags(of note: Note) -> [String] {
         guard note.getValue(forKey: \.deletedAt) == nil, note.getValue(forKey: \.trashedAt) == nil else { return [] }
+        let labels = Experiments.isOn(.tags) ? NoteLabels.labels(in: note.getValue(forKey: \.frontMatter)) : []
         let body = note.getValue(forKey: \.body)
-        guard body.contains("#") else { return [] }
-        return Tags.names(in: body)
+        let written = body.contains("#") ? Tags.names(in: body) : []
+        guard !labels.isEmpty else { return written }
+        let have = Set(labels.map { $0.lowercased() })
+        return labels + written.filter { !have.contains($0.lowercased()) }
     }
 
     private func load(_ context: ModelContext) {
@@ -113,8 +126,18 @@ extension Tags {
     /// The notes a tag's list shows: live notes with the tag or one nested under it. The store
     /// finds the few whose text holds `#tag`; only those are read.
     static func noteIDs(tagged tag: String, in context: ModelContext) -> Set<PersistentIdentifier> {
-        let needle = "#" + tag
-        let found = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(needle) }))) ?? []
-        return Set(found.filter { has(tag, in: $0.getValue(forKey: \.body)) }.map(\.persistentModelID))
+        var out = Set<PersistentIdentifier>()
+        if writable(tag) {
+            let needle = "#" + tag
+            let found = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(needle) }))) ?? []
+            out.formUnion(found.filter { has(tag, in: $0.getValue(forKey: \.body)) }.map(\.persistentModelID))
+        }
+        // Labels: only notes with front matter have any, a few in most libraries. None with Tags off.
+        guard Experiments.isOn(.tags) else { return out }
+        let withProps = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.frontMatter != nil }))) ?? []
+        for n in withProps where NoteLabels.labels(in: n.getValue(forKey: \.frontMatter)).contains(where: { matches($0, tag) }) {
+            out.insert(n.persistentModelID)
+        }
+        return out
     }
 }

@@ -6,6 +6,7 @@ import TipKit
 import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
     @Environment(\.modelContext) private var context
     @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -1600,6 +1601,13 @@ struct NoteDetailView: View {
                     .transition(.opacity)
             }
             .sharedBackgroundVisibility(.hidden)
+        } else if tagsOn, !note.isLocked, !trashed, !NoteLabels.labels(in: note.frontMatter).isEmpty {
+            // The note's labels in the middle of the bar, where nothing else is: a tap shows the
+            // tag's notes.
+            ToolbarItem(placement: .principal) {
+                NoteLabelChips(labels: NoteLabels.labels(in: note.frontMatter), limit: 2) { controller.openTag($0) }
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
         // Undo, a round button of its own just left of Share and More (Emil, 29 October 2026): it
         // comes once you change the note and goes when there's nothing left since it opened.
@@ -2259,6 +2267,7 @@ struct NoteToolbarStage<Pane: View>: View {
 
     /// Back leads to the note before this one, and from the first note opened from a gallery to its cards.
     static func backGoesToGallery(canGoBack: Bool, inGallery: Bool) -> Bool { inGallery && !canGoBack }
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
     #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
@@ -2312,6 +2321,15 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, room: crumbRoom, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
+                    }
+                    // The note's labels, beside where it is: a click shows the tag's notes.
+                    if tagsOn, let place, !NoteLabels.labels(in: place.frontMatter).isEmpty {
+                        ToolbarItem {
+                            NoteLabelChips(labels: NoteLabels.labels(in: place.frontMatter)) { controller.openTag($0) }
+                                .padding(.leading, 4)
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
                     }
                     if let said = self.parts?.said {
                         ToolbarItem {

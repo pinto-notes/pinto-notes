@@ -24,6 +24,11 @@ struct NoteListView: View {
     #endif
     /// Lock Note or Remove Lock from a note's long-press or right-click menu (ListLockFlow).
     @State private var lockRequest: ListLockRequest?
+    /// New Tag… from a note's Tags menu: the notes it's for, while its question is up.
+    @State private var newTagFor: [UUID]?
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
+    /// The library's tags, for a note's Tags menu.
+    @Environment(TagIndex.self) private var tagIndex: TagIndex?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.undoManager) private var undoManager
     #if os(macOS)
@@ -229,9 +234,13 @@ struct NoteListView: View {
         case .all: "All Notes"
         case .trash: "Recently Deleted"
         case .folder(let id): context.folder(id)?.name ?? "Notes"
-        case .tag(let name): "#" + name
+        case .tag(let name): Self.tagTitle(name)
         }
     }
+
+    /// A tag's list is titled as the sidebar lists it: its name, without a `#` (a label such as
+    /// "Needs review" was never written with one).
+    static func tagTitle(_ name: String) -> String { name }
 
     var body: some View {
         #if DEBUG || QA
@@ -426,6 +435,7 @@ struct NoteListView: View {
         // folder still starts at its top (ShowsSelectedRow). A search stays the same list: a new
         // one took the keys away from the search field.
         .modifier(ListLockFlow(request: $lockRequest))
+        .modifier(NewTagAlert(notes: $newTagFor))
         .modifier(ShowsSelectedRow(selected: selection.count == 1 ? selection.first : nil, scope: scope, row: rowOf))
         // A new "Today" with its first note: measured, not left at the table's guess.
         .modifier(MeasuresNewSections(headings: noteSections?.map(\.0) ?? mixedSections?.map(\.0) ?? []))
@@ -451,6 +461,7 @@ struct NoteListView: View {
             }
         }
         .modifier(ListLockFlow(request: $lockRequest))
+        .modifier(NewTagAlert(notes: $newTagFor))
         // Offline: a quiet line over the bottom bar (the Mac says it in the sidebar).
         .safeAreaInset(edge: .bottom, spacing: 0) { OfflineLine(sync: sync).animation(.easeOut(duration: 0.25), value: sync?.reach) }
         #endif
@@ -977,7 +988,7 @@ struct NoteListView: View {
     /// A note's long-press menu (NoteRowMenu): Share, Move and Delete in a row, then the rest.
     @ViewBuilder
     private func rowMenu(for note: Note) -> some View {
-        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
+        let groups = NoteRowMenu.groups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared, tags: tagsOn)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i == 0 && note.trashedAt == nil {
                 ControlGroup { ForEach(group, id: \.self) { rowItem($0, note) } }
@@ -1018,6 +1029,8 @@ struct NoteListView: View {
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("row.recover")
+        case .tags:
+            tagsMenu([note])
         case .openInNewWindow, .history:
             // The Mac's (NoteRowMenu.macGroups).
             EmptyView()
@@ -1174,6 +1187,7 @@ struct NoteListView: View {
                 Menu("Move \(notes.count) Notes to", systemImage: "folder") {
                     FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { _ = context.move(notes, to: f, undo: undoManager) } }
                 }
+                if tagsOn, !NoteTagsMenu.taggable(notes).isEmpty { tagsMenu(NoteTagsMenu.taggable(notes)) }
                 Divider()
                 DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
             }
@@ -1183,7 +1197,7 @@ struct NoteListView: View {
     /// A note's right-click menu and its ••• on the Mac (NoteRowMenu.macGroups), in groups.
     @ViewBuilder
     private func menu(for note: Note, folders: [Folder]) -> some View {
-        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared)
+        let groups = NoteRowMenu.macGroups(locked: note.isLocked, trashed: note.trashedAt != nil, shared: note.isShared, tags: tagsOn)
         ForEach(Array(groups.enumerated()), id: \.offset) { i, group in
             if i > 0 { Divider() }
             ForEach(group, id: \.self) { macItem($0, note, folders: folders) }
@@ -1226,8 +1240,17 @@ struct NoteListView: View {
             .accessibilityIdentifier("row.history")
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
+        case .tags:
+            tagsMenu([note])
         case .delete:
             deleteButton(note)
+        }
+    }
+
+    /// Tags for the notes: each library tag to tick, and New Tag….
+    private func tagsMenu(_ notes: [Note]) -> some View {
+        NoteTagsMenu(notes: notes, entries: tagIndex?.entries(in: context) ?? []) {
+            newTagFor = notes.map(\.id)
         }
     }
 
@@ -2381,6 +2404,7 @@ struct NoteRow: View {
     var pinnedHeading = false
     /// The open note's row: its title shows while privacy mode blurs the others (Mac).
     var open = false
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
 
     /// The date the row shows: the one the list is sorted by, which is the date edited unless
     /// the list is sorted by date created.
@@ -2414,6 +2438,7 @@ struct NoteRow: View {
         let picture = Self.picture(of: note)
         let found = self.found
         let titleBlurred = ListTitleReveal.blurs(privacyOn: PrivacyMode.shared.isOn, open: open, revealed: reveal?.shown ?? false)
+        let labels = tagsOn ? NoteLabels.labels(in: note.frontMatter) : []
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 HStack(spacing: 5) {
@@ -2507,6 +2532,12 @@ struct NoteRow: View {
                     }
                     .font(RowMetrics.detail)
                     .previewBlur()
+                }
+                // The note's labels, from its right-click (NoteLabels): a line of their own, only
+                // on notes that have some.
+                if !labels.isEmpty {
+                    NoteLabelChips(labels: labels, compact: true)
+                        .padding(.top, 2)
                 }
                 if folderLine, let f = note.folder {
                     HStack(spacing: DesignLook.calmList ? 4 : 5) {

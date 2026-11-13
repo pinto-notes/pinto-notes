@@ -112,7 +112,7 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         var base = super.renderingSurfaceBounds.union(foldSurface)
         // The seam mark sits in the margin, like a heading's chevron.
         if let (gap, _) = removalMark { base = base.union(removalRect(gap, at: .zero).insetBy(dx: -2, dy: -2)) }
-        guard decoration != nil || highlighted || hasDates else { return base }
+        guard decoration != nil || highlighted || hasDates || hasTagLabels else { return base }
         let left = -layoutFragmentFrame.minX
         let lead = highlighted ? Self.changeLead : 4
         return base.union(CGRect(x: left - lead, y: -14, width: containerWidth + lead + 4, height: layoutFragmentFrame.height + 28))
@@ -462,6 +462,11 @@ final class DecoratedLayoutFragment: NSTextLayoutFragment {
         if let d = decoration {
             context.saveGState()
             drawDecoration(d, at: point, in: context)
+            context.restoreGState()
+        }
+        if hasTagLabels {
+            context.saveGState()
+            drawTagLabels(at: point, in: context)
             context.restoreGState()
         }
         if hasHighlights {

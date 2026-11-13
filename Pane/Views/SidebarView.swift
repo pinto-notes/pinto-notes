@@ -280,6 +280,8 @@ extension View {
 }
 
 enum SidebarStyle {
+    /// A tag's coloured dot sits in the width of a folder's icon, so the names line up.
+    static let tagDotWidth: CGFloat = 20
     /// iPhone: your photo at the top left of the folders. As big as the bar's round glass buttons,
     /// filling the same 44 pt target, so its edge sits as far from the screen's as theirs (Emil,
     /// 11 November 2026: a 38 pt photo in it sat 3 pt further in and looked smaller).

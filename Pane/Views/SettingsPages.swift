@@ -2183,9 +2183,10 @@ struct ExperimentalSettingsPage: View {
     /// Read so the switches redraw when one changes.
     @AppStorage(Experiment.covers.key) private var coversOn = false
     @AppStorage(Experiment.gallery.key) private var galleryOn = false
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
 
     var body: some View {
-        let _ = (coversOn, galleryOn)
+        let _ = (coversOn, galleryOn, tagsOn)
         SettingsPageForm {
             Section {
                 ForEach(Experiment.allCases) { e in

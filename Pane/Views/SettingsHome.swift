@@ -220,6 +220,7 @@ enum SettingsIndex {
         e(GeneralCopy.importNotes, .general, "settings.importNotes", also: ["Import", "Import notes", "Apple Notes", "Obsidian", "Notion", "Bear", "Evernote"]),
         e("Covers and icons", .experimental, "settings.experiment.covers", also: ["Cover", "Icon", "Emoji", "Experimental", "Beta"]),
         e("Gallery view", .experimental, "settings.experiment.gallery", also: ["Gallery", "Cards", "View as Gallery", "Experimental", "Beta"]),
+        e("Tags", .experimental, "settings.experiment.tags", also: ["Labels", "Tag colours", "Tag colors", "Experimental", "Beta"]),
         e("Ticked items move to the bottom", .general, "settings.notes.ticked", also: ["Checklist", "Sort checked items", "Ticked"]),
         e("Share diagnostics and usage", .security, "settings.diagnostics"),
         e(PrivacyWords.name, .security, "settings.privacyMode", also: ["Privacy mode", "Blur", "Screen sharing", "Screen recording", "Meetings", "Previews", "Calls", "Teams", "Meet", "Zoom"]),

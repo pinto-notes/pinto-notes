@@ -10,6 +10,8 @@ enum Experiment: String, CaseIterable, Identifiable {
     case covers
     /// A folder as a gallery of cards led by their pictures (FolderGallery).
     case gallery
+    /// Labels on notes from their right-click, in colours, and the colours of #tags.
+    case tags
 
     var id: String { rawValue }
     /// Its switch's UserDefaults key (also an `-experiment.covers YES` launch argument for tests).
@@ -19,6 +21,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         switch self {
         case .covers: "Covers and icons"
         case .gallery: "Gallery view"
+        case .tags: "Tags"
         }
     }
 
@@ -26,6 +29,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         switch self {
         case .covers: "Give a note a cover photo and an icon, from the buttons by its title."
         case .gallery: "Show a folder as cards with each note\u{2019}s cover or first picture, from the list\u{2019}s menu."
+        case .tags: "Put coloured labels on notes from their right-click. Tags show their colours in notes and the sidebar."
         }
     }
 
@@ -33,12 +37,13 @@ enum Experiment: String, CaseIterable, Identifiable {
         switch self {
         case .covers: "photo.artframe"
         case .gallery: "square.grid.2x2"
+        case .tags: "tag"
         }
     }
 }
 
 enum Experiments {
-    /// Posted when a switch changes: open notes draw their covers and icons again.
+    /// Posted when a switch changes: open notes draw their covers, icons and tags again, the sidebar counts again.
     static let didChange = Notification.Name("pane.experiments.didChange")
 
     /// Whether `experiment` is on, from any thread (the editor's styling asks off the main actor).
@@ -50,5 +55,7 @@ enum Experiments {
         guard isOn(experiment, defaults: defaults) != on else { return }
         defaults.set(on, forKey: experiment.key)
         NotificationCenter.default.post(name: didChange, object: nil)
+        // Open notes draw their tags again.
+        NotificationCenter.default.post(name: TagColors.didChange, object: nil)
     }
 }
