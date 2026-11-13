@@ -221,6 +221,8 @@ struct PaneApp: App {
                     .connectHandler(backend: backend)
                     // A note's link opened in the app joins the note (after sign-in, if need be).
                     .joinLinkHandler()
+                    // Privacy mode's cover, when your screen is shared.
+                    .privacyCover()
                     .followsTheme()
                     .followsAppearanceMode(pinned: Self.testScheme)
             }
@@ -320,6 +322,7 @@ private struct SideWindow: ViewModifier {
             .environment(backend)
             .environment(sync)
             .environment(\.networkReach, sync.reach)
+            .privacyCover()
             .followsTheme()
             .followsAppearanceMode(pinned: nil)
     }

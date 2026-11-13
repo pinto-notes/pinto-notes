@@ -482,4 +482,20 @@ extension View {
     func privateBlur(_ text: String, revealsOnTap: Bool = false) -> some View {
         modifier(PrivateBlur(on: PrivateBlur.hides(text), revealsOnTap: revealsOnTap))
     }
+
+    /// A note's title or words, blurred while privacy mode is on (PrivacyMode), with the email's
+    /// blur: the same radius, shown under the pointer (or, where it can be, with a tap on iPhone).
+    func privacyBlur(revealsOnTap: Bool = false) -> some View {
+        modifier(PrivacyBlur(revealsOnTap: revealsOnTap))
+    }
+}
+
+/// `privacyBlur()`: PrivateBlur, on while privacy mode is.
+struct PrivacyBlur: ViewModifier {
+    var revealsOnTap = false
+    @State private var mode = PrivacyMode.shared
+
+    func body(content: Content) -> some View {
+        content.modifier(PrivateBlur(on: mode.isOn, revealsOnTap: revealsOnTap))
+    }
 }

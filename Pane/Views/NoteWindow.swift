@@ -60,7 +60,8 @@ struct NoteWindowView: View {
         // The window keeps its name (the Window menu, Mission Control) but doesn't show it: shown,
         // it took the bar's room and pushed Share and More into a » menu (Emil, 3 November 2026).
         .toolbar(removing: .title)
-        .navigationTitle(note.map { $0.title.isEmpty ? "New Note" : $0.title } ?? "")
+        // Privacy mode: the window's title doesn't name the note either.
+        .navigationTitle(PrivacyMode.shared.isOn ? PrivacyWords.hidden : note.map { $0.title.isEmpty ? "New Note" : $0.title } ?? "")
         .frame(minWidth: 480, minHeight: 360)
     }
 

@@ -1480,6 +1480,10 @@ struct PaneCommands: Commands {
             Button("\(AIChangeCopy.title)\u{2026}") { AIChangesCenter.shared.show() }
                 .keyboardShortcut("a", modifiers: [.command, .option])
                 .disabled(AIChangesCenter.shared.store == nil)
+            // Blurs the notes on screen (PrivacyMode). ⌃⌘P: nothing else in the app or macOS has it;
+            // ⌘P is Print. Ticked while on.
+            Toggle(PrivacyWords.menuTitle, isOn: Binding(get: { PrivacyMode.shared.isOn }, set: { _ in PrivacyMode.shared.toggle() }))
+                .keyboardShortcut("p", modifiers: [.command, .control])
         }
         CommandGroup(after: .help) {
             // The website's changes page: release notes are never shown in the app by themselves.

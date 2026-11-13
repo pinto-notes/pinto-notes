@@ -67,7 +67,8 @@ struct ChecklistProvider: AppIntentTimelineProvider {
 
     func snapshot(for configuration: ChecklistWidgetIntent, in context: Context) async -> ChecklistEntry {
         let content = ChecklistWidgetContent.resolve(picked: configuration.list?.id, lists: ChecklistShelf.lists(),
-                                                     previews: ChecklistShelf.previews(), recents: ChecklistShelf.recents())
+                                                     previews: ChecklistShelf.previews(), recents: ChecklistShelf.recents(),
+                                                     hidden: ChecklistShelf.privacy().hidden)
         // A note the app hasn't left yet: asked for, so it does the next time it runs.
         if case .waiting(let id, _) = content { ChecklistShelf.want(id) }
         // The widget gallery, before the app has left any list: the sample.

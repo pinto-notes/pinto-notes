@@ -17,6 +17,8 @@ enum ChecklistWidgetContent: Equatable, Sendable {
     case noLists
     /// The note picked for this widget is locked or deleted.
     case gone
+    /// Privacy mode is on in the app: nothing of the note shows (PrivacyMode).
+    case hidden
 
     /// The widget's kind; the app redraws it by this (ModelContext.checklistWidgetKind).
     static let kind = "ChecklistWidget"
@@ -24,7 +26,8 @@ enum ChecklistWidgetContent: Equatable, Sendable {
     /// The picked note: as a checklist when it has one, else its lines. With none picked, a
     /// pinned checklist or the newest, else the newest note.
     static func resolve(picked: UUID?, title: String? = nil, lists: [ChecklistShelf.List],
-                        previews: [ChecklistShelf.Preview] = [], recents: [ChecklistShelf.Recent] = []) -> Self {
+                        previews: [ChecklistShelf.Preview] = [], recents: [ChecklistShelf.Recent] = [], hidden: Bool = false) -> Self {
+        if hidden { return .hidden }
         if let picked {
             if let l = lists.first(where: { $0.id == picked }) { return .list(l) }
             if let n = previews.first(where: { $0.id == picked }) { return .note(n) }
@@ -129,6 +132,9 @@ struct ChecklistWidgetView: View {
         case .gone:
             // Opens the app on its list.
             message(QuickWords.listGone, QuickWords.listGoneLine)
+        case .hidden:
+            message(PrivacyWords.hidden, PrivacyWords.hiddenLine, symbol: "eye.slash")
+                .accessibilityIdentifier("widget.hidden")
         }
     }
 
@@ -169,9 +175,9 @@ struct ChecklistWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func message(_ title: String, _ line: String) -> some View {
+    private func message(_ title: String, _ line: String, symbol: String = "note.text") -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: "note.text")
+            Image(systemName: symbol)
                 .font(.system(size: 22, weight: .regular))
                 .foregroundStyle(ChecklistWidgetView.accent)
                 .widgetAccentable()

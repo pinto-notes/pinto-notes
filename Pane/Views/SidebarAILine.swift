@@ -120,6 +120,8 @@ struct SidebarAILine: View {
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
                         .truncationMode(.tail)
+                        // It names the note (privacy mode).
+                        .privacyBlur()
                     under()
                         .font(.system(size: 11))
                         .foregroundStyle(Color.muted)

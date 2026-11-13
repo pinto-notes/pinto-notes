@@ -1578,6 +1578,11 @@ struct NoteDetailView: View {
         if let collab {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
+        // Privacy mode is on: the eye says so, and a tap turns it off.
+        if PrivacyMode.shared.isOn {
+            ToolbarItem(placement: .primaryAction) { PrivacyEyeButton().tint(.primary) }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
         // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
         ToolbarItemGroup(placement: .primaryAction) {
             // Ask an AI about this note, beside Share (round 2 of the councils), when one is connected.
@@ -2194,6 +2199,11 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
                 }
+                // Privacy mode is on: the eye says so, and a click turns it off.
+                if PrivacyMode.shared.isOn {
+                    if self.parts == nil { ToolbarSpacer(.flexible) }
+                    ToolbarItem { PrivacyEyeButton().buttonStyle(.barIcon) }
+                }
             }
     }
 }
@@ -2450,6 +2460,7 @@ struct NoteBreadcrumbs: View {
                     .padding(.horizontal, ButtonSize.compact.padding * 0.75)
                     // Room kept for it all the time now, so a long title can't crowd out Share and •••.
                     .frame(maxWidth: Self.titleWidth, alignment: .leading)
+                    .privacyBlur()
             }
             .opacity(titled ? 1 : 0)
             .accessibilityHidden(!titled)

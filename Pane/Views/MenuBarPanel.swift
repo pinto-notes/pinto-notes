@@ -18,6 +18,7 @@ struct MenuBarPanel: View {
     @State private var saved: String?
     @State private var savedToken = 0
     @FocusState private var fieldFocused: Bool
+    @State private var privacy = PrivacyMode.shared
 
     init(backend: Backend, sync: SyncEngine?, query: String = "") {
         self.backend = backend
@@ -166,7 +167,7 @@ struct MenuBarPanel: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16))
                 .foregroundStyle(.green)
-            Text("Saved \u{201C}\(title)\u{201D}")
+            Text(MenuBarList.savedLine(title, hidden: privacy.isOn))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 0)
@@ -203,8 +204,9 @@ struct MenuBarPanel: View {
                         Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.secondary)
                     }
                     Text(note.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                        .privacyBlur()
                 }
-                Text(note.preview.isEmpty ? "No additional text" : note.preview)
+                Text(MenuBarList.previewLine(note.preview, hidden: privacy.isOn))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
