@@ -10,7 +10,7 @@ export function themeFor(path: string): "cream" | "leaf" | "connect" | null {
   if (/^\/(open\/)?connect(\/|$)/.test(path)) return "connect";
   if (/^\/(changelog|support|help|privacy|terms)(\/|$)/.test(path)) return "leaf";
   // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in
-  // dark. The home page studies (/lab/home-d to -m) are cream like the home page: the home page is never dark.
+  // dark. The home page studies (/lab/home-d to -o) are cream like the home page: the home page is never dark.
   if (/^\/lab(\/|$)/.test(path) && !/^\/lab\/(home-[d-o]|hero-lab|home)(\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
   return "cream";
 }
