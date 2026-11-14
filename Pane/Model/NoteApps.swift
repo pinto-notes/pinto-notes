@@ -11,6 +11,17 @@ import Foundation
 enum NoteApps {
     static let key = "noteApps"
 
+    /// A web project's folder dropped on a note (its text or its app, on the Mac) becomes the note's
+    /// app as it's built, the way a site's folder opens in a browser. The app it replaces stays in
+    /// Previous App. Not for a locked, deleted or shared note, as Make It an App isn't.
+    @MainActor static func takeFolder(_ url: URL, for note: Note, store: NotePageStore = .shared, enabled: Bool = enabled) throws {
+        guard enabled, !note.isLocked, note.trashedAt == nil, !note.isShared else {
+            throw NotePageProject.FolderError("This note can't have an app.")
+        }
+        let project = try NotePageProject.folder(url)
+        store.setHere(note.id, .init(html: project.stored, by: "You", at: .now))
+    }
+
     static let enabled: Bool = {
         let defaults = UserDefaults.standard
         return isEnabled(setting: defaults.object(forKey: key) == nil ? nil : defaults.bool(forKey: key))

@@ -116,7 +116,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.dataDetectorTypes = []
         config.allowsInlineMediaPlayback = false
         #endif
-        webView = WKWebView(frame: .zero, configuration: config)
+        webView = NotePageWebView(frame: .zero, configuration: config)
         super.init()
         scheme.owner = self
         // Through a weak proxy: the content controller keeps its handlers alive, and the sandbox
@@ -580,6 +580,37 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
 /// A note's page on screen. Rebuilt when the page changes; the note's text goes in as it changes.
 /// While the page loads, the picture of it from last time shows in its place.
+/// The app's web view. On the Mac, a web project's folder dropped on the app replaces it, as on the
+/// note's text; any other drop is the page's, as on any web page.
+final class NotePageWebView: WKWebView {
+    var onAppFolder: ((URL) -> Bool)?
+
+    #if os(macOS)
+    private func appFolder(_ info: NSDraggingInfo) -> URL? {
+        guard onAppFolder != nil else { return nil }
+        let urls = (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        return NotePageProject.appFolder(in: urls)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        appFolder(sender) != nil ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        appFolder(sender) != nil ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        appFolder(sender) != nil || super.prepareForDragOperation(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if let folder = appFolder(sender), let take = onAppFolder { return take(folder) }
+        return super.performDragOperation(sender)
+    }
+    #endif
+}
+
 struct NotePageView: View {
     let noteID: UUID
     let html: String
@@ -596,6 +627,8 @@ struct NotePageView: View {
     var files: @MainActor (UUID) -> URL? = { _ in nil }
     /// A field in the app has focus, or not.
     var onFocus: (Bool) -> Void = { _ in }
+    /// A web project's folder dropped on the app (Mac): nil where a drop can't replace it.
+    var onAppFolder: ((URL) -> Bool)?
     /// What Amber's own things cover at the bottom of the app (see NotePageSandbox.setInsets).
     var insetBottom: CGFloat = 0
     /// A preview's own data (the template library), in place of the note's stored data. It keeps
@@ -671,6 +704,7 @@ struct NotePageView: View {
                 }
                 s.onFailure = onFailure
                 s.onFocus = onFocus
+                (s.webView as? NotePageWebView)?.onAppFolder = onAppFolder
                 s.onData = onData
                 s.files = files
                 s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)

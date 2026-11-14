@@ -847,6 +847,7 @@ struct NoteDetailView: View {
                                          if held.at.timeIntervalSinceNow > -3 { showPageReceipt(held) }
                                      }
                                  },
+                                 onAppFolder: { takeAppFolder($0) },
                                  insetBottom: pageInsetBottom)
                         .id(note.id)
                         .opacity(showingPage ? 1 : 0)
@@ -1021,6 +1022,19 @@ struct NoteDetailView: View {
     }
 
     /// A page an AI made or changed while the note is open: show it, say who, offer Undo.
+    /// A web project's folder dropped on the note: it becomes the note's app, shown with the same
+    /// receipt and Undo as an app an AI made. What can't be an app says why.
+    private func takeAppFolder(_ url: URL) -> Bool {
+        do {
+            try NoteApps.takeFolder(url, for: note)
+        } catch {
+            controller.notice = EditorNotice(text: "\u{201C}\(url.lastPathComponent)\u{201D} can't be this note's app. \(error.localizedDescription)")
+            return false
+        }
+        pageArrived(NotePageStore.shared.live(note.id))
+        return true
+    }
+
     private func pageArrived(_ now: NotePageStore.Page?) {
         guard NoteApps.enabled else { return }
         let before = shownPage
@@ -1474,6 +1488,7 @@ struct NoteDetailView: View {
             guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return [] }
             return context.addAttachments(urls)
         }
+        controller.dropAppFolder = { url in takeAppFolder(url) }
         controller.addData = { data, name, type in
             guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return nil }
             guard let a = try? FileStore.importData(data, filename: name, type: type) else { return nil }

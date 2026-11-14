@@ -139,6 +139,14 @@ struct NotePageProject: Equatable {
         return p
     }
 
+    /// The one dropped item that is a web project's folder (index.html at its top), or nil.
+    static func appFolder(in urls: [URL]) -> URL? {
+        guard urls.count == 1, let url = urls.first, url.isFileURL,
+              (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+              FileManager.default.fileExists(atPath: url.appending(path: "index.html").path) else { return nil }
+        return url
+    }
+
     /// The HTML of the app's page (for what it declares in <meta> tags).
     static func entryHTML(_ stored: String) -> String {
         guard isProject(stored) else { return stored }
