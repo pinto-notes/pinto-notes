@@ -230,6 +230,8 @@ struct CanvasState: Equatable, Sendable {
     var busy = false
     /// Text is being typed on the canvas.
     var editing = false
+    /// A picture's crop handles are showing.
+    var cropping = false
     var strokeColor = "#2a1d10"
     var backgroundColor = "transparent"
     var fillStyle = "solid"
@@ -275,6 +277,7 @@ struct CanvasState: Equatable, Sendable {
         }
         selection = (m["selection"] as? [String]) ?? []
         editing = (m["editing"] as? Bool) ?? false
+        cropping = (m["cropping"] as? Bool) ?? false
         busy = (m["busy"] as? Bool) ?? false
         if let b = m["bounds"] as? [String: Any], let x = (b["x"] as? NSNumber)?.doubleValue, let y = (b["y"] as? NSNumber)?.doubleValue,
            let w = (b["width"] as? NSNumber)?.doubleValue, let h = (b["height"] as? NSNumber)?.doubleValue {
@@ -331,6 +334,8 @@ enum CanvasCommand: Equatable, Sendable {
         case undo, redo, bringToFront, sendToBack, bringForward, sendBackward, duplicate, delete, selectAll
         case zoomIn, zoomOut, resetZoom, zoomToFit, clear
         case alignLeft, alignCenter, alignRight, alignTop, alignMiddle, alignBottom, distributeHorizontally, distributeVertically
+        /// A picture's crop handles (the selected picture).
+        case crop
     }
     enum StyleKey: String, Sendable {
         case strokeColor, backgroundColor, fillStyle, strokeWidth, strokeStyle, opacity, fontFamily, fontSize, startArrowhead, endArrowhead, arrowType
@@ -359,6 +364,8 @@ enum CanvasCommand: Equatable, Sendable {
     case image(CanvasImage, at: CGPoint?)
     /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
     case sticky
+    /// Ends cropping a picture, keeping the crop.
+    case cropDone
     /// Present: start (the first frame), next, previous, stop.
     case present(Present)
     enum Present: String, Sendable { case start, next, prev, stop }
@@ -382,6 +389,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .background(let c): ["op": "background", "color": c]
         case .insert(let t, let title): ["op": "insert", "elements": t.elements(titled: title)]
         case .sticky: ["op": "sticky"]
+        case .cropDone: ["op": "cropDone"]
         case .present(let to): ["op": "present", "to": to.rawValue]
         case .cards(let info): ["op": "cards", "info": info.mapValues(\.payload)]
         case .addCards(let cards, let at):

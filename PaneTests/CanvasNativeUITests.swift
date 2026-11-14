@@ -493,6 +493,15 @@ import UIKit
         #expect((left ?? 0) >= 520, "right of the box and arrow: \(left ?? -1)")
         let b = try #require(j.canvas.state.bounds)
         #expect(b.minX >= 0 && b.maxX <= 900 && b.minY >= 0 && b.maxY <= 600, "in view: \(b)")
+        // Crop (round 6: "pasted screenshots almost always need trimming"): the handles, then Done keeps it.
+        j.canvas.run(.crop)
+        await j.until("cropping") { j.canvas.state.cropping }
+        #expect(try await j.js("(() => { const s = amber._canvas.api.getAppState(), i = amber._canvas.api.getSceneElements().find((e) => e.type === 'image'); return s.croppingElementId === i.id; })()") as? Bool == true)
+        _ = try await j.js("(() => { const api = amber._canvas.api, i = api.getSceneElements().find((e) => e.type === 'image'); api.updateScene({ elements: api.getSceneElements().map((e) => e.id === i.id ? { ...e, width: e.width / 2, crop: { x: 0, y: 0, width: 1600, height: 2000, naturalWidth: 3200, naturalHeight: 2000 }, version: e.version + 1 } : e) }); return 0; })()")
+        j.canvas.send(.cropDone)
+        await j.until("done cropping") { !j.canvas.state.cropping }
+        #expect(j.canvas.state.selection == ["image"], "the picture stays selected")
+        #expect(try await j.js("!!amber._canvas.scene().elements.find((e) => e.type === 'image').crop") as? Bool == true, "the crop is saved")
         // A save the store refuses is said, not lost quietly.
         j.canvas.receive(["error": "Not saved: too big"])
         #expect(j.canvas.notice == "Not saved: too big")
@@ -2131,6 +2140,10 @@ import UIKit
                     canvas.send(.image(picture, at: nil))
                     await MacWindowChromeTests.settle(w, 15)
                     try await shot("11-pasted-screenshot", w, web)
+                    canvas.run(.crop)
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("11-cropping", w, web)
+                    canvas.send(.cropDone)
                     try await js("const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElementsIncludingDeleted().filter((e) => e.type !== 'image'), appState: { selectedElementIds: {} } })")
                 }
                 // An AI draws an approval flow next to it, as an MCP write arrives through sync.

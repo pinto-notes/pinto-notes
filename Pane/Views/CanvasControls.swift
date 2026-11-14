@@ -804,6 +804,12 @@ struct CanvasSelectionBar: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
             }
             HStack(spacing: 2) {
+                if state.cropping {
+                    textButton(Self.doneCropping, symbol: "checkmark", id: "canvas.bar.cropDone") { canvas.send(.cropDone) }
+                } else {
+                if state.selection == ["image"] {
+                    textButton(Self.crop, symbol: "crop", id: "canvas.bar.crop") { canvas.run(.crop) }
+                }
                 if let card = state.card {
                     Button { canvas.openCard(card.note) } label: {
                         Label(Self.openNote, systemImage: "doc.text")
@@ -869,6 +875,7 @@ struct CanvasSelectionBar: View {
                     Button("Send to Back", systemImage: "square.3.layers.3d.bottom.filled") { canvas.run(.sendToBack) }
                 }
                 menuButton("More", symbol: "ellipsis", id: "canvas.bar.more") { CanvasMoreItems(canvas: canvas) }
+                }
             }
             .padding(4)
             // Solid, as a menu is: over a drawing, glass let the lines behind run through the
@@ -884,6 +891,24 @@ struct CanvasSelectionBar: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Selection")
         .accessibilityIdentifier("canvas.selectionBar")
+    }
+
+    static let crop = "Crop"
+    static let doneCropping = "Done"
+
+    /// A named action on the bar (Crop, Done), as Open Note is.
+    private func textButton(_ title: String, symbol: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.ink)
+                .padding(.horizontal, 10)
+                .frame(height: 34)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .hoverHighlight(Capsule())
+        .accessibilityIdentifier(id)
     }
 
     private func chip(_ which: Tray, @ViewBuilder label: () -> some View) -> some View {

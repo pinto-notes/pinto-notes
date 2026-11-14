@@ -130,6 +130,8 @@ const ACTIONS = {
   alignLeft: "alignLeft", alignCenter: "alignHorizontallyCentered", alignRight: "alignRight",
   alignTop: "alignTop", alignMiddle: "alignVerticallyCentered", alignBottom: "alignBottom",
   distributeHorizontally: "distributeHorizontally", distributeVertically: "distributeVertically",
+  // A picture's crop handles (round 6: "pasted screenshots almost always need trimming").
+  crop: "cropEditor",
 };
 const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser", "frame", "laser"]);
 
@@ -550,6 +552,7 @@ export function stateOf(api, app) {
   const steps = presenting ? presentSteps(api) : null;
   return {
     tool: s.activeTool && s.activeTool.type,
+    cropping: !!s.croppingElementId,
     present: steps ? (() => {
       const i = Math.min(presenting.index, steps.length - 1), f = steps[i].id && api.getSceneElements().find((e) => e.id === steps[i].id);
       // Where the frame is on screen: the app covers the rest, so only this frame shows (round 6:
@@ -739,6 +742,10 @@ function bridge(api) {
       }
       case "sticky":
         addSticky(api);
+        break;
+      case "cropDone":
+        // The crop stays as dragged; the picture stays selected.
+        api.updateScene({ appState: { croppingElementId: null, isCropping: false }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
         break;
       case "present":
         present(api, c.to);
