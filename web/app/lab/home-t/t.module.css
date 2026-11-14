@@ -1,0 +1,242 @@
+/* Study T: one note becomes everything. Colours: the site's cream page, the note's white paper, the
+   site's ink and muted brown, the brand orange for your ticks, ChatGPT's green for its marks. */
+
+.main { --ink: #2a1d10; --muted: #74604c; --faint: #a8998a; --paper: #fffdfa; --amber: #f0901a; --gpt: #10a37f;
+  --hdr: 84px; color: var(--ink); }
+@media (max-width: 760px) { .main { --hdr: 72px; } }
+
+/* ── The stage ── */
+.story { position: relative; height: calc((100svh - var(--hdr)) * 6); }
+.pin { position: sticky; top: var(--hdr); height: calc(100svh - var(--hdr)); padding: 0 16px 16px; box-sizing: border-box; }
+.sheet { position: relative; height: 100%; border-radius: 32px; background: var(--paper); overflow: hidden; isolation: isolate;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.07), 0 1px 2px rgba(80, 45, 10, 0.05), 0 30px 70px -40px rgba(60, 30, 5, 0.3); }
+@media (max-width: 760px) { .pin { padding: 0 8px 8px; } .sheet { border-radius: 26px; } }
+
+.cv { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(var(--kd, 1)); transform-origin: 50% 50%; }
+.cvP { transform: translate(-50%, -50%) scale(var(--kp, 1)); }
+.cvP { display: none; }
+@media (max-aspect-ratio: 5/6), (max-width: 640px) { .cvD { display: none; } .cvP { display: block; } }
+.cv [data-k] { will-change: transform, opacity; }
+.cv > * { position: absolute; margin: 0; }
+/* Until the script runs, everything after the hero waits (no JS: see .noJs below). */
+.sheet:not([data-live]) .cv [data-k]:not([data-k="h1"]):not([data-k="heroRest"]):not([data-k="date"]):not([data-k^="r"]):not([data-k="note"]) { opacity: 0; }
+
+/* The whiteboard's dots, across the whole sheet. */
+.grid { inset: -900px; background-image: radial-gradient(circle, rgba(60, 40, 20, 0.2) 1.3px, transparent 1.6px); background-size: 26px 26px; transform-origin: 50% 50%; }
+.date { left: 0; right: 0; top: 26px; text-align: center; font-size: 14px; font-weight: 600; color: var(--faint); }
+.tools { left: 50%; top: 18px; margin-left: -190px; width: 380px; height: 48px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 6px 18px -8px rgba(0, 0, 0, 0.18); }
+.tools svg { width: 38px; height: 38px; padding: 9px; box-sizing: border-box; border-radius: 9px; fill: none; stroke: #2a2a2a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tools svg[data-on] { background: #e3e2fe; stroke: #4a47b1; }
+.tools span { width: 38px; text-align: center; font-size: 15px; font-weight: 600; color: #2a2a2a; }
+
+/* ── 0. The headline ── */
+.hero { left: 72px; top: 112px; width: 1150px; }
+.h1 { margin: 0; font-size: 128px; line-height: 0.98; font-weight: 700; letter-spacing: -0.038em; color: var(--ink); }
+.w { display: inline-block; }
+.ai { position: relative; display: inline-block; }
+.aiIn { position: relative; display: inline-block; }
+.aiIn::before { content: ""; position: absolute; inset: 0.1em -0.06em 0.02em; border-radius: 0.08em; background: rgba(16, 163, 127, 0.17); transform-origin: 0 50%; opacity: 0; }
+.flag { position: absolute; left: 100%; top: 0.1em; margin-left: 0.04em; height: 0.82em; }
+.flag i { position: absolute; left: 0; top: 0; width: 5px; height: 100%; border-radius: 3px; background: var(--gpt); }
+.flag em { position: absolute; left: 2px; top: 100%; margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 9px; border-radius: 9px;
+  background: var(--gpt); color: #fff; font: 600 15px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; letter-spacing: 0; font-style: normal; white-space: nowrap; }
+.flag em svg { fill: #fff; }
+.heroRest { margin-top: 44px; }
+.sub { margin: 0 0 30px; max-width: 720px; font-size: 25px; line-height: 1.38; font-weight: 500; letter-spacing: -0.01em; color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .w { animation: wordIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(0.08s + var(--i) * 0.11s); }
+  .aiIn { animation: aiIn 0.12s linear 0.66s both; }
+  .aiIn::before { animation: sweep 0.38s cubic-bezier(0.4, 0, 0.2, 1) 0.66s both, fade 1.2s ease-out 2.4s forwards; }
+  .flag { animation: aiIn 0.18s ease-out 0.6s both; }
+  .flag em { animation: flagIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 0.72s both; }
+}
+@keyframes wordIn { from { opacity: 0; transform: translateY(0.14em); } }
+@keyframes aiIn { from { opacity: 0; } }
+@keyframes sweep { from { opacity: 1; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes fade { from { opacity: 1; } to { opacity: 0; } }
+@keyframes flagIn { from { opacity: 0; transform: translateY(-6px) scale(0.8); } }
+
+/* ── Captions ── */
+.cap { left: 72px; top: 200px; width: 500px; }
+.h2 { margin: 0; font-size: 72px; line-height: 1; font-weight: 700; letter-spacing: -0.042em; color: var(--ink); }
+.say { margin: 24px 0 0; max-width: 430px; font-size: 22px; line-height: 1.4; font-weight: 500; color: var(--muted); }
+.capD { top: 440px; }
+.capB { left: 800px; top: 380px; width: 420px; }
+.capAi { left: 72px; top: 40px; width: 1140px; }
+.capAi .h2 { font-size: 64px; }
+
+/* ── 1. The note ── */
+.note { width: 560px; transform-origin: 0 0; }
+.noteTitle { margin: 0; font-size: 38px; line-height: 1.1; font-weight: 700; letter-spacing: -0.025em; }
+.noteText { margin: 14px 0 22px; font-size: 21px; line-height: 1.4; color: #4a3b2c; }
+.check { list-style: none; margin: 0; padding: 0; }
+.check li { position: relative; display: flex; align-items: center; gap: 18px; height: 60px; font-size: 26px; font-weight: 500; letter-spacing: -0.01em; }
+.box { position: relative; flex: none; width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cdbfae; }
+.on { position: absolute; inset: 0; border-radius: 50%; background: var(--amber); display: grid; place-items: center; }
+.onAi { background: var(--gpt); }
+.on svg, .hTick svg { width: 62%; height: 62%; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tint { position: absolute; left: -12px; right: -12px; top: 6px; bottom: 6px; border-radius: 12px; background: rgba(16, 163, 127, 0.13); transform-origin: 0 50%; z-index: -1; }
+
+/* ── 2. The whiteboard ── */
+.boardBox { width: 680px; transform-origin: 0 0; }
+.board { display: block; width: 100%; height: auto; overflow: visible; }
+.ink { stroke: #1e1e1e; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; fill: none; stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+.ink[data-ai] { stroke: #0b7a5f; }
+.word { fill: #1e1e1e; font-family: inherit; }
+.fill { opacity: 1; }
+.cursorName { fill: #fff; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px; font-weight: 650; }
+
+/* ── 3. The app ── */
+.app { width: 580px; transform-origin: 0 0; }
+.appTop { margin: 0; display: flex; align-items: center; gap: 12px; }
+.appTop b { font-size: 38px; line-height: 1.1; font-weight: 700; letter-spacing: -0.025em; }
+.appTag { padding: 4px 9px; border-radius: 8px; background: #f3e4d0; color: #8a5a1c; font-size: 14px; font-weight: 700; }
+.appSub { margin: 8px 0 22px; font-size: 19px; color: var(--muted); }
+.week { display: flex; gap: 14px; margin-bottom: 18px; }
+.week span { display: grid; justify-items: center; gap: 8px; }
+.week small { font-size: 14px; font-weight: 650; color: var(--faint); }
+.week i { width: 54px; height: 54px; border-radius: 50%; background: #f4ece2; }
+.week [data-on] i { background: var(--amber); }
+.week [data-now] i { background: #fff; box-shadow: inset 0 0 0 3px var(--amber); }
+.week [data-now] small { color: var(--ink); }
+.habits { list-style: none; margin: 0; padding: 0; }
+.habits li { position: relative; display: flex; align-items: center; justify-content: space-between; height: 86px; }
+.hText { display: grid; gap: 4px; position: relative; }
+.hText b { font-size: 25px; font-weight: 650; letter-spacing: -0.015em; }
+.hText b::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); margin-right: 12px; vertical-align: 2px; }
+.hText small { font-size: 17px; color: var(--muted); padding-left: 24px; }
+.chip { position: absolute; left: 24px; bottom: -3px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 8px;
+  background: #e2f4ee; color: #0b6b53; font-size: 15px; font-weight: 650; font-style: normal; white-space: nowrap; }
+.chip svg { fill: currentColor; }
+.hTick { flex: none; position: relative; width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center;
+  background: #fff; box-shadow: inset 0 0 0 2.5px color-mix(in srgb, var(--c) 45%, #fff); -webkit-tap-highlight-color: transparent; }
+.hTick svg { opacity: 0; stroke: var(--c); }
+.hTick[aria-pressed="true"] { background: var(--c); box-shadow: none; }
+.hTick[aria-pressed="true"] svg { opacity: 1; stroke: #fff; }
+.hTick:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+@media (hover: hover) {
+  .hTick:hover { box-shadow: inset 0 0 0 2.5px var(--c); }
+  .hTick:hover svg { opacity: 0.45; }
+  .hTick[aria-pressed="true"]:hover { background: color-mix(in srgb, var(--c) 86%, #000); }
+  .hTick[aria-pressed="true"]:hover svg { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hTick { transition: background-color 0.18s ease-out, box-shadow 0.18s ease-out, transform 0.12s ease-out; }
+  .hTick svg { transition: opacity 0.15s ease-out; }
+  .hTick:active { transform: scale(0.94); }
+}
+.hTickAi { position: absolute; right: 0; top: 17px; background: var(--gpt); box-shadow: none; pointer-events: none; }
+.hTickAi svg { opacity: 1; stroke: #fff; }
+
+/* ── 4. Your AI, in all three ── */
+.tile { top: 268px; width: 360px; height: 412px; border-radius: 26px; background: #f7f1e9; }
+.tile[data-k="tile0"] { left: 72px; }
+.tile[data-k="tile1"] { left: 460px; }
+.tile[data-k="tile2"] { left: 848px; }
+.said { left: 72px; top: 134px; width: 1136px; display: flex; align-items: center; gap: 18px; }
+.saidHead { margin: 0; flex: none; display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 650; color: var(--muted); }
+.saidHead svg { fill: var(--ink); }
+.bubble { margin: 0; padding: 18px 26px; border-radius: 28px; background: #f1ece6; font-size: 25px; line-height: 1.35; font-weight: 500; letter-spacing: -0.01em; }
+.labels { list-style: none; padding: 0; inset: 0; pointer-events: none; }
+.labels li { position: absolute; top: 632px; display: flex; align-items: center; gap: 9px; font-size: 19px; font-weight: 650; letter-spacing: -0.01em; color: #0b6b53; }
+.labels li svg { fill: currentColor; }
+.labels li:nth-child(1) { left: 100px; }
+.labels li:nth-child(2) { left: 488px; }
+.labels li:nth-child(3) { left: 876px; }
+
+/* ── The phone canvas (360 x 660) ── */
+.cvP .date { top: 16px; font-size: 12px; }
+.cvP .tools { top: 10px; margin-left: -150px; width: 300px; height: 40px; gap: 0; }
+.cvP .tools svg { width: 32px; height: 32px; padding: 7px; }
+.cvP .tools span { width: 30px; font-size: 13px; }
+.cvP .grid { background-size: 20px 20px; }
+.cvP .hero { left: 20px; top: 64px; width: 320px; }
+.cvP .h1 { font-size: 53px; line-height: 1; letter-spacing: -0.045em; }
+.cvP .flag i { width: 3px; }
+.cvP .flag em { font-size: 12px; padding: 4px 8px 4px 7px; gap: 5px; margin-top: 6px; border-radius: 7px; }
+.cvP .heroRest { margin-top: 40px; }
+.cvP .sub { font-size: 18px; margin-bottom: 22px; }
+.cvP .cap { left: 20px; top: 40px; width: 320px; }
+.cvP .capD, .cvP .capB { left: 20px; top: 40px; }
+.cvP .h2 { font-size: 42px; }
+.cvP .say { margin-top: 12px; font-size: 17px; }
+.cvP .capAi { left: 20px; top: 34px; width: 320px; }
+.cvP .capAi .h2 { font-size: 40px; }
+.cvP .note { width: 320px; }
+.cvP .noteTitle { font-size: 26px; }
+.cvP .noteText { margin: 8px 0 12px; font-size: 16px; }
+.cvP .check li { height: 44px; gap: 12px; font-size: 18px; }
+.cvP .box { width: 23px; height: 23px; }
+.cvP .tint { left: -8px; right: -8px; top: 4px; bottom: 4px; border-radius: 9px; }
+.cvP .boardBox { width: 320px; }
+.cvP .app { width: 320px; }
+.cvP .appTop b { font-size: 26px; }
+.cvP .appTag { font-size: 12px; padding: 3px 7px; }
+.cvP .appSub { margin: 4px 0 14px; font-size: 15px; }
+.cvP .week { gap: 9px; margin-bottom: 8px; }
+.cvP .week small { font-size: 12px; }
+.cvP .week i { width: 36px; height: 36px; }
+.cvP .habits li { height: 64px; }
+.cvP .hText b { font-size: 19px; }
+.cvP .hText b::before { width: 10px; height: 10px; margin-right: 9px; }
+.cvP .hText small { font-size: 14px; padding-left: 19px; }
+.cvP .chip { left: 19px; font-size: 12px; padding: 2px 7px 2px 6px; bottom: -2px; }
+.cvP .hTick { width: 42px; height: 42px; }
+.cvP .hTickAi { top: 11px; }
+.cvP .said { left: 20px; top: 96px; width: 320px; display: grid; gap: 8px; }
+.cvP .saidHead { font-size: 13px; gap: 6px; }
+.cvP .bubble { padding: 11px 16px; border-radius: 20px; font-size: 16px; }
+.cvP .tile { left: 20px !important; width: 320px; height: 130px; border-radius: 20px; }
+.cvP .tile[data-k="tile0"] { top: 236px; }
+.cvP .tile[data-k="tile1"] { top: 376px; }
+.cvP .tile[data-k="tile2"] { top: 516px; }
+.cvP .labels li { left: 168px !important; width: 170px; font-size: 15px; line-height: 1.25; gap: 7px; align-items: flex-start; }
+.cvP .labels li svg { flex: none; margin-top: 2px; }
+.cvP .labels li:nth-child(1) { top: 286px; }
+.cvP .labels li:nth-child(2) { top: 426px; }
+.cvP .labels li:nth-child(3) { top: 566px; }
+
+/* ── After the story ── */
+.after { max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; }
+.more { display: grid; grid-template-columns: 5fr 7fr; gap: 64px; padding: 150px 0 40px; align-items: start; }
+.moreTitle { margin: 0; font-size: 64px; line-height: 1.02; font-weight: 700; letter-spacing: -0.04em; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: grid; grid-template-columns: 34px 1fr; gap: 4px 18px; padding: 18px 0; }
+.list i { grid-row: span 2; width: 30px; height: 30px; margin-top: 2px; border-radius: 50%; background: var(--amber); display: grid; place-items: center; }
+.list i svg { width: 62%; height: 62%; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.list b { font-size: 26px; line-height: 1.2; font-weight: 650; letter-spacing: -0.02em; }
+.list span { font-size: 19px; line-height: 1.4; color: var(--muted); }
+.list a { color: inherit; text-decoration: underline; text-decoration-color: rgba(107, 90, 72, 0.35); text-underline-offset: 3px; }
+.list a:hover { text-decoration-color: currentColor; }
+
+.closing { padding: 150px 0 120px; display: grid; justify-items: start; }
+.closingTitle { margin: 0; font-size: 128px; line-height: 0.98; font-weight: 700; letter-spacing: -0.045em; }
+.closingSay { margin: 26px 0 34px; font-size: 25px; line-height: 1.38; font-weight: 500; color: var(--muted); max-width: 720px; }
+.closingFine { margin: 18px 0 0; font-size: 14.5px; font-weight: 600; color: var(--faint); }
+
+@media (max-width: 860px) {
+  .more { grid-template-columns: 1fr; gap: 24px; padding-top: 96px; }
+  .moreTitle { position: static; font-size: 42px; }
+  .list li { grid-template-columns: 28px 1fr; gap: 2px 14px; padding: 14px 0; }
+  .list i { width: 26px; height: 26px; }
+  .list b { font-size: 21px; }
+  .list span { font-size: 17px; }
+  .closing { padding: 96px 0 80px; }
+  .closingTitle { font-size: 58px; }
+  .closingSay { font-size: 19px; }
+}
+.heroRest .closingFine { margin-top: 20px; font-size: 16px; color: var(--muted); }
+.cvP .heroRest .closingFine { font-size: 14px; }
+
+/* The one hand-written note on the page: the habit tracker is real, so it says so. */
+.try { left: 692px; top: 276px; flex-direction: row-reverse; font-size: 27px; color: #b86414; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.try svg { width: 96px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.try svg { transform: scaleX(-1); }
+.cvP .try { left: 112px; top: 328px; font-size: 19px; flex-direction: row; }
+.cvP .try svg { transform: none; }
+.cvP .try svg { width: 58px; height: 22px; }
+/* The whiteboard opens out of the note (its centre), on both canvases. */
+.cvD .grid { transform-origin: 59% 47.6%; }
+.cvP .grid { transform-origin: 50% 51%; }
