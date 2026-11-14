@@ -4,8 +4,7 @@ import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { display } from "./fonts";
 import { Hero } from "./Hero";
-import { BuildWin, CoverFan, Devices, DrawWin, HistoryMini, SaidDone, SlashMini, TableMini, WriteWin } from "./Pictures";
-import { Room } from "./Rooms";
+import { AiChat, AiWin, BuildWin, Devices, DrawWin, HistoryMini, SlashMini, TableMini, WriteWin } from "./Pictures";
 import p from "./pic.module.css";
 import s from "./q.module.css";
 
@@ -15,40 +14,35 @@ export const metadata: Metadata = {
 };
 
 // Study Q, "the warm paper notebook" (2026-11-14). A calm hero (the tall dusk painting, her note on
-// her phone), then one section per feature. Every section is a title and one sentence, then its
-// picture. Headlines in Instrument Serif, italic only in the h1; every sentence in the site's sans at
-// one size. Rooms for Write, Build and the AI; a full-bleed night for Draw; a dark band for the
-// memory study's number; a marigold band for Mac and iPhone. It ends on one download moment over the
-// paper town.
+// her phone), then one section template for every feature: the title and one sentence in a header
+// row, then one full-width frame with the app whole in it. Headlines in Newsreader, italic only in
+// the h1; every sentence in the site's sans at one size. One dark band for the memory study's number
+// and one marigold band for Mac and iPhone. It ends on one download moment over the paper town.
 
 const Arrow = () => <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>;
 
-function Feature({ id, title, line, flip, link, children }: {
-  id: string; title: string; line: string; flip?: boolean; link?: { href: string; text: string }; children: React.ReactNode;
+/** One section template for every feature: a header row (the title on the left half, the one
+ *  sentence on the right, on the title's baseline), then one full-width frame. */
+function Section({ id, title, line, link, className = "", children }: {
+  id: string; title: string; line: string; link?: { href: string; text: string }; className?: string; children: React.ReactNode;
 }) {
   return (
-    <section className={s.feature} data-flip={flip || undefined} aria-labelledby={id}>
-      <div className={s.words}>
+    <section className={`${s.section} ${className}`} aria-labelledby={id}>
+      <div className={s.headRow}>
         <h2 id={id} className={s.title}>{title}</h2>
-        <p className={s.body}>{line}</p>
-        {link && <a className={`${s.label} ${s.link}`} href={link.href}>{link.text}<Arrow /></a>}
-      </div>
-      <div className={s.pic}>{children}</div>
-    </section>
-  );
-}
-
-/** A centred section: the title and one sentence, then the picture. */
-function Stack({ id, title, line, className = "", children }: { id: string; title: string; line: string; className?: string; children: React.ReactNode }) {
-  return (
-    <section className={`${s.stack} ${className}`} aria-labelledby={id}>
-      <div className={s.head}>
-        <h2 id={id} className={s.title}>{title}</h2>
-        <p className={s.body}>{line}</p>
+        <div className={s.headText}>
+          <p className={s.body}>{line}</p>
+          {link && <a className={`${s.label} ${s.link}`} href={link.href}>{link.text}<Arrow /></a>}
+        </div>
       </div>
       {children}
     </section>
   );
+}
+
+/** The frame: a flat warm tone, the app centred in it with the same inset on every side. */
+function Frame({ tone, children }: { tone: "write" | "draw" | "build" | "ai"; children: React.ReactNode }) {
+  return <div className={p.frame} data-tone={tone}><div className={p.inset}>{children}</div></div>;
 }
 
 /** Three small things, each with a piece of the real UI big enough to read. */
@@ -63,31 +57,22 @@ export default function Page() {
     <div className={`${s.main} ${display.variable}`}>
       <Hero />
 
-      <Feature id="q-write" title="Write notes." line="They feel like Apple Notes on Mac and iPhone, and you can bring yours over.">
-        <Room scene="morning" className={p.writeRoom}>
-          <div className={p.at}><WriteWin /></div>
-        </Room>
-      </Feature>
+      <Section id="q-write" title="Write notes." line="They feel like Apple Notes on Mac and iPhone, and you can bring yours over.">
+        <Frame tone="write"><WriteWin /></Frame>
+      </Section>
 
-      <Stack id="q-draw" title="Draw on whiteboards." line="A whiteboard next to your notes that your AI can read and draw on.">
-        <Room scene="night" className={p.drawRoom}>
-          <div className={p.at}><DrawWin /></div>
-        </Room>
-      </Stack>
+      <Section id="q-draw" title="Draw on whiteboards." line="A whiteboard next to your notes that your AI can read and draw on.">
+        <Frame tone="draw"><DrawWin /></Frame>
+      </Section>
 
-      <Feature id="q-build" flip title="Build apps." line="Small apps in a note, like a habit tracker, from a template or your AI."
+      <Section id="q-build" title="Build apps." line="Small apps in a note, like a habit tracker, from a template or your AI."
         link={{ href: "/templates", text: "See all templates" }}>
-        <Room scene="cafe" className={p.buildRoom}>
-          <div className={p.at}><BuildWin list={false} /></div>
-          <div className={p.fanAt}><CoverFan /></div>
-        </Room>
-      </Feature>
+        <Frame tone="build"><BuildWin /></Frame>
+      </Section>
 
-      <Stack id="q-ai" title="Your AI, in all three." line="Connect ChatGPT, Claude, Claude Code or Codex, and it starts every chat knowing your notes.">
-        <Room scene="dusk" className={p.aiRoom}>
-          <SaidDone />
-        </Room>
-      </Stack>
+      <Section id="q-ai" title="Your AI, in all three." line="Connect ChatGPT, Claude, Claude Code or Codex, and it starts every chat knowing your notes.">
+        <Frame tone="ai"><AiChat /><AiWin /></Frame>
+      </Section>
 
       {/* The one measured number, as big as the page gets. */}
       <section className={s.numBand} aria-labelledby="q-num">
@@ -100,13 +85,15 @@ export default function Page() {
         <a className={`${s.label} ${s.link}`} href="/blog/ai-memory-with-notes">Read the study<Arrow /></a>
       </section>
 
-      <Stack id="q-both" className={s.band} title="On your Mac and iPhone." line="The same notes on both, always in sync, and they work offline too.">
-        <div className={`${s.bothStage} ${p.bothStage}`}>
-          <Devices />
+      <section className={`${s.section} ${s.band}`} aria-labelledby="q-both">
+        <div className={s.headRow}>
+          <h2 id="q-both" className={s.title}>On your Mac and iPhone.</h2>
+          <div className={s.headText}><p className={s.body}>The same notes on both, always in sync, and they work offline too.</p></div>
         </div>
-      </Stack>
+        <Devices />
+      </section>
 
-      <Stack id="q-more" title="And so much more." line="Bring notes from Obsidian, Bear, Evernote or Keep, lock a note, and sync encrypted.">
+      <Section id="q-more" title="And so much more." line="Bring notes from Obsidian, Bear, Evernote or Keep, lock a note, and sync encrypted.">
         <ul className={s.cards}>
           {MORE.map((m) => (
             <li key={m.title} className={s.card}>
@@ -116,7 +103,7 @@ export default function Page() {
             </li>
           ))}
         </ul>
-      </Stack>
+      </Section>
 
       {/* Free and the download in one moment, over the paper town. */}
       <section className={s.closing} aria-labelledby="q-closing">

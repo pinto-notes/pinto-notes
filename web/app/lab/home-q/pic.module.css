@@ -1,31 +1,23 @@
-/* Study Q's product pictures: the cut-paper rooms and the app UI rebuilt in HTML (the Mac windows,
+/* Study Q's product pictures: one frame for every feature, and the app UI rebuilt in HTML (the Mac windows,
    the whiteboard, the habit tracker, the chat, the iPhone, the small pieces of UI, and the note on
    her phone in the hero). Sizes here are the app's own, as in the captures; they are pictures, not
    the page's type. The page's type and layout live in q.module.css. */
 
-/* ── The paper room: planes of cut paper with soft shadows between, the product in front ── */
-.room { position: relative; aspect-ratio: 1000 / 860; border-radius: var(--q-frame-radius); overflow: hidden; isolation: isolate; background: #efd0a6;
-  box-shadow: var(--q-frame-shadow); }
-.plane { position: absolute; inset: 0; pointer-events: none; }
-.plane svg { display: block; width: 100%; height: 100%; }
-.plane[data-shade] svg { filter: drop-shadow(0 5px 9px rgba(30, 15, 5, 0.26)); }
-.plane[data-front] { z-index: 3; }
-.product { position: absolute; inset: 0; z-index: 2; }
-.edge { position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 240, 220, 0.2), inset 0 3px 18px rgba(30, 14, 2, 0.22); }
-.room[data-scene="night"] { background: #3c3754; }
-.room[data-scene="cafe"] { background: #5f7f6a; }
-.room[data-scene="dusk"] { background: #f7cfa0; }
-.room[data-scene="evening"] { background: #ecd2b0; }
 
-.at { position: absolute; display: flex; }
-.writeRoom .at { left: 17%; right: -8%; top: 8%; bottom: -10%; }
-/* The notes window about 18% larger, so it reads at a glance. */
-.writeRoom .win { zoom: 1.18; }
-/* Over the bottom of the list column, so the note itself stays whole. */
-.importAt { position: absolute; left: 17%; bottom: 5%; width: min(300px, 38%); z-index: 2; }
-.drawRoom .at { left: 5%; right: 15%; top: 9%; bottom: 13%; }
-.buildRoom .at { left: 45%; right: -6%; top: 14%; bottom: -3%; }
-.fanAt { position: absolute; left: 2.5%; bottom: 7%; z-index: 2; }
+
+/* ── The frame: one for every feature section. A flat warm tone, 1200 x 720 at full width, the app
+   window centred in it with the same inset on every side, whole, never cut. ── */
+.frame { position: relative; width: 100%; height: 680px; border-radius: var(--q-frame-radius); background: var(--tone, #f3e2cb);
+  box-shadow: inset 0 0 0 1px rgba(80, 45, 10, 0.07); overflow: hidden; container-type: inline-size; }
+.frame[data-tone="write"] { --tone: #f3e2cb; }
+.frame[data-tone="draw"] { --tone: #ece3d3; }
+.frame[data-tone="build"] { --tone: #f1dcc4; }
+.frame[data-tone="ai"] { --tone: #f4dabf; }
+.inset { position: absolute; inset: 56px; display: flex; gap: 32px; align-items: stretch; }
+.inset > .win { flex: 1; }
+/* AI: the chat and the result side by side, both straight, their tops in line. */
+.inset > .chat { flex: none; width: 31%; display: flex; flex-direction: column; }
+.chat .composer { margin-top: auto; padding: 12px 16px; border-radius: 999px; border: 1px solid rgba(0, 0, 0, 0.1); color: rgba(0, 0, 0, 0.4); font-size: 15px; }
 
 /* ── The Mac window, rebuilt from the captures ── */
 .win { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 14px; background: #fff;
@@ -60,19 +52,8 @@
 .check li[data-on] { color: #9a928a; text-decoration: line-through; text-decoration-color: #b0a89f; }
 .check li[data-on] i { background: #c8691c; box-shadow: none; }
 .check i svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.mention { margin: 18px 0 0; padding-top: 14px; border-top: 0.5px solid #ece9e5; font-size: 12.5px; font-weight: 600; color: #8a847e; }
 
 /* The Apple Notes import sheet's header and button. */
-.import { display: grid; gap: 16px; padding: 18px 18px 16px; border-radius: 16px; background: #fff; color: #1d1b19; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 26px 50px -18px rgba(20, 8, 0, 0.5), 0 6px 14px -6px rgba(20, 8, 0, 0.25); transform: rotate(-1.2deg); }
-.importHead { display: flex; gap: 12px; align-items: center; }
-.importHead > span:last-child { display: grid; gap: 2px; min-width: 0; }
-.importHead b { font-size: 15.5px; font-weight: 700; }
-.importHead small { font-size: 12.5px; line-height: 1.35; color: #77706a; }
-/* Apple Notes' own mark, drawn: a yellow-topped page. */
-.anIcon { flex: none; position: relative; width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(#f9d548 0 30%, #fff 30%); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15); overflow: hidden; }
-.anIcon i { position: absolute; left: 7px; right: 7px; top: 19px; height: 12px; background: repeating-linear-gradient(#d8d3cb 0 1px, transparent 1px 5px); }
-.importBtn { justify-self: end; padding: 6px 14px; border-radius: 8px; background: #d97a17; color: #fff; font-size: 13px; font-weight: 650; }
 
 /* Draw: the whiteboard. */
 .boardArea { position: relative; flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; padding: 6px 16px 16px; }
@@ -126,34 +107,16 @@
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; background: #ffe2bd; color: #a85700; font-style: normal; font-size: 11px; font-weight: 650; white-space: nowrap; }
 .chip[data-ai="claude"] { padding: 1px 7px; background: #fbe4da; color: #b4532f; font-size: 10.5px; }
 
-/* The template covers, fanned; each opens its template. */
-.fan { list-style: none; margin: 0; padding: 0; display: flex; }
-.fan li { width: 122px; transform-origin: 50% 100%; }
-.fan li + li { margin-left: -32px; }
-.fan li:nth-child(1) { transform: rotate(-8deg) translateY(6px); }
-.fan li:nth-child(2) { transform: rotate(-1deg) translateY(-6px); }
-.fan li:nth-child(3) { transform: rotate(7deg) translateY(4px); }
-.fan a { display: grid; gap: 0; border-radius: 14px; overflow: hidden; background: #fffaf3; text-decoration: none; color: var(--ink);
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 18px 30px -14px rgba(20, 8, 0, 0.55); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s; }
-.fan img { display: block; width: 100%; height: auto; aspect-ratio: 1; }
-.fan span { padding: 8px 11px 10px; font-size: 13px; font-weight: 700; }
-.fan li:hover { z-index: 2; }
-.fan a:hover { transform: translateY(-8px); box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 28px 40px -16px rgba(20, 8, 0, 0.6); }
-.fan a:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
 
 /* ── The AI picture: said in ChatGPT, done in Pinto ── */
-.aiRoom { aspect-ratio: 1200 / 640; }
-.said { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 340px) 110px minmax(0, 600px); align-items: center; justify-content: center; padding: 0 5%; gap: 0; }
 .chat { display: grid; gap: 14px; padding: 18px 20px 22px; border-radius: 22px; background: #fff; color: #0d0d0d; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 30px 60px -20px rgba(20, 8, 0, 0.5); transform: rotate(-1.5deg); }
+  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 24px 48px -24px rgba(20, 8, 0, 0.4); }
 .chat p { margin: 0; }
 .chatHead { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 650; padding-bottom: 4px; }
 .me { justify-self: end; max-width: 85%; padding: 10px 14px; border-radius: 18px; background: #f2f2f2; font-size: 15px; line-height: 1.4; }
 .them { display: grid; gap: 8px; font-size: 15px; line-height: 1.45; }
 .tool { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #6b6b6b; }
 .toolMark img { display: block; width: 18px; height: 18px; border-radius: 5px; }
-.saidArrow { width: 100%; height: auto; fill: none; stroke: #4b2a14; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; padding: 0 8px; box-sizing: border-box; }
-.saidWin { flex: none; height: 78%; align-self: center; }
 .table { padding: 20px 26px 0; overflow: hidden; }
 .grid { display: grid; grid-template-columns: 0.8fr 0.9fr 1.2fr 1.3fr 0.7fr; margin-top: 4px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 0.5px #e4ded6; }
 .grid > * { padding: 8px 10px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 0.5px solid #ece6de; }
@@ -166,14 +129,11 @@
 .pb span::before { content: "•"; margin-right: 8px; color: #8a7a68; }
 .pb [data-new] { width: fit-content; padding: 0 6px; margin-left: -6px; border-radius: 6px; background: #fff0db; font-weight: 600; }
 
-/* ── Mac and iPhone ── */
-.bothRoom { aspect-ratio: 1200 / 720; }
-.devices { position: absolute; inset: 0; }
-.mac { position: absolute; left: 8%; top: 9%; width: 72%; max-width: 1000px; border-radius: 14px; overflow: hidden; background: #fff;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.25), 0 40px 70px -24px rgba(20, 8, 0, 0.55), 0 8px 18px -8px rgba(20, 8, 0, 0.3); }
-.mac img { display: block; width: 100%; height: auto; }
-.iphone { position: absolute; right: 9%; bottom: 7%; width: 24%; max-width: 280px; padding: 9px; box-sizing: border-box; border-radius: 46px; background: #2a1d10; aspect-ratio: 9 / 19; container-type: inline-size;
-  box-shadow: 0 40px 60px -24px rgba(20, 8, 0, 0.6), 0 8px 16px -6px rgba(20, 8, 0, 0.35); transform: rotate(3deg); }
+/* ── Mac and iPhone: the Mac window at a readable scale, the iPhone at the same scale over its right edge ── */
+.devices { position: relative; width: 100%; max-width: 1120px; margin: 0 auto; height: 572px; }
+.mac { position: absolute; left: 0; top: 0; width: 900px; height: 556px; display: flex; }
+.iphone { position: absolute; right: 0; bottom: 0; width: 270px; padding: 9px; box-sizing: border-box; border-radius: 46px; background: #2a1d10; aspect-ratio: 9 / 19; container-type: inline-size;
+  box-shadow: 0 40px 60px -24px rgba(20, 8, 0, 0.6), 0 8px 16px -6px rgba(20, 8, 0, 0.35); }
 .screen { height: 100%; box-sizing: border-box; border-radius: 38px; background: #fbfaf7; color: #1d1b19; overflow: hidden;
   padding: 7cqw 7cqw; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
 .screen p { margin: 0; }
@@ -238,38 +198,12 @@
 .heroSaid.heroSaid > p { font-size: 15.5px; line-height: 1.38; padding: 11px 14px; }
 .heroSaid.heroSaid > p > span { font-size: 13px; }
 
-/* Draw: the night runs edge to edge, a band rather than a framed picture. */
-.drawRoom.drawRoom { width: 100vw; margin-left: calc(50% - 50vw); aspect-ratio: auto; height: clamp(480px, 42vw, 620px); border-radius: 0; box-shadow: none; }
-.drawRoom.drawRoom .edge { box-shadow: none; }
-.drawRoom.drawRoom .at { left: max(var(--gutter), calc(50vw - 560px)); right: max(var(--gutter), calc(50vw - 560px)); top: 8%; bottom: 10%; }
-.drawRoom.drawRoom .board { width: auto; height: 100%; max-width: min(100%, 960px); }
-.bothStage { position: relative; width: 100%; max-width: 1240px; justify-self: center; aspect-ratio: 1200 / 640; }
-.bothStage .mac { top: 0; left: 6%; }
-.bothStage .iphone { bottom: 8%; right: 8%; }
 
 @media (max-width: 900px) {
   .heroSaid.heroSaid > p { font-size: 14px; padding: 9px 12px; }
 }
 
 @media (max-width: 760px) {
-  .room { aspect-ratio: 358 / 470; }
-  .plane[data-shade] svg { filter: drop-shadow(0 2px 4px rgba(30, 14, 2, 0.26)); }
-  .writeRoom .at, .drawRoom .at, .buildRoom .at { left: 14px; right: 14px; top: 64px; bottom: 14px; }
-  .writeRoom .at { bottom: 96px; right: 14px; }
-  .writeRoom .win { zoom: 1; }
-  .importAt { left: 14px; right: 14px; bottom: 14px; width: auto; }
-  .import { padding: 12px 14px; gap: 10px; transform: none; display: flex; align-items: center; justify-content: space-between; }
-  .import .importHead small { display: none; }
-  .anIcon { width: 30px; height: 30px; border-radius: 8px; }
-  .anIcon i { top: 14px; left: 5px; right: 5px; height: 9px; }
-  .importBtn { padding: 5px 10px; font-size: 12px; white-space: nowrap; }
-  .importHead b { font-size: 14px; }
-  .buildRoom { aspect-ratio: 358 / 620; }
-  .buildRoom .at { left: 14px; bottom: 156px; }
-  .fanAt { left: 50%; bottom: 10px; transform: translateX(-50%); }
-  .fan li { width: 104px; }
-  .fan li + li { margin-left: -24px; }
-  .fan span { padding: 5px 8px 7px; font-size: 11px; }
   .win { border-radius: 14px; }
   .bar { height: 38px; }
   .cols { grid-template-columns: minmax(0, 1fr); }
@@ -289,24 +223,18 @@
   .app { padding: 14px 16px 0; }
   .aTitle { font-size: 24px; }
   .aList li { padding: 6px 10px; }
-  .aiRoom { aspect-ratio: auto; }
-  .aiRoom .product { position: relative; }
-  .said { position: relative; grid-template-columns: minmax(0, 1fr); padding: 28px 14px 18px; row-gap: 0; }
-  .chat { transform: none; padding: 14px 16px 16px; gap: 10px; }
-  .saidArrow { width: 70px; justify-self: center; transform: rotate(80deg); margin: 4px 0; }
-  .saidWin { height: auto; }
+  .chat { padding: 14px 16px 16px; gap: 10px; }
+  .frame { height: auto; }
+  .inset { position: static; padding: 14px; flex-direction: column; gap: 14px; }
+  .inset > .win { flex: none; height: auto; min-height: 460px; }
+  .inset > .chat { width: auto; align-self: stretch; }
+  .devices { height: 580px; }
+  .mac { top: 0; width: 100%; height: 500px; }
   .table { padding: 14px 14px 16px; }
   .grid { grid-template-columns: 0.9fr 1.3fr 1.4fr; }
   .grid > :nth-child(5n + 2), .grid > :nth-child(5n) { display: none; }
   .grid > * { padding: 7px 8px; font-size: 12.5px; }
-  .bothRoom { aspect-ratio: 358 / 400; }
-  .mac { left: 14px; right: 14px; width: auto; top: 30px; }
-  .iphone { right: 18px; bottom: 16px; width: 44%; border-radius: 30px; padding: 6px; }
+  .iphone { right: 10px; bottom: 0; width: 46%; border-radius: 30px; padding: 6px; }
   .screen { border-radius: 25px; }
   .mini { zoom: 1.2; }
-  .drawRoom.drawRoom { height: 440px; }
-  .drawRoom.drawRoom .at { left: 14px; right: 14px; top: 28px; bottom: 28px; }
-  .bothStage { aspect-ratio: 358 / 400; }
-  .bothStage .mac { left: 0; right: 0; width: auto; top: 0; }
-  .bothStage .iphone { right: 10px; bottom: 20px; width: 44%; }
 }

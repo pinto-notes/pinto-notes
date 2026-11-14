@@ -78,19 +78,6 @@ export function WriteWin() {
   );
 }
 
-/** The import sheet's header and its one button, as AppleNotesImport.swift draws them. */
-export function ImportCard() {
-  return (
-    <div className={s.import} role="img" aria-label="Import from Apple Notes: 35 notes in 5 folders. Apple Notes stays as it is. Import 35 Notes.">
-      <div className={s.importHead}>
-        <span className={s.anIcon} aria-hidden="true"><i /></span>
-        <span><b>Import from Apple Notes</b><small>35 notes in 5 folders. Apple Notes stays as it is.</small></span>
-      </div>
-      <span className={s.importBtn} aria-hidden="true">Import 35 Notes</span>
-    </div>
-  );
-}
-
 /** Draw: the Publishing flow whiteboard, drawing itself. */
 export function DrawWin() {
   const tools = [
@@ -125,7 +112,6 @@ export function BuildWin({ list = true }: { list?: boolean }) {
     ["Gym", <Chip key="c" ai="claude" name="Logged by Claude" />, "done"],
     ["Water", "5 of 8 glasses", "count"],
     ["No phone after 22", "3 of 7 this week", "open"],
-    ["Stretch", "2 of 7 this week", "open"],
   ];
   return (
     <div className={s.win}>
@@ -151,76 +137,55 @@ export function BuildWin({ list = true }: { list?: boolean }) {
   );
 }
 
-/** Three template covers, fanned like the templates page's cards. Each opens its template. */
-const COVERS = [
-  { slug: "budget-log", title: "Budget log" },
-  { slug: "trip-plan", title: "Trip plan" },
-  { slug: "workout-log", title: "Workout log" },
-];
-export function CoverFan() {
-  return (
-    <ul className={s.fan}>
-      {COVERS.map((c) => (
-        <li key={c.slug}>
-          <a href={`/templates/${c.slug}`}>
-            {/* 800 px covers, never drawn wider than 200 CSS px. */}
-            <img src={`/templates/covers/${c.slug}.webp`} alt="" width={800} height={800} loading="lazy" decoding="async" />
-            <span>{c.title}</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** Said and done: one line to ChatGPT, and the row it adds to the Workout log in Pinto. */
-export function SaidDone() {
+/** The AI picture: the Workout log in Pinto, with the row ChatGPT just added. */
+export function AiWin() {
   const rows: [string, string, string, string, string][] = [
     ["Nov 4", "Push", "Bench press", "70 kg x 6", "7"],
     ["Nov 5", "Run", "Easy run", "5 km in 29 min", "5"],
     ["Nov 6", "Legs", "Squat", "100 kg x 5", "8"],
+    ["Nov 8", "Pull", "Barbell row", "60 kg x 8", "7"],
+    ["Nov 9", "Run", "Intervals", "6 x 400 m", "8"],
+    ["Nov 11", "Push", "Overhead press", "45 kg x 5", "8"],
+    ["Nov 12", "Legs", "Lunges", "20 kg x 10", "6"],
   ];
   return (
-    <div className={s.said}>
-      <div className={s.chat} role="img" aria-label="In ChatGPT: Deadlift today, 120 kg for 3. Log it. ChatGPT answers: Logged in your Workout log. That's a new best.">
-        <p className={s.chatHead}><AIGlyph name="openai" size={18} />ChatGPT</p>
-        <p className={s.me}>Deadlift today, 120 kg for 3. Log it.</p>
-        <div className={s.them}>
-          <p className={s.tool}><span className={s.toolMark}><img src="/mark-256.png" alt="" width={256} height={256} /></span>Used Pinto Notes</p>
-          <p>Logged in your Workout log. That&apos;s a new best for deadlift.</p>
+    <div className={s.win}>
+      <Bar title="Workout log" back />
+      <div className={s.table} role="img" aria-label="The Workout log in Pinto Notes: a table of sessions. The new row, Deadlift 120 kg x 3, is marked as added by ChatGPT.">
+        <p className={s.aTitle}>Sessions</p>
+        <div className={s.grid}>
+          {["Date", "Workout", "Exercise", "Result", "Effort"].map((h) => <b key={h}>{h}</b>)}
+          {rows.flatMap((r) => r.map((c, i) => <span key={r[0] + i}>{c}</span>))}
+          {["Nov 13", "Pull", "Deadlift", "120 kg x 3", "9"].map((c, i) => <span key={"n" + i} data-new="">{c}</span>)}
         </div>
-      </div>
-      <svg className={s.saidArrow} viewBox="0 0 120 60" aria-hidden="true"><path d="M6 38 C 36 8, 76 8, 108 30" /><path d="M94 18 L109 31 L90 37" /></svg>
-      <div className={`${s.win} ${s.saidWin}`}>
-        <Bar title="Notes" />
-        <div className={s.table} role="img" aria-label="The Workout log in Pinto Notes: a table of sessions. The new row, Deadlift 120 kg x 3, is marked as added by ChatGPT.">
-          <p className={s.aTop}><b>Workout log</b></p>
-          <p className={s.aTitle}>Sessions</p>
-          <div className={s.grid}>
-            {["Date", "Workout", "Exercise", "Result", "Effort"].map((h) => <b key={h}>{h}</b>)}
-            {rows.flatMap((r) => r.map((c, i) => <span key={r[0] + i}>{c}</span>))}
-            {["Nov 13", "Pull", "Deadlift", "120 kg x 3", "9"].map((c, i) => <span key={"n" + i} data-new="">{c}</span>)}
-          </div>
-          <p className={s.by}><Chip ai="openai" name="Added by ChatGPT" /><span>Undo</span></p>
-          <p className={s.pbHead}>Personal bests</p>
-          <p className={s.pb}><span data-new="">Deadlift: 120 kg x 3 (13 Nov)</span><span>Squat: 100 kg x 5 (6 Nov)</span></p>
-        </div>
+        <p className={s.by}><Chip ai="openai" name="Added by ChatGPT" /><span>Undo</span></p>
       </div>
     </div>
   );
 }
 
-/** Mac and iPhone: the real Mac capture, and the same note on the iPhone in front. */
+/** What was said: one line to ChatGPT, and its answer, beside the window and as tall as it. */
+export function AiChat() {
+  return (
+    <div className={s.chat} role="img" aria-label="In ChatGPT: Deadlift today, 120 kg for 3. Log it. ChatGPT answers: Logged in your Workout log. That's a new best.">
+      <p className={s.chatHead}><AIGlyph name="openai" size={18} />ChatGPT</p>
+      <p className={s.me}>Deadlift today, 120 kg for 3. Log it.</p>
+      <div className={s.them}>
+        <p className={s.tool}><span className={s.toolMark}><img src="/mark-256.png" alt="" width={256} height={256} /></span>Used Pinto Notes</p>
+        <p>Logged in your Workout log. That&apos;s a new best for deadlift.</p>
+      </div>
+      <p className={s.composer}>Ask anything</p>
+    </div>
+  );
+}
+
+/** Mac and iPhone: the Mac window rebuilt in HTML, and the same note on the iPhone beside it. */
 export function Devices() {
   const items: [string, boolean][] = [["Oat milk", false], ["Lemons", false], ["Coffee beans", false], ["Fresh basil", false], ["Burrata", false],
     ["Cherry tomatoes", false], ["Olive oil", false], ["Dark chocolate", false], ["Sourdough", true], ["Eggs", true], ["Spinach", true]];
   return (
     <div className={s.devices}>
-      <div className={s.mac}>
-        {/* The whole 2880 px capture, never drawn wider than 1440 CSS px (pic.module.css .mac max-width 1000). */}
-        <img src="/lab/big3/layout-two-columns-main.webp" width={2880} height={1800} decoding="async" loading="lazy"
-          alt="Pinto Notes on a Mac: the list of notes, with the Groceries note open." />
-      </div>
+      <div className={s.mac}><WriteWin /></div>
       <div className={s.iphone} role="img" aria-label="The same Groceries note on an iPhone.">
         <div className={s.screen}>
           <p className={s.status}><b>9:41</b><span /></p>

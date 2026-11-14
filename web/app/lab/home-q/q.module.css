@@ -1,11 +1,11 @@
 /* Study Q, "the warm paper notebook". Cream throughout (lib/theme.ts keeps /lab/home-q cream). The
-   page's type and layout, and nothing else: the product pictures (the app UI, the rooms) are in
+   page's type and layout, and nothing else: the product pictures (the frames and the app UI) are in
    pic.module.css.
 
    The type system. Every size and weight on the page comes from these variables:
-   - Display, Instrument Serif, regular only: the h1 and the closing title (--q-size-h1), the section
-     titles (--q-size-title) and the big number (--q-size-num). Italic only in the h1.
-   - Body, the site's sans, 19 px regular, one colour: every sentence on the page.
+   - Display, Newsreader at 500: the h1 and the closing title (--q-size-h1), the section titles
+     (--q-size-title) and the big number (--q-size-num). Italic only in the h1.
+   - Body, the site's sans, 20 px regular, one dark colour, at most 28em wide: every sentence.
    - Label, the site's sans, 17 px semibold: the "more" card titles, links and the fine print.
    Buttons keep the site's own style. */
 
@@ -13,17 +13,18 @@
   --q-size-h1: clamp(56px, min(6.6vw, 10.8vh), 96px);
   --q-size-title: clamp(42px, 4.6vw, 64px);
   --q-size-num: clamp(76px, 15vw, 232px);
-  --q-size-body: 19px;
+  --q-size-body: 20px;
   --q-size-label: 17px;
-  --q-weight-display: 400;
+  --q-weight-display: 500;
   --q-weight-body: 400;
   --q-weight-label: 600;
-  --q-color-body: #5c4a38;
+  --q-color-body: #3f3023;
   --q-display-face: var(--q-display), Georgia, serif;
-  /* Layout: one content width, one space between sections, one gap from a heading to its picture. */
+  --q-track-display: -0.012em;
+  /* Layout: one content width (1200 px of content), one space between sections, one gap from a header row to its frame. */
   --q-width: 1240px;
   --q-section: 160px;
-  --q-head-gap: 56px;
+  --q-head-gap: 40px;
   --q-band-pad: clamp(96px, 10vw, 144px);
   /* One frame for every picture. */
   --q-frame-radius: 28px;
@@ -34,13 +35,14 @@
 }
 
 /* ── The three text styles ── */
-.h1.h1, .title, .bigNum, .closingTitle { margin: 0; font-family: var(--q-display-face); font-weight: var(--q-weight-display); font-style: normal; letter-spacing: 0.004em; color: var(--ink); text-wrap: balance; }
-.h1.h1 { font-size: min(var(--q-size-h1), 17.6cqi); line-height: 0.98; }
-.h1Em { font-style: italic; letter-spacing: 0.006em; white-space: nowrap; }
-.title { font-size: var(--q-size-title); line-height: 1.02; }
+.h1.h1, .title, .bigNum, .closingTitle { margin: 0; font-family: var(--q-display-face); font-weight: var(--q-weight-display); font-style: normal; letter-spacing: var(--q-track-display); color: var(--ink); text-wrap: balance; }
+.h1.h1 { font-size: min(var(--q-size-h1), 13cqi); line-height: 0.98; text-wrap: wrap; }
+.h1Line { white-space: nowrap; }
+.h1Em { font-style: italic; white-space: nowrap; }
+.title { font-size: var(--q-size-title); line-height: 1.04; }
 .closingTitle { font-size: var(--q-size-h1); line-height: 1; }
 .bigNum { font-size: var(--q-size-num); line-height: 0.9; }
-.body.body { margin: 20px 0 0; max-width: 30em; font-size: var(--q-size-body); font-weight: var(--q-weight-body); line-height: 1.45; color: var(--q-color-body); text-wrap: pretty; }
+.body.body { margin: 20px 0 0; max-width: 28em; font-size: var(--q-size-body); font-weight: var(--q-weight-body); line-height: 1.45; color: var(--q-color-body); text-wrap: pretty; }
 .label.label { font-size: var(--q-size-label); font-weight: var(--q-weight-label); line-height: 1.35; color: var(--ink); }
 .hero .body.body { margin-top: -6px; }
 .hero .label.label { margin: -10px 0 0; color: var(--q-color-body); }
@@ -52,7 +54,7 @@
 .link:hover svg { transform: translateX(3px); }
 .link:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
 
-/* ── One frame for every picture: the hero, the rooms (pic.module.css uses the same variables), the cards ── */
+/* ── The small frames ("more" cards) share the page's radius and shadow ── */
 .frame { border-radius: var(--q-frame-radius); box-shadow: var(--q-frame-shadow); overflow: hidden; }
 
 /* ── The hero: the words, and the tall painting at its sharp size (at most 512 px wide) ── */
@@ -60,17 +62,14 @@
 .heroFrame { position: relative; width: 100%; max-width: 512px; justify-self: end; }
 .heroCard.heroCard { height: min(calc(100vh - 140px), 768px); background: #34407a; border-radius: var(--q-frame-radius); box-shadow: var(--q-frame-shadow); }
 
-/* ── A feature: the words centred on the picture, the sides alternating, one split for all ── */
-.feature { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: clamp(40px, 6vw, 88px); align-items: center; }
-.feature[data-flip] { grid-template-columns: minmax(0, 1fr) minmax(0, 400px); }
-.feature[data-flip] .words { order: 2; }
-.words { display: grid; justify-items: start; }
-.pic { min-width: 0; }
-
-/* ── A centred section: the words above, the picture under them ── */
-.stack { display: grid; gap: var(--q-head-gap); }
-.head { display: grid; justify-items: center; text-align: center; }
-.head .body.body { text-wrap: balance; }
+/* ── One section template for every feature, on a 12-column grid: the title in columns 1 to 7, the one
+   sentence in columns 8 to 12 on the title's baseline, then one full-width frame ── */
+.section { display: grid; gap: var(--q-head-gap); }
+.headRow { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; align-items: last baseline; }
+.headRow .title { grid-column: 1 / 8; }
+.headText { grid-column: 8 / 13; }
+.headText .body.body { margin: 0; }
+.headText .link { margin-top: 12px; }
 
 /* ── The number: a dark band ── */
 .numBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: var(--q-band-pad) var(--gutter);
@@ -81,9 +80,8 @@
 .numBand .body.body { margin-top: 40px; text-wrap: balance; }
 .numBand .link:hover { color: #fff4e6; }
 
-/* ── Mac and iPhone: a marigold band, the same inner padding ── */
-.band { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: var(--q-band-pad) var(--gutter); background: #f4b75e; overflow: hidden; --q-color-body: #5b3a16; }
-.bothStage { position: relative; width: 100%; max-width: var(--q-width); justify-self: center; aspect-ratio: 1200 / 640; }
+/* ── Mac and iPhone: a marigold band with the features' header row, then the two devices; 72 px above and below ── */
+.band.band { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 72px max(var(--gutter), calc((100vw - var(--q-width)) / 2 + var(--gutter))); background: #f4b75e; --q-color-body: #4a2e10; }
 
 /* ── And so much more: three cards, a piece of the real UI in the page's frame, a title and a line ── */
 .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; text-align: left; }
@@ -102,10 +100,6 @@
 .closing .label.label { margin-top: 18px; color: var(--q-color-body); }
 
 /* ── Narrower windows ── */
-@media (max-width: 1100px) {
-  .feature { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
-  .feature[data-flip] { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
-}
 
 /* ── Phones: the hero's words tighter, so the download and her note both land in the first screen ── */
 @media (max-width: 900px) {
@@ -120,12 +114,11 @@
 /* ── Phones: every section stacks, the words then the picture ── */
 @media (max-width: 760px) {
   .main { --q-section: 96px; --q-head-gap: 32px; --q-size-title: 42px; --q-size-num: 104px; --q-size-body: 18px; --q-frame-radius: 24px; }
-  .feature, .feature[data-flip] { grid-template-columns: minmax(0, 1fr); gap: var(--q-head-gap); }
-  .feature[data-flip] .words { order: 0; }
+  .headRow { display: block; }
+  .headText { margin-top: 14px; }
   .cards { grid-template-columns: minmax(0, 1fr); gap: 36px; }
   .cardPic { height: 260px; }
   .closingCtas.closingCtas { flex-direction: column; }
   .bigNum { flex-direction: column; gap: 0.14em; }
   .bigNum svg { transform: rotate(90deg); width: 0.36em; }
-  .bothStage { aspect-ratio: 358 / 400; }
 }
