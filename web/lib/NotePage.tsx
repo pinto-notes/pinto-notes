@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { renderNote, withoutTitle } from "./render";
 import type { SharedFile } from "./render";
-import { avatarURL, copyAppLink, copyLink, type SharedNote } from "./shared";
+import { avatarURL, copyAppLink, copyLink, type BoardPicture, type SharedNote } from "./shared";
 import { APP_TEMPLATES } from "./site";
 import OpenInApp from "../app/OpenInApp";
 import { sharerLabel, type Sharer } from "./sharer";
@@ -34,12 +34,24 @@ function GetAmberNotes() {
   );
 }
 
+/// A shared whiteboard's picture: large and centred, on the board's own light ground in light and
+/// dark, at half its pixels so it's sharp on a 2x screen. Its words are its alt text.
+function Board({ board }: { board: BoardPicture }) {
+  return (
+    <figure className={s.board}>
+      <img src={board.url} alt={board.alt} width={board.width} height={board.height} decoding="async" fetchPriority="high" referrerPolicy="no-referrer" />
+    </figure>
+  );
+}
+
 /// A shared note: the page is the note, as in the app. The bar holds only the logo and "Use this note";
 /// who shared it sits under the title.
-export function NotePage({ slug, note, files, page, sealed = false, editHref = null }: {
+export function NotePage({ slug, note, files, page, board = null, sealed = false, editHref = null }: {
   slug: string; note: SharedNote; files: Record<string, SharedFile>;
   /** The note's page, shown above its text (sealed links, prototype). */
   page?: React.ReactNode;
+  /** A shared whiteboard: its picture stands for its text (the board's words, which describe it). */
+  board?: BoardPicture | null;
   /** A sealed link (/s/<id>#…): the copy opened in this browser; no Use this note or report link yet. */
   sealed?: boolean;
   /** An Edit link: where the app opens it to join the note. */
@@ -98,7 +110,9 @@ export function NotePage({ slug, note, files, page, sealed = false, editHref = n
           </>
         )}
         {page}
-        <article className="note" dangerouslySetInnerHTML={{ __html: html }} />
+        {board
+          ? <Board board={board} />
+          : <article className="note" dangerouslySetInnerHTML={{ __html: html }} />}
         {subnotes}
         <GetAmberNotes />
       </main>

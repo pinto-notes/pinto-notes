@@ -19,9 +19,11 @@ import AppKit
 
     // MARK: New Canvas
 
+    #if os(macOS)
     /// An Excalidraw file comes in as a whiteboard named after it, with its drawing, background and
     /// pictures; a file that isn't one is refused by name (whiteboard council, round 2: "Missing
-    /// import blocks moving existing work").
+    /// import blocks moving existing work"). Importing is on the Mac (CanvasImport): on the iPhone
+    /// this test didn't compile, and the iPhone tests with it.
     @Test func anExcalidrawFileComesInAsAWhiteboard() throws {
         let file: [String: Any] = [
             "type": "excalidraw", "version": 2, "source": "https://excalidraw.com",
@@ -50,6 +52,7 @@ import AppKit
         #expect(CanvasNote.name(ofFile: URL(fileURLWithPath: "/x/Board.excalidraw.json")) == "Board")
         #expect(CanvasNote.scene(fromExcalidraw: Data(#"{"type": "excalidrawlib", "elements": []}"#.utf8)) == nil, "a library isn't a board")
     }
+    #endif
 
     /// The receipt says what an AI did to a board (whiteboard council, round 2, 12).
     @Test func whatAChangeDidIsSaidPlainly() {

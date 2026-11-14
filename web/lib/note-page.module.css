@@ -47,6 +47,17 @@
 .needs b { color: var(--text); font-weight: 650; }
 .plain .initials { background: var(--accent-soft); color: var(--accent-text); font-size: 13px; }
 
+/* ── A shared whiteboard: its picture, wider than the text column, centred under the title ── */
+.board {
+  position: relative; left: 50%; transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 2 * var(--gutter, 20px))); margin: 0; display: flex; justify-content: center;
+}
+/* The board's own light ground whatever the page's mode: the picture is the board as drawn. */
+.board img {
+  display: block; max-width: 100%; height: auto; background: #fff; border-radius: 14px;
+  box-shadow: 0 0 0 1px var(--rule), 0 12px 32px -20px rgba(0, 0, 0, 0.35);
+}
+
 /* ── The one mention of the app, after the note ── */
 .get { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; margin-top: 32px; padding: 16px 16px 16px 18px; border-radius: 20px; background: var(--soft); color: var(--ink); }
 .get img { border-radius: 22.5%; box-shadow: 0 0 0 0.5px var(--line), 0 6px 14px -8px rgba(150, 70, 0, 0.45); }

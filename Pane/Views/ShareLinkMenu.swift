@@ -180,7 +180,8 @@ enum SharePublisher {
     }
 
 
-    static func copy(of id: UUID, includeSubNotes: Bool, in context: ModelContext) -> Copy? {
+    static func copy(of id: UUID, includeSubNotes: Bool, in context: ModelContext,
+                     pages: NotePageStore = .shared, data: NotePageDataStore = .shared) -> Copy? {
         guard let root = context.note(id), root.lockedBody == nil, root.deletedAt == nil, root.trashedAt == nil else { return nil }
         // A note shared with people is never published to a web page: its text is everyone's in
         // it (SharedNoteLimits). A page made before it was shared keeps its last copy.
@@ -188,6 +189,12 @@ enum SharePublisher {
         // Sub-notes are gone (2026-10-28): a page is the note alone, whatever an older link said
         // about them (`includeSubNotes` stays part of the link's tag, which the server keeps).
         _ = includeSubNotes
+        // A whiteboard's text is only its title; its drawing is page data. Its page shows a
+        // picture of it (BoardPicture), and its words are the copy's text.
+        if CanvasNote.has(root, in: pages) {
+            let words = CanvasSketch.of(root.id, in: data)?.texts ?? []
+            return Copy(title: root.title, body: BoardPicture.body(title: root.title, words: words), pages: [], files: [])
+        }
         var files: [String] = []
         for m in root.body.matches(of: /pane-file:([0-9a-fA-F-]{36})/) {
             guard let fid = UUID(uuidString: String(m.1)), let a = context.attachment(fid), a.deletedAt == nil else { continue }
@@ -222,6 +229,11 @@ enum SharePublisher {
                                                                                     p_tag: tag, p_copy: copy)).execute().value
         guard published.slug == slug else { throw Failure() }
         await upload(published.missing_files ?? [], slug: slug, client: client, context: context, user: user)
+        // A whiteboard shared from its board: the page shows its picture from the start. Sent
+        // again whatever was sent before, so Share Link and Copy Link put the page right.
+        if let root = context.note(note), CanvasNote.has(root) {
+            await BoardPicture.publish(note: note, slug: slug, client: client, force: true)
+        }
         return slug
     }
 
@@ -230,13 +242,22 @@ enum SharePublisher {
     /// published to, or nil when nothing was.
     @discardableResult
     static func republish(root: UUID, client: SupabaseClient, context: ModelContext, user: UUID) async -> String? {
-        guard let live = try? await liveShare(note: root, client: client), verifies(live, note: root, sealer: Wire.sealer, account: user),
-              let copy = copy(of: root, includeSubNotes: live.include_subnotes, in: context) else { return nil }
+        guard let live = try? await liveShare(note: root, client: client), verifies(live, note: root, sealer: Wire.sealer, account: user) else { return nil }
+        guard let copy = copy(of: root, includeSubNotes: live.include_subnotes, in: context) else {
+            // Locked, trashed or deleted: the server took the page's copy down, its picture too.
+            // Back again, it's sent whatever it was before.
+            BoardPicture.forget(slug: live.slug)
+            return nil
+        }
         struct Params: Encodable { var p_note: String; var p_slug: String; var p_copy: Copy }
         // Null when the link isn't live any more.
         guard let published: Published? = try? await client.rpc("publish_share", params: Params(p_note: root.uuidString.lowercased(), p_slug: live.slug, p_copy: copy)).execute().value,
               let published, published.slug == live.slug else { return nil }
         await upload(published.missing_files ?? [], slug: live.slug, client: client, context: context, user: user)
+        // A whiteboard open here: its picture follows the drawing. One that isn't keeps the last.
+        if let note = context.note(root), CanvasNote.has(note) {
+            await BoardPicture.publish(note: root, slug: live.slug, client: client)
+        }
         return live.slug
     }
 
@@ -543,6 +564,15 @@ final class ShareLinkStore {
 
     static let offline = OfflineCopy.needsNetwork("share this note")
 
+    /// What sharing publishes, asked once per note before its first link. Short (newcomer audit,
+    /// 2026-10-12: ten lines, then nothing): who can read it, that it leaves the encryption, and
+    /// that it shows who shared it. A whiteboard's page is a picture of it and its words.
+    nonisolated static func consent(board: Bool) -> String {
+        board
+            ? "Anyone with the link can see a picture of this whiteboard and its text, outside your encryption, until you stop sharing. The page shows your name and email."
+            : "Anyone with the link can read it and its files, outside your encryption, until you stop sharing. The page shows your name and email."
+    }
+
     static func message(for error: Error) -> String {
         if let u = error as? URLError, SyncEngine.reach(after: u) == .offline { return offline }
         let text = String(describing: error).lowercased()
@@ -653,7 +683,7 @@ private struct ShareLinkChrome: ViewModifier {
                 .contentShape(.capsule)
         }
         .buttonStyle(.plain)
-        .help("Anyone with the link can read this note. Click to copy the link.")
+        .help(CanvasNote.has(note) ? "Anyone with the link can see this whiteboard. Click to copy the link." : "Anyone with the link can read this note. Click to copy the link.")
         .accessibilityLabel("Shared. Copy link")
         .accessibilityIdentifier("share.indicator")
     }
@@ -703,9 +733,7 @@ private struct ShareLinkChrome: ViewModifier {
             } message: { step in
                 switch step {
                 case .createLink:
-                    // Short (newcomer audit, 2026-10-12: ten lines, then nothing): who can read it,
-                    // that it leaves the encryption, and that it shows who shared it.
-                    Text("Anyone with the link can read it and its files, outside your encryption, until you stop sharing. The page shows your name and email.")
+                    Text(ShareLinkStore.consent(board: CanvasNote.has(note)))
                 }
             }
             #if os(iOS)

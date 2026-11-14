@@ -133,9 +133,10 @@ const base64 = (text) => btoa(unescape(encodeURIComponent(text)));
 
 /**
  * The board (or only what's selected) as a file, base64: a PNG at 2x, an SVG that carries its
- * scene (Excalidraw opens it again), or the .excalidraw file itself. As it looks, light or dark.
+ * scene (Excalidraw opens it again), or the .excalidraw file itself. Always light, as drawn
+ * (`light` is kept for the share page's caller; it's the same either way).
  */
-export async function exportScene(api, format, selected) {
+export async function exportScene(api, format, selected, light) {
   const all = api.getSceneElements();
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
@@ -623,7 +624,7 @@ function Canvas({ initial }) {
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
-    Object.defineProperty(amber, "_canvasExport", { value: (format, selected) => exportScene(api, format, selected), configurable: true });
+    Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light) => exportScene(api, format, selected, light === true), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
     return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);
