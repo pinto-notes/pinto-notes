@@ -73,6 +73,21 @@
     background: rgba(0, 0, 0, 0.62); color: #fff; font-size: 12.5px; font-weight: 600; line-height: 1.2; pointer-events: none;
   }
 }
+/* A new picture, swapped in while the page is open (BoardLive.tsx): a short fade, none with reduced
+   motion. Two names for one fade, so each new picture restarts it on the same image. */
+@media (prefers-reduced-motion: no-preference) {
+  .board img.freshA { animation: boardFreshA 0.32s ease-out; }
+  .board img.freshB { animation: boardFreshB 0.32s ease-out; }
+}
+@keyframes boardFreshA { from { opacity: 0.45; } to { opacity: 1; } }
+@keyframes boardFreshB { from { opacity: 0.45; } to { opacity: 1; } }
+/* "· Updated just now", after the Edited date for a few seconds. */
+.justNow { color: var(--secondary); }
+/* The link stopped showing the board while the page was open. */
+.boardGone {
+  margin: 0; padding: 56px 20px; width: min(720px, 100%); border-radius: 14px; background: var(--soft);
+  color: var(--secondary); font-size: 15px; line-height: 1.4; text-align: center;
+}
 /* Its .excalidraw file, under the picture at its right. */
 .boardFoot { display: flex; justify-content: flex-end; margin-top: 6px; }
 .download {

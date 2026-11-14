@@ -2,6 +2,8 @@ import Link from "next/link";
 import { renderNote, withoutTitle } from "./render";
 import type { SharedFile } from "./render";
 import { avatarURL, copyAppLink, copyLink, isBoard, type BoardPicture, type SharedNote } from "./shared";
+import { editedDay } from "./board-live";
+import { BoardLive, LiveBoardFigure, LiveEdited, LiveTitle, LiveViewOnly } from "./BoardLive";
 import { APP_TEMPLATES } from "./site";
 import OpenInApp from "../app/OpenInApp";
 import { sharerLabel, type Sharer } from "./sharer";
@@ -15,11 +17,6 @@ function Avatar({ by, size }: { by: Sharer | null | undefined; size: number }) {
     : <span className={`${s.avatar} ${s.initials}`} style={{ width: size, height: size }} aria-hidden="true">{sharerLabel(by).initials}</span>;
 }
 
-function edited(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-}
-
 /// The one mention of the app on someone's shared note: after the note, never over it.
 function GetAmberNotes() {
   return (
@@ -31,32 +28,6 @@ function GetAmberNotes() {
       </p>
       <a className={ui.secondary} href="/">Get Pinto Notes</a>
     </aside>
-  );
-}
-
-/// A shared whiteboard's picture: large and centred, on the board's own light ground in light and
-/// dark, at half its pixels so it's sharp on a 2x screen. Its words are its alt text. A tap or click
-/// opens it full size in the browser's own image view, where a phone pinches to zoom and pans
-/// (whiteboard council, round 3: on a phone its cards' words were too small to read); narrow
-/// screens say so. Its .excalidraw file is under it, when the board's device published one.
-function Board({ board }: { board: BoardPicture }) {
-  return (
-    <figure className={s.board}>
-      <div className={s.boardFrame}>
-        <a className={s.boardOpen} href={board.url} title="Open full size">
-          <img src={board.url} alt={board.alt} width={board.width} height={board.height} decoding="async" fetchPriority="high" referrerPolicy="no-referrer" />
-          <span className={s.zoomHint}>Tap to zoom</span>
-        </a>
-        {board.download && (
-          <figcaption className={s.boardFoot}>
-            <a className={s.download} href={board.download} download rel="nofollow">
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 1.5v8M3.5 6 7 9.5 10.5 6M2 12.5h10" /></svg>
-              Download .excalidraw
-            </a>
-          </figcaption>
-        )}
-      </div>
-    </figure>
   );
 }
 
@@ -109,36 +80,46 @@ export function NotePage({ slug, note, files, page, board = null, sealed = false
       ? note.scene && <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} what="whiteboard" auto>Copy to Pinto Notes</OpenInApp>
       : <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} auto>Use this note</OpenInApp>;
 
+  // A board with its picture follows the board while the page is open (BoardLive.tsx): its title,
+  // Edited line and picture come from there. A board with no picture yet shows its words, as a note.
+  const content = (
+    <>
+      {parent}
+      {page ? (
+        // A note with an app: the app shows the note's title itself, so the page doesn't repeat it.
+        <p className={s.sharedLine} title={email ? `${name} · ${email}` : name}>
+          <span className={s.sharerLabel}>Shared by </span><b>{name}</b> · Edited {editedDay(note.updated_at)}
+        </p>
+      ) : (
+        <>
+          {board ? <LiveTitle className={s.bigTitle} /> : <h1 className={s.bigTitle}>{note.title}</h1>}
+          <div className={s.byline} title={email ? `${name} · ${email}` : name}>
+            <Avatar by={note.shared_by} size={36} />
+            <p>
+              <span className={s.bylineName}><span className={s.sharerLabel}>Shared by </span>{name}</span>
+              {board ? <LiveEdited /> : <span className={s.bylineDate}>Edited {editedDay(note.updated_at)}</span>}
+              {/* What the page is: a picture of the board, kept current from its owner's device. */}
+              {boardPage && (board ? <LiveViewOnly /> : <span className={s.bylineNote}>View only.</span>)}
+            </p>
+          </div>
+        </>
+      )}
+      {page}
+      {board
+        ? <LiveBoardFigure />
+        : <article className="note" dangerouslySetInnerHTML={{ __html: html }} />}
+      {subnotes}
+      <GetAmberNotes />
+    </>
+  );
+
   return (
     <Shell className={s.plain}>
       <TopBar href={sealed ? "/" : `/n/${slug}`}>{use}</TopBar>
       <main className={s.plainMain}>
-        {parent}
-        {page ? (
-          // A note with an app: the app shows the note's title itself, so the page doesn't repeat it.
-          <p className={s.sharedLine} title={email ? `${name} · ${email}` : name}>
-            <span className={s.sharerLabel}>Shared by </span><b>{name}</b> · Edited {edited(note.updated_at)}
-          </p>
-        ) : (
-          <>
-            <h1 className={s.bigTitle}>{note.title}</h1>
-            <div className={s.byline} title={email ? `${name} · ${email}` : name}>
-              <Avatar by={note.shared_by} size={36} />
-              <p>
-                <span className={s.bylineName}><span className={s.sharerLabel}>Shared by </span>{name}</span>
-                <span className={s.bylineDate}>Edited {edited(note.updated_at)}</span>
-                {/* What the page is: a picture of the board, kept current from its owner's device. */}
-                {boardPage && <span className={s.bylineNote}>View only. Reload to see the latest changes.</span>}
-              </p>
-            </div>
-          </>
-        )}
-        {page}
         {board
-          ? <Board board={board} />
-          : <article className="note" dangerouslySetInnerHTML={{ __html: html }} />}
-        {subnotes}
-        <GetAmberNotes />
+          ? <BoardLive slug={slug} board={board} title={note.title} updatedAt={note.updated_at}>{content}</BoardLive>
+          : content}
       </main>
       {!sealed && (
         <footer className={s.foot}>
