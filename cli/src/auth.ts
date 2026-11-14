@@ -2,6 +2,7 @@
 // (RFC 8414), dynamic client registration (RFC 7591), authorization code with PKCE (RFC 7636) to a
 // loopback redirect (RFC 8252), refresh-token rotation and revocation (RFC 7009). The person
 // approves in Pinto Notes on their iPhone or Mac; the server keeps only hashes of the tokens.
+import { env } from "./env.ts";
 import { type Credentials, deleteCredentials, loadCredentials, saveCredentials, withLock } from "./store.ts";
 
 /** What the server shows as the client's name when it can't vouch for it. */
@@ -48,7 +49,7 @@ export function codeFrom(returned: string, state: string, issuer: string): strin
   try { u = new URL(returned.trim()); } catch { throw new Error("That isn't the address from the browser. Copy the whole address, starting with http://127.0.0.1."); }
   const q = u.searchParams;
   if (q.get("error")) throw new Error(q.get("error") === "access_denied" ? "Declined in Pinto Notes. Nothing was connected." : `Sign-in failed: ${q.get("error_description") ?? q.get("error")}`);
-  if (q.get("state") !== state) throw new Error("That sign-in was started somewhere else (its state doesn't match). Run amber login again.");
+  if (q.get("state") !== state) throw new Error("That sign-in was started somewhere else (its state doesn't match). Run pinto login again.");
   // RFC 9207: the code must come from the server we asked.
   if (q.get("iss") && q.get("iss")!.replace(/\/+$/, "") !== issuer.replace(/\/+$/, "")) throw new Error(`The answer came from ${q.get("iss")}, not ${issuer}.`);
   const code = q.get("code");
@@ -78,7 +79,7 @@ export async function login(server: string, io: LoginIO, o: { noBrowser?: boolea
     if (u.pathname !== CALLBACK_PATH) return new Response("Not found", { status: 404 });
     deliver(req.url);
     const ok = u.searchParams.has("code") && u.searchParams.get("state") === state;
-    return new Response(ok ? PAGE("You're signed in", "amber in your terminal can use your notes now. You can close this tab.") : PAGE("Not signed in", "Go back to the terminal to see why."), { headers: { "content-type": "text/html; charset=utf-8" } });
+    return new Response(ok ? PAGE("You're signed in", "pinto in your terminal can use your notes now. You can close this tab.") : PAGE("Not signed in", "Go back to the terminal to see why."), { headers: { "content-type": "text/html; charset=utf-8" } });
   });
   try {
     const redirect = `http://127.0.0.1:${listener.addr.port}${CALLBACK_PATH}`;
@@ -90,7 +91,7 @@ export async function login(server: string, io: LoginIO, o: { noBrowser?: boolea
     // Whichever comes first: the browser coming back here, or an address pasted in.
     const pasted = opened ? new Promise<string>(() => {}) : io.ask("Address: ").then((a) => a ?? new Promise<string>(() => {}));
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<string>((_, no) => (timer = setTimeout(() => no(new Error("No answer within 10 minutes. Run amber login again.")), 600_000)));
+    const timeout = new Promise<string>((_, no) => (timer = setTimeout(() => no(new Error("No answer within 10 minutes. Run pinto login again.")), 600_000)));
     const back = await Promise.race([returned, pasted, timeout]).finally(() => clearTimeout(timer));
     const code = codeFrom(back, state, meta.issuer);
     const res = await fetch(meta.token_endpoint, {
@@ -108,17 +109,17 @@ export async function login(server: string, io: LoginIO, o: { noBrowser?: boolea
   }
 }
 
-/** A token to call the server with: AMBER_TOKEN, or the saved one, refreshed when it's about to expire. */
+/** A token to call the server with: PINTO_TOKEN (or AMBER_TOKEN), or the saved one, refreshed when it's about to expire. */
 export async function accessToken(server: string, force = false): Promise<string> {
-  const env = Deno.env.get("AMBER_TOKEN");
-  if (env) return env;
+  const given = env("TOKEN");
+  if (given) return given;
   const now = await loadCredentials(server);
-  if (!now) throw new Error("Not signed in. Run `amber login`.");
+  if (!now) throw new Error("Not signed in. Run `pinto login`.");
   if (!now.refresh_token || (!force && (now.expires_at ?? Infinity) > Date.now() + 60_000)) return now.access_token;
   return await withLock(async () => {
-    // Another amber may have refreshed while we waited for the lock.
+    // Another pinto may have refreshed while we waited for the lock.
     const c = await loadCredentials(server);
-    if (!c) throw new Error("Not signed in. Run `amber login`.");
+    if (!c) throw new Error("Not signed in. Run `pinto login`.");
     if (c.access_token !== now.access_token || !c.refresh_token) return c.access_token;
     const meta = await discover(server);
     const res = await fetch(meta.token_endpoint, {
@@ -129,7 +130,7 @@ export async function accessToken(server: string, force = false): Promise<string
     if (!res.ok || !t.access_token) {
       if (t.error === "invalid_grant") {
         await deleteCredentials(server);
-        throw new Error("This terminal was disconnected from Pinto Notes (Settings › Connect an AI). Run `amber login` to connect again.");
+        throw new Error("This terminal was disconnected from Pinto Notes (Settings › Connect an AI). Run `pinto login` to connect again.");
       }
       throw new Error(`Couldn't renew the sign-in: ${t.error_description ?? res.status}`);
     }
