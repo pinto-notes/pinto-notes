@@ -32,11 +32,24 @@ const KEEP_DELETED_MS = 7 * 24 * 3600 * 1000;
 
 const emptyScene = () => ({ type: "excalidraw", version: 2, source: "https://pintonotes.com", elements: [], appState: {}, files: {} });
 
+/**
+ * An arrow or line written with a size and no points runs along that size. The engine reads a
+ * width or height of 0 as missing and uses 100, so a straight-down arrow (width 0) came out
+ * slanting (note cards' pictures, 14 November 2026).
+ */
+function straight(e) {
+  if ((e.type !== "arrow" && e.type !== "line") || Array.isArray(e.points)) return e;
+  const w = typeof e.width === "number" ? e.width : null, h = typeof e.height === "number" ? e.height : null;
+  if (w === null && h === null) return e;
+  if (!(w || h)) return e;
+  return { ...e, points: [[0, 0], [w || 0, h || 0]] };
+}
+
 /** Full elements as stored; the short form an AI may write is converted. */
 export function normalize(elements) {
   const list = Array.isArray(elements) ? elements.filter((e) => e && typeof e === "object" && typeof e.type === "string") : [];
   const full = [], skeletons = [];
-  for (const e of list) (typeof e.seed === "number" && typeof e.version === "number" ? full : skeletons).push(e);
+  for (const e of list) (typeof e.seed === "number" && typeof e.version === "number" ? full : skeletons).push(straight(e));
   const converted = skeletons.length ? convertToExcalidrawElements(skeletons, { regenerateIds: false }) : [];
   return { elements: restoreElements([...full, ...converted], null, { repairBindings: true, refreshDimensions: false }), converted: skeletons.length > 0 };
 }

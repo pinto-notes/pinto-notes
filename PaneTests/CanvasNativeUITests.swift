@@ -739,6 +739,20 @@ import UIKit
         #expect(ax.find("canvas.template.retro") != nil)
     }
 
+    /// An AI's short-form arrow with a width of 0 and no points runs straight down, as written
+    /// (the engine read the 0 as missing and drew it slanting).
+    @Test func aStraightDownArrowFromAnAIStaysStraight() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "arrow", "id": "down", "x": 100, "y": 100, "width": 0, "height": 120],
+            ["type": "line", "id": "across", "x": 100, "y": 300, "width": 160, "height": 0],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        let ends = try #require(try await j.js("JSON.stringify(amber._canvas.api.getSceneElements().filter((e) => e.type === 'arrow' || e.type === 'line').map((e) => e.points[e.points.length - 1].map(Math.round)))") as? String)
+        let v = ends.filter { "-0123456789,".contains($0) }.split(separator: ",").compactMap { Int($0) }
+        #expect(v.count == 4 && v[0] == 0 && abs(v[1] - 120) <= 2 && abs(v[2] - 160) <= 2 && v[3] == 0, "straight down, straight across: \(ends)")
+    }
+
     /// Present walks the board's frames one by one, each filling the view, with the laser pointer
     /// picked; next, previous and Escape from the keyboard; with no frames, the whole board
     /// (whiteboard council, rounds 4 and 5: frames, presenting, a laser pointer).
