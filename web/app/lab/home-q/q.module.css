@@ -122,3 +122,20 @@
   .bigNum { flex-direction: column; gap: 0.14em; }
   .bigNum svg { transform: rotate(90deg); width: 0.36em; }
 }
+
+/* ── The headline's paper pop (Pop.tsx) ── */
+.popTitle { position: relative; }
+.popWord { white-space: nowrap; }
+.popTitle [data-c] { transition: opacity 0.22s ease-out; }
+.popTitle [data-c][data-hide] { opacity: 0.1; transition-duration: 0.08s; }
+.pop { position: absolute; z-index: 2; pointer-events: none; object-fit: contain; opacity: 0;
+  filter: drop-shadow(0 10px 12px rgba(60, 30, 5, 0.2));
+  animation: q-pop 0.9s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; }
+@keyframes q-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35) rotate(var(--r)); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scale(1.06) rotate(var(--r)); }
+  28% { transform: translate(-50%, -50%) scale(1) rotate(var(--r)); }
+  68% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -62%) scale(0.86) rotate(var(--r)); }
+}
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

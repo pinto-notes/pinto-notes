@@ -8,6 +8,7 @@ import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import p from "./pic.module.css";
 import q from "./q.module.css";
+import { PopTitle } from "./Pop";
 
 // Study Q's hero: today's live hero (app/_home/Hero.tsx), copied with round 4's words. The headline
 // on the left; on the right the tall painting of the same dusk, where her phone fills the frame, so
@@ -49,7 +50,7 @@ export function Hero() {
   return (
     <section className={`${x.hero} ${q.hero}`}>
       <div className={x.words}>
-        <h1 className={`${x.h1} ${q.h1} rise`} style={rise(0)}><span className={q.h1Line}>The notebook for</span> <em className={q.h1Em}>you and your AI</em>.</h1>
+        <PopTitle className={`${x.h1} ${q.h1} rise`} style={rise(0)} />
         {/* Write, draw and build name the three things next to their nouns (Emil, 11-14). */}
         <p className={`${x.lede} ${q.body} rise`} style={rise(1)}>Write notes, draw on whiteboards and build small apps, with your AI.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
