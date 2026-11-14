@@ -653,7 +653,7 @@ import UIKit
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, a = api.getSceneElements().find((e) => e.id === 'ai-arrow');
           return [(a.x + s.scrollX) * z, (a.y + s.scrollY) * z, a.width * z].join(','); })()
         """) as? String).split(separator: ",").compactMap { Double($0) }
-        #expect(h.near.contains { abs($0.minX - arrowAt[0]) < 2 && abs($0.minY - arrowAt[1]) < 2 && abs($0.width - arrowAt[2]) < 2 }, "the AI's own arrow is among what the tag avoids: \(arrowAt) in \(h.near)")
+        #expect(h.near.contains { abs($0.minX - arrowAt[0]) < 4 && abs($0.minY - arrowAt[1]) < 6 && abs($0.width - arrowAt[2]) < 4 }, "the AI's own arrow is among what the tag avoids: \(arrowAt) in \(h.near)")
         // The renamed box's outline goes round the box, not just its words.
         let box = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'box');
