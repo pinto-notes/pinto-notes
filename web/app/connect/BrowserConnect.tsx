@@ -178,6 +178,8 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
           return setView({ kind: "ended", title: "Allow this in Pinto Notes", text: "Your password was reset a short while ago, so connecting on the web waits for now. Allow it in Pinto Notes on your iPhone or Mac." });
         case "app":
           return setView({ kind: "inApp" });
+        case "none":
+          return await noAccountYet();
       }
     } catch {
       setView({ kind: "ended", title: "Couldn't connect", text: OFFLINE, retry: true });
@@ -274,6 +276,15 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     }
   }
 
+  /// Signed in to an account with no key: Sign in with Apple or Google made it here, and accounts
+  /// start in the app. What an email with no account gets, and the session ends with it.
+  async function noAccountYet() {
+    setView({ kind: "loading" });
+    await signOut();
+    setNoAccount(true);
+    setView({ kind: "signIn" });
+  }
+
   function differentEmail() {
     setNoAccount(false);
     setFailure(null);
@@ -304,6 +315,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       }
       if (res.status === 404) return setView(EXPIRED);
       if (body?.hint === "reauth") return setView({ kind: "signIn", again: true });
+      if (body?.hint === "no_key") return await noAccountYet();
       if (["strict", "no_copy", "no_key", "off", "unreadable", "rate"].includes(body?.hint ?? "")) {
         if (body?.hint === "rate") return setView({ kind: "ended", title: "Allow this in Pinto Notes", text: body?.error ?? OFFLINE });
         return setView({ kind: "inApp" });

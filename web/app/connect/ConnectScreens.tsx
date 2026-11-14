@@ -14,6 +14,14 @@ import styles from "./connect.module.css";
 /// tells nobody more about an email than that it has an account.
 export const NO_PASSWORD = "This email signs in with Apple or Google. Use one of the buttons above.";
 
+/// An email with no account, and an account Sign in with Apple or Google made on the web that never
+/// opened the app (so it has no notes' key): the web can't finish an account, the app does.
+export const NO_ACCOUNT = "No Pinto Notes account uses this email.";
+export const ACCOUNTS_START = "Accounts start in the app on your iPhone or Mac, which makes your notes\u2019 key. Get Pinto Notes, sign up there, then connect again.";
+export function GetPintoNotes() {
+  return <a className={styles.primary} href={APP_STORE_LIVE ? APP_STORE_URL : "/download"}>Get Pinto Notes</a>;
+}
+
 /// While Sign in with Apple is off on the web (APPLE_ON_WEB), what Apple accounts do instead.
 export const APPLE_INSTEAD = "Signed up with Apple? Scan the code with your iPhone instead.";
 
@@ -219,6 +227,21 @@ export function EndedScreen({ title, text, onRetry }: { title: string; text: str
   );
 }
 
+/// Signed in, but the account has no notes' key: Sign in with Apple or Google just made it on this
+/// page, and it never opened the app. There's no recovery key to ask for; the page has signed out.
+export function NoAccountScreen({ onDifferent }: { onDifferent: () => void }) {
+  return (
+    <>
+      <h1 className={styles.title}>{NO_ACCOUNT.replace(/\.$/, "")}</h1>
+      <p className={styles.lede} role="status">{ACCOUNTS_START}</p>
+      <GetPintoNotes />
+      <BottomLinks>
+        <button type="button" className={styles.link} onClick={onDifferent}>Use a different email</button>
+      </BottomLinks>
+    </>
+  );
+}
+
 function BottomLinks({ children }: { children: React.ReactNode }) {
   return <div className={styles.links}>{children}</div>;
 }
@@ -360,9 +383,9 @@ export function EmailFirst({ email, password, onEmail, onPassword, busy, ready, 
       {step.kind === "apple" && <p className={styles.said} role="status">{NO_PASSWORD}</p>}
       {step.kind === "none" ? (
         <div className={styles.said} role="status">
-          <p><b>No Pinto Notes account uses this email.</b></p>
-          <p>Accounts start in the app on your iPhone or Mac, which makes your notes&apos; key. Get Pinto Notes, sign up there, then connect again.</p>
-          <a className={styles.primary} href={APP_STORE_LIVE ? APP_STORE_URL : "/download"}>Get Pinto Notes</a>
+          <p><b>{NO_ACCOUNT}</b></p>
+          <p>{ACCOUNTS_START}</p>
+          <GetPintoNotes />
         </div>
       ) : (
         <>

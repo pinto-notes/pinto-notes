@@ -416,3 +416,64 @@ describe("the recovery key path", () => {
     expect(decided.write).toBe(true);
   });
 });
+
+// Sign in with Google or Apple on this page makes an account when the address has none. That account
+// never opened the app, so it has no key (no account_keys row) and no devices: it has no recovery key
+// to type. It gets what the email path says about an address with no account, and is signed out.
+describe("a new account made by Sign in with Google on this page", () => {
+  /// The fake server, answering the Google return's PKCE exchange and an account with no key.
+  function newAccountServer() {
+    const server = fakeServer(() => ({ state: "asked" }), { iphone: false, mac: false });
+    const inner = server.fetch.getMockImplementation()!;
+    server.fetch.mockImplementation(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input);
+      const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200, headers: { "content-type": "application/json" } });
+      if (url === `${SUPABASE}/auth/v1/token?grant_type=pkce`) {
+        server.calls.push({ url, init, body: JSON.parse(String(init.body)) });
+        return json({ access_token: "tok", user: { id: "new-user", email: "new@gmail.com" } });
+      }
+      if (url.startsWith(`${MCP}/connect/request`)) {
+        server.calls.push({ url, init, body: {} });
+        return json({ id: ID, client_name: "Claude", redirect_host: "claude.ai", redirect_uri: "https://claude.ai/api/mcp/auth_callback", loopback: false, wants_write: true, expires_at: new Date(Date.now() + 600_000).toISOString() });
+      }
+      if (url.startsWith(`${SUPABASE}/rest/v1/account_keys`)) {
+        server.calls.push({ url, init, body: {} });
+        return json([]);
+      }
+      return inner(input, init);
+    });
+    vi.stubGlobal("fetch", server.fetch);
+    return server;
+  }
+
+  async function backFromGoogle(recover: boolean) {
+    const server = newAccountServer();
+    sessionStorage.setItem("amber.connect.pkce", JSON.stringify({ verifier: "v", request: ID, provider: "google" }));
+    act(() => root.render(<ConnectFlow requestId={ID} supabaseURL={SUPABASE} anonKey="anon" label={LABEL} recover={recover} authCode="code-1" pollMs={20} />));
+    await until(() => container.textContent!.includes("No Pinto Notes account uses this email"));
+    return server;
+  }
+
+  function expectNoAccount(server: { calls: Call[] }) {
+    const text = container.textContent!;
+    expect(text).toContain("Accounts start in the app on your iPhone or Mac, which makes your notes’ key. Get Pinto Notes, sign up there, then connect again.");
+    expect([...container.querySelectorAll("a")].find((a) => a.textContent === "Get Pinto Notes")).toBeTruthy();
+    // Never the recovery key: this account has none.
+    expect(container.querySelector("#connect-recovery")).toBeNull();
+    expect(text).not.toContain("Use your recovery key");
+    expect(text).not.toContain("No iPhone or Mac has opened Pinto Notes");
+    // Signed out, like the page's other dead ends.
+    expect(server.calls.some((c) => c.url.startsWith(`${SUPABASE}/auth/v1/logout`))).toBe(true);
+  }
+
+  it("says there's no Pinto Notes account yet, with Get Pinto Notes, and never asks for a recovery key", async () => {
+    const server = await backFromGoogle(false);
+    expectNoAccount(server);
+    // The account's devices aren't asked: there are none, and nothing could approve.
+    expect(server.calls.some((c) => c.url === `${MCP}/connect/ask`)).toBe(false);
+  });
+
+  it("says the same when Google was chosen from the recovery key's sign-in", async () => {
+    expectNoAccount(await backFromGoogle(true));
+  });
+});

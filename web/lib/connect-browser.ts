@@ -93,15 +93,18 @@ export function backTo(r: Pick<ConnectRequest, "verified_ai" | "redirect_host" |
 // MARK: Whether this page may answer
 
 /// What /connect/request said about answering here: Allow on this page, a fresh sign-in first,
-/// the app, or wait (a password reset was too recent).
-export type Here = "yes" | "reauth" | "app" | "paused";
+/// the app, wait (a password reset was too recent), or no Pinto Notes account yet (no key).
+export type Here = "yes" | "reauth" | "app" | "paused" | "none";
 
 export function hereFrom(body: { allow_here?: unknown; allow_here_why?: unknown } | null | undefined): Here {
   if (body?.allow_here === true) return "yes";
   switch (body?.allow_here_why) {
     case "reauth": return "reauth";
     case "paused": return "paused";
-    // strict, no_copy, no_key, off, or a server from before this that doesn't say.
+    // No key: Sign in with Apple or Google made this account on the web, and it never opened the
+    // app. It isn't a Pinto Notes account yet, and the app's way has nothing to approve with.
+    case "no_key": return "none";
+    // strict, no_copy, off, or a server from before this that doesn't say.
     default: return "app";
   }
 }
