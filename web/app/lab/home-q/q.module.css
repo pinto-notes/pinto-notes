@@ -271,15 +271,34 @@
 .closingCtas.closingCtas { justify-content: center; margin-top: 38px; }
 .fine { margin: 18px 0 0; font-size: 14px; font-weight: 600; color: #8a7a68; }
 
-/* ── Round 5: the hero pushed in on her phone, so the note and the exchange read at 1440 ── */
-.hero.hero { grid-template-columns: minmax(0, 1fr) min(45vw, 650px); }
-/* The art three times the card's width: her phone's screen is about a third of the picture. */
-.heroArt.heroArt { --w: 300cqw; --h: calc(var(--w) * 941 / 1672); left: calc(66cqw - var(--w) * 0.63875); top: calc(50cqh - var(--h) * 0.503); }
-.heroScreen.heroScreen p:first-child { font-size: 5cqw; }
-.heroScreen.heroScreen li { font-size: 5.7cqw; padding: 2.8cqw 2cqw; gap: 3cqw; }
-.heroScreen.heroScreen li i { width: 5.6cqw; height: 5.6cqw; }
-.heroScreen.heroScreen li em { flex: none; font-size: 3.5cqw; padding: 0.7cqw 1.6cqw; gap: 0.8cqw; }
-.heroSaid.heroSaid { left: auto; right: calc(100% - 58.91% + 20px); top: 33%; bottom: auto; width: min(280px, 44cqw); gap: 10px; }
+/* ── Round 5: the hero is the tall painting of the same dusk, where her phone fills the frame. It is
+   1024 x 1536 and never drawn wider than 512 CSS px, so it stays sharp on a 2x screen. The note is HTML,
+   laid exactly over the painted screen; what's said sits in the sky above her phone. ── */
+.hero.hero { grid-template-columns: minmax(0, 1fr) min(512px, 42vw); column-gap: clamp(48px, 7vw, 112px); }
+.heroFrame { position: relative; width: 100%; max-width: 512px; justify-self: end; }
+.heroCard.heroCard { height: min(calc(100vh - 140px), 768px); background: #34407a; }
+/* The painting at its sharp size, bottom-anchored (a short window trims the sky), her phone centred. */
+.heroArt { position: absolute; bottom: 0; left: clamp(calc(100cqw - 512px), calc(50cqw - 236px), 0px); width: 512px; height: 768px; }
+.heroImg { display: block; width: 100%; height: 100%; }
+/* The painted screen: x 324-619, y 611-1221 of 1024 x 1536; its corners 26 px round. */
+.heroScreen { position: absolute; left: 31.64%; top: 39.78%; width: 28.81%; height: 39.71%; box-sizing: border-box; padding: 0 9px; overflow: hidden;
+  border-radius: 8.8% / 4.3%; background: #fbfaf7; color: #1d1b19;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.heroScreen p { margin: 0; }
+/* The painting is always drawn 512 px wide, so the screen is always 147.5 px: sizes in px. The notch, as painted. */
+.heroScreen::before { content: ""; position: absolute; left: 24%; right: 23%; top: 0; height: 9.5px; border-radius: 0 0 7px 7px; background: #1c1814; }
+.hsStatus { position: absolute; left: 10px; top: 1px; font-size: 7.5px; }
+.hsBack { margin-top: 22px !important; font-size: 10.5px; font-weight: 600; color: #d97a17; }
+.hsTitle { margin: 2px 0 6px !important; font-size: 20px; font-weight: 800; letter-spacing: -0.015em; }
+.hsSection { margin: 9px 0 2px !important; font-size: 10px; font-weight: 700; color: #8a7a68; }
+.hsList { margin: 0 -3px; padding: 0; list-style: none; display: grid; gap: 1px; }
+.hsList li { display: flex; align-items: center; gap: 6px; padding: 4.5px 3px; border-radius: 5px; font-size: 12px; line-height: 1.2; white-space: nowrap; border-bottom: 0.5px solid rgba(60, 30, 5, 0.08); }
+.hsList i { flex: none; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px #c3b5a5; }
+.hsList li[data-on] { color: #8f8478; text-decoration: line-through; text-decoration-color: rgba(120, 100, 80, 0.5); }
+.hsList li[data-on] i { background: #d97a17; box-shadow: none; }
+.hsList em { flex: none; margin-left: auto; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: #fff1de; color: #a85700; }
+/* In the sky over her phone, its foot just above the screen (305 px up the 768 px painting from its foot). */
+.heroSaid.heroSaid { --sw: min(330px, 90%); width: var(--sw); right: auto; left: calc(50% - var(--sw) / 2); top: auto; bottom: 480px; gap: 10px; }
 .heroSaid.heroSaid > p { font-size: 15.5px; line-height: 1.38; padding: 11px 14px; }
 .heroSaid.heroSaid > p > span { font-size: 13px; }
 
@@ -328,13 +347,10 @@
 @media (max-width: 900px) {
   .hero.hero { grid-template-columns: minmax(0, 1fr); }
   .h1.h1 { font-size: clamp(52px, 14vw, 80px); }
-  .heroCard.heroCard { height: min(156vw, 680px); }
-  /* Her phone about half the card wide, low in the card; the exchange above it. */
-  .heroArt.heroArt { --w: 480cqw; left: calc(50cqw - var(--w) * 0.63875); top: calc(100cqh - 18px - var(--h) * 0.6897); }
-  .heroSaid.heroSaid { --sw: min(310px, 90cqw); width: var(--sw); right: auto; left: calc(63.875% - var(--sw) / 2); top: auto; bottom: calc(100% - 31.67% + 12px); }
+  .heroFrame { justify-self: center; }
+  /* Never wider than 512 CSS px; the sky trimmed so her phone sits low, what's said above it. */
+  .heroCard.heroCard { height: min(640px, 168vw); }
   .heroSaid.heroSaid > p { font-size: 15px; padding: 10px 13px; }
-  /* Her phone is small here: the ChatGPT mark alone says who added the line. */
-  .heroScreen.heroScreen li em { font-size: 0; gap: 0; padding: 1cqw; }
 }
 
 @media (max-width: 760px) {

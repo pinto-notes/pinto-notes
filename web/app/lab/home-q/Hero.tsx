@@ -9,8 +9,8 @@ import x from "../../_home/hero.module.css";
 import q from "./q.module.css";
 
 // Study Q's hero: today's live hero (app/_home/Hero.tsx), copied with round 4's words. The headline
-// on the left, and over her shoulder at dusk, she plans tomorrow out loud and her Pinto note fills in
-// on her phone. Plays once on arrival; `?t=` freezes it.
+// on the left; on the right the tall painting of the same dusk, where her phone fills the frame, so
+// the note she is filling in by talking to ChatGPT can be read. Plays once on arrival; `?t=` freezes it.
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 const mj = (v: number) => { const t = clamp(v); return t * t * t * (10 - 15 * t + 6 * t * t); };
@@ -38,7 +38,7 @@ const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 const TOMORROW = [
   { text: "Run, 5 km", at: 1.2 },
   { text: "Call the dentist", at: 1.6 },
-  { text: "Book Lisbon flights", at: 2.5 },
+  { text: "Lisbon flights", at: 2.5 },
 ];
 export function Hero() {
   const t = useClock();
@@ -67,43 +67,38 @@ export function Hero() {
         </div>
         <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free on Mac and iPhone. Works with ChatGPT and Claude.</p>
       </div>
-      <div className={`${x.card} ${q.heroCard} rise`} style={rise(1)} role="img"
+      <div className={`${q.heroFrame} rise`} style={rise(1)}>
+      <div className={`${x.card} ${q.heroCard}`} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">
-      <div className={`${x.art} ${q.heroArt}`}>
-        {/* Pushed in on her phone, so the note reads: the art is the largest file there is (2200 px). */}
-        <img className={x.artImg} src="/home-v5/hero/phone-shoulder.webp" width={2200} height={1238} alt="" fetchPriority="high" />
-        <div className={`${x.screen} ${q.heroScreen}`} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
-          <div className={x.scIn}>
-          <p className={x.scStatus}><b>21:40</b><span /></p>
-          <p className={x.scBack}>‹ My notebook</p>
-          <p className={x.scTitle}>Tomorrow</p>
-          <ul className={x.scList}>
-            <li><i />Pick up the dry cleaning</li>
+      <div className={q.heroArt}>
+        {/* The tall painting, 1024 x 1536, drawn at most 512 CSS px wide so it stays sharp on a 2x screen. */}
+        <img className={q.heroImg} src="/lab/q/shoulder-tall.webp" width={1024} height={1536} alt="" fetchPriority="high" />
+        {/* Laid exactly over the painted screen (x 324-619, y 611-1221 of the painting). */}
+        <div className={q.heroScreen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
+          <p className={q.hsStatus}><b>21:40</b></p>
+          <p className={q.hsBack}>‹ My notebook</p>
+          <p className={q.hsTitle}>Tomorrow</p>
+          <ul className={q.hsList}>
+            <li><i />Dry cleaning</li>
             {TOMORROW.map((l) => {
               const v = mj(span(t, l.at, l.at + 0.4)), fresh = v * (1 - span(t, l.at + 1.4, l.at + 2.6));
               return (
                 <li key={l.text} style={{ opacity: v, transform: `translateY(${((1 - v) * 6).toFixed(1)}px)`, background: `rgba(240,144,26,${(0.16 * fresh).toFixed(3)})` }}>
-                  <i />{l.text}<em><AIGlyph name="openai" size={10} />ChatGPT</em>
+                  <i />{l.text}<em title="Added by ChatGPT"><AIGlyph name="openai" size={10} /></em>
                 </li>
               );
             })}
           </ul>
-          <p className={x.scSection}>This week</p>
-          <ul className={x.scList}>
-            <li><i data-on="" />Long run, 12 km</li>
-            <li><i data-on="" />Read 20 pages</li>
+          <p className={q.hsSection}>This week</p>
+          <ul className={q.hsList}>
+            <li data-on=""><i />Long run, 12 km</li>
+            <li data-on=""><i />Read 20 pages</li>
             <li><i />Call mum</li>
           </ul>
         </div>
-          {/* Left behind when her note lifts off: the notebook's list of notes. */}
-          <div className={x.scBehind} aria-hidden="true">
-            <p className={x.scStatus}><b>21:40</b><span /></p>
-            <p className={x.scTitle}>My notebook</p>
-            <ul className={x.scNotes}>
-              {[["Tomorrow", "21:38"], ["Groceries", "Yesterday"], ["Lisbon trip", "Monday"], ["Habit tracker", "Sunday"], ["Gift ideas", "Last week"]].map(([n, d]) => <li key={n}><b>{n}</b><span>{d}</span></li>)}
-            </ul>
-          </div>
-        </div>
+      </div>
+      </div>
+        {/* What's said, in the sky above her phone. */}
         <div className={`${x.said} ${q.heroSaid}`}>
           <p className={x.me} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
             <span className={x.wave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
@@ -112,7 +107,6 @@ export function Hero() {
             <span><AIGlyph name="openai" size={14} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
           </p>
         </div>
-      </div>
       </div>
     </section>
   );
