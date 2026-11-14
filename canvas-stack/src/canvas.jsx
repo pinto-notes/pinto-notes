@@ -384,31 +384,51 @@ export async function libraryPreview(elements, files) {
 }
 
 /**
- * Where something w by h goes so it covers nothing drawn: the middle of the view when that's
- * free, else the free spot in view nearest the middle, else just right of the drawing (`inView`
- * false then). Its top left corner, in the scene.
+ * Where something w by h goes: at least `gap` (48 pt on screen, never less in the scene) from every
+ * shape, line and word drawn, in the roomiest empty part of the view (library council, round 6:
+ * "D1 Store" landed 25 pt above an arrowhead in a tight gap). The middle of the view when it has
+ * room all round; else the spot in view farthest from anything drawn and from the view's edges,
+ * nearest the middle among equals; else just right of the drawing (`inView` false then). Its top
+ * left corner, in the scene.
  */
-export function freeSpot(api, w, h, margin = 24) {
+export function freeSpot(api, w, h, gap = FREE_GAP) {
   const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
   const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
+  const margin = Math.max(gap, gap / z), roomy = 2.5 * margin;
   const mid = { x: vx + vw / 2 - w / 2, y: vy + vh / 2 - h / 2 };
-  const drawn = api.getSceneElements().filter((e) => !e.containerId).map((e) => getCommonBounds([e]));
-  const free = (x, y) => !drawn.some(([x1, y1, x2, y2]) => x < x2 + margin && x + w > x1 - margin && y < y2 + margin && y + h > y1 - margin);
-  if (free(mid.x, mid.y)) return { ...mid, inView: true };
+  // Words on arrows and in shapes count too: a label can reach past its arrow.
+  const drawn = api.getSceneElements().map((e) => getCommonBounds([e]));
+  // How far a w by h box at x, y is from the nearest thing drawn (Infinity on an empty board).
+  const room = (x, y) => {
+    let d = Infinity;
+    for (const [x1, y1, x2, y2] of drawn) {
+      const dx = Math.max(x1 - (x + w), x - x2, 0), dy = Math.max(y1 - (y + h), y - y2, 0);
+      d = Math.min(d, Math.hypot(dx, dy));
+    }
+    return d;
+  };
+  const edges = (x, y) => Math.min(x - vx, vx + vw - x - w, y - vy, vy + vh - y - h);
+  if (room(mid.x, mid.y) >= roomy) return { ...mid, inView: true };
   // Every spot in view on a grid fine enough to find a gap, coarse enough to stay quick.
   const step = Math.max(8 / z, Math.min(w, h) / 4, vw / 60, vh / 60);
   let best = null;
-  for (let x = vx + margin / 2; x + w <= vx + vw - margin / 2; x += step) {
-    for (let y = vy + margin / 2; y + h <= vy + vh - margin / 2; y += step) {
-      if (!free(x, y)) continue;
+  for (let x = vx + margin / 4; x + w <= vx + vw - margin / 4; x += step) {
+    for (let y = vy + margin / 4; y + h <= vy + vh - margin / 4; y += step) {
+      const r = room(x, y);
+      if (r < margin) continue;
+      // The roomiest spot, counting the view's edges as walls; past `roomy` all are as good.
+      const score = Math.min(r, edges(x, y) + margin, roomy);
       const d = (x - mid.x) ** 2 + (y - mid.y) ** 2;
-      if (!best || d < best.d) best = { x, y, d };
+      if (!best || score > best.score + 0.5 || (Math.abs(score - best.score) <= 0.5 && d < best.d)) best = { x, y, d, score };
     }
   }
   if (best) return { x: best.x, y: best.y, inView: true };
   const [x1, y1, x2, y2] = getCommonBounds(api.getSceneElements());
-  return { x: x2 + 60, y: Math.max(y1, Math.min(mid.y, y2 - h)), inView: false };
+  return { x: x2 + Math.max(60, margin), y: Math.max(y1, Math.min(mid.y, y2 - h)), inView: false };
 }
+
+/** The least room left around something put on the board for you (freeSpot), in screen points. */
+export const FREE_GAP = 48;
 
 /**
  * A library item onto the board, as the engine puts one from its own library: new ids, its words
@@ -1096,7 +1116,7 @@ function Canvas({ initial }) {
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
     // What the app asks the board and waits for: the selection as a library item, an item's picture.
-    const calls = { libraryPiece: () => libraryPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files) };
+    const calls = { libraryPiece: () => libraryPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });

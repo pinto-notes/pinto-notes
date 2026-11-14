@@ -638,6 +638,8 @@ struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
     var id: String
     /// Imported libraries name their items ("Server", "Database"); a saved one is named by its words.
     var name: String?
+    /// The library file it came from, as the popover groups it ("Data flow"); nil when you saved it.
+    var source: String?
     /// When it was made, in milliseconds since 1970, as Excalidraw keeps it.
     var created: Double
     /// The elements, as a JSON array.
@@ -650,7 +652,7 @@ struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
     var files: [String: Any] { filesJSON.flatMap { (try? JSONSerialization.jsonObject(with: $0)) as? [String: Any] } ?? [:] }
 
     /// Nil when nothing is left to keep (no elements, or only deleted ones).
-    init?(id: String = UUID().uuidString, name: String? = nil, created: Double = Date.now.timeIntervalSince1970 * 1000,
+    init?(id: String = UUID().uuidString, name: String? = nil, source: String? = nil, created: Double = Date.now.timeIntervalSince1970 * 1000,
           elements: [[String: Any]], files: [String: Any] = [:]) {
         let kept = elements.filter { ($0["type"] as? String) != nil && ($0["isDeleted"] as? Bool) != true }
         guard !kept.isEmpty, JSONSerialization.isValidJSONObject(kept), let json = try? JSONSerialization.data(withJSONObject: kept) else { return nil }
@@ -659,6 +661,7 @@ struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
         self.id = id
         let words = CanvasSketch(elements: kept).texts.joined(separator: " \u{00B7} ")
         self.name = name.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? (words.isEmpty ? nil : String(words.prefix(60)))
+        self.source = source.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
         self.created = created
         elementsJSON = json
         filesJSON = pictures.isEmpty || !JSONSerialization.isValidJSONObject(pictures) ? nil : try? JSONSerialization.data(withJSONObject: pictures)
@@ -668,8 +671,21 @@ struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
     var libraryItem: [String: Any] {
         var out: [String: Any] = ["id": id, "status": "unpublished", "created": created, "elements": elements]
         if let name { out["name"] = name }
+        if let source { out[CanvasLibraryFile.sourceKey] = source }
         if filesJSON != nil { out["files"] = files }
         return out
+    }
+
+    /// What the library shows under its picture: its name, or what it is ("Line", "3 shapes").
+    var title: String {
+        if let name { return name }
+        let shapes = elements.filter { ($0["containerId"] as? String) == nil }
+        guard shapes.count == 1, let type = shapes[0]["type"] as? String else { return "\(shapes.count) shapes" }
+        switch type {
+        case "freedraw": return "Drawing"
+        case "image": return "Picture"
+        default: return type.prefix(1).uppercased() + type.dropFirst()
+        }
     }
 
     /// What it looks like, whatever its ids: each element's kind, place from the item's corner,
@@ -692,10 +708,20 @@ struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
 enum CanvasLibraryFile {
     static let fileExtension = "excalidrawlib"
     static var contentType: UTType { UTType(filenameExtension: fileExtension) ?? .json }
+    /// Pinto's own key on an item: the library file it came from (Excalidraw passes over it).
+    static let sourceKey = "pintoLibrary"
+
+    /// A library file's name as the popover heads its items: "data-flow.excalidrawlib" is "Data flow".
+    static func displayName(_ url: URL) -> String {
+        let words = url.deletingPathExtension().lastPathComponent
+            .replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
+            .split(separator: " ").joined(separator: " ")
+        return words.prefix(1).uppercased() + words.dropFirst()
+    }
 
     /// The items in a library file, or nil when it isn't one. `keepIDs`: the app's own file, whose
     /// ids name the items' pictures; an import gets new ones.
-    static func items(from data: Data, keepIDs: Bool = false) -> [CanvasLibraryItem]? {
+    static func items(from data: Data, keepIDs: Bool = false, source: String? = nil) -> [CanvasLibraryItem]? {
         guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
         if let type = json["type"] as? String, type != "excalidrawlib" { return nil }
         let safe = { (s: String) in s.count <= 64 && !s.isEmpty && s.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") } }
@@ -703,12 +729,12 @@ enum CanvasLibraryFile {
         func time(_ raw: Any?) -> Double { (raw as? Double) ?? (raw as? Int).map(Double.init) ?? Date.now.timeIntervalSince1970 * 1000 }
         if let list = json["libraryItems"] as? [[String: Any]] {
             return list.compactMap { i in
-                CanvasLibraryItem(id: id(i["id"]), name: i["name"] as? String, created: time(i["created"]),
+                CanvasLibraryItem(id: id(i["id"]), name: i["name"] as? String, source: (i[sourceKey] as? String) ?? source, created: time(i["created"]),
                                   elements: i["elements"] as? [[String: Any]] ?? [], files: i["files"] as? [String: Any] ?? [:])
             }
         }
         if let list = json["library"] as? [[[String: Any]]] {
-            return list.compactMap { CanvasLibraryItem(elements: $0) }
+            return list.compactMap { CanvasLibraryItem(source: source, elements: $0) }
         }
         return nil
     }
@@ -793,9 +819,10 @@ final class CanvasLibrary {
     struct Imported: Equatable { var added = 0; var already = 0 }
 
     /// A library file's items, first in the library in the file's order; ones already here (by
-    /// how they look) are left out. Nil when the file isn't a library.
-    func importLibrary(_ data: Data) -> Imported? {
-        guard let incoming = CanvasLibraryFile.items(from: data) else { return nil }
+    /// how they look) are left out. Nil when the file isn't a library. `source`: the file's name,
+    /// which the popover groups them under.
+    func importLibrary(_ data: Data, source: String? = nil) -> Imported? {
+        guard let incoming = CanvasLibraryFile.items(from: data, source: source) else { return nil }
         var seen = Set(items.map(\.look))
         var fresh: [CanvasLibraryItem] = []
         for item in incoming where seen.insert(item.look).inserted { fresh.append(item) }
@@ -838,6 +865,73 @@ final class CanvasLibrary {
 
     /// Waits for what's being written (tests: a library read again from its folder).
     func flush() { writer.sync {} }
+}
+
+/// The library as the popover lays it out (library council, round 6): items under the name of the
+/// library file they came from (yours under "Saved"), newest group first; filtered by a search once
+/// there are more than 12; moved through with the arrow keys, row by row as the grid shows them.
+struct CanvasLibraryGrid: Equatable {
+    struct Group: Equatable, Identifiable {
+        var title: String
+        var items: [CanvasLibraryItem]
+        var id: String { title }
+    }
+
+    static let savedTitle = "Saved"
+    /// More items than this, and the popover has a search field.
+    static let searchAfter = 12
+    static func showsSearch(_ count: Int) -> Bool { count > searchAfter }
+
+    let groups: [Group]
+    let columns: Int
+
+    /// `query`: what's typed in the search field; an item shows when its name or its library's has it.
+    init(_ items: [CanvasLibraryItem], query: String = "", columns: Int = 4) {
+        self.columns = max(1, columns)
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var order: [String] = [], byTitle: [String: [CanvasLibraryItem]] = [:]
+        for item in items {
+            let title = item.source ?? Self.savedTitle
+            guard q.isEmpty || item.title.localizedStandardContains(q) || title.localizedStandardContains(q) else { continue }
+            if byTitle[title] == nil { order.append(title) }
+            byTitle[title, default: []].append(item)
+        }
+        groups = order.map { Group(title: $0, items: byTitle[$0] ?? []) }
+    }
+
+    /// Every item shown, in the order the grid shows them.
+    var items: [CanvasLibraryItem] { groups.flatMap(\.items) }
+
+    enum Move { case left, right, up, down }
+
+    /// Where an arrow key goes from the item `from` (by id): the one beside it, or the one above or
+    /// below in the grid, across groups; the first item when nothing is picked yet.
+    func moved(_ from: String?, _ move: Move) -> String? {
+        // Each shown item's row (counted through every group) and column.
+        var cells: [(id: String, row: Int, col: Int)] = []
+        var row = 0
+        for g in groups {
+            for (i, item) in g.items.enumerated() { cells.append((item.id, row + i / columns, i % columns)) }
+            row += (g.items.count + columns - 1) / columns
+        }
+        guard let here = cells.firstIndex(where: { $0.id == from }) else { return cells.first?.id }
+        let c = cells[here]
+        switch move {
+        case .left: return cells[max(here - 1, 0)].id
+        case .right: return cells[min(here + 1, cells.count - 1)].id
+        case .up, .down:
+            let next = move == .up ? cells[..<here].last(where: { $0.row < c.row })?.row : cells[(here + 1)...].first(where: { $0.row > c.row })?.row
+            guard let next else { return c.id }
+            let line = cells.filter { $0.row == next }
+            return (line.last(where: { $0.col <= c.col }) ?? line[0]).id
+        }
+    }
+
+    /// What Return adds: the picked item, or with a search typed and nothing picked, the first match.
+    func chosen(_ picked: String?, searching: Bool) -> CanvasLibraryItem? {
+        if let picked, let item = items.first(where: { $0.id == picked }) { return item }
+        return searching ? items.first : nil
+    }
 }
 
 /// The open canvas, for the menus (Edit, View).
