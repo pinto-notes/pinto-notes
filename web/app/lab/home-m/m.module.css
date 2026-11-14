@@ -1,0 +1,220 @@
+/* Study M, "The desk". One cut-paper desk seen from above fills the first screen; the three things
+   lie on it as real objects with the real UI. Cream page throughout (lib/theme.ts). */
+
+@font-face { font-family: "Excalifont M"; src: url("/lab/home-e/excalifont.woff2") format("woff2"); font-display: block; }
+
+.main { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: 128px; padding-bottom: 40px; }
+
+/* ── The desk: light wood made of cut-paper planks, a seam between each ── */
+.desk { --k: 1; position: relative; box-sizing: border-box; height: calc(800px * var(--k)); margin: 0 16px; border-radius: 28px; overflow: hidden; isolation: isolate;
+  background-color: #ecd6b3;
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0 158px, rgba(120, 72, 28, 0.13) 158px 159px, rgba(255, 248, 235, 0.5) 159px 160px),
+    repeating-linear-gradient(180deg, #edd8b6 0 160px, #e9d1ab 160px 320px, #efdcbc 320px 480px, #e8cfa9 480px 640px, #eed9b8 640px 800px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='160'%3E%3Cg fill='none' stroke='%23a06a34' stroke-opacity='0.07' stroke-width='1.4'%3E%3Cpath d='M0 34C160 26 300 44 460 36S760 22 900 32'/%3E%3Cpath d='M0 82C200 92 380 70 540 80S780 96 900 86'/%3E%3Cpath d='M0 124C140 118 320 134 500 126S800 114 900 122'/%3E%3Cpath d='M120 58c60-10 140-8 200 2'/%3E%3C/g%3E%3C/svg%3E");
+  background-blend-mode: normal, normal, multiply;
+  box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.14); }
+.stage { position: absolute; left: 50%; top: 0; width: 1408px; height: 800px; transform: translateX(-50%) scale(var(--k)); transform-origin: top center; }
+
+/* ── The objects' shared light: from the top left, so shadows fall down and right ── */
+.thing, .card, .tag, .sticky { --sh: 0 1px 2px rgba(70, 38, 8, 0.2), 8px 14px 26px -8px rgba(70, 38, 8, 0.34); }
+
+/* ── The headline card ── */
+.card { position: absolute; left: 44px; top: 36px; width: 584px; box-sizing: border-box; padding: 38px 36px 36px; border-radius: 8px; background: #fffaf2;
+  box-shadow: var(--sh); transform: rotate(-0.6deg); z-index: 4; }
+.h1 { margin: 0 0 16px; font-size: 52px; font-weight: 750; letter-spacing: -0.035em; line-height: 1; color: #2a1d10; text-wrap: balance; }
+.mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
+.lede { margin: 0 0 26px; font-size: 18.5px; line-height: 1.4; color: #6b5844; text-wrap: pretty; }
+
+/* ── The three things ── */
+.thing { position: absolute; z-index: 5;
+  transform: translate(var(--dx, 0px), var(--dy, 0px)) rotate(var(--r, var(--r0))) scale(var(--s, var(--s0)));
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.thingIn { width: 100%; height: 100%; }
+.hit { position: absolute; inset: 0; z-index: 2; margin: 0; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 40px; -webkit-tap-highlight-color: transparent; }
+.thing[data-thing="whiteboards"] .hit { border-radius: 12px; }
+.thing[data-on] .hit { cursor: zoom-out; }
+.hit:focus-visible { outline: 4px solid var(--amber); outline-offset: 6px; }
+@media (hover: hover) {
+  .thing:hover:not([data-on]) { --r: 0deg; --dy: -10px; --s: calc(var(--s0) * 1.035); z-index: 8;
+    --sh: 0 2px 4px rgba(70, 38, 8, 0.14), 20px 34px 54px -10px rgba(70, 38, 8, 0.4); }
+}
+.thing[data-on] { z-index: 30; --sh: 0 2px 4px rgba(70, 38, 8, 0.12), 24px 40px 70px -16px rgba(70, 38, 8, 0.42); }
+.thing .phone, .thing .sheet { transition: box-shadow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* The labels: small paper tags laid by each thing. Plain type. */
+.tag { position: absolute; z-index: 4; margin: 0; padding: 11px 16px 12px; border-radius: 5px; background: #fffdf8; box-shadow: var(--sh); transform: rotate(var(--tr));
+  font-size: 16.5px; line-height: 1.3; color: #6b5844; white-space: nowrap; }
+.tag b { color: #2a1d10; font-weight: 750; letter-spacing: -0.01em; font-size: 18px; margin-right: 2px; }
+.spot { display: contents; }
+
+/* ── The sticky note: what you'd say to ChatGPT. Olive oil is now on the list on the phone. ── */
+.stickyAt { position: absolute; left: 918px; top: 50px; z-index: 4; }
+.sticky { box-sizing: border-box; width: 180px; padding: 18px 18px 26px; background: #ffe48a; border-radius: 2px 2px 3px 14px; box-shadow: var(--sh); transform: rotate(3.5deg);
+  display: grid; align-content: start; gap: 10px; }
+.stickyWho { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 650; color: #5c4a2a; }
+.stickySay { margin: 0; font-size: 21px; font-weight: 650; line-height: 1.2; letter-spacing: -0.015em; color: #2a1d10; }
+
+/* ── Things on the desk that are only the desk ── */
+.mug { position: absolute; left: 1196px; top: 16px; width: 212px; filter: drop-shadow(8px 14px 14px rgba(70, 38, 8, 0.28)); z-index: 2; }
+.plant { position: absolute; left: 1178px; top: 470px; width: 280px; filter: drop-shadow(6px 10px 10px rgba(50, 40, 10, 0.25)); z-index: 3; transform: rotate(-6deg); }
+.pencil { position: absolute; left: 640px; top: 738px; width: 270px; filter: drop-shadow(4px 7px 5px rgba(70, 38, 8, 0.3)); transform: rotate(-7deg); z-index: 2; }
+
+/* ── Opened: the desk dims behind the thing, its facts sit beside it ── */
+.veil { position: absolute; top: -40px; bottom: -40px; left: -1600px; right: -1600px; z-index: 20; background: rgba(250, 238, 219, 0.94); opacity: 0; pointer-events: none; transition: opacity 0.4s ease-out; }
+.desk[data-open] .veil { opacity: 1; pointer-events: auto; cursor: zoom-out; }
+.facts { position: absolute; z-index: 31; transform: translateY(-50%) scale(calc(1 / var(--k))); transform-origin: left center; display: grid; gap: 18px; }
+@media (prefers-reduced-motion: no-preference) { .facts { animation: factsIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.18s backwards; } }
+@keyframes factsIn { from { opacity: 0; translate: -14px 0; } }
+.fTitle { margin: 0; font-size: 46px; font-weight: 750; letter-spacing: -0.035em; line-height: 1; color: #2a1d10; }
+.facts ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.facts li { font-size: 19px; line-height: 1.42; color: #6b5844; text-wrap: pretty; }
+.facts li b { color: #2a1d10; font-weight: 700; }
+.close { order: -1; justify-self: start; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: #f1e1c9; color: #2a1d10; cursor: pointer; transition: background-color 0.15s; }
+.close:hover { background: #e7cfad; }
+.close:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+
+/* ── iPhone: 320 × 672 at its own size; every size inside is in em so a phone screen can shrink it ── */
+.phone { font-size: 16px; width: 20em; height: 42em; box-sizing: border-box; padding: 0.6em; border-radius: 3.3em; background: #24211f;
+  box-shadow: inset 0 0 0 0.14em #57514c, inset 0 0 0 0.32em #2b2826, var(--sh); }
+.screen { box-sizing: border-box; height: 100%; padding: 0 1.15em; border-radius: 2.75em; overflow: hidden; background: #fdfcfa; color: #1d1b19;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.status { position: relative; display: flex; align-items: center; justify-content: space-between; height: 3.2em; margin: 0; padding: 0 0.7em; font-size: 0.94em; }
+.status b { font-weight: 650; }
+.island { position: absolute; left: 50%; top: 0.62em; width: 6.4em; height: 1.95em; margin-left: -3.2em; border-radius: 1em; background: #121110; }
+.sIcons { display: flex; align-items: center; gap: 0.35em; }
+.sIcons svg { height: 0.78em; width: auto; fill: currentColor; }
+.nav { display: flex; align-items: center; justify-content: space-between; margin: 0.2em 0 0.4em; }
+.back { display: inline-flex; align-items: center; gap: 0.32em; font-size: 1.04em; color: #d97a17; }
+.back svg { width: 0.62em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.navBtns { display: flex; gap: 0.5em; }
+.navBtns i { display: grid; place-items: center; width: 2.1em; height: 2.1em; border-radius: 50%; background: #f3efea; }
+.navBtns svg { width: 1em; height: 1em; fill: none; stroke: #d97a17; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.navBtns circle { fill: #d97a17; stroke: none; }
+
+/* The Groceries note */
+.nDate { margin: 0.5em 0 0.35em; text-align: center; font-size: 0.78em; color: #9a8f84; }
+.nTitle { margin: 0 0 0.3em; font-size: 1.95em; font-weight: 750; letter-spacing: -0.015em; line-height: 1.1; }
+.nText { margin: 0 0 0.75em; font-size: 0.95em; line-height: 1.4; }
+.check { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.08em; }
+.check li { display: flex; align-items: center; gap: 0.62em; margin: 0 -0.5em; padding: 0.42em 0.5em; border-radius: 0.6em; font-size: 1em; white-space: nowrap; }
+.check li > i { flex: none; display: grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%; box-shadow: inset 0 0 0 0.09em #bdb5ac; }
+.check li[data-on] { color: #9a928a; text-decoration: line-through; text-decoration-color: #b0a89f; }
+.check li[data-on] > i { background: #d97a17; box-shadow: none; }
+.check li > i svg { width: 0.78em; height: 0.78em; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.check li[data-new] { background: rgba(240, 144, 26, 0.16); }
+.chip { display: inline-flex; align-items: center; gap: 0.32em; margin-left: auto; padding: 0.22em 0.6em; border-radius: 1em; background: #fff1de; color: #a85700; font-style: normal; font-size: 0.7em; font-weight: 650; }
+
+/* The Habit tracker */
+.hab { padding-top: 0.2em; }
+.hDate { margin: 0.4em 0 0.1em; font-size: 0.74em; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #7d6a58; }
+.hTitle { margin: 0 0 0.45em; font-size: 2em; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; color: #2a1d10; }
+.ringCard { display: flex; align-items: center; gap: 0.9em; padding: 0.85em 0.9em; border-radius: 1.1em; background: #f3efe9; }
+.ringCard p { margin: 0; display: grid; gap: 0.12em; }
+.ringCard small { font-size: 0.66em; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #7d6a58; }
+.ringCard b { font-size: 1.04em; font-weight: 750; color: #2a1d10; }
+.ringCard span { font-size: 0.8em; color: #7d6a58; }
+.ring { flex: none; width: 4.4em; height: 4.4em; }
+.ring circle { fill: none; stroke: #e8e1d7; stroke-width: 7; }
+.ring circle + circle { stroke: #df6f0c; stroke-linecap: round; }
+.ring text { font-size: 13px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: #2a1d10; font-family: inherit; }
+.hHead { margin: 1.1em 0.3em 0.45em; font-size: 0.72em; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #7d6a58; }
+.habits { list-style: none; margin: 0; padding: 0; border-radius: 1.1em; background: #f3efe9; overflow: hidden; }
+.habits li { display: flex; align-items: center; justify-content: space-between; gap: 0.6em; padding: 0.75em 0.9em 0.8em; }
+.habits li + li { box-shadow: inset 0 1px 0 #e5ddd2; }
+.habits li > div { display: grid; gap: 0.18em; min-width: 0; }
+.habits b { display: flex; align-items: center; gap: 0.35em; font-size: 1.06em; font-weight: 650; color: #2a1d10; }
+.habits b svg { width: 0.42em; height: 0.64em; fill: none; stroke: #6b5a48; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.habits span { display: flex; align-items: center; gap: 0.3em; font-size: 0.8em; color: #6b5a48; white-space: nowrap; }
+.habits span[data-ai] { color: #b4593b; font-weight: 600; }
+.habits em { font-style: normal; color: #b25f0a; }
+.days { margin: 0.35em 0 0; display: flex; gap: 0.32em; }
+.days i { display: grid; place-items: center; width: 2.25em; height: 2.25em; border-radius: 50%; background: #e7e0d6; color: #7d6a58; font-size: 0.6em; font-weight: 700; font-style: normal; }
+.days i[data-on] { background: #b65a0a; color: #fff; }
+.hTick { flex: none; display: grid; place-items: center; width: 2.6em; height: 2.6em; border-radius: 50%; box-shadow: inset 0 0 0 0.1em #d6cdc0; }
+.hTick svg { width: 1.2em; height: 1.2em; fill: none; stroke: transparent; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.hTick[data-on] { background: #df6f0c; box-shadow: none; }
+.hTick[data-on] svg { stroke: #fff; }
+
+/* ── The whiteboard sheet: 720 × 448, the Mac window's surface ── */
+.sheet { position: relative; box-sizing: border-box; width: 100%; height: 100%; border-radius: 12px; background: #fff; overflow: hidden; box-shadow: var(--sh);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.wBar { display: flex; align-items: center; gap: 10px; height: 46px; margin: 0; padding: 0 14px; font-size: 13.5px; color: #3a3530; }
+.wBar b { font-weight: 600; }
+.lights { display: flex; gap: 7px; margin-right: 4px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; background: #e3e0dc; }
+.wBack { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #f1efec; }
+.wBack svg { width: 8px; height: 12px; fill: none; stroke: #77716a; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.wBtns { display: flex; gap: 6px; margin-left: auto; }
+.wBtns i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #f4f2ef; }
+.wBtns svg { width: 14px; height: 14px; fill: none; stroke: #77716a; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.wBtns circle { fill: #77716a; stroke: none; }
+.inkWide { display: block; width: 616px; height: auto; margin: 22px auto 0; overflow: visible; }
+.inkTall { display: none; }
+.stroke { fill: none; stroke: #1e1e1e; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.hand { font-family: "Excalifont M", "Comic Sans MS", cursive; font-size: 18px; text-anchor: middle; dominant-baseline: central; fill: #1e1e1e; }
+.tools { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 14px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 4px 14px rgba(0, 0, 0, 0.06); }
+.tools svg { box-sizing: border-box; width: 30px; height: 30px; padding: 6px; border-radius: 8px; fill: none; stroke: #3d3a36; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; color: #3d3a36; }
+.tools svg[data-on] { background: #eeeae5; }
+.undo { display: flex; margin-right: 6px; }
+.undo svg { stroke: #b8b3ad; }
+.zoom { position: absolute; right: 18px; bottom: 26px; font-size: 12px; color: #8b857e; }
+
+/* ── Under the desk: the AIs and the memory study, then the download ── */
+.ai { width: 100%; max-width: 1000px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; display: grid; justify-items: center; text-align: center; gap: 30px; }
+.aiTitle { margin: 0; font-size: clamp(34px, 4vw, 56px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.04; color: #2a1d10; text-wrap: balance; }
+.aiTitle span { color: #a08467; }
+.aiRow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 36px; }
+.aiRow li { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 650; color: #2a1d10; white-space: nowrap; }
+.aiMark { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #fffaf3; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 10px 22px -14px rgba(60, 30, 5, 0.45); }
+.aiMark[data-ai="claude"] { color: #d97757; }
+.study { margin: 0; max-width: 36em; font-size: clamp(17px, 1.4vw, 19px); line-height: 1.5; color: #6b5844; text-wrap: pretty; }
+.study a { color: #2a1d10; font-weight: 650; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 4px; transition: color 0.15s; }
+.study a:hover { color: var(--link); }
+.study a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 3px; }
+
+.closing { display: grid; justify-items: center; text-align: center; gap: 20px; padding: 0 var(--gutter); }
+.closingIcon { border-radius: 20px; box-shadow: 0 18px 40px -18px rgba(80, 45, 10, 0.45); }
+.closingTitle { margin: 0; font-size: clamp(36px, 4.2vw, 56px); font-weight: 750; letter-spacing: -0.04em; line-height: 1.02; color: #2a1d10; }
+.closingCta.closingCta { justify-items: center; }
+.closingCta p { text-align: center; }
+
+@media (prefers-reduced-motion: reduce) { .thing, .veil, .thing .phone, .thing .sheet { transition: none; } }
+
+/* ── Phones and narrow windows: a tall flat-lay, the things stacked down the desk at a readable size ── */
+@media (max-width: 900px) {
+  .main { gap: 96px; }
+  .desk { height: auto; margin: 0 10px; padding: 18px 14px 40px; border-radius: 24px; }
+  .stage { position: static; transform: none; width: auto; height: auto; display: flex; flex-direction: column; align-items: center; }
+  .card { position: relative; left: auto; top: auto; width: 100%; max-width: 520px; padding: 28px 24px 26px; transform: rotate(-0.5deg); }
+  .h1 { font-size: clamp(38px, 10.4vw, 52px); line-height: 1.02; }
+  .lede { font-size: 17.5px; margin-bottom: 22px; }
+  .spot { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: 30px; }
+  .thing { position: relative; left: auto !important; top: auto !important; width: auto !important; height: auto !important; transform: rotate(calc(var(--r0) * 0.4)); transition: none; }
+  .hit { display: none; }
+  .phone { font-size: 14.5px; }
+  .thing[data-thing="whiteboards"] { width: 100% !important; max-width: 420px; }
+  .sheet { height: auto; padding-bottom: 66px; }
+  .inkWide { display: none; }
+  .inkTall { display: block; width: 100%; max-width: 330px; height: auto; margin: 8px auto 0; overflow: visible; }
+  .lights { display: none; }
+  .tools { bottom: 12px; gap: 0; padding: 4px 6px; }
+  .tools svg { width: 27px; height: 27px; padding: 5px; }
+  .undo { display: none; }
+  .zoom { display: none; }
+  .tag { position: relative; left: auto !important; top: auto !important; margin-top: 22px; font-size: 15.5px; white-space: normal; text-wrap: balance; text-align: center; }
+  .stickyAt { position: relative; left: auto; top: auto; align-self: flex-end; margin: 0 4px -6px 0; z-index: 6; }
+  .sticky { width: 168px; padding: 14px 15px 18px; }
+  .stickySay { font-size: 19px; }
+  .mug { left: auto; right: -70px; top: 560px; width: 170px; z-index: 0; }
+  .plant { left: -110px; top: auto; bottom: 260px; width: 230px; transform: rotate(150deg) scaleX(-1); z-index: 0; }
+  .pencil { left: auto; right: -40px; top: auto; bottom: 120px; width: 220px; z-index: 0; transform: rotate(-18deg); }
+  .veil, .facts { display: none; }
+  .desk { --k: 1 !important; }
+}
+@media (max-width: 430px) {
+  .phone { font-size: 13.6px; }
+}
