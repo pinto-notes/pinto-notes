@@ -1667,9 +1667,34 @@ struct ShowsSelectedRow: ViewModifier {
             func reveal(once row: Int, turns: Int = 10) {
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
-                    if let table = self.find(), row < table.numberOfRows { self.reveal(row: row) }
-                    else if turns > 0 { self.reveal(once: row, turns: turns - 1) }
+                    if let table = self.find(), row < table.numberOfRows {
+                        self.reveal(row: row)
+                        self.keep(row: row)
+                    } else if turns > 0 { self.reveal(once: row, turns: turns - 1) }
                 }
+            }
+
+            /// The table places rows it hasn't made yet at an estimated height (24 pt, a note row
+            /// is 62), and makes the rows in view at their own height only once it has scrolled
+            /// there: a row centred among new rows is then pushed down, past the window's foot
+            /// (back to All Notes with note 15,000 open, 13 November 2026, AppPerfTests). So for
+            /// half a second, a row the measuring moved out of view is shown again. Only when the
+            /// row itself moved: a list someone scrolls stays where they put it.
+            private func keep(row: Int, checks: Int = 10) {
+                guard let table = find(), row < table.numberOfRows else { return }
+                var at = table.rect(ofRow: row).minY
+                func check(_ left: Int) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                        guard let self, left > 0, let table = self.find(), row < table.numberOfRows else { return }
+                        let now = table.rect(ofRow: row).minY
+                        if abs(now - at) > 0.5 {
+                            at = now
+                            if self.isHidden(row: row, in: table) { self.center(row: row); at = table.rect(ofRow: row).minY }
+                        }
+                        check(left - 1)
+                    }
+                }
+                check(checks)
             }
 
             /// Back to the list's top, its first row just under the toolbar.
@@ -1684,13 +1709,20 @@ struct ShowsSelectedRow: ViewModifier {
 
             /// Centres `row` when any of it is out of view (under the toolbar or past the foot).
             func reveal(row: Int) {
-                guard let table = find(), row < table.numberOfRows, let scroll = table.enclosingScrollView else { return }
+                guard let table = find(), row < table.numberOfRows else { return }
+                if isHidden(row: row, in: table) { center(row: row) }
+            }
+
+            /// Whether any of `row` is out of view: under the toolbar, under the heading pinned
+            /// at the top, or past the foot.
+            func isHidden(row: Int, in table: NSTableView) -> Bool {
+                guard row < table.numberOfRows, let scroll = table.enclosingScrollView else { return true }
                 let clip = scroll.contentView.bounds
                 let insets = scroll.contentInsets
                 // The heading pinned at the top covers what's under it.
                 let band = table.numberOfRows > 0 ? table.rect(ofRow: 0).height : 0
                 let shown = CGRect(x: clip.minX, y: clip.minY + insets.top + band, width: clip.width, height: clip.height - insets.top - insets.bottom - band)
-                if ShowsSelectedRow.needsReveal(table.rect(ofRow: row), shown: shown) { center(row: row) }
+                return ShowsSelectedRow.needsReveal(table.rect(ofRow: row), shown: shown)
             }
 
             /// Centres `row` in what shows of the table, if it has that row. The list's top is at

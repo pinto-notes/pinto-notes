@@ -459,12 +459,8 @@ extension AppPerfTests {
             w.displayIfNeeded()
         }
         try? await Task.sleep(for: .milliseconds(300))
-        // Rows tell the hover probe they were made: the open note's row is made once it is on screen.
-        HoverProbe.enabled = true
-        defer { HoverProbe.enabled = false; HoverProbe.reset() }
         var samples: [Double] = []
         for _ in 0..<3 {
-            HoverProbe.reset()
             let start = clock.now
             box.scope = .all
             try? await Task.sleep(for: .milliseconds(2))
@@ -475,15 +471,23 @@ extension AppPerfTests {
             host.layoutSubtreeIfNeeded()
             w.displayIfNeeded()
             samples.append(ms(clock.now - start))
-            try? await Task.sleep(for: .milliseconds(200))
-            // Made by now on a quiet Mac; beside other suites the list can take a few more turns.
-            // The time above is what's measured: this only checks the row came.
-            for _ in 0..<40 where !HoverProbe.hover(open.title, false) {
+            // Where the list comes to rest: the rows in view are made at their own height (62 pt,
+            // the table's estimate is 24), which pushed a row centred among new rows past the foot
+            // (fix/fast-delete's one list for every folder, 13 November 2026). The time above is
+            // what's measured: this checks the row is in view, whole, once the list has settled.
+            // Read off the table: since that branch the rows are the same row views from folder
+            // to folder, and a reused row doesn't always tell the hover probe it was made again.
+            for _ in 0..<24 {
                 try? await Task.sleep(for: .milliseconds(25))
                 host.layoutSubtreeIfNeeded()
                 w.displayIfNeeded()
             }
-            #expect(HoverProbe.hover(open.title, false), "the open note's row was made: it is on screen")
+            for _ in 0..<40 where !Self.showsSelectedRow(in: host) {
+                try? await Task.sleep(for: .milliseconds(25))
+                host.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+            }
+            #expect(Self.showsSelectedRow(in: host), "the open note's row is in view, whole: \(Self.rowsInView(host))")
             box.scope = .folder(small.id)
             try? await Task.sleep(for: .milliseconds(300))
             host.layoutSubtreeIfNeeded()
@@ -493,6 +497,24 @@ extension AppPerfTests {
         print("PERF list of 20000 notes, back to All Notes with note 15000 open: \(String(format: "%.0f", median)) ms (median of 3: \(samples.map { String(format: "%.0f", $0) }.joined(separator: ", ")))")
         // 1,208 ms with SwiftUI's scrollTo, 282 ms moving the table (Debug, 2026-10-13, an M-series Mac).
         #expect(median < 600 * PerfBudget.slack, "showing a far row doesn't walk the rows above it")
+    }
+
+    /// Whether the list's selected row shows whole: under the toolbar and the heading pinned at
+    /// the top, above the window's foot.
+    static func showsSelectedRow(in host: NSView) -> Bool {
+        guard let table = FileRowClickTests.table(in: host), table.selectedRow >= 0, let scroll = table.enclosingScrollView else { return false }
+        let clip = scroll.contentView.bounds
+        let insets = scroll.contentInsets
+        let band = table.rect(ofRow: 0).height
+        let shown = CGRect(x: clip.minX, y: clip.minY + insets.top + band, width: clip.width, height: clip.height - insets.top - insets.bottom - band)
+        return !ShowsSelectedRow.needsReveal(table.rect(ofRow: table.selectedRow), shown: shown)
+    }
+
+    /// The rows in view and the selected one, for a test's message.
+    static func rowsInView(_ host: NSView) -> String {
+        guard let table = FileRowClickTests.table(in: host) else { return "no table" }
+        let rows = table.rows(in: table.visibleRect)
+        return "rows \(rows.location)..<\(rows.location + rows.length) of \(table.numberOfRows), selected \(table.selectedRow)"
     }
 
     struct SelectedList: View {
