@@ -386,8 +386,9 @@ enum WikiDirectory {
         let paths: [UUID: [String]]
     }
     private static var kept: [ObjectIdentifier: Kept] = [:]
-    /// At most this many other libraries are kept.
-    private static let keepsOthers = 4
+    /// At most this many other libraries are kept. More than this, taking turns, would each be
+    /// read again on its turn; a library's are let go when it closes, and the app has one.
+    private static let keepsOthers = 32
     #if DEBUG || QA
     /// Tests: how many times every note was read on the main thread (`ready`).
     private(set) static var readsHere = 0
