@@ -66,6 +66,12 @@ enum CanvasNote {
 
     Types: rectangle, ellipse, diamond, arrow, line, text, freedraw. Colors are `strokeColor` and `backgroundColor` (hex). Give each element its own `id` so arrows can bind to it.
 
+    A note card puts one of the person's notes on the board: its title and first lines, and a double-click opens the note. To make one, add a shape with `customData.pintoNote` set to the note's title (or its folder path and title, "Work/Launch plan"):
+
+        { "type": "rectangle", "id": "plan", "x": 300, "y": 0, "customData": { "pintoNote": "Launch plan" } }
+
+    The board draws the card in its place and keeps it current when the note changes. Arrows can join it by its `id`. A drawn card is a group of elements whose `customData` has `pintoNote` (the note's id once the board has opened) and `title` (the note's title): read `title` to see which note it is, and move or delete the whole group.
+
     - Elements with `"isDeleted": true` are deleted: leave them, they keep other devices from bringing them back.
     - To change an element, edit its fields; raising its `version` by one is good manners but not required.
     - The person sees your change at once and can undo it in version history.
@@ -104,8 +110,13 @@ enum CanvasNote {
         func elements(_ d: NotePageData.Doc) -> [[String: Any]] {
             (((d["values"] as? [String: Any])?["scene"] as? [String: Any])?["elements"] as? [[String: Any]]) ?? []
         }
+        func card(_ e: [String: Any]) -> [String: Any]? {
+            (e["customData"] as? [String: Any]).flatMap { $0["pintoNote"] is String ? $0 : nil }
+        }
         func kind(_ e: [String: Any]) -> String? {
-            switch e["type"] as? String {
+            // A note card counts once, as a card: its glyph and words are parts of it.
+            if let c = card(e) { return [nil, "card"].contains(c["pintoCard"] as? String) ? "card" : nil }
+            return switch e["type"] as? String {
             case "arrow", "line": "arrow"
             case "text": e["containerId"] is String ? nil : "text"
             case "image": "picture"
@@ -122,6 +133,11 @@ enum CanvasNote {
         var added: [String: Int] = [:], changed: [String: Int] = [:], removed: [String: Int] = [:]
         // The words on a shape or a text: its label (short form), the text bound to it, or its own.
         func words(_ e: [String: Any], in all: [[String: Any]]) -> String? {
+            if let c = card(e) {
+                let t = ((c["title"] as? String) ?? (c["pintoNote"] as? String).flatMap { UUID(uuidString: $0) == nil ? WikiLinks.name(of: $0) : nil } ?? "")
+                    .trimmingCharacters(in: .whitespaces)
+                return t.isEmpty ? nil : "the \(t.count > 40 ? String(t.prefix(39)) + "…" : t) card"
+            }
             let id = e["id"] as? String
             let bound = id.flatMap { id in all.first { $0["containerId"] as? String == id && $0["isDeleted"] as? Bool != true }?["text"] as? String }
             let w = ((e["label"] as? [String: Any])?["text"] as? String) ?? bound ?? (e["type"] as? String == "text" ? e["text"] as? String : nil)
@@ -164,7 +180,7 @@ enum CanvasNote {
             for verb in ["added", "changed", "removed"] {
                 let ws = namedVerbs.filter { $0.0 == verb }.map(\.1)
                 var list = ws
-                for k in ["shape", "arrow", "text", "picture"] {
+                for k in ["shape", "arrow", "text", "picture", "card"] {
                     guard let n = unnamed["\(verb) \(k)"], n > 0 else { continue }
                     list.append("\(n) \(k == "text" ? (n == 1 ? "text" : "texts") : (n == 1 ? k : k + "s"))")
                 }
@@ -174,7 +190,7 @@ enum CanvasNote {
             return parts.joined(separator: ", ")
         }
         func say(_ verb: String, _ counts: [String: Int]) -> String? {
-            let order = ["shape", "arrow", "text", "picture"]
+            let order = ["shape", "arrow", "text", "picture", "card"]
             let parts = order.compactMap { k -> String? in
                 guard let n = counts[k], n > 0 else { return nil }
                 let noun = k == "text" ? (n == 1 ? "text" : "texts") : (n == 1 ? k : k + "s")
@@ -256,6 +272,82 @@ enum CanvasNote {
     }
 }
 
+/// A note on a whiteboard (canvas-stack/src/cards.js draws it): what its card says, from the note.
+/// The card keeps the note's id in its scene (`customData.pintoNote`); an AI may name the note by
+/// its title instead, and the card takes the id once the note is found.
+struct CanvasNoteCard: Equatable, Sendable {
+    /// The note, when there is one.
+    var id: UUID?
+    /// Its title; nil keeps what the card says (a note that's gone).
+    var title: String?
+    /// Its first lines, or why there are none ("Locked", "Note deleted").
+    var preview: String
+    /// The note is gone, or no note has the card's title: the card is quiet and doesn't open.
+    var deleted = false
+
+    static let deletedText = "Note deleted"
+    static let missingText = "No note has this title"
+    static let lockedText = "Locked"
+    /// How much of a note's text a card shows: about three lines.
+    static let previewLength = 240
+
+    var payload: [String: Any] {
+        var p: [String: Any] = ["preview": preview, "deleted": deleted]
+        if let id { p["id"] = id.uuidString }
+        if let title { p["title"] = title }
+        return p
+    }
+
+    /// What a card for `note` says: its title and first lines (a whiteboard's words), "Locked"
+    /// for a locked note, and "Note deleted" once it's in Recently Deleted or gone.
+    @MainActor static func of(_ note: Note, pages: NotePageStore = .shared, data: NotePageDataStore = .shared) -> CanvasNoteCard {
+        guard note.trashedAt == nil, note.deletedAt == nil else { return CanvasNoteCard(id: note.id, title: nil, preview: deletedText, deleted: true) }
+        if note.isLocked { return CanvasNoteCard(id: note.id, title: note.title, preview: lockedText) }
+        if CanvasNote.isCanvas(NoteApps.page(note.id, in: pages)?.html) {
+            return CanvasNoteCard(id: note.id, title: note.title, preview: CanvasSketch.of(note.id, in: data)?.preview ?? "")
+        }
+        return CanvasNoteCard(id: note.id, title: note.title, preview: preview(of: note.body))
+    }
+
+    /// A note's first lines after its title, as plain words on one line: markdown, pictures and
+    /// a table's dividers left out, [[links]] read as their text.
+    static func preview(of body: String) -> String {
+        var out: [String] = []
+        var length = 0, titled = false
+        // Pictures go before the markdown does (stripped, "![shot](…)" read as "!shot").
+        for line in body.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(60) {
+            let bare = String(line.unicodeScalars.prefix(2000)).replacing(/!\[[^\]\n]*\]\([^)\n]*\)/, with: "").replacing(/!\[\[[^\]]*\]\]/, with: "")
+            let words = WikiLinks.plain(NoteText.stripMarkup(bare)).trimmingCharacters(in: .whitespaces)
+            guard !words.isEmpty else { continue }
+            // The first line that says something is the title, on the card already.
+            guard titled else { titled = true; continue }
+            out.append(words)
+            length += words.count + 1
+            if length >= previewLength { break }
+        }
+        let joined = out.joined(separator: " ")
+        return joined.count > previewLength ? String(joined.prefix(previewLength)) : joined
+    }
+
+    /// What each card says, by what it names: a note's id, or a title (with its folders, as a
+    /// [[link]] has them) found from the board's folder as a link is. A note that's gone, or a
+    /// title no note has, says so.
+    @MainActor static func info(for refs: [String], from board: Note?, in context: ModelContext,
+                                pages: NotePageStore = .shared, data: NotePageDataStore = .shared) -> [String: CanvasNoteCard] {
+        var out: [String: CanvasNoteCard] = [:]
+        for ref in refs where out[ref] == nil {
+            if let id = UUID(uuidString: ref) {
+                out[ref] = context.note(id).map { of($0, pages: pages, data: data) } ?? CanvasNoteCard(id: id, title: nil, preview: deletedText, deleted: true)
+            } else if let found = WikiDirectory.index(context).resolve(ref, from: board.map { context.folderPath($0.folder) } ?? []).flatMap({ context.note($0) }) {
+                out[ref] = of(found, pages: pages, data: data)
+            } else {
+                out[ref] = CanvasNoteCard(id: nil, title: nil, preview: missingText, deleted: true)
+            }
+        }
+        return out
+    }
+}
+
 /// Asks the window to make a new canvas (the compose button's menu, File › New Canvas).
 @MainActor @Observable
 final class NewCanvas {
@@ -307,6 +399,18 @@ struct CanvasSketch: Equatable {
         for e in elements where (e["isDeleted"] as? Bool) != true {
             guard let type = e["type"] as? String else { continue }
             let num = { (k: String) -> Double in (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+            // A note card: its note's title, as a box (its glyph and first lines are the note's,
+            // not the board's words).
+            if let card = e["customData"] as? [String: Any], card["pintoNote"] is String {
+                switch card["pintoCard"] as? String {
+                case "card", nil:
+                    let t = ((card["title"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }
+                    shapes.append(Shape(kind: "rectangle", frame: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), fill: "#ffffff"))
+                default: break
+                }
+                continue
+            }
             if type == "text" {
                 // A template's how-to line isn't the board's words, and its title is the board's
                 // name, already the row's title (whiteboard council, round 2: two flowcharts' rows
