@@ -196,6 +196,22 @@ export function resolveImport(p: Project, from: string, spec: string): string | 
   return null;
 }
 
+/** The project's .js files its pages load as classic scripts (<script src> without type="module"). */
+export function classicScripts(p: Project): Set<string> {
+  const out = new Set<string>();
+  for (const [path, html] of Object.entries(p.files)) {
+    if (!path.endsWith(".html")) continue;
+    for (const m of html.matchAll(/<script\b([^>]*)>/gi)) {
+      const attrs = m[1];
+      const src = /\bsrc\s*=\s*["']([^"']+)["']/i.exec(attrs)?.[1];
+      if (!src || /\btype\s*=\s*["']?module\b/i.test(attrs) || /^[a-z][a-z0-9+.-]*:|^\/\//i.test(src)) continue;
+      const file = resolveFrom(path, src.split(/[?#]/)[0]);
+      if (/\.js$/.test(file)) out.add(file);
+    }
+  }
+  return out;
+}
+
 
 /**
  * Links a project after a change, as a bundler would but file by file: every compiled module's
@@ -205,8 +221,12 @@ export function resolveImport(p: Project, from: string, spec: string): string | 
  */
 export async function linkProject(p: Project): Promise<{ project: Project; ms: { tailwind: number }; error?: string }> {
   const compiled: Record<string, string> = {};
+  const classic = classicScripts(p);
   for (const [path, code] of Object.entries(p.compiled)) {
     if (path.endsWith(".css")) continue;
+    // A .js file the page loads with a plain <script src> runs as written, like on any web page
+    // (a game's emscripten loader, 2026-11-14): compiled as a module it would fail there.
+    if (classic.has(path)) continue;
     let out = code.replace(/(^|[;\n])\s*import\s*["']([^"']+\.css)["'];?/g, (m, lead, spec) => {
       const to = resolveImport(p, path, spec);
       return to ? `${lead}import "${to}?import";` : m;

@@ -57,6 +57,25 @@ Deno.test("imports: missing files, unknown bare names, plain-http addresses and 
   assertStringIncludes(projectProblems({ ...p, files: { "/a.js": "" } }).join(), "/index.html");
 });
 
+Deno.test("a .js file the page loads with a plain <script src> runs as written, not as a compiled module (Doom's loader)", async () => {
+  await import("./tools.ts"); // app_files.ts is loaded through tools.ts, as the server loads it
+  const { linkProject, classicScripts, withFiles } = { ...await import("./app_project.ts"), ...await import("./app_files.ts") };
+  // A UMD loader like emscripten's: as a module it gets an export and fails in a classic <script>.
+  const loader = `var DoomModule=(()=>async function(){})();if(typeof exports==="object"&&typeof module==="object"){module.exports=DoomModule}`;
+  const files = {
+    "/index.html": `<div id="root"></div><script src="doom.js"></script><script src="/js/main.js?v=2"></script><script type="module" src="/src/main.js"></script><script src="https://cdn.example.com/x.js"></script>`,
+    "/package.json": `{ "dependencies": { "react": "^19" } }`,
+    "/doom.js": loader, "/js/main.js": "DoomModule();", "/src/main.js": `import x from "./x.js"; console.log(x);`, "/src/x.js": "export default 1;",
+  };
+  assertEquals([...classicScripts({ amberApp: 1, files, compiled: {} })].sort(), ["/doom.js", "/js/main.js"]);
+  // A React project compiles every .js it's given; linking drops the compiled copy of the classic ones.
+  const built = await withFiles({ amberApp: 1, files: {}, compiled: {} }, files);
+  assert(built.compiled["/doom.js"] !== undefined, "compiled at write time, as before");
+  const { project } = await linkProject(built);
+  assertEquals([project.compiled["/doom.js"], project.compiled["/js/main.js"]], [undefined, undefined]);
+  assert(project.compiled["/src/main.js"] !== undefined && project.compiled["/src/x.js"] !== undefined, "modules stay compiled");
+});
+
 Deno.test("a React + Tailwind project links like Vite: @/ alias, no extensions, CSS from the classes used", async () => {
   const { linkProject, isReact } = await import("./app_project.ts");
   const files: Record<string, string> = {
