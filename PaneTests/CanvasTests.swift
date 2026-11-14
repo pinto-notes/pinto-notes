@@ -114,7 +114,7 @@ import AppKit
         #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: "Launch plan v2", preview: "Ship on Monday instead."))
         // In Recently Deleted: deleted, its title left as the card has it.
         ctx.trash(plan)
-        #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: nil, preview: "Note deleted", deleted: true))
+        #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: nil, preview: "Note deleted", deleted: true, restorable: true))
         // A whiteboard's card shows its words.
         let flow = CanvasNote.make(in: .all, context: ctx, scene: Self.scene([["type": "rectangle", "id": "s", "x": 0, "y": 0, "width": 100, "height": 50, "label": ["text": "Start"]],
                                                                                ["type": "text", "id": "t", "x": 0, "y": 80, "text": "Then ship it"]]), named: "Onboarding flow")

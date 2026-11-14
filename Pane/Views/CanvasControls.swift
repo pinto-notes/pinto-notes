@@ -722,6 +722,8 @@ struct CanvasSelectionBar: View {
 
     /// A note card's own action, first on its bar (and in its right-click menu).
     static let openNote = "Open Note"
+    /// Its action instead when its note is in Recently Deleted: the note comes back, and the card.
+    static let restoreNote = "Restore Note"
 
     /// How far above the selection it floats: 6 pt on the Mac; on iPhone clear of the touch
     /// handles and the rotate handle above them, which the page's bounds don't include.
@@ -788,7 +790,22 @@ struct CanvasSelectionBar: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
             }
             HStack(spacing: 2) {
-                if let card = state.card {
+                if let card = state.card, canvas.restorable.contains(card.note) {
+                    Button { canvas.restoreCard(card.note) } label: {
+                        Label(Self.restoreNote, systemImage: "arrow.uturn.backward")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, 10)
+                            .frame(height: 34)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .hoverHighlight(Capsule())
+                    #if os(macOS)
+                    .help("Restore \u{201C}\(card.title)\u{201D} from Recently Deleted")
+                    #endif
+                    .accessibilityIdentifier("canvas.bar.restoreNote")
+                } else if let card = state.card {
                     Button { canvas.openCard(card.note) } label: {
                         Label(Self.openNote, systemImage: "doc.text")
                             .font(.system(size: 13, weight: .medium))

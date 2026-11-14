@@ -1498,6 +1498,9 @@ struct NoteDetailView: View {
             saver.flush()
             open(target, false)
         }
+        canvasControls.restoreNote = { target in
+            if let n = context.note(target), n.trashedAt != nil, n.deletedAt == nil { context.restore(n) }
+        }
     }
 
     /// A wiki link was tapped: open its note, or offer to make it, as Obsidian does.
