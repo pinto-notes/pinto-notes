@@ -1337,7 +1337,9 @@ function Canvas({ initial }) {
         const [x, y, width, height] = rect(changed, s);
         const boxes = tops.map((e) => rect([e, ...changed.filter((t) => t.containerId === e.id)], s));
         // The rest of what's in view, for the name tag to keep clear of.
-        const near = api.getSceneElements().filter((e) => !ids.has(e.id) && !e.containerId).map((e) => rect([e], s))
+        // Arrows it changed too (round 8, 16: the tag sat on the head of an arrow the AI added).
+        const outlined = new Set(tops.map((e) => e.id));
+        const near = api.getSceneElements().filter((e) => !outlined.has(e.id) && !e.containerId).map((e) => rect([e], s))
           .filter(([nx, ny, nw, nh]) => nx + nw > 0 && ny + nh > 0 && nx < s.width && ny < s.height).slice(0, 120);
         return { x, y, width, height, boxes, near, view: s };
       };

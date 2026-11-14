@@ -648,6 +648,12 @@ import UIKit
         #expect(try await j.js(allInView) as? Bool == true, "the whole board in view after the AI's change")
         let h = try #require(j.canvas.highlight)
         #expect(h.boxes.count == 2, "the renamed box and the new one, each on its own; the arrow between them without a box: \(h.boxes)")
+        // The arrow it added has no outline, but the name tag still keeps clear of it (round 8, 16).
+        let arrowAt = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, a = api.getSceneElements().find((e) => e.id === 'ai-arrow');
+          return [(a.x + s.scrollX) * z, (a.y + s.scrollY) * z, a.width * z].join(','); })()
+        """) as? String).split(separator: ",").compactMap { Double($0) }
+        #expect(h.near.contains { abs($0.minX - arrowAt[0]) < 2 && abs($0.minY - arrowAt[1]) < 2 && abs($0.width - arrowAt[2]) < 2 }, "the AI's own arrow is among what the tag avoids: \(arrowAt) in \(h.near)")
         // The renamed box's outline goes round the box, not just its words.
         let box = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'box');
@@ -3043,12 +3049,15 @@ import UIKit
                     await MacWindowChromeTests.settle(w, 5)
                     try await shot("24-note-card-restore-offered", w, web)
                     canvas.restoreCard(pressNote.id.uuidString)
+                    // While "Note restored" shows (it fades after 1.8 s; round 8 caught it gone).
+                    canvas.notice = "Note restored"
                     for _ in 0..<100 {
                         let back = try? await web.evaluateJavaScript("(() => !amber._canvas.api.getSceneElements().some((e) => e.customData && e.customData.pintoCard === 'preview' && e.text === 'Note deleted'))()") as? Bool
                         if back == true { break }
                         await MacWindowChromeTests.settle(w, 2)
                     }
-                    await MacWindowChromeTests.settle(w, 10)
+                    canvas.notice = "Note restored"
+                    await MacWindowChromeTests.settle(w, 6)
                     try await shot("24-note-card-restored", w, web)
                 }
                 // A mind map grown with Tab (round 6: "Tab for a joined child branch").
