@@ -51,6 +51,30 @@ import AppKit
         #expect(CanvasNote.scene(fromExcalidraw: Data(#"{"type": "excalidrawlib", "elements": []}"#.utf8)) == nil, "a library isn't a board")
     }
 
+    /// The receipt says what an AI did to a board (whiteboard council, round 2, 12).
+    @Test func whatAChangeDidIsSaidPlainly() {
+        func doc(_ els: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(els)], "collections": [String: Any]()] }
+        let box: [String: Any] = ["id": "a", "type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 50]
+        let label: [String: Any] = ["id": "a-t", "type": "text", "containerId": "a", "text": "Manager review", "x": 5, "y": 5, "width": 90, "height": 20]
+        let before = doc([box, label])
+        // Three shapes (short form, no ids) and two arrows added.
+        let added = doc([box, label,
+                         ["type": "rectangle", "x": 200, "y": 0, "width": 100, "height": 50, "label": ["text": "Request"]],
+                         ["type": "rectangle", "x": 200, "y": 100, "width": 100, "height": 50],
+                         ["type": "ellipse", "x": 200, "y": 200, "width": 100, "height": 50],
+                         ["type": "arrow", "x": 250, "y": 50, "width": 0, "height": 50], ["type": "arrow", "x": 250, "y": 150, "width": 0, "height": 50]])
+        #expect(CanvasNote.change(from: before, to: added) == "added 3 shapes and 2 arrows")
+        // Its words changed, and one shape added.
+        var renamed = label; renamed["text"] = "Finance review"
+        #expect(CanvasNote.change(from: before, to: doc([box, renamed, ["type": "diamond", "x": 0, "y": 200, "width": 80, "height": 80]])) == "added 1 shape, changed 1 shape")
+        var gone = box; gone["isDeleted"] = true
+        #expect(CanvasNote.change(from: before, to: doc([gone, label])) == "removed 1 shape")
+        #expect(CanvasNote.change(from: before, to: before) == nil, "nothing to say: the receipt says it drew")
+        var r = AIEdit.Receipt(noteID: UUID(), by: "ChatGPT", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
+        r.drew = "added 3 shapes and 2 arrows"
+        #expect(r.summary == "ChatGPT added 3 shapes and 2 arrows")
+    }
+
     @Test func newCanvasMakesACanvasNoteWithAnEmptyScene() throws {
         let c = try Self.container()
         let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)

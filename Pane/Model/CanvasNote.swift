@@ -95,6 +95,60 @@ enum CanvasNote {
         return note
     }
 
+    // MARK: What a change did
+
+    /// What a change to a board did, said plainly: "added 3 shapes and 2 arrows", "changed 2
+    /// shapes", "removed 1 arrow" (whiteboard council, round 2, 12: the receipt said only "drew on
+    /// this whiteboard"). Words on a shape count with the shape.
+    static func change(from before: NotePageData.Doc, to after: NotePageData.Doc) -> String? {
+        func elements(_ d: NotePageData.Doc) -> [[String: Any]] {
+            (((d["values"] as? [String: Any])?["scene"] as? [String: Any])?["elements"] as? [[String: Any]]) ?? []
+        }
+        func kind(_ e: [String: Any]) -> String? {
+            switch e["type"] as? String {
+            case "arrow", "line": "arrow"
+            case "text": e["containerId"] is String ? nil : "text"
+            case "image": "picture"
+            case .some: "shape"
+            case nil: nil
+            }
+        }
+        func look(_ e: [String: Any]) -> String {
+            let n = { (k: String) in Int(((e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0).rounded()) }
+            let label = (e["label"] as? [String: Any])?["text"] as? String
+            return "\(n("x")),\(n("y")),\(n("width")),\(n("height")),\(e["text"] as? String ?? label ?? ""),\(e["strokeColor"] as? String ?? ""),\(e["backgroundColor"] as? String ?? "")"
+        }
+        let old = Dictionary(elements(before).compactMap { e in (e["id"] as? String).map { ($0, e) } }, uniquingKeysWith: { a, _ in a })
+        var added: [String: Int] = [:], changed: [String: Int] = [:], removed: [String: Int] = [:]
+        // Words on a shape changed: the shape changed.
+        var relabelled = Set<String>()
+        for e in elements(after) {
+            guard e["type"] as? String == "text", let box = e["containerId"] as? String, let id = e["id"] as? String, let was = old[id],
+                  (was["text"] as? String) != (e["text"] as? String) else { continue }
+            relabelled.insert(box)
+        }
+        for e in elements(after) {
+            guard let k = kind(e) else { continue }
+            let gone = e["isDeleted"] as? Bool == true
+            guard let id = e["id"] as? String, let was = old[id] else { if !gone { added[k, default: 0] += 1 }; continue }
+            if gone, was["isDeleted"] as? Bool != true { removed[k, default: 0] += 1 }
+            else if !gone, look(was) != look(e) || relabelled.contains(id) { changed[k, default: 0] += 1 }
+        }
+        func say(_ verb: String, _ counts: [String: Int]) -> String? {
+            let order = ["shape", "arrow", "text", "picture"]
+            let parts = order.compactMap { k -> String? in
+                guard let n = counts[k], n > 0 else { return nil }
+                let noun = k == "text" ? (n == 1 ? "text" : "texts") : (n == 1 ? k : k + "s")
+                return "\(n) \(noun)"
+            }
+            guard !parts.isEmpty else { return nil }
+            let list = parts.count == 1 ? parts[0] : parts.dropLast().joined(separator: ", ") + " and " + parts.last!
+            return "\(verb) \(list)"
+        }
+        let said = [say("added", added), say("changed", changed), say("removed", removed)].compactMap { $0 }
+        return said.isEmpty ? nil : said.joined(separator: ", ")
+    }
+
     // MARK: Bringing boards in
 
     /// An Excalidraw file (`.excalidraw`, or the same JSON as `.json`) as a scene: its elements,

@@ -335,7 +335,9 @@ struct NoteDetailView: View {
                 guard let a, showingPage else { return }
                 undoData = NotePageData.decode(a.before)
                 if showingCanvas { canvasControls.arrived(by: a.by) }
-                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit, board: showingCanvas))
+                var r = AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit, board: showingCanvas)
+                if showingCanvas { r.drew = CanvasNote.change(from: NotePageData.decode(a.before), to: NotePageDataStore.shared.doc(note.id)) }
+                showPageReceipt(r)
             }
             // Captures: `-lockCapture setup` or `confirm` (see Capture).
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
