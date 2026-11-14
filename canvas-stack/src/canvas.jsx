@@ -273,6 +273,31 @@ export function frameBoard(api, { minZoom, onlyIfCut = false, size } = {}) {
   return true;
 }
 
+/**
+ * A note's card, selected and in view ("On boards" at the foot of a note opens the board here):
+ * the first card for the note, its whole group selected, centred at a zoom you can read it at
+ * (at least 100%, unless the card is bigger than the view). Null when no card names the note.
+ */
+export function focusCard(api, note) {
+  const want = String(note).toLowerCase();
+  const els = api.getSceneElements();
+  const frame = els.find((e) => isCard(e) && noteOf(e).toLowerCase() === want);
+  if (!frame) return null;
+  const group = (frame.groupIds || [])[0];
+  const parts = group ? els.filter((e) => (e.groupIds || [])[0] === group) : [frame];
+  const s = api.getAppState(), z0 = (s.zoom && s.zoom.value) || 1, m = 48;
+  const [x1, y1, x2, y2] = getCommonBounds(parts);
+  const fit = Math.min((s.width - 2 * m) / Math.max(1, x2 - x1), (s.height - 2 * m) / Math.max(1, y2 - y1));
+  const z = Math.max(0.1, Math.min(Math.max(z0, 1), fit));
+  autoZoom = null;
+  const scrollX = -(x1 + x2) / 2 + s.width / 2 / z, scrollY = -(y1 + y2) / 2 + s.height / 2 / z;
+  api.setActiveTool({ type: "selection" });
+  flushSync(() => api.updateScene({ appState: { scrollX, scrollY, zoom: { value: z },
+    selectedElementIds: Object.fromEntries(parts.map((e) => [e.id, true])), selectedGroupIds: group ? { [group]: true } : {} },
+    captureUpdate: CaptureUpdateAction.NEVER }));
+  return frame;
+}
+
 export const STICKY = { size: 180, color: "#ffec99", gap: 24 };
 /** Room above a selection, in points of the view, for the engine's rotate handle (it stands about
  *  20 above the selection's box) and a little paper over it. */
@@ -973,10 +998,19 @@ function bridge(api) {
         const info = c.info;
         document.fonts.load(`${CARD.title.size}px Nunito`).catch(() => {}).then(() => {
           const next = refreshCards(api.getSceneElementsIncludingDeleted(), info);
-          if (next) api.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
+          if (!next) return;
+          // A part made now (a card's first lines arriving) of a card that's selected is selected
+          // with it, so the card stays one selection (a board opened from "On boards").
+          const s = api.getAppState(), groups = s.selectedGroupIds || {}, sel = { ...(s.selectedElementIds || {}) };
+          let grew = false;
+          for (const e of next) if (!e.isDeleted && !sel[e.id] && groups[(e.groupIds || [])[0]]) { sel[e.id] = true; grew = true; }
+          api.updateScene({ elements: next, ...(grew ? { appState: { selectedElementIds: sel } } : {}), captureUpdate: CaptureUpdateAction.NEVER });
         });
         break;
       }
+      case "focusCard":
+        if (typeof c.note !== "string" || !focusCard(api, c.note)) return false;
+        break;
       case "addCards": {
         // Notes onto the board as cards: where they were dropped, else in the middle of the view
         // (nudged clear of what's there); one step Undo takes back, selected.

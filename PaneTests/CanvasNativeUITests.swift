@@ -1242,6 +1242,46 @@ import UIKit
         #expect(j.canvas.state.cardNotes.isEmpty)
     }
 
+    /// "On boards" at the foot of a note opens the board with that note's card selected (the whole
+    /// card, as a click selects it) and in view at a size you can read, though the board opened
+    /// somewhere else; asked before the page was ready, it's done once it is. Another card next.
+    @Test func aBoardOpenedFromOnBoardsSelectsTheCardInView() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box + [
+            ["type": "rectangle", "id": "far", "x": 3200, "y": 2400, "customData": ["pintoNote": Self.plan.uuidString]],
+            ["type": "rectangle", "id": "near", "x": 420, "y": 0, "customData": ["pintoNote": Self.press.uuidString]],
+        ]))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard, Self.press.uuidString: Self.pressCard]
+        library.join(j.canvas, board: UUID())
+        j.canvas.focusCard(Self.plan)
+        try await j.ready()
+        await j.until("the far card is selected") { j.canvas.state.card?.note == Self.plan.uuidString }
+        let shown = """
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, sel = s.selectedElementIds || {};
+          const parts = api.getSceneElements().filter((e) => e.customData && (e.customData.pintoNote || '').toUpperCase() === '%@');
+          const frame = parts.find((e) => e.customData.pintoCard === 'card');
+          const x = (frame.x + s.scrollX) * z, y = (frame.y + s.scrollY) * z;
+          return JSON.stringify({ all: parts.every((e) => sel[e.id]), missing: parts.filter((e) => !sel[e.id]).map((e) => e.customData.pintoCard + ':' + e.isDeleted), only: Object.keys(sel).filter((k) => sel[k]).length === parts.length,
+            inView: x >= 0 && y >= 0 && x + frame.width * z <= s.width && y + frame.height * z <= s.height, zoom: z }); })()
+        """
+        func look(_ id: UUID) async throws -> [String: Any] {
+            let json = try await j.js(shown.replacingOccurrences(of: "%@", with: id.uuidString)) as? String ?? "{}"
+            return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] ?? [:]
+        }
+        let far = try await look(Self.plan)
+        #expect(far["all"] as? Bool == true && far["only"] as? Bool == true, "the whole card, and only it, selected: \(far)")
+        #expect(far["inView"] as? Bool == true, "the card in view: \(far)")
+        #expect((far["zoom"] as? Double ?? 0) >= 0.99, "at a size you can read: \(far)")
+        #expect(j.canvas.state.onlyCards && j.canvas.state.selectedCards == 1)
+        #expect(!j.canvas.canUndo, "not a step to undo")
+        // The page is ready now: the next one is selected at once.
+        j.canvas.focusCard(Self.press)
+        await j.until("the near card is selected") { j.canvas.state.card?.note == Self.press.uuidString }
+        let near = try await look(Self.press)
+        #expect(near["all"] as? Bool == true && near["inView"] as? Bool == true, "\(near)")
+    }
+
     /// Double-click a card (or ⌘-click it, or Open Note on its bar or its right-click menu) and its
     /// note opens; the engine doesn't start typing in the card's words. A card whose note is gone
     /// says so and opens nothing; a double-click elsewhere opens nothing.

@@ -467,3 +467,71 @@ struct CanvasSketch: Equatable {
         return sketch
     }
 }
+
+/// The whiteboards a note is on ("On boards" at the foot of a note, whiteboard council round 8):
+/// each board with a card whose `customData.pintoNote` is the note's id. A card an AI named by
+/// title counts once its board has opened and the card has taken the note's id.
+///
+/// Worked out from the boards' saved scenes. Each board's cards are read once per change to its
+/// bytes and kept, so asking again (a note opened, a board saved) only compares bytes.
+enum CanvasBoards {
+    struct Board: Equatable, Identifiable, Sendable {
+        var id: UUID
+        var title: String
+    }
+
+    /// The notes a scene's cards name by id, each once. Deleted cards, and a card's parts other
+    /// than the card itself, don't count.
+    static func notes(in elements: [[String: Any]]) -> Set<UUID> {
+        var out = Set<UUID>()
+        for e in elements where (e["isDeleted"] as? Bool) != true {
+            guard let card = e["customData"] as? [String: Any], let ref = card["pintoNote"] as? String,
+                  [nil, "card"].contains(card["pintoCard"] as? String),
+                  let id = UUID(uuidString: ref.trimmingCharacters(in: .whitespaces)) else { continue }
+            out.insert(id)
+        }
+        return out
+    }
+
+    @MainActor private static var cache: [UUID: (data: Data, notes: Set<UUID>)] = [:]
+
+    /// The notes board `id`'s cards name, from the data store's bytes (read without watching them).
+    @MainActor static func notes(onBoard id: UUID, in store: NotePageDataStore = .shared) -> Set<UUID> {
+        guard let data = store.peek(id) else { return [] }
+        if let c = cache[id], c.data == data { return c.notes }
+        let scene = (NotePageData.decode(data)["values"] as? [String: Any])?["scene"] as? [String: Any]
+        let notes = notes(in: scene?["elements"] as? [[String: Any]] ?? [])
+        cache[id] = (data, notes)
+        return notes
+    }
+
+    /// The boards with a card for `note`, newest first. A board in Recently Deleted, deleted for
+    /// good or locked isn't listed, nor the note itself.
+    @MainActor static func boards(holding note: UUID, in context: ModelContext,
+                                  data: NotePageDataStore = .shared, pages: NotePageStore = .shared) -> [Board] {
+        var found: [Note] = []
+        for id in data.ids where id != note && notes(onBoard: id, in: data).contains(note) {
+            guard let board = context.note(id), board.trashedAt == nil, board.deletedAt == nil, !board.isLocked,
+                  CanvasNote.isCanvas(NoteApps.page(id, in: pages)?.html) else { continue }
+            found.append(board)
+        }
+        return found.sorted { ($0.updatedAt, $0.id.uuidString) > ($1.updatedAt, $1.id.uuidString) }.map { Board(id: $0.id, title: $0.title) }
+    }
+}
+
+/// A board opened from "On boards": the card to select once it shows. Kept only for the next
+/// board that opens, as LinkLanding keeps a link's heading.
+@MainActor
+final class CanvasLanding {
+    static let shared = CanvasLanding()
+    private var pending: (board: UUID, note: UUID)?
+
+    func request(_ board: UUID, card note: UUID) { pending = (board, note) }
+
+    /// The note whose card board `id` should select, once.
+    func take(_ id: UUID) -> UUID? {
+        guard let p = pending, p.board == id else { return nil }
+        pending = nil
+        return p.note
+    }
+}

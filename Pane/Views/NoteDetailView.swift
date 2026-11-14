@@ -189,6 +189,9 @@ struct NoteDetailView: View {
             }
             // The library's titles and links were read off the main thread: links and "Linked from" follow.
             .onReceive(NotificationCenter.default.publisher(for: WikiDirectory.didRead, object: context)) { _ in refreshLinks() }
+            // A board saved (a card put on or taken off): "On boards" follows, without this view
+            // watching the store itself.
+            .modifier(BoardsWatch { links.refreshBoards(note, context: context) })
             .shareLinkChrome(shareLinks, note: note)
     }
 
@@ -1467,6 +1470,7 @@ struct NoteDetailView: View {
         controller.wiki = WikiDirectory.scope(for: note, in: context)
         backlinks = note.isLocked ? [] : context.backlinkIDs(to: note)
         links.refresh(backlinks, note: note, context: context)
+        links.refreshBoards(note, context: context)
         linksGeneration = WikiDirectory.generation
     }
 
@@ -1497,6 +1501,8 @@ struct NoteDetailView: View {
     private func wireCanvasCards() {
         let id = note.id, context = self.context, open = onOpenNote, saver = self.saver
         canvasControls.noteID = id
+        // Opened from "On boards" at the foot of a note: that note's card, selected and in view.
+        if let card = CanvasLanding.shared.take(id) { canvasControls.focusCard(card) }
         canvasControls.cardInfo = { refs in CanvasNoteCard.info(for: refs, from: context.note(id), in: context) }
         canvasControls.openNote = { target in
             saver.flush()
@@ -1596,6 +1602,11 @@ struct NoteDetailView: View {
             saver.flush()
             LinkLanding.shared.request(id, location: location)
             onOpenNote(id, false)
+        }
+        links.openBoard = { [saver, id = note.id] board in
+            saver.flush()
+            CanvasLanding.shared.request(board, card: id)
+            onOpenNote(board, false)
         }
         controller.download = { a in await sync?.download(a) ?? false }
         // A shared note takes no files (SharedNoteLimits): it says so instead.
@@ -2377,6 +2388,16 @@ struct NoteToolbarStage<Pane: View>: View {
     }
 }
 #endif
+
+/// Calls `changed` when any app's data settles after a change (NotePageDataStore.listRevision,
+/// once for a burst of strokes): only this modifier reads the store, so the note's view isn't
+/// redrawn when a board changes.
+struct BoardsWatch: ViewModifier {
+    let changed: () -> Void
+    func body(content: Content) -> some View {
+        content.onChange(of: NotePageDataStore.shared.listRevision) { changed() }
+    }
+}
 
 /// A link that named a heading (`[[Budget#October]]`, `pinto:Budget#October`): the note it opens
 /// scrolls there once its text is on screen. Kept only for the next note that opens.
