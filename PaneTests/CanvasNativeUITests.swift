@@ -144,7 +144,7 @@ import UIKit
         #expect((j.rig.scene?["appState"] as? [String: Any])?["viewBackgroundColor"] as? String == "#fffce8")
         // The ••• menu has the canvas's items, first.
         let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, dev: false, canvas: true)
-        #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear])
+        #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear])
         let present = groups.firstIndex(of: [.canvasPresent, .canvasLaser]), drawing = groups.firstIndex { $0.contains(.canvasClear) }
         #expect(present != nil && drawing != nil && present! + 1 == drawing!, "Present and the laser pointer, then the drawing's items: \(groups)")
         #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true).joined().contains(.canvasClear))
@@ -2687,6 +2687,154 @@ import UIKit
         try #require(await j.canvas.export(.png)).write(to: dir.appending(path: "board-export.png"))
     }
 
+    // MARK: Your templates (both judges, round 8)
+
+    /// Save as Template… keeps the whole board: its shapes, words and joins, the how-to line, and
+    /// its pictures, under the name asked for. An empty board has nothing to keep, and says so.
+    @Test func aBoardIsSavedAsATemplateWithItsElementsHintAndPictures() async throws {
+        let templates = WhiteboardTemplates(folder: nil)
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        #expect(await j.canvas.saveAsTemplate(named: "Nothing", templates) == nil, "an empty board: nothing saved")
+        #expect(templates.items.isEmpty && j.canvas.notice?.hasPrefix("Draw something") == true, "\(j.canvas.notice ?? "")")
+        j.canvas.send(.insert(.flowchart))
+        await j.until("the flowchart is in") { !j.canvas.state.empty }
+        let picture = try #require(CanvasImage(data: Self.png(width: 120, height: 80, clear: false)))
+        j.canvas.send(.image(picture, at: nil))
+        await j.until("the picture is in") { j.canvas.state.selection == ["image"] }
+        let onBoard = try #require(try await j.js("amber._canvas.api.getSceneElements().length") as? Int)
+        let item = try #require(await j.canvas.saveAsTemplate(named: "  Release check  ", templates))
+        #expect(templates.items.map(\.id) == [item.id])
+        #expect(item.name == "Release check", "the name asked for, trimmed: \(item.name ?? "nil")")
+        #expect(j.canvas.notice == CanvasController.templateSavedTitle)
+        let els = item.elements
+        #expect(els.count == onBoard, "every element on the board: \(els.count) of \(onBoard)")
+        #expect(els.contains { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }, "the how-to line is kept")
+        #expect(els.filter { $0["type"] as? String == "arrow" && $0["startBinding"] is [String: Any] && $0["endBinding"] is [String: Any] }.count == 5, "the arrows stay joined")
+        let image = try #require(els.first { $0["type"] as? String == "image" })
+        let fileId = try #require(image["fileId"] as? String)
+        #expect((item.files[fileId] as? [String: Any])?["dataURL"] as? String == picture.dataURL, "the picture itself is kept")
+        // A board saved with no name given takes the board's.
+        j.canvas.title = "Launch board"
+        let named = try #require(await j.canvas.saveAsTemplate(named: "", templates))
+        #expect(named.name == "Launch board" && templates.items.first?.id == named.id, "newest first")
+        let saved = String(decoding: try JSONSerialization.data(withJSONObject: j.rig.doc), as: UTF8.self)
+        #expect(!saved.contains("excalidrawlib"), "nothing of it in the board's file")
+    }
+
+    /// One of your templates comes in on an empty board as a built-in one does: everything it
+    /// kept, its joins and picture, nothing selected, as one step Undo takes back. Its title line
+    /// says the board's own name; a board still called Whiteboard takes the template's.
+    @Test func yourTemplateComesInWholeAsOneUndoStep() async throws {
+        let templates = WhiteboardTemplates(folder: nil)
+        let source = try await Joined(scene: CanvasTests.scene([]))
+        try await source.ready()
+        source.canvas.send(.insert(.retro))
+        await source.until("the retro is in") { !source.canvas.state.empty }
+        let picture = try #require(CanvasImage(data: Self.png(width: 120, height: 80, clear: false)))
+        source.canvas.send(.image(picture, at: nil))
+        await source.until("the picture is in") { source.canvas.state.selection == ["image"] }
+        let item = try #require(await source.canvas.saveAsTemplate(named: "Team retro", templates))
+        source.close()
+
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        await j.until("the page says it's empty") { j.canvas.state.empty }
+        var renamed: [String] = []
+        j.canvas.title = CanvasNote.title
+        j.canvas.rename = { renamed.append($0) }
+        j.canvas.insertTemplate(item)
+        await j.until("the template is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(renamed == ["Team retro"], "a board called Whiteboard takes the template's name: \(renamed)")
+        #expect(j.canvas.title == "Team retro")
+        let n = try await j.js("amber._canvas.api.getSceneElements().length") as? Int
+        #expect(n == item.elements.count, "everything it kept: \(n ?? -1) of \(item.elements.count)")
+        let ids = Set(try await Self.ids(j)), was = Set(item.elements.compactMap { $0["id"] as? String })
+        #expect(ids.isDisjoint(with: was), "new ids, so the same template twice doesn't clash")
+        #expect(try await j.js("(() => { const api = amber._canvas.api, i = api.getSceneElements().find((e) => e.type === 'image'); return !!(i && api.getFiles()[i.fileId]); })()") as? Bool == true, "its picture came with it")
+        #expect(try await j.js("amber._canvas.scene().elements.filter((e) => e.customData && e.customData.pintoHint).length") as? Int == 1, "the how-to line too")
+        #expect(j.canvas.state.selection.isEmpty, "nothing selected, as a built-in template")
+        let web = try #require(j.web as? NotePageWebView)
+        NSApp.sendAction(#selector(NotePageWebView.undo(_:)), to: web, from: NSMenuItem(title: "Undo", action: #selector(NotePageWebView.undo(_:)), keyEquivalent: "z"))
+        await j.until("one Undo takes it back") { j.canvas.state.empty }
+
+        // A board with a name of its own keeps it, and the template's title line says it.
+        renamed = []
+        j.canvas.title = "Sprint 12"
+        j.canvas.insertTemplate(item)
+        await j.until("in again") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(renamed.isEmpty)
+        let title = try await j.js("amber._canvas.api.getSceneElements().find((e) => e.customData && e.customData.pintoTitle).text") as? String
+        #expect(title == "Sprint 12", "\(title ?? "nil")")
+    }
+
+    /// The empty board shows your templates after the five built-in tiles, each with its drawing
+    /// and name; a click puts it in. Rename and Delete (with Undo) from the right-click menu.
+    @Test func yourTemplatesShowOnTheEmptyBoardAndCanBeRenamedAndDeleted() async throws {
+        let templates = WhiteboardTemplates(folder: nil)
+        let none = OffscreenAX(CanvasStart(canvas: CanvasController(), templates: templates), size: CGSize(width: 700, height: 420))
+        await none.settle()
+        #expect(none.find("canvas.yourTemplates") == nil, "none yet: no heading")
+        none.close()
+        let a = try #require(templates.add(name: "Weekly review", elements: WhiteboardTemplate.meeting.elements))
+        let b = try #require(templates.add(name: "Bug triage", elements: WhiteboardTemplate.kanban.elements))
+        let canvas = CanvasController()
+        let ax = OffscreenAX(CanvasStart(canvas: canvas, templates: templates), size: CGSize(width: 700, height: 460))
+        defer { ax.close() }
+        await ax.settle()
+        let group = try #require(ax.find("canvas.yourTemplates"), "\(ax.ids())")
+        #expect(group.text.contains(CanvasStart.yourTemplatesTitle))
+        let ids = ax.ids()
+        let builtIn = try #require(ids.lastIndex { $0.hasPrefix("canvas.template.") })
+        let first = try #require(ids.firstIndex(of: "canvas.yourTemplate.\(b.id)"))
+        #expect(builtIn < first, "after the five built-in tiles: \(ids)")
+        #expect(ids.contains("canvas.yourTemplate.\(a.id)") && ax.find("canvas.yourTemplates.more") == nil)
+        let tile = try #require(ax.find("canvas.yourTemplate.\(a.id)"))
+        #expect(tile.text.contains("Weekly review"), "\(tile.text)")
+        tile.press()
+        await ax.settle(100)
+        #expect(canvas.sent.last == .template(a, title: canvas.title), "a click puts it in: \(canvas.sent)")
+
+        // Rename… keeps the new name; an empty one changes nothing.
+        templates.rename(a.id, to: "  Friday review ")
+        #expect(templates.items.first { $0.id == a.id }?.name == "Friday review")
+        templates.rename(a.id, to: "   ")
+        #expect(templates.items.first { $0.id == a.id }?.name == "Friday review")
+        await ax.settle(200)
+        #expect(ax.find("canvas.yourTemplate.\(a.id)")?.text.contains("Friday review") == true)
+        // Delete (asked first, in the view): gone, and Undo puts it back where it was.
+        #expect(CanvasStart.deleteQuestion("Bug triage") == "Delete \u{201C}Bug triage\u{201D}?")
+        canvas.deleteTemplate(b.id, templates)
+        #expect(templates.items.map(\.id) == [a.id] && canvas.notice == CanvasController.templateDeletedTitle)
+        await ax.settle(200)
+        #expect(ax.find("canvas.yourTemplate.\(b.id)") == nil, "its tile goes")
+        let undo = try #require(canvas.noticeUndo, "the notice offers Undo")
+        undo()
+        #expect(templates.items.map(\.id) == [b.id, a.id], "back where it was")
+        #expect(canvas.notice == nil)
+    }
+
+    /// Many templates keep to one row: four, then More…, which opens them all in a grid.
+    @Test func manyTemplatesKeepToOneRowWithMore() async throws {
+        let templates = WhiteboardTemplates(folder: nil)
+        for i in 0..<WhiteboardTemplates.rowLimit { templates.add(name: "Board \(i)", elements: WhiteboardTemplate.flowchart.elements) }
+        #expect(templates.row.items.count == WhiteboardTemplates.rowLimit && !templates.row.more, "five fit")
+        for i in 5..<9 { templates.add(name: "Board \(i)", elements: WhiteboardTemplate.retro.elements) }
+        #expect(templates.row.items.count == WhiteboardTemplates.rowLimit - 1 && templates.row.more)
+        #expect(templates.row.items.first?.name == "Board 8", "newest first")
+        let ax = OffscreenAX(CanvasStart(canvas: CanvasController(), templates: templates), size: CGSize(width: 700, height: 460))
+        defer { ax.close() }
+        await ax.settle()
+        let shown = ax.ids().filter { $0.hasPrefix("canvas.yourTemplate.") }
+        #expect(shown.count == 4, "\(shown)")
+        let more = try #require(ax.find("canvas.yourTemplates.more"), "\(ax.ids())")
+        #expect(more.text.contains("More"), "\(more.text)")
+    }
+
     /// The whiteboard in the app's window, light and dark, for the whiteboard council. Drawn only
     /// when WHITEBOARD_SHOTS is set (TEST_RUNNER_WHITEBOARD_SHOTS=dir).
     @Test func whiteboardWindowPictures() async throws {
@@ -2777,6 +2925,19 @@ import UIKit
                     await MacWindowChromeTests.settle(w, 5)
                 }
                 try await shot("01-empty", w, web)
+                // Your templates (both judges, round 8): the empty board with two of your own
+                // after the five built-in ones.
+                do {
+                    let mine = WhiteboardTemplates.shared
+                    let kept = mine.items
+                    defer { for t in mine.items where !kept.contains(where: { $0.id == t.id }) { mine.remove(t.id) } }
+                    mine.add(name: "Weekly review", elements: WhiteboardTemplate.meeting.elements)
+                    mine.add(name: "Release checklist", elements: WhiteboardTemplate.kanban.elements + [
+                        ["type": "rectangle", "x": 720, "y": 0, "width": 220, "height": 380, "strokeColor": "#ced4da", "backgroundColor": "#fff5f5", "fillStyle": "solid"],
+                    ])
+                    await MacWindowChromeTests.settle(w, 15)
+                    try await shot("28-your-templates", w, web)
+                }
                 for (i, t) in (dark ? [WhiteboardTemplate.flowchart] : WhiteboardTemplate.allCases).enumerated() {
                     try await insert(t)
                     try await shot(String(format: "%02d-template-%@", 2 + i, t.rawValue), w, web)

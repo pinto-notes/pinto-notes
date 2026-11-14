@@ -17,6 +17,46 @@ import AppKit
         try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }
 
+    // MARK: Your templates
+
+    /// Your templates are kept in the app, in one .excalidrawlib file: what's saved, renamed and
+    /// deleted is there when the app opens again, pictures and the how-to line included.
+    @Test func yourTemplatesArePersistedAcrossAReload() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "pinto-templates-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let files: [String: Any] = ["pic": ["id": "pic", "dataURL": "data:image/png;base64,iVBORw0KGgo=", "mimeType": "image/png", "created": 1]]
+        let elements = WhiteboardTemplate.flowchart.elements.enumerated().map { i, e in e.merging(["id": e["id"] ?? "e\(i)"]) { a, _ in a } }
+            + [["type": "image", "id": "img", "x": 0, "y": 600, "width": 100, "height": 80, "fileId": "pic"]]
+        let t = WhiteboardTemplates(folder: folder)
+        #expect(t.items.isEmpty)
+        let a = try #require(t.add(name: "Onboarding", elements: elements, files: files))
+        let b = try #require(t.add(name: "Standup", elements: WhiteboardTemplate.meeting.elements.enumerated().map { i, e in e.merging(["id": "m\(i)"]) { a, _ in a } }))
+        _ = try #require(t.add(name: "Gone soon", elements: WhiteboardTemplate.retro.elements))
+        #expect(t.add(name: "Empty", elements: []) == nil, "nothing drawn: nothing kept")
+        t.rename(b.id, to: "Daily standup")
+        _ = t.remove(t.items[0].id)
+        t.flush()
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: WhiteboardTemplates.fileName).path))
+
+        let again = WhiteboardTemplates(folder: folder)
+        #expect(again.items.map(\.id) == [b.id, a.id])
+        #expect(again.items.map(\.name) == ["Daily standup", "Onboarding"])
+        let kept = try #require(again.items.last)
+        #expect(kept.elements.count == elements.count)
+        #expect(kept.elements.contains { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }, "the how-to line")
+        #expect((kept.files["pic"] as? [String: Any])?["dataURL"] as? String == "data:image/png;base64,iVBORw0KGgo=", "its picture")
+        // Kept apart from the library, and not in the test's own library.
+        #expect(WhiteboardTemplates.defaultFolder.lastPathComponent == "Whiteboard Templates")
+        #expect(WhiteboardTemplates.shared.folder == nil, "tests never touch your templates")
+    }
+
+    /// A template's name: trimmed and at most 80 characters; never empty.
+    @Test func aTemplateAlwaysHasAName() {
+        #expect(WhiteboardTemplates.cleaned("  Plan  ") == "Plan")
+        #expect(WhiteboardTemplates.cleaned("") == "Template")
+        #expect(WhiteboardTemplates.cleaned(String(repeating: "a", count: 100)).count == 80)
+    }
+
     // MARK: New Canvas
 
     #if os(macOS)

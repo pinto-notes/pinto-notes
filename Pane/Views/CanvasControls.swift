@@ -50,7 +50,7 @@ struct CanvasOverlay: View {
                     }
                     .overlay {
                         if let notice = canvas.notice {
-                            Toast(text: notice)
+                            Toast(text: notice, undo: canvas.noticeUndo)
                                 .transition(.opacity)
                                 .accessibilityIdentifier("canvas.notice")
                         }
@@ -512,7 +512,13 @@ struct CanvasStart: View {
     /// one to draw (whiteboard council, round 1: "make the AI line an action").
     var targets: [AskAI.Target] = []
     var subject: AskAI.Subject?
+    /// Your own templates, after the built-in ones.
+    var templates: WhiteboardTemplates = .shared
     @State private var asking: AskAI.Target?
+    @State private var renaming: CanvasLibraryItem?
+    @State private var nameDraft = ""
+    @State private var deleting: CanvasLibraryItem?
+    @State private var showingAll = false
 
     static func shows(_ s: CanvasState) -> Bool { s.empty && !s.busy && !s.editing && !s.tool.draws && s.tool != .eraser }
 
@@ -520,6 +526,12 @@ struct CanvasStart: View {
     static func askTitle(_ t: AskAI.Target) -> String { "Ask \(t.ai) to draw it\u{2026}" }
     static let connectTitle = "Connect an AI to draw it for you\u{2026}"
     static let importTitle = "Import Excalidraw files\u{2026}"
+    static let yourTemplatesTitle = "Your templates"
+    static let moreTitle = "More\u{2026}"
+    static let renameTitle = "Rename\u{2026}"
+    static let deleteTitle = "Delete"
+    static func deleteQuestion(_ name: String) -> String { "Delete \u{201C}\(name)\u{201D}?" }
+    static let deleteMessage = "It\u{2019}s removed from your templates. Boards made from it keep their drawing. Undo brings it back."
 
     var body: some View {
         VStack(spacing: 16) {
@@ -528,27 +540,12 @@ struct CanvasStart: View {
                 .foregroundStyle(Color.muted)
             HStack(spacing: 10) {
                 ForEach(WhiteboardTemplate.allCases) { t in
-                    Button { canvas.insert(t) } label: {
-                        VStack(spacing: 8) {
-                            CanvasTemplatePreview(template: t)
-                                .frame(width: 92, height: 58)
-                            Text(t.title)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(Color.ink)
-                        }
-                        .padding(.vertical, 10)
-                        .frame(width: 116)
-                        .contentShape(.rect(cornerRadius: 14))
-                    }
-                    .buttonStyle(.plain)
-                    .background(Color.card, in: .rect(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.08)))
-                    .hoverHighlight(.rect(cornerRadius: 14))
-                    .help("Start from \(t.title.lowercased())")
-                    .accessibilityLabel(t.title)
-                    .accessibilityIdentifier("canvas.template.\(t.rawValue)")
+                    Self.tile(t.title) { CanvasTemplatePreview(template: t) } action: { canvas.insert(t) }
+                        .help("Start from \(t.title.lowercased())")
+                        .accessibilityIdentifier("canvas.template.\(t.rawValue)")
                 }
             }
+            if !templates.items.isEmpty { yours }
             ask
             #if os(macOS)
             // Coming from Excalidraw: bring the old boards along from here (whiteboard council,
@@ -564,6 +561,120 @@ struct CanvasStart: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Start this whiteboard")
         .accessibilityIdentifier("canvas.start")
+    }
+
+    /// A template's tile: its drawing small, its name under it.
+    static func tile<Preview: View>(_ title: String, @ViewBuilder preview: () -> Preview, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                preview()
+                    .frame(width: 92, height: 58)
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 6)
+            }
+            .padding(.vertical, 10)
+            .frame(width: 116)
+            .contentShape(.rect(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .background(Color.card, in: .rect(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.08)))
+        .hoverHighlight(.rect(cornerRadius: 14))
+        .accessibilityLabel(title)
+    }
+
+    /// Your own templates: one row at most, the last place More… when there are more (a grid).
+    private var yours: some View {
+        let row = templates.row
+        return VStack(spacing: 10) {
+            Text(Self.yourTemplatesTitle)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 10) {
+                ForEach(row.items) { yourTile($0) }
+                if row.more {
+                    Button { showingAll = true } label: {
+                        VStack(spacing: 8) {
+                            Image(systemName: "square.grid.2x2")
+                                .font(.system(size: 22, weight: .regular))
+                                .foregroundStyle(Color.muted)
+                                .frame(width: 92, height: 58)
+                            Text("\(Self.moreTitle) (\(templates.items.count))")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.ink)
+                        }
+                        .padding(.vertical, 10)
+                        .frame(width: 116)
+                        .contentShape(.rect(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
+                    .background(Color.card, in: .rect(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.08)))
+                    .hoverHighlight(.rect(cornerRadius: 14))
+                    .help("All your templates")
+                    .accessibilityLabel("More templates")
+                    .accessibilityIdentifier("canvas.yourTemplates.more")
+                    .popover(isPresented: $showingAll, arrowEdge: .bottom) { allTemplates }
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(width: 116 * 5 + 10 * 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Self.yourTemplatesTitle)
+        .accessibilityIdentifier("canvas.yourTemplates")
+        .alert(Self.renameTitle, isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Name", text: $nameDraft)
+            Button("Cancel", role: .cancel) { renaming = nil }
+            Button("Rename") {
+                if let r = renaming { templates.rename(r.id, to: nameDraft) }
+                renaming = nil
+            }
+        }
+        .confirmationDialog(deleting.map { Self.deleteQuestion($0.name ?? "") } ?? "", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button(Self.deleteTitle, role: .destructive) {
+                if let d = deleting { canvas.deleteTemplate(d.id, templates) }
+                deleting = nil
+            }
+        } message: {
+            Text(Self.deleteMessage)
+        }
+    }
+
+    /// One of yours: click puts it in; right-click renames or deletes it.
+    private func yourTile(_ item: CanvasLibraryItem) -> some View {
+        let name = item.name ?? "Template"
+        return Self.tile(name) { CanvasSketchView(sketch: CanvasSketch(elements: item.elements)) } action: {
+            showingAll = false
+            canvas.insertTemplate(item)
+        }
+        .help("Start from \(name)")
+        .contextMenu { Self.tileMenu(rename: { nameDraft = name; renaming = item }, delete: { deleting = item }) }
+        .accessibilityIdentifier("canvas.yourTemplate.\(item.id)")
+    }
+
+    /// A tile's right-click menu.
+    @ViewBuilder static func tileMenu(rename: @escaping () -> Void, delete: @escaping () -> Void) -> some View {
+        Button(renameTitle, systemImage: "pencil", action: rename)
+        Divider()
+        DestructiveMenuButton(deleteTitle, systemImage: "trash", action: delete)
+    }
+
+    /// Every one of yours in a grid (More…).
+    private var allTemplates: some View {
+        ScrollView {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(116), spacing: 10), count: 4), spacing: 10) {
+                ForEach(templates.items) { yourTile($0) }
+            }
+            .padding(14)
+        }
+        .frame(width: 116 * 4 + 10 * 3 + 28, height: min(CGFloat((templates.items.count + 3) / 4) * 112 + 28, 420))
+        .accessibilityIdentifier("canvas.yourTemplates.all")
     }
 
     @ViewBuilder private var ask: some View {
