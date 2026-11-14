@@ -60,7 +60,7 @@ async function internet(o: { timeoutMs?: number } = {}) {
       // Endless, without a length: the download has to stop by itself.
       return new Response(new ReadableStream({ pull(c) { sent += 64 * 1024; c.enqueue(new Uint8Array(64 * 1024).fill(1)); } }));
     }
-    if (p === "/huge-declared") return new Response(new Uint8Array(11 * MB));
+    if (p === "/huge-declared") return new Response(new Uint8Array(new URL(req.url).search === "?app" ? 101 * MB : 11 * MB));
     if (p === "/slow") { await held; return new Response("late"); }
     return new Response("not here", { status: 404, statusText: "Not Found" });
   }, o);
@@ -191,11 +191,13 @@ Deno.test("too big stops early, a slow server times out, a failed answer says it
     const a = await account(pg);
     await gameApp(pg, a);
     const write = (args: Record<string, unknown>) => fails(tool(pg, a, "write", { path: "Games/Doom.app/x.bin", ...args }));
-    const big = await write({ content_url: "https://cdn.example.com/huge" });
+    // A file in a folder: 10 MB, as the AI's files are (2026-11-16: an app's file can be 100 MB).
+    const big = await fails(tool(pg, a, "write", { path: "To read/x.pdf", content_url: "https://cdn.example.com/huge" }));
     assertStringIncludes(big, "over 10 MB, so the download stopped there");
     // It stopped reading near the limit; it didn't take what the server would keep sending.
     assert(net.sent() < 13 * MB, `the server sent ${net.sent()} bytes`);
-    assertStringIncludes(await write({ content_url: "https://cdn.example.com/huge-declared" }), "over 10 MB");
+    assertStringIncludes(await fails(tool(pg, a, "write", { path: "To read/x.pdf", content_url: "https://cdn.example.com/huge-declared" })), "over 10 MB");
+    assertStringIncludes(await write({ content_url: "https://cdn.example.com/huge-declared?app" }), "over 100 MB");
     assertStringIncludes(await write({ content_url: "https://cdn.example.com/slow" }), "took longer than 400 ms, so it stopped");
     assertStringIncludes(await write({ content_url: "https://cdn.example.com/gone" }), "cdn.example.com answered 404 Not Found");
     assertStringIncludes(await write({ content_url: "https://cdn.example.com/doom.wasm", content_base64: toBase64(WASM) }), "Give one of content, content_base64 or content_url");

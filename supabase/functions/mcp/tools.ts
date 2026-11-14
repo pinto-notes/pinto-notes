@@ -740,8 +740,27 @@ export async function readCapped(res: Response, cap: number): Promise<Uint8Array
   }
   if (!res.body) return new Uint8Array(0);
   const reader = res.body.getReader();
+  // Its size said up front (and honest): read into one buffer, so a 100 MB file takes 100 MB, not
+  // twice that while its pieces are joined.
   const chunks: Uint8Array[] = [];
   let total = 0;
+  if (Number.isFinite(declared) && declared > 0) {
+    const out = new Uint8Array(declared);
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return total === declared ? out : out.slice(0, total);
+      if (total + value.length > declared) {
+        // Longer than it said (a body unpacked on the way): on as below.
+        chunks.push(out.slice(0, total));
+        total += value.length;
+        if (total > cap) { await reader.cancel(); throw new RangeError("too big"); }
+        chunks.push(value);
+        break;
+      }
+      out.set(value, total);
+      total += value.length;
+    }
+  }
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;

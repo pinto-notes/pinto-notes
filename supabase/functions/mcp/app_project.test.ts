@@ -1,7 +1,7 @@
 // The app-project format, path rules, edits, compile and import checks.
 //   cd supabase/functions/mcp && deno test -A app_project.test.ts
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
-import { BARE_IMPORTS, binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
+import { BARE_IMPORTS, binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_BINARY_BYTES, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, packBytes, storedDeflate, unpackBytes, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
 
 Deno.test("a one-file app stays plain HTML; a project round-trips as JSON", () => {
   const html = "<!doctype html><p>hi</p>";
@@ -131,7 +131,25 @@ Deno.test("binary files: stored as compressed bytes, unpacked the same, with the
   await assertRejects(() => unpackBinary(bomb, 1024 * 1024), Error, "more than 1 MB");
   // The same path can't be both, and what's stored counts toward the limits.
   assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/doom1.wad": "x" } }).join(), "both a text file and a binary one");
-  assertStringIncludes(projectProblems({ ...p, binary: { "/big.bin": "A".repeat(MAX_FILE_BYTES + 4) } }).join(), "stored (compressed)");
+  // A binary file is limited by its own size, not by the project's text (2026-11-16).
+  const big = { hash: "a".repeat(64), size: MAX_BINARY_BYTES + 1 };
+  assertStringIncludes(projectProblems({ ...p, binary: { "/big.bin": big } }).join(), `at most ${MAX_BINARY_BYTES / 1048576} MB`);
+  const parts = { size: 60 * 1048576, parts: Array.from({ length: 15 }, (_, i) => ({ hash: i.toString(16).padStart(64, "0"), size: 4 * 1048576 })) };
+  assertEquals(projectProblems({ ...p, binary: { "/disk.img": parts } }), []);
+  assertEquals(parseStored(serialize({ ...p, binary: { "/disk.img": parts } })).binary, { "/disk.img": parts });
+});
+
+Deno.test("packing: bytes that don't compress are stored as DEFLATE's stored blocks, a copy, and unpack the same (2026-11-16)", async () => {
+  const noise = new Uint8Array(3 * 65536 + 17);
+  for (let i = 0; i < noise.length; i += 65536) crypto.getRandomValues(noise.subarray(i, i + 65536));
+  const packed = await packBytes(noise);
+  assertEquals(packed.length, noise.length + Math.ceil(noise.length / 65535) * 5);
+  assertEquals(await unpackBytes(packed), noise);
+  assertEquals(await unpackBytes(storedDeflate(new Uint8Array(0))), new Uint8Array(0));
+  // Text-like bytes are still compressed.
+  const text = new TextEncoder().encode("the same line again\n".repeat(20000));
+  assert((await packBytes(text)).length < text.length / 10);
+  assertEquals(await unpackBytes(await packBytes(text)), text);
 });
 
 Deno.test("a game fits: Doom's engine and its 4 MB WAD as raw binary files, and Emscripten's loader as it's built (2026-11-14)", async () => {
@@ -141,9 +159,9 @@ Deno.test("a game fits: Doom's engine and its 4 MB WAD as raw binary files, and 
   assertEquals(projectProblems(p), []);
   assertEquals(sourceProblems(p), []);
   assertEquals(brokenImports(p), []);
-  // The limits still hold, raised.
-  assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/big.txt": "x".repeat(MAX_FILE_BYTES + 1) } }).join(), "at most 8 MB");
-  const many = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`/part${i}.txt`, "x".repeat(MAX_FILE_BYTES - 10)]));
+  // The project's text still has its limit (2026-11-16: one text file may use all of it).
+  assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/big.txt": "x".repeat(MAX_FILE_BYTES + 1) } }).join(), `at most ${MAX_PROJECT_BYTES / 1048576} MB`);
+  const many = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`/part${i}.txt`, "x".repeat(MAX_FILE_BYTES / 2 - 10)]));
   assertStringIncludes(projectProblems({ ...p, files: { ...p.files, ...many } }).join(), `at most ${MAX_PROJECT_BYTES / 1048576} MB`);
 });
 

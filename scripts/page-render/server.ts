@@ -9,13 +9,17 @@
 //   POST /build   (same header) the app's build step, which the hosted edge runtime can't run:
 //     { compile: [{ path, source }], jsx: "react" | "preact" } -> { compiled: { [path]: { code } | { error } } }
 //     { tailwind: css, sources } -> { css } | { error }
+//   PUT /parts/<hash>  (same header) the packed bytes of one part of an app's binary file (parts.ts).
+//     A render whose project names a part that isn't here answers 409 { missing: [hash, …] }.
 //
-// Nothing is stored or logged but timings and sizes. Each request gets fresh browser contexts with
-// no internet: the page's requests outside the app are refused here (the app reaches it on the device).
+// Nothing is stored on disk or logged but timings and sizes; an app's binary files' parts are kept in
+// memory for 30 minutes (parts.ts). Each request gets fresh browser contexts with no internet: the
+// page's requests outside the app are refused here (the app reaches it on the device).
 import { renderPage, type RenderOptions, type Step, testRunnerProject } from "./render.ts";
 import { compileHere, tailwindHere } from "../../supabase/functions/mcp/app_build.ts";
+import { MAX_PART, missingParts, putPart } from "./parts.ts";
 
-/** A render carries the whole project (up to 16 MB, MAX_PROJECT_BYTES), the note and its data. */
+/** A render carries the project's text (up to 16 MB, MAX_PROJECT_BYTES; binary files come as parts), the note and its data. */
 const MAX_BODY = 24 * 1024 * 1024;
 /** A whole project's sources can reach 3 MB (MAX_PROJECT_BYTES in app_project.ts). */
 const MAX_BUILD_BODY = 4 * 1024 * 1024;
@@ -34,14 +38,22 @@ function memory(): number | null {
 export async function handle(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (req.method === "GET" && url.pathname === "/health") return new Response("ok");
-  if (req.method !== "POST" || (url.pathname !== "/render" && url.pathname !== "/build")) return new Response("Not found", { status: 404 });
+  const part = req.method === "PUT" && url.pathname.match(/^\/parts\/([0-9a-f]{64})$/);
+  if (!part && (req.method !== "POST" || (url.pathname !== "/render" && url.pathname !== "/build"))) return new Response("Not found", { status: 404 });
   if (req.headers.get("authorization") !== `Bearer ${secret}`) return new Response("Unauthorized", { status: 401 });
+  if (part) {
+    if (Number(req.headers.get("content-length") ?? 0) > MAX_PART) return new Response("Too big", { status: 413 });
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    return putPart(part[1], bytes) ? new Response(null, { status: 204 }) : new Response("Too big", { status: 413 });
+  }
   if (url.pathname === "/build") return await buildRequest(await req.text());
   const text = await req.text();
   if (text.length > MAX_BODY) return new Response("Too big", { status: 413 });
   let body: { html?: unknown; markdown?: unknown; data?: unknown; today?: unknown; views?: unknown; capture?: unknown; interact?: unknown; probes?: unknown; widget?: unknown; steps?: unknown; tests?: unknown; smoke?: unknown };
   try { body = JSON.parse(text); } catch { return new Response("Bad JSON", { status: 400 }); }
   if (typeof body.html !== "string" || typeof body.markdown !== "string") return new Response("html and markdown are required", { status: 400 });
+  const missing = missingParts(body.html);
+  if (missing.length) return Response.json({ missing }, { status: 409 });
   const views = Array.isArray(body.views) ? (body.views as { width: number; scheme: string; height?: number }[])
     .filter((v) => Number.isInteger(v.width) && v.width >= 320 && v.width <= 1800 && (v.scheme === "light" || v.scheme === "dark") &&
       (v.height === undefined || (Number.isInteger(v.height) && v.height >= 100 && v.height <= 1700))).slice(0, 4) as RenderOptions["views"] : undefined;

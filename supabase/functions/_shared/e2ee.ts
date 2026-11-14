@@ -49,13 +49,24 @@ export type FileMeta = { name: string; type: string; size?: number };
 
 export const BOX = /^amb2\.([0-9a-f]{16})\.([A-Za-z0-9+/]+={0,2})$/;
 
+// The runtime's own base64 where it has it (Deno 2.5+): about 100 times faster than the loop below,
+// which matters for an app's big files (13 ms of CPU a MB the loop way, 2026-11-16).
+// deno-lint-ignore no-explicit-any
+const nativeBase64 = typeof (Uint8Array.prototype as any).toBase64 === "function" && typeof (Uint8Array as any).fromBase64 === "function";
+
 export function toBase64(bytes: Uint8Array): string {
+  // deno-lint-ignore no-explicit-any
+  if (nativeBase64) return (bytes as any).toBase64();
   let s = "";
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
 
 export function fromBase64(s: string): Bytes {
+  if (nativeBase64) {
+    // deno-lint-ignore no-explicit-any
+    try { return (Uint8Array as any).fromBase64(s); } catch { throw new DOMException("not base64", "InvalidCharacterError"); }
+  }
   const bin = atob(s);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);

@@ -1,11 +1,11 @@
 // check_app and preview_app: let an AI see what it built. See app_check.ts for the findings and
 // app_sample.ts for the sample a note's app is rendered over.
 
-import { render, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
+import { render as renderWith, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
 import { noteForPage } from "./page_input.ts";
 import { resolvePackage } from "./libraries.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
-import { inlineStored } from "./app_blobs.ts";
+import { supplier } from "./app_blobs.ts";
 import { bodyOf, Content, findNote, ToolError, type Call, type Tx } from "./tools.ts";
 
 type Args = Record<string, unknown>;
@@ -80,6 +80,8 @@ export const appTools = [
 ];
 
 const today = () => new Intl.DateTimeFormat("sv-SE", { timeZone: Deno.env.get("PANE_TIMEZONE") ?? "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+/** The render service, sent the parts of the app's binary files it asks for (the html names them). */
+const render = (tx: Tx, c: Call, payload: Record<string, unknown>) => renderWith(payload, supplier(tx, c));
 
 async function appOf(tx: Tx, c: Call, a: Args) {
   const n = await findNote(tx, c, a, true);
@@ -89,8 +91,6 @@ async function appOf(tx: Tx, c: Call, a: Args) {
   if (!box) throw new ToolError(`"${n.title}" has no app yet. Make one with create.`);
   let html: string, data: unknown = { values: {}, collections: {} };
   try { html = await c.v.openPage(n.id, box); } catch { throw new ToolError("This note's app can't be opened with this connection's key."); }
-  // The checks open the whole app, its binary files included.
-  html = await inlineStored(tx, c, html);
   if (row.data_ct) { try { data = JSON.parse(await c.v.openPageData(n.id, row.data_ct)); } catch { /* checked without its data */ } }
   return { n, html, data, body: await bodyOf(c.v, n) };
 }
@@ -100,7 +100,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
     const { n, html, data, body } = await appOf(tx, c, a);
     const t = today();
     const found = staticReport(html, body);
-    const r = await render({
+    const r = await render(tx, c, {
       html, markdown: sampleNote(body, t), data: sampleData(data, t), today: t,
       views: [{ width: 390, scheme: "light" }, { width: 390, scheme: "dark" }, { width: 320, scheme: "light" }, { width: 1280, scheme: "light" }, { width: 1280, scheme: "dark" }], interact: true, probes: true,
       // Shown inside a parent note too: also as the widget strip.
@@ -129,7 +129,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
       if (!p?.app_previews_real) throw new ToolError("Trying the app with real data is off. It uses a sample with the same shape by default (data: \"sample\"). The person can allow real data in Pinto Notes › Settings › Apps in Notes.");
     }
     const t = today();
-    const r = await render({ html, markdown: real ? body : sampleNote(body, t), data: real ? data : sampleData(data, t), today: t,
+    const r = await render(tx, c, { html, markdown: real ? body : sampleNote(body, t), data: real ? data : sampleData(data, t), today: t,
       views: [a.start === "desktop" ? { width: 1280, scheme: "light" } : { width: 390, scheme: "light" }], steps: a.steps.slice(0, 30), probes: false });
     if (typeof r === "string") return { app: { id: n.id, title: n.title }, tried: false, reason: r };
     const steps = r.trial ?? [];
@@ -147,7 +147,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
   async run_app_tests(tx, a, c) {
     const { n, html, data, body } = await appOf(tx, c, a);
     const t = today();
-    const r = await render({ html, markdown: sampleNote(body, t), data: sampleData(data, t), today: t, tests: true });
+    const r = await render(tx, c, { html, markdown: sampleNote(body, t), data: sampleData(data, t), today: t, tests: true });
     if (typeof r === "string") return { app: { id: n.id, title: n.title }, ran: false, reason: r };
     return { app: { id: n.id, title: n.title }, ...testSummary(r), ...(r.tests?.length || r.testErrors?.length ? {} : { note: "No tests yet: add files like tests/app.test.tsx." }) };
   },
@@ -169,7 +169,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
       if (!p?.app_previews_real) throw new ToolError("Previews with real data are off. They show a sample with the same shape by default (data: \"sample\"). The person can allow real data in Pinto Notes › Settings › Apps in Notes, \"Let AIs preview apps with my notes\".");
     }
     const t = today();
-    const r = await render({ html, markdown: real ? body : sampleNote(body, t), data: real ? data : sampleData(data, t), today: t, views, capture: true, interact: false, probes: false });
+    const r = await render(tx, c, { html, markdown: real ? body : sampleNote(body, t), data: real ? data : sampleData(data, t), today: t, views, capture: true, interact: false, probes: false });
     if (typeof r === "string") return { app: { id: n.id, title: n.title }, previews: "unavailable", reason: r, instead: "Run check_app for the checks that need no browser." };
     const f = renderedFindings(r);
     const issues = [...f.errors, ...f.notes];

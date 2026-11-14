@@ -11,7 +11,8 @@ import { applyPageOp, importedFrom, noteForPage } from "../../supabase/functions
 import { mergePatch } from "../../supabase/functions/mcp/data_ops.ts";
 import { findTables } from "../../supabase/functions/mcp/notes.ts";
 import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
-import { binaryType, unpackBinary } from "../../supabase/functions/mcp/app_project.ts";
+import { type Binary, binaryType } from "../../supabase/functions/mcp/app_project.ts";
+import { binaryBytes } from "./parts.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
 const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https:; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; " +
@@ -85,7 +86,7 @@ const kit = (() => { let k: { src: Record<string, string>; compiled: Record<stri
 /** pinto-lib:///, pinto-app:/// and their amber names as this harness serves them. */
 const hosts = (text: string) => text.replaceAll(/(?:amber|pinto)-lib:\/\/\//g, LIB_HOST).replaceAll(/(?:amber|pinto)-app:\/\/\//g, APP_HOST);
 
-export type AppProject = { files: Record<string, string>; compiled: Record<string, string>; binary: Record<string, string> };
+export type AppProject = { files: Record<string, string>; compiled: Record<string, string>; binary: Record<string, Binary> };
 export function projectOf(stored: string): AppProject | null {
   if (!stored.trimStart().startsWith("{") || !stored.includes('"amberApp"')) return null;
   try { const p = JSON.parse(stored); return p?.amberApp === 1 && p.files ? { files: p.files, compiled: p.compiled ?? {}, binary: p.binary ?? {} } : null; } catch { return null; }
@@ -644,7 +645,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         // A binary file (a .wasm, a game's data): its bytes as they are, with their type.
         const stored = project.binary[decodeURIComponent(new URL(u).pathname)];
         if (stored !== undefined) {
-          return unpackBinary(stored).then((body) => r.fulfill({ status: 200, contentType: binaryType(new URL(u).pathname), headers: { "access-control-allow-origin": "*" }, body: Buffer.from(body) }))
+          return binaryBytes(stored).then((body) => r.fulfill({ status: 200, contentType: binaryType(new URL(u).pathname), headers: { "access-control-allow-origin": "*" }, body: Buffer.from(body) }))
             .catch((e) => { errors.push(`${new URL(u).pathname}: ${(e as Error).message}`); return r.fulfill({ status: 500, body: "" }); });
         }
         const f = serveFile(project, "/" + decodeURIComponent(new URL(u).pathname.slice(1)), new URL(u).search.slice(1));

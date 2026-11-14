@@ -8,7 +8,8 @@
 
 import { appendText, mimeOf, previewOf, searchFilter, searchInMemory, titleOf, wikiLinks } from "./notes.ts";
 import { noteChecks } from "./note_checks.ts";
-import { binaryType, cleanPath, isBinaryBytes, type Project, unpackBinary } from "./app_project.ts";
+import { type Binary, binarySize, type BlobRef, binaryType, cleanPath, isBinaryBytes, MAX_BINARY_BYTES, MAX_FILES, partsOf, type Project, unpackBinary } from "./app_project.ts";
+import { binaryRange, putBinary, putPiece, refOf } from "./app_blobs.ts";
 import { scaffold } from "./app_scaffold.ts";
 import { fileList, projectOf, saveProject, withBinary, withFile, withFiles, without } from "./app_files.ts";
 import { pageDataOf, storePageData } from "./data_tools.ts";
@@ -112,12 +113,18 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a picture): content_base64 to its path (each up to 8 MB once compressed and in base64, about 6 MB of bytes that don't compress; 16 MB for the whole app), and the app loads it with fetch like any web page. Instead of content_base64, content_url takes a public https address: the server downloads the file (up to 10 MB) and stores its bytes as they are. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a disk image): content_base64 to its path, and the app loads it with fetch like any web page. An app's binary file can be up to 100 MB and its text 16 MB; one write carries up to 10 MB of base64, so send a bigger file in pieces (content_base64 with offset, and size for the whole file: it's saved when the last piece arrives). Instead of content_base64, content_url takes a public https address: the server downloads the file (up to 100 MB for an app, 10 MB otherwise) and stores its bytes as they are. To change several files of an app in one save (one version, one check), give path the app (\"Games/Doom.app\") and files. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
-        path: str(PATH), content: str("The whole text (data.json: JSON)."), content_base64: str("A file's bytes, base64 (up to 10 MB)."),
-        content_url: str("A public https address the server downloads the file's bytes from, instead of content_base64 (up to 10 MB)."), mime_type: str("With content_base64, like \"application/pdf\"."),
+        path: str(PATH), content: str("The whole text (data.json: JSON)."), content_base64: str("A file's bytes, base64 (up to 10 MB in one write)."),
+        content_url: str("A public https address the server downloads the file's bytes from, instead of content_base64 (up to 100 MB for an app's file, 10 MB otherwise)."), mime_type: str("With content_base64, like \"application/pdf\"."),
+        offset: int("An app's binary file sent in pieces: where this piece (content_base64) starts in the file, in bytes."),
+        size: int("With offset: the whole file's size in bytes."),
+        files: {
+          type: "array", description: "Several files of one app, saved together as one version with one check (path is the app). Each: path in the app (\"src/App.tsx\") and content, content_base64 or content_url (an app's binary file may also be the last piece, with offset and size), or delete: true. Nothing is saved if one of them can't be.",
+          items: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, content_base64: { type: "string" }, content_url: { type: "string" }, offset: { type: "integer" }, size: { type: "integer" }, delete: { type: "boolean" } }, required: ["path"] },
+        },
         file: { type: "object", description: "A file from the chat (ChatGPT hands these over), instead of content_base64.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } }, required: ["download_url", "file_id"] },
       },
       required: ["path"],
@@ -222,7 +229,19 @@ export async function runFileTool(name: string, args: Args, ctx: ToolContext): P
   if (a.path === undefined && a.id !== undefined && name !== "fetch") a.path = a.id;
   if (name === "fetch" && a.id === undefined && a.path !== undefined) a.id = a.path;
   // write's content_url is downloaded before the transaction opens: a slow server holds no database connection.
-  const download = name === "write" && given(a.content_url) ? async () => { sources(a, false); FETCHED.set(a, await fromUrl(a.content_url)); } : undefined;
+  // An app's file can be as big as an app's binary file; any other file as big as the AI's files.
+  const entries = name === "write" && Array.isArray(a.files) ? (a.files as unknown[]).filter((f): f is Args => !!f && typeof f === "object") : [];
+  const urls = name === "write" ? [...(given(a.content_url) ? [a] : []), ...entries.filter((f) => given(f.content_url))] : [];
+  // One write holds what it downloads in memory until it's stored: 100 MB in all.
+  const download = urls.length ? async () => {
+    let left = MAX_BINARY_BYTES;
+    for (const x of urls) {
+      sources(x, false);
+      const got = await fromUrl(x.content_url, x === a && !isAppPath(clean(a.path)) ? AI_FILE_BYTES : left);
+      left -= got.bytes.length;
+      FETCHED.set(x, got);
+    }
+  } : undefined;
   return await runIn(FILE_TOOLS, fileHandlers, name, a, ctx, download);
 }
 
@@ -1042,15 +1061,24 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     }
     const file = appPath(r.file);
     if (p.binary?.[file] !== undefined) {
-      // A binary file (a .wasm, a game's data): its size, and its bytes only when asked for raw.
-      const data = await unpackBinary(p.binary[file]);
-      await markRead(tx, c, fileItem(r.note.id, file), await hash(c, p.binary[file]));
-      const head = { path: `${r.base}${file}`, binary: true, bytes: data.length, kind: binaryType(file) };
+      // A binary file (a .wasm, a game's data, a disk image): its size, and its bytes only when
+      // asked for raw, up to 10 MB at a time (offset and limit in bytes for a bigger one).
+      const v = p.binary[file];
+      const size = typeof v === "string" ? (await unpackBinary(v)).length : binarySize(v);
+      await markRead(tx, c, fileItem(r.note.id, file), await hash(c, stampOf(p, file)!));
+      const head = { path: `${r.base}${file}`, binary: true, bytes: size, kind: binaryType(file) };
       if (a.raw === true) {
-        return new Content([{ type: "text", text: JSON.stringify({ ...head, raw: "The file's bytes are the resource below (base64). Write new bytes with content_base64." }) },
-          { type: "resource", resource: { uri: `pintonotes://file/${encodeURIComponent(r.base + file)}`, mimeType: head.kind, blob: toBase64(data) } }], head);
+        const from = a.offset === undefined ? 0 : Number(a.offset);
+        const count = a.limit === undefined ? size - from : Number(a.limit);
+        if (!Number.isSafeInteger(from) || from < 0 || from > size || !Number.isSafeInteger(count) || count < 0) throw new ToolError(`offset and limit are bytes here (the file has ${size}).`);
+        const to = Math.min(size, from + count);
+        if (to - from > AI_FILE_BYTES) throw new ToolError(`${r.base}${file} is ${(size / 1048576).toFixed(1)} MB; fetch with raw gives up to ${AI_FILE_BYTES / 1048576} MB at a time: pass offset and limit (bytes), like offset: 0, limit: ${AI_FILE_BYTES}.`);
+        const data = await binaryRange(tx, c, v, from, to);
+        const range = from > 0 || to < size ? { range: [from, to], ...(to < size ? { next_offset: to } : {}) } : {};
+        return new Content([{ type: "text", text: JSON.stringify({ ...head, ...range, raw: "The file's bytes are the resource below (base64). Write new bytes with content_base64." }) },
+          { type: "resource", resource: { uri: `pintonotes://file/${encodeURIComponent(r.base + file)}`, mimeType: head.kind, blob: toBase64(data) } }], { ...head, ...range });
       }
-      return { id: `${r.base}${file}`, title: file.slice(1), text: `A binary file, ${data.length} bytes, served to the app as it is. fetch with raw: true for its bytes; write content_base64 to replace it.`, url: `pintonotes://note/${r.note.id}`, metadata: head };
+      return { id: `${r.base}${file}`, title: file.slice(1), text: `A binary file, ${size} bytes, served to the app as it is. fetch with raw: true for its bytes (offset and limit in bytes, up to ${AI_FILE_BYTES / 1048576} MB at a time); write content_base64 or content_url to replace it.`, url: `pintonotes://note/${r.note.id}`, metadata: head };
     }
     if (p.files[file] === undefined) throw new ToolError(`No ${r.base}${file}. Its files: list "${r.base}".`);
     const shown = numberedLines(p.files[file], a.offset, a.limit);
@@ -1159,8 +1187,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   },
 
   async write(tx, a, c) {
+    if (a.files !== undefined) return await writeAppFiles(tx, a, c);
     sources(a);
     if (typeof a.content_base64 === "string" || (a.file && typeof a.file === "object") || FETCHED.has(a) || (typeof a.content === "string" && looksLikeFile(clean(a.path)))) return await writeFileTool(tx, a, c);
+    if (a.offset !== undefined || a.size !== undefined) throw new ToolError("offset and size send an app's binary file in pieces, as content_base64.");
     if (typeof a.content !== "string") throw new ToolError("content is the whole new text (content_base64 with mime_type for a file's bytes).");
     const content = a.content;
     let r: Ref;
@@ -1208,7 +1238,8 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const p = await appProject(tx, c, r.note);
       const file = appPath(r.file);
       if (p.files[file] === content) return { path: `${r.base}${file}`, unchanged: true };
-      if (p.files[file] !== undefined) await mustHaveRead(tx, c, fileItem(r.note.id, file), await hash(c, p.files[file]), `${r.base}${file}`);
+      const was = stampOf(p, file);
+      if (was !== undefined) await mustHaveRead(tx, c, fileItem(r.note.id, file), await hash(c, was), `${r.base}${file}`);
       const out = await saveProject(tx, c, await full(tx, c, r.note.id), await withFile(p, file, content), `${file} (${p.files[file] === undefined ? "created" : "replaced"})`, a) as Record<string, unknown>;
       await markRead(tx, c, fileItem(r.note.id, file), await hash(c, content));
       return appResult(out, `${r.base}${file}`);
@@ -1500,6 +1531,7 @@ function appResult(out: Record<string, unknown> | Content, path: string): unknow
 // MARK: Files
 
 const looksLikeFile = (path: string) => /\.[A-Za-z0-9]{1,10}$/.test(path) && !/\.md$/i.test(path) && !/\.app(\/|$)/i.test(path) && !path.includes(".app/");
+const isAppPath = (path: string) => /\.app(\/|$)/i.test(path);
 const IMAGE_BLOCKS = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
 /** A file a chat client hands over by link (ChatGPT's openai/fileParams): fetched once, over HTTPS
@@ -1529,7 +1561,7 @@ function sources(a: Args, downloaded = true) {
 
 /** Downloads content_url (public_fetch.ts: https, public addresses only, every redirect checked,
  *  30 s), stopping past 10 MB like content_base64. The bytes are kept exactly as they came. */
-async function fromUrl(raw: unknown): Promise<Fetched> {
+async function fromUrl(raw: unknown, cap = AI_FILE_BYTES): Promise<Fetched> {
   const link = String(raw).trim();
   let url: URL;
   try { url = new URL(link); } catch { throw new ToolError("content_url isn't a web address (https://…). Nothing was saved."); }
@@ -1537,7 +1569,7 @@ async function fromUrl(raw: unknown): Promise<Fetched> {
     if (e instanceof ToolError) throw e;
     if (e instanceof NotPublic) throw new ToolError(`content_url was refused: ${e.message} Only public https addresses are downloaded. Nothing was saved.`);
     if (e instanceof FetchTimeout) throw new ToolError(`content_url: the download from ${url.host} ${e.message}, so it stopped. Nothing was saved.`);
-    if (e instanceof RangeError) throw new ToolError(`content_url: the file is over ${AI_FILE_BYTES / 1048576} MB, so the download stopped there. Nothing was saved.`);
+    if (e instanceof RangeError) throw new ToolError(`content_url: the file is over ${Math.floor(cap / 1048576)} MB, so the download stopped there. Nothing was saved.`);
     throw new ToolError(`content_url couldn't be downloaded from ${url.host} (${String((e as Error)?.message ?? e).slice(0, 200)}). Nothing was saved.`);
   };
   const res = await publicFetch(url).catch(failed);
@@ -1545,7 +1577,7 @@ async function fromUrl(raw: unknown): Promise<Fetched> {
     await res.body?.cancel().catch(() => {});
     throw new ToolError(`content_url: ${url.host} answered ${res.status}${res.statusText ? ` ${res.statusText}` : ""}. Nothing was saved.`);
   }
-  const bytes = await readCapped(res, AI_FILE_BYTES).catch(failed);
+  const bytes = await readCapped(res, cap).catch(failed);
   const sha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
   const type = res.headers.get("content-type")?.split(";")[0].trim().toLowerCase() || undefined;
   return { bytes, ...(type ? { type } : {}), from: link, sha256 };
@@ -1588,6 +1620,12 @@ async function writeFileTool(tx: Tx, a: Args, c: Call) {
   const path = clean(a.path);
   let bytes: Uint8Array;
   const fetched = FETCHED.get(a);
+  // An app's file: its bytes are read there, once.
+  if (isAppPath(path)) {
+    const r = await resolve(tx, c, path);
+    if (r.kind === "appfile") return withFetched(await writeAppBytes(tx, c, r, a), fetched);
+  }
+  if (a.offset !== undefined || a.size !== undefined) throw new ToolError("offset and size send an app's binary file in pieces; other files are written whole (up to 10 MB).");
   if (fetched) {
     bytes = fetched.bytes;
     if (typeof a.mime_type !== "string" && fetched.type) a.mime_type = fetched.type;
@@ -1600,7 +1638,7 @@ async function writeFileTool(tx: Tx, a: Args, c: Call) {
   else throw new ToolError("A file takes content (text), content_base64 with mime_type, or content_url.");
   let r: Ref | null = null;
   try { r = await resolve(tx, c, path); } catch (e) { if (!/^Nothing at/.test((e as Error).message)) throw e; }
-  if (r?.kind === "appfile") return withFetched(await writeAppBytes(tx, c, r, bytes, a), fetched);
+  if (r?.kind === "appfile") return withFetched(await writeAppBytes(tx, c, r, a), fetched);
   if (r && r.kind !== "file") throw new ToolError(`${path} isn't a file.`);
   if (r?.kind === "file") {
     const { meta, version } = await readFile(tx, c, r.id, r.path);
@@ -1631,19 +1669,159 @@ async function writeFileTool(tx: Tx, a: Args, c: Call) {
   return withFetched({ created: at, bytes: bytes.length }, fetched);
 }
 
-/** Bytes for a file in an app (content_base64): a .wasm, a game's data, a picture. Text that comes
- *  this way is kept as text, so it stays editable; anything else is a binary file, served as-is. */
-async function writeAppBytes(tx: Tx, c: Call, r: Extract<Ref, { kind: "appfile" }>, bytes: Uint8Array, a: Args) {
+/** What the read-before-write record holds for an app file: its text, or for a binary file the
+ *  names it's stored under (the packed bytes, for an older app's file kept inside the project). */
+const stampOf = (p: Project, file: string): string | undefined => {
+  const v = p.binary?.[file];
+  if (v === undefined) return p.files[file];
+  return typeof v === "string" ? v : `blob:${partsOf(v).map((x) => x.hash).join(",")}`;
+};
+
+/** One write's file bytes, in base64: what fits in a request the server holds in memory whole
+ *  (the edge function has 256 MB, and the request's text, its parsed copy and the bytes all count).
+ *  A bigger file comes in pieces, or by content_url. */
+const REQUEST_FILE_BYTES = AI_FILE_BYTES;
+
+/** A piece of an app's binary file (write with offset and size): stored at once as the parts it
+ *  covers (note_app_uploads remembers them, 20261116120000). Returns the whole file's name once
+ *  every byte has come, else what has. */
+async function appPiece(tx: Tx, c: Call, n: Note, file: string, bytes: Uint8Array, a: Args): Promise<{ done: Binary } | { received: number; missing: [number, number][]; size: number }> {
+  const size = Number(a.size), offset = Number(a.offset ?? 0);
+  if (!Number.isSafeInteger(size) || size <= 0) throw new ToolError("size is the whole file's size in bytes, with offset.");
+  if (size > MAX_BINARY_BYTES) throw new ToolError(`${file} would be ${(size / 1048576).toFixed(1)} MB; an app's binary file can be at most ${MAX_BINARY_BYTES / 1048576} MB.`);
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset + bytes.length > size) throw new ToolError(`offset ${a.offset} with ${bytes.length} bytes doesn't fit in a file of ${size} bytes.`);
+  if (!bytes.length) throw new ToolError("The piece is empty.");
+  const tag = await c.v.tag(`upload:${file}`);
+  const [row] = await tx<{ size: string; pieces: { at: number; parts: BlobRef[] }[] }[]>`
+    select size, pieces from public.note_app_uploads where note_id = ${n.id} and path_tag = ${tag} for update`;
+  // A different size is a new upload of the file: it starts again.
+  let pieces = row && Number(row.size) === size ? row.pieces : [];
+  const fresh = await putPiece(tx, c, bytes, offset);
+  // A piece sent again (a retry) replaces what it overlaps.
+  pieces = [...pieces.filter((p) => p.at + p.parts[0].size <= offset || p.at >= offset + bytes.length), ...fresh].sort((x, y) => x.at - y.at);
+  const missing: [number, number][] = [];
+  let at = 0;
+  for (const p of pieces) { if (p.at > at) missing.push([at, p.at]); at = Math.max(at, p.at + p.parts[0].size); }
+  if (at < size) missing.push([at, size]);
+  if (!missing.length) {
+    await tx`delete from public.note_app_uploads where note_id = ${n.id} and path_tag = ${tag}`;
+    return { done: refOf(pieces.flatMap((p) => p.parts)) };
+  }
+  const names = [...new Set(pieces.flatMap((p) => p.parts.map((x) => x.hash)))];
+  await tx`insert into public.note_app_uploads (note_id, path_tag, size, pieces, blobs) values (${n.id}, ${tag}, ${size}, ${tx.json(pieces)}, ${names}::text[])
+    on conflict (user_id, note_id, path_tag) do update set size = excluded.size, pieces = excluded.pieces, blobs = excluded.blobs, updated_at = now()`;
+  // Held through the clean-up while the rest comes (it leaves what an upload names, and what was just used).
+  await tx`update public.note_app_blobs set used_at = now() where hash = any(${names}::text[])`;
+  return { received: pieces.reduce((s, p) => s + p.parts[0].size, 0), missing, size };
+}
+
+const ranges = (m: [number, number][]) => m.map(([a, b]) => `${a} to ${b - 1}`).join(", ");
+
+/** One file of an app as given to write (content, content_base64, content_url, or a last piece):
+ *  text, or a binary file already stored apart. */
+async function appEntry(tx: Tx, c: Call, n: Note, file: string, x: Args): Promise<{ text: string } | { binary: Binary; bytes: number } | { staged: { received: number; missing: [number, number][]; size: number } }> {
+  const fetched = FETCHED.get(x);
+  let bytes: Uint8Array;
+  if (fetched) bytes = fetched.bytes;
+  else if (typeof x.content_base64 === "string") {
+    const b64 = x.content_base64.replace(/^data:[^,]*,/, "").replace(/\s+/g, "");
+    if (b64.length * 3 / 4 > REQUEST_FILE_BYTES * 1.02) {
+      throw new ToolError(`${file}: one write carries up to ${REQUEST_FILE_BYTES / 1048576} MB of base64 bytes. Send it in pieces: content_base64 with offset (where the piece starts) and size (the whole file's bytes); it's saved when the last piece arrives. Or give content_url.`);
+    }
+    try { bytes = fromBase64(b64); } catch { throw new ToolError(`${file}: content_base64 isn't base64.`); }
+  } else if (typeof x.content === "string") {
+    if (x.offset !== undefined || x.size !== undefined) throw new ToolError(`${file}: a file in pieces comes as content_base64.`);
+    return { text: x.content };
+  } else if (x.file && typeof x.file === "object") bytes = await chatFile(x.file as Record<string, unknown>);
+  else throw new ToolError(`${file}: give content, content_base64 or content_url.`);
+  if (x.offset !== undefined || x.size !== undefined) {
+    const r = await appPiece(tx, c, n, file, bytes, x);
+    return "done" in r ? { binary: r.done, bytes: binarySize(r.done) } : { staged: r };
+  }
+  if (!isBinaryBytes(bytes)) return { text: new TextDecoder().decode(bytes) };
+  if (bytes.length > MAX_BINARY_BYTES) throw new ToolError(`${file} is ${(bytes.length / 1048576).toFixed(1)} MB; an app's binary file can be at most ${MAX_BINARY_BYTES / 1048576} MB.`);
+  return { binary: await putBinary(tx, c, bytes), bytes: bytes.length };
+}
+
+/** Bytes for a file in an app (content_base64, content_url, or a piece of one): a .wasm, a game's
+ *  data, a disk image, a picture. Text that comes this way is kept as text, so it stays editable;
+ *  anything else is a binary file, stored apart and served as-is. */
+async function writeAppBytes(tx: Tx, c: Call, r: Extract<Ref, { kind: "appfile" }>, a: Args) {
   const p = await appProject(tx, c, r.note);
   const file = appPath(r.file);
-  const was = p.binary?.[file] ?? p.files[file];
+  const was = stampOf(p, file);
   if (was !== undefined) await mustHaveRead(tx, c, fileItem(r.note.id, file), await hash(c, was), `${r.base}${file}`);
-  const binary = isBinaryBytes(bytes);
-  if (!binary && file === "/index.html") throw new ToolError("/index.html must be text.");
-  const next = binary ? await withBinary(p, file, bytes) : await withFile(p, file, new TextDecoder().decode(bytes));
-  const out = await saveProject(tx, c, await full(tx, c, r.note.id), next, `${file} (${was === undefined ? "created" : "replaced"}, ${bytes.length} bytes)`, a) as Record<string, unknown>;
-  await markRead(tx, c, fileItem(r.note.id, file), await hash(c, binary ? next.binary![file] : next.files[file]));
+  const got = await appEntry(tx, c, r.note, file, a);
+  if ("staged" in got) {
+    const s = got.staged;
+    return { path: `${r.base}${file}`, saved: false, received: s.received, size: s.size, missing: ranges(s.missing),
+      next: "Send the missing bytes the same way (content_base64 with offset and size). The file is saved into the app when the last piece arrives." };
+  }
+  if ("binary" in got && file === "/index.html") throw new ToolError("/index.html must be text.");
+  const next = "binary" in got ? withBinary(p, file, got.binary) : await withFile(p, file, got.text);
+  const size = "binary" in got ? got.bytes : new TextEncoder().encode(got.text).length;
+  const out = await saveProject(tx, c, await full(tx, c, r.note.id), next, `${file} (${was === undefined ? "created" : "replaced"}, ${size} bytes)`, a) as Record<string, unknown>;
+  await markRead(tx, c, fileItem(r.note.id, file), await hash(c, stampOf(next, file)!));
   return appResult(out, `${r.base}${file}`);
+}
+
+/** Several files of an app in one save (write with files): one version, one check. Every file is
+ *  checked and stored first; if one can't be, the write stops and nothing is saved. */
+async function writeAppFiles(tx: Tx, a: Args, c: Call) {
+  const r = await resolve(tx, c, a.path);
+  if (r.kind !== "app" || r.dir) throw new ToolError(`files writes files of one app: path is the app, like "Games/Doom.app", and each file's path is inside it.`);
+  for (const k of ["content", "content_base64", "content_url", "file", "offset", "size"]) if (a[k] !== undefined) throw new ToolError(`With files, each file has its own ${k}.`);
+  const list = a.files;
+  if (!Array.isArray(list) || !list.length || list.some((f) => !f || typeof f !== "object" || Array.isArray(f))) throw new ToolError("files is a list of { path, content | content_base64 | content_url | delete: true }.");
+  if (list.length > MAX_FILES) throw new ToolError(`files has ${list.length} files; an app has at most ${MAX_FILES}.`);
+  const sent = (list as Args[]).reduce((s, f) => s + (typeof f.content_base64 === "string" ? f.content_base64.length * 3 / 4 : 0), 0);
+  if (sent > REQUEST_FILE_BYTES * 1.02) throw new ToolError(`files carries ${(sent / 1048576).toFixed(1)} MB of base64 bytes; one write carries up to ${REQUEST_FILE_BYTES / 1048576} MB. Send big files first in pieces (offset and size) and give each one's last piece here, or give content_url.`);
+  let p = await appProject(tx, c, r.note);
+  const texts: Record<string, string> = {};
+  const done: { path: string; did: string; bytes?: number }[] = [];
+  const seen = new Set<string>();
+  const base = r.base.toLowerCase();
+  for (const x of list as Args[]) {
+    const raw = String(x.path ?? "");
+    const file = appPath(raw.toLowerCase().startsWith(base + "/") ? raw.slice(base.length + 1) : raw);
+    if (seen.has(file)) throw new ToolError(`${file} is in files twice. Nothing was saved.`);
+    seen.add(file);
+    const where = `${r.base}${file}`;
+    const was = stampOf(p, file);
+    if (x.delete === true) {
+      if (was === undefined) throw new ToolError(`No ${where} to delete. Nothing was saved.`);
+      if (file === "/index.html") throw new ToolError("/index.html is the page the app opens; it can't be deleted. Nothing was saved.");
+      p = without(p, file);
+      done.push({ path: where, did: "deleted" });
+      continue;
+    }
+    sources(x);
+    if (was !== undefined) await mustHaveRead(tx, c, fileItem(r.note.id, file), await hash(c, was), where);
+    let got;
+    try { got = await appEntry(tx, c, r.note, file, x); } catch (e) {
+      throw e instanceof ToolError ? new ToolError(`${e.message.startsWith(file) ? "" : `${where}: `}${e.message} Nothing was saved.`) : e;
+    }
+    if ("staged" in got) throw new ToolError(`${where} isn't complete: bytes ${ranges(got.staged.missing)} haven't come yet. Send them first (write with offset and size), then this. Nothing was saved.`);
+    if ("binary" in got) {
+      if (file === "/index.html") throw new ToolError("/index.html must be text. Nothing was saved.");
+      p = withBinary(p, file, got.binary);
+      done.push({ path: where, did: was === undefined ? "created" : stampOf(p, file) === was ? "unchanged" : "replaced", bytes: got.bytes });
+    } else if (p.files[file] === got.text) {
+      done.push({ path: where, did: "unchanged" });
+    } else {
+      texts[file] = got.text;
+      done.push({ path: where, did: was === undefined ? "created" : "replaced", bytes: new TextEncoder().encode(got.text).length });
+    }
+  }
+  if (done.every((d) => d.did === "unchanged")) return { saved: `${r.base}/`, unchanged: true, files: done };
+  // Every text file compiled in one build.
+  p = await withFiles(p, texts);
+  const changed = done.filter((d) => d.did !== "unchanged");
+  const saved = await saveProject(tx, c, await full(tx, c, r.note.id), p, `${changed.length} file${changed.length === 1 ? "" : "s"}`, a);
+  for (const d of done) if (d.did !== "deleted") await markRead(tx, c, fileItem(r.note.id, d.path.slice(r.base.length)), await hash(c, stampOf(p, d.path.slice(r.base.length))!));
+  if (saved instanceof Content) return saved;
+  const { app: _, saved: __, files: ___, ...rest } = saved as Record<string, unknown>;
+  return { saved: `${r.base}/`, files: done, ...rest };
 }
 
 async function loadFailure(tx: Tx, id: string): Promise<Record<string, unknown>> {
@@ -1658,9 +1836,9 @@ async function moveAppFile(tx: Tx, c: Call, n: Note, base: string, from: string,
   if (p.files[src] === undefined && p.binary?.[src] === undefined) throw new ToolError(`No ${base}${src}.`);
   if (p.files[dst] !== undefined || p.binary?.[dst] !== undefined) throw new ToolError(`${base}${dst} already exists.`);
   const rest = without(p, src);
-  const content = p.binary?.[src] ?? p.files[src];
-  const moved = p.binary?.[src] !== undefined ? { ...rest, binary: { ...rest.binary ?? {}, [dst]: content } } : await withFile(rest, dst, content);
+  const bin = p.binary?.[src];
+  const moved = bin !== undefined ? withBinary(rest, dst, bin) : await withFile(rest, dst, p.files[src]);
   const out = await saveProject(tx, c, await full(tx, c, n.id), moved, `${src} → ${dst}`, a);
-  await markRead(tx, c, fileItem(n.id, dst), await hash(c, content));
+  await markRead(tx, c, fileItem(n.id, dst), await hash(c, stampOf(moved, dst)!));
   return appResult(out as Record<string, unknown>, `${base}${dst}`);
 }
