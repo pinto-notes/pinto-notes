@@ -48,16 +48,11 @@ function Feature({ id, title, line, details, flip, link, children }: {
 }
 const Arrow = () => <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" /></svg>;
 
-/** The six strongest small things: three with a piece of the real UI, three in a tidy row. */
+/** Three small things, each with a piece of the real UI big enough to read. */
 const BIG: { title: string; say: string; Mini: () => React.JSX.Element }[] = [
   { title: "The / menu", say: "Type / for a heading, a checklist, a table or a link.", Mini: SlashMini },
   { title: "Tables and checklists", say: "Plan in a table and tick things off, as in Apple Notes.", Mini: TableMini },
   { title: "Every version kept", say: "Go back to any earlier version. Deleted notes wait 30 days.", Mini: HistoryMini },
-];
-const SMALL: { title: string; say: string; icon: string }[] = [
-  { title: "Bring your notes", say: "From Apple Notes, Obsidian, Bear, Evernote and Keep.", icon: "bring" },
-  { title: "Lock a note", say: "A separate password for the private ones.", icon: "lock" },
-  { title: "Private", say: "Encrypted on your device before it syncs.", icon: "envelope" },
 ];
 
 export default function Page() {
@@ -140,14 +135,7 @@ export default function Page() {
             </li>
           ))}
         </ul>
-        <ul className={s.smalls}>
-          {SMALL.map((m) => (
-            <li key={m.title}>
-              <img src={`/home-v5/icons/${m.icon}.webp`} alt="" width={160} height={160} loading="lazy" decoding="async" />
-              <span><b>{m.title}</b> {m.say}</span>
-            </li>
-          ))}
-        </ul>
+        <p className={s.moreLine}>Bring your notes from Apple Notes, Obsidian, Bear, Evernote and Keep. Lock a note with its own password. Everything is encrypted on your device before it syncs.</p>
       </section>
 
       {/* Free and the download in one moment, over the paper town. */}

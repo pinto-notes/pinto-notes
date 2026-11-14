@@ -50,9 +50,11 @@
 .room[data-scene="evening"] { background: #ecd2b0; }
 
 .at { position: absolute; display: flex; }
-.writeRoom .at { left: 20%; right: -7%; top: 10%; bottom: 8%; }
+.writeRoom .at { left: 17%; right: -24%; top: 8%; bottom: -10%; }
+/* The notes window about 18% larger, so it reads at a glance. */
+.writeRoom .win { zoom: 1.18; }
 /* Over the bottom of the list column, so the note itself stays whole. */
-.importAt { position: absolute; left: 18.5%; bottom: 4%; width: min(340px, 46%); z-index: 2; }
+.importAt { position: absolute; left: 17%; bottom: 5%; width: min(290px, 38%); z-index: 2; }
 .drawRoom .at { left: 5%; right: 15%; top: 9%; bottom: 13%; }
 .buildRoom .at { left: 45%; right: -6%; top: 14%; bottom: -3%; }
 .fanAt { position: absolute; left: 2.5%; bottom: 7%; z-index: 2; }
@@ -232,15 +234,13 @@
 .moreSec .title { text-align: left; }
 .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 .card { display: grid; align-content: start; gap: 8px; }
-.card h3, .smalls b { margin: 22px 0 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.card h3 { margin: 24px 0 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
 .card p { margin: 0; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; max-width: 22em; }
-.cardPic { height: 230px; border-radius: 26px; background: #f6e2c6; display: grid; place-items: center; overflow: hidden;
+.cardPic { height: 320px; border-radius: 26px; background: #f6e2c6; display: grid; place-items: center; overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(80, 45, 10, 0.06); }
-.smalls { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-.smalls li { display: flex; align-items: flex-start; gap: 16px; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
-.smalls b { display: block; margin: 0 0 2px; font-size: 17px; }
-/* 160 px icons, drawn at 56 CSS px. */
-.smalls img { flex: none; width: 56px; height: 56px; margin-top: 2px; }
+.moreLine { margin: 0; max-width: 46em; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.5; color: #4a3826; text-wrap: pretty; }
+/* The pieces of UI drawn about a third larger than life, so they read like the app at arm's length. */
+.cardPic .mini { zoom: 1.32; }
 .mini { width: min(78%, 300px); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #1d1b19; }
 .miniLine { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
 .caret { color: #a85700; }
@@ -306,12 +306,12 @@
 .draw { display: grid; gap: 64px; }
 .drawWords { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 24px 64px; align-items: end; }
 .drawWords .line { margin: 0 0 6px; }
-.drawRoom.drawRoom { width: 100vw; margin-left: calc(50% - 50vw); aspect-ratio: auto; height: clamp(560px, 58vw, 880px); border-radius: 0; box-shadow: none; }
+.drawRoom.drawRoom { width: 100vw; margin-left: calc(50% - 50vw); aspect-ratio: auto; height: clamp(480px, 42vw, 620px); border-radius: 0; box-shadow: none; }
 .drawRoom.drawRoom .edge { box-shadow: none; }
 .drawRoom.drawRoom .at { left: max(var(--gutter), calc(50vw - 560px)); right: max(var(--gutter), calc(50vw - 560px)); top: 8%; bottom: 10%; }
 /* The drawing fills the bigger window. */
-.drawRoom.drawRoom .board { max-width: 960px; }
-.drawFoot { margin: -24px 0 0; justify-self: center; text-align: center; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: balance; }
+.drawRoom.drawRoom .board { width: auto; height: 100%; max-width: min(100%, 960px); }
+.drawFoot { margin: -16px 0 0; justify-self: center; max-width: 34em; text-align: center; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.42; color: #4a3826; text-wrap: balance; }
 
 /* ── The number: a dark band, the biggest type on the page ── */
 .numBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: clamp(110px, 12vw, 180px) var(--gutter) clamp(110px, 12vw, 170px);
@@ -350,7 +350,10 @@
   .heroFrame { justify-self: center; }
   /* Never wider than 512 CSS px; the sky trimmed so her phone sits low, what's said above it. */
   .heroCard.heroCard { height: min(640px, 168vw); }
-  .heroSaid.heroSaid > p { font-size: 15px; padding: 10px 13px; }
+  .heroSaid.heroSaid > p { font-size: 14px; padding: 9px 12px; }
+  /* A tighter words block, so the download and her note both land in the first screen. */
+  .hero.hero { row-gap: 22px; }
+  .hero.hero > div:first-child { gap: 16px; }
 }
 
 @media (max-width: 760px) {
@@ -364,7 +367,8 @@
   .room { aspect-ratio: 358 / 470; border-radius: 24px; }
   .plane[data-shade] svg { filter: drop-shadow(0 2px 4px rgba(30, 14, 2, 0.26)); }
   .writeRoom .at, .drawRoom .at, .buildRoom .at { left: 14px; right: 14px; top: 64px; bottom: 14px; }
-  .writeRoom .at { bottom: 96px; }
+  .writeRoom .at { bottom: 96px; right: 14px; }
+  .writeRoom .win { zoom: 1; }
   .importAt { left: 14px; right: 14px; bottom: 14px; width: auto; }
   .import { padding: 12px 14px; gap: 10px; transform: none; display: flex; align-items: center; justify-content: space-between; }
   .import .importHead small { display: none; }
@@ -416,16 +420,16 @@
   .screen { border-radius: 25px; }
 
   .cards { grid-template-columns: minmax(0, 1fr); gap: 36px; }
-  .cardPic { height: 200px; }
-  .smalls { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .cardPic { height: 260px; }
+  .cardPic .mini { zoom: 1.2; }
   .card h3 { margin-top: 16px; }
   .closingTitle { font-size: 60px; }
   .closingCtas.closingCtas { flex-direction: column; }
 
   .drawWords { grid-template-columns: minmax(0, 1fr); }
-  .drawRoom.drawRoom { height: 520px; }
+  .drawRoom.drawRoom { height: 440px; }
   .drawRoom.drawRoom .at { left: 14px; right: 14px; top: 28px; bottom: 28px; }
-  .drawFoot { margin-top: -28px; font-size: 16px; }
+  .drawFoot { margin-top: -20px; font-size: 18px; }
   .numBand { padding: 96px 20px 100px; }
   .bigNum { flex-direction: column; gap: 0.14em; font-size: 104px; }
   .bigNum svg { transform: rotate(90deg); width: 0.36em; }
