@@ -121,7 +121,7 @@ Deno.test("the guide comes from get_page_guide (and the old one-file templates s
   const pg = await schemaDB();
   const a = await account(pg);
   assertStringIncludes((await tool(pg, a, "get_page_guide", {})).guide, "useCollection");
-  assertStringIncludes((await tool(pg, a, "get_page_guide", { template: "budget" })).html, "amber.update");
+  assertStringIncludes((await tool(pg, a, "get_page_guide", { template: "budget" })).html, "pinto.update");
 });
 
 Deno.test("query_app_data answers over an app's JSON: collections, lists in values, localStorage strings", async () => {
