@@ -150,3 +150,29 @@ Deno.test({ name: "an app that fetches and opens a WebSocket passes check_app, a
     await closeBrowser();
   }
 });
+
+// eval, new Function and Web Workers run in an app as on any web page (2026-11-14): the render
+// service's policy matches the app's, so an app that uses them passes its checks.
+Deno.test({ name: "an app that uses eval and a worker passes check_app", ignore: !hasWebKit }, async () => {
+  Deno.env.set("RENDER_SECRET", "test-secret");
+  const { handle } = await import("../../../scripts/page-render/server.ts");
+  const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+  const server = Deno.serve({ hostname: "127.0.0.1", port: 0, onListen: () => {} }, handle);
+  Deno.env.set("RENDER_URL", `http://127.0.0.1:${server.addr.port}`);
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    const id = await note(pg, a, BODY);
+    const html = `<!doctype html><html lang="en"><body><main id="m" style="max-width:var(--amber-content-max);margin:0 auto;padding:16px var(--amber-gutter)"><h1>Sums</h1><p id="t">…</p></main>` +
+      `<script>amber.onChange(() => {}); const total = eval("1 + 1") + new Function("return 40")();` +
+      `const w = new Worker(URL.createObjectURL(new Blob(["onmessage = (e) => postMessage(e.data)"], { type: "text/javascript" })));` +
+      `w.onmessage = (e) => { t.textContent = "Total " + e.data; }; w.postMessage(total);</script></body></html>`;
+    await tool(pg, a, "set_note_page", { id, html });
+    const r = await tool(pg, a, "check_app", { id });
+    assertEquals(r.errors, []);
+  } finally {
+    await server.shutdown();
+    Deno.env.delete("RENDER_URL");
+    await closeBrowser();
+  }
+});

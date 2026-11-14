@@ -13,8 +13,8 @@ import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
 import { binaryType, unpackBinary } from "../../supabase/functions/mcp/app_project.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
-const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; " +
-  "connect-src https: wss:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
+const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https:; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; " +
+  "connect-src https: wss:; frame-src 'none'; child-src 'none'; worker-src blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
 
 // amber-tokens.css as the iPhone app writes it (Pane/Views/NotePageView.swift, NotePageTheme.tokens),
 // then amber-base.css, the file the app ships, unless the page opts out with <meta name="amber-base" content="none">.
@@ -59,7 +59,7 @@ function prepare(html: string): { html: string; integrity: Map<string, string> }
     if (npm) integrity.set(path, npm[2]);
     tags.push(`<script src="${LIB_HOST}${encodeURI(path)}"></script>`);
   }
-  const policy = POLICY.replace("script-src 'unsafe-inline' 'wasm-unsafe-eval'", `script-src 'unsafe-inline' 'wasm-unsafe-eval' ${LIB_HOST}`);
+  const policy = POLICY.replace("script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'", `script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${LIB_HOST}`);
   return {
     html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
       `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(html) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + tags.join("") + rest,
@@ -105,8 +105,8 @@ function importMap(): string {
 function prepareProject(p: AppProject): string {
   let rest = (p.files["/index.html"] ?? "").replace(/^[\s\uFEFF]+/, "");
   if (/^<!doctype/i.test(rest)) rest = rest.slice(rest.indexOf(">") + 1);
-  const policy = `default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST} https:; img-src data: blob: ${APP_HOST} https:; font-src data: ${APP_HOST} https:; media-src data: blob: ${APP_HOST} https:; ` +
-    `connect-src ${APP_HOST} https: wss:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
+  const policy = `default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST} blob: https:; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST} https:; img-src data: blob: ${APP_HOST} https:; font-src data: ${APP_HOST} https:; media-src data: blob: ${APP_HOST} https:; ` +
+    `connect-src ${APP_HOST} https: wss:; frame-src 'none'; child-src 'none'; worker-src ${APP_HOST} blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
   return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
     `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(rest) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + importMap() + hosts(rest);
 }

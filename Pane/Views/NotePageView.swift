@@ -29,15 +29,17 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Requests and navigations the sandbox stopped (for the Dev readout and tests).
     private(set) var blocked: [String] = []
 
-    /// The internet (https, wss) is open to the app like to any web page; frames, plugins, forms and
-    /// a <base> stay off (they would take the app out of its note).
-    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib: https:; img-src data: blob: amber-app: amber-file: https:; font-src data: amber-app: https:; media-src data: blob: amber-app: amber-file: https:; "
-        + "connect-src amber-app: https: wss:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
+    /// The internet (https, wss) is open to the app like to any web page, and so are eval and
+    /// workers (2026-11-14): neither reaches anything the page's own scripts can't, since the page
+    /// already runs any inline script, and a worker has no bridge to the note. Frames, plugins,
+    /// forms and a <base> stay off (they would take the app out of its note).
+    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' amber-app: amber-lib: blob: https:; style-src 'unsafe-inline' amber-app: amber-lib: https:; img-src data: blob: amber-app: amber-file: https:; font-src data: amber-app: https:; media-src data: blob: amber-app: amber-file: https:; "
+        + "connect-src amber-app: https: wss:; frame-src 'none'; child-src 'none'; worker-src amber-app: blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
 
     /// Everything is blocked but the internet over TLS (https, wss) and the app's own schemes: the
     /// note's files (amber-file:, served from this device), the libraries and the app's files. The
     /// page's own document is given as a string, not loaded.
-    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^wss:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}}]"#
+    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^wss:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^blob:"},"action":{"type":"ignore-previous-rules"}}]"#
     private static var compiled: WKContentRuleList?
 
     /// One sandbox made ahead of time, its web content process already running, so opening a note
@@ -95,7 +97,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Compiles the rule list once. Pages wait for it: none loads without it.
     static func prepare() async throws -> WKContentRuleList {
         if let compiled { return compiled }
-        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v5", encodedContentRuleList: rules) else {
+        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v6", encodedContentRuleList: rules) else {
             throw NotePage.OpError("The app couldn't start.")
         }
         compiled = list

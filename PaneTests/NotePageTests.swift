@@ -243,23 +243,42 @@ import AppKit
         #expect(sandbox.blocked.contains { $0.hasPrefix("navigation \(base)") })
     }
 
-    /// A note app can run WebAssembly ('wasm-unsafe-eval'), so a real engine like Doom runs in a
-    /// note; eval and new Function stay refused (2026-11-14).
-    @Test func aPageRunsWebAssemblyButNotEval() async throws {
+    /// A note app runs WebAssembly, eval and new Function, and Web Workers from its own files and
+    /// from blobs, as on any web page (2026-11-14). A worker has no bridge to the note.
+    @Test func aPageRunsWebAssemblyEvalAndWorkers() async throws {
+        let project = NotePageProject(files: [
+            "/index.html": """
+            <main>wasm</main><script>
+              // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
+              const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
+              window.__wasm = null; window.__file = null; window.__blob = null;
+              WebAssembly.instantiate(bytes).then((r) => { window.__wasm = r.instance.exports.add(2, 40); }, (e) => { window.__wasm = "refused: " + e; });
+              try { window.__eval = eval("1 + 1") + " " + new Function("return 'ran'")(); } catch (e) { window.__eval = "refused: " + e; }
+              try {
+                const w = new Worker("/worker.js");
+                w.onmessage = (e) => { window.__file = e.data; };
+                w.onerror = (e) => { window.__file = "error: " + (e.message || "load"); };
+                w.postMessage(20);
+              } catch (e) { window.__file = "refused: " + e; }
+              try {
+                const b = new Worker(URL.createObjectURL(new Blob(["onmessage = (e) => postMessage([e.data * 2, typeof webkit])"], { type: "text/javascript" })));
+                b.onmessage = (e) => { window.__blob = e.data.join(" "); };
+                b.onerror = (e) => { window.__blob = "error: " + (e.message || "load"); };
+                b.postMessage(21);
+              } catch (e) { window.__blob = "refused: " + e; }
+            </script>
+            """,
+            "/worker.js": "onmessage = (e) => postMessage(e.data + 22);",
+        ])
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
-        sandbox.load(html: """
-        <main>wasm</main><script>
-          // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
-          const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
-          window.__wasm = null;
-          WebAssembly.instantiate(bytes).then((r) => { window.__wasm = r.instance.exports.add(2, 40); }, (e) => { window.__wasm = "refused: " + e; });
-          try { window.__eval = new Function("return 'ran'")(); } catch (e) { window.__eval = "refused"; }
-        </script>
-        """, body: "Wasm")
-        try await run(sandbox.webView, until: "window.__wasm !== null && window.__wasm !== undefined")
-        let wasm = try await sandbox.webView.evaluateJavaScript("String(window.__wasm)") as? String
-        #expect(wasm == "42")
-        #expect(try await sandbox.webView.evaluateJavaScript("window.__eval") as? String == "refused")
+        sandbox.load(html: project.stored, body: "Wasm")
+        try await run(sandbox.webView, until: "window.__wasm != null && window.__file != null && window.__blob != null")
+        let js = { (s: String) async throws -> String? in try await sandbox.webView.evaluateJavaScript("String(\(s))") as? String }
+        #expect(try await js("window.__wasm") == "42")
+        #expect(try await js("window.__eval") == "2 ran")
+        #expect(try await js("window.__file") == "42", "a worker from the app's own file")
+        // From a blob too, and in a worker there's no webkit bridge to reach the note through.
+        #expect(try await js("window.__blob") == "42 undefined")
     }
 
     /// A project's binary files (2026-11-14) are served as they are, with the web's type: a .wasm
