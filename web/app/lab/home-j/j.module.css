@@ -1,0 +1,175 @@
+/* Study J, "Say it, and it's there". Cream throughout (lib/theme.ts). The first screen is the headline,
+   the download and three paper cards that turn over. Then one line for the AIs, one for the memory
+   study, and the download. */
+
+.main { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 150px;
+  /* Paper grain: fine and warm, barely there. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0 0.08 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+@media (max-width: 760px) { .main { gap: 96px; } }
+
+/* ── The first screen ── */
+.hero { box-sizing: border-box; min-height: calc(100svh - 84px); max-height: 1120px; display: flex; flex-direction: column; gap: clamp(24px, 3.4vh, 36px); padding: 4px 0 28px; }
+.head { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); column-gap: clamp(32px, 5vw, 80px); align-items: end; }
+.h1 { margin: 0; font-size: clamp(42px, min(4.8vw, 7.6vh), 72px); font-weight: 750; letter-spacing: -0.038em; line-height: 1.02; color: var(--ink); text-wrap: balance; }
+.h1 span { color: #b0814f; }
+.side { display: grid; gap: 20px; justify-items: start; padding-bottom: 6px; }
+.lede { margin: 0; max-width: 27em; font-size: clamp(17px, 1.3vw, 19px); line-height: 1.42; color: var(--muted); text-wrap: pretty; }
+
+/* ── The cards ── */
+.cards { flex: 1; min-height: 500px; max-height: 720px; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.card { position: relative; perspective: 2200px; --a: 180deg; --lift: 0; }
+/* The card's shadow on the table: it narrows and softens as the card stands on its edge mid-turn. */
+.shadow { position: absolute; left: 7%; right: 7%; bottom: 0; height: 60%; border-radius: 30px; background: rgba(70, 36, 8, 0.42); pointer-events: none;
+  filter: blur(calc(22px + var(--lift) * 26px)); opacity: calc(0.42 - var(--lift) * 0.2);
+  transform: translateY(calc(14px + var(--lift) * 26px)) scaleX(calc(1 - var(--lift) * 0.55)); }
+.turner { position: absolute; inset: 0; transform-style: preserve-3d; transform: translateZ(calc(var(--lift) * 46px)) rotateY(var(--a)); }
+.face { position: absolute; inset: 0; border-radius: 26px; overflow: hidden; isolation: isolate; -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  display: flex; flex-direction: column; box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.12), 0 1px 2px rgba(80, 45, 10, 0.08); }
+/* The grain sits on every face; a soft shade crosses it as the card turns away from the light. */
+.face::before { content: ""; position: absolute; inset: 0; z-index: -1; background-image: var(--grain); opacity: 0.11; mix-blend-mode: multiply; pointer-events: none; }
+.face::after { content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none; background: linear-gradient(100deg, rgba(60, 30, 5, 0.04), rgba(60, 30, 5, 0.2)); opacity: var(--lift); }
+.back { transform: rotateY(180deg); }
+
+/* The fronts: warm paper, the title, and the real thing running off the bottom edge. */
+.front { background-color: #fbf1e3; }
+.card[data-card="whiteboards"] .front { background-color: #f7eee0; }
+.card[data-card="apps"] .front { background-color: #fbeedd; }
+.cardHead { margin: 0; padding: 28px 30px 0; font-size: clamp(18px, 1.45vw, 21px); font-weight: 650; letter-spacing: -0.015em; line-height: 1.24; color: var(--muted); text-wrap: balance; }
+.cardHead b { display: block; margin-bottom: 3px; font-size: clamp(30px, 2.6vw, 38px); font-weight: 750; letter-spacing: -0.035em; color: var(--ink); }
+.pic { position: relative; flex: 1; min-height: 0; margin-top: 22px; }
+.pic > * { position: absolute; left: 24px; right: 24px; top: 0; bottom: -40px; border-radius: 16px 16px 0 0; background: #fffdfa; overflow: hidden;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.13), 0 20px 44px -28px rgba(80, 45, 10, 0.45); }
+.caption { display: none; }
+
+/* The backs: one flat paper colour each, the AI, and what was said to it. */
+.back { justify-content: flex-start; padding: 28px 30px 34px; box-sizing: border-box; }
+.card[data-card="notes"] .back { background-color: #f1d6b4; }
+.card[data-card="whiteboards"] .back { background-color: #e4dccb; }
+.card[data-card="apps"] .back { background-color: #efcdb6; }
+.who { margin: 0; display: inline-flex; align-items: center; gap: 11px; font-size: 17px; font-weight: 650; color: var(--ink); }
+.glyph { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 250, 243, 0.62); color: #1d1b19; }
+.glyph[data-ai="claude"] { color: #c96442; }
+.said { font-size: clamp(34px, 3.4vw, 50px); font-weight: 700; letter-spacing: -0.032em; line-height: 1.08; color: var(--ink); text-wrap: balance; margin: auto 0; padding-bottom: 12%; }
+
+/* The whole card turns it; the round button in the corner says so. It fades while the card is up. */
+.hit { position: absolute; inset: 0; z-index: 5; margin: 0; padding: 0; border: 0; background: none; border-radius: 26px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hit:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+.turnIcon { position: absolute; right: 18px; top: 18px; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(42, 29, 16, 0.86); color: #fff4e6; opacity: calc(1 - var(--lift) * 3); transition: background-color 0.2s, transform 0.2s; }
+.card[data-side="back"] .turnIcon { background: rgba(255, 250, 243, 0.7); color: var(--ink); }
+.turnIcon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: hover) {
+  .card:hover .turnIcon { background: #2a1d10; color: #fff4e6; transform: rotate(-30deg); }
+}
+
+/* Reduce Motion: no turning. The fronts show, with what was said as their caption. */
+.hero[data-still] .back, .hero[data-still] .shadow { display: none; }
+.hero[data-still] .turner { transform: none; }
+.hero[data-still] .face { box-shadow: inset 0 0 0 0.5px rgba(80, 45, 10, 0.12), 0 24px 50px -36px rgba(70, 36, 8, 0.5); }
+.hero[data-still] .pic > * { bottom: 0; border-radius: 16px; }
+.hero[data-still] .caption { display: block; margin: 0; padding: 16px 30px 22px; font-size: 15.5px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.hero[data-still] .caption span { color: var(--muted); }
+.hero[data-still] .caption svg { margin-right: 7px; vertical-align: -2px; }
+.card[data-card="whiteboards"] .caption svg, .card[data-card="apps"] .caption svg { color: #c96442; }
+
+/* Notes: the Groceries note, drawn as the Mac app draws it, olive oil just added. */
+.note { padding: 26px 24px 0; box-sizing: border-box; color: #1d1b19; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.noteTitle { margin: 0 0 9px; font-size: 26px; font-weight: 750; letter-spacing: -0.015em; }
+.noteText { margin: 0 0 14px; font-size: 13.5px; line-height: 1.4; }
+.check { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.check li { display: flex; align-items: center; gap: 9px; min-height: 26px; padding: 0 8px; margin: 0 -8px; border-radius: 8px; font-size: 14px; white-space: nowrap; }
+.check i { flex: none; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #b9b2aa; }
+.check li[data-on] { color: #9a928a; text-decoration: line-through; text-decoration-color: #b0a89f; }
+.check li[data-on] i { background: #c8691c; box-shadow: none; }
+.check li[data-new] { background: #fff0db; }
+.check i svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.chip { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 2px 8px; border-radius: 10px; background: #ffe2bd; color: #a85700; font-style: normal; font-size: 11px; font-weight: 650; }
+
+/* Whiteboards: the board, with the window's title as in the app. */
+.boardWrap { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.boardBar { margin: 0; display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; font-size: 13px; font-weight: 600; color: #3a3530; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+.boardBar span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #efedea; color: #7b746c; font-size: 16px; line-height: 1; }
+.board { display: block; width: 100%; height: 100%; max-height: 430px; margin: 4px auto 0; padding: 0 4px 44px; box-sizing: border-box; }
+.ink { stroke: #1e1e1e; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.word { fill: #1e1e1e; font-family: inherit; }
+.cursorName { fill: #fff; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 11px; font-weight: 650; }
+
+/* Apps: the Habit tracker template's Today screen. */
+.app { padding: 22px 20px 0; box-sizing: border-box; color: #1d1b19; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.aTop { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #8a7a68; }
+.aTop b { font-weight: 600; }
+.aTop span { padding: 1px 7px; border-radius: 6px; background: #f1ece5; font-size: 11px; font-weight: 650; }
+.aTitle { margin: 4px 0 12px; font-size: 26px; font-weight: 750; letter-spacing: -0.015em; }
+.aRing { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 14px; background: #f5f0ea; }
+.aRing svg { flex: none; width: 62px; height: 62px; transform: rotate(-90deg); }
+.aRing circle { fill: none; stroke: #e9e0d4; stroke-width: 9; }
+.aRing circle[data-on] { stroke: #d97a17; stroke-linecap: round; }
+.aRing text { transform: rotate(90deg); transform-origin: 50px 50px; font-size: 22px; font-weight: 750; fill: #1d1b19; }
+.aRing div { display: grid; gap: 1px; min-width: 0; }
+.aRing small { font-size: 10.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: #8a7a68; }
+.aRing b { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.aRing span { font-size: 12.5px; color: #8a7a68; white-space: nowrap; }
+.aWeek { display: grid; grid-template-columns: repeat(7, 1fr); margin: 14px 0 12px; }
+.aWeek span { display: grid; justify-items: center; gap: 4px; }
+.aWeek small { font-size: 10.5px; font-weight: 600; color: #8a7a68; }
+.aWeek i { width: 18px; height: 18px; border-radius: 50%; background: #efe8df; }
+.aWeek span[data-on] i { background: #d97a17; }
+.aWeek span[data-now] i { box-shadow: 0 0 0 2.5px #fffdfa, 0 0 0 4px #d97a17; background: #f6c58f; }
+.aList { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.aList li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-radius: 13px; background: #f5f0ea; }
+.aList li > span:first-child { display: grid; gap: 1px; min-width: 0; }
+.aList b { font-size: 14.5px; font-weight: 650; white-space: nowrap; }
+.aList small { font-size: 12px; color: #8a7a68; white-space: nowrap; }
+.aTick { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1.3px #d6cbbd; }
+.aTick svg { width: 62%; height: 62%; fill: none; stroke: transparent; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.aTick[data-on] { background: #d97a17; box-shadow: none; }
+.aTick[data-on] svg { stroke: #fff; }
+.aCount { display: flex; gap: 6px; }
+.aCount i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #ece4d9; font-style: normal; font-size: 15px; font-weight: 600; color: #6d5f50; }
+.aCount i[data-ring] { background: #d97a17; color: #fff; }
+
+/* ── The AIs, and what the memory study measured ── */
+.ai { display: grid; gap: 18px; }
+.aiLine { margin: 0; font-size: clamp(26px, 2.6vw, 36px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.5; color: var(--ink); }
+.aiName { white-space: nowrap; }
+.aiMark { display: inline-grid; place-items: center; width: 1.2em; height: 1.2em; margin: 0 0.22em 0 0.04em; border-radius: 0.3em; background: #f6e7d3; color: #2a1d10; vertical-align: -0.14em; }
+.aiMark svg { width: 0.62em; height: 0.62em; }
+.aiMark[data-ai="claude"] { color: #c96442; }
+.study { margin: 0; max-width: 36em; font-size: clamp(17px, 1.4vw, 20px); line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+.inline { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 4px; white-space: nowrap; transition: color 0.15s; }
+.inline:hover { color: var(--link); }
+.inline:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 3px; }
+
+/* ── The download ── */
+.closing { display: grid; justify-items: center; text-align: center; gap: 22px; margin-bottom: 40px; }
+.closingIcon { border-radius: 22px; box-shadow: 0 18px 40px -18px rgba(80, 45, 10, 0.45); }
+.closingTitle { margin: 4px 0 0; font-size: clamp(36px, 4.4vw, 60px); font-weight: 750; letter-spacing: -0.04em; line-height: 1.02; color: var(--ink); }
+.closingCta.closingCta { justify-items: center; }
+.closingCta p { text-align: center; }
+
+/* ── Narrower windows ── */
+@media (max-width: 1080px) {
+  .head { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
+  .cards { gap: 14px; }
+  .cardHead { padding: 24px 22px 0; }
+  .back { padding: 24px 22px 28px; }
+  .pic > * { left: 18px; right: 18px; }
+}
+
+/* ── Phones: the cards stack, and each turns as it scrolls into view ── */
+@media (max-width: 760px) {
+  .hero { min-height: 0; max-height: none; gap: 28px; padding-bottom: 0; }
+  .h1 { font-size: clamp(38px, 10.6vw, 46px); }
+  .side { gap: 18px; }
+  .lede { font-size: 17px; }
+  .cards { flex: none; max-height: none; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .card { height: min(540px, 138vw); }
+  .cardHead { padding: 24px 24px 0; font-size: 18px; }
+  .cardHead b { font-size: 31px; }
+  .back { padding: 24px 24px 30px; }
+  .said { font-size: clamp(34px, 10vw, 40px); }
+  .pic { margin-top: 20px; }
+  .pic > * { left: 20px; right: 20px; }
+  .ai { gap: 18px; }
+  .aiLine { font-size: 25px; line-height: 1.5; }
+}
