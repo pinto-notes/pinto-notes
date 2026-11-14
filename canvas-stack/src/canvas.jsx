@@ -117,7 +117,7 @@ const ACTIONS = {
   alignTop: "alignTop", alignMiddle: "alignVerticallyCentered", alignBottom: "alignBottom",
   distributeHorizontally: "distributeHorizontally", distributeVertically: "distributeVertically",
 };
-const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser"]);
+const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser", "frame", "laser"]);
 
 /** Keys that would open the engine's own dialogs and panels, which aren't shown here. */
 export function blockedKey(e) {
@@ -125,7 +125,7 @@ export function blockedKey(e) {
   if (e.key === "?") return true;                                   // help
   if (cmd && (k === "/" || k === "f" || k === "k" || (e.shiftKey && (k === "p" || k === "e")))) return true; // palette, search, link, export
   if (e.altKey && e.code === "Slash") return true;                  // stats
-  if (!cmd && !e.altKey && (k === "f" || k === "k" || k === "i")) return true; // frame, laser, image
+  if (!cmd && !e.altKey && k === "i") return true;                  // image (F and K pick the frame and the laser, as in Excalidraw)
   return false;
 }
 
@@ -325,6 +325,43 @@ export function addSticky(api) {
 }
 
 /** What the page tells the app: the tool, what's selected, and the style the controls show. */
+/**
+ * Present (whiteboard council, rounds 4 and 5: "frames with next and previous for walking a
+ * board through in a call"): the board's frames one after another, in the order they were made,
+ * each filling the view; with no frames, the whole board. The laser pointer is picked; arrow
+ * keys, Space and Page Up/Down step, Escape ends.
+ */
+let presenting = null;
+export function presentSteps(api) {
+  const frames = api.getSceneElements().filter((e) => e.type === "frame" || e.type === "magicframe");
+  return frames.length ? frames.map((f, i) => ({ id: f.id, name: (f.name && String(f.name).trim()) || `Frame ${i + 1}` })) : [{ id: null, name: "Whole board" }];
+}
+export function present(api, to) {
+  const v = api.getAppState(), vz = (v.zoom && v.zoom.value) || 1;
+  if (to === "stop") {
+    if (!presenting) return;
+    // Done: the view you had before, its middle in the middle (round 5, 25-present-done: it
+    // stayed zoomed into the last frame).
+    const b = presenting.back;
+    presenting = null;
+    api.setActiveTool({ type: "selection" });
+    if (b) api.updateScene({ appState: { zoom: { value: b.z }, scrollX: -b.cx + v.width / 2 / b.z, scrollY: -b.cy + v.height / 2 / b.z }, captureUpdate: CaptureUpdateAction.NEVER });
+    return;
+  }
+  const steps = presentSteps(api);
+  const at = to === "start" || !presenting ? 0 : to === "next" ? presenting.index + 1 : to === "prev" ? presenting.index - 1 : +to;
+  const index = Math.max(0, Math.min(steps.length - 1, Number.isFinite(at) ? at : 0));
+  const back = presenting ? presenting.back : { z: vz, cx: -v.scrollX + v.width / 2 / vz, cy: -v.scrollY + v.height / 2 / vz };
+  presenting = { index, back };
+  if (to === "start") api.updateScene({ appState: { selectedElementIds: {} }, captureUpdate: CaptureUpdateAction.NEVER });
+  api.setActiveTool({ type: "laser" });
+  const step = steps[index];
+  const els = api.getSceneElements();
+  const target = step.id ? els.filter((e) => e.id === step.id) : els;
+  // At once, no glide (motion restraint; a hidden window never runs the glide).
+  if (target.length) api.scrollToContent(target, { fitToViewport: true, viewportZoomFactor: 0.9, animate: false });
+}
+
 export function stateOf(api, app) {
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
@@ -361,8 +398,10 @@ export function stateOf(api, app) {
       }
     }
   }
+  const steps = presenting ? presentSteps(api) : null;
   return {
     tool: s.activeTool && s.activeTool.type,
+    present: steps ? { index: Math.min(presenting.index, steps.length - 1), count: steps.length, name: steps[Math.min(presenting.index, steps.length - 1)].name } : null,
     selection: selected.map((e) => e.type),
     bounds,
     nearby,
@@ -534,6 +573,10 @@ function bridge(api) {
       case "sticky":
         addSticky(api);
         break;
+      case "present":
+        present(api, c.to);
+        setTimeout(report, 30);
+        break;
       case "image": {
         // A picture the app made ready (CanvasImage): kept in the scene's files, placed where it
         // was dropped or in the middle of the view, at most 60% of the view across, selected.
@@ -586,6 +629,11 @@ function bridge(api) {
   const offHistory = app && app.history.onHistoryChangedEmitter.on(report);
   // The engine's own dialogs never open; the app's menus keep their keys (⌘K, ⌘F).
   const keys = (e) => {
+    if (presenting) {
+      const k = e.key, to = k === "ArrowRight" || k === "ArrowDown" || k === " " || k === "PageDown" ? "next"
+        : k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" ? "prev" : k === "Escape" ? "stop" : null;
+      if (to) { e.preventDefault(); e.stopImmediatePropagation(); present(api, to); setTimeout(report, 30); return; }
+    }
     if (blockedKey(e)) { e.stopImmediatePropagation(); return; }
     // S: a sticky note, as in FigJam (the engine's S opens a panel that isn't shown here).
     const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
@@ -601,6 +649,7 @@ function bridge(api) {
   Object.defineProperty(amber, "_canvasCommand", { value: command, configurable: true });
   report();
   return { command, state: () => stateOf(api, app), stop: () => {
+    presenting = null;
     off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);
   } };
 }

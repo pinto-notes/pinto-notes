@@ -1167,6 +1167,12 @@ struct NoteDetailView: View {
         case .askAI:
             // Only its name ("This Note"): the note's text read here worked out the pane again on every key.
             AskAIMenuItems(subject: .note(.init(title: "")), targets: askTargets) { asking = $0 }
+        case .canvasPresent:
+            Button(CanvasPresentBar.startTitle, systemImage: "play.rectangle") { canvasControls.send(.present(.start)) }
+                .accessibilityIdentifier("canvas.present")
+        case .canvasLaser:
+            Button(CanvasTool.laser.help, systemImage: CanvasTool.laser.symbol) { canvasControls.pick(.laser) }
+                .accessibilityIdentifier("canvas.laser")
         case .canvasZoomToFit:
             Button("Zoom to Fit", systemImage: "arrow.up.left.and.down.right.magnifyingglass") { canvasControls.run(.zoomToFit) }
                 .accessibilityIdentifier("canvas.zoomToFit")
@@ -1869,6 +1875,8 @@ enum NoteMoreMenu {
     enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete
         /// A canvas's own: Zoom to Fit, its background, Clear Canvas.
         case canvasZoomToFit, canvasBackground, canvasExport, canvasClear
+        /// Present (its frames one by one) and the laser pointer.
+        case canvasPresent, canvasLaser
     }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
@@ -1902,7 +1910,7 @@ enum NoteMoreMenu {
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
         // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
-        let drawing: [[Item]] = canvas ? [[.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear]] : []
+        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser], [.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear]] : []
         return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }

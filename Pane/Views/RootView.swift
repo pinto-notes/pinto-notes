@@ -29,6 +29,8 @@ struct RootView: View {
     @State private var sidebarFitWait: Task<Void, Never>?
     /// Full Screen: the open note has the window until you leave it (FullScreen).
     @State private var canvasFocus = FullScreen()
+    /// Present put the board in Full Screen (and Done takes it out again).
+    @State private var presentTookWindow = false
     /// The note list slid in over a focused canvas, from the window's left edge.
     @State private var peeking = CanvasEdgePeekFlag.startShown
     /// The sidebar step, kept per window (SidebarToggle.next).
@@ -710,6 +712,18 @@ struct RootView: View {
             .onChange(of: NewCanvas.shared.asks) { _, _ in newCanvas() }
             #if os(macOS)
             .onReceive(NotificationCenter.default.publisher(for: .paneImportWhiteboards)) { n in importWhiteboards(n.object as? [URL] ?? []) }
+            #if os(macOS)
+            // Presenting a board takes the window; Done gives back the columns if it took them.
+            .onReceive(NotificationCenter.default.publisher(for: .paneCanvasPresenting)) { n in
+                if n.object as? Bool == true {
+                    presentTookWindow = !canvasFocused
+                    if presentTookWindow { enterFullScreen() }
+                } else if presentTookWindow {
+                    presentTookWindow = false
+                    leaveCanvasFocus()
+                }
+            }
+            #endif
             #endif
             .onChange(of: NewApp.shared.asks) { _, _ in newApp() }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.

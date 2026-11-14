@@ -21,7 +21,7 @@ struct CanvasOverlay: View {
                 // canvas runs under the bars, and inside the safe area the bar came out a band too
                 // low, under the shape (the iPhone pictures, 13 November 2026).
                 GeometryReader { geo in
-                    if canvas.state.showsSelectionBar, let bounds = canvas.state.bounds, CanvasSelectionBar.inView(bounds, area: geo.size) {
+                    if canvas.state.present == nil, canvas.state.showsSelectionBar, let bounds = canvas.state.bounds, CanvasSelectionBar.inView(bounds, area: geo.size) {
                         CanvasSelectionBar(canvas: canvas, bounds: bounds, area: geo.size)
                     }
                     if let h = canvas.highlight {
@@ -61,8 +61,69 @@ struct CanvasOverlay: View {
                         .padding(.bottom, CanvasDock.margin)
                     #endif
                 }
+                if let p = canvas.state.present {
+                    VStack {
+                        Spacer(minLength: 0)
+                        CanvasPresentBar(canvas: canvas, step: p)
+                            .padding(.bottom, 20)
+                    }
+                    .transition(.opacity)
+                }
             }
         }
+        .animation(.easeOut(duration: 0.2), value: canvas.state.present == nil)
+        // Presenting takes the window (Full Screen), and gives it back after.
+        .onChange(of: canvas.state.present == nil) { _, stopped in
+            NotificationCenter.default.post(name: .paneCanvasPresenting, object: !stopped)
+        }
+    }
+}
+
+extension Notification.Name {
+    /// A board started (true) or stopped (false) presenting.
+    static let paneCanvasPresenting = Notification.Name("pane.canvasPresenting")
+}
+
+/// Presenting a board: which frame of how many, its name, back and next, and Done (whiteboard
+/// council, rounds 4 and 5: "frames, and next and previous for walking a board through in a call").
+/// The arrow keys, Space and Escape do the same on the board.
+struct CanvasPresentBar: View {
+    let canvas: CanvasController
+    let step: CanvasState.Presenting
+
+    static let startTitle = "Present"
+    static func position(_ s: CanvasState.Presenting) -> String { "\(s.index + 1) of \(s.count)" }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button { canvas.send(.present(.prev)) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28) }
+                .disabled(step.index == 0)
+                .help("Previous (\u{2190})")
+                .accessibilityLabel("Previous")
+                .accessibilityIdentifier("canvas.present.prev")
+            VStack(spacing: 1) {
+                Text(step.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(Self.position(step)).font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+            }
+            .frame(minWidth: 120)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("canvas.present.step")
+            Button { canvas.send(.present(.next)) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28) }
+                .disabled(step.index >= step.count - 1)
+                .help("Next (\u{2192} or Space)")
+                .accessibilityLabel("Next")
+                .accessibilityIdentifier("canvas.present.next")
+            Button("Done") { canvas.send(.present(.stop)) }
+                .help("Stop presenting (Esc)")
+                .accessibilityIdentifier("canvas.present.done")
+                .padding(.leading, 8)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.regularMaterial, in: .capsule)
+        .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
     }
 }
 
@@ -978,7 +1039,9 @@ struct CanvasToolbarTools: View {
     static func compact(_ width: CGFloat) -> Bool { width < compactWidth }
     /// In the compact set: shown, and in its More Tools menu.
     static let compactShown: [CanvasTool] = [.selection, .freedraw, .arrow, .text]
-    static let compactMore: [CanvasTool] = [.hand, .eraser]
+    static let compactMore: [CanvasTool] = [.hand, .eraser, .laser]
+    /// In the Shapes menu after the shapes (and the sticky note).
+    static let inShapesMenu: [CanvasTool] = [.frame]
 
     var body: some View {
         let current = canvas.state.tool
@@ -1018,7 +1081,7 @@ struct CanvasToolbarTools: View {
             Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked)
         }
         .menuIndicator(.hidden)
-        .help("Hand, eraser, pictures and sticky notes")
+        .help("Hand, eraser, laser pointer, pictures and sticky notes")
         .accessibilityIdentifier("canvas.tool.more")
     }
 
@@ -1043,6 +1106,8 @@ struct CanvasToolbarTools: View {
             Divider()
             Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
                 .accessibilityIdentifier("canvas.tool.sticky")
+            Button(CanvasTool.frame.help, systemImage: CanvasTool.frame.symbol) { canvas.pick(.frame) }
+                .accessibilityIdentifier("canvas.tool.frame")
         } label: {
             Label("Shapes", systemImage: shown.symbol).picked(picked)
         } primaryAction: {

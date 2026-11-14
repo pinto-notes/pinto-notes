@@ -143,6 +143,8 @@ import UIKit
         // The ••• menu has the canvas's items, first.
         let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, dev: false, canvas: true)
         #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear])
+        let present = groups.firstIndex(of: [.canvasPresent, .canvasLaser]), drawing = groups.firstIndex { $0.contains(.canvasClear) }
+        #expect(present != nil && drawing != nil && present! + 1 == drawing!, "Present and the laser pointer, then the drawing's items: \(groups)")
         #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true).joined().contains(.canvasClear))
     }
 
@@ -735,6 +737,60 @@ import UIKit
         #expect(ax.find("canvas.template.retro") != nil)
     }
 
+    /// Present walks the board's frames one by one, each filling the view, with the laser pointer
+    /// picked; next, previous and Escape from the keyboard; with no frames, the whole board
+    /// (whiteboard council, rounds 4 and 5: frames, presenting, a laser pointer).
+    @Test func presentWalksTheFramesAndEnds() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "a", "x": 40, "y": 40, "width": 120, "height": 80],
+            ["type": "rectangle", "id": "b", "x": 1460, "y": 960, "width": 420, "height": 280],
+            ["type": "frame", "id": "f1", "children": ["a"], "name": "Intro"],
+            ["type": "frame", "id": "f2", "children": ["b"], "name": "Plan"],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        let frameInView = { (id: String) in """
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === '\(id)');
+          const x1 = (f.x + s.scrollX) * z, y1 = (f.y + s.scrollY) * z, x2 = (f.x + f.width + s.scrollX) * z, y2 = (f.y + f.height + s.scrollY) * z;
+          return x1 >= -1 && y1 >= -1 && x2 <= s.width + 1 && y2 <= s.height + 1 && ((x2 - x1) > s.width * 0.6 || (y2 - y1) > s.height * 0.6); })()
+        """ }
+        let before = try #require(try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.zoom.value, s.scrollX, s.scrollY].join(','); })()") as? String)
+        j.canvas.send(.present(.start))
+        await j.until("presenting the first frame") { j.canvas.state.present?.index == 0 }
+        #expect(j.canvas.state.present == .init(index: 0, count: 2, name: "Intro"))
+        #expect(j.canvas.state.tool == .laser, "the laser pointer is picked")
+        #expect(CanvasPresentBar.position(j.canvas.state.present!) == "1 of 2")
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(try await j.js(frameInView("f1")) as? Bool == true, "the first frame fills the view")
+        j.canvas.send(.present(.next))
+        await j.until("the second") { j.canvas.state.present?.index == 1 }
+        #expect(j.canvas.state.present?.name == "Plan")
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(try await j.js(frameInView("f2")) as? Bool == true, "the second frame fills the view")
+        j.canvas.send(.present(.next))
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(j.canvas.state.present?.index == 1, "no further than the last")
+        _ = try await j.js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true })); 0")
+        await j.until("← goes back") { j.canvas.state.present?.index == 0 }
+        _ = try await j.js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); 0")
+        await j.until("Escape ends it") { j.canvas.state.present == nil }
+        #expect(j.canvas.state.tool == .selection)
+        let after = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.zoom.value, s.scrollX, s.scrollY].join(','); })()") as? String
+        #expect(after == before, "the view as it was before presenting: \(before) → \(after ?? "")")
+        // No frames: one step, the whole board.
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'frame').map((e) => ({ ...e, frameId: null })) }); return 0; })()")
+        j.canvas.send(.present(.start))
+        await j.until("presenting the board") { j.canvas.state.present != nil }
+        #expect(j.canvas.state.present == .init(index: 0, count: 1, name: "Whole board"))
+        j.canvas.send(.present(.stop))
+        await j.until("stopped") { j.canvas.state.present == nil }
+        // F and K reach the page's frame and laser tools.
+        j.canvas.pick(.frame)
+        await j.until("the frame tool") { j.canvas.state.tool == .frame }
+        j.canvas.pick(.laser)
+        await j.until("the laser") { j.canvas.state.tool == .laser }
+    }
+
     /// In a narrow column the board's toolbar is compact: the main tools, the rest in More Tools,
     /// so every tool can still be reached (whiteboard council, round 2, 15).
     @Test func aNarrowWindowKeepsEveryToolReachable() {
@@ -742,7 +798,7 @@ import UIKit
         #expect(CanvasToolbarTools.compact(670) && !CanvasToolbarTools.compact(800))
         #expect(!CanvasSelectionBar.inView(CGRect(x: -400, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)), "no bar for a selection out of view")
         #expect(CanvasSelectionBar.inView(CGRect(x: -100, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)))
-        let reachable = Set(CanvasToolbarTools.compactShown + CanvasToolbarTools.compactMore + CanvasTool.shapes)
+        let reachable = Set(CanvasToolbarTools.compactShown + CanvasToolbarTools.compactMore + CanvasTool.shapes + CanvasToolbarTools.inShapesMenu)
         #expect(reachable == Set(CanvasTool.allCases), "missing: \(Set(CanvasTool.allCases).subtracting(reachable))")
         #expect(CanvasToolbarTools.compactShown.count + 2 <= 6, "few enough to fit beside Full Screen, Share and More")
     }
@@ -1454,6 +1510,39 @@ import UIKit
                     try await shot("22-sequence-3-undo", w, web)
                     canvas.run(.redo); await MacWindowChromeTests.settle(w, 10)
                     try await shot("22-sequence-4-redo", w, web)
+                    // Frames, and Present walking through them (council rounds 4 and 5).
+                    try await js("amber._canvas.api.updateScene({ elements: [], captureUpdate: 'IMMEDIATELY' })")
+                    await MacWindowChromeTests.settle(w, 5)
+                    try await js("""
+                    amber._canvasCommand({ op: 'insert', elements: [
+                      { type: 'text', id: 'p1', x: 40, y: 40, text: 'Sign-up takes 6 steps', fontSize: 28 },
+                      { type: 'rectangle', id: 'p2', x: 40, y: 110, width: 200, height: 120, backgroundColor: '#ffc9c9', fillStyle: 'solid', roundness: { type: 3 }, label: { text: '42% drop at step 4' } },
+                      { type: 'rectangle', id: 'p3', x: 270, y: 110, width: 200, height: 120, backgroundColor: '#ffec99', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Email code is slow' } },
+                      { type: 'frame', id: 'fp', children: ['p1', 'p2', 'p3'], name: 'The problem' },
+                      { type: 'text', id: 'i1', x: 640, y: 40, text: 'One screen, then the app', fontSize: 28 },
+                      { type: 'ellipse', id: 'i2', x: 640, y: 120, width: 180, height: 90, backgroundColor: '#b2f2bb', fillStyle: 'solid', label: { text: 'Sign in with Apple' } },
+                      { type: 'rectangle', id: 'i3', x: 900, y: 120, width: 180, height: 90, backgroundColor: '#a5d8ff', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Open the app' } },
+                      { type: 'arrow', x: 822, y: 165, width: 76, height: 0, start: { id: 'i2' }, end: { id: 'i3' } },
+                      { type: 'frame', id: 'fi', children: ['i1', 'i2', 'i3'], name: 'The idea' },
+                      { type: 'text', id: 'n1', x: 1240, y: 40, text: 'This week', fontSize: 28 },
+                      { type: 'rectangle', id: 'n2', x: 1240, y: 110, width: 220, height: 70, backgroundColor: '#eebefa', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Mon: prototype' } },
+                      { type: 'rectangle', id: 'n3', x: 1240, y: 200, width: 220, height: 70, backgroundColor: '#eebefa', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Wed: test with 5 people' } },
+                      { type: 'frame', id: 'fn', children: ['n1', 'n2', 'n3'], name: 'The plan' },
+                    ] })
+                    """)
+                    for _ in 0..<40 where canvas.state.empty { await MacWindowChromeTests.settle(w, 2) }
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("25-frames", w, web)
+                    canvas.send(.present(.start))
+                    for _ in 0..<40 where canvas.state.present == nil { await MacWindowChromeTests.settle(w, 2) }
+                    await MacWindowChromeTests.settle(w, 20)
+                    try await shot("25-present-1", w, web)
+                    canvas.send(.present(.next))
+                    await MacWindowChromeTests.settle(w, 15)
+                    try await shot("25-present-2", w, web)
+                    canvas.send(.present(.stop))
+                    await MacWindowChromeTests.settle(w, 20)
+                    try await shot("25-present-done", w, web)
                 }
             }
         }

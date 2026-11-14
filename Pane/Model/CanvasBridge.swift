@@ -14,7 +14,7 @@ import SwiftUI
 
 /// The drawing tools, in the toolbar's order, with the engine's single-key shortcuts.
 enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
-    case selection, hand, rectangle, diamond, ellipse, arrow, line, freedraw, text, eraser
+    case selection, hand, rectangle, diamond, ellipse, arrow, line, freedraw, text, eraser, frame, laser
 
     var id: String { rawValue }
 
@@ -30,6 +30,8 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .freedraw: "Pencil"
         case .text: "Text"
         case .eraser: "Eraser"
+        case .frame: "Frame"
+        case .laser: "Laser Pointer"
         }
     }
 
@@ -45,6 +47,8 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .freedraw: "pencil"
         case .text: "textformat"
         case .eraser: "eraser"
+        case .frame: "rectangle.dashed"
+        case .laser: "cursorarrow.rays"
         }
     }
 
@@ -61,6 +65,8 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .freedraw: "P"
         case .text: "T"
         case .eraser: "E"
+        case .frame: "F"
+        case .laser: "K"
         }
     }
 
@@ -68,7 +74,7 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
     var help: String { "\(title) (\(key))" }
 
     /// A tool that draws something new, so its style can be set before drawing.
-    var draws: Bool { ![.selection, .hand, .eraser].contains(self) }
+    var draws: Bool { ![.selection, .hand, .eraser, .laser].contains(self) }
 }
 
 extension CanvasTool {
@@ -201,6 +207,9 @@ enum CanvasObstacle: Equatable, Sendable {
 /// What the page reports.
 struct CanvasState: Equatable, Sendable {
     var tool: CanvasTool = .selection
+    /// Presenting: which step of how many (a frame, or the whole board when there are none).
+    struct Presenting: Equatable, Sendable { var index: Int; var count: Int; var name: String }
+    var present: Presenting?
     /// The selected elements' types ("rectangle", "text", …).
     var selection: [String] = []
     /// Where the selection is in the page, in points from its top left (nil: nothing selected).
@@ -237,6 +246,9 @@ struct CanvasState: Equatable, Sendable {
 
     init(_ m: [String: Any]) {
         if let t = (m["tool"] as? String).flatMap(CanvasTool.init(rawValue:)) { tool = t }
+        if let p = m["present"] as? [String: Any], let i = (p["index"] as? NSNumber)?.intValue, let n = (p["count"] as? NSNumber)?.intValue {
+            present = Presenting(index: i, count: n, name: p["name"] as? String ?? "")
+        }
         selection = (m["selection"] as? [String]) ?? []
         editing = (m["editing"] as? Bool) ?? false
         busy = (m["busy"] as? Bool) ?? false
@@ -318,6 +330,9 @@ enum CanvasCommand: Equatable, Sendable {
     case image(CanvasImage, at: CGPoint?)
     /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
     case sticky
+    /// Present: start (the first frame), next, previous, stop.
+    case present(Present)
+    enum Present: String, Sendable { case start, next, prev, stop }
 
     var payload: [String: Any] {
         switch self {
@@ -328,6 +343,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .background(let c): ["op": "background", "color": c]
         case .insert(let t, let title): ["op": "insert", "elements": t.elements(titled: title)]
         case .sticky: ["op": "sticky"]
+        case .present(let to): ["op": "present", "to": to.rawValue]
         case .image(let i, let at):
             ["op": "image", "dataURL": i.dataURL, "mimeType": i.mimeType, "width": i.width, "height": i.height]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
