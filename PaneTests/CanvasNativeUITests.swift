@@ -562,6 +562,28 @@ import UIKit
           return JSON.stringify({ sameX: Math.round(st[0].x) === Math.round(b.x), below: b.y > st[0].y, inView }); })()
         """) as? String)
         #expect(lane.contains("\"sameX\":true") && lane.contains("\"inView\":true"), "in the same lane, in view (under it when there's room): \(lane)")
+        // With room below, picking a card puts the sticky under it, and the lane grows to hold
+        // the next one (as a retro board fills up).
+        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+        await j.until("done typing") { !j.canvas.state.editing }
+        _ = try await j.js("amber._canvas.api.updateScene({ elements: amber._canvas.api.getSceneElements().filter((e) => !(e.customData && e.customData.pintoSticky) && !(e.containerId && amber._canvas.api.getSceneElements().find((c) => c.id === e.containerId && c.customData && c.customData.pintoSticky))) }); amber._canvas.api.updateScene({ appState: { zoom: { value: 0.4 }, scrollX: 200, scrollY: 200 } }); 0")
+        try await Task.sleep(for: .milliseconds(200))
+        for _ in 0..<2 {
+            _ = try await j.js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const st = all.filter((e) => e.customData && e.customData.pintoSticky); const t = all.find((e) => e.type === 'text' && e.text === 'Shipped on time'); const c = st.length ? st[st.length - 1] : all.find((e) => e.id === t.containerId); api.updateScene({ appState: { selectedElementIds: { [c.id]: true } } }); return 0; })()")
+            try await Task.sleep(for: .milliseconds(100))
+            j.canvas.send(.sticky)
+            await j.until("typing in it") { j.canvas.state.editing }
+            _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+            await j.until("done typing") { !j.canvas.state.editing }
+        }
+        let grew = try #require(try await j.js("""
+        (() => { const all = amber._canvas.api.getSceneElements(); const st = all.filter((e) => e.customData && e.customData.pintoSticky);
+          const t = all.find((e) => e.type === 'text' && e.text === 'Shipped on time'); const card = all.find((e) => e.id === t.containerId);
+          const lane = all.find((e) => e.type === 'rectangle' && e.width * e.height >= 180 * 180 * 2 && card.x >= e.x && card.x + card.width <= e.x + e.width && card.y >= e.y && card.y + card.height <= e.y + e.height);
+          const inside = (b) => b.x >= lane.x && b.x + b.width <= lane.x + lane.width && b.y >= lane.y && b.y + b.height <= lane.y + lane.height;
+          return JSON.stringify({ n: st.length, under: st.every((b) => b.y > card.y + card.height), inLane: st.every(inside) }) + (st.every(inside) ? '' : JSON.stringify({ lane: [lane.x, lane.y, lane.width, lane.height], st: st.map((b) => [b.x, b.y]), z: amber._canvas.api.getAppState().zoom.value })); })()
+        """) as? String)
+        #expect(grew.hasPrefix("{\"n\":2,\"under\":true,\"inLane\":true}") && !grew.contains("lane\":"), "under the card, inside a lane that grew: \(grew)")
     }
 
     /// Two or more shapes line up and space out from the bar; an arrow turns straight, curved or
@@ -1073,16 +1095,19 @@ import UIKit
                     for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
                     await MacWindowChromeTests.settle(w, 10)
                     try await shot("16-ai-changed", w, web)
-                    // Sticky notes on a retro: three made with S's command, each typed into.
+                    // Sticky notes on a retro: four made with S's command, each typed into.
                     canvas.highlight = nil
                     try await insert(.retro)
                     try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
-                    for words in ["Demo went well", "Ask design to join planning", "Fewer meetings on Fridays"] {
+                    // Each under a card in its lane, as people do on a retro: pick the card, press S.
+                    for (under, words) in [("Shipped on time", "Demo went well"), ("Demo went well", "Calm launch day"), ("Too many meetings", "Fewer meetings on Fridays"), ("Demo every Friday", "Ask design to join planning")] {
+                        try await js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const t = all.find((e) => e.type === 'text' && e.text === \(String(reflecting: under))); const c = t && (all.find((e) => e.id === t.containerId) || t); if (c) api.updateScene({ appState: { selectedElementIds: { [c.id]: true } } }); })()")
+                        await MacWindowChromeTests.settle(w, 3)
                         canvas.send(.sticky)
                         for _ in 0..<60 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                        for _ in 0..<60 { if (try? await js("!!document.querySelector('textarea')")) as? Bool == true { break }; await MacWindowChromeTests.settle(w, 1) }
                         try await js("const t = document.querySelector('textarea'); if (t) { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); }")
-                        await MacWindowChromeTests.settle(w, 5)
-                        try await js("const api = amber._canvas.api; const s = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky); const last = s[s.length - 1]; api.updateScene({ appState: { selectedElementIds: { [last.id]: true } } })")
+                        for _ in 0..<60 where canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
                         await MacWindowChromeTests.settle(w, 3)
                     }
                     try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")

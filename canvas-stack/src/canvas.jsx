@@ -199,6 +199,11 @@ export function addSticky(api) {
     }
     if (best) { at.x = best.x; at.y = best.y; }
   }
+  // A lane grows to hold a sticky put under its last card, as a retro board fills up.
+  let grown = null;
+  if (lane && at.y + size + STICKY.gap > lane.y + lane.height && at.x >= lane.x && at.x + size <= lane.x + lane.width) {
+    grown = { ...lane, height: at.y + size + STICKY.gap - lane.y, version: lane.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
+  }
   const [card, ...rest] = convertToExcalidrawElements([{
     type: "rectangle", x: at.x, y: at.y, width: size, height: size, backgroundColor: STICKY.color, fillStyle: "solid",
     strokeColor: "#e6c84f", roundness: { type: 3 }, label: { text: " ", fontSize: 20, verticalAlign: "top", textAlign: "left", strokeColor: "#2a1d10" },
@@ -206,7 +211,8 @@ export function addSticky(api) {
   }], { regenerateIds: true });
   // Its words in ink; only the card's edge is yellow.
   for (const e of rest) if (e.type === "text") e.strokeColor = "#2a1d10";
-  api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), card, ...rest], appState: { selectedElementIds: { [card.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  const before = api.getSceneElementsIncludingDeleted().map((e) => (grown && e.id === grown.id ? grown : e));
+  api.updateScene({ elements: [...before, card, ...rest], appState: { selectedElementIds: { [card.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
   api.setActiveTool({ type: "selection" });
   // Typing starts in it, as Return does on a selected shape, once the engine has it (a timer, not
   // an animation frame: frames don't come while the window is hidden).
