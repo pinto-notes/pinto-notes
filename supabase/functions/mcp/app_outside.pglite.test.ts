@@ -34,9 +34,9 @@ Deno.test("an app's script from a CDN and an https module load in its save check
   try {
     const pg = await schemaDB();
     const a = await account(pg);
-    await tool(pg, a, "create", { type: "app", path: "Lab.md" });
-    await tool(pg, a, "fetch", { id: "Lab.app/index.html" });
-    await tool(pg, a, "fetch", { id: "Lab.app/src/App.tsx" });
+    await tool(pg, a, "create", { type: "app", path: "Notes/Lab.md" });
+    await tool(pg, a, "fetch", { id: "Notes/Lab.app/index.html" });
+    await tool(pg, a, "fetch", { id: "Notes/Lab.app/src/App.tsx" });
 
     // Without the script the page throws (window.cdnLib is undefined), which fails the check.
     const html = `<!doctype html>
@@ -55,12 +55,12 @@ Deno.test("an app's script from a CDN and an https module load in its save check
   </body>
 </html>
 `;
-    const page = await tool(pg, a, "write", { path: "Lab.app/index.html", content: html });
+    const page = await tool(pg, a, "write", { path: "Notes/Lab.app/index.html", content: html });
     assertStringIncludes(page.live, "Live", JSON.stringify(page));
     assertEquals(page.errors, undefined, JSON.stringify(page.errors));
 
     // A module by its https address, imported from the app's own code.
-    const app = await tool(pg, a, "edit", { path: "Lab.app/src/App.tsx", old_string: "export default function App", new_string: `import { greeting } from "https://cdn.example.com/greeting.mjs"\nif (greeting !== "Hello from a module") throw new Error("no module")\n\nexport default function App` });
+    const app = await tool(pg, a, "edit", { path: "Notes/Lab.app/src/App.tsx", old_string: "export default function App", new_string: `import { greeting } from "https://cdn.example.com/greeting.mjs"\nif (greeting !== "Hello from a module") throw new Error("no module")\n\nexport default function App` });
     assertStringIncludes(app.live, "Live", JSON.stringify(app));
     assertEquals(app.errors, undefined, JSON.stringify(app.errors));
 
