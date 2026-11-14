@@ -425,12 +425,21 @@ import UIKit
         var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
         let right = try #require(try await j.js("Math.round(Math.max(...amber._canvas.api.getSceneElements().map((e) => e.x + e.width)))") as? Int)
         elements.append(["type": "rectangle", "id": "ai-box", "x": right + 80, "y": 0, "width": 180, "height": 70, "label": ["text": "Request"]])
+        CanvasController.highlightTime = 60
         j.canvas.arrived(by: "ChatGPT")
         j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
         await j.until("outlined") { j.canvas.highlight != nil }
         let h = try #require(j.canvas.highlight)
         #expect(h.count == 2, "the box and its words: \(h.count)")
         #expect(h.rect.width < 260 && h.rect.height < 120, "only the new box: \(h.rect)")
+        // The window gets wider, the view stays centred, and the outline moves with the drawing,
+        // however long after it arrived.
+        defer { CanvasController.highlightTime = 4 }
+        try await Task.sleep(for: .seconds(9))
+        j.rig.window.setContentSize(CGSize(width: 1300, height: 600))
+        j.web.frame = CGRect(x: 0, y: 0, width: 1300, height: 600)
+        await j.until("the outline followed") { (j.canvas.highlight?.rect.minX ?? h.rect.minX) - h.rect.minX > 150 }
+        #expect(abs((j.canvas.highlight?.rect.minX ?? 0) - (h.rect.minX + 200)) < 4, "moved by half the new width: \(String(describing: j.canvas.highlight?.rect)) from \(h.rect)")
     }
 
     /// In dark mode the selection's outline and handles show in the accent, not the dim brown the
@@ -464,6 +473,11 @@ import UIKit
         #expect(parts.count == 5 && parts[0].contains("theme--dark"), "\(seen)")
         let made = try await d.js("amber._throughDarkFilter('\(parts[1])')") as? String
         #expect(parts.count == 5 && parts[3].lowercased() == made?.lowercased(), "the engine reads the filtered accent: \(seen), made \(made ?? "nil")")
+        // Exported from a dark board, the picture is light: it goes into mostly white documents.
+        d.canvas.exporter = { [weak s = d.rig.sandbox] f, selected in await s?.canvasExport(f, selected: selected) }
+        let png = try #require(await d.canvas.export(.png))
+        let corner = try #require(NSBitmapImageRep(data: png)?.colorAt(x: 2, y: 2)?.usingColorSpace(.sRGB))
+        #expect(corner.brightnessComponent > 0.9, "a light background: \(corner)")
     }
 
     /// A sticky note: yellow, square, typed into at once; the next one goes beside it, never on

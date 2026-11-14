@@ -146,7 +146,9 @@ export async function exportScene(api, format, selected) {
   const elements = (picked.length ? picked : all).filter((e) => !help(e));
   if (!elements.length) return null;
   const files = api.getFiles();
-  const appState = { ...s, exportBackground: true, exportWithDarkMode: s.theme === "dark", exportScale: 2, exportEmbedScene: format === "svg" };
+  // Always light, on its background: it goes into documents, slides and chats that are mostly
+  // white (whiteboard council, round 2: from dark mode it pasted as a black block).
+  const appState = { ...s, exportBackground: true, exportWithDarkMode: false, exportScale: 2, exportEmbedScene: format === "svg" };
   // Drawn to a canvas and read as a data URL: a blob can't be read in the note's sandboxed page
   // (NotReadableError).
   if (format === "png") {
@@ -514,8 +516,9 @@ function Canvas({ initial }) {
         r = where();
       }
       try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: changed.length } }); } catch (_) {}
-      // For a while after, the outline follows the view as you pan and zoom.
-      outlined = { changed, until: Date.now() + 8000, where };
+      // While it's shown (the app decides how long), the outline follows the view as you pan,
+      // zoom or resize the window (whiteboard council, round 2, 15: it came loose after 8 s).
+      outlined = { changed, until: Date.now() + 120000, where };
     };
     let outlined = null;
     const follow = api.onChange(() => {
