@@ -247,3 +247,16 @@
 /* Build without the notes list: the app centred at a note's reading width, as Pinto lays out a note. */
 .cols[data-solo] { grid-template-columns: minmax(0, 1fr); }
 .cols[data-solo] .app { width: 100%; max-width: 620px; margin: 0 auto; box-sizing: border-box; }
+
+/* Lock a note */
+.lMini { display: grid; justify-items: center; gap: 10px; padding: 22px 16px 18px; border-radius: 12px; background: #fff; font-size: 14px; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 20px -10px rgba(0, 0, 0, 0.3); }
+.lGlyph { width: 26px; height: 26px; fill: none; stroke: #a85700; stroke-width: 1.8; stroke-linecap: round; }
+.lField { width: 78%; padding: 6px 10px; border-radius: 8px; background: #f6f2ed; color: #6f6a64; letter-spacing: 2px; font-size: 13px; text-align: center; }
+/* Bring your notes: a tick per source */
+.iDot { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #cfc7bd; }
+.iDot[data-on] { background: #c8620e; box-shadow: none; }
+.iDot svg { width: 10px; height: 10px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Links: the linked note peeks out under the line */
+.peek { display: grid; gap: 2px; margin: 8px 0 0 28px; padding: 10px 14px; border-radius: 10px; background: #fff; font-size: 12.5px; color: #6f6a64; box-shadow: 0 0 0 0.5px #e0d8cd, 0 10px 20px -12px rgba(0, 0, 0, 0.3); }
+.peek b { color: #1d1b19; font-size: 13.5px; }
+.chev { font-style: normal; color: #a39a90; font-size: 15px; }

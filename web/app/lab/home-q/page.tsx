@@ -4,7 +4,7 @@ import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { display } from "./fonts";
 import { Hero } from "./Hero";
-import { AiChat, AiWin, BuildWin, Devices, DrawWin, HistoryMini, SlashMini, TableMini, WriteWin } from "./Pictures";
+import { AiChat, AiWin, BuildWin, Devices, DrawWin, HistoryMini, ImportMini, LinkMini, LockMini, SlashMini, TableMini, WriteWin } from "./Pictures";
 import p from "./pic.module.css";
 import s from "./q.module.css";
 
@@ -50,6 +50,9 @@ const MORE: { title: string; say: string; Mini: () => React.JSX.Element }[] = [
   { title: "The / menu", say: "Type / for a heading, a checklist, a table or a link.", Mini: SlashMini },
   { title: "Tables and checklists", say: "Plan in a table and tick things off.", Mini: TableMini },
   { title: "Every version kept", say: "Go back to any earlier version.", Mini: HistoryMini },
+  { title: "Bring your notes", say: "From Apple Notes, Obsidian, Bear, Evernote and Keep.", Mini: ImportMini },
+  { title: "Lock a note", say: "A separate password for the private ones.", Mini: LockMini },
+  { title: "Links between notes", say: "Link one note from another and jump straight to it.", Mini: LinkMini },
 ];
 
 export default function Page() {
@@ -93,7 +96,7 @@ export default function Page() {
         <Devices />
       </section>
 
-      <Section id="q-more" title="And so much more." line="Bring notes from Obsidian, Bear, Evernote or Keep, lock a note, and sync encrypted.">
+      <Section id="q-more" title="And so much more." line="Everything you'd expect from a notes app.">
         <ul className={s.cards}>
           {MORE.map((m) => (
             <li key={m.title} className={s.card}>

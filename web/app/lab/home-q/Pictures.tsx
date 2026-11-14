@@ -226,6 +226,8 @@ export function TableMini() {
         <b>Day</b><b>Plan</b><b>Done</b>
         <span>Mon</span><span>Gym</span><span><i data-on=""><Tick /></i></span>
         <span>Tue</span><span>Run, 5 km</span><span><i /></span>
+        <span>Wed</span><span>Rest</span><span><i data-on=""><Tick /></i></span>
+        <span>Thu</span><span>Swim</span><span><i /></span>
       </div>
     </div>
   );
@@ -233,7 +235,7 @@ export function TableMini() {
 
 export function HistoryMini() {
   // Version history: every earlier version kept; a change your AI made carries its name.
-  const rows: [string, string?][] = [["Today, 21:40", "Claude"], ["Today, 09:12"], ["Yesterday, 18:03"]];
+  const rows: [string, string?][] = [["Today, 21:40", "Claude"], ["Today, 09:12"], ["Yesterday, 18:03"], ["Monday, 08:30"]];
   return (
     <div className={s.mini} aria-hidden="true">
       <ul className={s.hMini}>
@@ -253,6 +255,39 @@ export function LinkMini() {
   return (
     <div className={s.mini} aria-hidden="true">
       <p className={s.miniText}>Book the flights from the <u>Lisbon trip</u> note, then pack.</p>
+      <div className={s.peek}><b>Lisbon trip</b><span>12–15 May, flights and hotel</span></div>
+    </div>
+  );
+}
+
+export function LockMini() {
+  // A locked note, as Pinto shows it: the text stays hidden until you type the note's own password.
+  return (
+    <div className={s.mini} aria-hidden="true">
+      <div className={s.lMini}>
+        <svg viewBox="0 0 24 24" className={s.lGlyph}><rect x="5" y="10.5" width="14" height="10" rx="2.5" /><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" /></svg>
+        <b>This note is locked.</b>
+        <span className={s.lField}>••••••••</span>
+        <em className={s.restore}>Open note</em>
+      </div>
+    </div>
+  );
+}
+
+export function ImportMini() {
+  // Bring your notes: the sources the importer reads today.
+  const rows = ["Apple Notes", "Obsidian", "Bear", "Evernote", "Keep"];
+  return (
+    <div className={s.mini} aria-hidden="true">
+      <p className={s.miniLine}>Import from</p>
+      <ul className={s.hMini}>
+        {rows.map((t, i) => (
+          <li key={t} data-on={i === 0 || undefined}>
+            <span>{t}</span>
+            <i className={s.chev}>›</i>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

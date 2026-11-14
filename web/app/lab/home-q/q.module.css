@@ -84,7 +84,7 @@
 .band.band { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: 64px max(var(--gutter), calc((100vw - var(--q-width)) / 2 + var(--gutter))); background: #f4b75e; --q-color-body: #4a2e10; }
 
 /* ── And so much more: three cards, a piece of the real UI in the page's frame, a title and a line ── */
-.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; text-align: left; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 24px; text-align: left; }
 .card { display: grid; align-content: start; }
 .card .label { margin: 24px 0 0; }
 .card .body.body { margin-top: 6px; }
