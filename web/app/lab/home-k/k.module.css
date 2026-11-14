@@ -7,15 +7,15 @@
 @media (max-width: 720px) { .main { gap: 80px; } }
 
 /* ── The first screen ── */
-.hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(10px, 2vh, 22px); padding: 0 max(28px, calc(50vw - 704px)); }
-.head { display: flex; align-items: center; justify-content: space-between; gap: 20px 40px; flex-wrap: wrap; }
-.h1 { margin: 0; font-size: clamp(40px, min(3.9vw, 6.4vh), 58px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.02; color: #2a1d10; text-wrap: balance; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(10px, 2vh, 22px); }
+.head { padding: 0 max(var(--gutter), calc((100% - 1240px) / 2 + var(--gutter))); display: flex; align-items: center; justify-content: space-between; gap: 20px 28px; flex-wrap: wrap; }
+.h1 { margin: 0; font-size: clamp(36px, min(3.05vw, 6vh), 44px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.02; color: #2a1d10; text-wrap: balance; }
 
-.scene { position: relative; margin: 0 calc(-1 * max(28px, calc(50vw - 704px))); --pad: max(28px, calc(50vw - 704px)); }
+.scene { position: relative; }
 .scroller { position: relative; height: 100%; overflow: hidden; }
 .sizer { position: relative; margin: 0 auto; }
 .world { position: absolute; left: 0; top: 0; width: 1400px; height: 716px; transform-origin: 0 0; }
-.scene[data-phone] { margin: 0 calc(-1 * var(--gutter)); --pad: 0px; }
+
 .scene[data-phone] .scroller { overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
 .scene[data-phone] .scroller::-webkit-scrollbar { display: none; }
 .scene[data-phone][data-zoom] .scroller { overflow: hidden; }
@@ -45,10 +45,10 @@
 .unit[data-unit="apps"] .room { background: radial-gradient(120% 90% at 30% 10%, #fff3da 0%, #fde0ae 50%, #f1bd80 100%); }
 .sheen { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255, 255, 255, 0) 52%, rgba(255, 255, 255, 0.16) 58%, rgba(255, 255, 255, 0) 66%); }
 .lamp { position: absolute; top: 0; width: 120px; height: 90px; }
-.person { position: absolute; bottom: -34px; width: 176px; height: auto; z-index: 2; }
-.person[data-who="maya"] { left: -36px; }
-.person[data-who="sara"] { left: -34px; }
-.person[data-who="jonas"] { left: -30px; bottom: -40px; }
+.person { position: absolute; bottom: -4px; width: 190px; height: auto; z-index: 2; overflow: visible; }
+.person[data-who="maya"] { left: -34px; }
+.person[data-who="sara"] { left: -44px; }
+.person[data-who="jonas"] { left: 10px; width: 210px; }
 
 .uiNote { position: absolute; right: 18px; top: 20px; width: 236px; z-index: 1; }
 .uiBoard { position: absolute; right: 18px; top: 16px; width: 424px; z-index: 1; }
@@ -80,7 +80,7 @@
 .scene[data-zoom] .unit[data-on] .room > div { transform: none; }
 .scene[data-zoom] .hit { cursor: default; }
 .away { position: absolute; inset: 0; z-index: 4; margin: 0; padding: 0; border: 0; background: none; cursor: zoom-out; }
-.facts { position: absolute; z-index: 5; right: max(28px, calc(50vw - 704px)); top: 50%; transform: translateY(-50%); width: min(400px, 34%); box-sizing: border-box;
+.facts { position: absolute; z-index: 5; right: max(var(--gutter), calc((100% - 1240px) / 2 + var(--gutter))); top: 50%; transform: translateY(-50%); width: min(400px, 34%); box-sizing: border-box;
   padding: 34px 34px 30px; border-radius: 26px; background: #fffaf3; color: #2a1d10;
   box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 30px 60px -28px rgba(40, 20, 10, 0.55); animation: factsIn 0.5s ease-out 0.45s backwards; }
 .facts[hidden] { display: none; }
@@ -171,7 +171,7 @@
 
 /* ── Phones: the words, then the street pans window to window; the facts sit under the zoomed window ── */
 @media (max-width: 720px) {
-  .hero { padding: 0 var(--gutter); gap: 18px; }
+  .hero { gap: 18px; }
   .head { display: grid; gap: 18px; }
   .h1 { font-size: clamp(38px, 10.6vw, 52px); }
   .facts { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; transform: none; padding: 22px 22px 20px; border-radius: 22px; }

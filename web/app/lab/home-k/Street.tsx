@@ -330,28 +330,42 @@ function Lamp({ x: cx }: { x: number }) {
   );
 }
 
-/// Over the shoulder: each person seen from behind, low in the window, looking at the screen.
+/// Over the shoulder: each person seen from behind, low in the window, the back of their head over the
+/// bottom edge of the screen. Hair with a few lighter strands, a sweater with its collar, and a warm rim
+/// where the room's light catches the right side.
+const HAIR = "#3b2924", STRAND = "#5a3e33", RIM = "#f2b06c", NECK = "#7a4e3c";
 function Person({ who }: { who: "maya" | "jonas" | "sara" }) {
-  if (who === "maya") return (
-    <svg className={k.person} data-who="maya" viewBox="0 0 200 170" aria-hidden="true">
-      <circle cx="78" cy="22" r="17" fill="#3e2a28" />
-      <path d="M8 170 C10 120 40 104 62 98 L64 82 C46 76 38 58 40 46 C42 24 58 12 80 12 C104 12 120 30 118 52 C116 70 106 80 94 84 L96 98 C124 104 150 120 156 170Z" fill="#4e3634" />
-      <path d="M40 170 C44 136 60 122 80 118 C104 122 120 136 124 170Z" fill="#7b8a5a" />
-    </svg>
-  );
-  if (who === "jonas") return (
-    <svg className={k.person} data-who="jonas" viewBox="0 0 200 170" aria-hidden="true">
-      <path d="M20 170 C24 124 56 108 80 102 L82 86 C64 80 56 62 58 48 C58 24 76 10 100 10 C124 10 140 26 140 48 C140 66 130 80 118 86 L120 102 C146 108 176 124 180 170Z" fill="#463436" />
-      <ellipse cx="57" cy="58" rx="6" ry="10" fill="#463436" /><ellipse cx="141" cy="58" rx="6" ry="10" fill="#463436" />
-      <path d="M58 46 C56 22 76 6 100 6 C126 6 144 22 142 46 C130 34 116 28 100 30 C82 30 68 36 58 46Z" fill="#33262a" />
-      <path d="M44 170 C50 132 72 118 100 116 C128 118 150 132 156 170Z" fill="#3d5a46" />
-    </svg>
-  );
+  const sweater = who === "maya" ? "#e6d6bd" : who === "jonas" ? "#3f5d48" : "#8ea78e";
+  const rib = who === "maya" ? "#d3c0a2" : who === "jonas" ? "#33503d" : "#7b957b";
   return (
-    <svg className={k.person} data-who="sara" viewBox="0 0 200 170" aria-hidden="true">
-      <path d="M10 170 C14 124 40 108 60 102 L62 86 C46 78 40 60 42 46 C44 22 60 8 84 8 C108 8 124 26 122 48 C120 66 112 78 100 84 L102 102 C128 108 154 124 158 170Z" fill="#4e3634" />
-      <path d="M38 132 C30 96 34 60 42 40 C50 16 70 4 88 6 C112 8 128 28 126 52 C124 78 128 104 134 128 C120 120 108 116 96 114 L74 114 C60 118 48 124 38 132Z" fill="#3a2826" />
-      <path d="M40 170 C46 136 64 124 84 120 C106 122 124 136 128 170Z" fill="#8aa08a" />
+    <svg className={k.person} data-who={who} viewBox="0 -24 240 184" aria-hidden="true">
+      {/* Shoulders and the sweater's collar. */}
+      <path d="M0 160 C2 126 30 108 78 102 C92 100 104 98 120 98 C136 98 148 100 162 102 C210 108 238 126 240 160Z" fill={sweater} />
+      <path d="M162 102 C206 108 234 124 238 152" fill="none" stroke={RIM} strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+      {/* Neck, in the shade of the head. */}
+      <path d="M100 74 h40 v30 c-12 6 -28 6 -40 0Z" fill={NECK} />
+      <path d="M88 104 C96 96 108 93 120 93 C132 93 144 96 152 104 C140 112 100 112 88 104Z" fill={rib} />
+      {who === "sara" ? (
+        <g>
+          {/* Long hair, down over the shoulders. */}
+          <path d="M78 46 C78 18 98 2 120 2 C142 2 162 18 162 46 C162 80 168 112 176 140 C152 132 136 128 120 128 C104 128 88 132 64 140 C72 112 78 80 78 46Z" fill={HAIR} />
+          <path d="M120 4 C118 30 116 70 112 124 M104 10 C96 40 92 80 84 126 M136 10 C144 44 150 84 156 128" fill="none" stroke={STRAND} strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M150 12 C160 24 163 40 162 54 C163 84 168 112 174 136" fill="none" stroke={RIM} strokeWidth="3" strokeLinecap="round" opacity="0.75" />
+        </g>
+      ) : (
+        <g>
+          {/* The back of the head, all hair: no face, no ears. */}
+          <path d="M80 48 C80 20 98 4 120 4 C142 4 160 20 160 48 C160 66 154 80 146 88 C136 84 128 82 120 82 C112 82 104 84 94 88 C86 80 80 66 80 48Z" fill={HAIR} />
+          {who === "maya" ? <>
+            <circle cx="120" cy="-6" r="15" fill={HAIR} />
+            <path d="M92 70 C96 40 108 20 118 6 M106 82 C108 54 114 30 120 8 M148 70 C144 40 132 20 122 6 M134 82 C132 54 126 30 120 8" fill="none" stroke={STRAND} strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M112 -12 C116 -16 126 -16 130 -10" fill="none" stroke={STRAND} strokeWidth="1.6" strokeLinecap="round" />
+          </> : <>
+            <path d="M100 14 C110 22 112 34 108 46 M120 8 C126 20 126 32 122 42 M136 14 C142 26 146 36 144 50 M94 34 C98 46 98 58 94 70 M146 56 C148 66 146 76 142 84" fill="none" stroke={STRAND} strokeWidth="1.6" strokeLinecap="round" />
+          </>}
+          <path d="M146 14 C156 24 161 36 160 50 C160 64 155 78 147 87" fill="none" stroke={RIM} strokeWidth="3" strokeLinecap="round" opacity="0.75" />
+        </g>
+      )}
     </svg>
   );
 }
