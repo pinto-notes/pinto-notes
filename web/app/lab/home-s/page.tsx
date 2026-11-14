@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: "Write notes, draw on whiteboards and build small apps, with your AI. Feels like Apple Notes, on Mac and iPhone. Works with ChatGPT and Claude. Free.",
 };
 
-// Study S, "Editorial colour" (round 5). One chapter per thing, each in its own colour, sliding up
-// over the last; each with one oversized piece of the real thing. See Story.tsx.
+// Study S, "Editorial colour" (round 6). A ring binder: one colour chapter per thing, each arriving as
+// its card from the first screen and leaving its tab docked under the header. See Story.tsx.
 const display = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], axes: ["opsz"], variable: "--s-display", display: "swap" });
 
 export default function Page() {

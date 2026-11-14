@@ -50,3 +50,9 @@ export function head(r: () => number, c: P, b: P, size = 30) {
   const a = Math.atan2(b[1] - c[1], b[0] - c[0]), s1 = a + Math.PI * 0.82, s2 = a - Math.PI * 0.82;
   return `${line(r, b[0], b[1], b[0] + Math.cos(s1) * size, b[1] + Math.sin(s1) * size, 0)} ${line(r, b[0], b[1], b[0] + Math.cos(s2) * size, b[1] + Math.sin(s2) * size, 0)}`;
 }
+
+/** The two strokes of the orange underline under "your AI" (seeded, so server and browser agree). */
+export function underline(): [string, string] {
+  const r = rng(11);
+  return [curve(r, [4, 22], [160, 4], [380, 30], [560, 12], 3), curve(r, [30, 26], [200, 12], [400, 34], [548, 18], 3)];
+}
