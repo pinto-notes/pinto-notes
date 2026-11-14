@@ -376,9 +376,11 @@ struct CanvasAIHighlight: View {
         let above = top.minY - 4 - 22, below = top.maxY + 4
         let spots = [CGPoint(x: top.minX, y: above), CGPoint(x: top.maxX - width, y: above),
                      CGPoint(x: top.minX, y: below), CGPoint(x: top.maxX - width, y: below)].filter { $0.y >= 4 }
-        let others = outlines.filter { $0 != top } + near
+        // Arrows and lines come as their boxes, and a straight one's box is a hairline: its head
+        // stands about 8 either side (round 7, 16: the tag touched an arrowhead).
+        let others = outlines.filter { $0 != top } + near.map { $0.insetBy(dx: $0.width < 16 ? -8 : 0, dy: $0.height < 16 ? -8 : 0) }
         let clear = spots.first { p in
-            let r = CGRect(x: p.x, y: p.y, width: width, height: 22).insetBy(dx: -2, dy: -2)
+            let r = CGRect(x: p.x, y: p.y, width: width, height: 22).insetBy(dx: -6, dy: -6)
             return !others.contains { $0.intersects(r) }
         }
         return clear ?? spots.first ?? CGPoint(x: top.minX, y: below)

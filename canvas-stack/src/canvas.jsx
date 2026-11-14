@@ -189,6 +189,27 @@ function closeBand(elements, hint) {
 }
 
 /**
+ * A picture's arrow labels with the gap the canvas draws round them: a patch of paper behind
+ * each, over its line (whiteboard council, rounds 4 to 7: in exports "No" sat on its line, as the
+ * engine's export left the gap out).
+ */
+export function gapLabels(elements, paper) {
+  const lines = new Set(elements.filter((e) => e.type === "arrow" || e.type === "line").map((e) => e.id));
+  if (!elements.some((e) => e.type === "text" && lines.has(e.containerId))) return elements;
+  const out = [];
+  for (const e of elements) {
+    if (e.type === "text" && lines.has(e.containerId) && (e.text || "").trim()) {
+      const pad = Math.max(3, e.fontSize * 0.25);
+      const [patch] = convertToExcalidrawElements([{ type: "rectangle", x: e.x - pad, y: e.y - pad / 2, width: e.width + 2 * pad, height: e.height + pad,
+        strokeColor: "transparent", backgroundColor: paper, fillStyle: "solid", strokeWidth: 1, roughness: 0, roundness: null, opacity: 100 }]);
+      out.push({ ...patch, id: `${e.id}-gap`, angle: e.angle || 0, groupIds: e.groupIds || [], frameId: e.frameId || null });
+    }
+    out.push(e);
+  }
+  return out;
+}
+
+/**
  * The board (or only what's selected) as a file, base64: a PNG at 2x, an SVG that carries its
  * scene (Excalidraw opens it again), or the .excalidraw file itself. Always light, as drawn
  * (`light` is kept for the share page's caller; it's the same either way). `page`: made for a
@@ -203,9 +224,11 @@ export async function exportScene(api, format, selected, light, page) {
   const picked = selected ? all.filter((e) => ids[e.id]) : [];
   const chosen = picked.length ? picked : all;
   const forPage = typeof page === "string";
-  const elements = format !== "excalidraw" ? pictured(chosen, forPage ? page : null) : forPage ? pictured(chosen, null) : chosen;
+  let elements = format !== "excalidraw" ? pictured(chosen, forPage ? page : null) : forPage ? pictured(chosen, null) : chosen;
   if (!elements.length) return null;
   const files = api.getFiles();
+  // Pictures only: an SVG carries its scene for Excalidraw to open again, without patches.
+  if (format === "png") elements = gapLabels(elements, s.viewBackgroundColor || "#ffffff");
   // Always light, on its background: it goes into documents, slides and chats that are mostly
   // white (whiteboard council, round 2: from dark mode it pasted as a black block).
   const appState = { ...s, exportBackground: true, exportWithDarkMode: false, exportScale: 2, exportEmbedScene: format === "svg" };
@@ -403,7 +426,7 @@ export function addBranch(api, node) {
   const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
   const dx = x + w + m > vx + vw ? x + w + m - (vx + vw) : 0, dy = y + h + m > vy + vh ? y + h + m - (vy + vh) : 0;
   if ((dx || dy) && !(whole && frameBoard(api, { onlyIfCut: true, minZoom: z * 0.6 }))) flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX - dx, scrollY: s.scrollY - dy }, captureUpdate: CaptureUpdateAction.NEVER }));
-  typeInto(api, child.id, { fontSize, color: (words && words.strokeColor) || node.strokeColor });
+  typeInto(api, child.id, { fontSize, color: (words && words.strokeColor) || node.strokeColor, family: words && words.fontFamily });
   return child.id;
 }
 
@@ -434,10 +457,21 @@ function typeInto(api, id, look = null, tries = 20) {
       return;
     }
     // The words in the size and ink of the branch it grew from; your own choice back after.
+    // Your own is put back once the typing ends: put back at once, the engine read it after,
+    // and the new branch's words came out bigger than its parent's (round 7, 26-mindmap-tab).
     const was = look && api.getAppState();
-    if (look) api.updateScene({ appState: { currentItemFontSize: look.fontSize, currentItemStrokeColor: look.color }, captureUpdate: CaptureUpdateAction.NEVER });
+    const set = (a) => api.updateScene({ appState: a, captureUpdate: CaptureUpdateAction.NEVER });
+    // At once (flushSync): the engine reads them as it starts.
+    if (look) flushSync(() => set({ currentItemFontSize: look.fontSize, currentItemStrokeColor: look.color, ...(look.family ? { currentItemFontFamily: look.family } : {}) }));
     engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
-    if (look) api.updateScene({ appState: { currentItemFontSize: was.currentItemFontSize, currentItemStrokeColor: was.currentItemStrokeColor }, captureUpdate: CaptureUpdateAction.NEVER });
+    if (look) {
+      let waited = 0;
+      const back = () => {
+        if (api.getAppState().editingTextElement && waited++ < 3000) { setTimeout(back, 100); return; }
+        set({ currentItemFontSize: was.currentItemFontSize, currentItemStrokeColor: was.currentItemStrokeColor, currentItemFontFamily: was.currentItemFontFamily });
+      };
+      setTimeout(back, 100);
+    }
   };
   setTimeout(() => start(tries), 30);
 }

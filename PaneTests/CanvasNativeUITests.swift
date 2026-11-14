@@ -666,6 +666,11 @@ import UIKit
         let at = CanvasAIHighlight.tag(over: [shape2], avoiding: [hint])
         #expect(!CGRect(x: at.x, y: at.y, width: 96, height: 22).intersects(hint), "clear of the hint line: \(at)")
         #expect(at.y + 22 <= shape2.minY || at.y >= shape2.maxY, "still clear of the shape: \(at)")
+        // An arrow running down just past the tag's end: its box is a hairline, its head is
+        // wider. The tag keeps clear of the head too (round 7, 16: "ChatGPT" touched it).
+        let arrow = CGRect(x: shape2.minX + 99, y: 140, width: 0, height: 58)
+        let byArrow = CanvasAIHighlight.tag(over: [shape2], avoiding: [arrow])
+        #expect(!CGRect(x: byArrow.x, y: byArrow.y, width: 96, height: 22).insetBy(dx: -6, dy: -6).intersects(arrow.insetBy(dx: -8, dy: 0)), "clear of the arrowhead: \(byArrow)")
     }
 
     /// Undo and Redo give back exactly what was there: after Align, Undo, Redo, a bound arrow
@@ -1479,6 +1484,11 @@ import UIKit
         try await tab()
         let childID = try #require(try await until("a branch grew and is selected") { $0.count == 1 && $0 != [whenID] }.first)
         await j.until("typing in it") { j.canvas.state.editing }
+        // In its parent's size and font (round 7, 26-mindmap-tab: the words came out bigger).
+        try await Task.sleep(for: .milliseconds(150))
+        let typing = try await j.js("(() => { const api = amber._canvas.api, t = api.getAppState().editingTextElement, p = api.getSceneElements().find((e) => e.type === 'text' && e.text === 'When'); return t && p ? [t.fontSize, p.fontSize, t.fontFamily, p.fontFamily].join(',') : 'none'; })()") as? String
+        let sizes = (typing ?? "").split(separator: ",")
+        #expect(sizes.count == 4 && sizes[0] == sizes[1] && sizes[2] == sizes[3], "size and font as When's: \(typing ?? "")")
         var els = try await all()
         let child = try #require(els.first { $0["id"] as? String == childID })
         #expect(child["type"] as? String == "rectangle")
@@ -3049,5 +3059,39 @@ import UIKit
         let (r, g, b) = CanvasStyle.rgb(blue)!
         let (r0, g0, b0) = CanvasStyle.rgb("#1971c2")!
         #expect(abs(r - r0) + abs(g - g0) + abs(b - b0) < 0.06, "\(blue)")
+    }
+}
+
+extension CanvasNativeUITests {
+    /// An exported picture leaves the gap round an arrow's label that the canvas draws (whiteboard
+    /// council, rounds 4 to 7: in 14 and on the share page, "No" sat on its line).
+    @Test func anExportedArrowLabelHasItsGap() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "a", "x": 0, "y": 0, "width": 120, "height": 80],
+            ["type": "rectangle", "id": "b", "x": 300, "y": 0, "width": 120, "height": 80],
+            ["type": "arrow", "x": 122, "y": 40, "width": 176, "height": 0, "start": ["id": "a"], "end": ["id": "b"], "label": ["text": "No"]],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        try await Task.sleep(for: .milliseconds(800))
+        _ = try await j.js("""
+        (async () => { const api = amber._canvas.api, els = api.getSceneElements(), t = els.find((e) => e.type === 'text' && e.text === 'No'), a = els.find((e) => e.id === t.containerId);
+          const b64 = await amber._canvasExport('png', false);
+          const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+          const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+          // Where the line would run, just left and right of the word: paper, not ink.
+          const minX = Math.min(...els.map((e) => e.x)), minY = Math.min(...els.map((e) => e.y));
+          const ink = (x, y) => { let n = 0; for (let dy = -2; dy <= 2; dy++) { const d = g.getImageData(Math.round((x - minX + 32) * 2), Math.round((y - minY + 32) * 2) + dy, 1, 1).data; if (d[0] < 128) n++; } return n; };
+          const y = a.y + a.points[0][1];
+          window._gap = JSON.stringify({ left: ink(t.x - 2, y), right: ink(t.x + t.width + 2, y), line: ink(a.x + 10, y) });
+        })(); 0
+        """)
+        var got: [String: Int] = [:]
+        for _ in 0..<50 {
+            if let s = try await j.js("window._gap || ''") as? String, !s.isEmpty { got = (try JSONSerialization.jsonObject(with: Data(s.utf8)) as? [String: Int]) ?? [:]; break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        #expect((got["line"] ?? 0) > 0, "the line itself is drawn: \(got)")
+        #expect(got["left"] == 0 && got["right"] == 0, "a gap either side of the label: \(got)")
     }
 }
