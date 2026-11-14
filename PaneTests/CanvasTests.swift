@@ -123,6 +123,93 @@ import AppKit
         #expect(CanvasNoteCard.preview(of: "Title\n" + String(repeating: "word ", count: 200)).count <= CanvasNoteCard.previewLength)
     }
 
+    /// "On boards": the boards with a card for a note, from their saved scenes, newest first. A
+    /// note on no board, one board, two boards; a board in Recently Deleted or deleted for good, a
+    /// deleted card, a card's parts, an app that isn't a board and a card still naming its note by
+    /// title don't count. A board's change is seen once its bytes change.
+    @Test func aNoteListsTheBoardsItIsOn() throws {
+        let c = try Self.container()
+        let ctx = c.mainContext
+        let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
+        let plan = ctx.createNote(in: .all, body: "Launch plan\n\nShip on Friday.")
+        let press = ctx.createNote(in: .all, body: "Press list\n\nWho hears first.")
+        let lonely = ctx.createNote(in: .all, body: "Groceries\n\nMilk.")
+        func card(_ id: UUID, _ el: String, deleted: Bool = false) -> [[String: Any]] {
+            [["type": "rectangle", "id": el, "x": 0, "y": 0, "width": 260, "height": 120, "groupIds": ["\(el)-group"], "isDeleted": deleted,
+              "customData": ["pintoNote": id.uuidString, "title": "x", "pintoCard": "card"]],
+             ["type": "text", "id": "\(el)-title", "x": 10, "y": 10, "width": 100, "height": 20, "text": "x", "groupIds": ["\(el)-group"],
+              "customData": ["pintoNote": id.uuidString, "pintoCard": "title"]]]
+        }
+        func board(_ name: String, _ elements: [[String: Any]], age: TimeInterval) -> Note {
+            let b = CanvasNote.make(in: .all, context: ctx, pages: pages, data: data, scene: Self.scene(elements), named: name)
+            b.updatedAt = .now.addingTimeInterval(-age)
+            return b
+        }
+        let launch = board("Product launch", card(plan.id, "a") + card(press.id, "b"), age: 600)
+        let roadmap = board("Q3 roadmap", card(plan.id, "c"), age: 60)
+        let trashed = board("Old ideas", card(plan.id, "d"), age: 30)
+        ctx.trash(trashed)
+        let purged = board("Gone", card(plan.id, "e"), age: 20)
+        purged.deletedAt = .now
+        let scratch = board("Scratch", card(plan.id, "f", deleted: true) + [["type": "rectangle", "id": "g", "x": 0, "y": 0, "width": 10, "height": 10,
+                                                                    "customData": ["pintoNote": "Launch plan"]]], age: 10)
+        // An app (not a board) whose data happens to hold the same shape.
+        let app = ctx.createNote(in: .all, body: "Tracker")
+        data.set(app.id, ["values": ["scene": Self.scene(card(plan.id, "h"))], "collections": [String: Any]()])
+        pages.setHere(app.id, .init(html: "<!doctype html><title>Tracker</title>", by: "test", at: .now))
+        try ctx.save()
+
+        let titles = { (n: Note) in CanvasBoards.boards(holding: n.id, in: ctx, data: data, pages: pages).map(\.title) }
+        #expect(titles(plan) == ["Q3 roadmap", "Product launch"], "two boards, newest first; deleted ones, a deleted card and a title-only card left out")
+        #expect(titles(press) == ["Product launch"], "one board")
+        #expect(titles(lonely).isEmpty, "none")
+        #expect(titles(launch).isEmpty, "a board isn't on itself")
+
+        // The foot says so, each name a link to its board.
+        let links = NoteLinks()
+        links.refreshBoards(plan, context: ctx, data: data, pages: pages)
+        #expect(links.boards.map(\.id) == [roadmap.id, launch.id])
+        #expect(!links.isEmpty && links.linksEmpty, "the foot shows for boards alone")
+        #expect(NoteLinksSection.boardsSummary(links.boards.map(\.title)) == "On 2 boards: Q3 roadmap, Product launch")
+        #expect(NoteLinksSection.boardsSummary(["Product launch"]) == "On 1 board: Product launch")
+        let text = NoteLinksSection.boardsText(links.boards)
+        #expect(String(text.characters) == "On 2 boards: Q3 roadmap, Product launch")
+        let urls = text.runs.compactMap(\.link)
+        #expect(urls.compactMap(NoteLinksSection.board(from:)) == [roadmap.id, launch.id], "each name opens its board")
+        #expect(NoteLinksSection.board(from: URL(string: "https://example.com")!) == nil)
+
+        // The card taken off a board: the board drops out once its bytes change.
+        data.set(roadmap.id, ["values": ["scene": Self.scene(card(plan.id, "c", deleted: true))], "collections": [String: Any]()])
+        #expect(titles(plan) == ["Product launch"])
+        // The title-only card found its note (the board opened): it counts.
+        data.set(scratch.id, ["values": ["scene": Self.scene(card(plan.id, "g"))], "collections": [String: Any]()])
+        #expect(titles(plan) == ["Scratch", "Product launch"])
+        // A note in Recently Deleted, or a locked one, lists none.
+        ctx.trash(press)
+        links.refreshBoards(press, context: ctx, data: data, pages: pages)
+        #expect(links.boards.isEmpty)
+        plan.lockedBody = "sealed"
+        links.refreshBoards(plan, context: ctx, data: data, pages: pages)
+        #expect(links.boards.isEmpty)
+    }
+
+    /// A board opened from "On boards" selects that note's card: asked once, for that board only.
+    @Test func aBoardOpenedFromOnBoardsIsAskedToSelectTheCardOnce() {
+        let board = UUID(), note = UUID()
+        CanvasLanding.shared.request(board, card: note)
+        #expect(CanvasLanding.shared.take(UUID()) == nil, "another note that opens isn't asked")
+        #expect(CanvasLanding.shared.take(board) == note)
+        #expect(CanvasLanding.shared.take(board) == nil, "once")
+        // Before the page is ready the card waits; then it's sent as the page first reports.
+        let canvas = CanvasController()
+        canvas.focusCard(note)
+        #expect(canvas.sent.isEmpty && canvas.focusing == note)
+        canvas.receive(["tool": "selection"])
+        #expect(canvas.sent == [.focusCard(note)] && canvas.focusing == nil)
+        canvas.focusCard(board)
+        #expect(canvas.sent.last == .focusCard(board), "a page that's ready is asked at once")
+    }
+
     /// A card on a board is one thing: its note's title in the list's preview and search (not its
     /// glyph or the note's lines), one box in the row's sketch, and "added the Launch plan card" in
     /// an AI's receipt.

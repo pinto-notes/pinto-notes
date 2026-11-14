@@ -376,6 +376,8 @@ enum CanvasCommand: Equatable, Sendable {
     case cards([String: CanvasNoteCard])
     /// Notes onto the board as cards, at a point of the page or in the middle of the view.
     case addCards([CanvasNoteCard], at: CGPoint?)
+    /// A note's card selected and brought into view ("On boards" at the foot of the note).
+    case focusCard(UUID)
 
     var payload: [String: Any] {
         switch self {
@@ -392,6 +394,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .cropDone: ["op": "cropDone"]
         case .present(let to): ["op": "present", "to": to.rawValue]
         case .cards(let info): ["op": "cards", "info": info.mapValues(\.payload)]
+        case .focusCard(let note): ["op": "focusCard", "note": note.uuidString]
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -436,7 +439,11 @@ final class CanvasController {
         if let r = m["remote"] as? [String: Any] { remoteChange(r); return }
         if let ref = m["open"] as? String { openCard(ref); return }
         let next = CanvasState(m)
-        if !connected { connected = true }
+        if !connected {
+            connected = true
+            // A board opened from "On boards": its card for that note, once the page can take it.
+            if let note = focusing { focusing = nil; send(.focusCard(note)) }
+        }
         if next != state { state = next }
         if next.cardNotes != cardNotes {
             cardNotes = next.cardNotes
@@ -588,6 +595,15 @@ final class CanvasController {
         let cards = refs.compactMap { info[$0] }.filter { $0.id != nil && !$0.deleted }
         guard !cards.isEmpty else { return }
         send(.addCards(cards, at: point))
+    }
+
+    /// The card waiting for the page to be ready, to be selected and brought into view.
+    @ObservationIgnored private(set) var focusing: UUID?
+
+    /// Selects `note`'s card and brings it into view: at once when the page is ready, else as
+    /// soon as it first reports (a board just opened from "On boards").
+    func focusCard(_ note: UUID) {
+        if connected { send(.focusCard(note)) } else { focusing = note }
     }
 
     /// A card was opened (double-click, ⌘-click, Open Note): its note, or why not.

@@ -35,6 +35,10 @@ final class NoteLinks {
     @ObservationIgnored var changed: () -> Void = {}
     /// Opens a note at a place in its text (set by the note screen).
     @ObservationIgnored var open: (UUID, Int) -> Void = { _, _ in }
+    /// The whiteboards with a card for this note ("On 2 boards: …"), newest first.
+    private(set) var boards: [CanvasBoards.Board] = []
+    /// Opens a board with this note's card selected and in view (set by the note screen).
+    @ObservationIgnored var openBoard: (UUID) -> Void = { _ in }
 
     @ObservationIgnored private var names: [String] = []
     @ObservationIgnored private var search: Task<Void, Never>?
@@ -42,7 +46,16 @@ final class NoteLinks {
 
     init(noteID: UUID? = nil) { self.noteID = noteID }
 
-    var isEmpty: Bool { linked.isEmpty && mentions.isEmpty && lastLinked == nil }
+    var isEmpty: Bool { linked.isEmpty && mentions.isEmpty && lastLinked == nil && boards.isEmpty }
+    /// Nothing links here or mentions it (the folding line has nothing to say).
+    var linksEmpty: Bool { linked.isEmpty && mentions.isEmpty && lastLinked == nil }
+
+    /// The boards with a card for this note, from their saved scenes (CanvasBoards keeps each
+    /// board's cards until its bytes change). None for a locked or deleted note.
+    func refreshBoards(_ note: Note, context: ModelContext, data: NotePageDataStore = .shared, pages: NotePageStore = .shared) {
+        let now = note.isLocked || note.trashedAt != nil ? [] : CanvasBoards.boards(holding: note.id, in: context, data: data, pages: pages)
+        if now != boards { boards = now }
+    }
 
     /// The notes that link here, from the link index (`found`: `backlinkIDs(to:)`, newest first).
     func refresh(_ found: [UUID], note: Note, context: ModelContext) {
@@ -130,9 +143,12 @@ struct NoteLinksSection: View {
                     .fill(Color.line)
                     .frame(height: 1 / max(scale, 1))
                     .accessibilityHidden(true)
-                summaryLine
-                    .padding(.top, 6)
-                if shown { rows.padding(.top, 10) }
+                if !model.boards.isEmpty { boardsLine.padding(.top, 6) }
+                if !model.linksEmpty {
+                    summaryLine
+                        .padding(.top, model.boards.isEmpty ? 6 : 0)
+                    if shown { rows.padding(.top, 10) }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -157,6 +173,53 @@ struct NoteLinksSection: View {
         case (false, true): return "Mentioned in \(mentions)\(plus) \(mentions == 1 && !more ? "note" : "notes")"
         case (false, false): return "Unlinked mentions"
         }
+    }
+
+    /// "On 1 board: Launch plan", "On 2 boards: Product launch, Q3 roadmap": the line's words
+    /// before the names, and the names as they're listed.
+    static func boardsSummary(_ titles: [String]) -> String {
+        "\(boardsLead(titles.count)) \(titles.joined(separator: ", "))"
+    }
+
+    static func boardsLead(_ count: Int) -> String { count == 1 ? "On 1 board:" : "On \(count) boards:" }
+
+    /// The scheme of the links in the boards line; the rest of the link is the board's id.
+    static let boardScheme = "pinto-board"
+
+    /// The boards line as one text, each board's name a link, so a long list wraps as words do.
+    static func boardsText(_ boards: [CanvasBoards.Board]) -> AttributedString {
+        var s = AttributedString(boardsLead(boards.count) + " ")
+        for (i, b) in boards.enumerated() {
+            var name = AttributedString(b.title.isEmpty ? CanvasNote.title : b.title)
+            name.link = URL(string: "\(boardScheme):\(b.id.uuidString)")
+            name.foregroundColor = Color(PColor.paneAccent)
+            s += name
+            if i < boards.count - 1 { s += AttributedString(", ") }
+        }
+        return s
+    }
+
+    /// The board a link in the boards line names.
+    static func board(from url: URL) -> UUID? {
+        guard url.scheme == boardScheme else { return nil }
+        return UUID(uuidString: url.absoluteString.dropFirst(boardScheme.count + 1).description)
+    }
+
+    /// "On 2 boards: Product launch, Q3 roadmap", always shown (not folded: it's one line), each
+    /// name a link that opens the board with this note's card selected.
+    private var boardsLine: some View {
+        Text(Self.boardsText(model.boards))
+            .font(.system(size: Self.summarySize, weight: .medium))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .frame(minHeight: Self.target, alignment: .leading)
+            .environment(\.openURL, OpenURLAction { url in
+                guard let id = Self.board(from: url) else { return .systemAction }
+                model.openBoard(id)
+                return .handled
+            })
+            .accessibilityLabel(Self.boardsSummary(model.boards.map(\.title)))
+            .accessibilityIdentifier("noteLinks.boards")
     }
 
     private var summaryText: String {
