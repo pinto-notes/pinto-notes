@@ -106,12 +106,16 @@ const STYLE = {
   fontSize: (v) => ["changeFontSize", v],
   startArrowhead: (v) => ["changeArrowhead", { position: "start", type: v }],
   endArrowhead: (v) => ["changeArrowhead", { position: "end", type: v }],
+  arrowType: (v) => ["changeArrowType", v],
 };
 /** The app's menu commands, by the engine's action names. */
 const ACTIONS = {
   undo: "undo", redo: "redo", bringToFront: "bringToFront", sendToBack: "sendToBack", bringForward: "bringForward",
   sendBackward: "sendBackward", duplicate: "duplicateSelection", delete: "deleteSelectedElements", selectAll: "selectAll",
   zoomIn: "zoomIn", zoomOut: "zoomOut", resetZoom: "resetZoom", zoomToFit: "zoomToFit", clear: "clearCanvas",
+  alignLeft: "alignLeft", alignCenter: "alignHorizontallyCentered", alignRight: "alignRight",
+  alignTop: "alignTop", alignMiddle: "alignVerticallyCentered", alignBottom: "alignBottom",
+  distributeHorizontally: "distributeHorizontally", distributeVertically: "distributeVertically",
 };
 const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser"]);
 
@@ -210,6 +214,9 @@ export function stateOf(api, app) {
       fontSize: pick("fontSize", "currentItemFontSize"),
       startArrowhead: first && first.type === "arrow" ? first.startArrowhead : s.currentItemStartArrowhead,
       endArrowhead: first && first.type === "arrow" ? first.endArrowhead : s.currentItemEndArrowhead,
+      arrowType: first && first.type === "arrow" ? (first.elbowed ? "elbow" : first.roundness ? "round" : "sharp") : s.currentItemArrowType,
+      // Shapes with different fills: the fill swatch says so, rather than showing the first one's.
+      mixedFill: new Set(selected.filter((e) => ["rectangle", "diamond", "ellipse"].includes(e.type)).map((e) => e.backgroundColor)).size > 1,
     },
     zoom: s.zoom && s.zoom.value,
     background: s.viewBackgroundColor,

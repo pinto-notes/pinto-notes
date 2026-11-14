@@ -527,7 +527,7 @@ struct CanvasSelectionBar: View {
                     .accessibilityIdentifier("canvas.bar.stroke")
                 }
                 if state.showsFill {
-                    chip(.fill) { fillSwatch(state.backgroundColor, dark: dark, size: 18) }
+                    chip(.fill) { fillSwatch(state.mixedFill ? "mixed" : state.backgroundColor, dark: dark, size: 18) }
                         .accessibilityLabel("Fill")
                         .accessibilityIdentifier("canvas.bar.fill")
                 }
@@ -549,6 +549,17 @@ struct CanvasSelectionBar: View {
                         }
                         .pickerStyle(.inline)
                     }
+                }
+                if state.showsArrowheads {
+                    menuButton("Arrow type", symbol: CanvasStyle.arrowTypes.first { $0.value == state.arrowType }?.symbol ?? "arrow.up.right", id: "canvas.bar.arrowType") {
+                        Picker("Arrow type", selection: Binding(get: { state.arrowType }, set: { canvas.set(.arrowType, .text($0)) })) {
+                            ForEach(CanvasStyle.arrowTypes, id: \.value) { Label($0.name, systemImage: $0.symbol).tag($0.value) }
+                        }
+                        .pickerStyle(.inline)
+                    }
+                }
+                if state.showsAlign {
+                    menuButton("Align", symbol: "align.horizontal.left", id: "canvas.bar.align") { CanvasAlignItems(canvas: canvas, count: state.selection.count) }
                 }
                 menuButton("Arrange", symbol: "square.3.layers.3d", id: "canvas.bar.layer") {
                     Button("Bring to Front", systemImage: "square.3.layers.3d.top.filled") { canvas.run(.bringToFront) }
@@ -630,7 +641,13 @@ struct CanvasSelectionBar: View {
 
     @ViewBuilder
     private func fillSwatch(_ hex: String, dark: Bool, size: CGFloat) -> some View {
-        if hex == "transparent" {
+        if hex == "mixed" {
+            // Different fills: half and half, as a mixed state.
+            RoundedRectangle(cornerRadius: size * 0.28).fill(LinearGradient(colors: [.secondary.opacity(0.55), .secondary.opacity(0.55), Color.card, Color.card], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay(RoundedRectangle(cornerRadius: size * 0.28).strokeBorder(Color.line, lineWidth: 1))
+                .frame(width: size, height: size)
+                .accessibilityLabel("Mixed")
+        } else if hex == "transparent" {
             Circle().fill(Color.card)
                 .overlay(Rectangle().fill(Color.red).frame(width: 1.5, height: size * 1.1).rotationEffect(.degrees(45)))
                 .clipShape(Circle())
@@ -640,6 +657,28 @@ struct CanvasSelectionBar: View {
             RoundedRectangle(cornerRadius: size * 0.28).fill(CanvasStyle.shown(hex, dark: dark) ?? .clear)
                 .overlay(RoundedRectangle(cornerRadius: size * 0.28).strokeBorder(Color.line, lineWidth: 1))
                 .frame(width: size, height: size)
+        }
+    }
+}
+
+/// Lining up two or more: Excalidraw's align and distribute (whiteboard council, round 2: "used on
+/// every diagram").
+struct CanvasAlignItems: View {
+    let canvas: CanvasController
+    let count: Int
+
+    var body: some View {
+        Button("Align Left", systemImage: "align.horizontal.left") { canvas.run(.alignLeft) }
+        Button("Align Centre", systemImage: "align.horizontal.center") { canvas.run(.alignCenter) }
+        Button("Align Right", systemImage: "align.horizontal.right") { canvas.run(.alignRight) }
+        Divider()
+        Button("Align Top", systemImage: "align.vertical.top") { canvas.run(.alignTop) }
+        Button("Align Middle", systemImage: "align.vertical.center") { canvas.run(.alignMiddle) }
+        Button("Align Bottom", systemImage: "align.vertical.bottom") { canvas.run(.alignBottom) }
+        if count >= 3 {
+            Divider()
+            Button("Space Evenly Across", systemImage: "distribute.horizontal.center") { canvas.run(.distributeHorizontally) }
+            Button("Space Evenly Down", systemImage: "distribute.vertical.center") { canvas.run(.distributeVertically) }
         }
     }
 }

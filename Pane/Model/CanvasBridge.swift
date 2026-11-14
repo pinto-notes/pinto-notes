@@ -117,6 +117,7 @@ enum CanvasStyle {
     static let fonts: [(name: String, value: Int)] = [("Hand-drawn", 5), ("Normal", 6), ("Code", 8)]
     static let fontSizes: [(name: String, value: Double)] = [("S", 16), ("M", 20), ("L", 28), ("XL", 36)]
     /// nil is no arrowhead.
+    static let arrowTypes: [(name: String, value: String, symbol: String)] = [("Straight", "sharp", "arrow.up.right"), ("Curved", "round", "arrow.uturn.right"), ("Elbow", "elbow", "arrow.turn.down.right")]
     static let arrowheads: [(name: String, value: String?)] = [("None", nil), ("Arrow", "arrow"), ("Triangle", "triangle"), ("Bar", "bar"), ("Circle", "circle")]
 
     /// A colour as the canvas shows it: in dark mode the engine draws the scene inverted and turned
@@ -221,6 +222,10 @@ struct CanvasState: Equatable, Sendable {
     var fontSize: Double = 20
     var startArrowhead: String? = nil
     var endArrowhead: String? = "arrow"
+    /// "sharp" (straight), "round" (curved) or "elbow".
+    var arrowType = "round"
+    /// The selected shapes have different fills.
+    var mixedFill = false
     var zoom: Double = 1
     var background = "#ffffff"
     var canUndo = false
@@ -252,6 +257,8 @@ struct CanvasState: Equatable, Sendable {
         fontSize = num("fontSize") ?? fontSize
         startArrowhead = s["startArrowhead"] as? String
         endArrowhead = s["endArrowhead"] as? String
+        arrowType = (s["arrowType"] as? String) ?? arrowType
+        mixedFill = (s["mixedFill"] as? Bool) ?? false
         zoom = (m["zoom"] as? NSNumber)?.doubleValue ?? zoom
         background = (m["background"] as? String) ?? background
         canUndo = (m["canUndo"] as? Bool) ?? false
@@ -271,7 +278,10 @@ struct CanvasState: Equatable, Sendable {
     var showsFill: Bool { !styledTypes.isDisjoint(with: ["rectangle", "diamond", "ellipse"]) }
     var showsText: Bool { styledTypes.contains("text") }
     var showsArrowheads: Bool { styledTypes.contains("arrow") }
-    var showsStroke: Bool { !styledTypes.subtracting(["text"]).isEmpty }
+    /// A picture has no stroke to set (whiteboard council, round 2, 11: the bar offered one).
+    var showsStroke: Bool { !styledTypes.subtracting(["text", "image"]).isEmpty }
+    /// Two or more selected: they can be lined up.
+    var showsAlign: Bool { selection.count >= 2 }
 }
 
 /// What the app asks the page to do.
@@ -279,9 +289,10 @@ enum CanvasCommand: Equatable, Sendable {
     enum Action: String, CaseIterable, Sendable {
         case undo, redo, bringToFront, sendToBack, bringForward, sendBackward, duplicate, delete, selectAll
         case zoomIn, zoomOut, resetZoom, zoomToFit, clear
+        case alignLeft, alignCenter, alignRight, alignTop, alignMiddle, alignBottom, distributeHorizontally, distributeVertically
     }
     enum StyleKey: String, Sendable {
-        case strokeColor, backgroundColor, fillStyle, strokeWidth, strokeStyle, opacity, fontFamily, fontSize, startArrowhead, endArrowhead
+        case strokeColor, backgroundColor, fillStyle, strokeWidth, strokeStyle, opacity, fontFamily, fontSize, startArrowhead, endArrowhead, arrowType
     }
     enum Value: Equatable, Sendable {
         case text(String), number(Double), none

@@ -465,6 +465,45 @@ import UIKit
         #expect(parts.count == 5 && parts[3].lowercased() == made?.lowercased(), "the engine reads the filtered accent: \(seen), made \(made ?? "nil")")
     }
 
+    /// Two or more shapes line up and space out from the bar; an arrow turns straight, curved or
+    /// elbowed; different fills show as mixed; a picture has no stroke to set (whiteboard council,
+    /// round 2: 09, 10, 11).
+    @Test func shapesAlignArrowsBendAndMixedFillsShowAsMixed() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "a", "x": 100, "y": 100, "width": 100, "height": 60, "backgroundColor": "#ffc9c9", "fillStyle": "solid"],
+            ["type": "rectangle", "id": "b", "x": 160, "y": 220, "width": 100, "height": 60, "backgroundColor": "#b2f2bb", "fillStyle": "solid"],
+            ["type": "rectangle", "id": "c", "x": 400, "y": 340, "width": 100, "height": 60, "backgroundColor": "#b2f2bb", "fillStyle": "solid"],
+            ["type": "arrow", "id": "line", "x": 300, "y": 100, "width": 120, "height": 80, "points": [[0, 0], [60, 20], [120, 80]]],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { a: true, b: true, c: true } } }); 0")
+        await j.until("three selected") { j.canvas.state.selection.count == 3 }
+        #expect(j.canvas.state.showsAlign && j.canvas.state.mixedFill, "align offered, the fill shown as mixed")
+        j.canvas.run(.alignLeft)
+        try await Task.sleep(for: .milliseconds(300))
+        let xs = try await j.js("['a','b','c'].map((id) => Math.round(amber._canvas.api.getSceneElements().find((e) => e.id === id).x)).join(',')") as? String
+        #expect(xs == "100,100,100", "lined up on the left: \(xs ?? "")")
+        j.canvas.run(.distributeVertically)
+        try await Task.sleep(for: .milliseconds(300))
+        let ys = try await j.js("['a','b','c'].map((id) => Math.round(amber._canvas.api.getSceneElements().find((e) => e.id === id).y)).join(',')") as? String
+        #expect(ys == "100,220,340", "spaced evenly: \(ys ?? "")")
+
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { line: true } } }); 0")
+        await j.until("the arrow selected") { j.canvas.state.selection == ["arrow"] }
+        #expect(!j.canvas.state.showsAlign && !j.canvas.state.mixedFill)
+        j.canvas.set(.arrowType, .text("elbow"))
+        await j.until("elbowed") { j.canvas.state.arrowType == "elbow" }
+        let elbowed = try await j.js("amber._canvas.api.getSceneElements().find((e) => e.id === 'line').elbowed === true") as? Bool
+        #expect(elbowed == true)
+        j.canvas.set(.arrowType, .text("sharp"))
+        await j.until("straight") { j.canvas.state.arrowType == "sharp" }
+
+        var picture = CanvasState()
+        picture.selection = ["image"]
+        #expect(!picture.showsStroke && !picture.showsFill, "a picture: no stroke or fill to set")
+    }
+
     /// When the board gets wider (the sidebar folding away, Full Screen) the drawing stays where
     /// it was in the middle of the view; the engine kept its left edge, which left a drawing in the
     /// left half (whiteboard council, round 1, 08-fullscreen).
