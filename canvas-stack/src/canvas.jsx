@@ -174,21 +174,28 @@ export function addSticky(api) {
   const ids = Object.keys(s.selectedElementIds || {});
   const next = ids.length === 1 ? api.getSceneElements().find((e) => e.id === ids[0]) : null;
   const size = STICKY.size;
-  const at = next
-    ? { x: next.x + next.width + STICKY.gap, y: next.y }
-    : { x: -s.scrollX + s.width / 2 / z - size / 2, y: -s.scrollY + s.height / 2 / z - size / 2 };
   // Never on top of another card or shape: the nearest free spot in view, any direction. Big
-  // shapes (a retro's lanes, a meeting's sections) don't count: a sticky goes on them.
+  // shapes (a retro's lanes, a meeting's sections) don't count: a sticky goes on them, and the
+  // next one in a lane goes under the last, as on a real retro board.
   const big = size * size * 2;
+  const lane = next && api.getSceneElements().find((e) => !e.containerId && e.type !== "text" && e.id !== next.id && e.width * e.height >= big
+    && next.x >= e.x && next.y >= e.y && next.x + next.width <= e.x + e.width && next.y + next.height <= e.y + e.height);
+  const at = !next ? { x: -s.scrollX + s.width / 2 / z - size / 2, y: -s.scrollY + s.height / 2 / z - size / 2 }
+    : lane ? { x: next.x, y: next.y + next.height + STICKY.gap }
+    : { x: next.x + next.width + STICKY.gap, y: next.y };
   const taken = api.getSceneElements().filter((e) => !e.containerId && e.type !== "text" && e.width * e.height < big).map((e) => getCommonBounds([e]));
   const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 + 8 && x + size > x1 - 8 && y < y2 + 8 && y + size > y1 - 8);
-  if (!free(at.x, at.y)) {
-    const step = (size + STICKY.gap) / 2, vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
-    const inView = (x, y) => x >= vx && y >= vy && x + size <= vx + vw && y + size <= vy + vh;
+  const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
+  const inView = (x, y) => x >= vx && y >= vy && x + size <= vx + vw && y + size <= vy + vh;
+  if (!free(at.x, at.y) || !inView(at.x, at.y)) {
+    const step = (size + STICKY.gap) / 2;
     let best = null;
     for (let i = -8; i <= 8; i++) for (let j = -8; j <= 8; j++) {
-      const x = at.x + i * step, y = at.y + j * step, d = i * i + j * j + (i < 0 ? 0.5 : 0) + (j < 0 ? 0.3 : j > 0 ? 0.1 : 0);
-      if ((!next || inView(x, y)) && free(x, y) && (inView(x, y) || next) && (!best || d < best.d)) best = { x, y, d };
+      const x = at.x + i * step, y = at.y + j * step;
+      if (!free(x, y)) continue;
+      // In view first; then nearest, to the right before the left, below before above.
+      const d = (inView(x, y) ? 0 : 1000) + i * i + j * j + (i < 0 ? 0.5 : 0) + (j < 0 ? 0.3 : j > 0 ? 0.1 : 0);
+      if (!best || d < best.d) best = { x, y, d };
     }
     if (best) { at.x = best.x; at.y = best.y; }
   }

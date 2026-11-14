@@ -550,6 +550,18 @@ import UIKit
           return JSON.stringify({ over, ink: words && words.strokeColor }); })()
         """) as? String
         #expect(clear == "{\"over\":false,\"ink\":\"#2a1d10\"}", "not on a card, its words in ink: \(clear ?? "")")
+        // The next one stays in that lane and in view: under it, or above when the view ends.
+        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+        await j.until("done typing") { !j.canvas.state.editing }
+        j.canvas.send(.sticky)
+        await j.until("typing in the next") { j.canvas.state.editing }
+        let lane = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
+          const st = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky);
+          const b = st[1]; const inView = (b.x + s.scrollX) * z >= 0 && (b.x + b.width + s.scrollX) * z <= s.width && (b.y + s.scrollY) * z >= 0 && (b.y + b.height + s.scrollY) * z <= s.height;
+          return JSON.stringify({ sameX: Math.round(st[0].x) === Math.round(b.x), below: b.y > st[0].y, inView }); })()
+        """) as? String)
+        #expect(lane.contains("\"sameX\":true") && lane.contains("\"inView\":true"), "in the same lane, in view (under it when there's room): \(lane)")
     }
 
     /// Two or more shapes line up and space out from the bar; an arrow turns straight, curved or
