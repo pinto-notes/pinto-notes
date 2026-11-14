@@ -29,8 +29,9 @@ export default function Page() {
     <div className={s.main}>
       <section className={s.hero}>
         <div className={s.head}>
-          <h1 className={s.h1}>Write. Draw. Build.</h1>
-          <p className={s.sub}>The notebook for you and your AI.</p>
+          <h1 className={s.h1}>The notebook for you and your AI.</h1>
+          {/* The verbs name the three things next to their nouns; they aren't the headline (Emil, 11-14). */}
+          <p className={s.sub}>Write notes, draw on whiteboards and build small apps. Your AI can help with all three.</p>
           <div className={s.act}>
             <div className={x.ctas}>
               <Download note={false} />

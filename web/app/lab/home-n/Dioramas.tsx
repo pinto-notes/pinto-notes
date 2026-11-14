@@ -32,7 +32,7 @@ type Card = {
 const MAC = { W: 2880, H: 1800 };
 const CARDS: Card[] = [
   {
-    id: "notes", title: "Write.", line: "Notes that feel like Apple Notes. Bring yours over.", mini: "Notes, like Apple Notes.", scene: <NotesScene />,
+    id: "notes", title: "Write notes.", line: "They feel like Apple Notes. Bring yours over.", mini: "Like Apple Notes.", scene: <NotesScene />,
     sheet: {
       line: "Feels like Apple Notes, on Mac and iPhone.",
       crop: { src: "/lab/big3/layout-two-columns-main.webp", ...MAC, x: 0, y: 0, w: 1940, h: 1078, alt: "Pinto Notes on a Mac: the list of notes, and the Groceries note open with its checklist." },
@@ -44,7 +44,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "whiteboards", title: "Draw.", line: "A whiteboard next to your notes. Your AI can read it and draw on it.", mini: "A whiteboard your AI can read.", scene: <BoardScene />,
+    id: "whiteboards", title: "Draw on whiteboards.", line: "Right next to your notes. Your AI can read them and draw on them.", mini: "Your AI can read them.", scene: <BoardScene />,
     sheet: {
       line: "Sketch how something works. Your AI sees it too.",
       crop: { src: "/lab/big3/canvas-selected-light-main.webp", ...MAC, x: 300, y: 420, w: 2300, h: 1360, alt: "A whiteboard in Pinto Notes on a Mac: Idea, Draft, Ready?, then Publish or Fix it, with the drawing tools along the bottom." },
@@ -56,7 +56,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "apps", title: "Build.", line: "Small apps in a note, like a habit tracker. Your AI can make one.", mini: "Apps, like a habit tracker.", scene: <AppsScene />,
+    id: "apps", title: "Build apps.", line: "Small apps in a note, like a habit tracker. Your AI can make one.", mini: "Like a habit tracker.", scene: <AppsScene />,
     sheet: {
       line: "A habit tracker, a budget, a trip plan. Ready now, or made for you.",
       crop: { src: "/lab/big3/create-mac-newapp-page-chatgpt-light.webp", W: 2938, H: 1840, x: 1190, y: 140, w: 1748, h: 1000, alt: "The New app page in Pinto Notes: four templates, and a box to describe your own and make it with ChatGPT." },
@@ -115,7 +115,7 @@ function Diorama({ card, onOpen }: { card: Card; onOpen: (b: HTMLButtonElement) 
       <div className={s.box}>
         <div className={s.stage}>{card.scene}<Frame /></div>
       </div>
-      <button type="button" className={s.hit} aria-haspopup="dialog" aria-label={`${card.title.replace(".", "")}: ${card.line} See it`}
+      <button type="button" className={s.hit} aria-haspopup="dialog" aria-label={`${card.title} ${card.line} See it`}
         onClick={(e) => onOpen(e.currentTarget)} />
     </li>
   );

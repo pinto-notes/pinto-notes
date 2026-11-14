@@ -1,7 +1,7 @@
 "use client";
 
 import { APP_STORE_URL } from "@/lib/site";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { OffApple } from "../home-l/OffApple";
@@ -15,11 +15,11 @@ import s from "./o.module.css";
 // `?w=draw` opens on a word and holds it; `?t=<anything>` holds still (for screenshots).
 // Reduce Motion: no turning by itself, no fades.
 
-type Word = { id: "write" | "draw" | "build"; word: string; line: string; art: string; artAlt: string; flip?: boolean; Pic: () => React.JSX.Element };
+type Word = { id: "write" | "draw" | "build"; word: string; noun: string; line: string; art: string; artAlt: string; flip?: boolean; Pic: () => React.JSX.Element };
 const WORDS: Word[] = [
-  { id: "write", word: "Write.", line: "Notes that feel like Apple Notes. Bring yours over.", art: "/home-v5/frontier/maya-paper.webp", artAlt: "", Pic: WritePic },
-  { id: "draw", word: "Draw.", line: "A whiteboard next to your notes. Your AI can read it and draw on it.", art: "/home-v5/frontier/jonas-lisbon.webp", artAlt: "", flip: true, Pic: DrawPic },
-  { id: "build", word: "Build.", line: "Small apps in a note, like a habit tracker. Your AI can make one.", art: "/home-v5/frontier/sara-cafe.webp", artAlt: "", Pic: BuildPic },
+  { id: "write", word: "Write", noun: "Notes", line: "Notes that feel like Apple Notes. Bring yours over.", art: "/home-v5/frontier/maya-paper.webp", artAlt: "", Pic: WritePic },
+  { id: "draw", word: "Draw", noun: "Whiteboards", line: "A whiteboard next to your notes. Your AI can read it and draw on it.", art: "/home-v5/frontier/jonas-lisbon.webp", artAlt: "", flip: true, Pic: DrawPic },
+  { id: "build", word: "Build", noun: "Apps", line: "Small apps in a note, like a habit tracker. Your AI can make one.", art: "/home-v5/frontier/sara-cafe.webp", artAlt: "", Pic: BuildPic },
 ];
 const EVERY = 4600;
 
@@ -85,21 +85,18 @@ export function Switch() {
   const w = WORDS[on];
   return (
     <section className={s.hero} data-calm={calm ? "" : undefined} aria-labelledby="o-h1">
-      <h1 id="o-h1" className={s.h1}>
-        <span role="tablist" aria-labelledby="o-h1" className={s.tabs} onKeyDown={onKey}>
-          {WORDS.map((v, i) => (
-            <Fragment key={v.id}>
-            {i > 0 && " "}
-            <button ref={(el) => { tabs.current[i] = el; }} type="button" role="tab" id={`o-tab-${v.id}`}
-              aria-selected={i === on} aria-controls={`o-panel-${v.id}`} tabIndex={i === on ? 0 : -1}
-              className={s.tab} onClick={() => pick(i)}>
-              {v.word}
-            </button>
-            </Fragment>
-          ))}
-        </span>
-      </h1>
-      <p className={s.sub}>The notebook for you and your AI.</p>
+      <h1 id="o-h1" className={s.h1}>The notebook for you and your AI.</h1>
+      {/* Write, Draw and Build name the three things next to their nouns; they're the switch, not the headline (Emil, 11-14). */}
+      <div role="tablist" aria-label="Notes, whiteboards and apps" className={s.tabs} onKeyDown={onKey}>
+        {WORDS.map((v, i) => (
+          <button key={v.id} ref={(el) => { tabs.current[i] = el; }} type="button" role="tab" id={`o-tab-${v.id}`}
+            aria-selected={i === on} aria-controls={`o-panel-${v.id}`} tabIndex={i === on ? 0 : -1}
+            className={s.tab} onClick={() => pick(i)}>
+            <span className={s.verb}>{v.word}</span>
+            <span className={s.noun}>{v.noun}</span>
+          </button>
+        ))}
+      </div>
       <p className={s.line} key={w.id}>{w.line}</p>
 
       <div className={`${x.ctas} ${s.ctas}`}>
