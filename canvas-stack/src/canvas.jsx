@@ -210,16 +210,24 @@ export async function exportScene(api, format, selected, light, page) {
  * bigger window, the view showed only the new thing, the person's own drawing off screen.
  * `onlyIfCut`: leave a board that's already all in view where it is. True when it framed it.
  */
+// The zoom the app chose when it zoomed out to fit, and the zoom you had before: while the view
+// is still at the app's zoom, it may zoom back in towards yours once there's room (round 4: 12,
+// 13 and 15 stayed at 64% with room to spare). Any zoom of your own ends it.
+let autoZoom = null;
+
 export function frameBoard(api, { minZoom, onlyIfCut = false } = {}) {
   const els = api.getSceneElements();
   if (!els.length) return false;
   const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, m = 48;
+  if (autoZoom && Math.abs(autoZoom.set - z) > 1e-3) autoZoom = null;
+  const cap = autoZoom ? autoZoom.from : z;
   const [x1, y1, x2, y2] = getCommonBounds(els);
   const inView = (x1 + s.scrollX) * z >= 0 && (y1 + s.scrollY) * z >= 0 && (x2 + s.scrollX) * z <= s.width && (y2 + s.scrollY) * z <= s.height;
-  if (onlyIfCut && inView) return false;
   const fit = Math.min((s.width - 2 * m) / Math.max(1, x2 - x1), (s.height - 2 * m) / Math.max(1, y2 - y1));
-  const nz = Math.min(z, fit);
+  const nz = Math.min(cap, fit);
+  if (onlyIfCut && inView && !(autoZoom && nz > z + 1e-3)) return false;
   if (nz < Math.min(z, minZoom === undefined ? z : minZoom)) return false;
+  autoZoom = nz < cap - 1e-3 ? { from: cap, set: nz } : null;
   const scrollX = -(x1 + x2) / 2 + s.width / 2 / nz, scrollY = -(y1 + y2) / 2 + s.height / 2 / nz;
   flushSync(() => api.updateScene({ appState: { scrollX, scrollY, ...(nz !== z ? { zoom: { value: nz } } : {}) }, captureUpdate: CaptureUpdateAction.NEVER }));
   return true;
@@ -250,6 +258,8 @@ export function addSticky(api) {
   const w = lane ? next.width : STICKY.size, h = lane ? Math.max(76, next.height) : STICKY.size;
   const gap = lane ? 16 : STICKY.gap;
   const edge = lane ? next.strokeColor : "#e6c84f";
+  // In a lane, the lane's card colour (round 4: always yellow, even under a green card).
+  const fill = lane && next.backgroundColor && next.backgroundColor !== "transparent" ? next.backgroundColor : STICKY.color;
   const fontSize = lane && words ? words.fontSize : 20;
   const at = !next ? { x: -s.scrollX + s.width / 2 / z - w / 2, y: -s.scrollY + s.height / 2 / z - h / 2 }
     : lane ? { x: next.x, y: next.y + next.height + gap }
@@ -280,7 +290,7 @@ export function addSticky(api) {
     grown = { ...lane, height: at.y + h + gap - lane.y, version: lane.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
   }
   const [card, ...rest] = convertToExcalidrawElements([{
-    type: "rectangle", x: at.x, y: at.y, width: w, height: h, backgroundColor: STICKY.color, fillStyle: "solid",
+    type: "rectangle", x: at.x, y: at.y, width: w, height: h, backgroundColor: fill, fillStyle: "solid",
     strokeColor: edge, roundness: { type: 3 }, label: { text: " ", fontSize, verticalAlign: "middle", textAlign: "center", strokeColor: "#2a1d10" },
     customData: { pintoSticky: true },
   }], { regenerateIds: true });
@@ -431,9 +441,41 @@ function bridge(api) {
     });
     if (changed) api.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
   };
+  // After Align or Distribute, a straight arrow between two of the shapes that moved runs
+  // centre to centre, edge to edge (round 4, 22-sequence-2: it kept its old slant).
+  const straighten = (moved) => {
+    const els = api.getSceneElementsIncludingDeleted();
+    const byId = new Map(els.map((e) => [e.id, e]));
+    const edge = (e, dx, dy) => {
+      const a = e.width / 2, b = e.height / 2, n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n;
+      const t = e.type === "ellipse" ? 1 / Math.hypot(ux / a, uy / b)
+        : e.type === "diamond" ? 1 / (Math.abs(ux) / a + Math.abs(uy) / b)
+        : Math.min(Math.abs(ux) > 1e-6 ? a / Math.abs(ux) : Infinity, Math.abs(uy) > 1e-6 ? b / Math.abs(uy) : Infinity);
+      return { x: e.x + a + ux * (t + 6), y: e.y + b + uy * (t + 6) };
+    };
+    let changed = false;
+    const next = els.map((r) => {
+      if (r.type !== "arrow" || r.isDeleted || r.elbowed || (r.points || []).length !== 2 || !r.startBinding || !r.endBinding) return r;
+      const A = byId.get(r.startBinding.elementId), B = byId.get(r.endBinding.elementId);
+      if (!A || !B || !(moved[A.id] || moved[B.id])) return r;
+      const ca = { x: A.x + A.width / 2, y: A.y + A.height / 2 }, cb = { x: B.x + B.width / 2, y: B.y + B.height / 2 };
+      const p = edge(A, cb.x - ca.x, cb.y - ca.y), q = edge(B, ca.x - cb.x, ca.y - cb.y);
+      changed = true;
+      return { ...r, x: p.x, y: p.y, points: [[0, 0], [q.x - p.x, q.y - p.y]], width: Math.abs(q.x - p.x), height: Math.abs(q.y - p.y),
+        startBinding: { ...r.startBinding, focus: 0, gap: 6 }, endBinding: { ...r.endBinding, focus: 0, gap: 6 },
+        version: r.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
+    });
+    if (changed) api.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
+  };
   const run = (name, value = null) => {
     const action = app && app.actionManager.actions[name];
     if (!action) return;
+    if (/^(align|distribute)/.test(name)) {
+      const moved = { ...(api.getAppState().selectedElementIds || {}) };
+      app.actionManager.executeAction(action, "api", value);
+      straighten(moved);
+      return;
+    }
     if (name !== "undo" && name !== "redo") { app.actionManager.executeAction(action, "api", value); return; }
     remember();
     replaying = true;
@@ -697,7 +739,10 @@ function Canvas({ initial }) {
         const s = api.getAppState();
         const [x, y, width, height] = rect(changed, s);
         const boxes = tops.map((e) => rect([e, ...changed.filter((t) => t.containerId === e.id)], s));
-        return { x, y, width, height, boxes, view: s };
+        // The rest of what's in view, for the name tag to keep clear of.
+        const near = api.getSceneElements().filter((e) => !ids.has(e.id) && !e.containerId).map((e) => rect([e], s))
+          .filter(([nx, ny, nw, nh]) => nx + nw > 0 && ny + nh > 0 && nx < s.width && ny < s.height).slice(0, 120);
+        return { x, y, width, height, boxes, near, view: s };
       };
       let r = where();
       const out = r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height;
@@ -726,7 +771,7 @@ function Canvas({ initial }) {
         flushSync(() => api.updateScene({ appState: { scrollX, scrollY }, captureUpdate: CaptureUpdateAction.NEVER }));
         r = where();
       }
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, count: changed.length } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, count: changed.length } }); } catch (_) {}
       // While it's shown (the app decides how long), the outline follows the view as you pan,
       // zoom or resize the window (whiteboard council, round 2, 15: it came loose after 8 s).
       outlined = { changed, until: Date.now() + 120000, where };
@@ -736,7 +781,7 @@ function Canvas({ initial }) {
       if (!outlined) return;
       if (Date.now() > outlined.until) { outlined = null; return; }
       const r = outlined.where();
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, count: outlined.changed.length, follow: true } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, count: outlined.changed.length, follow: true } }); } catch (_) {}
     });
 
     // Text an AI wrote was measured before the hand-drawn font arrived: measured again once it has.

@@ -111,15 +111,25 @@ struct CanvasAIHighlight: View {
 
     /// Where the name tag's top-left corner goes: above the topmost outline and clear of it
     /// (round 3, 16: it covered a shape's corner), or under it when there's no room above.
-    static func tag(over outlines: [CGRect]) -> CGPoint {
+    /// …and clear of the rest of the drawing too, when it can be (round 4: it covered the
+    /// template's how-to line and an arrow): above or below the topmost outline, at its left or
+    /// right end, the first spot that covers nothing.
+    static func tag(over outlines: [CGRect], avoiding near: [CGRect] = [], width: CGFloat = 96) -> CGPoint {
         guard let top = outlines.min(by: { ($0.minY, $0.minX) < ($1.minY, $1.minX) }) else { return .zero }
-        let above = top.minY - 4 - 22
-        return CGPoint(x: top.minX, y: above >= 4 ? above : top.maxY + 4)
+        let above = top.minY - 4 - 22, below = top.maxY + 4
+        let spots = [CGPoint(x: top.minX, y: above), CGPoint(x: top.maxX - width, y: above),
+                     CGPoint(x: top.minX, y: below), CGPoint(x: top.maxX - width, y: below)].filter { $0.y >= 4 }
+        let others = outlines.filter { $0 != top } + near
+        let clear = spots.first { p in
+            let r = CGRect(x: p.x, y: p.y, width: width, height: 22).insetBy(dx: -2, dy: -2)
+            return !others.contains { $0.intersects(r) }
+        }
+        return clear ?? spots.first ?? CGPoint(x: top.minX, y: below)
     }
 
     var body: some View {
         let boxes = outlines
-        let at = Self.tag(over: boxes)
+        let at = Self.tag(over: boxes, avoiding: highlight.near)
         ZStack {
             ForEach(Array(boxes.enumerated()), id: \.offset) { _, r in
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -166,6 +176,7 @@ struct CanvasStart: View {
     static let askTitle = "Ask your AI to draw it\u{2026}"
     static func askTitle(_ t: AskAI.Target) -> String { "Ask \(t.ai) to draw it\u{2026}" }
     static let connectTitle = "Connect an AI to draw it for you\u{2026}"
+    static let importTitle = "Import Excalidraw files\u{2026}"
 
     var body: some View {
         VStack(spacing: 16) {
@@ -196,6 +207,15 @@ struct CanvasStart: View {
                 }
             }
             ask
+            #if os(macOS)
+            // Coming from Excalidraw: bring the old boards along from here (whiteboard council,
+            // round 4: "an import entry on the empty board").
+            Button(Self.importTitle) { CanvasImport.pick() }
+                .buttonStyle(.hoverLink)
+                .font(.system(size: 12))
+                .foregroundStyle(Color.muted)
+                .accessibilityIdentifier("canvas.import")
+            #endif
         }
         .padding(20)
         .accessibilityElement(children: .contain)
@@ -507,7 +527,9 @@ struct CanvasSelectionBar: View {
             CGPoint(x: min(max(p.x, margin + bar.width / 2), max(area.width - margin - bar.width / 2, margin + bar.width / 2)),
                     y: min(max(p.y, margin + bar.height / 2), max(area.height - margin - bar.height / 2, margin + bar.height / 2)))
         }
-        func rect(_ c: CGPoint) -> CGRect { CGRect(x: c.x - bar.width / 2, y: c.y - bar.height / 2, width: bar.width, height: bar.height).insetBy(dx: -4, dy: -4) }
+        // Clear by the bar's shadow and a hand-drawn stroke's wobble (round 4, 07: it still clipped
+        // the Start ellipse's edge with 4 pt).
+        func rect(_ c: CGPoint) -> CGRect { CGRect(x: c.x - bar.width / 2, y: c.y - bar.height / 2, width: bar.width, height: bar.height).insetBy(dx: -10, dy: -10) }
         func fits(_ c: CGPoint) -> Bool {
             c.y - bar.height / 2 >= margin && c.y + bar.height / 2 <= area.height - margin
                 && c.x - bar.width / 2 >= margin && c.x + bar.width / 2 <= area.width - margin

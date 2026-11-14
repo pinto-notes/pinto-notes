@@ -421,6 +421,8 @@ final class CanvasController {
         var count: Int
         /// Each thing it added or changed, outlined on its own (whiteboard council, round 3, 16).
         var boxes: [CGRect] = []
+        /// What else is drawn nearby, for the name tag to keep clear of.
+        var near: [CGRect] = []
     }
     var highlight: Highlight?
     @ObservationIgnored private var expecting: (by: String, at: Date)?
@@ -431,22 +433,24 @@ final class CanvasController {
 
     private func remoteChange(_ r: [String: Any]) {
         let num = { (k: String) in (r[k] as? Double) ?? (r[k] as? Int).map(Double.init) ?? 0 }
-        let boxes = ((r["boxes"] as? [[Any]]) ?? []).compactMap { b -> CGRect? in
+        let rects = { (key: String) in ((r[key] as? [[Any]]) ?? []).compactMap { b -> CGRect? in
             let v = b.compactMap { ($0 as? Double) ?? ($0 as? Int).map(Double.init) }
             return v.count == 4 ? CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) : nil
-        }
+        } }
+        let boxes = rects("boxes"), near = rects("near")
         // The view moved under an outline: it moves with it.
         if r["follow"] as? Bool == true {
             if var h = highlight {
                 h.rect = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
                 h.boxes = boxes
+                h.near = near
                 highlight = h
             }
             return
         }
         guard let e = expecting, e.at.timeIntervalSinceNow > -5 else { return }
         expecting = nil
-        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes)
+        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes, near: near)
         highlight = h
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.highlightTime))

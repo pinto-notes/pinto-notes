@@ -575,6 +575,23 @@ import UIKit
         #expect(try await j.js(allInView) as? Bool == true, "the drawing and the picture both in view")
         let zoom = try #require(try await j.js("amber._canvas.api.getAppState().zoom.value") as? Double)
         #expect(zoom < 1 && zoom >= 0.5, "zoomed out to fit, not below half: \(zoom)")
+        // The picture goes and the window gets bigger: the view zooms back in towards 100%.
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'image') }); return 0; })()")
+        j.rig.window.setContentSize(CGSize(width: 1300, height: 800))
+        j.web.frame = CGRect(x: 0, y: 0, width: 1300, height: 800)
+        for _ in 0..<100 {
+            if (try await j.js("amber._canvas.api.getAppState().width") as? Double) == 1300 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        let back = try #require(try await j.js("amber._canvas.api.getAppState().zoom.value") as? Double)
+        #expect(back > zoom + 0.05 && back <= 1, "zoomed back in, not past 100%: \(zoom) → \(back)")
+        j.rig.window.setContentSize(CGSize(width: 900, height: 600))
+        j.web.frame = CGRect(x: 0, y: 0, width: 900, height: 600)
+        for _ in 0..<100 {
+            if (try await j.js("amber._canvas.api.getAppState().width") as? Double) == 900 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
         // Panned so part of the board is cut off; the AI renames the box and adds one beside it, in
         // view: the whole board comes back into view (it fits at this zoom).
         _ = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(); api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'image'), appState: { zoom: { value: 1 }, scrollX: -200, scrollY: 0 } }); return 0; })()")
@@ -607,6 +624,12 @@ import UIKit
         let tag = CanvasAIHighlight.tag(over: CanvasAIHighlight(highlight: h).outlines)
         let top = try #require(CanvasAIHighlight(highlight: h).outlines.min { $0.minY < $1.minY })
         #expect(tag.y + 22 <= top.minY || tag.y >= top.maxY, "the tag doesn't cover the shape: \(tag) over \(top)")
+        // …nor the rest of the drawing when there's a clear spot (round 4: the how-to line, an arrow).
+        let shape2 = CGRect(x: 100, y: 200, width: 300, height: 80)
+        let hint = CGRect(x: 90, y: 160, width: 120, height: 20)
+        let at = CanvasAIHighlight.tag(over: [shape2], avoiding: [hint])
+        #expect(!CGRect(x: at.x, y: at.y, width: 96, height: 22).intersects(hint), "clear of the hint line: \(at)")
+        #expect(at.y + 22 <= shape2.minY || at.y >= shape2.maxY, "still clear of the shape: \(at)")
     }
 
     /// Undo and Redo give back exactly what was there: after Align, Undo, Redo, a bound arrow
@@ -634,6 +657,9 @@ import UIKit
         try await Task.sleep(for: .milliseconds(600))
         let aligned = try #require(try await j.js(arrow) as? String)
         #expect(soon == aligned, "nothing moves it after Align: \(soon) then \(aligned)")
+        // Lined up, the arrow runs straight across between them (round 4, 22-sequence-2).
+        let dy = aligned.split(separator: ",").compactMap { Int($0) }.last ?? 99
+        #expect(abs(dy) <= 1, "straight across after Align › Middle: \(aligned)")
         j.canvas.run(.undo)
         try await Task.sleep(for: .milliseconds(600))
         let undone = try #require(try await j.js(arrow) as? String)
@@ -683,6 +709,17 @@ import UIKit
         let png = try #require(await d.canvas.export(.png))
         let corner = try #require(NSBitmapImageRep(data: png)?.colorAt(x: 2, y: 2)?.usingColorSpace(.sRGB))
         #expect(corner.brightnessComponent > 0.9, "a light background: \(corner)")
+    }
+
+    /// An empty whiteboard offers to bring in Excalidraw files (whiteboard council, round 4:
+    /// "an Excalidraw import entry on the empty board").
+    @Test func anEmptyBoardOffersToImportExcalidrawFiles() async throws {
+        let ax = OffscreenAX(CanvasStart(canvas: CanvasController()), size: CGSize(width: 700, height: 360))
+        defer { ax.close() }
+        await ax.settle()
+        let link = try #require(ax.find("canvas.import"), "\(ax.ids())")
+        #expect(link.text.contains("Import Excalidraw files"), "\(link.text)")
+        #expect(ax.find("canvas.template.retro") != nil)
     }
 
     /// In a narrow column the board's toolbar is compact: the main tools, the rest in More Tools,
@@ -793,6 +830,8 @@ import UIKit
           const lane = all.find((e) => e.type === 'rectangle' && e.width * e.height >= 180 * 180 * 2 && card.x >= e.x && card.x + card.width <= e.x + e.width && card.y >= e.y && card.y + card.height <= e.y + e.height);
           const inside = (b) => b.x >= lane.x && b.x + b.width <= lane.x + lane.width && b.y >= lane.y && b.y + b.height <= lane.y + lane.height;
           const words = (b) => all.find((e) => e.containerId === b.id);
+          const fill = card.backgroundColor && card.backgroundColor !== 'transparent' ? card.backgroundColor : '#ffec99';
+          if (!st.every((b) => b.backgroundColor === fill)) return 'not the card colour: ' + JSON.stringify([fill, st.map((b) => b.backgroundColor)]);
           if (!st.every((b) => b.width === card.width && b.strokeColor === card.strokeColor && words(b) && words(b).textAlign === 'center')) return 'not like the card: ' + JSON.stringify(st.map((b) => [b.width, b.strokeColor, words(b) && words(b).textAlign]));
           return JSON.stringify({ n: st.length, under: st.every((b) => b.y > card.y + card.height), inLane: st.every(inside) }) + (st.every(inside) ? '' : JSON.stringify({ lane: [lane.x, lane.y, lane.width, lane.height], st: st.map((b) => [b.x, b.y]), z: amber._canvas.api.getAppState().zoom.value })); })()
         """) as? String)
