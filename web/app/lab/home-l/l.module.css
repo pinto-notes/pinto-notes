@@ -7,7 +7,7 @@
 @media (max-width: 760px) { .main { gap: 96px; } }
 
 /* ── The first screen ── */
-.hero { width: 100%; max-width: 1360px; margin: 0 auto; box-sizing: border-box; padding: 4px var(--gutter) 0; display: grid; gap: clamp(24px, 3.6vh, 40px); }
+.hero { width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 4px var(--gutter) 0; display: grid; gap: clamp(24px, 3.6vh, 40px); }
 .head { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); column-gap: clamp(32px, 5vw, 88px); align-items: end; }
 .h1 { margin: 0; font-size: clamp(44px, min(4.9vw, 8vh), 74px); font-weight: 750; letter-spacing: -0.035em; line-height: 1; color: #2a1d10; text-wrap: balance; }
 .mark { white-space: nowrap; background: linear-gradient(transparent 62%, var(--mark) 62%, var(--mark) 92%, transparent 92%); }
@@ -17,7 +17,7 @@
 /* ── The three cards ── */
 .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 1.8vw, 26px); }
 .card { position: relative; perspective: 1100px; --mx: 0; --my: 0; }
-.box { position: relative; height: clamp(360px, calc(100svh - 410px), 580px); border-radius: 26px; overflow: hidden; isolation: isolate; container-type: size;
+.box { position: relative; aspect-ratio: 0.85; max-height: clamp(360px, calc(100svh - 410px), 580px); width: 100%; border-radius: 26px; overflow: hidden; isolation: isolate; container-type: size;
   transform: rotateX(calc(var(--my) * -3.5deg)) rotateY(calc(var(--mx) * 4.5deg)); will-change: transform;
   box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.06), 0 30px 60px -34px rgba(60, 30, 5, 0.5);
   transition: box-shadow 0.4s; }
@@ -76,21 +76,21 @@
 .phoneAt .phone { position: absolute; left: 24cqw; top: 8cqh; width: 54cqw; box-sizing: border-box; padding: 1.5cqw; border-radius: 9cqw; background: #2a1d10;
   transform: rotate(2deg); box-shadow: 0 18px 30px -12px rgba(20, 10, 5, 0.55); }
 .app { container-type: inline-size; box-sizing: border-box; min-height: 100cqh; padding: 8cqw 6cqw 5cqw; border-radius: 7.6cqw; background: #fdfcfa; color: #1d1b19; overflow: hidden; }
-.aTop { margin: 0; display: flex; align-items: center; gap: 2cqw; font-size: 4.4cqw; color: #8a7a68; }
+.aTop { margin: 0; display: flex; align-items: center; gap: 2cqw; font-size: 4.8cqw; color: #8a7a68; }
 .aTop b { font-weight: 600; }
 .aTop span { padding: 0.6cqw 2cqw; border-radius: 2cqw; background: #f1ece5; font-size: 3.4cqw; font-weight: 600; }
 .aTitle { margin: 1.5cqw 0 4cqw; font-size: 10.5cqw; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
 .aWeek { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4cqw; }
 .aWeek span { display: grid; justify-items: center; gap: 1.4cqw; }
-.aWeek small { font-size: 3.4cqw; font-weight: 600; color: #8a7a68; }
+.aWeek small { font-size: 3.8cqw; font-weight: 600; color: #8a7a68; }
 .aWeek i { width: 6.4cqw; height: 6.4cqw; border-radius: 50%; background: #efe8df; }
 .aWeek span[data-on] i { background: #d97a17; }
 .aWeek span[data-now] i { box-shadow: 0 0 0 0.8cqw #fdfcfa, 0 0 0 1.4cqw #d97a17; }
 .aList { margin: 0; padding: 0; list-style: none; display: grid; gap: 2cqw; }
 .aList li { display: flex; align-items: center; justify-content: space-between; gap: 3cqw; padding: 3cqw 3.4cqw; border-radius: 4.4cqw; background: #f5f0ea; }
 .aList li > span { display: grid; gap: 0.6cqw; min-width: 0; }
-.aList b { font-size: 4.8cqw; font-weight: 650; white-space: nowrap; }
-.aList small { display: flex; align-items: center; gap: 1cqw; font-size: 3.5cqw; color: #8a7a68; white-space: nowrap; }
+.aList b { font-size: 5.3cqw; font-weight: 650; white-space: nowrap; }
+.aList small { display: flex; align-items: center; gap: 1cqw; font-size: 4.1cqw; color: #8a7a68; white-space: nowrap; }
 .aList li[data-ai] small { color: #b4593b; font-weight: 600; }
 .aList i { flex: none; display: grid; place-items: center; width: 8cqw; height: 8cqw; border-radius: 50%; box-shadow: inset 0 0 0 1.3px #d6cbbd; }
 .aList i svg { width: 62%; height: 62%; fill: none; stroke: transparent; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
@@ -155,7 +155,7 @@
     margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter) 14px; scrollbar-width: none; }
   .cards::-webkit-scrollbar { display: none; }
   .card { flex: 0 0 min(80%, 340px); scroll-snap-align: start; }
-  .box { height: 410px; border-radius: 22px; }
+  .box { border-radius: 22px; }
   .hit { border-radius: 22px; }
   .phoneAt .phone { left: 20cqw; top: 15cqh; width: 60cqw; }
 }

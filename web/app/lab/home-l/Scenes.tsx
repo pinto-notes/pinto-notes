@@ -112,6 +112,23 @@ export function NotesScene() {
 /* ── Whiteboards: night, a window over the rooftops, the whiteboard pinned to the wall, a desk lamp ── */
 
 const STARS: P[] = [[262, 60], [300, 44], [352, 70], [372, 122], [284, 102], [338, 148], [250, 130], [366, 40]];
+/** The desk lamp's cone shade: from its cap at the hinge, opening down and to the left toward the
+ *  desk, its rim a shallow curve; and the lit opening inside the rim. */
+const LAMP = (() => {
+  const A: P = [328, 154], d: P = [-0.55, 0.835], n: P = [0.835, 0.55], L = 44, R = 27;
+  const at = (t: number, w: number): P => [A[0] + d[0] * t + n[0] * w, A[1] + d[1] * t + n[1] * w];
+  const shade: P[] = [at(-2, 4), at(-3, 0), at(-2, -4)];
+  shade.push(at(L, -R));
+  for (let k = 1; k < 10; k++) { const u = (k / 10) * Math.PI; shade.push(at(L + 7 * Math.sin(u), -R * Math.cos(u))); }
+  shade.push(at(L, R));
+  const mouth: P[] = Array.from({ length: 24 }, (_, k) => { const u = (k / 24) * Math.PI * 2; return at(L + 5.5 * Math.sin(u), (R - 3) * Math.cos(u)); });
+  return { shade, mouth };
+})();
+/** A thin straight rod from one point to another, w either side of the line. */
+function rod(x1: number, y1: number, x2: number, y2: number, w: number) {
+  const l = Math.hypot(x2 - x1, y2 - y1), nx = (-(y2 - y1) / l) * w, ny = ((x2 - x1) / l) * w;
+  return cut([[x1 + nx, y1 + ny], [x2 + nx, y2 + ny], [x2 - nx, y2 - ny], [x1 - nx, y1 - ny]], Math.round(x1 + y2), 0.15, 30);
+}
 const W = {
   moon: `${cut(oval(326, 92, 22, 22, 26), 30, 0.6)}`,
   moonBite: cut(oval(336, 86, 19, 19, 24), 31, 0.5),
@@ -122,12 +139,15 @@ const W = {
   bar: cut(rect(306, 32, 7, 210), 37, 0.4),
   desk: cut([[-40, 336], [440, 336], [440, 480], [-40, 480]], 38, 1.1),
   deskEdge: cut([[-40, 336], [440, 336], [440, 345], [-40, 345]], 39, 0.6),
-  shade: cut([[326, 132], [348, 152], [320, 200], [282, 168]], 42, 0.6),
-  bulb: cut(oval(300, 184, 12, 6, 20), 43, 0.4),
-  arm1: cut([[320, 330], [330, 330], [366, 236], [356, 232]], 44, 0.4),
-  arm2: cut([[358, 240], [366, 230], [340, 142], [332, 148]], 45, 0.4),
-  joint: cut(oval(361, 235, 7, 7, 14), 46, 0.3),
-  base: cut([[298, 338], [352, 338], [346, 326], [304, 326]], 47, 0.4),
+  base: cut([[308, 340], [358, 340], [356, 333], [346, 326], [320, 326], [310, 333]], 47, 0.4),
+  stem: cut([[330, 327], [336, 327], [334, 318], [332, 318]], 52, 0.2),
+  arm1: rod(333, 320, 356, 238, 1.5),
+  arm2: rod(356, 238, 330, 152, 1.5),
+  elbow: cut(oval(356, 238, 4.2, 4.2, 14), 46, 0.2),
+  hinge: cut(oval(330, 152, 3.6, 3.6, 12), 53, 0.2),
+  shade: cut(LAMP.shade, 42, 0.5, 6),
+  mouth: cut(LAMP.mouth, 43, 0.3, 6),
+  pool: [cut(oval(234, 372, 104, 17, 40), 54, 0.7), cut(oval(236, 371, 66, 10, 32), 55, 0.5), cut(oval(238, 370, 32, 5, 24), 56, 0.3)],
   mug: cut([[52, 300], [84, 300], [82, 338], [54, 338]], 48, 0.5),
   pencil: cut([[110, 344], [204, 334], [206, 340], [112, 350]], 49, 0.3),
   tip: cut([[204, 334], [216, 336], [206, 340]], 50, 0.2),
@@ -172,15 +192,25 @@ export function BoardScene() {
       <Plane z={0.7}>
         <path d={W.desk} fill="#5b3d28" />
         <path d={W.deskEdge} fill="#7a5235" />
+      </Plane>
+      {/* The lamp's light, pooled on the desk: three flat rings of paper, no shadow. */}
+      <Plane z={0.7} shade={false}>
+        <path d={W.pool[0]} fill="#77532f" />
+        <path d={W.pool[1]} fill="#966a3a" />
+        <path d={W.pool[2]} fill="#b98647" />
+      </Plane>
+      <Plane z={0.7}>
         <path d={W.mug} fill="#d97a3a" />
         <path d={W.pencil} fill="#f0b43c" />
         <path d={W.tip} fill="#3a2a1c" />
-        <path d={W.arm1} fill="#2a2638" />
-        <path d={W.arm2} fill="#2a2638" />
-        <path d={W.joint} fill="#e39a3b" />
-        <path d={W.base} fill="#2a2638" />
-        <path d={W.bulb} fill="#fff1c6" />
-        <path d={W.shade} fill="#e39a3b" />
+        <path d={W.arm1} fill="#1e1b2b" />
+        <path d={W.arm2} fill="#1e1b2b" />
+        <path d={W.stem} fill="#1e1b2b" />
+        <path d={W.base} fill="#1e1b2b" />
+        <path d={W.elbow} fill="#e39a3b" />
+        <path d={W.hinge} fill="#e39a3b" />
+        <path d={W.shade} fill="#e8953a" />
+        <path d={W.mouth} fill="#fff0c2" />
       </Plane>
     </>
   );
