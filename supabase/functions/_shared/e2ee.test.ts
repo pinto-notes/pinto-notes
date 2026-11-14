@@ -3,7 +3,7 @@
 // purpose: deno run -A supabase/functions/_shared/e2ee.test.ts --write
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import {
-  aesKey, bodyContext, hex, newHandoffKeys, canonicalRecoveryKey, fileMetaContext, folderContext, fromBase64, headContext, keyIdOf, open, OpenError,
+  aesKey, appBlobContext, bodyContext, hex, newHandoffKeys, canonicalRecoveryKey, fileMetaContext, folderContext, fromBase64, headContext, keyIdOf, open, OpenError,
   handoffPayload, matchCommit, matchNumber, openFile, openHandoff, parseRecoveryKey, readHandoffPayload, sealHandoff, shareTag, recoveryKEK, recoveryKeyText, seal, sealFile, tokenKey, toBase64, unwrap, Vault, verifierOf, wrap,
   addDeviceAnswerHash, addDeviceCodePrk, addDeviceCodeText, addDevicePairing, addDeviceQR, addDeviceTag, canonicalAddDeviceCode,
   deviceContext, keyDeviceRemovalTag, keyDeviceTag, openDeviceKey, openDeviceName, readAddDeviceQR, sealDeviceKey, sealDeviceName,
@@ -69,6 +69,12 @@ async function build() {
       secret: hex(bytes(0x70, 32)),
       hash: hex(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes(0x70, 32)))),
     },
+    // A note app's binary file (note_app_blobs): its name is the keyed hash of its bytes, and its
+    // box is sealed for that name.
+    app_blob: await (async () => {
+      const name = await (await Vault.from(dataKey.slice(), userId)).blobName(file);
+      return { plain: toBase64(file), hash: name, context: appBlobContext(name), sealed: await seal(file, key, keyId, appBlobContext(name), nonce) };
+    })(),
     share_tag: {
       note_id: noteId, slug: "AbCdEfGhIjKlMnOpQrStUvWx", include_subnotes: true,
       tag: await shareTag(dataKey, noteId, "AbCdEfGhIjKlMnOpQrStUvWx", true),

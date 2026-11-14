@@ -15,6 +15,7 @@ import { PAGE_API } from "./page_guide.ts";
 import { pageWarnings } from "./page_lint.ts";
 import { dataHandlers, dataTools, pageExtras } from "./data_tools.ts";
 import { parseStored } from "./app_project.ts";
+import { blobNames } from "./app_blobs.ts";
 const isProject = (stored: string) => { const p = parseStored(stored); return Object.keys(p.files).length > 1 || Object.keys(p.compiled).length > 0; };
 import { appendText, applyEdits, coerce, findTables, fitLines, isTextType, mimeOf, outline, previewOf, replaceTable, searchFilter, searchInMemory, setChecklistItem, sliceLines, titleOf, typeSpec, wikiLinks, type Edit, type Table } from "./notes.ts";
 
@@ -799,8 +800,8 @@ async function savePage(tx: Tx, c: Call, n: Note, html: string) {
   if (await pageOf(tx, c, n.id) === html) return { id: n.id, title: n.title, page: "unchanged" };
   const sealed = await c.v.sealPage(n.id, html);
   const [{ created }] = await tx<{ created: boolean }[]>`
-    insert into public.note_pages (note_id, page_ct) values (${n.id}, ${sealed})
-    on conflict (note_id) do update set page_ct = excluded.page_ct
+    insert into public.note_pages (note_id, page_ct, page_blobs) values (${n.id}, ${sealed}, ${blobNames(html)}::text[])
+    on conflict (note_id) do update set page_ct = excluded.page_ct, page_blobs = excluded.page_blobs
     returning (xmax = 0) as created`;
   const warnings = pageWarnings(html, await bodyOf(c.v, n));
   return { id: n.id, title: n.title, page: created ? "created" : "replaced", bytes: new TextEncoder().encode(html).length,

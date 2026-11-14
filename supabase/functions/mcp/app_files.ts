@@ -10,6 +10,7 @@ import {
   brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, packBinary, parseStored, type Project, projectProblems, serialize, sourceProblems, styleWarnings,
 } from "./app_project.ts";
 import { scaffold } from "./app_scaffold.ts";
+import { openProject, storeProject } from "./app_blobs.ts";
 import { bodyOf, Content, findNote, type Note, ToolError, type Call, type Tx } from "./tools.ts";
 
 type Args = Record<string, unknown>;
@@ -76,7 +77,7 @@ export async function projectOf(tx: Tx, c: Call, id: string): Promise<{ project:
   const [row] = await tx<{ page_ct: string | null; draft_ct: string | null; draft_problems: string | null }[]>`select page_ct, draft_ct, draft_problems from public.note_pages where note_id = ${id} for update`;
   const box = row?.draft_ct ?? row?.page_ct;
   if (!box) return { project: parseStored(null), exists: false };
-  try { return { project: parseStored(await c.v.openPage(id, box)), exists: true, draft: row?.draft_ct ? row.draft_problems ?? "" : null }; } catch { throw new ToolError("This note's app can't be opened with this connection's key."); }
+  return { project: await openProject(tx, c, id, box), exists: true, draft: row?.draft_ct ? row.draft_problems ?? "" : null };
 }
 
 /** The app's own data (for a sample with its shape), or empty. */
@@ -142,13 +143,15 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   const scriptErrors = (found?.errors ?? []).filter((e) => /script error|blank|tried to load/.test(e));
   const failures = [...broken, ...scriptErrors, ...(smoke?.problems ?? []), ...(tests?.failures.map((f) => `test failed: ${f}`) ?? [])];
   const live = failures.length === 0;
-  const sealed = await c.v.sealPage(n.id, stored);
+  // Each binary file once, named by its hash; the project's text names them (app_blobs.ts).
+  const kept = await storeProject(tx, c, p);
+  const sealed = await c.v.sealPage(n.id, kept.stored);
   if (live) {
     // The file tools write often: within ten minutes, the same writer's earlier app isn't kept as
     // another version (20261007160600_app_file_writes_coalesce.sql), so Previous App means "before".
     await tx`select set_config('pane.coalesce', 'on', true)`;
-    await tx`insert into public.note_pages (note_id, page_ct) values (${n.id}, ${sealed})
-      on conflict (note_id) do update set page_ct = excluded.page_ct, draft_ct = null, draft_problems = null`;
+    await tx`insert into public.note_pages (note_id, page_ct, page_blobs) values (${n.id}, ${sealed}, ${kept.blobs}::text[])
+      on conflict (note_id) do update set page_ct = excluded.page_ct, page_blobs = excluded.page_blobs, draft_ct = null, draft_problems = null`;
     await tx`select set_config('pane.coalesce', 'off', true)`;
   } else {
     // What failed, by name only (test and check names, never note content or data): the device
@@ -159,8 +162,8 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
       ...(smoke?.problems ?? []).map((m) => `smoke check at ${m.split(" px")[0]} px: ${/blank/.test(m) ? "blank screen" : /saving its data/.test(m) ? "saving data failed" : /pageerror|Error/.test(m) ? "script error" : "console error"}${/after tapping/.test(m) ? " after tapping a control" : ""}`),
       ...(tested && typeof tested !== "string" ? [...(tested.tests ?? []).filter((x) => !x.ok).map((x) => `test: ${x.file ?? ""} › ${x.name}`), ...((tested.testErrors ?? []).map((e) => `test file: ${e.split(":")[0]}`))] : []),
     ].filter((x, k, all) => all.indexOf(x) === k).join("\n").slice(0, 3900);
-    await tx`insert into public.note_pages (note_id, draft_ct, draft_problems) values (${n.id}, ${sealed}, ${why})
-      on conflict (note_id) do update set draft_ct = excluded.draft_ct, draft_problems = excluded.draft_problems`;
+    await tx`insert into public.note_pages (note_id, draft_ct, draft_blobs, draft_problems) values (${n.id}, ${sealed}, ${kept.blobs}::text[], ${why})
+      on conflict (note_id) do update set draft_ct = excluded.draft_ct, draft_blobs = excluded.draft_blobs, draft_problems = excluded.draft_problems`;
   }
   const [{ has_live }] = await tx<{ has_live: boolean }[]>`select page_ct is not null as has_live from public.note_pages where note_id = ${n.id}`;
   const errors = [...broken, ...(found?.errors ?? []), ...(smoke?.problems ?? []), ...(tests?.failures.map((f) => `test failed: ${f}`) ?? [])];

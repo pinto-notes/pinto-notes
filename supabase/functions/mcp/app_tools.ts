@@ -5,6 +5,7 @@ import { render, renderedFindings, staticReport, testSummary, titleReport } from
 import { noteForPage } from "./page_input.ts";
 import { resolvePackage } from "./libraries.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
+import { inlineStored } from "./app_blobs.ts";
 import { bodyOf, Content, findNote, ToolError, type Call, type Tx } from "./tools.ts";
 
 type Args = Record<string, unknown>;
@@ -88,6 +89,8 @@ async function appOf(tx: Tx, c: Call, a: Args) {
   if (!box) throw new ToolError(`"${n.title}" has no app yet. Make one with create.`);
   let html: string, data: unknown = { values: {}, collections: {} };
   try { html = await c.v.openPage(n.id, box); } catch { throw new ToolError("This note's app can't be opened with this connection's key."); }
+  // The checks open the whole app, its binary files included.
+  html = await inlineStored(tx, c, html);
   if (row.data_ct) { try { data = JSON.parse(await c.v.openPageData(n.id, row.data_ct)); } catch { /* checked without its data */ } }
   return { n, html, data, body: await bodyOf(c.v, n) };
 }
