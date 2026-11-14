@@ -21,7 +21,7 @@ struct CanvasOverlay: View {
                 // canvas runs under the bars, and inside the safe area the bar came out a band too
                 // low, under the shape (the iPhone pictures, 13 November 2026).
                 GeometryReader { geo in
-                    if canvas.state.showsSelectionBar, let bounds = canvas.state.bounds {
+                    if canvas.state.showsSelectionBar, let bounds = canvas.state.bounds, CanvasSelectionBar.inView(bounds, area: geo.size) {
                         CanvasSelectionBar(canvas: canvas, bounds: bounds, area: geo.size)
                     }
                     if let h = canvas.highlight {
@@ -475,6 +475,12 @@ struct CanvasSelectionBar: View {
     static let gap: CGFloat = 30
     #endif
 
+    /// Shown only while some of the selection is in view: scrolled away, a bar kept at the edge
+    /// floated over other things for a shape you couldn't see (whiteboard council, round 2, 15).
+    static func inView(_ bounds: CGRect, area: CGSize) -> Bool {
+        bounds.intersects(CGRect(origin: .zero, size: area).insetBy(dx: 12, dy: 12))
+    }
+
     /// Its centre. Above the selection where it covers nothing drawn; else slid along above it,
     /// then below, then beside it; with nowhere clear, where it covers least (whiteboard council,
     /// round 2, 07: it sat on the arrow into the box and on the shape above). Always in the canvas.
@@ -924,7 +930,7 @@ struct CanvasToolbarTools: View {
 
     static let tools: [CanvasTool] = [.selection, .hand, .freedraw, .arrow, .text, .eraser]
     /// Narrower than this, the column shows the compact tools (and the board drops its breadcrumb).
-    static let compactWidth: CGFloat = 640
+    static let compactWidth: CGFloat = 860
     static func compact(_ width: CGFloat) -> Bool { width < compactWidth }
     /// In the compact set: shown, and in its More Tools menu.
     static let compactShown: [CanvasTool] = [.selection, .freedraw, .arrow, .text]

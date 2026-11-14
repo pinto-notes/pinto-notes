@@ -492,7 +492,10 @@ import UIKit
     /// In a narrow column the board's toolbar is compact: the main tools, the rest in More Tools,
     /// so every tool can still be reached (whiteboard council, round 2, 15).
     @Test func aNarrowWindowKeepsEveryToolReachable() {
-        #expect(CanvasToolbarTools.compact(600) && !CanvasToolbarTools.compact(680), "a 1280 window with both columns keeps every tool out")
+        // A 1400 window (the default) with both columns has room for every tool; 1000 doesn't.
+        #expect(CanvasToolbarTools.compact(670) && !CanvasToolbarTools.compact(930))
+        #expect(!CanvasSelectionBar.inView(CGRect(x: -400, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)), "no bar for a selection out of view")
+        #expect(CanvasSelectionBar.inView(CGRect(x: -100, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)))
         let reachable = Set(CanvasToolbarTools.compactShown + CanvasToolbarTools.compactMore + CanvasTool.shapes)
         #expect(reachable == Set(CanvasTool.allCases), "missing: \(Set(CanvasTool.allCases).subtracting(reachable))")
         #expect(CanvasToolbarTools.compactShown.count + 2 <= 6, "few enough to fit beside Full Screen, Share and More")
@@ -783,7 +786,8 @@ import UIKit
             #expect(try Self.collapsed(w) == [false, false], "the canvas leaves the columns open")
             // The tools are in the window's toolbar, where a note's are, then Full Screen, Share and More.
             let labels = try MacWindowChromeTests.items(w).map(\.label)
-            for l in ["Select", "Hand", "Pencil", "Shapes", "Arrow", "Text", "Eraser", "Full Screen", "Share"] {
+            // At 1280 with both columns, the compact set: the rest under More Tools.
+            for l in ["Select", "Pencil", "Shapes", "Arrow", "Text", "More Tools", "Full Screen", "Share"] {
                 #expect(labels.contains(l), "\(l) in the toolbar: \(labels)")
             }
             // Its name, as a field you can type in, beside where it is.
