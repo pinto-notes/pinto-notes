@@ -409,8 +409,10 @@ import UIKit
         await j.until("outlined") { j.canvas.highlight != nil }
         let h = try #require(j.canvas.highlight)
         #expect(h.by == "Claude" && h.count >= 1)
-        // Off to the side, so it was brought into view.
+        // Off to the side, so it was brought into view: only as far as needed, by the right edge,
+        // so the rest stays as close as it can (round 2, 16).
         #expect(h.rect.minX >= -1 && h.rect.maxX <= 901, "in view: \(h.rect)")
+        #expect(h.rect.maxX > 820 && h.rect.maxX < 880, "moved just far enough: \(h.rect)")
         #expect(h.rect.width > 100)
         let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
         #expect(r.summary == "Claude drew on this whiteboard" && r.shortSummary == "Claude drew on it")
@@ -525,6 +527,21 @@ import UIKit
         await j.until("S makes one") { j.canvas.state.editing }
         let n = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length") as? Int
         #expect(n == 3)
+        // On a retro, a sticky goes on the lanes, in view; they don't push it away.
+        _ = try await j.js("document.activeElement && document.activeElement.blur(); amber._canvas.api.updateScene({ elements: [] }); 0")
+        await j.until("cleared") { j.canvas.state.empty }
+        j.canvas.send(.insert(.retro))
+        await j.until("the retro is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        j.canvas.send(.sticky)
+        await j.until("typing in it") { j.canvas.state.editing }
+        let place = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
+          const e = api.getSceneElements().find((e) => e.customData && e.customData.pintoSticky);
+          return [(e.x + s.scrollX) * z, (e.y + s.scrollY) * z, (e.x + e.width + s.scrollX) * z, (e.y + e.height + s.scrollY) * z].map(Math.round).join(','); })()
+        """) as? String)
+        let v = place.split(separator: ",").compactMap { Double($0) }
+        #expect(v.count == 4 && v[0] >= 0 && v[2] <= 900 && v[1] >= 0 && v[3] <= 600, "in view on the retro: \(place)")
     }
 
     /// Two or more shapes line up and space out from the bar; an arrow turns straight, curved or
@@ -1010,6 +1027,46 @@ import UIKit
                     await MacWindowChromeTests.settle(w, 20)
                     try await select("e.type === 'diamond'")
                     try await shot("15-narrow-window", w, web)
+                    w.setContentSize(CGSize(width: 1400, height: 900))
+                    await MacWindowChromeTests.settle(w, 20)
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                }
+                // Exported while in dark mode: still a light picture.
+                if dark, let png = await canvas.export(.png) { try png.write(to: dir.appending(path: "18-exported-from-dark.png")) }
+                // The AI changes what's there: renames a step and adds one; the receipt says what.
+                if !dark {
+                    await MacWindowChromeTests.settle(w, 30)
+                    var now = (NotePageDataStore.shared.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any] ?? [:]
+                    var all = now["elements"] as? [[String: Any]] ?? []
+                    for i in all.indices where all[i]["containerId"] as? String == "ai-rev" {
+                        all[i]["text"] = "Finance review"; all[i]["originalText"] = "Finance review"
+                        all[i]["version"] = ((all[i]["version"] as? Int) ?? 1) + 1
+                    }
+                    all += [
+                        ["type": "rectangle", "id": "ai-tell", "x": 560, "y": 390, "width": 180, "height": 70, "label": ["text": "Notify team"], "strokeColor": ink, "backgroundColor": "#a5d8ff", "fillStyle": "solid", "roundness": ["type": 3]],
+                        ["type": "arrow", "x": 650, "y": 330, "width": 0, "height": 60, "points": [[0, 0], [0, 60]], "start": ["id": "ai-ok"], "end": ["id": "ai-tell"], "strokeColor": ink],
+                    ]
+                    now["elements"] = all
+                    canvas.highlight = nil
+                    NotePageDataStore.shared.take(note.id, server: NotePageData.encode(["values": ["scene": now], "collections": [String: Any]()]), by: "ChatGPT")
+                    for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("16-ai-changed", w, web)
+                    // Sticky notes on a retro: three made with S's command, each typed into.
+                    canvas.highlight = nil
+                    try await insert(.retro)
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                    for words in ["Demo went well", "Ask design to join planning", "Fewer meetings on Fridays"] {
+                        canvas.send(.sticky)
+                        for _ in 0..<60 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                        try await js("const t = document.querySelector('textarea'); if (t) { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); }")
+                        await MacWindowChromeTests.settle(w, 5)
+                        try await js("const api = amber._canvas.api; const s = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky); const last = s[s.length - 1]; api.updateScene({ appState: { selectedElementIds: { [last.id]: true } } })")
+                        await MacWindowChromeTests.settle(w, 3)
+                    }
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("17-sticky-notes", w, web)
                 }
             }
         }

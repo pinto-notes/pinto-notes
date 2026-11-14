@@ -177,8 +177,9 @@ export function addSticky(api) {
   const at = next
     ? { x: next.x + next.width + STICKY.gap, y: next.y }
     : { x: -s.scrollX + s.width / 2 / z - size / 2, y: -s.scrollY + s.height / 2 / z - size / 2 };
-  // Never on top of something already there: along to the right until the spot is free.
-  const taken = api.getSceneElements().filter((e) => !e.containerId).map((e) => getCommonBounds([e]));
+  // Never on top of another sticky note: along to the right until the spot is free. Other
+  // shapes don't count: a sticky goes on a lane or a section, as on a retro.
+  const taken = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => getCommonBounds([e]));
   const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 && x + size > x1 && y < y2 && y + size > y1);
   for (let i = 0; i < 20 && !free(at.x, at.y); i++) at.x += size + STICKY.gap;
   const [card, ...rest] = convertToExcalidrawElements([{
@@ -528,8 +529,25 @@ function Canvas({ initial }) {
         const s = r.view, z = (s.zoom && s.zoom.value) || 1;
         const whole = getCommonBounds(api.getSceneElements());
         const fits = (whole[2] - whole[0]) * z <= s.width - 48 && (whole[3] - whole[1]) * z <= s.height - 48;
-        const [x1, y1, x2, y2] = fits ? whole : getCommonBounds(changed);
-        flushSync(() => api.updateScene({ appState: { scrollX: -(x1 + x2) / 2 + s.width / 2 / z, scrollY: -(y1 + y2) / 2 + s.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+        let scrollX, scrollY;
+        if (fits) {
+          scrollX = -(whole[0] + whole[2]) / 2 + s.width / 2 / z;
+          scrollY = -(whole[1] + whole[3]) / 2 + s.height / 2 / z;
+        } else {
+          // Only as far as it takes to bring the change in, with a margin, so what it joins
+          // stays in sight (round 2: centring on it pushed the rest of the board off).
+          const [x1, y1, x2, y2] = getCommonBounds(changed), m = 40 / z, W = s.width / z, H = s.height / z;
+          const along = (lo, hi, scroll, size) => {
+            const a = lo + scroll, b = hi + scroll;
+            if (hi - lo > size - 2 * m) return -(lo + hi) / 2 + size / 2;
+            if (a < m) return scroll + (m - a);
+            if (b > size - m) return scroll - (b - (size - m));
+            return scroll;
+          };
+          scrollX = along(x1, x2, s.scrollX, W);
+          scrollY = along(y1, y2, s.scrollY, H);
+        }
+        flushSync(() => api.updateScene({ appState: { scrollX, scrollY }, captureUpdate: CaptureUpdateAction.NEVER }));
         r = where();
       }
       try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: changed.length } }); } catch (_) {}
