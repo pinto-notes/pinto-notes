@@ -305,7 +305,8 @@ import UIKit
         let all = (json["elements"] as? [[String: Any]])?.count ?? 0
         #expect(all >= 15, "every shape, arrow and label: \(all)")
         // Only the selection, when asked and something is selected.
-        _ = try await j.js("const api = amber._canvas.api; const box = api.getSceneElements().find((e) => e.type === 'rectangle'); api.updateScene({ appState: { selectedElementIds: { [box.id]: true } } }); 1")
+        _ = try await j.js("(() => { const api = amber._canvas.api; const box = api.getSceneElements().find((e) => e.type === 'rectangle'); api.updateScene({ appState: { selectedElementIds: { [box.id]: true } } }); return 1; })()")
+        await j.until("the box is selected") { j.canvas.state.selection == ["rectangle"] }
         let oneFile = try #require(await j.canvas.export(.excalidraw, selected: true))
         let one = try #require(try JSONSerialization.jsonObject(with: oneFile) as? [String: Any])
         #expect((one["elements"] as? [[String: Any]])?.count == 1, "only the selected box")
@@ -463,6 +464,32 @@ import UIKit
         #expect(parts.count == 5 && parts[0].contains("theme--dark"), "\(seen)")
         let made = try await d.js("amber._throughDarkFilter('\(parts[1])')") as? String
         #expect(parts.count == 5 && parts[3].lowercased() == made?.lowercased(), "the engine reads the filtered accent: \(seen), made \(made ?? "nil")")
+    }
+
+    /// A sticky note: yellow, square, typed into at once; the next one goes beside it, never on
+    /// top, and S makes one too (whiteboard council, round 2: retro and kanban boards with no sticky tool).
+    @Test func aStickyNoteIsTypedIntoAndTheNextGoesBesideIt() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.sticky)
+        await j.until("typing in the sticky note") { j.canvas.state.editing }
+        let first = try #require(try await j.js("JSON.stringify(amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => [Math.round(e.x), Math.round(e.y), e.width, e.backgroundColor]))") as? String)
+        #expect(first.contains("180,\"#ffec99\""), "\(first)")
+        // Done typing; another goes beside it, not on top of it.
+        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+        await j.until("done typing") { !j.canvas.state.editing }
+        j.canvas.send(.sticky)
+        await j.until("typing in the second") { j.canvas.state.editing }
+        let xs = try #require(try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => Math.round(e.x)).join(',')") as? String)
+        let both = xs.split(separator: ",").compactMap { Int($0) }
+        #expect(both.count == 2 && both[1] - both[0] == 180 + 24, "side by side: \(xs)")
+        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+        await j.until("done typing") { !j.canvas.state.editing }
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true })); 0")
+        await j.until("S makes one") { j.canvas.state.editing }
+        let n = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length") as? Int
+        #expect(n == 3)
     }
 
     /// Two or more shapes line up and space out from the bar; an arrow turns straight, curved or

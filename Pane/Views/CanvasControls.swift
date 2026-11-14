@@ -947,6 +947,9 @@ struct CanvasToolbarTools: View {
             ForEach(CanvasTool.shapes) { t in
                 Button(t.help, systemImage: t.symbol) { CanvasToolbarTools.lastShape = t; canvas.pick(t) }
             }
+            Divider()
+            Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
+                .accessibilityIdentifier("canvas.tool.sticky")
         } label: {
             Label("Shapes", systemImage: shown.symbol).foregroundStyle(picked ? Color.amberInk : Color.primary)
         } primaryAction: {
@@ -959,6 +962,7 @@ struct CanvasToolbarTools: View {
     }
 
     static let imageTitle = "Image"
+    static let stickyTitle = "Sticky Note (S)"
 
     /// Pictures from a file, onto the middle of the view.
     static func pickImage(_ canvas: CanvasController) {

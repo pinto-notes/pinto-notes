@@ -158,6 +158,45 @@ export async function exportScene(api, format, selected) {
   return null;
 }
 
+export const STICKY = { size: 180, color: "#ffec99", gap: 24 };
+/** The engine itself, once the bridge has reached it (for what its API doesn't offer). */
+let engine = null;
+
+/**
+ * A sticky note (whiteboard council, round 2: retro and kanban boards with no sticky tool): a
+ * square yellow card whose words wrap inside it and move with it, next to what's selected (so
+ * pressing S again makes a row) or in the middle of the view, then typed into at once.
+ */
+export function addSticky(api) {
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+  const ids = Object.keys(s.selectedElementIds || {});
+  const next = ids.length === 1 ? api.getSceneElements().find((e) => e.id === ids[0]) : null;
+  const size = STICKY.size;
+  const at = next
+    ? { x: next.x + next.width + STICKY.gap, y: next.y }
+    : { x: -s.scrollX + s.width / 2 / z - size / 2, y: -s.scrollY + s.height / 2 / z - size / 2 };
+  // Never on top of something already there: along to the right until the spot is free.
+  const taken = api.getSceneElements().filter((e) => !e.containerId).map((e) => getCommonBounds([e]));
+  const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 && x + size > x1 && y < y2 && y + size > y1);
+  for (let i = 0; i < 20 && !free(at.x, at.y); i++) at.x += size + STICKY.gap;
+  const [card, ...rest] = convertToExcalidrawElements([{
+    type: "rectangle", x: at.x, y: at.y, width: size, height: size, backgroundColor: STICKY.color, fillStyle: "solid",
+    strokeColor: "#e6c84f", roundness: { type: 3 }, label: { text: " ", fontSize: 20, verticalAlign: "top", textAlign: "left" },
+    customData: { pintoSticky: true },
+  }], { regenerateIds: true });
+  api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), card, ...rest], appState: { selectedElementIds: { [card.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  api.setActiveTool({ type: "selection" });
+  // Typing starts in it, as Return does on a selected shape, once the engine has it (a timer, not
+  // an animation frame: frames don't come while the window is hidden).
+  setTimeout(() => {
+    const placed = api.getSceneElements().find((e) => e.id === card.id);
+    if (engine && placed && typeof engine.startTextEditing === "function") {
+      engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
+    }
+  }, 30);
+  return card.id;
+}
+
 /** What the page tells the app: the tool, what's selected, and the style the controls show. */
 export function stateOf(api, app) {
   const s = api.getAppState();
@@ -233,7 +272,7 @@ function bridge(api) {
   // The engine's action manager: reached through an action of our own, which sees the app on
   // every key and never matches one.
   api.registerAction({ name: "pintoBridge", label: "", trackEvent: false, perform: () => false,
-    keyTest: (e, s, els, a) => { app = a; return false; } });
+    keyTest: (e, s, els, a) => { app = a; engine = a; return false; } });
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Unidentified", bubbles: true }));
   const run = (name, value = null) => {
     const action = app && app.actionManager.actions[name];
@@ -286,6 +325,9 @@ function bridge(api) {
         });
         break;
       }
+      case "sticky":
+        addSticky(api);
+        break;
       case "image": {
         // A picture the app made ready (CanvasImage): kept in the scene's files, placed where it
         // was dropped or in the middle of the view, at most 60% of the view across, selected.
@@ -320,7 +362,15 @@ function bridge(api) {
   const offScroll = api.onScrollChange(soon);
   const offHistory = app && app.history.onHistoryChangedEmitter.on(report);
   // The engine's own dialogs never open; the app's menus keep their keys (⌘K, ⌘F).
-  const keys = (e) => { if (blockedKey(e)) e.stopImmediatePropagation(); };
+  const keys = (e) => {
+    if (blockedKey(e)) { e.stopImmediatePropagation(); return; }
+    // S: a sticky note, as in FigJam (the engine's S opens a panel that isn't shown here).
+    const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
+    if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key || "").toLowerCase() === "s" && !api.getAppState().editingTextElement) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      addSticky(api);
+    }
+  };
   // No right-click menu from the engine or the web view: the app shows its own (Mac).
   const menu = (e) => { e.preventDefault(); e.stopImmediatePropagation(); };
   window.addEventListener("keydown", keys, true);

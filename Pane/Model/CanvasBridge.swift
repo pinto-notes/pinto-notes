@@ -315,6 +315,8 @@ enum CanvasCommand: Equatable, Sendable {
     case insert(WhiteboardTemplate)
     /// A picture onto the board (CanvasImage), at a point of the page or the middle of the view.
     case image(CanvasImage, at: CGPoint?)
+    /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
+    case sticky
 
     var payload: [String: Any] {
         switch self {
@@ -324,6 +326,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .pan(let dx, let dy): ["op": "pan", "dx": dx, "dy": dy]
         case .background(let c): ["op": "background", "color": c]
         case .insert(let t): ["op": "insert", "elements": t.elements]
+        case .sticky: ["op": "sticky"]
         case .image(let i, let at):
             ["op": "image", "dataURL": i.dataURL, "mimeType": i.mimeType, "width": i.width, "height": i.height]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
