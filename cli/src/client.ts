@@ -2,7 +2,7 @@
 // JSON-RPC in POST requests, answered as JSON or as a server-sent event stream (both are in the
 // spec; the Pinto Notes server answers JSON). The token rides in the Authorization header and never
 // reaches a log line or an error message.
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 const PROTOCOL = "2025-06-18";
 
 /** A tool answered with an error (no such note, old_text not found, …): its message is for people. */
@@ -46,14 +46,17 @@ async function open(server: string, token: string, resume?: string): Promise<Mcp
     if (session) headers["mcp-session-id"] = session;
     if (method !== "initialize") headers["mcp-protocol-version"] = version;
     let res: Response;
+    const body = JSON.stringify({ jsonrpc: "2.0", ...(notify ? {} : { id }), method, ...(params ? { params } : {}) });
     try {
-      res = await fetch(server, { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", ...(notify ? {} : { id }), method, ...(params ? { params } : {}) }) });
+      res = await fetch(server, { method: "POST", headers, body });
     } catch (e) {
       throw new Error(`Couldn't reach ${server}: ${redact((e as Error).message)}`);
     }
     if (res.status === 401 || res.status === 403) { await res.body?.cancel(); throw new Refused("refused"); }
     session = res.headers.get("mcp-session-id") ?? session;
     if (notify) { await res.body?.cancel(); return; }
+    // A request too big for the server or a proxy in front of it: say how big, not only the code.
+    if (res.status === 413) throw new Error(`${server} turned away a request of ${(body.length / 1048576).toFixed(1)} MB as too large (HTTP 413). ${redact((await res.text()).slice(0, 200))}`.trim());
     if (!res.ok) throw new Error(`${server} answered ${res.status} to ${method}: ${redact((await res.text()).slice(0, 200))}`);
     const m = await answer(res, id);
     if (!m) throw new Error(`${server} sent no answer to ${method}.`);
@@ -61,7 +64,7 @@ async function open(server: string, token: string, resume?: string): Promise<Mcp
     return m.result;
   };
 
-  const init = await post("initialize", { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "amber-cli", version: VERSION } });
+  const init = await post("initialize", { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: "pinto-cli", version: VERSION } });
   version = init?.protocolVersion ?? PROTOCOL;
   await post("notifications/initialized", undefined, true);
   const tools: string[] = [];

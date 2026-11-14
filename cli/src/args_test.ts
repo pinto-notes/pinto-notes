@@ -11,4 +11,8 @@ Deno.test("options take a value, inline or next", () => {
   assertEquals(parse(["read", "a.md", "--offset", "40", "--server=http://x"]), { _: ["read", "a.md"], offset: "40", server: "http://x" });
   assertEquals(parse(["grep", "x", "-C", "2"]), { _: ["grep", "x"], C: "2" });
   assertEquals(parse(["-h"]), { _: [], help: true });
+  assertEquals(parse(["write", "Games/Doom.app/doom.wasm", "--file", "./doom.wasm"]), { _: ["write", "Games/Doom.app/doom.wasm"], file: "./doom.wasm" });
+  assertEquals(parse(["push", "./doom", "Games/Doom", "--json"]), { _: ["push", "./doom", "Games/Doom"], json: true });
+  // grep's --files is still a switch.
+  assertEquals(parse(["grep", "x", "--files"]), { _: ["grep", "x"], files: true });
 });

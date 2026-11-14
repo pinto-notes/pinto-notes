@@ -19,7 +19,7 @@ Deno.test("list: a folder, newest first, and a glob", () => {
 Deno.test("changes say what happened, and what the checks found", () => {
   assertEquals(format("edit", { edited: "Work/B.md", checks: "ok" }), "Edited Work/B.md");
   assertEquals(format("write", { written: "B.md", checks: ["A table row has 2 cells, not 3."] }), "Wrote B.md\n  check: A table row has 2 cells, not 3.");
-  assertEquals(format("delete", { deleted: "B.md", now_at: "Recently Deleted/B.md", restore_with: "restore" }), 'Moved B.md to Recently Deleted/B.md. Bring it back with: amber restore "Recently Deleted/B.md"');
+  assertEquals(format("delete", { deleted: "B.md", now_at: "Recently Deleted/B.md", restore_with: "restore" }), 'Moved B.md to Recently Deleted/B.md. Bring it back with: pinto restore "Recently Deleted/B.md"');
   assertEquals(format("restore", { restored: "Work/B.md" }), "Restored Work/B.md.");
   assertEquals(format("pin", { path: "B.md", pinned: false }), "Unpinned B.md");
 });

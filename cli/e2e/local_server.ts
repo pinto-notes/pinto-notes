@@ -7,13 +7,13 @@
 //
 // What production gets from elsewhere is stood in for here, and only that:
 // - GET /auth/v1/user answers for the test account's session ("Bearer jwt-<user id>"), as Supabase Auth would.
-// - GET /connect is the consent step: ambernotes.app/connect plus the app's approval sheet in one
+// - GET /connect is the consent step: the site's connect page plus the app's approval sheet in one
 //   page. Allow does what the app does: GET /connect/request and POST /connect/decide with a code
 //   it makes and the data key wrapped under it, then sends the browser to the redirect with the code.
 // - GET /__app/connections and POST /__app/revoke are Settings › Connect an AI: the list the app
 //   shows, and its Disconnect (the same update of mcp_tokens, as the signed-in person).
 // --token-file writes a pane_ access token (made as Settings › Connect an AI makes one) for
-// `amber login --token`; it's never printed.
+// `pinto login --token`; it's never printed.
 import { parseArgs } from "@std/cli/parse-args";
 
 const args = parseArgs(Deno.args, { string: ["port", "token-file"] });
@@ -86,7 +86,7 @@ async function connectPage(id: string): Promise<Response> {
   <button class="deny" name="allow" value="0" id="deny">Don't Allow</button>
   <div class="seg"><label><input type="radio" name="write" value="1" ${r.wants_write ? "checked" : "disabled"}><span>Read and edit</span></label><label><input type="radio" name="write" value="0" ${r.wants_write ? "" : "checked"}><span>Read only</span></label></div>
   <div class="fine">Access goes to <b>${esc(r.redirect_host)}</b>. Locked notes stay private.</div>
-  <div class="stand">Local test stand-in for ambernotes.app/connect and the approval sheet in the Pinto Notes app.</div>
+  <div class="stand">Local test stand-in for the connect page and the approval sheet in the Pinto Notes app.</div>
 </form>`);
 }
 

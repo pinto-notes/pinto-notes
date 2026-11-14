@@ -1,8 +1,8 @@
 // Command-line arguments.
 const SWITCHES = ["json", "all", "off", "pin", "no-browser", "read-only", "token", "help", "version", "files", "count", "case", "numbers"];
-const OPTIONS = ["server", "limit", "offset", "glob", "path", "C"];
+const OPTIONS = ["server", "limit", "offset", "glob", "path", "file", "C"];
 
-/** Flags are only the ones amber knows, so note text like "- [ ] Milk" or "-1" stays an argument.
+/** Flags are only the ones pinto knows, so note text like "- [ ] Milk" or "-1" stays an argument.
  *  After "--", everything is an argument. */
 export function parse(argv: string[]): { _: string[] } & Record<string, any> {
   const out: { _: string[] } & Record<string, any> = { _: [] };

@@ -1,94 +1,83 @@
-# amber end-to-end run, 2026-10-06T07:21Z
-binary cli/dist/amber-macos-arm64 (darwin aarch64) against http://127.0.0.1:61241/mcp: the real MCP request handler and OAuth
+# pinto end-to-end run, 2026-11-14T19:49Z
+binary cli/dist/pinto-macos-arm64 (darwin aarch64) against http://127.0.0.1:60122/mcp: the real MCP request handler and OAuth
 (supabase/functions/mcp, unchanged), files tools, a fresh database with every migration and a seeded end-to-end encrypted test account.
 
 ## Help
 
-$ amber --version
-0.2.0
-$ amber help
-amber: your Amber Notes from the terminal
+$ pinto --version
+0.3.0
+$ pinto help
+pinto: your Pinto Notes from the terminal
 
-Notes are paths like "Work/Acme.md"; folders end in "/". A note's id works too.
+Notes are paths like "Work/Acme.md"; folders end in "/". A note's sub-notes and files are in the
+folder with its name ("Work/Acme/Agenda.md"). Read a note before you edit or write it.
 
-  amber search <words>               find notes ("quoted phrase", OR, -word)
-  amber list [<folder>/]             overview, or a folder's notes
-  amber read <note> [--lines 40-90]  print a note's markdown
-  amber create <folder> [<text>]     new note; the first line is its title (text or stdin)
-  amber edit <note> <old> <new>      replace exact text, once (--all for every match)
-  amber write <note>                 replace the whole note with stdin
-  amber move <note> <to>             to a folder ("Archive/") or a new name ("Work/New.md")
-  amber delete <note>                to Recently Deleted
-  amber history <note>               earlier versions
-  amber restore <note> [<version>]   undelete, or bring back a version
-  amber pin <note> [--off]
+  pinto search <words>               find notes, best first ("quoted phrase", OR, -word)
+  pinto grep <pattern> [<path>]      lines matching a regular expression (--files, --count, -C 2)
+  pinto list [<folder>/] [--glob G]  a folder, newest first; --glob "**/*.md" over everything below
+  pinto read <note> [--offset N]     print a note's markdown (--limit N lines; --numbers)
+  pinto create <path> [<text>]       new note "Work/Acme.md" (text or stdin), or a folder "Work/"
+  pinto edit <note> <old> <new>      replace exact text, once (--all for every match)
+  pinto write <path> [--file F]      a whole note or file, from stdin or F (app files too)
+  pinto push <folder> <note>         a folder with index.html becomes the note's app
+  pinto move <note> <to>             to a folder ("Archive/") or a new name ("Work/New.md")
+  pinto delete <note>                to Recently Deleted
+  pinto history <note>               earlier versions
+  pinto restore <note> [<version>]   undelete, or bring back a version
+  pinto pin <note> [--off]
 
-  amber login                        connect: approve in Amber Notes on your iPhone or Mac
-  amber logout                       disconnect this terminal
-  amber status                       who and where
+  pinto login                        connect: approve in Pinto Notes on your iPhone or Mac
+  pinto logout                       disconnect this terminal
+  pinto status                       who and where
 
-Add --json for the server's full answer (for scripts and agents).
-amber help <command> for more.
-  PASS amber help fits on one screen (23 lines)
+--json for the server's full answer (for scripts and agents); pinto help <command> for more.
+  PASS pinto help fits on one screen (25 lines)
 
-## Sign in: browser, approve in Amber Notes
+## Sign in: browser, approve in Pinto Notes
 
-$ amber login        # the browser opens the consent page; Allow
-Connected to Amber Notes (read & edit). Tokens are kept in the macOS Keychain (amber-cli-e2e).
-Disconnect any time: amber logout, or Settings › Connect an AI in the app.
-Opened your browser to connect. Approve in Amber Notes on your iPhone or Mac.
+$ pinto login        # the browser opens the consent page; Allow
+Connected to Pinto Notes (read & edit). Tokens are kept in the macOS Keychain (pinto-cli-e2e).
+Disconnect any time: pinto logout, or Settings › Connect an AI in the app.
+Opened your browser to connect. Approve in Pinto Notes on your iPhone or Mac.
 If it didn't open, go to:
 
-  http://127.0.0.1:61241/mcp/authorize?response_type=code&client_id=amb_client_584960f3905f90b79672e33aaec57f53&redirect_uri=http%3A%2F%2F127.0.0.1%3A61249%2Fcallback&code_challenge=Gwro5AXJ7npYjNs2qYillLut6batcONy4aKnKzrQBN8&code_challenge_method=S256&state=1IsYuiL9KEyCwHe6LMImqA&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A61241%2Fmcp
+  http://127.0.0.1:60122/mcp/authorize?response_type=code&client_id=amb_client_75d95546600097593e3f874af3a3e89a&redirect_uri=http%3A%2F%2F127.0.0.1%3A60129%2Fcallback&code_challenge=4QMjCJOafVM1bfOP8oSp6xQDFixQymPW9ihfS7qzjwk&code_challenge_method=S256&state=gjAw9_CZbFgYZc-leo7egA&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A60122%2Fmcp
   PASS connected with read & edit
-[Amber Notes › Settings › Connect an AI]
+[Pinto Notes › Settings › Connect an AI]
   Access token  (Read and edit)
   An app on this computer  (Read and edit)
   PASS Settings lists it as "An app on this computer", like any app signing in from this computer
-$ security find-generic-password -s amber-cli-e2e -a http://127.0.0.1:61241/mcp   # attributes only
+$ security find-generic-password -s pinto-cli-e2e -a http://127.0.0.1:60122/mcp   # attributes only
 class: "genp"
-    "acct"<blob>="http://127.0.0.1:61241/mcp"
-    "svce"<blob>="amber-cli-e2e"
+    "acct"<blob>="http://127.0.0.1:60122/mcp"
+    "svce"<blob>="pinto-cli-e2e"
   PASS the tokens are in the macOS Keychain
-$ ls config/amber
+$ ls config/pinto
 config.json
   PASS and not in a file
-$ amber status
-server  http://127.0.0.1:61241/mcp
-access  read & edit (signed in; tokens in the macOS Keychain (amber-cli-e2e))
+$ pinto status
+server  http://127.0.0.1:60122/mcp
+access  read & edit (signed in; tokens in the macOS Keychain (pinto-cli-e2e))
 tools   files
 
 ## Read
 
-$ amber list
-7 notes
-
-Folders
-  Work/                         2
-  Work/Clients/                 1
-  Travel/                       2
-
-Pinned
-  Groceries.md  2026-10-06 07:21  pinned
-
-Recently edited
-  Work/Diary.md           2026-10-06 07:21  locked
-  Travel/Trip/Packing.md  2026-10-06 07:21
-  Travel/Trip.md          2026-10-06 07:21
-  Work/Weekly review.md   2026-10-06 07:21
-  Work/Clients/Acme.md    2026-10-06 07:21
-  Recipes.md              2026-10-06 07:21
-  Groceries.md            2026-10-06 07:21  pinned
-$ amber list Work/
+$ pinto list
+/
+  Travel/       
+  Work/         
+  Recipes.md    2026-11-14 19:49
+  Groceries.md  2026-11-14 19:49  pinned
+$ pinto list Work/
 Work/
-  Work/Clients/
-  Work/Diary.md          2026-10-06 07:21  locked
-  Work/Weekly review.md  2026-10-06 07:21
-$ amber search butter
+  Work/Clients/          
+  Work/Locked note.md    2026-11-14 19:49  locked
+  Work/Weekly review.md  2026-11-14 19:49
+$ pinto search butter
 Groceries.md
   Groceries ## Dairy - [ ] Milk - [ ] «Butter» See [[Recipes]] for ideas
   PASS search finds the note by a word in it
-$ amber read Work/Clients/Acme.md
+$ pinto read Work/Clients/Acme.md
 # Acme
 
 Kickoff Monday 10:00 with Dana and Lee.
@@ -97,162 +86,160 @@ Kickoff Monday 10:00 with Dana and Lee.
 - Budget for Q1?
 - Who owns the rollout?
   PASS read prints the markdown exactly
-$ amber read Groceries.md --json | jq '{id, title, version: .metadata.version, links: .metadata.links}'
+$ pinto read Groceries.md --json | jq '{id, title, version: .metadata.version, links: .metadata.links}'
 {
-  "id": "fde03e8f-efbc-4d53-999c-2cd96ee8947d",
+  "id": "Groceries.md",
   "title": "Groceries",
-  "version": 1,
   "links": [
     "Recipes"
   ]
 }
   PASS --json gives the server's full answer ([[links]] included)
-$ amber read Work/Diary.md
-amber: "Diary": This note is locked. Its text is encrypted on the user's devices: it can't be read, searched or changed here. The user can open it in Amber Notes.
-(exit 1)
-  PASS a locked note stays closed, with a reason and exit code 1
+$ pinto read "Work/Locked note.md"
+This note is locked. Its text is encrypted on the user's devices: it can't be read, searched or changed here. The user can open it in Pinto Notes.
+  PASS a locked note stays closed: the server says so, and nothing of it shows
 
 ## Change
 
-$ amber create Work $'Standup\n\n- Shipped the CLI\n- Next: tests'
+$ pinto create Work $'Standup\n\n- Shipped the CLI\n- Next: tests'
 Created Work/Standup.md
   PASS create
-$ printf -- '- tomatoes\n- basil\n' | amber create Ideas/Garden.md
+$ printf -- '- tomatoes\n- basil\n' | pinto create Ideas/Garden.md
 Created Ideas/Garden.md
   PASS create from stdin, titled by the file name
-$ amber edit Groceries.md '- [ ] Milk' '- [x] Milk'
-Edited Groceries.md (version 2)
+$ pinto edit Groceries.md '- [ ] Milk' '- [x] Milk'
+Edited Groceries.md
   PASS edit (exact search and replace)
-$ amber edit Groceries.md 'Oat milk' 'Milk'
-amber: Edit 1: old_text was not found. Read the note again and copy the exact text, including markdown and spacing.
+$ pinto edit Groceries.md 'Oat milk' 'Milk'
+pinto: old_string isn't in Groceries.md. Fetch it again and copy the exact text.
 (exit 1)
   PASS edit with text that isn't there changes nothing and says so
-$ amber edit Groceries.md '- [ ] Butter' '-[ ] Butter'
-Edited Groceries.md (version 3)
+$ pinto edit Groceries.md '- [ ] Butter' '-[ ] Butter'
+Edited Groceries.md
   check: "-[ ] Butter" won't show as a checklist item: write "- [ ] text" (or "- [x] text").
   PASS edit reports what the change broke
-$ printf 'Standup\n\n- Shipped the CLI\n- Next: the brew formula\n' | amber write Work/Standup.md
-Wrote Work/Standup.md (version 2)
+$ printf 'Standup\n\n- Shipped the CLI\n- Next: the brew formula\n' | pinto write Work/Standup.md
+Wrote Work/Standup.md
   PASS write from stdin
-$ amber move Work/Standup.md Archive/
+$ pinto move Work/Standup.md Archive/
 Moved to Archive/Standup.md
   PASS move to a folder
-$ amber move 'Archive/Standup.md' 'Archive/Standup 10-06.md'
+$ pinto move 'Archive/Standup.md' 'Archive/Standup 10-06.md'
 Moved to Archive/Standup 10-06.md
   PASS rename
-$ amber history 'Archive/Standup 10-06.md'
-"Standup 10-06", now version 4. Earlier versions, newest first:
-  5       2026-10-06 07:22  An app on this computer  Standup
-  4       2026-10-06 07:22  An app on this computer  Standup
+$ pinto history 'Archive/Standup 10-06.md'
+Archive/Standup 10-06.md: earlier versions, newest first:
+  5       2026-11-14 19:49  An app on this computer  Standup
+  4       2026-11-14 19:49  An app on this computer  Standup
 
-Bring one back with: amber restore <note> <version>
+Bring one back with: pinto restore <note> <version>
   PASS history lists earlier versions
-$ amber restore 'Archive/Standup 10-06.md' 4
-Restored "Standup" (now version 5).
+$ pinto restore 'Archive/Standup 10-06.md' 4
+Restored Archive/Standup.md (version 4).
   PASS restore a version
-$ amber read Archive/Standup.md
+$ pinto read Archive/Standup.md
 Standup
 
 - Shipped the CLI
 - Next: tests
   PASS the old text is back, with its old title (the first line), so its old name
-$ amber delete Ideas/Garden.md
-Moved "Garden" to Recently Deleted. Bring it back with: amber restore 3ef61ea3-e952-4faa-adb2-e1e893b4c0ad
+$ pinto delete Ideas/Garden.md
+Moved Ideas/Garden.md to Recently Deleted/Garden.md. Bring it back with: pinto restore "Recently Deleted/Garden.md"
   PASS delete moves it to Recently Deleted, and says how to bring it back
-$ amber list 'Recently Deleted/'
+$ pinto list 'Recently Deleted/'
 Recently Deleted/
-  Ideas/Garden.md  2026-10-06 07:22  deleted 2026-10-06 07:22
-$ amber restore 3ef61ea3-e952-4faa-adb2-e1e893b4c0ad
-Restored "Garden" to Ideas/.
+  Recently Deleted/Garden.md  2026-11-14 19:49  deleted 2026-11-14 19:49
+$ pinto restore "Recently Deleted/Garden.md"
+Restored Ideas/Garden.md.
   PASS restore from Recently Deleted
-$ amber pin Work/Clients/Acme.md
+$ pinto pin Work/Clients/Acme.md
 Pinned Work/Clients/Acme.md
-$ amber pin Groceries.md --off
+$ pinto pin Groceries.md --off
 Unpinned Groceries.md
   PASS pin and unpin
 
-## Signed in for longer than an hour: five amber commands at once renew the token once
+## Signed in for longer than an hour: five pinto commands at once renew the token once
 
-$ stat -f %Lp config-file/amber/credentials.json   # the Linux store, AMBER_NO_KEYCHAIN=1
+$ stat -f %Lp config-file/pinto/credentials.json   # the Linux store, PINTO_NO_KEYCHAIN=1
 600
   PASS the Linux credentials file is mode 600
 (the access token's expiry set an hour back)
-$ for i in 1 2 3 4 5; do amber list Work/ & done; wait
+$ for i in 1 2 3 4 5; do pinto list Work/ & done; wait
   PASS all five succeed (exit codes 0 0 0 0 0)
   PASS the token was renewed
   PASS and the connection is still there (no refresh token was used twice)
 
 ## Disconnect it in the app: the terminal is turned away
 
-[Amber Notes › Settings › Connect an AI]
+[Pinto Notes › Settings › Connect an AI]
   Access token  (Read and edit)
   An app on this computer  (Read and edit)
-[Amber Notes › Settings › Connect an AI] Disconnect "An app on this computer"
-$ amber list
-amber: This terminal was disconnected from Amber Notes (Settings › Connect an AI). Run `amber login` to connect again.
+[Pinto Notes › Settings › Connect an AI] Disconnect "An app on this computer"
+$ pinto list
+pinto: This terminal was disconnected from Pinto Notes (Settings › Connect an AI). Run `pinto login` to connect again.
 (exit 1)
-  PASS the next command fails and says to run amber login
-[Amber Notes › Settings › Connect an AI]
+  PASS the next command fails and says to run pinto login
+[Pinto Notes › Settings › Connect an AI]
   Access token  (Read and edit)
 
 ## Don't Allow
 
-$ amber login        # this time: Don't Allow
-Opened your browser to connect. Approve in Amber Notes on your iPhone or Mac.
+$ pinto login        # this time: Don't Allow
+Opened your browser to connect. Approve in Pinto Notes on your iPhone or Mac.
 If it didn't open, go to:
 
-  http://127.0.0.1:61241/mcp/authorize?response_type=code&client_id=amb_client_4f503fbb7258e621a15d8667c5ea88d7&redirect_uri=http%3A%2F%2F127.0.0.1%3A61321%2Fcallback&code_challenge=AOvXlxhVdg6wulQ3SLYFF9KyzF5pKWHlB55MyrMQeHo&code_challenge_method=S256&state=uwYxWvIADt68emRnbaRMxQ&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A61241%2Fmcp
+  http://127.0.0.1:60122/mcp/authorize?response_type=code&client_id=amb_client_61c6704282c9fa61842068d14399f479&redirect_uri=http%3A%2F%2F127.0.0.1%3A60193%2Fcallback&code_challenge=Dkb1Lh71MKqXpv_utqU7iE3khxg7zVv2Oy0F0JVrCVE&code_challenge_method=S256&state=Y51gRZjf0feCvEy7yr3dRw&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A60122%2Fmcp
 
-amber: Declined in Amber Notes. Nothing was connected.
+pinto: Declined in Pinto Notes. Nothing was connected.
 (exit 1)
   PASS declining connects nothing
 
-## A server without a browser: amber login --no-browser
+## A server without a browser: pinto login --no-browser
 
-$ amber login --no-browser
+$ pinto login --no-browser
 Open this in a browser:
 
-  http://127.0.0.1:61241/mcp/authorize?response_type=code&client_id=amb_client_484c21b1fdd255ae16ccb4661ebb6f2d&redirect_uri=http%3A%2F%2F127.0.0.1%3A61326%2Fcallback&code_challenge=hdcORe2asoAtQMSmq6pStQCKFbXI7X7A3YbeuiL8fYE&code_challenge_method=S256&state=mFslv5ESfrkTDE54mgtpgw&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A61241%2Fmcp
+  http://127.0.0.1:60122/mcp/authorize?response_type=code&client_id=amb_client_622da8cd6876d23ce2cb8e370ffb0ee7&redirect_uri=http%3A%2F%2F127.0.0.1%3A60199%2Fcallback&code_challenge=xAwrMxqmsnvhDpaejdPEnthA5OE_V4MfM0LHx9ZNiuE&code_challenge_method=S256&state=FXxfnWW6PH6PNUCJIqD_JQ&scope=notes%3Aread+notes%3Awrite&resource=http%3A%2F%2F127.0.0.1%3A60122%2Fmcp
 
-Approve in Amber Notes. If the browser is on another machine, it ends on a page that won't load:
+Approve in Pinto Notes. If the browser is on another machine, it ends on a page that won't load:
 copy that page's address (it starts with http://127.0.0.1) and paste it here.
-Address: http://127.0.0.1:61326/callback?state=mFslv5ESfrkTDE54mgtpgw&iss=http%3A%2F%2F127.0.0.1%3A61241%2Fmcp&code=…
-Connected to Amber Notes (read & edit). Tokens are kept in the macOS Keychain (amber-cli-e2e).
-Disconnect any time: amber logout, or Settings › Connect an AI in the app.
+Address: http://127.0.0.1:60199/callback?state=FXxfnWW6PH6PNUCJIqD_JQ&iss=http%3A%2F%2F127.0.0.1%3A60122%2Fmcp&code=…
+Connected to Pinto Notes (read & edit). Tokens are kept in the macOS Keychain (pinto-cli-e2e).
+Disconnect any time: pinto logout, or Settings › Connect an AI in the app.
   PASS pasting the address the browser landed on connects
-$ amber search 'Lisbon'
+$ pinto search 'Lisbon'
 Travel/Trip.md
   Trip «Lisbon» in May
-  PASS and amber works
+  PASS and pinto works
 
-## CI: AMBER_TOKEN, or amber login --token
+## CI: PINTO_TOKEN, or pinto login --token
 
-$ AMBER_TOKEN=<access token from Settings› Connect an AI> amber status
-server  http://127.0.0.1:61241/mcp
-access  read & edit (AMBER_TOKEN)
+$ PINTO_TOKEN=<access token from Settings› Connect an AI> pinto status
+server  http://127.0.0.1:60122/mcp
+access  read & edit (PINTO_TOKEN)
 tools   files
-  PASS AMBER_TOKEN works without signing in
-$ amber login --token < token.txt
-Connected to Amber Notes (the token's access). Tokens are kept in the macOS Keychain (amber-cli-e2e-ci).
-Disconnect any time: amber logout, or Settings › Connect an AI in the app.
+  PASS PINTO_TOKEN works without signing in
+$ pinto login --token < token.txt
+Connected to Pinto Notes (the token's access). Tokens are kept in the macOS Keychain (pinto-cli-e2e-ci).
+Disconnect any time: pinto logout, or Settings › Connect an AI in the app.
   PASS login --token saves a pasted token
-$ amber logout
-Forgot the access token here. It keeps working until you delete it in Amber Notes › Settings › Connect an AI.
+$ pinto logout
+Forgot the access token here. It keeps working until you delete it in Pinto Notes › Settings › Connect an AI.
 
 ## Signing in again replaces the old connection
 
-[Amber Notes › Settings › Connect an AI]
+[Pinto Notes › Settings › Connect an AI]
   Access token  (Read and edit)
   An app on this computer  (Read and edit)
   PASS one "An app on this computer", not two (1)
 
 ## Sign out
 
-$ amber logout
-Disconnected this terminal from Amber Notes.
-[Amber Notes › Settings › Connect an AI]
+$ pinto logout
+Disconnected this terminal from Pinto Notes.
+[Pinto Notes › Settings › Connect an AI]
   Access token  (Read and edit)
-  PASS amber logout disconnects it in the app too
+  PASS pinto logout disconnects it in the app too
   PASS and removes it from the Keychain
 
 ## Tokens never show

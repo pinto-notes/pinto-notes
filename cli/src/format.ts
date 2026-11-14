@@ -45,7 +45,7 @@ export const formatters: Record<string, (r: R) => string> = {
   move: (r) => r.moved ? `Moved to ${r.moved}` : json(r),
   delete(r) {
     if (typeof r.deleted !== "string") return json(r);
-    if (r.now_at) return `Moved ${r.deleted} to ${r.now_at}${r.with_sub_notes ? ` with ${r.with_sub_notes} sub-note${r.with_sub_notes > 1 ? "s" : ""}` : ""}. Bring it back with: amber restore ${JSON.stringify(r.now_at)}`;
+    if (r.now_at) return `Moved ${r.deleted} to ${r.now_at}${r.with_sub_notes ? ` with ${r.with_sub_notes} sub-note${r.with_sub_notes > 1 ? "s" : ""}` : ""}. Bring it back with: pinto restore ${JSON.stringify(r.now_at)}`;
     return `Deleted ${r.deleted}${r.notes_moved_to ? `; its notes went to ${r.notes_moved_to}` : ""}`;
   },
   history(r) {
@@ -54,7 +54,7 @@ export const formatters: Record<string, (r: R) => string> = {
     return [`${r.path}: earlier versions, newest first:`, ...r.versions.map((v: R) =>
       v.what ? `  ${pad(String(v.version), 8)}${pad(v.what, 6)}${pad(when(v.made), 18)}${v.made_by ?? ""}`
         : `  ${pad(String(v.version), 8)}${pad(when(v.replaced_at), 18)}${pad(String(v.replaced_by ?? ""), 18)}${v.locked ? "(locked)" : v.title}`),
-      "", "Bring one back with: amber restore <note> <version>"].join("\n");
+      "", "Bring one back with: pinto restore <note> <version>"].join("\n");
   },
   restore: (r) => typeof r.restored === "string" ? `Restored ${r.restored}${r.version ? ` (version ${r.version})` : ""}.` : json(r),
   pin: (r) => `${r.pinned ? "Pinned" : "Unpinned"} ${r.path}`,
@@ -63,7 +63,7 @@ export const formatters: Record<string, (r: R) => string> = {
 /** cat -n lines ("     3\tText") back to the text itself. */
 export const unnumbered = (text: string) => /^ *\d+\t/.test(text) ? text.split("\n").map((l) => l.replace(/^ *\d+\t/, "")).join("\n") : text;
 
-/** A note's text for `amber read`, exactly as stored; folders and other things fall back to their text. */
+/** A note's text for `pinto read`, exactly as stored; folders and other things fall back to their text. */
 export function readText(r: R, numbers = false): string {
   return typeof r.text === "string" ? (numbers ? r.text : unnumbered(r.text)) : json(r);
 }
