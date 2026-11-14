@@ -243,3 +243,7 @@
 
 /* "Mentioned in 1 note" at the note's small-print size, not the page's body size. */
 .mention { margin: 18px 0 0; font-size: 12.5px; color: #8a8580; }
+
+/* Build without the notes list: the app centred at a note's reading width, as Pinto lays out a note. */
+.cols[data-solo] { grid-template-columns: minmax(0, 1fr); }
+.cols[data-solo] .app { width: 100%; max-width: 620px; margin: 0 auto; box-sizing: border-box; }

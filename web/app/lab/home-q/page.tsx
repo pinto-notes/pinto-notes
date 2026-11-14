@@ -67,7 +67,7 @@ export default function Page() {
 
       <Section id="q-build" title="Build apps." line="Small apps in a note, like a habit tracker, from a template or your AI."
         link={{ href: "/templates", text: "See all templates" }}>
-        <Frame tone="build"><BuildWin /></Frame>
+        <Frame tone="build"><BuildWin list={false} /></Frame>
       </Section>
 
       <Section id="q-ai" title="Your AI, in all three." line="Connect ChatGPT, Claude, Claude Code or Codex, and it starts every chat knowing your notes.">
@@ -87,7 +87,7 @@ export default function Page() {
 
       <section className={`${s.section} ${s.band}`} aria-labelledby="q-both">
         <div className={s.headRow}>
-          <h2 id="q-both" className={s.title}>On your Mac and iPhone.</h2>
+          <h2 id="q-both" className={s.title}>On Mac and iPhone.</h2>
           <div className={s.headText}><p className={s.body}>The same notes on both, always in sync, and they work offline too.</p></div>
         </div>
         <Devices />
