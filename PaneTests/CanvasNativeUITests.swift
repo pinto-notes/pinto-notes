@@ -1221,6 +1221,31 @@ import UIKit
                     try await shot("17-sticky-notes", w, web)
                     // The picture a shared link's page shows (BoardPicture: light, the whole board).
                     if let png = await canvas.export(.png, light: true) { try png.write(to: dir.appending(path: "19-shared-board-picture.png")) }
+                    // A drawing sequence (council round 3 asked for it): two labelled boxes joined
+                    // by an arrow, then both lined up with Align › Middle (the arrow follows), then
+                    // Undo (the move), Redo. One picture per step.
+                    try await js("amber._canvas.api.updateScene({ elements: [], captureUpdate: 'IMMEDIATELY' })")
+                    canvas.highlight = nil
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await js("""
+                    amber._canvasCommand({ op: 'insert', elements: [
+                      { type: 'rectangle', id: 'a', x: 0, y: 160, width: 200, height: 90, backgroundColor: '#a5d8ff', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Plan' } },
+                      { type: 'rectangle', id: 'b', x: 420, y: 0, width: 200, height: 90, backgroundColor: '#b2f2bb', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Ship' } },
+                      { type: 'arrow', x: 204, y: 200, width: 212, height: -150, start: { id: 'a' }, end: { id: 'b' } },
+                    ] })
+                    """)
+                    for _ in 0..<40 where canvas.state.empty { await MacWindowChromeTests.settle(w, 2) }
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("22-sequence-1-joined", w, web)
+                    try await js("const api = amber._canvas.api; const ids = {}; api.getSceneElements().filter((e) => e.type === 'rectangle').forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids }, captureUpdate: 'IMMEDIATELY' })")
+                    await MacWindowChromeTests.settle(w, 5)
+                    canvas.run(.alignMiddle)
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("22-sequence-2-aligned", w, web)
+                    canvas.run(.undo); await MacWindowChromeTests.settle(w, 10)
+                    try await shot("22-sequence-3-undo", w, web)
+                    canvas.run(.redo); await MacWindowChromeTests.settle(w, 10)
+                    try await shot("22-sequence-4-redo", w, web)
                 }
             }
         }
