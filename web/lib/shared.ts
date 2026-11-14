@@ -77,6 +77,12 @@ export function boardPicture(slug: string, note: SharedNote, base = URL_): Board
 }
 
 export async function sharedNote(slug: string, sub?: string): Promise<SharedNote | null> {
+  return (await readSharedNote(slug, sub)) ?? null;
+}
+
+/** As sharedNote, telling "not shared" (null) from "couldn't ask" (undefined, the RPC failed):
+ *  a live board's page (app/api/shared) takes the picture down only for the first. */
+export async function readSharedNote(slug: string, sub?: string): Promise<SharedNote | null | undefined> {
   if (!validSlug(slug) || (sub !== undefined && !validSub(sub)) || !URL_ || !KEY) return null;
   const res = await fetch(`${URL_}/rest/v1/rpc/shared_note`, {
     method: "POST",
@@ -84,7 +90,7 @@ export async function sharedNote(slug: string, sub?: string): Promise<SharedNote
     body: JSON.stringify({ p_slug: slug, p_sub: sub ?? null }),
     cache: "no-store",
   });
-  if (!res.ok) return null;
+  if (!res.ok) return undefined;
   return (await res.json()) as SharedNote | null;
 }
 

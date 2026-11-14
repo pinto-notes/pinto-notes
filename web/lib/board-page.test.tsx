@@ -135,7 +135,8 @@ describe("a shared whiteboard's page says what it is and what it offers", () => 
     const d = render(board);
     const byline = d.querySelector("main p")!;
     expect(byline.textContent).toContain("Shared by Emil W");
-    expect(byline.textContent).toContain("View only. Reload to see the latest changes.");
+    expect(byline.textContent).toContain("View only. Changes show here as they’re made.");
+    expect(byline.textContent).not.toContain("Reload");
     // A note's page doesn't say it.
     const note = render({ ...board, title: "Trip", body: "Trip\n\nDay one", picture: null, scene: null });
     expect(note.body.textContent).not.toContain("View only");
