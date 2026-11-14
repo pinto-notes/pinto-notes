@@ -11,7 +11,7 @@ const B1 = [
   "move-from-apple-notes",
 ];
 // Posts written or changed after B1 started carry the same card, outside the experiment.
-const LATER = ["apple-notes-version-history", "apple-notes-budget-template", "ai-memory-with-notes"];
+const LATER = ["apple-notes-version-history", "apple-notes-budget-template", "ai-memory-with-notes", "apple-notes-habit-tracker"];
 const CONTROL = ["apple-notes-not-syncing", "forgot-apple-notes-password", "move-apple-notes-to-icloud", "recover-deleted-apple-notes"];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
