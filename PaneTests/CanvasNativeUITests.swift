@@ -773,7 +773,7 @@ import UIKit
         let before = try #require(try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.zoom.value, s.scrollX, s.scrollY].join(','); })()") as? String)
         j.canvas.send(.present(.start))
         await j.until("presenting the first frame") { j.canvas.state.present?.index == 0 }
-        #expect(j.canvas.state.present == .init(index: 0, count: 2, name: "Intro"))
+        #expect(j.canvas.state.present?.index == 0 && j.canvas.state.present?.count == 2 && j.canvas.state.present?.name == "Intro")
         #expect(j.canvas.state.tool == .laser, "the laser pointer is picked")
         #expect(CanvasPresentBar.position(j.canvas.state.present!) == "1 of 2")
         try await Task.sleep(for: .milliseconds(700))
@@ -783,6 +783,10 @@ import UIKit
         #expect(j.canvas.state.present?.name == "Plan")
         try await Task.sleep(for: .milliseconds(700))
         #expect(try await j.js(frameInView("f2")) as? Bool == true, "the second frame fills the view")
+        // Where it is on screen, for the cover over the rest of the board (round 6).
+        let shown = try #require(j.canvas.state.present?.frame)
+        let real = try #require(try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === 'f2'); return [(f.x + s.scrollX) * z, (f.y + s.scrollY) * z, f.width * z, f.height * z].map(Math.round).join(','); })()") as? String)
+        #expect("\(Int(shown.minX)),\(Int(shown.minY)),\(Int(shown.width)),\(Int(shown.height))" == real, "\(shown) vs \(real)")
         j.canvas.send(.present(.next))
         try await Task.sleep(for: .milliseconds(150))
         #expect(j.canvas.state.present?.index == 1, "no further than the last")
@@ -797,7 +801,7 @@ import UIKit
         _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'frame').map((e) => ({ ...e, frameId: null })) }); return 0; })()")
         j.canvas.send(.present(.start))
         await j.until("presenting the board") { j.canvas.state.present != nil }
-        #expect(j.canvas.state.present == .init(index: 0, count: 1, name: "Whole board"))
+        #expect(j.canvas.state.present == .init(index: 0, count: 1, name: "Whole board", frame: nil), "the whole board, uncovered")
         j.canvas.send(.present(.stop))
         await j.until("stopped") { j.canvas.state.present == nil }
         // F and K reach the page's frame and laser tools.

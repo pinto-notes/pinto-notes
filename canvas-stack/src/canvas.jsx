@@ -543,7 +543,17 @@ export function stateOf(api, app) {
   const steps = presenting ? presentSteps(api) : null;
   return {
     tool: s.activeTool && s.activeTool.type,
-    present: steps ? { index: Math.min(presenting.index, steps.length - 1), count: steps.length, name: steps[Math.min(presenting.index, steps.length - 1)].name } : null,
+    present: steps ? (() => {
+      const i = Math.min(presenting.index, steps.length - 1), f = steps[i].id && api.getSceneElements().find((e) => e.id === steps[i].id);
+      // Where the frame is on screen: the app covers the rest, so only this frame shows (round 6:
+      // the next frame's edge showed beside it).
+      let frame = null;
+      if (f) {
+        const a = sceneCoordsToViewportCoords({ sceneX: f.x, sceneY: f.y }, s), b = sceneCoordsToViewportCoords({ sceneX: f.x + f.width, sceneY: f.y + f.height }, s);
+        frame = [Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), Math.round(b.y - a.y)];
+      }
+      return { index: i, count: steps.length, name: steps[i].name, frame };
+    })() : null,
     selection: selected.map((e) => e.type),
     bounds,
     nearby,

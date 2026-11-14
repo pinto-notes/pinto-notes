@@ -213,7 +213,11 @@ enum CanvasObstacle: Equatable, Sendable {
 struct CanvasState: Equatable, Sendable {
     var tool: CanvasTool = .selection
     /// Presenting: which step of how many (a frame, or the whole board when there are none).
-    struct Presenting: Equatable, Sendable { var index: Int; var count: Int; var name: String }
+    struct Presenting: Equatable, Sendable {
+        var index: Int; var count: Int; var name: String
+        /// The frame on screen, in the page's points (nil: the whole board).
+        var frame: CGRect? = nil
+    }
     var present: Presenting?
     /// The selected elements' types ("rectangle", "text", …).
     var selection: [String] = []
@@ -265,7 +269,9 @@ struct CanvasState: Equatable, Sendable {
     init(_ m: [String: Any]) {
         if let t = (m["tool"] as? String).flatMap(CanvasTool.init(rawValue:)) { tool = t }
         if let p = m["present"] as? [String: Any], let i = (p["index"] as? NSNumber)?.intValue, let n = (p["count"] as? NSNumber)?.intValue {
-            present = Presenting(index: i, count: n, name: p["name"] as? String ?? "")
+            let f = (p["frame"] as? [NSNumber])?.map { CGFloat($0.doubleValue) }
+            present = Presenting(index: i, count: n, name: p["name"] as? String ?? "",
+                                 frame: f.flatMap { $0.count == 4 ? CGRect(x: $0[0], y: $0[1], width: $0[2], height: $0[3]) : nil })
         }
         selection = (m["selection"] as? [String]) ?? []
         editing = (m["editing"] as? Bool) ?? false

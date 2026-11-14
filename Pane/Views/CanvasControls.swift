@@ -62,6 +62,10 @@ struct CanvasOverlay: View {
                     #endif
                 }
                 if let p = canvas.state.present {
+                    if let frame = p.frame {
+                        CanvasPresentMask(frame: frame, light: canvas.background)
+                            .transition(.opacity)
+                    }
                     VStack {
                         Spacer(minLength: 0)
                         CanvasPresentBar(canvas: canvas, step: p)
@@ -85,6 +89,30 @@ struct CanvasOverlay: View {
 extension Notification.Name {
     /// A board started (true) or stopped (false) presenting.
     static let paneCanvasPresenting = Notification.Name("pane.canvasPresenting")
+}
+
+/// While presenting a frame, the rest of the board is covered in the board's own colour, so only
+/// the frame shows (whiteboard council, round 6: the next frame's edge showed beside it). The
+/// pointer goes through it, to the laser.
+struct CanvasPresentMask: View {
+    let frame: CGRect
+    /// The board's background as stored (light; dark mode shows it dark).
+    let light: String
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        // As the board shows it (dark mode turns the light colour dark).
+        let fill = CanvasStyle.shown(light, dark: scheme == .dark) ?? (scheme == .dark ? .black : .white)
+        GeometryReader { geo in
+            Path { p in
+                p.addRect(CGRect(origin: .zero, size: geo.size))
+                p.addRoundedRect(in: frame.insetBy(dx: -12, dy: -12), cornerSize: CGSize(width: 8, height: 8))
+            }
+            .fill(fill.opacity(0.96), style: FillStyle(eoFill: true))
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
 }
 
 /// Presenting a board: which frame of how many, its name, back and next, and Done (whiteboard
