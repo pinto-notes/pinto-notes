@@ -2,7 +2,7 @@
 
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
-import s from "./q.module.css";
+import s from "./pic.module.css";
 
 // The "Publishing flow" whiteboard, as the app draws it (same words and fills as the capture in
 // public/lab/big3/canvas-selected-light-main.webp), in Excalidraw's hand-drawn look and font. The

@@ -1,444 +1,129 @@
 /* Study Q, "the warm paper notebook". Cream throughout (lib/theme.ts keeps /lab/home-q cream). The
-   live hero, then one section per feature, words on one side and the product in a paper room on the
-   other, alternating like Bear and Craft. Then the AI, Mac and iPhone, the small things, free, and
-   the download. */
+   page's type and layout, and nothing else: the product pictures (the app UI, the rooms) are in
+   pic.module.css.
 
-.main { width: 100%; max-width: 1240px; margin: 0 auto 40px; padding: 0 var(--gutter); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 240px; }
-/* The live hero's headline, a step smaller so "The notebook for" holds one line and "you and your AI." the next. */
-.h1.h1 { font-family: var(--q-display), Georgia, serif; font-weight: 400; letter-spacing: 0.002em; line-height: 0.98; font-size: min(clamp(56px, min(6.6vw, 10.8vh), 112px), 17.6cqi); }
+   The type system. Every size and weight on the page comes from these variables:
+   - Display, Instrument Serif, regular only: the h1 and the closing title (--q-size-h1), the section
+     titles (--q-size-title) and the big number (--q-size-num). Italic only in the h1.
+   - Body, the site's sans, 19 px regular, one colour: every sentence on the page.
+   - Label, the site's sans, 17 px semibold: the "more" card titles, links and the fine print.
+   Buttons keep the site's own style. */
+
+.main {
+  --q-size-h1: clamp(56px, min(6.6vw, 10.8vh), 96px);
+  --q-size-title: clamp(42px, 4.6vw, 64px);
+  --q-size-num: clamp(76px, 15vw, 232px);
+  --q-size-body: 19px;
+  --q-size-label: 17px;
+  --q-weight-display: 400;
+  --q-weight-body: 400;
+  --q-weight-label: 600;
+  --q-color-body: #5c4a38;
+  --q-display-face: var(--q-display), Georgia, serif;
+  /* Layout: one content width, one space between sections, one gap from a heading to its picture. */
+  --q-width: 1240px;
+  --q-section: 160px;
+  --q-head-gap: 56px;
+  --q-band-pad: clamp(96px, 10vw, 144px);
+  /* One frame for every picture. */
+  --q-frame-radius: 28px;
+  --q-frame-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.06), 0 40px 80px -44px rgba(60, 30, 5, 0.55);
+
+  width: 100%; max-width: var(--q-width); margin: 0 auto 40px; padding: 0 var(--gutter); box-sizing: border-box;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--q-section);
+}
+
+/* ── The three text styles ── */
+.h1.h1, .title, .bigNum, .closingTitle { margin: 0; font-family: var(--q-display-face); font-weight: var(--q-weight-display); font-style: normal; letter-spacing: 0.004em; color: var(--ink); text-wrap: balance; }
+.h1.h1 { font-size: min(var(--q-size-h1), 17.6cqi); line-height: 0.98; }
 .h1Em { font-style: italic; letter-spacing: 0.006em; white-space: nowrap; }
-.cols[data-solo] { grid-template-columns: minmax(0, 1fr); }
+.title { font-size: var(--q-size-title); line-height: 1.02; }
+.closingTitle { font-size: var(--q-size-h1); line-height: 1; }
+.bigNum { font-size: var(--q-size-num); line-height: 0.9; }
+.body.body { margin: 20px 0 0; max-width: 30em; font-size: var(--q-size-body); font-weight: var(--q-weight-body); line-height: 1.45; color: var(--q-color-body); text-wrap: pretty; }
+.label.label { font-size: var(--q-size-label); font-weight: var(--q-weight-label); line-height: 1.35; color: var(--ink); }
+.hero .body.body { margin-top: -6px; }
+.hero .label.label { margin: -10px 0 0; color: var(--q-color-body); }
 
-/* ── Type: section titles a clear step under the hero's headline ── */
-.title { margin: 0; font-family: var(--q-display), Georgia, serif; font-size: clamp(46px, 5.4vw, 80px); font-weight: 400; letter-spacing: 0.004em; line-height: 1; color: var(--ink); text-wrap: balance; }
-.title em, .closingTitle em { font-style: italic; letter-spacing: 0.008em; }
-.line { margin: 22px 0 0; max-width: 30em; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.42; color: #6b5a48; text-wrap: pretty; }
-.center { display: grid; justify-items: center; text-align: center; }
-.center .line { text-wrap: balance; max-width: 34em; }
-.inline { color: var(--ink); font-weight: 650; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 4px; white-space: nowrap; transition: color 0.15s; }
-.inline:hover { color: var(--link); }
-.inline:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 3px; }
+/* A link in the label style, with an arrow. */
+.link { display: inline-flex; align-items: center; gap: 6px; margin-top: 24px; color: var(--link); text-decoration: none; transition: color 0.15s; }
+.link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+.link:hover { color: var(--ink); }
+.link:hover svg { transform: translateX(3px); }
+.link:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
 
-/* ── A feature: words, and the product in its room, the sides alternating ── */
-.feature { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: clamp(40px, 6vw, 88px); align-items: center; }
-.feature[data-flip] { grid-template-columns: minmax(0, 1fr) minmax(0, 380px); }
-.feature[data-flip] .words { order: 2; }
-.words { display: grid; justify-items: start; }
-.details { list-style: none; margin: 34px 0 0; padding: 0; display: grid; gap: 18px; }
-.details li { position: relative; padding-left: 22px; font-size: 17.5px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
-.details li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 9px; height: 9px; border-radius: 3px; background: #f3b067; transform: rotate(8deg); }
-.details b { color: var(--ink); font-weight: 700; }
-.more { margin-top: 26px; display: inline-flex; align-items: center; gap: 6px; font-size: 17.5px; font-weight: 650; color: var(--link); text-decoration: none; transition: color 0.15s; }
-.more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
-.more:hover { color: var(--ink); }
-.more:hover svg { transform: translateX(3px); }
-.more:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
-.pic { min-width: 0; }
+/* ── One frame for every picture: the hero, the rooms (pic.module.css uses the same variables), the cards ── */
+.frame { border-radius: var(--q-frame-radius); box-shadow: var(--q-frame-shadow); overflow: hidden; }
 
-/* ── The paper room: planes of cut paper with soft shadows between, the product in front ── */
-.room { position: relative; aspect-ratio: 1000 / 860; border-radius: 34px; overflow: hidden; isolation: isolate; background: #efd0a6;
-  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.06), 0 40px 80px -44px rgba(60, 30, 5, 0.55); }
-.plane { position: absolute; inset: 0; pointer-events: none; }
-.plane svg { display: block; width: 100%; height: 100%; }
-.plane[data-shade] svg { filter: drop-shadow(0 5px 9px rgba(30, 15, 5, 0.26)); }
-.plane[data-front] { z-index: 3; }
-.product { position: absolute; inset: 0; z-index: 2; }
-.edge { position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 240, 220, 0.2), inset 0 3px 18px rgba(30, 14, 2, 0.22); }
-.room[data-scene="night"] { background: #3c3754; }
-.room[data-scene="cafe"] { background: #5f7f6a; }
-.room[data-scene="dusk"] { background: #f7cfa0; }
-.room[data-scene="evening"] { background: #ecd2b0; }
-
-.at { position: absolute; display: flex; }
-.writeRoom .at { left: 17%; right: -24%; top: 8%; bottom: -10%; }
-/* The notes window about 18% larger, so it reads at a glance. */
-.writeRoom .win { zoom: 1.18; }
-/* Over the bottom of the list column, so the note itself stays whole. */
-.importAt { position: absolute; left: 17%; bottom: 5%; width: min(290px, 38%); z-index: 2; }
-.drawRoom .at { left: 5%; right: 15%; top: 9%; bottom: 13%; }
-.buildRoom .at { left: 45%; right: -6%; top: 14%; bottom: -3%; }
-.fanAt { position: absolute; left: 2.5%; bottom: 7%; z-index: 2; }
-
-/* ── The Mac window, rebuilt from the captures ── */
-.win { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 14px; background: #fff;
-  color: #1d1b19; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; text-align: left;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.25), 0 30px 60px -20px rgba(20, 8, 0, 0.5), 0 8px 18px -8px rgba(20, 8, 0, 0.3); }
-.bar { flex: none; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 16px; border-bottom: 0.5px solid #ece9e5; font-size: 13.5px; color: #3a3530; }
-.bar b { font-weight: 650; }
-.lights { display: flex; gap: 7px; }
-.lights i { width: 12px; height: 12px; border-radius: 50%; background: #e3e0dc; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.1); }
-.barIcon { width: 18px; height: 18px; fill: none; stroke: #6f6a64; stroke-width: 1.4; }
-.barBack { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #f1efec; margin-right: -4px; }
-.barBack svg { width: 14px; height: 14px; fill: none; stroke: #6f6a64; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-
-.cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 214px minmax(0, 1fr); }
-.list { padding: 14px 8px 0; border-right: 0.5px solid #ece9e5; overflow: hidden; }
-.list p { margin: 4px 8px 6px; font-size: 13.5px; font-weight: 700; }
-.list p + ul + p { margin-top: 16px; }
-.list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.list li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 9px; }
-.list li[data-on] { background: #eeedeb; }
-.list li b { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; white-space: nowrap; }
-.list li small { font-size: 11.5px; color: #6f6a64; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.appTag { padding: 0 5px; border-radius: 5px; background: #eeebe7; font-size: 9.5px; font-weight: 650; color: #6f6a64; line-height: 1.5; }
-
-/* Write: the Groceries note. */
-.note { padding: 26px 32px 0; overflow: hidden; }
-.noteTitle { margin: 0 0 14px; font-size: 28px; font-weight: 750; letter-spacing: -0.015em; }
-.noteText { margin: 0 0 14px; font-size: 14.5px; line-height: 1.4; }
-.check { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.check li { display: flex; align-items: center; gap: 10px; min-height: 27px; font-size: 15px; white-space: nowrap; }
-.check i { flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #b9b2aa; }
-.check li[data-on] { color: #9a928a; text-decoration: line-through; text-decoration-color: #b0a89f; }
-.check li[data-on] i { background: #c8691c; box-shadow: none; }
-.check i svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.mention { margin: 18px 0 0; padding-top: 14px; border-top: 0.5px solid #ece9e5; font-size: 12.5px; font-weight: 600; color: #8a847e; }
-
-/* The Apple Notes import sheet's header and button. */
-.import { display: grid; gap: 16px; padding: 18px 18px 16px; border-radius: 16px; background: #fff; color: #1d1b19; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 26px 50px -18px rgba(20, 8, 0, 0.5), 0 6px 14px -6px rgba(20, 8, 0, 0.25); transform: rotate(-1.2deg); }
-.importHead { display: flex; gap: 12px; align-items: center; }
-.importHead > span:last-child { display: grid; gap: 2px; min-width: 0; }
-.importHead b { font-size: 15.5px; font-weight: 700; }
-.importHead small { font-size: 12.5px; line-height: 1.35; color: #77706a; }
-/* Apple Notes' own mark, drawn: a yellow-topped page. */
-.anIcon { flex: none; position: relative; width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(#f9d548 0 30%, #fff 30%); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15); overflow: hidden; }
-.anIcon i { position: absolute; left: 7px; right: 7px; top: 19px; height: 12px; background: repeating-linear-gradient(#d8d3cb 0 1px, transparent 1px 5px); }
-.importBtn { justify-self: end; padding: 6px 14px; border-radius: 8px; background: #d97a17; color: #fff; font-size: 13px; font-weight: 650; }
-
-/* Draw: the whiteboard. */
-.boardArea { position: relative; flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; padding: 6px 16px 16px; }
-.boardBox { width: 100%; min-height: 0; display: grid; place-items: center; box-sizing: border-box; }
-.board { display: block; width: 100%; height: auto; max-height: 100%; max-width: 680px; overflow: visible; }
-.board[data-layout="tall"] { display: none; }
-.ink { stroke: #1e1e1e; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-.word { fill: #1e1e1e; font-family: inherit; }
-.cursorName { fill: #fff; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 11px; font-weight: 650; }
-.tools { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 13px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 4px 14px -6px rgba(0, 0, 0, 0.25); }
-.tools svg { width: 30px; height: 30px; padding: 6px; box-sizing: border-box; border-radius: 8px; fill: none; stroke: #4a4540; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.tools svg[data-on] { background: #efedea; fill: #1e1e1e; }
-.tools span { font-size: 13px; font-weight: 600; color: #4a4540; padding: 0 6px; }
-
-/* Drawing itself, once it is in view: each step's strokes run in, then its words and fill. Steps are
-   0.42 s apart; Claude's cursor comes in before step 8. Only with JavaScript and motion ("wait"). */
-.boardBox[data-anim] .ink { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
-.boardBox[data-anim] .word, .boardBox[data-anim] .fillIn, .boardBox[data-anim] .cursor, .boardBox[data-anim] .step { opacity: 0; }
-.boardBox[data-anim="play"] .step { animation: show 0.01s linear forwards; animation-delay: calc(0.3s + var(--i) * 0.42s); }
-.boardBox[data-anim="play"] .ink { animation: stroke 0.5s ease-in-out forwards; animation-delay: calc(0.3s + var(--i) * 0.42s); }
-.boardBox[data-anim="play"] .word, .boardBox[data-anim="play"] .fillIn { animation: show 0.35s ease forwards; animation-delay: calc(0.65s + var(--i) * 0.42s); }
-.boardBox[data-anim="play"] .step[data-ai] .ink { animation-duration: 0.7s; }
-.boardBox[data-anim="play"] .cursor { animation: cursor 1.6s 3s cubic-bezier(0.3, 0.7, 0.2, 1) forwards; }
-@keyframes stroke { to { stroke-dashoffset: 0; } }
-@keyframes show { to { opacity: 1; } }
-@keyframes cursor { 0% { opacity: 0; translate: 60px -110px; } 20% { opacity: 1; } 100% { opacity: 1; translate: 0 0; } }
-
-/* Build: the Habit tracker template, an app in a note. */
-.app { padding: 22px 30px 0; overflow: hidden; }
-.aTop { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #8a7a68; }
-.aTop b { font-weight: 600; }
-.aTitle { margin: 2px 0 12px; font-size: 28px; font-weight: 750; letter-spacing: -0.015em; }
-.aWeek { display: grid; grid-template-columns: repeat(7, 1fr); margin: 0 0 14px; max-width: 380px; }
-.aWeek span { display: grid; justify-items: center; gap: 4px; }
-.aWeek small { font-size: 11px; font-weight: 600; color: #8a7a68; }
-.aWeek i { width: 20px; height: 20px; border-radius: 50%; background: #efe8df; }
-.aWeek span[data-on] i { background: #d97a17; }
-.aWeek span[data-now] i { box-shadow: 0 0 0 2.5px #fff, 0 0 0 4px #d97a17; background: #f6c58f; }
-.aList { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
-.aList li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px; border-radius: 12px; background: #f6f2ed; }
-.aList li > span:first-child { display: grid; gap: 1px; min-width: 0; justify-items: start; }
-.aList b { font-size: 14.5px; font-weight: 650; white-space: nowrap; }
-.aList small { font-size: 12px; color: #8a7a68; white-space: nowrap; }
-.aTick { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1.3px #d6cbbd; }
-.aTick svg { width: 62%; height: 62%; fill: none; stroke: transparent; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.aTick[data-on] { background: #d97a17; box-shadow: none; }
-.aTick[data-on] svg { stroke: #fff; }
-.aCount { display: flex; gap: 6px; }
-.aCount i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #ece4d9; font-style: normal; font-size: 14px; font-weight: 600; color: #6d5f50; }
-.aCount i[data-ring] { background: #d97a17; color: #fff; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; background: #ffe2bd; color: #a85700; font-style: normal; font-size: 11px; font-weight: 650; white-space: nowrap; }
-.chip[data-ai="claude"] { padding: 1px 7px; background: #fbe4da; color: #b4532f; font-size: 10.5px; }
-
-/* The template covers, fanned; each opens its template. */
-.fan { list-style: none; margin: 0; padding: 0; display: flex; }
-.fan li { width: 122px; transform-origin: 50% 100%; }
-.fan li + li { margin-left: -32px; }
-.fan li:nth-child(1) { transform: rotate(-8deg) translateY(6px); }
-.fan li:nth-child(2) { transform: rotate(-1deg) translateY(-6px); }
-.fan li:nth-child(3) { transform: rotate(7deg) translateY(4px); }
-.fan a { display: grid; gap: 0; border-radius: 14px; overflow: hidden; background: #fffaf3; text-decoration: none; color: var(--ink);
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 18px 30px -14px rgba(20, 8, 0, 0.55); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s; }
-.fan img { display: block; width: 100%; height: auto; aspect-ratio: 1; }
-.fan span { padding: 8px 11px 10px; font-size: 13px; font-weight: 700; }
-.fan li:hover { z-index: 2; }
-.fan a:hover { transform: translateY(-8px); box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 28px 40px -16px rgba(20, 8, 0, 0.6); }
-.fan a:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
-
-/* ── Your AI, in all three ── */
-.ai, .both, .moreSec { display: grid; gap: 72px; }
-.aiRoom { aspect-ratio: 1200 / 640; }
-.said { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 340px) 110px minmax(0, 600px); align-items: center; justify-content: center; padding: 0 5%; gap: 0; }
-.chat { display: grid; gap: 14px; padding: 18px 20px 22px; border-radius: 22px; background: #fff; color: #0d0d0d; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 30px 60px -20px rgba(20, 8, 0, 0.5); transform: rotate(-1.5deg); }
-.chat p { margin: 0; }
-.chatHead { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 650; padding-bottom: 4px; }
-.me { justify-self: end; max-width: 85%; padding: 10px 14px; border-radius: 18px; background: #f2f2f2; font-size: 15px; line-height: 1.4; }
-.them { display: grid; gap: 8px; font-size: 15px; line-height: 1.45; }
-.tool { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #6b6b6b; }
-.toolMark img { display: block; width: 18px; height: 18px; border-radius: 5px; }
-.saidArrow { width: 100%; height: auto; fill: none; stroke: #4b2a14; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; padding: 0 8px; box-sizing: border-box; }
-.saidWin { flex: none; height: 78%; align-self: center; }
-.table { padding: 20px 26px 0; overflow: hidden; }
-.grid { display: grid; grid-template-columns: 0.8fr 0.9fr 1.2fr 1.3fr 0.7fr; margin-top: 4px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 0.5px #e4ded6; }
-.grid > * { padding: 8px 10px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 0.5px solid #ece6de; }
-.grid > b { border-top: 0; background: #f6f2ed; font-size: 12px; font-weight: 650; color: #6f6a64; }
-.grid > [data-new] { background: #fff0db; font-weight: 600; }
-.by { margin: 10px 0 0; display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
-.by span { color: #a85700; font-weight: 650; }
-.pbHead { margin: 18px 0 6px; font-size: 16px; font-weight: 700; }
-.pb { margin: 0; display: grid; gap: 4px; font-size: 13.5px; }
-.pb span::before { content: "•"; margin-right: 8px; color: #8a7a68; }
-.pb [data-new] { width: fit-content; padding: 0 6px; margin-left: -6px; border-radius: 6px; background: #fff0db; font-weight: 600; }
-
-/* The four AIs under the line, quiet. */
-.aiRow { margin: 34px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 30px; }
-.aiRow li { display: flex; align-items: center; gap: 11px; font-size: 17.5px; font-weight: 650; color: var(--ink); white-space: nowrap; }
-.aiMark { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: #fffaf3; color: #1d1b19;
-  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 10px 22px -14px rgba(60, 30, 5, 0.45); }
-.aiMark[data-ai="claude"] { color: #d97757; }
-.marks { margin: 0; justify-self: center; text-align: center; font-size: 17.5px; line-height: 1.45; color: #6b5a48; text-wrap: balance; }
-
-/* ── Mac and iPhone ── */
-.bothRoom { aspect-ratio: 1200 / 720; }
-.devices { position: absolute; inset: 0; }
-.mac { position: absolute; left: 8%; top: 9%; width: 72%; max-width: 1000px; border-radius: 14px; overflow: hidden; background: #fff;
-  box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.25), 0 40px 70px -24px rgba(20, 8, 0, 0.55), 0 8px 18px -8px rgba(20, 8, 0, 0.3); }
-.mac img { display: block; width: 100%; height: auto; }
-.iphone { position: absolute; right: 9%; bottom: 7%; width: 24%; max-width: 280px; padding: 9px; box-sizing: border-box; border-radius: 46px; background: #2a1d10; aspect-ratio: 9 / 19; container-type: inline-size;
-  box-shadow: 0 40px 60px -24px rgba(20, 8, 0, 0.6), 0 8px 16px -6px rgba(20, 8, 0, 0.35); transform: rotate(3deg); }
-.screen { height: 100%; box-sizing: border-box; border-radius: 38px; background: #fbfaf7; color: #1d1b19; overflow: hidden;
-  padding: 7cqw 7cqw; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-.screen p { margin: 0; }
-.status { display: flex; justify-content: space-between; padding: 0 4cqw; font-size: 5.6cqw; }
-.status span { width: 16cqw; height: 4.4cqw; border-radius: 2cqw; background: #1d1b19; opacity: 0.85; }
-.back { margin-top: 7cqw !important; font-size: 5.8cqw; font-weight: 600; color: #d97a17; }
-.pTitle { margin-top: 4cqw !important; font-size: 11.5cqw; font-weight: 800; letter-spacing: -0.02em; }
-.pText { margin-top: 3cqw !important; font-size: 5.6cqw; line-height: 1.4; color: #3a3632; }
-.pCheck { list-style: none; margin: 5cqw 0 0; padding: 0; display: grid; gap: 2.6cqw; }
-.pCheck li { display: flex; align-items: center; gap: 3.6cqw; font-size: 6.2cqw; white-space: nowrap; }
-.pCheck i { flex: none; display: grid; place-items: center; width: 6.6cqw; height: 6.6cqw; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #b9b2aa; }
-.pCheck li[data-on] { color: #9a928a; text-decoration: line-through; }
-.pCheck li[data-on] i { background: #c8691c; box-shadow: none; }
-.pCheck svg { width: 70%; height: 70%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
-/* ── And so much more: three with a piece of the real UI, then three in a tidy row ── */
-.moreSec .title { text-align: left; }
-.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-.card { display: grid; align-content: start; gap: 8px; }
-.card h3 { margin: 24px 0 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
-.card p { margin: 0; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; max-width: 22em; }
-.cardPic { height: 320px; border-radius: 26px; background: #f6e2c6; display: grid; place-items: center; overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(80, 45, 10, 0.06); }
-.moreLine { margin: 0; max-width: 46em; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.5; color: #4a3826; text-wrap: pretty; }
-/* The pieces of UI drawn about a third larger than life, so they read like the app at arm's length. */
-.cardPic .mini { zoom: 1.32; }
-.mini { width: min(78%, 300px); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #1d1b19; }
-.miniLine { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
-.caret { color: #a85700; }
-.slash { list-style: none; margin: 0; padding: 5px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 20px -10px rgba(0, 0, 0, 0.3); display: grid; }
-.slash li { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 7px; font-size: 12.5px; }
-.slash li[data-on] { background: #f3e2cc; }
-.slash i { width: 14px; font-style: normal; text-align: center; color: #6f6a64; font-size: 11px; }
-.tMini { display: grid; grid-template-columns: 0.8fr 1.4fr 0.7fr; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 0 0 0.5px #e0d8cd, 0 10px 20px -12px rgba(0, 0, 0, 0.3); }
-.tMini > * { padding: 7px 10px; font-size: 13px; border-top: 0.5px solid #ece6de; display: flex; align-items: center; }
-.tMini > b { border-top: 0; background: #f6f2ed; font-size: 11.5px; color: #6f6a64; }
-.tMini i { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #b9b2aa; }
-.tMini i[data-on] { background: #c8691c; box-shadow: none; }
-.tMini svg { width: 11px; height: 11px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.miniText { margin: 0; padding: 14px 16px; border-radius: 12px; background: #fff; font-size: 14px; line-height: 1.45; box-shadow: 0 0 0 0.5px #e0d8cd, 0 10px 20px -12px rgba(0, 0, 0, 0.3); }
-.miniText u { color: #a85700; font-weight: 600; text-decoration-color: rgba(168, 87, 0, 0.4); text-underline-offset: 3px; }
-
-.hMini { list-style: none; margin: 0; padding: 5px; border-radius: 12px; background: #fff; display: grid; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 20px -10px rgba(0, 0, 0, 0.3); }
-.hMini li { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 13.5px; }
-.hMini li[data-on] { background: #f3e2cc; font-weight: 600; }
-.hMini li > span { margin-right: auto; }
-.restore { padding: 2px 9px; border-radius: 7px; background: #d97a17; color: #fff; font-style: normal; font-size: 12px; font-weight: 650; }
-
-/* ── Closing: free and the download in one moment, over the paper town ── */
-.closing { display: grid; justify-items: center; text-align: center; gap: 0; padding-top: 40px; margin-bottom: -20px; }
-.closingIcon { border-radius: 24px; box-shadow: 0 18px 40px -18px rgba(80, 45, 10, 0.45); }
-.closingTitle { margin: 34px 0 0; font-family: var(--q-display), Georgia, serif; font-size: clamp(60px, 8.4vw, 128px); font-weight: 400; letter-spacing: 0.004em; line-height: 0.95; color: var(--ink); }
-.closingLine { margin: 22px 0 0; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.42; color: #6b5a48; text-wrap: balance; }
-.closingCtas.closingCtas { justify-content: center; margin-top: 38px; }
-.fine { margin: 18px 0 0; font-size: 14px; font-weight: 600; color: #8a7a68; }
-
-/* ── Round 5: the hero is the tall painting of the same dusk, where her phone fills the frame. It is
-   1024 x 1536 and never drawn wider than 512 CSS px, so it stays sharp on a 2x screen. The note is HTML,
-   laid exactly over the painted screen; what's said sits in the sky above her phone. ── */
+/* ── The hero: the words, and the tall painting at its sharp size (at most 512 px wide) ── */
 .hero.hero { grid-template-columns: minmax(0, 1fr) min(512px, 42vw); column-gap: clamp(48px, 7vw, 112px); }
 .heroFrame { position: relative; width: 100%; max-width: 512px; justify-self: end; }
-.heroCard.heroCard { height: min(calc(100vh - 140px), 768px); background: #34407a; }
-/* The painting at its sharp size, bottom-anchored (a short window trims the sky), her phone centred. */
-.heroArt { position: absolute; bottom: 0; left: clamp(calc(100cqw - 512px), calc(50cqw - 236px), 0px); width: 512px; height: 768px; }
-.heroImg { display: block; width: 100%; height: 100%; }
-/* The painted screen: x 324-619, y 611-1221 of 1024 x 1536; its corners 26 px round. */
-.heroScreen { position: absolute; left: 31.64%; top: 39.78%; width: 28.81%; height: 39.71%; box-sizing: border-box; padding: 0 9px; overflow: hidden;
-  border-radius: 8.8% / 4.3%; background: #fbfaf7; color: #1d1b19;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-.heroScreen p { margin: 0; }
-/* The painting is always drawn 512 px wide, so the screen is always 147.5 px: sizes in px. The notch, as painted. */
-.heroScreen::before { content: ""; position: absolute; left: 24%; right: 23%; top: 0; height: 9.5px; border-radius: 0 0 7px 7px; background: #1c1814; }
-.hsStatus { position: absolute; left: 10px; top: 1px; font-size: 7.5px; }
-.hsBack { margin-top: 22px !important; font-size: 10.5px; font-weight: 600; color: #d97a17; }
-.hsTitle { margin: 2px 0 6px !important; font-size: 20px; font-weight: 800; letter-spacing: -0.015em; }
-.hsSection { margin: 9px 0 2px !important; font-size: 10px; font-weight: 700; color: #8a7a68; }
-.hsList { margin: 0 -3px; padding: 0; list-style: none; display: grid; gap: 1px; }
-.hsList li { display: flex; align-items: center; gap: 6px; padding: 4.5px 3px; border-radius: 5px; font-size: 12px; line-height: 1.2; white-space: nowrap; border-bottom: 0.5px solid rgba(60, 30, 5, 0.08); }
-.hsList i { flex: none; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px #c3b5a5; }
-.hsList li[data-on] { color: #8f8478; text-decoration: line-through; text-decoration-color: rgba(120, 100, 80, 0.5); }
-.hsList li[data-on] i { background: #d97a17; box-shadow: none; }
-.hsList em { flex: none; margin-left: auto; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: #fff1de; color: #a85700; }
-/* In the sky over her phone, its foot just above the screen (305 px up the 768 px painting from its foot). */
-.heroSaid.heroSaid { --sw: min(330px, 90%); width: var(--sw); right: auto; left: calc(50% - var(--sw) / 2); top: auto; bottom: 480px; gap: 10px; }
-.heroSaid.heroSaid > p { font-size: 15.5px; line-height: 1.38; padding: 11px 14px; }
-.heroSaid.heroSaid > p > span { font-size: 13px; }
+.heroCard.heroCard { height: min(calc(100vh - 140px), 768px); background: #34407a; border-radius: var(--q-frame-radius); box-shadow: var(--q-frame-shadow); }
 
-/* ── Draw: no frame; the night runs edge to edge under the words ── */
-.draw { display: grid; gap: 64px; }
-.drawWords { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 24px 64px; align-items: end; }
-.drawWords .line { margin: 0 0 6px; }
-.drawRoom.drawRoom { width: 100vw; margin-left: calc(50% - 50vw); aspect-ratio: auto; height: clamp(480px, 42vw, 620px); border-radius: 0; box-shadow: none; }
-.drawRoom.drawRoom .edge { box-shadow: none; }
-.drawRoom.drawRoom .at { left: max(var(--gutter), calc(50vw - 560px)); right: max(var(--gutter), calc(50vw - 560px)); top: 8%; bottom: 10%; }
-/* The drawing fills the bigger window. */
-.drawRoom.drawRoom .board { width: auto; height: 100%; max-width: min(100%, 960px); }
-.drawFoot { margin: -16px 0 0; justify-self: center; max-width: 34em; text-align: center; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.42; color: #4a3826; text-wrap: balance; }
+/* ── A feature: the words centred on the picture, the sides alternating, one split for all ── */
+.feature { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: clamp(40px, 6vw, 88px); align-items: center; }
+.feature[data-flip] { grid-template-columns: minmax(0, 1fr) minmax(0, 400px); }
+.feature[data-flip] .words { order: 2; }
+.words { display: grid; justify-items: start; }
+.pic { min-width: 0; }
 
-/* ── The number: a dark band, the biggest type on the page ── */
-.numBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: clamp(110px, 12vw, 180px) var(--gutter) clamp(110px, 12vw, 170px);
-  display: grid; justify-items: center; text-align: center; background: #2b1a0e; color: #fbeedd; }
-.bigNum { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 0.12em; font-family: var(--q-display), Georgia, serif; font-weight: 400;
-  font-size: clamp(76px, 15vw, 232px); line-height: 0.9; letter-spacing: 0.005em; white-space: nowrap; }
+/* ── A centred section: the words above, the picture under them ── */
+.stack { display: grid; gap: var(--q-head-gap); }
+.head { display: grid; justify-items: center; text-align: center; }
+.head .body.body { text-wrap: balance; }
+
+/* ── The number: a dark band ── */
+.numBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: var(--q-band-pad) var(--gutter);
+  display: grid; justify-items: center; text-align: center; background: #2b1a0e; --ink: #fbeedd; --q-color-body: rgba(251, 238, 221, 0.78); --link: #f7b865; }
+.bigNum { display: flex; align-items: center; justify-content: center; gap: 0.12em; white-space: nowrap; }
 .numFrom { color: rgba(251, 238, 221, 0.36); }
-.numTo { color: #fbeedd; font-style: italic; }
 .bigNum svg { flex: none; width: 0.42em; height: auto; fill: none; stroke: #f0901a; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
-.numSay { margin: 44px 0 0; max-width: 30em; font-size: clamp(19px, 1.6vw, 23px); line-height: 1.45; color: rgba(251, 238, 221, 0.78); text-wrap: balance; }
-.numLink { margin-top: 26px; display: inline-flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 650; color: #f7b865; text-decoration: none; transition: color 0.15s; }
-.numLink svg, .more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
-.numLink:hover { color: #fff4e6; }
-.numLink:hover svg { transform: translateX(3px); }
-.numLink:focus-visible { outline: 2px solid #f7b865; outline-offset: 4px; border-radius: 4px; }
+.numBand .body.body { margin-top: 40px; text-wrap: balance; }
+.numBand .link:hover { color: #fff4e6; }
 
-/* ── Mac and iPhone: a marigold band, the devices standing in it, no room ── */
-.both.both { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: clamp(100px, 10vw, 150px) var(--gutter) 0; background: #f4b75e; overflow: hidden; gap: 64px; }
-.both .line { color: #5b3a16; }
-.bothStage { position: relative; width: 100%; max-width: 1240px; justify-self: center; aspect-ratio: 1200 / 640; }
-.bothStage .mac { top: 0; left: 6%; }
-.bothStage .iphone { bottom: 8%; right: 8%; }
+/* ── Mac and iPhone: a marigold band, the same inner padding ── */
+.band { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: var(--q-band-pad) var(--gutter); background: #f4b75e; overflow: hidden; --q-color-body: #5b3a16; }
+.bothStage { position: relative; width: 100%; max-width: var(--q-width); justify-self: center; aspect-ratio: 1200 / 640; }
+
+/* ── And so much more: three cards, a piece of the real UI in the page's frame, a title and a line ── */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; text-align: left; }
+.card { display: grid; align-content: start; }
+.card .label { margin: 24px 0 0; }
+.card .body.body { margin-top: 6px; }
+.cardPic { height: 320px; background: #f6e2c6; display: grid; place-items: center; }
+
+/* ── Closing: free and the download in one moment, over the paper town ── */
+.closing { display: grid; justify-items: center; text-align: center; padding-top: 40px; margin-bottom: -20px; }
+.closingIcon { border-radius: 24px; box-shadow: 0 18px 40px -18px rgba(80, 45, 10, 0.45); }
+.closingTitle { margin-top: 32px; }
+.closingCtas.closingCtas { justify-content: center; margin-top: 36px; }
+.closing .label.label { margin-top: 18px; color: var(--q-color-body); }
 
 /* ── Narrower windows ── */
 @media (max-width: 1100px) {
-  .cols { grid-template-columns: 180px minmax(0, 1fr); }
-  .feature, .feature[data-flip] { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
-  .feature[data-flip] { grid-template-columns: minmax(0, 1fr) minmax(0, 320px); }
+  .feature { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); }
+  .feature[data-flip] { grid-template-columns: minmax(0, 1fr) minmax(0, 340px); }
 }
 
-/* ── Phones: every section stacks, the words then the picture; the rooms grow taller so the
-   product stays readable; the Mac windows lose their list column like the iPhone app ── */
+/* ── Phones: the hero's words tighter, so the download and her note both land in the first screen ── */
 @media (max-width: 900px) {
-  .hero.hero { grid-template-columns: minmax(0, 1fr); }
-  .h1.h1 { font-size: clamp(52px, 14vw, 80px); }
+  .hero.hero { grid-template-columns: minmax(0, 1fr); row-gap: 22px; }
+  .hero.hero > div:first-child { gap: 16px; }
+  .main { --q-size-h1: clamp(52px, 14vw, 80px); }
   .heroFrame { justify-self: center; }
   /* Never wider than 512 CSS px; the sky trimmed so her phone sits low, what's said above it. */
   .heroCard.heroCard { height: min(640px, 168vw); }
-  .heroSaid.heroSaid > p { font-size: 14px; padding: 9px 12px; }
-  /* A tighter words block, so the download and her note both land in the first screen. */
-  .hero.hero { row-gap: 22px; }
-  .hero.hero > div:first-child { gap: 16px; }
 }
 
+/* ── Phones: every section stacks, the words then the picture ── */
 @media (max-width: 760px) {
-  .main { gap: 120px; }
-  .feature, .feature[data-flip] { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .main { --q-section: 96px; --q-head-gap: 32px; --q-size-title: 42px; --q-size-num: 104px; --q-size-body: 18px; --q-frame-radius: 24px; }
+  .feature, .feature[data-flip] { grid-template-columns: minmax(0, 1fr); gap: var(--q-head-gap); }
   .feature[data-flip] .words { order: 0; }
-  .title { font-size: 38px; }
-  .line { font-size: 18px; margin-top: 12px; }
-  .details { margin-top: 24px; gap: 14px; }
-  .details li { font-size: 16px; }
-  .room { aspect-ratio: 358 / 470; border-radius: 24px; }
-  .plane[data-shade] svg { filter: drop-shadow(0 2px 4px rgba(30, 14, 2, 0.26)); }
-  .writeRoom .at, .drawRoom .at, .buildRoom .at { left: 14px; right: 14px; top: 64px; bottom: 14px; }
-  .writeRoom .at { bottom: 96px; right: 14px; }
-  .writeRoom .win { zoom: 1; }
-  .importAt { left: 14px; right: 14px; bottom: 14px; width: auto; }
-  .import { padding: 12px 14px; gap: 10px; transform: none; display: flex; align-items: center; justify-content: space-between; }
-  .import .importHead small { display: none; }
-  .anIcon { width: 30px; height: 30px; border-radius: 8px; }
-  .anIcon i { top: 14px; left: 5px; right: 5px; height: 9px; }
-  .importBtn { padding: 5px 10px; font-size: 12px; white-space: nowrap; }
-  .importHead b { font-size: 14px; }
-  .buildRoom { aspect-ratio: 358 / 620; }
-  .buildRoom .at { left: 14px; bottom: 156px; }
-  .fanAt { left: 50%; bottom: 10px; transform: translateX(-50%); }
-  .fan li { width: 104px; }
-  .fan li + li { margin-left: -24px; }
-  .fan span { padding: 5px 8px 7px; font-size: 11px; }
-  .win { border-radius: 14px; }
-  .bar { height: 38px; }
-  .cols { grid-template-columns: minmax(0, 1fr); }
-  .list { display: none; }
-  .note { padding: 16px 18px 0; }
-  .noteTitle { font-size: 24px; margin-bottom: 8px; }
-  .noteText { font-size: 13.5px; }
-  .check li { min-height: 25px; font-size: 14px; }
-  .boardArea { padding: 4px 8px 10px; }
-  .board[data-layout="wide"] { display: none; }
-  .boardArea { display: block; }
-  .boardBox { position: absolute; inset: 6px 8px 54px; display: block; }
-  .tools { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); }
-  .board[data-layout="tall"] { display: block; width: 100%; height: 100%; max-width: none; max-height: none; }
-  .tools { gap: 0; padding: 3px 5px; }
-  .tools svg { width: 26px; height: 26px; }
-  .app { padding: 14px 16px 0; }
-  .aTitle { font-size: 24px; }
-  .aList li { padding: 6px 10px; }
-
-  .ai, .both, .moreSec { gap: 36px; }
-  .aiRoom { aspect-ratio: auto; }
-  .aiRoom .product { position: relative; }
-  .said { position: relative; grid-template-columns: minmax(0, 1fr); padding: 28px 14px 18px; row-gap: 0; }
-  .chat { transform: none; padding: 14px 16px 16px; gap: 10px; }
-  .saidArrow { width: 70px; justify-self: center; transform: rotate(80deg); margin: 4px 0; }
-  .saidWin { height: auto; }
-  .table { padding: 14px 14px 16px; }
-  .grid { grid-template-columns: 0.9fr 1.3fr 1.4fr; }
-  .grid > :nth-child(5n + 2), .grid > :nth-child(5n) { display: none; }
-  .grid > * { padding: 7px 8px; font-size: 12.5px; }
-
-  .bothRoom { aspect-ratio: 358 / 400; }
-  .mac { left: 14px; right: 14px; width: auto; top: 30px; }
-  .iphone { right: 18px; bottom: 16px; width: 44%; border-radius: 30px; padding: 6px; }
-  .screen { border-radius: 25px; }
-
   .cards { grid-template-columns: minmax(0, 1fr); gap: 36px; }
   .cardPic { height: 260px; }
-  .cardPic .mini { zoom: 1.2; }
-  .card h3 { margin-top: 16px; }
-  .closingTitle { font-size: 60px; }
   .closingCtas.closingCtas { flex-direction: column; }
-
-  .drawWords { grid-template-columns: minmax(0, 1fr); }
-  .drawRoom.drawRoom { height: 440px; }
-  .drawRoom.drawRoom .at { left: 14px; right: 14px; top: 28px; bottom: 28px; }
-  .drawFoot { margin-top: -20px; font-size: 18px; }
-  .numBand { padding: 96px 20px 100px; }
-  .bigNum { flex-direction: column; gap: 0.14em; font-size: 104px; }
+  .bigNum { flex-direction: column; gap: 0.14em; }
   .bigNum svg { transform: rotate(90deg); width: 0.36em; }
-  .numSay { margin-top: 32px; font-size: 19px; }
-  .both.both { gap: 40px; padding-top: 88px; }
   .bothStage { aspect-ratio: 358 / 400; }
-  .bothStage .mac { left: 0; right: 0; width: auto; top: 0; }
-  .bothStage .iphone { right: 10px; bottom: 20px; width: 44%; }
-  .aiRow { gap: 12px 20px; margin-top: 26px; }
-  .aiRow li { font-size: 16px; }
-  .marks { font-size: 16px; }
 }

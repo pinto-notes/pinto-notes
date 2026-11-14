@@ -1,6 +1,6 @@
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { Board } from "./Board";
-import s from "./q.module.css";
+import s from "./pic.module.css";
 
 // Study Q's product pictures. The Mac windows are rebuilt in HTML from the app's captures
 // (public/lab/big3), as study O did, so they stay sharp at section size; the same words, the same
@@ -217,7 +217,7 @@ export function Devices() {
   return (
     <div className={s.devices}>
       <div className={s.mac}>
-        {/* The whole 2880 px capture, never drawn wider than 1440 CSS px (q.module.css .mac max-width 1000). */}
+        {/* The whole 2880 px capture, never drawn wider than 1440 CSS px (pic.module.css .mac max-width 1000). */}
         <img src="/lab/big3/layout-two-columns-main.webp" width={2880} height={1800} decoding="async" loading="lazy"
           alt="Pinto Notes on a Mac: the list of notes, with the Groceries note open." />
       </div>

@@ -1,5 +1,5 @@
 import { cut, leaf, oval } from "./rough";
-import s from "./q.module.css";
+import s from "./pic.module.css";
 
 // Study Q's paper rooms: study N's dioramas grown to section size. Each room is a stack of flat
 // cut-paper planes (a far view, a wall with a window cut in it, a sill or a table) with soft shadows

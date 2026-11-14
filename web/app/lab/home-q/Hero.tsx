@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
+import p from "./pic.module.css";
 import q from "./q.module.css";
 
 // Study Q's hero: today's live hero (app/_home/Hero.tsx), copied with round 4's words. The headline
@@ -50,7 +51,7 @@ export function Hero() {
       <div className={x.words}>
         <h1 className={`${x.h1} ${q.h1} rise`} style={rise(0)}>The notebook for <em className={q.h1Em}>you and your AI</em>.</h1>
         {/* Write, draw and build name the three things next to their nouns (Emil, 11-14). */}
-        <p className={`${x.lede} rise`} style={rise(1)}>Write notes, draw on whiteboards and build small apps, with your AI.</p>
+        <p className={`${x.lede} ${q.body} rise`} style={rise(1)}>Write notes, draw on whiteboards and build small apps, with your AI.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download note={false} />
           <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
@@ -65,20 +66,20 @@ export function Hero() {
             <a href={mailLink(SITE_URL)} onClick={(e) => sendLink(navigator, e, SITE_URL)}>Send myself the link</a>
           </p>
         </div>
-        <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free on Mac and iPhone. Works with ChatGPT and Claude.</p>
+        <p className={`${x.fine} ${q.label} rise pi-apple pi-not-ios`} style={rise(3)}>Free on Mac and iPhone. Works with ChatGPT and Claude.</p>
       </div>
       <div className={`${q.heroFrame} rise`} style={rise(1)}>
       <div className={`${x.card} ${q.heroCard}`} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">
-      <div className={q.heroArt}>
+      <div className={p.heroArt}>
         {/* The tall painting, 1024 x 1536, drawn at most 512 CSS px wide so it stays sharp on a 2x screen. */}
-        <img className={q.heroImg} src="/lab/q/shoulder-tall.webp" width={1024} height={1536} alt="" fetchPriority="high" />
+        <img className={p.heroImg} src="/lab/q/shoulder-tall.webp" width={1024} height={1536} alt="" fetchPriority="high" />
         {/* Laid exactly over the painted screen (x 324-619, y 611-1221 of the painting). */}
-        <div className={q.heroScreen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
-          <p className={q.hsStatus}><b>21:40</b></p>
-          <p className={q.hsBack}>‹ My notebook</p>
-          <p className={q.hsTitle}>Tomorrow</p>
-          <ul className={q.hsList}>
+        <div className={p.heroScreen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
+          <p className={p.hsStatus}><b>21:40</b></p>
+          <p className={p.hsBack}>‹ My notebook</p>
+          <p className={p.hsTitle}>Tomorrow</p>
+          <ul className={p.hsList}>
             <li><i />Dry cleaning</li>
             {TOMORROW.map((l) => {
               const v = mj(span(t, l.at, l.at + 0.4)), fresh = v * (1 - span(t, l.at + 1.4, l.at + 2.6));
@@ -89,8 +90,8 @@ export function Hero() {
               );
             })}
           </ul>
-          <p className={q.hsSection}>This week</p>
-          <ul className={q.hsList}>
+          <p className={p.hsSection}>This week</p>
+          <ul className={p.hsList}>
             <li data-on=""><i />Long run, 12 km</li>
             <li data-on=""><i />Read 20 pages</li>
             <li><i />Call mum</li>
@@ -99,7 +100,7 @@ export function Hero() {
       </div>
       </div>
         {/* What's said, in the sky above her phone. */}
-        <div className={`${x.said} ${q.heroSaid}`}>
+        <div className={`${x.said} ${p.heroSaid}`}>
           <p className={x.me} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
             <span className={x.wave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
           </p>
