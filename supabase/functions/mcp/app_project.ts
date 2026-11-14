@@ -2,13 +2,56 @@
 // them, the compile step (the device never compiles) and import checks. Pure; the tools are in
 // app_files.ts.
 import type { CompileItem, Compiled } from "./app_build.ts";
+import { fromBase64, toBase64 } from "../_shared/e2ee.ts";
 
-export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string> };
+/** binary: files that aren't text (a .wasm, a game's .wad, a picture), each stored as base64 of its
+ *  bytes compressed with raw DEFLATE, and served as-is with its type (2026-11-14). */
+export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string>; binary?: Record<string, string> };
 
 export const MAX_FILES = 200;
 // Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
+/** A binary file unpacked. What's stored (compressed) counts toward the limits above. */
+export const MAX_BINARY_BYTES = 64 * 1024 * 1024;
+
+/** A binary file as stored: its bytes, raw DEFLATE, base64. */
+export async function packBinary(data: Uint8Array): Promise<string> {
+  const z = await new Response(new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+  return toBase64(new Uint8Array(z));
+}
+
+/** A stored binary file's bytes; refused past `max` unpacked, so a small file can't unpack into a huge one. */
+export async function unpackBinary(stored: string, max = MAX_BINARY_BYTES): Promise<Uint8Array> {
+  const reader = new Blob([fromBase64(stored) as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const parts: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.length;
+    if (n > max) { await reader.cancel(); throw new Error(`unpacks to more than ${max / 1048576} MB`); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(n);
+  let at = 0;
+  for (const part of parts) { out.set(part, at); at += part.length; }
+  return out;
+}
+
+/** A binary file's type as the app serves it (NotePageProject.mime): the web's own, else plain bytes. */
+const BINARY_MIME: Record<string, string> = {
+  wasm: "application/wasm", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif", ico: "image/x-icon", svg: "image/svg+xml",
+  mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm", woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
+  pdf: "application/pdf", json: "application/json", zip: "application/zip",
+};
+export const binaryType = (path: string) => BINARY_MIME[path.split(".").pop()!.toLowerCase()] ?? "application/octet-stream";
+
+/** Bytes that need the binary map: not UTF-8, or a NUL in the first 8 KB. */
+export function isBinaryBytes(data: Uint8Array): boolean {
+  if (data.subarray(0, 8192).includes(0)) return true;
+  try { new TextDecoder("utf-8", { fatal: true }).decode(data); return false; } catch { return true; }
+}
 
 /** The stack's bare names: React on preact/compat, shadcn v4's radix-ui and the rest. Radix's own
  *  @radix-ui/react-* packages are in the map only because radix-ui is built from them. */
@@ -39,7 +82,9 @@ export function parseStored(text: string | null): Project {
   if (text.trimStart().startsWith("{")) {
     try {
       const p = JSON.parse(text);
-      if (p?.amberApp === 1 && p.files && typeof p.files === "object") return { amberApp: 1, files: p.files, compiled: p.compiled ?? {} };
+      if (p?.amberApp === 1 && p.files && typeof p.files === "object") {
+        return { amberApp: 1, files: p.files, compiled: p.compiled ?? {}, ...(p.binary && typeof p.binary === "object" && Object.keys(p.binary).length ? { binary: p.binary } : {}) };
+      }
     } catch { /* HTML that starts with a brace is still HTML */ }
   }
   return { amberApp: 1, files: { "/index.html": text }, compiled: {} };
@@ -48,9 +93,10 @@ export function parseStored(text: string | null): Project {
 /** What's sealed into page_ct: a lone /index.html stays plain HTML, so one-file apps are unchanged. */
 export function serialize(p: Project): string {
   const names = Object.keys(p.files);
-  if (names.length === 1 && names[0] === "/index.html" && !Object.keys(p.compiled).length) return p.files["/index.html"];
+  const binary = Object.keys(p.binary ?? {}).length ? p.binary! : null;
+  if (names.length === 1 && names[0] === "/index.html" && !Object.keys(p.compiled).length && !binary) return p.files["/index.html"];
   const sorted = (o: Record<string, string>) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
-  return JSON.stringify({ amberApp: 1, files: sorted(p.files), compiled: sorted(p.compiled) });
+  return JSON.stringify({ amberApp: 1, files: sorted(p.files), compiled: sorted(p.compiled), ...(binary ? { binary: sorted(binary) } : {}) });
 }
 
 /** A path as the tools accept it: "/src/App.jsx"; "src/App.jsx" gets its slash. */
@@ -68,8 +114,13 @@ export function projectProblems(p: Project): string[] {
   const out: string[] = [];
   const names = Object.keys(p.files);
   if (!p.files["/index.html"]) out.push("The project needs /index.html: it's the page the app opens.");
-  if (names.length > MAX_FILES) out.push(`${names.length} files; at most ${MAX_FILES}.`);
+  const binary = Object.keys(p.binary ?? {});
+  if (names.length + binary.length > MAX_FILES) out.push(`${names.length + binary.length} files; at most ${MAX_FILES}.`);
   for (const n of names) if (bytes(p.files[n]) > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(bytes(p.files[n]) / 1024)} KB; a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
+  for (const n of binary) {
+    if (p.files[n] !== undefined) out.push(`${n} is both a text file and a binary one.`);
+    if (p.binary![n].length > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(p.binary![n].length / 1024)} KB stored (compressed); a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
+  }
   const total = bytes(serialize(p));
   if (total > MAX_PROJECT_BYTES) out.push(`The project is ${(total / 1048576).toFixed(1)} MB with its compiled files; at most ${MAX_PROJECT_BYTES / 1048576} MB.`);
   if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, amber, amber-ui and the bundled libraries.");
@@ -170,7 +221,7 @@ export async function linkProject(p: Project): Promise<{ project: Project; ms: {
     if (!path.endsWith(".css") || !/@import\s+["']tailwindcss["']/.test(css)) continue;
     try { compiled[path] = await tailwind(css, sources); } catch (e) { return { project: p, ms: { tailwind: 0 }, error: `${path}: ${(e as Error).message}` }; }
   }
-  return { project: { amberApp: 1, files: p.files, compiled }, ms: { tailwind: Math.round(performance.now() - t0) } };
+  return { project: { ...p, compiled }, ms: { tailwind: Math.round(performance.now() - t0) } };
 }
 
 /** Tailwind v4 for one stylesheet, from the classes in the project's sources. */

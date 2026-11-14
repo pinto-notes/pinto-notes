@@ -225,6 +225,42 @@ Deno.test("an app: create, its files, and data.json edited like a file, one chan
   assertEquals((await tool(pg, a, "see_app", { path: "Health/Habits.app" })).load_failure.device, "iPhone");
 });
 
+// Binary files in an app (2026-11-14): a .wasm or a game's data goes in as bytes, is stored
+// compressed (not base64 inside a text file), and stays the same bytes through edits, moves and fetch.
+Deno.test("an app takes binary files: written as bytes, kept through edits, moved, fetched raw, deleted", async () => {
+  const { toBase64 } = await import("../_shared/e2ee.ts");
+  const pg = await schemaDB();
+  const a = await account(pg);
+  await tool(pg, a, "create", { type: "app", path: "Games/Doom.md" });
+  const wasm = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+  // A game's data: 1 MB with zeros in it, like a WAD.
+  const wad = new Uint8Array(1 << 20).map((_, i) => (i % 7 === 0 ? 0 : i % 251));
+  const size = async () => ((await pg.query(`select length(page_ct) as n from public.note_pages`)).rows[0] as { n: number }).n;
+  const before = await size();
+  assertStringIncludes(JSON.stringify(await tool(pg, a, "write", { path: "Games/Doom.app/doom.wasm", content_base64: toBase64(wasm) })), "saved");
+  await tool(pg, a, "write", { path: "Games/Doom.app/doom1.wad", content_base64: toBase64(wad) });
+  // Stored compressed: well under the 1.4 MB the same bytes take as base64.
+  assert((await size()) - before < toBase64(wad).length / 2, `stored ${(await size()) - before}`);
+  const listed = (await tool(pg, a, "list", { path: "Games/Doom.app" })).files as { path: string; binary?: boolean }[];
+  assert(listed.some((f) => f.path === "Games/Doom.app/doom1.wad" && f.binary), JSON.stringify(listed.slice(0, 3)));
+  const seen = await tool(pg, a, "fetch", { id: "Games/Doom.app/doom1.wad" });
+  assertEquals(seen.metadata.bytes, wad.length);
+  assertStringIncludes(seen.text, "A binary file");
+  // A text edit elsewhere keeps the binary files as they were.
+  await tool(pg, a, "edit", { path: "Games/Doom.app/src/screens/home.tsx", old_string: "Nothing here yet", new_string: "Press start" });
+  await tool(pg, a, "move", { path: "Games/Doom.app/doom.wasm", to: "Games/Doom.app/engine/doom.wasm" });
+  const raw = await tool(pg, a, "fetch", { id: "Games/Doom.app/engine/doom.wasm", raw: true });
+  assertEquals(raw.content[1].resource.blob, toBase64(wasm));
+  assertEquals(raw.content[1].resource.mimeType, "application/wasm");
+  // Text sent as bytes stays text, so it can be edited.
+  await tool(pg, a, "write", { path: "Games/Doom.app/notes.txt", content_base64: toBase64(new TextEncoder().encode("level 1\n")) });
+  assertStringIncludes((await tool(pg, a, "fetch", { id: "Games/Doom.app/notes.txt" })).text, "level 1");
+  await tool(pg, a, "delete", { path: "Games/Doom.app/doom1.wad" });
+  assert(!((await tool(pg, a, "list", { path: "Games/Doom.app" })).files as { path: string }[]).some((f) => f.path.endsWith("doom1.wad")));
+  // The engine survived the delete next to it.
+  assertEquals((await tool(pg, a, "fetch", { id: "Games/Doom.app/engine/doom.wasm" })).metadata.bytes, wasm.length);
+});
+
 Deno.test("every call takes one from the MCP bucket, failed ones too (one statement, its own transaction)", async () => {
   const pg = await schemaDB();
   const a = await account(pg);

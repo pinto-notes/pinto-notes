@@ -1,3 +1,4 @@
+import Compression
 import Foundation
 import WebKit
 
@@ -5,18 +6,25 @@ import WebKit
 /// .ts files the JavaScript the AI tooling compiled when it wrote them (the device never compiles).
 /// Stored as the page's sealed text, the whole project per version:
 ///
-///     {"amberApp": 1, "files": {"/index.html": "…", "/src/App.jsx": "…"}, "compiled": {"/src/App.jsx": "…"}}
+///     {"amberApp": 1, "files": {"/index.html": "…", "/src/App.jsx": "…"}, "compiled": {"/src/App.jsx": "…"},
+///      "binary": {"/doom.wasm": "…"}}
 ///
+/// binary holds the files that aren't text (a .wasm, a game's data, a picture), each as base64 of its
+/// bytes compressed with raw DEFLATE; they're served as they are, with their type (2026-11-14).
 /// Anything else is a one-file app: its HTML is /index.html. Served at amber-app:///<path>, with
 /// the document at amber-app:///index.html so relative modules and links work.
 struct NotePageProject: Equatable {
     var files: [String: String]
     var compiled: [String: String] = [:]
+    /// Binary files as stored (packed); unpacked when the app asks for one.
+    var binary: [String: String] = [:]
 
     static let maxFiles = 200
     /// Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
     static let maxFileBytes = 8 * 1024 * 1024
     static let maxBytes = 16 * 1024 * 1024
+    /// A binary file unpacked: past this it isn't served, so a small file can't unpack into a huge one.
+    static let maxBinaryBytes = 64 * 1024 * 1024
     static let base = URL(string: "amber-app:///index.html")!
 
     var index: String { files["/index.html"] ?? "" }
@@ -31,20 +39,25 @@ struct NotePageProject: Equatable {
         guard let o = try? JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [String: Any],
               let files = o["files"] as? [String: String] else { return nil }
         let compiled = o["compiled"] as? [String: String] ?? [:]
-        let p = NotePageProject(files: files, compiled: compiled)
+        let p = NotePageProject(files: files, compiled: compiled, binary: o["binary"] as? [String: String] ?? [:])
         return p.problem == nil ? p : nil
     }
 
     /// Why this project can't be shown, or nil.
     var problem: String? {
         if files["/index.html"] == nil { return "The app has no /index.html." }
-        if files.count > Self.maxFiles { return "The app has more than \(Self.maxFiles) files." }
+        if files.count + binary.count > Self.maxFiles { return "The app has more than \(Self.maxFiles) files." }
+        for (path, packed) in binary {
+            if !Self.validPath(path) { return "\(path) isn't a valid path." }
+            if files[path] != nil { return "\(path) is both a text file and a binary one." }
+            if packed.utf8.count > Self.maxFileBytes { return "\(path) is over \(Self.maxFileBytes / 1024 / 1024) MB." }
+        }
         for (path, text) in files {
             if !Self.validPath(path) { return "\(path) isn't a valid path." }
             if text.utf8.count > Self.maxFileBytes { return "\(path) is over \(Self.maxFileBytes / 1024 / 1024) MB." }
             if Self.compiles(path), compiled[path] == nil { return "\(path) wasn't compiled." }
         }
-        let total = files.values.reduce(0) { $0 + $1.utf8.count } + compiled.values.reduce(0) { $0 + $1.utf8.count }
+        let total = files.values.reduce(0) { $0 + $1.utf8.count } + compiled.values.reduce(0) { $0 + $1.utf8.count } + binary.values.reduce(0) { $0 + $1.utf8.count }
         if total > Self.maxBytes { return "The app is over \(Self.maxBytes / 1024 / 1024) MB." }
         return nil
     }
@@ -55,6 +68,76 @@ struct NotePageProject: Equatable {
     }
 
     static func compiles(_ p: String) -> Bool { p.hasSuffix(".jsx") || p.hasSuffix(".tsx") || p.hasSuffix(".ts") }
+
+    /// What's sealed as the page: a lone /index.html stays plain HTML, as the server writes it.
+    var stored: String {
+        if files.count == 1, files["/index.html"] != nil, compiled.isEmpty, binary.isEmpty { return index }
+        var o: [String: Any] = ["amberApp": 1, "files": files, "compiled": compiled]
+        if !binary.isEmpty { o["binary"] = binary }
+        let data = (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    /// A binary file as stored: its bytes, raw DEFLATE (the server's "deflate-raw"), base64.
+    static func pack(_ data: Data) -> String {
+        ((try? (data as NSData).compressed(using: .zlib)) as Data? ?? Data()).base64EncodedString()
+    }
+
+    /// A stored binary file's bytes, or nil when it isn't one or unpacks past `max`.
+    static func unpack(_ stored: String, max: Int = maxBinaryBytes) -> Data? {
+        guard let packed = Data(base64Encoded: stored) else { return nil }
+        if packed.isEmpty { return Data() }
+        var at = 0
+        do {
+            let filter = try InputFilter<Data>(.decompress, using: .zlib) { (n: Int) -> Data? in
+                let end = Swift.min(at + n, packed.count)
+                defer { at = end }
+                return at < end ? packed.subdata(in: at..<end) : nil
+            }
+            var out = Data()
+            while let chunk = try filter.readData(ofLength: 1 << 20), !chunk.isEmpty {
+                out.append(chunk)
+                if out.count > max { return nil }
+            }
+            return out
+        } catch { return nil }
+    }
+
+    /// Bytes that go in binary: not UTF-8, or a NUL in the first 8 KB (as the server decides).
+    static func isBinary(_ data: Data) -> Bool {
+        data.prefix(8192).contains(0) || String(data: data, encoding: .utf8) == nil
+    }
+
+    struct FolderError: LocalizedError {
+        let errorDescription: String?
+        init(_ message: String) { errorDescription = message }
+    }
+
+    /// A folder on disk as an app, the way a web project is laid out: index.html at its top, text
+    /// files as text, everything else (a .wasm, a game's data, pictures) as binary files. Hidden
+    /// files are left out. Throws with a sentence a person can act on.
+    static func folder(_ url: URL) throws -> NotePageProject {
+        let root = url.standardizedFileURL.resolvingSymlinksInPath()
+        guard FileManager.default.fileExists(atPath: root.appending(path: "index.html").path) else {
+            throw FolderError("\(root.lastPathComponent) has no index.html at its top.")
+        }
+        var p = NotePageProject(files: [:])
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .fileSizeKey]
+        guard let walk = FileManager.default.enumerator(at: root, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
+            throw FolderError("\(root.lastPathComponent) can't be read.")
+        }
+        for case let file as URL in walk {
+            let values = try file.resourceValues(forKeys: keys)
+            guard values.isRegularFile == true else { continue }
+            if (values.fileSize ?? 0) > maxBinaryBytes { throw FolderError("\(file.lastPathComponent) is over \(maxBinaryBytes / 1024 / 1024) MB.") }
+            let path = "/" + file.resolvingSymlinksInPath().path.dropFirst(root.path.count).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard validPath(path) else { throw FolderError("\(path) has a name an app can't use: letters, digits, \".\", \"_\" and \"-\" only.") }
+            let data = try Data(contentsOf: file)
+            if isBinary(data) { p.binary[path] = pack(data) } else { p.files[path] = String(decoding: data, as: UTF8.self) }
+        }
+        if let problem = p.problem { throw FolderError(problem) }
+        return p
+    }
 
     /// The HTML of the app's page (for what it declares in <meta> tags).
     static func entryHTML(_ stored: String) -> String {
@@ -68,6 +151,11 @@ struct NotePageProject: Equatable {
     /// (`import "./index.css"`, compiled to "./index.css?import") is a module that adds it.
     func serve(_ path: String, query: String? = nil) -> (data: Data, type: String)? {
         guard let path = resolve(path) else { return nil }
+        if let packed = binary[path] {
+            guard let data = Self.unpack(packed) else { return nil }
+            let type = Self.mime(path)
+            return (data, type == "text/plain" && !path.hasSuffix(".txt") ? "application/octet-stream" : type)
+        }
         if query == "import", path.hasSuffix(".css") {
             let js = "if (!document.querySelector('link[href=\"\(path)\"]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '\(path)'; document.head.appendChild(l); }\n"
             return (Data(js.utf8), "text/javascript")
@@ -78,7 +166,7 @@ struct NotePageProject: Equatable {
     }
 
     func resolve(_ path: String) -> String? {
-        if files[path] != nil { return path }
+        if files[path] != nil || binary[path] != nil { return path }
         for ext in [".tsx", ".ts", ".jsx", ".js", "/index.tsx", "/index.ts", "/index.jsx", "/index.js"] where files[path + ext] != nil {
             return path + ext
         }
@@ -93,8 +181,33 @@ struct NotePageProject: Equatable {
         case "json": "application/json"
         case "svg": "image/svg+xml"
         case "md", "txt": "text/plain"
+        case "wasm": "application/wasm"
+        case "png": "image/png"
+        case "jpg", "jpeg": "image/jpeg"
+        case "gif": "image/gif"
+        case "webp": "image/webp"
+        case "avif": "image/avif"
+        case "ico": "image/x-icon"
+        case "mp3": "audio/mpeg"
+        case "m4a": "audio/mp4"
+        case "wav": "audio/wav"
+        case "ogg": "audio/ogg"
+        case "mp4": "video/mp4"
+        case "webm": "video/webm"
+        case "woff": "font/woff"
+        case "woff2": "font/woff2"
+        case "ttf": "font/ttf"
+        case "otf": "font/otf"
+        case "pdf": "application/pdf"
+        case "zip": "application/zip"
+        case "bin", "wad", "dat": "application/octet-stream"
         default: "text/plain"
         }
+    }
+
+    /// Whether a type is text, so it's served with its charset.
+    static func isText(_ type: String) -> Bool {
+        type.hasPrefix("text/") || type == "application/json" || type == "image/svg+xml"
     }
 
     /// Bare module names for the bundled libraries: <script type="importmap"> before the app's own.
@@ -132,7 +245,7 @@ final class AppScheme: NSObject, WKURLSchemeHandler {
             return
         }
         task.didReceive(HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
-                                        headerFields: ["Content-Type": type + "; charset=utf-8", "Content-Length": "\(data.count)", "Access-Control-Allow-Origin": "*"])!)
+                                        headerFields: ["Content-Type": type + (NotePageProject.isText(type) ? "; charset=utf-8" : ""), "Content-Length": "\(data.count)", "Access-Control-Allow-Origin": "*"])!)
         task.didReceive(data)
         task.didFinish()
     }

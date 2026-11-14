@@ -1,7 +1,7 @@
 // The app-project format, path rules, edits, compile and import checks.
 //   cd supabase/functions/mcp && deno test -A app_project.test.ts
-import { assert, assertEquals, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
-import { brokenImports, cleanPath, compile, editText, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES } from "./app_project.ts";
+import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
+import { binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
 
 Deno.test("a one-file app stays plain HTML; a project round-trips as JSON", () => {
   const html = "<!doctype html><p>hi</p>";
@@ -93,10 +93,30 @@ Deno.test("the stack's bare names match the app's import map", () => {
   for (const name of STACK_NAMES) assert(name in map, `${name} isn't in stack.json`);
 });
 
-Deno.test("a game fits: Doom's engine and its 4 MB WAD as base64, and Emscripten's loader as it's built (2026-11-14)", () => {
-  const wad = "A".repeat(5_594_694); // DOOM1.WAD (4,196,020 bytes) as base64
+Deno.test("binary files: stored as compressed bytes, unpacked the same, with the web's type, and kept by serialize (2026-11-14)", async () => {
+  const wad = new Uint8Array(4_196_020).map((_, i) => (i % 5 === 0 ? 0 : (i * 31) % 97)); // DOOM1.WAD's size, with zeros like it
+  const stored = await packBinary(wad);
+  assertEquals(await unpackBinary(stored), wad);
+  assert(stored.length < wad.length, `${stored.length} stored for ${wad.length} bytes`);
+  const p = { amberApp: 1 as const, files: { "/index.html": "<canvas></canvas>" }, compiled: {}, binary: { "/doom1.wad": stored } };
+  assertEquals(parseStored(serialize(p)), p);
+  // A text project stays as it was: no binary key.
+  assertEquals(serialize({ amberApp: 1, files: { "/index.html": "<p>", "/a.js": "" }, compiled: {} }).includes("binary"), false);
+  assertEquals(binaryType("/doom.wasm"), "application/wasm");
+  assertEquals(binaryType("/doom1.wad"), "application/octet-stream");
+  assert(isBinaryBytes(new Uint8Array([0x00, 0x61, 0x73, 0x6d])) && !isBinaryBytes(new TextEncoder().encode("héllo")));
+  // A small file that would unpack into a huge one is refused.
+  const bomb = await packBinary(new Uint8Array(2 * 1024 * 1024));
+  await assertRejects(() => unpackBinary(bomb, 1024 * 1024), Error, "more than 1 MB");
+  // The same path can't be both, and what's stored counts toward the limits.
+  assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/doom1.wad": "x" } }).join(), "both a text file and a binary one");
+  assertStringIncludes(projectProblems({ ...p, binary: { "/big.bin": "A".repeat(MAX_FILE_BYTES + 4) } }).join(), "stored (compressed)");
+});
+
+Deno.test("a game fits: Doom's engine and its 4 MB WAD as raw binary files, and Emscripten's loader as it's built (2026-11-14)", async () => {
+  const wad = await packBinary(new Uint8Array(4_196_020).map((_, i) => (i % 5 === 0 ? 0 : (i * 31) % 97)));
   const glue = `var readAsync=async url=>{var response=await fetch(url,{credentials:"same-origin"})};function lazy(){var xhr=new XMLHttpRequest;xhr.open("GET",url,false)}`;
-  const p = { amberApp: 1 as const, files: { "/index.html": `<html lang="en"><canvas></canvas><script src="doom.js"></script>`, "/doom.js": glue, "/doom1.wad.b64": wad, "/doom.wasm.b64": "A".repeat(528_832) }, compiled: {} };
+  const p = { amberApp: 1 as const, files: { "/index.html": `<html lang="en"><canvas></canvas><script src="doom.js"></script>`, "/doom.js": glue }, compiled: {}, binary: { "/doom1.wad": wad, "/doom.wasm": await packBinary(new Uint8Array(396_621)) } };
   assertEquals(projectProblems(p), []);
   assertEquals(sourceProblems(p), []);
   assertEquals(brokenImports(p), []);

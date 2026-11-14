@@ -262,24 +262,80 @@ import AppKit
         #expect(try await sandbox.webView.evaluateJavaScript("window.__eval") as? String == "refused")
     }
 
+    /// A project's binary files (2026-11-14) are served as they are, with the web's type: a .wasm
+    /// compiles with instantiateStreaming (which needs application/wasm) and a game's data arrives
+    /// byte for byte, with no base64 in the app.
+    @Test func binaryFilesAreServedAsTheyAre() async throws {
+        // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
+        let wasm = Data([0, 97, 115, 109, 1, 0, 0, 0, 1, 7, 1, 96, 2, 127, 127, 1, 127, 3, 2, 1, 0, 7, 7, 1, 3, 97, 100, 100, 0, 0, 10, 9, 1, 7, 0, 32, 0, 32, 1, 106, 11])
+        let wad = Data((0..<300_000).map { UInt8($0 % 7 == 0 ? 0 : $0 % 251) })
+        let project = NotePageProject(files: ["/index.html": """
+        <main>bytes</main><script>
+          window.__out = null;
+          (async () => {
+            const { instance } = await WebAssembly.instantiateStreaming(fetch("/engine/add.wasm"), {});
+            const r = await fetch("data.wad");
+            const b = new Uint8Array(await r.arrayBuffer());
+            window.__out = [instance.exports.add(2, 40), b.length, b[1], b[7], r.headers.get("content-type")].join(" ");
+          })().catch((e) => { window.__out = "failed: " + e; });
+        </script>
+        """], binary: ["/engine/add.wasm": NotePageProject.pack(wasm), "/data.wad": NotePageProject.pack(wad)])
+        #expect(project.problem == nil)
+        // Stored compressed, and back the same.
+        #expect(NotePageProject.parse(project.stored) == project)
+        #expect(NotePageProject.unpack(project.binary["/data.wad"]!) == wad)
+        #expect(project.binary["/data.wad"]!.utf8.count < wad.base64EncodedString().utf8.count / 2)
+        #expect(project.serve("/engine/add.wasm")?.type == "application/wasm")
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: project.stored, body: "Bytes")
+        try await run(sandbox.webView, until: "window.__out !== null && window.__out !== undefined")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__out") as? String == "42 300000 1 0 application/octet-stream")
+        // A text project is stored as before: no binary key.
+        #expect(!NotePageProject(files: ["/index.html": "<p>", "/a.js": ""]).stored.contains("binary"))
+        // A small file that would unpack into a huge one isn't served.
+        #expect(NotePageProject.unpack(NotePageProject.pack(Data(count: 2_000_000)), max: 1_000_000) == nil)
+    }
+
+    /// A web project's folder becomes an app as it is on disk: text as text, the rest binary,
+    /// hidden files left out; a folder an app can't be made from says why.
+    @Test func aFolderBecomesAnApp() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "folder-app-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir.appending(path: "assets"), withIntermediateDirectories: true)
+        try Data("<!doctype html><p>hi</p>".utf8).write(to: dir.appending(path: "index.html"))
+        try Data("console.log(1)".utf8).write(to: dir.appending(path: "assets/app.js"))
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13]).write(to: dir.appending(path: "assets/logo.png"))
+        try Data("x".utf8).write(to: dir.appending(path: ".DS_Store"))
+        let p = try NotePageProject.folder(dir)
+        #expect(Set(p.files.keys) == ["/index.html", "/assets/app.js"])
+        #expect(Set(p.binary.keys) == ["/assets/logo.png"])
+        #expect(p.serve("/assets/logo.png")?.type == "image/png")
+        try Data("x".utf8).write(to: dir.appending(path: "a b.js"))
+        #expect(throws: NotePageProject.FolderError.self) { try NotePageProject.folder(dir) }
+        try FileManager.default.removeItem(at: dir.appending(path: "index.html"))
+        #expect(throws: NotePageProject.FolderError.self) { try NotePageProject.folder(dir) }
+    }
+
     #if os(macOS)
     /// Doom (doomgeneric + the shareware DOOM1.WAD) as a note app, through the real loading path and
-    /// policy, in a web view that is never on screen. Runs only when DOOM_DIR names a folder with the
-    /// app's files (index.html, main.js, doom.js, README.md) and its two binaries (doom.wasm, DOOM1.WAD),
-    /// which become doom.wasm.b64 and doom1.wad.b64 as in the stored project; DOOM_SHOTS is a folder for
-    /// its pictures (TEST_RUNNER_DOOM_DIR, TEST_RUNNER_DOOM_SHOTS).
+    /// policy, in a web view that is never on screen. Runs only when DOOM_DIR names the app's folder as
+    /// it's built (index.html, main.js, touch.js, doom.js, README.md, and the raw doom.wasm and
+    /// doom1.wad, which the app stores as binary files, 2026-11-14); DOOM_SHOTS is a folder for its
+    /// pictures and report (TEST_RUNNER_DOOM_DIR, TEST_RUNNER_DOOM_SHOTS).
     @Test func doomRunsInANoteApp() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let dir = env["DOOM_DIR"], let shots = env["DOOM_SHOTS"] else { return }
         try FileManager.default.createDirectory(atPath: shots, withIntermediateDirectories: true)
-        let from = URL(fileURLWithPath: dir)
-        var files: [String: String] = [:]
-        for name in ["index.html", "main.js", "doom.js", "README.md"] { files["/" + name] = try String(contentsOf: from.appending(path: name), encoding: .utf8) }
-        files["/doom.wasm.b64"] = try Data(contentsOf: from.appending(path: "doom.wasm")).base64EncodedString()
-        files["/doom1.wad.b64"] = try Data(contentsOf: from.appending(path: "DOOM1.WAD")).base64EncodedString()
-        let stored = try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": files, "compiled": [String: String]()], options: [.sortedKeys]), encoding: .utf8))
-        let parsed = NotePageProject.parse(stored)
-        #expect(parsed != nil, "over the app's limits")
+        let project = try NotePageProject.folder(URL(fileURLWithPath: dir))
+        #expect(Set(project.binary.keys) == ["/doom.wasm", "/doom1.wad"])
+        let stored = project.stored
+        #expect(NotePageProject.parse(stored) == project, "over the app's limits")
+        // What the same app took as base64 text files before binary files.
+        var old = project.files
+        for (path, packed) in project.binary { old[path + ".b64"] = try #require(NotePageProject.unpack(packed)).base64EncodedString() }
+        let oldStored = try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": old, "compiled": [String: String]()], options: [.sortedKeys]), encoding: .utf8))
+        #expect(stored.utf8.count < oldStored.utf8.count / 2, "stored \(stored.utf8.count) bytes, was \(oldStored.utf8.count)")
+        let sizes = "stored \(stored.utf8.count) bytes (binary files), was \(oldStored.utf8.count) (base64 text files)"
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
         let web = sandbox.webView
         let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 640, height: 528), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -343,18 +399,18 @@ import AppKit
         let loadMs = (try? await js("[doom.loadMs, doom.startMs, doom.wadSha1 || 'no subtle crypto']")) as? [Any] ?? []
         // How fast it could go: Doom's own benchmark (-timedemo demo1: a tic and a frame per call, no
         // waiting), on a copy of the app that starts with it, 700 frames as fast as they come.
-        var bench = files
-        bench["/main.js"] = files["/main.js"]?.replacingOccurrences(of: #"["-iwad", "/doom1.wad"]"#, with: #"["-iwad", "/doom1.wad", "-timedemo", "demo1"]"#)
-        #expect(bench["/main.js"] != files["/main.js"])
+        var bench = project
+        bench.files["/main.js"] = project.files["/main.js"]?.replacingOccurrences(of: #"["-iwad", "/doom1.wad"]"#, with: #"["-iwad", "/doom1.wad", "-timedemo", "demo1"]"#)
+        #expect(bench.files["/main.js"] != project.files["/main.js"])
         let second = NotePageSandbox(rules: try await NotePageSandbox.prepare())
-        second.load(html: try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": bench, "compiled": [String: String]()]), encoding: .utf8)), body: "Doom")
+        second.load(html: bench.stored, body: "Doom")
         for _ in 0..<300 where ((try? await second.webView.evaluateJavaScript("window.doom ? doom.state : ''")) as? String) != "running" { try await Task.sleep(for: .milliseconds(100)) }
         let flat = try await second.webView.evaluateJavaScript("(() => { const t0 = performance.now(); let n = 0; try { for (; n < 700; n++) doom.step(1); } catch (e) {} return [n, performance.now() - t0]; })()") as? [Double] ?? []
         #expect(timed.count == 3 && flat.count == 2)
         if timed.count == 3, flat.count == 2 {
             let fps = timed[0] / (timed[2] / 1000), ms = flat[1] / max(1, flat[0])
             #expect(fps > 30, "Doom runs at 35 fps")
-            let report = "fps \(String(format: "%.1f", fps)) (Doom's cap is 35); flat out (-timedemo demo1) \(Int(flat[0])) frames in \(Int(flat[1])) ms = \(String(format: "%.2f", ms)) ms a frame, \(Int(1000 / ms)) fps possible; offscreen timer loop \(String(format: "%.1f", shown)) fps (hidden view, timers slowed); load ms, start ms, WAD SHA-1 \(loadMs); ready \(ready); failures \(failures); log: \(inGame)\n"
+            let report = "fps \(String(format: "%.1f", fps)) (Doom's cap is 35); flat out (-timedemo demo1) \(Int(flat[0])) frames in \(Int(flat[1])) ms = \(String(format: "%.2f", ms)) ms a frame, \(Int(1000 / ms)) fps possible; offscreen timer loop \(String(format: "%.1f", shown)) fps (hidden view, timers slowed); load ms, start ms, WAD SHA-1 \(loadMs); \(sizes); ready \(ready); failures \(failures); log: \(inGame)\n"
             try report.write(to: URL(fileURLWithPath: shots).appending(path: "report.txt"), atomically: true, encoding: .utf8)
         }
     }

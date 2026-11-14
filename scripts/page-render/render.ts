@@ -10,6 +10,7 @@ import { applyPageOp, importedFrom, noteForPage } from "../../supabase/functions
 import { mergePatch } from "../../supabase/functions/mcp/data_ops.ts";
 import { findTables } from "../../supabase/functions/mcp/notes.ts";
 import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
+import { binaryType, unpackBinary } from "../../supabase/functions/mcp/app_project.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
 const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; " +
@@ -79,10 +80,10 @@ const kit = (() => { let k: { src: Record<string, string>; compiled: Record<stri
 /** amber-lib:/// and amber-app:/// as this harness serves them. */
 const hosts = (text: string) => text.replaceAll("amber-lib:///", LIB_HOST).replaceAll("amber-app:///", APP_HOST);
 
-export type AppProject = { files: Record<string, string>; compiled: Record<string, string> };
+export type AppProject = { files: Record<string, string>; compiled: Record<string, string>; binary: Record<string, string> };
 export function projectOf(stored: string): AppProject | null {
   if (!stored.trimStart().startsWith("{") || !stored.includes('"amberApp"')) return null;
-  try { const p = JSON.parse(stored); return p?.amberApp === 1 && p.files ? { files: p.files, compiled: p.compiled ?? {} } : null; } catch { return null; }
+  try { const p = JSON.parse(stored); return p?.amberApp === 1 && p.files ? { files: p.files, compiled: p.compiled ?? {}, binary: p.binary ?? {} } : null; } catch { return null; }
 }
 
 function importMap(): string {
@@ -505,7 +506,7 @@ for (const f of ${JSON.stringify(files)}) {
 }
 window.__testResults = { results, errors };
 </script></body></html>`;
-  return JSON.stringify({ amberApp: 1, files: { ...p.files, "/index.html": html }, compiled: p.compiled });
+  return JSON.stringify({ amberApp: 1, files: { ...p.files, "/index.html": html }, compiled: p.compiled, binary: p.binary });
 }
 
 async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>): Promise<Render> {
@@ -604,6 +605,12 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       const u = r.request().url();
       if (u === home) return r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: prepared.html });
       if (project && u.startsWith(APP_HOST)) {
+        // A binary file (a .wasm, a game's data): its bytes as they are, with their type.
+        const stored = project.binary[decodeURIComponent(new URL(u).pathname)];
+        if (stored !== undefined) {
+          return unpackBinary(stored).then((body) => r.fulfill({ status: 200, contentType: binaryType(new URL(u).pathname), headers: { "access-control-allow-origin": "*" }, body: Buffer.from(body) }))
+            .catch((e) => { errors.push(`${new URL(u).pathname}: ${(e as Error).message}`); return r.fulfill({ status: 500, body: "" }); });
+        }
         const f = serveFile(project, "/" + decodeURIComponent(new URL(u).pathname.slice(1)), new URL(u).search.slice(1));
         if (!f) { errors.push(`missing file: ${new URL(u).pathname}`); return r.fulfill({ status: 404, body: "" }); }
         return r.fulfill({ status: 200, contentType: `${f.type}; charset=utf-8`, headers: { "access-control-allow-origin": "*" }, body: f.body });
