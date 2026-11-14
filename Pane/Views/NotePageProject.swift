@@ -14,8 +14,9 @@ struct NotePageProject: Equatable {
     var compiled: [String: String] = [:]
 
     static let maxFiles = 200
-    static let maxFileBytes = 512 * 1024
-    static let maxBytes = 3 * 1024 * 1024
+    /// Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
+    static let maxFileBytes = 8 * 1024 * 1024
+    static let maxBytes = 16 * 1024 * 1024
     static let base = URL(string: "amber-app:///index.html")!
 
     var index: String { files["/index.html"] ?? "" }
@@ -40,11 +41,11 @@ struct NotePageProject: Equatable {
         if files.count > Self.maxFiles { return "The app has more than \(Self.maxFiles) files." }
         for (path, text) in files {
             if !Self.validPath(path) { return "\(path) isn't a valid path." }
-            if text.utf8.count > Self.maxFileBytes { return "\(path) is over 512 KB." }
+            if text.utf8.count > Self.maxFileBytes { return "\(path) is over \(Self.maxFileBytes / 1024 / 1024) MB." }
             if Self.compiles(path), compiled[path] == nil { return "\(path) wasn't compiled." }
         }
         let total = files.values.reduce(0) { $0 + $1.utf8.count } + compiled.values.reduce(0) { $0 + $1.utf8.count }
-        if total > Self.maxBytes { return "The app is over 3 MB." }
+        if total > Self.maxBytes { return "The app is over \(Self.maxBytes / 1024 / 1024) MB." }
         return nil
     }
 

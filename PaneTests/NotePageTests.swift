@@ -212,6 +212,123 @@ import AppKit
         #expect(sandbox.blocked.contains { $0.hasPrefix("navigation \(base)") })
     }
 
+    /// A note app can run WebAssembly ('wasm-unsafe-eval'), so a real engine like Doom runs in a
+    /// note; eval and new Function stay refused (2026-11-14).
+    @Test func aPageRunsWebAssemblyButNotEval() async throws {
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: """
+        <main>wasm</main><script>
+          // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
+          const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
+          window.__wasm = null;
+          WebAssembly.instantiate(bytes).then((r) => { window.__wasm = r.instance.exports.add(2, 40); }, (e) => { window.__wasm = "refused: " + e; });
+          try { window.__eval = new Function("return 'ran'")(); } catch (e) { window.__eval = "refused"; }
+        </script>
+        """, body: "Wasm")
+        try await run(sandbox.webView, until: "window.__wasm !== null && window.__wasm !== undefined")
+        let wasm = try await sandbox.webView.evaluateJavaScript("String(window.__wasm)") as? String
+        #expect(wasm == "42")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__eval") as? String == "refused")
+    }
+
+    #if os(macOS)
+    /// Doom (doomgeneric + the shareware DOOM1.WAD) as a note app, through the real loading path and
+    /// policy, in a web view that is never on screen. Runs only when DOOM_DIR names a folder with the
+    /// app's files (index.html, main.js, doom.js, README.md) and its two binaries (doom.wasm, DOOM1.WAD),
+    /// which become doom.wasm.b64 and doom1.wad.b64 as in the stored project; DOOM_SHOTS is a folder for
+    /// its pictures (TEST_RUNNER_DOOM_DIR, TEST_RUNNER_DOOM_SHOTS).
+    @Test func doomRunsInANoteApp() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let dir = env["DOOM_DIR"], let shots = env["DOOM_SHOTS"] else { return }
+        try FileManager.default.createDirectory(atPath: shots, withIntermediateDirectories: true)
+        let from = URL(fileURLWithPath: dir)
+        var files: [String: String] = [:]
+        for name in ["index.html", "main.js", "doom.js", "README.md"] { files["/" + name] = try String(contentsOf: from.appending(path: name), encoding: .utf8) }
+        files["/doom.wasm.b64"] = try Data(contentsOf: from.appending(path: "doom.wasm")).base64EncodedString()
+        files["/doom1.wad.b64"] = try Data(contentsOf: from.appending(path: "DOOM1.WAD")).base64EncodedString()
+        let stored = try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": files, "compiled": [String: String]()], options: [.sortedKeys]), encoding: .utf8))
+        let parsed = NotePageProject.parse(stored)
+        #expect(parsed != nil, "over the app's limits")
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        let web = sandbox.webView
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 640, height: 528), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = web
+        defer { window.contentView = nil; window.close() }
+        var ready = false
+        var failures: [String] = []
+        sandbox.onReady = { ready = true }
+        sandbox.onFailure = { failures = $0 }
+        sandbox.load(html: stored, body: "Doom")
+        let js = { (s: String) async throws -> Any? in try await web.evaluateJavaScript(s) }
+        var state = ""
+        for _ in 0..<600 {
+            state = (try? await js("window.doom ? doom.state : ''")) as? String ?? ""
+            if state == "running" || state == "failed" { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let error = (try? await js("window.doom ? (doom.error || '') + ' log: ' + doom.log.join(' | ') + ' at ' + Math.round(performance.now()) : 'no doom'")) as? String ?? ""
+        #expect(state == "running", "Doom: \(error) \(failures)")
+        guard state == "running" else { return }
+        let save = { (name: String) async throws in
+            let image = try await web.takeSnapshot(configuration: nil)
+            let tiff = try #require(image.tiffRepresentation)
+            let png = try #require(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
+            try png.write(to: URL(fileURLWithPath: shots).appending(path: name))
+        }
+        // Held keys need tics to pass while they're down; a view never on screen gets one timer a
+        // second, so the page's own loop runs here for the time held (a tic whenever one is due).
+        let hold = { (keys: [String], ms: Int) async throws in
+            for k in keys { _ = try await js("dispatchEvent(new KeyboardEvent('keydown', { key: '\(k)', bubbles: true })); 1") }
+            _ = try await js("(() => { const tic = 1000 / 35, t0 = performance.now(); let next = t0; while (performance.now() - t0 < \(ms)) { if (performance.now() >= next) { doom.step(1); next += tic; } } return 1; })()")
+            for k in keys { _ = try await js("dispatchEvent(new KeyboardEvent('keyup', { key: '\(k)', bubbles: true })); 1") }
+            _ = try await js("doom.step(2); 1")
+        }
+        try await Task.sleep(for: .seconds(1))
+        try await save("1-title.png")
+        // The frame rate it shows, over 3 seconds of the title and demo.
+        let before = try await js("[doom.frames, doom.tics, doom.busyMs, performance.now()]") as? [Double] ?? []
+        try await Task.sleep(for: .seconds(3))
+        let after = try await js("[doom.frames, doom.tics, doom.busyMs, performance.now()]") as? [Double] ?? []
+        // Into a game: the menu, New Game, the episode, the skill; then forward, turn, and fire.
+        try await hold(["Enter"], 150)
+        try await hold([], 700)
+        try await save("2-menu.png")
+        for _ in 0..<3 { try await hold(["Enter"], 150); try await hold([], 400) }
+        try await hold([], 1500)
+        try await save("3-gameplay.png")
+        try await hold(["ArrowUp"], 1200)
+        try await hold(["ArrowLeft"], 450)
+        try await hold(["Control"], 700)
+        try await save("4-moved-and-fired.png")
+        // The frame rate it reaches: a view that's never on screen gets its timers slowed to one a second,
+        // so for 3 s the page runs its own loop (a tic whenever one is due, as on screen) while turning.
+        _ = try await js("dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); 1")
+        let timed = try await js("(() => { const tic = 1000 / 35, t0 = performance.now(), f0 = doom.frames; let next = t0, busy = 0; while (performance.now() - t0 < 3000) { const now = performance.now(); if (now >= next) { doom.step(1); busy += performance.now() - now; next += tic; } } return [doom.frames - f0, busy, performance.now() - t0]; })()") as? [Double] ?? []
+        _ = try await js("dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true })); 1")
+        try await save("5-turned.png")
+        let shown = after.count == 4 && before.count == 4 ? (after[0] - before[0]) / ((after[3] - before[3]) / 1000) : -1
+        let inGame = (try? await js("doom.log.slice(-8).join(' | ')")) as? String ?? ""
+        let loadMs = (try? await js("[doom.loadMs, doom.startMs, doom.wadSha1 || 'no subtle crypto']")) as? [Any] ?? []
+        // How fast it could go: Doom's own benchmark (-timedemo demo1: a tic and a frame per call, no
+        // waiting), on a copy of the app that starts with it, 700 frames as fast as they come.
+        var bench = files
+        bench["/main.js"] = files["/main.js"]?.replacingOccurrences(of: #"["-iwad", "/doom1.wad"]"#, with: #"["-iwad", "/doom1.wad", "-timedemo", "demo1"]"#)
+        #expect(bench["/main.js"] != files["/main.js"])
+        let second = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        second.load(html: try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": bench, "compiled": [String: String]()]), encoding: .utf8)), body: "Doom")
+        for _ in 0..<300 where ((try? await second.webView.evaluateJavaScript("window.doom ? doom.state : ''")) as? String) != "running" { try await Task.sleep(for: .milliseconds(100)) }
+        let flat = try await second.webView.evaluateJavaScript("(() => { const t0 = performance.now(); let n = 0; try { for (; n < 700; n++) doom.step(1); } catch (e) {} return [n, performance.now() - t0]; })()") as? [Double] ?? []
+        #expect(timed.count == 3 && flat.count == 2)
+        if timed.count == 3, flat.count == 2 {
+            let fps = timed[0] / (timed[2] / 1000), ms = flat[1] / max(1, flat[0])
+            #expect(fps > 30, "Doom runs at 35 fps")
+            let report = "fps \(String(format: "%.1f", fps)) (Doom's cap is 35); flat out (-timedemo demo1) \(Int(flat[0])) frames in \(Int(flat[1])) ms = \(String(format: "%.2f", ms)) ms a frame, \(Int(1000 / ms)) fps possible; offscreen timer loop \(String(format: "%.1f", shown)) fps (hidden view, timers slowed); load ms, start ms, WAD SHA-1 \(loadMs); ready \(ready); failures \(failures); log: \(inGame)\n"
+            try report.write(to: URL(fileURLWithPath: shots).appending(path: "report.txt"), atomically: true, encoding: .utf8)
+        }
+    }
+    #endif
+
     @Test func thePageGetsTheNoteAndChangesItOnlyThroughTheBridge() async throws {
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
         var body = Self.habits
@@ -1514,7 +1631,11 @@ import AppKit
         #expect(NotePageProject.parse(stored(["/main.html": "x"])) == nil, "no /index.html")
         #expect(NotePageProject.parse(stored(["/index.html": "x", "/src/App.jsx": "<p/>"])) == nil, "not compiled")
         #expect(NotePageProject.parse(stored(["/index.html": "x", "/../etc": "x"])) == nil)
-        #expect(NotePageProject.parse(stored(["/index.html": "x", "/big.js": String(repeating: "a", count: 600_000)])) == nil)
+        #expect(NotePageProject.parse(stored(["/index.html": "x", "/big.js": String(repeating: "a", count: NotePageProject.maxFileBytes + 1)])) == nil)
+        // A game's data fits: Doom's 4 MB shareware WAD is 5.6 MB as base64 (2026-11-14).
+        #expect(NotePageProject.parse(stored(["/index.html": "x", "/doom1.wad.b64": String(repeating: "A", count: 5_594_696)])) != nil)
+        let parts = (0..<3).reduce(into: ["/index.html": "x"]) { $0["/p\($1).txt"] = String(repeating: "a", count: NotePageProject.maxFileBytes - 1) }
+        #expect(NotePageProject.parse(stored(parts)) == nil, "over the total")
         var many = ["/index.html": "x"]; for i in 0..<NotePageProject.maxFiles { many["/f\(i).js"] = "" }
         #expect(NotePageProject.parse(stored(many)) == nil)
         // A one-file app is a project of one file.

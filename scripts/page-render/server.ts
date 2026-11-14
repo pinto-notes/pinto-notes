@@ -15,7 +15,8 @@
 import { renderPage, type RenderOptions, type Step, testRunnerProject } from "./render.ts";
 import { compileHere, tailwindHere } from "../../supabase/functions/mcp/app_build.ts";
 
-const MAX_BODY = 2 * 1024 * 1024;
+/** A render carries the whole project (up to 16 MB, MAX_PROJECT_BYTES), the note and its data. */
+const MAX_BODY = 24 * 1024 * 1024;
 /** A whole project's sources can reach 3 MB (MAX_PROJECT_BYTES in app_project.ts). */
 const MAX_BUILD_BODY = 4 * 1024 * 1024;
 const secret = Deno.env.get("RENDER_SECRET");

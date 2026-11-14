@@ -12,7 +12,7 @@ import { findTables } from "../../supabase/functions/mcp/notes.ts";
 import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
-const POLICY = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; " +
+const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; " +
   "connect-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
 
 // amber-tokens.css as the iPhone app writes it (Pane/Views/NotePageView.swift, NotePageTheme.tokens),
@@ -58,7 +58,7 @@ function prepare(html: string): { html: string; integrity: Map<string, string> }
     if (npm) integrity.set(path, npm[2]);
     tags.push(`<script src="${LIB_HOST}${encodeURI(path)}"></script>`);
   }
-  const policy = POLICY.replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline' ${LIB_HOST}`);
+  const policy = POLICY.replace("script-src 'unsafe-inline' 'wasm-unsafe-eval'", `script-src 'unsafe-inline' 'wasm-unsafe-eval' ${LIB_HOST}`);
   return {
     html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
       `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(html) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + tags.join("") + rest,
@@ -104,7 +104,7 @@ function importMap(): string {
 function prepareProject(p: AppProject): string {
   let rest = (p.files["/index.html"] ?? "").replace(/^[\s\uFEFF]+/, "");
   if (/^<!doctype/i.test(rest)) rest = rest.slice(rest.indexOf(">") + 1);
-  const policy = `default-src 'none'; script-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; img-src data: ${APP_HOST}; font-src data: ${APP_HOST}; media-src data: ${APP_HOST}; ` +
+  const policy = `default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; img-src data: ${APP_HOST}; font-src data: ${APP_HOST}; media-src data: ${APP_HOST}; ` +
     `connect-src ${APP_HOST}; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
   return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
     `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(rest) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + importMap() + hosts(rest);
