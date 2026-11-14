@@ -26,7 +26,7 @@ import UIKit
             let s = rig.sandbox
             s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
             canvas.deliver = { [weak s] c in s?.canvas(c) }
-            canvas.exporter = { [weak s] f, selected, light in await s?.canvasExport(f, selected: selected, light: light) }
+            canvas.exporter = { [weak s] f, selected, light, page in await s?.canvasExport(f, selected: selected, light: light, page: page) }
             #if os(macOS)
             (s.webView as? NotePageWebView)?.canvas = canvas
             #endif
@@ -352,6 +352,73 @@ import UIKit
         #expect(BoardPicture.body(title: "Publishing flow", words: words) == "Publishing flow\n\nIdea\n\nDraft\n\nReady?\n\nPublish\n\nFix it\n\nyes\n\nno")
     }
 
+    /// A picture of a board leaves out a template's how-to line and the band it stood in
+    /// (whiteboard council, round 3: about 75 pt of blank paper between the title and the drawing
+    /// in 14, 18, 19 and 20). The shared page's picture also leaves out the board's title when the
+    /// page's heading says it (20, 21: the title twice), and the page's scene leaves out the
+    /// how-to line. Export's .excalidraw file keeps everything where it was.
+    @Test func picturesCloseTheHowToBandAndThePagesPictureLeavesOutItsTitle() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        let name = "Sprint 14 retro"
+        j.canvas.send(.insert(.retro, title: name))
+        await j.until("the retro is in") { !j.canvas.state.empty }
+        func elements(_ file: Data?) throws -> [[String: Any]] {
+            let data = try #require(file)
+            let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+            return json["elements"] as? [[String: Any]] ?? []
+        }
+        func marked(_ e: [String: Any], _ k: String) -> Bool { (e["customData"] as? [String: Any])?[k] as? Bool == true }
+        func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+        // A lane: the retro's tall boxes.
+        func lane(_ all: [[String: Any]]) -> [String: Any]? { all.filter { $0["type"] as? String == "rectangle" && num($0, "height") > 300 }.min { num($0, "x") < num($1, "x") } }
+
+        // Export's file keeps the how-to line where it is.
+        let full = try elements(await j.canvas.export(.excalidraw))
+        let title = try #require(full.first { marked($0, "pintoTitle") }), hint = try #require(full.first { marked($0, "pintoHint") })
+        #expect(title["text"] as? String == name)
+        let fullLane = try #require(lane(full))
+        // The band: the line's height and the gap above it.
+        let band = num(hint, "y") + num(hint, "height") - (num(title, "y") + num(title, "height"))
+        #expect(band > 15 && band < 40, "\(band)")
+
+        // The page's scene: no how-to line, what was under it moved up by the band, the title kept.
+        let page = try elements(await j.canvas.export(.excalidraw, page: name))
+        #expect(!page.contains { marked($0, "pintoHint") } && page.count == full.count - 1)
+        let pageTitle = try #require(page.first { marked($0, "pintoTitle") })
+        #expect(num(pageTitle, "y") == num(title, "y"), "what's above the line stays")
+        let pageLane = try #require(lane(page))
+        #expect(abs(num(pageLane, "y") - (num(fullLane, "y") - band)) < 0.5, "the lanes moved up by the band: \(num(fullLane, "y")) to \(num(pageLane, "y"))")
+        #expect(abs((num(pageLane, "y") - num(title, "y") - num(title, "height")) - (num(fullLane, "y") - num(hint, "y") - num(hint, "height"))) < 0.5,
+                "the gap under the title is the one that was under the line")
+
+        // The page's SVG has no title; one made for another name, or Export's, has it.
+        let svg = { (d: Data?) in String(decoding: d ?? Data(), as: UTF8.self) }
+        #expect(!svg(await j.canvas.export(.svg, light: true, page: name)).contains(">\(name)<"))
+        #expect(svg(await j.canvas.export(.svg)).contains(">\(name)<"))
+        #expect(svg(await j.canvas.export(.svg, light: true, page: "Another board")).contains(">\(name)<"))
+        #expect(!svg(await j.canvas.export(.svg)).contains("Double-click a card"), "no how-to line in any picture")
+
+        #if os(macOS)
+        func height(_ png: Data?) throws -> Int {
+            let data = try #require(png)
+            return try #require(NSBitmapImageRep(data: data)).pixelsHigh
+        }
+        let picture = try height(await j.canvas.export(.png))
+        // The page's picture starts at the lanes: the title and the gap under it are gone (at 2x).
+        let pagePicture = try height(await j.canvas.export(.png, light: true, page: name))
+        let cut = 2 * (num(pageLane, "y") - num(title, "y"))
+        #expect(abs(Double(picture - pagePicture) - cut) < 8, "\(picture) to \(pagePicture), \(cut) less")
+        #expect(try height(await j.canvas.export(.png, light: true, page: "Another board")) == picture, "a title that isn't the page's name stays")
+        // The how-to line rubbed out by hand leaves nothing to close: its band shows, and the
+        // picture is that much taller than the one that closed it.
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElementsIncludingDeleted().map((e) => e.customData && e.customData.pintoHint ? { ...e, isDeleted: true } : e) }); return 1; })()")
+        let banded = try height(await j.canvas.export(.png))
+        #expect(abs(Double(banded - picture) - 2 * band) < 4, "\(banded) with the band, \(picture) without; \(2 * band) expected")
+        #endif
+    }
+
     #if os(macOS)
     static func png(width: Int, height: Int, clear: Bool) -> Data {
         let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
@@ -518,7 +585,7 @@ import UIKit
         let made = try await d.js("amber._throughDarkFilter('\(parts[1])')") as? String
         #expect(parts.count == 5 && parts[3].lowercased() == made?.lowercased(), "the engine reads the filtered accent: \(seen), made \(made ?? "nil")")
         // Exported from a dark board, the picture is light: it goes into mostly white documents.
-        d.canvas.exporter = { [weak s = d.rig.sandbox] f, selected, light in await s?.canvasExport(f, selected: selected, light: light) }
+        d.canvas.exporter = { [weak s = d.rig.sandbox] f, selected, light, page in await s?.canvasExport(f, selected: selected, light: light, page: page) }
         let png = try #require(await d.canvas.export(.png))
         let corner = try #require(NSBitmapImageRep(data: png)?.colorAt(x: 2, y: 2)?.usingColorSpace(.sRGB))
         #expect(corner.brightnessComponent > 0.9, "a light background: \(corner)")
@@ -963,6 +1030,43 @@ import UIKit
             #expect(dragRenders <= 2, "a drag of 30 moves redraws the note pane at most twice: \(dragRenders)")
             print("PERF canvas app strokes=\(strokes) saves=\(saves) heard=\(heard) noteDetailRenders stroke=\(strokeRenders) drag=\(dragRenders)")
         }
+    }
+
+    /// What a shared retro's page gets from the board (BoardPicture: the picture, made for the
+    /// page, and its .excalidraw file), and what Export makes of it, for the share page's pictures.
+    /// Made only when SHARE_PAGE_PICTURE is set (TEST_RUNNER_SHARE_PAGE_PICTURE=dir).
+    @Test func sharedRetroPictureForThePage() async throws {
+        guard let path = ProcessInfo.processInfo.environment["SHARE_PAGE_PICTURE"] else { return }
+        let dir = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let j = try await Joined(scene: CanvasTests.scene([]), size: CGSize(width: 1200, height: 900))
+        defer { j.close() }
+        try await j.ready()
+        let name = "Product launch"
+        j.canvas.send(.insert(.retro, title: name))
+        await j.until("the retro is in") { !j.canvas.state.empty }
+        // The whole retro in view, as on a Mac window, so each sticky has room under its card.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { zoom: { value: 0.5 } } }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(150))
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.scrollToContent(api.getSceneElements(), { fitToContent: false }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        // Sticky notes under the cards, as people add them on a retro: pick the card, press S, type.
+        // One in each lane, then a second in the first (its lane grows to hold it).
+        for (under, words) in [("Shipped on time", "Demo went well"), ("Too many meetings", "Standups run long"), ("Demo every Friday", "Ask design to join planning"), ("Demo went well", "Calm launch day")] {
+            _ = try await j.js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const t = all.find((e) => e.type === 'text' && e.text === \(String(reflecting: under))); const c = t && (all.find((e) => e.id === t.containerId) || t); if (c) api.updateScene({ appState: { selectedElementIds: { [c.id]: true } } }); return 1; })()")
+            try await Task.sleep(for: .milliseconds(100))
+            j.canvas.send(.sticky)
+            await j.until("the sticky is typed into") { j.canvas.state.editing }
+            try await Task.sleep(for: .milliseconds(150))
+            _ = try await j.js("(() => { const t = document.querySelector('textarea'); if (t) { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); } return 1; })()")
+            await j.until("the sticky is written") { !j.canvas.state.editing }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(300))
+        try #require(await j.canvas.export(.png, light: true, page: name)).write(to: dir.appending(path: "board-page.png"))
+        try #require(await j.canvas.export(.excalidraw, page: name)).write(to: dir.appending(path: "board-page.excalidraw"))
+        try #require(await j.canvas.export(.png)).write(to: dir.appending(path: "board-export.png"))
     }
 
     /// The whiteboard in the app's window, light and dark, for the whiteboard council. Drawn only

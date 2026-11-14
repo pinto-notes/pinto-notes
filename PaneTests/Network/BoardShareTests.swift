@@ -32,18 +32,26 @@ extension NetworkFaults {
         return Device(context: context, engine: engine)
     }
 
-    /// An open board, as the note pane joins one: it makes whatever picture the test gives it.
+    /// An open board, as the note pane joins one: it makes whatever picture and scene the test
+    /// gives it.
     @MainActor final class OpenBoard {
         let controller = CanvasController()
         var picture: Data?
-        private(set) var asked: [(format: CanvasExport, selected: Bool, light: Bool)] = []
-        init(picture: Data?) {
+        var scene: Data?
+        private(set) var asked: [(format: CanvasExport, selected: Bool, light: Bool, page: String?)] = []
+        init(picture: Data?, scene: Data? = BoardShareTests.file(["Idea"])) {
             self.picture = picture
-            controller.exporter = { [unowned self] format, selected, light in
-                self.asked.append((format, selected, light))
-                return self.picture
+            self.scene = scene
+            controller.exporter = { [unowned self] format, selected, light, page in
+                self.asked.append((format, selected, light, page))
+                return format == .excalidraw ? self.scene : self.picture
             }
         }
+    }
+
+    /// An .excalidraw file with these words on the board.
+    nonisolated static func file(_ words: [String]) -> Data {
+        try! JSONSerialization.data(withJSONObject: ["type": "excalidraw", "version": 2, "elements": words.enumerated().map { ["type": "text", "id": "t\($0.offset)", "x": 0, "y": $0.offset * 40, "text": $0.element] }, "files": [String: Any]()], options: [.sortedKeys])
     }
 
     /// A PNG of `width`×`height` in one colour.
@@ -96,6 +104,8 @@ extension NetworkFaults {
         StubSupabase.rpcCalls.filter { ["share_note", "publish_share"].contains($0.name) }.compactMap { ($0.params["p_copy"] as? [String: Any])?["body"] as? String }
     }
     private func sent(_ p: [String: Any]) -> Data? { (p["p_content"] as? String).flatMap { Data(base64Encoded: $0) } }
+    private var scenes: [[String: Any]] { StubSupabase.rpcCalls.filter { $0.name == "publish_share_scene" }.map(\.params) }
+    private func sentScene(_ p: [String: Any]) -> Data? { (p["p_content"] as? String).map { Data($0.utf8) } }
 
     // MARK: The page's text
 
@@ -126,6 +136,7 @@ extension NetworkFaults {
     @Test func theConsentPromptSaysWhatABoardsPageShows() {
         let board = ShareLinkStore.consent(board: true), note = ShareLinkStore.consent(board: false)
         #expect(board.contains("picture of this whiteboard") && board.contains("outside your encryption") && board.contains("name and email"))
+        #expect(board.contains("download the drawing"), "the page offers its .excalidraw file")
         #expect(!board.contains("files"), "a board's page has no files")
         #expect(note == "Anyone with the link can read it and its files, outside your encryption, until you stop sharing. The page shows your name and email.")
     }
@@ -149,7 +160,7 @@ extension NetworkFaults {
         #expect(copies == ["Launch plan\n\nIdea"])
         #expect(pictures.count == 1 && pictures[0]["p_slug"] as? String == slug)
         #expect(sent(pictures[0]) == first)
-        #expect(board.asked.last.map { $0.format == .png && !$0.selected && $0.light } == true, "the whole board, light whatever the appearance")
+        #expect(board.asked.first.map { $0.format == .png && !$0.selected && $0.light } == true, "the whole board, light whatever the appearance")
 
         // The drawing changes: it goes up, and 2 s later (here 0.1) the page gets its words and picture.
         plantShare(n.id)
@@ -225,6 +236,62 @@ extension NetworkFaults {
         #expect(CanvasSketch.of(n.id)?.preview == "From Claude", "the drawing came down")
         #expect(copies.last == "Launch plan\n\nFrom Claude")
         #expect(pictures.count == 1 && pictures[0]["p_slug"] as? String == slug)
+        await a.engine.stop()
+    }
+
+    /// The page shows the board's name once and offers its file (whiteboard council, round 3): the
+    /// picture is asked for without the board's title when it says the page's heading (the note's
+    /// name), and the .excalidraw file, without the how-to line, goes up beside it, sent when it
+    /// changes, left out when it's over the limit and taken away with the picture.
+    @Test func aBoardsSceneGoesUpBesideItsPictureAndThePictureLeavesOutItsTitle() async throws {
+        let a = try device()
+        let n = CanvasNote.make(in: .all, context: a.context, scene: Self.scene(["Idea"]), named: "Launch plan")
+        await a.engine.sync()
+        answerSharing()
+        let picture = Self.png(400, 200)
+        let board = OpenBoard(picture: picture, scene: Self.file(["Idea"]))
+        board.controller.title = "Whiteboard"
+        BoardPicture.opened(board.controller, note: n.id)
+
+        #expect(try await SharePublisher.share(note: n.id, includeSubNotes: false, client: StubSupabase.client(), container: a.context.container, user: user) == slug)
+        #expect(pictures.count == 1 && sent(pictures[0]) == picture)
+        #expect(scenes.count == 1 && scenes[0]["p_slug"] as? String == slug && sentScene(scenes[0]) == Self.file(["Idea"]))
+        // Both made for the page, whose heading is the note's name (not what the board calls itself).
+        #expect(board.asked.map { "\($0.format.rawValue) \($0.light) \($0.page ?? "-")" } == ["png true Launch plan", "excalidraw false Launch plan"])
+
+        // Published again with nothing new: neither is sent again.
+        plantShare(n.id)
+        #expect(await SharePublisher.republish(root: n.id, client: StubSupabase.client(), context: a.context, user: user) == slug)
+        #expect(pictures.count == 1 && scenes.count == 1)
+        // Only the file changed (a how-to line's words, say): only it goes.
+        board.scene = Self.file(["Idea", "Draft"])
+        #expect(await SharePublisher.republish(root: n.id, client: StubSupabase.client(), context: a.context, user: user) == slug)
+        #expect(pictures.count == 1 && scenes.count == 2 && sentScene(scenes[1]) == Self.file(["Idea", "Draft"]))
+        // Over the limit (pictures pasted on the board): the page offers no file, and keeps its picture.
+        board.scene = Data(repeating: 0x20, count: BoardPicture.maxSceneBytes + 1)
+        #expect(await SharePublisher.republish(root: n.id, client: StubSupabase.client(), context: a.context, user: user) == slug)
+        #expect(pictures.count == 1 && scenes.count == 3 && scenes[2]["p_content"] == nil)
+        #expect(BoardPicture.maxSceneBytes == 4 * 1024 * 1024, "the server's limit")
+        // Copy Link puts the page right: both go, whatever was sent.
+        board.scene = Self.file(["Idea"])
+        _ = try await SharePublisher.share(note: n.id, includeSubNotes: false, client: StubSupabase.client(), container: a.context.container, user: user)
+        #expect(pictures.count == 2 && scenes.count == 4 && sentScene(scenes[3]) == Self.file(["Idea"]))
+        // Trashed, the server took both down; restored, both are sent again.
+        n.trashedAt = .now
+        #expect(await SharePublisher.republish(root: n.id, client: StubSupabase.client(), context: a.context, user: user) == nil)
+        n.trashedAt = nil
+        #expect(await SharePublisher.republish(root: n.id, client: StubSupabase.client(), context: a.context, user: user) == slug)
+        #expect(pictures.count == 3 && scenes.count == 5)
+        // Rubbed out: no picture and no file.
+        board.picture = nil
+        board.controller.receive(["empty": true])
+        #expect(await SharePublisher.republish(root: n.id, client: StubSupabase.client(), context: a.context, user: user) == slug)
+        #expect(pictures.count == 4 && pictures[3]["p_content"] == nil && scenes.count == 6 && scenes[5]["p_content"] == nil)
+        // Without a heading given, the page is named for the board.
+        board.picture = picture
+        board.controller.receive(["empty": false])
+        #expect(await BoardPicture.publish(note: n.id, slug: slug, client: StubSupabase.client(), force: true) == .sent)
+        #expect(board.asked.last?.page == "Whiteboard")
         await a.engine.stop()
     }
 

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NotePage } from "./NotePage";
-import { boardAlt, boardPicture, boardWords, picturePath, type SharedNote } from "./shared";
+import { boardAlt, boardPicture, boardWords, isBoard, picturePath, scenePath, type SharedNote } from "./shared";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/n/x", useRouter: () => ({ push: () => {} }), notFound: () => { throw new Error("not found"); } }));
 
@@ -19,6 +19,7 @@ const board: SharedNote = {
   include_subnotes: false, is_sub: false, root_title: "Launch plan", subnotes: [],
   shared_by: { name: "Emil W", email: null, avatar: null },
   picture: { width: 2228, height: 809, version: 1763114400123 },
+  scene: { size: 5120, version: 1763114400456 },
 };
 
 // A shared whiteboard showed an empty page titled "Whiteboard" (its drawing is sealed page data, its
@@ -81,8 +82,9 @@ describe("a shared whiteboard's page", () => {
   it("brings no drawing engine to the web", () => {
     const pkg = readFileSync(join(process.cwd(), "package.json"), "utf8");
     expect(pkg).not.toMatch(/excalidraw/i);
+    // The page names the board's file (.excalidraw) but loads nothing of the engine.
     for (const f of ["lib/NotePage.tsx", "lib/shared.ts", "app/n/[slug]/page.tsx"]) {
-      expect(readFileSync(join(process.cwd(), f), "utf8"), f).not.toMatch(/excalidraw/i);
+      expect(readFileSync(join(process.cwd(), f), "utf8"), f).not.toMatch(/(from\s+|import\(\s*|require\(\s*)["'][^"']*excalidraw/i);
     }
   });
 });
@@ -120,5 +122,59 @@ describe("a shared whiteboard's link", () => {
     const meta = await mod.generateMetadata({ params: Promise.resolve({ slug: SLUG }) });
     expect(meta.description).toBe("Day one by the sea.");
     expect((meta.openGraph as { images?: unknown }).images).toBeUndefined();
+  });
+});
+
+// The whiteboard council, round 3, on the page (20, 21): it didn't say what it was, the button
+// said "Use this note", the picture was too small to read on a phone, and the board's own file
+// (the format is the promise) couldn't be had.
+describe("a shared whiteboard's page says what it is and what it offers", () => {
+  const render = (note: SharedNote) => doc(<NotePage slug={SLUG} note={note} files={{}} board={boardPicture(SLUG, note, BASE)} />);
+
+  it("says under who shared it that it's view only, and how it stays current", () => {
+    const d = render(board);
+    const byline = d.querySelector("main p")!;
+    expect(byline.textContent).toContain("Shared by Emil W");
+    expect(byline.textContent).toContain("View only. Reload to see the latest changes.");
+    // A note's page doesn't say it.
+    const note = render({ ...board, title: "Trip", body: "Trip\n\nDay one", picture: null, scene: null });
+    expect(note.body.textContent).not.toContain("View only");
+    expect(isBoard(board) && isBoard({ ...board, picture: null }) && !isBoard({ ...board, picture: null, scene: null })).toBe(true);
+  });
+
+  it("offers Copy to Pinto Notes for a board with its file, nothing for one without, and Use this note for a note", () => {
+    const button = (d: Document) => d.querySelector("header a[href^='/open/copy/']");
+    const b = button(render(board));
+    expect(b?.textContent).toBe("Copy to Pinto Notes");
+    expect(b?.getAttribute("href")).toBe(`/open/copy/${SLUG}`);
+    // Without its file the app couldn't copy the drawing, only its words: no button.
+    const noFile = render({ ...board, scene: null });
+    expect(button(noFile)).toBeNull();
+    expect(noFile.body.textContent).not.toContain("Use this note");
+    expect(button(render({ ...board, title: "Trip", body: "Trip\n\nDay one", picture: null, scene: null }))?.textContent).toBe("Use this note");
+  });
+
+  it("opens the picture full size on a tap, with a hint on narrow screens only", () => {
+    const d = render(board);
+    const open = d.querySelector("main figure a:has(img)");
+    expect(open?.getAttribute("href")).toBe(`${BASE}/functions/v1/share-files?slug=${SLUG}&picture=1763114400123`);
+    expect(open?.querySelector("img")?.getAttribute("src")).toBe(open?.getAttribute("href"));
+    expect(open?.textContent).toBe("Tap to zoom");
+    const css = readFileSync(join(process.cwd(), "lib", "note-page.module.css"), "utf8");
+    expect(css).toMatch(/\n\.zoomHint \{ display: none; \}/);
+    expect(css).toMatch(/@media \(max-width: 640px\) \{\s*\.zoomHint \{\s*display: block;/);
+    expect(css).toMatch(/\.boardOpen \{[^}]*cursor: zoom-in/);
+  });
+
+  it("offers the board's .excalidraw file under the picture, when there is one", () => {
+    expect(scenePath(SLUG, 1763114400456)).toBe(`/functions/v1/share-files?slug=${SLUG}&scene=1763114400456`);
+    expect(boardPicture(SLUG, board, BASE)?.download).toBe(`${BASE}/functions/v1/share-files?slug=${SLUG}&scene=1763114400456`);
+    const link = [...render(board).querySelectorAll("main figure figcaption a")];
+    expect(link.map((a) => [a.textContent?.trim(), a.getAttribute("href"), a.hasAttribute("download")])).toEqual([
+      ["Download .excalidraw", `${BASE}/functions/v1/share-files?slug=${SLUG}&scene=1763114400456`, true],
+    ]);
+    expect(boardPicture(SLUG, { ...board, scene: null }, BASE)?.download).toBeNull();
+    expect(render({ ...board, scene: null }).querySelector("figcaption")).toBeNull();
+    expect(boardPicture(SLUG, { ...board, scene: { size: 0, version: 1 } }, BASE)?.download).toBeNull();
   });
 });

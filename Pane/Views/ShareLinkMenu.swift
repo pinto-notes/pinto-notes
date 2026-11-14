@@ -232,7 +232,7 @@ enum SharePublisher {
         // A whiteboard shared from its board: the page shows its picture from the start. Sent
         // again whatever was sent before, so Share Link and Copy Link put the page right.
         if let root = context.note(note), CanvasNote.has(root) {
-            await BoardPicture.publish(note: note, slug: slug, client: client, force: true)
+            await BoardPicture.publish(note: note, slug: slug, title: copy.title, client: client, force: true)
         }
         return slug
     }
@@ -256,7 +256,7 @@ enum SharePublisher {
         await upload(published.missing_files ?? [], slug: live.slug, client: client, context: context, user: user)
         // A whiteboard open here: its picture follows the drawing. One that isn't keeps the last.
         if let note = context.note(root), CanvasNote.has(note) {
-            await BoardPicture.publish(note: root, slug: live.slug, client: client)
+            await BoardPicture.publish(note: root, slug: live.slug, title: copy.title, client: client)
         }
         return live.slug
     }
@@ -566,10 +566,11 @@ final class ShareLinkStore {
 
     /// What sharing publishes, asked once per note before its first link. Short (newcomer audit,
     /// 2026-10-12: ten lines, then nothing): who can read it, that it leaves the encryption, and
-    /// that it shows who shared it. A whiteboard's page is a picture of it and its words.
+    /// that it shows who shared it. A whiteboard's page is a picture of it and its words, and
+    /// offers its drawing as a file (BoardPicture).
     nonisolated static func consent(board: Bool) -> String {
         board
-            ? "Anyone with the link can see a picture of this whiteboard and its text, outside your encryption, until you stop sharing. The page shows your name and email."
+            ? "Anyone with the link can see a picture of this whiteboard and its text, and download the drawing, outside your encryption, until you stop sharing. The page shows your name and email."
             : "Anyone with the link can read it and its files, outside your encryption, until you stop sharing. The page shows your name and email."
     }
 

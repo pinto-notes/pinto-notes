@@ -103,6 +103,13 @@ describe("Use template on the page", () => {
     expect(sheet()!.textContent).toContain("This note opens in Pinto Notes");
   });
 
+  it("calls a shared whiteboard a whiteboard on the sheet, when its page says so", () => {
+    act(() => root.render(<OpenInApp href="/open/copy/abc" app="pintonotes://copy/abc" what="whiteboard">Copy to Pinto Notes</OpenInApp>));
+    click();
+    act(() => attempts.calls[0].done(false));
+    expect(sheet()!.textContent).toContain("This whiteboard opens in Pinto Notes");
+  });
+
   it("tries again from the sheet", () => {
     mount();
     click();

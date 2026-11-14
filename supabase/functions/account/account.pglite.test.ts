@@ -27,6 +27,7 @@ const NOT_PER_ACCOUNT: Record<string, string> = {
   note_share_pages: "a shared page's copy; cascades from note_shares and notes",
   note_share_files: "a shared page's file copy; cascades from note_shares",
   note_share_pictures: "a shared whiteboard's picture; cascades from note_shares",
+  note_share_scenes: "a shared whiteboard's .excalidraw file; cascades from note_shares",
   site_downloads: "aggregate daily download totals, no account or personal data",
   email_clicks: "a click on an onboarding email; cascades from email_sends",
   note_updates: "a shared note's changes belong to the note; they cascade from shared_notes, not their author (20261107152300)",

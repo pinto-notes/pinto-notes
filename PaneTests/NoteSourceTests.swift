@@ -312,6 +312,65 @@ private final class NoteSourceFixtureToken {}
         #expect(draft.instructions.isEmpty && draft.folder == nil)
     }
 
+    /// A shared whiteboard is copied as a whiteboard (whiteboard council, round 3: its page said
+    /// "Use this note", and the copy would have been its words): its .excalidraw file and its
+    /// picture come from share-files, the sheet shows the picture, and adding it makes a whiteboard
+    /// with that drawing, named as it was. A board whose page has no file is its words, as before.
+    @Test func aSharedWhiteboardIsCopiedAsAWhiteboard() async throws {
+        let host = "w1.stub.test"
+        let file = ##"{"type":"excalidraw","version":2,"source":"https://pintonotes.com","elements":[{"type":"text","id":"t0","x":0,"y":0,"text":"Idea"},{"type":"rectangle","id":"r0","x":0,"y":60,"width":120,"height":60}],"appState":{"viewBackgroundColor":"#ffffff"},"files":{}}"##
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        let answer: [String: Any] = ["title": "Launch plan", "body": "Launch plan\n\nIdea", "updated_at": "2026-11-14T10:00:00Z",
+                                     "picture": ["width": 400, "height": 200, "version": 17], "scene": ["size": file.utf8.count, "version": 18]]
+        let page = try JSONSerialization.data(withJSONObject: answer)
+        let s = source(host) { req in
+            switch req.url?.path {
+            case "/rest/v1/rpc/shared_note": return (200, page)
+            case "/functions/v1/share-files":
+                let q = URLComponents(url: req.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if q.contains(where: { $0.name == "scene" && $0.value == "18" }) { return (200, Data(file.utf8)) }
+                if q.contains(where: { $0.name == "picture" && $0.value == "17" }) { return (200, png) }
+                return (404, Data())
+            default: return (404, Data())
+            }
+        }
+        let link = NoteSourceLink(kind: .copy, slug: shareSlug)
+        let draft = try await s.draft(for: link)
+        #expect(draft.title == "Launch plan" && draft.body == "Launch plan\n\nIdea")
+        #expect(StubSite.requests(host).map { $0.url?.query ?? "" } == ["", "slug=\(shareSlug)&scene=18", "slug=\(shareSlug)&picture=17"])
+        #expect(draft.boardScene == Data(file.utf8))
+        #expect(StubSite.requests(host).dropFirst().allSatisfy { $0.value(forHTTPHeaderField: "apikey") == "anon-key" })
+        #expect(draft.preview == png)
+
+        let ctx = try context()
+        let model = NoteSourceModel(link: link, source: s, ledger: NoteSourceLedger(defaults: defaults(), account: nil))
+        await model.load(context: ctx)
+        model.add(context: ctx)
+        guard case .added(_, let id, _) = model.phase else { Issue.record("not added: \(model.phase)"); return }
+        let note = try #require(ctx.note(id))
+        #expect(CanvasNote.has(note), "a whiteboard")
+        #expect(note.title == "Launch plan")
+        let scene = (NotePageDataStore.shared.doc(id)["values"] as? [String: Any])?["scene"] as? [String: Any]
+        let elements = scene?["elements"] as? [[String: Any]] ?? []
+        #expect(elements.map { $0["id"] as? String } == ["t0", "r0"], "its drawing")
+
+        // Its file can't be had: it isn't added as its words instead.
+        let gone = source("w2.stub.test") { req in
+            req.url?.path == "/rest/v1/rpc/shared_note" ? (200, page) : (404, Data())
+        }
+        await #expect(throws: NoteSourceError.unavailable) { try await gone.draft(for: link) }
+        // A board shared before boards had a file: its words, as a note.
+        var older = answer
+        older["scene"] = NSNull()
+        let olderPage = try JSONSerialization.data(withJSONObject: older)
+        let words = source("w3.stub.test") { req in
+            req.url?.path == "/rest/v1/rpc/shared_note" ? (200, olderPage) : (404, Data())
+        }
+        let plain = try await words.draft(for: link)
+        #expect(plain.boardScene == nil && plain.body == "Launch plan\n\nIdea")
+        #expect(StubSite.requests("w3.stub.test").count == 1, "nothing more is fetched")
+    }
+
     @Test func aPageNoLongerSharedIsNotFound() async {
         let s = source("c2.stub.test") { _ in (200, Data("null".utf8)) }
         await #expect(throws: NoteSourceError.notFound(.copy)) { try await s.draft(for: NoteSourceLink(kind: .copy, slug: shareSlug)) }

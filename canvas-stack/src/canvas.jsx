@@ -131,20 +131,63 @@ export function blockedKey(e) {
 
 const base64 = (text) => btoa(unescape(encodeURIComponent(text)));
 
+const marked = (e, k) => !!(e.customData && e.customData[k]);
+const words = (e) => String(e.originalText ?? e.text ?? "").replace(/\s+/g, " ").trim();
+
+/**
+ * What a picture of the board shows. A template's how-to line is left out: it's help for you, not
+ * part of the drawing (whiteboard council, round 2, 14-exported-board). The band it stood in goes
+ * with it: what's under it moves up by the line's height and the gap above it (round 3: about
+ * 75 pt of blank paper between the title and the drawing). `name`: the board's own title text is
+ * left out too when it says this name (a shared board's page, whose heading says it; round 3: the
+ * title twice), unless nothing else is drawn.
+ */
+export function pictured(elements, name) {
+  const said = name == null ? "" : String(name).replace(/\s+/g, " ").trim();
+  let out = elements.filter((e) => !marked(e, "pintoHint"));
+  if (said) {
+    const untitled = out.filter((e) => !(marked(e, "pintoTitle") && words(e) === said));
+    if (untitled.length) out = untitled;
+  }
+  const hints = elements.filter((e) => marked(e, "pintoHint")).sort((a, b) => b.y - a.y);
+  for (const h of hints) out = closeBand(out, h);
+  return out;
+}
+
+/** `elements` with the band `hint` stood in closed: what's under it moved up to where the space
+ *  above the line began. Left as drawn when something stands beside the line (it isn't a band
+ *  then), or when nothing is above or below it. */
+function closeBand(elements, hint) {
+  const [, top, , bottom] = getCommonBounds([hint]);
+  let above = -Infinity, below = false;
+  const under = new Set();
+  for (const e of elements) {
+    const [, y1, , y2] = getCommonBounds([e]);
+    if (y2 <= top) above = Math.max(above, y2);
+    else if (y1 >= bottom) { below = true; under.add(e.id); }
+    else return elements;
+  }
+  if (above === -Infinity || !below) return elements;
+  const shift = bottom - above;
+  return elements.map((e) => (under.has(e.id) ? { ...e, y: e.y - shift } : e));
+}
+
 /**
  * The board (or only what's selected) as a file, base64: a PNG at 2x, an SVG that carries its
  * scene (Excalidraw opens it again), or the .excalidraw file itself. Always light, as drawn
- * (`light` is kept for the share page's caller; it's the same either way).
+ * (`light` is kept for the share page's caller; it's the same either way). `page`: made for a
+ * shared board's page, whose heading is this name: its picture leaves out the board's title when
+ * it says the same, and its scene leaves out the how-to line as a picture does. Export's file
+ * keeps everything.
  */
-export async function exportScene(api, format, selected, light) {
+export async function exportScene(api, format, selected, light, page) {
   const all = api.getSceneElements();
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
   const picked = selected ? all.filter((e) => ids[e.id]) : [];
-  // A picture of the whole board leaves out a template's how-to line: it's help for you, not
-  // part of the drawing (whiteboard council, round 2, 14-exported-board). The file keeps it.
-  const help = (e) => format !== "excalidraw" && e.customData && e.customData.pintoHint;
-  const elements = (picked.length ? picked : all).filter((e) => !help(e));
+  const chosen = picked.length ? picked : all;
+  const forPage = typeof page === "string";
+  const elements = format !== "excalidraw" ? pictured(chosen, forPage ? page : null) : forPage ? pictured(chosen, null) : chosen;
   if (!elements.length) return null;
   const files = api.getFiles();
   // Always light, on its background: it goes into documents, slides and chats that are mostly
@@ -624,7 +667,7 @@ function Canvas({ initial }) {
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
-    Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light) => exportScene(api, format, selected, light === true), configurable: true });
+    Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
     return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);

@@ -47,16 +47,40 @@
 .needs b { color: var(--text); font-weight: 650; }
 .plain .initials { background: var(--accent-soft); color: var(--accent-text); font-size: 13px; }
 
+/* What a whiteboard's page is, under who shared it. */
+.bylineNote { color: var(--secondary); font-size: 13.5px; }
+
 /* ── A shared whiteboard: its picture, wider than the text column, centred under the title ── */
 .board {
   position: relative; left: 50%; transform: translateX(-50%);
   width: min(1120px, calc(100vw - 2 * var(--gutter, 20px))); margin: 0; display: flex; justify-content: center;
 }
+/* The picture and the line under it, as wide as the picture. */
+.boardFrame { display: flex; flex-direction: column; max-width: 100%; min-width: 0; }
+/* A tap or click opens the picture full size. */
+.boardOpen { position: relative; display: block; max-width: 100%; border-radius: 14px; cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
+.boardOpen:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
 /* The board's own light ground whatever the page's mode: the picture is the board as drawn. */
 .board img {
   display: block; max-width: 100%; height: auto; background: #fff; border-radius: 14px;
   box-shadow: 0 0 0 1px var(--rule), 0 12px 32px -20px rgba(0, 0, 0, 0.35);
 }
+/* On a phone the cards' words are small: a quiet label says a tap opens the picture to zoom. */
+.zoomHint { display: none; }
+@media (max-width: 640px) {
+  .zoomHint {
+    display: block; position: absolute; right: 10px; bottom: 10px; padding: 5px 10px; border-radius: 999px;
+    background: rgba(0, 0, 0, 0.62); color: #fff; font-size: 12.5px; font-weight: 600; line-height: 1.2; pointer-events: none;
+  }
+}
+/* Its .excalidraw file, under the picture at its right. */
+.boardFoot { display: flex; justify-content: flex-end; margin-top: 6px; }
+.download {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; border-radius: 8px;
+  color: var(--accent-text); font-size: 14.5px; font-weight: 600; text-decoration: none;
+}
+@media (hover: hover) { .download:hover { color: var(--text); } }
+.download:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
 /* ── The one mention of the app, after the note ── */
 .get { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; margin-top: 32px; padding: 16px 16px 16px 18px; border-radius: 20px; background: var(--soft); color: var(--ink); }
