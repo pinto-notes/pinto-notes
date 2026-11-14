@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import UniformTypeIdentifiers
 
 /// A canvas's own controls, over the drawing (direction B, "Dock", 13 November 2026):
@@ -916,6 +917,45 @@ struct CanvasToolbarTools: View {
 
     /// The shape the button draws when pressed: the last one picked from its menu.
     nonisolated(unsafe) static var lastShape: CanvasTool = .rectangle
+}
+
+/// Excalidraw files brought in as whiteboards (whiteboard council, round 2: "Missing import blocks
+/// moving existing work").
+@MainActor enum CanvasImport {
+    struct Made { var notes: [Note] = []; var refused: [String] = [] }
+
+    static let types: [UTType] = [UTType(filenameExtension: "excalidraw") ?? .json, .json]
+
+    static func make(_ urls: [URL], in scope: Scope, context: ModelContext, pages: NotePageStore = .shared, data: NotePageDataStore = .shared) -> Made {
+        var made = Made()
+        for url in urls {
+            let reach = url.startAccessingSecurityScopedResource()
+            defer { if reach { url.stopAccessingSecurityScopedResource() } }
+            guard let bytes = try? Data(contentsOf: url), let scene = CanvasNote.scene(fromExcalidraw: bytes) else {
+                made.refused.append(url.lastPathComponent); continue
+            }
+            made.notes.append(CanvasNote.make(in: scope, context: context, pages: pages, data: data, scene: scene, named: CanvasNote.name(ofFile: url)))
+        }
+        return made
+    }
+
+    static func pick() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = types
+        panel.allowsMultipleSelection = true
+        panel.message = "Choose Excalidraw files. Each one becomes a whiteboard."
+        panel.prompt = "Import"
+        guard panel.runModal() == .OK else { return }
+        NotificationCenter.default.post(name: .paneImportWhiteboards, object: panel.urls)
+    }
+
+    static func report(_ made: Made) {
+        guard !made.refused.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = made.refused.count == 1 ? "\u{201C}\(made.refused[0])\u{201D} isn't an Excalidraw file" : "\(made.refused.count) files aren't Excalidraw files"
+        alert.informativeText = made.notes.isEmpty ? "Nothing was imported." : "The others are in your notes."
+        alert.runModal()
+    }
 }
 
 /// Export and Copy as PNG, from the More menu and File › Export (Excalidraw's Export image and

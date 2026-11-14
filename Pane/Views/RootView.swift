@@ -708,6 +708,9 @@ struct RootView: View {
             // New Note from Control Centre, the Lock Screen, the Action button or Siri.
             .onChange(of: NoteOpener.shared.newNoteAsked) { _, asked in if asked { openAskedFromOutside() } }
             .onChange(of: NewCanvas.shared.asks) { _, _ in newCanvas() }
+            #if os(macOS)
+            .onReceive(NotificationCenter.default.publisher(for: .paneImportWhiteboards)) { n in importWhiteboards(n.object as? [URL] ?? []) }
+            #endif
             .onChange(of: NewApp.shared.asks) { _, _ in newApp() }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.
             .onChange(of: AppPlaceCenter.shared.pending, initial: true) { _, place in openPlace(place) }
@@ -1133,6 +1136,19 @@ struct RootView: View {
         #endif
         selectedNote = note.id
     }
+
+    /// Excalidraw files picked in File › Import Notes: a whiteboard each, in the folder you're in,
+    /// the last one open. A file that isn't a board is said, not skipped silently.
+    #if os(macOS)
+    private func importWhiteboards(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        let target: Scope = scope == .trash ? .all : (scope ?? .all)
+        if scope == .trash { scope = .all }
+        let made = CanvasImport.make(urls, in: target, context: context)
+        if let last = made.notes.last { selectedNote = last.id }
+        CanvasImport.report(made)
+    }
+    #endif
 
     /// New App: a note titled "New app" in the folder you're in, open at once on its start page
     /// (AppStart), as New Canvas opens a canvas.
@@ -1727,6 +1743,11 @@ struct PaneCommands: Commands {
                     Button { importFrom?(kind) } label: { Label { Text(kind.menuTitle) } icon: { ImportOrigin.files(kind).menuImage } }
                         .disabled(importFrom == nil)
                 }
+                #if os(macOS)
+                // Boards from excalidraw.com or Obsidian's Excalidraw: each file becomes a whiteboard.
+                Button { CanvasImport.pick() } label: { Label("Excalidraw Files\u{2026}", systemImage: CanvasNote.symbol) }
+                    .disabled(importNotes == nil)
+                #endif
             }
             // Your notes as Markdown in their folders, signed in or not.
             Button("Export All Notes\u{2026}") { NotificationCenter.default.post(name: .paneExportNotes, object: nil) }

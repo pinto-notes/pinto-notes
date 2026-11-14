@@ -492,7 +492,7 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             // a map grows.
             let ideas: [(String, Double, Double, String)] = [("Why it matters", -280, -150, T.yellow), ("Who it\u{2019}s for", 280, -150, T.blue),
                                                               ("How", -280, 150, T.green), ("When", 280, 150, T.violet), ("Risks", 0, 230, T.red)]
-            var out: [[String: Any]] = T.title("Mind map", hint: "Double-click to write. Alt-drag a branch to copy it, then join it with a line.").map { e in
+            var out: [[String: Any]] = T.title("Mind map", hint: "Double-click to write. Option-drag a branch to copy it, then join it with a line.").map { e in
                 var e = e; e["y"] = (e["y"] as! Double) - 230; e["x"] = -365.0; return e
             }
             out.append(T.box("main", "ellipse", x: -120, y: -55, w: 240, h: 110, text: "The big idea", fill: T.yellow, size: 24))
@@ -510,12 +510,12 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             out.append(T.arrow(from: "idea2", to: "sub0", x: -280, y: 182, dx: 0, dy: 68, line: true))
             return out
         case .retro:
-            return T.title("Retro", hint: "Double-click a card to write. Alt-drag a card to add another.")
+            return T.title("Retro", hint: "Double-click a card to write. Option-drag a card to add another.")
                 + T.column("well", x: 0, title: "Went well", fill: T.green, cards: ["Shipped on time"])
                 + T.column("better", x: 240, title: "Could be better", fill: T.red, cards: ["Too many meetings"])
                 + T.column("try", x: 480, title: "Try next", fill: T.blue, cards: ["Demo every Friday"])
         case .kanban:
-            return T.title("Kanban", hint: "Drag cards between columns. Alt-drag a card to add another.")
+            return T.title("Kanban", hint: "Drag cards between columns. Option-drag a card to add another.")
                 + T.column("todo", x: 0, title: "To do", fill: T.yellow, cards: ["Write the brief \u{00B7} Sam", "Book the venue \u{00B7} Alex"])
                 + T.column("doing", x: 240, title: "Doing", fill: T.blue, cards: ["Draft the post \u{00B7} you"])
                 + T.column("done", x: 480, title: "Done", fill: T.green, cards: ["Pick a date \u{00B7} team"])

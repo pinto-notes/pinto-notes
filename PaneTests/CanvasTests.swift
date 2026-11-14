@@ -19,6 +19,38 @@ import AppKit
 
     // MARK: New Canvas
 
+    /// An Excalidraw file comes in as a whiteboard named after it, with its drawing, background and
+    /// pictures; a file that isn't one is refused by name (whiteboard council, round 2: "Missing
+    /// import blocks moving existing work").
+    @Test func anExcalidrawFileComesInAsAWhiteboard() throws {
+        let file: [String: Any] = [
+            "type": "excalidraw", "version": 2, "source": "https://excalidraw.com",
+            "elements": [["id": "a", "type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 50, "seed": 1, "version": 3]],
+            "appState": ["viewBackgroundColor": "#fff9db", "zoom": ["value": 2]],
+            "files": ["f1": ["id": "f1", "mimeType": "image/png", "dataURL": "data:image/png;base64,AAAA"]],
+        ]
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let good = dir.appending(path: "Launch plan.excalidraw"), bad = dir.appending(path: "notes.json")
+        try JSONSerialization.data(withJSONObject: file).write(to: good)
+        try Data(#"{"hello": 1}"#.utf8).write(to: bad)
+
+        let c = try Self.container()
+        let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
+        let made = CanvasImport.make([good, bad], in: .all, context: c.mainContext, pages: pages, data: data)
+        #expect(made.refused == ["notes.json"])
+        let note = try #require(made.notes.first)
+        #expect(note.title == "Launch plan")
+        #expect(CanvasNote.has(note, in: pages))
+        let scene = try #require((data.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any])
+        #expect((scene["elements"] as? [[String: Any]])?.first?["id"] as? String == "a")
+        #expect((scene["appState"] as? [String: Any])?["viewBackgroundColor"] as? String == "#fff9db", "the background, not the view it was left at")
+        #expect((scene["files"] as? [String: Any])?["f1"] != nil, "its pictures")
+        #expect(CanvasNote.name(ofFile: URL(fileURLWithPath: "/x/Board.excalidraw.json")) == "Board")
+        #expect(CanvasNote.scene(fromExcalidraw: Data(#"{"type": "excalidrawlib", "elements": []}"#.utf8)) == nil, "a library isn't a board")
+    }
+
     @Test func newCanvasMakesACanvasNoteWithAnEmptyScene() throws {
         let c = try Self.container()
         let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)

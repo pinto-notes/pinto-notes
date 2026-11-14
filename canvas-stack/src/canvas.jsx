@@ -136,7 +136,10 @@ export async function exportScene(api, format, selected) {
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
   const picked = selected ? all.filter((e) => ids[e.id]) : [];
-  const elements = picked.length ? picked : all;
+  // A picture of the whole board leaves out a template's how-to line: it's help for you, not
+  // part of the drawing (whiteboard council, round 2, 14-exported-board). The file keeps it.
+  const help = (e) => format !== "excalidraw" && e.customData && e.customData.pintoHint;
+  const elements = (picked.length ? picked : all).filter((e) => !help(e));
   if (!elements.length) return null;
   const files = api.getFiles();
   const appState = { ...s, exportBackground: true, exportWithDarkMode: s.theme === "dark", exportScale: 2, exportEmbedScene: format === "svg" };

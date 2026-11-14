@@ -84,14 +84,38 @@ enum CanvasNote {
     /// Who made the canvas page, in its history.
     static let writer = "Pinto Notes"
 
-    /// A new, empty canvas in `scope`'s folder: the note, its page and its empty scene, all at once,
-    /// no AI and no network.
+    /// A new canvas in `scope`'s folder: the note, its page and its scene (empty, or one brought
+    /// in from a file), all at once, no AI and no network.
     @MainActor @discardableResult
-    static func make(in scope: Scope, context: ModelContext, pages: NotePageStore = .shared, data: NotePageDataStore = .shared) -> Note {
-        let note = context.createNote(in: scope, body: title)
-        data.set(note.id, ["values": ["scene": emptyScene()], "collections": [String: Any]()])
+    static func make(in scope: Scope, context: ModelContext, pages: NotePageStore = .shared, data: NotePageDataStore = .shared,
+                     scene: [String: Any]? = nil, named: String? = nil) -> Note {
+        let note = context.createNote(in: scope, body: named ?? title)
+        data.set(note.id, ["values": ["scene": scene ?? emptyScene()], "collections": [String: Any]()])
         pages.setHere(note.id, .init(html: project, by: writer, at: .now))
         return note
+    }
+
+    // MARK: Bringing boards in
+
+    /// An Excalidraw file (`.excalidraw`, or the same JSON as `.json`) as a scene: its elements,
+    /// background and pictures. Nil when it isn't one.
+    static func scene(fromExcalidraw data: Data) -> [String: Any]? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let kind = json["type"] as? String
+        guard kind == nil || kind == "excalidraw", let elements = json["elements"] as? [[String: Any]] else { return nil }
+        var scene = emptyScene()
+        scene["elements"] = elements
+        if let bg = (json["appState"] as? [String: Any])?["viewBackgroundColor"] as? String { scene["appState"] = ["viewBackgroundColor": bg] }
+        if let files = json["files"] as? [String: Any] { scene["files"] = files }
+        return scene
+    }
+
+    /// The board's name from its file's: "Launch plan.excalidraw" is "Launch plan".
+    static func name(ofFile url: URL) -> String {
+        var name = url.deletingPathExtension().lastPathComponent
+        if name.lowercased().hasSuffix(".excalidraw") { name = String(name.dropLast(".excalidraw".count)) }
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? title : trimmed
     }
 
     // MARK: Two devices at once

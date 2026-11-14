@@ -298,6 +298,7 @@ import UIKit
         let svgFile = try #require(await j.canvas.export(.svg))
         let svg = String(decoding: svgFile, as: UTF8.self)
         #expect(svg.hasPrefix("<svg") && svg.contains("payload-type:application/vnd.excalidraw+json"), "an SVG that carries its scene")
+        #expect(!svg.contains("Double-click a shape"), "the template's how-to line isn't in the picture")
         let file = try #require(await j.canvas.export(.excalidraw))
         let json = try #require(try JSONSerialization.jsonObject(with: file) as? [String: Any])
         #expect(json["type"] as? String == "excalidraw")
