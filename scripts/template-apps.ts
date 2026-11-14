@@ -10,7 +10,6 @@ import "../supabase/functions/mcp/tools.ts";
 import { brokenImports, linkProject, projectProblems, serialize, sourceProblems, isTest } from "../supabase/functions/mcp/app_project.ts";
 import { withFiles } from "../supabase/functions/mcp/app_files.ts";
 import { render as renderService, testSummary, type Rendered } from "../supabase/functions/mcp/app_check.ts";
-import { declaredHosts, hostDeclared } from "../supabase/functions/mcp/page.ts";
 import { fromTree, PREVIEWS, treeProblems } from "../supabase/functions/mcp/template_apps.ts";
 import { localToday, sampleFor } from "./template-sample.ts";
 
@@ -71,8 +70,7 @@ for (const slug of slugs) {
   const linked = await linkProject(project);
   if (linked.error) { fail([`The CSS doesn't compile: ${linked.error}`]); continue; }
   const p = linked.project;
-  const declared = declaredHosts(p.files["/index.html"] ?? "");
-  const refused = [...projectProblems(p), ...sourceProblems(p, (h) => hostDeclared(declared, h)), ...brokenImports(p)];
+  const refused = [...projectProblems(p), ...sourceProblems(p), ...brokenImports(p)];
   if (refused.length) { fail(refused); continue; }
   const stored = serialize(p);
   const note = template.note ?? "";

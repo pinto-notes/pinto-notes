@@ -133,8 +133,6 @@ struct SettingsView: View {
                 // Signed out, or still setting up: how it works, the notes password if there is one, the terms.
                 SignedOutPrivacyPage(signedIn: isSignedIn, sync: sync)
             }
-        // Parked: nothing leads to it (Emil, 6 November 2026).
-        case .appKeys: SettingsPageForm { APIKeysSection() }
         }
     }
 

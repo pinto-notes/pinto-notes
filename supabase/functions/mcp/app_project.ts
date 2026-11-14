@@ -213,9 +213,10 @@ export function brokenImports(p: Project): string[] {
       }
     }
     if (path.endsWith(".html")) {
-      for (const m of text.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["']/gi)) {
-        const ref = m[1];
-        if (/^(https?:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: the app has no network.`);
+      for (const m of text.matchAll(/<(script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["']/gi)) {
+        const ref = m[2];
+        if (/^https:\/\//.test(ref) && m[1].toLowerCase() === "link") continue;
+        if (/^(https?:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: scripts come from the project or the bundled libraries.`);
         else if (!/^(amber-lib|data):/.test(ref) && !p.files[resolveFrom(path, ref)]) out.push(`${path} loads ${ref}, but ${resolveFrom(path, ref)} doesn't exist.`);
       }
     }
@@ -223,18 +224,14 @@ export function brokenImports(p: Project): string[] {
   return out;
 }
 
-const NAMESPACES = /^https?:\/\/www\.w3\.org\/(2000\/svg|1999\/xhtml|1999\/xlink|XML\/1998\/namespace)$/;
 const isCode = (path: string) => /\.(m?js|jsx|tsx?)$/.test(path);
 
-/** What would make the app refuse to run or reach the network, across every file. */
-export function sourceProblems(p: Project, declared: (host: string) => boolean): string[] {
+/** What would make the app refuse to run, across every file: frames and plugins, which would take
+ *  it out of its note. The internet is open to it like to any web page (2026-11-14). */
+export function sourceProblems(p: Project): string[] {
   const out: string[] = [];
   for (const [path, text] of Object.entries(p.files)) {
     if (path.endsWith(".md")) continue;
-    const urls = [...text.matchAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>)]*/gi)].map((m) => m[0])
-      .filter((u) => !NAMESPACES.test(u.replace(/\/$/, "")) && !/^amber-(lib|file|app):/i.test(u))
-      .filter((u) => { try { const x = new URL(u); return !(/^https?:$/.test(x.protocol) && declared(x.host.toLowerCase())); } catch { return true; } });
-    if (urls.length) out.push(`${path}: external addresses aren't allowed (${[...new Set(urls)].slice(0, 3).join(", ")}). The app has no network; declare a host in amber-needs (in /index.html) and use fetch from "amber".`);
     if (path.endsWith(".html")) {
       const tags = [...new Set([...text.matchAll(/<(base|iframe|frame|frameset|object|embed|portal|applet)\b/gi)].map((m) => m[1].toLowerCase()))];
       if (tags.length) out.push(`${path}: <${tags.join(">, <")}> isn't allowed.`);

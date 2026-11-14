@@ -800,9 +800,6 @@ struct GeneralSettingsPage: View {
             Section(GeneralCopy.checklists) {
                 Toggle(GeneralCopy.ticked, isOn: $sortsTicked).settingsSwitch().accessibilityIdentifier("settings.notes.ticked")
             }
-            #if os(iOS)
-            if NoteApps.enabled { APIKeysSection() }
-            #endif
         }
         #if os(macOS)
         .task { login = await LoginItem.refresh() }

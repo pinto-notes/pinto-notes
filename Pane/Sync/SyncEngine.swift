@@ -274,8 +274,6 @@ final class SyncEngine {
             try ensure(sealer, gen)
             await pushPageData(client, sealer: sealer)
             try ensure(sealer, gen)
-            await pushAPIKeyNames(client, sealer: sealer, gen: gen)
-            try ensure(sealer, gen)
             if pulling {
                 // An empty library that remembers where sync was (the library was removed and the
                 // settings weren't): everything comes down again, not just what changed since.
@@ -1416,36 +1414,6 @@ final class SyncEngine {
         }
     }
 
-    /// The names of the API keys set up here (never their values), so an AI can say which key an
-    /// app needs. Sent when they change; the values stay in the Keychain.
-    private func pushAPIKeyNames(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
-        struct Row: Encodable { var id: UUID; var meta_ct: String }
-        let keys = APIKeyStore.shared.keys
-        let stamp = keys.map { "\($0.name)|\($0.hosts.joined(separator: ","))" }.joined(separator: ";")
-        guard stamp != lastKeyNames else { return }
-        // Nothing set up here, and nothing sent yet: nothing to say.
-        if keys.isEmpty, lastKeyNames == nil { lastKeyNames = stamp; return }
-        do {
-            let rows: [Row] = keys.compactMap { k in
-                let id = APIKeyStore.rowID(k.name)
-                let meta = (try? JSONSerialization.data(withJSONObject: ["name": k.name, "hosts": k.hosts, "set": true])).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-                return sealer.seal(meta, context: "api-key:" + id.uuidString.lowercased()).map { Row(id: id, meta_ct: $0) }
-            }
-            // A key that went meanwhile seals nothing: that isn't "no keys", so nothing is removed.
-            try ensure(sealer, gen)
-            if !rows.isEmpty { try await client.from("api_key_names").upsert(rows).execute() }
-            let keep = rows.map { $0.id.uuidString.lowercased() }
-            if keep.isEmpty {
-                try await client.from("api_key_names").delete().neq("id", value: UUID().uuidString).execute()
-            } else {
-                try await client.from("api_key_names").delete().not("id", operator: .in, value: "(\(keep.joined(separator: ",")))").execute()
-            }
-            lastKeyNames = stamp
-        } catch {
-            log.error("api key names push failed: \(String(describing: error), privacy: .public)")
-        }
-    }
-
     // MARK: Pull
 
     private func pull(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws {
@@ -1726,8 +1694,6 @@ final class SyncEngine {
     /// The text of each note at the server version this device last had: the common starting
     /// point when both sides typed at once. Kept for this run of the app only.
     private var synced: [UUID: (version: Int64, body: String, props: String?)] = [:]
-    /// What was last sent of the API key names (pushAPIKeyNames).
-    private var lastKeyNames: String?
 
     /// Where each note was at the server version this device last had: the starting point when a
     /// move, trash or pin here meets another one there. For this run of the app only.

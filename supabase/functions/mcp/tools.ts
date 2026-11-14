@@ -267,12 +267,6 @@ export const tools: Tool[] = ([
     inputSchema: { type: "object", properties: { ...noteRef, version_id: int("An earlier page, from versions.") } },
     annotations: read,
   },
-  {
-    name: "list_api_keys", title: "List API keys for apps",
-    description: "The API keys the person has set up in Pinto Notes for their notes' apps: each key's name, the hosts it may be sent to, and whether it has a value. Never the values: an app asks the app to make a request with { key: name } and Pinto Notes adds the key. Use it to tell the person which key an app needs and where to add it (Settings › API Keys).",
-    inputSchema: { type: "object", properties: {} },
-    annotations: read,
-  },
   ...dataTools,
   // ChatGPT's connector conventions.
   {
@@ -1299,19 +1293,6 @@ export const handlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unkn
         note: "This app is a project of files: read them with read_app_file and change them with edit_app_file or write_app_file.", ...extras, ...(await data(row.data_ct)), versions: list };
     }
     return { id: n.id, title: n.title, has_page: true, made_by: row.client, updated: iso(row.updated_at), rules: PAGE_API, ...extras, html, ...(await data(row.data_ct)), versions: list };
-  },
-
-  async list_api_keys(tx, _a, c) {
-    const rows = await tx<{ id: string; meta_ct: string }[]>`select id, meta_ct from public.api_key_names`;
-    const keys = [];
-    for (const r of rows) {
-      try {
-        const m = JSON.parse(await c.v.openAPIKeyMeta(r.id, r.meta_ct));
-        keys.push({ name: String(m.name ?? ""), hosts: Array.isArray(m.hosts) ? m.hosts.map(String) : [], set: m.set === true });
-      } catch { /* sealed with another key */ }
-    }
-    keys.sort((x, y) => x.name.localeCompare(y.name));
-    return { keys, note: "Values are never shown or sent to AIs. To add a key: Pinto Notes › Settings › API Keys." };
   },
 
   async search(tx, a, c) {

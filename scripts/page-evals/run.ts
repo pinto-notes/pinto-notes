@@ -68,7 +68,7 @@ const { renderedFindings } = await import(new URL("supabase/functions/mcp/app_ch
 type Rendered = Parameters<typeof renderedFindings>[0];
 // What the server refuses: a one-file page's problems, or a project's (servers without projects: the page's).
 const { staticReport } = await import(mcp("mcp/app_check.ts")).catch(() => ({ staticReport: null }));
-const serverProblems = (stored: string): string[] => staticReport ? staticReport(stored, "", []).errors : pageProblems(stored);
+const serverProblems = (stored: string): string[] => staticReport ? staticReport(stored, "").errors : pageProblems(stored);
 
 const MODELS: Record<string, { id: string; provider: "anthropic" | "openai" | "openrouter" | "claude-cli" | "codex-cli"; inPerM: number; outPerM: number; cacheReadPerM: number; cacheWritePerM: number }> = {
   // Subscription CLIs (no per-token billing): Claude Code headless and the Codex CLI.

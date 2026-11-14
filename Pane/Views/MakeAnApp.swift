@@ -578,8 +578,8 @@ struct MakeAppSketch: View {
 // MARK: App settings
 
 /// App Info: what only Amber Notes can do for a note's app. An app's own settings are the app's
-/// (it draws them, and keeps them in its data); this holds the internet (which addresses it may
-/// reach, what it sent, the libraries it downloaded), Previous App and Remove App.
+/// (it draws them, and keeps them in its data); this holds the libraries it downloaded, Previous
+/// App and Remove App.
 struct AppInfoSheet: View {
     let noteID: UUID
     let html: String
@@ -598,7 +598,7 @@ struct AppInfoSheet: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-                internet
+                libraries
                 Section {
                     if hasPrevious {
                         Button("Previous App") { previous(); dismiss() }
@@ -627,40 +627,15 @@ struct AppInfoSheet: View {
         #endif
     }
 
-    /// Which addresses the app may reach, and its last requests (keys hidden).
+    /// The npm libraries the app downloaded (checked against their hashes, kept on this device). The
+    /// app reaches the internet itself, like any web page, so there is no list of addresses.
     @ViewBuilder
-    private var internet: some View {
-        let log = NotePageNetLog.shared
-        let hosts = (log.approved[noteID] ?? []).sorted()
-        let entries = Array((log.entries[noteID] ?? []).suffix(8).reversed())
+    private var libraries: some View {
         let libs = NotePageLibraries.downloaded(for: html)
-        Section {
-            if hosts.isEmpty && entries.isEmpty && libs.isEmpty {
-                Text("This app hasn't used the internet.").foregroundStyle(.secondary)
+        if !libs.isEmpty {
+            Section("Libraries") {
+                ForEach(libs, id: \.self) { l in Label(l, systemImage: "shippingbox") }
             }
-            ForEach(libs, id: \.self) { l in Label("Downloaded library: \(l)", systemImage: "shippingbox") }
-            ForEach(hosts, id: \.self) { h in Label(h, systemImage: "checkmark.circle") }
-            ForEach(entries) { e in
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text(e.method).font(.caption.monospaced().weight(.semibold))
-                        Text(e.status.map(String.init) ?? e.error ?? "").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Text(e.at, style: .time).font(.caption).foregroundStyle(.secondary)
-                    }
-                    Text(e.url).font(.caption.monospaced()).lineLimit(3).textSelection(.enabled)
-                    if e.carriesNoteText {
-                        Label("Includes text from this note", systemImage: "text.quote").font(.caption.weight(.semibold)).foregroundStyle(Color.amberInk)
-                    }
-                }
-            }
-            if !hosts.isEmpty {
-                Button("Forget Allowed Addresses", role: .destructive) { log.forget(noteID) }
-            }
-        } header: {
-            Text("Internet")
-        } footer: {
-            Text("The app asks before it reaches a new address. Everything it sends is listed here.")
         }
     }
 

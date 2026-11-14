@@ -7,11 +7,10 @@ import UIKit
 
 /// The pages of Settings, one list for the Mac and iPhone (Emil, 7 November 2026: "copy this onto
 /// Mac so it's fully consistent"): you at the top, then General, AI Connections and Appearance;
-/// Privacy and Storage; Help and feedback. Keys for apps is one level down on the
-/// Mac, parked. iPhone's rows and the Mac's sidebar are both built from `groups`, and each page's
-/// view is the same on both (SettingsPages.swift).
+/// Privacy and Storage; Help and feedback. iPhone's rows and the Mac's sidebar are both built from
+/// `groups`, and each page's view is the same on both (SettingsPages.swift).
 enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
-    case account, ai, general, appearance, security, storage, help, appKeys
+    case account, ai, general, appearance, security, storage, help
     /// Account's own pages, one level down, as Apple Account has them (Emil, 7 November 2026).
     case personal, signIn
     /// Privacy's own page one level down: who holds your key, the recovery key, Advanced protection
@@ -50,7 +49,6 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .security: SettingsNames.security
         case .storage: SettingsNames.storage
         case .help: SettingsNames.help
-        case .appKeys: "Keys for apps"
         case .personal: "Personal information"
         case .signIn: "Sign-in and security"
         case .encryption: "Encryption"
@@ -71,7 +69,6 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
         case .security: SettingsIcons.security
         case .storage: SettingsIcons.storage
         case .help: SettingsIcons.help
-        case .appKeys: "key"
         case .personal: "person.text.rectangle"
         case .signIn: "lock"
         case .encryption: "key.horizontal"
@@ -84,7 +81,7 @@ enum SettingsPage: String, Hashable, CaseIterable, Identifiable {
 
     /// The pages there is something on. Account, General, Appearance, Privacy (how it
     /// works, signed out too) and Help and feedback always; AI Connections and Storage with an
-    /// account. Keys for apps is parked (Emil, 6 November 2026): nothing leads to it.
+    /// account.
     static func available(signedIn: Bool, hasClient: Bool, demoStorage: Bool = false) -> Set<SettingsPage> {
         var out: Set<SettingsPage> = [.account, .general, .appearance, .todaysNote, .security, .help]
         #if os(macOS)
@@ -410,8 +407,6 @@ struct SettingsHistory: Equatable {
         let next: [SettingsPage]
         if let parent = page.parent {
             next = here.contains(parent) ? Array(here.prefix(through: here.firstIndex(of: parent)!)) + [page] : [parent, page]
-        } else if page == .appKeys {
-            next = here + [page]
         } else {
             next = [page]
         }

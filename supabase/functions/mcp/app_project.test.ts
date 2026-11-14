@@ -98,12 +98,25 @@ Deno.test("a game fits: Doom's engine and its 4 MB WAD as base64, and Emscripten
   const glue = `var readAsync=async url=>{var response=await fetch(url,{credentials:"same-origin"})};function lazy(){var xhr=new XMLHttpRequest;xhr.open("GET",url,false)}`;
   const p = { amberApp: 1 as const, files: { "/index.html": `<html lang="en"><canvas></canvas><script src="doom.js"></script>`, "/doom.js": glue, "/doom1.wad.b64": wad, "/doom.wasm.b64": "A".repeat(528_832) }, compiled: {} };
   assertEquals(projectProblems(p), []);
-  assertEquals(sourceProblems(p, () => false), []);
+  assertEquals(sourceProblems(p), []);
   assertEquals(brokenImports(p), []);
   // The limits still hold, raised.
   assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/big.txt": "x".repeat(MAX_FILE_BYTES + 1) } }).join(), "at most 8 MB");
   const many = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`/part${i}.txt`, "x".repeat(MAX_FILE_BYTES - 10)]));
   assertStringIncludes(projectProblems({ ...p, files: { ...p.files, ...many } }).join(), `at most ${MAX_PROJECT_BYTES / 1048576} MB`);
-  // An address outside is still refused.
-  assertStringIncludes(sourceProblems({ ...p, files: { ...p.files, "/x.js": `fetch("https://example.com/x")` } }, () => false).join(), "external addresses");
+});
+
+Deno.test("an app reaches the internet like a web page: no address, fetch or WebSocket is refused on save (2026-11-14)", () => {
+  const p = {
+    amberApp: 1 as const, compiled: {},
+    files: {
+      "/index.html": `<html lang="en"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter"><img src="https://example.com/a.png"><script src="main.js"></script>`,
+      "/main.js": `fetch("https://api.open-meteo.com/v1/forecast").then((r) => r.json()); new WebSocket("wss://echo.example/ws"); const x = new XMLHttpRequest(); x.open("GET", "https://example.com/x");`,
+    },
+  };
+  assertEquals(projectProblems(p), []);
+  assertEquals(sourceProblems(p), []);
+  assertEquals(brokenImports(p), []);
+  // Frames and plugins would take the app out of its note: still refused.
+  assertStringIncludes(sourceProblems({ ...p, files: { ...p.files, "/index.html": `<iframe src="https://example.com"></iframe>` } }).join(), "<iframe> isn't allowed");
 });

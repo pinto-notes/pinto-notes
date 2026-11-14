@@ -40,7 +40,7 @@ struct OpenSettingsPage: Equatable {
 }
 
 extension EnvironmentValues {
-    /// Opens a page of Settings one level down (General's Keys for apps).
+    /// Opens a page of Settings one level down (Account's own pages).
     @Entry var openSettingsPage: OpenSettingsPage? = nil
     /// Tests: told where the card's parts land (the title, the page, each tab), in the card's space.
     @Entry var settingsLayoutProbe: ((String, CGRect) -> Void)? = nil

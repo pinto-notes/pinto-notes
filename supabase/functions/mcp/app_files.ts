@@ -4,7 +4,6 @@
 // opens it, and says what to fix. See app_project.ts for the format and checks, app_scaffold.ts for
 // the project a new app starts from.
 
-import { hostDeclared, declaredHosts } from "./page.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
 import { flakyTests, render, renderedFindings, testSummary } from "./app_check.ts";
 import {
@@ -103,8 +102,7 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   if (linked.error) throw new ToolError(`Not saved: the CSS doesn't compile.\n${linked.error}`);
   const p = linked.project;
   const stored = serialize(p);
-  const declared = declaredHosts(p.files["/index.html"] ?? "");
-  const problems = [...projectProblems(p), ...sourceProblems(p, (h) => hostDeclared(declared, h))];
+  const problems = [...projectProblems(p), ...sourceProblems(p)];
   if (problems.length) throw new ToolError(`Not saved:\n- ${problems.join("\n- ")}`);
   const broken = brokenImports(p);
   const warnings = styleWarnings(p);

@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 import WebKit
 
-/// Libraries for a note's app (prototype; see NotePage). The page still has no network: libraries
+/// Libraries for a note's app (prototype; see NotePage). Libraries
 /// are served to it by the app under amber-lib:, either from the app itself (a bundled set, by name)
 /// or, for any other npm package, downloaded once by the app from cdn.jsdelivr.net, checked against
 /// the hash the page names, kept on the device and served from there.

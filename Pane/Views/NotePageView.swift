@@ -6,10 +6,10 @@ import WebKit
 
 /// The locked web view a note's page runs in (prototype; see NotePage).
 ///
-/// - JavaScript runs, but nothing loads or leaves: a Content Security Policy of `default-src 'none'`
-///   (inline script and style, data: images and fonts only), a content rule list that blocks every
-///   request, and a navigation policy that allows only the page itself. No cookies or storage
-///   outlive the view.
+/// - JavaScript runs and reaches the internet like a web page: fetch, XMLHttpRequest, WebSocket and
+///   images to any https or wss address, with no prompt (2026-11-14). The Content Security Policy
+///   and content rule list refuse everything else (plain http, file:, other schemes), and the
+///   navigation policy allows only the page itself. No cookies or storage outlive the view.
 /// - The page gets one note's data as `window.amber.note` and nothing else of the app.
 /// - It changes the note only through `amber.update(op)`, a message the app checks and applies to
 ///   the markdown (NotePage.apply). It can't run anything in the app or edit text freely.
@@ -29,12 +29,15 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Requests and navigations the sandbox stopped (for the Dev readout and tests).
     private(set) var blocked: [String] = []
 
-    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib:; img-src data: amber-app: amber-file:; font-src data: amber-app:; media-src data: amber-app: amber-file:; "
-        + "connect-src amber-app:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
+    /// The internet (https, wss) is open to the app like to any web page; frames, plugins, forms and
+    /// a <base> stay off (they would take the app out of its note).
+    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib: https:; img-src data: blob: amber-app: amber-file: https:; font-src data: amber-app: https:; media-src data: blob: amber-app: amber-file: https:; "
+        + "connect-src amber-app: https: wss:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
 
-    /// Every request is blocked; the page's own document is given as a string, not loaded.
-    /// The note's own files (amber-file:, served by the app from this device) are the one exception.
-    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}}]"#
+    /// Everything is blocked but the internet over TLS (https, wss) and the app's own schemes: the
+    /// note's files (amber-file:, served from this device), the libraries and the app's files. The
+    /// page's own document is given as a string, not loaded.
+    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^wss:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}}]"#
     private static var compiled: WKContentRuleList?
 
     /// One sandbox made ahead of time, its web content process already running, so opening a note
@@ -92,7 +95,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Compiles the rule list once. Pages wait for it: none loads without it.
     static func prepare() async throws -> WKContentRuleList {
         if let compiled { return compiled }
-        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v4", encodedContentRuleList: rules) else {
+        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v5", encodedContentRuleList: rules) else {
             throw NotePage.OpError("The app couldn't start.")
         }
         compiled = list
@@ -307,8 +310,19 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               available: () => Promise.resolve({ ok: true, available: false, reason: "on-device AI isn't available in apps yet" }),
               respond: gone("On-device AI isn't"),
             },
-            // Through the app, to hosts the page declared and you allowed, logged; keys added by the app.
-            fetch: (url, o) => ask({ op: "fetch", url, ...(o || {}) }),
+            // Apps written for the old proxy (amber.fetch, before 2026-11-14) keep working: the same
+            // answer, from the web's own fetch. A key named in the options isn't added any more.
+            fetch: async (url, o) => {
+              try {
+                const r = await fetch(url, { method: (o && o.method) || "GET", headers: (o && o.headers) || {}, body: o && o.body });
+                const type = r.headers.get("content-type") || "";
+                const bytes = new Uint8Array(await r.arrayBuffer());
+                let body, base64 = false;
+                try { body = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+                catch (e) { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); body = btoa(s); base64 = true; }
+                return Object.assign({ ok: true, status: r.status, contentType: type, body }, base64 ? { base64 } : {});
+              } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+            },
           };
           // A write's reply carries the new data, so it's there as soon as the promise resolves.
           // A change's reply carries the new data: it's there when the promise resolves, and the
@@ -1112,9 +1126,8 @@ enum NotePageActions {
 
     /// The app's own data and files (amber.store, amber.files). Returns the reply for the page, and
     /// the data before a data change (nil for files), for Undo.
-    static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?, html: String = "",
-                     ask: (String) async -> Bool = { _ in false }, askLink: (String) async -> Bool = { _ in false },
-                     needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in },
+    static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?,
+                     askLink: (String) async -> Bool = { _ in false },
                      open: (AppLinks.Link) throws -> Void = { _ in throw NotePage.OpError("Links to notes open only in the note's own screen.") }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
         let m = message as? [String: Any] ?? [:]
         if m["op"] as? String == "note.open" {
@@ -1147,8 +1160,6 @@ enum NotePageActions {
             let body = line.isEmpty ? title : "\(title)\n\n\(line)"
             if body != note.body { note.body = body; note.touch(); try? context.save() }
             return ([:], nil)
-        case "fetch":
-            return (try await NotePageNetwork.fetch(m, note: note, html: html, ask: ask, needKey: needKey), nil)
         case "file.save":
             guard let b64 = m["base64"] as? String, let bytes = Data(base64Encoded: b64) else { throw NotePage.OpError("Send { name, type, base64 }.") }
             guard bytes.count <= 50 * 1024 * 1024 else { throw NotePage.OpError("Files can be at most 50 MB.") }

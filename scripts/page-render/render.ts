@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge, no network)
+// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge; the internet refused quietly)
 // in headless WebKit at the widths and color schemes asked for, and measures it: script errors,
 // overflow, contrast, small or faint text, unlabeled controls, an edit from the app, and probes
 // over changed notes. Used by the render service (server.ts, behind check_app and preview_app) and
@@ -12,8 +12,8 @@ import { findTables } from "../../supabase/functions/mcp/notes.ts";
 import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
-const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; " +
-  "connect-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
+const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; " +
+  "connect-src https: wss:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
 
 // amber-tokens.css as the iPhone app writes it (Pane/Views/NotePageView.swift, NotePageTheme.tokens),
 // then amber-base.css, the file the app ships, unless the page opts out with <meta name="amber-base" content="none">.
@@ -104,8 +104,8 @@ function importMap(): string {
 function prepareProject(p: AppProject): string {
   let rest = (p.files["/index.html"] ?? "").replace(/^[\s\uFEFF]+/, "");
   if (/^<!doctype/i.test(rest)) rest = rest.slice(rest.indexOf(">") + 1);
-  const policy = `default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; img-src data: ${APP_HOST}; font-src data: ${APP_HOST}; media-src data: ${APP_HOST}; ` +
-    `connect-src ${APP_HOST}; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
+  const policy = `default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST} https:; img-src data: blob: ${APP_HOST} https:; font-src data: ${APP_HOST} https:; media-src data: blob: ${APP_HOST} https:; ` +
+    `connect-src ${APP_HOST} https: wss:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
   return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
     `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(rest) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + importMap() + hosts(rest);
 }
@@ -247,7 +247,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
       const s = document.createElement("script"); s.src = "${LIB_HOST}" + name; s.onload = () => ok(window[g]); s.onerror = () => fail(new Error("Couldn't load " + name)); document.head.append(s);
     }),
     context: { embedded: !!window.__amberWidget, width: innerWidth, height: innerHeight },
-    fetch: (url) => { window.__amberFetched && window.__amberFetched(String(url)); return Promise.resolve({ ok: false, error: "The person hasn't allowed this host yet." }); },
+    fetch: (url) => { window.__amberFetched && window.__amberFetched(String(url)); return Promise.resolve({ ok: false, error: "This check runs without the internet." }); },
   };
   amber.batch = async (fn) => {
     if (batching) return fn();
@@ -591,7 +591,9 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
     // cover the whole context, so even its first request is refused).
     ctx.on("page", (p) => { blocked.push("window.open"); p.close().catch(() => {}); });
     const errors: string[] = [];
-    page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 300)); });
+    // A load that failed is reported where it's refused (a missing file, a blocked library), not as
+    // the browser's console line: an internet request refused here isn't the app's fault.
+    page.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource|due to access control checks/.test(m.text())) errors.push(m.text().slice(0, 300)); });
     page.on("pageerror", (e) => errors.push(`pageerror: ${String(e.message).slice(0, 300)}`));
     // The document is served at one made-up address, so init scripts run on it like the app's
     // user script; every other request is recorded and refused.
@@ -616,10 +618,15 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
           return r.fulfill({ status: 200, contentType: "text/javascript; charset=utf-8", headers: { "access-control-allow-origin": "*" }, body: Buffer.from(bytes) });
         });
       }
-      if (u.startsWith("data:")) return r.continue();
+      if (u.startsWith("data:") || u.startsWith("blob:")) return r.continue();
+      // The internet: open to the app on the device, refused here without counting against it. This
+      // service runs on a server, so it never makes requests the app asks for (2026-11-14).
+      if (u.startsWith("https:")) return r.abort("internetdisconnected");
       blocked.push(u);
       return r.abort();
     });
+    // WebSockets too: answered by nothing, so nothing leaves this server.
+    await ctx.routeWebSocket(/.*/, () => {});
     await page.exposeFunction("__amberUpdate", async (op: unknown) => {
       try {
         md = applyPageOp(md, op);

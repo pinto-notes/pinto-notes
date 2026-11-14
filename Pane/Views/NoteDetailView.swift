@@ -50,32 +50,24 @@ struct NoteDetailView: View {
     @State private var undoPage: NotePageStore.Page?
     /// For Undo of a change to the app's own data: the data before it.
     @State private var undoData: NotePageData.Doc?
-    /// The app asks to reach a host: shown as a question, answered once per host.
+    /// The app asks to open a link (device.openURL): the whole address, as a question.
     @State private var hostAsk: HostAsk?
-    /// The app needs an API key that isn't set up: the card that offers to add it.
-    @State private var keyNeeded: NotePageNetwork.KeyNeed?
-    @State private var addingKey: APIKeyForm.Draft?
-    @State private var showNetLog = false
     @State private var showMakeApp = false
     @State private var showAppInfo = false
 
     struct HostAsk: Identifiable {
-        let host: String
-        /// The whole address, when the app asked to open a link (not to send a request).
-        var link: String?
+        /// The whole address the app asked to open.
+        let link: String
         let answer: (Bool) -> Void
 
         var title: String {
-            guard let link else { return "This app wants to reach \(host)" }
             if link.lowercased().hasPrefix("mailto:") { return "This app wants to start an email" }
             if link.lowercased().hasPrefix("tel:") { return "This app wants to start a call" }
             return "This app wants to open a link"
         }
-        var allow: String { link == nil ? "Allow" : "Open" }
-        var message: String {
-            link.map { "\($0)\n\nEverything in this address leaves the app with it." } ?? "Everything it sends there is listed in App Info › Internet."
-        }
-        var id: String { host }
+        var allow: String { "Open" }
+        var message: String { "\(link)\n\nEverything in this address leaves the app with it." }
+        var id: String { link }
     }
     /// Lock Note: setting the password up, asking for it, or confirming.
     @State private var lockSheet: LockSheet?
@@ -239,11 +231,8 @@ struct NoteDetailView: View {
             .overlay(alignment: .bottom) { reviewDone }
             .overlay(alignment: .bottom) { undoProblem }
             .overlay(alignment: .bottom) { editorNotice }
-            .overlay(alignment: .bottom) { keyCard }
             .modifier(HostAskAlert(ask: $hostAsk))
-            .sheet(item: $addingKey) { d in APIKeyForm(draft: d) }
             .sheet(item: $pictureRequest) { NotePictureSheet(request: $0) }
-            .sheet(isPresented: $showNetLog) { NotePageNetLogView(noteID: note.id) }
             .sheet(isPresented: $showMakeApp) { MakeAppSheet(noteID: note.id, title: note.title, body_: note.body) }
             .sheet(item: firstOpenSheet) { m in
                 if FirstOpen.variant == .ac {
@@ -305,8 +294,6 @@ struct NoteDetailView: View {
                                      remove: {
                                          // The note's text stays as it is, and the app is kept: Previous App brings it back.
                                          NotePageStore.shared.setHere(note.id, nil)
-                                         // What it reached and sent goes with it.
-                                         NotePageNetLog.shared.forgetNote(note.id)
                                          shownPage = nil
                                          mode = .text
                                      })
@@ -963,15 +950,12 @@ struct NoteDetailView: View {
         }
     }
 
-    /// The app's own data and files (amber.store, amber.files). Data changes are kept next to the
-    /// page, never in the note's text, and get a receipt with Undo like any other change.
-    /// The app's own data, files, the device and the network. Data changes are the app's own
-    /// state (a ticked set, a rating): kept quietly, versioned on the server, without a receipt;
-    /// receipts are for changes to the note's text.
+    /// The app's own data, files, the device and links. Data changes are the app's own state (a
+    /// ticked set, a rating): kept quietly, versioned on the server, without a receipt; receipts are
+    /// for changes to the note's text.
     private func pageData(_ message: Any) async throws -> [String: Any] {
-        let (reply, before) = try await NotePageActions.data(message, note: note, context: context, sync: sync, html: notePage?.html ?? "",
-                                                             ask: askHost, askLink: askLink, needKey: { need in withAnimation(.smooth) { keyNeeded = need } },
-                                                             open: followAppLink)
+        let (reply, before) = try await NotePageActions.data(message, note: note, context: context, sync: sync,
+                                                             askLink: askLink, open: followAppLink)
         // A change you made gets a receipt; the app saving on its own is quiet (Undo still reaches it
         // through version history).
         if let before, (message as? [String: Any])?["_user"] as? Bool == true { dataChanged(before: before) }
@@ -990,52 +974,17 @@ struct NoteDetailView: View {
         showPageReceipt(r)
     }
 
-    private func askHost(_ host: String) async -> Bool { await askHost(host, link: nil) }
-
     /// Asks before an app's link opens, showing all of it.
-    private func askLink(_ link: String) async -> Bool { await askHost(URL(string: link)?.host ?? link, link: link) }
-
-    private func askHost(_ host: String, link: String?) async -> Bool {
+    private func askLink(_ link: String) async -> Bool {
         await withCheckedContinuation { c in
             // Answered once, whichever way the alert goes away.
             final class Once { var done = false }
             let once = Once()
-            hostAsk = HostAsk(host: host, link: link) { ok in
+            hostAsk = HostAsk(link: link) { ok in
                 guard !once.done else { return }
                 once.done = true
                 c.resume(returning: ok)
             }
-        }
-    }
-
-    /// "This app needs an OpenWeather API key", with Add Key and how to get one.
-    @ViewBuilder
-    private var keyCard: some View {
-        if let need = keyNeeded, showingPage {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("This app needs \(need.name.first.map { "AEIOU".contains($0) } == true ? "an" : "a") \(need.name) API key", systemImage: "key.fill")
-                    .font(.headline)
-                if let help = need.help { Text(help).font(.subheadline).foregroundStyle(.secondary) }
-                Text("It's sent only to \(need.hosts.joined(separator: ", ")). The app never sees it.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                HStack {
-                    Button("Not Now") { withAnimation(.smooth) { keyNeeded = nil } }
-                    Spacer()
-                    Button("Add Key") { addingKey = APIKeyForm.Draft(need); keyNeeded = nil }
-                        .buttonStyle(.amberProminent)
-                        .accessibilityIdentifier("keycard.add")
-                }
-            }
-            .padding(16)
-            .background(.regularMaterial, in: .rect(cornerRadius: 20, style: .continuous))
-            .padding(.horizontal, 16)
-            #if os(macOS)
-            .frame(maxWidth: 460)
-            .padding(.bottom, 20)
-            #else
-            .padding(.bottom, 24)
-            #endif
-            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 
@@ -2010,7 +1959,7 @@ enum SharedEditing {
     }
 }
 
-/// "This app wants to reach …" for a request, or the whole address of a link an app asked to open.
+/// The whole address of a link an app asked to open, before it opens.
 /// Its own modifier: the note's body is at the limit of what the compiler type-checks in one go.
 private struct HostAskAlert: ViewModifier {
     @Binding var ask: NoteDetailView.HostAsk?

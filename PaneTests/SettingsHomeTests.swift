@@ -21,7 +21,6 @@ import Carbon.HIToolbox
         #expect(groups == [[.account], [.general, .appearance, .shortcuts], [.ai, .todaysNote], [.security, .storage], [.help]])
         #expect(SettingsPage.todaysNote.title == "Today\u{2019}s note" && SettingsPage.todaysNote.symbol == "calendar")
         #expect(SettingsPage.shortcuts.title == "Keyboard shortcuts" && SettingsPage.shortcuts.symbol == "command")
-        #expect(!groups.joined().contains(.appKeys), "Keys for apps is not in the sidebar")
         #expect(SettingsPage.ai.title == "AI Connections")
         #expect(SettingsPage.security.title == "Privacy")
         // Signed out: only what there is.
@@ -156,10 +155,10 @@ import Carbon.HIToolbox
                     "\(word): found while it's on")
         }
         #expect(SettingsIndex.matches("security", available: all).allSatisfy { $0.label != "Advanced protection" })
-        // Keys for apps is parked: nothing leads to it, search included. One AI's page needs an AI
+        // One AI's page needs an AI
         // picked, so search leads to the list (Disconnect an AI).
         #expect(SettingsIndex.matches("disconnect", available: SettingsPage.available(signedIn: true, hasClient: true)).contains { $0.page == .ai })
-        for place in SettingsPage.allCases where place != .appKeys && place != .aiConnection {
+        for place in SettingsPage.allCases where place != .aiConnection {
             #expect(SettingsIndex.all.contains { $0.page == place }, "\(place) has words to find it by")
         }
     }

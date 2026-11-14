@@ -1,7 +1,7 @@
 // check_app and preview_app: let an AI see what it built. See app_check.ts for the findings and
 // app_sample.ts for the sample a note's app is rendered over.
 
-import { type KeyInfo, render, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
+import { render, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
 import { noteForPage } from "./page_input.ts";
 import { resolvePackage } from "./libraries.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
@@ -92,23 +92,11 @@ async function appOf(tx: Tx, c: Call, a: Args) {
   return { n, html, data, body: await bodyOf(c.v, n) };
 }
 
-async function keysOf(tx: Tx, c: Call): Promise<KeyInfo[]> {
-  const rows = await tx<{ id: string; meta_ct: string }[]>`select id, meta_ct from public.api_key_names`;
-  const out: KeyInfo[] = [];
-  for (const r of rows) {
-    try {
-      const m = JSON.parse(await c.v.openAPIKeyMeta(r.id, r.meta_ct));
-      out.push({ name: String(m.name ?? ""), hosts: Array.isArray(m.hosts) ? m.hosts.map(String) : [], set: m.set === true });
-    } catch { /* sealed with another key */ }
-  }
-  return out;
-}
-
 export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unknown>> = {
   async check_app(tx, a, c) {
     const { n, html, data, body } = await appOf(tx, c, a);
     const t = today();
-    const found = staticReport(html, body, await keysOf(tx, c));
+    const found = staticReport(html, body);
     const r = await render({
       html, markdown: sampleNote(body, t), data: sampleData(data, t), today: t,
       views: [{ width: 390, scheme: "light" }, { width: 390, scheme: "dark" }, { width: 320, scheme: "light" }, { width: 1280, scheme: "light" }, { width: 1280, scheme: "dark" }], interact: true, probes: true,
