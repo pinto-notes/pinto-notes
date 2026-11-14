@@ -1707,11 +1707,10 @@ async function appPiece(tx: Tx, c: Call, n: Note, file: string, bytes: Uint8Arra
     await tx`delete from public.note_app_uploads where note_id = ${n.id} and path_tag = ${tag}`;
     return { done: refOf(pieces.flatMap((p) => p.parts)) };
   }
+  // The clean-up leaves what an upload names (pane_app_blobs_gc), for a day.
   const names = [...new Set(pieces.flatMap((p) => p.parts.map((x) => x.hash)))];
-  await tx`insert into public.note_app_uploads (note_id, path_tag, size, pieces, blobs) values (${n.id}, ${tag}, ${size}, ${tx.json(pieces)}, ${names}::text[])
+  await tx`insert into public.note_app_uploads (note_id, path_tag, size, pieces, blobs) values (${n.id}, ${tag}, ${size}, ${JSON.stringify(pieces)}::jsonb, ${names}::text[])
     on conflict (user_id, note_id, path_tag) do update set size = excluded.size, pieces = excluded.pieces, blobs = excluded.blobs, updated_at = now()`;
-  // Held through the clean-up while the rest comes (it leaves what an upload names, and what was just used).
-  await tx`update public.note_app_blobs set used_at = now() where hash = any(${names}::text[])`;
   return { received: pieces.reduce((s, p) => s + p.parts[0].size, 0), missing, size };
 }
 
