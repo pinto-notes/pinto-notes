@@ -837,6 +837,24 @@ import UIKit
         await j.until("the laser") { j.canvas.state.tool == .laser }
     }
 
+    /// Presenting hides the window's toolbar, and Done brings it back (round 7, 25-present-1).
+    @Test func presentingHidesTheWindowToolbar() async throws {
+        let w = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: true)
+        w.isReleasedWhenClosed = false
+        defer { w.close() }
+        w.toolbar = NSToolbar(identifier: "test.present")
+        let probe = WindowToolbarHider.Probe()
+        w.contentView = probe
+        probe.apply(true)
+        #expect(w.toolbar?.isVisible == false)
+        probe.apply(false)
+        #expect(w.toolbar?.isVisible == true)
+        // A toolbar hidden already stays hidden after.
+        w.toolbar?.isVisible = false
+        probe.apply(true); probe.apply(false)
+        #expect(w.toolbar?.isVisible == false)
+    }
+
     /// In a narrow column the board's toolbar is compact: the main tools, the rest in More Tools,
     /// so every tool can still be reached (whiteboard council, round 2, 15).
     @Test func aNarrowWindowKeepsEveryToolReachable() {
@@ -1394,7 +1412,7 @@ import UIKit
     @Test func tabOnAShapeGrowsAMindMapBranch() async throws {
         let hint = try #require(WhiteboardTemplate.mindMap.elements.first { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }?["text"] as? String)
         #expect(hint.contains("press Tab"), "the hint teaches it: \(hint)")
-        let j = try await Joined(size: CGSize(width: 1100, height: 760))
+        let j = try await Joined(size: CGSize(width: 900, height: 760))
         defer { j.close() }
         try await j.ready()
         j.canvas.send(.insert(.mindMap, title: "Plan"))
@@ -1445,6 +1463,9 @@ import UIKit
         #expect(joint["endArrowhead"] is NSNull && joint["startArrowhead"] is NSNull, "drawn as the mind map's other branches are")
         #expect(((child["boundElements"] as? [[String: Any]]) ?? []).contains { $0["id"] as? String == joint["id"] as? String }, "bound both ends")
         #expect(els.count >= before + 2, "a box and its arrow (and the words being typed)")
+        // The board was whole: it stays whole, the title and the left branches too (round 7, 26).
+        let whole = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value; return api.getSceneElements().every((e) => (e.x + s.scrollX) * z >= -1 && (e.y + s.scrollY) * z >= -1 && (e.x + e.width + s.scrollX) * z <= s.width + 1 && (e.y + e.height + s.scrollY) * z <= s.height + 1); })()") as? Bool
+        #expect(whole == true, "the whole mind map in view after Tab")
 
         // Tab while typing in it: its own branch, to its right.
         try await tab()
@@ -2807,7 +2828,33 @@ import UIKit
                     }
                     await MacWindowChromeTests.settle(w, 10)
                     try await shot("24-note-card-deleted", w, web)
+                    // Its card offers Restore Note (round 6), and the note comes back.
+                    try await js("const api = amber._canvas.api, ids = {}, groups = {}; api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote === '\(pressNote.id.uuidString)').forEach((e) => { ids[e.id] = true; if (e.groupIds[0]) groups[e.groupIds[0]] = true; }); api.updateScene({ appState: { selectedElementIds: ids, selectedGroupIds: groups } })")
+                    for _ in 0..<50 where canvas.state.card == nil { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 5)
+                    try await shot("24-note-card-restore-offered", w, web)
+                    canvas.restoreCard(pressNote.id.uuidString)
+                    for _ in 0..<100 {
+                        let back = try? await web.evaluateJavaScript("(() => !amber._canvas.api.getSceneElements().some((e) => e.customData && e.customData.pintoCard === 'preview' && e.text === 'Note deleted'))()") as? Bool
+                        if back == true { break }
+                        await MacWindowChromeTests.settle(w, 2)
+                    }
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("24-note-card-restored", w, web)
                 }
+                // A mind map grown with Tab (round 6: "Tab for a joined child branch").
+                try await js("amber._canvas.api.updateScene({ elements: [], appState: { selectedElementIds: {}, selectedGroupIds: {} }, captureUpdate: 'IMMEDIATELY' })")
+                canvas.highlight = nil
+                for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                try await insert(.mindMap)
+                try await js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.type === 'text' && e.containerId && e.text === 'When'); api.updateScene({ appState: { selectedElementIds: { [t.containerId]: true } } }); return 1; })()")
+                await MacWindowChromeTests.settle(w, 5)
+                try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }))")
+                for _ in 0..<50 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                try await js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = 'Next Friday'; t.dispatchEvent(new Event('input', { bubbles: true })); } return 1; })()")
+                await MacWindowChromeTests.settle(w, 10)
+                try await shot("26-mindmap-tab", w, web)
+                try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))")
             }
         }
     }

@@ -83,11 +83,38 @@ struct CanvasOverlay: View {
         .onChange(of: canvas.state.present == nil) { _, stopped in
             NotificationCenter.default.post(name: .paneCanvasPresenting, object: !stopped)
         }
+        #if os(macOS)
+        // Presenting shows only the Present bar: the window's toolbar goes too (round 7, 25-present-1).
+        .background(WindowToolbarHider(hidden: canvas.state.present != nil))
+        #endif
         .sheet(isPresented: Binding(get: { canvas.choosingNote }, set: { canvas.choosingNote = $0 })) {
             CanvasNotePicker(canvas: canvas)
         }
     }
 }
+
+#if os(macOS)
+/// Hides the window's toolbar while `hidden`, and shows it again after (only if it hid it).
+struct WindowToolbarHider: NSViewRepresentable {
+    let hidden: Bool
+
+    final class Probe: NSView {
+        var hid = false
+        func apply(_ hidden: Bool) {
+            guard let toolbar = window?.toolbar else { return }
+            if hidden, toolbar.isVisible { toolbar.isVisible = false; hid = true }
+            else if !hidden, hid { toolbar.isVisible = true; hid = false }
+        }
+    }
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ v: Probe, context: Context) {
+        let hidden = hidden
+        DispatchQueue.main.async { v.apply(hidden) }
+    }
+    static func dismantleNSView(_ v: Probe, coordinator: ()) { v.apply(false) }
+}
+#endif
 
 extension Notification.Name {
     /// A board started (true) or stopped (false) presenting.

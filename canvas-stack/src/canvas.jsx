@@ -390,6 +390,10 @@ export function addBranch(api, node) {
     ...arrow, startBinding: { elementId: node.id, focus: 0, gap: g }, endBinding: { elementId: child.id, focus: 0, gap: g },
   };
   const bound = (e, more) => ({ ...e, boundElements: [...(e.boundElements || []), ...more], version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() });
+  // Was the whole board in view? Then it stays whole (round 7, 26-mindmap-tab: the view
+  // followed the new branch right and cut the title and left branches).
+  const whole = (() => { const v = api.getAppState(), vz = (v.zoom && v.zoom.value) || 1, [a1, b1, a2, b2] = getCommonBounds(api.getSceneElements());
+    return (a1 + v.scrollX) * vz >= 0 && (b1 + v.scrollY) * vz >= 0 && (a2 + v.scrollX) * vz <= v.width && (b2 + v.scrollY) * vz <= v.height; })();
   const before = api.getSceneElementsIncludingDeleted().map((e) => (e.id === node.id ? bound(e, [{ id: joined.id, type: "arrow" }]) : e));
   const made = bound(child, [{ id: joined.id, type: "arrow" }]);
   api.updateScene({ elements: [...before, made, joined], appState: { selectedElementIds: { [child.id]: true }, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
@@ -398,7 +402,7 @@ export function addBranch(api, node) {
   const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, m = 40 / z;
   const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
   const dx = x + w + m > vx + vw ? x + w + m - (vx + vw) : 0, dy = y + h + m > vy + vh ? y + h + m - (vy + vh) : 0;
-  if (dx || dy) flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX - dx, scrollY: s.scrollY - dy }, captureUpdate: CaptureUpdateAction.NEVER }));
+  if ((dx || dy) && !(whole && frameBoard(api, { onlyIfCut: true, minZoom: z * 0.6 }))) flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX - dx, scrollY: s.scrollY - dy }, captureUpdate: CaptureUpdateAction.NEVER }));
   typeInto(api, child.id, { fontSize, color: (words && words.strokeColor) || node.strokeColor });
   return child.id;
 }
