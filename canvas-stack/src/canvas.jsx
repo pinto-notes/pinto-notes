@@ -23,6 +23,7 @@ import {
 } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
+import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
 
 const amber = window.amber;
 const SAVE_DELAY = 300;
@@ -324,6 +325,33 @@ export function addSticky(api) {
   return card.id;
 }
 
+/**
+ * Where new note cards go when they weren't dropped somewhere: the middle of the view, or the
+ * nearest spot in it that covers nothing drawn. Big shapes (a meeting's sections, a retro's lanes)
+ * don't count: a card goes on them. The point is the first card's top middle, plus 40 (newCards).
+ */
+function clearSpot(api, count) {
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+  const w = count * CARD.width + (count - 1) * 24, h = 120;
+  const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
+  const big = STICKY.size * STICKY.size * 2;
+  const taken = api.getSceneElements().filter((e) => !e.containerId && e.width * e.height < big).map((e) => getCommonBounds([e]));
+  const box = (x, y) => [x - CARD.width / 2, y - 40, x - CARD.width / 2 + w, y - 40 + h];
+  const free = (x, y) => { const [a, b, c, d] = box(x, y); return !taken.some(([x1, y1, x2, y2]) => a < x2 + 12 && c > x1 - 12 && b < y2 + 12 && d > y1 - 12); };
+  const inView = (x, y) => { const [a, b, c, d] = box(x, y); return a >= vx && b >= vy && c <= vx + vw && d <= vy + vh; };
+  const start = { x: vx + vw / 2 - w / 2 + CARD.width / 2, y: vy + vh / 2 - h / 2 + 40 };
+  if (free(start.x, start.y)) return start;
+  let best = null;
+  for (let i = -10; i <= 10; i++) for (let j = -10; j <= 10; j++) {
+    const x = start.x + i * (CARD.width + 24) / 2, y = start.y + j * (h + 24) / 2;
+    if (!free(x, y)) continue;
+    // In view first; then nearest, to the right before the left.
+    const d = (inView(x, y) ? 0 : 1000) + i * i + j * j + (i < 0 ? 0.5 : 0);
+    if (!best || d < best.d) best = { x, y, d };
+  }
+  return best || start;
+}
+
 /** What the page tells the app: the tool, what's selected, and the style the controls show. */
 export function stateOf(api, app) {
   const s = api.getAppState();
@@ -393,6 +421,13 @@ export function stateOf(api, app) {
     background: s.viewBackgroundColor,
     // Nothing drawn yet: the app offers its templates (CanvasStart).
     empty: api.getSceneElements().length === 0,
+    // One note card selected: the app offers to open its note (cards.js). Only cards: the bar
+    // has nothing to style, and lines them up as cards, not as their parts.
+    card: selectedCard(selected),
+    selectedCards: selected.filter(isCard).length,
+    onlyCards: selected.length > 0 && selected.every(noteOf),
+    // The notes the board's cards name, for the app to send what each says now.
+    cardNotes: cardNotes(api.getSceneElements()),
     canUndo: history ? !history.isUndoStackEmpty : false,
     canRedo: history ? !history.isRedoStackEmpty : false,
   };
@@ -524,7 +559,8 @@ function bridge(api) {
         // an animated fit needs animation frames and left the template at the edge.
         const elements = c.elements;
         document.fonts.load("20px Excalifont").catch(() => {}).then(() => {
-          const made = convertToExcalidrawElements(elements, { regenerateIds: true });
+          // Short note cards in it are drawn as cards (cards.js).
+          const made = expandSeeds(convertToExcalidrawElements(elements, { regenerateIds: true })).elements;
           api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...made], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
           api.setActiveTool({ type: "selection" });
           api.scrollToContent(made, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false });
@@ -534,6 +570,35 @@ function bridge(api) {
       case "sticky":
         addSticky(api);
         break;
+      case "cards": {
+        // What each card's note says now ({ <what the card names>: { id, title, preview, deleted } }),
+        // laid out in the card's font once it's here. Not a step of yours to undo.
+        if (!c.info || typeof c.info !== "object") return false;
+        const info = c.info;
+        document.fonts.load(`${CARD.title.size}px Nunito`).catch(() => {}).then(() => {
+          const next = refreshCards(api.getSceneElementsIncludingDeleted(), info);
+          if (next) api.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
+        });
+        break;
+      }
+      case "addCards": {
+        // Notes onto the board as cards: where they were dropped, else in the middle of the view
+        // (nudged clear of what's there); one step Undo takes back, selected.
+        if (!Array.isArray(c.notes) || !c.notes.length) return false;
+        const notes = c.notes.filter((n) => n && typeof n.id === "string");
+        if (!notes.length) return false;
+        document.fonts.load(`${CARD.title.size}px Nunito`).catch(() => {}).then(() => {
+          const s = api.getAppState();
+          const at = typeof c.x === "number" ? viewportCoordsToSceneCoords({ clientX: c.x, clientY: c.y }, s) : clearSpot(api, notes.length);
+          const made = newCards(notes, at);
+          const groups = Object.fromEntries(made.filter((e) => e.groupIds && e.groupIds[0]).map((e) => [e.groupIds[0], true]));
+          api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...made],
+            appState: { selectedElementIds: Object.fromEntries(made.map((e) => [e.id, true])), selectedGroupIds: groups },
+            captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+          api.setActiveTool({ type: "selection" });
+        });
+        break;
+      }
       case "image": {
         // A picture the app made ready (CanvasImage): kept in the scene's files, placed where it
         // was dropped or in the middle of the view, at most 60% of the view across, selected.
@@ -596,12 +661,36 @@ function bridge(api) {
   };
   // No right-click menu from the engine or the web view: the app shows its own (Mac).
   const menu = (e) => { e.preventDefault(); e.stopImmediatePropagation(); };
+  // A note card opens its note: double-click it (the engine would start typing in its words),
+  // ⌘-click it, or tap it twice. The app opens the note, or says it's gone.
+  const open = (card, e) => {
+    e.preventDefault(); e.stopImmediatePropagation();
+    try { window.webkit.messageHandlers.amberCanvas.postMessage({ open: card.customData.pintoNote }); } catch (_) {}
+  };
+  const selecting = () => { const t = api.getAppState().activeTool; return !t || t.type === "selection"; };
+  const twice = (e) => { if (!selecting()) return; const card = cardAt(api, e.clientX, e.clientY); if (card) open(card, e); };
+  const commandClick = (e) => {
+    if (!e.metaKey || e.button !== 0 || !selecting()) return;
+    const card = cardAt(api, e.clientX, e.clientY);
+    if (card) open(card, e);
+  };
+  let tapped = null;
+  const tap = (e) => {
+    if (!e.touches || e.touches.length !== 1 || !selecting()) { tapped = null; return; }
+    const t = e.touches[0], card = cardAt(api, t.clientX, t.clientY), now = Date.now();
+    if (card && tapped && tapped.id === card.id && now - tapped.at < 400) { tapped = null; open(card, e); return; }
+    tapped = card ? { id: card.id, at: now } : null;
+  };
   window.addEventListener("keydown", keys, true);
   window.addEventListener("contextmenu", menu, true);
+  window.addEventListener("dblclick", twice, true);
+  window.addEventListener("pointerdown", commandClick, true);
+  window.addEventListener("touchstart", tap, { capture: true, passive: false });
   Object.defineProperty(amber, "_canvasCommand", { value: command, configurable: true });
   report();
   return { command, state: () => stateOf(api, app), stop: () => {
     off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);
+    window.removeEventListener("dblclick", twice, true); window.removeEventListener("pointerdown", commandClick, true); window.removeEventListener("touchstart", tap, true);
   } };
 }
 
@@ -702,7 +791,9 @@ function Canvas({ initial }) {
       const look = (e) => `${relaid(e) ? `${e.startBinding && e.startBinding.elementId}>${e.endBinding && e.endBinding.elementId}` : `${Math.round(e.x)},${Math.round(e.y)},${Math.round(e.width)},${Math.round(e.height)}`},${e.text || ""},${e.strokeColor},${e.backgroundColor},${e.isDeleted}`;
       const before = new Map((base || []).map((e) => [e.id, look(e)]));
       const theirs = new Set(remote.filter((e) => !e.isDeleted && before.get(e.id) !== look(e)).map((e) => e.id));
-      const merged = merge(api.getSceneElementsIncludingDeleted(), remote, base);
+      // An AI's short note cards are drawn as cards (cards.js).
+      const drawn = expandSeeds(merge(api.getSceneElementsIncludingDeleted(), remote, base));
+      const merged = drawn.elements;
       const files = Object.values(scene.files || {});
       if (files.length) api.addFiles(files);
       const bg = scene.appState && scene.appState.viewBackgroundColor;
@@ -716,7 +807,7 @@ function Canvas({ initial }) {
       for (const e of all) if (e.containerId && theirs.has(e.id)) theirs.add(e.containerId);
       showChanged(all.filter((e) => theirs.has(e.id) || (e.containerId && theirs.has(e.containerId))));
       // Ours had changes theirs didn't (or theirs was in the short form): saved back merged.
-      if (!same(merged.map((e) => [e.id, e.version]), remote.map((e) => [e.id, e.version]))) schedule();
+      if (drawn.changed || !same(merged.map((e) => [e.id, e.version]), remote.map((e) => [e.id, e.version]))) schedule();
     });
 
     // What came from elsewhere (an AI, another device), for the app to outline: where it is in
@@ -860,7 +951,10 @@ function Canvas({ initial }) {
 
 function start() {
   const stored = (amber && amber.data && amber.data.values && amber.data.values.scene) || emptyScene();
-  const { elements, converted } = normalize(stored.elements);
+  const normalized = normalize(stored.elements);
+  // An AI's short note cards, drawn as cards and saved back (cards.js).
+  const drawn = expandSeeds(normalized.elements);
+  const elements = drawn.elements, converted = normalized.converted || drawn.changed;
   const restored = restore({ ...stored, elements }, null, null);
   const initial = { stored, elements: restored.elements, appState: { viewBackgroundColor: restored.appState.viewBackgroundColor, gridModeEnabled: restored.appState.gridModeEnabled }, files: restored.files, converted };
   const el = document.getElementById("canvas");

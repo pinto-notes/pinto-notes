@@ -80,6 +80,11 @@ final class NotePageWebView: WKWebView {
             return i
         }
         menu.autoenablesItems = false
+        // A note card: its note first.
+        if let card = canvas?.state.card {
+            menu.addItem(CanvasMenuItem(title: CanvasSelectionBar.openNote) { [weak self] in self?.canvas?.openCard(card.note) })
+            menu.addItem(.separator())
+        }
         menu.addItem(item("Duplicate", .duplicate, enabled: selected))
         menu.addItem(item("Delete", .delete, enabled: selected))
         menu.addItem(.separator())

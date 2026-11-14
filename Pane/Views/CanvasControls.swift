@@ -63,6 +63,9 @@ struct CanvasOverlay: View {
                 }
             }
         }
+        .sheet(isPresented: Binding(get: { canvas.choosingNote }, set: { canvas.choosingNote = $0 })) {
+            CanvasNotePicker(canvas: canvas)
+        }
     }
 }
 
@@ -80,7 +83,7 @@ struct CanvasOverlay: View {
                 canvas.send(.image(image, at: CGPoint(x: point.x + CGFloat(placed) * 28, y: point.y + CGFloat(placed) * 28)))
                 placed += 1
             }
-            if placed == 0 { canvas.confirm("Only pictures can go on a whiteboard") }
+            if placed == 0 { canvas.confirm("Only notes and pictures can go on a whiteboard") }
         }
     }
 
@@ -96,6 +99,111 @@ struct CanvasOverlay: View {
         return await withCheckedContinuation { done in
             _ = p.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { d, _ in done.resume(returning: d) }
         }
+    }
+}
+
+/// Notes dragged from the note list onto a board: a card for each, where they're dropped.
+@MainActor enum CanvasNoteDrop {
+    static func carriesNotes(_ providers: [NSItemProvider]) -> Bool {
+        providers.contains { $0.hasItemConformingToTypeIdentifier(UTType.paneItem.identifier) }
+    }
+
+    static func place(_ providers: [NSItemProvider], at point: CGPoint, on canvas: CanvasController) {
+        Task { @MainActor in
+            var data: [Data] = []
+            for p in providers where p.hasItemConformingToTypeIdentifier(UTType.paneItem.identifier) {
+                let d: Data? = await withCheckedContinuation { done in
+                    _ = p.loadDataRepresentation(forTypeIdentifier: UTType.paneItem.identifier) { d, _ in done.resume(returning: d) }
+                }
+                if let d { data.append(d) }
+            }
+            let ids = EditorController.draggedNotes(data).filter { $0 != canvas.noteID }
+            guard !ids.isEmpty else { canvas.confirm("Only notes and pictures can go on a whiteboard"); return }
+            canvas.addCards(ids, at: point)
+        }
+    }
+}
+
+/// Add Note Card…: find a note by its title and put it on the board as a card. Return takes the
+/// first, as Go to Note does.
+struct CanvasNotePicker: View {
+    let canvas: CanvasController
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var entries: [WikiIndex.Entry] = []
+    @FocusState private var focused: Bool
+
+    static let title = "Add a note to the board"
+
+    /// The notes whose titles hold what's typed: those starting with it first, then the rest,
+    /// each lot newest first. Everything, newest first, before anything is typed. Never the board.
+    static func matches(_ entries: [WikiIndex.Entry], query: String, excluding: UUID?, limit: Int = 60) -> [WikiIndex.Entry] {
+        let q = WikiLinks.key(query.trimmingCharacters(in: .whitespaces))
+        let live = entries.filter { $0.id != excluding && !$0.title.isEmpty }.sorted { $0.updated > $1.updated }
+        guard !q.isEmpty else { return Array(live.prefix(limit)) }
+        let starts = live.filter { WikiLinks.key($0.title).hasPrefix(q) }
+        let contains = live.filter { let k = WikiLinks.key($0.title); return !k.hasPrefix(q) && k.contains(q) }
+        return Array((starts + contains).prefix(limit))
+    }
+
+    var body: some View {
+        let found = Self.matches(entries, query: query, excluding: canvas.noteID)
+        VStack(alignment: .leading, spacing: 12) {
+            Text(Self.title)
+                .font(.headline)
+            TextField("Search notes", text: $query)
+                .textFieldStyle(.roundedBorder)
+                .focused($focused)
+                .onSubmit { if let first = found.first { pick(first.id) } }
+                .accessibilityIdentifier("canvas.notePicker.search")
+            List(found, id: \.id) { e in
+                Button { pick(e.id) } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.text")
+                            .foregroundStyle(Color.amberInk)
+                        Text(e.title)
+                            .lineLimit(1)
+                            .foregroundStyle(Color.ink)
+                        Spacer(minLength: 8)
+                        if let folder = e.folders.last {
+                            Text(folder)
+                                .lineLimit(1)
+                                .foregroundStyle(Color.muted)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("canvas.notePicker.note")
+            }
+            .listStyle(.plain)
+            .overlay {
+                if found.isEmpty {
+                    Text(query.isEmpty ? "No notes yet" : "No note has \u{201C}\(query)\u{201D} in its title")
+                        .foregroundStyle(Color.muted)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(20)
+        #if os(macOS)
+        .frame(width: 440, height: 460)
+        #endif
+        .onAppear {
+            entries = WikiDirectory.index(context).entries
+            focused = true
+        }
+        .accessibilityIdentifier("canvas.notePicker")
+    }
+
+    private func pick(_ id: UUID) {
+        canvas.addCards([id])
+        dismiss()
     }
 }
 
@@ -368,6 +476,8 @@ struct CanvasDock: View {
             ForEach(CanvasTool.shapes) { tool in
                 Button(tool.title, systemImage: tool.symbol) { canvas.pick(tool) }
             }
+            Divider()
+            Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
         } label: {
             CanvasWell(selected: CanvasTool.shapes.contains(canvas.state.tool), well: well) {
                 Image(systemName: current == .rectangle ? "square.on.circle" : current.symbol)
@@ -504,6 +614,9 @@ struct CanvasSelectionBar: View {
 
     enum Tray: Equatable { case stroke, fill }
 
+    /// A note card's own action, first on its bar (and in its right-click menu).
+    static let openNote = "Open Note"
+
     /// How far above the selection it floats: 6 pt on the Mac; on iPhone clear of the touch
     /// handles and the rotate handle above them, which the page's bounds don't include.
     #if os(iOS)
@@ -569,6 +682,22 @@ struct CanvasSelectionBar: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .bottom)))
             }
             HStack(spacing: 2) {
+                if let card = state.card {
+                    Button { canvas.openCard(card.note) } label: {
+                        Label(Self.openNote, systemImage: "doc.text")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.ink)
+                            .padding(.horizontal, 10)
+                            .frame(height: 34)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .hoverHighlight(Capsule())
+                    #if os(macOS)
+                    .help("Open \u{201C}\(card.title)\u{201D} (double-click the card)")
+                    #endif
+                    .accessibilityIdentifier("canvas.bar.openNote")
+                }
                 if state.showsStroke || state.showsText {
                     chip(.stroke) {
                         Circle().fill(CanvasStyle.shown(state.strokeColor, dark: dark) ?? .primary).frame(width: 18, height: 18)
@@ -609,7 +738,7 @@ struct CanvasSelectionBar: View {
                     }
                 }
                 if state.showsAlign {
-                    menuButton("Align", symbol: "align.horizontal.left", id: "canvas.bar.align") { CanvasAlignItems(canvas: canvas, count: state.selection.count) }
+                    menuButton("Align", symbol: "align.horizontal.left", id: "canvas.bar.align") { CanvasAlignItems(canvas: canvas, count: state.alignCount) }
                 }
                 menuButton("Arrange", symbol: "square.3.layers.3d", id: "canvas.bar.layer") {
                     Button("Bring to Front", systemImage: "square.3.layers.3d.top.filled") { canvas.run(.bringToFront) }
@@ -1014,11 +1143,12 @@ struct CanvasToolbarTools: View {
             }
             Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
             Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
+            Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
         } label: {
             Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked)
         }
         .menuIndicator(.hidden)
-        .help("Hand, eraser, pictures and sticky notes")
+        .help("Hand, eraser, pictures, sticky notes and note cards")
         .accessibilityIdentifier("canvas.tool.more")
     }
 
@@ -1043,6 +1173,8 @@ struct CanvasToolbarTools: View {
             Divider()
             Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
                 .accessibilityIdentifier("canvas.tool.sticky")
+            Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
+                .accessibilityIdentifier("canvas.tool.noteCard")
         } label: {
             Label("Shapes", systemImage: shown.symbol).picked(picked)
         } primaryAction: {

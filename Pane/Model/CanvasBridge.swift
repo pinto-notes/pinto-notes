@@ -89,6 +89,8 @@ enum CanvasMenu {
     static let zoomOut = "Zoom Out"
     static let actualSize = "Actual Size"
     static let zoomToFit = "Zoom to Fit"
+    /// A note of yours onto the board, as a card (the Shapes menu; CanvasNotePicker).
+    static let noteCard = "Add Note Card\u{2026}"
 }
 
 /// Style values as the scene stores them.
@@ -232,6 +234,19 @@ struct CanvasState: Equatable, Sendable {
     var canRedo = false
     /// Nothing drawn yet (CanvasStart offers the templates). False until the page says so.
     var empty = false
+    /// One note card selected (canvas-stack/src/cards.js): its note, as the card names it.
+    var card: Card?
+    /// How many note cards are selected, and whether the selection is nothing but cards: a card
+    /// has no stroke, fill or text of its own to set, only Open Note, Arrange and the rest.
+    var selectedCards = 0
+    var onlyCards = false
+    /// The notes the board's cards name (a note's id, or an AI's title for it), each once.
+    var cardNotes: [String] = []
+
+    struct Card: Equatable, Sendable {
+        var note: String
+        var title: String
+    }
 
     init() {}
 
@@ -264,6 +279,10 @@ struct CanvasState: Equatable, Sendable {
         canUndo = (m["canUndo"] as? Bool) ?? false
         canRedo = (m["canRedo"] as? Bool) ?? false
         empty = (m["empty"] as? Bool) ?? false
+        if let c = m["card"] as? [String: Any], let note = c["note"] as? String { card = Card(note: note, title: (c["title"] as? String) ?? "") }
+        selectedCards = (m["selectedCards"] as? NSNumber)?.intValue ?? 0
+        onlyCards = (m["onlyCards"] as? Bool) ?? false
+        cardNotes = (m["cardNotes"] as? [String]) ?? []
     }
 
     var hasSelection: Bool { !selection.isEmpty }
@@ -275,13 +294,14 @@ struct CanvasState: Equatable, Sendable {
 
     /// The types the style controls are for: the selection's, else the tool's.
     var styledTypes: Set<String> { hasSelection ? Set(selection) : [tool.rawValue] }
-    var showsFill: Bool { !styledTypes.isDisjoint(with: ["rectangle", "diamond", "ellipse"]) }
-    var showsText: Bool { styledTypes.contains("text") }
-    var showsArrowheads: Bool { styledTypes.contains("arrow") }
+    var showsFill: Bool { !onlyCards && !styledTypes.isDisjoint(with: ["rectangle", "diamond", "ellipse"]) }
+    var showsText: Bool { !onlyCards && styledTypes.contains("text") }
+    var showsArrowheads: Bool { !onlyCards && styledTypes.contains("arrow") }
     /// A picture has no stroke to set (whiteboard council, round 2, 11: the bar offered one).
-    var showsStroke: Bool { !styledTypes.subtracting(["text", "image"]).isEmpty }
-    /// Two or more selected: they can be lined up.
-    var showsAlign: Bool { selection.count >= 2 }
+    var showsStroke: Bool { !onlyCards && !styledTypes.subtracting(["text", "image"]).isEmpty }
+    /// Two or more selected: they can be lined up (cards count as one each, not as their parts).
+    var showsAlign: Bool { alignCount >= 2 }
+    var alignCount: Int { onlyCards ? selectedCards : selection.count }
 }
 
 /// What the app asks the page to do.
@@ -318,6 +338,10 @@ enum CanvasCommand: Equatable, Sendable {
     case image(CanvasImage, at: CGPoint?)
     /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
     case sticky
+    /// What each note card's note says now, by what the card names (cards.js).
+    case cards([String: CanvasNoteCard])
+    /// Notes onto the board as cards, at a point of the page or in the middle of the view.
+    case addCards([CanvasNoteCard], at: CGPoint?)
 
     var payload: [String: Any] {
         switch self {
@@ -328,6 +352,10 @@ enum CanvasCommand: Equatable, Sendable {
         case .background(let c): ["op": "background", "color": c]
         case .insert(let t, let title): ["op": "insert", "elements": t.elements(titled: title)]
         case .sticky: ["op": "sticky"]
+        case .cards(let info): ["op": "cards", "info": info.mapValues(\.payload)]
+        case .addCards(let cards, let at):
+            ["op": "addCards", "notes": cards.map(\.payload)]
+                .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
         case .image(let i, let at):
             ["op": "image", "dataURL": i.dataURL, "mimeType": i.mimeType, "width": i.width, "height": i.height]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -367,9 +395,14 @@ final class CanvasController {
         // A save the store refused (a board over the size limit): said, not lost quietly.
         if let error = m["error"] as? String { confirm(error, for: .seconds(6)); return }
         if let r = m["remote"] as? [String: Any] { remoteChange(r); return }
+        if let ref = m["open"] as? String { openCard(ref); return }
         let next = CanvasState(m)
         if !connected { connected = true }
         if next != state { state = next }
+        if next.cardNotes != cardNotes {
+            cardNotes = next.cardNotes
+            refreshCards()
+        }
         if canUndo != next.canUndo { canUndo = next.canUndo }
         if canRedo != next.canRedo { canRedo = next.canRedo }
         if background != next.background { background = next.background }
@@ -459,6 +492,59 @@ final class CanvasController {
     }
 
     nonisolated(unsafe) static var highlightTime: Double = 4
+
+    // MARK: Note cards
+
+    /// The board's own note: never a card on itself.
+    @ObservationIgnored var noteID: UUID?
+    /// What each card's note says, by what the card names (a note's id, or an AI's title for
+    /// it). Set by the note's view (CanvasNoteCard.info).
+    @ObservationIgnored var cardInfo: (([String]) -> [String: CanvasNoteCard])?
+    /// Opens a note in the window (set by the note's view).
+    @ObservationIgnored var openNote: ((UUID) -> Void)?
+    /// The notes the cards name, as the page last said, and the notes those turned out to be.
+    @ObservationIgnored private(set) var cardNotes: [String] = []
+    @ObservationIgnored private(set) var cardIDs: Set<UUID> = []
+    /// The note picker is open (Add Note Card…).
+    var choosingNote = false
+
+    /// Each card says what its note says now: sent whenever the board's cards change, and when
+    /// one of their notes is saved.
+    func refreshCards() {
+        guard let cardInfo, !cardNotes.isEmpty else { return }
+        let info = cardInfo(cardNotes)
+        cardIDs = Set(info.values.compactMap(\.id))
+        send(.cards(info))
+    }
+
+    /// Notes were saved (nil: something was deleted for good): cards for them say what they say
+    /// now. A card that names a note by a title no note has yet looks again on every save.
+    func notesChanged(_ ids: Set<UUID>?) {
+        guard !cardNotes.isEmpty else { return }
+        if let ids, cardIDs.isDisjoint(with: ids), cardNotes.allSatisfy({ UUID(uuidString: $0) != nil }) { return }
+        refreshCards()
+    }
+
+    /// Notes onto the board as cards (a drop at a point of the page, or the picker's choice).
+    func addCards(_ ids: [UUID], at point: CGPoint? = nil) {
+        guard let cardInfo else { return }
+        let refs = ids.filter { $0 != noteID }.prefix(10).map(\.uuidString)
+        let info = cardInfo(Array(refs))
+        let cards = refs.compactMap { info[$0] }.filter { $0.id != nil && !$0.deleted }
+        guard !cards.isEmpty else { return }
+        send(.addCards(cards, at: point))
+    }
+
+    /// A card was opened (double-click, ⌘-click, Open Note): its note, or why not.
+    func openCard(_ ref: String) {
+        guard let card = cardInfo?([ref])[ref] else { return }
+        guard !card.deleted, let id = card.id else {
+            confirm(card.preview == CanvasNoteCard.missingText ? "No note has this title" : "This note was deleted")
+            return
+        }
+        guard id != noteID else { return }
+        openNote?(id)
+    }
 
     func pick(_ tool: CanvasTool) { send(.tool(tool)) }
     func run(_ action: CanvasCommand.Action) { send(.action(action)) }

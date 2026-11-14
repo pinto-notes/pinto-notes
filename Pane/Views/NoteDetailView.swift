@@ -184,6 +184,8 @@ struct NoteDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave, object: context)) { saved in
                 WikiDirectory.take(saved)
                 refreshLinks(after: saved)
+                // A board's note cards follow their notes as they change.
+                if showingCanvas { canvasControls.notesChanged(context.savedNotes(saved).map { Set($0.notes.map(\.id)) }) }
             }
             // The library's titles and links were read off the main thread: links and "Linked from" follow.
             .onReceive(NotificationCenter.default.publisher(for: WikiDirectory.didRead, object: context)) { _ in refreshLinks() }
@@ -873,9 +875,14 @@ struct NoteDetailView: View {
                         .accessibilityHidden(!showingPage)
                         // Pictures dropped on a board go onto it, where they're dropped (its web
                         // view leaves image drags to this: NotePageWebView).
-                        .onDrop(of: CanvasImageDrop.types, isTargeted: nil) { providers, at in
+                        .onDrop(of: CanvasImageDrop.types + [.paneItem], isTargeted: nil) { providers, at in
                             guard showingCanvas else { return false }
-                            CanvasImageDrop.place(providers, at: at, on: canvasControls)
+                            // Notes from the list go on as cards (CanvasNoteDrop).
+                            if CanvasNoteDrop.carriesNotes(providers) {
+                                CanvasNoteDrop.place(providers, at: at, on: canvasControls)
+                            } else {
+                                CanvasImageDrop.place(providers, at: at, on: canvasControls)
+                            }
                             return true
                         }
                         #if os(iOS)
@@ -1353,6 +1360,7 @@ struct NoteDetailView: View {
             .onChange(of: note.title, initial: true) { _, t in
                 canvasControls.title = t
                 canvasControls.rename = { [weak note] name in if let note { _ = CanvasTitleField.renamed(note, to: name) } }
+                wireCanvasCards()
             }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
@@ -1472,6 +1480,18 @@ struct NoteDetailView: View {
             return
         }
         controller.wiki = WikiDirectory.scope(for: note, in: context)
+    }
+
+    /// A board's note cards: what each says, from its note, and opening one opens the note here, as
+    /// a link does.
+    private func wireCanvasCards() {
+        let id = note.id, context = self.context, open = onOpenNote, saver = self.saver
+        canvasControls.noteID = id
+        canvasControls.cardInfo = { refs in CanvasNoteCard.info(for: refs, from: context.note(id), in: context) }
+        canvasControls.openNote = { target in
+            saver.flush()
+            open(target, false)
+        }
     }
 
     /// A wiki link was tapped: open its note, or offer to make it, as Obsidian does.

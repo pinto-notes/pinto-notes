@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Testing
+import UniformTypeIdentifiers
 import WebKit
 #if os(macOS)
 import AppKit
@@ -908,6 +909,338 @@ import UIKit
         }
         #expect(before != nil && after == before, "the middle of the view is the same point of the drawing: \(before ?? "?") then \(after ?? "?")")
     }
+
+    // MARK: Note cards
+
+    /// What the app knows of each note, for the cards (CanvasNoteCard.info stands in).
+    @MainActor final class Library {
+        var notes: [String: CanvasNoteCard] = [:]
+        var asked = 0
+        var opened: [UUID] = []
+
+        func join(_ canvas: CanvasController, board: UUID? = nil) {
+            canvas.noteID = board
+            canvas.cardInfo = { [weak self] refs in
+                guard let self else { return [:] }
+                asked += 1
+                return refs.reduce(into: [:]) { out, r in out[r] = self.notes[r] ?? CanvasNoteCard(id: nil, title: nil, preview: CanvasNoteCard.missingText, deleted: true) }
+            }
+            canvas.openNote = { [weak self] id in self?.opened.append(id) }
+        }
+    }
+
+    static let plan = UUID(uuidString: "6F1C2A3B-0000-4000-8000-0000000000A1")!
+    static let press = UUID(uuidString: "6F1C2A3B-0000-4000-8000-0000000000B2")!
+    static let planCard = CanvasNoteCard(id: plan, title: "Launch plan", preview: "Ship the beta to the waitlist on Friday. Post on the blog and the newsletter the same morning, then answer replies.")
+    static let pressCard = CanvasNoteCard(id: press, title: "Press list", preview: "Who hears first, and when.")
+
+    /// Each part of each card on the page: its role, its note, its words, where it is.
+    static func cardParts(_ j: Joined) async throws -> [[String: Any]] {
+        let json = try await j.js("""
+        (() => JSON.stringify(amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote).map((e) => ({
+          id: e.id, type: e.type, role: e.customData.pintoCard || null, note: e.customData.pintoNote, title: e.customData.title || null,
+          text: e.text || null, group: (e.groupIds || [])[0] || null, groups: (e.groupIds || []).length, x: e.x, y: e.y, width: e.width, height: e.height,
+          strokeStyle: e.strokeStyle, strokeColor: e.strokeColor, link: e.link, fontFamily: e.fontFamily || null,
+        }))))()
+        """) as? String ?? "[]"
+        return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]] ?? []
+    }
+
+    static func part(_ parts: [[String: Any]], _ role: String, of note: String? = nil) -> [String: Any]? {
+        parts.first { $0["role"] as? String == role && (note == nil || ($0["note"] as? String) == note) }
+    }
+
+    /// The page's point (client coordinates) over a card's title, or over the middle of an element.
+    static func clientPoint(_ j: Joined, of filter: String, dy: Double? = nil) async throws -> CGPoint {
+        let r = try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, e = api.getSceneElements().find((e) => \(filter));
+          if (!e) return null; const y = \(dy.map { "e.y + \($0)" } ?? "e.y + e.height / 2");
+          return [(e.x + e.width / 2 + s.scrollX) * z + s.offsetLeft, (y + s.scrollY) * z + s.offsetTop]; })()
+        """) as? [Double]
+        let p = try #require(r, "found \(filter)")
+        return CGPoint(x: p[0], y: p[1])
+    }
+
+    /// A note from the app goes on as a card: one group of ordinary elements whose customData names
+    /// the note, its title and first lines in the card's own font, selected, one step Undo takes
+    /// back. The bar over it has Open Note and nothing to style.
+    @Test func aNoteFromTheAppGoesOnAsACardThatSaysWhatItsNoteSays() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        j.canvas.addCards([Self.plan])
+        await j.until("the card is on the board, selected") { j.canvas.state.card?.note == Self.plan.uuidString }
+        let parts = try await Self.cardParts(j)
+        let frame = try #require(Self.part(parts, "card"))
+        #expect(frame["type"] as? String == "rectangle" && frame["note"] as? String == Self.plan.uuidString && frame["title"] as? String == "Launch plan")
+        #expect(Self.part(parts, "title")?["text"] as? String == "Launch plan")
+        let preview = try #require(Self.part(parts, "preview")?["text"] as? String)
+        #expect(preview.hasPrefix("Ship the beta") && preview.split(separator: "\n").count <= 3, "the first lines, at most three: \(preview)")
+        #expect(parts.filter { $0["role"] as? String == "glyph" }.count == 2, "a note glyph")
+        #expect(Set(parts.compactMap { $0["group"] as? String }).count == 1 && parts.allSatisfy { $0["group"] is String }, "one group")
+        #expect(parts.allSatisfy { $0["link"] is NSNull || $0["link"] == nil }, "no web link on any part")
+        #expect(Self.part(parts, "title")?["fontFamily"] as? Int == 6, "the card's words in the normal font")
+        // Laid out inside the card.
+        let fx = frame["x"] as? Double ?? 0, fw = frame["width"] as? Double ?? 0, fy = frame["y"] as? Double ?? 0, fh = frame["height"] as? Double ?? 0
+        for p in parts where p["role"] as? String != "card" {
+            let x = p["x"] as? Double ?? 0, y = p["y"] as? Double ?? 0, w = p["width"] as? Double ?? 0, h = p["height"] as? Double ?? 0
+            #expect(x >= fx && y >= fy && x + w <= fx + fw + 0.5 && y + h <= fy + fh + 0.5, "\(p["role"] ?? "?") is inside the card")
+        }
+        let s = j.canvas.state
+        #expect(s.onlyCards && s.selectedCards == 1 && s.showsSelectionBar)
+        #expect(!s.showsStroke && !s.showsFill && !s.showsText && !s.showsAlign, "nothing to style on a card")
+        #expect(s.cardNotes == [Self.plan.uuidString])
+        #expect(j.canvas.canUndo)
+        j.canvas.run(.undo)
+        await j.until("Undo takes it back") { j.canvas.state.cardNotes.isEmpty }
+        // A deleted note, or the board itself, doesn't go on.
+        library.notes[Self.press.uuidString] = CanvasNoteCard(id: Self.press, title: nil, preview: "Note deleted", deleted: true)
+        j.canvas.addCards([Self.press, j.canvas.noteID!])
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(j.canvas.state.cardNotes.isEmpty)
+    }
+
+    /// Double-click a card (or ⌘-click it, or Open Note on its bar or its right-click menu) and its
+    /// note opens; the engine doesn't start typing in the card's words. A card whose note is gone
+    /// says so and opens nothing; a double-click elsewhere opens nothing.
+    @Test func aCardOpensItsNote() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        j.canvas.addCards([Self.plan])
+        await j.until("the card is on") { j.canvas.state.card != nil }
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {}, selectedGroupIds: {} } }); return 1; })()")
+        await j.until("nothing selected") { !j.canvas.state.hasSelection }
+
+        // Double-click on its title, where the engine would start editing the words.
+        let title = try await Self.clientPoint(j, of: "e.customData && e.customData.pintoCard === 'title'")
+        _ = try await j.js("(() => { const el = document.elementFromPoint(\(title.x), \(title.y)), at = { bubbles: true, cancelable: true, view: window, clientX: \(title.x), clientY: \(title.y), pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0 }; for (let i = 0; i < 2; i++) { el.dispatchEvent(new PointerEvent('pointerdown', { ...at, buttons: 1 })); window.dispatchEvent(new PointerEvent('pointerup', { ...at, buttons: 0 })); } el.dispatchEvent(new MouseEvent('dblclick', { ...at, detail: 2 })); return el.tagName; })()")
+        await j.until("the note opened") { library.opened == [Self.plan] }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!j.canvas.state.editing, "no typing started in the card")
+        #expect(try await j.js("amber._canvas.api.getAppState().editingGroupId") is NSNull, "nor inside its group")
+
+        // ⌘-click.
+        let middle = try await Self.clientPoint(j, of: "e.customData && e.customData.pintoCard === 'card'")
+        _ = try await j.js("(() => { const el = document.elementFromPoint(\(middle.x), \(middle.y)), at = { bubbles: true, cancelable: true, view: window, clientX: \(middle.x), clientY: \(middle.y), pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, metaKey: true }; el.dispatchEvent(new PointerEvent('pointerdown', { ...at, buttons: 1 })); window.dispatchEvent(new PointerEvent('pointerup', { ...at, buttons: 0 })); return 1; })()")
+        await j.until("⌘-click opened it") { library.opened.count == 2 }
+
+        // A double-click on the box opens nothing.
+        let box = try await Self.clientPoint(j, of: "e.id === 'box'")
+        _ = try await j.js("(() => { const el = document.elementFromPoint(\(box.x), \(box.y)); el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: \(box.x), clientY: \(box.y), detail: 2 })); return 1; })()")
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(library.opened.count == 2)
+
+        // Selected: Open Note on the bar, and first in the right-click menu.
+        _ = try await j.js("(() => { const api = amber._canvas.api, ids = {}; api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote).forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids } }); return 1; })()")
+        await j.until("the card selected") { j.canvas.state.card != nil }
+        let card = try #require(j.canvas.state.card)
+        #expect(card.title == "Launch plan")
+        j.canvas.openCard(card.note)
+        #expect(library.opened.count == 3)
+        let web = try #require(j.web as? NotePageWebView)
+        let menu = web.canvasMenu()
+        #expect(menu.items.first?.title == CanvasSelectionBar.openNote)
+        menu.performActionForItem(at: 0)
+        #expect(library.opened.count == 4)
+
+        // Its note deleted: it says so and opens nothing.
+        library.notes[Self.plan.uuidString] = CanvasNoteCard(id: Self.plan, title: nil, preview: "Note deleted", deleted: true)
+        j.canvas.openCard(Self.plan.uuidString)
+        #expect(library.opened.count == 4)
+        #expect(j.canvas.notice == "This note was deleted")
+    }
+
+    /// A card follows its note: the board opening with a card whose note has since been renamed
+    /// shows the new title; a note edited while the board is open changes its card at once (a save
+    /// of any other note asks nothing); a deleted note's card says "Note deleted", quietly; what's
+    /// saved says the same.
+    @Test func aCardFollowsItsNoteWhenRenamedEditedOrDeleted() async throws {
+        // As saved on the last visit: the title it had then.
+        let old: [[String: Any]] = [["type": "rectangle", "id": "plan", "x": 0, "y": 0, "customData": ["pintoNote": Self.plan.uuidString, "title": "Launch plan draft"]]]
+        let j = try await Joined(scene: CanvasTests.scene(old))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        for _ in 0..<60 {
+            if try await Self.part(Self.cardParts(j), "title")?["text"] as? String == "Launch plan" { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        var parts = try await Self.cardParts(j)
+        #expect(Self.part(parts, "title")?["text"] as? String == "Launch plan")
+        #expect(Self.part(parts, "card")?["title"] as? String == "Launch plan")
+        #expect((Self.part(parts, "preview")?["text"] as? String)?.hasPrefix("Ship the beta") == true)
+        let tall = Self.part(parts, "card")?["height"] as? Double ?? 0
+
+        // Renamed and emptied while the board is open.
+        let asked = library.asked
+        j.canvas.notesChanged([UUID()])
+        #expect(library.asked == asked, "another note's save asks nothing")
+        library.notes[Self.plan.uuidString] = CanvasNoteCard(id: Self.plan, title: "Launch plan v2", preview: "")
+        j.canvas.notesChanged([Self.plan])
+        #expect(library.asked == asked + 1)
+        for _ in 0..<60 {
+            if try await Self.part(Self.cardParts(j), "title")?["text"] as? String == "Launch plan v2" { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        parts = try await Self.cardParts(j)
+        #expect(Self.part(parts, "title")?["text"] as? String == "Launch plan v2")
+        #expect(Self.part(parts, "preview") == nil, "nothing under the title")
+        #expect((Self.part(parts, "card")?["height"] as? Double ?? 0) < tall, "the card is shorter")
+
+        // Deleted.
+        library.notes[Self.plan.uuidString] = CanvasNoteCard(id: Self.plan, title: nil, preview: "Note deleted", deleted: true)
+        j.canvas.notesChanged([Self.plan])
+        for _ in 0..<60 {
+            if try await Self.part(Self.cardParts(j), "preview")?["text"] as? String == "Note deleted" { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        parts = try await Self.cardParts(j)
+        #expect(Self.part(parts, "preview")?["text"] as? String == "Note deleted")
+        #expect(Self.part(parts, "title")?["text"] as? String == "Launch plan v2", "the title it had")
+        #expect(Self.part(parts, "card")?["strokeStyle"] as? String == "dashed" && Self.part(parts, "title")?["strokeColor"] as? String == "#868e96", "quiet")
+
+        // What's saved says the same.
+        _ = try await j.js("(() => { amber._flush(); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        let saved = j.rig.elements.first { $0["id"] as? String == "plan" }
+        #expect((saved?["customData"] as? [String: Any])?["title"] as? String == "Launch plan v2")
+        #expect(j.rig.elements.contains { ($0["customData"] as? [String: Any])?["pintoCard"] as? String == "preview" && $0["text"] as? String == "Note deleted" })
+    }
+
+    /// An AI writes a card in the short form, a shape whose customData names a note by title: the
+    /// board draws it as a card where it was, keeping its id (an arrow bound to it stays bound and
+    /// still meets it), takes the note's id, and saves it back in full. One written while the board
+    /// is open is drawn too; a title no note has says so.
+    @Test func anAIsShortCardIsDrawnAsACard() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "draft", "x": -320, "y": 0, "width": 180, "height": 70, "label": ["text": "Draft"]],
+            ["type": "rectangle", "id": "plan", "x": 0, "y": -15, "width": 260, "height": 100, "customData": ["pintoNote": "Launch plan"], "label": ["text": "Launch plan"]],
+            ["type": "arrow", "id": "join", "x": -138, "y": 35, "width": 136, "height": 0, "start": ["id": "draft"], "end": ["id": "plan"]],
+        ]))
+        defer { j.close() }
+        let library = Library()
+        library.notes = ["Launch plan": Self.planCard, Self.plan.uuidString: Self.planCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        for _ in 0..<60 {
+            if try await Self.part(Self.cardParts(j), "card")?["note"] as? String == Self.plan.uuidString { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let parts = try await Self.cardParts(j)
+        let frame = try #require(Self.part(parts, "card"))
+        #expect(frame["id"] as? String == "plan" && frame["note"] as? String == Self.plan.uuidString, "its id kept, the note's id taken: \(frame)")
+        #expect(Self.part(parts, "title")?["text"] as? String == "Launch plan")
+        #expect((Self.part(parts, "preview")?["text"] as? String)?.hasPrefix("Ship the beta") == true)
+        let label = try await j.js("(() => amber._canvas.api.getSceneElements().filter((e) => e.containerId === 'plan').length)()") as? Int
+        #expect(label == 0, "the AI's own label gave way to the card's title")
+        // The arrow still joins it, and still meets its edge.
+        let arrow = try #require(try await j.js("(() => { const a = amber._canvas.api.getSceneElements().find((e) => e.id === 'join'); return JSON.stringify({ end: a.endBinding && a.endBinding.elementId, y: a.y + a.points[a.points.length - 1][1] }); })()") as? String)
+        let a = try JSONSerialization.jsonObject(with: Data(arrow.utf8)) as? [String: Any] ?? [:]
+        #expect(a["end"] as? String == "plan")
+        let fy = frame["y"] as? Double ?? 0, fh = frame["height"] as? Double ?? 0, ay = a["y"] as? Double ?? -1
+        #expect(ay >= fy && ay <= fy + fh, "the arrow ends on the card (\(ay) in \(fy)…\(fy + fh))")
+        // Saved back in full.
+        _ = try await j.js("(() => { amber._flush(); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(j.rig.elements.contains { $0["id"] as? String == "plan-title" && $0["text"] as? String == "Launch plan" })
+
+        // An AI adds another while the board is open; one names a note that isn't there.
+        var all = j.rig.elements
+        all.append(["type": "rectangle", "id": "press", "x": 0, "y": 200, "customData": ["pintoNote": "Press list"]])
+        all.append(["type": "rectangle", "id": "nope", "x": 0, "y": 400, "customData": ["pintoNote": "Nobody wrote this"]])
+        library.notes["Press list"] = Self.pressCard
+        library.notes[Self.press.uuidString] = Self.pressCard
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(all)], "collections": [String: Any]()])
+        for _ in 0..<80 {
+            let p = try await Self.cardParts(j)
+            if Self.part(p, "card", of: Self.press.uuidString) != nil, Self.part(p, "preview", of: "Nobody wrote this") != nil { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let now = try await Self.cardParts(j)
+        #expect(Self.part(now, "title", of: Self.press.uuidString)?["text"] as? String == "Press list")
+        #expect(Self.part(now, "preview", of: "Nobody wrote this")?["text"] as? String == CanvasNoteCard.missingText)
+        j.canvas.openCard("Nobody wrote this")
+        #expect(library.opened.isEmpty && j.canvas.notice == "No note has this title")
+    }
+
+    /// Export and the shared page's picture show a card as drawn, its title and first lines, with
+    /// no link in it; the .excalidraw file keeps which note it is.
+    @Test func aCardExportsAsDrawn() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        j.canvas.addCards([Self.plan])
+        await j.until("the card is on") { j.canvas.state.card != nil }
+        let svg = String(decoding: try #require(await j.canvas.export(.svg)), as: UTF8.self)
+        #expect(svg.contains("Launch plan") && svg.contains("Ship the beta"), "its words are in the picture")
+        #expect(!svg.contains("<a ") && !svg.contains("xlink:href=\"http") && !svg.contains("href=\"http"), "no link to follow")
+        #expect(await j.canvas.export(.png, light: true, page: "Product launch") != nil)
+        let file = String(decoding: try #require(await j.canvas.export(.excalidraw)), as: UTF8.self)
+        #expect(file.contains("\"pintoNote\"") && file.contains(Self.plan.uuidString))
+    }
+
+    /// Notes dragged from the list onto a board go on as cards where they're dropped, side by side;
+    /// the board itself doesn't, and a folder is refused with a word.
+    @Test func notesDroppedFromTheListGoOnAsCards() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        let library = Library()
+        let board = UUID()
+        library.notes = [Self.plan.uuidString: Self.planCard, Self.press.uuidString: Self.pressCard]
+        library.join(j.canvas, board: board)
+        try await j.ready()
+        func provider(_ item: PaneDragItem) -> NSItemProvider {
+            let p = NSItemProvider()
+            let data = try? JSONEncoder().encode(item)
+            p.registerDataRepresentation(forTypeIdentifier: UTType.paneItem.identifier, visibility: .all) { done in done(data, nil); return nil }
+            return p
+        }
+        let drop = [provider(PaneDragItem(kind: .note, id: Self.plan, others: [Self.press, board]))]
+        #expect(CanvasNoteDrop.carriesNotes(drop))
+        CanvasNoteDrop.place(drop, at: CGPoint(x: 300, y: 260), on: j.canvas)
+        await j.until("two cards") { j.canvas.state.cardNotes.count == 2 }
+        #expect(Set(j.canvas.state.cardNotes) == [Self.plan.uuidString, Self.press.uuidString], "not the board itself")
+        let first = try await Self.clientPoint(j, of: "e.customData && e.customData.pintoCard === 'card' && e.customData.pintoNote === '\(Self.plan.uuidString)'")
+        #expect(abs(first.x - 300) < 2, "the first card is centred where it was dropped: \(first)")
+        let second = try await Self.clientPoint(j, of: "e.customData && e.customData.pintoCard === 'card' && e.customData.pintoNote === '\(Self.press.uuidString)'")
+        #expect(second.x > first.x + 200, "the next beside it")
+        // A folder isn't a note.
+        CanvasNoteDrop.place([provider(PaneDragItem(kind: .folder, id: UUID()))], at: .zero, on: j.canvas)
+        await j.until("said") { j.canvas.notice == "Only notes and pictures can go on a whiteboard" }
+    }
+
+    /// The picker's choice goes in the middle of the view, clear of what's drawn there.
+    @Test func aCardFromThePickerGoesWhereNothingIsDrawn() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([["type": "rectangle", "id": "mid", "x": -100, "y": -60, "width": 200, "height": 120]]))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        _ = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(); api.updateScene({ appState: { scrollX: s.width / 2, scrollY: s.height / 2, zoom: { value: 1 } } }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(100))
+        j.canvas.addCards([Self.plan])
+        await j.until("on") { j.canvas.state.card != nil }
+        let overlap = try await j.js("""
+        (() => { const els = amber._canvas.api.getSceneElements(), f = els.find((e) => e.customData && e.customData.pintoCard === 'card'), m = els.find((e) => e.id === 'mid');
+          return f.x < m.x + m.width && f.x + f.width > m.x && f.y < m.y + m.height && f.y + f.height > m.y; })()
+        """) as? Bool
+        #expect(overlap == false, "not on top of the box")
+        let bounds = try #require(j.canvas.state.bounds)
+        #expect(bounds.minX >= 0 && bounds.maxX <= 900 && bounds.minY >= 0 && bounds.maxY <= 600, "in view: \(bounds)")
+    }
     #endif
 
     @Test func editUndoAndRedoReachTheDrawingsHistory() async throws {
@@ -1262,7 +1595,14 @@ import UIKit
             _ = board("Logo ideas", (0..<5).map { i in ["type": "freedraw", "x": Double(i) * 60, "y": 0, "width": 50, "height": 40,
                                                          "points": [[0, 20], [10, 0], [25, 35], [40, 5], [50, 25]]] }, ago: 1500)
             let note = board("Product launch", [], ago: 30)
+            // The notes behind the launch board's steps (its note cards, 24).
+            let planNote = c.mainContext.createNote(in: .all, body: "Launch plan\n\nShip the beta to the waitlist on Friday 21 November. Post on the blog and the newsletter the same morning.\n\n- [ ] Final copy by Wednesday\n- [ ] Screenshots from the 1.4 build\n")
+            planNote.updatedAt = .now.addingTimeInterval(-2400)
+            let pressNote = c.mainContext.createNote(in: .all, body: "Press list\n\nWho hears first, and when: tech press on Monday at 9, newsletters on Tuesday, podcast hosts after the launch.\n")
+            pressNote.updatedAt = .now.addingTimeInterval(-3000)
             try c.mainContext.save()
+            WikiDirectory.invalidate()
+            defer { WikiDirectory.invalidate() }
             try await AppSnapshotTests.withLastNote(c, "Product launch") {
                 @MainActor func window(_ size: CGSize) -> NSWindow {
                     let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
@@ -1454,6 +1794,60 @@ import UIKit
                     try await shot("22-sequence-3-undo", w, web)
                     canvas.run(.redo); await MacWindowChromeTests.settle(w, 10)
                     try await shot("22-sequence-4-redo", w, web)
+                }
+                // Note cards (whiteboard council, round 6): a launch flowchart whose first and last
+                // steps are joined to the notes behind them, written as an AI writes cards (by the
+                // notes' titles); then one card selected; then (light) one of the notes deleted
+                // while the board is open.
+                try await js("amber._canvas.api.updateScene({ elements: [], appState: { selectedElementIds: {} }, captureUpdate: 'IMMEDIATELY' })")
+                canvas.highlight = nil
+                for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                func step(_ id: String, _ type: String = "rectangle", x: Double, y: Double, w: Double = 200, h: Double = 80, _ text: String, _ fill: String) -> [String: Any] {
+                    var e: [String: Any] = ["type": type, "id": id, "x": x, "y": y, "width": w, "height": h, "label": ["text": text], "strokeColor": ink, "backgroundColor": fill, "fillStyle": "solid"]
+                    if type == "rectangle" { e["roundness"] = ["type": 3] }
+                    return e
+                }
+                let launch: [[String: Any]] = [
+                    ["type": "text", "x": -30, "y": -300, "text": canvas.title, "fontSize": 32, "strokeColor": ink],
+                    step("draft", x: 0, y: 0, "Draft the post", "#a5d8ff"),
+                    step("ready", "diamond", x: 280, y: -14, w: 180, h: 108, "Ready?", "#ffec99"),
+                    step("publish", x: 540, y: 0, "Publish", "#b2f2bb"),
+                    step("fix", x: 280, y: 170, w: 180, h: 70, "Fix it", "#ffc9c9"),
+                    ["type": "arrow", "x": 202, "y": 40, "width": 76, "height": 0, "start": ["id": "draft"], "end": ["id": "ready"], "strokeColor": ink],
+                    ["type": "arrow", "x": 462, "y": 40, "width": 76, "height": 0, "start": ["id": "ready"], "end": ["id": "publish"], "strokeColor": ink, "label": ["text": "yes"]],
+                    ["type": "arrow", "x": 370, "y": 96, "width": 0, "height": 72, "points": [[0, 0], [0, 72]], "start": ["id": "ready"], "end": ["id": "fix"], "strokeColor": ink, "label": ["text": "no"]],
+                    // The notes, as an AI writes a card: a shape whose customData names the note.
+                    ["type": "rectangle", "id": "plan", "x": -30, "y": -200, "width": 260, "height": 111, "customData": ["pintoNote": "Launch plan"]],
+                    ["type": "rectangle", "id": "press", "x": 510, "y": -200, "width": 260, "height": 111, "customData": ["pintoNote": "Press list"]],
+                    ["type": "arrow", "x": 100, "y": -86, "width": 0, "height": 82, "points": [[0, 0], [0, 82]], "start": ["id": "plan"], "end": ["id": "draft"], "strokeColor": ink, "strokeStyle": "dashed", "startArrowhead": NSNull(), "endArrowhead": NSNull()],
+                    ["type": "arrow", "x": 640, "y": -86, "width": 0, "height": 82, "points": [[0, 0], [0, 82]], "start": ["id": "press"], "end": ["id": "publish"], "strokeColor": ink, "strokeStyle": "dashed", "startArrowhead": NSNull(), "endArrowhead": NSNull()],
+                ]
+                let json = String(decoding: try JSONSerialization.data(withJSONObject: launch), as: UTF8.self)
+                try await js("amber._canvasCommand({ op: 'insert', elements: \(json) })")
+                // Until both cards have found their notes (they then name them by id).
+                for _ in 0..<150 where canvas.state.cardNotes.count < 2 || canvas.state.cardNotes.contains(where: { UUID(uuidString: $0) == nil }) {
+                    await MacWindowChromeTests.settle(w, 2)
+                }
+                #expect(Set(canvas.state.cardNotes) == [planNote.id.uuidString, pressNote.id.uuidString], "both cards found their notes")
+                await MacWindowChromeTests.settle(w, 20)
+                try await shot("24-note-card-board", w, web)
+                try await js("const api = amber._canvas.api, ids = {}, groups = {}; api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote === '\(planNote.id.uuidString)').forEach((e) => { ids[e.id] = true; if (e.groupIds[0]) groups[e.groupIds[0]] = true; }); api.updateScene({ appState: { selectedElementIds: ids, selectedGroupIds: groups } })")
+                for _ in 0..<50 where canvas.state.card == nil { await MacWindowChromeTests.settle(w, 1) }
+                await MacWindowChromeTests.settle(w, 5)
+                try await shot("24-note-card-selected", w, web)
+                if !dark {
+                    // Deleted while the board is open: its card says so, quietly.
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {}, selectedGroupIds: {} } })")
+                    pressNote.trashedAt = .now
+                    pressNote.touchKeepingDate()
+                    try c.mainContext.save()
+                    for _ in 0..<100 {
+                        let said = try? await web.evaluateJavaScript("(() => amber._canvas.api.getSceneElements().some((e) => e.customData && e.customData.pintoCard === 'preview' && e.text === 'Note deleted'))()") as? Bool
+                        if said == true { break }
+                        await MacWindowChromeTests.settle(w, 2)
+                    }
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("24-note-card-deleted", w, web)
                 }
             }
         }

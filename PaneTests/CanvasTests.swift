@@ -81,6 +81,102 @@ import AppKit
         #expect(r.summary == "ChatGPT added 3 shapes and 2 arrows")
     }
 
+    // MARK: Note cards
+
+    /// A card says what its note says: found by id, or by title from the board's folder as a
+    /// [[link]] is; "Locked" for a locked note; "Note deleted" once it's in Recently Deleted or gone
+    /// for good; a title no note has says so. Neither of those opens.
+    @Test func aCardsNoteIsFoundByIdOrTitleAndSaysWhenItsGone() throws {
+        let c = try Self.container()
+        let ctx = c.mainContext
+        let work = ctx.createFolder(named: "Work")
+        let plan = ctx.createNote(in: .folder(work.id), body: "Launch plan\n\n## Goals\n- [ ] Ship the **beta** on Friday\nSee [[Press list|the press list]]\n![shot](pane-file:6F1C2A3B-0000-4000-8000-000000000001)\n")
+        let other = ctx.createNote(in: .all, body: "Launch plan\n\nAn older one, outside Work.")
+        other.updatedAt = .now.addingTimeInterval(-600)
+        let locked = ctx.createNote(in: .all, body: "Salaries\n\nNot for the board.")
+        locked.lockedBody = "sealed"
+        let board = CanvasNote.make(in: .folder(work.id), context: ctx)
+        try ctx.save()
+        WikiDirectory.invalidate()
+        defer { WikiDirectory.invalidate() }
+
+        let gone = UUID()
+        let info = CanvasNoteCard.info(for: [plan.id.uuidString, "Launch plan", "Work/Launch plan", locked.id.uuidString, "No such note", gone.uuidString], from: board, in: ctx)
+        #expect(info[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: "Launch plan", preview: "Goals Ship the beta on Friday See the press list"))
+        #expect(info["Launch plan"]?.id == plan.id, "a title is found from the board's folder first")
+        #expect(info["Work/Launch plan"]?.id == plan.id)
+        #expect(info[locked.id.uuidString] == CanvasNoteCard(id: locked.id, title: locked.title, preview: "Locked"), "never a locked note's text")
+        #expect(info["No such note"] == CanvasNoteCard(id: nil, title: nil, preview: CanvasNoteCard.missingText, deleted: true))
+        #expect(info[gone.uuidString] == CanvasNoteCard(id: gone, title: nil, preview: "Note deleted", deleted: true))
+
+        // Renamed and edited: the card says the new title and lines.
+        plan.body = "Launch plan v2\n\nShip on Monday instead."
+        #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: "Launch plan v2", preview: "Ship on Monday instead."))
+        // In Recently Deleted: deleted, its title left as the card has it.
+        ctx.trash(plan)
+        #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: nil, preview: "Note deleted", deleted: true))
+        // A whiteboard's card shows its words.
+        let flow = CanvasNote.make(in: .all, context: ctx, scene: Self.scene([["type": "rectangle", "id": "s", "x": 0, "y": 0, "width": 100, "height": 50, "label": ["text": "Start"]],
+                                                                               ["type": "text", "id": "t", "x": 0, "y": 80, "text": "Then ship it"]]), named: "Onboarding flow")
+        #expect(CanvasNoteCard.info(for: [flow.id.uuidString], from: board, in: ctx)[flow.id.uuidString]?.preview == "Start \u{00B7} Then ship it")
+        // A long note: about three lines' worth.
+        #expect(CanvasNoteCard.preview(of: "Title\n" + String(repeating: "word ", count: 200)).count <= CanvasNoteCard.previewLength)
+    }
+
+    /// A card on a board is one thing: its note's title in the list's preview and search (not its
+    /// glyph or the note's lines), one box in the row's sketch, and "added the Launch plan card" in
+    /// an AI's receipt.
+    @Test func aCardOnABoardIsOneThingInTheListAndTheReceipt() {
+        let id = UUID().uuidString
+        let card: [[String: Any]] = [
+            ["type": "rectangle", "id": "c", "x": 300, "y": 0, "width": 260, "height": 111, "customData": ["pintoNote": id, "title": "Launch plan", "pintoCard": "card"]],
+            ["type": "line", "id": "c-glyph", "x": 316, "y": 16, "width": 14, "height": 18, "points": [[0, 0], [14, 18]], "customData": ["pintoNote": id, "pintoCard": "glyph"]],
+            ["type": "text", "id": "c-title", "x": 340, "y": 14, "text": "Launch plan", "customData": ["pintoNote": id, "pintoCard": "title"]],
+            ["type": "text", "id": "c-preview", "x": 316, "y": 42, "text": "Ship the beta on Friday", "customData": ["pintoNote": id, "pintoCard": "preview"]],
+        ]
+        let box: [String: Any] = ["type": "rectangle", "id": "a", "x": 0, "y": 0, "width": 100, "height": 50, "label": ["text": "Draft"]]
+        let sketch = CanvasSketch(elements: [box] + card)
+        #expect(sketch.preview == "Draft \u{00B7} Launch plan")
+        #expect(sketch.shapes.count == 2, "the card is one box: \(sketch.shapes.map(\.kind))")
+        func doc(_ els: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(els)], "collections": [String: Any]()] }
+        #expect(CanvasNote.change(from: doc([box]), to: doc([box] + card)) == "added the Launch plan card")
+        // An AI's short form, named by title: the same.
+        let short: [String: Any] = ["type": "rectangle", "id": "p", "x": 0, "y": 200, "customData": ["pintoNote": "Work/Press list"]]
+        #expect(CanvasNote.change(from: doc([box]), to: doc([box, short])) == "added the Press list card")
+        #expect(CanvasSketch(elements: [short]).texts.isEmpty, "no title yet, no words")
+    }
+
+    /// The bar over one card offers Open Note and nothing to style; two cards line up as cards.
+    @Test func aSelectedCardHasNothingToStyleAndLinesUpAsOne() {
+        var m: [String: Any] = ["tool": "selection", "selection": ["rectangle", "line", "line", "text", "text"], "bounds": ["x": 10, "y": 10, "width": 260, "height": 111],
+                                "card": ["note": "N", "title": "Launch plan"], "selectedCards": 1, "onlyCards": true, "cardNotes": ["N"]]
+        let one = CanvasState(m)
+        #expect(one.card == CanvasState.Card(note: "N", title: "Launch plan") && one.cardNotes == ["N"])
+        #expect(one.showsSelectionBar && !one.showsStroke && !one.showsFill && !one.showsText && !one.showsArrowheads && !one.showsAlign)
+        m["card"] = nil; m["selectedCards"] = 2; m["selection"] = Array(repeating: "text", count: 10)
+        let two = CanvasState(m)
+        #expect(two.card == nil && two.showsAlign && two.alignCount == 2)
+        // A card with a shape: the shape's style shows, as before.
+        m["onlyCards"] = false; m["selectedCards"] = 1; m["selection"] = ["rectangle", "line", "text", "ellipse"]
+        #expect(CanvasState(m).showsStroke && CanvasState(m).showsFill)
+    }
+
+    /// Add Note Card…'s search: titles starting with what's typed first, then those holding it,
+    /// newest first; never the board itself.
+    @Test func theNotePickerFindsNotesByTitle() {
+        let board = UUID(), a = UUID(), b = UUID(), c = UUID()
+        let entries = [
+            WikiIndex.Entry(id: a, title: "Press list", folders: [], updated: .now.addingTimeInterval(-60)),
+            WikiIndex.Entry(id: b, title: "Launch plan", folders: ["Work"], updated: .now.addingTimeInterval(-120)),
+            WikiIndex.Entry(id: c, title: "Plan for the launch party", folders: [], updated: .now),
+            WikiIndex.Entry(id: board, title: "Launch board", folders: [], updated: .now),
+        ]
+        #expect(CanvasNotePicker.matches(entries, query: "", excluding: board).map(\.id) == [c, a, b])
+        #expect(CanvasNotePicker.matches(entries, query: "plan", excluding: board).map(\.id) == [c, b])
+        #expect(CanvasNotePicker.matches(entries, query: "LAUNCH", excluding: board).map(\.id) == [b, c])
+        #expect(CanvasNotePicker.matches(entries, query: "zebra", excluding: board).isEmpty)
+    }
+
     @Test func newCanvasMakesACanvasNoteWithAnEmptyScene() throws {
         let c = try Self.container()
         let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
