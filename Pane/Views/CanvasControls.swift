@@ -37,6 +37,8 @@ struct CanvasOverlay: View {
                     CanvasStart(canvas: canvas, targets: targets, subject: subject)
                         .transition(.opacity)
                 }
+                // Presenting shows only the Present bar (round 6: the zoom and tools stayed).
+                if canvas.state.present == nil {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     #if os(macOS)
@@ -60,6 +62,7 @@ struct CanvasOverlay: View {
                     CanvasDock(canvas: canvas)
                         .padding(.bottom, CanvasDock.margin)
                     #endif
+                }
                 }
                 if let p = canvas.state.present {
                     if let frame = p.frame {
@@ -144,6 +147,19 @@ struct CanvasPresentBar: View {
                 .help("Next (\u{2192} or Space)")
                 .accessibilityLabel("Next")
                 .accessibilityIdentifier("canvas.present.next")
+            // The laser, lit while it's on (round 6: nothing showed it was on).
+            let laser = canvas.state.tool == .laser
+            Button { canvas.send(.tool(laser ? .selection : .laser)) } label: {
+                Image(systemName: "cursorarrow.rays")
+                    .foregroundStyle(laser ? Color.white : Color.primary)
+                    .frame(width: 28, height: 28)
+                    .background(laser ? Color.red : Color.clear, in: .circle)
+            }
+            .help(laser ? "Laser pointer on (K)" : "Laser pointer (K)")
+            .accessibilityLabel("Laser pointer")
+            .accessibilityValue(laser ? "On" : "Off")
+            .accessibilityIdentifier("canvas.present.laser")
+            .padding(.leading, 6)
             Button("Done") { canvas.send(.present(.stop)) }
                 .help("Stop presenting (Esc)")
                 .accessibilityIdentifier("canvas.present.done")

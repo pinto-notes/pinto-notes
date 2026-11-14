@@ -31,6 +31,8 @@ struct RootView: View {
     @State private var canvasFocus = FullScreen()
     /// Present put the board in Full Screen (and Done takes it out again).
     @State private var presentTookWindow = false
+    /// A board is presenting: the window's toolbar goes, only the Present bar stays (round 6).
+    @State private var presenting = false
     /// The note list slid in over a focused canvas, from the window's left edge.
     @State private var peeking = CanvasEdgePeekFlag.startShown
     /// The sidebar step, kept per window (SidebarToggle.next).
@@ -714,7 +716,9 @@ struct RootView: View {
             .onReceive(NotificationCenter.default.publisher(for: .paneImportWhiteboards)) { n in importWhiteboards(n.object as? [URL] ?? []) }
             #if os(macOS)
             // Presenting a board takes the window; Done gives back the columns if it took them.
+            .toolbar(presenting ? .hidden : .automatic, for: .windowToolbar)
             .onReceive(NotificationCenter.default.publisher(for: .paneCanvasPresenting)) { n in
+                presenting = n.object as? Bool == true
                 if n.object as? Bool == true {
                     presentTookWindow = !canvasFocused
                     if presentTookWindow { enterFullScreen() }

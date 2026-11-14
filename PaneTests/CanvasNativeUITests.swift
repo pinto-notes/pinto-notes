@@ -783,6 +783,22 @@ import UIKit
         #expect(j.canvas.state.present?.name == "Plan")
         try await Task.sleep(for: .milliseconds(700))
         #expect(try await j.js(frameInView("f2")) as? Bool == true, "the second frame fills the view")
+        // The frame's name and outline are hidden while presenting: the bar names it (round 6).
+        #expect(try await j.js("(() => { const r = amber._canvas.api.getAppState().frameRendering; return !r.name && !r.outline; })()") as? Bool == true)
+        // The window grows (Full Screen hides the columns): the step fits again (round 6, 25-present-1).
+        let size0 = j.web.frame.size
+        j.rig.window.setContentSize(CGSize(width: size0.width + 500, height: size0.height + 200))
+        j.web.frame = CGRect(x: 0, y: 0, width: size0.width + 500, height: size0.height + 200)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === 'f2'); return f.width * z > s.width * 0.8 || f.height * z > s.height * 0.8; })()") as? Bool == true, "refitted to the larger window")
+        // The laser toggles off and on from the Present bar.
+        j.canvas.send(.tool(.selection))
+        await j.until("laser off") { j.canvas.state.tool == .selection }
+        j.canvas.send(.tool(.laser))
+        await j.until("laser on") { j.canvas.state.tool == .laser }
+        j.rig.window.setContentSize(size0)
+        j.web.frame = CGRect(origin: .zero, size: size0)
+        try await Task.sleep(for: .milliseconds(500))
         // Where it is on screen, for the cover over the rest of the board (round 6).
         let shown = try #require(j.canvas.state.present?.frame)
         let real = try #require(try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === 'f2'); return [(f.x + s.scrollX) * z, (f.y + s.scrollY) * z, f.width * z, f.height * z].map(Math.round).join(','); })()") as? String)
@@ -797,6 +813,7 @@ import UIKit
         #expect(j.canvas.state.tool == .selection)
         let after = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.zoom.value, s.scrollX, s.scrollY].join(','); })()") as? String
         #expect(after == before, "the view as it was before presenting: \(before) → \(after ?? "")")
+        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.name") as? Bool == true, "frame names back after")
         // No frames: one step, the whole board.
         _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'frame').map((e) => ({ ...e, frameId: null })) }); return 0; })()")
         j.canvas.send(.present(.start))

@@ -484,19 +484,26 @@ export function present(api, to) {
     if (!presenting) return;
     // Done: the view you had before, its middle in the middle (round 5, 25-present-done: it
     // stayed zoomed into the last frame).
-    const b = presenting.back;
+    const b = presenting.back, labels = presenting.labels;
     presenting = null;
     api.setActiveTool({ type: "selection" });
-    if (b) api.updateScene({ appState: { zoom: { value: b.z }, scrollX: -b.cx + v.width / 2 / b.z, scrollY: -b.cy + v.height / 2 / b.z }, captureUpdate: CaptureUpdateAction.NEVER });
+    if (b) api.updateScene({ appState: { zoom: { value: b.z }, scrollX: -b.cx + v.width / 2 / b.z, scrollY: -b.cy + v.height / 2 / b.z, ...(labels ? { frameRendering: labels } : {}) }, captureUpdate: CaptureUpdateAction.NEVER });
     return;
   }
   const steps = presentSteps(api);
   const at = to === "start" || !presenting ? 0 : to === "next" ? presenting.index + 1 : to === "prev" ? presenting.index - 1 : +to;
   const index = Math.max(0, Math.min(steps.length - 1, Number.isFinite(at) ? at : 0));
   const back = presenting ? presenting.back : { z: vz, cx: -v.scrollX + v.width / 2 / vz, cy: -v.scrollY + v.height / 2 / vz };
-  presenting = { index, back };
-  if (to === "start") api.updateScene({ appState: { selectedElementIds: {} }, captureUpdate: CaptureUpdateAction.NEVER });
-  api.setActiveTool({ type: "laser" });
+  const first = !presenting;
+  // The frame's own name and outline go while presenting: the Present bar names it (round 6:
+  // the name showed twice).
+  const labels = presenting ? presenting.labels : v.frameRendering;
+  presenting = { index, back, labels };
+  if (first) {
+    api.updateScene({ appState: { selectedElementIds: {}, frameRendering: { ...(labels || {}), enabled: true, name: false, outline: false } }, captureUpdate: CaptureUpdateAction.NEVER });
+    // Laser on to start; after that the Present bar's toggle decides.
+    api.setActiveTool({ type: "laser" });
+  }
   const step = steps[index];
   const els = api.getSceneElements();
   const target = step.id ? els.filter((e) => e.id === step.id) : els;
@@ -1090,7 +1097,10 @@ function Canvas({ initial }) {
       // A board that was whole stays whole, down to half size (round 4, 15: a narrower window
       // cut the flowchart on both sides); one cut off already stays as it is. More room (Full
       // Screen, a wider window): the whole board if it now fits and was cut off (round 3, 13).
-      if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size });
+      // Presenting: the step fits the new size (round 6, 25-present-1: step 1 was fitted
+      // before Full Screen hid the columns, under-zoomed with the next frame at the edge).
+      if (presenting) present(api, presenting.index);
+      else if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size });
       else if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true, size });
     });
     if (area) keepCentre.observe(area);
