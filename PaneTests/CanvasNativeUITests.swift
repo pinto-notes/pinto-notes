@@ -1055,6 +1055,17 @@ import UIKit
     static let pressCard = CanvasNoteCard(id: press, title: "Press list", preview: "Who hears first, and when.")
 
     /// Each part of each card on the page: its role, its note, its words, where it is.
+    /// A colour's contrast with the board's paper, as drawn in light, or through the dark filter
+    /// (invert, then hue-rotate 180°) in dark.
+    static func contrast(_ hex: String, dark: Bool) -> Double {
+        func rgb(_ h: String) -> [Double] { let n = Int(h.dropFirst(), radix: 16) ?? 0; return [Double((n >> 16) & 255), Double((n >> 8) & 255), Double(n & 255)] }
+        let rot = [[-0.574, 1.43, 0.144], [0.426, 0.43, 0.144], [0.426, 1.43, -0.856]]
+        func shown(_ c: [Double]) -> [Double] { dark ? rot.map { r in min(255, max(0, (0..<3).reduce(0) { $0 + r[$1] * (255 - c[$1]) })) } : c }
+        func lum(_ c: [Double]) -> Double { let f = { (v: Double) -> Double in let s = v / 255; return s <= 0.03928 ? s / 12.92 : pow((s + 0.055) / 1.055, 2.4) }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]) }
+        let a = lum(shown(rgb(hex))), b = lum(shown([255, 255, 255]))
+        return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+    }
+
     static func cardParts(_ j: Joined) async throws -> [[String: Any]] {
         let json = try await j.js("""
         (() => JSON.stringify(amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote).map((e) => ({
@@ -1103,6 +1114,13 @@ import UIKit
         #expect(Set(parts.compactMap { $0["group"] as? String }).count == 1 && parts.allSatisfy { $0["group"] is String }, "one group")
         #expect(parts.allSatisfy { $0["link"] is NSNull || $0["link"] == nil }, "no web link on any part")
         #expect(Self.part(parts, "title")?["fontFamily"] as? Int == 6, "the card's words in the normal font")
+        // Readable in light and in dark (drawn through the dark filter): the excerpt at 4.5:1 or
+        // more, the edge at 2:1 or more (whiteboard council, round 7: both faded out in dark mode).
+        let ink = try #require(Self.part(parts, "preview")?["strokeColor"] as? String), edge = try #require(frame["strokeColor"] as? String)
+        for dark in [false, true] {
+            #expect(Self.contrast(ink, dark: dark) >= 4.5, "the excerpt \(ink) in \(dark ? "dark" : "light"): \(Self.contrast(ink, dark: dark))")
+            #expect(Self.contrast(edge, dark: dark) >= 2, "the edge \(edge) in \(dark ? "dark" : "light"): \(Self.contrast(edge, dark: dark))")
+        }
         // Laid out inside the card.
         let fx = frame["x"] as? Double ?? 0, fw = frame["width"] as? Double ?? 0, fy = frame["y"] as? Double ?? 0, fh = frame["height"] as? Double ?? 0
         for p in parts where p["role"] as? String != "card" {

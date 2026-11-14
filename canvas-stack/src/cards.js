@@ -15,9 +15,11 @@ import { convertToExcalidrawElements, getCommonBounds, viewportCoordsToSceneCoor
 export const CARD = {
   width: 260, pad: 16, top: 14, gap: 6, font: 6, lineHeight: 1.25,
   title: { size: 18, lines: 2, ink: "#2a1d10" },
-  preview: { size: 14, lines: 3, ink: "#868e96" },
+  // Readable in light (4.7:1 on white) and through the dark filter (6.2:1); the edge shows in
+  // both (whiteboard council, round 7: the excerpt and edge faded out in dark mode).
+  preview: { size: 14, lines: 3, ink: "#6c757d" },
   glyph: { w: 14, h: 18, fold: 5, ink: "#d96a06" },
-  edge: "#ced4da", fill: "#ffffff", quiet: "#868e96",
+  edge: "#adb5bd", oldEdge: "#ced4da", fill: "#ffffff", quiet: "#868e96",
 };
 
 const data = (e) => (e && e.customData) || {};
@@ -242,7 +244,8 @@ export function refreshCards(elements, info) {
     const preview = quiet ? got.preview || "Note deleted" : got.preview || "";
     const note = got.id || ref;
     const at = layout({ x: c.frame.x, y: c.frame.y, width: c.frame.width, title, preview, quiet });
-    set(c.frame, { height: at.frame.height, strokeStyle: at.frame.strokeStyle, customData: { ...data(c.frame), pintoNote: note, title } });
+    set(c.frame, { height: at.frame.height, strokeStyle: at.frame.strokeStyle, customData: { ...data(c.frame), pintoNote: note, title },
+      ...(c.frame.strokeColor === CARD.oldEdge ? { strokeColor: CARD.edge } : {}) });
     const arrows = follow(elements, c.frame.id, { y: c.frame.y, height: c.frame.height }, { y: c.frame.y, height: at.frame.height }, (a) => changes.get(a.id) || a);
     for (const a of elements) if (arrows.has(a.id)) { const m = arrows.get(a.id); set(a, { x: m.x, y: m.y, points: m.points, width: m.width, height: m.height }); }
     const glyphAt = c.glyphs.length ? Math.min(...c.glyphs.map((g) => g.y)) : 0;
