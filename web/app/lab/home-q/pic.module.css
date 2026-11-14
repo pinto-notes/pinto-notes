@@ -9,10 +9,10 @@
    window centred in it with the same inset on every side, whole, never cut. ── */
 .frame { position: relative; width: 100%; height: 680px; border-radius: var(--q-frame-radius); background: var(--tone, #f3e2cb);
   box-shadow: inset 0 0 0 1px rgba(80, 45, 10, 0.07); overflow: hidden; container-type: inline-size; }
-.frame[data-tone="write"] { --tone: #f3e2cb; }
-.frame[data-tone="draw"] { --tone: #ece3d3; }
-.frame[data-tone="build"] { --tone: #f1dcc4; }
-.frame[data-tone="ai"] { --tone: #f4dabf; }
+.frame[data-tone="write"] { --tone: #f2e2c9; }
+.frame[data-tone="draw"] { --tone: #dfe4d4; }
+.frame[data-tone="build"] { --tone: #f5d6bf; }
+.frame[data-tone="ai"] { --tone: #e5deec; }
 .inset { position: absolute; inset: 56px; display: flex; gap: 32px; align-items: stretch; }
 .inset > .win { flex: 1; }
 /* AI: the chat and the result side by side, both straight, their tops in line. */
@@ -260,3 +260,11 @@
 .peek { display: grid; gap: 2px; margin: 8px 0 0 28px; padding: 10px 14px; border-radius: 10px; background: #fff; font-size: 12.5px; color: #6f6a64; box-shadow: 0 0 0 0.5px #e0d8cd, 0 10px 20px -12px rgba(0, 0, 0, 0.3); }
 .peek b { color: #1d1b19; font-size: 13.5px; }
 .chev { font-style: normal; color: #a39a90; font-size: 15px; }
+
+/* Each frame gets a soft light from above, so the flat tone reads as paper under a lamp. */
+.frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 80% at 50% -10%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 60%); }
+/* Live frames (Live.tsx): the marked steps play once, in order, when the frame comes into view. */
+.frame[data-arm] [data-step] { opacity: 0; transform: translateY(6px) scale(0.92); }
+.frame[data-arm][data-in] [data-step] { animation: q-step 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; animation-delay: calc(var(--s, 0) * 420ms + 250ms); }
+@keyframes q-step { to { opacity: 1; transform: none; } }

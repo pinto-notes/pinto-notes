@@ -4,6 +4,7 @@ import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { display } from "./fonts";
 import { Hero } from "./Hero";
+import { Live } from "./Live";
 import { AiChat, AiWin, BuildWin, Devices, DrawWin, HistoryMini, ImportMini, LinkMini, LockMini, SlashMini, TableMini, WriteWin } from "./Pictures";
 import p from "./pic.module.css";
 import s from "./q.module.css";
@@ -42,7 +43,7 @@ function Section({ id, title, line, link, className = "", children }: {
 
 /** The frame: a flat warm tone, the app centred in it with the same inset on every side. */
 function Frame({ tone, children }: { tone: "write" | "draw" | "build" | "ai"; children: React.ReactNode }) {
-  return <div className={p.frame} data-tone={tone}><div className={p.inset}>{children}</div></div>;
+  return <Live className={p.frame} tone={tone}><div className={p.inset}>{children}</div></Live>;
 }
 
 /** Three small things, each with a piece of the real UI big enough to read. */

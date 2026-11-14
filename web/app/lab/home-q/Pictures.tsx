@@ -69,7 +69,7 @@ export function WriteWin() {
           <p className={s.noteTitle}>Groceries</p>
           <p className={s.noteText}>For the weekend, and Sunday dinner with Sara and Jonas.</p>
           <ul className={s.check}>
-            {items.map(([t, on]) => <li key={t} data-on={on || undefined}><i>{on && <Tick />}</i>{t}</li>)}
+            {items.map(([t, on], i) => <li key={t} data-on={on || undefined}><i data-step={on || undefined} style={on ? ({ "--s": i - 8 } as React.CSSProperties) : undefined}>{on && <Tick />}</i>{t}</li>)}
           </ul>
           <p className={s.mention}>Mentioned in 1 note ›</p>
         </div>
@@ -125,9 +125,9 @@ export function BuildWin({ list = true }: { list?: boolean }) {
           <ul className={s.aList}>
             {rows.map(([t, sub, st]) => (
               <li key={t}>
-                <span><b>{t}</b><small>{sub}</small></span>
+                <span><b>{t}</b><small data-step={t === "Gym" || undefined} style={t === "Gym" ? ({ "--s": 1 } as React.CSSProperties) : undefined}>{sub}</small></span>
                 {st === "count" ? <span className={s.aCount}><i>–</i><i data-ring="">+</i></span>
-                  : <i className={s.aTick} data-on={st === "done" ? "" : undefined}><svg viewBox="0 0 16 16"><path d="M4 8.4l2.6 2.6L12 5.4" /></svg></i>}
+                  : <i className={s.aTick} data-on={st === "done" ? "" : undefined} data-step={t === "Gym" || undefined} style={t === "Gym" ? ({ "--s": 0 } as React.CSSProperties) : undefined}><svg viewBox="0 0 16 16"><path d="M4 8.4l2.6 2.6L12 5.4" /></svg></i>}
               </li>
             ))}
           </ul>
@@ -156,9 +156,9 @@ export function AiWin() {
         <div className={s.grid}>
           {["Date", "Workout", "Exercise", "Result", "Effort"].map((h) => <b key={h}>{h}</b>)}
           {rows.flatMap((r) => r.map((c, i) => <span key={r[0] + i}>{c}</span>))}
-          {["Nov 13", "Pull", "Deadlift", "120 kg x 3", "9"].map((c, i) => <span key={"n" + i} data-new="">{c}</span>)}
+          {["Nov 13", "Pull", "Deadlift", "120 kg x 3", "9"].map((c, i) => <span key={"n" + i} data-new="" data-step="" style={{ "--s": 2 } as React.CSSProperties}>{c}</span>)}
         </div>
-        <p className={s.by}><Chip ai="openai" name="Added by ChatGPT" /><span>Undo</span></p>
+        <p className={s.by} data-step="" style={{ "--s": 3 } as React.CSSProperties}><Chip ai="openai" name="Added by ChatGPT" /><span>Undo</span></p>
       </div>
     </div>
   );
@@ -174,8 +174,8 @@ export function AiChat() {
         <p className={s.tool}><span className={s.toolMark}><img src="/mark-256.png" alt="" width={256} height={256} /></span>Used Pinto Notes</p>
         <p>100 kg for 5, on Nov 6. It&apos;s in your Workout log.</p>
       </div>
-      <p className={s.me}>Deadlift today, 120 kg for 3. Log it.</p>
-      <div className={s.them}>
+      <p className={s.me} data-step="" style={{ "--s": 0 } as React.CSSProperties}>Deadlift today, 120 kg for 3. Log it.</p>
+      <div className={s.them} data-step="" style={{ "--s": 1 } as React.CSSProperties}>
         <p className={s.tool}><span className={s.toolMark}><img src="/mark-256.png" alt="" width={256} height={256} /></span>Used Pinto Notes</p>
         <p>Logged in your Workout log. That&apos;s a new best for deadlift.</p>
       </div>
