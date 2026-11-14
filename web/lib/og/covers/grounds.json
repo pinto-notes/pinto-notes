@@ -191,6 +191,12 @@
   "w": 880,
   "h": 550
  },
+ "habit-tracker": {
+  "ground": "#f9dfbb",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "ios-27": {
   "ground": "#fff3d0",
   "ink": "dark",

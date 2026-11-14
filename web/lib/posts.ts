@@ -277,6 +277,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-habit-tracker",
+    title: "Apple Notes habit tracker template, and where it stops",
+    description: "Apple Notes has no habit tracker, but a weekly checklist does the daily part. A template to paste in, how to keep it going, and a free tracker with streaks.",
+    excerpt: "A weekly habit tracker for Apple Notes, ready to paste in. How to reset it each week, where it runs out, and a habit tracker note that keeps your streaks.",
+    category: "Apple Notes",
+    date: "2026-11-14",
+    updated: "2026-11-14",
+    image: SHOTS.habitApp,
+    thumb: cover("sand", "habit-tracker", 1600, 1000, "A paper card with a week of ticked squares beside a small paper flame"),
+    draft: false,
+  },
+  {
     slug: "apple-notes-budget-template",
     title: "Apple Notes budget template that adds itself up",
     description: "Apple Notes has no budget template, but a note can still do the sums. A monthly budget to paste in, where it stops, and a free budget note that keeps itself.",
