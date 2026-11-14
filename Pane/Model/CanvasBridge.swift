@@ -382,6 +382,18 @@ final class CanvasController {
     @ObservationIgnored var exporter: ((CanvasExport, Bool, Bool) async -> Data?)?
     /// The board's name, for the files it exports to.
     @ObservationIgnored var title = "Whiteboard"
+    /// Renames the board (set by the note's view).
+    @ObservationIgnored var rename: ((String) -> Void)?
+
+    /// A template onto the board. A board still called "Whiteboard" takes the template's name, so
+    /// the list isn't full of boards called Whiteboard (whiteboard council, round 3, real-01).
+    func insert(_ t: WhiteboardTemplate) {
+        if title == CanvasNote.title, let rename {
+            rename(t.title)
+            title = t.title
+        }
+        send(.insert(t, title: title))
+    }
     /// A line confirming what was just done ("Copied as PNG"), shown for a moment over the board.
     var notice: String?
 
@@ -403,6 +415,8 @@ final class CanvasController {
         var rect: CGRect
         var by: String
         var count: Int
+        /// Each thing it added or changed, outlined on its own (whiteboard council, round 3, 16).
+        var boxes: [CGRect] = []
     }
     var highlight: Highlight?
     @ObservationIgnored private var expecting: (by: String, at: Date)?
@@ -413,17 +427,22 @@ final class CanvasController {
 
     private func remoteChange(_ r: [String: Any]) {
         let num = { (k: String) in (r[k] as? Double) ?? (r[k] as? Int).map(Double.init) ?? 0 }
+        let boxes = ((r["boxes"] as? [[Any]]) ?? []).compactMap { b -> CGRect? in
+            let v = b.compactMap { ($0 as? Double) ?? ($0 as? Int).map(Double.init) }
+            return v.count == 4 ? CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) : nil
+        }
         // The view moved under an outline: it moves with it.
         if r["follow"] as? Bool == true {
             if var h = highlight {
                 h.rect = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
+                h.boxes = boxes
                 highlight = h
             }
             return
         }
         guard let e = expecting, e.at.timeIntervalSinceNow > -5 else { return }
         expecting = nil
-        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")))
+        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes)
         highlight = h
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.highlightTime))
@@ -566,17 +585,17 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             out.append(T.arrow(from: "idea2", to: "sub0", x: -280, y: 186, dx: 0, dy: 60, branch: true))
             return out
         case .retro:
-            return T.title("Retro", hint: "Double-click a card to write. Option-drag a card to add another.")
+            return T.title("Retro", hint: "Double-click a card to write. Select a card and press S to add a note under it.")
                 + T.column("well", x: 0, title: "Went well", fill: T.green, cards: ["Shipped on time"])
                 + T.column("better", x: 240, title: "Could be better", fill: T.red, cards: ["Too many meetings"])
                 + T.column("try", x: 480, title: "Try next", fill: T.blue, cards: ["Demo every Friday"])
         case .kanban:
-            return T.title("Kanban", hint: "Drag cards between columns. Option-drag a card to add another.")
+            return T.title("Kanban", hint: "Drag cards between columns. Select a card and press S to add one under it.")
                 + T.column("todo", x: 0, title: "To do", fill: T.yellow, cards: ["Write the brief \u{00B7} Sam", "Book the venue \u{00B7} Alex"])
                 + T.column("doing", x: 240, title: "Doing", fill: T.blue, cards: ["Draft the post \u{00B7} you"])
                 + T.column("done", x: 480, title: "Done", fill: T.green, cards: ["Pick a date \u{00B7} team"])
         case .meeting:
-            return T.title("Meeting", hint: "Date:            People:")
+            return T.title("Meeting", hint: "Date: \(Date.now.formatted(date: .long, time: .omitted))        People:")
                 + T.section("agenda", x: 0, y: 0, w: 340, h: 220, title: "Agenda", fill: "#e7f5ff", lines: ["1. Where we are", "2. What\u{2019}s next", "3. Anything else"])
                 + T.section("notes", x: 360, y: 0, w: 340, h: 220, title: "Notes", fill: "#fff9db")
                 + T.section("decisions", x: 0, y: 240, w: 340, h: 200, title: "Decisions", fill: "#ebfbee")

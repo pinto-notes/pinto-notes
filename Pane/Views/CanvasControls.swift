@@ -104,12 +104,30 @@ struct CanvasOverlay: View {
 struct CanvasAIHighlight: View {
     let highlight: CanvasController.Highlight
 
+    /// The outlines: one per thing the AI added or changed.
+    var outlines: [CGRect] {
+        (highlight.boxes.isEmpty ? [highlight.rect] : highlight.boxes).map { $0.insetBy(dx: -6, dy: -6) }
+    }
+
+    /// Where the name tag's top-left corner goes: above the topmost outline and clear of it
+    /// (round 3, 16: it covered a shape's corner), or under it when there's no room above.
+    static func tag(over outlines: [CGRect]) -> CGPoint {
+        guard let top = outlines.min(by: { ($0.minY, $0.minX) < ($1.minY, $1.minX) }) else { return .zero }
+        let above = top.minY - 4 - 22
+        return CGPoint(x: top.minX, y: above >= 4 ? above : top.maxY + 4)
+    }
+
     var body: some View {
-        let r = highlight.rect.insetBy(dx: -10, dy: -10)
-        ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.paneAccent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                .background(Color.paneAccent.opacity(0.05), in: .rect(cornerRadius: 10, style: .continuous))
+        let boxes = outlines
+        let at = Self.tag(over: boxes)
+        ZStack {
+            ForEach(Array(boxes.enumerated()), id: \.offset) { _, r in
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.paneAccent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .background(Color.paneAccent.opacity(0.05), in: .rect(cornerRadius: 8, style: .continuous))
+                    .frame(width: max(r.width, 20), height: max(r.height, 20))
+                    .position(x: r.midX, y: r.midY)
+            }
             HStack(spacing: 5) {
                 AIGlyph(ai: highlight.by, size: 12, monochrome: true)
                 Text(highlight.by)
@@ -119,10 +137,10 @@ struct CanvasAIHighlight: View {
             .padding(.horizontal, 8)
             .frame(height: 22)
             .background(Color.paneAccent, in: Capsule())
-            .offset(x: 8, y: -11)
+            .fixedSize()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .offset(x: at.x, y: at.y)
         }
-        .frame(width: max(r.width, 40), height: max(r.height, 30))
-        .position(x: r.midX, y: r.midY)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(highlight.by) drew this")
@@ -156,7 +174,7 @@ struct CanvasStart: View {
                 .foregroundStyle(Color.muted)
             HStack(spacing: 10) {
                 ForEach(WhiteboardTemplate.allCases) { t in
-                    Button { canvas.send(.insert(t, title: canvas.title)) } label: {
+                    Button { canvas.insert(t) } label: {
                         VStack(spacing: 8) {
                             CanvasTemplatePreview(template: t)
                                 .frame(width: 92, height: 58)
@@ -971,7 +989,7 @@ struct CanvasToolbarTools: View {
             Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
             Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
         } label: {
-            Label("More Tools", systemImage: picked ? current.symbol : "ellipsis.circle").picked(picked)
+            Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked)
         }
         .menuIndicator(.hidden)
         .help("Hand, eraser, pictures and sticky notes")

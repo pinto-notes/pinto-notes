@@ -66,12 +66,15 @@ import AppKit
                          ["type": "rectangle", "x": 200, "y": 100, "width": 100, "height": 50],
                          ["type": "ellipse", "x": 200, "y": 200, "width": 100, "height": 50],
                          ["type": "arrow", "x": 250, "y": 50, "width": 0, "height": 50], ["type": "arrow", "x": 250, "y": 150, "width": 0, "height": 50]])
-        #expect(CanvasNote.change(from: before, to: added) == "added 3 shapes and 2 arrows")
+        #expect(CanvasNote.change(from: before, to: added) == "added Request, 2 shapes and 2 arrows")
         // Its words changed, and one shape added.
         var renamed = label; renamed["text"] = "Finance review"
-        #expect(CanvasNote.change(from: before, to: doc([box, renamed, ["type": "diamond", "x": 0, "y": 200, "width": 80, "height": 80]])) == "added 1 shape, changed 1 shape")
+        #expect(CanvasNote.change(from: before, to: doc([box, renamed, ["type": "diamond", "x": 0, "y": 200, "width": 80, "height": 80]])) == "renamed Manager review to Finance review, added 1 shape")
+        // A few changes with words are named; an arrow is counted.
+        #expect(CanvasNote.change(from: before, to: doc([box, renamed, ["type": "rectangle", "x": 0, "y": 200, "width": 80, "height": 80, "label": ["text": "Notify team"]],
+                                                         ["type": "arrow", "x": 40, "y": 50, "width": 0, "height": 150]])) == "renamed Manager review to Finance review, added Notify team and 1 arrow")
         var gone = box; gone["isDeleted"] = true
-        #expect(CanvasNote.change(from: before, to: doc([gone, label])) == "removed 1 shape")
+        #expect(CanvasNote.change(from: before, to: doc([gone, label])) == "removed Manager review")
         #expect(CanvasNote.change(from: before, to: before) == nil, "nothing to say: the receipt says it drew")
         var r = AIEdit.Receipt(noteID: UUID(), by: "ChatGPT", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
         r.drew = "added 3 shapes and 2 arrows"

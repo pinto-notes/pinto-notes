@@ -120,19 +120,58 @@ enum CanvasNote {
         }
         let old = Dictionary(elements(before).compactMap { e in (e["id"] as? String).map { ($0, e) } }, uniquingKeysWith: { a, _ in a })
         var added: [String: Int] = [:], changed: [String: Int] = [:], removed: [String: Int] = [:]
+        // The words on a shape or a text: its label (short form), the text bound to it, or its own.
+        func words(_ e: [String: Any], in all: [[String: Any]]) -> String? {
+            let id = e["id"] as? String
+            let bound = id.flatMap { id in all.first { $0["containerId"] as? String == id && $0["isDeleted"] as? Bool != true }?["text"] as? String }
+            let w = ((e["label"] as? [String: Any])?["text"] as? String) ?? bound ?? (e["type"] as? String == "text" ? e["text"] as? String : nil)
+            let t = w?.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces) ?? ""
+            return t.isEmpty ? nil : (t.count > 40 ? String(t.prefix(39)) + "…" : t)
+        }
+        // Named when there are few enough to read (whiteboard council, round 3, 16: "changed 1 shape"
+        // didn't say which): "renamed Manager review to Finance review, added Notify team".
+        var named: [String] = [], unnamed: [String: Int] = [:], namedVerbs: [(String, String)] = []
         // Words on a shape changed: the shape changed.
-        var relabelled = Set<String>()
+        var relabelled = [String: (String, String)]()
         for e in elements(after) {
             guard e["type"] as? String == "text", let box = e["containerId"] as? String, let id = e["id"] as? String, let was = old[id],
                   (was["text"] as? String) != (e["text"] as? String) else { continue }
-            relabelled.insert(box)
+            relabelled[box] = ((was["text"] as? String) ?? "", (e["text"] as? String) ?? "")
         }
         for e in elements(after) {
             guard let k = kind(e) else { continue }
             let gone = e["isDeleted"] as? Bool == true
-            guard let id = e["id"] as? String, let was = old[id] else { if !gone { added[k, default: 0] += 1 }; continue }
-            if gone, was["isDeleted"] as? Bool != true { removed[k, default: 0] += 1 }
-            else if !gone, look(was) != look(e) || relabelled.contains(id) { changed[k, default: 0] += 1 }
+            guard let id = e["id"] as? String, let was = old[id] else {
+                if !gone {
+                    added[k, default: 0] += 1
+                    if k != "arrow", let w = words(e, in: elements(after)) { namedVerbs.append(("added", w)) } else { unnamed["added \(k)", default: 0] += 1 }
+                }
+                continue
+            }
+            if gone, was["isDeleted"] as? Bool != true {
+                removed[k, default: 0] += 1
+                if k != "arrow", let w = words(was, in: elements(before)) { namedVerbs.append(("removed", w)) } else { unnamed["removed \(k)", default: 0] += 1 }
+            } else if !gone, look(was) != look(e) || relabelled[id] != nil {
+                changed[k, default: 0] += 1
+                let flat = { (t: String) in t.split(whereSeparator: \.isNewline).joined(separator: " ") }
+                if let (from, to) = relabelled[id], !from.isEmpty, !to.isEmpty { named.append("renamed \(flat(from)) to \(flat(to))") }
+                else if k != "arrow", let w = words(e, in: elements(after)) { namedVerbs.append(("changed", w)) }
+                else { unnamed["changed \(k)", default: 0] += 1 }
+            }
+        }
+        if named.count + namedVerbs.count <= 3, named.count + namedVerbs.count > 0 {
+            var parts = named
+            for verb in ["added", "changed", "removed"] {
+                let ws = namedVerbs.filter { $0.0 == verb }.map(\.1)
+                var list = ws
+                for k in ["shape", "arrow", "text", "picture"] {
+                    guard let n = unnamed["\(verb) \(k)"], n > 0 else { continue }
+                    list.append("\(n) \(k == "text" ? (n == 1 ? "text" : "texts") : (n == 1 ? k : k + "s"))")
+                }
+                guard !list.isEmpty else { continue }
+                parts.append("\(verb) " + (list.count == 1 ? list[0] : list.dropLast().joined(separator: ", ") + " and " + list.last!))
+            }
+            return parts.joined(separator: ", ")
         }
         func say(_ verb: String, _ counts: [String: Int]) -> String? {
             let order = ["shape", "arrow", "text", "picture"]

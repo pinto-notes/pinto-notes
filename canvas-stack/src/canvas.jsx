@@ -161,6 +161,27 @@ export async function exportScene(api, format, selected, light) {
   return null;
 }
 
+/**
+ * The whole board in view when it fits: at the zoom you have, or zoomed out as far as `minZoom`
+ * (never in). Whiteboard council, round 3 (11, 12, 13, 15): after a paste, an AI's change or a
+ * bigger window, the view showed only the new thing, the person's own drawing off screen.
+ * `onlyIfCut`: leave a board that's already all in view where it is. True when it framed it.
+ */
+export function frameBoard(api, { minZoom, onlyIfCut = false } = {}) {
+  const els = api.getSceneElements();
+  if (!els.length) return false;
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, m = 48;
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const inView = (x1 + s.scrollX) * z >= 0 && (y1 + s.scrollY) * z >= 0 && (x2 + s.scrollX) * z <= s.width && (y2 + s.scrollY) * z <= s.height;
+  if (onlyIfCut && inView) return false;
+  const fit = Math.min((s.width - 2 * m) / Math.max(1, x2 - x1), (s.height - 2 * m) / Math.max(1, y2 - y1));
+  const nz = Math.min(z, fit);
+  if (nz < Math.min(z, minZoom === undefined ? z : minZoom)) return false;
+  const scrollX = -(x1 + x2) / 2 + s.width / 2 / nz, scrollY = -(y1 + y2) / 2 + s.height / 2 / nz;
+  flushSync(() => api.updateScene({ appState: { scrollX, scrollY, ...(nz !== z ? { zoom: { value: nz } } : {}) }, captureUpdate: CaptureUpdateAction.NEVER }));
+  return true;
+}
+
 export const STICKY = { size: 180, color: "#ffec99", gap: 24 };
 /** The engine itself, once the bridge has reached it (for what its API doesn't offer). */
 let engine = null;
@@ -174,25 +195,31 @@ export function addSticky(api) {
   const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
   const ids = Object.keys(s.selectedElementIds || {});
   const next = ids.length === 1 ? api.getSceneElements().find((e) => e.id === ids[0]) : null;
-  const size = STICKY.size;
   // Never on top of another card or shape: the nearest free spot in view, any direction. Big
   // shapes (a retro's lanes, a meeting's sections) don't count: a sticky goes on them, and the
   // next one in a lane goes under the last, as on a real retro board.
-  const big = size * size * 2;
+  const big = STICKY.size * STICKY.size * 2;
   const lane = next && api.getSceneElements().find((e) => !e.containerId && e.type !== "text" && e.id !== next.id && e.width * e.height >= big
     && next.x >= e.x && next.y >= e.y && next.x + next.width <= e.x + e.width && next.y + next.height <= e.y + e.height);
-  const at = !next ? { x: -s.scrollX + s.width / 2 / z - size / 2, y: -s.scrollY + s.height / 2 / z - size / 2 }
-    : lane ? { x: next.x, y: next.y + next.height + STICKY.gap }
-    : { x: next.x + next.width + STICKY.gap, y: next.y };
+  // Under a card in a lane it takes that card's size, edge and lettering, in yellow: one board,
+  // not two people's (whiteboard council, round 3, 17). Elsewhere a square note.
+  const words = next && api.getSceneElements().find((e) => e.containerId === next.id && e.type === "text");
+  const w = lane ? next.width : STICKY.size, h = lane ? Math.max(76, next.height) : STICKY.size;
+  const gap = lane ? 16 : STICKY.gap;
+  const edge = lane ? next.strokeColor : "#e6c84f";
+  const fontSize = lane && words ? words.fontSize : 20;
+  const at = !next ? { x: -s.scrollX + s.width / 2 / z - w / 2, y: -s.scrollY + s.height / 2 / z - h / 2 }
+    : lane ? { x: next.x, y: next.y + next.height + gap }
+    : { x: next.x + next.width + gap, y: next.y };
   const taken = api.getSceneElements().filter((e) => !e.containerId && e.type !== "text" && e.width * e.height < big).map((e) => getCommonBounds([e]));
-  const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 + 8 && x + size > x1 - 8 && y < y2 + 8 && y + size > y1 - 8);
+  const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 + 8 && x + w > x1 - 8 && y < y2 + 8 && y + h > y1 - 8);
   const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
-  const inView = (x, y) => x >= vx && y >= vy && x + size <= vx + vw && y + size <= vy + vh;
+  const inView = (x, y) => x >= vx && y >= vy && x + w <= vx + vw && y + h <= vy + vh;
   if (!free(at.x, at.y) || !inView(at.x, at.y)) {
-    const step = (size + STICKY.gap) / 2;
+    const sx = (w + gap) / 2, sy = (h + gap) / 2;
     let best = null;
     for (let i = -8; i <= 8; i++) for (let j = -8; j <= 8; j++) {
-      const x = at.x + i * step, y = at.y + j * step;
+      const x = at.x + i * sx, y = at.y + j * sy;
       if (!free(x, y)) continue;
       // In view first; then nearest, to the right before the left, below before above.
       const d = (inView(x, y) ? 0 : 1000) + i * i + j * j + (i < 0 ? 0.5 : 0) + (j < 0 ? 0.3 : j > 0 ? 0.1 : 0);
@@ -202,15 +229,15 @@ export function addSticky(api) {
   }
   // A lane grows to hold a sticky put under its last card, as a retro board fills up.
   let grown = null;
-  if (lane && at.y + size + STICKY.gap > lane.y + lane.height && at.x >= lane.x && at.x + size <= lane.x + lane.width) {
-    grown = { ...lane, height: at.y + size + STICKY.gap - lane.y, version: lane.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
+  if (lane && at.y + h + gap > lane.y + lane.height && at.x >= lane.x && at.x + w <= lane.x + lane.width) {
+    grown = { ...lane, height: at.y + h + gap - lane.y, version: lane.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
   }
   const [card, ...rest] = convertToExcalidrawElements([{
-    type: "rectangle", x: at.x, y: at.y, width: size, height: size, backgroundColor: STICKY.color, fillStyle: "solid",
-    strokeColor: "#e6c84f", roundness: { type: 3 }, label: { text: " ", fontSize: 20, verticalAlign: "top", textAlign: "left", strokeColor: "#2a1d10" },
+    type: "rectangle", x: at.x, y: at.y, width: w, height: h, backgroundColor: STICKY.color, fillStyle: "solid",
+    strokeColor: edge, roundness: { type: 3 }, label: { text: " ", fontSize, verticalAlign: "middle", textAlign: "center", strokeColor: "#2a1d10" },
     customData: { pintoSticky: true },
   }], { regenerateIds: true });
-  // Its words in ink; only the card's edge is yellow.
+  // Its words in ink.
   for (const e of rest) if (e.type === "text") e.strokeColor = "#2a1d10";
   const before = api.getSceneElementsIncludingDeleted().map((e) => (grown && e.id === grown.id ? grown : e));
   api.updateScene({ elements: [...before, card, ...rest], appState: { selectedElementIds: { [card.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
@@ -290,7 +317,12 @@ export function stateOf(api, app) {
       fontSize: pick("fontSize", "currentItemFontSize"),
       startArrowhead: first && first.type === "arrow" ? first.startArrowhead : s.currentItemStartArrowhead,
       endArrowhead: first && first.type === "arrow" ? first.endArrowhead : s.currentItemEndArrowhead,
-      arrowType: first && first.type === "arrow" ? (first.elbowed ? "elbow" : first.roundness ? "round" : "sharp") : s.currentItemArrowType,
+      // The selection's arrows (not its first element, which may be a box: round 3, 10 showed
+      // the curved glyph for straight arrows); "mixed" when they differ.
+      arrowType: (() => {
+        const kinds = [...new Set(selected.filter((e) => e.type === "arrow").map((e) => (e.elbowed ? "elbow" : e.roundness ? "round" : "sharp")))];
+        return kinds.length === 1 ? kinds[0] : kinds.length > 1 ? "mixed" : s.currentItemArrowType;
+      })(),
       // Shapes with different fills: the fill swatch says so, rather than showing the first one's.
       mixedFill: new Set(selected.filter((e) => ["rectangle", "diamond", "ellipse"].includes(e.type)).map((e) => e.backgroundColor)).size > 1,
     },
@@ -392,8 +424,8 @@ function bridge(api) {
         const [made] = convertToExcalidrawElements([{ type: "image", fileId, x: at.x - w / 2, y: at.y - h / 2, width: w, height: h }], { regenerateIds: true });
         api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), made], appState: { selectedElementIds: { [made.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
         api.setActiveTool({ type: "selection" });
-        if (moved) {
-          // In view at the zoom you had, at once.
+        if (moved && !frameBoard(api, { minZoom: 0.5 })) {
+          // Too big to show whole: the picture in view at the zoom you had, at once.
           const v = api.getAppState();
           flushSync(() => api.updateScene({ appState: { scrollX: -(made.x + w / 2) + v.width / 2 / z, scrollY: -(made.y + h / 2) + v.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
         }
@@ -541,7 +573,11 @@ function Canvas({ initial }) {
       base = remote;
       lastSent = fingerprint(scene);
       if (scene.elements.some((e) => e && typeof e.seed !== "number")) remeasure();
-      showChanged(api.getSceneElements().filter((e) => theirs.has(e.id) || (e.containerId && theirs.has(e.containerId))));
+      // A shape whose words changed counts as changed: its outline goes round the shape, not
+      // through it (whiteboard council, round 3, 16).
+      const all = api.getSceneElements();
+      for (const e of all) if (e.containerId && theirs.has(e.id)) theirs.add(e.containerId);
+      showChanged(all.filter((e) => theirs.has(e.id) || (e.containerId && theirs.has(e.containerId))));
       // Ours had changes theirs didn't (or theirs was in the short form): saved back merged.
       if (!same(merged.map((e) => [e.id, e.version]), remote.map((e) => [e.id, e.version]))) schedule();
     });
@@ -550,24 +586,32 @@ function Canvas({ initial }) {
     // the view, brought into view first if none of it was.
     const showChanged = (changed) => {
       if (!changed.length) return;
+      // Each changed thing on its own (round 3, 16: one box round them all took in what the AI
+      // didn't touch), and all of them together for bringing into view.
+      const ids = new Set(changed.map((e) => e.id));
+      const tops = changed.filter((e) => !(e.containerId && ids.has(e.containerId)));
+      const rect = (els, s) => {
+        const [x1, y1, x2, y2] = getCommonBounds(els);
+        const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);
+        return [a.x, a.y, b.x - a.x, b.y - a.y];
+      };
       const where = () => {
         const s = api.getAppState();
-        const [x1, y1, x2, y2] = getCommonBounds(changed);
-        const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);
-        return { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y, view: s };
+        const [x, y, width, height] = rect(changed, s);
+        const boxes = tops.map((e) => rect([e, ...changed.filter((t) => t.containerId === e.id)], s));
+        return { x, y, width, height, boxes, view: s };
       };
       let r = where();
-      if (r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height) {
-        // Centred at the zoom you had, at once (the engine's own scroll lands a frame later): the
-        // whole board when it fits, so what the AI drew is seen next to what it joins.
+      const out = r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height;
+      // The whole board when it fits, so what the AI drew is seen next to what it joins: zoomed
+      // out to half if the change is out of sight, else only scrolled, and only if some of the
+      // board was cut off (round 3, 12: the person's flowchart was off screen).
+      if (frameBoard(api, out ? { minZoom: 0.5 } : { onlyIfCut: true })) r = where();
+      else if (out) {
+        // At the zoom you had, at once (the engine's own scroll lands a frame later).
         const s = r.view, z = (s.zoom && s.zoom.value) || 1;
-        const whole = getCommonBounds(api.getSceneElements());
-        const fits = (whole[2] - whole[0]) * z <= s.width - 48 && (whole[3] - whole[1]) * z <= s.height - 48;
         let scrollX, scrollY;
-        if (fits) {
-          scrollX = -(whole[0] + whole[2]) / 2 + s.width / 2 / z;
-          scrollY = -(whole[1] + whole[3]) / 2 + s.height / 2 / z;
-        } else {
+        {
           // Only as far as it takes to bring the change in, with a margin, so what it joins
           // stays in sight (round 2: centring on it pushed the rest of the board off).
           const [x1, y1, x2, y2] = getCommonBounds(changed), m = 40 / z, W = s.width / z, H = s.height / z;
@@ -584,7 +628,7 @@ function Canvas({ initial }) {
         flushSync(() => api.updateScene({ appState: { scrollX, scrollY }, captureUpdate: CaptureUpdateAction.NEVER }));
         r = where();
       }
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: changed.length } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, count: changed.length } }); } catch (_) {}
       // While it's shown (the app decides how long), the outline follows the view as you pan,
       // zoom or resize the window (whiteboard council, round 2, 15: it came loose after 8 s).
       outlined = { changed, until: Date.now() + 120000, where };
@@ -594,7 +638,7 @@ function Canvas({ initial }) {
       if (!outlined) return;
       if (Date.now() > outlined.until) { outlined = null; return; }
       const r = outlined.where();
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: outlined.changed.length, follow: true } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, count: outlined.changed.length, follow: true } }); } catch (_) {}
     });
 
     // Text an AI wrote was measured before the hand-drawn font arrived: measured again once it has.
@@ -621,6 +665,9 @@ function Canvas({ initial }) {
       if (!dw && !dh) return;
       const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
       api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
+      // More room (Full Screen, a wider window): the whole board if it now fits and was cut off
+      // (round 3, 13: Full Screen kept a frame with the flowchart cut at the left).
+      if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true });
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });

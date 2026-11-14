@@ -486,6 +486,61 @@ import UIKit
         #expect(abs((j.canvas.highlight?.rect.minX ?? 0) - (h.rect.minX + 200)) < 4, "moved by half the new width: \(String(describing: j.canvas.highlight?.rect)) from \(h.rect)")
     }
 
+    /// The person's own drawing stays in view: a paste beside it zooms out to show both, an AI's
+    /// change shows the whole board when it fits, and each thing the AI changed gets its own
+    /// outline, round the shape whose words it changed, with the name tag clear of it
+    /// (whiteboard council, round 3: 11, 12, 13 and 16).
+    @Test func theWholeBoardStaysInViewAndEachAIChangeIsOutlined() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box + [
+            ["type": "text", "id": "box-t", "containerId": "box", "text": "Manager review", "x": 120, "y": 160, "width": 160, "height": 25, "fontSize": 20],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        let allInView = """
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value; const els = api.getSceneElements();
+          const x1 = Math.min(...els.map((e) => e.x)), y1 = Math.min(...els.map((e) => e.y)), x2 = Math.max(...els.map((e) => e.x + e.width)), y2 = Math.max(...els.map((e) => e.y + e.height));
+          return (x1 + s.scrollX) * z >= -1 && (y1 + s.scrollY) * z >= -1 && (x2 + s.scrollX) * z <= s.width + 1 && (y2 + s.scrollY) * z <= s.height + 1; })()
+        """
+        // A big screenshot pasted onto the drawing goes beside it, and the view zooms out to show both.
+        let shot = try #require(CanvasImage(data: Self.png(width: 3200, height: 2000, clear: false)))
+        j.canvas.send(.image(shot, at: nil))
+        await j.until("the picture is in") { j.canvas.state.selection == ["image"] }
+        #expect(try await j.js(allInView) as? Bool == true, "the drawing and the picture both in view")
+        let zoom = try #require(try await j.js("amber._canvas.api.getAppState().zoom.value") as? Double)
+        #expect(zoom < 1 && zoom >= 0.5, "zoomed out to fit, not below half: \(zoom)")
+        // Panned so part of the board is cut off; the AI renames the box and adds one beside it, in
+        // view: the whole board comes back into view (it fits at this zoom).
+        _ = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(); api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'image'), appState: { zoom: { value: 1 }, scrollX: -200, scrollY: 0 } }); return 0; })()")
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try await j.js(allInView) as? Bool == false, "cut off before")
+        _ = try await j.js("amber._flush(); 0")
+        try await Task.sleep(for: .milliseconds(300))
+        let stored = try #require(try await j.js("JSON.stringify(amber._canvas.scene().elements)") as? String)
+        var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
+        for i in elements.indices where elements[i]["id"] as? String == "box-t" { elements[i]["text"] = "Finance review"; elements[i]["version"] = 50 }
+        elements.append(["type": "rectangle", "id": "ai-box", "x": 560, "y": 120, "width": 200, "height": 100, "label": ["text": "Notify team"]])
+        CanvasController.highlightTime = 60
+        defer { CanvasController.highlightTime = 4 }
+        j.canvas.arrived(by: "ChatGPT")
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        await j.until("outlined") { j.canvas.highlight != nil }
+        #expect(try await j.js(allInView) as? Bool == true, "the whole board in view after the AI's change")
+        let h = try #require(j.canvas.highlight)
+        #expect(h.boxes.count == 2, "the renamed box and the new one, each on its own: \(h.boxes)")
+        // The renamed box's outline goes round the box, not just its words.
+        let box = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'box');
+          return [(b.x + s.scrollX) * z, (b.y + s.scrollY) * z, b.width * z, b.height * z].join(','); })()
+        """) as? String).split(separator: ",").compactMap { Double($0) }
+        let shape = CGRect(x: box[0], y: box[1], width: box[2], height: box[3])
+        #expect(h.boxes.contains { $0.insetBy(dx: -2, dy: -2).contains(shape) }, "round the whole box: \(shape) in \(h.boxes)")
+        #expect(!h.boxes.contains { $0.contains(shape) && $0.width > shape.width * 2 }, "not one box round both")
+        // The tag sits above the topmost outline, clear of it.
+        let tag = CanvasAIHighlight.tag(over: CanvasAIHighlight(highlight: h).outlines)
+        let top = try #require(CanvasAIHighlight(highlight: h).outlines.min { $0.minY < $1.minY })
+        #expect(tag.y + 22 <= top.minY || tag.y >= top.maxY, "the tag doesn't cover the shape: \(tag) over \(top)")
+    }
+
     /// In dark mode the selection's outline and handles show in the accent, not the dim brown the
     /// dark filter made of it (whiteboard council, round 2, 07-selected-box-dark).
     @Test func theSelectionShowsInTheAccentInDarkMode() async throws {
@@ -618,6 +673,8 @@ import UIKit
           const t = all.find((e) => e.type === 'text' && e.text === 'Shipped on time'); const card = all.find((e) => e.id === t.containerId);
           const lane = all.find((e) => e.type === 'rectangle' && e.width * e.height >= 180 * 180 * 2 && card.x >= e.x && card.x + card.width <= e.x + e.width && card.y >= e.y && card.y + card.height <= e.y + e.height);
           const inside = (b) => b.x >= lane.x && b.x + b.width <= lane.x + lane.width && b.y >= lane.y && b.y + b.height <= lane.y + lane.height;
+          const words = (b) => all.find((e) => e.containerId === b.id);
+          if (!st.every((b) => b.width === card.width && b.strokeColor === card.strokeColor && words(b) && words(b).textAlign === 'center')) return 'not like the card: ' + JSON.stringify(st.map((b) => [b.width, b.strokeColor, words(b) && words(b).textAlign]));
           return JSON.stringify({ n: st.length, under: st.every((b) => b.y > card.y + card.height), inLane: st.every(inside) }) + (st.every(inside) ? '' : JSON.stringify({ lane: [lane.x, lane.y, lane.width, lane.height], st: st.map((b) => [b.x, b.y]), z: amber._canvas.api.getAppState().zoom.value })); })()
         """) as? String)
         #expect(grew.hasPrefix("{\"n\":2,\"under\":true,\"inLane\":true}") && !grew.contains("lane\":"), "under the card, inside a lane that grew: \(grew)")
@@ -852,6 +909,15 @@ import UIKit
         #expect(CanvasTitleField.renamed(note, to: "   ") == nil, "empty keeps the name")
         #expect(CanvasTitleField.renamed(note, to: "Launch plan v2") == nil, "unchanged: nothing to save")
         #expect(note.title == "Launch plan v2")
+        // A template on a board still called Whiteboard names it; a board with a name keeps it.
+        let fresh = CanvasNote.make(in: .all, context: c.mainContext)
+        let canvas = CanvasController()
+        canvas.title = fresh.title
+        canvas.rename = { _ = CanvasTitleField.renamed(fresh, to: $0) }
+        canvas.insert(.retro)
+        #expect(fresh.title == "Retro" && canvas.title == "Retro")
+        canvas.insert(.kanban)
+        #expect(fresh.title == "Retro", "named now: kept")
     }
 
     static func canvasLibrary() throws -> ModelContainer {
@@ -1054,7 +1120,9 @@ import UIKit
                 try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")
                 try await shot("07-selected-box", w, web)
                 if !dark {
-                    try await select("e.type === 'text' && e.text === 'Flowchart'")
+                    // The board's title (named after the board now), scrolled to just under the toolbar.
+                    try await js("const api = amber._canvas.api, s = api.getAppState(), t = api.getSceneElements().find((e) => e.customData && e.customData.pintoTitle); api.updateScene({ appState: { scrollY: -t.y + 16 / s.zoom.value } })")
+                    try await select("e.customData && e.customData.pintoTitle")
                     try await shot("08-selected-title-near-top", w, web)
                     try await select("e.type === 'arrow' && e.width > 50")
                     try await shot("09-selected-arrow", w, web)
