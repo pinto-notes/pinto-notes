@@ -837,6 +837,92 @@ import UIKit
         await j.until("the laser") { j.canvas.state.tool == .laser }
     }
 
+    /// Present walks the frames in the order you set (round 7: it was only the order they were
+    /// made): the order is kept in the scene, as each frame's `customData.presentOrder`, so it
+    /// saves with the board; Present from Here starts at the selected frame, or the frame what's
+    /// selected is in; reordering while presenting keeps the frame on screen.
+    @Test func presentFollowsTheOrderYouSetAndStartsFromHere() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "a", "x": 40, "y": 40, "width": 120, "height": 80],
+            ["type": "rectangle", "id": "b", "x": 640, "y": 40, "width": 120, "height": 80],
+            ["type": "rectangle", "id": "c", "x": 1240, "y": 40, "width": 120, "height": 80],
+            ["type": "frame", "id": "f1", "children": ["a"], "name": "Intro"],
+            ["type": "frame", "id": "f2", "children": ["b"], "name": "Plan"],
+            ["type": "frame", "id": "f3", "children": ["c"], "name": "Ask"],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        await j.until("the frames, as made") { j.canvas.state.frames.map(\.id) == ["f1", "f2", "f3"] }
+        #expect(j.canvas.state.frames.map(\.name) == ["Intro", "Plan", "Ask"])
+        // Ask first: Move Up twice, as the Order list does it.
+        var ids = j.canvas.state.frames.map(\.id)
+        ids = try #require(CanvasPresentOrder.moved(ids, at: 2, by: -1))
+        ids = try #require(CanvasPresentOrder.moved(ids, at: 1, by: -1))
+        #expect(CanvasPresentOrder.moved(ids, at: 0, by: -1) == nil, "nothing above the first")
+        #expect(ids == ["f3", "f1", "f2"])
+        #expect(CanvasPresentOrder.moved(["f1", "f2", "f3"], from: IndexSet(integer: 2), to: 0) == ["f3", "f1", "f2"], "dragged to the top")
+        j.canvas.send(.presentOrder(ids))
+        await j.until("the new order reported") { j.canvas.state.frames.map(\.id) == ["f3", "f1", "f2"] }
+        // Kept in the scene the board saves, for the next time and for an AI reading it.
+        let kept = try await j.js("JSON.stringify(amber._canvas.scene().elements.filter((e) => e.type === 'frame').map((e) => [e.id, e.customData && e.customData.presentOrder]))") as? String
+        #expect(kept == #"[["f1",1],["f2",2],["f3",0]]"#, "\(kept ?? "")")
+        // Present walks it.
+        j.canvas.send(.present(.start))
+        await j.until("presenting") { j.canvas.state.present != nil }
+        #expect(j.canvas.state.present?.name == "Ask" && j.canvas.state.present?.index == 0)
+        j.canvas.send(.present(.next))
+        await j.until("the second") { j.canvas.state.present?.index == 1 }
+        #expect(j.canvas.state.present?.name == "Intro")
+        // Reordered while presenting: Intro stays on screen, at its new place.
+        j.canvas.send(.presentOrder(["f1", "f2", "f3"]))
+        await j.until("reordered") { j.canvas.state.frames.map(\.id) == ["f1", "f2", "f3"] }
+        await j.until("still Intro, now first") { j.canvas.state.present?.index == 0 }
+        #expect(j.canvas.state.present?.name == "Intro")
+        // A frame picked in the Order list.
+        j.canvas.send(.presentFrom("f3"))
+        await j.until("Ask") { j.canvas.state.present?.name == "Ask" }
+        #expect(j.canvas.state.present?.index == 2)
+        j.canvas.send(.present(.stop))
+        await j.until("stopped") { j.canvas.state.present == nil }
+        // Present from Here: something in Plan selected.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { b: true } } }); return 1; })()")
+        await j.until("in a frame") { j.canvas.state.inFrame }
+        #if os(macOS)
+        let web = try #require(j.web as? NotePageWebView)
+        #expect(web.canvasMenu().items.contains { $0.title == CanvasPresentOrder.fromHere }, "in the right-click menu")
+        #endif
+        j.canvas.send(.presentFrom(nil))
+        await j.until("presenting Plan") { j.canvas.state.present?.name == "Plan" }
+        #expect(j.canvas.state.present?.index == 1)
+        j.canvas.send(.present(.stop))
+        await j.until("stopped") { j.canvas.state.present == nil }
+        // Nothing in a frame: no Present from Here.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        await j.until("nothing selected") { !j.canvas.state.inFrame }
+        #if os(macOS)
+        #expect(!web.canvasMenu().items.contains { $0.title == CanvasPresentOrder.fromHere })
+        #endif
+    }
+
+    /// The Present bar's Order list shows the frames in their order, numbered.
+    @Test func thePresentOrderListShowsTheFramesInOrder() async throws {
+        let canvas = CanvasController()
+        canvas.receive(["frames": [["id": "f3", "name": "Ask"], ["id": "f1", "name": "Intro"]], "present": ["index": 0, "count": 2, "name": "Ask"]])
+        #expect(canvas.state.frames == [.init(id: "f3", name: "Ask"), .init(id: "f1", name: "Intro")])
+        let ax = OffscreenAX(CanvasPresentOrder(canvas: canvas), size: CGSize(width: 240, height: 140))
+        defer { ax.close() }
+        await ax.settle()
+        let row = try #require(ax.find("canvas.present.order.frame"))
+        #expect(row.text.contains("1. Ask"), "\(row.text)")
+        row.press()
+        await ax.settle(100)
+        #expect(canvas.sent.last == .presentFrom("f3"), "a frame clicked: presented")
+        let bar = OffscreenAX(CanvasPresentBar(canvas: canvas, step: canvas.state.present!), size: CGSize(width: 520, height: 60))
+        defer { bar.close() }
+        await bar.settle()
+        #expect(bar.find("canvas.present.order") != nil, "the Order button in the Present bar")
+    }
+
     /// Presenting hides the window's toolbar, and Done brings it back (round 7, 25-present-1).
     @Test func presentingHidesTheWindowToolbar() async throws {
         let w = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: true)
@@ -1995,7 +2081,7 @@ import UIKit
         #expect(mine.source == nil && mine.title == "Diamond", "yours, named by what it is: \(mine.title)")
         let grid = CanvasLibraryGrid(lib.items)
         #expect(grid.groups.map(\.title) == ["Saved", "Basic shapes", "Data flow"], "\(grid.groups.map(\.title))")
-        #expect(grid.groups.map { $0.items.map(\.title) } == [["Diamond"], ["Line", "Line"], ["Process", "Data storage"]])
+        #expect(grid.groups.map { $0.items.map(\.title) } == [["Diamond"], ["Right triangle", "Triangle"], ["Process", "Data storage"]])
         // Kept with each item, so a relaunch groups them the same.
         lib.flush()
         let again = CanvasLibraryGrid(CanvasLibrary(folder: dir.appending(path: "kept")).items)
@@ -2013,6 +2099,51 @@ import UIKit
         let tile = try #require(ax.find("canvas.library.item"))
         #expect(tile.text.contains("Diamond"), "\(tile.text)")
         #expect(ax.find("canvas.library.search") == nil, "five items: no search field")
+    }
+
+    /// An item with no name of its own is named by what it is, with the detail that tells it
+    /// apart (round 7: two different triangles were both "Line"); an imported library's names
+    /// are kept; and you can rename any item, kept with the library.
+    @Test func libraryItemsAreNamedByWhatTheyAreAndCanBeRenamed() async throws {
+        func title(_ els: [[String: Any]]) -> String? { CanvasLibraryItem(elements: els)?.title }
+        let tri: [[Double]] = [[0, 0], [80, 150], [-90, 150], [0, 0]]
+        #expect(title([["type": "line", "x": 0, "y": 0, "width": 170, "height": 150, "points": tri]]) == "Triangle")
+        #expect(title([["type": "line", "x": 0, "y": 0, "width": 150, "height": 150, "points": [[0, 0], [150, 150], [0, 150], [0, 0]]]]) == "Right triangle")
+        #expect(title([["type": "line", "x": 0, "y": 0, "width": 100, "height": 100, "points": [[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]]]) == "Polygon")
+        #expect(title([["type": "line", "x": 0, "y": 0, "width": 100, "height": 100, "polygon": true, "points": [[0, 0], [100, 0], [100, 100], [0, 100]]]]) == "Polygon")
+        #expect(title([["type": "line", "x": 0, "y": 0, "width": 100, "height": 100, "points": [[0, 0], [100, 0], [100, 100]]]]) == "Line", "open: a line")
+        #expect(title([["type": "arrow", "x": 0, "y": 0, "width": 100, "height": 0, "points": [[0, 0], [100, 0]]]]) == "Arrow")
+        #expect(title([["type": "freedraw", "x": 0, "y": 0, "width": 50, "height": 50, "points": [[0, 0], [50, 50]]]]) == "Freehand")
+        #expect(title([["type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 60, "backgroundColor": "#a5d8ff"]]) == "Blue rectangle")
+        #expect(title([["type": "ellipse", "x": 0, "y": 0, "width": 100, "height": 60, "strokeColor": "#e03131"]]) == "Red ellipse")
+        #expect(title([["type": "ellipse", "x": 0, "y": 0, "width": 100, "height": 60, "strokeColor": "#2a1d10"]]) == "Ellipse", "ink isn't a detail")
+        #expect(title((0..<3).map { ["type": "rectangle", "id": "r\($0)", "x": $0 * 120, "y": 0, "width": 100, "height": 60] }) == "3 rectangles")
+        // The two triangles of a real library aren't both "Line" any more; named ones keep their names.
+        let shapes = try #require(CanvasLibraryFile.items(from: Data(Self.basicShapesLibrary.utf8))).map(\.title)
+        #expect(shapes == ["Right triangle", "Triangle"], "\(shapes)")
+        #expect(try #require(CanvasLibraryFile.items(from: Data(Self.dataFlowLibrary.utf8))).map(\.title) == ["Process", "Data storage"])
+        // Rename, kept with the library; an empty name gives it back its own.
+        let dir = FileManager.default.temporaryDirectory.appending(path: "library-rename-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let lib = CanvasLibrary(folder: dir)
+        _ = lib.importLibrary(Data(Self.basicShapesLibrary.utf8), source: "Basic shapes")
+        let first = try #require(lib.items.first)
+        lib.rename(first.id, to: "  Ramp  ")
+        #expect(lib.items.first?.title == "Ramp")
+        lib.flush()
+        #expect(CanvasLibrary(folder: dir).items.first?.title == "Ramp", "kept after a relaunch")
+        lib.rename(first.id, to: " ")
+        #expect(lib.items.first?.title == "Right triangle")
+        // The popover: Rename… opens the name in place, filled with what it's called now.
+        let canvas = CanvasController()
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: lib), size: CGSize(width: CanvasLibraryPopover.width, height: 300))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(ax.find("canvas.library.rename") == nil)
+        canvas.renamingLibraryItem = first.id
+        await ax.settle()
+        let field = try #require(ax.find("canvas.library.rename"))
+        #expect(field.text.contains("Right triangle"), "\(field.text)")
     }
 
     /// Past 12 items the popover has a search field; it filters by the item's name or its
