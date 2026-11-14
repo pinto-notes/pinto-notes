@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { renderNote, withoutTitle } from "./render";
 import type { SharedFile } from "./render";
-import { avatarURL, copyAppLink, copyLink, type BoardPicture, type SharedNote } from "./shared";
+import { avatarURL, copyAppLink, copyLink, isBoard, type BoardPicture, type SharedNote } from "./shared";
 import { APP_TEMPLATES } from "./site";
 import OpenInApp from "../app/OpenInApp";
 import { sharerLabel, type Sharer } from "./sharer";
@@ -35,11 +35,27 @@ function GetAmberNotes() {
 }
 
 /// A shared whiteboard's picture: large and centred, on the board's own light ground in light and
-/// dark, at half its pixels so it's sharp on a 2x screen. Its words are its alt text.
+/// dark, at half its pixels so it's sharp on a 2x screen. Its words are its alt text. A tap or click
+/// opens it full size in the browser's own image view, where a phone pinches to zoom and pans
+/// (whiteboard council, round 3: on a phone its cards' words were too small to read); narrow
+/// screens say so. Its .excalidraw file is under it, when the board's device published one.
 function Board({ board }: { board: BoardPicture }) {
   return (
     <figure className={s.board}>
-      <img src={board.url} alt={board.alt} width={board.width} height={board.height} decoding="async" fetchPriority="high" referrerPolicy="no-referrer" />
+      <div className={s.boardFrame}>
+        <a className={s.boardOpen} href={board.url} title="Open full size">
+          <img src={board.url} alt={board.alt} width={board.width} height={board.height} decoding="async" fetchPriority="high" referrerPolicy="no-referrer" />
+          <span className={s.zoomHint}>Tap to zoom</span>
+        </a>
+        {board.download && (
+          <figcaption className={s.boardFoot}>
+            <a className={s.download} href={board.download} download rel="nofollow">
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 1.5v8M3.5 6 7 9.5 10.5 6M2 12.5h10" /></svg>
+              Download .excalidraw
+            </a>
+          </figcaption>
+        )}
+      </div>
     </figure>
   );
 }
@@ -82,10 +98,16 @@ export function NotePage({ slug, note, files, page, board = null, sealed = false
     </nav>
   );
   // Copies the whole note into the visitor's own Pinto Notes, opened from this page. A sealed
-  // link (collaboration) offers Edit in Pinto Notes instead, or nothing yet.
+  // link (collaboration) offers Edit in Pinto Notes instead, or nothing yet. A whiteboard is
+  // copied as a whiteboard, from its .excalidraw file (NoteSource), so it's offered only when
+  // the page has that file, and says what it does (whiteboard council, round 3: "Use this note").
+  const boardPage = !page && isBoard(note);
   const use = editHref
     ? <a className={s.use} href={editHref}>Edit in Pinto Notes</a>
-    : !sealed && APP_TEMPLATES.live && <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} auto>Use this note</OpenInApp>;
+    : sealed || !APP_TEMPLATES.live ? null
+    : boardPage
+      ? note.scene && <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} what="whiteboard" auto>Copy to Pinto Notes</OpenInApp>
+      : <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} auto>Use this note</OpenInApp>;
 
   return (
     <Shell className={s.plain}>
@@ -105,6 +127,8 @@ export function NotePage({ slug, note, files, page, board = null, sealed = false
               <p>
                 <span className={s.bylineName}><span className={s.sharerLabel}>Shared by </span>{name}</span>
                 <span className={s.bylineDate}>Edited {edited(note.updated_at)}</span>
+                {/* What the page is: a picture of the board, kept current from its owner's device. */}
+                {boardPage && <span className={s.bylineNote}>View only. Reload to see the latest changes.</span>}
               </p>
             </div>
           </>

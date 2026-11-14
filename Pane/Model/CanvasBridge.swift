@@ -378,8 +378,8 @@ final class CanvasController {
 
     /// Makes a file of the board (set by the page view while it shows): `selected` takes only
     /// what's selected when something is; `light` draws it on its own light background whatever
-    /// the appearance.
-    @ObservationIgnored var exporter: ((CanvasExport, Bool, Bool) async -> Data?)?
+    /// the appearance; `page` makes it for a shared board's page, whose heading is that name.
+    @ObservationIgnored var exporter: ((CanvasExport, Bool, Bool, String?) async -> Data?)?
     /// The board's name, for the files it exports to.
     @ObservationIgnored var title = "Whiteboard"
     /// Renames the board (set by the note's view).
@@ -397,8 +397,12 @@ final class CanvasController {
     /// A line confirming what was just done ("Copied as PNG"), shown for a moment over the board.
     var notice: String?
 
-    func export(_ format: CanvasExport, selected: Bool = false, light: Bool = false) async -> Data? {
-        await exporter?(format, selected, light)
+    /// Every picture leaves out a template's how-to line and the band it stood in; the
+    /// .excalidraw file keeps it. `page` (a shared board's page, whose heading says the board's
+    /// name): the picture leaves out the board's title when it says the same, and the scene
+    /// leaves out the how-to line as a picture does (canvas.jsx exportScene).
+    func export(_ format: CanvasExport, selected: Bool = false, light: Bool = false, page: String? = nil) async -> Data? {
+        await exporter?(format, selected, light, page)
     }
 
     func confirm(_ text: String, for time: Duration = .seconds(1.8)) {

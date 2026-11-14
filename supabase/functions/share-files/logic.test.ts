@@ -1,6 +1,6 @@
 // Pure pieces of share-files: deno test supabase/functions/share-files/logic.test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { contentDisposition, filePath, parseRequest, pictureHeaders, picturePath, RateLimiter, referencedFiles, servedType } from "./logic.ts";
+import { contentDisposition, filePath, parseRequest, pictureHeaders, picturePath, RateLimiter, referencedFiles, sceneFilename, sceneHeaders, scenePath, servedType } from "./logic.ts";
 
 const ID = "3f1c2b9a-1b7e-4c3a-9f0e-2a4b8c1d7e55";
 const SLUG = "abcdefghijklmnopqrstuvwx";
@@ -61,4 +61,32 @@ Deno.test("a board's picture is a PNG shown in place, cached a minute", () => {
   assertEquals(h["x-content-type-options"], "nosniff");
   assertEquals(h["cache-control"], "private, max-age=60");
   assert(h["content-disposition"].startsWith('inline; filename="whiteboard.png"'));
+});
+
+// The page's "Download .excalidraw" (whiteboard council, round 3): the board's scene has an
+// address of its own beside the picture's, and downloads under the board's name as JSON.
+Deno.test("a board's scene has an address of its own, with its version", () => {
+  assertEquals(scenePath(SLUG, 1763100000456), `/functions/v1/share-files?slug=${SLUG}&scene=1763100000456`);
+  const at = (q: string) => parseRequest(new URL(`http://x/functions/v1/share-files?${q}`));
+  assertEquals(at(`slug=${SLUG}&scene=1763100000456`), { slug: SLUG, sub: null, kind: "scene" });
+  for (const q of [`scene=1`, `slug=${SLUG}&scene=`, `slug=${SLUG}&scene=abc`, `slug=${SLUG}&scene=${"1".repeat(21)}`,
+    `slug=${SLUG}&scene=1&picture=1`, `slug=${SLUG}&scene=1&file=${ID}`, `slug=${SLUG}&scene=1&sub=${ID}`]) {
+    assertEquals(at(q), null, q);
+  }
+});
+
+Deno.test("a board's scene downloads as <board name>.excalidraw, JSON, cached a minute", () => {
+  const h = sceneHeaders(4321, "Product launch");
+  assertEquals(h["content-type"], "application/json");
+  assertEquals(h["content-length"], "4321");
+  assertEquals(h["x-content-type-options"], "nosniff");
+  assertEquals(h["cache-control"], "private, max-age=60");
+  assertEquals(h["content-disposition"], `attachment; filename="Product launch.excalidraw"; filename*=UTF-8''Product%20launch.excalidraw`);
+  // As the app names its exports: no path or reserved characters, and a name when there's none.
+  assertEquals(sceneFilename("Q3: plan/roadmap"), "Q3 planroadmap.excalidraw");
+  assertEquals(sceneFilename('a\\b*?"<>|\nc'), "ab c.excalidraw");
+  assertEquals(sceneFilename("  "), "Whiteboard.excalidraw");
+  assertEquals(sceneFilename(null), "Whiteboard.excalidraw");
+  assertEquals(sceneFilename("Café plan"), "Café plan.excalidraw");
+  assert(sceneHeaders(1, "Café plan")["content-disposition"].includes(`filename*=UTF-8''Caf%C3%A9%20plan.excalidraw`));
 });

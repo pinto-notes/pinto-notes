@@ -229,9 +229,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
     /// The board as a file (CanvasExport), or nil when it's empty or the page isn't a board.
     /// `light`: on the board's own light background whatever the appearance (a shared board's picture).
-    func canvasExport(_ format: CanvasExport, selected: Bool, light: Bool = false) async -> Data? {
-        let r = try? await webView.callAsyncJavaScript("return window.amber && window.amber._canvasExport ? await window.amber._canvasExport(f, s, l) : null",
-                                                       arguments: ["f": format.rawValue, "s": selected, "l": light], in: nil, contentWorld: .page)
+    /// `page`: for a shared board's page, whose heading is that name (CanvasController.export).
+    func canvasExport(_ format: CanvasExport, selected: Bool, light: Bool = false, page: String? = nil) async -> Data? {
+        let r = try? await webView.callAsyncJavaScript("return window.amber && window.amber._canvasExport ? await window.amber._canvasExport(f, s, l, p) : null",
+                                                       arguments: ["f": format.rawValue, "s": selected, "l": light, "p": page.map { $0 as Any } ?? NSNull()], in: nil, contentWorld: .page)
         return (r as? String).flatMap { Data(base64Encoded: $0) }
     }
 
@@ -723,7 +724,7 @@ struct NotePageView: View {
                 if let canvas {
                     s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
                     canvas.deliver = { [weak s] c in s?.canvas(c) }
-                    canvas.exporter = { [weak s] f, selected, light in await s?.canvasExport(f, selected: selected, light: light) }
+                    canvas.exporter = { [weak s] f, selected, light, page in await s?.canvasExport(f, selected: selected, light: light, page: page) }
                     #if os(macOS)
                     (s.webView as? NotePageWebView)?.canvas = canvas
                     #endif

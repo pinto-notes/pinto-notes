@@ -12,10 +12,18 @@ import UniformTypeIdentifiers
 /// The picture is made again on each republish while the board is open here (SharePublisher,
 /// 2 s after the drawing's last change went up: SyncEngine); a board that isn't open keeps the
 /// last one. Stopping the link, locking, trashing or deleting the note takes it down (the server).
+///
+/// Beside it goes the board's scene, the .excalidraw file the page offers as a download (whiteboard
+/// council, round 3: the format is the promise), made and taken down with the picture
+/// (publish_share_scene). The picture leaves out the board's title when it says the page's
+/// heading (round 3: the title twice); both leave out a template's how-to line.
 @MainActor
 enum BoardPicture {
     /// The server's limit (publish_share_picture): a board too big for it at 2x is sent smaller.
     nonisolated static let maxBytes = 4 * 1024 * 1024
+    /// The server's limit for the scene (publish_share_scene). A scene over it (pictures pasted
+    /// on the board) isn't sent: the page offers no download then.
+    nonisolated static let maxSceneBytes = 4 * 1024 * 1024
 
     // MARK: Open boards
 
@@ -46,16 +54,17 @@ enum BoardPicture {
 
     // MARK: Publishing
 
-    /// What each link's page was last sent (a digest of the picture; "" for none), so a board that
-    /// didn't change isn't sent again on every republish.
+    /// What each link's page was last sent (a digest of the picture, and of the scene; "" for
+    /// none), so a board that didn't change isn't sent again on every republish.
     private static var sent: [String: String] = [:]
+    private static var sentScene: [String: String] = [:]
 
     /// The page lost its picture (the note was trashed or locked, which takes the copy down): the
     /// next publish sends it whatever it was before.
-    static func forget(slug: String) { sent[slug] = nil }
+    static func forget(slug: String) { sent[slug] = nil; sentScene[slug] = nil }
 
     /// Tests start with nothing sent and no board open.
-    static func reset() { sent = [:]; open = [:] }
+    static func reset() { sent = [:]; sentScene = [:]; open = [:] }
 
     enum Outcome: Equatable {
         case sent, cleared, unchanged
@@ -64,32 +73,48 @@ enum BoardPicture {
         case failed
     }
 
-    /// Makes the board's picture (light, at 2x) and publishes it to the link's page. `force` sends
-    /// it even when it's what was sent last (Share Link and Copy Link put the page right).
+    /// Makes the board's picture (light, at 2x) and its scene, and publishes them to the link's
+    /// page. `title` is the page's heading (the note's name; the board's own when nil). `force`
+    /// sends them even when they're what was sent last (Share Link and Copy Link put the page right).
     @discardableResult
-    static func publish(note: UUID, slug: String, client: SupabaseClient, force: Bool = false) async -> Outcome {
+    static func publish(note: UUID, slug: String, title: String? = nil, client: SupabaseClient, force: Bool = false) async -> Outcome {
         guard let board = board(note) else { return .notOpen }
-        let content: Data?
-        if let png = await board.export(.png, light: true) {
+        let page = title ?? board.title
+        let content: Data?, scene: Data?
+        if let png = await board.export(.png, light: true, page: page) {
             guard let fitted = fitted(png) else { return .failed }
             content = fitted
+            scene = await board.export(.excalidraw, page: page).flatMap { $0.count <= maxSceneBytes ? $0 : nil }
         } else {
-            // Nothing drawn: the page shows no picture. Anything else (a page not ready yet) keeps
-            // the last one.
+            // Nothing drawn: the page shows no picture and offers no file. Anything else (a page
+            // not ready yet) keeps the last ones.
             guard board.connected, board.state.empty else { return .failed }
             content = nil
+            scene = nil
         }
-        let digest = content.map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() } ?? ""
-        if !force, sent[slug] == digest { return .unchanged }
-        struct Params: Encodable { var p_slug: String; var p_content: String? }
+        let digest = content.map(Self.digest) ?? "", sceneDigest = scene.map(Self.digest) ?? ""
+        let sendPicture = force || sent[slug] != digest, sendScene = force || sentScene[slug] != sceneDigest
+        guard sendPicture || sendScene else { return .unchanged }
         do {
-            try await client.rpc("publish_share_picture", params: Params(p_slug: slug, p_content: content?.base64EncodedString())).execute()
+            if sendPicture {
+                struct Params: Encodable { var p_slug: String; var p_content: String? }
+                try await client.rpc("publish_share_picture", params: Params(p_slug: slug, p_content: content?.base64EncodedString())).execute()
+                sent[slug] = digest
+            }
+            if sendScene {
+                struct Params: Encodable { var p_slug: String; var p_content: String? }
+                try await client.rpc("publish_share_scene", params: Params(p_slug: slug, p_content: scene.map { String(decoding: $0, as: UTF8.self) })).execute()
+                sentScene[slug] = sceneDigest
+            }
         } catch {
             ShareLinkStore.log.notice("board picture not published: \(String(describing: error), privacy: .public)")
             return .failed
         }
-        sent[slug] = digest
         return content == nil ? .cleared : .sent
+    }
+
+    nonisolated private static func digest(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     /// The picture within `limit`: as it is, or made smaller until it fits. Nil when it can't be read.

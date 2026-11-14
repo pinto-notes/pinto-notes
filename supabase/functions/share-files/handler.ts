@@ -3,7 +3,7 @@
 
 import type { Sql } from "npm:postgres@3.4.5";
 import { log } from "../_shared/log.ts";
-import { contentDisposition, filePath, parseRequest, pictureHeaders, referencedFiles, servedType } from "./logic.ts";
+import { contentDisposition, filePath, parseRequest, pictureHeaders, referencedFiles, sceneHeaders, servedType } from "./logic.ts";
 
 const headers = { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": "*" };
 export const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
@@ -17,9 +17,11 @@ export async function answer(sql: Sql, url: URL): Promise<Response> {
       case "list": return await list(sql, asked.slug, asked.sub);
       case "file": return await bytes(sql, asked.slug, asked.sub, asked.file);
       case "picture": return await picture(sql, asked.slug);
+      case "scene": return await scene(sql, asked.slug);
     }
   } catch {
-    log(asked.kind === "list" ? "share_files_list" : asked.kind === "file" ? "share_files_get" : "share_picture_get", { status: 500 });
+    const event = { list: "share_files_list", file: "share_files_get", picture: "share_picture_get", scene: "share_scene_get" }[asked.kind];
+    log(event, { status: 500 });
     return reply({ error: "unavailable" }, 500);
   }
 }
@@ -68,4 +70,13 @@ async function picture(sql: Sql, slug: string): Promise<Response> {
   if (!p) return reply({ error: "not found" }, 404);
   const body = new Uint8Array(p.content);
   return new Response(body, { headers: pictureHeaders(body.byteLength) });
+}
+
+/** A shared board's scene, its .excalidraw file, while its page shows: downloaded under the
+ *  board's name. Any version gets the current one, as for the picture. */
+async function scene(sql: Sql, slug: string): Promise<Response> {
+  const [c] = await sql<{ title: string | null; content: string }[]>`select title, content from public.shared_scene(${slug})`;
+  if (!c) return reply({ error: "not found" }, 404);
+  const body = new TextEncoder().encode(c.content);
+  return new Response(body, { headers: sceneHeaders(body.byteLength, c.title) });
 }

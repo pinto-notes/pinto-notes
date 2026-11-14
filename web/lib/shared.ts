@@ -16,11 +16,15 @@ export type SharedNote = {
   /** A shared whiteboard's picture (a PNG at 2x, published from the owner's device): its size in
    *  pixels and the version its address carries. Null for a note, or a board not drawn here yet. */
   picture?: { width: number; height: number; version: number } | null;
+  /** A shared whiteboard's scene (its .excalidraw file, published beside the picture): its size in
+   *  bytes and the version its address carries. Null for a note, or a board with none yet. */
+  scene?: { size: number; version: number } | null;
 };
 
-/** A shared whiteboard as its page shows it: the picture's address, its size on the page (half its
- *  pixels, so it's sharp on a 2x screen) and what it says, for the alt text and the description. */
-export type BoardPicture = { url: string; width: number; height: number; alt: string; words: string[] };
+/** A shared whiteboard as its page shows it: the picture's address (also what a tap opens, full
+ *  size), its size on the page (half its pixels, so it's sharp on a 2x screen), what it says, for
+ *  the alt text and the description, and its .excalidraw file's address when there is one. */
+export type BoardPicture = { url: string; width: number; height: number; alt: string; words: string[]; download: string | null };
 
 const URL_ = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const KEY = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -41,6 +45,13 @@ export const validSub = (s: string) => UUID.test(s);
 export const picturePath = (slug: string, version: number) =>
   `/functions/v1/share-files?${new URLSearchParams({ slug, picture: String(Math.trunc(version)) })}`;
 
+/** The address of a shared board's scene, its .excalidraw file (share-files logic.ts scenePath). */
+export const scenePath = (slug: string, version: number) =>
+  `/functions/v1/share-files?${new URLSearchParams({ slug, scene: String(Math.trunc(version)) })}`;
+
+/** A shared note is a whiteboard: it has a picture or a scene. */
+export const isBoard = (note: SharedNote) => !!note.picture || !!note.scene;
+
 /** A board's words from its copy: the app writes its title, then one paragraph a word, escaped. */
 export function boardWords(body: string): string[] {
   const rest = body.replace(/^\s*\n/, "").split("\n").slice(1).join("\n");
@@ -60,7 +71,9 @@ export function boardPicture(slug: string, note: SharedNote, base = URL_): Board
   const p = note.picture;
   if (!p || !base || !(p.width > 0 && p.height > 0 && Number.isFinite(p.version))) return null;
   const words = boardWords(note.body);
-  return { url: base + picturePath(slug, p.version), width: Math.max(1, Math.round(p.width / 2)), height: Math.max(1, Math.round(p.height / 2)), alt: boardAlt(words), words };
+  const c = note.scene;
+  const download = c && c.size > 0 && Number.isFinite(c.version) ? base + scenePath(slug, c.version) : null;
+  return { url: base + picturePath(slug, p.version), width: Math.max(1, Math.round(p.width / 2)), height: Math.max(1, Math.round(p.height / 2)), alt: boardAlt(words), words, download };
 }
 
 export async function sharedNote(slug: string, sub?: string): Promise<SharedNote | null> {
@@ -98,7 +111,8 @@ export function copyableMarkdown(body: string): string {
     .replace(/\s+$/, "") + "\n";
 }
 
-/** The universal link for "Use this note" (https://ambernotes.app/open/copy/<slug>). */
+/** The universal link for "Use this note", and a board's "Copy to Pinto Notes"
+ *  (https://ambernotes.app/open/copy/<slug>): the app adds a copy to the visitor's notes. */
 export const copyLink = (slug: string) => `/open/copy/${slug}`;
 /** The app's own link for it, which "Use this note" tries from the note's page. */
 export const copyAppLink = (slug: string) => appURL(`copy/${slug}`);
