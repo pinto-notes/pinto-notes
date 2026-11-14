@@ -573,9 +573,13 @@ import UIKit
             try await Task.sleep(for: .milliseconds(100))
             j.canvas.send(.sticky)
             await j.until("typing in it") { j.canvas.state.editing }
-            _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+            try await Task.sleep(for: .milliseconds(100))
+            _ = try await j.js("(() => { const t = document.querySelector('textarea'); t.value = 'Typed here'; t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); return 0; })()")
             await j.until("done typing") { !j.canvas.state.editing }
         }
+        // What's typed goes in the new sticky, never in the card it was put under.
+        let typed = try await j.js("(() => { const all = amber._canvas.api.getSceneElements(); return JSON.stringify(all.filter((e) => e.type === 'text' && e.containerId).map((e) => { const c = all.find((x) => x.id === e.containerId); return [!!(c.customData && c.customData.pintoSticky), e.text]; })); })()") as? String ?? ""
+        #expect(typed.contains("[false,\"Shipped on time\"]") && typed.components(separatedBy: "[true,\"Typed here\"]").count == 3, "typed into the stickies only: \(typed)")
         let grew = try #require(try await j.js("""
         (() => { const all = amber._canvas.api.getSceneElements(); const st = all.filter((e) => e.customData && e.customData.pintoSticky);
           const t = all.find((e) => e.type === 'text' && e.text === 'Shipped on time'); const card = all.find((e) => e.id === t.containerId);
@@ -1105,7 +1109,7 @@ import UIKit
                         await MacWindowChromeTests.settle(w, 3)
                         canvas.send(.sticky)
                         for _ in 0..<60 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
-                        for _ in 0..<60 { if (try? await js("!!document.querySelector('textarea')")) as? Bool == true { break }; await MacWindowChromeTests.settle(w, 1) }
+                        try await Task.sleep(for: .milliseconds(150))
                         try await js("const t = document.querySelector('textarea'); if (t) { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); }")
                         for _ in 0..<60 where canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
                         await MacWindowChromeTests.settle(w, 3)

@@ -216,12 +216,20 @@ export function addSticky(api) {
   api.setActiveTool({ type: "selection" });
   // Typing starts in it, as Return does on a selected shape, once the engine has it (a timer, not
   // an animation frame: frames don't come while the window is hidden).
-  setTimeout(() => {
+  // The engine edits what it has selected, so wait until that's the sticky, not the card it
+  // was put under (typing went into the card otherwise).
+  const start = (tries) => {
     const placed = api.getSceneElements().find((e) => e.id === card.id);
-    if (engine && placed && typeof engine.startTextEditing === "function") {
-      engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
+    if (!engine || !placed || typeof engine.startTextEditing !== "function") return;
+    const sel = Object.keys((engine.state && engine.state.selectedElementIds) || {});
+    if ((sel.length !== 1 || sel[0] !== card.id) && tries > 0) {
+      api.updateScene({ appState: { selectedElementIds: { [card.id]: true } } });
+      setTimeout(() => start(tries - 1), 20);
+      return;
     }
-  }, 30);
+    engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
+  };
+  setTimeout(() => start(20), 30);
   return card.id;
 }
 
