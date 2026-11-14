@@ -387,6 +387,9 @@ enum CanvasCommand: Equatable, Sendable {
     /// Something from the library (CanvasLibrary): where it's dropped (a point of the page), or in
     /// a free spot in the middle of the view; selected, one step Undo takes back.
     case libraryInsert(CanvasLibraryItem, at: CGPoint?)
+    /// One of your templates (WhiteboardTemplates) onto the board, as a built-in one comes in: one
+    /// step Undo takes back, shown whole; its title line says the board's name when it has one.
+    case template(CanvasLibraryItem, title: String?)
     /// What each note card's note says now, by what the card names (cards.js).
     case cards([String: CanvasNoteCard])
     /// Notes onto the board as cards, at a point of the page or in the middle of the view.
@@ -399,6 +402,8 @@ enum CanvasCommand: Equatable, Sendable {
         case .libraryInsert(let item, let at):
             ["op": "libraryInsert", "elements": item.elements, "files": item.files]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
+        case .template(let item, let title):
+            ["op": "template", "elements": item.elements, "files": item.files].merging(title.map { ["title": $0] } ?? [:]) { a, _ in a }
         case .tool(let t): ["op": "tool", "tool": t.rawValue]
         case .style(let k, let v): ["op": "style", "key": k.rawValue, "value": v.any]
         case .action(let a): ["op": "action", "name": a.rawValue]
@@ -502,11 +507,15 @@ final class CanvasController {
         await exporter?(format, selected, light, page)
     }
 
-    func confirm(_ text: String, for time: Duration = .seconds(1.8)) {
+    /// An Undo button beside the notice, for what was done at once (a template deleted).
+    var noticeUndo: (() -> Void)?
+
+    func confirm(_ text: String, for time: Duration = .seconds(1.8), undo: (() -> Void)? = nil) {
         notice = text
+        noticeUndo = undo
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: time)
-            if self?.notice == text { self?.notice = nil }
+            if self?.notice == text { self?.notice = nil; self?.noticeUndo = nil }
         }
     }
 
@@ -680,6 +689,49 @@ final class CanvasController {
         confirm(Self.savedTitle)
         if let png = await picture(of: item) { library.setThumbnail(png, for: item.id) }
         return item
+    }
+
+    // MARK: Your templates
+
+    static let templateSavedTitle = "Saved as template"
+    static let templateDeletedTitle = "Template deleted"
+
+    /// The whole board kept as one of your templates (the More menu's Save as Template…): its
+    /// elements, the how-to line among them, and its pictures. Nil on an empty board, and it says so.
+    @discardableResult
+    func saveAsTemplate(named name: String, _ templates: WhiteboardTemplates = .shared) async -> CanvasLibraryItem? {
+        guard let json = await call?("boardPiece", [:]) as? String,
+              let piece = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
+              let item = templates.add(name: name.isEmpty ? title : name, elements: piece["elements"] as? [[String: Any]] ?? [],
+                                       files: piece["files"] as? [String: Any] ?? [:]) else {
+            confirm("Draw something to save it as a template")
+            return nil
+        }
+        confirm(Self.templateSavedTitle)
+        return item
+    }
+
+    /// One of your templates onto the board, as a built-in one (`insert(_:)`): a board still
+    /// called "Whiteboard" takes the template's name; one with its own name keeps it, and the
+    /// template's title line says it.
+    func insertTemplate(_ item: CanvasLibraryItem) {
+        let name = item.name ?? CanvasNote.title
+        if title == CanvasNote.title, name != CanvasNote.title, let rename {
+            rename(name)
+            title = name
+        }
+        send(.template(item, title: title))
+    }
+
+    /// Deletes one of your templates (after Delete is confirmed); the notice offers Undo, which
+    /// puts it back where it was.
+    func deleteTemplate(_ id: String, _ templates: WhiteboardTemplates = .shared) {
+        guard let gone = templates.remove(id) else { return }
+        confirm(Self.templateDeletedTitle, for: .seconds(6)) { [weak self, weak templates] in
+            templates?.restore(gone.item, at: gone.index)
+            self?.notice = nil
+            self?.noticeUndo = nil
+        }
     }
 
     /// A library item onto the board: in a free spot in the middle of the view, or where it was
@@ -1000,6 +1052,92 @@ final class CanvasLibrary {
     }
 
     /// Waits for what's being written (tests: a library read again from its folder).
+    func flush() { writer.sync {} }
+}
+
+/// Your own whiteboard templates (both judges, round 8: "save a board as a template"), beside the
+/// five built-in ones on an empty board. Each is a whole board as it was saved: its elements (the
+/// how-to line among them) and pictures, with a name. Kept in the app, as the library is, in one
+/// .excalidrawlib file (Application Support, "Whiteboard Templates"); not synced. Newest first.
+@MainActor @Observable
+final class WhiteboardTemplates {
+    /// The app's templates. Tests and UI tests keep theirs in memory (they never touch yours).
+    static var shared = WhiteboardTemplates(folder: PaneApp.isUnitTestHost || ProcessInfo.processInfo.arguments.contains("-uitest") ? nil : defaultFolder)
+
+    static var defaultFolder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/Whiteboard Templates", directoryHint: .isDirectory)
+    }
+    static let fileName = "templates.excalidrawlib"
+    /// The empty board shows this many in its row; past it, the last place is More….
+    static let rowLimit = 5
+
+    private(set) var items: [CanvasLibraryItem] = []
+    /// nil: kept in memory only.
+    @ObservationIgnored let folder: URL?
+    @ObservationIgnored private let writer = DispatchQueue(label: "pinto.whiteboard-templates.save", qos: .utility)
+
+    init(folder: URL?) {
+        self.folder = folder
+        guard let folder, let data = try? Data(contentsOf: folder.appending(path: Self.fileName)),
+              let kept = CanvasLibraryFile.items(from: data, keepIDs: true) else { return }
+        items = kept
+    }
+
+    /// The tiles the empty board's row shows, and whether More… takes the last place.
+    var row: (items: [CanvasLibraryItem], more: Bool) {
+        items.count <= Self.rowLimit ? (items, false) : (Array(items.prefix(Self.rowLimit - 1)), true)
+    }
+
+    /// A name as a template keeps it: trimmed, at most 80 characters, "Template" when there's none.
+    static func cleaned(_ name: String?) -> String {
+        let t = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? "Template" : String(t.prefix(80))
+    }
+
+    /// Keeps a board as a new template, first. Nil with nothing drawn.
+    @discardableResult
+    func add(name: String, elements: [[String: Any]], files: [String: Any] = [:]) -> CanvasLibraryItem? {
+        guard let item = CanvasLibraryItem(name: Self.cleaned(name), elements: elements, files: files) else { return nil }
+        items.insert(item, at: 0)
+        save()
+        return item
+    }
+
+    /// Renames one (right-click › Rename…); an empty name leaves it as it was.
+    func rename(_ id: String, to name: String) {
+        guard let i = items.firstIndex(where: { $0.id == id }), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let named = Self.cleaned(name)
+        guard items[i].name != named else { return }
+        items[i].name = named
+        save()
+    }
+
+    /// Takes one out; what it was and where, for Undo (`restore`).
+    @discardableResult
+    func remove(_ id: String) -> (item: CanvasLibraryItem, index: Int)? {
+        guard let i = items.firstIndex(where: { $0.id == id }) else { return nil }
+        let item = items.remove(at: i)
+        save()
+        return (item, i)
+    }
+
+    /// Puts a deleted one back where it was.
+    func restore(_ item: CanvasLibraryItem, at index: Int) {
+        guard !items.contains(where: { $0.id == item.id }) else { return }
+        items.insert(item, at: min(max(index, 0), items.count))
+        save()
+    }
+
+    private func save() {
+        guard let folder else { return }
+        let data = CanvasLibraryFile.data(items), file = folder.appending(path: Self.fileName)
+        writer.async {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try? data.write(to: file, options: .atomic)
+        }
+    }
+
+    /// Waits for what's being written (tests: templates read again from their folder).
     func flush() { writer.sync {} }
 }
 

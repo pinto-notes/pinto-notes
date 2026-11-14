@@ -537,6 +537,45 @@ export function libraryPiece(api) {
   return JSON.stringify({ elements, files });
 }
 
+/**
+ * The whole board as one of your templates (the More menu's Save as Template): every element
+ * drawn, the how-to line and the title included, and the pictures its images show. JSON
+ * ({ elements, files }), or null on an empty board.
+ */
+export function boardPiece(api) {
+  const elements = api.getSceneElements().filter((e) => !e.isDeleted);
+  if (!elements.length) return null;
+  const own = api.getFiles() || {}, files = {};
+  for (const e of elements) if (e.fileId && own[e.fileId]) files[e.fileId] = own[e.fileId];
+  return JSON.stringify({ elements, files });
+}
+
+/**
+ * One of your templates onto the board, as a built-in template comes in: new ids, its words,
+ * joins and pictures kept, one step Undo takes back, nothing selected, shown whole. `title`: the
+ * board's own name, which its title line says instead (as a built-in template's does).
+ */
+export function insertTemplate(api, app, c) {
+  let els = restoreElements(Array.isArray(c.elements) ? c.elements : [], null, { repairBindings: true, refreshDimensions: false }).filter((e) => !e.isDeleted);
+  if (!els.length || !app || typeof app.addElementsFromPasteOrLibrary !== "function") return false;
+  const title = typeof c.title === "string" ? c.title.replace(/\s+/g, " ").trim() : "";
+  if (title && title !== "Whiteboard") {
+    els = els.map((e) => {
+      if (e.type !== "text" || e.containerId || !marked(e, "pintoTitle") || words(e) === title) return e;
+      return restoreElements([{ ...e, text: title, originalText: title }], null, { refreshDimensions: true })[0] || e;
+    });
+  }
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+  const p = sceneCoordsToViewportCoords({ sceneX: -s.scrollX + s.width / z / 2, sceneY: -s.scrollY + s.height / z / 2 }, s);
+  const files = c.files && typeof c.files === "object" && Object.keys(c.files).length ? c.files : null;
+  app.addElementsFromPasteOrLibrary({ elements: els, files, position: { clientX: p.x, clientY: p.y } });
+  api.updateScene({ appState: { selectedElementIds: {}, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.NEVER });
+  api.setActiveTool({ type: "selection" });
+  api.scrollToContent(api.getSceneElements(), { fitToViewport: true, viewportZoomFactor: 0.8, animate: false });
+  return x2 > x1 || y2 > y1;
+}
+
 /** A library item's picture for the app's library grid: a PNG (base64) on a clear background,
  *  about 256 px on its long side, drawn light (the app turns it for dark mode, as the canvas is). */
 export async function libraryPreview(elements, files) {
@@ -997,6 +1036,11 @@ function bridge(api) {
       case "libraryInsert":
         if (!insertFromLibrary(api, app, c)) return false;
         break;
+      case "template":
+        // Measured in the hand-drawn font, as a built-in template is.
+        if (!Array.isArray(c.elements) || !c.elements.length) return false;
+        document.fonts.load("20px Excalifont").catch(() => {}).then(() => insertTemplate(api, app, c));
+        break;
       case "cards": {
         // What each card's note says now ({ <what the card names>: { id, title, preview, deleted } }),
         // laid out in the card's font once it's here. Not a step of yours to undo.
@@ -1430,7 +1474,7 @@ function Canvas({ initial }) {
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
     // What the app asks the board and waits for: the selection as a library item, an item's picture.
-    const calls = { libraryPiece: () => libraryPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), freeSpot: (a) => freeSpot(api, a.width, a.height) };
+    const calls = { libraryPiece: () => libraryPiece(api), boardPiece: () => boardPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });

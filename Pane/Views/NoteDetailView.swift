@@ -61,6 +61,9 @@ struct NoteDetailView: View {
     /// A canvas's controls (CanvasBridge): the toolbar's tools and style, the menus.
     @State private var canvasControls = CanvasController()
     @State private var confirmingClearCanvas = false
+    /// Save as Template…: its name, asked for (the board's name to start with).
+    @State private var savingTemplate = false
+    @State private var templateName = ""
 
     struct HostAsk: Identifiable {
         let host: String
@@ -1210,6 +1213,12 @@ struct NoteDetailView: View {
             }
             .accessibilityIdentifier("canvas.export")
             #endif
+        case .canvasSaveTemplate:
+            Button(NoteMoreMenu.saveTemplateTitle, systemImage: "square.on.square.dashed") {
+                templateName = canvasControls.title
+                savingTemplate = true
+            }
+            .accessibilityIdentifier("canvas.saveTemplate")
         case .canvasClear:
             DestructiveMenuButton("Clear Whiteboard\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
                 .accessibilityIdentifier("canvas.clear")
@@ -1368,6 +1377,16 @@ struct NoteDetailView: View {
                 Button("Clear Whiteboard", role: .destructive) { canvasControls.run(.clear) }
             } message: {
                 Text("Everything on it is removed. Undo brings it back.")
+            }
+            .alert(NoteMoreMenu.saveTemplateQuestion, isPresented: $savingTemplate) {
+                TextField("Name", text: $templateName)
+                Button("Cancel", role: .cancel) {}
+                Button("Save") { let name = templateName; Task { await canvasControls.saveAsTemplate(named: name) } }
+                    #if os(macOS)
+                    .keyboardShortcut(.defaultAction)
+                    #endif
+            } message: {
+                Text(NoteMoreMenu.saveTemplateMessage)
             }
             .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
             .onChange(of: note.title, initial: true) { _, t in
@@ -1894,6 +1913,10 @@ enum NoteMoreMenu {
         #endif
     }
 
+    static let saveTemplateTitle = "Save as Template\u{2026}"
+    static let saveTemplateQuestion = "Save as Template"
+    static let saveTemplateMessage = "An empty whiteboard offers it beside the built-in templates."
+
     static var isPhoneOrPad: Bool {
         #if os(iOS)
         true
@@ -1913,6 +1936,8 @@ enum NoteMoreMenu {
     enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete
         /// A canvas's own: Zoom to Fit, its background, Clear Canvas.
         case canvasZoomToFit, canvasBackground, canvasExport, canvasClear
+        /// The board kept as one of your templates (WhiteboardTemplates).
+        case canvasSaveTemplate
         /// Present (its frames one by one) and the laser pointer.
         case canvasPresent, canvasLaser
         /// The last AI change, outlined again.
@@ -1950,7 +1975,7 @@ enum NoteMoreMenu {
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
         // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
-        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear]] : []
+        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear]] : []
         return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
