@@ -1358,7 +1358,7 @@ struct NoteDetailView: View {
             .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
             .onChange(of: note.title, initial: true) { _, t in
                 canvasControls.title = t
-                canvasControls.rename = { [weak note] name in if let note { _ = CanvasTitleField.renamed(note, to: name) } }
+                canvasControls.rename = { [weak note] name in if let note { _ = CanvasRename.renamed(note, to: name) } }
             }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }

@@ -1259,6 +1259,15 @@ struct CanvasTitleField: View {
 
     /// Renames a canvas: its text is its title, one line. Nil when there's nothing to change.
     @MainActor @discardableResult
+    static func renamed(_ note: Note, to typed: String) -> String? { CanvasRename.renamed(note, to: typed) }
+}
+#endif
+
+/// Renaming a board (its text is its title, one line), on every platform: the title field on the
+/// Mac, and a template's name on both.
+enum CanvasRename {
+    /// Nil when there's nothing to change.
+    @MainActor @discardableResult
     static func renamed(_ note: Note, to typed: String) -> String? {
         let t = typed.components(separatedBy: .newlines).joined(separator: " ").trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty, t != note.title, !note.isLocked else { return nil }
@@ -1267,4 +1276,3 @@ struct CanvasTitleField: View {
         return t
     }
 }
-#endif
