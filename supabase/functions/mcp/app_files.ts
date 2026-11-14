@@ -5,12 +5,12 @@
 // the project a new app starts from.
 
 import { sampleData, sampleNote } from "./app_sample.ts";
-import { flakyTests, render, renderedFindings, testSummary } from "./app_check.ts";
+import { flakyTests, render as renderApp, renderedFindings, testSummary } from "./app_check.ts";
 import {
-  brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, packBinary, parseStored, type Project, projectProblems, serialize, sourceProblems, styleWarnings,
+  type Binary, binarySize, brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, parseStored, type Project, projectProblems, sourceProblems, styleWarnings,
 } from "./app_project.ts";
 import { scaffold } from "./app_scaffold.ts";
-import { openProject, storeProject } from "./app_blobs.ts";
+import { openProject, storeProject, supplier } from "./app_blobs.ts";
 import { bodyOf, Content, findNote, type Note, ToolError, type Call, type Tx } from "./tools.ts";
 
 type Args = Record<string, unknown>;
@@ -90,8 +90,8 @@ async function dataOf(tx: Tx, c: Call, id: string): Promise<unknown> {
 const lines = (t: string) => t.split("\n").length;
 export const fileList = (p: Project) => [
   ...Object.keys(p.files).map((path) => ({ path, bytes: new TextEncoder().encode(p.files[path]).length, lines: lines(p.files[path]) })),
-  // A binary file: its size as stored (compressed), and no lines.
-  ...Object.keys(p.binary ?? {}).map((path) => ({ path, bytes: Math.floor(p.binary![path].length * 3 / 4), lines: 0, binary: true as const })),
+  // A binary file: its size, and no lines.
+  ...Object.keys(p.binary ?? {}).map((path) => ({ path, bytes: binarySize(p.binary![path]), lines: 0, binary: true as const })),
 ].sort((a, b) => a.path < b.path ? -1 : 1);
 
 /** A project without these paths, text or binary. */
@@ -101,10 +101,11 @@ export function without(p: Project, ...paths: string[]): Project {
   return { amberApp: 1, files, compiled, ...(Object.keys(binary).length ? { binary } : {}) };
 }
 
-/** A project with a binary file set (a .wasm, a game's data, a picture): stored compressed, served as-is. */
-export async function withBinary(p: Project, path: string, data: Uint8Array): Promise<Project> {
+/** A project with a binary file set (a .wasm, a game's data, a picture), already stored apart
+ *  (putBinary): served as-is. */
+export function withBinary(p: Project, path: string, entry: Binary): Project {
   const next = without(p, path);
-  return { ...next, binary: { ...next.binary ?? {}, [path]: await packBinary(data) } };
+  return { ...next, binary: { ...next.binary ?? {}, [path]: entry } };
 }
 
 /** Checks, stores and reports a project after one change. Refuses what the app couldn't run. */
@@ -119,17 +120,21 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   const linked = await linkProject(unlinked);
   if (linked.error) throw new ToolError(`Not saved: the CSS doesn't compile.\n${linked.error}`);
   const p = linked.project;
-  const stored = serialize(p);
   const problems = [...projectProblems(p), ...sourceProblems(p)];
   if (problems.length) throw new ToolError(`Not saved:\n- ${problems.join("\n- ")}`);
   const broken = brokenImports(p);
   const warnings = styleWarnings(p);
+  // Each binary file once, named by its hash; the project's text names them (app_blobs.ts). The
+  // render service gets the same text and asks for the parts it doesn't have yet.
+  const kept = await storeProject(tx, c, p);
+  const supply = supplier(tx, c);
+  const render = (payload: Record<string, unknown>) => renderApp(payload, supply);
   const body = await bodyOf(c.v, n);
   const t = new Date().toISOString().slice(0, 10);
-  const sample = { html: stored, markdown: sampleNote(body, t), data: sampleData(await dataOf(tx, c, n.id), t), today: t };
+  const sample = { html: kept.stored, markdown: sampleNote(body, t), data: sampleData(await dataOf(tx, c, n.id), t), today: t };
   const r = await render({ ...sample, views: [{ width: 390, scheme: "light" }, { width: 1280, scheme: "light" }], capture: a.look === true, interact: false, probes: false });
   const found = typeof r === "string" ? null : renderedFindings(r);
-  const gateOn = Deno.env.get("AMBER_NO_TRY") !== "1";
+  const gateOn = (Deno.env.get("PINTO_NO_TRY") ?? Deno.env.get("AMBER_NO_TRY")) !== "1";
   // The app's own tests, and the smoke check, on every save.
   const tested = gateOn && Object.keys(p.files).some(isTest) && typeof r !== "string" ? await render({ ...sample, tests: true }) : null;
   const tests = tested && typeof tested !== "string" ? testSummary(tested) : null;
@@ -143,8 +148,6 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   const scriptErrors = (found?.errors ?? []).filter((e) => /script error|blank|tried to load/.test(e));
   const failures = [...broken, ...scriptErrors, ...(smoke?.problems ?? []), ...(tests?.failures.map((f) => `test failed: ${f}`) ?? [])];
   const live = failures.length === 0;
-  // Each binary file once, named by its hash; the project's text names them (app_blobs.ts).
-  const kept = await storeProject(tx, c, p);
   const sealed = await c.v.sealPage(n.id, kept.stored);
   if (live) {
     // The file tools write often: within ten minutes, the same writer's earlier app isn't kept as

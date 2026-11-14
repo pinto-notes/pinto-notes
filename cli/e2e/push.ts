@@ -1,8 +1,9 @@
 // End to end: the compiled pinto pushes a web project (Doom by default) into a note of the local
-// test account, and every file is then checked from the other side through the MCP read tools
-// (list, fetch with raw: true): there, with the same size and SHA-256. Also: a second push changes
-// only the binary files, pinto write --file round-trips one file, the old name amber still works,
-// and what the server says about a file over its limit. Local only: local_server.ts (the real MCP
+// test account in one save, and every file is then checked from the other side through the MCP read
+// tools (list, fetch with raw: true): there, with the same size and SHA-256. Also: a second push
+// saves nothing, pinto write --file round-trips one file, the old name amber still works, a 60 MB
+// disk image goes in pieces and reads back exact, and a 101 MB one is refused with nothing saved
+// (2026-11-16). Local only: local_server.ts (the real MCP
 // server on in-process Postgres with every migration), nothing remote. Prints a transcript; exits
 // non-zero if a check fails.
 //
@@ -87,7 +88,7 @@ try {
 
   say("## A note that doesn't exist yet becomes Doom\n");
   const first = await run(["push", project, "Games/Doom"]);
-  check(first.code === 0, `push exits 0 (${(first.ms / 1000).toFixed(1)} s)`);
+  check(first.code === 0 && /in one save/.test(first.out), `push exits 0, every file in one save (${(first.ms / 1000).toFixed(1)} s)`);
   const app = await served("Games/Doom.app");
   check(app.size === local.length, `the app has ${app.size} files; the folder has ${local.length}`);
   const cut: string[] = [];
@@ -127,15 +128,45 @@ try {
   const old = await run(["status"], { as: "amber", env: { ...base, AMBER_TOKEN: token, AMBER_SERVER: server } });
   check(old.code === 0 && /AMBER_TOKEN/.test(old.out), "amber status works, with AMBER_TOKEN and AMBER_SERVER");
 
-  say("\n## Over a limit: what the server says\n");
+  say("\n## A 60 MB disk image: in pieces, then one save\n");
   await Deno.mkdir(`${work}/big`);
-  await Deno.writeTextFile(`${work}/big/index.html`, "<!doctype html><p>big</p>");
-  // 9 MB that doesn't compress (random bytes): over the 8 MB a file can be once stored.
-  const big = new Uint8Array(9 * 1024 * 1024);
-  for (let i = 0; i < big.length; i += 65536) crypto.getRandomValues(big.subarray(i, i + 65536));
-  await Deno.writeFile(`${work}/big/data.bin`, big);
+  await Deno.writeTextFile(`${work}/big/index.html`, "<!doctype html><p>big</p><script>fetch('/disk.img')</script>");
+  // 60 MB that doesn't compress (random bytes), as a disk image doesn't.
+  const noise = (n: number) => {
+    const b = new Uint8Array(n);
+    for (let i = 0; i < b.length; i += 65536) crypto.getRandomValues(b.subarray(i, Math.min(b.length, i + 65536)));
+    return b;
+  };
+  const disk = noise(60 * 1024 * 1024 + 12345);
+  await Deno.writeFile(`${work}/big/disk.img`, disk);
+  const pushed = await run(["push", `${work}/big`, "Games/Big"]);
+  check(pushed.code === 0 && /in one save/.test(pushed.out), `push exits 0, in one save (${(pushed.ms / 1000).toFixed(1)} s)`);
+  // Read back raw in ranges of 10 MB (what one answer carries), and compared whole.
+  const got = new Uint8Array(disk.length);
+  let at = 0;
+  for (; at < disk.length;) {
+    const r = await tool("fetch", { id: "Games/Big.app/disk.img", raw: true, offset: at, limit: 10 * 1024 * 1024 });
+    const blob = fromBase64(r.content.find((c: { type: string }) => c.type === "resource").resource.blob);
+    got.set(blob, at);
+    at += blob.length;
+    if (!blob.length) break;
+  }
+  check(at === disk.length && await sha(got) === await sha(disk), `disk.img read back in 10 MB ranges: ${at} bytes, same sha256`);
+
+  say("\n## Over a limit: what the server says\n");
+  await Deno.writeFile(`${work}/big/disk.img`, noise(101 * 1024 * 1024));
   const over = await run(["push", `${work}/big`, "Games/Big"]);
-  check(over.code === 1 && /data\.bin/.test(over.err) && /at most/.test(over.err), "refused, naming the file and the limit in the server's words");
+  check(over.code === 1 && /disk\.img/.test(over.err) && /at most 100 MB/.test(over.err), "a 101 MB file is refused, naming the file and the limit in the server's words");
+  const after = new Uint8Array(disk.length);
+  at = 0;
+  for (; at < disk.length;) {
+    const r = await tool("fetch", { id: "Games/Big.app/disk.img", raw: true, offset: at, limit: 10 * 1024 * 1024 });
+    const blob = fromBase64(r.content.find((c: { type: string }) => c.type === "resource").resource.blob);
+    after.set(blob, at);
+    at += blob.length;
+    if (!blob.length) break;
+  }
+  check(await sha(after) === await sha(disk), "nothing of it was saved: the app keeps the 60 MB file");
 } finally {
   child.kill("SIGTERM");
   await child.status;

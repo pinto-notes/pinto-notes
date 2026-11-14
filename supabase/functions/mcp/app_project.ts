@@ -4,26 +4,80 @@
 import type { CompileItem, Compiled } from "./app_build.ts";
 import { fromBase64, toBase64 } from "../_shared/e2ee.ts";
 
-/** binary: files that aren't text (a .wasm, a game's .wad, a picture), each stored as base64 of its
- *  bytes compressed with raw DEFLATE, and served as-is with its type (2026-11-14). */
-export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string>; binary?: Record<string, string> };
+/** binary: files that aren't text (a .wasm, a game's .wad, a disk image, a picture), served as-is
+ *  with their type (2026-11-14). Each is one of:
+ *  - its bytes compressed with raw DEFLATE, base64, inside the project (older apps);
+ *  - {"hash", "size"}: stored once, apart, by a keyed hash of its bytes (app_blobs.ts, 2026-11-15);
+ *  - {"size", "parts": [{"hash", "size"}, …]}: a file over PART_BYTES, stored apart in parts of
+ *    PART_BYTES, in order (2026-11-16). */
+export type BlobRef = { hash: string; size: number };
+export type PartsRef = { size: number; parts: BlobRef[] };
+export type Binary = string | BlobRef | PartsRef;
+export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string>; binary?: Record<string, Binary> };
 
-export const MAX_FILES = 200;
-// Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
-export const MAX_FILE_BYTES = 8 * 1024 * 1024;
+export const isBlobRef = (v: unknown): v is BlobRef =>
+  !!v && typeof v === "object" && typeof (v as BlobRef).hash === "string" && /^[0-9a-f]{64}$/.test((v as BlobRef).hash) &&
+  Number.isSafeInteger((v as BlobRef).size) && (v as BlobRef).size >= 0;
+export const isPartsRef = (v: unknown): v is PartsRef =>
+  !!v && typeof v === "object" && Array.isArray((v as PartsRef).parts) && (v as PartsRef).parts.length > 0 && (v as PartsRef).parts.every(isBlobRef) &&
+  (v as PartsRef).parts.reduce((n, x) => n + x.size, 0) === (v as PartsRef).size;
+/** The stored names a binary file is made of (none for bytes kept inside the project). */
+export const partsOf = (v: Binary): BlobRef[] => typeof v === "string" ? [] : isPartsRef(v) ? v.parts : isBlobRef(v) ? [v] : [];
+/** A binary file's size: unpacked when it's stored apart, else its packed bytes. */
+export const binarySize = (v: Binary): number => typeof v === "string" ? Math.floor(v.length * 3 / 4) : v.size;
+
+// What limits an app, and why (2026-11-16; docs/Technical/note-app-limits.md):
+// - Its text (text files, what they compile to, and the names of its binary files) is sealed as one
+//   page, copied into each of its last ten versions and synced whole: 16 MB, under the page's
+//   23.5 MB sealed limit (20261114120000_note_app_size.sql). One text file can use all of it.
+// - A binary file is stored apart, once per account, in parts of PART_BYTES: no request, database
+//   row or sync step holds more than a part or two, so what limits it is what a device serves to
+//   the app: MAX_BINARY_BYTES, the 100 MB a file added in the app can be (pane_limit 'file_bytes').
+//   Every byte counts toward the account's 2 GB, once.
+// - Files: 10,000, the account's own limit on files (pane_limit 'files').
+export const MAX_FILES = 10_000;
 export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
-/** A binary file unpacked. What's stored (compressed) counts toward the limits above. */
-export const MAX_BINARY_BYTES = 64 * 1024 * 1024;
+/** One text file: as much as the whole project's text. */
+export const MAX_FILE_BYTES = MAX_PROJECT_BYTES;
+/** One binary file, unpacked. */
+export const MAX_BINARY_BYTES = 100 * 1024 * 1024;
+/** A binary file over this is stored in parts of this size (NotePageProject.partBytes). */
+export const PART_BYTES = 4 * 1024 * 1024;
 
-/** A binary file as stored: its bytes, raw DEFLATE, base64. */
-export async function packBinary(data: Uint8Array): Promise<string> {
-  const z = await new Response(new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
-  return toBase64(new Uint8Array(z));
+/** Bytes as raw DEFLATE "stored" blocks: valid DEFLATE that costs a copy, for bytes that don't compress. */
+export function storedDeflate(data: Uint8Array): Uint8Array<ArrayBuffer> {
+  const blocks = Math.max(1, Math.ceil(data.length / 65535));
+  const out = new Uint8Array(data.length + blocks * 5);
+  let at = 0;
+  for (let b = 0; b < blocks; b++) {
+    const from = b * 65535, n = Math.min(65535, data.length - from);
+    out[at++] = b === blocks - 1 ? 1 : 0;
+    out[at++] = n & 255; out[at++] = n >> 8; out[at++] = ~n & 255; out[at++] = (~n >> 8) & 255;
+    out.set(data.subarray(from, from + n), at);
+    at += n;
+  }
+  return out;
 }
 
-/** A stored binary file's bytes; refused past `max` unpacked, so a small file can't unpack into a huge one. */
-export async function unpackBinary(stored: string, max = MAX_BINARY_BYTES): Promise<Uint8Array> {
-  const reader = new Blob([fromBase64(stored) as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+const deflate = async (data: Uint8Array) =>
+  new Uint8Array(await new Response(new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
+
+/** A binary file's bytes packed: raw DEFLATE, or stored blocks when a sample shows they don't
+ *  compress (a disk image's compressed parts, a .wad, a video): compressing those costs about 30 ms
+ *  of the request's CPU a MB for nothing (measured 2026-11-16). */
+export async function packBytes(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  if (data.length > 65536 && (await deflate(data.subarray(0, 65536))).length > 65536 * 0.9) return storedDeflate(data);
+  return await deflate(data);
+}
+
+/** A binary file as stored inside a project: its bytes packed, base64. */
+export async function packBinary(data: Uint8Array): Promise<string> {
+  return toBase64(await packBytes(data));
+}
+
+/** Packed bytes unpacked; refused past `max`, so a small file can't unpack into a huge one. */
+export async function unpackBytes(packed: Uint8Array, max = MAX_BINARY_BYTES): Promise<Uint8Array> {
+  const reader = new Blob([packed as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
   const parts: Uint8Array[] = [];
   let n = 0;
   for (;;) {
@@ -37,6 +91,11 @@ export async function unpackBinary(stored: string, max = MAX_BINARY_BYTES): Prom
   let at = 0;
   for (const part of parts) { out.set(part, at); at += part.length; }
   return out;
+}
+
+/** A stored binary file's bytes (the packed form inside a project). */
+export async function unpackBinary(stored: string, max = MAX_BINARY_BYTES): Promise<Uint8Array> {
+  return await unpackBytes(fromBase64(stored), max);
 }
 
 /** A binary file's type as the app serves it (NotePageProject.mime): the web's own, else plain bytes. */
@@ -97,7 +156,7 @@ export function serialize(p: Project): string {
   const names = Object.keys(p.files);
   const binary = Object.keys(p.binary ?? {}).length ? p.binary! : null;
   if (names.length === 1 && names[0] === "/index.html" && !Object.keys(p.compiled).length && !binary) return p.files["/index.html"];
-  const sorted = (o: Record<string, string>) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
+  const sorted = <T,>(o: Record<string, T>) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
   return JSON.stringify({ amberApp: 1, files: sorted(p.files), compiled: sorted(p.compiled), ...(binary ? { binary: sorted(binary) } : {}) });
 }
 
@@ -120,11 +179,14 @@ export function projectProblems(p: Project): string[] {
   if (names.length + binary.length > MAX_FILES) out.push(`${names.length + binary.length} files; at most ${MAX_FILES}.`);
   for (const n of names) if (bytes(p.files[n]) > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(bytes(p.files[n]) / 1024)} KB; a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
   for (const n of binary) {
+    const v = p.binary![n];
     if (p.files[n] !== undefined) out.push(`${n} is both a text file and a binary one.`);
-    if (p.binary![n].length > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(p.binary![n].length / 1024)} KB stored (compressed); a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
+    if (typeof v !== "string" && !isBlobRef(v) && !isPartsRef(v)) out.push(`${n} isn't a file the app can serve.`);
+    else if (binarySize(v) > MAX_BINARY_BYTES) out.push(`${n} is ${(binarySize(v) / 1048576).toFixed(1)} MB; a binary file can be at most ${MAX_BINARY_BYTES / 1048576} MB.`);
   }
-  const total = bytes(serialize(p));
-  if (total > MAX_PROJECT_BYTES) out.push(`The project is ${(total / 1048576).toFixed(1)} MB with its compiled files; at most ${MAX_PROJECT_BYTES / 1048576} MB.`);
+  // The page's text: binary files are stored apart (app_blobs.ts), so only their names count.
+  const total = bytes(serialize({ ...p, binary: Object.fromEntries(Object.entries(p.binary ?? {}).filter(([, v]) => typeof v !== "string")) }));
+  if (total > MAX_PROJECT_BYTES) out.push(`The project's text is ${(total / 1048576).toFixed(1)} MB with its compiled files; at most ${MAX_PROJECT_BYTES / 1048576} MB (binary files don't count toward this).`);
   if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, pinto, pinto-ui and the bundled libraries.");
   return out;
 }

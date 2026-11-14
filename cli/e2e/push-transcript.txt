@@ -1,4 +1,4 @@
-# pinto push, end to end (2026-11-14T19:49Z), against local_server.ts on 127.0.0.1:25418
+# pinto push, end to end (2026-11-14T21:10Z), against local_server.ts on 127.0.0.1:22217
 
 The folder: README.md (2843 B), doom.js (58763 B), doom.wasm (438214 B), doom1.wad (4196020 B), index.html (847 B), main.js (10935 B), touch.js (8127 B)
 
@@ -13,7 +13,6 @@ $ pinto push <doom project> Games/Doom
     created   /doom1.wad  4.0 MB, binary
     created   /main.js  11 KB
     created   /touch.js  8 KB
-    replaced  /index.html  847 B
     deleted   /docs/README.md
     deleted   /package.json
     deleted   /src/App.tsx
@@ -47,9 +46,10 @@ $ pinto push <doom project> Games/Doom
     deleted   /src/screens/settings.tsx
     deleted   /tests/app.test.tsx
     deleted   /tsconfig.json
-  Games/Doom.app/: 5 created, 2 replaced, 0 unchanged, 33 deleted
+    replaced  /index.html  847 B
+  Games/Doom.app/: 5 created, 2 replaced, 0 unchanged, 33 deleted, in one save
   Live: the person's devices run this version.
-  PASS push exits 0 (4.5 s)
+  PASS push exits 0, every file in one save (0.6 s)
   PASS the app has 7 files; the folder has 7
   PASS README.md: text, 2843 bytes, sha256 b0860736448e… same there
   PASS doom.js: text, 3 lines there and here (a line over 4,000 characters: fetch shows it cut; checked exactly below)
@@ -75,20 +75,20 @@ $ pinto push <doom project> Games/Doom
   Pushing 7 files (4.5 MB) from <doom project> to Games/Doom
     unchanged /README.md  3 KB
     unchanged /doom.js  57 KB
-    replaced  /doom.wasm  428 KB, binary
-    replaced  /doom1.wad  4.0 MB, binary
+    unchanged /doom.wasm  428 KB, binary
+    unchanged /doom1.wad  4.0 MB, binary
     unchanged /main.js  11 KB
     unchanged /touch.js  8 KB
     unchanged /index.html  847 B
-  Games/Doom.app/: 0 created, 2 replaced, 5 unchanged, 0 deleted
-  Live: the person's devices run this version.
+  Games/Doom.app/: 0 created, 0 replaced, 7 unchanged, 0 deleted
+  No change: the app already has these files.
   PASS nothing created or deleted
   PASS the server holds every text file exactly as sent (5 answered unchanged, doom.js among them)
 
 ## One file: pinto write --file, after pinto read
 
 $ pinto read Games/Doom.app/doom.wasm
-  A binary file, 438214 bytes, served to the app as it is. fetch with raw: true for its bytes; write content_base64 to replace it.
+  A binary file, 438214 bytes, served to the app as it is. fetch with raw: true for its bytes (offset and limit in bytes, up to 10 MB at a time); write content_base64 or content_url to replace it.
 $ pinto write Games/Doom.app/doom.wasm --file ./doom.wasm
   Saved Games/Doom.app/doom.wasm
   Live: the person's devices run this version.
@@ -98,18 +98,66 @@ $ pinto write Games/Doom.app/doom.wasm --file ./doom.wasm
 ## The old name
 
 $ amber status
-  server  http://127.0.0.1:25418/mcp
+  server  http://127.0.0.1:22217/mcp
   access  read & edit (AMBER_TOKEN)
   tools   files
   PASS amber status works, with AMBER_TOKEN and AMBER_SERVER
 
+## A 60 MB disk image: in pieces, then one save
+
+$ pinto push ./big Games/Big
+  Pushing 2 files (60.0 MB) from ./big to Games/Big
+  Created Games/Big.app/
+    sent      /disk.img  56.0 MB of 60.0 MB in pieces
+    created   /disk.img  60.0 MB, binary
+    deleted   /README.md
+    deleted   /docs/README.md
+    deleted   /package.json
+    deleted   /src/App.tsx
+    deleted   /src/components/app-shell.tsx
+    deleted   /src/components/stat-card.tsx
+    deleted   /src/components/ui/badge.tsx
+    deleted   /src/components/ui/button.tsx
+    deleted   /src/components/ui/calendar.tsx
+    deleted   /src/components/ui/card.tsx
+    deleted   /src/components/ui/dialog.tsx
+    deleted   /src/components/ui/dropdown-menu.tsx
+    deleted   /src/components/ui/input.tsx
+    deleted   /src/components/ui/label.tsx
+    deleted   /src/components/ui/popover.tsx
+    deleted   /src/components/ui/scroll-area.tsx
+    deleted   /src/components/ui/select.tsx
+    deleted   /src/components/ui/separator.tsx
+    deleted   /src/components/ui/sheet.tsx
+    deleted   /src/components/ui/skeleton.tsx
+    deleted   /src/components/ui/slider.tsx
+    deleted   /src/components/ui/sonner.tsx
+    deleted   /src/components/ui/switch.tsx
+    deleted   /src/components/ui/table.tsx
+    deleted   /src/components/ui/tabs.tsx
+    deleted   /src/components/ui/tooltip.tsx
+    deleted   /src/index.css
+    deleted   /src/lib/pinto.ts
+    deleted   /src/lib/utils.ts
+    deleted   /src/main.tsx
+    deleted   /src/screens/home.tsx
+    deleted   /src/screens/settings.tsx
+    deleted   /tests/app.test.tsx
+    deleted   /tsconfig.json
+    replaced  /index.html  60 B
+  Games/Big.app/: 1 created, 1 replaced, 0 unchanged, 34 deleted, in one save
+  Live: the person's devices run this version.
+    note: Add /README.md: what the app is for, its screens and files, and where its data lives (the note's tables by heading, the app's own data). Keep it current; the next AI reads it first.
+    note: Add lang="en" (or the note's language) to <html> in /index.html.
+  PASS push exits 0, in one save (2.7 s)
+  PASS disk.img read back in 10 MB ranges: 62926905 bytes, same sha256
+
 ## Over a limit: what the server says
 
 $ pinto push ./big Games/Big
-  Pushing 2 files (9.0 MB) from ./big to Games/Big
-  Created Games/Big.app/
-  (stderr) pinto: Games/Big.app/data.bin: Not saved:
-  (stderr) - /data.bin is 12290 KB stored (compressed); a file can be at most 8 MB.
-  PASS refused, naming the file and the limit in the server's words
+  Pushing 2 files (101.0 MB) from ./big to Games/Big
+  (stderr) pinto: Games/Big.app/disk.img: /disk.img would be 101.0 MB; an app's binary file can be at most 100 MB.
+  PASS a 101 MB file is refused, naming the file and the limit in the server's words
+  PASS nothing of it was saved: the app keeps the 60 MB file
 
 All checks passed.

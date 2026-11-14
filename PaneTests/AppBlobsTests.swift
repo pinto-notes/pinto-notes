@@ -137,4 +137,43 @@ import Testing
         // A file this device doesn't have isn't served (the app then fails here and the one before runs).
         #expect(p.serve("/doom1.wad", blobs: AppBlobs(folder: nil)) == nil)
     }
+
+    /// Random bytes, quickly (a disk image doesn't compress).
+    static func noise(_ n: Int) -> Data {
+        var g = SystemRandomNumberGenerator()
+        var words = (0 ..< (n + 7) / 8).map { _ in g.next() as UInt64 }
+        return words.withUnsafeMutableBytes { Data($0.prefix(n)) }
+    }
+
+    /// A file over 4 MB (a disk image, a dataset) is stored in 4 MB parts, as the server stores it
+    /// (2026-11-16): the same names for the same bytes, served back whole and exact.
+    @Test func aBigFileIsStoredInPartsAndServedWhole() throws {
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let disk = Self.noise(2 * NotePageProject.partBytes + 12_345)
+        let p = NotePageProject(files: ["/index.html": "<p>"], binary: ["/disk.img": NotePageProject.pack(disk), "/small.bin": NotePageProject.pack(wasm)])
+            .storingBlobs(sealer, in: blobs)
+        let parts = try #require(p.parts["/disk.img"])
+        #expect(parts.map(\.size) == [NotePageProject.partBytes, NotePageProject.partBytes, 12_345])
+        #expect(parts[0].hash == sealer.blobName(disk.prefix(NotePageProject.partBytes)), "named like the server names a part")
+        #expect(p.blobs["/small.bin"] != nil && p.binary.isEmpty)
+        // As stored: {"size", "parts"}; read back the same, every part named for sync.
+        #expect(p.stored.contains("\"parts\""))
+        #expect(NotePageProject.parse(p.stored) == p)
+        #expect(NotePageProject.blobNames(in: p.stored) == Set(parts.map(\.hash) + [p.blobs["/small.bin"]!.hash]))
+        #expect(p.serve("/disk.img", blobs: blobs)?.data == disk)
+        #expect(p.serve("/disk.img", blobs: blobs)?.type == "application/octet-stream")
+        // A part this device doesn't have yet: not served.
+        #expect(p.serve("/disk.img", blobs: AppBlobs(folder: nil)) == nil)
+        // Parts that don't add up to the size, or past 100 MB, aren't an app.
+        var json = try #require(try JSONSerialization.jsonObject(with: Data(p.stored.utf8)) as? [String: Any])
+        var binary = try #require(json["binary"] as? [String: Any])
+        binary["/disk.img"] = ["size": disk.count + 1, "parts": parts.map { ["hash": $0.hash, "size": $0.size] }]
+        json["binary"] = binary
+        #expect(NotePageProject.parse(String(decoding: try JSONSerialization.data(withJSONObject: json), as: UTF8.self)) == nil)
+        var big = p
+        big.parts["/disk.img"] = Array(repeating: parts[0], count: NotePageProject.maxBinaryBytes / NotePageProject.partBytes + 1)
+        #expect(big.problem?.contains("over 100 MB") == true)
+        big.parts["/disk.img"] = Array(repeating: parts[0], count: NotePageProject.maxBinaryBytes / NotePageProject.partBytes)
+        #expect(big.problem == nil, "100 MB fits")
+    }
 }

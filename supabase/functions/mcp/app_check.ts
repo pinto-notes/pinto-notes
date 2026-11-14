@@ -103,16 +103,36 @@ export function renderedReport(r: Rendered): string[] {
   return [...f.errors, ...f.notes];
 }
 
-/** Calls the render service, or says why it can't. */
-export async function render(payload: Record<string, unknown>): Promise<Rendered | string> {
+/** Sends the render service the parts of an app's binary files it asks for (app_blobs.ts supplier). */
+export type Supply = (hashes: string[], send: (hash: string, packed: Uint8Array) => Promise<void>) => Promise<void>;
+
+/** Calls the render service, or says why it can't. A project names its binary files; the service
+ *  keeps their parts for a while and asks (409) for the ones it doesn't have, which `supply` sends. */
+export async function render(payload: Record<string, unknown>, supply?: Supply): Promise<Rendered | string> {
   const url = Deno.env.get("RENDER_URL"), secret = Deno.env.get("RENDER_SECRET");
   if (!url || !secret) return "This server has no app renderer configured, so only the checks that need no browser ran.";
+  const base = url.replace(/\/$/, "");
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 30_000);
+  let timer = setTimeout(() => ctl.abort(), 30_000);
   try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/render`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body: JSON.stringify(payload), signal: ctl.signal });
-    if (!res.ok) { await res.body?.cancel(); return `The app renderer answered ${res.status}; only the checks that need no browser ran.`; }
-    return await res.json() as Rendered;
+    const body = JSON.stringify(payload);
+    for (let round = 0; ; round++) {
+      const res = await fetch(`${base}/render`, { method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" }, body, signal: ctl.signal });
+      if (res.status === 409 && supply && round === 0) {
+        const { missing } = await res.json() as { missing: string[] };
+        // Sending a big file's parts isn't the app's time: the clock starts again after.
+        clearTimeout(timer);
+        await supply(missing, async (hash, packed) => {
+          const put = await fetch(`${base}/parts/${hash}`, { method: "PUT", headers: { authorization: `Bearer ${secret}`, "content-type": "application/octet-stream" }, body: packed as BodyInit });
+          await put.body?.cancel();
+          if (!put.ok) throw new Error(`parts: ${put.status}`);
+        });
+        timer = setTimeout(() => ctl.abort(), 30_000);
+        continue;
+      }
+      if (!res.ok) { await res.body?.cancel(); return `The app renderer answered ${res.status}; only the checks that need no browser ran.`; }
+      return await res.json() as Rendered;
+    }
   } catch {
     return "The app renderer didn't answer in time; only the checks that need no browser ran.";
   } finally {
