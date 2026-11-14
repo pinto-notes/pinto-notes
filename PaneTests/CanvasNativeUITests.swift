@@ -336,10 +336,10 @@ import UIKit
             return try #require(rep.colorAt(x: 4, y: 4)?.usingColorSpace(.deviceRGB)).brightnessComponent
         }
         #expect(try await j.js("amber._canvas.api.getAppState().theme") as? String == "dark", "the board shows dark")
-        // Export takes the board as it shows (the engine marks a dark picture with its filter);
-        // the page's picture is the board as drawn.
+        // Export and the page's picture are both the board as drawn, light (a dark picture pasted
+        // as a black block; whiteboard council, round 2).
         let root = { (svg: Data) in String(String(decoding: svg, as: UTF8.self).prefix { $0 != ">" }) }
-        #expect(root(try #require(await j.canvas.export(.svg))).contains(#"filter="invert("#), "Export in dark mode is dark")
+        #expect(!root(try #require(await j.canvas.export(.svg))).contains("filter="), "Export from dark mode is light")
         #expect(!root(try #require(await j.canvas.export(.svg, light: true))).contains("filter="), "light: as drawn")
         let picture = try #require(await j.canvas.export(.png, light: true))
         #expect(try corner(picture) > 0.95, "the page's picture is the board's white")
@@ -518,7 +518,7 @@ import UIKit
         let made = try await d.js("amber._throughDarkFilter('\(parts[1])')") as? String
         #expect(parts.count == 5 && parts[3].lowercased() == made?.lowercased(), "the engine reads the filtered accent: \(seen), made \(made ?? "nil")")
         // Exported from a dark board, the picture is light: it goes into mostly white documents.
-        d.canvas.exporter = { [weak s = d.rig.sandbox] f, selected in await s?.canvasExport(f, selected: selected) }
+        d.canvas.exporter = { [weak s = d.rig.sandbox] f, selected, light in await s?.canvasExport(f, selected: selected, light: light) }
         let png = try #require(await d.canvas.export(.png))
         let corner = try #require(NSBitmapImageRep(data: png)?.colorAt(x: 2, y: 2)?.usingColorSpace(.sRGB))
         #expect(corner.brightnessComponent > 0.9, "a light background: \(corner)")
