@@ -215,10 +215,11 @@ export async function exportScene(api, format, selected, light, page) {
 // 13 and 15 stayed at 64% with room to spare). Any zoom of your own ends it.
 let autoZoom = null;
 
-export function frameBoard(api, { minZoom, onlyIfCut = false } = {}) {
+export function frameBoard(api, { minZoom, onlyIfCut = false, size } = {}) {
   const els = api.getSceneElements();
   if (!els.length) return false;
-  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, m = 48;
+  // The view's size: the engine's, or the one just measured when the engine hasn't caught up.
+  const s = { ...api.getAppState(), ...(size || {}) }, z = (s.zoom && s.zoom.value) || 1, m = 48;
   if (autoZoom && Math.abs(autoZoom.set - z) > 1e-3) autoZoom = null;
   const cap = autoZoom ? autoZoom.from : z;
   const [x1, y1, x2, y2] = getCommonBounds(els);
@@ -800,6 +801,7 @@ function Canvas({ initial }) {
     // Full Screen): the engine keeps its left edge, which left a drawing in the left half.
     const area = document.getElementById("canvas");
     let last = area ? { w: area.clientWidth, h: area.clientHeight } : null;
+    const shrink = { whole: null, timer: 0 };
     const keepCentre = new ResizeObserver(() => {
       const w = area.clientWidth, h = area.clientHeight;
       if (!last || !w || !h) { last = { w, h }; return; }
@@ -812,12 +814,17 @@ function Canvas({ initial }) {
       const whole = els.length > 0 && (() => { const [x1, y1, x2, y2] = getCommonBounds(els);
         return (x1 + s.scrollX) * z >= 0 && (y1 + s.scrollY) * z >= 0 && (x2 + s.scrollX) * z <= was.w && (y2 + s.scrollY) * z <= was.h; })();
       api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
-      // More room (Full Screen, a wider window): the whole board if it now fits and was cut off
-      // (round 3, 13: Full Screen kept a frame with the flowchart cut at the left).
-      if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true });
-      // Less room: a board that was whole stays whole, down to half size (round 4, 15: a
-      // narrower window cut the flowchart on both sides). One cut off already stays as it is.
-      else if (whole) setTimeout(() => frameBoard(api, { onlyIfCut: true, minZoom: 0.5 }), 60);
+      // A window resizes in several steps (narrower, wider again as columns settle): whether the
+      // board was whole is read at the first, and holds until the steps stop.
+      if (shrink.whole === null) shrink.whole = whole;
+      clearTimeout(shrink.timer);
+      shrink.timer = setTimeout(() => { shrink.whole = null; }, 400);
+      const size = { width: w, height: h };
+      // A board that was whole stays whole, down to half size (round 4, 15: a narrower window
+      // cut the flowchart on both sides); one cut off already stays as it is. More room (Full
+      // Screen, a wider window): the whole board if it now fits and was cut off (round 3, 13).
+      if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size });
+      else if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true, size });
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
