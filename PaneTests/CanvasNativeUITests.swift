@@ -443,6 +443,10 @@ import UIKit
         try await Task.sleep(for: .seconds(9))
         j.rig.window.setContentSize(CGSize(width: 1300, height: 600))
         j.web.frame = CGRect(x: 0, y: 0, width: 1300, height: 600)
+        for _ in 0..<100 {
+            if (try await j.js("amber._canvas.api.getAppState().width") as? Double) == 1300 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
         await j.until("the outline followed") { (j.canvas.highlight?.rect.minX ?? h.rect.minX) - h.rect.minX > 150 }
         #expect(abs((j.canvas.highlight?.rect.minX ?? 0) - (h.rect.minX + 200)) < 4, "moved by half the new width: \(String(describing: j.canvas.highlight?.rect)) from \(h.rect)")
     }
@@ -483,6 +487,15 @@ import UIKit
         let png = try #require(await d.canvas.export(.png))
         let corner = try #require(NSBitmapImageRep(data: png)?.colorAt(x: 2, y: 2)?.usingColorSpace(.sRGB))
         #expect(corner.brightnessComponent > 0.9, "a light background: \(corner)")
+    }
+
+    /// In a narrow column the board's toolbar is compact: the main tools, the rest in More Tools,
+    /// so every tool can still be reached (whiteboard council, round 2, 15).
+    @Test func aNarrowWindowKeepsEveryToolReachable() {
+        #expect(CanvasToolbarTools.compact(600) && !CanvasToolbarTools.compact(680), "a 1280 window with both columns keeps every tool out")
+        let reachable = Set(CanvasToolbarTools.compactShown + CanvasToolbarTools.compactMore + CanvasTool.shapes)
+        #expect(reachable == Set(CanvasTool.allCases), "missing: \(Set(CanvasTool.allCases).subtracting(reachable))")
+        #expect(CanvasToolbarTools.compactShown.count + 2 <= 6, "few enough to fit beside Full Screen, Share and More")
     }
 
     /// A sticky note: yellow, square, typed into at once; the next one goes beside it, never on

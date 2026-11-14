@@ -2168,6 +2168,8 @@ struct NoteToolbarStage<Pane: View>: View {
     var showColumns: ToggleSidebarAction? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
+    /// The column's width: a whiteboard in a narrow one gets its compact tools.
+    @State private var width: CGFloat = 1200
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
@@ -2188,6 +2190,7 @@ struct NoteToolbarStage<Pane: View>: View {
                 withTransaction(instant) { parts.wrappedValue = made }
             }
         }
+            .onGeometryChange(for: Bool.self, of: { CanvasToolbarTools.compact($0.size.width) }) { narrow in width = narrow ? 500 : 1200 }
             .toolbar {
                 if self.parts != nil, let focusBack {
                     ToolbarItem(placement: .navigation) {
@@ -2242,10 +2245,12 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
                     .hidden(!showsItems)
-                    if let place {
+                    if let place, !(self.parts?.canvas != nil && CanvasToolbarTools.compact(width)) {
                         ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
+                    }
+                    if let place {
                         if self.parts?.canvas != nil {
                             ToolbarItem { CanvasTitleField(note: place) }
                                 .sharedBackgroundVisibility(.hidden)
@@ -2308,7 +2313,7 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .hidden(!showsItems || !showsWriting)
                     if let canvas = shown.canvas {
-                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas).disabled(!showsItems) }
+                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, compact: CanvasToolbarTools.compact(width)).disabled(!showsItems) }
                             .hidden(!showsItems)
                     }
                     if let people = shown.people {

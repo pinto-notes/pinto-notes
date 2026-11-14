@@ -918,24 +918,58 @@ private extension View {
 
 struct CanvasToolbarTools: View {
     let canvas: CanvasController
+    /// A narrow window: the tools used most, the rest in one menu, so nothing falls off the
+    /// toolbar (whiteboard council, round 2, 15: everything after the pencil was gone).
+    var compact = false
 
     static let tools: [CanvasTool] = [.selection, .hand, .freedraw, .arrow, .text, .eraser]
+    /// Narrower than this, the column shows the compact tools (and the board drops its breadcrumb).
+    static let compactWidth: CGFloat = 640
+    static func compact(_ width: CGFloat) -> Bool { width < compactWidth }
+    /// In the compact set: shown, and in its More Tools menu.
+    static let compactShown: [CanvasTool] = [.selection, .freedraw, .arrow, .text]
+    static let compactMore: [CanvasTool] = [.hand, .eraser]
 
     var body: some View {
         let current = canvas.state.tool
         Group {
-            tool(.selection, current)
-            tool(.hand, current)
-            tool(.freedraw, current)
-            shapes(current)
-            tool(.arrow, current)
-            tool(.text, current)
-            tool(.eraser, current)
-            Button { Self.pickImage(canvas) } label: { Label(Self.imageTitle, systemImage: "photo") }
-                .help("Add a picture (or paste or drop one)")
-                .accessibilityIdentifier("canvas.tool.image")
+            if compact {
+                tool(.selection, current)
+                tool(.freedraw, current)
+                shapes(current)
+                tool(.arrow, current)
+                tool(.text, current)
+                moreTools(current)
+            } else {
+                tool(.selection, current)
+                tool(.hand, current)
+                tool(.freedraw, current)
+                shapes(current)
+                tool(.arrow, current)
+                tool(.text, current)
+                tool(.eraser, current)
+                Button { Self.pickImage(canvas) } label: { Label(Self.imageTitle, systemImage: "photo") }
+                    .help("Add a picture (or paste or drop one)")
+                    .accessibilityIdentifier("canvas.tool.image")
+            }
         }
         .disabled(!canvas.connected)
+    }
+
+    private func moreTools(_ current: CanvasTool) -> some View {
+        let picked = Self.compactMore.contains(current)
+        return Menu {
+            ForEach(Self.compactMore) { t in
+                Button(t.help, systemImage: t.symbol) { canvas.pick(t) }
+            }
+            Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
+            Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
+        } label: {
+            Label("More Tools", systemImage: picked ? current.symbol : "ellipsis.circle").picked(picked)
+        }
+        .menuIndicator(.hidden)
+        .help("Hand, eraser, pictures and sticky notes")
+        .accessibilityIdentifier("canvas.tool.more")
     }
 
     private func tool(_ t: CanvasTool, _ current: CanvasTool) -> some View {
