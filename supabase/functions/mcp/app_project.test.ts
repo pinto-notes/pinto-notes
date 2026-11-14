@@ -39,20 +39,41 @@ Deno.test("compile: JSX to ESM with preact's runtime; syntax errors name the lin
   assertStringIncludes(bad.error, "/src/App.jsx:");
 });
 
-Deno.test("imports: missing files, unknown bare names, URLs and an own import map are reported", () => {
+Deno.test("imports: missing files, unknown bare names, plain-http addresses and an own import map are reported; https loads", () => {
   const p = { amberApp: 1 as const, compiled: {}, files: {
-    "/index.html": `<link rel="stylesheet" href="/src/styles.css"><script type="module" src="/src/main.jsx"></script><script src="https://cdn.example/x.js"></script>`,
-    "/src/main.jsx": `import { render } from "preact";\nimport App from "./App.jsx";\nimport _ from "lodash";\nimport x from "https://esm.sh/x";`,
+    "/index.html": `<link rel="stylesheet" href="/src/styles.css"><script type="module" src="/src/main.jsx"></script><script src="https://cdn.example/x.js"></script><script src="http://cdn.example/plain.js"></script>`,
+    "/src/main.jsx": `import { render } from "preact";\nimport App from "./App.jsx";\nimport _ from "lodash";\nimport x from "https://esm.sh/x";\nimport y from "//esm.sh/y";`,
     "/src/styles.css": "",
   } };
   const r = brokenImports(p).join("\n");
   assertStringIncludes(r, "imports ./App.jsx, but there's no such file");
   assertStringIncludes(r, `"lodash"`);
-  assertStringIncludes(r, "https://esm.sh/x");
-  assertStringIncludes(r, "cdn.example");
+  // The internet is open to an app like to a web page (2026-11-14): https scripts and modules load.
+  assert(!r.includes("https://esm.sh/x") && !r.includes("https://cdn.example/x.js"), r);
+  assertStringIncludes(r, "imports //esm.sh/y: only https addresses load in the app.");
+  assertStringIncludes(r, "loads http://cdn.example/plain.js: only https addresses load in the app.");
   assert(!r.includes("preact\""));
   assertStringIncludes(projectProblems({ ...p, files: { "/index.html": `<script type="importmap">{}</script>` } }).join(), "import map");
   assertStringIncludes(projectProblems({ ...p, files: { "/a.js": "" } }).join(), "/index.html");
+});
+
+Deno.test("a .js file the page loads with a plain <script src> runs as written, not as a compiled module (Doom's loader)", async () => {
+  await import("./tools.ts"); // app_files.ts is loaded through tools.ts, as the server loads it
+  const { linkProject, classicScripts, withFiles } = { ...await import("./app_project.ts"), ...await import("./app_files.ts") };
+  // A UMD loader like emscripten's: as a module it gets an export and fails in a classic <script>.
+  const loader = `var DoomModule=(()=>async function(){})();if(typeof exports==="object"&&typeof module==="object"){module.exports=DoomModule}`;
+  const files = {
+    "/index.html": `<div id="root"></div><script src="doom.js"></script><script src="/js/main.js?v=2"></script><script type="module" src="/src/main.js"></script><script src="https://cdn.example.com/x.js"></script>`,
+    "/package.json": `{ "dependencies": { "react": "^19" } }`,
+    "/doom.js": loader, "/js/main.js": "DoomModule();", "/src/main.js": `import x from "./x.js"; console.log(x);`, "/src/x.js": "export default 1;",
+  };
+  assertEquals([...classicScripts({ amberApp: 1, files, compiled: {} })].sort(), ["/doom.js", "/js/main.js"]);
+  // A React project compiles every .js it's given; linking drops the compiled copy of the classic ones.
+  const built = await withFiles({ amberApp: 1, files: {}, compiled: {} }, files);
+  assert(built.compiled["/doom.js"] !== undefined, "compiled at write time, as before");
+  const { project } = await linkProject(built);
+  assertEquals([project.compiled["/doom.js"], project.compiled["/js/main.js"]], [undefined, undefined]);
+  assert(project.compiled["/src/main.js"] !== undefined && project.compiled["/src/x.js"] !== undefined, "modules stay compiled");
 });
 
 Deno.test("a React + Tailwind project links like Vite: @/ alias, no extensions, CSS from the classes used", async () => {

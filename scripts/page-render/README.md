@@ -1,6 +1,6 @@
 # App render service
 
-`check_app` and `preview_app` need a browser, and Supabase edge functions can't run one. The MCP server sends a note's app to this service and gets back measurements and screenshots. In the app, the HTML runs the same way: the same CSP, the `--amber-*` theme, the `window.amber` bridge and no network.
+`check_app` and `preview_app` need a browser, and Supabase edge functions can't run one. The MCP server sends a note's app to this service and gets back measurements and screenshots. In the app, the HTML runs the same way: the same CSP, the `--amber-*` theme, the `window.amber` bridge, and the internet over https, as on the device.
 
 ```sh
 RENDER_SECRET=… deno run -A scripts/page-render/server.ts --port 8790
@@ -24,7 +24,7 @@ It also returns the result of trying the app's first control, and probes over ch
 
 By default the MCP server sends the app's HTML with a sample note and sample data (`app_sample.ts`). The sample keeps the same tables, columns, checklists and data keys, but every word and number is replaced. `preview_app` and `try_app` with `data: "real"` send the real note and data only on a server with `AMBER_APP_REAL_PREVIEWS=on`, and then only when the person has turned on `profiles.app_previews_real`. Production has it unset: nothing real is ever sent, and the released apps do not show the setting.
 
-That trust level matches the MCP server, which already opens notes in memory for an AI's request. The service stores nothing and logs only timings and sizes. Each request gets fresh browser contexts, and the page's own requests are refused. Run it with outbound network blocked and reachable only from the MCP server.
+That trust level matches the MCP server, which already opens notes in memory for an AI's request. The service stores nothing and logs only timings and sizes. Each request gets fresh browser contexts. The page never connects anywhere itself: this service makes its GET requests to the internet for it, only to public https addresses (`supabase/functions/mcp/public_fetch.ts`: every address and redirect checked, the checked address dialled, no cookies, 16 MB and 10 s each). Anything else fails like a network that is down, which the checks do not count against the app. So the service needs outbound https, and is reachable only from the MCP server.
 
 ## Measured here (Apple Silicon, WebKit)
 
@@ -44,4 +44,4 @@ One render runs at a time per instance.
   - Scaling to zero costs nothing idle, but the first call after a quiet spell waits 4 to 6 s for WebKit to start.
   - One warm instance removes that wait for roughly $10 to $15 a month.
 - Fly.io: a shared-cpu-2x machine with 2 GB, always on, is about $11 a month and handles a few hundred renders an hour.
-- Either way: TLS, the shared secret, no public listing, and outbound network denied.
+- Either way: TLS, the shared secret, no public listing, and outbound traffic limited to https (443).

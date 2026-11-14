@@ -1,11 +1,12 @@
 /// <reference lib="dom" />
-// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge; the internet refused quietly)
+// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge; the internet over https, public addresses only)
 // in headless WebKit at the widths and color schemes asked for, and measures it: script errors,
 // overflow, contrast, small or faint text, unlabeled controls, an edit from the app, and probes
 // over changed notes. Used by the render service (server.ts, behind check_app and preview_app) and
 // by the evals. Edits run through page_input.ts, the TypeScript twin of Pane/Model/NotePage.swift.
 import { Buffer } from "node:buffer";
-import { webkit, type Browser, type Page } from "npm:playwright-core@1.63.0";
+import { webkit, type Browser, type Page, type Route } from "npm:playwright-core@1.63.0";
+import { publicFetch } from "../../supabase/functions/mcp/public_fetch.ts";
 import { applyPageOp, importedFrom, noteForPage } from "../../supabase/functions/mcp/page_input.ts";
 import { mergePatch } from "../../supabase/functions/mcp/data_ops.ts";
 import { findTables } from "../../supabase/functions/mcp/notes.ts";
@@ -525,6 +526,36 @@ async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page
 let browser: Browser | null = null;
 export async function closeBrowser() { await browser?.close(); browser = null; }
 
+/** What one outside request may bring back during a render. */
+const OUTSIDE_BYTES = 16 * 1024 * 1024;
+const HOP_HEADERS = /^(content-encoding|content-length|transfer-encoding|connection|keep-alive|set-cookie|set-cookie2)$/i;
+
+/** A page's request to the internet during a render, made by this service for it: a GET to a
+ *  public https address (public_fetch.ts), at most 16 MB and 10 s. Anything else, or anything
+ *  refused, fails the way a request fails with the network down, which the app's checks don't count. */
+async function outside(r: Route): Promise<void> {
+  const req = r.request();
+  if (req.method() !== "GET") return await r.abort("internetdisconnected").catch(() => {});
+  try {
+    const res = await publicFetch(req.url(), { timeoutMs: 10_000 });
+    const reader = res.body?.getReader();
+    const parts: Uint8Array[] = [];
+    let n = 0;
+    for (;;) {
+      const got = await reader?.read();
+      if (!got || got.done) break;
+      n += got.value.length;
+      if (n > OUTSIDE_BYTES) { await reader!.cancel(); throw new RangeError("too big"); }
+      parts.push(got.value);
+    }
+    const headers: Record<string, string> = {};
+    res.headers.forEach((v, k) => { if (!HOP_HEADERS.test(k)) headers[k] = v; });
+    await r.fulfill({ status: res.status, headers, body: Buffer.concat(parts) });
+  } catch {
+    await r.abort("internetdisconnected").catch(() => {});
+  }
+}
+
 function lum(rgb: string): number {
   const m = rgb.match(/[\d.]+/g)?.map(Number) ?? [0, 0, 0];
   const [r, g, b] = m.slice(0, 3).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
@@ -631,9 +662,10 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         });
       }
       if (u.startsWith("data:") || u.startsWith("blob:")) return r.continue();
-      // The internet: open to the app on the device, refused here without counting against it. This
-      // service runs on a server, so it never makes requests the app asks for (2026-11-14).
-      if (u.startsWith("https:")) return r.abort("internetdisconnected");
+      // The internet: open to the app on the device, so here too, but only what the fetcher for
+      // outside links lets through (public_fetch.ts: public https addresses, each redirect checked,
+      // no cookies). The rest is refused without counting against the app (2026-11-14).
+      if (u.startsWith("https:")) return outside(r);
       blocked.push(u);
       return r.abort();
     });

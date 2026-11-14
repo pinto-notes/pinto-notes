@@ -36,6 +36,20 @@ Each binary file is stored once per account under a keyed hash of its bytes. A v
 
 Old apps and versions are never rewritten. They open as they did, and their next save from 1.4 or the AI stores their files apart.
 
+## Files from an address (`content_url`)
+
+Built on `feature/write-from-url`. An AI that can't send 4 MB as base64 (ChatGPT and Claude on the web) passes an address instead: `write { path, content_url: "https://…" }`. It works wherever `content_base64` does, for an app's files and a folder's or note's files. The server downloads the file before the transaction opens and then stores it through the same code as `content_base64`, so it is sealed, hashed, stored once and versioned the same way. The answer adds `bytes`, `sha256` (plain SHA-256 of the bytes, so the AI can compare it with the source), `downloaded_from` and `content_type`.
+
+The download (`public_fetch.ts`, shared with ChatGPT's file links):
+
+- https only, on port 443, with no user name or password in the address.
+- The name is resolved and every address must be public. Refused: loopback, private ranges, link-local and the metadata address 169.254.169.254, CGNAT (100.64/10), multicast and reserved ranges, and the IPv6 equivalents (`::1`, `fc00::/7` including `fd00:ec2::254`, `fe80::/10`, `ff00::/8`, IPv4-mapped and NAT64 forms of the above).
+- The connection goes to the address that was checked (TCP to that IP, then TLS with the name for the certificate), so DNS can't answer differently the second time.
+- Redirects are followed by hand, at most 3, and each hop is checked the same way.
+- No cookies, credentials or caller headers go along. It asks for the bytes unpacked (`Accept-Encoding: identity`).
+- 30 s for the whole download. It stops reading past 10 MB (the `content_base64` limit) and says so.
+- Exactly one of `content`, `content_base64`, `content_url` (or ChatGPT's `file`).
+
 ## Numbers
 
 Doom, 7 files, 3 saves kept (the live app and 2 versions), measured by `app_blobs.pglite.test.ts` with `DOOM_DIR` set:
@@ -78,6 +92,7 @@ The render service needs no change.
   - storage counting
   - the Doom numbers
 - `supabase/functions/_shared/e2ee.test.ts`: the `app_blob` vector.
+- `supabase/functions/mcp/public_fetch.test.ts` and `write_from_url.pglite.test.ts`: `content_url` against a local https server (`test_https.ts`, a certificate made by openssl for the run): exact bytes and hash, stored once like `content_base64`, restored from a version, each refused address class, redirects inside, http, too big, too slow.
 - `PaneTests/AppBlobsTests.swift`:
   - one changed file stores one new file
   - restore gives back exact files, and they are kept across a launch

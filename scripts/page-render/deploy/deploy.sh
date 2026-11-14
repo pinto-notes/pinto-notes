@@ -6,9 +6,11 @@ set -eu
 root=$(cd "$(dirname "$0")/../../.." && pwd)
 stage=$(mktemp -d "${TMPDIR:-/tmp}/amber-render.XXXXXX")
 trap 'rm -rf "$stage"' EXIT
-mkdir -p "$stage/scripts/page-render" "$stage/supabase/functions/mcp" "$stage/Pane/Resources"
+mkdir -p "$stage/scripts/page-render" "$stage/supabase/functions/mcp" "$stage/supabase/functions/_shared" "$stage/Pane/Resources"
 cp "$root/scripts/page-render/render.ts" "$root/scripts/page-render/server.ts" "$root/scripts/page-render/test-harness.js" "$stage/scripts/page-render/"
-for f in amber-base.ts app_build.ts tailwind.gen.ts data_ops.ts libraries.ts notes.ts page.ts page_input.ts; do cp "$root/supabase/functions/mcp/$f" "$stage/supabase/functions/mcp/"; done
+# The local modules server.ts imports (deno info --json scripts/page-render/server.ts lists them).
+for f in amber-base.ts app_build.ts app_project.ts tailwind.gen.ts data_ops.ts libraries.ts notes.ts page.ts page_input.ts public_fetch.ts; do cp "$root/supabase/functions/mcp/$f" "$stage/supabase/functions/mcp/"; done
+cp "$root/supabase/functions/_shared/e2ee.ts" "$stage/supabase/functions/_shared/"
 cp -R "$root/Pane/Resources/AppLibraries" "$stage/Pane/Resources/"
 mkdir -p "$stage/scripts/page-render/.libcache"
 cp "$root/scripts/page-render/deploy/Dockerfile" "$root/scripts/page-render/deploy/railway.json" "$root/scripts/page-render/deploy/fonts.conf" "$stage/"

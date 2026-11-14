@@ -311,7 +311,9 @@ export async function runTool(name: string, args: Args, ctx: ToolContext): Promi
 }
 
 /** One call of a tool from a tool set (the classic one above, or the file-like one in files_tools.ts). */
-export async function runIn(list: Tool[], impl: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unknown>>, name: string, args: Args, ctx: ToolContext): Promise<unknown> {
+export async function runIn(list: Tool[], impl: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unknown>>, name: string, args: Args, ctx: ToolContext,
+  /** Slow work that needs no database (a download), after the call is counted and before the transaction opens. */
+  before?: () => Promise<void>): Promise<unknown> {
   if (!list.some((t) => t.name === name)) throw new ToolError(`Unknown tool ${name}.`);
   if (ctx.canWrite === false && list.some((t) => t.name === name && !t.annotations.readOnlyHint)) throw new ToolError(READ_ONLY);
   const claims = JSON.stringify({ sub: ctx.userId, role: "authenticated" });
@@ -323,6 +325,7 @@ export async function runIn(list: Tool[], impl: Record<string, (tx: Tx, a: Args,
   await ctx.sql`select public.pane_take('mcp') from (select set_config('request.jwt.claims', ${claims}, true)) as claims`
     .catch((e) => { throw new ToolError((e as Error).message); });
   if (ctx.timing) ctx.timing.rate_take = performance.now() - tTake;
+  if (before) await before();
   const call: Call = { v: ctx.vault, ctx, scanMs: 0, afterCommit: [], onRollback: [] };
   try {
     const out = await ctx.sql.begin(async (tx) => {
