@@ -236,6 +236,14 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         return (r as? String).flatMap { Data(base64Encoded: $0) }
     }
 
+    /// Asks the board something and waits for its answer (canvas.jsx `amber._canvasCall`): the
+    /// selection as a library item, a library item's picture. Nil when it can't say.
+    func canvasCall(_ name: String, _ args: [String: Any]) async -> Any? {
+        let r = try? await webView.callAsyncJavaScript("return window.amber && window.amber._canvasCall ? await window.amber._canvasCall(n, a) : null",
+                                                       arguments: ["n": name, "a": args], in: nil, contentWorld: .page)
+        return r is NSNull ? nil : r
+    }
+
     func push(body: String, data: NotePageData.Doc? = nil) {
         webView.callAsyncJavaScript("window.amber && window.amber._receive(note, data)", arguments: ["note": NotePage.data(of: body), "data": data ?? NSNull()], in: nil, in: .page) { _ in }
     }
@@ -725,6 +733,7 @@ struct NotePageView: View {
                     s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
                     canvas.deliver = { [weak s] c in s?.canvas(c) }
                     canvas.exporter = { [weak s] f, selected, light, page in await s?.canvasExport(f, selected: selected, light: light, page: page) }
+                    canvas.call = { [weak s] name, args in await s?.canvasCall(name, args) }
                     #if os(macOS)
                     (s.webView as? NotePageWebView)?.canvas = canvas
                     #endif

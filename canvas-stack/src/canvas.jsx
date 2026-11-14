@@ -324,6 +324,107 @@ export function addSticky(api) {
   return card.id;
 }
 
+// MARK: The library (CanvasLibrary in the app)
+
+/**
+ * The selection as one library item, as Excalidraw's "Add to library" takes it: what's selected,
+ * the words inside selected shapes and on selected arrows, and the pictures its images show.
+ * Joins to anything left behind are cut, so the item stands on its own wherever it goes. JSON
+ * ({ elements, files }), or null with nothing selected.
+ */
+export function libraryPiece(api) {
+  const ids = api.getAppState().selectedElementIds || {};
+  const all = api.getSceneElements();
+  const chosen = new Set(all.filter((e) => ids[e.id]).map((e) => e.id));
+  for (const e of all) if (e.containerId && chosen.has(e.containerId)) chosen.add(e.id);
+  if (!chosen.size) return null;
+  const elements = all.filter((e) => chosen.has(e.id)).map((e) => {
+    const c = { ...e };
+    if (c.startBinding && !chosen.has(c.startBinding.elementId)) c.startBinding = null;
+    if (c.endBinding && !chosen.has(c.endBinding.elementId)) c.endBinding = null;
+    if (Array.isArray(c.boundElements)) {
+      const kept = c.boundElements.filter((b) => chosen.has(b.id));
+      c.boundElements = kept.length ? kept : null;
+    }
+    if (c.frameId && !chosen.has(c.frameId)) c.frameId = null;
+    return c;
+  });
+  const own = api.getFiles() || {}, files = {};
+  for (const e of elements) if (e.fileId && own[e.fileId]) files[e.fileId] = own[e.fileId];
+  return JSON.stringify({ elements, files });
+}
+
+/** A library item's picture for the app's library grid: a PNG (base64) on a clear background,
+ *  about 256 px on its long side, drawn light (the app turns it for dark mode, as the canvas is). */
+export async function libraryPreview(elements, files) {
+  const els = restoreElements(Array.isArray(elements) ? elements : [], null, { repairBindings: true, refreshDimensions: false }).filter((e) => !e.isDeleted);
+  if (!els.length) return null;
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const scale = Math.min(4, 256 / Math.max(1, x2 - x1, y2 - y1));
+  const canvas = await exportToCanvas({
+    elements: els, files: files && typeof files === "object" ? files : {}, exportPadding: 4,
+    appState: { exportBackground: false, viewBackgroundColor: "#ffffff", exportWithDarkMode: false },
+    getDimensions: (w, h) => ({ width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)), scale }),
+  });
+  return canvas.toDataURL("image/png").replace(/^data:[^,]*,/, "");
+}
+
+/**
+ * Where something w by h goes so it covers nothing drawn: the middle of the view when that's
+ * free, else the free spot in view nearest the middle, else just right of the drawing (`inView`
+ * false then). Its top left corner, in the scene.
+ */
+export function freeSpot(api, w, h, margin = 24) {
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+  const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
+  const mid = { x: vx + vw / 2 - w / 2, y: vy + vh / 2 - h / 2 };
+  const drawn = api.getSceneElements().filter((e) => !e.containerId).map((e) => getCommonBounds([e]));
+  const free = (x, y) => !drawn.some(([x1, y1, x2, y2]) => x < x2 + margin && x + w > x1 - margin && y < y2 + margin && y + h > y1 - margin);
+  if (free(mid.x, mid.y)) return { ...mid, inView: true };
+  // Every spot in view on a grid fine enough to find a gap, coarse enough to stay quick.
+  const step = Math.max(8 / z, Math.min(w, h) / 4, vw / 60, vh / 60);
+  let best = null;
+  for (let x = vx + margin / 2; x + w <= vx + vw - margin / 2; x += step) {
+    for (let y = vy + margin / 2; y + h <= vy + vh - margin / 2; y += step) {
+      if (!free(x, y)) continue;
+      const d = (x - mid.x) ** 2 + (y - mid.y) ** 2;
+      if (!best || d < best.d) best = { x, y, d };
+    }
+  }
+  if (best) return { x: best.x, y: best.y, inView: true };
+  const [x1, y1, x2, y2] = getCommonBounds(api.getSceneElements());
+  return { x: x2 + 60, y: Math.max(y1, Math.min(mid.y, y2 - h)), inView: false };
+}
+
+/**
+ * A library item onto the board, as the engine puts one from its own library: new ids, its words
+ * and joins kept, one step Undo takes back, selected. Where `x`, `y` (a point of the page) say,
+ * as when it's dropped; else in a free spot in the middle of the view, never on the drawing, and
+ * brought into view when the view has no room (whiteboard council, round 5).
+ */
+export function insertFromLibrary(api, app, c) {
+  const els = restoreElements(Array.isArray(c.elements) ? c.elements : [], null, { repairBindings: true, refreshDimensions: false }).filter((e) => !e.isDeleted);
+  if (!els.length || !app || typeof app.addElementsFromPasteOrLibrary !== "function") return false;
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const w = Math.max(1, x2 - x1), h = Math.max(1, y2 - y1);
+  const s = api.getAppState();
+  let position, spot = null;
+  if (typeof c.x === "number" && typeof c.y === "number") position = { clientX: c.x, clientY: c.y };
+  else {
+    spot = freeSpot(api, w, h);
+    const p = sceneCoordsToViewportCoords({ sceneX: spot.x + w / 2, sceneY: spot.y + h / 2 }, s);
+    position = { clientX: p.x, clientY: p.y };
+  }
+  const files = c.files && typeof c.files === "object" && Object.keys(c.files).length ? c.files : null;
+  app.addElementsFromPasteOrLibrary({ elements: els, files, position });
+  if (spot && !spot.inView && !frameBoard(api, { minZoom: 0.5 })) {
+    // Too big to show whole: the item in view at the zoom you had.
+    const v = api.getAppState(), z = (v.zoom && v.zoom.value) || 1;
+    flushSync(() => api.updateScene({ appState: { scrollX: -(spot.x + w / 2) + v.width / 2 / z, scrollY: -(spot.y + h / 2) + v.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+  }
+  return true;
+}
+
 /** What the page tells the app: the tool, what's selected, and the style the controls show. */
 export function stateOf(api, app) {
   const s = api.getAppState();
@@ -533,6 +634,9 @@ function bridge(api) {
       }
       case "sticky":
         addSticky(api);
+        break;
+      case "libraryInsert":
+        if (!insertFromLibrary(api, app, c)) return false;
         break;
       case "image": {
         // A picture the app made ready (CanvasImage): kept in the scene's files, placed where it
@@ -828,6 +932,9 @@ function Canvas({ initial }) {
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
+    // What the app asks the board and waits for: the selection as a library item, an item's picture.
+    const calls = { libraryPiece: () => libraryPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files) };
+    Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
     return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };

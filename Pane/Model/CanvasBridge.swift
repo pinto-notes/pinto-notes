@@ -124,15 +124,18 @@ enum CanvasStyle {
     /// half way round the hue wheel (`invert(100%) hue-rotate(180deg)`), so a swatch shows that too.
     static func shown(_ hex: String, dark: Bool) -> Color? {
         guard var (r, g, b) = rgb(hex) else { return nil }
-        if dark {
-            (r, g, b) = (1 - r, 1 - g, 1 - b)
-            // CSS hue-rotate(180deg).
-            let nr = -0.574 * r + 1.430 * g + 0.144 * b
-            let ng = 0.426 * r + 0.430 * g + 0.144 * b
-            let nb = 0.426 * r + 1.430 * g - 0.856 * b
-            (r, g, b) = (min(max(nr, 0), 1), min(max(ng, 0), 1), min(max(nb, 0), 1))
-        }
+        if dark { (r, g, b) = throughDark(r, g, b) }
         return Color(red: r, green: g, blue: b)
+    }
+
+    /// A colour (0…1 a channel) as the canvas shows it in dark mode: inverted, then CSS
+    /// hue-rotate(180deg).
+    static func throughDark(_ r: Double, _ g: Double, _ b: Double) -> (Double, Double, Double) {
+        let (r, g, b) = (1 - r, 1 - g, 1 - b)
+        let nr = -0.574 * r + 1.430 * g + 0.144 * b
+        let ng = 0.426 * r + 0.430 * g + 0.144 * b
+        let nb = 0.426 * r + 1.430 * g - 0.856 * b
+        return (min(max(nr, 0), 1), min(max(ng, 0), 1), min(max(nb, 0), 1))
     }
 
     static func rgb(_ hex: String) -> (Double, Double, Double)? {
@@ -318,9 +321,15 @@ enum CanvasCommand: Equatable, Sendable {
     case image(CanvasImage, at: CGPoint?)
     /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
     case sticky
+    /// Something from the library (CanvasLibrary): where it's dropped (a point of the page), or in
+    /// a free spot in the middle of the view; selected, one step Undo takes back.
+    case libraryInsert(CanvasLibraryItem, at: CGPoint?)
 
     var payload: [String: Any] {
         switch self {
+        case .libraryInsert(let item, let at):
+            ["op": "libraryInsert", "elements": item.elements, "files": item.files]
+                .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
         case .tool(let t): ["op": "tool", "tool": t.rawValue]
         case .style(let k, let v): ["op": "style", "key": k.rawValue, "value": v.any]
         case .action(let a): ["op": "action", "name": a.rawValue]
@@ -463,6 +472,264 @@ final class CanvasController {
     func pick(_ tool: CanvasTool) { send(.tool(tool)) }
     func run(_ action: CanvasCommand.Action) { send(.action(action)) }
     func set(_ key: CanvasCommand.StyleKey, _ value: CanvasCommand.Value) { send(.style(key, value)) }
+
+    // MARK: The library
+
+    /// Asks the page something and waits for the answer (canvas.jsx `amber._canvasCall`): set by
+    /// the page view while it shows.
+    @ObservationIgnored var call: ((String, [String: Any]) async -> Any?)?
+    /// The library popover is open (Mac).
+    var showingLibrary = false
+    /// Items whose picture the page couldn't draw, not asked again this time.
+    @ObservationIgnored private var undrawable: Set<String> = []
+
+    static let savedTitle = "Saved to library"
+
+    /// What's selected, kept in the library as one item (the selection bar's More menu and the
+    /// right-click menu: Save to Library), with its picture. Nil with nothing selected.
+    @discardableResult
+    func saveSelectionToLibrary(_ library: CanvasLibrary = .shared) async -> CanvasLibraryItem? {
+        guard let json = await call?("libraryPiece", [:]) as? String,
+              let piece = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
+              let item = library.add(elements: piece["elements"] as? [[String: Any]] ?? [], files: piece["files"] as? [String: Any] ?? [:]) else {
+            confirm("Select something to save it to the library")
+            return nil
+        }
+        confirm(Self.savedTitle)
+        if let png = await picture(of: item) { library.setThumbnail(png, for: item.id) }
+        return item
+    }
+
+    /// A library item onto the board: in a free spot in the middle of the view, or where it was
+    /// dropped (a point of the page).
+    func insert(_ item: CanvasLibraryItem, at point: CGPoint? = nil) {
+        send(.libraryInsert(item, at: point))
+    }
+
+    /// An item drawn by the board as it would draw it: a PNG, light, on a clear background.
+    func picture(of item: CanvasLibraryItem) async -> Data? {
+        guard let b64 = await call?("libraryPreview", ["elements": item.elements, "files": item.files]) as? String else { return nil }
+        return Data(base64Encoded: b64)
+    }
+
+    /// Pictures for the items that have none yet (imported ones, or ones from before), one at a
+    /// time while the library shows. Until then a tile shows the item's outline (CanvasSketch).
+    func drawThumbnails(_ library: CanvasLibrary = .shared) async {
+        for item in library.items where library.thumbnails[item.id] == nil && !undrawable.contains(item.id) {
+            guard call != nil, !Task.isCancelled else { return }
+            if let png = await picture(of: item) { library.setThumbnail(png, for: item.id) } else { undrawable.insert(item.id) }
+        }
+    }
+}
+
+// MARK: The whiteboard library
+
+/// One thing in the whiteboard library: elements as Excalidraw keeps them in a library (one
+/// `libraryItems` entry of a .excalidrawlib file), and the pictures its images show.
+struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
+    var id: String
+    /// Imported libraries name their items ("Server", "Database"); a saved one is named by its words.
+    var name: String?
+    /// When it was made, in milliseconds since 1970, as Excalidraw keeps it.
+    var created: Double
+    /// The elements, as a JSON array.
+    var elementsJSON: Data
+    /// The pictures its image elements show ({ fileId: { id, dataURL, mimeType, created } }), as
+    /// JSON; nil without any. Excalidraw's own library leaves them out, so its images come in empty.
+    var filesJSON: Data?
+
+    var elements: [[String: Any]] { ((try? JSONSerialization.jsonObject(with: elementsJSON)) as? [[String: Any]]) ?? [] }
+    var files: [String: Any] { filesJSON.flatMap { (try? JSONSerialization.jsonObject(with: $0)) as? [String: Any] } ?? [:] }
+
+    /// Nil when nothing is left to keep (no elements, or only deleted ones).
+    init?(id: String = UUID().uuidString, name: String? = nil, created: Double = Date.now.timeIntervalSince1970 * 1000,
+          elements: [[String: Any]], files: [String: Any] = [:]) {
+        let kept = elements.filter { ($0["type"] as? String) != nil && ($0["isDeleted"] as? Bool) != true }
+        guard !kept.isEmpty, JSONSerialization.isValidJSONObject(kept), let json = try? JSONSerialization.data(withJSONObject: kept) else { return nil }
+        let used = Set(kept.compactMap { $0["fileId"] as? String })
+        let pictures = files.filter { used.contains($0.key) }
+        self.id = id
+        let words = CanvasSketch(elements: kept).texts.joined(separator: " \u{00B7} ")
+        self.name = name.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } ?? (words.isEmpty ? nil : String(words.prefix(60)))
+        self.created = created
+        elementsJSON = json
+        filesJSON = pictures.isEmpty || !JSONSerialization.isValidJSONObject(pictures) ? nil : try? JSONSerialization.data(withJSONObject: pictures)
+    }
+
+    /// As a .excalidrawlib (version 2) item; `files` is Pinto's own, which Excalidraw passes over.
+    var libraryItem: [String: Any] {
+        var out: [String: Any] = ["id": id, "status": "unpublished", "created": created, "elements": elements]
+        if let name { out["name"] = name }
+        if filesJSON != nil { out["files"] = files }
+        return out
+    }
+
+    /// What it looks like, whatever its ids: each element's kind, place from the item's corner,
+    /// size and words. The same library imported twice adds nothing the second time.
+    var look: String {
+        let els = elements
+        func n(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+        let x0 = els.map { n($0, "x") }.min() ?? 0, y0 = els.map { n($0, "y") }.min() ?? 0
+        return els.map { e in
+            [e["type"] as? String ?? "", "\(Int((n(e, "x") - x0).rounded()))", "\(Int((n(e, "y") - y0).rounded()))",
+             "\(Int(n(e, "width").rounded()))", "\(Int(n(e, "height").rounded()))", (e["text"] as? String) ?? "",
+             (e["strokeColor"] as? String) ?? "", (e["backgroundColor"] as? String) ?? ""].joined(separator: ",")
+        }.joined(separator: ";")
+    }
+}
+
+/// Excalidraw's library files (.excalidrawlib): version 1, `{ library: [[elements]] }`, and
+/// version 2, `{ libraryItems: [{ id, status, created, name, elements }] }`, as
+/// libraries.excalidraw.com gives them.
+enum CanvasLibraryFile {
+    static let fileExtension = "excalidrawlib"
+    static var contentType: UTType { UTType(filenameExtension: fileExtension) ?? .json }
+
+    /// The items in a library file, or nil when it isn't one. `keepIDs`: the app's own file, whose
+    /// ids name the items' pictures; an import gets new ones.
+    static func items(from data: Data, keepIDs: Bool = false) -> [CanvasLibraryItem]? {
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        if let type = json["type"] as? String, type != "excalidrawlib" { return nil }
+        let safe = { (s: String) in s.count <= 64 && !s.isEmpty && s.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") } }
+        func id(_ raw: Any?) -> String { keepIDs ? (raw as? String).flatMap { safe($0) ? $0 : nil } ?? UUID().uuidString : UUID().uuidString }
+        func time(_ raw: Any?) -> Double { (raw as? Double) ?? (raw as? Int).map(Double.init) ?? Date.now.timeIntervalSince1970 * 1000 }
+        if let list = json["libraryItems"] as? [[String: Any]] {
+            return list.compactMap { i in
+                CanvasLibraryItem(id: id(i["id"]), name: i["name"] as? String, created: time(i["created"]),
+                                  elements: i["elements"] as? [[String: Any]] ?? [], files: i["files"] as? [String: Any] ?? [:])
+            }
+        }
+        if let list = json["library"] as? [[[String: Any]]] {
+            return list.compactMap { CanvasLibraryItem(elements: $0) }
+        }
+        return nil
+    }
+
+    /// The items as a library file (version 2), which Excalidraw opens too.
+    static func data(_ items: [CanvasLibraryItem]) -> Data {
+        let file: [String: Any] = ["type": "excalidrawlib", "version": 2, "source": "https://pintonotes.com", "libraryItems": items.map(\.libraryItem)]
+        return (try? JSONSerialization.data(withJSONObject: file)) ?? Data()
+    }
+}
+
+/// Your whiteboard library (whiteboard council, round 5: "a native shape library, including
+/// importing existing Excalidraw libraries (.excalidrawlib) and saving a selected group for
+/// reuse"): kept in the app, for every board, not in any board's file. Newest first, as
+/// Excalidraw shows its library. Each item's picture is drawn by a board once and kept beside it.
+@MainActor @Observable
+final class CanvasLibrary {
+    /// The app's library. Tests and UI tests keep theirs in memory (they never touch yours).
+    static var shared = CanvasLibrary(folder: PaneApp.isUnitTestHost || ProcessInfo.processInfo.arguments.contains("-uitest") ? nil : defaultFolder)
+
+    static var defaultFolder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "\(AppIdentity.dataFolder)/Whiteboard Library", directoryHint: .isDirectory)
+    }
+
+    private(set) var items: [CanvasLibraryItem] = []
+    /// Each item's picture (CanvasController.picture), by its id.
+    private(set) var thumbnails: [String: PImage] = [:]
+    /// The same in dark mode, its colours turned as the canvas turns them (`darkened`).
+    private(set) var darkThumbnails: [String: PImage] = [:]
+    /// nil: kept in memory only.
+    @ObservationIgnored let folder: URL?
+    @ObservationIgnored private let writer = DispatchQueue(label: "pinto.whiteboard-library.save", qos: .utility)
+
+    init(folder: URL?) {
+        self.folder = folder
+        guard let folder, let data = try? Data(contentsOf: folder.appending(path: "library.excalidrawlib")),
+              let kept = CanvasLibraryFile.items(from: data, keepIDs: true) else { return }
+        items = kept
+        for item in kept {
+            if let png = try? Data(contentsOf: thumbnailFile(item.id, in: folder)), let image = PImage(data: png) {
+                thumbnails[item.id] = image
+                darkThumbnails[item.id] = Self.darkened(png)
+            }
+        }
+    }
+
+    /// A picture as the canvas shows it in dark mode, pixel by pixel (CanvasStyle.throughDark):
+    /// a SwiftUI colour filter would do it on screen, but isn't drawn into a picture of the view.
+    nonisolated static func darkened(_ png: Data) -> PImage? {
+        guard let src = CGImageSourceCreateWithData(png as CFData, nil), let image = CGImageSourceCreateImageAtIndex(src, 0, nil),
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let px = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        for i in stride(from: 0, to: image.width * image.height * 4, by: 4) {
+            let a = Double(px[i + 3])
+            guard a > 0 else { continue }
+            let (r, g, b) = CanvasStyle.throughDark(min(Double(px[i]) / a, 1), min(Double(px[i + 1]) / a, 1), min(Double(px[i + 2]) / a, 1))
+            px[i] = UInt8((r * a).rounded()); px[i + 1] = UInt8((g * a).rounded()); px[i + 2] = UInt8((b * a).rounded())
+        }
+        guard let out = ctx.makeImage() else { return nil }
+        #if os(macOS)
+        return NSImage(cgImage: out, size: NSSize(width: out.width, height: out.height))
+        #else
+        return UIImage(cgImage: out)
+        #endif
+    }
+
+    private func thumbnailFile(_ id: String, in folder: URL) -> URL { folder.appending(path: "thumbnails/\(id).png") }
+
+    /// Keeps these elements as one new item, first in the library.
+    @discardableResult
+    func add(elements: [[String: Any]], files: [String: Any] = [:], name: String? = nil) -> CanvasLibraryItem? {
+        guard let item = CanvasLibraryItem(name: name, elements: elements, files: files) else { return nil }
+        items.insert(item, at: 0)
+        save()
+        return item
+    }
+
+    /// What importing a library file did.
+    struct Imported: Equatable { var added = 0; var already = 0 }
+
+    /// A library file's items, first in the library in the file's order; ones already here (by
+    /// how they look) are left out. Nil when the file isn't a library.
+    func importLibrary(_ data: Data) -> Imported? {
+        guard let incoming = CanvasLibraryFile.items(from: data) else { return nil }
+        var seen = Set(items.map(\.look))
+        var fresh: [CanvasLibraryItem] = []
+        for item in incoming where seen.insert(item.look).inserted { fresh.append(item) }
+        if !fresh.isEmpty {
+            items.insert(contentsOf: fresh, at: 0)
+            save()
+        }
+        return Imported(added: fresh.count, already: incoming.count - fresh.count)
+    }
+
+    func remove(_ id: String) {
+        items.removeAll { $0.id == id }
+        thumbnails[id] = nil
+        darkThumbnails[id] = nil
+        save()
+        if let folder { let f = thumbnailFile(id, in: folder); writer.async { try? FileManager.default.removeItem(at: f) } }
+    }
+
+    func setThumbnail(_ png: Data, for id: String) {
+        guard items.contains(where: { $0.id == id }), let image = PImage(data: png) else { return }
+        thumbnails[id] = image
+        darkThumbnails[id] = Self.darkened(png)
+        guard let folder else { return }
+        let f = thumbnailFile(id, in: folder)
+        writer.async {
+            try? FileManager.default.createDirectory(at: f.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? png.write(to: f, options: .atomic)
+        }
+    }
+
+    /// Written off the main thread, in order: a library with pictures in it can be a few MB.
+    private func save() {
+        guard let folder else { return }
+        let data = CanvasLibraryFile.data(items), file = folder.appending(path: "library.excalidrawlib")
+        writer.async {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try? data.write(to: file, options: .atomic)
+        }
+    }
+
+    /// Waits for what's being written (tests: a library read again from its folder).
+    func flush() { writer.sync {} }
 }
 
 /// The open canvas, for the menus (Edit, View).

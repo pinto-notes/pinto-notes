@@ -83,6 +83,14 @@ final class NotePageWebView: WKWebView {
         menu.addItem(item("Duplicate", .duplicate, enabled: selected))
         menu.addItem(item("Delete", .delete, enabled: selected))
         menu.addItem(.separator())
+        // The selection kept for any board (CanvasLibrary), as Excalidraw's Add to library.
+        let save = CanvasMenuItem(title: CanvasLibraryPopover.saveTitle) { [weak self] in
+            guard let canvas = self?.canvas else { return }
+            Task { @MainActor in await canvas.saveSelectionToLibrary() }
+        }
+        save.isEnabled = selected
+        menu.addItem(save)
+        menu.addItem(.separator())
         menu.addItem(item("Bring to Front", .bringToFront, enabled: selected))
         menu.addItem(item("Bring Forward", .bringForward, enabled: selected))
         menu.addItem(item("Send Backward", .sendBackward, enabled: selected))

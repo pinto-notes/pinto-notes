@@ -68,27 +68,44 @@ struct CanvasOverlay: View {
 
 /// Pictures dropped on a board: image files from Finder, or an image dragged from another app.
 @MainActor enum CanvasImageDrop {
-    static let types: [UTType] = [.fileURL, .image]
+    /// Pictures, a library item from the Library popover, and Excalidraw library files.
+    static let types: [UTType] = [.fileURL, .image, CanvasLibraryDrag.type]
 
-    static func place(_ providers: [NSItemProvider], at point: CGPoint, on canvas: CanvasController) {
+    /// Done when what was dropped is on the board (tests wait for it).
+    @discardableResult
+    static func place(_ providers: [NSItemProvider], at point: CGPoint, on canvas: CanvasController, library: CanvasLibrary = .shared) -> Task<Void, Never> {
         Task { @MainActor in
+            // A library item: where it's dropped.
+            if let item = await CanvasLibraryDrag.item(from: providers, in: library) {
+                canvas.insert(item, at: point)
+                return
+            }
             var placed = 0
+            var libraries: [URL] = []
             for p in providers.prefix(10) {
+                // An Excalidraw library file goes into the library, as Excalidraw takes one dropped on it.
+                if let url = await fileURL(p), url.pathExtension.lowercased() == CanvasLibraryFile.fileExtension { libraries.append(url); continue }
                 guard let data = await load(p) else { continue }
                 guard let image = await Task.detached(priority: .userInitiated, operation: { CanvasImage(data: data) }).value else { continue }
                 // Several at once: each a little lower and to the right of the last.
                 canvas.send(.image(image, at: CGPoint(x: point.x + CGFloat(placed) * 28, y: point.y + CGFloat(placed) * 28)))
                 placed += 1
             }
+            if !libraries.isEmpty { CanvasLibraryImport.run(libraries, canvas: canvas, library: library); return }
             if placed == 0 { canvas.confirm("Only pictures can go on a whiteboard") }
+        }
+    }
+
+    private static func fileURL(_ p: NSItemProvider) async -> URL? {
+        guard p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else { return nil }
+        return await withCheckedContinuation { done in
+            _ = p.loadObject(ofClass: URL.self) { url, _ in done.resume(returning: url) }
         }
     }
 
     private static func load(_ p: NSItemProvider) async -> Data? {
         if p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            let url: URL? = await withCheckedContinuation { done in
-                _ = p.loadObject(ofClass: URL.self) { url, _ in done.resume(returning: url) }
-            }
+            let url = await fileURL(p)
             if let url, (UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) ?? false) { return try? Data(contentsOf: url) }
             return nil
         }
@@ -766,6 +783,12 @@ struct CanvasMoreItems: View {
             ForEach([100.0, 75, 50, 25], id: \.self) { Text("\(Int($0))%").tag($0) }
         }
         Divider()
+        #if os(macOS)
+        // Kept for any board, in the toolbar's Library (CanvasLibraryPopover).
+        Button(CanvasLibraryPopover.saveTitle, systemImage: CanvasLibraryPopover.symbol) { Task { await canvas.saveSelectionToLibrary() } }
+            .accessibilityIdentifier("canvas.saveToLibrary")
+        Divider()
+        #endif
         Button("Duplicate", systemImage: "plus.square.on.square") { canvas.run(.duplicate) }
         Button("Delete", systemImage: "trash", role: .destructive) { canvas.run(.delete) }
     }
@@ -1001,6 +1024,12 @@ struct CanvasToolbarTools: View {
                 Button { Self.pickImage(canvas) } label: { Label(Self.imageTitle, systemImage: "photo") }
                     .help("Add a picture (or paste or drop one)")
                     .accessibilityIdentifier("canvas.tool.image")
+                Button { canvas.showingLibrary.toggle() } label: {
+                    Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary)
+                }
+                .help(CanvasLibraryPopover.help)
+                .accessibilityIdentifier("canvas.tool.library")
+                .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
             }
         }
         .disabled(!canvas.connected)
@@ -1014,12 +1043,16 @@ struct CanvasToolbarTools: View {
             }
             Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
             Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
+            // The library's own button, in a narrow window (its popover comes from this menu).
+            Button(CanvasLibraryPopover.title + "\u{2026}", systemImage: CanvasLibraryPopover.symbol) { canvas.showingLibrary = true }
+                .accessibilityIdentifier("canvas.tool.more.library")
         } label: {
             Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked)
         }
         .menuIndicator(.hidden)
-        .help("Hand, eraser, pictures and sticky notes")
+        .help("Hand, eraser, pictures, sticky notes and the library")
         .accessibilityIdentifier("canvas.tool.more")
+        .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
     }
 
     private func tool(_ t: CanvasTool, _ current: CanvasTool) -> some View {
@@ -1120,6 +1153,211 @@ struct CanvasToolbarTools: View {
     }
 }
 
+// MARK: The library
+
+/// Your whiteboard library, in a popover from the toolbar's Library button (whiteboard council,
+/// round 5: "a native shape library, including importing existing Excalidraw libraries and saving
+/// a selected group for reuse"). Each item as the board draws it; a click puts it in the middle of
+/// the view in a free spot, selected; a drag puts it where it's dropped; right-click › Remove.
+struct CanvasLibraryPopover: View {
+    let canvas: CanvasController
+    var library: CanvasLibrary = .shared
+
+    static let title = "Library"
+    static let symbol = "books.vertical"
+    static let help = "Library: shapes you saved or imported"
+    static let saveTitle = "Save to Library"
+    static let importTitle = "Import Library\u{2026}"
+    static let removeTitle = "Remove"
+    static let emptyLine = "Select shapes and choose Save to Library to keep them here."
+
+    static let tile: CGFloat = 76
+    static let columns = 4
+    static let spacing: CGFloat = 8
+    static let padding: CGFloat = 12
+    static var width: CGFloat { CGFloat(columns) * tile + CGFloat(columns - 1) * spacing + 2 * padding }
+    /// Four rows and a bit of the fifth, so a longer library shows it scrolls.
+    static func gridHeight(_ count: Int) -> CGFloat {
+        let rows = CGFloat((count + columns - 1) / columns)
+        return min(rows * tile + max(rows - 1, 0) * spacing + 2 * padding, 4.5 * (tile + spacing) + padding)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if library.items.isEmpty {
+                VStack(spacing: 14) {
+                    Text(Self.emptyLine)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.muted)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("canvas.library.empty")
+                    importButton
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(Self.tile), spacing: Self.spacing), count: Self.columns), spacing: Self.spacing) {
+                        ForEach(library.items) { tile($0) }
+                    }
+                    .padding(Self.padding)
+                }
+                .frame(height: Self.gridHeight(library.items.count))
+                HStack {
+                    importButton
+                    Spacer(minLength: 8)
+                    Text(library.items.count == 1 ? "1 item" : "\(library.items.count) items")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.muted)
+                }
+                .padding(.horizontal, Self.padding)
+                .padding(.bottom, Self.padding)
+            }
+        }
+        .frame(width: Self.width)
+        // Pictures for what has none yet (an imported library), drawn by the board.
+        .task(id: library.items.map(\.id)) { await canvas.drawThumbnails(library) }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Self.title)
+        .accessibilityIdentifier("canvas.library")
+    }
+
+    private var importButton: some View {
+        Button(Self.importTitle) { CanvasLibraryImport.pick(canvas, library: library) }
+            .accessibilityIdentifier("canvas.library.import")
+    }
+
+    private func tile(_ item: CanvasLibraryItem) -> some View {
+        Button { add(item) } label: {
+            CanvasLibraryThumbnail(item: item, light: library.thumbnails[item.id], dark: library.darkThumbnails[item.id])
+                .padding(9)
+                .frame(width: Self.tile, height: Self.tile)
+                .background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 10, style: .continuous))
+                .contentShape(.rect(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(CanvasPressStyle())
+        .hoverHighlight(.rect(cornerRadius: 10, style: .continuous))
+        .help(item.name.map { "\($0). Click to add it, or drag it onto the board." } ?? "Click to add it, or drag it onto the board.")
+        .contextMenu {
+            Button("Add to Whiteboard") { add(item) }
+            Divider()
+            Button(Self.removeTitle, role: .destructive) { library.remove(item.id) }
+        }
+        .onDrag { CanvasLibraryDrag.provider(item) }
+        .accessibilityLabel(item.name ?? "Library item")
+        .accessibilityHint("Adds it to the whiteboard")
+        .accessibilityIdentifier("canvas.library.item")
+    }
+
+    private func add(_ item: CanvasLibraryItem) {
+        canvas.showingLibrary = false
+        canvas.insert(item)
+    }
+}
+
+/// An item as the board draws it, in dark mode in the colours the canvas shows then
+/// (CanvasLibrary.darkened), or its outline until the board has drawn it.
+struct CanvasLibraryThumbnail: View {
+    let item: CanvasLibraryItem
+    var light: PImage?
+    var dark: PImage?
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        if let image = scheme == .dark ? dark : light {
+            Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+        } else {
+            CanvasSketchView(sketch: CanvasSketch(elements: item.elements), lineWidth: 1)
+        }
+    }
+}
+#endif
+
+/// A library item dragged from the Library popover onto a board: its id, for this app only.
+enum CanvasLibraryDrag {
+    static let type = UTType(exportedAs: "dev.emilwagman.pane.whiteboard-shape", conformingTo: .data)
+
+    static func provider(_ item: CanvasLibraryItem) -> NSItemProvider {
+        let p = NSItemProvider()
+        let id = Data(item.id.utf8)
+        p.registerDataRepresentation(forTypeIdentifier: type.identifier, visibility: .ownProcess) { done in
+            done(id, nil)
+            return nil
+        }
+        return p
+    }
+
+    /// The library item being dropped, if it's one.
+    @MainActor static func item(from providers: [NSItemProvider], in library: CanvasLibrary) async -> CanvasLibraryItem? {
+        guard let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(type.identifier) }) else { return nil }
+        let data: Data? = await withCheckedContinuation { done in
+            _ = p.loadDataRepresentation(forTypeIdentifier: type.identifier) { d, _ in done.resume(returning: d) }
+        }
+        guard let data else { return nil }
+        let id = String(decoding: data, as: UTF8.self)
+        return library.items.first { $0.id == id }
+    }
+}
+
+/// Excalidraw libraries (.excalidrawlib, from libraries.excalidraw.com or Excalidraw's own Export
+/// library) into your library: Import Library… in the popover, or a library file dropped on a board.
+@MainActor enum CanvasLibraryImport {
+    struct Report: Equatable { var added = 0; var already = 0; var refused: [String] = [] }
+
+    static func add(_ urls: [URL], to library: CanvasLibrary) -> Report {
+        var r = Report()
+        for url in urls {
+            let reach = url.startAccessingSecurityScopedResource()
+            defer { if reach { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url), let got = library.importLibrary(data) else { r.refused.append(url.lastPathComponent); continue }
+            r.added += got.added
+            r.already += got.already
+        }
+        return r
+    }
+
+    /// What the board says after: "Added 12 items to the library".
+    static func said(_ r: Report) -> String? {
+        if r.added > 0 { return r.added == 1 ? "Added 1 item to the library" : "Added \(r.added) items to the library" }
+        if r.already > 0 { return "Already in your library" }
+        return nil
+    }
+
+    /// Adds them, says so over the board, and opens the library on what came in.
+    static func run(_ urls: [URL], canvas: CanvasController, library: CanvasLibrary = .shared) {
+        let r = add(urls, to: library)
+        if let s = said(r) { canvas.confirm(s, for: .seconds(3)) }
+        if r.added + r.already > 0 { canvas.showingLibrary = true }
+        #if os(macOS)
+        if !r.refused.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = r.refused.count == 1 ? "\u{201C}\(r.refused[0])\u{201D} isn\u{2019}t an Excalidraw library" : "\(r.refused.count) files aren\u{2019}t Excalidraw libraries"
+            alert.informativeText = "A library is an .excalidrawlib file, like the ones on libraries.excalidraw.com."
+            alert.runModal()
+        }
+        #endif
+    }
+
+    #if os(macOS)
+    static func pick(_ canvas: CanvasController, library: CanvasLibrary = .shared) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [CanvasLibraryFile.contentType, .json]
+        panel.allowsMultipleSelection = true
+        panel.message = "Choose Excalidraw libraries (.excalidrawlib) to add to your library."
+        panel.prompt = "Import"
+        // The panel takes over from the popover; it comes back with what was added.
+        canvas.showingLibrary = false
+        panel.begin { response in
+            guard response == .OK else { return }
+            run(panel.urls, canvas: canvas, library: library)
+        }
+    }
+    #endif
+}
+
+#if os(macOS)
 /// Export and Copy as PNG, from the More menu and File › Export (Excalidraw's Export image and
 /// Copy to clipboard as PNG, ⇧⌥C there; ⇧⌥⌘C here, with the Mac's ⌘).
 @MainActor enum CanvasExportAction {

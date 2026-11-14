@@ -123,6 +123,11 @@ targets:
             UTTypeDescription: Pane folder
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification: {}
+          # A whiteboard library item dragged from the Library popover onto a board (own process only).
+          - UTTypeIdentifier: dev.emilwagman.pane.whiteboard-shape
+            UTTypeDescription: Whiteboard shape
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification: {}
         # Evernote exports (.enex), which Evernote doesn't declare. Opening one (Files, Finder,
         # the share sheet) starts the Evernote import.
         UTImportedTypeDeclarations:

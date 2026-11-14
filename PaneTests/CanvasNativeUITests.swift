@@ -27,6 +27,7 @@ import UIKit
             s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
             canvas.deliver = { [weak s] c in s?.canvas(c) }
             canvas.exporter = { [weak s] f, selected, light, page in await s?.canvasExport(f, selected: selected, light: light, page: page) }
+            canvas.call = { [weak s] name, args in await s?.canvasCall(name, args) }
             #if os(macOS)
             (s.webView as? NotePageWebView)?.canvas = canvas
             #endif
@@ -240,7 +241,7 @@ import UIKit
         web.rightMouseUp(with: Self.event(.rightMouseUp, at: CGPoint(x: 301, y: 301), in: w))
         let menu = try #require(shown.first)
         let titles: [String] = menu.items.map(\.title).filter { !$0.isEmpty }
-        let expected: [String] = ["Duplicate", "Delete", "Bring to Front", "Bring Forward", "Send Backward", "Send to Back", "Select All", "Zoom to Fit"]
+        let expected: [String] = ["Duplicate", "Delete", "Save to Library", "Bring to Front", "Bring Forward", "Send Backward", "Send to Back", "Select All", "Zoom to Fit"]
         #expect(titles == expected)
         #expect(menu.items.first { $0.title == "Delete" }?.isEnabled == false, "nothing selected: nothing to delete")
         // Select All from it reaches the page.
@@ -933,6 +934,358 @@ import UIKit
         #expect(!web.responds(to: #selector(NotePageWebView.undo(_:))))
     }
 
+    // MARK: The library (whiteboard council, round 5)
+
+    /// Two items of "Data flow" (version 2, wmartzh/data-flow) as libraries.excalidraw.com serves
+    /// them, old field names (strokeSharpness) and all.
+    static let dataFlowLibrary = ##"{"type":"excalidrawlib","version":2,"source":"https://app.excalidraw.com","libraryItems":[{"status":"published","elements":[{"type":"rectangle","version":108,"versionNonce":848887945,"isDeleted":false,"id":"XkAdaH1IwXkCjxQatp0pT","fillStyle":"solid","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":1483.89453125,"y":-29.243408203125,"strokeColor":"#000000","backgroundColor":"#fff","width":257,"height":101.93063354492188,"seed":841639,"groupIds":[],"strokeSharpness":"round","boundElements":[{"type":"text","id":"teIXOJCl7lqVSBxz13SLo"},{"id":"ws0W9X53qIvWrct3Bm-gk","type":"arrow"}],"updated":1664316938680,"link":null,"locked":false},{"type":"text","version":77,"versionNonce":534505607,"isDeleted":false,"id":"teIXOJCl7lqVSBxz13SLo","fillStyle":"solid","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":1488.89453125,"y":10.221908569335938,"strokeColor":"#000000","backgroundColor":"#fff","width":247,"height":23,"seed":1486156295,"groupIds":[],"strokeSharpness":"round","boundElements":[],"updated":1664316938680,"link":null,"locked":false,"fontSize":20,"fontFamily":1,"text":"process","baseline":17,"textAlign":"center","verticalAlign":"middle","containerId":"XkAdaH1IwXkCjxQatp0pT","originalText":"process"}],"id":"-HAghVFVWMglgZs-d97P4","created":1664316941555,"name":"Process"},{"status":"published","elements":[{"type":"rectangle","version":308,"versionNonce":1700457967,"isDeleted":false,"id":"bKHk3GOZWrcCSzOwuJq83","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":1621.8062670196573,"y":878.6495665282432,"strokeColor":"#000000","backgroundColor":"transparent","width":224,"height":51.660491943359375,"seed":1154761121,"groupIds":["-LyObzXSQqgNQicckZCSO","FmhoDIyh_U8guPPxK6ys_"],"strokeSharpness":"round","boundElements":[{"id":"T25UGS-Sj4gZjQVfuaCop","type":"text"},{"id":"T25UGS-Sj4gZjQVfuaCop","type":"text"},{"type":"text","id":"T25UGS-Sj4gZjQVfuaCop"}],"updated":1664303280978,"link":null,"locked":false},{"type":"line","version":443,"versionNonce":2125010831,"isDeleted":false,"id":"wDekN_ZvIVKa0IN5GNmoW","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":1671.1207482460186,"y":877.8450575839769,"strokeColor":"#000000","backgroundColor":"transparent","width":0.7604041975725977,"height":51.55870056152344,"seed":1388504303,"groupIds":["-LyObzXSQqgNQicckZCSO","FmhoDIyh_U8guPPxK6ys_"],"strokeSharpness":"round","boundElements":[],"updated":1664303280020,"link":null,"locked":false,"startBinding":null,"endBinding":null,"lastCommittedPoint":null,"startArrowhead":null,"endArrowhead":null,"points":[[0,0],[0.5249305647600977,25.85967849675626],[-0.2354736328125,51.55870056152344]]},{"type":"text","version":208,"versionNonce":1686531201,"isDeleted":false,"id":"T25UGS-Sj4gZjQVfuaCop","fillStyle":"hachure","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":1626.8062670196573,"y":891.9798124999229,"strokeColor":"#000000","backgroundColor":"transparent","width":214,"height":25,"seed":1526556033,"groupIds":["-LyObzXSQqgNQicckZCSO","FmhoDIyh_U8guPPxK6ys_"],"strokeSharpness":"round","boundElements":[],"updated":1664303280978,"link":null,"locked":false,"fontSize":20,"fontFamily":1,"text":"Store","baseline":18,"textAlign":"center","verticalAlign":"middle","containerId":"bKHk3GOZWrcCSzOwuJq83","originalText":"Store"},{"type":"text","version":102,"versionNonce":336107279,"isDeleted":false,"id":"SEtPWSeAsRJsNU3OADEIZ","fillStyle":"solid","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":1635.826436755428,"y":895.3547373976627,"strokeColor":"#000000","backgroundColor":"#fff","width":22,"height":25,"seed":87136207,"groupIds":["FmhoDIyh_U8guPPxK6ys_"],"strokeSharpness":"sharp","boundElements":[],"updated":1664303279242,"link":null,"locked":false,"fontSize":20,"fontFamily":1,"text":"D1","baseline":18,"textAlign":"left","verticalAlign":"top","containerId":null,"originalText":"D1"}],"id":"1PU7FVRjr4UDcNG3OesgJ","created":1664303296127,"name":"Data storage"}]}"##
+
+    /// Two items of "Basic shapes" (version 1, pgilfernandez/basic-shapes), as the site serves them.
+    static let basicShapesLibrary = ##"{"type":"excalidrawlib","version":1,"source":"https://excalidraw.com","library":[[{"type":"line","version":896,"versionNonce":235201635,"isDeleted":false,"id":"skg7gqUlRzEIoOiugXifs","fillStyle":"solid","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":-595.9369869225809,"y":-57.47827374377303,"strokeColor":"#000000","backgroundColor":"#ced4da","width":154.11430603829422,"height":154.8767364889196,"seed":1126339617,"groupIds":[],"strokeSharpness":"sharp","boundElementIds":[],"startBinding":null,"endBinding":null,"lastCommittedPoint":null,"startArrowhead":null,"endArrowhead":null,"points":[[0,0],[154.0813522663615,154.6580432751842],[-0.032953771932716,154.8767364889196],[0,0]]}],[{"type":"line","version":906,"versionNonce":1980765645,"isDeleted":false,"id":"5XJBeMDTZE77o24DN2uK_","fillStyle":"solid","strokeWidth":1,"strokeStyle":"solid","roughness":1,"opacity":100,"angle":0,"x":-323.49494066630416,"y":-53.87499999999951,"strokeColor":"#000000","backgroundColor":"#ced4da","width":176.0048133026142,"height":153.16773078464527,"seed":1932509089,"groupIds":[],"strokeSharpness":"sharp","boundElementIds":[],"startBinding":null,"endBinding":null,"lastCommittedPoint":null,"startArrowhead":null,"endArrowhead":null,"points":[[0,0],[85.76001280730273,153.16773078464527],[-90.24480049531147,151.29227411511434],[0,0]]}]]}"##
+
+    /// A library of the test's own, swapped in for the app's while it runs.
+    static func withLibrary(_ folder: URL? = nil, _ body: (CanvasLibrary) async throws -> Void) async rethrows {
+        let kept = CanvasLibrary.shared
+        let lib = CanvasLibrary(folder: folder)
+        CanvasLibrary.shared = lib
+        defer { CanvasLibrary.shared = kept }
+        try await body(lib)
+    }
+
+    /// What a library item added to a board did: the new elements' boxes (in the scene), whether
+    /// any of them covers what was there before, whether they're all in view, and what's selected.
+    static func added(_ j: Joined, before: [String]) async throws -> (boxes: [[Double]], covers: Bool, inView: Bool, selected: Int, fresh: Int, centre: CGPoint) {
+        let json = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, old = new Set(\(String(decoding: try JSONSerialization.data(withJSONObject: before), as: UTF8.self)));
+          const box = (e) => { const xs = [e.x, e.x + e.width], ys = [e.y, e.y + e.height]; return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+          const all = api.getSceneElements(), fresh = all.filter((e) => !old.has(e.id)), was = all.filter((e) => old.has(e.id));
+          const boxes = fresh.map(box);
+          const covers = boxes.some(([a, b, c, d]) => was.map(box).some(([x1, y1, x2, y2]) => a < x2 && c > x1 && b < y2 && d > y1));
+          const inView = boxes.every(([a, b, c, d]) => (a + s.scrollX) * z >= 0 && (b + s.scrollY) * z >= 0 && (c + s.scrollX) * z <= s.width && (d + s.scrollY) * z <= s.height);
+          const x1 = Math.min(...boxes.map((b) => b[0])), y1 = Math.min(...boxes.map((b) => b[1])), x2 = Math.max(...boxes.map((b) => b[2])), y2 = Math.max(...boxes.map((b) => b[3]));
+          const centre = [((x1 + x2) / 2 + s.scrollX) * z, ((y1 + y2) / 2 + s.scrollY) * z];
+          const selected = fresh.filter((e) => s.selectedElementIds[e.id]).length;
+          return JSON.stringify({ boxes, covers, inView, selected, fresh: fresh.length, centre }); })()
+        """) as? String)
+        let r = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let c = r["centre"] as? [Double] ?? [0, 0]
+        return (r["boxes"] as? [[Double]] ?? [], r["covers"] as? Bool ?? true, r["inView"] as? Bool ?? false, r["selected"] as? Int ?? 0, r["fresh"] as? Int ?? 0, CGPoint(x: c[0], y: c[1]))
+    }
+
+    static func ids(_ j: Joined) async throws -> [String] {
+        let json = try #require(try await j.js("JSON.stringify(amber._canvas.api.getSceneElements().map((e) => e.id))") as? String)
+        return try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String])
+    }
+
+    /// Save to Library keeps what's selected as one item: the shapes, their words, the arrow
+    /// between them still joined, and joins to what was left behind cut. The board draws its
+    /// picture. It's kept in the app, not in the board's file.
+    @Test func aSelectionIsSavedToTheLibraryWithItsWordsAndAPicture() async throws {
+        try await Self.withLibrary { lib in
+            let j = try await Joined(scene: Self.flowchart)
+            defer { j.close() }
+            try await j.ready()
+            #expect(await j.canvas.saveSelectionToLibrary(lib) == nil, "nothing selected: nothing saved")
+            #expect(lib.items.isEmpty && j.canvas.notice?.hasPrefix("Select something") == true, "and it says why: \(j.canvas.notice ?? "")")
+            // Draft and Ready?, and the arrow between them; the arrow from Idea into Draft stays behind.
+            _ = try await j.js("(() => { const api = amber._canvas.api, ids = { draft: true, ready: true }; for (const e of api.getSceneElements()) if (e.type === 'arrow' && e.startBinding && e.startBinding.elementId === 'draft' && e.endBinding && e.endBinding.elementId === 'ready') ids[e.id] = true; api.updateScene({ appState: { selectedElementIds: ids } }); return 1; })()")
+            await j.until("three selected") { j.canvas.state.selection.count == 3 }
+            let item = try #require(await j.canvas.saveSelectionToLibrary(lib))
+            #expect(lib.items.map(\.id) == [item.id])
+            #expect(j.canvas.notice == CanvasController.savedTitle)
+            let els = item.elements
+            #expect(els.compactMap { $0["type"] as? String }.sorted() == ["arrow", "diamond", "rectangle", "text", "text"], "the box, the diamond, the arrow and their words")
+            #expect(item.name == "Draft \u{00B7} Ready?", "named by its words: \(item.name ?? "nil")")
+            let ids = Set(els.compactMap { $0["id"] as? String })
+            let draft = try #require(els.first { $0["id"] as? String == "draft" })
+            let joined = (draft["boundElements"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
+            #expect(!joined.isEmpty && joined.allSatisfy(ids.contains), "only joins to what's in the item: \(joined)")
+            let arrow = try #require(els.first { $0["type"] as? String == "arrow" })
+            #expect((arrow["startBinding"] as? [String: Any])?["elementId"] as? String == "draft" && (arrow["endBinding"] as? [String: Any])?["elementId"] as? String == "ready")
+            let image = try #require(lib.thumbnails[item.id], "its picture, drawn by the board")
+            #expect(max(image.size.width, image.size.height) >= 200, "\(image.size)")
+            let saved = String(decoding: try JSONSerialization.data(withJSONObject: j.rig.doc), as: UTF8.self)
+            #expect(!saved.contains("libraryItems") && !saved.contains("excalidrawlib"), "nothing of it in the board's file")
+        }
+    }
+
+    /// Save to Library is in the board's right-click menu and the selection bar's More menu.
+    @Test func saveToLibraryIsInTheRightClickMenuAndTheMoreMenu() async throws {
+        try await Self.withLibrary { lib in
+            let j = try await Joined(scene: CanvasTests.scene(Self.box))
+            defer { j.close() }
+            try await j.ready()
+            let web = try #require(j.web as? NotePageWebView)
+            let idle = try #require(web.canvasMenu().items.first { $0.title == CanvasLibraryPopover.saveTitle })
+            #expect(!idle.isEnabled, "nothing selected: nothing to save")
+            _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { box: true } } }); return 1; })()")
+            await j.until("the box selected") { j.canvas.state.selection == ["rectangle"] }
+            let save = try #require(web.canvasMenu().items.first { $0.title == CanvasLibraryPopover.saveTitle })
+            #expect(save.isEnabled)
+            _ = save.target?.perform(save.action, with: save)
+            await j.until("saved from the right-click menu") { lib.items.count == 1 }
+            // The selection bar's More menu (its items, as the menu shows them).
+            let ax = OffscreenAX(VStack { CanvasMoreItems(canvas: j.canvas) }.padding(10), size: CGSize(width: 320, height: 420))
+            defer { ax.close() }
+            await ax.settle()
+            let more = try #require(ax.find("canvas.saveToLibrary"), "\(ax.ids())")
+            #expect(more.text.contains(CanvasLibraryPopover.saveTitle), "\(more.text)")
+            more.press()
+            await j.until("saved from the More menu") { lib.items.count == 2 }
+            #expect(lib.items.allSatisfy { $0.elements.first?["type"] as? String == "rectangle" })
+        }
+    }
+
+    /// A click in the library puts the item in the middle of the view, in a free spot, never on
+    /// the drawing, selected, as one step Undo takes back; again, and the copy goes beside it.
+    @Test func aLibraryItemGoesInAFreeSpotInTheMiddleOfTheViewSelected() async throws {
+        try await Self.withLibrary { lib in
+            let item = try #require(lib.add(elements: [
+                ["type": "rectangle", "id": "srv", "x": 3000, "y": 3000, "width": 160, "height": 80, "backgroundColor": "#a5d8ff", "fillStyle": "solid",
+                 "seed": 1, "version": 1, "versionNonce": 1, "boundElements": [["type": "text", "id": "srv-t"]]],
+                ["type": "text", "id": "srv-t", "x": 3050, "y": 3028, "width": 60, "height": 25, "text": "Server", "originalText": "Server", "containerId": "srv",
+                 "fontSize": 20, "fontFamily": 5, "textAlign": "center", "verticalAlign": "middle", "seed": 2, "version": 1, "versionNonce": 2],
+            ]))
+            // An empty board: right in the middle.
+            do {
+                let j = try await Joined(scene: CanvasTests.scene([]))
+                defer { j.close() }
+                try await j.ready()
+                j.canvas.insert(item)
+                await j.until("it's on the board") { !j.canvas.state.empty }
+                let r = try await Self.added(j, before: [])
+                #expect(r.fresh == 2 && abs(r.centre.x - 450) < 3 && abs(r.centre.y - 300) < 3, "in the middle of a 900 by 600 view: \(r.centre)")
+                let text = try await j.js("amber._canvas.api.getSceneElements().find((e) => e.type === 'text').originalText") as? String
+                #expect(text == "Server", "its words came along")
+                let ids = try await Self.ids(j)
+                #expect(!ids.contains("srv"), "new ids, so it can go on as often as you like")
+            }
+            // A drawing across the middle: beside it, in view, selected.
+            let j = try await Joined(scene: Self.flowchart)
+            defer { j.close() }
+            try await j.ready()
+            _ = try await j.js("(() => { const api = amber._canvas.api; api.scrollToContent(api.getSceneElements(), { fitToContent: true, animate: false }); return 1; })()")
+            try await Task.sleep(for: .milliseconds(200))
+            let before = try await Self.ids(j)
+            j.canvas.insert(item)
+            await j.until("it's selected") { j.canvas.state.selection == ["rectangle"] }
+            let first = try await Self.added(j, before: before)
+            #expect(first.fresh == 2 && !first.covers, "never on the drawing: \(first.boxes)")
+            #expect(first.inView && first.selected == 1, "in view and selected: \(first)")
+            #expect(j.canvas.state.showsSelectionBar, "the selection bar shows for it")
+            let after = try await Self.ids(j)
+            j.canvas.insert(item)
+            for _ in 0..<100 where (try await Self.ids(j)).count < after.count + 2 { try await Task.sleep(for: .milliseconds(30)) }
+            let second = try await Self.added(j, before: after)
+            #expect(!second.covers, "the second copy isn't on the first: \(second.boxes)")
+            // One step each for Undo.
+            j.canvas.run(.undo)
+            try await Task.sleep(for: .milliseconds(100))
+            j.canvas.run(.undo)
+            for _ in 0..<100 where try await Self.ids(j) != before { try await Task.sleep(for: .milliseconds(30)) }
+            #expect(try await Self.ids(j) == before, "two Undos take both back")
+        }
+    }
+
+    /// A tile dragged from the library onto the board goes where it's dropped, selected.
+    @Test func aLibraryItemDroppedOnTheBoardGoesWhereItsDropped() async throws {
+        try await Self.withLibrary { lib in
+            _ = try #require(lib.importLibrary(Data(Self.dataFlowLibrary.utf8)))
+            let item = try #require(lib.items.first { $0.name == "Process" })
+            let j = try await Joined(scene: CanvasTests.scene(Self.box))
+            defer { j.close() }
+            try await j.ready()
+            let before = try await Self.ids(j)
+            await CanvasImageDrop.place([CanvasLibraryDrag.provider(item)], at: CGPoint(x: 640, y: 420), on: j.canvas, library: lib).value
+            await j.until("it's selected") { j.canvas.state.selection == ["rectangle"] }
+            let r = try await Self.added(j, before: before)
+            #expect(r.fresh == 2 && abs(r.centre.x - 640) < 3 && abs(r.centre.y - 420) < 3, "centred where it was dropped: \(r.centre)")
+            #expect(r.selected == 1)
+            // Something else of this type that isn't in the library: nothing goes on.
+            let stranger = NSItemProvider()
+            stranger.registerDataRepresentation(forTypeIdentifier: CanvasLibraryDrag.type.identifier, visibility: .ownProcess) { done in done(Data("gone".utf8), nil); return nil }
+            #expect(await CanvasLibraryDrag.item(from: [stranger], in: lib) == nil)
+        }
+    }
+
+    /// Excalidraw libraries come in from their files, version 1 and 2, as libraries.excalidraw.com
+    /// serves them; the same library twice adds nothing; a file that isn't one is refused. An
+    /// imported item goes on a board with its words, and the board draws its picture.
+    @Test func excalidrawLibrariesImportVersion1And2() async throws {
+        let v2 = try #require(CanvasLibraryFile.items(from: Data(Self.dataFlowLibrary.utf8)))
+        #expect(v2.map(\.name) == ["Process", "Data storage"])
+        #expect(v2.map { $0.elements.count } == [2, 4])
+        let v1 = try #require(CanvasLibraryFile.items(from: Data(Self.basicShapesLibrary.utf8)))
+        #expect(v1.count == 2 && v1.allSatisfy { $0.elements.first?["type"] as? String == "line" })
+        #expect(CanvasLibraryFile.items(from: Data(#"{"type":"excalidraw","elements":[]}"#.utf8)) == nil, "a board, not a library")
+        #expect(CanvasLibraryFile.items(from: Data("not json".utf8)) == nil)
+        try await Self.withLibrary { lib in
+            #expect(lib.importLibrary(Data(Self.dataFlowLibrary.utf8)) == .init(added: 2, already: 0))
+            #expect(lib.importLibrary(Data(Self.dataFlowLibrary.utf8)) == .init(added: 0, already: 2), "the same library twice adds nothing")
+            // From files, as Import Library… takes them; and one that isn't a library.
+            let dir = FileManager.default.temporaryDirectory.appending(path: "library-import-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let shapes = dir.appending(path: "basic-shapes.excalidrawlib"), board = dir.appending(path: "Board.excalidraw")
+            try Data(Self.basicShapesLibrary.utf8).write(to: shapes)
+            try Data(#"{"type":"excalidraw","elements":[]}"#.utf8).write(to: board)
+            let report = CanvasLibraryImport.add([shapes, board], to: lib)
+            #expect(report == .init(added: 2, already: 0, refused: ["Board.excalidraw"]))
+            #expect(CanvasLibraryImport.said(report) == "Added 2 items to the library")
+            #expect(lib.items.count == 4 && lib.items.prefix(2).allSatisfy { $0.name == nil }, "newest first")
+            // Onto a board: its words come along, and the board draws it.
+            let j = try await Joined(scene: CanvasTests.scene([]))
+            defer { j.close() }
+            try await j.ready()
+            let store = try #require(lib.items.first { $0.name == "Data storage" })
+            j.canvas.insert(store)
+            await j.until("it's on the board") { !j.canvas.state.empty }
+            let words = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'text').map((e) => e.originalText).sort().join('|')") as? String
+            #expect(words == "D1|Store", "\(words ?? "")")
+            await j.canvas.drawThumbnails(lib)
+            #expect(lib.items.allSatisfy { lib.thumbnails[$0.id] != nil }, "every item has its picture")
+        }
+    }
+
+    /// An Excalidraw library file dropped on a board goes into the library, which opens on it.
+    @Test func aLibraryFileDroppedOnABoardGoesIntoTheLibrary() async throws {
+        try await Self.withLibrary { lib in
+            let dir = FileManager.default.temporaryDirectory.appending(path: "library-drop-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let file = dir.appending(path: "data-flow.excalidrawlib")
+            try Data(Self.dataFlowLibrary.utf8).write(to: file)
+            let canvas = CanvasController()
+            await CanvasImageDrop.place([NSItemProvider(object: file as NSURL)], at: .zero, on: canvas, library: lib).value
+            #expect(lib.items.map(\.name) == ["Process", "Data storage"])
+            #expect(canvas.showingLibrary && canvas.notice == "Added 2 items to the library")
+            #expect(canvas.sent.isEmpty, "nothing goes on the board itself")
+        }
+    }
+
+    /// A picture in a saved item comes with it onto another board.
+    @Test func aPictureInALibraryItemComesWithIt() async throws {
+        try await Self.withLibrary { lib in
+            let png = Self.png(width: 40, height: 30, clear: false)
+            let url = "data:image/png;base64," + png.base64EncodedString()
+            let j = try await Joined(scene: CanvasTests.scene([]))
+            defer { j.close() }
+            try await j.ready()
+            _ = try await j.js("(() => { const api = amber._canvas.api; api.addFiles([{ id: 'pic', dataURL: '\(url)', mimeType: 'image/png', created: 1 }]); api.updateScene({ elements: [{ type: 'image', id: 'img', fileId: 'pic', x: 0, y: 0, width: 40, height: 30, angle: 0, strokeColor: 'transparent', backgroundColor: 'transparent', fillStyle: 'solid', strokeWidth: 1, strokeStyle: 'solid', roughness: 0, opacity: 100, groupIds: [], frameId: null, roundness: null, seed: 1, version: 1, versionNonce: 1, isDeleted: false, boundElements: null, updated: 1, link: null, locked: false, status: 'saved', scale: [1, 1] }], appState: { selectedElementIds: { img: true } } }); return 1; })()")
+            await j.until("the picture selected") { j.canvas.state.selection == ["image"] }
+            let item = try #require(await j.canvas.saveSelectionToLibrary(lib))
+            #expect((item.files["pic"] as? [String: Any])?["dataURL"] as? String == url, "its picture is kept with it")
+            let k = try await Joined(scene: CanvasTests.scene([]))
+            defer { k.close() }
+            try await k.ready()
+            k.canvas.insert(item)
+            await k.until("it's on the other board") { k.canvas.state.selection == ["image"] }
+            #expect(try await k.js("!!amber._canvas.api.getFiles().pic") as? Bool == true, "and its picture with it")
+        }
+    }
+
+    /// The library is kept in the app (its folder in Application Support), for every board, and
+    /// comes back after a relaunch with its pictures; a removed item stays gone. Tests never use
+    /// the app's own folder. The file is a version 2 library that Excalidraw imports.
+    @Test func theLibraryIsKeptInTheAppAndComesBackAfterARelaunch() throws {
+        #expect(CanvasLibrary.shared.folder == nil, "tests keep the library in memory, never in your folder")
+        #expect(CanvasLibrary.defaultFolder.path.hasSuffix("/\(AppIdentity.dataFolder)/Whiteboard Library"), "\(CanvasLibrary.defaultFolder.path)")
+        let dir = FileManager.default.temporaryDirectory.appending(path: "library-keep-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let lib = CanvasLibrary(folder: dir)
+        let mine = try #require(lib.add(elements: [["type": "ellipse", "id": "e", "x": 0, "y": 0, "width": 80, "height": 50, "seed": 1, "version": 1, "versionNonce": 1]]))
+        _ = lib.importLibrary(Data(Self.dataFlowLibrary.utf8))
+        lib.setThumbnail(Self.png(width: 64, height: 40, clear: true), for: mine.id)
+        lib.flush()
+        let again = CanvasLibrary(folder: dir)
+        #expect(again.items.map(\.id) == lib.items.map(\.id) && again.items.map(\.name) == lib.items.map(\.name), "the same items, in the same order")
+        #expect(NSArray(array: again.items.map(\.elements)).isEqual(to: lib.items.map(\.elements)), "with their elements")
+        #expect(again.thumbnails[mine.id] != nil, "with their pictures")
+        let file = try Data(contentsOf: dir.appending(path: "library.excalidrawlib"))
+        let json = try #require(try JSONSerialization.jsonObject(with: file) as? [String: Any])
+        #expect(json["type"] as? String == "excalidrawlib" && json["version"] as? Int == 2)
+        #expect(CanvasLibraryFile.items(from: file)?.count == 3, "a library file anyone can import")
+        again.remove(mine.id)
+        again.flush()
+        let third = CanvasLibrary(folder: dir)
+        #expect(!third.items.contains { $0.id == mine.id } && third.items.count == 2, "removed stays removed")
+        #expect(!FileManager.default.fileExists(atPath: dir.appending(path: "thumbnails/\(mine.id).png").path), "and its picture goes")
+    }
+
+    /// The library popover: a tile for each item, a click adds it and closes the popover;
+    /// removed, it's gone; empty, one plain line and Import Library….
+    @Test func theLibraryPopoverShowsItsItemsAndAddsOneOnAClick() async throws {
+        let lib = CanvasLibrary(folder: nil)
+        _ = lib.importLibrary(Data(Self.dataFlowLibrary.utf8))
+        let mine = try #require(lib.add(elements: [["type": "diamond", "id": "d", "x": 0, "y": 0, "width": 120, "height": 80, "seed": 1, "version": 1, "versionNonce": 1]]))
+        let canvas = CanvasController()
+        canvas.showingLibrary = true
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: lib), size: CGSize(width: CanvasLibraryPopover.width, height: 360))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(ax.ids().filter { $0 == "canvas.library.item" }.count == 3, "\(ax.ids())")
+        #expect(ax.find("canvas.library.import")?.text.contains("Import Library") == true)
+        let first = try #require(ax.find("canvas.library.item"))
+        first.press()
+        await ax.settle(100)
+        #expect(canvas.sent.last == .libraryInsert(mine, at: nil), "the newest first, added in the middle of the view")
+        #expect(!canvas.showingLibrary, "the popover closes on it")
+        lib.remove(mine.id)
+        await ax.settle()
+        #expect(ax.ids().filter { $0 == "canvas.library.item" }.count == 2, "removed: gone from the grid")
+        let empty = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: CanvasLibrary(folder: nil)), size: CGSize(width: CanvasLibraryPopover.width, height: 160))
+        defer { empty.close() }
+        await empty.settle()
+        #expect(empty.find("canvas.library.empty")?.text == CanvasLibraryPopover.emptyLine)
+        #expect(empty.find("canvas.library.import") != nil && empty.find("canvas.library.item") == nil)
+    }
+
+    /// In dark mode a tile shows the item in the colours the dark canvas shows it in (the board
+    /// draws it light and turns it): the same as a swatch in the style bar, see-through kept.
+    @Test func aLibraryPictureShowsInTheDarkCanvasColours() throws {
+        let w = 4, h = 2
+        let ctx = try #require(CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 0xec / 255.0, blue: 0x99 / 255.0, alpha: 1))  // the sticky yellow
+        ctx.fill(CGRect(x: 0, y: 0, width: 2, height: h))
+        let drawn = try #require(ctx.makeImage())
+        let png = try #require(NSBitmapImageRep(cgImage: drawn).representation(using: .png, properties: [:]))
+        let dark = try #require(CanvasLibrary.darkened(png)?.cgImage(forProposedRect: nil, context: nil, hints: nil))
+        let rep = NSBitmapImageRep(cgImage: dark)
+        let want = try #require(CanvasStyle.rgb("#ffec99"))
+        let (r, g, b) = CanvasStyle.throughDark(want.0, want.1, want.2)
+        // The bytes as stored (sRGB, as the board drew them), not converted on the way out.
+        var yellow = [Int](repeating: 0, count: 4), clear = [Int](repeating: 0, count: 4)
+        rep.getPixel(&yellow, atX: 0, y: 0)
+        rep.getPixel(&clear, atX: 3, y: 0)
+        let expected = [r, g, b].map { Int(($0 * 255).rounded()) }
+        #expect(zip(yellow.prefix(3), expected).allSatisfy { abs($0 - $1) <= 2 } && yellow[3] == 255, "as the dark canvas shows #ffec99: \(yellow) for \(expected)")
+        #expect(clear[3] == 0, "see-through stays see-through: \(clear)")
+        // The library keeps both, and drops both with the item.
+        let lib = CanvasLibrary(folder: nil)
+        let item = try #require(lib.add(elements: [["type": "rectangle", "id": "r", "x": 0, "y": 0, "width": 10, "height": 10]]))
+        lib.setThumbnail(png, for: item.id)
+        #expect(lib.thumbnails[item.id] != nil && lib.darkThumbnails[item.id] != nil)
+        lib.remove(item.id)
+        #expect(lib.thumbnails[item.id] == nil && lib.darkThumbnails[item.id] == nil)
+    }
+
+    /// The Library button is in the toolbar beside Image; in a narrow window it's in More Tools.
+    @Test func theLibraryIsInTheToolbarAndInMoreToolsWhenNarrow() async throws {
+        let c = try Self.canvasLibrary()
+        try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
+            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w, 20)
+            var labels = try MacWindowChromeTests.items(w).map(\.label)
+            #expect(labels.contains(CanvasLibraryPopover.title) && labels.contains(CanvasToolbarTools.imageTitle), "\(labels)")
+            w.setContentSize(CGSize(width: 1000, height: 700))
+            await MacWindowChromeTests.settle(w, 20)
+            labels = try MacWindowChromeTests.items(w).map(\.label)
+            #expect(!labels.contains(CanvasLibraryPopover.title) && labels.contains("More Tools"), "narrow: in More Tools: \(labels)")
+        }
+    }
+
     // MARK: Focus and the sidebar steps
 
     /// Full Screen is yours to enter: it folds the columns and puts them back as they were.
@@ -1290,7 +1643,7 @@ import UIKit
                 let (web, canvas) = try await open(w)
                 for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                 await MacWindowChromeTests.settle(w, 10)
-                @MainActor func shot(_ name: String, _ w: NSWindow, _ web: NotePageWebView) async throws {
+                @MainActor func capture(_ w: NSWindow, _ web: NotePageWebView) async throws -> NSBitmapImageRep {
                     _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
                     await MacWindowChromeTests.settle(w, 10)
                     let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
@@ -1302,8 +1655,10 @@ import UIKit
                     defer { cover.removeFromSuperview() }
                     w.contentView?.layoutSubtreeIfNeeded()
                     w.displayIfNeeded()
-                    let rep = try MacEmptyDetailTests.picture(w)
-                    let png = try #require(rep.representation(using: .png, properties: [:]))
+                    return try MacEmptyDetailTests.picture(w)
+                }
+                @MainActor func shot(_ name: String, _ w: NSWindow, _ web: NotePageWebView) async throws {
+                    let png = try #require(try await capture(w, web).representation(using: .png, properties: [:]))
                     try png.write(to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"))
                 }
                 @MainActor func js(_ s: String) async throws { _ = try await web.evaluateJavaScript("(() => { " + s + "; return 1; })()") }
@@ -1455,8 +1810,104 @@ import UIKit
                     canvas.run(.redo); await MacWindowChromeTests.settle(w, 10)
                     try await shot("22-sequence-4-redo", w, web)
                 }
+                // The library (whiteboard council, round 5): two Excalidraw libraries imported and
+                // two shapes saved from the board; the popover with them (drawn on its own, as a
+                // popover can't be drawn off screen, and placed under its button), then a click on
+                // a tile: the item in the middle of the view, beside the drawing, selected.
+                let keptLibrary = CanvasLibrary.shared
+                let lib = CanvasLibrary(folder: nil)
+                CanvasLibrary.shared = lib
+                defer { CanvasLibrary.shared = keptLibrary }
+                canvas.highlight = nil
+                try await insert(.flowchart)
+                _ = lib.importLibrary(Data(Self.basicShapesLibrary.utf8))
+                _ = lib.importLibrary(Data(Self.dataFlowLibrary.utf8))
+                for shape in ["e.type === 'ellipse' && e.backgroundColor === '#b2f2bb' && e.y < 100", "e.type === 'diamond'"] {
+                    try await select(shape)
+                    await canvas.saveSelectionToLibrary(lib)
+                }
+                try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                canvas.notice = nil
+                await canvas.drawThumbnails(lib)
+                await MacWindowChromeTests.settle(w, 10)
+                let popover = try await Self.libraryPopoverPicture(canvas: canvas, library: lib, dark: dark)
+                try #require(popover.representation(using: .png, properties: [:])).write(to: dir.appending(path: "23-library-popover-\(dark ? "dark" : "light").png"))
+                if !dark {
+                    let empty = try await Self.libraryPopoverPicture(canvas: canvas, library: CanvasLibrary(folder: nil), dark: dark)
+                    try #require(empty.representation(using: .png, properties: [:])).write(to: dir.appending(path: "23-library-empty-light.png"))
+                }
+                // The popover where it opens, under the toolbar's Library button.
+                let found = await MacEmptyDetailTests.waitForElement("canvas.tool.library", in: w)
+                if let button = found ?? MacEmptyDetailTests.element("canvas.tool.library", in: w),
+                   let onScreen = (button.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue {
+                    let frame = w.convertFromScreen(onScreen)
+                    if frame.width > 0 {
+                        let open = try Self.placed(popover, under: frame, on: try await capture(w, web), size: w.frame.size, dark: dark)
+                        try #require(open.representation(using: .png, properties: [:])).write(to: dir.appending(path: "23-library-open-\(dark ? "dark" : "light").png"))
+                    }
+                }
+                let store = try #require(lib.items.first { $0.name == "Data storage" })
+                canvas.insert(store)
+                for _ in 0..<60 where canvas.state.selection.isEmpty { await MacWindowChromeTests.settle(w, 1) }
+                await MacWindowChromeTests.settle(w, 10)
+                try await shot("23-library-inserted", w, web)
             }
         }
+    }
+
+    /// The library popover's view drawn on its own at 2x, on a popover's plain card.
+    static func libraryPopoverPicture(canvas: CanvasController, library: CanvasLibrary, dark: Bool) async throws -> NSBitmapImageRep {
+        let height = library.items.isEmpty ? 120 : CanvasLibraryPopover.gridHeight(library.items.count) + 44
+        let size = CGSize(width: CanvasLibraryPopover.width, height: height)
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: library)
+            .frame(width: size.width, height: size.height, alignment: .top)
+            .background(Color(nsColor: .windowBackgroundColor)), size: size, dark: dark)
+        defer { ax.close() }
+        await ax.settle(600)
+        let v = try #require(ax.window.contentView)
+        let rep = try #require(v.bitmapImageRepForCachingDisplay(in: v.bounds))
+        v.cacheDisplay(in: v.bounds, to: rep)
+        return rep
+    }
+
+    /// `popover` drawn over a window's picture (the window `size` in points) as it opens: under
+    /// `button` (in the window's points), with its arrow, rounded corners and shadow.
+    static func placed(_ popover: NSBitmapImageRep, under button: CGRect, on window: NSBitmapImageRep, size points: CGSize, dark: Bool) throws -> NSBitmapImageRep {
+        let scale = CGFloat(window.pixelsWide) / points.width
+        let out = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: window.pixelsWide, pixelsHigh: window.pixelsHigh, bitsPerSample: 8, samplesPerPixel: 4,
+                                                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        out.size = points
+        let saved = NSGraphicsContext.current
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
+        defer { NSGraphicsContext.current = saved }
+        window.draw(in: CGRect(origin: .zero, size: points))
+        let size = CGSize(width: CGFloat(popover.pixelsWide) / scale, height: CGFloat(popover.pixelsHigh) / scale), arrow: CGFloat = 9
+        let x = min(max(button.midX - size.width / 2, 8), points.width - size.width - 8)
+        let card = CGRect(x: x, y: button.minY - 6 - arrow - size.height, width: size.width, height: size.height)
+        let shape = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
+        let tip = NSBezierPath()
+        tip.move(to: CGPoint(x: button.midX - arrow, y: card.maxY - 1))
+        tip.line(to: CGPoint(x: button.midX, y: card.maxY + arrow))
+        tip.line(to: CGPoint(x: button.midX + arrow, y: card.maxY - 1))
+        tip.close()
+        shape.append(tip)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(dark ? 0.55 : 0.22)
+        shadow.shadowBlurRadius = 18
+        shadow.shadowOffset = CGSize(width: 0, height: -6)
+        shadow.set()
+        (dark ? NSColor(white: 0.17, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
+        shape.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12).addClip()
+        popover.draw(in: card)
+        NSGraphicsContext.restoreGraphicsState()
+        NSColor(white: dark ? 1 : 0, alpha: dark ? 0.16 : 0.12).setStroke()
+        shape.lineWidth = 1 / scale
+        shape.stroke()
+        return out
     }
     #endif
 
