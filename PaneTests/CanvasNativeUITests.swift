@@ -952,6 +952,9 @@ import UIKit
         w.toolbar = NSToolbar(identifier: "test.present")
         let probe = WindowToolbarHider.Probe()
         w.contentView = probe
+        // It lies over the whole board: it never takes a click (round 9: every click on the board went to it).
+        probe.frame = CGRect(x: 0, y: 0, width: 400, height: 300)
+        #expect(probe.hitTest(NSPoint(x: 200, y: 150)) == nil)
         probe.apply(true)
         #expect(w.toolbar?.isVisible == false)
         probe.apply(false)
@@ -2745,6 +2748,18 @@ import UIKit
                 let (web, canvas) = try await open(w)
                 for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                 await MacWindowChromeTests.settle(w, 10)
+                // A click on the board reaches the board: nothing native lies over it (round 9, on
+                // the Air: no click reached the board; a view that only finds the window lay over it).
+                @MainActor func clicksReachTheBoard(_ w: NSWindow, _ web: NotePageWebView) {
+                    guard let root = w.contentView else { return }
+                    for (fx, fy) in [(0.5, 0.5), (0.25, 0.7), (0.8, 0.3)] {
+                        let p = web.convert(NSPoint(x: web.bounds.width * fx, y: web.bounds.height * fy), to: root)
+                        let hit = root.hitTest(p)
+                        var v = hit, onBoard = false
+                        while let x = v { if x === web { onBoard = true; break }; v = x.superview }
+                        #expect(onBoard, "a click at \(fx),\(fy) of the board lands on \(hit.map { String(describing: type(of: $0)) } ?? "nothing"), not the board")
+                    }
+                }
                 @MainActor func capture(_ w: NSWindow, _ web: NotePageWebView) async throws -> NSBitmapImageRep {
                     _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
                     await MacWindowChromeTests.settle(w, 10)
@@ -2780,6 +2795,7 @@ import UIKit
                 for (i, t) in (dark ? [WhiteboardTemplate.flowchart] : WhiteboardTemplate.allCases).enumerated() {
                     try await insert(t)
                     try await shot(String(format: "%02d-template-%@", 2 + i, t.rawValue), w, web)
+                    if i == 0 { clicksReachTheBoard(w, web) }
                 }
                 try await insert(.flowchart)
                 try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")

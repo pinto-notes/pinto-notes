@@ -100,6 +100,9 @@ struct WindowToolbarHider: NSViewRepresentable {
 
     final class Probe: NSView {
         var hid = false
+        // It only finds the window: never in the way of a click (round 9, on the Air: it lay over
+        // the whole board and took every click).
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
         func apply(_ hidden: Bool) {
             guard let toolbar = window?.toolbar else { return }
             if hidden, toolbar.isVisible { toolbar.isVisible = false; hid = true }
