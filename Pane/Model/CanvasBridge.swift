@@ -361,14 +361,22 @@ final class CanvasController {
     func arrived(by: String) { expecting = (by, .now) }
 
     private func remoteChange(_ r: [String: Any]) {
+        let num = { (k: String) in (r[k] as? Double) ?? (r[k] as? Int).map(Double.init) ?? 0 }
+        // The view moved under an outline: it moves with it.
+        if r["follow"] as? Bool == true {
+            if var h = highlight {
+                h.rect = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
+                highlight = h
+            }
+            return
+        }
         guard let e = expecting, e.at.timeIntervalSinceNow > -5 else { return }
         expecting = nil
-        let num = { (k: String) in (r[k] as? Double) ?? (r[k] as? Int).map(Double.init) ?? 0 }
         let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")))
         highlight = h
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.highlightTime))
-            if self?.highlight == h { self?.highlight = nil }
+            if self?.highlight?.by == h.by, self?.highlight?.count == h.count { self?.highlight = nil }
         }
     }
 
@@ -441,7 +449,8 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
         ["type": "text", "x": x, "y": y, "text": s, "fontSize": size, "strokeColor": color]
     }
     private static func title(_ s: String, hint h: String) -> [[String: Any]] {
-        [text(s, x: 0, y: -96, size: 32), text(h, x: 0, y: -50, size: 16, color: hint)]
+        // The how-to line is marked, so the list's preview and search leave it out (CanvasSketch).
+        [text(s, x: 0, y: -96, size: 32), text(h, x: 0, y: -50, size: 16, color: hint).merging(["customData": ["pintoHint": true]]) { a, _ in a }]
     }
     /// A lane with its heading on top and cards under it.
     private static func column(_ id: String, x: Double, title: String, fill: String, cards: [String], width: Double = 220, height: Double = 380) -> [[String: Any]] {

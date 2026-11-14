@@ -353,10 +353,14 @@ function Canvas({ initial }) {
       // Its own save, back as the store's reply and the app's push: nothing to merge.
       if (!scene || fingerprint(scene) === lastSent) return;
       const { elements: remote } = normalize(scene.elements);
-      // What each element looks like before, to tell what the change touched (versions move when
-      // the merge repairs bindings, so they can't tell).
-      const look = (e) => `${Math.round(e.x)},${Math.round(e.y)},${Math.round(e.width)},${Math.round(e.height)},${e.text || ""},${e.strokeColor},${e.backgroundColor},${e.isDeleted}`;
-      const prior = new Map(api.getSceneElementsIncludingDeleted().map((e) => [e.id, look(e)]));
+      // What they changed: their elements that differ from what was last in step (versions move
+      // when bindings are repaired, so what each looks like is compared).
+      // Arrows and the words on them are re-laid whenever bindings are repaired, so for them
+      // where they run doesn't count, only what they join and how they look.
+      const relaid = (e) => e.type === "arrow" || e.type === "line" || !!e.containerId;
+      const look = (e) => `${relaid(e) ? `${e.startBinding && e.startBinding.elementId}>${e.endBinding && e.endBinding.elementId}` : `${Math.round(e.x)},${Math.round(e.y)},${Math.round(e.width)},${Math.round(e.height)}`},${e.text || ""},${e.strokeColor},${e.backgroundColor},${e.isDeleted}`;
+      const before = new Map((base || []).map((e) => [e.id, look(e)]));
+      const theirs = new Set(remote.filter((e) => !e.isDeleted && before.get(e.id) !== look(e)).map((e) => e.id));
       const merged = merge(api.getSceneElementsIncludingDeleted(), remote, base);
       const files = Object.values(scene.files || {});
       if (files.length) api.addFiles(files);
@@ -365,7 +369,7 @@ function Canvas({ initial }) {
       base = remote;
       lastSent = fingerprint(scene);
       if (scene.elements.some((e) => e && typeof e.seed !== "number")) remeasure();
-      showChanged(api.getSceneElements().filter((e) => prior.get(e.id) !== look(e)));
+      showChanged(api.getSceneElements().filter((e) => theirs.has(e.id) || (e.containerId && theirs.has(e.containerId))));
       // Ours had changes theirs didn't (or theirs was in the short form): saved back merged.
       if (!same(merged.map((e) => [e.id, e.version]), remote.map((e) => [e.id, e.version]))) schedule();
     });
@@ -381,15 +385,27 @@ function Canvas({ initial }) {
         return { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y, view: s };
       };
       let r = where();
-      if (r.x + r.width < 0 || r.y + r.height < 0 || r.x > r.view.width || r.y > r.view.height) {
-        // Centred at the zoom you had, at once (the engine's own scroll lands a frame later).
+      if (r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height) {
+        // Centred at the zoom you had, at once (the engine's own scroll lands a frame later): the
+        // whole board when it fits, so what the AI drew is seen next to what it joins.
         const s = r.view, z = (s.zoom && s.zoom.value) || 1;
-        const [x1, y1, x2, y2] = getCommonBounds(changed);
+        const whole = getCommonBounds(api.getSceneElements());
+        const fits = (whole[2] - whole[0]) * z <= s.width - 48 && (whole[3] - whole[1]) * z <= s.height - 48;
+        const [x1, y1, x2, y2] = fits ? whole : getCommonBounds(changed);
         flushSync(() => api.updateScene({ appState: { scrollX: -(x1 + x2) / 2 + s.width / 2 / z, scrollY: -(y1 + y2) / 2 + s.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
         r = where();
       }
       try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: changed.length } }); } catch (_) {}
+      // For a while after, the outline follows the view as you pan and zoom.
+      outlined = { changed, until: Date.now() + 8000, where };
     };
+    let outlined = null;
+    const follow = api.onChange(() => {
+      if (!outlined) return;
+      if (Date.now() > outlined.until) { outlined = null; return; }
+      const r = outlined.where();
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: outlined.changed.length, follow: true } }); } catch (_) {}
+    });
 
     // Text an AI wrote was measured before the hand-drawn font arrived: measured again once it has.
     const remeasure = () => document.fonts.load("20px Excalifont").then(() => {
@@ -419,7 +435,7 @@ function Canvas({ initial }) {
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected) => exportScene(api, format, selected), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
-    return () => { keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
+    return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);
 
   const setRef = useCallback((a) => setApi(a), []);

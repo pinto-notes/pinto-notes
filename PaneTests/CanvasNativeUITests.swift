@@ -272,6 +272,8 @@ import UIKit
         #expect(joined == 5, "every arrow joins two shapes: \(joined ?? -1)")
         let labels = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'text').map((e) => e.originalText).sort().join('|')") as? String
         #expect(labels?.hasPrefix("Did it work?|Do the thing|Done|Double-click a shape") == true && labels?.contains("|No|") == true && labels?.contains("|Yes") == true, "\(labels ?? "")")
+        let hint = try await j.js("amber._canvas.scene().elements.filter((e) => e.customData && e.customData.pintoHint).length") as? Int
+        #expect(hint == 1, "the how-to line keeps its mark once saved, for the list's preview")
         let web = try #require(j.web as? NotePageWebView)
         NSApp.sendAction(#selector(NotePageWebView.undo(_:)), to: web, from: NSMenuItem(title: "Undo", action: #selector(NotePageWebView.undo(_:)), keyEquivalent: "z"))
         await j.until("one Undo takes it back") { j.canvas.state.empty }
@@ -381,6 +383,28 @@ import UIKit
         #expect(h.rect.width > 100)
         let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
         #expect(r.summary == "Claude drew on this whiteboard" && r.shortSummary == "Claude drew on it")
+    }
+
+    /// Only what the AI drew is outlined, not the arrows already on the board that the merge
+    /// re-laid (whiteboard council, round 2, 12-ai-drew: the outline took in half the flowchart).
+    @Test func theOutlineTakesInOnlyWhatTheAIDrew() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.insert(.flowchart))
+        await j.until("the flowchart is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(1500))
+        _ = try await j.js("amber._flush(); 0")
+        let stored = try #require(try await j.js("JSON.stringify(amber._canvas.scene().elements)") as? String)
+        var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
+        let right = try #require(try await j.js("Math.round(Math.max(...amber._canvas.api.getSceneElements().map((e) => e.x + e.width)))") as? Int)
+        elements.append(["type": "rectangle", "id": "ai-box", "x": right + 80, "y": 0, "width": 180, "height": 70, "label": ["text": "Request"]])
+        j.canvas.arrived(by: "ChatGPT")
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        await j.until("outlined") { j.canvas.highlight != nil }
+        let h = try #require(j.canvas.highlight)
+        #expect(h.count == 2, "the box and its words: \(h.count)")
+        #expect(h.rect.width < 260 && h.rect.height < 120, "only the new box: \(h.rect)")
     }
 
     /// When the board gets wider (the sidebar folding away, Full Screen) the drawing stays where
@@ -505,6 +529,8 @@ import UIKit
         #expect(sketch.shapes.map(\.kind) == ["rectangle", "arrow", "freedraw"])
         #expect(sketch.shapes[0].fill == "#b2f2bb" && sketch.shapes[2].points.count == 3)
         #expect(CanvasSketch(elements: []).preview == nil)
+        #expect(CanvasSketch(elements: [["type": "freedraw", "x": 0, "y": 0, "width": 9, "height": 9]]).preview == "Drawing")
+        #expect(CanvasSketch(elements: WhiteboardTemplate.kanban.elements).preview?.hasPrefix("Kanban \u{00B7} To do") == true, "the how-to line left out")
 
         let c = try Self.canvasLibrary()
         let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
@@ -515,6 +541,30 @@ import UIKit
         // A change to the board is read again.
         NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([["type": "text", "x": 0, "y": 0, "text": "Hiring plan"]])], "collections": [String: Any]()])
         #expect(CanvasSketch.of(note.id)?.preview == "Hiring plan")
+    }
+
+    /// A whiteboard's row follows the board: the list watches one signal that moves a moment
+    /// after a burst of changes, not every stroke (whiteboard council, round 2, 12-ai-drew).
+    @Test func aBoardsRowIsToldWhenTheBoardChanges() async throws {
+        let store = NotePageDataStore(file: nil)
+        let id = UUID()
+        let scene = { (t: String) -> NotePageData.Doc in ["values": ["scene": CanvasTests.scene([["type": "text", "x": 0, "y": 0, "text": t]])], "collections": [String: Any]()] }
+        final class Told: @unchecked Sendable { var n = 0 }
+        let t = Told()
+        var told: Int { t.n }
+        let watch = { withObservationTracking { _ = NoteRow.sketch(id, in: store) } onChange: { t.n += 1 } }
+        watch()
+        let start = store.listRevision
+        for t in ["A", "AB", "ABC"] { store.set(id, scene(t)) }
+        #expect(store.listRevision == start, "not on every stroke")
+        for _ in 0..<40 where told == 0 { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(store.listRevision == start + 1 && told == 1, "once, for the burst")
+        #expect(NoteRow.sketch(id, in: store)?.preview == "ABC")
+        store.pushed(id, try #require(store.peek(id)))
+        watch()
+        store.take(id, server: NotePageData.encode(scene("From ChatGPT")), by: "ChatGPT")
+        for _ in 0..<40 where told == 1 { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(told == 2 && NoteRow.sketch(id, in: store)?.preview == "From ChatGPT", "and when an AI's drawing arrives")
     }
 
     /// Naming a canvas: one line, trimmed; empty or unchanged leaves it (13 November 2026).
@@ -639,41 +689,58 @@ import UIKit
         }
     }
 
-    /// The whiteboard in the app's window, light and dark: empty with its templates, a template
-    /// in, and Full Screen. Drawn only when WHITEBOARD_SHOTS is set (TEST_RUNNER_WHITEBOARD_SHOTS=dir).
+    /// The whiteboard in the app's window, light and dark, for the whiteboard council. Drawn only
+    /// when WHITEBOARD_SHOTS is set (TEST_RUNNER_WHITEBOARD_SHOTS=dir).
     @Test func whiteboardWindowPictures() async throws {
         guard let path = ProcessInfo.processInfo.environment["WHITEBOARD_SHOTS"] else { return }
         let dir = URL(fileURLWithPath: path)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let keptAIs = ConnectedAIs.shared.connections
+        ConnectedAIs.shared.set([AskAITests.chatgpt])
+        defer { ConnectedAIs.shared.set(keptAIs) }
         for dark in [false, true] {
             let c = try AppSnapshotTests.container()
-            let note = CanvasNote.make(in: .all, context: c.mainContext)
-            note.body = "Product launch"
-            note.updatedAt = .now.addingTimeInterval(-30)
-            NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([])], "collections": [String: Any]()])
+            @MainActor func board(_ title: String, _ elements: [[String: Any]], ago: Double) -> Note {
+                let n = CanvasNote.make(in: .all, context: c.mainContext)
+                n.body = title
+                n.updatedAt = .now.addingTimeInterval(-ago)
+                NotePageDataStore.shared.set(n.id, ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+                return n
+            }
+            _ = board("Q3 roadmap", WhiteboardTemplate.kanban.elements, ago: 300)
+            _ = board("Onboarding flow", WhiteboardTemplate.flowchart.elements, ago: 900)
+            _ = board("Logo ideas", (0..<5).map { i in ["type": "freedraw", "x": Double(i) * 60, "y": 0, "width": 50, "height": 40,
+                                                         "points": [[0, 20], [10, 0], [25, 35], [40, 5], [50, 25]]] }, ago: 1500)
+            let note = board("Product launch", [], ago: 30)
             try c.mainContext.save()
             try await AppSnapshotTests.withLastNote(c, "Product launch") {
-                let size = CGSize(width: 1400, height: 900)
-                let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
-                                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-                w.isReleasedWhenClosed = false
-                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-                w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore())
-                    .tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key))
-                w.setContentSize(size)
+                @MainActor func window(_ size: CGSize) -> NSWindow {
+                    let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
+                                     styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+                    w.isReleasedWhenClosed = false
+                    w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore())
+                        .tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key))
+                    w.setContentSize(size)
+                    return w
+                }
+                let w = window(CGSize(width: 1400, height: 900))
                 defer { w.close() }
                 await MacWindowChromeTests.settle(w, 20)
-                var found: WKWebView?
-                for _ in 0..<100 where found == nil {
-                    found = NotePageLive.view(note.id)
-                    if found == nil { await MacWindowChromeTests.settle(w, 1) }
+                @MainActor func open(_ w: NSWindow) async throws -> (NotePageWebView, CanvasController) {
+                    var found: WKWebView?
+                    for _ in 0..<100 where found == nil {
+                        found = NotePageLive.view(note.id)
+                        if found == nil { await MacWindowChromeTests.settle(w, 1) }
+                    }
+                    let web = try #require(found as? NotePageWebView, "the whiteboard opened")
+                    try await CanvasTests().run(web, until: "!!(window.amber && window.amber._canvas)")
+                    return (web, try #require(web.canvas))
                 }
-                let web = try #require(found as? NotePageWebView, "the whiteboard opened")
-                try await CanvasTests().run(web, until: "!!(window.amber && window.amber._canvas)")
-                let canvas = try #require(web.canvas)
+                let (web, canvas) = try await open(w)
                 for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                 await MacWindowChromeTests.settle(w, 10)
-                @MainActor func shot(_ name: String) async throws {
+                @MainActor func shot(_ name: String, _ w: NSWindow, _ web: NotePageWebView) async throws {
                     _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
                     await MacWindowChromeTests.settle(w, 10)
                     let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
@@ -689,35 +756,81 @@ import UIKit
                     let png = try #require(rep.representation(using: .png, properties: [:]))
                     try png.write(to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"))
                 }
-                @MainActor func clear() async throws {
-                    _ = try await web.evaluateJavaScript("amber._canvas.api.updateScene({ elements: [] }); 1")
-                    for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
-                }
+                @MainActor func js(_ s: String) async throws { _ = try await web.evaluateJavaScript("(() => { " + s + "; return 1; })()") }
                 @MainActor func insert(_ t: WhiteboardTemplate) async throws {
-                    try await clear()
+                    try await js("amber._canvas.api.updateScene({ elements: [] })")
+                    for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                     canvas.send(.insert(t))
                     for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                     await MacWindowChromeTests.settle(w, 10)
                 }
-                try await shot("01-empty")
+                @MainActor func select(_ filter: String) async throws {
+                    try await js("const api = amber._canvas.api; const ids = {}; api.getSceneElements().filter((e) => \(filter)).forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids } })")
+                    for _ in 0..<50 where canvas.state.bounds == nil { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 5)
+                }
+                try await shot("01-empty", w, web)
                 for (i, t) in (dark ? [WhiteboardTemplate.flowchart] : WhiteboardTemplate.allCases).enumerated() {
                     try await insert(t)
-                    try await shot(String(format: "%02d-template-%@", 2 + i, t.rawValue))
+                    try await shot(String(format: "%02d-template-%@", 2 + i, t.rawValue), w, web)
                 }
                 try await insert(.flowchart)
-                // One shape selected: the bar over it with its style.
-                _ = try await web.evaluateJavaScript("""
-                const api = amber._canvas.api; const box = api.getSceneElements().find((e) => e.type === 'rectangle');
-                api.updateScene({ appState: { selectedElementIds: { [box.id]: true } } }); 1
-                """)
-                for _ in 0..<100 where canvas.state.bounds == nil { await MacWindowChromeTests.settle(w, 1) }
-                try await shot("07-selected")
-                _ = try await web.evaluateJavaScript("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); 1")
-                let found2 = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
-                let e = try #require(found2 ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
+                try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")
+                try await shot("07-selected-box", w, web)
+                if !dark {
+                    try await select("e.type === 'text' && e.text === 'Flowchart'")
+                    try await shot("08-selected-title-near-top", w, web)
+                    try await select("e.type === 'arrow' && e.width > 50")
+                    try await shot("09-selected-arrow", w, web)
+                    try await select("!e.containerId")
+                    try await shot("10-selected-all", w, web)
+                }
+                try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                // A screenshot pasted on: the window itself, as a picture.
+                let screenshot = try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:])
+                if !dark, let screenshot, let picture = CanvasImage(data: screenshot) {
+                    canvas.send(.image(picture, at: nil))
+                    await MacWindowChromeTests.settle(w, 15)
+                    try await shot("11-pasted-screenshot", w, web)
+                    try await js("const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElementsIncludingDeleted().filter((e) => e.type !== 'image'), appState: { selectedElementIds: {} } })")
+                }
+                // An AI draws an approval flow next to it, as an MCP write arrives through sync.
+                var doc = NotePageDataStore.shared.doc(note.id)
+                await MacWindowChromeTests.settle(w, 10)
+                doc = NotePageDataStore.shared.doc(note.id)
+                var scene = (doc["values"] as? [String: Any])?["scene"] as? [String: Any] ?? [:]
+                var els = scene["elements"] as? [[String: Any]] ?? []
+                let ink = "#2a1d10"
+                els += [
+                    ["type": "rectangle", "id": "ai-req", "x": 560, "y": 0, "width": 180, "height": 70, "label": ["text": "Request"], "strokeColor": ink, "backgroundColor": "#eebefa", "fillStyle": "solid", "roundness": ["type": 3]],
+                    ["type": "rectangle", "id": "ai-rev", "x": 560, "y": 130, "width": 180, "height": 70, "label": ["text": "Manager review"], "strokeColor": ink, "backgroundColor": "#eebefa", "fillStyle": "solid", "roundness": ["type": 3]],
+                    ["type": "rectangle", "id": "ai-ok", "x": 560, "y": 260, "width": 180, "height": 70, "label": ["text": "Approved"], "strokeColor": ink, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "roundness": ["type": 3]],
+                    ["type": "arrow", "x": 650, "y": 70, "width": 0, "height": 60, "points": [[0, 0], [0, 60]], "start": ["id": "ai-req"], "end": ["id": "ai-rev"], "strokeColor": ink],
+                    ["type": "arrow", "x": 650, "y": 200, "width": 0, "height": 60, "points": [[0, 0], [0, 60]], "start": ["id": "ai-rev"], "end": ["id": "ai-ok"], "strokeColor": ink],
+                ]
+                scene["elements"] = els
+                let server = NotePageData.encode(["values": ["scene": scene], "collections": [String: Any]()])
+                CanvasController.highlightTime = 60
+                defer { CanvasController.highlightTime = 4 }
+                NotePageDataStore.shared.take(note.id, server: server, by: "ChatGPT")
+                for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+                try await shot("12-ai-drew", w, web)
+                let fullScreen = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
+                let e = try #require(fullScreen ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
                 _ = e.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
                 await MacWindowChromeTests.settle(w, 15)
-                try await shot("08-fullscreen")
+                try await shot("13-fullscreen", w, web)
+                _ = e.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+                await MacWindowChromeTests.settle(w, 15)
+                // What Export › PNG Image makes of the board.
+                if !dark, let png = await canvas.export(.png) { try png.write(to: dir.appending(path: "14-exported-board.png")) }
+                // A narrow window, a shape selected.
+                if !dark {
+                    w.setContentSize(CGSize(width: 1000, height: 700))
+                    await MacWindowChromeTests.settle(w, 20)
+                    try await select("e.type === 'diamond'")
+                    try await shot("15-narrow-window", w, web)
+                }
             }
         }
     }

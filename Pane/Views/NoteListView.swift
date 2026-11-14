@@ -2111,7 +2111,7 @@ struct NoteRow: View {
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         // A whiteboard: its words as the preview and its shapes as the picture.
-        let board = app && CanvasNote.has(note) && !note.isLocked ? CanvasSketch.of(note.id) : nil
+        let board = app && CanvasNote.has(note) && !note.isLocked ? Self.sketch(note.id) : nil
         let found = self.found
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
@@ -2239,6 +2239,13 @@ struct NoteRow: View {
         .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || (note.isShared && note.trashedAt == nil) ? "Shared" : nil, note.isLocked ? "Locked" : nil,
                              ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
+    }
+
+    /// A whiteboard's words and shapes for its row, read again a moment after the board changes
+    /// (whiteboard council, round 2: a row still said "No additional text" over a whole flowchart).
+    @MainActor static func sketch(_ id: UUID, in store: NotePageDataStore = .shared) -> CanvasSketch? {
+        _ = store.listRevision
+        return CanvasSketch.of(id, in: store)
     }
 
     /// The note's first picture, when it's on this device: one on the server only shows once the

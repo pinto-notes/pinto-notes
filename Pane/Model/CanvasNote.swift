@@ -124,6 +124,12 @@ enum CanvasNote {
             }
             if let pick { out.append(pick) }
         }
+        // Elements with no id yet (an AI's short form: an arrow often has none until the board
+        // opens and fills it out) are kept, each once; merged by id they were dropped.
+        let unnamed = { (x: Any?) in ((x as? [Any]) ?? []).compactMap { $0 as? El }.filter { $0["id"] == nil } }
+        let theirsUnnamed = unnamed(t["elements"])
+        out += theirsUnnamed
+        out += unnamed(m["elements"]).filter { e in !theirsUnnamed.contains { NotePageData.same($0, e) } }
         var files = (t["files"] as? [String: Any]) ?? [:]
         for (k, v) in (m["files"] as? [String: Any]) ?? [:] { files[k] = v }
         var merged = m
@@ -169,8 +175,9 @@ struct CanvasSketch: Equatable {
     var texts: [String] = []
     var shapes: [Shape] = []
 
-    /// "Start · Do the thing · Did it work?", or nil for a board with no words.
-    var preview: String? { texts.isEmpty ? nil : texts.joined(separator: " \u{00B7} ") }
+    /// "Start · Do the thing · Did it work?"; "Drawing" for shapes with no words; nil for an empty board.
+    var preview: String? { texts.isEmpty ? (shapes.isEmpty ? nil : Self.drawing) : texts.joined(separator: " \u{00B7} ") }
+    static let drawing = "Drawing"
     /// Its words, one a line, for search.
     var searchText: String { texts.joined(separator: "\n") }
 
@@ -184,6 +191,8 @@ struct CanvasSketch: Equatable {
             guard let type = e["type"] as? String else { continue }
             let num = { (k: String) -> Double in (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
             if type == "text" {
+                // A template's how-to line isn't the board's words.
+                if (e["customData"] as? [String: Any])?["pintoHint"] as? Bool == true { continue }
                 let t = ((e["originalText"] as? String) ?? (e["text"] as? String) ?? "")
                     .split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
                 if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }

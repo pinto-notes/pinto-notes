@@ -245,6 +245,21 @@ final class NotePageDataStore {
     /// drawing back before each save.
     @ObservationIgnored private var decoded: [UUID: (data: Data, doc: NotePageData.Doc)] = [:]
 
+    /// Moves a moment after the data changes, once for a burst of changes: what the list's
+    /// whiteboard rows watch, so their words and picture follow the board without the list being
+    /// redrawn on every stroke.
+    private(set) var listRevision = 0
+    @ObservationIgnored private var listPending: Task<Void, Never>?
+    static var listDelay: Duration = .milliseconds(800)
+    private func changedForList() {
+        guard listPending == nil else { return }
+        listPending = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.listDelay)
+            self?.listPending = nil
+            self?.listRevision += 1
+        }
+    }
+
     /// A note's bytes, read without being watched (the list's whiteboard rows: CanvasSketch).
     func peek(_ id: UUID) -> Data? { _docs[id] }
     /// The notes that have data, read without being watched.
@@ -266,6 +281,7 @@ final class NotePageDataStore {
         if let data, let doc { decoded[id] = (data, doc) } else { decoded[id] = nil }
         dirty.insert(id)
         save()
+        changedForList()
         SyncSignal.changed()
     }
 
@@ -287,6 +303,7 @@ final class NotePageDataStore {
         }
         synced[id] = server
         save()
+        changedForList()
     }
 
     /// Pushed: what the server now holds is the new base.

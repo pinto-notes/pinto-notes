@@ -100,6 +100,22 @@ import AppKit
         #expect(Self.ids(merged) == ["a": 10, "b": 20, "c": 0, "d": 0])
     }
 
+    /// An AI's arrow in the short form has no id until the board opens; merged with this device's
+    /// unsynced changes it was dropped (whiteboard council round 2: the AI's arrows went missing).
+    @Test func elementsWithNoIdSurviveAMerge() {
+        let arrow: [String: Any] = ["type": "arrow", "x": 0, "y": 0, "width": 0, "height": 60, "start": ["id": "a"], "end": ["id": "b"]]
+        let base = Self.scene([Self.el("a", version: 1)])
+        let mine = Self.scene([Self.el("a", version: 2, x: 10)])
+        let theirs = Self.scene([Self.el("a", version: 1), Self.el("b", version: 1), arrow])
+        let merged = CanvasNote.merge(base: base, mine: mine, theirs: theirs) as? [String: Any]
+        let els = (merged?["elements"] as? [[String: Any]]) ?? []
+        #expect(els.filter { $0["type"] as? String == "arrow" }.count == 1, "the AI's arrow is kept, once")
+        #expect(els.count == 3)
+        // Merged again with itself as theirs: still once.
+        let again = CanvasNote.merge(base: base, mine: merged, theirs: merged) as? [String: Any]
+        #expect(((again?["elements"] as? [[String: Any]]) ?? []).filter { $0["type"] as? String == "arrow" }.count == 1)
+    }
+
     @Test func theNewerEditWinsWhenBothMovedTheSameElement() {
         let base = Self.scene([Self.el("a", version: 1)])
         let mine = Self.scene([Self.el("a", version: 2, x: 10)])
