@@ -284,6 +284,8 @@ struct CanvasNoteCard: Equatable, Sendable {
     var preview: String
     /// The note is gone, or no note has the card's title: the card is quiet and doesn't open.
     var deleted = false
+    /// The note is in Recently Deleted: Restore Note brings it (and the card) back.
+    var restorable = false
 
     static let deletedText = "Note deleted"
     static let missingText = "No note has this title"
@@ -301,7 +303,9 @@ struct CanvasNoteCard: Equatable, Sendable {
     /// What a card for `note` says: its title and first lines (a whiteboard's words), "Locked"
     /// for a locked note, and "Note deleted" once it's in Recently Deleted or gone.
     @MainActor static func of(_ note: Note, pages: NotePageStore = .shared, data: NotePageDataStore = .shared) -> CanvasNoteCard {
-        guard note.trashedAt == nil, note.deletedAt == nil else { return CanvasNoteCard(id: note.id, title: nil, preview: deletedText, deleted: true) }
+        guard note.trashedAt == nil, note.deletedAt == nil else {
+            return CanvasNoteCard(id: note.id, title: nil, preview: deletedText, deleted: true, restorable: note.deletedAt == nil)
+        }
         if note.isLocked { return CanvasNoteCard(id: note.id, title: note.title, preview: lockedText) }
         if CanvasNote.isCanvas(NoteApps.page(note.id, in: pages)?.html) {
             return CanvasNoteCard(id: note.id, title: note.title, preview: CanvasSketch.of(note.id, in: data)?.preview ?? "")

@@ -541,6 +541,11 @@ final class CanvasController {
     @ObservationIgnored var cardInfo: (([String]) -> [String: CanvasNoteCard])?
     /// Opens a note in the window (set by the note's view).
     @ObservationIgnored var openNote: ((UUID) -> Void)?
+    /// Takes a note out of Recently Deleted (set by the note's view).
+    @ObservationIgnored var restoreNote: ((UUID) -> Void)?
+    /// The notes cards name that are in Recently Deleted, by what the card names: their card's
+    /// bar offers Restore Note.
+    private(set) var restorable: Set<String> = []
     /// The notes the cards name, as the page last said, and the notes those turned out to be.
     @ObservationIgnored private(set) var cardNotes: [String] = []
     @ObservationIgnored private(set) var cardIDs: Set<UUID> = []
@@ -553,7 +558,18 @@ final class CanvasController {
         guard let cardInfo, !cardNotes.isEmpty else { return }
         let info = cardInfo(cardNotes)
         cardIDs = Set(info.values.compactMap(\.id))
+        let trashed = Set(info.filter(\.value.restorable).keys)
+        if trashed != restorable { restorable = trashed }
         send(.cards(info))
+    }
+
+    /// Restore Note, on a card whose note is in Recently Deleted: the note comes back, and its card
+    /// says what it says again.
+    func restoreCard(_ ref: String) {
+        guard let card = cardInfo?([ref])[ref], card.restorable, let id = card.id else { return }
+        restoreNote?(id)
+        refreshCards()
+        confirm("Note restored")
     }
 
     /// Notes were saved (nil: something was deleted for good): cards for them say what they say
@@ -1050,7 +1066,7 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             // a map grows.
             let ideas: [(String, Double, Double, String)] = [("Why it matters", -280, -150, T.yellow), ("Who it\u{2019}s for", 280, -150, T.blue),
                                                               ("How", -280, 150, T.green), ("When", 280, 150, T.violet), ("Risks", 0, 230, T.red)]
-            var out: [[String: Any]] = T.title("Mind map", hint: "Double-click to write. Option-drag a branch to copy it, then join it with a line.").map { e in
+            var out: [[String: Any]] = T.title("Mind map", hint: "Double-click to write. Select a branch and press Tab to grow a new one from it.").map { e in
                 var e = e; e["y"] = (e["y"] as! Double) - 230; e["x"] = -365.0; return e
             }
             out.append(T.box("main", "ellipse", x: -120, y: -55, w: 240, h: 110, text: "The big idea", fill: T.yellow, size: 24))

@@ -1018,6 +1018,7 @@ import UIKit
         var notes: [String: CanvasNoteCard] = [:]
         var asked = 0
         var opened: [UUID] = []
+        var restored: [UUID] = []
 
         func join(_ canvas: CanvasController, board: UUID? = nil) {
             canvas.noteID = board
@@ -1216,6 +1217,288 @@ import UIKit
         #expect((saved?["customData"] as? [String: Any])?["title"] as? String == "Launch plan v2")
         #expect(j.rig.elements.contains { ($0["customData"] as? [String: Any])?["pintoCard"] as? String == "preview" && $0["text"] as? String == "Note deleted" })
     }
+
+    #if os(macOS)
+    /// The page as drawn, as RGBA bytes at its own scale.
+    static func pixels(_ web: WKWebView) async throws -> (bytes: [UInt8], width: Int, height: Int, scale: CGFloat, png: Data?) {
+        let config = WKSnapshotConfiguration()
+        config.afterScreenUpdates = true
+        let image = try await web.takeSnapshot(configuration: config)
+        let cg = try #require(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
+        let w = cg.width, h = cg.height
+        var bytes = [UInt8](repeating: 0, count: w * h * 4)
+        let ctx = try #require(CGContext(data: &bytes, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                         space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        let png = NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:])
+        return (bytes, w, h, CGFloat(w) / web.bounds.width, png)
+    }
+
+    /// No empty selection box is left drawn once cards are put on and then let go (whiteboard
+    /// council, round 6, 24-note-card-board: a small dark corner bracket by a card, gone once the
+    /// card was selected). Cards go on selected as a group; a selection cleared by element only
+    /// left the group selected, and the engine drew its empty box at the drawing's origin. The
+    /// group is let go, and nothing is drawn there, in light and dark.
+    @Test(arguments: [false, true]) func aCardShowsNothingOffItsCorner(dark: Bool) async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box), dark: dark)
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.plan.uuidString: Self.planCard, Self.press.uuidString: Self.pressCard]
+        library.join(j.canvas, board: UUID())
+        try await j.ready()
+        j.canvas.addCards([Self.plan, Self.press])
+        await j.until("the cards are on") { j.canvas.state.selectedCards == 2 }
+        #expect(try await j.js("Object.keys(amber._canvas.api.getAppState().selectedGroupIds).length") as? Int == 2, "selected as groups")
+        // Let go by element only, as the app's own commands and the pictures do.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        await j.until("nothing selected") { !j.canvas.state.hasSelection }
+        var groups = -1
+        for _ in 0..<60 {
+            groups = try await j.js("Object.keys(amber._canvas.api.getAppState().selectedGroupIds).filter((g) => amber._canvas.api.getAppState().selectedGroupIds[g]).length") as? Int ?? -1
+            if groups == 0 { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        #expect(groups == 0, "no group stays selected with nothing in it")
+        try await Task.sleep(for: .milliseconds(400))
+        // The drawing's origin, where the empty box was drawn; nothing else is drawn near it.
+        let origin = try #require(try await j.js("(() => { const s = amber._canvas.api.getAppState(), z = s.zoom.value; return [s.scrollX * z, s.scrollY * z]; })()") as? [Double])
+        let shot = try await Self.pixels(j.web)
+        if let dir = ProcessInfo.processInfo.environment["CARD_CORNER_SHOT"], let png = shot.png {
+            try png.write(to: URL(fileURLWithPath: dir).appending(path: "card-corner-\(dark ? "dark" : "light").png"))
+        }
+        func at(_ x: Int, _ y: Int) -> [Int] { let i = (y * shot.width + x) * 4; return (0..<3).map { Int(shot.bytes[i + $0]) } }
+        let paper = at(shot.width - 3, shot.height - 3)
+        var marks = 0
+        let x0 = Int((origin[0] - 24) * shot.scale), y0 = Int((origin[1] - 24) * shot.scale), x1 = Int((origin[0] + 24) * shot.scale), y1 = Int((origin[1] + 24) * shot.scale)
+        for y in max(0, y0)..<min(shot.height, y1) {
+            for x in max(0, x0)..<min(shot.width, x1) where zip(at(x, y), paper).contains(where: { abs($0 - $1) > 40 }) { marks += 1 }
+        }
+        #expect(marks == 0, "\(marks) pixels drawn at the drawing's origin, where nothing is")
+    }
+    #endif
+
+    /// A card whose note is in Recently Deleted offers Restore Note (first on its bar and in its
+    /// right-click menu, in place of Open Note): the note comes back, and the card says what it says
+    /// again. A note deleted for good, or a title no note has, offers nothing.
+    @Test func aDeletedNotesCardRestoresItsNote() async throws {
+        let scene: [[String: Any]] = [["type": "rectangle", "id": "press", "x": 0, "y": 0, "customData": ["pintoNote": Self.press.uuidString, "title": "Press list"]],
+                                      ["type": "rectangle", "id": "gone", "x": 400, "y": 0, "customData": ["pintoNote": "No such note", "title": "No such note"]]]
+        let j = try await Joined(scene: CanvasTests.scene(scene))
+        defer { j.close() }
+        let library = Library()
+        library.notes = [Self.press.uuidString: CanvasNoteCard(id: Self.press, title: nil, preview: CanvasNoteCard.deletedText, deleted: true, restorable: true)]
+        library.join(j.canvas, board: UUID())
+        j.canvas.restoreNote = { [library] id in
+            library.restored.append(id)
+            library.notes[id.uuidString] = Self.pressCard
+        }
+        try await j.ready()
+        for _ in 0..<60 {
+            if try await Self.part(Self.cardParts(j), "preview", of: Self.press.uuidString)?["text"] as? String == "Note deleted" { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(j.canvas.restorable == [Self.press.uuidString], "only the note in Recently Deleted")
+        // The other card selected: nothing to restore.
+        _ = try await j.js("(() => { const api = amber._canvas.api, ids = {}; api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote === 'No such note').forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids } }); return 1; })()")
+        await j.until("the missing note's card selected") { j.canvas.state.card?.note == "No such note" }
+        #if os(macOS)
+        let web = try #require(j.web as? NotePageWebView)
+        #expect(web.canvasMenu().items.first?.title == CanvasSelectionBar.openNote)
+        #endif
+        _ = try await j.js("(() => { const api = amber._canvas.api, ids = {}; api.getSceneElements().filter((e) => e.customData && e.customData.pintoNote === '\(Self.press.uuidString)').forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids } }); return 1; })()")
+        await j.until("the deleted note's card selected") { j.canvas.state.card?.note == Self.press.uuidString }
+        #if os(macOS)
+        let menu = web.canvasMenu()
+        #expect(menu.items.first?.title == CanvasSelectionBar.restoreNote)
+        menu.performActionForItem(at: 0)
+        #else
+        j.canvas.restoreCard(Self.press.uuidString)
+        #endif
+        #expect(library.restored == [Self.press])
+        #expect(j.canvas.notice == "Note restored")
+        #expect(j.canvas.restorable.isEmpty)
+        for _ in 0..<60 {
+            if try await Self.part(Self.cardParts(j), "title", of: Self.press.uuidString)?["text"] as? String == "Press list",
+               try await Self.part(Self.cardParts(j), "preview", of: Self.press.uuidString)?["text"] as? String != "Note deleted" { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let parts = try await Self.cardParts(j)
+        #expect(Self.part(parts, "preview", of: Self.press.uuidString)?["text"] as? String == "Who hears first, and when.", "the card says what its note says again")
+        #expect(Self.part(parts, "card", of: Self.press.uuidString)?["strokeStyle"] as? String == "solid", "no longer quiet")
+        // Restored, the card opens its note again.
+        j.canvas.openCard(Self.press.uuidString)
+        #expect(library.opened == [Self.press])
+    }
+
+    /// What the app says of a card's note: one in Recently Deleted can be restored (and the note's
+    /// view takes it out of there); one deleted for good can't.
+    @Test func aCardKnowsWhenItsNoteCanBeRestored() throws {
+        let c = try AppSnapshotTests.container()
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .all, body: "Press list\n\nWho hears first.\n")
+        try ctx.save()
+        var card = CanvasNoteCard.of(note)
+        #expect(!card.deleted && !card.restorable)
+        note.trashedAt = .now
+        card = CanvasNoteCard.of(note)
+        #expect(card.deleted && card.restorable)
+        ctx.restore(note)
+        #expect(note.trashedAt == nil)
+        card = CanvasNoteCard.of(note)
+        #expect(!card.deleted && card.title == "Press list")
+        note.trashedAt = .now
+        note.deletedAt = .now
+        card = CanvasNoteCard.of(note)
+        #expect(card.deleted && !card.restorable, "deleted for good: nothing to restore")
+    }
+
+    /// A selection at the very top of the view: the view moves down just enough that the rotate
+    /// handle above it shows (whiteboard council, round 6: it was cut off under the toolbar). One
+    /// lower down doesn't move the view, nor does a selection too tall to fit with the room.
+    @Test func aSelectionAtTheTopMovesTheViewSoItsRotateHandleShows() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "top", "x": 0, "y": 0, "width": 200, "height": 80],
+            ["type": "rectangle", "id": "low", "x": 300, "y": 300, "width": 200, "height": 80],
+            ["type": "rectangle", "id": "tall", "x": 600, "y": 0, "width": 100, "height": 2000],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        func top(_ id: String) async throws -> Double {
+            try #require(try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), e = api.getSceneElements().find((e) => e.id === '\(id)'); return (e.y + s.scrollY) * s.zoom.value; })()") as? Double)
+        }
+        func select(_ id: String, at y: Double) async throws {
+            _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+            await j.until("nothing selected") { !j.canvas.state.hasSelection }
+            // Its top \(y) points from the top of the view.
+            _ = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), e = api.getSceneElements().find((e) => e.id === '\(id)'); api.updateScene({ appState: { scrollY: \(y) / s.zoom.value - e.y } }); return 1; })()")
+            #expect(abs(try await top(id) - y) < 0.5)
+            _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(id)': true } } }); return 1; })()")
+            await j.until("\(id) selected") { j.canvas.state.selection.count == 1 }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        try await select("top", at: 4)
+        let shown = try await top("top")
+        #expect(shown >= 39 && shown <= 41, "moved down just enough for the handle: \(shown)")
+        // Selected again where it is now: nothing moves.
+        try await select("low", at: 200)
+        #expect(abs(try await top("low") - 200) < 0.5, "lower down, the view stays")
+        try await select("tall", at: 4)
+        #expect(abs(try await top("tall") - 4) < 0.5, "too tall to fit: the view stays")
+    }
+
+    /// Tab on a selected shape grows a mind map's next branch, as in FigJam: a box to its right,
+    /// in its colour, joined by an arrow drawn as its other branches are (no heads in the mind
+    /// map), selected and typed into. Tab again puts the next one under it; Tab while typing in
+    /// one grows a branch from that one. Undo takes a branch back with its arrow. The mind map's
+    /// how-to line says so.
+    @Test func tabOnAShapeGrowsAMindMapBranch() async throws {
+        let hint = try #require(WhiteboardTemplate.mindMap.elements.first { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }?["text"] as? String)
+        #expect(hint.contains("press Tab"), "the hint teaches it: \(hint)")
+        let j = try await Joined(size: CGSize(width: 1100, height: 760))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.insert(.mindMap, title: "Plan"))
+        await j.until("the mind map is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        // The shape whose words say `words`.
+        func node(_ words: String) async throws -> [String: Any] {
+            let json = try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.type === 'text' && e.containerId && e.text === \(String(reflecting: words))); const e = t && api.getSceneElements().find((e) => e.id === t.containerId); return e ? JSON.stringify(e) : null; })()") as? String
+            let text = try #require(json)
+            return try #require(try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
+        }
+        func all() async throws -> [[String: Any]] {
+            let json = try await j.js("JSON.stringify(amber._canvas.api.getSceneElements())") as? String ?? "[]"
+            return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]] ?? []
+        }
+        func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+        // The ids selected, in the page.
+        func selected() async throws -> [String] {
+            let ids = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]); })()") as? [String]
+            return ids ?? []
+        }
+        func until(_ what: String, _ ok: ([String]) -> Bool) async throws -> [String] {
+            var ids = try await selected()
+            for _ in 0..<100 where !ok(ids) { try await Task.sleep(for: .milliseconds(30)); ids = try await selected() }
+            #expect(ok(ids), "\(what): \(ids)")
+            return ids
+        }
+        func tab() async throws {
+            _ = try await j.js("(() => { (document.activeElement && document.activeElement.tagName === 'TEXTAREA' ? document.activeElement : window).dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true })); return 1; })()")
+        }
+        let when = try await node("When")
+        let whenID = try #require(when["id"] as? String)
+        let before = try await all().count
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(whenID)': true } } }); return 1; })()")
+        _ = try await until("When selected") { $0 == [whenID] }
+        try await tab()
+        let childID = try #require(try await until("a branch grew and is selected") { $0.count == 1 && $0 != [whenID] }.first)
+        await j.until("typing in it") { j.canvas.state.editing }
+        var els = try await all()
+        let child = try #require(els.first { $0["id"] as? String == childID })
+        #expect(child["type"] as? String == "rectangle")
+        #expect(num(child, "x") >= num(when, "x") + num(when, "width") + 40, "to its right")
+        #expect(abs((num(child, "y") + num(child, "height") / 2) - (num(when, "y") + num(when, "height") / 2)) < 1, "level with it")
+        #expect(child["backgroundColor"] as? String == when["backgroundColor"] as? String, "in its colour")
+        #expect(num(child, "width") == num(when, "width") && num(child, "height") == num(when, "height"), "its size")
+        let joint = try #require(els.first { $0["type"] as? String == "arrow" && ($0["endBinding"] as? [String: Any])?["elementId"] as? String == childID })
+        #expect((joint["startBinding"] as? [String: Any])?["elementId"] as? String == whenID, "joined to the branch it grew from")
+        #expect(joint["endArrowhead"] is NSNull && joint["startArrowhead"] is NSNull, "drawn as the mind map's other branches are")
+        #expect(((child["boundElements"] as? [[String: Any]]) ?? []).contains { $0["id"] as? String == joint["id"] as? String }, "bound both ends")
+        #expect(els.count >= before + 2, "a box and its arrow (and the words being typed)")
+
+        // Tab while typing in it: its own branch, to its right.
+        try await tab()
+        let grandID = try #require(try await until("a branch from the new one") { $0.count == 1 && $0 != [childID] }.first)
+        els = try await all()
+        let grand = try #require(els.first { $0["id"] as? String == grandID })
+        #expect(num(grand, "x") >= num(child, "x") + num(child, "width") + 40)
+        #expect(els.contains { $0["type"] as? String == "arrow" && ($0["startBinding"] as? [String: Any])?["elementId"] as? String == childID && ($0["endBinding"] as? [String: Any])?["elementId"] as? String == grandID })
+
+        // Tab on When again: the next goes under the first, clear of it.
+        await j.until("typing in the branch's branch") { j.canvas.state.editing }
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); return 1; })()")
+        try await Task.sleep(for: .milliseconds(100))
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(whenID)': true } } }); return 1; })()")
+        _ = try await until("When selected again") { $0 == [whenID] }
+        await j.until("not typing") { !j.canvas.state.editing }
+        try await tab()
+        let secondID = try #require(try await until("a second branch") { $0.count == 1 && ![whenID, childID, grandID].contains($0[0]) }.first)
+        els = try await all()
+        let second = try #require(els.first { $0["id"] as? String == secondID })
+        #expect(num(second, "x") == num(child, "x"), "lined up with the first")
+        #expect(num(second, "y") >= num(child, "y") + num(child, "height") + 8, "under it, clear of it")
+        // Left empty, then Undo: the branch and its arrow go together.
+        await j.until("typing in the second") { j.canvas.state.editing }
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("not typing") { !j.canvas.state.editing }
+        try await Task.sleep(for: .milliseconds(200))
+        var ids: [String] = []
+        // (Typing ending is a step of the engine's own, as after a double-click.)
+        for _ in 0..<3 {
+            j.canvas.run(.undo)
+            try await Task.sleep(for: .milliseconds(300))
+            ids = try await all().compactMap { $0["id"] as? String }
+            if !ids.contains(secondID) { break }
+        }
+        let gone = !ids.contains(secondID)
+        #expect(gone, "Undo takes the branch back")
+        let arrows = try await all().filter { ($0["endBinding"] as? [String: Any])?["elementId"] as? String == secondID }
+        #expect(arrows.isEmpty, "and its arrow")
+        let kept = ids.contains(childID) && ids.contains(grandID)
+        #expect(kept, "the others stay")
+
+        // Nothing selected, or two things: Tab does nothing here.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        await j.until("nothing selected") { !j.canvas.state.hasSelection }
+        try await Task.sleep(for: .milliseconds(200))
+        let n = try await all().count
+        try await tab()
+        try await Task.sleep(for: .milliseconds(200))
+
+        let after = try await all().count
+        #expect(after == n, "nothing selected: Tab adds nothing")
+    }
+
 
     /// An AI writes a card in the short form, a shape whose customData names a note by title: the
     /// board draws it as a card where it was, keeping its id (an arrow bound to it stays bound and

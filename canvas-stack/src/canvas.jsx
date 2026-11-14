@@ -251,6 +251,9 @@ export function frameBoard(api, { minZoom, onlyIfCut = false, size } = {}) {
 }
 
 export const STICKY = { size: 180, color: "#ffec99", gap: 24 };
+/** Room above a selection, in points of the view, for the engine's rotate handle (it stands about
+ *  20 above the selection's box) and a little paper over it. */
+export const HANDLE_ROOM = 40;
 /** The engine itself, once the bridge has reached it (for what its API doesn't offer). */
 let engine = null;
 
@@ -338,6 +341,101 @@ export function addSticky(api) {
   };
   setTimeout(() => start(20), 30);
   return card.id;
+}
+
+/**
+ * A mind map's next branch (whiteboard council, round 6: Tab, as in FigJam and Excalidraw mind
+ * maps): a node to the right of `node`, under the branches it has there already, joined to it by
+ * an arrow drawn as its other branches are (a mind map's have no heads), in its colour; selected
+ * and typed into at once. One step Undo takes back. Returns the new node's id.
+ */
+export const BRANCH = { gap: 80, step: 24, width: 170, height: 64 };
+export function addBranch(api, node) {
+  const all = api.getSceneElements();
+  const byId = new Map(all.map((e) => [e.id, e]));
+  const joins = all.filter((a) => a.type === "arrow" && ((a.startBinding && a.startBinding.elementId === node.id) || (a.endBinding && a.endBinding.elementId === node.id)));
+  const other = (a) => byId.get(a.startBinding && a.startBinding.elementId === node.id ? a.endBinding && a.endBinding.elementId : a.startBinding && a.startBinding.elementId);
+  // Its branches to the right, the newest last; their arrows set the look of the new one.
+  const right = joins.map((a) => ({ a, n: other(a) })).filter((b) => b.n && !b.n.isDeleted && b.n.x >= node.x + node.width);
+  const like = (right[right.length - 1] || {}).a || joins[0] || null;
+  // A box like the branch it grows from (a mind map's middle is an ellipse: its branches are boxes).
+  const boxy = node.type === "rectangle";
+  const w = right.length ? right[0].n.width : boxy ? node.width : BRANCH.width;
+  const h = right.length ? right[0].n.height : boxy ? node.height : BRANCH.height;
+  const words = all.find((e) => e.containerId === node.id && e.type === "text");
+  const fontSize = right.length ? (all.find((e) => e.containerId === right[0].n.id && e.type === "text") || {}).fontSize || 20 : words ? words.fontSize : 20;
+  const x = right.length ? Math.min(...right.map((b) => b.n.x)) : node.x + node.width + BRANCH.gap;
+  let y = right.length ? Math.max(...right.map((b) => b.n.y + b.n.height)) + BRANCH.step : node.y + node.height / 2 - h / 2;
+  // Never on top of something: further down until it's clear.
+  const taken = all.filter((e) => !e.containerId && e.type !== "arrow" && e.type !== "line").map((e) => getCommonBounds([e]));
+  const clear = (yy) => !taken.some(([x1, y1, x2, y2]) => x < x2 + 8 && x + w > x1 - 8 && yy < y2 + 8 && yy + h > y1 - 8);
+  for (let i = 0; i < 40 && !clear(y); i++) y += (h + BRANCH.step) / 2;
+  const fill = node.backgroundColor && node.backgroundColor !== "transparent" ? node.backgroundColor : "transparent";
+  // No words yet: typing starts in it as a double-click does, so leaving it empty leaves no empty
+  // words behind for Undo to bring back first.
+  const [child] = convertToExcalidrawElements([{
+    type: "rectangle", x, y, width: w, height: h, backgroundColor: fill, fillStyle: node.fillStyle || "solid",
+    strokeColor: node.strokeColor, strokeWidth: node.strokeWidth, roughness: node.roughness, roundness: { type: 3 },
+  }], { regenerateIds: true });
+  // From the edge of the branch it grows from, at its middle, to the new one's left edge.
+  const g = 4;
+  const sx = node.x + node.width + g, sy = node.y + node.height / 2, ex = x - g, ey = y + h / 2;
+  const [arrow] = convertToExcalidrawElements([{
+    type: "arrow", x: sx, y: sy, width: ex - sx, height: ey - sy, points: [[0, 0], [ex - sx, ey - sy]],
+    strokeColor: like ? like.strokeColor : node.strokeColor, strokeWidth: like ? like.strokeWidth : node.strokeWidth,
+    strokeStyle: like ? like.strokeStyle : "solid", roughness: like ? like.roughness : node.roughness,
+    startArrowhead: like ? like.startArrowhead : null, endArrowhead: like ? like.endArrowhead : "arrow",
+  }], { regenerateIds: true });
+  const joined = {
+    ...arrow, startBinding: { elementId: node.id, focus: 0, gap: g }, endBinding: { elementId: child.id, focus: 0, gap: g },
+  };
+  const bound = (e, more) => ({ ...e, boundElements: [...(e.boundElements || []), ...more], version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() });
+  const before = api.getSceneElementsIncludingDeleted().map((e) => (e.id === node.id ? bound(e, [{ id: joined.id, type: "arrow" }]) : e));
+  const made = bound(child, [{ id: joined.id, type: "arrow" }]);
+  api.updateScene({ elements: [...before, made, joined], appState: { selectedElementIds: { [child.id]: true }, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  api.setActiveTool({ type: "selection" });
+  // In view: the view follows it down or right, as far as it went out.
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, m = 40 / z;
+  const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
+  const dx = x + w + m > vx + vw ? x + w + m - (vx + vw) : 0, dy = y + h + m > vy + vh ? y + h + m - (vy + vh) : 0;
+  if (dx || dy) flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX - dx, scrollY: s.scrollY - dy }, captureUpdate: CaptureUpdateAction.NEVER }));
+  typeInto(api, child.id, { fontSize, color: (words && words.strokeColor) || node.strokeColor });
+  return child.id;
+}
+
+/** The node a Tab grows from: one shape selected (a box, an ellipse or a diamond), or the shape
+ *  whose words are being typed. */
+export function branchFrom(api) {
+  const s = api.getAppState();
+  const ids = Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]);
+  const els = api.getSceneElements();
+  const shape = (e) => !!e && !e.isDeleted && ["rectangle", "ellipse", "diamond"].includes(e.type) && !(e.customData && (e.customData.pintoNote || e.customData.pintoSticky));
+  const one = ids.length === 1 ? els.find((e) => e.id === ids[0]) : null;
+  if (shape(one)) return one;
+  const typing = s.editingTextElement;
+  if (typing && typing.containerId) { const c = els.find((e) => e.id === typing.containerId); if (shape(c)) return c; }
+  return null;
+}
+
+/** Typing starts in a shape, as Return does on a selected one, once the engine has it selected (a
+ *  timer, not an animation frame: frames don't come while the window is hidden). */
+function typeInto(api, id, look = null, tries = 20) {
+  const start = (left) => {
+    const placed = api.getSceneElements().find((e) => e.id === id);
+    if (!engine || !placed || typeof engine.startTextEditing !== "function") return;
+    const sel = Object.keys((engine.state && engine.state.selectedElementIds) || {});
+    if ((sel.length !== 1 || sel[0] !== id) && left > 0) {
+      api.updateScene({ appState: { selectedElementIds: { [id]: true } } });
+      setTimeout(() => start(left - 1), 20);
+      return;
+    }
+    // The words in the size and ink of the branch it grew from; your own choice back after.
+    const was = look && api.getAppState();
+    if (look) api.updateScene({ appState: { currentItemFontSize: look.fontSize, currentItemStrokeColor: look.color }, captureUpdate: CaptureUpdateAction.NEVER });
+    engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
+    if (look) api.updateScene({ appState: { currentItemFontSize: was.currentItemFontSize, currentItemStrokeColor: was.currentItemStrokeColor }, captureUpdate: CaptureUpdateAction.NEVER });
+  };
+  setTimeout(() => start(tries), 30);
 }
 
 // MARK: The library (CanvasLibrary in the app)
@@ -849,7 +947,43 @@ function bridge(api) {
   };
   // Coalesced to one report a frame (a timer: a page off screen gets no animation frames): a pan or a drag changes the state on every move.
   let queued = false;
-  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); report(); }, 16); } };
+  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); dropEmptyGroups(); roomForHandle(); report(); }, 16); } };
+  // A group kept selected with none of its elements selected (cards put on the board are
+  // selected as a group; a selection cleared by element only left the group): the engine drew
+  // its empty selection box at the drawing's origin, a small dark corner bracket by whatever was
+  // there (whiteboard council, round 6, 24-note-card-board). Such a group is let go.
+  const dropEmptyGroups = () => {
+    const s = api.getAppState();
+    const groups = Object.keys(s.selectedGroupIds || {}).filter((g) => s.selectedGroupIds[g]);
+    if (!groups.length) return;
+    const chosen = api.getSceneElements().filter((e) => s.selectedElementIds && s.selectedElementIds[e.id]);
+    const live = groups.filter((g) => chosen.some((e) => (e.groupIds || []).includes(g)));
+    if (live.length === groups.length) return;
+    api.updateScene({ appState: { selectedGroupIds: Object.fromEntries(live.map((g) => [g, true])) }, captureUpdate: CaptureUpdateAction.NEVER });
+  };
+  // A selection at the top of the view: the view moves down just enough that its rotate handle
+  // shows (whiteboard council, round 6: under the toolbar). Once per selection, when it's settled
+  // (not while the pointer is down, dragging, or typing), and only when the whole selection fits.
+  let roomed = "";
+  const roomForHandle = () => {
+    const s = api.getAppState();
+    const ids = Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]).sort().join(",");
+    if (!ids) { roomed = ""; return; }
+    if (ids === roomed || presenting) return;
+    if (s.cursorButton === "down" || s.selectionElement || s.selectedElementsAreBeingDragged || s.isResizing || s.isRotating
+      || s.newElement || s.multiElement || s.editingTextElement) return;
+    roomed = ids;
+    const selected = api.getSceneElements().filter((e) => s.selectedElementIds[e.id]);
+    // A lone arrow or line has no rotate handle.
+    if (!selected.length || (selected.length === 1 && ["arrow", "line"].includes(selected[0].type))) return;
+    const z = (s.zoom && s.zoom.value) || 1;
+    const [, y1, , y2] = getCommonBounds(selected);
+    const top = (y1 + s.scrollY) * z, bottom = (y2 + s.scrollY) * z;
+    if (top >= HANDLE_ROOM || top < -((y2 - y1) * z)) return;
+    const dy = HANDLE_ROOM - top;
+    if (bottom + dy > s.height - 8) return;
+    flushSync(() => api.updateScene({ appState: { scrollY: s.scrollY + dy / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+  };
   const off = api.onChange(soon);
   const offScroll = api.onScrollChange(soon);
   const offHistory = app && app.history.onHistoryChangedEmitter.on(report);
@@ -863,6 +997,23 @@ function bridge(api) {
     if (blockedKey(e)) { e.stopImmediatePropagation(); return; }
     // S: a sticky note, as in FigJam (the engine's S opens a panel that isn't shown here).
     const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
+    // Tab: a mind map's next branch off the selected shape, as in FigJam (whiteboard council,
+    // round 6). While typing in a shape, its words are kept first, then the branch grows from it.
+    if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selecting()) {
+      const node = branchFrom(api);
+      const words = api.getAppState().editingTextElement;
+      if (node && (!typing || words)) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (words && e.target && e.target.tagName === "TEXTAREA") {
+          // Escape, as the engine takes it: the words kept, typing over.
+          e.target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
+          setTimeout(() => { const now = api.getSceneElements().find((x) => x.id === node.id); if (now) addBranch(api, now); }, 30);
+        } else {
+          addBranch(api, node);
+        }
+        return;
+      }
+    }
     if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key || "").toLowerCase() === "s" && !api.getAppState().editingTextElement) {
       e.preventDefault(); e.stopImmediatePropagation();
       addSticky(api);
