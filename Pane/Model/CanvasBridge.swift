@@ -219,6 +219,13 @@ struct CanvasState: Equatable, Sendable {
         var frame: CGRect? = nil
     }
     var present: Presenting?
+    /// A frame on the board, as Present walks them.
+    struct Frame: Equatable, Sendable, Identifiable { var id: String; var name: String }
+    /// The board's frames in the order Present walks them (yours, kept in the scene as each
+    /// frame's `customData.presentOrder`; else the order they were made).
+    var frames: [Frame] = []
+    /// What's selected is a frame or in one: Present from Here starts there.
+    var inFrame = false
     /// The selected elements' types ("rectangle", "text", …).
     var selection: [String] = []
     /// Where the selection is in the page, in points from its top left (nil: nothing selected).
@@ -276,6 +283,8 @@ struct CanvasState: Equatable, Sendable {
                                  frame: f.flatMap { $0.count == 4 ? CGRect(x: $0[0], y: $0[1], width: $0[2], height: $0[3]) : nil })
         }
         selection = (m["selection"] as? [String]) ?? []
+        frames = ((m["frames"] as? [[String: Any]]) ?? []).compactMap { f in (f["id"] as? String).map { Frame(id: $0, name: f["name"] as? String ?? "") } }
+        inFrame = (m["inFrame"] as? Bool) ?? false
         editing = (m["editing"] as? Bool) ?? false
         cropping = (m["cropping"] as? Bool) ?? false
         busy = (m["busy"] as? Bool) ?? false
@@ -371,6 +380,10 @@ enum CanvasCommand: Equatable, Sendable {
     /// Present: start (the first frame), next, previous, stop.
     case present(Present)
     enum Present: String, Sendable { case start, next, prev, stop }
+    /// Present from this frame (nil: the selected frame, or the frame what's selected is in).
+    case presentFrom(String?)
+    /// The frames in this order for Present (ids), one step Undo takes back; kept in the scene.
+    case presentOrder([String])
     /// Something from the library (CanvasLibrary): where it's dropped (a point of the page), or in
     /// a free spot in the middle of the view; selected, one step Undo takes back.
     case libraryInsert(CanvasLibraryItem, at: CGPoint?)
@@ -394,6 +407,8 @@ enum CanvasCommand: Equatable, Sendable {
         case .cropDone: ["op": "cropDone"]
         case .showLastChange: ["op": "showLastChange"]
         case .present(let to): ["op": "present", "to": to.rawValue]
+        case .presentFrom(let id): ["op": "present", "to": "start", "from": id ?? "selection"]
+        case .presentOrder(let ids): ["op": "presentOrder", "ids": ids]
         case .cards(let info): ["op": "cards", "info": info.mapValues(\.payload)]
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
@@ -627,6 +642,10 @@ final class CanvasController {
     @ObservationIgnored var call: ((String, [String: Any]) async -> Any?)?
     /// The library popover is open (Mac).
     var showingLibrary = false
+    /// The library item whose name is being typed in the popover (right-click › Rename…).
+    var renamingLibraryItem: String?
+    /// The Present bar's Order list is open.
+    var showingPresentOrder = false
     /// Items whose picture the page couldn't draw, not asked again this time.
     @ObservationIgnored private var undrawable: Set<String> = []
 
@@ -715,16 +734,66 @@ struct CanvasLibraryItem: Identifiable, Equatable, Sendable {
         return out
     }
 
-    /// What the library shows under its picture: its name, or what it is ("Line", "3 shapes").
+    /// What the library shows under its picture: its name (yours, or its library's), or what it
+    /// is: "Right triangle", "Blue rectangle", "Arrow", "3 rectangles" (round 7: two different
+    /// triangles were both "Line").
     var title: String {
         if let name { return name }
         let shapes = elements.filter { ($0["containerId"] as? String) == nil }
-        guard shapes.count == 1, let type = shapes[0]["type"] as? String else { return "\(shapes.count) shapes" }
-        switch type {
-        case "freedraw": return "Drawing"
-        case "image": return "Picture"
-        default: return type.prefix(1).uppercased() + type.dropFirst()
+        let kinds = shapes.map(Self.kind)
+        guard let first = kinds.first else { return "Nothing" }
+        if kinds.count == 1 {
+            guard let colour = Self.colour(shapes[0]) else { return first.name }
+            return colour + " " + first.name.prefix(1).lowercased() + first.name.dropFirst()
         }
+        if kinds.allSatisfy({ $0.name == first.name }) { return "\(kinds.count) \(first.plural)" }
+        return "\(kinds.count) shapes"
+    }
+
+    /// One element's kind, as a person names it, and its plural.
+    static func kind(_ e: [String: Any]) -> (name: String, plural: String) {
+        let type = e["type"] as? String ?? ""
+        switch type {
+        case "line":
+            let points = (e["points"] as? [[Any]] ?? []).compactMap { p -> CGPoint? in
+                guard p.count >= 2, let x = (p[0] as? NSNumber)?.doubleValue, let y = (p[1] as? NSNumber)?.doubleValue else { return nil }
+                return CGPoint(x: x, y: y)
+            }
+            let span = max(1, (e["width"] as? NSNumber)?.doubleValue ?? 1, (e["height"] as? NSNumber)?.doubleValue ?? 1)
+            let joined = points.count > 2 && hypot(points[0].x - points.last!.x, points[0].y - points.last!.y) <= span * 0.02
+            guard joined || (e["polygon"] as? Bool) == true else { return ("Line", "lines") }
+            var corners = points
+            if joined { corners.removeLast() }
+            if corners.count == 3 { return rightAngled(corners) ? ("Right triangle", "right triangles") : ("Triangle", "triangles") }
+            return ("Polygon", "polygons")
+        case "arrow": return (e["elbowed"] as? Bool) == true ? ("Elbow arrow", "elbow arrows") : ("Arrow", "arrows")
+        case "freedraw": return ("Freehand", "freehand drawings")
+        case "image": return ("Picture", "pictures")
+        case "text": return ("Text", "texts")
+        case "embeddable", "iframe": return ("Web page", "web pages")
+        case "": return ("Shape", "shapes")
+        default: return (type.prefix(1).uppercased() + type.dropFirst(), type + "s")
+        }
+    }
+
+    /// A corner of the three within 3° of square.
+    private static func rightAngled(_ p: [CGPoint]) -> Bool {
+        (0..<3).contains { i in
+            let a = p[i], b = p[(i + 1) % 3], c = p[(i + 2) % 3]
+            let u = CGVector(dx: b.x - a.x, dy: b.y - a.y), v = CGVector(dx: c.x - a.x, dy: c.y - a.y)
+            let lu = hypot(u.dx, u.dy), lv = hypot(v.dx, v.dy)
+            guard lu > 0, lv > 0 else { return false }
+            return abs((u.dx * v.dx + u.dy * v.dy) / (lu * lv)) < sin(3 * .pi / 180)
+        }
+    }
+
+    /// Its colour by the board's palette's name: its fill when it has one, else its stroke when
+    /// it isn't ink. Nil for colours the palette doesn't name.
+    static func colour(_ e: [String: Any]) -> String? {
+        let fill = (e["backgroundColor"] as? String)?.lowercased() ?? "transparent"
+        if fill != "transparent" { return CanvasStyle.fills.first { $0.hex == fill && $0.hex != "transparent" }?.name }
+        let stroke = (e["strokeColor"] as? String)?.lowercased() ?? ""
+        return CanvasStyle.strokes.dropFirst().first { $0.hex == stroke }?.name
     }
 
     /// What it looks like, whatever its ids: each element's kind, place from the item's corner,
@@ -870,6 +939,18 @@ final class CanvasLibrary {
             save()
         }
         return Imported(added: fresh.count, already: incoming.count - fresh.count)
+    }
+
+    /// Names an item (right-click › Rename…); an empty name gives it back its own (what it is,
+    /// or its words). Kept with the library.
+    func rename(_ id: String, to name: String) {
+        guard let i = items.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        var item = items[i]
+        item.name = trimmed.isEmpty ? CanvasLibraryItem(elements: item.elements)?.name : String(trimmed.prefix(80))
+        guard item != items[i] else { return }
+        items[i] = item
+        save()
     }
 
     func remove(_ id: String) {

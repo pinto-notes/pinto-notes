@@ -187,7 +187,18 @@ struct CanvasPresentBar: View {
             .accessibilityValue(laser ? "On" : "Off")
             .accessibilityIdentifier("canvas.present.laser")
             .padding(.leading, 6)
-            Button("Done") { canvas.send(.present(.stop)) }
+            // The frames' order, to change it or jump to one (round 7).
+            if !canvas.state.frames.isEmpty {
+                Button { canvas.showingPresentOrder.toggle() } label: { Image(systemName: "list.number").frame(width: 28, height: 28) }
+                    .help(CanvasPresentOrder.help)
+                    .accessibilityLabel(CanvasPresentOrder.title)
+                    .accessibilityIdentifier("canvas.present.order")
+                    .popover(isPresented: Bindable(canvas).showingPresentOrder, arrowEdge: .top) {
+                        CanvasPresentOrder(canvas: canvas)
+                            .presentationCompactAdaptation(.popover)
+                    }
+            }
+            Button("Done") { canvas.showingPresentOrder = false; canvas.send(.present(.stop)) }
                 .help("Stop presenting (Esc)")
                 .accessibilityIdentifier("canvas.present.done")
                 .padding(.leading, 8)
@@ -198,6 +209,79 @@ struct CanvasPresentBar: View {
         .background(.regularMaterial, in: .capsule)
         .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
         .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+    }
+}
+
+/// The order Present walks the board's frames in (round 7: it was only the order they were made):
+/// drag a frame up or down, or Move Up and Move Down; click one to present it. The order is kept in
+/// the board (each frame's `customData.presentOrder`), so it saves and an AI reading it sees it.
+struct CanvasPresentOrder: View {
+    let canvas: CanvasController
+
+    static let title = "Order"
+    static let help = "The order frames are presented in"
+    static let moveUp = "Move Up"
+    static let moveDown = "Move Down"
+    static let fromHere = "Present from Here"
+
+    /// The ids with `source` moved to before `destination`, as List's onMove gives them.
+    static func moved(_ ids: [String], from source: IndexSet, to destination: Int) -> [String] {
+        var out = ids
+        out.move(fromOffsets: source, toOffset: destination)
+        return out
+    }
+    /// The ids with the one at `index` one place earlier (`by: -1`) or later (`by: 1`); nil at an end.
+    static func moved(_ ids: [String], at index: Int, by step: Int) -> [String]? {
+        let to = index + step
+        guard ids.indices.contains(index), ids.indices.contains(to) else { return nil }
+        var out = ids
+        out.swapAt(index, to)
+        return out
+    }
+
+    var body: some View {
+        let frames = canvas.state.frames, ids = frames.map(\.id)
+        let showing = canvas.state.present.flatMap { $0.index < frames.count ? frames[$0.index].id : nil }
+        VStack(alignment: .leading, spacing: 0) {
+            Text(Self.title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.muted)
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+                .accessibilityAddTraits(.isHeader)
+            List {
+                ForEach(Array(frames.enumerated()), id: \.element.id) { i, frame in
+                    Button { canvas.send(.presentFrom(frame.id)) } label: {
+                        HStack(spacing: 8) {
+                            Text("\(i + 1)").monospacedDigit().foregroundStyle(.secondary).frame(minWidth: 16, alignment: .trailing)
+                            Text(frame.name).lineLimit(1).fontWeight(frame.id == showing ? .semibold : .regular)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button(Self.moveUp) { move(ids, i, -1) }.disabled(i == 0)
+                        Button(Self.moveDown) { move(ids, i, 1) }.disabled(i == ids.count - 1)
+                    }
+                    .accessibilityLabel("\(i + 1). \(frame.name)")
+                    .accessibilityAction(named: Self.moveUp) { move(ids, i, -1) }
+                    .accessibilityAction(named: Self.moveDown) { move(ids, i, 1) }
+                    .accessibilityIdentifier("canvas.present.order.frame")
+                }
+                .onMove { canvas.send(.presentOrder(Self.moved(ids, from: $0, to: $1))) }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .frame(width: 240, height: min(CGFloat(max(frames.count, 1)) * 28 + 12, 320))
+        }
+        .padding(.bottom, 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("canvas.present.orderList")
+    }
+
+    private func move(_ ids: [String], _ i: Int, _ step: Int) {
+        if let next = Self.moved(ids, at: i, by: step) { canvas.send(.presentOrder(next)) }
     }
 }
 
@@ -1094,6 +1178,11 @@ struct CanvasMoreItems: View {
             .accessibilityIdentifier("canvas.saveToLibrary")
         Divider()
         #endif
+        if state.inFrame {
+            Button(CanvasPresentOrder.fromHere, systemImage: "play.rectangle") { canvas.send(.presentFrom(nil)) }
+                .accessibilityIdentifier("canvas.presentFromHere")
+            Divider()
+        }
         Button("Duplicate", systemImage: "plus.square.on.square") { canvas.run(.duplicate) }
         Button("Delete", systemImage: "trash", role: .destructive) { canvas.run(.delete) }
     }
@@ -1487,6 +1576,7 @@ struct CanvasLibraryPopover: View {
     static let saveTitle = "Save to Library"
     static let importTitle = "Import Library\u{2026}"
     static let removeTitle = "Remove"
+    static let renameTitle = "Rename\u{2026}"
     static let emptyLine = "Select shapes and choose Save to Library to keep them here."
     static let searchPrompt = "Search"
     static let noMatches = "No items match"
@@ -1510,6 +1600,9 @@ struct CanvasLibraryPopover: View {
     }
 
     @State private var query = ""
+    /// The name being typed for the item being renamed.
+    @State private var draft = ""
+    @FocusState private var naming: Bool
     /// The item the arrow keys are on (its id).
     @State private var picked: String?
     @FocusState private var focus: Field?
@@ -1590,6 +1683,7 @@ struct CanvasLibraryPopover: View {
         .focused($focus, equals: .grid)
         .focusEffectDisabled()
         .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow, .return]) { press in
+            if canvas.renamingLibraryItem != nil { return .ignored }
             if press.key == .return {
                 guard let item = grid.chosen(picked, searching: searching && !query.isEmpty) else { return .ignored }
                 add(item)
@@ -1601,6 +1695,7 @@ struct CanvasLibraryPopover: View {
         }
         .onChange(of: query) { picked = nil }
         .onAppear { focus = searching ? .search : .grid }
+        .onDisappear { canvas.renamingLibraryItem = nil }
         // Pictures for what has none yet (an imported library), drawn by the board.
         .task(id: library.items.map(\.id)) { await canvas.drawThumbnails(library) }
         .accessibilityElement(children: .contain)
@@ -1635,12 +1730,16 @@ struct CanvasLibraryPopover: View {
                     .frame(width: Self.tile, height: Self.tile)
                     .background(Color.primary.opacity(0.045), in: shape)
                     .overlay { if picked == item.id { shape.strokeBorder(Color.accentColor, lineWidth: 2) } }
-                Text(item.title)
-                    .font(.system(size: 11))
-                    .foregroundStyle(picked == item.id ? Color.primary : Color.muted)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(width: Self.tile, height: Self.label - 2)
+                if canvas.renamingLibraryItem == item.id {
+                    Color.clear.frame(width: Self.tile, height: Self.label - 2)
+                } else {
+                    Text(item.title)
+                        .font(.system(size: 11))
+                        .foregroundStyle(picked == item.id ? Color.primary : Color.muted)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(width: Self.tile, height: Self.label - 2)
+                }
             }
             .contentShape(.rect)
         }
@@ -1649,6 +1748,7 @@ struct CanvasLibraryPopover: View {
         .help("\(item.title). Click to add it, or drag it onto the board.")
         .contextMenu {
             Button("Add to Whiteboard") { add(item) }
+            Button(Self.renameTitle) { canvas.renamingLibraryItem = item.id }
             Divider()
             Button(Self.removeTitle, role: .destructive) { library.remove(item.id) }
         }
@@ -1657,9 +1757,37 @@ struct CanvasLibraryPopover: View {
         .accessibilityHint("Adds it to the whiteboard")
         .accessibilityAddTraits(picked == item.id ? .isSelected : [])
         .accessibilityIdentifier("canvas.library.item")
+        // The name typed in place, as Finder renames: Return keeps it, Escape leaves it as it was.
+        .overlay(alignment: .bottom) {
+            if canvas.renamingLibraryItem == item.id {
+                TextField("Name", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 11))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 3)
+                    .frame(width: Self.tile + 6, height: Self.label)
+                    .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.accentColor, lineWidth: 1.5))
+                    .offset(y: 1)
+                    .focused($naming)
+                    .onSubmit { finishRename(item, keep: true) }
+                    .onExitCommand { finishRename(item, keep: false) }
+                    .onChange(of: naming) { _, now in if !now, canvas.renamingLibraryItem == item.id { finishRename(item, keep: true) } }
+                    .onAppear { draft = item.title; naming = true }
+                    .accessibilityLabel("Name")
+                    .accessibilityIdentifier("canvas.library.rename")
+            }
+        }
+    }
+
+    private func finishRename(_ item: CanvasLibraryItem, keep: Bool) {
+        guard canvas.renamingLibraryItem == item.id else { return }
+        canvas.renamingLibraryItem = nil
+        if keep, draft != item.title { library.rename(item.id, to: draft) }
     }
 
     private func add(_ item: CanvasLibraryItem) {
+        canvas.renamingLibraryItem = nil
         canvas.showingLibrary = false
         canvas.insert(item)
     }

@@ -627,16 +627,61 @@ function clearSpot(api, count) {
 /** What the page tells the app: the tool, what's selected, and the style the controls show. */
 /**
  * Present (whiteboard council, rounds 4 and 5: "frames with next and previous for walking a
- * board through in a call"): the board's frames one after another, in the order they were made,
- * each filling the view; with no frames, the whole board. The laser pointer is picked; arrow
- * keys, Space and Page Up/Down step, Escape ends.
+ * board through in a call"): the board's frames one after another, each filling the view; with
+ * no frames, the whole board. The laser pointer is picked; arrow keys, Space and Page Up/Down
+ * step, Escape ends.
+ *
+ * The order is yours (round 7: it was only the order they were made): each frame keeps its place
+ * as `customData.presentOrder` (0 first), so it saves with the board and an AI reading the file
+ * sees it. Frames without one follow, in the order they were made.
  */
 let presenting = null;
-export function presentSteps(api) {
-  const frames = api.getSceneElements().filter((e) => e.type === "frame" || e.type === "magicframe");
-  return frames.length ? frames.map((f, i) => ({ id: f.id, name: (f.name && String(f.name).trim()) || `Frame ${i + 1}` })) : [{ id: null, name: "Whole board" }];
+const isFrame = (e) => e.type === "frame" || e.type === "magicframe";
+const frameName = (f, i) => (f.name && String(f.name).trim()) || `Frame ${i + 1}`;
+export function framesInOrder(api) {
+  const frames = api.getSceneElements().filter(isFrame);
+  const place = (f) => (f.customData && typeof f.customData.presentOrder === "number" ? f.customData.presentOrder : Infinity);
+  // A frame's default name is by when it was made, whatever its place.
+  return frames.map((f, i) => ({ f, i })).sort((a, b) => (place(a.f) - place(b.f)) || (a.i - b.i)).map(({ f, i }) => ({ id: f.id, name: frameName(f, i) }));
 }
-export function present(api, to) {
+export function presentSteps(api) {
+  const frames = framesInOrder(api);
+  return frames.length ? frames : [{ id: null, name: "Whole board" }];
+}
+/** Puts the frames in this order (ids; frames left out keep theirs, after). One step Undo takes back. */
+export function setPresentOrder(api, ids) {
+  if (!Array.isArray(ids)) return false;
+  const order = framesInOrder(api).map((f) => f.id);
+  // Presenting: the frame on screen stays on screen, at its new place.
+  const showing = presenting ? order[presenting.index] : null;
+  const wanted = ids.filter((id) => order.includes(id));
+  const next = [...new Set(wanted), ...order.filter((id) => !wanted.includes(id))];
+  const at = new Map(next.map((id, i) => [id, i]));
+  const now = Date.now();
+  let changed = false;
+  const elements = api.getSceneElementsIncludingDeleted().map((e) => {
+    if (!at.has(e.id) || e.isDeleted) return e;
+    if (e.customData && e.customData.presentOrder === at.get(e.id)) return e;
+    changed = true;
+    return { ...e, customData: { ...(e.customData || {}), presentOrder: at.get(e.id) }, version: (e.version || 1) + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: now };
+  });
+  if (changed) api.updateScene({ elements, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  if (showing && at.has(showing)) presenting.index = at.get(showing);
+  return true;
+}
+/** The step to start from: a frame by id, or (`"selection"`) the selected frame, or the frame what's selected is in. */
+function startStep(api, steps, from) {
+  let id = from;
+  if (from === "selection") {
+    const sel = api.getAppState().selectedElementIds || {};
+    const chosen = api.getSceneElements().filter((e) => sel[e.id]);
+    const frame = chosen.find(isFrame) || chosen.find((e) => e.frameId);
+    id = frame ? (isFrame(frame) ? frame.id : frame.frameId) : null;
+  }
+  const i = id ? steps.findIndex((s) => s.id === id) : -1;
+  return i < 0 ? 0 : i;
+}
+export function present(api, to, from) {
   const v = api.getAppState(), vz = (v.zoom && v.zoom.value) || 1;
   if (to === "stop") {
     if (!presenting) return;
@@ -649,7 +694,7 @@ export function present(api, to) {
     return;
   }
   const steps = presentSteps(api);
-  const at = to === "start" || !presenting ? 0 : to === "next" ? presenting.index + 1 : to === "prev" ? presenting.index - 1 : +to;
+  const at = to === "start" || !presenting ? (from ? startStep(api, steps, from) : 0) : to === "next" ? presenting.index + 1 : to === "prev" ? presenting.index - 1 : +to;
   const index = Math.max(0, Math.min(steps.length - 1, Number.isFinite(at) ? at : 0));
   const back = presenting ? presenting.back : { z: vz, cx: -v.scrollX + v.width / 2 / vz, cy: -v.scrollY + v.height / 2 / vz };
   const first = !presenting;
@@ -721,6 +766,10 @@ export function stateOf(api, app) {
       return { index: i, count: steps.length, name: steps[i].name, frame };
     })() : null,
     selection: selected.map((e) => e.type),
+    // The frames in the order Present walks them (the Order list), and whether the selection is a
+    // frame or in one (Present from Here).
+    frames: framesInOrder(api),
+    inFrame: selected.some((e) => isFrame(e) || !!e.frameId),
     bounds,
     nearby,
     // Moving, resizing or drawing: the style bar stays out of the way.
@@ -907,7 +956,11 @@ function bridge(api) {
         api.updateScene({ appState: { croppingElementId: null, isCropping: false }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
         break;
       case "present":
-        present(api, c.to);
+        present(api, c.to, c.from);
+        setTimeout(report, 30);
+        break;
+      case "presentOrder":
+        if (!setPresentOrder(api, c.ids)) return false;
         setTimeout(report, 30);
         break;
       case "libraryInsert":

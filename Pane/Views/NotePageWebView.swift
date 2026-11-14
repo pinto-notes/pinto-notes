@@ -100,6 +100,11 @@ final class NotePageWebView: WKWebView {
         save.isEnabled = selected
         menu.addItem(save)
         menu.addItem(.separator())
+        // A frame, or something in one: Present starts there (round 7).
+        if canvas?.state.inFrame == true {
+            menu.addItem(CanvasMenuItem(title: CanvasPresentOrder.fromHere) { [weak self] in self?.canvas?.send(.presentFrom(nil)) })
+            menu.addItem(.separator())
+        }
         menu.addItem(item("Bring to Front", .bringToFront, enabled: selected))
         menu.addItem(item("Bring Forward", .bringForward, enabled: selected))
         menu.addItem(item("Send Backward", .sendBackward, enabled: selected))
