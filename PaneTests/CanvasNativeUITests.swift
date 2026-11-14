@@ -1597,9 +1597,10 @@ import UIKit
             return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]] ?? []
         }
         func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
-        // The ids selected, in the page.
+        // The shape being typed in, or else the ids selected, in the page (typing starts at once,
+        // and the engine lets go of the selection as it does).
         func selected() async throws -> [String] {
-            let ids = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]); })()") as? [String]
+            let ids = try await j.js("(() => { const s = amber._canvas.api.getAppState(), t = s.editingTextElement; if (t && t.containerId) return [t.containerId]; return Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]); })()") as? [String]
             return ids ?? []
         }
         func until(_ what: String, _ ok: ([String]) -> Bool) async throws -> [String] {
@@ -1617,7 +1618,7 @@ import UIKit
         _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(whenID)': true } } }); return 1; })()")
         _ = try await until("When selected") { $0 == [whenID] }
         try await tab()
-        let childID = try #require(try await until("a branch grew and is selected") { $0.count == 1 && $0 != [whenID] }.first)
+        let childID = try #require(try await until("a branch grew and is typed in") { $0.count == 1 && $0 != [whenID] }.first)
         await j.until("typing in it") { j.canvas.state.editing }
         // In its parent's size and font (round 7, 26-mindmap-tab: the words came out bigger).
         try await Task.sleep(for: .milliseconds(150))
@@ -1693,6 +1694,80 @@ import UIKit
         #expect(after == n, "nothing selected: Tab adds nothing")
     }
 
+
+    /// Keys typed straight after Tab go into the new branch (seen on a Mac, 15 November 2026:
+    /// "Next spring" typed fast after Tab showed only "spring" in the box). Typing started 30 to 70
+    /// ms after Tab, on a timer, and keys typed before it went to the engine (E picked the eraser,
+    /// T the text tool, S added a sticky). Real key presses go to the offscreen window one after
+    /// another without a pause, Tab first, and Tab again while typing; what the box shows is read
+    /// after every key and every few milliseconds (an offscreen page gets no animation frames):
+    /// always the start of the words, never a later part alone, all of it in view, and in the end
+    /// both branches have all their words. The tool stays Select, no sticky appears, and your own
+    /// font size is back once the typing ends.
+    @Test func keysTypedStraightAfterTabAllGoInTheNewBranch() async throws {
+        let j = try await Joined(size: CGSize(width: 900, height: 760))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.insert(.mindMap, title: "Plan"))
+        await j.until("the mind map is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        let whenID = try #require(try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.type === 'text' && e.containerId && e.text === 'When'); return t ? t.containerId : null; })()") as? String)
+        let stickies = "amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length"
+        let stickiesBefore = try await j.js(stickies) as? Int ?? -1
+        // Your own size for new words, which a branch borrows its parent's in place of.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { currentItemFontSize: 36, selectedElementIds: { '\(whenID)': true } } }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        // What the box shows, after each key and every few milliseconds: its words, and whether some
+        // of them are out of view (the box one line tall with two lines in it).
+        _ = try await j.js("""
+        (() => { window.__shown = []; const api = amber._canvas.api;
+          const look = () => { const ta = document.querySelector('textarea.excalidraw-wysiwyg'); if (!ta) return;
+            window.__shown.push({ text: ta.value, hidden: ta.scrollHeight > ta.clientHeight + 1 || ta.scrollTop > 0, tool: api.getAppState().activeTool.type }); };
+          window.__look = setInterval(look, 4);
+          window.addEventListener('input', look);
+          window.addEventListener('keyup', look);
+          return 1; })()
+        """)
+        let w = j.rig.window
+        #expect(w.makeFirstResponder(j.web))
+        let codes: [Character: UInt16] = ["N": 45, "e": 14, "x": 7, "t": 17, " ": 49, "s": 1, "p": 35, "r": 15, "i": 34, "n": 45, "g": 5, "S": 1, "o": 31, "\t": 48]
+        // Down and up, as the window would deliver them, without posting anything system-wide.
+        func type(_ text: String) {
+            for c in text {
+                let chars = String(c), flags: NSEvent.ModifierFlags = c.isUppercase ? .shift : []
+                for kind in [NSEvent.EventType.keyDown, .keyUp] {
+                    let e = NSEvent.keyEvent(with: kind, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: w.windowNumber,
+                                             context: nil, characters: chars, charactersIgnoringModifiers: chars.lowercased(), isARepeat: false, keyCode: codes[c] ?? 0)
+                    if let e { w.sendEvent(e) }
+                }
+            }
+        }
+        type("\tNext spring\tSoon")
+        // Typed into until the last key lands.
+        func branch(_ words: String) async throws -> Bool {
+            try await j.js("amber._canvas.api.getSceneElementsIncludingDeleted().some((e) => e.type === 'text' && !e.isDeleted && e.containerId && e.originalText === \(String(reflecting: words)))") as? Bool ?? false
+        }
+        for _ in 0..<100 where try await !branch("Soon") { try await Task.sleep(for: .milliseconds(30)) }
+        try await Task.sleep(for: .milliseconds(100))
+        _ = try await j.js("(() => { clearInterval(window.__look); const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("not typing") { !j.canvas.state.editing }
+
+        #expect(try await branch("Next spring"), "the first branch has every word")
+        #expect(try await branch("Soon"), "and the second")
+        let shown = try await Self.json(j, "{ list: window.__shown }")["list"] as? [[String: Any]] ?? []
+        let texts = shown.compactMap { $0["text"] as? String }
+        #expect(texts.contains("Next spring") && texts.contains("Soon"), "the box was read as it was typed in: \(Set(texts).sorted())")
+        let partial = texts.filter { !"Next spring".hasPrefix($0) && !"Soon".hasPrefix($0) }
+        #expect(partial.isEmpty, "the box only ever shows the start of the words: \(Set(partial).sorted())")
+        let hidden = shown.filter { $0["hidden"] as? Bool == true }.compactMap { $0["text"] as? String }
+        #expect(hidden.isEmpty, "nothing typed is out of view: \(Set(hidden).sorted())")
+        let tools = Set(shown.compactMap { $0["tool"] as? String })
+        #expect(tools == ["selection"], "no key went to the engine as a tool: \(tools)")
+        #expect(try await j.js(stickies) as? Int == stickiesBefore, "S added no sticky")
+        // Your own size, once the typing ends (not the first branch's, after a run of Tabs).
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(try await j.js("amber._canvas.api.getAppState().currentItemFontSize") as? Int == 36, "your own font size is back")
+    }
 
     /// An AI writes a card in the short form, a shape whose customData names a note by title: the
     /// board draws it as a card where it was, keeping its id (an arrow bound to it stays bound and

@@ -485,36 +485,42 @@ export function branchFrom(api) {
   return null;
 }
 
-/** Typing starts in a shape, as Return does on a selected one, once the engine has it selected (a
- *  timer, not an animation frame: frames don't come while the window is hidden). */
-function typeInto(api, id, look = null, tries = 20) {
-  const start = (left) => {
-    const placed = api.getSceneElements().find((e) => e.id === id);
-    if (!engine || !placed || typeof engine.startTextEditing !== "function") return;
-    const sel = Object.keys((engine.state && engine.state.selectedElementIds) || {});
-    if ((sel.length !== 1 || sel[0] !== id) && left > 0) {
-      api.updateScene({ appState: { selectedElementIds: { [id]: true } } });
-      setTimeout(() => start(left - 1), 20);
-      return;
-    }
-    // The words in the size and ink of the branch it grew from; your own choice back after.
-    // Your own is put back once the typing ends: put back at once, the engine read it after,
-    // and the new branch's words came out bigger than its parent's (round 7, 26-mindmap-tab).
-    const was = look && api.getAppState();
-    const set = (a) => api.updateScene({ appState: a, captureUpdate: CaptureUpdateAction.NEVER });
-    // At once (flushSync): the engine reads them as it starts.
-    if (look) flushSync(() => set({ currentItemFontSize: look.fontSize, currentItemStrokeColor: look.color, ...(look.family ? { currentItemFontFamily: look.family } : {}) }));
-    engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
-    if (look) {
-      let waited = 0;
-      const back = () => {
-        if (api.getAppState().editingTextElement && waited++ < 3000) { setTimeout(back, 100); return; }
-        set({ currentItemFontSize: was.currentItemFontSize, currentItemStrokeColor: was.currentItemStrokeColor, currentItemFontFamily: was.currentItemFontFamily });
-      };
-      setTimeout(back, 100);
-    }
-  };
-  setTimeout(() => start(tries), 30);
+/** Typing starts in a shape at once, as Return does on a selected one, before the next key is
+ *  read. It used to start on a timer, 30 to 70 ms after Tab: keys typed in that time went to the
+ *  engine instead (E picked the eraser, T the text tool, S added a sticky) and the branch showed
+ *  only what came after ("spring" of "Next spring", seen on a Mac, 15 November 2026). The engine
+ *  types into what it has selected and reads the font as it starts, so both are in its state
+ *  first (flushSync). */
+function typeInto(api, id, look = null) {
+  const placed = api.getSceneElements().find((e) => e.id === id);
+  if (!engine || !placed || typeof engine.startTextEditing !== "function") return;
+  flushSync(() => api.updateScene({ appState: { selectedElementIds: { [id]: true }, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.NEVER }));
+  // The words in the size and ink of the branch it grew from; your own choice back after.
+  if (look) wearLook(api, look);
+  engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
+}
+
+/** Your own font settings while a branch is typed in its parent's: kept once for a run of Tabs and
+ *  put back when the typing ends. Put back at once, the engine read them after, and the new
+ *  branch's words came out bigger than its parent's (round 7, 26-mindmap-tab). Kept again for each
+ *  branch of a run, the second kept the first's look as yours. */
+let ownFont = null;
+function wearLook(api, look) {
+  const set = (a) => api.updateScene({ appState: a, captureUpdate: CaptureUpdateAction.NEVER });
+  if (!ownFont) {
+    const s = api.getAppState();
+    ownFont = { currentItemFontSize: s.currentItemFontSize, currentItemStrokeColor: s.currentItemStrokeColor, currentItemFontFamily: s.currentItemFontFamily };
+    let waited = 0;
+    const back = () => {
+      if (api.getAppState().editingTextElement && waited++ < 3000) { setTimeout(back, 100); return; }
+      const own = ownFont;
+      ownFont = null;
+      if (own) set(own);
+    };
+    setTimeout(back, 100);
+  }
+  // At once (flushSync): the engine reads them as it starts.
+  flushSync(() => set({ currentItemFontSize: look.fontSize, currentItemStrokeColor: look.color, ...(look.family ? { currentItemFontFamily: look.family } : {}) }));
 }
 
 // MARK: The library (CanvasLibrary in the app)
@@ -1212,9 +1218,11 @@ function bridge(api) {
       if (node && (!typing || words)) {
         e.preventDefault(); e.stopImmediatePropagation();
         if (words && e.target && e.target.tagName === "TEXTAREA") {
-          // Escape, as the engine takes it: the words kept, typing over.
+          // Escape, as the engine takes it: the words kept, typing over. Then the branch, at once,
+          // so the keys after Tab go into it.
           e.target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
-          setTimeout(() => { const now = api.getSceneElements().find((x) => x.id === node.id); if (now) addBranch(api, now); }, 30);
+          const now = api.getSceneElements().find((x) => x.id === node.id);
+          if (now) addBranch(api, now);
         } else {
           addBranch(api, node);
         }
