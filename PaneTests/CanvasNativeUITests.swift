@@ -144,7 +144,7 @@ import UIKit
         #expect((j.rig.scene?["appState"] as? [String: Any])?["viewBackgroundColor"] as? String == "#fffce8")
         // The ••• menu has the canvas's items, first.
         let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, dev: false, canvas: true)
-        #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear])
+        #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear])
         let present = groups.firstIndex(of: [.canvasPresent, .canvasLaser]), drawing = groups.firstIndex { $0.contains(.canvasClear) }
         #expect(present != nil && drawing != nil && present! + 1 == drawing!, "Present and the laser pointer, then the drawing's items: \(groups)")
         #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true).joined().contains(.canvasClear))
@@ -527,6 +527,16 @@ import UIKit
         #expect(h.rect.minX >= -1 && h.rect.maxX <= 901, "in view: \(h.rect)")
         #expect(h.rect.maxX > 820 && h.rect.maxX < 880, "moved just far enough: \(h.rect)")
         #expect(h.rect.width > 100)
+        // Later, panned away: More › Show Claude's Last Change outlines it again, in view (round 7).
+        #expect(CanvasController.showLastChangeTitle(j.canvas.lastChangeBy) == "Show Claude\u{2019}s Last Change")
+        #expect(CanvasController.showLastChangeTitle(nil) == "Show Last AI Change")
+        j.canvas.highlight = nil
+        j.canvas.send(.pan(dx: 3000, dy: 0))
+        try await Task.sleep(for: .milliseconds(200))
+        j.canvas.showLastChange()
+        await j.until("outlined again") { j.canvas.highlight != nil }
+        let again = try #require(j.canvas.highlight)
+        #expect(again.by == "Claude" && again.rect.minX >= -1 && again.rect.maxX <= 901, "named and in view: \(again.rect)")
         let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
         #expect(r.summary == "Claude drew on this whiteboard" && r.shortSummary == "Claude drew on it")
     }

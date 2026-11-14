@@ -366,6 +366,8 @@ enum CanvasCommand: Equatable, Sendable {
     case sticky
     /// Ends cropping a picture, keeping the crop.
     case cropDone
+    /// The last change an AI made, outlined again and brought into view.
+    case showLastChange
     /// Present: start (the first frame), next, previous, stop.
     case present(Present)
     enum Present: String, Sendable { case start, next, prev, stop }
@@ -390,6 +392,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .insert(let t, let title): ["op": "insert", "elements": t.elements(titled: title)]
         case .sticky: ["op": "sticky"]
         case .cropDone: ["op": "cropDone"]
+        case .showLastChange: ["op": "showLastChange"]
         case .present(let to): ["op": "present", "to": to.rawValue]
         case .cards(let info): ["op": "cards", "info": info.mapValues(\.payload)]
         case .addCards(let cards, let at):
@@ -524,6 +527,7 @@ final class CanvasController {
         expecting = nil
         let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes, near: near)
         highlight = h
+        lastChangeBy = e.by
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(Self.highlightTime))
             if self?.highlight?.by == h.by, self?.highlight?.count == h.count { self?.highlight = nil }
@@ -531,6 +535,17 @@ final class CanvasController {
     }
 
     nonisolated(unsafe) static var highlightTime: Double = 4
+
+    /// The AI whose change to this board was outlined last (nil: none since the board opened).
+    private(set) var lastChangeBy: String?
+    static func showLastChangeTitle(_ by: String?) -> String { by.map { "Show \($0)\u{2019}s Last Change" } ?? "Show Last AI Change" }
+
+    /// Outlines the last AI change again, with its name, and brings it into view.
+    func showLastChange() {
+        guard let by = lastChangeBy else { return }
+        arrived(by: by)
+        send(.showLastChange)
+    }
 
     // MARK: Note cards
 

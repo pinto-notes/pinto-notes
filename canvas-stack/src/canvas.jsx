@@ -865,6 +865,9 @@ function bridge(api) {
       case "sticky":
         addSticky(api);
         break;
+      case "showLastChange":
+        if (!(amber._showLastChange && amber._showLastChange())) return false;
+        break;
       case "cropDone":
         // The crop stays as dragged; the picture stays selected.
         api.updateScene({ appState: { croppingElementId: null, isCropping: false }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
@@ -1177,8 +1180,18 @@ function Canvas({ initial }) {
 
     // What came from elsewhere (an AI, another device), for the app to outline: where it is in
     // the view, brought into view first if none of it was.
+    // The last change from elsewhere, to show again (whiteboard council, round 7: "a returning
+    // user should still be able to see what the AI changed").
+    let lastChanged = [];
+    Object.defineProperty(amber, "_showLastChange", { configurable: true, value: () => {
+      const ids = new Set(lastChanged), els = api.getSceneElements().filter((e) => ids.has(e.id));
+      if (!els.length) return false;
+      showChanged(els);
+      return true;
+    } });
     const showChanged = (changed) => {
       if (!changed.length) return;
+      lastChanged = changed.map((e) => e.id);
       // Each changed thing on its own (round 3, 16: one box round them all took in what the AI
       // didn't touch), and all of them together for bringing into view.
       const ids = new Set(changed.map((e) => e.id));

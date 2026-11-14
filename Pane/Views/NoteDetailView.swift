@@ -1180,6 +1180,10 @@ struct NoteDetailView: View {
         case .canvasLaser:
             Button(CanvasTool.laser.help, systemImage: CanvasTool.laser.symbol) { canvasControls.pick(.laser) }
                 .accessibilityIdentifier("canvas.laser")
+        case .canvasLastAIChange:
+            Button(CanvasController.showLastChangeTitle(canvasControls.lastChangeBy), systemImage: "sparkles") { canvasControls.showLastChange() }
+                .disabled(canvasControls.lastChangeBy == nil)
+                .accessibilityIdentifier("canvas.lastAIChange")
         case .canvasZoomToFit:
             Button("Zoom to Fit", systemImage: "arrow.up.left.and.down.right.magnifyingglass") { canvasControls.run(.zoomToFit) }
                 .accessibilityIdentifier("canvas.zoomToFit")
@@ -1900,6 +1904,8 @@ enum NoteMoreMenu {
         case canvasZoomToFit, canvasBackground, canvasExport, canvasClear
         /// Present (its frames one by one) and the laser pointer.
         case canvasPresent, canvasLaser
+        /// The last AI change, outlined again.
+        case canvasLastAIChange
     }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
@@ -1933,7 +1939,7 @@ enum NoteMoreMenu {
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
         // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
-        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser], [.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear]] : []
+        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear]] : []
         return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
