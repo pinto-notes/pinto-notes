@@ -395,9 +395,51 @@ function bridge(api) {
   api.registerAction({ name: "pintoBridge", label: "", trackEvent: false, perform: () => false,
     keyTest: (e, s, els, a) => { app = a; engine = a; return false; } });
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Unidentified", bubbles: true }));
+  // Where each bound arrow ran for each place of what it joins. Undo and Redo give the shapes
+  // back exactly, but the engine lays their arrows again its own way, and after Align › Undo ›
+  // Redo the arrow came back 9 pt off (whiteboard council, round 4, 22-sequence). So the arrow
+  // goes back where it ran when its shapes were last where they are now.
+  const routes = new Map();
+  let replaying = false;
+  const routeKey = (a, byId) => {
+    const at = (b) => { const e = b && byId.get(b.elementId); return e ? [e.x, e.y, e.width, e.height].map(Math.round).join(":") : "-"; };
+    return a.startBinding || a.endBinding ? `${a.id}|${at(a.startBinding)}|${at(a.endBinding)}` : null;
+  };
+  const remember = () => {
+    if (replaying) return;
+    const els = api.getSceneElements();
+    const byId = new Map(els.map((e) => [e.id, e]));
+    for (const a of els) {
+      if (a.type !== "arrow") continue;
+      const k = routeKey(a, byId);
+      if (!k) continue;
+      routes.delete(k);
+      routes.set(k, { x: a.x, y: a.y, width: a.width, height: a.height, points: a.points });
+    }
+    while (routes.size > 2000) routes.delete(routes.keys().next().value);
+  };
+  const putBack = () => {
+    const els = api.getSceneElementsIncludingDeleted();
+    const byId = new Map(els.map((e) => [e.id, e]));
+    let changed = false;
+    const next = els.map((a) => {
+      if (a.type !== "arrow" || a.isDeleted) return a;
+      const k = routeKey(a, byId), r = k && routes.get(k);
+      if (!r || (r.x === a.x && r.y === a.y && JSON.stringify(r.points) === JSON.stringify(a.points))) return a;
+      changed = true;
+      return { ...a, ...r, version: a.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() };
+    });
+    if (changed) api.updateScene({ elements: next, captureUpdate: CaptureUpdateAction.NEVER });
+  };
   const run = (name, value = null) => {
     const action = app && app.actionManager.actions[name];
-    if (action) app.actionManager.executeAction(action, "api", value);
+    if (!action) return;
+    if (name !== "undo" && name !== "redo") { app.actionManager.executeAction(action, "api", value); return; }
+    remember();
+    replaying = true;
+    app.actionManager.executeAction(action, "api", value);
+    putBack();
+    setTimeout(() => { putBack(); replaying = false; remember(); }, 30);
   };
   let last = null;
   const report = () => {
@@ -495,7 +537,7 @@ function bridge(api) {
   };
   // Coalesced to one report a frame (a timer: a page off screen gets no animation frames): a pan or a drag changes the state on every move.
   let queued = false;
-  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; report(); }, 16); } };
+  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); report(); }, 16); } };
   const off = api.onChange(soon);
   const offScroll = api.onScrollChange(soon);
   const offHistory = app && app.history.onHistoryChangedEmitter.on(report);

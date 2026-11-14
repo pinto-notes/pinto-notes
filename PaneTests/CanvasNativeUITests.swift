@@ -609,6 +609,44 @@ import UIKit
         #expect(tag.y + 22 <= top.minY || tag.y >= top.maxY, "the tag doesn't cover the shape: \(tag) over \(top)")
     }
 
+    /// Undo and Redo give back exactly what was there: after Align, Undo, Redo, a bound arrow
+    /// runs where it ran after Align (whiteboard council, round 4, 22-sequence: Redo put the arrow
+    /// 9 pt lower).
+    @Test func redoPutsABoundArrowBackWhereItWas() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("""
+        amber._canvasCommand({ op: 'insert', elements: [
+          { type: 'rectangle', id: 'a', x: 0, y: 160, width: 200, height: 90, label: { text: 'Plan' } },
+          { type: 'rectangle', id: 'b', x: 420, y: 0, width: 200, height: 90, label: { text: 'Ship' } },
+          { type: 'arrow', x: 204, y: 200, width: 212, height: -150, start: { id: 'a' }, end: { id: 'b' } },
+        ] }); 0
+        """)
+        await j.until("drawn") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(500))
+        _ = try await j.js("(() => { const api = amber._canvas.api, ids = {}; api.getSceneElements().filter((e) => e.type === 'rectangle').forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids }, captureUpdate: 'IMMEDIATELY' }); return 0; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        let arrow = "(() => { const a = amber._canvas.api.getSceneElements().find((e) => e.type === 'arrow'); return [a.x, a.y, ...a.points.flat()].map((v) => Math.round(v)).join(','); })()"
+        j.canvas.run(.alignMiddle)
+        try await Task.sleep(for: .milliseconds(20))
+        let soon = try #require(try await j.js(arrow) as? String)
+        try await Task.sleep(for: .milliseconds(600))
+        let aligned = try #require(try await j.js(arrow) as? String)
+        #expect(soon == aligned, "nothing moves it after Align: \(soon) then \(aligned)")
+        j.canvas.run(.undo)
+        try await Task.sleep(for: .milliseconds(600))
+        let undone = try #require(try await j.js(arrow) as? String)
+        #expect(undone != aligned, "Undo moved it back")
+        j.canvas.run(.redo)
+        try await Task.sleep(for: .milliseconds(600))
+        let redone = try #require(try await j.js(arrow) as? String)
+        #expect(redone == aligned, "Redo: \(redone), after Align: \(aligned)")
+        j.canvas.run(.undo); try await Task.sleep(for: .milliseconds(600))
+        j.canvas.run(.redo); try await Task.sleep(for: .milliseconds(600))
+        #expect(try await j.js(arrow) as? String == aligned, "and again")
+    }
+
     /// In dark mode the selection's outline and handles show in the accent, not the dim brown the
     /// dark filter made of it (whiteboard council, round 2, 07-selected-box-dark).
     @Test func theSelectionShowsInTheAccentInDarkMode() async throws {
@@ -1337,7 +1375,8 @@ import UIKit
                     await MacWindowChromeTests.settle(w, 10)
                     try await shot("17-sticky-notes", w, web)
                     // The picture a shared link's page shows (BoardPicture: light, the whole board).
-                    if let png = await canvas.export(.png, light: true) { try png.write(to: dir.appending(path: "19-shared-board-picture.png")) }
+                    if let png = await canvas.export(.png, light: true, page: canvas.title) { try png.write(to: dir.appending(path: "19-shared-board-picture.png")) }
+                    if let file = await canvas.export(.excalidraw, page: canvas.title) { try file.write(to: dir.appending(path: "19-shared-board.excalidraw")) }
                     // A drawing sequence (council round 3 asked for it): two labelled boxes joined
                     // by an arrow, then both lined up with Align › Middle (the arrow follows), then
                     // Undo (the move), Redo. One picture per step.
