@@ -1535,6 +1535,16 @@ import UIKit
         let arrowOut = CanvasObstacle.line([CGPoint(x: 350, y: 352), CGPoint(x: 350, y: 500)])
         let beside = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [shapeAbove, arrowIn, arrowOut, .box(CGRect(x: 0, y: 360, width: 800, height: 200))])
         #expect(abs(beside.y - 325) < 0.01 && (beside.x < 300 || beside.x > 400), "beside it: \(beside)")
+        // A shape as wide as the selection right above it, and arrows coming in from above and
+        // the right: off the corner, covering none of them (whiteboard council, round 5, 07).
+        let start = CanvasObstacle.box(CGRect(x: 300, y: 180, width: 100, height: 60))
+        let fromRight = CanvasObstacle.line([CGPoint(x: 600, y: 330), CGPoint(x: 402, y: 325)])
+        let done = CanvasObstacle.box(CGRect(x: 300, y: 420, width: 100, height: 60))
+        let fromLeft = CanvasObstacle.line([CGPoint(x: 0, y: 325), CGPoint(x: 298, y: 325)])
+        let all = [start, arrowIn, fromRight, done, fromLeft]
+        let corner = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: all)
+        let cr = CGRect(x: corner.x - 100, y: corner.y - 20, width: 200, height: 40)
+        #expect(!all.contains { $0.hits(cr) }, "off a corner, clear of everything: \(corner)")
         #expect(CanvasObstacle.line([CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 100)]).hits(CGRect(x: 45, y: 45, width: 10, height: 10)))
         #expect(!CanvasObstacle.line([CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 100)]).hits(CGRect(x: 70, y: 0, width: 20, height: 20)), "a diagonal's box isn't the line")
         var state = CanvasState()

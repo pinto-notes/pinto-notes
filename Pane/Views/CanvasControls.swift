@@ -546,6 +546,10 @@ struct CanvasSelectionBar: View {
                 if !spots.contains(c) { spots.append(c) }
             }
         }
+        // Off a corner, clear of shapes as wide as the selection right above or below it (round 5,
+        // 07: Start above the selected box; 15: Done below the diamond), then beside it.
+        let left = bounds.minX - gap / 2 - bar.width / 2, right = bounds.maxX + gap / 2 + bar.width / 2
+        spots += [CGPoint(x: right, y: above), CGPoint(x: left, y: above), CGPoint(x: right, y: below), CGPoint(x: left, y: below)]
         spots += [CGPoint(x: bounds.minX - gap - bar.width / 2, y: bounds.midY), CGPoint(x: bounds.maxX + gap + bar.width / 2, y: bounds.midY)]
         let inside = spots.filter(fits)
         if let clear = inside.first(where: { c in !nearby.contains { $0.hits(rect(c)) } }) { return clear }
