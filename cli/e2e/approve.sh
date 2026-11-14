@@ -1,8 +1,8 @@
 #!/bin/sh
-# A stand-in browser for scripted runs (AMBER_BROWSER=e2e/approve.sh): follows /authorize to the
+# A stand-in browser for scripted runs (PINTO_BROWSER=e2e/approve.sh): follows /authorize to the
 # connect page, presses Allow (or Don't Allow with APPROVE=0), and follows the redirect back to
-# amber's loopback address, as a browser would. With ELSEWHERE=1 it stops before that last step and
-# prints the address instead, like a browser on another machine whose 127.0.0.1 isn't amber's.
+# pinto's loopback address, as a browser would. With ELSEWHERE=1 it stops before that last step and
+# prints the address instead, like a browser on another machine whose 127.0.0.1 isn't pinto's.
 set -e
 connect=$(curl -s -o /dev/null -w '%{redirect_url}' "$1")
 id=${connect##*request=}
