@@ -13,7 +13,14 @@ export type SharedNote = {
   subnotes: { id: string; title: string }[];
   /** Who shared it. No account id; the email is left out when it's an Apple relay address. */
   shared_by?: { name: string | null; email: string | null; avatar: string | null } | null;
+  /** A shared whiteboard's picture (a PNG at 2x, published from the owner's device): its size in
+   *  pixels and the version its address carries. Null for a note, or a board not drawn here yet. */
+  picture?: { width: number; height: number; version: number } | null;
 };
+
+/** A shared whiteboard as its page shows it: the picture's address, its size on the page (half its
+ *  pixels, so it's sharp on a 2x screen) and what it says, for the alt text and the description. */
+export type BoardPicture = { url: string; width: number; height: number; alt: string; words: string[] };
 
 const URL_ = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const KEY = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -29,6 +36,32 @@ export function avatarURL(name: string | null | undefined): string | null {
   return `${URL_}/storage/v1/object/public/avatars/${name}`;
 }
 export const validSub = (s: string) => UUID.test(s);
+
+/** The address of a shared board's picture, relative to the Supabase URL (as share-files serves it). */
+export const picturePath = (slug: string, version: number) =>
+  `/functions/v1/share-files?${new URLSearchParams({ slug, picture: String(Math.trunc(version)) })}`;
+
+/** A board's words from its copy: the app writes its title, then one paragraph a word, escaped. */
+export function boardWords(body: string): string[] {
+  const rest = body.replace(/^\s*\n/, "").split("\n").slice(1).join("\n");
+  return rest.split(/\n\s*\n/).map((w) => w.replace(/\\(.)/g, "$1").replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+/** What the picture says to someone who can't see it: the board's words, or that it's a drawing. */
+export function boardAlt(words: string[]): string {
+  const said = words.join(", ");
+  if (!said) return "Whiteboard drawing";
+  const alt = `Whiteboard drawing: ${said}`;
+  return alt.length > 600 ? alt.slice(0, 599).trimEnd() + "…" : alt;
+}
+
+/** A shared note's board picture, or null when it has none. */
+export function boardPicture(slug: string, note: SharedNote, base = URL_): BoardPicture | null {
+  const p = note.picture;
+  if (!p || !base || !(p.width > 0 && p.height > 0 && Number.isFinite(p.version))) return null;
+  const words = boardWords(note.body);
+  return { url: base + picturePath(slug, p.version), width: Math.max(1, Math.round(p.width / 2)), height: Math.max(1, Math.round(p.height / 2)), alt: boardAlt(words), words };
+}
 
 export async function sharedNote(slug: string, sub?: string): Promise<SharedNote | null> {
   if (!validSlug(slug) || (sub !== undefined && !validSub(sub)) || !URL_ || !KEY) return null;

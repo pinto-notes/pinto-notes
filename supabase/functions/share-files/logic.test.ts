@@ -1,6 +1,6 @@
 // Pure pieces of share-files: deno test supabase/functions/share-files/logic.test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { contentDisposition, filePath, RateLimiter, referencedFiles, servedType } from "./logic.ts";
+import { contentDisposition, filePath, parseRequest, pictureHeaders, picturePath, RateLimiter, referencedFiles, servedType } from "./logic.ts";
 
 const ID = "3f1c2b9a-1b7e-4c3a-9f0e-2a4b8c1d7e55";
 const SLUG = "abcdefghijklmnopqrstuvwx";
@@ -39,4 +39,26 @@ Deno.test("the per-address limit", () => {
   assert(rl.allow("ip", 0) && rl.allow("ip", 1));
   assert(!rl.allow("ip", 2));
   assert(rl.allow("ip", 1001));
+});
+
+Deno.test("a board's picture has an address of its own, with its version", () => {
+  assertEquals(picturePath(SLUG, 1763100000123), `/functions/v1/share-files?slug=${SLUG}&picture=1763100000123`);
+  const at = (q: string) => parseRequest(new URL(`http://x/functions/v1/share-files?${q}`));
+  assertEquals(at(`slug=${SLUG}&picture=1763100000123`), { slug: SLUG, sub: null, kind: "picture" });
+  assertEquals(at(`slug=${SLUG}`), { slug: SLUG, sub: null, kind: "list" });
+  assertEquals(at(`slug=${SLUG}&file=${ID.toUpperCase()}`), { slug: SLUG, sub: null, kind: "file", file: ID });
+  // Never with a file or on a sub-page, and only a number.
+  for (const q of [`picture=1`, `slug=${SLUG}&picture=`, `slug=${SLUG}&picture=-1`, `slug=${SLUG}&picture=1e3`, `slug=${SLUG}&picture=${"1".repeat(21)}`,
+    `slug=${SLUG}&picture=1&file=${ID}`, `slug=${SLUG}&picture=1&sub=${ID}`, `slug=${SLUG}&file=../../etc`]) {
+    assertEquals(at(q), null, q);
+  }
+});
+
+Deno.test("a board's picture is a PNG shown in place, cached a minute", () => {
+  const h = pictureHeaders(1234);
+  assertEquals(h["content-type"], "image/png");
+  assertEquals(h["content-length"], "1234");
+  assertEquals(h["x-content-type-options"], "nosniff");
+  assertEquals(h["cache-control"], "private, max-age=60");
+  assert(h["content-disposition"].startsWith('inline; filename="whiteboard.png"'));
 });

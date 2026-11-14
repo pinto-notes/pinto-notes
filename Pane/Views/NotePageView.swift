@@ -228,9 +228,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     }
 
     /// The board as a file (CanvasExport), or nil when it's empty or the page isn't a board.
-    func canvasExport(_ format: CanvasExport, selected: Bool) async -> Data? {
-        let r = try? await webView.callAsyncJavaScript("return window.amber && window.amber._canvasExport ? await window.amber._canvasExport(f, s) : null",
-                                                       arguments: ["f": format.rawValue, "s": selected], in: nil, contentWorld: .page)
+    /// `light`: on the board's own light background whatever the appearance (a shared board's picture).
+    func canvasExport(_ format: CanvasExport, selected: Bool, light: Bool = false) async -> Data? {
+        let r = try? await webView.callAsyncJavaScript("return window.amber && window.amber._canvasExport ? await window.amber._canvasExport(f, s, l) : null",
+                                                       arguments: ["f": format.rawValue, "s": selected, "l": light], in: nil, contentWorld: .page)
         return (r as? String).flatMap { Data(base64Encoded: $0) }
     }
 
@@ -722,10 +723,12 @@ struct NotePageView: View {
                 if let canvas {
                     s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
                     canvas.deliver = { [weak s] c in s?.canvas(c) }
-                    canvas.exporter = { [weak s] f, selected in await s?.canvasExport(f, selected: selected) }
+                    canvas.exporter = { [weak s] f, selected, light in await s?.canvasExport(f, selected: selected, light: light) }
                     #if os(macOS)
                     (s.webView as? NotePageWebView)?.canvas = canvas
                     #endif
+                    // A shared board's web page shows its picture, made from here while it's open.
+                    BoardPicture.opened(canvas, note: noteID)
                 }
                 s.files = files
                 s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)
@@ -745,6 +748,7 @@ struct NotePageView: View {
             }
         }
         .onDisappear {
+            if let canvas { BoardPicture.closed(canvas, note: noteID) }
             snapshotTask?.cancel()
             snapshotTask = nil
             sandbox?.disconnect()

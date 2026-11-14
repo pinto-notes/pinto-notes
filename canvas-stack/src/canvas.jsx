@@ -133,9 +133,10 @@ const base64 = (text) => btoa(unescape(encodeURIComponent(text)));
 
 /**
  * The board (or only what's selected) as a file, base64: a PNG at 2x, an SVG that carries its
- * scene (Excalidraw opens it again), or the .excalidraw file itself. As it looks, light or dark.
+ * scene (Excalidraw opens it again), or the .excalidraw file itself. As it looks, light or dark;
+ * `light` keeps it as drawn.
  */
-export async function exportScene(api, format, selected) {
+export async function exportScene(api, format, selected, light) {
   const all = api.getSceneElements();
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
@@ -146,7 +147,9 @@ export async function exportScene(api, format, selected) {
   const elements = (picked.length ? picked : all).filter((e) => !help(e));
   if (!elements.length) return null;
   const files = api.getFiles();
-  const appState = { ...s, exportBackground: true, exportWithDarkMode: s.theme === "dark", exportScale: 2, exportEmbedScene: format === "svg" };
+  // `light`: the board as drawn, on its own light background, whatever the app's appearance (the
+  // picture on a shared board's web page).
+  const appState = { ...s, exportBackground: true, exportWithDarkMode: !light && s.theme === "dark", exportScale: 2, exportEmbedScene: format === "svg" };
   // Drawn to a canvas and read as a data URL: a blob can't be read in the note's sandboxed page
   // (NotReadableError).
   if (format === "png") {
@@ -502,7 +505,7 @@ function Canvas({ initial }) {
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
-    Object.defineProperty(amber, "_canvasExport", { value: (format, selected) => exportScene(api, format, selected), configurable: true });
+    Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light) => exportScene(api, format, selected, light === true), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
     return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);

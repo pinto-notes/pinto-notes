@@ -373,15 +373,16 @@ final class CanvasController {
     }
 
     /// Makes a file of the board (set by the page view while it shows): `selected` takes only
-    /// what's selected when something is.
-    @ObservationIgnored var exporter: ((CanvasExport, Bool) async -> Data?)?
+    /// what's selected when something is; `light` draws it on its own light background whatever
+    /// the appearance.
+    @ObservationIgnored var exporter: ((CanvasExport, Bool, Bool) async -> Data?)?
     /// The board's name, for the files it exports to.
     @ObservationIgnored var title = "Whiteboard"
     /// A line confirming what was just done ("Copied as PNG"), shown for a moment over the board.
     var notice: String?
 
-    func export(_ format: CanvasExport, selected: Bool = false) async -> Data? {
-        await exporter?(format, selected)
+    func export(_ format: CanvasExport, selected: Bool = false, light: Bool = false) async -> Data? {
+        await exporter?(format, selected, light)
     }
 
     func confirm(_ text: String, for time: Duration = .seconds(1.8)) {

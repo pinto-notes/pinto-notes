@@ -866,6 +866,14 @@ final class SyncEngine {
         liveShares[id] != nil ? [id] : []
     }
 
+    /// A shared whiteboard's drawing changed (pushed from here or pulled): its page is written
+    /// again, words and picture (BoardPicture), as a note's is after its text changes. Other apps'
+    /// data isn't on their pages.
+    private func republishBoards(_ ids: [UUID]) {
+        let boards = ids.filter { liveShares[$0] != nil && CanvasNote.isCanvas(NoteApps.page($0)?.html) }
+        if !boards.isEmpty { republishShares(for: boards) }
+    }
+
     /// Typing pushes every 0.35 s; the pages are written 2 s after the last push that touched them.
     private func republishShares(for ids: [UUID]) {
         guard !liveShares.isEmpty else { return }
@@ -1392,6 +1400,8 @@ final class SyncEngine {
         struct Row: Decodable { var data_ct: String?; var server_updated_at: Date? }
         struct Upsert: Encodable { var note_id: UUID; var data_ct: String }
         let store = NotePageDataStore.shared
+        var pushed: [UUID] = []
+        defer { republishBoards(pushed) }
         for id in store.dirty {
             do {
                 let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at").eq("note_id", value: id).execute().value
@@ -1405,10 +1415,11 @@ final class SyncEngine {
                     let done: [Row] = try await client.from("note_pages").update(["data_ct": box]).eq("note_id", value: id)
                         .gt("server_updated_at", value: unchanged.after).lt("server_updated_at", value: unchanged.before)
                         .select("data_ct,server_updated_at").execute().value
-                    if !done.isEmpty { store.pushed(id, doc) }
+                    if !done.isEmpty { store.pushed(id, doc); pushed.append(id) }
                 } else {
                     try await client.from("note_pages").upsert(Upsert(note_id: id, data_ct: box), onConflict: "note_id").execute()
                     store.pushed(id, doc)
+                    pushed.append(id)
                 }
             } catch {
                 log.error("page data push failed: \(String(describing: error), privacy: .public)")
@@ -1579,6 +1590,8 @@ final class SyncEngine {
         // notes' cursor passed while a request for them failed is read again next time.
         let pagesFrom = pagesCursor == .distantPast ? pagesCursor : pagesCursor.addingTimeInterval(-5)
         var newestPage = pagesCursor
+        // Boards whose drawing came down changed (an AI drew, another device): republished below.
+        var redrawn: [UUID] = []
         do {
             try await Self.changedRows(client, "note_pages", since: pagesFrom.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)), size: 1000,
                                        columns: "note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems", key: "note_id") { (pages: [NotePageDTO]) in
@@ -1586,11 +1599,13 @@ final class SyncEngine {
             for r in pages {
                 NotePageStore.shared.take(r)
                 NotePageStore.shared.setDraft(r.note_id, problems: r.draft_problems, by: Self.writer(r.client))
+                let before = NotePageDataStore.shared.peek(r.note_id)
                 if let box = r.data_ct, let json = Wire.sealer?.open(box, context: E2EE.pageData(r.note_id)) {
                     NotePageDataStore.shared.take(r.note_id, server: Data(json.utf8), by: Self.writer(r.client))
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))
                 }
+                if NotePageDataStore.shared.peek(r.note_id) != before { redrawn.append(r.note_id) }
                 if let s = r.server_updated_at, s > newestPage { newestPage = s }
             }
             }
@@ -1606,6 +1621,7 @@ final class SyncEngine {
         // elsewhere, an AI's edit included, is published to every live page it's on, as a local
         // edit would be. After the refresh, so a share seen for the first time counts.
         republishShares(for: pulledNotes)
+        republishBoards(redrawn)
     }
 
     struct MissingStamp: Error {}

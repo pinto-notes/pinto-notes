@@ -66,5 +66,47 @@ export function contentDisposition(name: string, inline: boolean): string {
   return `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${exact}`;
 }
 
+/** The address of a shared board's picture, relative to the Supabase URL. `version` (when it was
+ *  published, in ms) makes a new picture a new address, so a cached one is never shown for it. */
+export function picturePath(slug: string, version: number | string): string {
+  return `/functions/v1/share-files?${new URLSearchParams({ slug, picture: String(version) })}`;
+}
+
+/** What a request asks for: the page's files, one file, or the board's picture. Null: nothing
+ *  that could be there (a malformed slug, id or version, or a file and a picture at once). */
+export type ShareRequest = { slug: string; sub: string | null } & (
+  | { kind: "list" }
+  | { kind: "file"; file: string }
+  | { kind: "picture" }
+);
+export function parseRequest(url: URL): ShareRequest | null {
+  const slug = url.searchParams.get("slug") ?? "";
+  const sub = url.searchParams.get("sub");
+  const file = url.searchParams.get("file");
+  const picture = url.searchParams.get("picture");
+  if (!SLUG.test(slug) || (sub !== null && !UUID.test(sub)) || (file !== null && !UUID.test(file))) return null;
+  if (picture !== null) {
+    // A board's picture is on its own page only, never a sub-page's.
+    if (!PICTURE_VERSION.test(picture) || file !== null || sub !== null) return null;
+    return { slug, sub: null, kind: "picture" };
+  }
+  return file === null ? { slug, sub, kind: "list" } : { slug, sub, kind: "file", file: file.toLowerCase() };
+}
+
+/** The headers a board's picture is served with: always a PNG (publish_share_picture checks), shown
+ *  in place, cached briefly so Stop Sharing takes it down within a minute. */
+export function pictureHeaders(size: number): Record<string, string> {
+  return {
+    "content-type": "image/png",
+    "content-length": String(size),
+    "content-disposition": contentDisposition("whiteboard.png", true),
+    "x-content-type-options": "nosniff",
+    "cache-control": "private, max-age=60",
+    "access-control-allow-origin": "*",
+    "cross-origin-resource-policy": "cross-origin",
+  };
+}
+
 export const SLUG = /^[A-Za-z0-9_-]{24,64}$/;
+export const PICTURE_VERSION = /^\d{1,20}$/;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

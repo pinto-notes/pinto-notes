@@ -121,7 +121,8 @@ Deno.test("a shared note, its sub-notes and its files", async () => {
   assertEquals(page.title, "Trip plan");
   assert(page.body.includes("Day one."));
   assertEquals(page.subnotes, []);
-  assertEquals(Object.keys(page).sort(), ["body", "include_subnotes", "is_sub", "root_title", "shared_by", "subnotes", "title", "updated_at"]);
+  assertEquals(Object.keys(page).sort(), ["body", "include_subnotes", "is_sub", "picture", "root_title", "shared_by", "subnotes", "title", "updated_at"]);
+  assertEquals(page.picture, null, "a note's page has no board picture");
   assertEquals((await rpc("shared_note", { p_slug: slug, p_sub: child }, null)).body, null, "sub-notes need the option");
   assertEquals((await rpc("shared_file", { p_slug: slug, p_sub: null, p_file: shown }, null)).status >= 400, true, "shared_file is the function's only");
 

@@ -26,7 +26,7 @@ import UIKit
             let s = rig.sandbox
             s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
             canvas.deliver = { [weak s] c in s?.canvas(c) }
-            canvas.exporter = { [weak s] f, selected in await s?.canvasExport(f, selected: selected) }
+            canvas.exporter = { [weak s] f, selected, light in await s?.canvasExport(f, selected: selected, light: light) }
             #if os(macOS)
             (s.webView as? NotePageWebView)?.canvas = canvas
             #endif
@@ -316,6 +316,39 @@ import UIKit
         #endif
         #expect(CanvasExport.filename("Q3: plan/roadmap", .png) == "Q3 planroadmap.png")
         #expect(CanvasExport.filename("  ", .svg) == "Whiteboard.svg")
+    }
+
+    /// A shared board's web page shows a picture of it (BoardPicture, 14 November 2026): the
+    /// whole board at 2x, on its own light background even while the app is dark, as the page
+    /// shows it on a light card.
+    @Test func aSharedBoardsPictureIsTheWholeBoardLightAt2x() async throws {
+        let j = try await Joined(scene: Self.flowchart, dark: true)
+        defer { j.close() }
+        try await j.ready()
+        let note = UUID()
+        BoardPicture.opened(j.canvas, note: note)
+        defer { BoardPicture.closed(j.canvas, note: note) }
+        #expect(BoardPicture.board(note) === j.canvas, "the open board is found by its note")
+        #if os(macOS)
+        func corner(_ png: Data) throws -> CGFloat {
+            let rep = try #require(NSBitmapImageRep(data: png))
+            return try #require(rep.colorAt(x: 4, y: 4)?.usingColorSpace(.deviceRGB)).brightnessComponent
+        }
+        #expect(try await j.js("amber._canvas.api.getAppState().theme") as? String == "dark", "the board shows dark")
+        // Export takes the board as it shows (the engine marks a dark picture with its filter);
+        // the page's picture is the board as drawn.
+        let root = { (svg: Data) in String(String(decoding: svg, as: UTF8.self).prefix { $0 != ">" }) }
+        #expect(root(try #require(await j.canvas.export(.svg))).contains(#"filter="invert("#), "Export in dark mode is dark")
+        #expect(!root(try #require(await j.canvas.export(.svg, light: true))).contains("filter="), "light: as drawn")
+        let picture = try #require(await j.canvas.export(.png, light: true))
+        #expect(try corner(picture) > 0.95, "the page's picture is the board's white")
+        let rep = try #require(NSBitmapImageRep(data: picture))
+        #expect(rep.pixelsWide > 2000 && rep.pixelsHigh > 600, "the whole flowchart at 2x: \(rep.pixelsWide)×\(rep.pixelsHigh)")
+        #expect(BoardPicture.fitted(picture) == picture && picture.count < BoardPicture.maxBytes, "well under the limit: \(picture.count) bytes")
+        #endif
+        // Its words are the page's text.
+        let words = CanvasSketch(elements: Self.flowchart["elements"] as? [[String: Any]] ?? []).texts
+        #expect(BoardPicture.body(title: "Publishing flow", words: words) == "Publishing flow\n\nIdea\n\nDraft\n\nReady?\n\nPublish\n\nFix it\n\nyes\n\nno")
     }
 
     #if os(macOS)
