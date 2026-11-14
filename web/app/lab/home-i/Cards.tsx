@@ -86,7 +86,7 @@ type Card = {
 const MAC = { W: 2880, H: 1800 };
 const CARDS: Card[] = [
   {
-    id: "notes", title: "Notes.", line: "Feels like Apple Notes. Brings yours over.",
+    id: "notes", title: "Write.", line: "Notes that feel like Apple Notes. Bring yours over.",
     pic: <NotePic />,
     sheet: {
       line: "Feels like Apple Notes, on Mac and iPhone.",
@@ -99,7 +99,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "whiteboards", title: "Whiteboards.", line: "Draw it out. Your AI can read it and draw on it.",
+    id: "whiteboards", title: "Draw.", line: "A whiteboard next to your notes. Your AI can read it and draw on it.",
     pic: <div className={s.boardWrap}><p className={s.boardBar}><span aria-hidden="true">‹</span>Publishing flow</p><Board /></div>,
     sheet: {
       line: "Sketch how something works. Your AI sees it too.",
@@ -112,7 +112,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "apps", title: "Apps.", line: "A note can be a small app. Your AI can make one.",
+    id: "apps", title: "Build.", line: "A note that works like a small app. Your AI can make one.",
     pic: <HabitPic />,
     sheet: {
       line: "A habit tracker, a budget, a trip plan. Ready now, or made for you.",

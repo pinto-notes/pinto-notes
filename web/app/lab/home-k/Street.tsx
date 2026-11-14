@@ -27,17 +27,17 @@ type Unit = { key: string; title: string; line: string; facts: [string, string];
 
 const UNITS: Unit[] = [
   {
-    key: "notes", title: "Notes.", line: "Feels like Apple Notes, on Mac and iPhone.",
+    key: "notes", title: "Write.", line: "Notes that feel like Apple Notes.",
     facts: ["Your Apple Notes come along when you start.", "ChatGPT and Claude can add to a note, with your OK."],
     x: 15, w: 410, room: { x: 32, y: 236, w: 346, h: 312 }, label: "Maya's window: her Tomorrow note on her phone.",
   },
   {
-    key: "whiteboards", title: "Whiteboards.", line: "Draw how something works. Your AI can draw too.",
+    key: "whiteboards", title: "Draw.", line: "Whiteboards for how something works. Your AI can draw too.",
     facts: ["Your AI reads a whiteboard and draws into it.", "Saved in the standard Excalidraw format."],
     x: 432, w: 534, room: { x: 32, y: 128, w: 470, h: 288 }, label: "Jonas's window: a whiteboard on his Mac.",
   },
   {
-    key: "apps", title: "Apps.", line: "A note that works like a small app.",
+    key: "apps", title: "Build.", line: "A note that works like a small app.",
     facts: ["Pick a template and it's ready, or describe one and your AI builds it.", "Any AI can update it. Tell Claude you went to the gym and it's ticked."],
     x: 973, w: 412, room: { x: 30, y: 262, w: 352, h: 290 }, label: "Sara's window at the café: a habit tracker on her phone.",
   },
@@ -121,7 +121,7 @@ export function Street() {
   return (
     <section className={k.hero} data-still={p.still ? "" : undefined}>
       <div className={k.head}>
-        <h1 className={k.h1}>The notebook you and your AI share.</h1>
+        <h1 className={k.h1}>Write. Draw. Build. <span style={{ display: "block", marginTop: "0.22em", fontSize: "0.56em", letterSpacing: "-0.025em", color: "#9a7650", textWrap: "balance" }}>The notebook for you and your AI.</span></h1>
         <div className={x.ctas}>
           <Download note={false} />
           <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">

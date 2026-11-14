@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { G } from "../../_home/copy";
 import { Download } from "../../_home/Download";
-import { Hero } from "../../_home/Hero";
+import { Hero } from "./Hero";
 import { Cards } from "./Cards";
 import s from "./home-i.module.css";
 

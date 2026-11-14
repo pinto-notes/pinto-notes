@@ -28,7 +28,7 @@ type Card = {
 const MAC = { W: 2880, H: 1800 };
 const CARDS: Card[] = [
   {
-    id: "notes", title: "Notes.", line: "Feels like Apple Notes. Brings yours over.", scene: <NotesScene />,
+    id: "notes", title: "Write.", line: "Notes that feel like Apple Notes. Bring yours over.", scene: <NotesScene />,
     sheet: {
       line: "Feels like Apple Notes, on Mac and iPhone.",
       crop: { src: "/lab/big3/layout-two-columns-main.webp", ...MAC, x: 0, y: 0, w: 1940, h: 1078, alt: "Pinto Notes on a Mac: the list of notes, and the Groceries note open with its checklist." },
@@ -40,7 +40,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "whiteboards", title: "Whiteboards.", line: "Draw it out. Your AI can read it and add to it.", scene: <BoardScene />,
+    id: "whiteboards", title: "Draw.", line: "A whiteboard next to your notes. Your AI can read it and add to it.", scene: <BoardScene />,
     sheet: {
       line: "Sketch how something works. Your AI sees it too.",
       crop: { src: "/lab/big3/canvas-selected-light-main.webp", ...MAC, x: 300, y: 420, w: 2300, h: 1360, alt: "A whiteboard in Pinto Notes on a Mac: Idea, Draft, Ready?, then Publish or Fix it, with the drawing tools along the bottom." },
@@ -52,7 +52,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "apps", title: "Apps.", line: "A note can be a small app. Your AI can make one.", scene: <AppsScene />,
+    id: "apps", title: "Build.", line: "A note that works like a small app. Your AI can make one.", scene: <AppsScene />,
     sheet: {
       line: "A habit tracker, a budget, a trip plan. Ready now, or made for you.",
       crop: { src: "/lab/big3/create-mac-newapp-page-chatgpt-light.webp", W: 2938, H: 1840, x: 1190, y: 140, w: 1748, h: 1000, alt: "The New app page in Pinto Notes: four templates, and a box to describe your own and make it with ChatGPT." },

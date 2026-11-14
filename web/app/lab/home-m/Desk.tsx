@@ -27,7 +27,7 @@ type Thing = {
 
 const THINGS: Thing[] = [
   {
-    id: "notes", title: "Notes.", tag: "Feels like Apple Notes.",
+    id: "notes", title: "Write.", tag: "Notes, like Apple Notes.",
     label: "The Groceries note in Pinto Notes on an iPhone: a checklist, with olive oil just added by ChatGPT.",
     W: 320, H: 672, cx: 815, cy: 344, rot: -5, s: 0.66, tagAt: [716, 600, -2],
     facts: [
@@ -36,7 +36,7 @@ const THINGS: Thing[] = [
     ],
   },
   {
-    id: "whiteboards", title: "Whiteboards.", tag: "Draw it. Your AI can read it.",
+    id: "whiteboards", title: "Draw.", tag: "A whiteboard. Your AI can read it.",
     label: "A whiteboard called Publishing flow, drawn by hand: Idea, Draft, Ready? Yes goes to Publish, no goes to Fix it.",
     W: 720, H: 448, cx: 362, cy: 562, rot: -1.5, s: 0.88, tagAt: [470, 738, 2],
     facts: [
@@ -45,7 +45,7 @@ const THINGS: Thing[] = [
     ],
   },
   {
-    id: "apps", title: "Apps.", tag: "A note that's a small app.",
+    id: "apps", title: "Build.", tag: "A note that's a small app.",
     label: "The Habit tracker app in a note on an iPhone: 62% this week, 2 of 6 done today, Walk on an 11-day streak.",
     W: 320, H: 672, cx: 1180, cy: 410, rot: 4, s: 0.66, tagAt: [1070, 668, 2],
     facts: [
@@ -126,7 +126,7 @@ export function Desk() {
         <Pencil className={m.pencil} />
 
         <div className={m.card}>
-          <h1 className={m.h1}>The notebook <span className={m.mark}>you and your AI</span> share.</h1>
+          <h1 className={m.h1}>Write. Draw. Build. <span style={{ display: "block", marginTop: "0.22em", fontSize: "0.56em", letterSpacing: "-0.025em", color: "#9a7650", textWrap: "balance" }}>The notebook for you and your AI.</span></h1>
           <p className={m.lede}>Notes, whiteboards and small apps. ChatGPT and Claude work in all three.</p>
           <div className={x.ctas}>
             <Download note={false} />
