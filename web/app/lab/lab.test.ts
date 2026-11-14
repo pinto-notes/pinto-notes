@@ -8,7 +8,7 @@ import { themeFor, themeScript } from "@/lib/theme";
 import { metadata } from "./layout";
 
 // The home page in progress (/lab/home) is for the team: kept out of search, the sitemap and the site's links.
-const STUDIES = ["/lab/home", "/lab/home-d", "/lab/home-e", "/lab/home-f", "/lab/home-g", "/lab/home-h", "/lab/home-i", "/lab/home-j", "/lab/home-k", "/lab/home-l", "/lab/home-m", "/lab/home-n", "/lab/home-o", "/lab/home-p", "/lab/home-q"];
+const STUDIES = ["/lab/home", "/lab/home-d", "/lab/home-e", "/lab/home-f", "/lab/home-g", "/lab/home-h", "/lab/home-i", "/lab/home-j", "/lab/home-k", "/lab/home-l", "/lab/home-m", "/lab/home-n", "/lab/home-o", "/lab/home-p", "/lab/home-q", "/lab/home-r", "/lab/home-s", "/lab/home-t"];
 /** Cream in light and dark, like the home page. */
 const HOME_CANDIDATES = STUDIES;
 const APP = fileURLToPath(new URL("..", import.meta.url));
