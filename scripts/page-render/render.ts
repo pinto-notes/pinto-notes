@@ -30,7 +30,11 @@ export const TOKENS = `@layer amber-tokens {\n:root { ${vars(false)}; --amber-ra
   `--amber-root-font: 17px/1.35 -apple-system, system-ui, sans-serif; ` +
   `--amber-font: -apple-system, system-ui, sans-serif; --amber-font-rounded: ui-rounded, -apple-system, system-ui, sans-serif; --amber-font-mono: ui-monospace, Menlo, monospace; ` +
   `--amber-safe-top: env(safe-area-inset-top, 0px); --amber-safe-right: env(safe-area-inset-right, 0px); --amber-safe-bottom: env(safe-area-inset-bottom, 0px); --amber-safe-left: env(safe-area-inset-left, 0px); }\n` +
-  `@media (prefers-color-scheme: dark) { :root { ${vars(true)}; } }\n}\n`;
+  `@media (prefers-color-scheme: dark) { :root { ${vars(true)}; } }\n}\n` +
+  // Each again as --pinto-* (the name apps are told to use, 2026-11-14), following its amber one.
+  `@layer amber-tokens { :root { ${[...new Set(["inset-bottom", "keyboard", ...[...vars(false).matchAll(/--amber-([a-z-]+):/g)].map((m) => m[1]),
+    "radius", "radius-small", "content-max", "gutter", "root-font", "font", "font-rounded", "font-mono", "safe-top", "safe-right", "safe-bottom", "safe-left"])]
+    .map((n) => `--pinto-${n}: var(--amber-${n});`).join(" ")} } }\n`;
 const baseOptOut = (html: string) => /<meta[^>]*name=["']amber-base["'][^>]*content=["']none["']/i.test(html);
 
 // Libraries (<meta name="amber-libs">, see supabase/functions/mcp/libraries.ts). The app serves them
@@ -77,8 +81,8 @@ const ESM: Record<string, string> = { preact: "preact.module.js", "preact-hooks"
 type Bundled = { name: string; global: string; package: string };
 const bundledLibs = (): Bundled[] => JSON.parse(Deno.readTextFileSync(new URL("libraries.json", APP_LIBS))).libraries;
 const kit = (() => { let k: { src: Record<string, string>; compiled: Record<string, string>; css: string } | null = null; return () => (k ??= JSON.parse(Deno.readTextFileSync(new URL("amber-ui.json", APP_LIBS)))); })();
-/** amber-lib:/// and amber-app:/// as this harness serves them. */
-const hosts = (text: string) => text.replaceAll("amber-lib:///", LIB_HOST).replaceAll("amber-app:///", APP_HOST);
+/** pinto-lib:///, pinto-app:/// and their amber names as this harness serves them. */
+const hosts = (text: string) => text.replaceAll(/(?:amber|pinto)-lib:\/\/\//g, LIB_HOST).replaceAll(/(?:amber|pinto)-app:\/\/\//g, APP_HOST);
 
 export type AppProject = { files: Record<string, string>; compiled: Record<string, string>; binary: Record<string, string> };
 export function projectOf(stored: string): AppProject | null {
@@ -90,6 +94,7 @@ function importMap(): string {
   const imports: Record<string, string> = {
     preact: `${LIB_HOST}esm/preact.js`, "preact/hooks": `${LIB_HOST}esm/preact-hooks.js`, "preact/jsx-runtime": `${LIB_HOST}esm/preact-jsx-runtime.js`,
     htm: `${LIB_HOST}esm/htm.js`, "amber-router": `${LIB_HOST}esm/amber-router.js`, amber: `${LIB_HOST}esm/amber.js`, "amber-ui": `${LIB_HOST}amber-ui/index.js`,
+    "pinto-router": `${LIB_HOST}esm/amber-router.js`, pinto: `${LIB_HOST}esm/amber.js`, "pinto-ui": `${LIB_HOST}amber-ui/index.js`,
   };
   for (const l of bundledLibs()) if (!["preact", "preact-hooks", "htm", "router"].includes(l.name)) imports[l.package] = `${LIB_HOST}esm/${l.name}.js`;
   // The React stack the app ships (Pane/Resources/AppLibraries/stack.json), and "@/" for /src/.
@@ -292,7 +297,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     amber.note = note; if (data) amber.data = data;
     for (const fn of listeners) { try { fn(note, amber.data); } catch (e) { console.error(e); } }
   } });
-  window.amber = amber;
+  window.amber = window.pinto = amber;
   // Links to the person's notes and apps (pinto:Work/Acme) open in Pinto Notes; here they're kept
   // in window.__amberOpened and the page stays where it is, as in the app.
   window.__amberOpened = [];
@@ -303,9 +308,9 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     if (/^pinto:/i.test(href)) { e.preventDefault(); amber.open(href); }
   }, true);
   const sized = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", sized, { once: true }); const w = window.innerWidth, c = document.documentElement.classList;
-    c.toggle("amber-narrow", w < 600); c.toggle("amber-medium", w >= 600 && w < 900); c.toggle("amber-wide", w >= 900); };
+    for (const p of ["amber", "pinto"]) { c.toggle(p + "-narrow", w < 600); c.toggle(p + "-medium", w >= 600 && w < 900); c.toggle(p + "-wide", w >= 900); } };
   sized(); addEventListener("resize", sized);
-  { const w = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", w, { once: true }); document.documentElement.dataset.amberContext = window.__amberWidget ? "widget" : "full"; if (window.__amberWidget) document.documentElement.classList.add("amber-widget"); }; w(); }
+  { const w = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", w, { once: true }); document.documentElement.dataset.amberContext = document.documentElement.dataset.pintoContext = window.__amberWidget ? "widget" : "full"; if (window.__amberWidget) document.documentElement.classList.add("amber-widget", "pinto-widget"); }; w(); }
 })();`;
 
 type DataDoc = { values: Record<string, unknown>; collections: Record<string, unknown> };

@@ -16,8 +16,8 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 - ${IN_CONTROL}
 - It is the note: opening the note opens the app, on iPhone (320-440 pt wide, safe areas, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Light and dark follow the device.
 - A normal Vite + React 19 + TypeScript + Tailwind 4 + shadcn/ui project. Pinto Notes compiles it when a file is saved (TSX, the @/ alias, imports without extensions, Tailwind from the classes used) and says what broke; nothing is installed. React runs on preact/compat.
-- Available by name: react, react-dom, radix-ui, lucide-react, recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, amber-router (Router, Route, route(), back()), chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti.
-- Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/amber". localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
+- Available by name: react, react-dom, radix-ui, lucide-react, recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, pinto-router (Router, Route, route(), back()), chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti.
+- Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/pinto". localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
 - The internet works like on any web page: fetch, XMLHttpRequest and WebSocket to any https or wss address, with no prompt. A key for a service is something the person pastes into the app's settings, kept in the store.
 - Links to the person's notes and apps are plain links, written like a [[link]] in a note: <a href="pinto:Work/Acme">Acme</a> (the title, or the folders and the title), pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for another app. Tapping one opens it in Pinto Notes the way a [[link]] does (on iPhone, Back returns to this app); a note that doesn't exist is offered to be made. Anything can be the link (wrap a card in it, or use <Button asChild>); a test checks its href.
 - The device: device.openURL(url) opens a web link once the person agrees to it, share(file) exports one, device.photos.pick() and device.files.pick() let the person choose. Reminders, Calendar, notifications, the camera, contacts, location, Maps and on-device AI are not available yet.`;
@@ -35,7 +35,7 @@ export async function scaffold(title: string, lang = "en"): Promise<Record<strin
       "//": "Pinto Notes compiles this project when a file is saved and runs it inside the note. Nothing is installed: these are the packages the app provides.",
       dependencies: {
         react: "19", "react-dom": "19", "radix-ui": "1.4", "lucide-react": "0.544", recharts: "2.15", "date-fns": "4", zod: "3.25", motion: "11", sonner: "2", "react-day-picker": "9",
-        clsx: "2", "tailwind-merge": "3", "class-variance-authority": "0.7", amber: "*", "amber-router": "*",
+        clsx: "2", "tailwind-merge": "3", "class-variance-authority": "0.7", pinto: "*", "pinto-router": "*",
       },
       devDependencies: { typescript: "5", vite: "7", tailwindcss: "4", vitest: "3", "@testing-library/react": "16", "@testing-library/user-event": "14", "@testing-library/jest-dom": "6" },
     }, null, 2) + "\n",
@@ -61,7 +61,7 @@ import App from "./App"
 
 createRoot(document.getElementById("root")!).render(<App />)
 `,
-    "/src/App.tsx": `import { Router, Route } from "amber-router"
+    "/src/App.tsx": `import { Router, Route } from "pinto-router"
 import { House, Settings as SettingsIcon } from "lucide-react"
 import { Toaster } from "@/components/ui/sonner"
 import { AppShell } from "@/components/app-shell"
@@ -90,7 +90,7 @@ export default function App() {
 `,
     "/src/screens/home.tsx": `import { useState } from "react"
 import { Check, Pencil, Plus, Trash2 } from "lucide-react"
-import { useCollection } from "@/lib/amber"
+import { useCollection } from "@/lib/pinto"
 import { PageHeader } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -150,12 +150,12 @@ export default function Home() {
     "/tests/app.test.tsx": `import { describe, it, expect } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { amber } from "amber"
+import { pinto } from "pinto"
 import App from "@/App"
 
 // Each feature gets a test like these: do what the person does, check what they see, and check
 // what was saved in the app's data.
-const saved = () => (amber.data.collections.items ?? []).map((item: { text: string }) => item.text)
+const saved = () => (pinto.data.collections.items ?? []).map((item: { text: string }) => item.text)
 
 describe("Home", () => {
   it("adds an item, edits it, and saves the change", async () => {
@@ -184,7 +184,7 @@ describe("Home", () => {
   })
 })
 `,
-    "/src/screens/settings.tsx": `import { useSettings } from "@/lib/amber"
+    "/src/screens/settings.tsx": `import { useSettings } from "@/lib/pinto"
 import { PageHeader } from "@/components/app-shell"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -219,7 +219,7 @@ What this app is for, in one sentence.
 - Settings (src/screens/settings.tsx)
 
 ## Tests
-\`npm test\` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers; data starts empty for each test, and \`amber\` (from "amber") shows what was saved. Pinto Notes runs them, and a quick check that the app opens and its buttons work, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.
+\`npm test\` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers; data starts empty for each test, and \`pinto\` (from "pinto") shows what was saved. Pinto Notes runs them, and a quick check that the app opens and its buttons work, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.
 
 **Every feature you add gets a test like the ones in tests/app.test.tsx**: do what the person does, check what they see, and check what was saved. When the app changes on purpose, change its tests to match the new behaviour. Never weaken, skip or delete a test just to make it pass: fix the app instead.
 

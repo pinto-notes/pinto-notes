@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react"
-import { back } from "amber-router"
-import { useSettings } from "@/lib/amber"
+import { back } from "pinto-router"
+import { useSettings } from "@/lib/pinto"
 import { DEFAULTS } from "@/lib/training"
 import { PageHeader } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"

@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
-import { useSettings } from "amber";
-import { Stat, Tabs, Card } from "amber-ui";
+import { useSettings } from "pinto";
+import { Stat, Tabs, Card } from "pinto-ui";
 import ScreenHeader from "../components/ScreenHeader.jsx";
 import WeightChart from "../components/WeightChart.jsx";
 import { DEFAULTS, today, weight, useTraining } from "../data.js";

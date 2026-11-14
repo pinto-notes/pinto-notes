@@ -1,5 +1,5 @@
-import { back, route } from "amber-router";
-import { Button, Icon } from "amber-ui";
+import { back, route } from "pinto-router";
+import { Button, Icon } from "pinto-ui";
 
 // The title of a screen, with Back for pushed screens and Settings for the others.
 export default function ScreenHeader({ title, subtitle, canGoBack }) {

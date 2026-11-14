@@ -1,4 +1,4 @@
-import { Router, Route } from "amber-router"
+import { Router, Route } from "pinto-router"
 import { CalendarDays, Dumbbell, TrendingUp } from "lucide-react"
 import { Toaster } from "@/components/ui/sonner"
 import { AppShell } from "@/components/app-shell"

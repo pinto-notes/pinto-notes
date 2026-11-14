@@ -54,7 +54,7 @@ export function titleReport(r: Rendered, title: string): string[] {
   if (!v?.headings) return [];
   const out: string[] = [];
   if (!v.headings.length || !same(v.headings[0], title)) {
-    out.push(`The app's first heading should be the note's title ("${title}"), read from amber.note.title: nothing around the app shows the title.${v.headings[0] ? ` Its first heading is "${v.headings[0]}".` : " It has no heading."}`);
+    out.push(`The app's first heading should be the note's title ("${title}"), read from pinto.note.title: nothing around the app shows the title.${v.headings[0] ? ` Its first heading is "${v.headings[0]}".` : " It has no heading."}`);
   }
   const twice = Math.max(v.headings.filter((h) => same(h, title)).length, v.titleCount ?? 0);
   if (twice > 1) out.push(`The note's title is shown ${twice} times; show it once, as the first heading.`);

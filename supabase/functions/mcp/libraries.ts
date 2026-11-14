@@ -1,7 +1,7 @@
 // Libraries an app can load without carrying them, as the app does it (note-pages-proto,
 // Pane/Resources/AppLibraries/libraries.json and page.ts): the bundled ones by name in
 // <meta name="amber-libs" content="chart, d3">, loaded before the page's scripts as globals (or
-// at runtime with await amber.lib("three")), and any other npm package in the same meta as
+// at runtime with await pinto.lib("three")), and any other npm package in the same meta as
 // npm:<name>@<x.y.z>[/<file>]#<sha256|sha384|sha512>-<base64>, which the app downloads once from
 // cdn.jsdelivr.net, checks against the hash and keeps on the device.
 
@@ -39,7 +39,7 @@ export function declaredLibs(html: string): string[] {
 /** How the guide teaches it. */
 export const LIBRARY_GUIDE = `Libraries load by name, never pasted into the app:
 - Bundled with Pinto Notes (on the device, instant): ${BUNDLED.map((b) => `${b.name} (${b.what}; global ${b.global})`).join(", ")}.
-  Declare them: <meta name="amber-libs" content="chart, dayjs">; they load before your scripts. Or load one when needed: const THREE = await amber.lib("three").
+  Declare them: <meta name="amber-libs" content="chart, dayjs">; they load before your scripts. Or load one when needed: const THREE = await pinto.lib("three").
 - Any other npm package: call resolve_package { name, version?, file? } and add the entry it returns to the same meta, like <meta name="amber-libs" content="chart, npm:qrcode-generator@1.4.4/qrcode.js#sha384-…">. Pinto Notes downloads that exact file once, checks the hash and keeps it on the device; an entry without an exact version and a hash is refused. Pick a UMD or global build (it defines a global), not an ES module with imports. Prefer a bundled library when one does the job.
 - Never paste a library's code into the app: it bloats the app and can't be checked or updated. check_app flags pasted copies.`;
 
@@ -60,11 +60,11 @@ export function libraryReport(html: string): string[] {
       out.push(`No bundled library "${item}". Bundled: ${BUNDLED.map((b) => b.name).join(", ")}; anything else through resolve_package.`);
     }
   }
-  if (/<script[^>]*src=["']amber-lib:/i.test(html)) out.push("Don't point <script src> at amber-lib: yourself: declare libraries in <meta name=\"amber-libs\"> (or await amber.lib(name)).");
+  if (/<script[^>]*src=["'](amber|pinto)-lib:/i.test(html)) out.push("Don't point <script src> at pinto-lib: yourself: declare libraries in <meta name=\"amber-libs\"> (or await pinto.lib(name)).");
   const used = (g: string) => new RegExp(`\\b${g.replace(/[.$]/g, "\\$&")}\\b\\s*[.(]`).test(scripts.map((s) => s.body).join("\n"));
   const declared = declaredLibs(html);
   for (const b of BUNDLED) {
-    if (used(b.global) && !declared.includes(b.name) && !new RegExp(`amber\\.lib\\(\\s*["']${b.name}["']`).test(html) && !scripts.some((s) => b.signature.test(s.body))) {
+    if (used(b.global) && !declared.includes(b.name) && !new RegExp(`(amber|pinto)\\.lib\\(\\s*["']${b.name}["']`).test(html) && !scripts.some((s) => b.signature.test(s.body))) {
       out.push(`The app uses ${b.global} but doesn't declare it: add "${b.name}" to <meta name="amber-libs">.`);
     }
   }

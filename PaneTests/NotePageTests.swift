@@ -239,7 +239,7 @@ import AppKit
         let results = try await sandbox.webView.evaluateJavaScript("window.__results") as? [String]
         #expect(results == ["fetch blocked", "xhr blocked", "image blocked"])
         #expect(server.connections == before, "the sandboxed page reached the network")
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html")
         #expect(sandbox.blocked.contains { $0.hasPrefix("navigation \(base)") })
     }
 
@@ -279,6 +279,42 @@ import AppKit
         #expect(try await js("window.__file") == "42", "a worker from the app's own file")
         // From a blob too, and in a worker there's no webkit bridge to reach the note through.
         #expect(try await js("window.__blob") == "42 undefined")
+    }
+
+    /// The Pinto names (2026-11-14): window.pinto, the "pinto", "pinto-ui" and "pinto-router"
+    /// imports, pinto-app:/pinto-lib:/pinto-file:, the --pinto-* variables and pinto-* classes; and
+    /// every amber name an older app uses still works, as the same thing.
+    @Test func appsUseThePintoNamesAndTheAmberOnesStillWork() async throws {
+        let project = NotePageProject(files: [
+            "/index.html": """
+            <main id="m">names</main>
+            <script type="module">
+              import { pinto, useStore } from "pinto";
+              import * as old from "amber";
+              import { Button } from "pinto-ui";
+              import { Router } from "pinto-router";
+              import { helper } from "pinto-app:///src/helper.js";
+              import { helper as again } from "/src/helper.js";
+              const root = getComputedStyle(document.documentElement);
+              const c = document.documentElement.classList;
+              window.__names = [
+                pinto === window.pinto, window.pinto === window.amber, old.amber === pinto, typeof useStore, typeof Button, typeof Router,
+                helper(), helper === again, location.href,
+                root.getPropertyValue("--pinto-accent").trim() !== "" && root.getPropertyValue("--pinto-accent") === root.getPropertyValue("--amber-accent"),
+                c.contains("pinto-narrow") || c.contains("pinto-medium") || c.contains("pinto-wide"),
+                document.documentElement.dataset.pintoContext,
+                pinto.files.url("00000000-0000-0000-0000-000000000000").split(":")[0],
+              ].join(" ");
+            </script>
+            """,
+            "/src/helper.js": "export const helper = () => \"helped\";",
+        ])
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: project.stored, body: "Names")
+        try await run(sandbox.webView, until: "window.__names != null")
+        let names = try await sandbox.webView.evaluateJavaScript("window.__names") as? String
+        #expect(names == "true true true function function function helped true pinto-app:///index.html true true full pinto-file")
+        #expect(NotePageSandbox.policy.contains("pinto-app: amber-app:") && NotePageSandbox.rules.contains("^pinto-file:"))
     }
 
     /// A project's binary files (2026-11-14) are served as they are, with the web's type: a .wasm
@@ -983,7 +1019,7 @@ import AppKit
         try await Task.sleep(for: .milliseconds(400))
         #expect(opened.count == 4 && asked.isEmpty, "other links open nothing and ask nothing")
         #expect(sandbox.blocked.contains("navigation https://example.org/"), "a web link stays blocked, as before: device.openURL asks")
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html", "the app stayed where it was")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html", "the app stayed where it was")
 
         // Past the bridge's own functions: still only a tapped link to a note.
         await #expect(throws: NotePage.OpError.self) {
@@ -1251,7 +1287,7 @@ import AppKit
         _ = try await sandbox.webView.evaluateJavaScript("document.getElementById('go').click(); 1")
         try await run(sandbox.webView, until: "document.getElementById('item') !== null")
         #expect(try await sandbox.webView.evaluateJavaScript("document.getElementById('item').textContent") as? String == "item 7")
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html")
     }
 
     /// Something too wide in an app never makes the whole page pan sideways.
@@ -1356,7 +1392,7 @@ import AppKit
         try await run(sandbox.webView, until: "document.querySelector('h1').textContent === 'Plan'")
         // The source of each component ships too, for copying into the app's /src/components.
         #expect(NotePageLibraries.kit?.src["Button.jsx"]?.contains("export function Button") == true)
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html")
     }
 
     /// The "amber" module: tables and checklists by heading, edits through the usual ops, batch()

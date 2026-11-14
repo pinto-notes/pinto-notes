@@ -86,7 +86,7 @@ Deno.test({ name: "check_app and preview_app render a sample through the render 
     assertEquals(r.ok, false);
     // Breakage is an error; the rest is information.
     for (const want of ["script error", "wider than the screen", "ran as HTML"]) assertStringIncludes(r.errors.join("\n"), want);
-    for (const want of ["under 12 px", "without a label", "--amber-*"]) assertStringIncludes(r.notes.join("\n"), want);
+    for (const want of ["under 12 px", "without a label", "--pinto-*"]) assertStringIncludes(r.notes.join("\n"), want);
     // The render service got a sample, not the note.
     assert(!all.includes("Hotel Avenida") && !all.includes("Pastéis"));
 

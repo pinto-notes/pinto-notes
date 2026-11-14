@@ -38,7 +38,7 @@ Deno.test("get_note_page returns the page and the rules; read_note says there is
   const id = await note(pg, a, HABITS);
   const none = await tool(pg, a, "get_note_page", { id });
   assertEquals(none.has_page, false);
-  assertStringIncludes(none.rules, "amber.update");
+  assertStringIncludes(none.rules, "pinto.update");
   assertEquals((await tool(pg, a, "read_note", { id })).has_page, undefined);
   await tool(pg, a, "set_note_page", { id, html: PAGE });
   const got = await tool(pg, a, "get_note_page", { id });

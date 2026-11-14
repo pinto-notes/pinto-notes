@@ -404,9 +404,9 @@ export const dataHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const { AMBER_UI } = await import("./amber-ui.ts");
       const KIT_COMPONENTS = Object.keys(AMBER_UI.src).filter((f) => f.endsWith(".jsx") && f !== "index.jsx").map((f) => f.replace(".jsx", ""));
       const file = Object.keys(AMBER_UI.src).find((f) => f.replace(/\.jsx?$/, "").toLowerCase() === String(a.kit).toLowerCase() || (AMBER_UI.src[f as keyof typeof AMBER_UI.src] as string).includes(`export function ${a.kit}(`));
-      if (!file) throw new ToolError(`No amber-ui component "${a.kit}". Files: ${KIT_COMPONENTS.join(", ")}.`);
+      if (!file) throw new ToolError(`No pinto-ui component "${a.kit}". Files: ${KIT_COMPONENTS.join(", ")}.`);
       return { kit: a.kit, file, source: AMBER_UI.src[file as keyof typeof AMBER_UI.src],
-        note: `To customise it, write it to /src/components/${file} and import it from there instead of "amber-ui". Its relative imports (./Icon.jsx and so on) become imports from "amber-ui" unless you copy those too. Its classes are styled in amber-ui.css (the amber-ui layer); your CSS wins.` };
+        note: `To customise it, write it to /src/components/${file} and import it from there instead of "pinto-ui". Its relative imports (./Icon.jsx and so on) become imports from "pinto-ui" unless you copy those too. Its classes are styled in amber-ui.css (the pinto-ui layer); your CSS wins.` };
     }
     // One-file templates (the older style), kept for apps that were made from them.
     if (typeof a.template === "string" && a.template) {
@@ -423,7 +423,7 @@ export const dataHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   },
 };
 
-/** What get_note_page adds: the shape of what the page is handed as amber.note (first rows only). */
+/** What get_note_page adds: the shape of what the page is handed as pinto.note (first rows only). */
 export function pageExtras(body: string) {
   const note = noteForPage(body, localToday());
   const SAMPLE = 3;

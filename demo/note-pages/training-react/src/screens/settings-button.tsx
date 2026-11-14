@@ -1,5 +1,5 @@
 import { Settings as Gear } from "lucide-react"
-import { route } from "amber-router"
+import { route } from "pinto-router"
 import { Button } from "@/components/ui/button"
 
 export function SettingsButton() {

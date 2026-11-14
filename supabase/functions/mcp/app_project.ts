@@ -67,7 +67,9 @@ export const isTest = (path: string) => /^\/tests?\/.*\.test\.(tsx|ts|jsx|js)$/.
 
 /** Bare names the app's import map resolves (the host owns the map; the page never writes one). */
 export const BARE_IMPORTS = [
-  "preact", "preact/hooks", "preact/jsx-runtime", "htm", "amber", "amber-ui", "amber-router",
+  "preact", "preact/hooks", "preact/jsx-runtime", "htm", "pinto", "pinto-ui", "pinto-router",
+  // The names before Pinto Notes was renamed: apps written with them keep working.
+  "amber", "amber-ui", "amber-router",
   "chart.js", "d3", "three", "tone", "dayjs", "marked", "dompurify", "animejs", "canvas-confetti", "topojson-client", "world-atlas",
   // The React stack (Pane/Resources/AppLibraries/stack.json; app_project.test.ts keeps this in step).
   ...STACK_NAMES,
@@ -123,7 +125,7 @@ export function projectProblems(p: Project): string[] {
   }
   const total = bytes(serialize(p));
   if (total > MAX_PROJECT_BYTES) out.push(`The project is ${(total / 1048576).toFixed(1)} MB with its compiled files; at most ${MAX_PROJECT_BYTES / 1048576} MB.`);
-  if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, amber, amber-ui and the bundled libraries.");
+  if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, pinto, pinto-ui and the bundled libraries.");
   return out;
 }
 
@@ -259,7 +261,7 @@ export function brokenImports(p: Project): string[] {
     if (/\.(m?js|jsx|tsx?)$/.test(path)) {
       for (const spec of importsOf(text)) {
         if (/^https?:|^\/\//.test(spec)) out.push(`${path} imports ${spec}: the app has no network. Use a bundled library or a file in the project.`);
-        else if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/")) { if (!resolveImport(p, path, spec)) out.push(`${path} imports ${spec}, but there's no such file.`); }
+        else if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/")) { if (!resolveImport(p, path, spec)) out.push(`${path} imports ${spec}, but there's no such file.${spec === "@/lib/pinto" && p.files["/src/lib/amber.ts"] !== undefined ? ' This app is older: its file is "@/lib/amber" (the same exports).' : ""}`); }
         else if (!BARE_IMPORTS.includes(spec) && !spec.startsWith("@radix-ui/") && !(isTest(path) && TEST_IMPORTS.includes(spec))) out.push(`${path} imports "${spec}", which isn't available (${BARE_IMPORTS.join(", ")}). Use one of those, pin an npm file with resolve_package, or add the code as a file.`);
       }
     }
@@ -268,7 +270,7 @@ export function brokenImports(p: Project): string[] {
         const ref = m[2];
         if (/^https:\/\//.test(ref) && m[1].toLowerCase() === "link") continue;
         if (/^(https?:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: scripts come from the project or the bundled libraries.`);
-        else if (!/^(amber-lib|data):/.test(ref) && !p.files[resolveFrom(path, ref)]) out.push(`${path} loads ${ref}, but ${resolveFrom(path, ref)} doesn't exist.`);
+        else if (!/^(pinto-lib|amber-lib|data):/.test(ref) && !p.files[resolveFrom(path, ref)]) out.push(`${path} loads ${ref}, but ${resolveFrom(path, ref)} doesn't exist.`);
       }
     }
   }
@@ -291,24 +293,24 @@ export function sourceProblems(p: Project): string[] {
   return out;
 }
 
-/** The style a project should be written in: hooks from "amber", tables by name. */
+/** The style a project should be written in: hooks from "pinto", tables by name. */
 export function styleWarnings(p: Project): string[] {
   const out: string[] = [];
   const code = Object.entries(p.files).filter(([path]) => isCode(path));
   // Tests may read the bridge to see what was saved (the starter's test does).
-  const globals = code.filter(([path]) => !isTest(path)).filter(([, t]) => /\bwindow\b[^;\n]{0,20}\.amber\b|(?<![\w.])amber\s*\.\s*(note|update|onChange|setData|store|data)\b/.test(t)).map(([path]) => path);
-  if (globals.length) out.push(`${globals.slice(0, 3).join(", ")} use window.amber directly. In a project, import what you need from "@/lib/amber" (useStore, useCollection, useSettings, batch, fetch, device…).`);
+  const globals = code.filter(([path]) => !isTest(path)).filter(([, t]) => /\bwindow\b[^;\n]{0,20}\.(amber|pinto)\b|(?<![\w.])(amber|pinto)\s*\.\s*(note|update|onChange|setData|store|data)\b/.test(t)).map(([path]) => path);
+  if (globals.length) out.push(`${globals.slice(0, 3).join(", ")} use window.pinto directly. In a project, import what you need from "@/lib/pinto" (useStore, useCollection, useSettings, batch, fetch, device…).`);
   // The app's data is JSON in its own store; the note's text is only read once, to convert an old note.
   const noteData = code.filter(([, t]) => /\buse(Table|Checklist)\s*\(|\.tables\s*\[|\bop\s*:\s*["'](append_row|set_cell|toggle_checklist|add_checklist_item|delete_row)/.test(t)).map(([path]) => path);
-  if (noteData.length) out.push(`${noteData.slice(0, 3).join(", ")} keep data in the note's tables or checklists. An app's data is JSON in its own store: useStore / useCollection / useSettings from "amber" (or localStorage, which syncs). useImported() gives what an older note held, to start from once.`);
+  if (noteData.length) out.push(`${noteData.slice(0, 3).join(", ")} keep data in the note's tables or checklists. An app's data is JSON in its own store: useStore / useCollection / useSettings from "pinto" (or localStorage, which syncs). useImported() gives what an older note held, to start from once.`);
   const radix = code.filter(([, t]) => /from\s*["']@radix-ui\/react-/.test(t)).map(([path]) => path);
   if (radix.length) out.push(`${radix.slice(0, 3).join(", ")} import @radix-ui/react-* directly. The app ships Radix as the radix-ui package (what shadcn v4 uses): import { Dialog as DialogPrimitive } from "radix-ui".`);
   if (!p.files["/README.md"]) out.push("Add /README.md: what the app is for, its screens and files, and where its data lives (the note's tables by heading, the app's own data). Keep it current; the next AI reads it first.");
   if (!/<html[^>]*\blang\s*=/i.test(p.files["/index.html"] ?? "")) out.push('Add lang="en" (or the note\'s language) to <html> in /index.html.');
   if (code.some(([, t]) => /\b(indexedDB|document\.cookie)\b/.test(t))) out.push("IndexedDB and cookies aren't available. Use the store (useStore, useCollection) or localStorage, which is kept and synced.");
-  if (code.some(([, t]) => /(?<![\w.])(alert|confirm|prompt)\s*\(/.test(t))) out.push("alert/confirm/prompt don't show. Use a Sheet or Dialog from amber-ui, or an inline message.");
+  if (code.some(([, t]) => /(?<![\w.])(alert|confirm|prompt)\s*\(/.test(t))) out.push("alert/confirm/prompt don't show. Use a Sheet or Dialog from pinto-ui, or an inline message.");
   const css = Object.entries(p.files).filter(([path]) => path.endsWith(".css")).map(([, t]) => t).join("\n");
   const important = (css.match(/!\s*important/gi) ?? []).length;
-  if (important) out.push(`!important appears ${important} time${important > 1 ? "s" : ""}: it isn't needed. amber-base.css and amber-ui sit in cascade layers, so any rule the app writes already wins.`);
+  if (important) out.push(`!important appears ${important} time${important > 1 ? "s" : ""}: it isn't needed. amber-base.css and pinto-ui sit in cascade layers, so any rule the app writes already wins.`);
   return out;
 }

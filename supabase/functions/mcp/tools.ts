@@ -243,8 +243,8 @@ export const tools: Tool[] = ([
       "The note's text is not changed, the app's own data is kept, and the last 10 versions are kept. " +
       "The app runs in a sandbox with no network: a document with external addresses or network calls is refused, and the result lists warnings to fix. At most 256 KB. " +
       "For an app of several files use create_app; for a small change to an existing app use edit_note_page. " +
-      "The document's API (window.amber), design tokens and rules: get_page_guide with one_file: true, or get_note_page, which also returns the current document.",
-    inputSchema: { type: "object", properties: { ...noteRef, html: str("The whole document: one HTML file with inline CSS and JS that reads and writes its data through window.amber (get_page_guide with one_file: true). Empty string removes the app.") }, required: ["html"] },
+      "The document's API (window.pinto), design tokens and rules: get_page_guide with one_file: true, or get_note_page, which also returns the current document.",
+    inputSchema: { type: "object", properties: { ...noteRef, html: str("The whole document: one HTML file with inline CSS and JS that reads and writes its data through window.pinto (get_page_guide with one_file: true). Empty string removes the app.") }, required: ["html"] },
     annotations: { ...write, destructiveHint: true, idempotentHint: true },
   },
   {
@@ -263,7 +263,7 @@ export const tools: Tool[] = ([
   },
   {
     name: "get_note_page", title: "Read a note's page",
-    description: "Returns the HTML document of a note's one-file app (its page), the rules a page follows, page_input (what the page is handed: amber.note with the first rows of each table, and amber.data), and the earlier pages kept (the last 10, newest first). Read it before changing a page. Pass version_id to read an earlier page; to bring it back, send its html to set_note_page. A note without a page returns has_page: false.",
+    description: "Returns the HTML document of a note's one-file app (its page), the rules a page follows, page_input (what the page is handed: pinto.note with the first rows of each table, and pinto.data), and the earlier pages kept (the last 10, newest first). Read it before changing a page. Pass version_id to read an earlier page; to bring it back, send its html to set_note_page. A note without a page returns has_page: false.",
     inputSchema: { type: "object", properties: { ...noteRef, version_id: int("An earlier page, from versions.") } },
     annotations: read,
   },

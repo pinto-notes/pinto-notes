@@ -1,5 +1,5 @@
-import { useSettings } from "amber";
-import { List, ListRow, Tabs } from "amber-ui";
+import { useSettings } from "pinto";
+import { List, ListRow, Tabs } from "pinto-ui";
 import ScreenHeader from "../components/ScreenHeader.jsx";
 import { DEFAULTS } from "../data.js";
 

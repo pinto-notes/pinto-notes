@@ -33,13 +33,18 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// workers (2026-11-14): neither reaches anything the page's own scripts can't, since the page
     /// already runs any inline script, and a worker has no bridge to the note. Frames, plugins,
     /// forms and a <base> stay off (they would take the app out of its note).
-    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' amber-app: amber-lib: blob: https:; style-src 'unsafe-inline' amber-app: amber-lib: https:; img-src data: blob: amber-app: amber-file: https:; font-src data: amber-app: https:; media-src data: blob: amber-app: amber-file: https:; "
-        + "connect-src amber-app: https: wss:; frame-src 'none'; child-src 'none'; worker-src amber-app: blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
+    /// Pinto's scheme names (pinto-app:, pinto-lib:, pinto-file:, 2026-11-14) next to the amber ones,
+    /// which older apps use.
+    static let policy = ("default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' amber-app: amber-lib: blob: https:; style-src 'unsafe-inline' amber-app: amber-lib: https:; img-src data: blob: amber-app: amber-file: https:; font-src data: amber-app: https:; media-src data: blob: amber-app: amber-file: https:; "
+        + "connect-src amber-app: https: wss:; frame-src 'none'; child-src 'none'; worker-src amber-app: blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'")
+        .replacingOccurrences(of: "amber-app:", with: "pinto-app: amber-app:")
+        .replacingOccurrences(of: "amber-lib:", with: "pinto-lib: amber-lib:")
+        .replacingOccurrences(of: "amber-file:", with: "pinto-file: amber-file:")
 
     /// Everything is blocked but the internet over TLS (https, wss) and the app's own schemes: the
     /// note's files (amber-file:, served from this device), the libraries and the app's files. The
     /// page's own document is given as a string, not loaded.
-    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^wss:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^blob:"},"action":{"type":"ignore-previous-rules"}}]"#
+    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^wss:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^blob:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^pinto-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^pinto-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^pinto-app:"},"action":{"type":"ignore-previous-rules"}}]"#
     private static var compiled: WKContentRuleList?
 
     /// One sandbox made ahead of time, its web content process already running, so opening a note
@@ -97,7 +102,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Compiles the rule list once. Pages wait for it: none loads without it.
     static func prepare() async throws -> WKContentRuleList {
         if let compiled { return compiled }
-        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v6", encodedContentRuleList: rules) else {
+        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v7", encodedContentRuleList: rules) else {
             throw NotePage.OpError("The app couldn't start.")
         }
         compiled = list
@@ -114,6 +119,9 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.setURLSchemeHandler(scheme, forURLScheme: "amber-file")
         config.setURLSchemeHandler(libraries, forURLScheme: "amber-lib")
         config.setURLSchemeHandler(app, forURLScheme: "amber-app")
+        config.setURLSchemeHandler(scheme, forURLScheme: "pinto-file")
+        config.setURLSchemeHandler(libraries, forURLScheme: "pinto-lib")
+        config.setURLSchemeHandler(app, forURLScheme: "pinto-app")
         #if os(iOS)
         config.dataDetectorTypes = []
         config.allowsInlineMediaPlayback = false
@@ -288,7 +296,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               read: (ref) => ask({ op: "file.read", id: (ref && ref.$file) || ref }),
               // An address for <img>, <audio> or <video> right away (no data: URL in the data):
               // only for files this note or its app's data refer to. width: a smaller picture.
-              url: (ref, o) => "amber-file:///" + ((ref && ref.$file) || ref) + (o && o.width ? "?w=" + Math.round(o.width) : ""),
+              url: (ref, o) => "pinto-file:///" + ((ref && ref.$file) || ref) + (o && o.width ? "?w=" + Math.round(o.width) : ""),
             },
             // The device: a link (asked about first), the share sheet, and pickers for photos and
             // files. What apps could once also use answers that it isn't available, by name, so an
@@ -412,7 +420,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             for (const r of libRequires[name] || []) await amber.lib(r);
             return new Promise((ok, no) => {
               const s = document.createElement("script");
-              s.src = "amber-lib:///" + name;
+              s.src = "pinto-lib:///" + name;
               s.onload = () => ok(g ? window[g] : true);
               s.onerror = () => no(new Error("No library " + name + ". Bundled: " + Object.keys(libGlobals).join(", ")));
               document.head.appendChild(s);
@@ -420,7 +428,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           };
           // Where the app is: full screen, or a widget in its parent note; its real size.
           Object.defineProperty(amber, "context", { get() { return { embedded: \(widget ? "true" : "false"), width: window.innerWidth, height: window.innerHeight }; } });
-          const markContext = () => { if (document.documentElement) document.documentElement.dataset.amberContext = \(widget ? "\"widget\"" : "\"full\""); };
+          const markContext = () => { if (document.documentElement) document.documentElement.dataset.amberContext = document.documentElement.dataset.pintoContext = \(widget ? "\"widget\"" : "\"full\""); };
           markContext();
           addEventListener("DOMContentLoaded", markContext);
           // Which field has focus, for the app: nothing of its own is drawn over a field you're typing in.
@@ -441,8 +449,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             insetBottom = bottom;
             insetSheet.replaceSync("@layer amber-tokens { :root { --amber-inset-bottom: " + bottom + "px; } }");
             dispatchEvent(new CustomEvent("amber:insets", { detail: { bottom } }));
+            dispatchEvent(new CustomEvent("pinto:insets", { detail: { bottom } }));
           } });
-          window.amber = amber;
+          // window.pinto is the name apps are told to use (2026-11-14); window.amber stays for older apps.
+          window.amber = window.pinto = amber;
           // Links to the person's notes and apps: <a href="pinto:Work/Acme">, pinto:Acme#Agenda,
           // pinto:Work/Habits.app. Pinto Notes opens them like a [[link]] in a note (Back comes back
           // here), and only when tapped. Every other link stays as it was (device.openURL asks).
@@ -488,8 +498,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           const sized = () => {
             if (!document.documentElement) return;
             const w = window.innerWidth, c = document.documentElement.classList;
-            c.toggle("amber-widget", \(widget ? "true" : "false"));
-            c.toggle("amber-narrow", w < 600); c.toggle("amber-medium", w >= 600 && w < 900); c.toggle("amber-wide", w >= 900);
+            for (const p of ["amber", "pinto"]) {
+              c.toggle(p + "-widget", \(widget ? "true" : "false"));
+              c.toggle(p + "-narrow", w < 600); c.toggle(p + "-medium", w >= 600 && w < 900); c.toggle(p + "-wide", w >= 900);
+            }
           };
           sized();
           addEventListener("resize", sized);
@@ -1001,7 +1013,9 @@ enum NotePageTheme {
     /// amber-base.css as shipped (Pane/Resources/AppLibraries; page.ts has the same text for the AI).
     static let base: String = Bundle.main.url(forResource: "amber-base", withExtension: "css").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
 
-    /// amber-tokens.css: the --amber-* variables for this device, light and dark.
+    /// amber-tokens.css: the --amber-* variables for this device, light and dark, and each again as
+    /// --pinto-* (the name apps are told to use, 2026-11-14), following its amber one so an older
+    /// app that sets an --amber-* variable still changes both.
     static let tokens: String = {
         func hex(_ c: PColor, dark: Bool) -> String {
             var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -1034,7 +1048,7 @@ enum NotePageTheme {
                 "--amber-danger: \(d ? "#FF6B5E" : "#C62828")",
             ].joined(separator: "; ")
         }
-        return """
+        let css = """
         /* amber-tokens.css (Amber Notes): the variables every app can use, for this device, light and dark. */
         @layer amber-tokens {
           :root { \(vars(dark: false)); --amber-radius: \(radius.0)px; --amber-radius-small: \(radius.1)px;
@@ -1048,6 +1062,8 @@ enum NotePageTheme {
         }
 
         """
+        let names = Set(css.matches(of: /--amber-([a-z-]+):/).map { String($0.1) }).sorted()
+        return css + "@layer amber-tokens { :root { " + names.map { "--pinto-\($0): var(--amber-\($0));" }.joined(separator: " ") + " } }\n"
     }()
 }
 

@@ -1,7 +1,7 @@
 // The app-project format, path rules, edits, compile and import checks.
 //   cd supabase/functions/mcp && deno test -A app_project.test.ts
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
-import { binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
+import { BARE_IMPORTS, binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
 
 Deno.test("a one-file app stays plain HTML; a project round-trips as JSON", () => {
   const html = "<!doctype html><p>hi</p>";
@@ -139,4 +139,78 @@ Deno.test("an app reaches the internet like a web page: no address, fetch or Web
   assertEquals(brokenImports(p), []);
   // Frames and plugins would take the app out of its note: still refused.
   assertStringIncludes(sourceProblems({ ...p, files: { ...p.files, "/index.html": `<iframe src="https://example.com"></iframe>` } }).join(), "<iframe> isn't allowed");
+});
+
+/// Pinto Notes was Amber Notes (2026-11-14). Everything the AI is told uses the new names; apps
+/// written with the old ones (window.amber, "amber", "amber-ui", amber-app:, --amber-*) keep working.
+const OLD_NAMES = new RegExp([
+  String.raw`window\.amber\b`,
+  String.raw`(?<![\w-])amber\s*\.\s*(note|data|store|onChange|update|batch|device|files|lib|context|open|insets|setData|setSummary|ai|fetch|ready|share|onError)\b`,
+  String.raw`(from\s*|import\s*\(\s*)["']amber["']`,
+  String.raw`["']amber-(ui|router)["']`,
+  String.raw`\bamber-(app|lib|file):`,
+  String.raw`--amber-`,
+  String.raw`\bamber-(widget|narrow|medium|wide)\b`,
+  String.raw`data-amber-context`,
+  String.raw`amber:insets`,
+  String.raw`@/lib/amber\b`,
+].join("|"));
+
+Deno.test("what the AI is told uses only the pinto names (2026-11-14)", async () => {
+  await import("./tools.ts");
+  const { instructions, servedPrompts, servedResources } = await import("./server.ts");
+  const { servedTools } = await import("./tool_set.ts");
+  const { PAGE_CONTRACT } = await import("./page.ts");
+  const { PAGE_API, PAGE_INSTRUCTIONS, FILE_APP_INSTRUCTIONS, pageGuide, appsGuide } = await import("./page_guide.ts");
+  const { appGuide, scaffold } = await import("./app_scaffold.ts");
+  const { STACK_FILES } = await import("./app_stack.gen.ts");
+  const { APP_EXAMPLES } = await import("./app_examples.gen.ts");
+  const { PAGE_TEMPLATES } = await import("./page_templates.gen.ts");
+  const texts: [string, string][] = [
+    ["PAGE_CONTRACT", PAGE_CONTRACT], ["PAGE_API", PAGE_API], ["PAGE_INSTRUCTIONS", PAGE_INSTRUCTIONS], ["FILE_APP_INSTRUCTIONS", FILE_APP_INSTRUCTIONS],
+    ["pageGuide", await pageGuide()], ["appsGuide", appsGuide()], ["appGuide", appGuide()],
+    ...Object.entries(await scaffold("Water")).map(([p, t]): [string, string] => [`scaffold ${p}`, t]),
+    ...Object.entries(STACK_FILES).map(([p, t]): [string, string] => [`stack ${p}`, t]),
+    ...Object.entries(APP_EXAMPLES).flatMap(([n, ex]) => Object.entries(ex.files).map(([p, t]): [string, string] => [`example ${n}${p}`, t])),
+    ...PAGE_TEMPLATES.map((t): [string, string] => [`template ${t.name}`, t.description + t.expects + t.html]),
+  ];
+  for (const set of [undefined, "files", "classic", "pages"]) {
+    texts.push([`instructions ${set}`, instructions(set)]);
+    for (const p of servedPrompts(set)) texts.push([`prompt ${p.name}`, p.text({ note: "N", idea: "I", data: "D", change: "C" })]);
+    for (const t of servedTools(set)) texts.push([`tool ${t.name}`, t.description + JSON.stringify(t.inputSchema ?? {})]);
+    for (const r of await servedResources(set)) texts.push([`resource ${r.uri}`, r.description + r.text]);
+  }
+  // The template apps' READMEs (their code keeps the old names, so they still run on 1.3).
+  const web = new URL("../../../web/", import.meta.url);
+  for (const e of Deno.readDirSync(new URL("content/templates/", web))) {
+    if (!e.isDirectory || !e.name.endsWith(".app")) continue;
+    const slug = e.name.replace(/\.app$/, "");
+    const readme = Deno.readTextFileSync(new URL(`content/templates/${e.name}/README.md`, web));
+    // Their own file is still src/lib/amber.ts, so the README names it.
+    texts.push([`${slug} README.md`, readme.replaceAll(`"@/lib/amber"`, "")]);
+    const served = JSON.parse(Deno.readTextFileSync(new URL(`public/templates/apps/${slug}.project.json`, web)));
+    assertEquals(served.files["/README.md"], readme, `${slug}: the site serves the README as it is`);
+  }
+  const found = texts.map(([name, t]) => [name, t.match(OLD_NAMES)?.[0]]).filter(([, m]) => m);
+  assertEquals(found, []);
+  assert(texts.length > 50, `only ${texts.length} texts`);
+});
+
+Deno.test("a project importing pinto, pinto-ui and pinto-router links, and the amber names still do (2026-11-14)", () => {
+  const app = (core: string, ui: string, router: string) => ({
+    amberApp: 1 as const, compiled: {},
+    files: {
+      "/index.html": `<!doctype html><html lang="en"><div id="app"></div><script type="module" src="/src/main.jsx"></script></html>`,
+      "/src/main.jsx": `import { render } from "preact";\nimport { useStore } from "${core}";\nimport { Button } from "${ui}";\nimport { Router, route } from "${router}";\nrender(<Router><Button onClick={() => route("/")}>Hi</Button></Router>, document.getElementById("app"));\n`,
+    },
+  });
+  for (const names of [["pinto", "pinto-ui", "pinto-router"], ["amber", "amber-ui", "amber-router"]] as [string, string, string][]) {
+    const p = app(...names);
+    assertEquals(brokenImports(p), [], names.join());
+    assertEquals(sourceProblems(p), [], names.join());
+  }
+  for (const name of ["pinto", "pinto-ui", "pinto-router", "amber", "amber-ui", "amber-router"]) assert(BARE_IMPORTS.includes(name), name);
+  // An app made before the rename has src/lib/amber.ts: importing "@/lib/pinto" there says which file it has.
+  const older = { amberApp: 1 as const, compiled: {}, files: { "/src/lib/amber.ts": `export * from "amber";`, "/src/App.tsx": `import { useStore } from "@/lib/pinto";\nexport default () => null;\n` } };
+  assertStringIncludes(brokenImports(older).join(), `its file is "@/lib/amber"`);
 });

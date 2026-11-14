@@ -2,7 +2,7 @@
 //   plan: [{ day: "Mon", workout: "Upper", exercises: ["Bench press", ...] }]
 //   log (a collection): { id, date, exercise, sets, reps, weight }
 // The first time, it starts from the tables the note held before it became an app.
-import { useStore, useCollection, useImported, batch } from "@/lib/amber"
+import { useStore, useCollection, useImported, batch } from "@/lib/pinto"
 
 export type Day = { day: string; workout: string; exercises: string[] }
 export type Set = { id: string; date: string; exercise: string; sets: number; reps: number; weight: number }

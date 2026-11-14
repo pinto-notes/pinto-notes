@@ -7,7 +7,7 @@
 import { useState, useLayoutEffect, useMemo } from "preact/hooks";
 
 const bridge = window.amber;
-export { bridge as amber };
+export { bridge as amber, bridge as pinto };
 export const device = bridge.device, ai = bridge.ai, files = bridge.files;
 /** Export a file: share({ name: "lift.csv", type: "text/csv", text }) - the share sheet, or a Save panel on the Mac. */
 export const share = (file) => bridge.device.share(file);

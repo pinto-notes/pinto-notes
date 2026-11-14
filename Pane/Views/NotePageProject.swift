@@ -11,8 +11,8 @@ import WebKit
 ///
 /// binary holds the files that aren't text (a .wasm, a game's data, a picture), each as base64 of its
 /// bytes compressed with raw DEFLATE; they're served as they are, with their type (2026-11-14).
-/// Anything else is a one-file app: its HTML is /index.html. Served at amber-app:///<path>, with
-/// the document at amber-app:///index.html so relative modules and links work.
+/// Anything else is a one-file app: its HTML is /index.html. Served at pinto-app:///<path> (and at
+/// amber-app:, the name older apps use), with the document at pinto-app:///index.html so relative modules and links work.
 struct NotePageProject: Equatable {
     var files: [String: String]
     var compiled: [String: String] = [:]
@@ -25,7 +25,7 @@ struct NotePageProject: Equatable {
     static let maxBytes = 16 * 1024 * 1024
     /// A binary file unpacked: past this it isn't served, so a small file can't unpack into a huge one.
     static let maxBinaryBytes = 64 * 1024 * 1024
-    static let base = URL(string: "amber-app:///index.html")!
+    static let base = URL(string: "pinto-app:///index.html")!
 
     var index: String { files["/index.html"] ?? "" }
 
@@ -226,10 +226,14 @@ struct NotePageProject: Equatable {
             "preact/jsx-runtime": "amber-lib:///esm/preact-jsx-runtime.js",
             "htm": "amber-lib:///esm/htm.js",
             // Like a Vite project: "@/components/ui/button" is /src/components/ui/button.tsx.
-            "@/": "amber-app:///src/",
-            "amber-router": "amber-lib:///esm/amber-router.js",
-            "amber": "amber-lib:///esm/amber.js",
-            "amber-ui": "amber-lib:///amber-ui/index.js",
+            "@/": "pinto-app:///src/",
+            // The names apps are told to use (2026-11-14), and the amber names older apps import.
+            "pinto-router": "pinto-lib:///esm/amber-router.js",
+            "pinto": "pinto-lib:///esm/amber.js",
+            "pinto-ui": "pinto-lib:///amber-ui/index.js",
+            "amber-router": "pinto-lib:///esm/amber-router.js",
+            "amber": "pinto-lib:///esm/amber.js",
+            "amber-ui": "pinto-lib:///amber-ui/index.js",
         ]
         // The other bundled libraries by their npm names, each its global as the default export.
         for lib in NotePageLibraries.bundled where !["preact", "preact-hooks", "htm", "router"].contains(lib.name) {
@@ -243,7 +247,7 @@ struct NotePageProject: Equatable {
     }()
 }
 
-/// amber-app:///<path>: the app's own files, and nothing else.
+/// pinto-app:///<path> (and amber-app:): the app's own files, and nothing else.
 final class AppScheme: NSObject, WKURLSchemeHandler {
     nonisolated(unsafe) var project = NotePageProject(files: [:])
 

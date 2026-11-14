@@ -1034,7 +1034,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const { draft } = await projectOf(tx, c, r.note.id);
       return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${"binary" in f ? `binary, ${f.bytes} bytes stored` : `${f.lines} lines`})`), `${r.base}/data.json`].join("\n"), url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/`, readme: p.files["/README.md"] ?? null, ...(await loadFailure(tx, r.note.id)),
-          ...(Object.keys(p.files).length === 1 ? { one_file: `An older app: one HTML document, ${r.base}/index.html, with its CSS and script inline and its data (data.json) through window.amber. Change it with edit and write like any file.` } : {}),
+          ...(Object.keys(p.files).length === 1 ? { one_file: `An older app: one HTML document, ${r.base}/index.html, with its CSS and script inline and its data (data.json) through window.pinto. Change it with edit and write like any file.` } : {}),
           ...(draft !== null && draft !== undefined ? { held_back: `These files are a version that failed its checks, so the person still has the last one that passed. What failed:\n${draft}` } : {}) } };
     }
     const file = appPath(r.file);
