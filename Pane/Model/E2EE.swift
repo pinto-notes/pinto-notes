@@ -51,6 +51,17 @@ enum E2EE {
     static func fileMeta(_ id: UUID) -> String { "file-meta:" + id.uuidString.lowercased() }
     static func file(_ id: UUID) -> String { "file:" + id.uuidString.lowercased() }
     static func wrap(_ purpose: String, user: UUID) -> String { "wrap:\(purpose):" + user.uuidString.lowercased() }
+    /// A note app's binary file, by its name (note_app_blobs).
+    static func appBlob(_ hash: String) -> String { "app-blob:" + hash.lowercased() }
+
+    // MARK: A note app's binary files
+
+    /// A binary file's name: hex(HMAC-SHA256(HKDF(DK, info "app-blob"), its bytes)). The same file
+    /// has the same name in this account, and a name nobody without the key can work out from it.
+    static func blobName(_ data: Data, key: SymmetricKey) -> String {
+        let mac = HKDF<SHA256>.deriveKey(inputKeyMaterial: key, salt: hkdfSalt, info: Data("app-blob".utf8), outputByteCount: 32)
+        return hex(HMAC<SHA256>.authenticationCode(for: data, using: mac))
+    }
 
     // MARK: Files
 
@@ -388,6 +399,17 @@ final class Sealer: @unchecked Sendable {
 
     func shareTagMatches(note: UUID, slug: String, includeSubNotes: Bool, tag: String?) -> Bool {
         E2EE.shareTagMatches(key, note: note, slug: slug, includeSubNotes: includeSubNotes, tag: tag)
+    }
+
+    /// A note app's binary file: its name, and its packed bytes sealed for that name (note_app_blobs).
+    func blobName(_ data: Data) -> String { E2EE.blobName(data, key: key) }
+    func sealBlob(_ packed: Data, hash: String) -> String? {
+        guard !isRetired else { return nil }
+        return try? NoteCrypto.seal(packed, key: key, keyID: keyID, context: E2EE.appBlob(hash))
+    }
+    func openBlob(_ box: String, hash: String) -> Data? {
+        guard !isRetired else { return nil }
+        return try? NoteCrypto.openData(box, key: key, context: E2EE.appBlob(hash))
     }
 
     func sealFile(_ data: Data, id: UUID) throws -> Data {

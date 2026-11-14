@@ -1359,17 +1359,59 @@ final class SyncEngine {
 
     /// Pushes the apps changed here (Remove App, Previous App, a fallback), so the other devices
     /// follow. The server keeps the one replaced among the last 10.
+    /// An app's binary files go first, each once (the server has every file an app names, or
+    /// refuses the app), then the app with their names (page_blobs).
     private func pushPages(_ client: SupabaseClient, sealer: Sealer) async {
-        struct Upsert: Encodable { var note_id: UUID; var page_ct: String? }
+        struct Upsert: Encodable { var note_id: UUID; var page_ct: String?; var page_blobs: [String] }
         let store = NotePageStore.shared
         for (id, at) in store.unpushed {
-            let box = store[id].flatMap { sealer.seal($0.html, context: E2EE.page(id)) }
-            if store[id] != nil, box == nil { continue }
+            let html = store[id]?.html
+            let box = html.flatMap { sealer.seal($0, context: E2EE.page(id)) }
+            if html != nil, box == nil { continue }
+            let names = html.map { NotePageProject.blobNames(in: $0).sorted() } ?? []
             do {
-                try await client.from("note_pages").upsert(Upsert(note_id: id, page_ct: box), onConflict: "note_id").execute()
+                guard try await Self.pushBlobs(names, client, sealer: sealer, from: store.blobs) else { continue }
+                try await client.from("note_pages").upsert(Upsert(note_id: id, page_ct: box, page_blobs: names), onConflict: "note_id").execute()
                 store.pushed(id, at: at)
             } catch {
                 log.error("page push failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Sends the files of `names` the server doesn't have. False when one isn't on this device either.
+    nonisolated static func pushBlobs(_ names: [String], _ client: SupabaseClient, sealer: Sealer, from store: AppBlobs) async throws -> Bool {
+        struct Have: Decodable { var hash: String }
+        struct Blob: Encodable { var hash: String; var blob_ct: String }
+        guard !names.isEmpty else { return true }
+        let have: [Have] = try await client.from("note_app_blobs").select("hash").in("hash", values: names).execute().value
+        let there = Set(have.map(\.hash))
+        for hash in names where !there.contains(hash) {
+            guard let packed = store.packed(hash), let sealed = sealer.sealBlob(packed, hash: hash) else { return false }
+            try await client.from("note_app_blobs").upsert(Blob(hash: hash, blob_ct: sealed), onConflict: "user_id,hash", ignoreDuplicates: true).execute()
+        }
+        return true
+    }
+
+    /// The binary files the apps that came down name and this device doesn't have, one at a time;
+    /// each app takes its place once its files are here.
+    private func pullBlobs(_ client: SupabaseClient, sealer: Sealer) async {
+        struct Row: Decodable { var hash: String; var blob_ct: String }
+        let store = NotePageStore.shared
+        let want = store.wantedBlobs
+        guard !want.isEmpty else { return }
+        var unavailable = Set<String>()
+        defer { store.blobsArrived(unavailable: unavailable) }
+        for hash in want.sorted() {
+            guard AppBlobs.validName(hash) else { unavailable.insert(hash); continue }
+            do {
+                let rows: [Row] = try await client.from("note_app_blobs").select("hash,blob_ct").eq("hash", value: hash).execute().value
+                guard let row = rows.first, let packed = sealer.openBlob(row.blob_ct, hash: hash) else { unavailable.insert(hash); continue }
+                store.blobs.put(hash, packed: packed)
+            } catch {
+                // Tried again on the next sync.
+                log.error("app file pull failed: \(String(describing: error), privacy: .public)")
+                return
             }
         }
     }
@@ -1567,6 +1609,7 @@ final class SyncEngine {
         } catch where !outlived(sealer, gen) {
             log.error("note pages pull failed: \(String(describing: error), privacy: .public)")
         }
+        await pullBlobs(client, sealer: sealer)
         try ensure(sealer, gen)
         cursor = newest
         await refreshShares(client)

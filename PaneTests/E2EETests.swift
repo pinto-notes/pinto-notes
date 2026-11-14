@@ -36,6 +36,8 @@ import Testing
         }
         var handoff: Handoff
         var share_tag: ShareTag
+        struct AppBlob: Decodable { var plain: String; var hash: String; var context: String; var sealed: String }
+        var app_blob: AppBlob
     }
 
     /// supabase/functions/_shared/e2ee-vectors.json, the one file the server tests too, copied into
@@ -243,6 +245,20 @@ import Testing
         let request = try #require(UUID(uuidString: h.request_id))
         let page = try P256.KeyAgreement.PrivateKey(rawRepresentation: Data(base64Encoded: h.browser_private)!)
         #expect(try E2EE.openHandoff(h.sealed, browserPrivate: page, requestID: request) == E2EE.handoffPayload(code: code, redirect: redirect))
+    }
+
+    /// A note app's binary file: named and sealed as the MCP server does, so a file either side
+    /// stored is the same file to the other.
+    @Test func appBlobsMatch() throws {
+        let b = v.app_blob
+        let plain = try #require(Data(base64Encoded: b.plain))
+        let sealer = Sealer(key: key, user: user)
+        #expect(sealer.blobName(plain) == b.hash)
+        #expect(E2EE.appBlob(b.hash) == b.context)
+        #expect(try NoteCrypto.seal(plain, key: key, keyID: v.key_id, context: b.context, nonce: nonce) == b.sealed)
+        #expect(sealer.openBlob(b.sealed, hash: b.hash) == plain)
+        #expect(sealer.openBlob(b.sealed, hash: String(repeating: "0", count: 64)) == nil, "sealed for its name only")
+        #expect(Sealer(key: SymmetricKey(size: .bits256), user: user).blobName(plain) != b.hash, "another account names it otherwise")
     }
 
     @Test func shareTagsMatch() throws {
