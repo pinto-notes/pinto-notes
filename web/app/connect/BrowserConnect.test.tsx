@@ -162,8 +162,8 @@ describe("connecting on the page alone", () => {
     type(container.querySelector<HTMLInputElement>("#connect-email")!, "me@example.com");
     submit(container.querySelector("form")!);
     await until(() => heading() === "Check your email");
-    // Never makes an account: those start in the app.
-    expect(server.calls.find((c) => c.url.endsWith("/auth/v1/otp"))!.body).toEqual({ email: "me@example.com", create_user: false });
+    // An address with no account gets one: the same code signs up (BrowserConnect.signup.test.tsx).
+    expect(server.calls.find((c) => c.url.endsWith("/auth/v1/otp"))!.body).toEqual({ email: "me@example.com", create_user: true });
 
     type(container.querySelector<HTMLInputElement>("#connect-code")!, "000000");
     submit(container.querySelector("form")!);
@@ -228,10 +228,11 @@ describe("connecting on the page alone", () => {
     await until(() => container.textContent === "the page as it was");
   });
 
-  // An account Sign in with Google or Apple made on this page has no key: it never opened the app.
-  // It gets what an email with no account gets, and is signed out; never "Allow this in Pinto Notes",
-  // which leads on to the recovery key it doesn't have.
-  it("an account with no key yet hears there's no Pinto Notes account, with Get Pinto Notes, and is signed out", async () => {
+  // An account with no key, on a server that keeps no key copies (the key function answers "off"),
+  // can't get one made here: it gets what an email with no account gets, and is signed out; never
+  // "Allow this in Pinto Notes", which leads on to the recovery key it doesn't have. With copies on,
+  // the page makes the key instead (BrowserConnect.signup.test.tsx).
+  it("an account with no key, where no key can be made here, hears there's no Pinto Notes account, with Get Pinto Notes, and is signed out", async () => {
     for (const where of ["request", "allow"] as const) {
       act(() => root.unmount());
       root = createRoot(container);

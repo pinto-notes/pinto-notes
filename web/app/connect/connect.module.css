@@ -480,6 +480,20 @@
 .flow .factGlyph { width: 16px; height: 16px; margin-top: 2px; }
 .flow .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
 
+/* Under a new account's consent: where the notes live and one link to the app. A small card,
+   quieter than the step above it: the soft fill, no line around it, small type. */
+.appCard {
+  margin-top: 12px; padding: 14px 16px; border-radius: 14px; background: var(--soft);
+  display: grid; gap: 6px; justify-items: start; text-align: left;
+}
+.appCard p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; text-wrap: pretty; overflow-wrap: anywhere; }
+.appCardLink {
+  display: inline-flex; align-items: center; min-height: 32px; font-size: 14px; font-weight: 600; color: var(--link);
+  text-decoration: none; border-radius: 4px;
+}
+@media (hover: hover) { .appCardLink:hover { text-decoration: underline; text-underline-offset: 3px; } }
+.appCardLink:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
 .flowFoot { margin: 0; padding: 20px 16px 28px; text-align: center; color: var(--muted); font-size: 13px; }
 .flowFoot a { color: var(--muted); text-decoration: none; }
 @media (hover: hover) { .flowFoot a:hover { color: var(--ink); } }

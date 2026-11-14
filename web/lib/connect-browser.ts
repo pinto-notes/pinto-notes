@@ -1,9 +1,10 @@
 // Connecting an AI on the web page alone (BrowserConnect.tsx), for accounts whose key the server
 // keeps a copy of: sign in, see who is asking and what is shared, Allow. No app and no number.
 //
-// 1. Sign in: an email code (Supabase's /auth/v1/otp, then /auth/v1/verify), Google or Apple
-//    (the same round trip as before, lib/connect.ts). No password and no new accounts here: an
-//    account starts in the app, which makes its notes' key.
+// 1. Sign in or sign up: an email code (Supabase's /auth/v1/otp, then /auth/v1/verify), Google or
+//    Apple (the same round trip as before, lib/connect.ts). No password. A new account gets its
+//    notes' key made on the page, as the app makes it at a first sign-in (lib/account-key.ts),
+//    with no step of its own (Emil, 14 November 2026).
 // 2. /connect/request with the session: who is asking, the exact return address, and whether this
 //    page may answer (allow_here). "reauth": the sign-in is too old for the server to open the key
 //    copy (an hour, as for a new device), so the page asks for a fresh one. Anything else that
@@ -103,6 +104,7 @@ export function hereFrom(body: { allow_here?: unknown; allow_here_why?: unknown 
     case "paused": return "paused";
     // No key: Sign in with Apple or Google made this account on the web, and it never opened the
     // app. It isn't a Pinto Notes account yet, and the app's way has nothing to approve with.
+    // Since 14 November 2026 the page makes the key (lib/account-key.ts) and asks again.
     case "no_key": return "none";
     // strict, no_copy, off, or a server from before this that doesn't say.
     default: return "app";
@@ -124,12 +126,13 @@ export const SIGN_IN_AGAIN = "To keep your notes safe, connecting needs a sign-i
 
 export const CODE_LENGTH = 6;
 
-/// Asks Supabase to email a sign-in code. Never makes an account: accounts start in the app.
+/// Asks Supabase to email a sign-in code. An address with no account gets one made, so a new
+/// person signs up here with the same code (Emil, 14 November 2026).
 export function codeRequest(supabaseURL: string, anonKey: string, email: string): [string, RequestInit] {
   return [`${supabaseURL.replace(/\/+$/, "")}/auth/v1/otp`, {
     method: "POST",
     headers: { apikey: anonKey, "content-type": "application/json" },
-    body: JSON.stringify({ email: email.trim(), create_user: false }),
+    body: JSON.stringify({ email: email.trim(), create_user: true }),
   }];
 }
 
@@ -149,7 +152,8 @@ type AuthError = { error_code?: string; code?: string | number; msg?: string; me
 
 const said = (body: AuthError) => `${body?.error_code ?? ""} ${body?.msg ?? body?.message ?? body?.error_description ?? ""}`.toLowerCase();
 
-/// Why no code was sent, in plain words. No account: the page says where accounts start.
+/// Why no code was sent, in plain words. No account (sign-ups switched off on the server): the
+/// page says where accounts start.
 export function codeRequestError(status: number, body: AuthError): { text: string; noAccount?: boolean } {
   const s = said(body);
   if (status === 429 || s.includes("rate limit") || s.includes("over_email_send")) return { text: "We just sent a code. Wait a minute, then try again." };

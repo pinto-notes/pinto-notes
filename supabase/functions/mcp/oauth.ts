@@ -1073,7 +1073,7 @@ const bearer = (req: Request) => (req.headers.get("authorization") ?? "").replac
 
 /// Why the page can't answer for this account, or null when it can:
 ///   off      this server doesn't answer on the page (browserAllowOn)
-///   no_key   the account has no key yet: a device makes it, at its first sign-in
+///   no_key   the account has no key yet: a device makes it at its first sign-in, or the page does (the key function's create)
 ///   strict   Advanced protection: the key is on the person's devices only
 ///   no_copy  no copy of the current key (an account that never chose, or a copy of an old key)
 ///   reauth   the session's sign-in is older than KEY_COPY_SIGNIN_HOURS (1 hour by default)

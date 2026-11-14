@@ -149,6 +149,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     }
     const platform = typeof body.platform === "string" && PLATFORMS.has(body.platform) ? body.platform : null;
     if (body.op === "store") return await store(deps, s, uid, body, platform, now);
+    if (body.op === "create") return await create(deps, s, uid, body, platform, now);
     if (body.op === "fetch") return await fetchKey(deps, s, uid, body, platform, now, (deps.signedInAt ?? signedInAtOf)(token));
     await refused(deps.sql, uid, platform, "bad_request");
     return refuse(400, "bad_request", "Not a request.");
@@ -225,6 +226,85 @@ async function store(deps: Deps, s: Secrets, uid: string, body: Record<string, u
     if (stored === "used") { await refused(sql, uid, platform, "ticket_used"); return refuse(409, "ticket_used", "Ask again."); }
     await event(sql, uid, "stored", platform);
     return json({ stored: true });
+  } finally {
+    wipe(k);
+  }
+}
+
+const KEY_ID = /^[0-9a-f]{16}$/, VERIFIER = /^[0-9a-f]{64}$/;
+
+/// An account with no key yet, made on the web connect page (web/lib/account-key.ts): the page
+/// makes the key in the browser exactly as the app does at its first sign-in (StoredKey.generate
+/// and serverRow in Pane/Model/E2EE.swift), and sends the account's row (key id, verifier,
+/// recovery wrap) with the key sealed to a ticket, as a store does. Here the row, the copy and
+/// standard mode go in together, in one transaction, or not at all: the page doesn't keep the key,
+/// so a key row without a copy would be a key nobody holds. The app's own first sign-in stays as it
+/// was (create_account_key, then a store), since the device holds the key and stores it again later.
+///
+/// Refused: an account that has a key already (`key_exists`, whoever made it: the page then reads
+/// the request again), an account that chose Advanced protection before a Start fresh (`strict`:
+/// never turned into a copy here), and a row that isn't what the sealed key makes (`wrong_key`).
+/// Counted with stores (LIMITS.storePerHour), and a ticket works once, as for a store.
+async function create(deps: Deps, s: Secrets, uid: string, body: Record<string, unknown>, platform: string | null, now: number): Promise<Response> {
+  const { sql } = deps;
+  const ticket = typeof body.ticket === "string" ? body.ticket : "", box = typeof body.box === "string" ? body.box : "";
+  const row: KeyRow = {
+    key_id: typeof body.key_id === "string" ? body.key_id : "",
+    verifier: typeof body.verifier === "string" ? body.verifier : "",
+    recovery_wrap: typeof body.recovery_wrap === "string" ? body.recovery_wrap : "",
+  };
+  if (!KEY_ID.test(row.key_id) || !VERIFIER.test(row.verifier) || row.recovery_wrap.length > 300 || !row.recovery_wrap.startsWith(`amb2.${row.key_id}.`)) {
+    await refused(sql, uid, platform, "bad_request");
+    return refuse(400, "bad_request", "Not a request.");
+  }
+  const [has] = await sql`select 1 from public.account_keys where user_id = ${uid}`;
+  if (has) { await refused(sql, uid, platform, "key_exists"); return refuse(409, "key_exists", "This account has a key already."); }
+  const [mode] = await sql<{ mode: string }[]>`select mode from public.account_key_protection where user_id = ${uid}`;
+  if (mode?.mode === "strict") { await refused(sql, uid, platform, "strict"); return refuse(409, "strict", "This account keeps its key on its devices only."); }
+  const [{ n }] = await sql<{ n: number }[]>`
+    select count(*)::int n from public.key_copy_events where user_id = ${uid} and (what = 'stored' or (what = 'refused' and why = 'wrong_key')) and at > now() - interval '1 hour'`;
+  if (n >= LIMITS.storePerHour) { await refused(sql, uid, platform, "rate"); return refuse(429, "rate", "Too many tries. Try again in an hour."); }
+  let k: KeyMaterial;
+  try {
+    k = await openTransport(box, await openTicket(ticket, s, uid, now), "up", uid, row.key_id);
+  } catch (e) {
+    if (!(e instanceof OpenError)) throw e;
+    await refused(sql, uid, platform, "wrong_key");
+    return refuse(400, "wrong_key", "That isn't this account's key.");
+  }
+  try {
+    // The row must be what the key makes: its verifier, and a recovery wrap its recovery key opens.
+    if (!(await isAccountsKey(k, row, uid))) {
+      await refused(sql, uid, platform, "wrong_key");
+      return refuse(400, "wrong_key", "That isn't this account's key.");
+    }
+    const at = await sealAtRest(k, s, uid);
+    const ticketHash = await sha256Hex(ticket);
+    const made = await sql.begin(async (tx) => {
+      // One at a time per account, under the lock the key's fetches take.
+      await tx`select pg_advisory_xact_lock(hashtextextended(${"key-copy " + uid}, 0))`;
+      const [p] = await tx<{ mode: string }[]>`select mode from public.account_key_protection where user_id = ${uid} for update`;
+      if (p?.mode === "strict") return "strict";
+      await tx`delete from public.key_copy_tickets where at < now() - interval '15 minutes'`;
+      const used = await tx`insert into public.key_copy_tickets (hash, user_id) values (${ticketHash}, ${uid}) on conflict do nothing returning 1`;
+      if (used.length === 0) return "used";
+      const inserted = await tx`insert into public.account_keys (user_id, key_id, verifier, recovery_wrap)
+        values (${uid}, ${row.key_id}, ${row.verifier}, ${row.recovery_wrap}) on conflict (user_id) do nothing returning 1`;
+      if (inserted.length === 0) return "exists";
+      await tx`insert into public.account_key_copies as c (user_id, key_id, sealed, secret_version)
+        values (${uid}, ${at.keyId}, ${at.sealed}, ${at.version})
+        on conflict (user_id) do update set key_id = excluded.key_id, sealed = excluded.sealed,
+          secret_version = excluded.secret_version, stored_at = now()`;
+      await tx`insert into public.account_key_protection as p (user_id, mode) values (${uid}, 'standard')
+        on conflict (user_id) do update set mode = 'standard', chosen_at = now() where p.mode <> 'standard'`;
+      return "made";
+    });
+    if (made === "strict") { await refused(sql, uid, platform, "strict"); return refuse(409, "strict", "This account keeps its key on its devices only."); }
+    if (made === "used") { await refused(sql, uid, platform, "ticket_used"); return refuse(409, "ticket_used", "Ask again."); }
+    if (made === "exists") { await refused(sql, uid, platform, "key_exists"); return refuse(409, "key_exists", "This account has a key already."); }
+    await event(sql, uid, "stored", platform);
+    log("key_copy", { status: "created" });
+    return json({ created: true });
   } finally {
     wipe(k);
   }

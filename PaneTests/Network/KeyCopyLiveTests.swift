@@ -144,3 +144,51 @@ import Testing
         for x in [a, b, c] { x.signedOut() }
     }
 }
+
+/// An account that signed up on the web connect page and connected an AI before it ever opened the
+/// app (Emil, 14 November 2026): the page made its key, and the AI wrote a note with it. Its first
+/// sign-in in the app, with the app's own code against the real `key` function and auth server,
+/// gets the key by signing in, makes none of its own, and opens the AI's note. On a local stack
+/// only; skipped unless scripts/connect-signup-e2e.sh names the server, the account and the words.
+@MainActor @Suite(.serialized) struct ConnectSignupLiveTests {
+    struct Env {
+        let url: URL, key: String, email: String, password: String, words: String
+        static var current: Env? {
+            let e = ProcessInfo.processInfo.environment
+            guard let api = e["PANE_SIGNUP_API"], let url = URL(string: api), url.host == "127.0.0.1",
+                  let key = e["PANE_SIGNUP_ANON"], let email = e["PANE_SIGNUP_EMAIL"], let password = e["PANE_SIGNUP_PASSWORD"],
+                  let words = e["PANE_SIGNUP_WORDS"] else { return nil }
+            return Env(url: url, key: key, email: email, password: password, words: words)
+        }
+    }
+
+    struct KeyRow: Decodable { var key_id: String }
+    struct NoteRow: Decodable { var id: UUID; var body_ct: String? }
+
+    @Test func theFirstSignInInTheAppOpensWhatTheAIWrote() async throws {
+        guard let env = Env.current else { return }
+        let client = SupabaseClient(supabaseURL: env.url, supabaseKey: env.key, options: SupabaseClientOptions(
+            auth: .init(storage: AddDeviceLiveTests.MemoryStorage()),
+            global: .init(headers: ["x-pane-device": Backend.device, "x-amber-client": Backend.clientTag])))
+        let user = try await client.auth.signIn(email: env.email, password: env.password).user.id
+        let made: [KeyRow] = try await client.from("account_keys").select("key_id").execute().value
+        let webKey = try #require(made.first?.key_id, "the web page made the account's key")
+
+        // A phone with nothing in its Keychain and no iCloud Keychain item for this account.
+        let keychain = KeyStartupTests.FakeKeychain(cloud: KeyStartupTests.Cloud(), autoReceive: false)
+        let phone = AccountCrypto(store: keychain, defaults: UserDefaults(suiteName: "signup-live-\(UUID())")!, sleep: { _ in throw CancellationError() })
+        await phone.attach(account: user, server: SupabaseAccountKeys(client: client), copies: SupabaseKeyCopy(client: client))
+        #expect(phone.phase == .ready && !phone.unverified && phone.arrivedHow == .signIn, "no linking screen, no recovery key: \(phone.phase)")
+        #expect(KeyGateView.shown(phone.phase, .auto, held: phone.held) == .welcome)
+        #expect(phone.keyID == webKey && phone.serverCopy && phone.protection == .standard && !phone.asksProtection)
+        let after: [KeyRow] = try await client.from("account_keys").select("key_id").execute().value
+        #expect(after.map(\.key_id) == [webKey], "the app made no key of its own")
+
+        // The note the AI wrote opens with the key the app got.
+        let notes: [NoteRow] = try await client.from("notes").select("id, body_ct").execute().value
+        let sealer = Sealer(key: try #require(phone.dataKey), user: user)
+        let bodies = notes.compactMap { n in n.body_ct.flatMap { sealer.open($0, context: E2EE.body(n.id)) } }
+        #expect(bodies.contains { $0.contains(env.words) }, "opened \(bodies.count) of \(notes.count) notes")
+        phone.signedOut()
+    }
+}
