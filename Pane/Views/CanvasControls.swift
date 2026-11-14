@@ -1213,9 +1213,8 @@ struct CanvasToolbarTools: View {
                 tool(.arrow, current)
                 tool(.text, current)
                 tool(.eraser, current)
-                Button { Self.pickImage(canvas) } label: { Label(Self.imageTitle, systemImage: "photo") }
-                    .help("Add a picture (or paste or drop one)")
-                    .accessibilityIdentifier("canvas.tool.image")
+                // Image is in the Shapes menu (and pictures paste and drop): its toolbar room went
+                // to the library, so the note list keeps its title (round 6, "All Notes…").
                 Button { canvas.showingLibrary.toggle() } label: {
                     Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary)
                 }
@@ -1272,6 +1271,10 @@ struct CanvasToolbarTools: View {
                 .accessibilityIdentifier("canvas.tool.sticky")
             Button(CanvasTool.frame.help, systemImage: CanvasTool.frame.symbol) { canvas.pick(.frame) }
                 .accessibilityIdentifier("canvas.tool.frame")
+            if !compact {
+                Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
+                    .accessibilityIdentifier("canvas.tool.image")
+            }
             Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
                 .accessibilityIdentifier("canvas.tool.noteCard")
         } label: {

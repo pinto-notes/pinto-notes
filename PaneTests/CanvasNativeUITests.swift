@@ -1659,7 +1659,8 @@ import UIKit
         #expect(lib.thumbnails[item.id] == nil && lib.darkThumbnails[item.id] == nil)
     }
 
-    /// The Library button is in the toolbar beside Image; in a narrow window it's in More Tools.
+    /// The Library button is in the toolbar (Image moved into the Shapes menu to make room); in a
+    /// narrow window it's in More Tools.
     @Test func theLibraryIsInTheToolbarAndInMoreToolsWhenNarrow() async throws {
         let c = try Self.canvasLibrary()
         try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
@@ -1667,7 +1668,7 @@ import UIKit
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
             var labels = try MacWindowChromeTests.items(w).map(\.label)
-            #expect(labels.contains(CanvasLibraryPopover.title) && labels.contains(CanvasToolbarTools.imageTitle), "\(labels)")
+            #expect(labels.contains(CanvasLibraryPopover.title) && !labels.contains(CanvasToolbarTools.imageTitle), "Library in the toolbar, Image in the Shapes menu: \(labels)")
             w.setContentSize(CGSize(width: 1000, height: 700))
             await MacWindowChromeTests.settle(w, 20)
             labels = try MacWindowChromeTests.items(w).map(\.label)
