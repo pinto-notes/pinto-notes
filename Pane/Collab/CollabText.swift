@@ -38,10 +38,11 @@ enum CollabText {
     /// How big a note's text is as a sealed snapshot, before it's shared: the server takes
     /// snapshots up to `CollabSession.maxSnapshot`, and a note whose snapshot can't go up can't be
     /// opened by anyone joining it.
-    static func sealedSnapshotSize(of text: String) throws -> Int {
+    static func sealedSnapshotSize(of text: String, scene: [String: Any]? = nil) throws -> Int {
         let doc = Document(textEncoding: .utf16)
         let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
         try doc.spliceText(obj: body, start: 0, delete: 0, value: text)
+        if let scene { try CollabBoard.create(in: doc, scene: scene) }
         // amb3s.<epoch>.<base64 of nonce (12) ‖ ciphertext ‖ tag (16)>
         return 12 + ((doc.save().count + 28 + 2) / 3) * 4
     }
@@ -54,11 +55,13 @@ enum CollabText {
 
     /// A change's hash, from its bytes, so it can be looked for before Automerge has taken it in:
     /// the SHA-256 of its chunk after the magic bytes and checksum (its type, length and contents),
-    /// as the checksum's four bytes confirm. Nil for anything but one uncompressed change (changes
-    /// typed on a device go up several to a blob; an AI's, written by the MCP server, is one).
+    /// as the checksum's four bytes confirm. Nil for anything but one change (changes typed on a
+    /// device go up several to a blob; an AI's, written by the MCP server, is one). Automerge
+    /// deflates a change over 256 bytes (type 2, keeping the checksum); its hash is the one it has
+    /// inflated, so an AI's drawing on a whiteboard, always that big, is found too.
     static func hash(of change: Data) -> ChangeHash? {
         let b = [UInt8](change)
-        guard b.count > 10, b[0..<4].elementsEqual([0x85, 0x6F, 0x4A, 0x83]), b[8] == 1 else { return nil }
+        guard b.count > 10, b[0..<4].elementsEqual([0x85, 0x6F, 0x4A, 0x83]), b[8] == 1 || b[8] == 2 else { return nil }
         var i = 9, length = 0, shift = 0
         while true {
             guard i < b.count, shift < 63 else { return nil }
@@ -69,7 +72,18 @@ enum CollabText {
             shift += 7
         }
         guard length == b.count - i else { return nil }
-        let digest = Data(SHA256.hash(data: b[8...]))
+        let chunk: [UInt8]
+        if b[8] == 1 {
+            chunk = Array(b[8...])
+        } else {
+            // Raw DEFLATE, which is what Compression's zlib is.
+            guard let inflated = try? (Data(b[i...]) as NSData).decompressed(using: .zlib) as Data else { return nil }
+            var head: [UInt8] = [1]
+            var n = inflated.count
+            repeat { head.append(UInt8(n & 0x7F) | (n > 0x7F ? 0x80 : 0)); n >>= 7 } while n > 0
+            chunk = head + [UInt8](inflated)
+        }
+        let digest = Data(SHA256.hash(data: chunk))
         guard digest.prefix(4).elementsEqual(b[4..<8]) else { return nil }
         return digest.heads()?.first
     }
@@ -77,10 +91,16 @@ enum CollabText {
     /// The text as `doc` holds it without `change` (and anything built on it): everything else it
     /// has, read at that point in its history. Nil for a change it doesn't have.
     static func text(without change: ChangeHash, in doc: Document, _ body: ObjId) -> String? {
+        guard let rest = heads(without: change, in: doc) else { return nil }
+        return try? doc.textAt(obj: body, heads: rest)
+    }
+
+    /// The heads of everything `doc` has but `change` (and anything built on it). Nil for a change
+    /// it doesn't have.
+    static func heads(without change: ChangeHash, in doc: Document) -> Set<ChangeHash>? {
         guard let deps = doc.change(hash: change)?.deps else { return nil }
         let heads = doc.heads()
-        let rest = heads.contains(change) ? heads.subtracting([change]).union(deps) : Set(deps)
-        return try? doc.textAt(obj: body, heads: rest)
+        return heads.contains(change) ? heads.subtracting([change]).union(deps) : Set(deps)
     }
 }
 

@@ -80,3 +80,17 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
 .excalidraw .excalidraw-hyperlinkContainer,
 .excalidraw .welcome-screen-center,
 .excalidraw .welcome-screen-decor { display: none !important; }
+
+/* A shared board: the others' pointers, names and selections (shared.js), over the drawing and
+   under the engine's own controls. Solid colours, nothing see-through, and nothing takes a click.
+   Not under the dark filter: each person's colour shows as it is. */
+#canvas { position: relative; }
+.pinto-peers { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.pinto-peer-box, .pinto-peer-pointer, .pinto-peer-flag { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+.pinto-peer-box { box-sizing: border-box; border: 2px solid; border-radius: 4px; }
+.pinto-peer-pointer { width: 16px; height: 20px; display: none; }
+.pinto-peer-pointer svg { display: block; }
+.pinto-peer-flag {
+  height: 16px; line-height: 16px; padding: 0 5px; border-radius: 4px; color: #FFFFFF;
+  font: 600 11px/16px var(--amber-font); white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; opacity: 0;
+}

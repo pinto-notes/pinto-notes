@@ -1,3 +1,4 @@
+import Automerge
 import CryptoKit
 import Foundation
 import Observation
@@ -30,6 +31,11 @@ final class CollabSession {
         var caret: Anchor?
         var end: Anchor?
         var typingUntil: Date?
+        /// On a whiteboard: their pointer, in the board's own coordinates (so it lands on the same
+        /// spot whatever each person's zoom and scroll), nil while it's off the board; and the ids of
+        /// what they have selected.
+        var pointer: CGPoint?
+        var selectedIDs: [String] = []
         /// When their caret last moved or they last typed: the name flag shows for a moment after.
         var movedAt: Date = .now
         /// When their presence last arrived. It comes every 2 seconds while they're connected.
@@ -87,6 +93,22 @@ final class CollabSession {
     private let transport: any CollabTransport
     private let doc: Document
     private let body: ObjId
+    /// A whiteboard's drawing (CollabBoard): its map, when the document is a board's.
+    @ObservationIgnored private var boardObj: ObjId?
+    /// The board's elements as the document holds them, each conflict resolved, and its settings.
+    @ObservationIgnored private var boardEntries: [String: CollabBoard.Entry] = [:]
+    @ObservationIgnored private var boardSettings: [String: Any] = [:]
+    /// The document is a whiteboard's: its drawing is shared with its title.
+    var isBoard: Bool { boardObj != nil }
+    /// Hands the merged drawing to the open board (a scene), whenever someone else's change moved it.
+    @ObservationIgnored var onRemoteBoard: (([String: Any]) -> Void)?
+    /// An AI's change reached the drawing: whose ("Sara's Claude") and the elements it changed, for
+    /// the open board to outline.
+    @ObservationIgnored var onBoardAI: ((String, [String]) -> Void)?
+    /// Mirrors the drawing into the board's data once it settles (the list's picture, search, cards).
+    @ObservationIgnored var onBoardSettled: (([String: Any]) -> Void)?
+    /// Hands other people's pointers and selections to the open board, as soon as they move.
+    @ObservationIgnored var onBoardPeers: (([BoardPeer]) -> Void)?
     /// The document on this device (SwiftData): saved as it changes, so it opens offline and
     /// nothing typed offline is lost.
     @ObservationIgnored let record: SharedDocument
@@ -143,6 +165,13 @@ final class CollabSession {
         let ai: String
         let author: UUID
         let before: String
+        /// On a whiteboard: the drawing from just before it (a scene, as JSON) and what it changed.
+        var board: BoardChange? = nil
+    }
+
+    struct BoardChange: Equatable {
+        let before: Data
+        let ids: [String]
     }
     @ObservationIgnored private var channel: CollabChannel?
     @ObservationIgnored private var joining = false
@@ -195,11 +224,13 @@ final class CollabSession {
     static let rewind: Int64 = 64
 
     /// A new shared document holding `initial` (the owner, when sharing). Saved in `record`.
-    static func create(record: SharedDocument, nk: SymmetricKey, initial: String, transport: any CollabTransport, me: UUID,
+    /// `scene`: a whiteboard's drawing, shared with it (CollabBoard).
+    static func create(record: SharedDocument, nk: SymmetricKey, initial: String, scene: [String: Any]? = nil, transport: any CollabTransport, me: UUID,
                        name: @escaping @autoclosure @MainActor () -> String) throws -> CollabSession {
         let doc = Document(textEncoding: .utf16)
         let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
         try doc.spliceText(obj: body, start: 0, delete: 0, value: initial)
+        if let scene { try CollabBoard.create(in: doc, scene: scene) }
         doc.commitWith(message: CollabHistory.stamp(me))
         record.saved = doc.save()
         record.tail = Data()
@@ -266,6 +297,11 @@ final class CollabSession {
         self.me = me
         nameSource = name
         text = (try? doc.text(obj: body)) ?? ""
+        boardObj = CollabBoard.board(in: doc)
+        if let boardObj {
+            boardEntries = CollabBoard.entries(in: doc, boardObj)
+            boardSettings = CollabBoard.settings(in: doc)
+        }
         isSent = record.outbox.isEmpty
         // Changes typed here before (offline, then the app quit) still wait.
         if !isSent { waitingSince = .now }
@@ -375,6 +411,8 @@ final class CollabSession {
 
     func disconnect() {
         presenceTask?.cancel()
+        pointerTask?.cancel()
+        pointerTask = nil
         retryTask?.cancel()
         retryTask = nil
         snapshotTask?.cancel()
@@ -453,12 +491,19 @@ final class CollabSession {
         }
         var newest = record.cursor
         // An AI's change among them: the text from just before the first one, to mark what it changed.
-        var ai: (update: Collab.Update, before: String)?
+        var ai: (update: Collab.Update, before: String, board: [String: CollabBoard.Entry])?
         var taken: [Int64] = []
+        // The drawing as it was before this pull's changes went in.
+        var boardBefore = boardEntries
+        if changed, let boardObj { boardBefore = CollabBoard.entries(in: doc, boardObj, reuse: boardEntries) }
         for u in pull.updates {
             newest = max(newest, u.id)
             var before: String?
-            if ai == nil, u.client != nil { before = try? doc.text(obj: body) }
+            var board = boardBefore
+            if ai == nil, u.client != nil {
+                before = try? doc.text(obj: body)
+                if changed, let boardObj { board = CollabBoard.entries(in: doc, boardObj, reuse: boardBefore) }
+            }
             let heads = before == nil ? nil : doc.heads()
             let took = take(u)
             traced(u, by: "catch-up", took: took)
@@ -467,7 +512,7 @@ final class CollabSession {
                 taken.append(u.id)
                 // An AI's change this document already has isn't news. After a relaunch the old ones
                 // come round again, and someone's typing later in the batch was credited to the AI.
-                if ai == nil, let before, !isHeld(u), doc.heads() != heads { ai = (u, before) }
+                if ai == nil, let before, !isHeld(u), doc.heads() != heads { ai = (u, before, board) }
             }
         }
         // Which way each change came, for the two-phone runs: a change taken here was not relayed.
@@ -476,7 +521,7 @@ final class CollabSession {
         saveSoon()
         if changed { textChanged() }
         aiLanded()
-        if let ai { aiArrived(ai.update, before: ai.before) }
+        if let ai { aiArrived(ai.update, before: ai.before, board: ai.board) }
         scheduleSnapshot()
     }
 
@@ -485,6 +530,7 @@ final class CollabSession {
         switch event {
         case .update(let u):
             let before = text
+            let boardBefore = boardEntries
             let took = take(u)
             // Every change the channel relays, for the two-phone runs (an AI's, in more detail, below).
             CollabScript.trace("relay: change \(u.id) \(u.author_id == me ? "yours" : "someone else's"), \(took ? "taken" : "already here")")
@@ -492,7 +538,7 @@ final class CollabSession {
             if took {
                 textChanged()
                 aiLanded()
-                aiArrived(u, before: before)
+                aiArrived(u, before: before, board: boardBefore)
             }
             saveSoon()
             scheduleSnapshot()
@@ -518,15 +564,21 @@ final class CollabSession {
             let wasHere = peers[user] != nil
             peer.name = p.name
             peer.heardAt = .now
-            if peer.caret != p.caret || peer.end != p.end { peer.movedAt = .now }
+            let pointer = p.pointer.flatMap { $0.count == 2 && $0.allSatisfy(\.isFinite) ? CGPoint(x: $0[0], y: $0[1]) : nil }
+            let selected = Array((p.sel ?? []).prefix(500))
+            if peer.caret != p.caret || peer.end != p.end || peer.pointer != pointer || peer.selectedIDs != selected { peer.movedAt = .now }
             peer.caret = p.caret
             peer.end = p.end
+            peer.pointer = pointer
+            peer.selectedIDs = selected
             if p.typing == true { peer.typingUntil = .now.addingTimeInterval(1.6); peer.movedAt = .now }
             peers[user] = peer
             resolvePeers()
+            if isBoard { onBoardPeers?(boardPeers) }
             if !wasHere { Task { await refreshMembers() }; sendPresence() }
         case .leave(let user):
             peers[user] = nil
+            if isBoard { onBoardPeers?(boardPeers) }
             // They may have left the note itself (Leave), not just closed it: People follows now,
             // not on the next poll.
             Task { await refreshMembers() }
@@ -563,15 +615,29 @@ final class CollabSession {
 
     /// A change the server says an AI wrote, once it changed the text here: to the library, after
     /// the editor has the text. Changes typed on a device name no AI.
-    private func aiArrived(_ u: Collab.Update, before: String) {
+    private func aiArrived(_ u: Collab.Update, before: String, board: [String: CollabBoard.Entry]? = nil) {
         guard !isClosed, let ai = u.client?.trimmingCharacters(in: .whitespacesAndNewlines), !ai.isEmpty, !isHeld(u) else { return }
-        guard text != before else {
+        // On a whiteboard: what it changed in the drawing.
+        let drew = board.flatMap { b in isBoard ? CollabBoard.changedIDs(from: b, to: boardEntries) : nil } ?? []
+        guard text != before || !drew.isEmpty else {
             CollabScript.trace("AI change \(u.id): the text here didn't change, so it isn't marked")
             return
         }
+        var arrival = AIArrival(ai: ai, author: u.author_id, before: before)
+        if let board, !drew.isEmpty {
+            arrival.board = BoardChange(before: Self.json(CollabBoard.scene(elements: CollabBoard.ordered(board), settings: boardSettings)), ids: drew)
+            onBoardAI?(aiName(arrival), drew)
+        }
         CollabScript.trace("AI change \(u.id): to the library to mark\(onAIChange == nil ? " (no library listening)" : "")")
-        onAIChange?(AIArrival(ai: ai, author: u.author_id, before: before))
+        onAIChange?(arrival)
     }
+
+    /// Whose AI it was, as the board says it: "Claude" for yours, "Sara's Claude" for someone else's.
+    func aiName(_ a: AIArrival) -> String {
+        AIEdit.whose(a.ai, person: a.author == me ? nil : firstName(of: a.author) ?? AIEdit.someone)
+    }
+
+    static func json(_ o: Any) -> Data { (try? JSONSerialization.data(withJSONObject: o)) ?? Data() }
 
     /// An AI's change as it reached this device, in the steps' log of a two-device run
     /// (CollabScript.trace): by relay or catch-up, yours or someone else's, and whether it went in.
@@ -605,14 +671,17 @@ final class CollabSession {
     /// marked now, each from the text as this device has it without that change.
     private func aiLanded() {
         guard !heldAI.isEmpty, !isClosed else { return }
-        var landed: [(Collab.Update, String)] = []
+        var landed: [(Collab.Update, String, [String: CollabBoard.Entry]?)] = []
         heldAI.removeAll { held in
             guard doc.change(hash: held.hash) != nil else { return false }
             CollabScript.trace("AI change \(held.update.id) went in, held back until now")
-            if let before = CollabText.text(without: held.hash, in: doc, body) { landed.append((held.update, before)) }
+            if let before = CollabText.text(without: held.hash, in: doc, body) {
+                let board = boardObj.flatMap { b in CollabText.heads(without: held.hash, in: doc).map { CollabBoard.entries(in: doc, b, heads: $0) } }
+                landed.append((held.update, before, board))
+            }
             return true
         }
-        for (u, before) in landed { aiArrived(u, before: before) }
+        for (u, before, board) in landed { aiArrived(u, before: before, board: board) }
     }
 
     /// The one other person in the note by first name, when there's just one and it's known.
@@ -638,6 +707,7 @@ final class CollabSession {
     /// The document's text changed from outside: to the editor, the carets, and the note.
     private func textChanged() {
         let mended = mendTicks()
+        boardChanged()
         let merged = (try? doc.text(obj: body)) ?? text
         guard merged != text else { resolvePeers(); if mended { flush() }; return }
         text = merged
@@ -720,6 +790,154 @@ final class CollabSession {
     func localFromOutside(_ new: String) {
         local(new, selection: nil)
         onRemoteText?(text)
+    }
+
+    // MARK: The whiteboard
+
+    /// The drawing as the document has it now: a whole scene, as the board's data keeps it.
+    func boardScene() -> [String: Any] {
+        CollabBoard.scene(elements: CollabBoard.ordered(boardEntries), settings: boardSettings)
+    }
+
+    /// The document's drawing changed from outside: read again (only what changed is decoded),
+    /// and to the open board. Nothing when it's the same.
+    private func boardChanged() {
+        if boardObj == nil { boardObj = CollabBoard.board(in: doc) }
+        guard let boardObj else { return }
+        let entries = CollabBoard.entries(in: doc, boardObj, reuse: boardEntries)
+        let settings = CollabBoard.settings(in: doc)
+        let same = entries.count == boardEntries.count && CollabBoard.changedIDs(from: boardEntries, to: entries).isEmpty
+            && NSDictionary(dictionary: settings).isEqual(to: boardSettings)
+        guard !same else { return }
+        boardEntries = entries
+        boardSettings = settings
+        onRemoteBoard?(boardScene())
+        settleBoard()
+    }
+
+    /// What the open board drew or changed (elements the page saw change since it last said, and
+    /// its settings): each element that wins over the document's copy goes in, as one change, and
+    /// up as typing does. Pictures don't (CollabBoard.keeps). A viewer's go nowhere.
+    func boardLocal(_ elements: [[String: Any]], settings: [String: Any] = [:]) {
+        guard !isClosed, let boardObj, record.canEdit, !isViewOnly else { return }
+        let wins = CollabBoard.winners(elements, over: boardEntries.mapValues(\.stamp))
+        // Something the page changed lost to what the document holds (someone else's edit of it
+        // that the page hadn't merged yet): the page is handed the document's, so it ends the same.
+        if wins.count < elements.filter({ CollabBoard.id(of: $0) != nil && CollabBoard.keeps($0) }).count {
+            onRemoteBoard?(boardScene())
+        }
+        var newSettings: [String: ScalarValue] = [:]
+        for k in CollabBoard.settings {
+            guard let v = CollabBoard.scalar(settings[k]), v != CollabBoard.scalar(boardSettings[k]) else { continue }
+            newSettings[k] = v
+        }
+        guard !wins.isEmpty || !newSettings.isEmpty else { return }
+        let before = doc.heads()
+        let change: Data
+        do {
+            for (id, e) in wins {
+                guard let json = CollabBoard.encode(e) else { continue }
+                try doc.put(obj: boardObj, key: id, value: .String(json))
+            }
+            if !newSettings.isEmpty {
+                let state = try CollabBoard.state(in: doc) ?? doc.putObject(obj: .ROOT, key: CollabBoard.stateKey, ty: .Map)
+                for (k, v) in newSettings { try doc.put(obj: state, key: k, value: v) }
+            }
+            doc.commitWith(message: CollabHistory.stamp(me), timestamp: now())
+            change = try doc.encodeChangesSince(heads: before)
+        } catch {
+            log.error("a board change didn't go in: \(String(describing: error), privacy: .public)")
+            return
+        }
+        boardEntries = CollabBoard.entries(in: doc, boardObj, reuse: boardEntries)
+        boardSettings = CollabBoard.settings(in: doc)
+        guard !change.isEmpty else { return }
+        keep(change)
+        record.enqueue(change)
+        setSent(false)
+        typedHere = true
+        saveSoon()
+        flush()
+        settleBoard()
+    }
+
+    /// Puts the drawing back as `scene` had it (Undo of an AI's change): each element that differs
+    /// goes in as a new edit of yours, newer than the document's, so it wins on every device; one
+    /// added since is deleted.
+    func boardRevert(to scene: [String: Any]) {
+        guard isBoard, canWrite else { return }
+        var before: [String: CollabBoard.Element] = [:]
+        for e in (scene["elements"] as? [CollabBoard.Element]) ?? [] { if let id = CollabBoard.id(of: e), CollabBoard.keeps(e) { before[id] = e } }
+        var out: [CollabBoard.Element] = []
+        let at = Int(now().timeIntervalSince1970 * 1000)
+        for (id, current) in boardEntries {
+            var e: CollabBoard.Element
+            if let was = before[id] {
+                guard !NSDictionary(dictionary: was).isEqual(to: current.element) else { continue }
+                e = was
+            } else {
+                guard (current.element["isDeleted"] as? Bool) != true else { continue }
+                e = current.element
+                e["isDeleted"] = true
+            }
+            e["version"] = current.stamp.version + 1
+            e["versionNonce"] = Int.random(in: 1..<Int(Int32.max))
+            e["updated"] = at
+            out.append(e)
+        }
+        for (id, was) in before where boardEntries[id] == nil { out.append(was) }
+        boardLocal(out, settings: (scene["appState"] as? [String: Any]) ?? [:])
+        onRemoteBoard?(boardScene())
+    }
+
+    @ObservationIgnored private var boardSettleTask: Task<Void, Never>?
+
+    private func settleBoard() {
+        boardSettleTask?.cancel()
+        boardSettleTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.4))
+            guard let self, !Task.isCancelled, !isClosed else { return }
+            onBoardSettled?(boardScene())
+        }
+    }
+
+    /// Your pointer on the board (in its own coordinates; nil while it's off the board) and what
+    /// you have selected. Goes out at most ten times a second, and with every beat.
+    func boardPresence(pointer: CGPoint?, selection: [String]) {
+        guard isBoard, pointer != myPointer || selection != myBoardSelection else { return }
+        myPointer = pointer
+        myBoardSelection = selection
+        let wait = Self.pointerEvery - Date.now.timeIntervalSince(pointerSentAt)
+        guard wait > 0 else { pointerSentAt = .now; sendPresence(); return }
+        guard pointerTask == nil else { return }
+        pointerTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard let self, !Task.isCancelled else { return }
+            pointerTask = nil
+            pointerSentAt = .now
+            sendPresence()
+        }
+    }
+
+    /// How often your pointer goes out while it moves (Realtime takes about ten messages a second
+    /// from a device).
+    static var pointerEvery: TimeInterval = 0.1
+    @ObservationIgnored private var myPointer: CGPoint?
+    @ObservationIgnored private var myBoardSelection: [String] = []
+    @ObservationIgnored private var pointerSentAt = Date.distantPast
+    @ObservationIgnored private var pointerTask: Task<Void, Never>?
+
+    /// Everyone else's pointer and selection for the board to draw, now.
+    var boardPeers: [BoardPeer] { boardPeers(at: .now) }
+
+    func boardPeers(at now: Date) -> [BoardPeer] {
+        peers.values.compactMap { p in
+            guard p.pointer != nil || !p.selectedIDs.isEmpty else { return nil }
+            let stale = p.isStale(at: now)
+            let rgb = stale ? 0x8E8E93 : Self.palette[Int(Self.paletteIndex(for: p.id))]
+            return BoardPeer(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: String(format: "#%06X", rgb),
+                             pointer: p.pointer, selection: p.selectedIDs, showsName: !stale && now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
+        }.sorted { $0.id.uuidString < $1.id.uuidString }
     }
 
     // MARK: Version history
@@ -968,6 +1186,9 @@ final class CollabSession {
         var caret: Anchor?
         var end: Anchor?
         var typing: Bool?
+        /// On a whiteboard: the pointer (x, y in the board's coordinates) and the selected ids.
+        var pointer: [Double]?
+        var sel: [String]?
     }
 
     /// The anchor for a UTF-16 offset in this document's text.
@@ -993,9 +1214,13 @@ final class CollabSession {
     private func sendPresence() {
         guard let channel, keys[epoch] != nil else { return }
         let sel = mySelection
-        let p = Presence(name: myName, caret: sel.flatMap { anchor(at: $0.location) },
+        var p = Presence(name: myName, caret: sel.flatMap { anchor(at: $0.location) },
                          end: sel.flatMap { $0.length > 0 ? anchor(at: NSMaxRange($0)) : nil },
                          typing: Date.now.timeIntervalSince(typingAt) < 1.2)
+        if isBoard {
+            p.pointer = myPointer.map { [Double($0.x), Double($0.y)] }
+            p.sel = myBoardSelection.isEmpty ? nil : myBoardSelection
+        }
         guard let data = try? JSONEncoder().encode(p),
               let ct = try? CollabCrypto.seal(.presence, data, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return }
         channel.send(presence: ct)
@@ -1009,9 +1234,11 @@ final class CollabSession {
     /// Each person keeps one colour everywhere: six muted, earthy tones that sit beside the amber
     /// brand without competing with it (clay, sage, dusk blue, plum, teal, olive). Amber itself is
     /// you, and AI edits. All take white initials at 4.5:1 or better.
-    static func color(for user: UUID) -> Color {
+    static func color(for user: UUID) -> Color { color(at: Int(paletteIndex(for: user))) }
+
+    static func paletteIndex(for user: UUID) -> UInt32 {
         let h = user.uuidString.unicodeScalars.reduce(UInt32(7)) { ($0 &* 31) &+ $1.value }
-        return color(at: Int(h % UInt32(palette.count)))
+        return h % UInt32(palette.count)
     }
 
     static let palette: [UInt32] = [0xA85A3C, 0x5E7A5A, 0x4F6B87, 0x7E5878, 0x3F7774, 0x7A6F3A]
@@ -1033,6 +1260,24 @@ final class CollabSession {
                                color: stale ? Self.staleColor : Self.color(for: p.id), range: s,
                                showsName: !stale && now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
         }.sorted { $0.id.uuidString < $1.id.uuidString }
+    }
+}
+
+/// Someone else on an open whiteboard: their pointer (in the board's coordinates) and selection,
+/// in their colour (grey while they aren't heard from), with their first name on a small flag.
+struct BoardPeer: Equatable, Identifiable, Sendable {
+    let id: UUID
+    let name: String
+    /// "#RRGGBB"
+    let color: String
+    let pointer: CGPoint?
+    let selection: [String]
+    var showsName = true
+
+    var payload: [String: Any] {
+        var p: [String: Any] = ["id": id.uuidString, "name": name, "color": color, "sel": selection, "flag": showsName]
+        if let pointer { p["x"] = Double(pointer.x); p["y"] = Double(pointer.y) }
+        return p
     }
 }
 

@@ -5,6 +5,10 @@ import Foundation
 /// be locked, show Version History, or be a public web page (that would publish everyone's text).
 /// The app doesn't offer any of them for a shared note, and a note with files or an app isn't
 /// shared with people.
+///
+/// A whiteboard is the one app that can be shared (CollabBoard, 14 November 2026): its drawing
+/// goes in the shared document. Its pictures can't yet, for the same reason as a note's files, so
+/// a board with pictures isn't shared and a shared board takes none.
 enum SharedNoteLimits {
     /// Whether files and photos can go into the note.
     static func allowsFiles(_ note: Note) -> Bool { !note.isLocked && !note.isShared }
@@ -14,8 +18,9 @@ enum SharedNoteLimits {
 
     /// Why this note can't be shared with people yet, or nil when it can. A note that is shared
     /// already, or whose link was on, is past the question.
-    static func notYet(text: String, hasApp: Bool, alreadyShared: Bool) -> String? {
+    static func notYet(text: String, hasApp: Bool, board: Bool = false, boardHasPictures: Bool = false, alreadyShared: Bool) -> String? {
         guard !alreadyShared else { return nil }
+        if board { return boardHasPictures ? boardPicturesLine : nil }
         if hasApp { return appLine }
         if hasFiles(text) { return filesLine }
         return nil
@@ -23,6 +28,9 @@ enum SharedNoteLimits {
 
     static let appLine = "A note with an app can't be shared with people yet. Send a copy instead."
     static let filesLine = "A note with files or photos can't be shared with people yet. Send a copy instead."
+    static let boardPicturesLine = "A whiteboard with pictures can't be shared with people yet. Send a copy instead."
+    /// Said when a picture is dropped, pasted or added on a shared whiteboard.
+    static let boardPictures = "Pictures can\u{2019}t go on a shared whiteboard yet"
 
     /// Said when a file is dropped, pasted or attached into a shared note.
     static let filesTitle = "Files can't go in a shared note yet"

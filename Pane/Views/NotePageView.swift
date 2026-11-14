@@ -770,7 +770,8 @@ struct NotePageView: View {
         .onChange(of: zoom) { _, now in sandbox?.webView.pageZoom = now }
         .onChange(of: ready) { _, now in if now, insetBottom > 0 { sandbox?.setInsets(bottom: insetBottom) } }
         .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, now in
-            guard preview == nil, let sandbox, now != sandbox.wrote else { return }
+            // A shared board's drawing comes from its document, as changes (BoardCollab).
+            guard preview == nil, canvas?.shared != true, let sandbox, now != sandbox.wrote else { return }
             sandbox.push(body: text, data: NotePageDataStore.shared.doc(noteID))
         }
     }

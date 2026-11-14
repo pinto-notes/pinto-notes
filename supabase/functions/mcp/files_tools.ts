@@ -23,7 +23,7 @@ import {
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
-import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNotes, writeDoc } from "./shared_notes.ts";
+import { boardData, changesOf, forgetShared, isBoard, loadDoc, refuseViewer, type Shared, sharedNotes, writeBoard, writeDoc } from "./shared_notes.ts";
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
@@ -537,6 +537,35 @@ async function mustHaveReadShared(tx: Tx, c: Call, s: Shared, path: string) {
   if (!r) throw new ToolError(`Read ${path} with fetch before changing it.`);
 }
 
+// A shared whiteboard (Pane/Collab/CollabBoard.swift): its drawing is in the shared document, and
+// its data.json reads and writes there, merged with what people draw.
+
+/** A shared note's data.json: a whiteboard's drawing, from its document. Any other shared note has none. */
+async function sharedBoard(tx: Tx, s: Shared, base: string) {
+  const at = await loadDoc(tx, s);
+  if (!isBoard(at)) throw new ToolError(`"${base}" is shared with other people, and only a whiteboard's data can be read or changed while it's shared.`);
+  return { at, data: await boardData(at) };
+}
+
+/** When this session last read a shared board's data.json: what was drawn after that isn't removed
+ *  by a write that leaves it out (the AI never saw it). */
+async function boardReadAt(tx: Tx, c: Call, s: Shared, path: string): Promise<Date> {
+  const [r] = await tx<{ read_at: Date }[]>`select read_at from public.mcp_reads where session = ${sessionOf(c)} and item = ${await itemKey(c, dataItem(s.id))} and read_at > now() - interval '1 day'`;
+  if (!r) throw new ToolError(`Read ${path} with fetch before changing it.`);
+  return new Date(r.read_at);
+}
+
+async function saveBoard(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<typeof loadDoc>>, text: string, path: string, readAt: Date) {
+  let next: unknown;
+  try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
+  const w = await writeBoard(tx, c, s, at, next, readAt);
+  const pictures = w.pictures ? { pictures: `${w.pictures === 1 ? "A picture was" : `${w.pictures} pictures were`} left out: pictures can't go on a shared whiteboard yet.` } : {};
+  if (!w.changed) return { path, unchanged: true, ...pictures };
+  return { saved: path, ...pictures, shared: "One change, merged with what others draw. It shows as this person's AI, and they can undo it." };
+}
+
+const sharedApp = (base: string) => new ToolError(`"${base}" is a whiteboard shared with other people: its page stays as it is. Change the drawing in ${base}/data.json.`);
+
 async function saveShared(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<typeof loadDoc>>, text: string, path: string, verb: "edited" | "written") {
   const w = await writeDoc(tx, c, s, at, text);
   if (!w.changed) return { path, unchanged: true };
@@ -1013,6 +1042,16 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
         },
       };
     }
+    if (r.kind === "data" && r.note.shared) {
+      const { data } = await sharedBoard(tx, r.note.shared, r.base);
+      const text = dataText(data as PageData);
+      const shown = numberedLines(text, a.offset, a.limit);
+      await markRead(tx, c, dataItem(r.note.shared.id), await hash(c, text));
+      return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
+        metadata: { path: `${r.base}/data.json`, lines: shown.lines, shared: sharedLine(r.note.shared).replace("type", "draw"), ...(r.note.shared.role === "viewer" ? { read_only: true } : {}),
+          ...(shown.truncated ? { truncated: shown.truncated } : {}),
+          about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Pictures can't go on a shared whiteboard yet." } };
+    }
     if (r.kind === "data") {
       const d = await pageDataOf(tx, c, r.note.id);
       const text = dataText(d);
@@ -1114,6 +1153,15 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const now = renamed ? (await pathsOf(tx, c, true)).pathOf(n.id)! : r.path;
       return { edited: now, ...(now !== r.path ? { renamed_from: r.path } : {}), ...links, checks: checks.length ? checks : "ok" };
     }
+    if (r.kind === "data" && r.note.shared) {
+      const sh = r.note.shared;
+      refuseViewer(sh);
+      const readAt = await boardReadAt(tx, c, sh, `${r.base}/data.json`);
+      // The drawing now: people may have drawn since it was read, and the change merges with that.
+      const { at, data } = await sharedBoard(tx, sh, r.base);
+      return await saveBoard(tx, c, sh, at, replaceIn(dataText(data as PageData), a.old_string, a.new_string, all, `${r.base}/data.json`), `${r.base}/data.json`, readAt);
+    }
+    if (r.kind === "appfile" && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
       const text = dataText(before);
@@ -1184,6 +1232,14 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const now = (await pathsOf(tx, c, true)).pathOf(n.id)!;
       return { written: now, ...(now !== r.path ? { renamed_from: r.path } : {}), ...links, checks: checks.length ? checks : "ok" };
     }
+    if (r.kind === "data" && r.note.shared) {
+      const sh = r.note.shared;
+      refuseViewer(sh);
+      const readAt = await boardReadAt(tx, c, sh, `${r.base}/data.json`);
+      const { at } = await sharedBoard(tx, sh, r.base);
+      return await saveBoard(tx, c, sh, at, content, `${r.base}/data.json`, readAt);
+    }
+    if (r.kind === "appfile" && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
       await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataText(before)), `${r.base}/data.json`);
@@ -1268,6 +1324,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       await tx`update public.folders set parent_id = ${parent?.id ?? null}, updated_at = now() where id = ${e.folder.id}`;
       return { moved: (await pathsOf(tx, c, true)).folderPathOf(e.folder.id) };
     }
+    if ((r.kind === "appfile" || r.kind === "app") && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "appfile") {
       const target = to.includes(".app/") ? to.slice(to.indexOf(".app/") + 4) : to;
       return await moveAppFile(tx, c, r.note, r.base, r.file, target, a);
@@ -1294,6 +1351,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const d = await classic.delete_folder(tx, { folder: e.folder.id }, c) as { notes_moved_to_recently_deleted: number };
       return { deleted: r.dir, notes_moved_to: `${DELETED} (${d.notes_moved_to_recently_deleted})` };
     }
+    if ((r.kind === "appfile" || r.kind === "app" || r.kind === "data") && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "appfile") {
       const p = await appProject(tx, c, r.note);
       const file = appPath(r.file);

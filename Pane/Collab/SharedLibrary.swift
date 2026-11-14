@@ -128,8 +128,10 @@ final class SharedLibrary {
         context.insert(record)
         let session: CollabSession
         let name = nameSource
+        // A whiteboard: its drawing goes in the document beside its title (CollabBoard).
+        let scene = CanvasNote.has(note) ? ((NotePageDataStore.shared.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any]) ?? CanvasNote.emptyScene() : nil
         do {
-            session = try CollabSession.create(record: record, nk: nk, initial: note.body, transport: transport, me: me, name: name())
+            session = try CollabSession.create(record: record, nk: nk, initial: note.body, scene: scene, transport: transport, me: me, name: name())
         } catch {
             context.delete(record)
             throw error
@@ -346,6 +348,15 @@ final class SharedLibrary {
             guard let self, let note = self.context.note(id) else { return }
             self.removeLocally(note)
         }
+        if session.isBoard {
+            // A whiteboard: its drawing is kept beside the note as a board's is (the list's
+            // picture, search, note cards), and a note for it you joined shows it as a board.
+            session.onBoardSettled = { scene in NotePageDataStore.shared.takeShared(id, scene: scene) }
+            if !CanvasNote.isCanvas(NotePageStore.shared[id]?.html) {
+                NotePageStore.shared.setHere(id, .init(html: CanvasNote.project, by: CanvasNote.writer, at: .now))
+            }
+            NotePageDataStore.shared.takeShared(id, scene: session.boardScene())
+        }
         session.onAIChange = { [weak self, weak session] arrival in
             guard let self, let session else { return }
             guard let note = self.context.note(id) else {
@@ -381,6 +392,14 @@ final class SharedLibrary {
         guard note.deletedAt == nil else { return }
         mirror(session.text, into: note)
         let person = arrival.author == me ? nil : session.firstName(of: arrival.author) ?? AIEdit.someone
+        // On a whiteboard: what it drew, as an AI's drawing on a board of your own is told
+        // ("Sara's Claude added 3 shapes", with Undo), from the drawing before it.
+        if let board = arrival.board {
+            let before = (try? JSONSerialization.jsonObject(with: board.before)) as? [String: Any]
+            NotePageDataStore.shared.takeShared(note.id, scene: session.boardScene(), by: session.aiName(arrival), before: before)
+            // Its title too, when it changed that.
+            guard arrival.before != session.text else { return }
+        }
         AIEdit.arrived(note, ai: arrival.ai, person: person, previousBody: arrival.before)
         CollabScript.trace("AI change marked: \(AIEdit.whose(arrival.ai, person: person)), unseen \(AIEdit.isUnseen(note))")
     }
@@ -480,6 +499,7 @@ final class SharedLibrary {
         await session.catchUp().value
         guard session.isUpToDate else { throw Problem.notUpToDate }
         let text = session.text
+        let scene = session.isBoard ? session.boardScene() : nil
         let upto = session.lastSeen
         SharedNotes.unsharing.insert(note.id)
         defer { SharedNotes.unsharing.remove(note.id) }
@@ -491,6 +511,14 @@ final class SharedLibrary {
         note.body = text
         note.touch()
         context.saveOrReport()
+        // A whiteboard's drawing is its own again, synced as any board's.
+        if let scene { Self.keepBoard(scene, for: note.id) }
+    }
+
+    /// A board that is no longer shared keeps the drawing as it last was, synced from here.
+    static func keepBoard(_ scene: [String: Any], for id: UUID) {
+        let store = NotePageDataStore.shared
+        store.set(id, NotePageDataStore.with(scene, in: store.doc(id)))
     }
 
     /// Someone else's shared note you deleted for good: its document goes, and you leave it (as
@@ -547,7 +575,9 @@ final class SharedLibrary {
             // The newest text this device has: the open document's, else the stored one's (the
             // note's own copy can be behind when it wasn't open).
             if let text = sessions[note.id]?.text ?? note.sharedDocument?.storedText() { note.body = text }
+            let scene = sessions[note.id].flatMap { $0.isBoard ? $0.boardScene() : nil } ?? note.sharedDocument?.storedScene()
             forget(note)
+            if let scene { Self.keepBoard(scene, for: note.id) }
             note.sharedNoteID = nil
             note.touch()
             context.saveOrReport()

@@ -764,6 +764,7 @@
 		8FBE070B0E927789EA852C24 /* firstopen-apps.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 340C1ACA339E15FD7AEDC2FA /* firstopen-apps.jpg */; };
 		8FC660FC73BE3E2FFE781980 /* Excalifont-Regular-3f2c5db56cc93c5a6873b1361d730c16.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = D877C6AE79F9F3DF4F6F2C65 /* Excalifont-Regular-3f2c5db56cc93c5a6873b1361d730c16.woff2 */; };
 		8FD60B4DED597B4259342498 /* NoteRowStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ED1C1A0F84C7EF832832101 /* NoteRowStatus.swift */; };
+		8FD7A961C926B53721E9BC42 /* SharedBoardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC991B455985BE635F15EA8B /* SharedBoardTests.swift */; };
 		8FF3BEDDC432BCC426C2499D /* template-app-habit-tracker-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 97BDCCEA687FACCD9BE03538 /* template-app-habit-tracker-stage-narrow-dark.jpg */; };
 		901131A181463954A80C697B /* TypedTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB0FAF5FA660EBD5F3003ED /* TypedTableTests.swift */; };
 		903695C074EF0CB2DF2AD50A /* template-app-trip-plan-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */; };
@@ -841,6 +842,7 @@
 		9CD76482DDF2AB1F6C7FF89D /* ConnectWebGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB80888B06B4A1F6FBC61797 /* ConnectWebGuide.swift */; };
 		9D673BFEDD4085AEFD6BF0F1 /* WikiLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA346A4AC288B31B07A05AB /* WikiLinks.swift */; };
 		9DEE38594D517530DDD21E0A /* Telemetry in Resources */ = {isa = PBXBuildFile; fileRef = 2A28282E6586EAFE33197785 /* Telemetry */; };
+		9E03665B50BF38355468E0B7 /* CollabBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D7A93FB0647F09078E6466 /* CollabBoard.swift */; };
 		9E7EE011E476D95E08151979 /* PaneShare in Resources */ = {isa = PBXBuildFile; fileRef = CD2FE12ACFA516DC9A1A19AF /* PaneShare */; };
 		9EBF673CD7CED1AC6CCA0108 /* NoteStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AC25F37C1666CBB35BBB0C /* NoteStructure.swift */; };
 		9EFAB837893678DDE9D8125A /* template-app-budget-log-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 85DE22A76B457604E7913ADC /* template-app-budget-log-stage-narrow-light.jpg */; };
@@ -1254,6 +1256,7 @@
 		F6AF137BA5DCE3FC0AE080C1 /* Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTA3j6zbXWjgevT5.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = A681130145D2168873C63B4F /* Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTA3j6zbXWjgevT5.woff2 */; };
 		F7138B1CAFFAE3AD801D16C2 /* DestructiveTint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B79ECE631EFE9C39379331 /* DestructiveTint.swift */; };
 		F73476038C5A573415483440 /* htm.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 586174156618B0DB73BFE5A7 /* htm.module.js */; };
+		F7700944ABF1FAF071D31CA0 /* CollabBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D7A93FB0647F09078E6466 /* CollabBoard.swift */; };
 		F77885AA135AFC57A9D55F0C /* TableEditingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477ACA457C7563F360F21E9B /* TableEditingUITests.swift */; };
 		F77D69094997CFE4F6456CBF /* SettingsForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D645885FE4F85D127E30651 /* SettingsForm.swift */; };
 		F7AFCAEA5DD7A8C102699558 /* NoteWrites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3A999B7A7F5AAAD07623E3 /* NoteWrites.swift */; };
@@ -2101,6 +2104,7 @@
 		D9A577BB66BD92398A2312A7 /* AIBrands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIBrands.swift; sourceTree = "<group>"; };
 		D9FBE108B95CB4AD8D2F52DF /* App */ = {isa = PBXFileReference; lastKnownFileType = folder; name = App; path = Pane/App; sourceTree = SOURCE_ROOT; };
 		DB80888B06B4A1F6FBC61797 /* ConnectWebGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectWebGuide.swift; sourceTree = "<group>"; };
+		DC991B455985BE635F15EA8B /* SharedBoardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedBoardTests.swift; sourceTree = "<group>"; };
 		DCDC0B8634142001E310B8EE /* FakeCollabTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeCollabTransport.swift; sourceTree = "<group>"; };
 		DCE5233DC533CE9F350228FC /* FolderFileViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderFileViews.swift; sourceTree = "<group>"; };
 		DD2215C26D58DF6E72E7C3A9 /* LineStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineStyleTests.swift; sourceTree = "<group>"; };
@@ -2123,6 +2127,7 @@
 		E1C466FC37EA471C4C0A7A26 /* CaretScrollTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretScrollTests.swift; sourceTree = "<group>"; };
 		E1F43E437956C5516C5FDD33 /* template-cover-workout-log.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-workout-log.jpg"; sourceTree = "<group>"; };
 		E2C9D631B8FFC610AD16C920 /* A11yPicksShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = A11yPicksShots.swift; sourceTree = "<group>"; };
+		E2D7A93FB0647F09078E6466 /* CollabBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabBoard.swift; sourceTree = "<group>"; };
 		E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBoxes.swift; sourceTree = "<group>"; };
 		E3290486DF1E77796E513D27 /* OnboardingSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSnapshots.swift; sourceTree = "<group>"; };
 		E32AA38706EFA8DDABA0A198 /* template-cover-job-hunt.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-job-hunt.jpg"; sourceTree = "<group>"; };
@@ -2849,6 +2854,7 @@
 		6EA2C7EB020AFBACEBE2C852 /* Collab */ = {
 			isa = PBXGroup;
 			children = (
+				E2D7A93FB0647F09078E6466 /* CollabBoard.swift */,
 				ED450707209CA52772670C64 /* CollabCrypto.swift */,
 				58E462452EB0E75152BD5846 /* CollabDemo.swift */,
 				2D7294BFFF6A6FCC7F16EF89 /* CollabGallery.swift */,
@@ -3196,6 +3202,7 @@
 				E85EFEB025E3665D0A85909C /* LibraryUpgradeTests.swift */,
 				90D1AB85C70555A16131836E /* LinkStateTests.swift */,
 				F31B34B51B88407DD35D083F /* MemoryCollabServer.swift */,
+				DC991B455985BE635F15EA8B /* SharedBoardTests.swift */,
 				239E33A6B222E8CCE6BA3C15 /* SharedDeleteTests.swift */,
 				758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */,
 				2EFA5CCD5CFCA8C224C2A102 /* SharedLibraryTests.swift */,
@@ -4328,6 +4335,7 @@
 				7DF4FFFA243AA929AED30850 /* ShareLinkTests.swift in Sources */,
 				B237718862CAC6006FF8A62D /* ShareNotePopoverTests.swift in Sources */,
 				010CCD929EF0815F619AC5F7 /* ShareTruthTests.swift in Sources */,
+				8FD7A961C926B53721E9BC42 /* SharedBoardTests.swift in Sources */,
 				ED9FFFE44B9CA18CE34D9BDA /* SharedDeleteTests.swift in Sources */,
 				0D887D8034E1598746A79E40 /* SharedHistoryTests.swift in Sources */,
 				96B237B90524B4A6B154FB93 /* SharedItemTests.swift in Sources */,
@@ -4446,6 +4454,7 @@
 				23C4F4D3148DE01C86E96346 /* ChecklistWidgetView.swift in Sources */,
 				02FF3686D2DF7AA939A76277 /* CodeBoxes.swift in Sources */,
 				FA6D8CC3EEF79B16C92106CF /* CodeFileView.swift in Sources */,
+				F7700944ABF1FAF071D31CA0 /* CollabBoard.swift in Sources */,
 				BB36CE499FB6058AD22BE480 /* CollabCrypto.swift in Sources */,
 				2AE7549782184B7FBB04A141 /* CollabDemo.swift in Sources */,
 				908B0F44123BFF045480313F /* CollabGallery.swift in Sources */,
@@ -4819,6 +4828,7 @@
 				EDDE5D597E0BF6434FC33660 /* ChecklistWidgetView.swift in Sources */,
 				A4C68911479F117417B9D237 /* CodeBoxes.swift in Sources */,
 				BFE965C72AE5D566E1B25013 /* CodeFileView.swift in Sources */,
+				9E03665B50BF38355468E0B7 /* CollabBoard.swift in Sources */,
 				88089B0C85B669E16722247F /* CollabCrypto.swift in Sources */,
 				17B3D5C6ED05EE3B383A60E0 /* CollabDemo.swift in Sources */,
 				8053D090FB2A6F564DBA4479 /* CollabGallery.swift in Sources */,

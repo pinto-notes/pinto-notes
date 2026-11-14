@@ -306,6 +306,40 @@ final class NotePageDataStore {
         changedForList()
     }
 
+    /// A shared board's drawing from its shared document (CollabBoard), kept here for the list's
+    /// picture, search and note cards. Not pushed: the document is how a shared board travels.
+    /// `by`: an AI changed it ("Claude drew…" with Undo), and `before` is the drawing before.
+    func takeShared(_ id: UUID, scene: [String: Any], by: String? = nil, before: [String: Any]? = nil) {
+        let was = docs[id]
+        let data = NotePageData.encode(Self.with(scene, in: doc(id)))
+        if let by {
+            arrivals[id] = Arrival(by: by, at: .now, before: before.map { NotePageData.encode(Self.with($0, in: doc(id))) } ?? was)
+        }
+        dirty.remove(id)
+        guard data != was else { save(); return }
+        docs[id] = data
+        decoded[id] = nil
+        save()
+        changedForList()
+    }
+
+    /// A board's data with `scene` as its drawing.
+    static func with(_ scene: [String: Any], in doc: NotePageData.Doc) -> NotePageData.Doc {
+        var doc = doc
+        var values = (doc["values"] as? NotePageData.Doc) ?? [:]
+        values["scene"] = scene
+        doc["values"] = values
+        if doc["collections"] == nil { doc["collections"] = NotePageData.Doc() }
+        return doc
+    }
+
+    /// Not pushed (a shared note's data travels in its shared document).
+    func clean(_ id: UUID) {
+        guard dirty.contains(id) else { return }
+        dirty.remove(id)
+        save()
+    }
+
     /// Pushed: what the server now holds is the new base.
     func pushed(_ id: UUID, _ sent: Data) {
         synced[id] = sent

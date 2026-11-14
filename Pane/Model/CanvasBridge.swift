@@ -396,6 +396,15 @@ enum CanvasCommand: Equatable, Sendable {
     case addCards([CanvasNoteCard], at: CGPoint?)
     /// A note's card selected and brought into view ("On boards" at the foot of the note).
     case focusCard(UUID)
+    /// The board is shared with people (CollabBoard), or no longer: its drawing goes to the app as
+    /// changes and comes back from the note's shared document. `viewOnly`: you can only look.
+    case shared(on: Bool, viewOnly: Bool)
+    /// A shared board's whole drawing (a scene, as JSON), merged into what's on screen.
+    case remoteScene(Data)
+    /// What an AI just changed on a shared board, outlined with its name (`arrived(by:)`).
+    case outline([String])
+    /// The others on a shared board: each one's pointer, name and selection.
+    case peers([BoardPeer])
 
     var payload: [String: Any] {
         switch self {
@@ -418,6 +427,10 @@ enum CanvasCommand: Equatable, Sendable {
         case .presentOrder(let ids): ["op": "presentOrder", "ids": ids]
         case .cards(let info): ["op": "cards", "info": info.mapValues(\.payload)]
         case .focusCard(let note): ["op": "focusCard", "note": note.uuidString]
+        case .shared(let on, let viewOnly): ["op": "shared", "on": on, "viewOnly": viewOnly]
+        case .remoteScene(let json): ["op": "remoteScene", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
+        case .outline(let ids): ["op": "outline", "ids": ids]
+        case .peers(let list): ["op": "peers", "peers": list.map(\.payload)]
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -443,6 +456,10 @@ final class CanvasController {
     @ObservationIgnored var deliver: ((CanvasCommand) -> Void)?
 
     func send(_ command: CanvasCommand) {
+        // A picture's bytes aren't shared yet: a shared board takes none (SharedNoteLimits).
+        if shared, case .image = command { confirm(SharedNoteLimits.boardPictures, for: .seconds(4)); return }
+        // The last hundred or so: a shared board sends its drawing and the others' pointers often.
+        if sent.count >= 200 { sent.removeFirst(100) }
         sent.append(command)
         deliver?(command)
     }
@@ -461,6 +478,22 @@ final class CanvasController {
         if let error = m["error"] as? String { confirm(error, for: .seconds(6)); return }
         if let r = m["remote"] as? [String: Any] { remoteChange(r); return }
         if let ref = m["open"] as? String { openCard(ref); return }
+        if let b = m["board"] as? [String: Any] {
+            onBoardDelta?((b["elements"] as? [[String: Any]]) ?? [], (b["settings"] as? [String: Any]) ?? [:])
+            return
+        }
+        if let p = m["presence"] as? [String: Any] {
+            let xy = (p["pointer"] as? [NSNumber])?.map { CGFloat($0.doubleValue) }
+            onPresence?(xy.flatMap { $0.count == 2 ? CGPoint(x: $0[0], y: $0[1]) : nil }, (p["sel"] as? [String]) ?? [])
+            return
+        }
+        // A page loaded (the first, or again after the web view's content went away): what it was
+        // told about sharing, it's told again.
+        if let l = m["load"] as? String, l != load {
+            load = l
+            if shared { sendShared() }
+            onLoad?()
+        }
         let next = CanvasState(m)
         if !connected {
             connected = true
@@ -578,6 +611,62 @@ final class CanvasController {
         send(.showLastChange)
     }
 
+    // MARK: Shared with people
+
+    /// The board is shared (CollabBoard): what you draw goes out as changes, through the note's
+    /// shared document, and the page's own store isn't written.
+    private(set) var shared = false
+    /// You can only look (Can view): no tools, no style controls, the engine in its view mode.
+    private(set) var viewOnly = false
+    /// The elements the page changed and the board's settings, for the shared document (set by
+    /// the note's view).
+    @ObservationIgnored var onBoardDelta: (([[String: Any]], [String: Any]) -> Void)?
+    /// Your pointer, in the board's own coordinates (nil: off the board), and selection.
+    @ObservationIgnored var onPresence: ((CGPoint?, [String]) -> Void)?
+    /// The page loaded: the note's view sends it the drawing and the others again.
+    @ObservationIgnored var onLoad: (() -> Void)?
+    @ObservationIgnored private var load: String?
+    @ObservationIgnored private(set) var peers: [BoardPeer] = []
+
+    /// Shares the board, or stops (the shared session opened or closed).
+    func share(_ on: Bool, viewOnly: Bool = false) {
+        let view = on && viewOnly
+        guard on != shared || view != self.viewOnly else { return }
+        shared = on
+        self.viewOnly = view
+        if view { showingStyle = false; showingLibrary = false }
+        if !on, !peers.isEmpty { peers = [] }
+        sendShared()
+    }
+
+    private func sendShared() {
+        send(.shared(on: shared, viewOnly: viewOnly))
+        if !shared { send(.peers([])) }
+    }
+
+    /// The shared document's drawing, into the page.
+    func remote(scene: [String: Any]) {
+        guard shared, JSONSerialization.isValidJSONObject(scene), let json = try? JSONSerialization.data(withJSONObject: scene) else { return }
+        send(.remoteScene(json))
+    }
+
+    /// What an AI just changed on the shared board: outlined with its name, as for a board of your own.
+    func outline(by: String, ids: [String]) {
+        guard shared, !ids.isEmpty else { return }
+        arrived(by: by)
+        send(.outline(ids))
+    }
+
+    /// The others on the board, sent when they change.
+    func show(peers list: [BoardPeer]) {
+        guard shared, list != peers else { return }
+        peers = list
+        send(.peers(list))
+    }
+
+    /// Sends the others again (a page that just loaded).
+    func resendPeers() { if shared { send(.peers(peers)) } }
+
     // MARK: Note cards
 
     /// The board's own note: never a card on itself.
@@ -647,7 +736,11 @@ final class CanvasController {
 
     /// A card was opened (double-click, ⌘-click, Open Note): its note, or why not.
     func openCard(_ ref: String) {
-        guard let card = cardInfo?([ref])[ref] else { return }
+        guard let card = cardInfo?([ref])[ref] else {
+            // On a board shared with you: a card for one of the owner's notes.
+            if shared { confirm("This note isn\u{2019}t shared with you") }
+            return
+        }
         guard !card.deleted, let id = card.id else {
             confirm(card.preview == CanvasNoteCard.missingText ? "No note has this title" : "This note was deleted")
             return

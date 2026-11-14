@@ -24,9 +24,16 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
+import { changedSince, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
 
 const amber = window.amber;
 const SAVE_DELAY = 300;
+// A shared board's changes go out this often while you draw (shared.js): the others see a drag move.
+const SHARED_DELAY = 250;
+// This page's load: the app sets a shared board up again when the page is new (CanvasController).
+const LOAD = Math.random().toString(36).slice(2, 10);
+// What the page does with a shared board (set by the Canvas, called by the bridge's commands).
+const sharedHooks = { set: null, remote: null, outline: null, peers: null, pointer: null };
 // Deleted elements are kept a while so another device's copy can't bring them back, then dropped.
 const KEEP_DELETED_MS = 7 * 24 * 3600 * 1000;
 
@@ -134,6 +141,9 @@ const ACTIONS = {
   crop: "cropEditor",
 };
 const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser", "frame", "laser"]);
+/** What changes the drawing, refused on a board you can only view; and the actions that only look. */
+const EDITS = new Set(["style", "insert", "sticky", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards"]);
+const LOOKS = new Set(["zoomIn", "zoomOut", "resetZoom", "zoomToFit"]);
 
 /** Keys that would open the engine's own dialogs and panels, which aren't shown here. */
 export function blockedKey(e) {
@@ -876,6 +886,7 @@ export function stateOf(api, app) {
     onlyCards: selected.length > 0 && selected.every(noteOf),
     // The notes the board's cards name, for the app to send what each says now.
     cardNotes: cardNotes(api.getSceneElements()),
+    load: LOAD,
     canUndo: history ? !history.isUndoStackEmpty : false,
     canRedo: history ? !history.isRedoStackEmpty : false,
   };
@@ -977,7 +988,24 @@ function bridge(api) {
   };
   const command = (c) => {
     if (!c || typeof c !== "object") return false;
+    // Can view (a shared board): nothing changes the drawing; looking round it does.
+    if (api.getAppState().viewModeEnabled && (EDITS.has(c.op) || (c.op === "action" && !LOOKS.has(c.name)))) return false;
     switch (c.op) {
+      case "shared":
+        if (!sharedHooks.set) return false;
+        sharedHooks.set(c);
+        break;
+      case "remoteScene":
+        if (!sharedHooks.remote || !sharedHooks.remote(c.scene)) return false;
+        break;
+      case "outline":
+        if (!sharedHooks.outline || !Array.isArray(c.ids)) return false;
+        sharedHooks.outline(c.ids);
+        break;
+      case "peers":
+        if (!sharedHooks.peers) return false;
+        sharedHooks.peers(c.peers);
+        return true;
       case "tool":
         if (!TOOLS.has(c.tool)) return false;
         api.setActiveTool({ type: c.tool });
@@ -1173,6 +1201,7 @@ function bridge(api) {
       if (to) { e.preventDefault(); e.stopImmediatePropagation(); present(api, to); setTimeout(report, 30); return; }
     }
     if (blockedKey(e)) { e.stopImmediatePropagation(); return; }
+    if (api.getAppState().viewModeEnabled) return;
     // S: a sticky note, as in FigJam (the engine's S opens a panel that isn't shown here).
     const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
     // Tab: a mind map's next branch off the selected shape, as in FigJam (whiteboard council,
@@ -1292,7 +1321,31 @@ function Canvas({ initial }) {
     let base = initial.elements;
     let lastVersion = null;
 
+    // Shared with people (shared.js): the app turns it on. The drawing then goes to the app as the
+    // elements that changed, and comes back from it whole; the page's own store isn't written.
+    let shared = null;
+    const post = (m) => { try { window.webkit.messageHandlers.amberCanvas.postMessage(m); } catch (_) {} };
+    const settingsOf = (a) => ({ viewBackgroundColor: a.viewBackgroundColor, gridModeEnabled: !!a.gridModeEnabled });
+    const sendShared = () => {
+      if (!shared) return;
+      clearTimeout(shared.timer);
+      shared.timer = null;
+      // Nothing goes out until the page has had the document's drawing: what it holds before
+      // that may be older than the document's.
+      if (!shared.ready || api.getAppState().viewModeEnabled) return;
+      const changed = changedSince(api.getSceneElementsIncludingDeleted(), shared.known);
+      const settings = settingsOf(api.getAppState());
+      const moved = JSON.stringify(settings) !== shared.settings;
+      if (!changed.length && !moved) return;
+      for (const e of changed) shared.known.set(e.id, stamp(e));
+      shared.settings = JSON.stringify(settings);
+      post({ board: { elements: changed, settings } });
+    };
+    // A few times a second while you draw, not once you stop: the others see it move.
+    const sharedSoon = () => { if (shared && !shared.timer) shared.timer = setTimeout(sendShared, SHARED_DELAY); };
+
     const save = () => {
+      if (shared) { sendShared(); return; }
       timer = null;
       const scene = sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
       const print = fingerprint(scene);
@@ -1305,19 +1358,107 @@ function Canvas({ initial }) {
         try { window.webkit.messageHandlers.amberCanvas.postMessage({ error: "Not saved: " + String((e && e.message) || e) }); } catch (_) {}
       });
     };
-    const flush = () => { if (timer) { clearTimeout(timer); save(); } };
+    const flush = () => { if (shared) { if (shared.timer) sendShared(); return; } if (timer) { clearTimeout(timer); save(); } };
     const schedule = () => { clearTimeout(timer); timer = setTimeout(save, SAVE_DELAY); };
 
     const off = api.onChange((elements, appState, files) => {
       // Pans and zooms change nothing that's kept.
       const v = changeKey(elements, appState, files);
       if (v === lastVersion) return;
-      if (lastVersion !== null) schedule();
+      if (shared) { refusePictures(); sharedSoon(); } else if (lastVersion !== null) schedule();
       lastVersion = v;
     });
 
+    // Pictures can't go on a shared board yet (their bytes aren't shared): one pasted or dropped
+    // goes again at once, and the app says why.
+    const refusePictures = () => {
+      if (!shared || !shared.ready || api.getAppState().viewModeEnabled) return;
+      const pictures = api.getSceneElements().filter((e) => e.type === "image" && !shared.known.has(e.id));
+      if (!pictures.length) return;
+      const gone = new Set(pictures.map((e) => e.id));
+      api.updateScene({ elements: api.getSceneElementsIncludingDeleted().filter((e) => !gone.has(e.id)), captureUpdate: CaptureUpdateAction.NEVER });
+      post({ error: "Pictures can\u2019t go on a shared whiteboard yet" });
+    };
+
+    // Someone else's drawing (the app, from the note's shared document): merged by Excalidraw's own
+    // rule, what you have in hand kept. What came is known, so it isn't sent back as yours.
+    const takeShared = (scene) => {
+      if (!shared || !scene || !Array.isArray(scene.elements)) return false;
+      const { elements: remote, converted, made } = normalizeShared(scene.elements);
+      const drawn = expandSeeds(remote);
+      for (const e of scene.elements) if (e && typeof e.id === "string") shared.known.set(e.id, stamp(e));
+      const merged = reconcile(api.getSceneElementsIncludingDeleted(), drawn.elements, api.getAppState());
+      const bg = scene.appState && scene.appState.viewBackgroundColor;
+      api.updateScene({ elements: merged, ...(bg ? { appState: { viewBackgroundColor: bg } } : {}), captureUpdate: CaptureUpdateAction.NEVER });
+      shared.settings = JSON.stringify(settingsOf(api.getAppState()));
+      shared.ready = true;
+      // The short form filled out here, or what you have in hand: goes back as yours. Measuring a
+      // label bumps it with a random nonce: stamped again, the same on every device.
+      if (converted || drawn.changed) {
+        remeasure().then(() => {
+          if (!shared) return;
+          if (made && made.size) {
+            const now = api.getSceneElementsIncludingDeleted(), again = restamp(now, made);
+            if (again.some((e, i) => e !== now[i])) api.updateScene({ elements: again, captureUpdate: CaptureUpdateAction.NEVER });
+          }
+          sharedSoon();
+        });
+      } else sharedSoon();
+      return true;
+    };
+
+    // Your pointer and selection, for the others (a few times a second at most).
+    let pointer = null, presenceSent = "", presenceTimer = null;
+    const presenceNow = () => {
+      presenceTimer = null;
+      if (!shared) return;
+      const s = api.getAppState();
+      const sel = Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]).sort();
+      const m = { pointer: pointer ? [Math.round(pointer.x * 10) / 10, Math.round(pointer.y * 10) / 10] : null, sel };
+      const j = JSON.stringify(m);
+      if (j === presenceSent) return;
+      presenceSent = j;
+      post({ presence: m });
+    };
+    const presenceSoon = () => { if (shared && !presenceTimer) presenceTimer = setTimeout(presenceNow, 50); };
+    const offSelection = api.onChange(() => { if (shared) presenceSoon(); });
+    const host = document.getElementById("canvas") || document.body;
+    const left = () => { if (pointer) { pointer = null; presenceSoon(); } };
+    host.addEventListener("pointerleave", left);
+
+    sharedHooks.set = (c) => {
+      if (!c.on) {
+        if (shared) { clearTimeout(shared.timer); shared.layer.stop(); }
+        shared = null;
+        api.updateScene({ appState: { viewModeEnabled: false }, captureUpdate: CaptureUpdateAction.NEVER });
+        return;
+      }
+      if (!shared) { flush(); shared = { known: new Map(), timer: null, settings: null, ready: false, layer: peersLayer(api, host) }; }
+      const view = !!c.viewOnly;
+      if (api.getAppState().viewModeEnabled !== view) {
+        api.updateScene({ appState: { viewModeEnabled: view, ...(view ? { selectedElementIds: {}, editingTextElement: null } : {}) }, captureUpdate: CaptureUpdateAction.NEVER });
+        if (view) api.setActiveTool({ type: "hand" });
+        else api.setActiveTool({ type: "selection" });
+      }
+    };
+    sharedHooks.remote = takeShared;
+    sharedHooks.outline = (ids) => {
+      const want = new Set(ids);
+      const all = api.getSceneElements();
+      for (const e of all) if (e.containerId && want.has(e.id)) want.add(e.containerId);
+      showChanged(all.filter((e) => want.has(e.id) || (e.containerId && want.has(e.containerId))));
+    };
+    sharedHooks.peers = (list) => { if (shared) shared.layer.set(list); };
+    sharedHooks.pointer = (p) => {
+      if (!shared || !p || !p.pointer) return;
+      pointer = { x: p.pointer.x, y: p.pointer.y };
+      presenceSoon();
+    };
+
     // From elsewhere: another device or an AI.
     const unlisten = amber.onChange((note, data) => {
+      // A shared board's drawing comes from its document, through the app (takeShared).
+      if (shared) return;
       const scene = data && data.values && data.values.scene;
       // Its own save, back as the store's reply and the app's push: nothing to merge.
       if (!scene || fingerprint(scene) === lastSent) return;
@@ -1478,7 +1619,12 @@ function Canvas({ initial }) {
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
-    return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
+    return () => {
+      follow(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); unlisten(); removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", hidden); host.removeEventListener("pointerleave", left); flush();
+      if (shared) shared.layer.stop();
+      for (const k of Object.keys(sharedHooks)) sharedHooks[k] = null;
+    };
   }, [api]);
 
   const setRef = useCallback((a) => setApi(a), []);
@@ -1499,6 +1645,8 @@ function Canvas({ initial }) {
       }}
       renderTopRightUI={() => null}
       validateEmbeddable={false}
+      // Your pointer on a shared board, in the board's own coordinates (shared.js).
+      onPointerUpdate={(p) => sharedHooks.pointer && sharedHooks.pointer(p)}
     >
       {/* An empty main menu: no items (its button is hidden with the rest in pinto.css). */}
       <MainMenu />

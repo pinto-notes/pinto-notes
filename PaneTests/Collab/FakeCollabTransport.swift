@@ -109,6 +109,28 @@ final class FakeCollabServer {
         defer { aiWriting[user] = nil }
         return try insertUpdate(note: note, author: user, epoch: epoch, ct: try CollabCrypto.seal(.update, change, nk: nk, note: note, epoch: epoch, extra: user.uuidString))
     }
+
+    /// Someone's AI drawing on a shared whiteboard through the MCP server: the elements it wrote
+    /// (as data.json's), put into the document's `board` map as one change, as theirs, the AI named.
+    @discardableResult
+    func aiDraws(_ note: UUID, as user: UUID, ai: String, nk: SymmetricKey, _ elements: [[String: Any]]) throws -> Collab.Update {
+        let epoch = epochs[note] ?? 1
+        let doc = Document(textEncoding: .utf16)
+        let snapshot = snapshots(of: note).filter { $0.epoch == epoch }.max { $0.upto < $1.upto }
+        if let s = snapshot {
+            try CollabText.absorb(try CollabCrypto.open(.snapshot, s.ct, nk: nk, note: note, extra: String(s.upto)), into: doc)
+        }
+        for u in updates(of: note) where u.id > (snapshot?.upto ?? 0) && !inFlight.contains(u.id) {
+            try CollabText.absorb(try CollabCrypto.open(.update, u.ct, nk: nk, note: note, extra: u.author_id.uuidString), into: doc)
+        }
+        guard let board = CollabBoard.board(in: doc) else { throw CollabCrypto.Failure.malformed }
+        let heads = doc.heads()
+        for e in elements { try doc.put(obj: board, key: e["id"] as! String, value: .String(CollabBoard.encode(e)!)) }
+        let change = try doc.encodeChangesSince(heads: heads)
+        aiWriting[user] = ai
+        defer { aiWriting[user] = nil }
+        return try insertUpdate(note: note, author: user, epoch: epoch, ct: try CollabCrypto.seal(.update, change, nk: nk, note: note, epoch: epoch, extra: user.uuidString))
+    }
 }
 
 @MainActor

@@ -33,7 +33,8 @@ struct CanvasOverlay: View {
                 #if os(iOS)
                 .ignoresSafeArea()
                 #endif
-                if CanvasStart.shows(canvas.state) {
+                // A board shared with you to look at: nothing to start drawing with.
+                if CanvasStart.shows(canvas.state), !canvas.viewOnly {
                     CanvasStart(canvas: canvas, targets: targets, subject: subject)
                         .transition(.opacity)
                 }
@@ -59,8 +60,10 @@ struct CanvasOverlay: View {
                     .padding(.trailing, 16)
                     .padding(.bottom, CanvasDock.margin)
                     #else
-                    CanvasDock(canvas: canvas)
-                        .padding(.bottom, CanvasDock.margin)
+                    if !canvas.viewOnly {
+                        CanvasDock(canvas: canvas)
+                            .padding(.bottom, CanvasDock.margin)
+                    }
                     #endif
                 }
                 }
@@ -160,7 +163,8 @@ struct CanvasPresentBar: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Button { canvas.send(.present(.prev)) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28) }
+            Button { canvas.send(.present(.prev)) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 28).contentShape(Circle()) }
+                .hoverHighlight(Circle())
                 .disabled(step.index == 0)
                 .help("Previous (\u{2190})")
                 .accessibilityLabel("Previous")
@@ -172,7 +176,8 @@ struct CanvasPresentBar: View {
             .frame(minWidth: 120)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("canvas.present.step")
-            Button { canvas.send(.present(.next)) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28) }
+            Button { canvas.send(.present(.next)) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 28).contentShape(Circle()) }
+                .hoverHighlight(Circle())
                 .disabled(step.index >= step.count - 1)
                 .help("Next (\u{2192} or Space)")
                 .accessibilityLabel("Next")
@@ -185,6 +190,7 @@ struct CanvasPresentBar: View {
                     .frame(width: 28, height: 28)
                     .background(laser ? Color.red : Color.clear, in: .circle)
             }
+            .hoverHighlight(Circle())
             .help(laser ? "Laser pointer on (K)" : "Laser pointer (K)")
             .accessibilityLabel("Laser pointer")
             .accessibilityValue(laser ? "On" : "Off")
@@ -192,7 +198,8 @@ struct CanvasPresentBar: View {
             .padding(.leading, 6)
             // The frames' order, to change it or jump to one (round 7).
             if !canvas.state.frames.isEmpty {
-                Button { canvas.showingPresentOrder.toggle() } label: { Image(systemName: "list.number").frame(width: 28, height: 28) }
+                Button { canvas.showingPresentOrder.toggle() } label: { Image(systemName: "list.number").frame(width: 28, height: 28).contentShape(Circle()) }
+                    .hoverHighlight(Circle())
                     .help(CanvasPresentOrder.help)
                     .accessibilityLabel(CanvasPresentOrder.title)
                     .accessibilityIdentifier("canvas.present.order")
@@ -202,6 +209,7 @@ struct CanvasPresentBar: View {
                     }
             }
             Button("Done") { canvas.showingPresentOrder = false; canvas.send(.present(.stop)) }
+                .buttonStyle(.hoverText)
                 .help("Stop presenting (Esc)")
                 .accessibilityIdentifier("canvas.present.done")
                 .padding(.leading, 8)
@@ -263,6 +271,7 @@ struct CanvasPresentOrder: View {
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .hoverRow("present.\(frame.id)")
                     .contextMenu {
                         Button(Self.moveUp) { move(ids, i, -1) }.disabled(i == 0)
                         Button(Self.moveDown) { move(ids, i, 1) }.disabled(i == ids.count - 1)
@@ -411,6 +420,7 @@ struct CanvasNotePicker: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .hoverRow("notePicker.\(e.id)")
                 .accessibilityIdentifier("canvas.notePicker.note")
             }
             .listStyle(.plain)
@@ -1843,7 +1853,7 @@ struct CanvasLibraryPopover: View {
                     .padding(9)
                     .frame(width: Self.tile, height: Self.tile)
                     .background(Color.primary.opacity(0.045), in: shape)
-                    .overlay { if picked == item.id { shape.strokeBorder(Color.accentColor, lineWidth: 2) } }
+                    .overlay { if picked == item.id { shape.strokeBorder(Color.paneAccent, lineWidth: 2) } }
                 if canvas.renamingLibraryItem == item.id {
                     Color.clear.frame(width: Self.tile, height: Self.label - 2)
                 } else {
@@ -1881,7 +1891,7 @@ struct CanvasLibraryPopover: View {
                     .padding(.horizontal, 3)
                     .frame(width: Self.tile + 6, height: Self.label)
                     .background(Color(nsColor: .textBackgroundColor), in: .rect(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.accentColor, lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.paneAccent, lineWidth: 1.5))
                     .offset(y: 1)
                     .focused($naming)
                     .onSubmit { finishRename(item, keep: true) }
@@ -2092,10 +2102,25 @@ enum CanvasRename {
     /// Nil when there's nothing to change.
     @MainActor @discardableResult
     static func renamed(_ note: Note, to typed: String) -> String? {
-        let t = typed.components(separatedBy: .newlines).joined(separator: " ").trimmingCharacters(in: .whitespaces)
-        guard !t.isEmpty, t != note.title, !note.isLocked else { return nil }
+        guard let t = title(typed, for: note) else { return nil }
         note.body = t
         note.touch()
+        return t
+    }
+
+    /// The name typed, on one line, or nil when there's nothing to change.
+    static func title(_ typed: String, for note: Note) -> String? {
+        let t = typed.components(separatedBy: .newlines).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, t != note.title, !note.isLocked else { return nil }
+        return t
+    }
+
+    /// A shared board's name is its document's title: renamed there, for everyone. Nil for a
+    /// viewer, or when there's nothing to change.
+    @MainActor @discardableResult
+    static func renamed(_ note: Note, to typed: String, in session: CollabSession) -> String? {
+        guard session.canWrite, let t = title(typed, for: note) else { return nil }
+        session.localFromOutside(t)
         return t
     }
 }

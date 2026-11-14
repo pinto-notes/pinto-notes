@@ -23,7 +23,9 @@ export type Shared = {
   id: string; role: Role; epoch: number; title: string; preview?: string; ownerId: string;
   created_at: Date; updated_at: Date; nk: Bytes;
 };
-type Doc = AM.Doc<{ body?: string }>;
+/** A shared note's document: its text, and a whiteboard's drawing beside it (Pane/Collab/CollabBoard.swift):
+ *  `board` maps each element's id to the element as JSON, `boardState` holds the scene's settings. */
+type Doc = AM.Doc<{ body?: string; board?: Record<string, unknown>; boardState?: Record<string, unknown> }>;
 
 /** Where shared notes others shared with you show, for the file tools. */
 export const SHARED_DIR = "Shared with me/";
@@ -151,9 +153,25 @@ export async function writeDoc(tx: Tx, c: Call, s: Shared, at: Loaded, text: str
   const A = await loadAutomerge();
   const message = await byline(tx, c);
   const next = A.change(at.doc, { message, time: Math.floor(Date.now() / 1000) }, (d) => A.updateText(d, ["body"], text));
+  const stored = await commit(tx, c, s, at, next);
+  if (!stored.changed) return stored;
+  // The list's title and preview, sealed with NK as devices write them.
+  const head = { title: titleOf(text), preview: previewOf(text) };
+  await tx`update public.shared_notes set head_ct = ${await seal3("h", new TextEncoder().encode(JSON.stringify(head)) as Bytes, s.nk, s.id, s.epoch)} where id = ${s.id}::uuid`;
+  s.title = head.title;
+  s.preview = head.preview;
+  return stored;
+}
+
+/** The change from what was loaded to `next`, sealed with NK and stored as this person's (the AI named),
+ *  and a snapshot when one is due. */
+async function commit(tx: Tx, c: Call, s: Shared, at: Loaded, next: Doc): Promise<{ changed: boolean; update?: number }> {
+  const A = await loadAutomerge();
   const change = A.getLastLocalChange(next);
   if (!change) return { changed: false };
   const ct = await seal3("u", change as Bytes, s.nk, s.id, s.epoch, c.ctx.userId);
+  // The server takes a change up to this size (a device sends a bigger one as a snapshot).
+  if (ct.length > MAX_UPDATE) throw new ToolError(`That change to "${s.title}" is too big to send at once. Make it in a few smaller parts.`);
   let id: number;
   try {
     const [row] = await tx<{ id: string }[]>`insert into public.note_updates (note_id, epoch, ct) values (${s.id}::uuid, ${s.epoch}, ${ct}) returning id`;
@@ -165,9 +183,6 @@ export async function writeDoc(tx: Tx, c: Call, s: Shared, at: Loaded, text: str
     if (hint === "stale_epoch") throw new ToolError(`Someone was removed from "${s.title}" and it has a new key. Open it once in Pinto Notes, then try again.`);
     throw e;
   }
-  // The list's title and preview, sealed with NK as devices write them.
-  const head = { title: titleOf(text), preview: previewOf(text) };
-  await tx`update public.shared_notes set head_ct = ${await seal3("h", new TextEncoder().encode(JSON.stringify(head)) as Bytes, s.nk, s.id, s.epoch)} where id = ${s.id}::uuid`;
   // A snapshot covers what was loaded (`at.last`), never more: a change someone else committed
   // after the load has a smaller id than this one, isn't in this document, and compaction would
   // delete it. This change stays a change after the snapshot too; loading it twice changes nothing.
@@ -177,9 +192,129 @@ export async function writeDoc(tx: Tx, c: Call, s: Shared, at: Loaded, text: str
       values (${s.id}::uuid, ${at.last}, ${s.epoch}, ${await seal3("s", saved as Bytes, s.nk, s.id, s.epoch, String(at.last))})
       on conflict (note_id, upto, epoch) do nothing`;
   }
-  s.title = head.title;
-  s.preview = head.preview;
   return { changed: true, update: id };
+}
+
+/** The biggest change a device sends as one (CollabSession.maxUpdate). */
+const MAX_UPDATE = 262_144;
+
+// MARK: Shared whiteboards
+
+type El = Record<string, unknown>;
+type Stamp = { v: number; n: number };
+const stampOf = (e: El): Stamp => ({ v: typeof e.version === "number" ? e.version : 0, n: typeof e.versionNonce === "number" ? e.versionNonce : 0 });
+/** Excalidraw's rule for two edits of one element (CollabBoard.Stamp): the newer, then the lower nonce. */
+const beats = (a: Stamp, b: Stamp) => a.v > b.v || (a.v === b.v && a.n < b.n);
+/** A scalar string as Automerge hands it back (an ImmutableString), or a plain one. */
+const scalar = (v: unknown): string | null => typeof v === "string" ? v : v && typeof v === "object" && "val" in v && typeof (v as { val: unknown }).val === "string" ? (v as { val: string }).val : null;
+/** JSON with every object's keys sorted, as the devices write elements. */
+const canon = (v: unknown): unknown => Array.isArray(v) ? v.map(canon)
+  : v && typeof v === "object" ? Object.fromEntries(Object.keys(v as El).sort().map((k) => [k, canon((v as El)[k])])) : v;
+const nonce = () => crypto.getRandomValues(new Uint32Array(1))[0] % 2147483646 + 1;
+
+/** Whether a shared note is a whiteboard: its document holds a drawing. */
+export const isBoard = (at: Loaded) => !!at.doc.board && typeof at.doc.board === "object";
+
+/** Each element, as every device picks it among values written at once (CollabBoard.resolve). */
+export async function boardElements(at: Loaded): Promise<Map<string, El>> {
+  const A = await loadAutomerge();
+  const board = at.doc.board ?? {};
+  const out = new Map<string, El>();
+  for (const id of Object.keys(board)) {
+    // deno-lint-ignore no-explicit-any
+    const all = A.getConflicts(board as any, id);
+    const raws = (all ? Object.values(all) : [board[id]]).map(scalar).filter((x): x is string => x !== null).sort();
+    let best: { raw: string; e: El; st: Stamp } | null = null;
+    for (const raw of raws) {
+      let e: unknown;
+      try { e = JSON.parse(raw); } catch { continue; }
+      if (!e || typeof e !== "object" || Array.isArray(e)) continue;
+      const st = stampOf(e as El);
+      if (best && !(beats(st, best.st) || (st.v === best.st.v && st.n === best.st.n && raw < best.raw))) continue;
+      best = { raw, e: e as El, st };
+    }
+    if (best) out.set(id, best.e);
+  }
+  return out;
+}
+
+/** A shared whiteboard's data.json: its drawing as a board of the person's own keeps it (`values.scene`). */
+export async function boardData(at: Loaded) {
+  const byIndex = (a: El, b: El) => {
+    const x = typeof a.index === "string" ? a.index : null, y = typeof b.index === "string" ? b.index : null;
+    if (x !== null && y !== null && x !== y) return x < y ? -1 : 1;
+    if (x !== null && y === null) return -1;
+    if (x === null && y !== null) return 1;
+    return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+  };
+  const elements = [...(await boardElements(at)).values()].sort(byIndex);
+  const st = at.doc.boardState ?? {};
+  const appState: El = { viewBackgroundColor: scalar(st.viewBackgroundColor) ?? "#ffffff" };
+  if (typeof st.gridModeEnabled === "boolean") appState.gridModeEnabled = st.gridModeEnabled;
+  return { values: { scene: { type: "excalidraw", version: 2, source: "https://pintonotes.com", elements, appState, files: {} } }, collections: {} };
+}
+
+/**
+ * data.json written for a shared whiteboard: each element that changed goes into its document as
+ * one change, newer than any device's copy so it wins everywhere, and merges with what people draw
+ * meanwhile. An element left out is deleted (kept as `isDeleted`, so a device that was away can't
+ * bring it back), unless it was drawn after `readAt`, when the AI last read the drawing; a copy older
+ * than the board's isn't taken over someone's newer edit. One without an id gets one. Pictures
+ * aren't shared yet and are left out.
+ */
+export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: unknown, readAt: Date = new Date()): Promise<{ changed: boolean; update?: number; pictures: number }> {
+  refuseViewer(s);
+  const scene = (data as { values?: { scene?: { elements?: unknown; appState?: unknown } } })?.values?.scene;
+  if (!scene || typeof scene !== "object" || !Array.isArray(scene.elements)) {
+    throw new ToolError(`A whiteboard's data.json keeps its drawing in values.scene: { "values": { "scene": { "elements": [ … ], "appState": { … } } }, "collections": {} }. Nothing was saved.`);
+  }
+  if (!isBoard(at)) throw notYet(s);
+  const current = await boardElements(at);
+  const now = Date.now();
+  const puts: [string, string][] = [];
+  const seen = new Set<string>();
+  let pictures = 0, made = 0;
+  for (const raw of scene.elements as unknown[]) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) || typeof (raw as El).type !== "string") continue;
+    const e: El = { ...(raw as El) };
+    if (e.type === "image") { pictures++; continue; }
+    if (typeof e.id !== "string" || !e.id || e.id.length > 200) e.id = `ai-${crypto.randomUUID().slice(0, 8)}-${made++}`;
+    const id = e.id as string;
+    seen.add(id);
+    const had = current.get(id);
+    if (had && JSON.stringify(canon(had)) === JSON.stringify(canon(e))) continue;
+    // A copy older than the board's (someone changed it after this was read): theirs stays. A
+    // short form (no version) written over an element is meant as a change to it.
+    if (had && typeof e.version === "number" && e.version < stampOf(had).v) continue;
+    if (had) {
+      // Newer than the board's copy, whatever version it was read at.
+      Object.assign(e, { version: Math.max(stampOf(had).v, stampOf(e).v) + 1, versionNonce: nonce(), updated: now });
+    }
+    puts.push([id, JSON.stringify(canon(e))]);
+  }
+  for (const [id, had] of current) {
+    if (seen.has(id) || had.isDeleted === true || had.type === "image") continue;
+    // Drawn after this was read: never seen, so not left out on purpose.
+    if (typeof had.updated === "number" && had.updated > +readAt) continue;
+    puts.push([id, JSON.stringify(canon({ ...had, isDeleted: true, version: stampOf(had).v + 1, versionNonce: nonce(), updated: now }))]);
+  }
+  const appState = (scene.appState && typeof scene.appState === "object" ? scene.appState : {}) as El;
+  const st = at.doc.boardState ?? {};
+  const settings: [string, string | boolean][] = [];
+  if (typeof appState.viewBackgroundColor === "string" && appState.viewBackgroundColor !== scalar(st.viewBackgroundColor)) settings.push(["viewBackgroundColor", appState.viewBackgroundColor]);
+  if (typeof appState.gridModeEnabled === "boolean" && appState.gridModeEnabled !== st.gridModeEnabled) settings.push(["gridModeEnabled", appState.gridModeEnabled]);
+  if (!puts.length && !settings.length) return { changed: false, pictures };
+  const A = await loadAutomerge();
+  const message = await byline(tx, c);
+  const next = A.change(at.doc, { message, time: Math.floor(now / 1000) }, (d) => {
+    // Scalar strings, as the devices write them (a plain string would be collaborative text).
+    for (const [id, json] of puts) d.board![id] = new A.ImmutableString(json);
+    if (settings.length) {
+      if (!d.boardState) d.boardState = {};
+      for (const [k, v] of settings) d.boardState[k] = typeof v === "string" ? new A.ImmutableString(v) : v;
+    }
+  });
+  return { ...await commit(tx, c, s, at, next), pictures };
 }
 
 /** Who changed a shared note lately, newest first: "Sara", "Sara's Claude". */

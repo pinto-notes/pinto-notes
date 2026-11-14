@@ -285,6 +285,24 @@ It deletes the template at once (the page and its Use template link say it isn't
 
 **A gallery of people's templates (later idea, not built).** Shared templates stay link-only: nothing anyone shares appears on our site by itself. If a community gallery is ever wanted, every template in it goes through review before it's listed, because whatever is there appears under our name.
 
+## 8. Whiteboards shared with people
+
+Branch `feature/board-collab` (2026-11-14). A whiteboard (a canvas note) is shared like a note, from the same sheet. The app limit is lifted for whiteboards only; any other app still can't be shared. FigJam and Apple Notes are the reference: everyone draws at once, and you see the others' pointers and selections.
+
+**What's shared.** The note's Automerge document gets two more root maps next to `body` (the title): `board`, one key per element id whose value is the element's JSON as a scalar string, and `boardState` (background colour, grid). Swift writes `.String` scalars; JavaScript and the server write `new A.ImmutableString(json)` (a plain string would become collaborative text). The page's HTML isn't shared: every device has the same canvas page. The note's private page data (`note_pages.data_ct`) isn't pushed or pulled for a shared note; the document is the drawing. `Pane/Collab/CollabBoard.swift` holds the rules.
+
+**Who wins.** When two devices change the same element at once, both values stay in the map as a conflict, and everyone picks the same one by Excalidraw's own rule: the higher `version`, then the lower `versionNonce`, then the JSON string. Elements are ordered by their fractional `index`, then id. A device whose edit lost gets the winner back on its page. Deleting is `isDeleted: true` with a higher version, so a device that was away can't bring an element back.
+
+**The page.** `canvas-stack/src/shared.js` and the shared mode in `canvas.jsx`. Local edits go out as small changes, only the elements whose version or nonce changed, at most every 250 ms. Remote changes come in through `updateScene` with the local scene reconciled against them, so a selection, a text being typed and a drag in progress stay as they are. Nothing is sent before the first remote scene arrives. An AI's short form (a label inside a shape, or `made` arrows) is filled out the same way on every device: ids, seeds and nonces come from a hash of the element id.
+
+**Presence.** The pointer (in scene coordinates) and the selection go out as the sealed presence broadcast notes already use, at most every 100 ms. Each person's pointer, a box round what they selected and a name flag are drawn in their colour on a layer over the board that never takes a click (`pointer-events: none`). Colours are the shared-note palette; a person who hasn't moved for 3 seconds fades to grey, and after 6 seconds they're gone. Avatars in the toolbar are the same as in a note.
+
+**Viewers.** A viewer's board opens in the engine's view mode: they can pan, zoom and see everyone, but the toolbar's drawing tools and the start panel are hidden, and the page refuses edit commands.
+
+**AI.** A member's AI reads the board as the note's `data.json` (`values.scene`, the same shape as a private whiteboard's) and changes it with edit or write. The server (`shared_notes.ts`, `writeBoard`) turns that into one sealed change by the person, named for their AI: each changed element gets a version above every copy and a fresh nonce, a copy older than what's there is skipped, and an element left out is deleted unless someone drew it after the AI read the board. The app marks it like an AI edit to a note ("Sara's Claude added 2 shapes", with Undo), and Show last AI change outlines what it drew. Undo writes the elements back as they were, with higher versions, so it takes the change out for everyone. The page (`index.html` and the app files) of a shared whiteboard can't be changed by an AI.
+
+**Parked.** Pictures: a whiteboard with pictures can't be shared yet (the sheet says "A whiteboard with pictures can't be shared with people yet. Send a copy instead."), and a picture added to a shared board is taken out again with "Pictures can't go on a shared whiteboard yet". Pictures need the shared files that notes don't have yet. Also parked: a member's AI only finds the board once their device has saved its canvas page; two windows of one shared board share one session's callbacks.
+
 ## Data model
 
 `supabase/migrations/20261007163000_collaboration.sql` (prototype, tested in `supabase/functions/mcp/collab.pglite.test.ts`):

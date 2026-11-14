@@ -342,7 +342,8 @@ struct NoteDetailView: View {
             .onChange(of: NotePageDataStore.shared.arrivals[note.id]) { _, a in
                 guard let a, showingPage else { return }
                 undoData = NotePageData.decode(a.before)
-                if showingCanvas { canvasControls.arrived(by: a.by) }
+                // A shared board outlines it as the change arrives (BoardCollab).
+                if showingCanvas, !canvasControls.shared { canvasControls.arrived(by: a.by) }
                 var r = AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit, board: showingCanvas)
                 if showingCanvas { r.drew = CanvasNote.change(from: NotePageData.decode(a.before), to: NotePageDataStore.shared.doc(note.id)) }
                 showPageReceipt(r)
@@ -411,6 +412,7 @@ struct NoteDetailView: View {
                 }
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
+            .modifier(BoardCollabWiring(note: note, canvas: canvasControls))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
             .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
                 Button("OK") {}
@@ -795,7 +797,14 @@ struct NoteDetailView: View {
         if r.kind == .pageEdit { pageTint = nil }
         if r.kind == .dataEdit {
             // Back to the data before this run of changes; the note's text is untouched.
-            if let undoData { NotePageDataStore.shared.set(note.id, undoData) }
+            if let undoData {
+                // A shared board: back through its document, for everyone (CollabBoard).
+                if let collab, collab.isBoard {
+                    if let scene = (undoData["values"] as? [String: Any])?["scene"] as? [String: Any] { collab.boardRevert(to: scene) }
+                } else {
+                    NotePageDataStore.shared.set(note.id, undoData)
+                }
+            }
             undoData = nil
             return
         }
@@ -1391,7 +1400,10 @@ struct NoteDetailView: View {
             .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
             .onChange(of: note.title, initial: true) { _, t in
                 canvasControls.title = t
-                canvasControls.rename = { [weak note] name in if let note { _ = CanvasRename.renamed(note, to: name) } }
+                canvasControls.rename = { [weak note] name in
+                    guard let note else { return }
+                    if let s = CollabStore.shared?.session(for: note) { CanvasRename.renamed(note, to: name, in: s) } else { CanvasRename.renamed(note, to: name) }
+                }
                 wireCanvasCards()
             }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
@@ -1522,7 +1534,14 @@ struct NoteDetailView: View {
         canvasControls.noteID = id
         // Opened from "On boards" at the foot of a note: that note's card, selected and in view.
         if let card = CanvasLanding.shared.take(id) { canvasControls.focusCard(card) }
-        canvasControls.cardInfo = { refs in CanvasNoteCard.info(for: refs, from: context.note(id), in: context) }
+        canvasControls.cardInfo = { refs in
+            let info = CanvasNoteCard.info(for: refs, from: context.note(id), in: context)
+            // A shared board: cards say what your notes say. One for a note you don't have (the
+            // owner's, not shared with you) keeps what it says, so it doesn't read "Note deleted"
+            // for everyone.
+            guard context.note(id)?.isShared == true else { return info }
+            return info.filter { !$0.value.deleted || $0.value.restorable }
+        }
         canvasControls.openNote = { target in
             saver.flush()
             open(target, false)
@@ -2123,6 +2142,33 @@ private struct CollabWiring: ViewModifier {
     }
 }
 
+/// A shared whiteboard hooked to its session (BoardCollab), while the note is open.
+private struct BoardCollabWiring: ViewModifier {
+    let note: Note
+    let canvas: CanvasController
+
+    private var session: CollabSession? { CollabStore.shared?.session(for: note) }
+
+    func body(content: Content) -> some View {
+        content
+            .task(id: session.map { ObjectIdentifier($0) }) {
+                let found = note.isShared && session == nil ? await SharedEditing.waitForSession { CollabStore.shared?.session(for: note) } : session
+                if Task.isCancelled { return }
+                guard let session = found, session.isBoard else {
+                    if canvas.shared { BoardCollab.unwire(nil, canvas) }
+                    return
+                }
+                BoardCollab.wire(session, canvas)
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(0.25))
+                    if Task.isCancelled { break }
+                    BoardCollab.tick(session, canvas)
+                }
+                BoardCollab.unwire(session, canvas)
+            }
+    }
+}
+
 /// When the note's editor takes no typing: in Recently Deleted; a shared note until its document
 /// is open on this device; and a shared note you can only view.
 enum SharedEditing {
@@ -2391,7 +2437,9 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .hidden(!showsItems || !showsWriting)
                     if let canvas = shown.canvas {
-                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, compact: CanvasToolbarTools.compact(width)).disabled(!showsItems) }
+                        // A board shared with you to look at: its tools show, off, as a viewer's
+                        // formatting does in a note.
+                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, compact: CanvasToolbarTools.compact(width)).disabled(!showsItems || canvas.viewOnly) }
                             .hidden(!showsItems)
                     }
                     if let people = shown.people {

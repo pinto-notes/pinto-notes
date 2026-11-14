@@ -3471,3 +3471,305 @@ extension CanvasNativeUITests {
         #expect((got["word"] ?? 0) > 20, "the label's word is drawn, over the gap: \(got)")
     }
 }
+
+// MARK: A board shared with people (Pane/Collab/CollabBoard.swift, canvas-stack/src/shared.js)
+
+extension CanvasNativeUITests {
+    static let twoBoxes: [[String: Any]] = [
+        ["type": "rectangle", "id": "a", "x": 80, "y": 100, "width": 200, "height": 100],
+        ["type": "rectangle", "id": "b", "x": 400, "y": 100, "width": 200, "height": 100],
+    ]
+
+    /// The page's element `id` as it holds it (deleted ones too), or nil.
+    static func element(_ j: Joined, _ id: String) async throws -> [String: Any]? {
+        let s = try await j.js("JSON.stringify(amber._canvas.api.getSceneElementsIncludingDeleted().find((e) => e.id === '\(id)') || null)") as? String ?? "null"
+        return try JSONSerialization.jsonObject(with: Data(s.utf8), options: .fragmentsAllowed) as? [String: Any]
+    }
+
+    static func json(_ j: Joined, _ expression: String) async throws -> [String: Any] {
+        let s = try await j.js("JSON.stringify(\(expression))") as? String ?? "{}"
+        return (try JSONSerialization.jsonObject(with: Data(s.utf8)) as? [String: Any]) ?? [:]
+    }
+
+    /// Someone else's change, as the shared document hands it to the page: the whole drawing, each
+    /// element as their device saved it. What you're dragging stays where your hand is, your
+    /// selection stays, and the rest lands. Let go, and their newer edit of it lands too.
+    @Test func othersDrawingLandsWithoutTakingWhatYouHold() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+        defer { j.close() }
+        try await j.ready()
+        var deltas: [[[String: Any]]] = []
+        j.canvas.onBoardDelta = { e, _ in deltas.append(e) }
+        j.canvas.share(true)
+        await j.until("the page has the drawing as known") { true }
+        // You're dragging "a".
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { a: true }, selectedElementsAreBeingDragged: true } }); 1")
+        var a = try #require(try await Self.element(j, "a")), b = try #require(try await Self.element(j, "b"))
+        let aX = a["x"] as? Double
+        a["x"] = 999; a["version"] = (a["version"] as? Int ?? 1) + 5
+        b["x"] = 450; b["version"] = (b["version"] as? Int ?? 1) + 1; b["strokeColor"] = "#e03131"
+        var c = b
+        c["id"] = "c"; c["x"] = 700; c["index"] = "a5"
+        j.canvas.remote(scene: CollabBoard.scene(elements: [a, b, c], settings: ["viewBackgroundColor": "#ffffff"]))
+        for _ in 0..<100 where try await Self.element(j, "c") == nil { try await Task.sleep(for: .milliseconds(30)) }
+
+        let landed = try await Self.element(j, "b")
+        #expect(landed?["x"] as? Double == 450 && landed?["strokeColor"] as? String == "#e03131", "their change lands")
+        #expect(try await Self.element(j, "c")?["x"] as? Double == 700, "their new shape lands")
+        #expect(try await Self.element(j, "a")?["x"] as? Double == aX, "what you're dragging stays in your hand")
+        #expect(try await j.js("JSON.stringify(amber._canvas.api.getAppState().selectedElementIds)") as? String == "{\"a\":true}", "your selection stays")
+
+        // Let go: their newer edit of it lands (a drag of yours would have made yours newer).
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementsAreBeingDragged: false } }); 1")
+        j.canvas.remote(scene: CollabBoard.scene(elements: [a, b, c], settings: [:]))
+        for _ in 0..<100 where try await Self.element(j, "a")?["x"] as? Double != 999 { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await Self.element(j, "a")?["x"] as? Double == 999)
+
+        // What came isn't sent back as yours; what you change is, as the elements that changed.
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(!deltas.joined().contains { ["b", "c"].contains($0["id"] as? String ?? "") }, "\(deltas.joined().compactMap { $0["id"] as? String })")
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { c: true } } }); 1")
+        await j.until("c is selected") { j.canvas.state.selection == ["rectangle"] }
+        j.canvas.set(.strokeColor, .text("#2f9e44"))
+        await j.until("the change goes out within a quarter second") { deltas.last?.contains { $0["id"] as? String == "c" && $0["strokeColor"] as? String == "#2f9e44" } == true }
+        #expect(deltas.last?.count == 1, "only what changed: \(deltas.last?.compactMap { $0["id"] as? String } ?? [])")
+        // The page's own store isn't written while it's shared.
+        let saves = j.rig.saves
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(j.rig.saves == saves)
+    }
+
+    /// An AI's short form, merged on two devices: both fill it out the same way (the label's id,
+    /// seeds and nonces from the element's own id), so a shape gets one label, not one from each.
+    @Test func anAIsShortFormIsFilledOutTheSameOnEveryDevice() async throws {
+        let short: [String: Any] = ["type": "rectangle", "id": "plan", "x": 0, "y": 300, "width": 180, "height": 70, "label": ["text": "Plan"]]
+        var made: [[[String: Any]]] = []
+        for _ in 0..<2 {
+            let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+            defer { j.close() }
+            try await j.ready()
+            var deltas: [[String: Any]] = []
+            j.canvas.onBoardDelta = { e, _ in deltas += e }
+            j.canvas.share(true)
+            let a = try #require(try await Self.element(j, "a")), b = try #require(try await Self.element(j, "b"))
+            j.canvas.remote(scene: CollabBoard.scene(elements: [a, b, short], settings: [:]))
+            await j.until("the filled-out shape and its label go back as this device's") { deltas.contains { $0["id"] as? String == "plan-label" } }
+            made.append(deltas.filter { ["plan", "plan-label"].contains($0["id"] as? String ?? "") }.sorted { ($0["id"] as! String) < ($1["id"] as! String) })
+        }
+        let stamps = made.map { $0.map { "\($0["id"]!):\($0["seed"]!):\($0["versionNonce"]!)" } }
+        #expect(stamps[0].count == 2 && stamps[0] == stamps[1], "\(stamps)")
+        #expect(made[0].last?["text"] as? String == "Plan" && made[0].last?["containerId"] as? String == "plan")
+    }
+
+    /// Everyone else on the board: a solid pointer in their colour, edged white, with their first
+    /// name on a small flag, and an outline round what they've selected. In the board's own
+    /// coordinates, so it stays on the same spot as you zoom or scroll; nothing in it takes a click.
+    @Test func othersPointersAndSelectionsAreDrawnOnTheBoard() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.share(true)
+        let sara = BoardPeer(id: UUID(), name: "Sara", color: "#4F6B87", pointer: CGPoint(x: 300, y: 260), selection: ["b"])
+        j.canvas.show(peers: [sara])
+        await j.until("Sara is drawn") { true }
+        try await Task.sleep(for: .milliseconds(300))
+        let where_ = """
+        (() => {
+          const s = amber._canvas.api.getAppState(), z = s.zoom.value;
+          const p = document.querySelector('.pinto-peer-pointer'), f = document.querySelector('.pinto-peer-flag'), box = document.querySelector('.pinto-peer-box');
+          const pr = p.getBoundingClientRect(), br = box.getBoundingClientRect(), fs = getComputedStyle(f);
+          const hit = document.elementFromPoint(pr.left + 4, pr.top + 8);
+          return { px: pr.left, py: pr.top, wantX: (300 + s.scrollX) * z + s.offsetLeft - 1.5, wantY: (260 + s.scrollY) * z + s.offsetTop - 1.5,
+                   bx: br.left, by: br.top, bw: br.width, wantBX: (400 + s.scrollX) * z + s.offsetLeft - 4, wantBW: 200 * z + 8,
+                   flag: f.textContent, flagBg: fs.backgroundColor, flagOpacity: +fs.opacity, flagTo: +f.style.opacity, flagHeight: f.getBoundingClientRect().height,
+                   fill: p.querySelector('path').getAttribute('fill'), boxColor: getComputedStyle(box).borderTopColor,
+                   layer: getComputedStyle(document.querySelector('.pinto-peers')).pointerEvents, hitLayer: !!(hit && hit.closest('.pinto-peers')) };
+        })()
+        """
+        var r = try await Self.json(j, where_)
+        func near(_ a: String, _ b: String) -> Bool { abs((r[a] as? Double ?? -1e9) - (r[b] as? Double ?? 1e9)) < 1.5 }
+        #expect(near("px", "wantX") && near("py", "wantY"), "the pointer is where Sara's is on the board: \(r)")
+        #expect(near("bx", "wantBX") && near("bw", "wantBW"), "her selection is outlined: \(r)")
+        #expect(r["flag"] as? String == "Sara" && r["flagBg"] as? String == "rgb(79, 107, 135)" && r["flagOpacity"] as? Double == 1 && r["flagHeight"] as? Double == 16)
+        #expect(r["fill"] as? String == "#4F6B87" && r["boxColor"] as? String == "rgb(79, 107, 135)")
+        #expect(r["layer"] as? String == "none" && r["hitLayer"] as? Bool == false, "a click there reaches the board")
+
+        // You zoom and scroll: she stays on the same spot of the board.
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { zoom: { value: 1.6 }, scrollX: -120, scrollY: 40 } }); 1")
+        try await Task.sleep(for: .milliseconds(200))
+        r = try await Self.json(j, where_)
+        #expect(near("px", "wantX") && near("py", "wantY") && near("bx", "wantBX"), "\(r)")
+
+        // She goes quiet: grey, and her flag fades.
+        j.canvas.show(peers: [BoardPeer(id: sara.id, name: "Sara", color: "#8E8E93", pointer: sara.pointer, selection: [], showsName: false)])
+        try await Task.sleep(for: .milliseconds(400))
+        r = try await Self.json(j, where_.replacingOccurrences(of: "box = document.querySelector('.pinto-peer-box')", with: "box = p")
+                                    .replacingOccurrences(of: "getComputedStyle(box).borderTopColor", with: "''"))
+        // (Where it fades to: an offscreen page doesn't run the 200 ms fade.)
+        #expect(r["fill"] as? String == "#8E8E93" && r["flagTo"] as? Double == 0, "\(r)")
+
+        // She leaves: nothing of her stays.
+        j.canvas.show(peers: [])
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await j.js("document.querySelectorAll('.pinto-peer').length") as? Int == 0)
+        // Your own pointer goes out, in the board's coordinates (the engine's pointer update).
+        var mine: [CGPoint?] = []
+        j.canvas.onPresence = { p, _ in mine.append(p) }
+        _ = try await j.js("""
+        (() => { const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1];
+                 c.dispatchEvent(new PointerEvent('pointermove', { clientX: 300, clientY: 200, bubbles: true, pointerType: 'mouse', isPrimary: true })); return 1; })()
+        """)
+        await j.until("your pointer is reported") { mine.contains { $0 != nil } }
+        let s = try await Self.json(j, "(() => { const s = amber._canvas.api.getAppState(); return { x: 300 / s.zoom.value - s.scrollX, y: 200 / s.zoom.value - s.scrollY }; })()")
+        let p = try #require(mine.compactMap { $0 }.last)
+        #expect(abs(p.x - (s["x"] as? Double ?? 0)) < 1 && abs(p.y - (s["y"] as? Double ?? 0)) < 1, "\(p) vs \(s)")
+    }
+
+    /// Can view: the engine is in its view mode, the app's edits are refused, and nothing goes out.
+    @Test func aViewersBoardTakesNoEdits() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+        defer { j.close() }
+        try await j.ready()
+        var deltas: [[[String: Any]]] = []
+        j.canvas.onBoardDelta = { e, _ in deltas.append(e) }
+        j.canvas.share(true, viewOnly: true)
+        for _ in 0..<100 where try await j.js("amber._canvas.api.getAppState().viewModeEnabled") as? Bool != true { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await j.js("amber._canvas.api.getAppState().viewModeEnabled") as? Bool == true)
+        for op in ["{ op: 'sticky' }", "{ op: 'action', name: 'delete' }", "{ op: 'action', name: 'selectAll' }", "{ op: 'background', color: '#000000' }"] {
+            #expect(try await j.js("amber._canvasCommand(\(op))") as? Bool == false, "\(op) refused")
+        }
+        #expect(try await j.js("amber._canvasCommand({ op: 'action', name: 'zoomIn' })") as? Bool == true, "looking around isn't")
+        // Even a change that reached the engine some other way isn't sent.
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElementsIncludingDeleted().map((e) => e.id === 'a' ? { ...e, x: 5, version: e.version + 1 } : e) }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(deltas.isEmpty)
+        // No tools or style controls for a viewer: the app's own state says so.
+        #expect(j.canvas.viewOnly && !j.canvas.showingStyle)
+    }
+
+    /// A picture put on a shared board some way the app doesn't see first (pasted in the page):
+    /// it goes again at once, and the app says why. The app's own picture paths refuse it before.
+    @Test func aPictureOnASharedBoardGoesAgainWithAReason() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+        defer { j.close() }
+        try await j.ready()
+        var deltas: [[[String: Any]]] = []
+        j.canvas.onBoardDelta = { e, _ in deltas.append(e) }
+        j.canvas.share(true)
+        // The document's drawing, as the app hands it over when the board opens.
+        let a = try #require(try await Self.element(j, "a")), b = try #require(try await Self.element(j, "b"))
+        j.canvas.remote(scene: CollabBoard.scene(elements: [a, b], settings: [:]))
+        try await Task.sleep(for: .milliseconds(100))
+        let png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        _ = try await j.js("amber._canvasCommand({ op: 'image', dataURL: '\(png)', mimeType: 'image/png', width: 40, height: 40 })")
+        await j.until("the app says why") { j.canvas.notice == SharedNoteLimits.boardPictures }
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'image').length") as? Int == 0)
+        #expect(!deltas.joined().contains { $0["type"] as? String == "image" })
+        // Through the app: refused before it reaches the page.
+        j.canvas.send(.image(CanvasImage(dataURL: png, mimeType: "image/png", width: 40, height: 40), at: nil))
+        #expect(!j.canvas.sent.contains { if case .image = $0 { true } else { false } })
+    }
+
+    #if os(macOS)
+    /// Two people on one board, end to end: each one's board in its own offscreen page, joined to
+    /// their own session (BoardCollab), through the in-memory server. What one draws reaches the
+    /// other's board; each one's pointer and selection is drawn on the other's, at the same spot of
+    /// the board whatever their zoom. Pictures of both side by side, light and dark, when
+    /// BOARD_COLLAB_SHOTS names a folder.
+    @Test func twoPeopleOnOneBoard() async throws {
+        let dir = ProcessInfo.processInfo.environment["BOARD_COLLAB_SHOTS"].map { URL(fileURLWithPath: $0) }
+        if let dir { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
+        for dark in [false, true] {
+            let people = BoardPeople()
+            // The drawing as a board saves it: every element with an id (an arrow's too).
+            var flow = Self.flowchart
+            flow["elements"] = ((flow["elements"] as? [[String: Any]]) ?? []).enumerated().map { i, e in e["id"] == nil ? e.merging(["id": "arrow-\(i)"]) { a, _ in a } : e }
+            let (emilDevice, others, note) = try await people.share(flow, people: ["Sara"], title: "Publishing flow")
+            let emil = try people.session(emilDevice, note), sara = try people.session(others[0], note)
+            let size = CGSize(width: 760, height: 520)
+            let left = try await Joined(scene: CanvasNote.emptyScene(), size: size, dark: dark)
+            let right = try await Joined(scene: CanvasNote.emptyScene(), size: size, dark: dark)
+            defer { left.close(); right.close() }
+            try await left.ready()
+            try await right.ready()
+            BoardCollab.wire(emil, left.canvas)
+            BoardCollab.wire(sara, right.canvas)
+            func count(_ j: Joined) async throws -> Int { try await j.js("amber._canvas.api.getSceneElements().length") as? Int ?? 0 }
+            func counts() async throws -> (Int, Int) { (try await count(left), try await count(right)) }
+            for _ in 0..<150 { let (l, r) = try await counts(); if l >= 9 && r >= 9 && l == r { break }; try await Task.sleep(for: .milliseconds(40)) }
+            let (l, r) = try await counts()
+            #expect(l == r && l >= 9, "both boards have the drawing: \(l), \(r)")
+            // Each fits the board to their own window: Sara's is zoomed differently.
+            _ = try await left.js("amber._canvasCommand({ op: 'action', name: 'zoomToFit' })")
+            _ = try await right.js("(() => { const api = amber._canvas.api; api.updateScene({ appState: { zoom: { value: 0.55 }, scrollX: 120, scrollY: 260 } }); return 1; })()")
+
+            // Emil adds a sticky note, on his board; it reaches Sara's.
+            _ = try await left.js("(() => { const api = amber._canvas.api, b = api.getSceneElements().find((e) => e.id === 'fix'); api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), { ...b, id: 'note-1', x: 860, y: 260, index: 'b0', version: 1, versionNonce: 4242, seed: 99, backgroundColor: '#fff3bf', boundElements: [] }] }); return 1; })()")
+            for _ in 0..<150 where try await Self.element(right, "note-1") == nil { try await Task.sleep(for: .milliseconds(40)) }
+            #expect(try await Self.element(right, "note-1") != nil, "Emil's new shape is on Sara's board")
+
+            // Each points at something and selects it, on their own board (the engine's own pointer
+            // moves, in the page; nothing outside it).
+            func point(_ j: Joined, sceneX: Double, sceneY: Double, select id: String) async throws {
+                _ = try await j.js("""
+                (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
+                  api.updateScene({ appState: { selectedElementIds: { '\(id)': true } } });
+                  const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1];
+                  c.dispatchEvent(new PointerEvent('pointermove', { clientX: (\(sceneX) + s.scrollX) * z + s.offsetLeft, clientY: (\(sceneY) + s.scrollY) * z + s.offsetTop, bubbles: true, pointerType: 'mouse', isPrimary: true }));
+                  return 1; })()
+                """)
+            }
+            try await point(left, sceneX: 380, sceneY: 95, select: "draft")
+            try await point(right, sceneX: 700, sceneY: 300, select: "fix")
+            func peer(_ j: Joined) async throws -> Int { try await j.js("document.querySelectorAll('.pinto-peer-pointer[style*=\"block\"]').length") as? Int ?? 0 }
+            func peers() async throws -> (Int, Int) { (try await peer(left), try await peer(right)) }
+            for _ in 0..<150 { let (l, r) = try await peers(); if l >= 1 && r >= 1 { break }; try await Task.sleep(for: .milliseconds(40)) }
+            let seen = try await peers()
+            #expect(seen.0 == 1 && seen.1 == 1, "each sees the other's pointer: \(seen)")
+            #expect(try await left.js("document.querySelector('.pinto-peer-flag').textContent") as? String == "Sara")
+            #expect(try await right.js("document.querySelector('.pinto-peer-flag').textContent") as? String == "Emil")
+            #expect(try await right.js("document.querySelectorAll('.pinto-peer-box').length") as? Int == 1, "Emil's selection is outlined on Sara's board")
+            // At the same spot of the board on Sara's, at her zoom.
+            let at = try await Self.json(right, "(() => { const s = amber._canvas.api.getAppState(), r = document.querySelector('.pinto-peer-pointer').getBoundingClientRect(); return { x: r.left, want: (380 + s.scrollX) * s.zoom.value + s.offsetLeft - 1.5 }; })()")
+            #expect(abs((at["x"] as? Double ?? 0) - (at["want"] as? Double ?? 1e9)) < 2, "\(at)")
+
+            if let dir {
+                try await Task.sleep(for: .milliseconds(400))
+                _ = try? await left.web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+                let a = try await Self.pixels(left.web), b = try await Self.pixels(right.web)
+                let pair = try Self.sideBySide(a.png, b.png, gap: 24, dark: dark)
+                try pair.write(to: dir.appending(path: "board-collab-two-people-\(dark ? "dark" : "light").png"))
+                if !dark {
+                    // The same moment with Sara's flag faded (she's been still a few seconds).
+                    left.canvas.show(peers: left.canvas.peers.map { BoardPeer(id: $0.id, name: $0.name, color: $0.color, pointer: $0.pointer, selection: $0.selection, showsName: false) })
+                    try await Task.sleep(for: .milliseconds(400))
+                    // An offscreen page doesn't run the 200 ms fade: ended, as it is on screen by now.
+                    _ = try await left.js("(() => { document.getAnimations().forEach((a) => a.finish()); return getComputedStyle(document.querySelector('.pinto-peer-flag')).opacity; })()")
+                    #expect(try await left.js("+getComputedStyle(document.querySelector('.pinto-peer-flag')).opacity") as? Double == 0)
+                    let c = try await Self.pixels(left.web)
+                    try c.png?.write(to: dir.appending(path: "board-collab-flag-faded-light.png"))
+                }
+            }
+            BoardCollab.unwire(emil, left.canvas)
+            BoardCollab.unwire(sara, right.canvas)
+        }
+    }
+
+    /// Two pictures side by side on the window's ground, with a gap.
+    static func sideBySide(_ a: Data?, _ b: Data?, gap: Int, dark: Bool) throws -> Data {
+        let l = try #require(a.flatMap { NSBitmapImageRep(data: $0) }), r = try #require(b.flatMap { NSBitmapImageRep(data: $0) })
+        let w = l.pixelsWide + gap + r.pixelsWide, h = max(l.pixelsHigh, r.pixelsHigh)
+        let out = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                                isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
+        (dark ? NSColor(white: 0.17, alpha: 1) : NSColor(white: 0.86, alpha: 1)).setFill()
+        NSRect(x: 0, y: 0, width: w, height: h).fill()
+        l.draw(in: NSRect(x: 0, y: h - l.pixelsHigh, width: l.pixelsWide, height: l.pixelsHigh))
+        r.draw(in: NSRect(x: l.pixelsWide + gap, y: h - r.pixelsHigh, width: r.pixelsWide, height: r.pixelsHigh))
+        NSGraphicsContext.restoreGraphicsState()
+        return try #require(out.representation(using: .png, properties: [:]))
+    }
+    #endif
+}

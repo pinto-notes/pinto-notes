@@ -68,6 +68,16 @@ final class SharedDocument {
         return try? doc.text(obj: body)
     }
 
+    /// A shared whiteboard's drawing as this device last saved it (CollabBoard), with no network.
+    func storedScene() -> [String: Any]? {
+        guard !saved.isEmpty else { return nil }
+        let doc = CollabText.Document(textEncoding: .utf16)
+        guard (try? CollabText.absorb(saved, into: doc)) != nil else { return nil }
+        if !tail.isEmpty { try? doc.applyEncodedChanges(encoded: tail) }
+        guard let board = CollabBoard.board(in: doc) else { return nil }
+        return CollabBoard.scene(elements: CollabBoard.ordered(CollabBoard.entries(in: doc, board)), settings: CollabBoard.settings(in: doc))
+    }
+
     /// The changes waiting to go up.
     var pending: [Data] {
         get { Self.frames(outbox) }

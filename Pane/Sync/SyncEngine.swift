@@ -1403,6 +1403,8 @@ final class SyncEngine {
         var pushed: [UUID] = []
         defer { republishBoards(pushed) }
         for id in store.dirty {
+            // A shared board's drawing travels in its shared document (CollabBoard), not here.
+            if context.note(id)?.isShared == true { store.clean(id); continue }
             do {
                 let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at").eq("note_id", value: id).execute().value
                 let server = rows.first?.data_ct.flatMap { sealer.open($0, context: E2EE.pageData(id)) }.map { Data($0.utf8) }
@@ -1600,7 +1602,10 @@ final class SyncEngine {
                 NotePageStore.shared.take(r)
                 NotePageStore.shared.setDraft(r.note_id, problems: r.draft_problems, by: Self.writer(r.client))
                 let before = NotePageDataStore.shared.peek(r.note_id)
-                if let box = r.data_ct, let json = Wire.sealer?.open(box, context: E2EE.pageData(r.note_id)) {
+                // A shared board's drawing comes from its shared document (CollabBoard): what this
+                // row held from before it was shared isn't taken over it.
+                if self.context.note(r.note_id)?.isShared == true {
+                } else if let box = r.data_ct, let json = Wire.sealer?.open(box, context: E2EE.pageData(r.note_id)) {
                     NotePageDataStore.shared.take(r.note_id, server: Data(json.utf8), by: Self.writer(r.client))
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))

@@ -72,19 +72,26 @@ final class ShareController {
 
     /// Whether the note has an app (NoteApps), asked when Share opens.
     @ObservationIgnored let hasApp: @MainActor () -> Bool
+    /// Whether the note is a whiteboard, and whether its drawing holds a picture (CollabBoard).
+    @ObservationIgnored let board: @MainActor () -> (isBoard: Bool, hasPictures: Bool)
 
-    init(note: Note, backend: ShareBackend, hasApp: (@MainActor () -> Bool)? = nil) {
+    init(note: Note, backend: ShareBackend, hasApp: (@MainActor () -> Bool)? = nil, board: (@MainActor () -> (isBoard: Bool, hasPictures: Bool))? = nil) {
         self.note = note
         self.backend = backend
         let id = note.id
         self.hasApp = hasApp ?? { NoteApps.page(id) != nil }
+        self.board = board ?? {
+            guard CanvasNote.isCanvas(NoteApps.page(id)?.html) else { return (false, false) }
+            return (true, CollabBoard.hasPictures((NotePageDataStore.shared.doc(id)["values"] as? [String: Any])?["scene"] as? [String: Any]))
+        }
         state = backend.shareState(for: note)
     }
 
     /// Why this note can't be shared with people yet (it has files or an app), or nil when it can.
     var notYet: String? {
         guard isOwner else { return nil }
-        return SharedNoteLimits.notYet(text: note.body, hasApp: hasApp(),
+        let b = board()
+        return SharedNoteLimits.notYet(text: note.body, hasApp: hasApp(), board: b.isBoard, boardHasPictures: b.hasPictures,
                                        alreadyShared: note.isShared || state.people.count > 1 || state.access != .off)
     }
 
