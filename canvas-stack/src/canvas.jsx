@@ -254,11 +254,15 @@ export function addSticky(api) {
   const at = !next ? { x: -s.scrollX + s.width / 2 / z - w / 2, y: -s.scrollY + s.height / 2 / z - h / 2 }
     : lane ? { x: next.x, y: next.y + next.height + gap }
     : { x: next.x + next.width + gap, y: next.y };
-  const taken = api.getSceneElements().filter((e) => !e.containerId && e.type !== "text" && e.width * e.height < big).map((e) => getCommonBounds([e]));
+  // Words on the board (a lane's name, a title) count too: a sticky landed on "Went well".
+  const taken = api.getSceneElements().filter((e) => !e.containerId && e.width * e.height < big).map((e) => getCommonBounds([e]));
   const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 + 8 && x + w > x1 - 8 && y < y2 + 8 && y + h > y1 - 8);
   const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
   const inView = (x, y) => x >= vx && y >= vy && x + w <= vx + vw && y + h <= vy + vh;
-  if (!free(at.x, at.y) || !inView(at.x, at.y)) {
+  // In a lane, under the card it stays, and the view follows it (round 4: with no room in view it
+  // went to the next lane, or onto the lane's name); elsewhere the nearest free spot in view.
+  const keep = lane && free(at.x, at.y);
+  if (!keep && (!free(at.x, at.y) || !inView(at.x, at.y))) {
     const sx = (w + gap) / 2, sy = (h + gap) / 2;
     let best = null;
     for (let i = -8; i <= 8; i++) for (let j = -8; j <= 8; j++) {
@@ -285,6 +289,11 @@ export function addSticky(api) {
   const before = api.getSceneElementsIncludingDeleted().map((e) => (grown && e.id === grown.id ? grown : e));
   api.updateScene({ elements: [...before, card, ...rest], appState: { selectedElementIds: { [card.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
   api.setActiveTool({ type: "selection" });
+  if (keep && !inView(at.x, at.y)) {
+    const m = 24 / z;
+    const dy = at.y + h + m > vy + vh ? (vy + vh) - (at.y + h + m) : 0;
+    flushSync(() => api.updateScene({ appState: { scrollY: s.scrollY + dy }, captureUpdate: CaptureUpdateAction.NEVER }));
+  }
   // Typing starts in it, as Return does on a selected shape, once the engine has it (a timer, not
   // an animation frame: frames don't come while the window is hidden).
   // The engine edits what it has selected, so wait until that's the sticky, not the card it

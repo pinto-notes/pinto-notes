@@ -700,24 +700,37 @@ import UIKit
         #expect(v.count == 4 && v[0] >= 0 && v[2] <= 900 && v[1] >= 0 && v[3] <= 600, "in view on the retro: \(place)")
         let clear = try await j.js("""
         (() => { const all = amber._canvas.api.getSceneElements(); const st = all.find((e) => e.customData && e.customData.pintoSticky);
-          const cards = all.filter((e) => e.type === 'rectangle' && !(e.customData && e.customData.pintoSticky) && e.width * e.height < 180 * 180 * 2);
+          const cards = all.filter((e) => (e.type === 'rectangle' || (e.type === 'text' && !e.containerId)) && !(e.customData && e.customData.pintoSticky) && e.width * e.height < 180 * 180 * 2);
           const over = cards.some((c) => st.x < c.x + c.width && st.x + st.width > c.x && st.y < c.y + c.height && st.y + st.height > c.y);
           const words = all.find((e) => e.containerId === st.id);
           return JSON.stringify({ over, ink: words && words.strokeColor }); })()
         """) as? String
         #expect(clear == "{\"over\":false,\"ink\":\"#2a1d10\"}", "not on a card, its words in ink: \(clear ?? "")")
-        // The next one stays in that lane and in view: under it, or above when the view ends.
+        // Pick a lane's card and press S twice: each goes under the last in that lane, and the
+        // view follows when it runs past the edge (never onto another lane or a lane's name).
         _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
         await j.until("done typing") { !j.canvas.state.editing }
-        j.canvas.send(.sticky)
-        await j.until("typing in the next") { j.canvas.state.editing }
+        _ = try await j.js("(() => { const api = amber._canvas.api; const st = new Set(api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => e.id)); api.updateScene({ elements: api.getSceneElements().filter((e) => !st.has(e.id) && !st.has(e.containerId)) }); return 0; })()")
+        _ = try await j.js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const t = all.find((e) => e.type === 'text' && e.text === 'Demo every Friday'); api.updateScene({ appState: { selectedElementIds: { [t.containerId]: true } } }); return 0; })()")
+        try await Task.sleep(for: .milliseconds(100))
+        for n in 0..<2 {
+            if n > 0 {
+                // Done typing, the note stays selected (as Escape leaves it).
+                _ = try await j.js("(() => { const api = amber._canvas.api, st = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky); api.updateScene({ appState: { selectedElementIds: { [st[st.length - 1].id]: true } } }); return 0; })()")
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            j.canvas.send(.sticky)
+            await j.until("typing in the next") { j.canvas.state.editing }
+            _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
+            await j.until("done typing") { !j.canvas.state.editing }
+        }
         let lane = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
           const st = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky);
           const b = st[1]; const inView = (b.x + s.scrollX) * z >= 0 && (b.x + b.width + s.scrollX) * z <= s.width && (b.y + s.scrollY) * z >= 0 && (b.y + b.height + s.scrollY) * z <= s.height;
-          return JSON.stringify({ sameX: Math.round(st[0].x) === Math.round(b.x), below: b.y > st[0].y, inView }); })()
+          return JSON.stringify({ sameX: Math.round(st[0].x) === Math.round(b.x), below: b.y > st[0].y, inView }) + (Math.round(st[0].x) === Math.round(b.x) ? '' : JSON.stringify({ st: st.map((e) => [e.x, e.y, e.width, e.height]), card: (() => { const t = api.getSceneElements().find((e) => e.text === 'Demo every Friday'); const c = api.getSceneElements().find((e) => e.id === t.containerId); return [c.x, c.y, c.width, c.height]; })(), lanes: api.getSceneElements().filter((e) => e.width * e.height >= 64800).map((e) => [e.type, e.x, e.y, e.width, e.height]), view: [s.scrollX, s.scrollY, s.width, s.height, z] })); })()
         """) as? String)
-        #expect(lane.contains("\"sameX\":true") && lane.contains("\"inView\":true"), "in the same lane, in view (under it when there's room): \(lane)")
+        #expect(lane == "{\"sameX\":true,\"below\":true,\"inView\":true}", "under it in the same lane, the view following it: \(lane)")
         // With room below, picking a card puts the sticky under it, and the lane grows to hold
         // the next one (as a retro board fills up).
         _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
