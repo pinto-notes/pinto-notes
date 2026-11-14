@@ -493,7 +493,7 @@ import UIKit
     /// so every tool can still be reached (whiteboard council, round 2, 15).
     @Test func aNarrowWindowKeepsEveryToolReachable() {
         // A 1400 window (the default) with both columns has room for every tool; 1000 doesn't.
-        #expect(CanvasToolbarTools.compact(670) && !CanvasToolbarTools.compact(930))
+        #expect(CanvasToolbarTools.compact(670) && !CanvasToolbarTools.compact(800))
         #expect(!CanvasSelectionBar.inView(CGRect(x: -400, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)), "no bar for a selection out of view")
         #expect(CanvasSelectionBar.inView(CGRect(x: -100, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)))
         let reachable = Set(CanvasToolbarTools.compactShown + CanvasToolbarTools.compactMore + CanvasTool.shapes)
@@ -940,7 +940,7 @@ import UIKit
                 @MainActor func insert(_ t: WhiteboardTemplate) async throws {
                     try await js("amber._canvas.api.updateScene({ elements: [] })")
                     for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
-                    canvas.send(.insert(t))
+                    canvas.send(.insert(t, title: canvas.title))  // as the template tile does
                     for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                     await MacWindowChromeTests.settle(w, 10)
                 }

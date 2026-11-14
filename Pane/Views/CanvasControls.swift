@@ -930,7 +930,7 @@ struct CanvasToolbarTools: View {
 
     static let tools: [CanvasTool] = [.selection, .hand, .freedraw, .arrow, .text, .eraser]
     /// Narrower than this, the column shows the compact tools (and the board drops its breadcrumb).
-    static let compactWidth: CGFloat = 860
+    static let compactWidth: CGFloat = 760
     static func compact(_ width: CGFloat) -> Bool { width < compactWidth }
     /// In the compact set: shown, and in its More Tools menu.
     static let compactShown: [CanvasTool] = [.selection, .freedraw, .arrow, .text]
