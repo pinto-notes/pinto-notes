@@ -3064,6 +3064,22 @@ import UIKit
                 await MacWindowChromeTests.settle(w, 10)
                 try await shot("26-mindmap-tab", w, web)
                 try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))")
+                if !dark {
+                    // On boards (round 8): the launch board again, then its "Launch plan" card
+                    // opened; the note's foot names the board it's on.
+                    try await js("amber._canvas.api.updateScene({ elements: [], appState: { selectedElementIds: {}, selectedGroupIds: {} }, captureUpdate: 'IMMEDIATELY' })")
+                    for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                    try await js("amber._canvasCommand({ op: 'insert', elements: \(json) })")
+                    for _ in 0..<150 where canvas.state.cardNotes.count < 2 || canvas.state.cardNotes.contains(where: { UUID(uuidString: $0) == nil }) {
+                        await MacWindowChromeTests.settle(w, 2)
+                    }
+                    _ = try? await web.evaluateJavaScript("amber._flush && amber._flush(); 0")
+                    await MacWindowChromeTests.settle(w, 40)
+                    canvas.openCard(planNote.id.uuidString)
+                    await MacWindowChromeTests.settle(w, 40)
+                    w.displayIfNeeded()
+                    try #require(try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "27-note-on-boards-light.png"))
+                }
             }
         }
     }
@@ -3254,7 +3270,9 @@ extension CanvasNativeUITests {
           const minX = Math.min(...els.map((e) => e.x)), minY = Math.min(...els.map((e) => e.y));
           const ink = (x, y) => { let n = 0; for (let dy = -2; dy <= 2; dy++) { const d = g.getImageData(Math.round((x - minX + 32) * 2), Math.round((y - minY + 32) * 2) + dy, 1, 1).data; if (d[0] < 128) n++; } return n; };
           const y = a.y + a.points[0][1];
-          window._gap = JSON.stringify({ left: ink(t.x - 2, y), right: ink(t.x + t.width + 2, y), line: ink(a.x + 10, y) });
+          // And the word itself is there: ink inside its box.
+          let word = 0; for (let x = t.x; x < t.x + t.width; x += 1) for (let yy = t.y + 2; yy < t.y + t.height - 2; yy += 1) { const d = g.getImageData(Math.round((x - minX + 32) * 2), Math.round((yy - minY + 32) * 2), 1, 1).data; if (d[0] < 128) word++; }
+          window._gap = JSON.stringify({ left: ink(t.x - 2, y), right: ink(t.x + t.width + 2, y), line: ink(a.x + 10, y), word });
         })(); 0
         """)
         var got: [String: Int] = [:]
@@ -3264,5 +3282,6 @@ extension CanvasNativeUITests {
         }
         #expect((got["line"] ?? 0) > 0, "the line itself is drawn: \(got)")
         #expect(got["left"] == 0 && got["right"] == 0, "a gap either side of the label: \(got)")
+        #expect((got["word"] ?? 0) > 20, "the label's word is drawn, over the gap: \(got)")
     }
 }

@@ -195,16 +195,22 @@ function closeBand(elements, hint) {
  */
 export function gapLabels(elements, paper) {
   const lines = new Set(elements.filter((e) => e.type === "arrow" || e.type === "line").map((e) => e.id));
-  if (!elements.some((e) => e.type === "text" && lines.has(e.containerId))) return elements;
+  const labels = new Map();
+  for (const e of elements) if (e.type === "text" && lines.has(e.containerId) && (e.text || "").trim()) labels.set(e.containerId, e);
+  if (!labels.size) return elements;
+  // The engine draws a label with its line, so a patch over the line would cover the words: in
+  // the picture each label stands on its own, over its patch, over its line.
   const out = [];
   for (const e of elements) {
-    if (e.type === "text" && lines.has(e.containerId) && (e.text || "").trim()) {
-      const pad = Math.max(3, e.fontSize * 0.25);
-      const [patch] = convertToExcalidrawElements([{ type: "rectangle", x: e.x - pad, y: e.y - pad / 2, width: e.width + 2 * pad, height: e.height + pad,
-        strokeColor: "transparent", backgroundColor: paper, fillStyle: "solid", strokeWidth: 1, roughness: 0, roundness: null, opacity: 100 }]);
-      out.push({ ...patch, id: `${e.id}-gap`, angle: e.angle || 0, groupIds: e.groupIds || [], frameId: e.frameId || null });
-    }
-    out.push(e);
+    if (e.type === "text" && labels.get(e.containerId) === e) continue;
+    const label = labels.get(e.id);
+    if (!label) { out.push(e); continue; }
+    out.push({ ...e, boundElements: (e.boundElements || []).filter((b) => b.id !== label.id) });
+    const pad = Math.max(3, label.fontSize * 0.25);
+    const [patch] = convertToExcalidrawElements([{ type: "rectangle", x: label.x - pad, y: label.y - pad / 2, width: label.width + 2 * pad, height: label.height + pad,
+      strokeColor: "transparent", backgroundColor: paper, fillStyle: "solid", strokeWidth: 1, roughness: 0, roundness: null, opacity: 100 }]);
+    out.push({ ...patch, id: `${label.id}-gap`, angle: label.angle || 0, groupIds: label.groupIds || [], frameId: label.frameId || null });
+    out.push({ ...label, containerId: null });
   }
   return out;
 }
