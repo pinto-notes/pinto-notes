@@ -260,7 +260,10 @@ export function brokenImports(p: Project): string[] {
   for (const [path, text] of Object.entries(p.files)) {
     if (/\.(m?js|jsx|tsx?)$/.test(path)) {
       for (const spec of importsOf(text)) {
-        if (/^https?:|^\/\//.test(spec)) out.push(`${path} imports ${spec}: the app has no network. Use a bundled library or a file in the project.`);
+        // An https module loads from the internet like on any web page (2026-11-14); plain http and
+        // scheme-relative addresses don't load in the app.
+        if (/^https:\/\//.test(spec)) continue;
+        if (/^http:|^\/\//.test(spec)) out.push(`${path} imports ${spec}: only https addresses load in the app.`);
         else if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/")) { if (!resolveImport(p, path, spec)) out.push(`${path} imports ${spec}, but there's no such file.${spec === "@/lib/pinto" && p.files["/src/lib/amber.ts"] !== undefined ? ' This app is older: its file is "@/lib/amber" (the same exports).' : ""}`); }
         else if (!BARE_IMPORTS.includes(spec) && !spec.startsWith("@radix-ui/") && !(isTest(path) && TEST_IMPORTS.includes(spec))) out.push(`${path} imports "${spec}", which isn't available (${BARE_IMPORTS.join(", ")}). Use one of those, pin an npm file with resolve_package, or add the code as a file.`);
       }
@@ -268,8 +271,8 @@ export function brokenImports(p: Project): string[] {
     if (path.endsWith(".html")) {
       for (const m of text.matchAll(/<(script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["']/gi)) {
         const ref = m[2];
-        if (/^https:\/\//.test(ref) && m[1].toLowerCase() === "link") continue;
-        if (/^(https?:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: scripts come from the project or the bundled libraries.`);
+        if (/^https:\/\//.test(ref)) continue;
+        if (/^(http:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: only https addresses load in the app.`);
         else if (!/^(pinto-lib|amber-lib|data):/.test(ref) && !p.files[resolveFrom(path, ref)]) out.push(`${path} loads ${ref}, but ${resolveFrom(path, ref)} doesn't exist.`);
       }
     }

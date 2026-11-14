@@ -11,5 +11,6 @@ COPY . .
 RUN deno cache --no-config scripts/page-render/server.ts && chown -R pwuser /app /deno-dir
 USER pwuser
 # All permissions inside the container: Playwright spawns WebKit and uses temp files. The pages
-# themselves get no network (render.ts aborts every request but the app's own files and libraries).
+# never connect anywhere themselves: render.ts serves the app's own files and libraries, makes GETs to
+# public https addresses for it (public_fetch.ts) and refuses the rest. Outbound https is needed.
 CMD ["deno", "run", "--no-config", "-A", "scripts/page-render/server.ts"]
