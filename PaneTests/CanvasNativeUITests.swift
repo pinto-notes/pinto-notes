@@ -408,6 +408,39 @@ import UIKit
         #expect(h.rect.width < 260 && h.rect.height < 120, "only the new box: \(h.rect)")
     }
 
+    /// In dark mode the selection's outline and handles show in the accent, not the dim brown the
+    /// dark filter made of it (whiteboard council, round 2, 07-selected-box-dark).
+    @Test func theSelectionShowsInTheAccentInDarkMode() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        // Through the filter (invert, then hue-rotate 180°), what's drawn comes out as the accent.
+        let js = """
+        (() => { const H = [[-0.574, 1.43, 0.144], [0.426, 0.43, 0.144], [0.426, 1.43, -0.856]];
+          return ["#ff9f0a", "#c9711a", "#3478f6"].map((want) => { const x = amber._throughDarkFilter(want);
+            const n = parseInt(x.slice(1), 16), inv = [255 - ((n >> 16) & 255), 255 - ((n >> 8) & 255), 255 - (n & 255)];
+            const shown = H.map((r) => Math.min(255, Math.max(0, r[0] * inv[0] + r[1] * inv[1] + r[2] * inv[2])));
+            const w = parseInt(want.slice(1), 16), t = [(w >> 16) & 255, (w >> 8) & 255, w & 255];
+            return Math.max(...shown.map((v, i) => Math.abs(v - t[i]))); }).join(","); })()
+        """
+        let errors = try #require(try await j.js(js) as? String)
+        #expect(errors.split(separator: ",").allSatisfy { Double($0)! <= 40 }, "each within a shade: \(errors)")
+        // A dark board: the colour the engine reads for the selection is the one made for the filter.
+        let d = try await Joined(scene: CanvasTests.scene(Self.box), dark: true)
+        defer { d.close() }
+        try await d.ready()
+        let read = """
+        (() => { const c = document.querySelector('.excalidraw'), r = getComputedStyle(document.documentElement);
+          return [c && c.className, r.getPropertyValue('--amber-accent').trim(), document.documentElement.style.getPropertyValue('--pinto-selection-dark'),
+            c && getComputedStyle(c).getPropertyValue('--color-selection').trim(), c && getComputedStyle(c.querySelector('canvas.interactive') || c).filter].join('|'); })()
+        """
+        let seen = try #require(try await d.js(read) as? String)
+        let parts = seen.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        #expect(parts.count == 5 && parts[0].contains("theme--dark"), "\(seen)")
+        let made = try await d.js("amber._throughDarkFilter('\(parts[1])')") as? String
+        #expect(parts.count == 5 && parts[3].lowercased() == made?.lowercased(), "the engine reads the filtered accent: \(seen), made \(made ?? "nil")")
+    }
+
     /// When the board gets wider (the sidebar folding away, Full Screen) the drawing stays where
     /// it was in the middle of the view; the engine kept its left edge, which left a drawing in the
     /// left half (whiteboard council, round 1, 08-fullscreen).

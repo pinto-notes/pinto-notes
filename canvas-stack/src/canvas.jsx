@@ -328,11 +328,46 @@ function bridge(api) {
 /** Pinto's ink for new strokes (the canvas is drawn light and inverted in dark mode). */
 const PINTO_DEFAULTS = { currentItemStrokeColor: "#2a1d10", currentItemFontFamily: 5 };
 
+/**
+ * In dark mode the drawing is drawn light and turned dark by a filter (invert, then hue-rotate
+ * 180°): the colour to draw so that, through the filter, it shows as `hex`. The selection's outline
+ * and handles use it, so they show in the app's accent rather than a dim brown (whiteboard council,
+ * round 2, 07-selected-box-dark).
+ */
+export function throughDarkFilter(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16), want = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  // CSS hue-rotate(180deg) as a matrix, and its inverse (Cramer's rule).
+  const H = [[-0.574, 1.43, 0.144], [0.426, 0.43, 0.144], [0.426, 1.43, -0.856]];
+  const [[a, b, c], [d, e, f], [g, h, i]] = H;
+  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  const inv = [[e * i - f * h, c * h - b * i, b * f - c * e], [f * g - d * i, a * i - c * g, c * d - a * f], [d * h - e * g, b * g - a * h, a * e - b * d]].map((r) => r.map((v) => v / det));
+  const before = inv.map((r) => r[0] * want[0] + r[1] * want[1] + r[2] * want[2]);
+  const out = before.map((v) => Math.round(Math.min(255, Math.max(0, 255 - v))));
+  // A bright accent can be past what the filter can make: the nearest it can, channel by channel.
+  const shown = (x) => H.map((r) => Math.min(255, Math.max(0, r[0] * (255 - x[0]) + r[1] * (255 - x[1]) + r[2] * (255 - x[2]))));
+  const off = (x) => Math.max(...shown(x).map((v, k) => Math.abs(v - want[k])));
+  for (let pass = 0; pass < 4; pass++) {
+    for (let k = 0; k < 3; k++) {
+      let best = out[k], err = off(out);
+      for (let v = 0; v < 256; v++) { out[k] = v; const e = off(out); if (e < err) { err = e; best = v; } }
+      out[k] = best;
+    }
+  }
+  return "#" + out.map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
 const prefersDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 function Canvas({ initial }) {
   const [api, setApi] = useState(null);
   const [theme, setTheme] = useState(prefersDark() ? "dark" : "light");
+  useEffect(() => {
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--amber-accent");
+    const shown = throughDarkFilter(accent);
+    if (shown) document.documentElement.style.setProperty("--pinto-selection-dark", shown);
+  }, [theme]);
 
   useEffect(() => {
     const m = window.matchMedia("(prefers-color-scheme: dark)");
@@ -459,6 +494,7 @@ function Canvas({ initial }) {
       api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
     });
     if (area) keepCentre.observe(area);
+    Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected) => exportScene(api, format, selected), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
     return () => { follow(); keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
