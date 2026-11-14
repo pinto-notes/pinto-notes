@@ -90,7 +90,9 @@
 .card { display: grid; align-content: start; }
 .card .label { margin: 24px 0 0; }
 .card .body.body { margin-top: 6px; }
-.cardPic { height: 320px; background: #f6e2c6; display: grid; place-items: center; }
+.cardPic { height: 320px; background: #f6e2c6; display: grid; place-items: center;
+  /* The big frame shadow reads as a seam under small cards; same ring, a smaller soft drop. */
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.05), 0 22px 40px -28px rgba(60, 30, 5, 0.32); }
 
 /* ── Closing: free and the download in one moment, over the paper town ── */
 .closing { display: grid; justify-items: center; text-align: center; padding-top: 40px; margin-bottom: -20px; }

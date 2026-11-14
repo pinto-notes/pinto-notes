@@ -4,7 +4,7 @@ import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { display } from "./fonts";
 import { Hero } from "./Hero";
-import { BuildWin, CoverFan, Devices, DrawWin, HistoryMini, ImportCard, SaidDone, SlashMini, TableMini, WriteWin } from "./Pictures";
+import { BuildWin, CoverFan, Devices, DrawWin, HistoryMini, SaidDone, SlashMini, TableMini, WriteWin } from "./Pictures";
 import { Room } from "./Rooms";
 import p from "./pic.module.css";
 import s from "./q.module.css";
@@ -66,7 +66,6 @@ export default function Page() {
       <Feature id="q-write" title="Write notes." line="They feel like Apple Notes on Mac and iPhone, and you can bring yours over.">
         <Room scene="morning" className={p.writeRoom}>
           <div className={p.at}><WriteWin /></div>
-          <div className={p.importAt}><ImportCard /></div>
         </Room>
       </Feature>
 
