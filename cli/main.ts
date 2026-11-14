@@ -6,9 +6,9 @@ import { accessToken, login, logout, revoke } from "./src/auth.ts";
 import { connect, Refused, redact, ToolFailed, VERSION } from "./src/client.ts";
 import { parse } from "./src/args.ts";
 import { env, envName } from "./src/env.ts";
-import { encode, readFolder, size } from "./src/files.ts";
+import { encode, isBinary, readFolder, size, toBase64 } from "./src/files.ts";
 import { format, readText } from "./src/format.ts";
-import { push } from "./src/push.ts";
+import { PIECE_BYTES, push, WRITE_BYTES } from "./src/push.ts";
 import { DEFAULT_SERVER, defaultServer, deleteCredentials, loadConfig, loadCredentials, OLD_DEFAULT_SERVER, saveConfig, saveCredentials, where } from "./src/store.ts";
 
 const HELP = `pinto: your Pinto Notes from the terminal
@@ -177,7 +177,7 @@ async function main() {
       const r = await push(mcp, files, rest[1], args.json ? undefined : out).catch((e) => fail(e.message));
       if (args.json) return out(JSON.stringify(r, null, 2));
       const count = (d: string) => r.steps.filter((s) => s.did === d).length;
-      out(`${r.app}/: ${["created", "replaced", "unchanged", "deleted"].map((d) => `${count(d)} ${d}`).join(", ")}`);
+      out(`${r.app}/: ${["created", "replaced", "unchanged", "deleted"].map((d) => `${count(d)} ${d}`).join(", ")}${r.last ? `, in ${r.writes === 1 ? "one save" : `${r.writes} saves`}` : ""}`);
       for (const p of r.skipped) out(`Left out ${p}: in an app it's the app's data. Change it with pinto write ${r.app}/data.json.`);
       if (!r.last) return out("No change: the app already has these files.");
       if (r.last.live) out(r.last.live);
@@ -206,7 +206,14 @@ async function main() {
         if (!args.file && Deno.stdin.isTerminal()) fail("pinto write reads from stdin or --file: pinto write <note> < new.md");
         // Text goes as text; anything else (a .wasm, a picture, a PDF) as its bytes, in base64.
         const bytes = args.file ? await Deno.readFile(args.file).catch((e) => fail(`Can't read ${args.file}: ${e.message}`)) : new Uint8Array(await new Response(Deno.stdin.readable).arrayBuffer());
-        tool = "write"; call = { path: rest[0], ...encode(bytes) }; break;
+        tool = "write"; call = { path: rest[0], ...encode(bytes) };
+        // An app's binary file bigger than one write carries: in pieces, saved when the last one goes.
+        if (isBinary(bytes) && bytes.length > WRITE_BYTES && /\.app\//i.test(rest[0])) {
+          const last = Math.floor((bytes.length - 1) / PIECE_BYTES) * PIECE_BYTES;
+          for (let at = 0; at < last; at += PIECE_BYTES) await mcp.call("write", { path: rest[0], content_base64: toBase64(bytes.subarray(at, at + PIECE_BYTES)), offset: at, size: bytes.length });
+          call = { path: rest[0], content_base64: toBase64(bytes.subarray(last)), offset: last, size: bytes.length };
+        }
+        break;
       }
       case "move": case "mv": need(2, "pinto move <note> <to>"); tool = "move"; call = { path: rest[0], to: rest[1] }; break;
       case "delete": case "rm": need(1, "pinto delete <note>"); tool = "delete"; call = { path: rest[0] }; break;

@@ -2,10 +2,10 @@
 // path needs a note with an app (create makes one, starter files included and counted as read), a
 // file is replaced only after it was read, text sent as text stays text, /index.html can't be
 // deleted, and the server's refusals come back as ToolFailed.
-import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { ToolFailed } from "./client.ts";
 import type { LocalFile } from "./files.ts";
-import { noteBase, push, PushFailed } from "./push.ts";
+import { noteBase, push, PushFailed, WRITE_BYTES } from "./push.ts";
 
 const te = new TextEncoder();
 const fromBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -14,6 +14,7 @@ const STARTER = ["/index.html", "/README.md", "/src/App.tsx", "/src/main.tsx", "
 function server(o: { refuse?: (path: string, bytes: Uint8Array) => string | null } = {}) {
   const apps = new Map<string, Map<string, Uint8Array>>(); // "Games/Doom.app" → files
   const read = new Set<string>();
+  const staged = new Map<string, Uint8Array>();
   const calls: { tool: string; args: Record<string, any> }[] = [];
   const split = (p: string) => { const i = p.indexOf(".app/"); return [p.slice(0, i + 4), p.slice(i + 4)]; };
   const mcp = {
@@ -32,6 +33,42 @@ function server(o: { refuse?: (path: string, bytes: Uint8Array) => string | null
           for (const f of STARTER) read.add(app + f);
           return { app: `${app}/`, next: "Read README.md" };
         }
+        if (tool === "write" && Array.isArray(args.files)) {
+          // Several files in one save: all of them or none.
+          const app = String(args.path).replace(/\/$/, "");
+          const files = apps.get(app);
+          if (!files) throw new ToolError(`No app at "${app}".`);
+          const next = new Map(files);
+          const done: { path: string; did: string }[] = [];
+          for (const f of args.files as Record<string, any>[]) {
+            const file = String(f.path).startsWith("/") ? f.path : `/${f.path}`;
+            const had = next.get(file);
+            if (f.delete) {
+              if (file === "/index.html") throw new ToolError("/index.html is the page the app opens; it can't be deleted. Nothing was saved.");
+              next.delete(file);
+              done.push({ path: app + file, did: "deleted" });
+              continue;
+            }
+            if (had && !read.has(app + file)) throw new ToolError(`Read ${app}${file} first. Nothing was saved.`);
+            let bytes = typeof f.content_base64 === "string" ? fromBase64(f.content_base64) : te.encode(f.content);
+            if (f.offset !== undefined) {
+              const got = staged.get(app + file) ?? new Uint8Array(f.size);
+              got.set(bytes, f.offset);
+              if (f.offset + bytes.length !== f.size) throw new ToolError(`${app}${file} isn't complete. Nothing was saved.`);
+              bytes = got;
+              staged.delete(app + file);
+            }
+            const refused = o.refuse?.(file, bytes);
+            if (refused) throw new ToolError(`${refused} Nothing was saved.`);
+            const same = had && had.length === bytes.length && had.every((b, i) => b === bytes[i]);
+            next.set(file, bytes);
+            done.push({ path: app + file, did: same ? "unchanged" : had ? "replaced" : "created" });
+          }
+          if (done.every((d) => d.did === "unchanged")) return { saved: `${app}/`, unchanged: true, files: done };
+          apps.set(app, next);
+          for (const d of done) if (d.did !== "deleted") read.add(d.path);
+          return { saved: `${app}/`, files: done, live: "Live: the person's devices run this version." };
+        }
         const [app, file] = split(String(args.id ?? args.path));
         const files = apps.get(app);
         if (!files) throw new ToolError(`No app at "${app}".`);
@@ -40,6 +77,14 @@ function server(o: { refuse?: (path: string, bytes: Uint8Array) => string | null
           if (file === "/index.html") throw new ToolError("/index.html is the page the app opens; it can't be deleted.");
           files.delete(file);
           return { saved: app + file, live: "Live: the person's devices run this version." };
+        }
+        if (tool === "write" && args.offset !== undefined) {
+          // A piece: kept until the last one comes (here, always in a files write).
+          if (files.has(file) && !read.has(app + file)) throw new ToolError(`Read ${app}${file} first.`);
+          const got = staged.get(app + file) ?? new Uint8Array(args.size);
+          got.set(fromBase64(args.content_base64), args.offset);
+          staged.set(app + file, got);
+          return { path: app + file, saved: false };
         }
         if (tool === "write") {
           const bytes = typeof args.content_base64 === "string" ? fromBase64(args.content_base64) : te.encode(args.content);
@@ -83,20 +128,25 @@ Deno.test("push into a note with no app: create, every file written, the starter
   assertEquals(r.created_app, true);
   assertEquals(s.calls.slice(0, 3).map((c) => c.tool), ["list", "create", "list"]);
   assertEquals(s.calls[1].args, { type: "app", path: "Games/Doom.md" });
-  // The files the folder has: written, binary as base64, text as text, index.html last.
+  // One write: the files the folder has (binary as base64, text as text), the starter's leftovers
+  // deleted, index.html last.
   const writes = s.calls.filter((c) => c.tool === "write");
-  assertEquals(writes.map((c) => c.args.path), ["/README.md", "/doom.js", "/doom.wasm", "/doom1.wad", "/main.js", "/index.html"].map((p) => `Games/Doom.app${p}`));
-  for (const w of writes) assertEquals(typeof (/\.(wasm|wad)$/.test(w.args.path) ? w.args.content_base64 : w.args.content), "string", w.args.path);
+  assertEquals(writes.length, 1);
+  assertEquals(r.writes, 1);
+  assertEquals(writes[0].args.path, "Games/Doom.app");
+  const sent = writes[0].args.files as Record<string, any>[];
+  assertEquals(sent.map((f) => `${f.delete ? "delete " : ""}${f.path}`), ["/README.md", "/doom.js", "/doom.wasm", "/doom1.wad", "/main.js", "delete /src/App.tsx", "delete /src/main.tsx", "delete /tests/app.test.tsx", "/index.html"]);
+  for (const f of sent.filter((x) => !x.delete)) assertEquals(typeof (/\.(wasm|wad)$/.test(f.path) ? f.content_base64 : f.content), "string", f.path);
   // The starter's index.html and README.md were read by create; nothing else needed a read.
   assertEquals(s.calls.filter((c) => c.tool === "fetch").map((c) => c.args.id), ["Games/Doom.app/README.md", "Games/Doom.app/index.html"]);
-  assertEquals(s.calls.filter((c) => c.tool === "delete").map((c) => c.args.path), ["/src/App.tsx", "/src/main.tsx", "/tests/app.test.tsx"].map((p) => `Games/Doom.app${p}`));
+  assertEquals(s.calls.some((c) => c.tool === "delete"), false);
   // What the app holds is the folder, byte for byte.
   const app = s.apps.get("Games/Doom.app")!;
   assertEquals([...app.keys()].sort(), doom.map((f) => f.path));
   for (const f of doom) assertEquals(app.get(f.path), f.bytes, f.path);
   assertEquals(r.steps.map((x) => `${x.did} ${x.path}${x.binary ? " (binary)" : ""}`), [
-    "replaced /README.md", "created /doom.js", "created /doom.wasm (binary)", "created /doom1.wad (binary)", "created /main.js", "replaced /index.html",
-    "deleted /src/App.tsx", "deleted /src/main.tsx", "deleted /tests/app.test.tsx",
+    "replaced /README.md", "created /doom.js", "created /doom.wasm (binary)", "created /doom1.wad (binary)", "created /main.js",
+    "deleted /src/App.tsx", "deleted /src/main.tsx", "deleted /tests/app.test.tsx", "replaced /index.html",
   ]);
   assertEquals(r.last?.live, "Live: the person's devices run this version.");
 });
@@ -108,12 +158,33 @@ Deno.test("push again: each file is read before it's replaced; unchanged text st
   const r = await push(s.mcp, doom, "Games/Doom.md");
   assertEquals(r.created_app, false);
   const tools = s.calls.map((c) => c.tool);
-  assertEquals(tools.filter((t) => t === "fetch").length, 6);
-  assertEquals(tools.includes("delete") || tools.includes("create"), false);
-  // Each write comes right after the read of the same file.
-  for (const [i, c] of s.calls.entries()) if (c.tool === "write") assertEquals(s.calls[i - 1], { tool: "fetch", args: { id: c.args.path, limit: 1 } });
-  assertEquals(r.steps.filter((x) => x.did === "unchanged").map((x) => x.path), ["/README.md", "/doom.js", "/main.js", "/index.html"]);
-  assertEquals(r.steps.filter((x) => x.did === "replaced").map((x) => x.path), ["/doom.wasm", "/doom1.wad"]);
+  // Every file read, then one write; the server says nothing changed, so nothing was saved.
+  assertEquals(tools, ["list", ...doom.map(() => "fetch"), "write"]);
+  assertEquals(r.steps.every((x) => x.did === "unchanged"), true);
+  assertEquals(r.last, null);
+  // One changed file: still one write, the rest unchanged.
+  s.calls.length = 0;
+  const changed = doom.map((f) => f.path === "/main.js" ? { ...f, bytes: te.encode("fetch('/doom1.wad'); // 2\n") } : f);
+  const again = await push(s.mcp, changed, "Games/Doom.md");
+  assertEquals(s.calls.filter((c) => c.tool === "write").length, 1);
+  assertEquals(again.steps.filter((x) => x.did !== "unchanged").map((x) => `${x.did} ${x.path}`), ["replaced /main.js"]);
+});
+
+Deno.test("a file bigger than one write goes in pieces first, its last piece with the rest: still one save", async () => {
+  const s = server();
+  const disk = new Uint8Array(30 * 1024 * 1024 + 5).map((_, i) => i === 0 ? 0 : (i * 13) & 0xff);
+  const r = await push(s.mcp, [...doom, { path: "/disk.img", bytes: disk }], "Games/Linux");
+  const writes = s.calls.filter((c) => c.tool === "write");
+  // 30 MB: three 8 MB pieces alone, then the last 6 MB with everything else (Doom's 4.6 MB too
+  // much for one write with it: two saves, index.html in the second).
+  const pieces = writes.filter((c) => c.args.offset !== undefined);
+  assertEquals(pieces.map((c) => c.args.offset), [0, 8, 16].map((m) => m * 1024 * 1024));
+  const saves = writes.filter((c) => Array.isArray(c.args.files));
+  assertEquals(r.writes, saves.length);
+  assertEquals(saves[saves.length - 1].args.files.at(-1).path, "/index.html");
+  for (const w of saves) assert(w.args.files.reduce((n: number, f: Record<string, any>) => n + (f.content_base64?.length ?? 0) * 3 / 4, 0) <= WRITE_BYTES);
+  assertEquals(s.apps.get("Games/Linux.app")!.get("/disk.img"), disk);
+  for (const f of doom) assertEquals(s.apps.get("Games/Linux.app")!.get(f.path), f.bytes, f.path);
 });
 
 Deno.test("a folder without index.html isn't an app; data.json stays the app's data", async () => {
@@ -125,12 +196,14 @@ Deno.test("a folder without index.html isn't an app; data.json stays the app's d
   assertEquals(s.calls.some((c) => String(c.args.path ?? c.args.id).endsWith("/data.json")), false);
 });
 
-Deno.test("over a limit: the file, the server's own words, and what was already saved", async () => {
-  const words = "Not saved:\n- /doom1.wad is 9000 KB stored (compressed); a file can be at most 8 MB.";
+Deno.test("over a limit: the server's own words, and nothing of the push saved", async () => {
+  const words = "Not saved:\n- /doom1.wad is 101.0 MB; a binary file can be at most 100 MB.";
   const s = server({ refuse: (path) => path === "/doom1.wad" ? words : null });
   const e = await assertRejects(() => push(s.mcp, doom, "Games/Doom"), PushFailed);
-  assertStringIncludes(e.message, `Games/Doom.app/doom1.wad: ${words}`);
-  assertStringIncludes(e.message, "(3 changes before it were saved; each is in the app's history.)");
+  assertStringIncludes(e.message, `Games/Doom.app/: ${words}`);
+  assertStringIncludes(e.message, "Nothing was saved.");
+  // The app is the starter, as create made it.
+  assertEquals([...s.apps.get("Games/Doom.app")!.keys()].sort(), [...STARTER].sort());
 });
 
 Deno.test("a refusal from create (a locked or shared note) comes back as the server said it", async () => {
