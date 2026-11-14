@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 12 November 2026
+Last updated: 14 November 2026
 
 ## The short version
 
@@ -208,13 +208,13 @@ Nothing reaches an AI assistant unless you connect one. When you connect ChatGPT
 In versions of the apps after 1.2.3, a note can hold a small app (a habit tracker, a budget) that an AI you connected makes for it. Nothing in this section happens unless you connect an AI and it makes or changes an app.
 
 - **Where an app and its data live.** The app's code and everything the app saves are encrypted like your notes, and we store only the encrypted copies. As with any AI request, our server handles them in readable form in memory while your AI works on the app (see AI connections).
-- **What an app can reach.** An app runs inside Pinto Notes. It sees the one note it belongs to and its own data, not your other notes, your keys or your account, and it has no connection to the internet of its own. If it asks to reach an address, Pinto Notes asks you first, then makes the request itself, straight from your device to that address, and lists what was sent in the note's **App Info**. What that service does with it is under its own privacy policy; we don't see it. If an app asks to open a link, you see the whole address first, every time. An app can't use your calendar, reminders, contacts, camera, location or notifications.
+- **What an app can reach.** An app runs inside Pinto Notes. It sees the one note it belongs to and its own data, not your other notes, your keys or your account. Like a web page, it reaches the internet directly: it can load pictures and fonts and send requests to any secure (https) address, straight from your device, without asking you each time. Anything the app can see, including its note, it can send that way, so use apps you trust, as you would a website. What a service does with what it receives is under its own privacy policy; we don't see it. If an app asks to open a link, you see the whole address first, every time. An app can't use your calendar, reminders, contacts or notifications, and it gets your camera, microphone or location only if you allow it when your device asks.
 - **Building and checking an app.** Our server can't build an app or open one in a browser itself, so it uses a render service that we run at Railway. Each time your AI saves a change to an app, and each time it asks for a check or a picture of one, our server sends that service the app's code. To have something to show in the app, it also sends a stand-in for your note and for the app's data: the same layout, with every word and number replaced by a made-up one. Headings, the names of table columns and the names of the app's data fields are kept as they are. The service keeps nothing once it has answered, and logs only the time, how long the work took and how big the request was.
 - **The code is your AI's.** If your AI writes something from your notes into an app's code, it is part of the code, and goes to the render service with it.
 - **Your real note is never sent there.** A check or a picture of an app always uses the stand-in. Our server refuses to send the render service a real note or an app's real data.
 - **Packages.** An app can use open-source code packages. Most come inside Pinto Notes. For any other, your device downloads the package once from jsDelivr (cdn.jsdelivr.net), a public service for such packages. jsDelivr sees your device's IP address and which package was asked for, and nothing of your notes or your account. Our server and the render service look packages up there too.
 - **When an app doesn't open.** If a version of an app fails to open on your device, the device goes back to the version before and sends us the error message it got, up to 1,000 characters, with whether it was an iPhone or a Mac. This message is not encrypted, so that your AI can be told what broke, and it can quote a few words of what the app was showing. It's deleted with the note or your account.
-- **API keys** you add for apps (**Settings → API Keys**) stay in your device's Keychain, and in iCloud Keychain if you use it. We receive only each key's name and the addresses it may be sent to, encrypted like your notes.
+- **Keys for other services.** If an app needs a key for a service, you paste it into the app, and it's saved with the app's data, encrypted like your notes.
 
 ## Shared notes
 
