@@ -1150,6 +1150,8 @@ import UIKit
                     try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
                     await MacWindowChromeTests.settle(w, 10)
                     try await shot("17-sticky-notes", w, web)
+                    // The picture a shared link's page shows (BoardPicture: light, the whole board).
+                    if let png = await canvas.export(.png, light: true) { try png.write(to: dir.appending(path: "19-shared-board-picture.png")) }
                 }
             }
         }
