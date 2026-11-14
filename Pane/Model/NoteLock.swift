@@ -58,9 +58,21 @@ enum NoteCrypto {
 
     /// `nonce` is for test vectors only; every real box gets a fresh random one.
     static func seal(_ text: String, key: SymmetricKey, keyID: String, context: String, nonce: AES.GCM.Nonce? = nil) throws -> String {
-        let box = try AES.GCM.seal(Data(text.utf8), using: key, nonce: nonce ?? AES.GCM.Nonce(), authenticating: aad(Substring(keyID), context))
+        try seal(Data(text.utf8), key: key, keyID: keyID, context: context, nonce: nonce)
+    }
+
+    /// Bytes in the same box as text (a note app's binary file, note_app_blobs).
+    static func seal(_ data: Data, key: SymmetricKey, keyID: String, context: String, nonce: AES.GCM.Nonce? = nil) throws -> String {
+        let box = try AES.GCM.seal(data, using: key, nonce: nonce ?? AES.GCM.Nonce(), authenticating: aad(Substring(keyID), context))
         guard let combined = box.combined else { throw Failure.malformed }
         return "\(prefix).\(keyID)." + combined.base64EncodedString()
+    }
+
+    static func openData(_ sealed: String, key: SymmetricKey, context: String) throws -> Data {
+        guard let p = parts(sealed), let data = Data(base64Encoded: String(p[2])),
+              let box = try? AES.GCM.SealedBox(combined: data) else { throw Failure.malformed }
+        guard let plain = try? AES.GCM.open(box, using: key, authenticating: aad(p[1], context)) else { throw Failure.wrongPassword }
+        return plain
     }
 
     private static func parts(_ sealed: String) -> [Substring]? {

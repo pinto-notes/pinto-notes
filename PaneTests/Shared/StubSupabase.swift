@@ -290,9 +290,13 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
                 let prefer = request.value(forHTTPHeaderField: "Prefer") ?? ""
                 let incoming = decodeRows(body)
                 var out: [[String: Any]] = []
+                // The row an upsert lands on: by on_conflict's columns (note_pages by note_id,
+                // note_app_blobs by hash; the account is the stub's own), else by id.
+                let keys = (query.first { $0.name == "on_conflict" }?.value?.split(separator: ",").map(String.init).filter { $0 != "user_id" }) ?? ["id"]
                 for var r in incoming {
                     r["id"] = (r["id"] as? String)?.lowercased()
-                    if let i = list.firstIndex(where: { $0["id"] as? String == r["id"] as? String }) {
+                    let same = { (x: [String: Any]) in keys.allSatisfy { k in (x[k] as? String)?.lowercased() == (r[k] as? String)?.lowercased() && r[k] != nil } }
+                    if let i = list.firstIndex(where: { keys == ["id"] ? $0["id"] as? String == r["id"] as? String : same($0) }) {
                         if !mine(list[i]) {
                             return (403, Data(#"{"code":"42501","message":"new row violates row-level security policy"}"#.utf8))
                         }

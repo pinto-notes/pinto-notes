@@ -231,8 +231,9 @@ final class Backend {
 
     /// What this build can do, for the server: seal locked notes, read and write encrypted accounts,
     /// and keep a shared note's text out of its notes row (a build without `shared/` may not change
-    /// that row's text: 20261104100800_collab_review_fixes.sql).
-    static let clientTag = "lock-aware/1 e2ee/1 shared/1"
+    /// that row's text: 20261104100800_collab_review_fixes.sql), and name an app's binary files
+    /// when it writes an app (page_blobs: 20261115090000_note_app_blobs.sql).
+    static let clientTag = "lock-aware/1 e2ee/1 shared/1 app-blobs/1"
 
     /// This kind of device, as version history names it.
     static var device: String {

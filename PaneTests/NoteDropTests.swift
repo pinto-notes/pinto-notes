@@ -151,7 +151,8 @@ import AppKit
         let page = try #require(store[note.id])
         #expect(page.by == "You")
         let project = try #require(NotePageProject.parse(page.html))
-        #expect(Set(project.files.keys) == ["/index.html", "/main.js"] && Set(project.binary.keys) == ["/game.wad"])
+        #expect(Set(project.files.keys) == ["/index.html", "/main.js"] && Set(project.binary.keys).union(project.blobs.keys) == ["/game.wad"],
+                "the binary file is kept inside, or apart when this device has the account's key (AppBlobs)")
         #expect(project.serve("/game.wad")?.data == Data([0x49, 0x57, 0x41, 0x44, 0, 0, 0, 1, 0xFF]))
 
         // The app's own view: the same drop replaces it there (NotePageWebView).

@@ -1413,7 +1413,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const want = wholeNumber(a.version, "version");
       const [v] = await tx<{ page_ct: string | null; data_ct: string | null }[]>`select page_ct, data_ct from public.note_page_versions where id = ${want} and note_id = ${r.note.id}`;
       if (!v) throw new ToolError("No such version of this app. Use history.");
-      await tx`update public.note_pages set page_ct = coalesce(${v.page_ct}, page_ct), data_ct = coalesce(${v.data_ct}, data_ct), draft_ct = null, draft_problems = null where note_id = ${r.note.id}`;
+      // The version's own text and the names of its files: no file's bytes move.
+      await tx`update public.note_pages p set page_ct = coalesce(v.page_ct, p.page_ct), page_blobs = case when v.page_ct is null then p.page_blobs else v.page_blobs end,
+          data_ct = coalesce(v.data_ct, p.data_ct), draft_ct = null, draft_problems = null
+        from public.note_page_versions v where v.id = ${want} and p.note_id = ${r.note.id} and v.note_id = p.note_id`;
       return { restored: `${r.base}/`, version: want, note: "What it replaced is kept in history." };
     }
     if (r.kind === "file") {

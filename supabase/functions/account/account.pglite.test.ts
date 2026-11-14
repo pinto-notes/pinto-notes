@@ -103,6 +103,9 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.ai_use_daily (user_id, day, ai, category, outcome, count) values ($1, current_date, 'claude', 'read', 'ok', 3)`, [me]);
   // The same by the minute (ai_use_minutes, 20261112210000_ai_use_timeline.sql): goes with it too.
   await pg.query(`insert into public.ai_use_minutes (user_id, minute, ai, category, item, outcome, count) values ($1, date_trunc('minute', now()), 'claude', 'read', 'note', 'ok', 3)`, [me]);
+  // An app's binary file, stored once (note_app_blobs, 20261115090000_note_app_blobs.sql).
+  const blob = await a.vault.blobName(new Uint8Array([1, 2, 3]));
+  await pg.query(`insert into public.note_app_blobs (user_id, hash, blob_ct) values ($1, $2, $3)`, [me, blob, await a.vault.sealBlob(blob, new Uint8Array([1, 2, 3]))]);
   await pg.query(`insert into public.pane_setup (user_id, imported_at) values ($1, now())`, [me]);
   await pg.query(`insert into public.pane_activity (user_id, day, kind, n) values ($1, current_date, 'ai_edit', 3) on conflict do nothing`, [me]);
   await pg.query(`insert into public.pane_tip_activity (user_id, day, tip, event, n) values ($1, current_date, 'shareLink', 'shown', 1)`, [me]);

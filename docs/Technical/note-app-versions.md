@@ -1,36 +1,89 @@
 # Note app versions without copies of big files
 
-Status: design, not built (14 November 2026). Written for the change that lets note apps carry binary files (a game's engine and data). Nothing here is live.
+Status: built on `feature/note-app-versions` (15 November 2026), not deployed. It ships with 1.4. Because it changes sync and storage, it gets a release gate report first.
 
-## What happens today
+## The problem
 
-Every version of a note's app is the whole app.
+Every version of a note's app was the whole app.
 
-- **Server.** `note_pages.page_ct` holds the sealed project (`{"amberApp":1,"files":…,"compiled":…,"binary":…}`). The trigger `pane_note_page_keep` (latest in `20261007160600_app_file_writes_coalesce.sql`) copies the old `page_ct` into `note_page_versions` on every change of the app, and on data changes at most once a minute (`reason = 'data'`, with the same `page_ct` as the live row). The last 10 rows per note are kept.
-- **Device.** `NotePageStore` keeps the live page and the last 10 pages per note in `note-pages.json`, and writes that whole file on every change.
-- **Restore.** Only the MCP reads server versions (`history` and `restore` in `files_tools.ts`, and `tools.ts`). The device's Previous App reads its own history.
+- **Server.** `note_pages.page_ct` holds the sealed project (`{"amberApp":1,"files":…,"compiled":…,"binary":…}`). The trigger `pane_note_page_keep` copies the old `page_ct` into `note_page_versions` on every change of the app, and on data changes at most once a minute. It keeps the last 10 rows per note.
+- **Device.** `NotePageStore` keeps the live page and the last 10 pages per note in `note-pages.json`, and rewrites that file on every change.
 
-With Doom packed as binary files (about 2.6 MB a version, 3.5 MB sealed), 10 versions are about 35 MB on the server. On the device, `note-pages.json` grows by the same amount and is rewritten on every save. A game that saves its data every minute adds a data version with another full copy of the app each minute.
+Doom packed as binary files is about 2.6 MB a version (3.5 MB sealed). Ten versions cost about 35 MB on the server and the same in `note-pages.json`.
 
-## Why the small fixes aren't enough, or aren't safe
+## What is built: files by keyed hash
 
-1. **Store no `page_ct` on data versions** (null means "the same app as the next version that has one, or the live one"). This saves the most for games that save often, and only the server changes: a migration that drops `not null`, the trigger, and the three readers. It isn't safe with coalescing, though. When the file tools replace an app without keeping it (`pane.coalesce`), a data version made in between would resolve to the wrong app. Fixing that means the trigger has to look at the versions around it on every write. That is possible but easy to get wrong, and it does nothing for the device.
-2. **Dedupe identical ciphertext.** A sealed box has a random nonce, so the same app sealed twice never matches. Only the data-version copies are byte-identical, and Postgres stores each row's TOAST value separately.
-3. **Keep fewer versions for big apps.** This keeps restore working but loses history. People notice that more than they notice storage.
+Each binary file is stored once per account under a keyed hash of its bytes. A version names its files.
 
-## The design: files by hash
+- **Format.** A `binary` entry is either a packed string (base64 of raw DEFLATE: the old format, still valid everywhere) or `{"hash": "<64 hex>", "size": <unpacked bytes>}`. Text files (`files`, `compiled`) stay inline: they are small and change often.
+- **Name.** HMAC-SHA256 of the unpacked bytes under HKDF(notes key, salt `amber-notes/e2ee`, info `app-blob`). Equal files in two accounts get different names. Vector `app_blob` in `supabase/functions/_shared/e2ee-vectors.json` pins the server and the apps to each other.
+- **Box.** The packed bytes, sealed like `page_ct` with the context `app-blob:<hash>`.
+- **Server** (`20261115090000_note_app_blobs.sql`):
+  - `note_app_blobs (user_id, hash, blob_ct, created_at, used_at)`, primary key `(user_id, hash)`. Owners can read and insert. Nobody can update, so a name always holds the same bytes. Inserts go through the key check and the storage limit, like other sealed rows.
+  - `note_pages.page_blobs`, `note_pages.draft_blobs` and `note_page_versions.page_blobs` (`text[]`) list the names a row uses, in plain text, so the database can clean up without opening anything. Versions copy the names with the page.
+  - A trigger on `note_pages` refuses a page that names a file the server doesn't have (`PT409`, hint `app_blobs_missing`), and marks the files it names as just used. That mark also row-locks them against a clean-up running at the same moment.
+  - Clean-up (`pane_app_blobs_gc`) runs after a page changes or a page or version is deleted. It removes files that no page, draft or version names and that haven't been used for 10 minutes.
+  - `pane_storage_parts` counts each file once.
+- **MCP.** Projects stay whole in memory. `app_blobs.ts` opens a page by fetching the files it names (`openProject`). On save it stores only the files the server doesn't have yet and writes the names (`storeProject`). `history` and `restore` copy names, so no bytes move. The render service gets whole projects (`inlineStored`), so it needs no change.
+- **Mac and iPhone** (one target):
+  - `AppBlobs` keeps each file once in `Application Support/<data folder>/app-files`.
+  - `NotePageStore.setHere` moves an app's binary files there when the device has the account's key. Signed out, apps keep their bytes inside, as before.
+  - Previous App and the 10-version history hold names only, so `note-pages.json` stays small.
+  - Files no page or version names are removed when the store saves.
+  - The sync push sends missing files first, then the page with `page_blobs`.
+  - The pull parks an app until its files are here, fetches only the files the device lacks, then shows it. A file the server doesn't have either doesn't block forever: the app arrives, fails to open, and the version before it runs.
+  - The apps add `app-blobs/1` to `x-amber-client`.
 
-Store each file once, under the hash of its bytes, and make a version a list of hashes.
+Old apps and versions are never rewritten. They open as they did, and their next save from 1.4 or the AI stores their files apart.
 
-- **Format.** The project keeps `files` and `compiled` for text (small, and diffs well), and `binary` becomes `{"/doom1.wad": {"sha256": "…", "size": 4196020}}` when the file is stored apart. An inline string (today's format) stays valid, so old projects and old clients keep working. A file goes apart when it is over 256 KB packed.
-- **Server table.** `note_app_blobs (user_id, sha256, blob_ct, size, created_at)`, with a primary key of `(user_id, sha256)`. `blob_ct` is the packed bytes sealed with the notes key, like `page_ct`. The hash is keyed per account (HMAC with a key derived from the notes key, as `c.v.tag` already does), so equal files in two accounts don't reveal each other. Writing a blob that already exists does nothing.
-- **References.** Each `note_pages` and `note_page_versions` row gets `blob_refs text[]`, the keyed hashes in plain text so the database can collect garbage without opening anything. The blob trigger deletes blobs that no row references, after the version trim.
-- **Sync.** The device pushes missing blobs first (`upsert … on conflict do nothing`), then the page. Pulling a page fetches only the blobs it doesn't have. The device keeps blobs in a folder, not in `note-pages.json`, so that file stays small. Its history holds hashes too, so 10 versions of Doom cost one WAD.
-- **Readers.** The MCP's `fetch`, `write`, `history` and `restore`, the render service and template export resolve hashes through one helper. Restore copies the list of hashes, and no bytes move.
-- **Storage limit.** `pane_storage_parts` counts each blob once per account.
+## Numbers
 
-Cost: one migration (table, column, trigger), sync changes on Mac and iPhone (push and pull blobs, a local blob folder, a one-time move out of `note-pages.json`), the MCP readers, the render service and an export step. Every part of it is ordinary, but together it is a change to sync and storage, so it gets a release gate report before it ships.
+Doom, 7 files, 3 saves kept (the live app and 2 versions), measured by `app_blobs.pglite.test.ts` with `DOOM_DIR` set:
 
-## Until then
+| | Bytes stored |
+|---|---|
+| Before (each version holds every file) | 10,664,622 (3,554,874 a save) |
+| After | 2,888,214 |
+| of which: the files, once | 2,592,520 |
+| of which: the live app's text | 98,570 |
+| of which: 2 versions' text | 197,124 |
 
-Binary files are stored compressed. Doom is about 2.6 MB a version instead of 6.2 MB as base64 text, which more than halves the cost of every version without changing how versions work.
+Each further save that changes only text costs about 99 KB instead of 3.5 MB.
+
+## 1.3 clients on the same account
+
+1.3 doesn't know the hash form. It ignores the `binary` key, and it can't run binary apps anyway. Three cases:
+
+1. **1.3 pulls an app that names its files.** It shows the app's text files only, as it does today for any binary app. Nothing breaks.
+2. **1.3 pushes a page** (its own edit, or Previous App). It sends `page_ct` without `page_blobs`. The trigger sees no `app-blobs/` in `x-amber-client` and sets the names to unknown (null). While any row of that account has unknown names, clean-up does nothing. It resumes once that row is replaced by a 1.4 or AI save and has left the last 10 versions. Nothing a 1.3 page might name is deleted.
+3. **Remaining risk.** 1.3's Previous App can push back a page from its local history that names files that were already cleaned up. That happens if, between 1.3 pulling the page and pushing it back, the files left every server version for more than 10 minutes. 1.4 devices and the AI then can't open that version, and they run the version before it. No data is lost: the version is still listed, and 1.3 still has its own copy. This needs a binary app edited on a 1.4 device or by the AI, then more than 10 newer versions, then a restore from 1.3. Binary apps are new on this branch, so no 1.3 user has one today.
+
+## Deploy order
+
+1. The migration `20261115090000_note_app_blobs.sql`. It must go first: 1.4 apps and the new MCP always send `page_blobs`, which an older database would refuse.
+2. The `mcp` edge function.
+3. The 1.4 apps.
+
+The render service needs no change.
+
+## Tests
+
+- `supabase/functions/mcp/app_blobs.pglite.test.ts`:
+  - saving twice stores no file again, and a changed file is stored once
+  - restore gives back the exact files
+  - an old-format app opens, saves and restores
+  - a device must send files first, and the table's row-level rules hold
+  - clean-up timing
+  - the 1.3 freeze
+  - storage counting
+  - the Doom numbers
+- `supabase/functions/_shared/e2ee.test.ts`: the `app_blob` vector.
+- `PaneTests/AppBlobsTests.swift`:
+  - one changed file stores one new file
+  - restore gives back exact files, and they are kept across a launch
+  - an old-format version opens
+  - unused files go
+  - an app from the server waits for its files
+  - the format reads back the same
+- `PaneTests/Network/AppBlobsSyncTests.swift`: files go up once and before the page, and a pulled app opens once its files are here.
+- `PaneTests/E2EETests.swift`: the same `app_blob` vector on the device.

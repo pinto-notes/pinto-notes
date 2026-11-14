@@ -36,6 +36,7 @@ export const fileMetaContext = (id: string) => `file-meta:${id.toLowerCase()}`;
 export const fileContext = (id: string) => `file:${id.toLowerCase()}`;
 export const pageContext = (id: string) => `page:${id.toLowerCase()}`;
 export const pageDataContext = (id: string) => `page-data:${id.toLowerCase()}`;
+export const appBlobContext = (hash: string) => `app-blob:${hash.toLowerCase()}`;
 export const apiKeyContext = (id: string) => `api-key:${id.toLowerCase()}`;
 export const titleIndexContext = (userId: string) => `title-index:${userId.toLowerCase()}`;
 export const wordIndexContext = (userId: string, shard: number) => `word-index:${userId.toLowerCase()}:${shard}`;
@@ -544,7 +545,7 @@ export async function openFile(bytes: Bytes, key: CryptoKey, id: string): Promis
 
 /** An opened data key for one request. Nothing keeps it past the request. */
 export class Vault {
-  private constructor(readonly keyId: string, private readonly key: CryptoKey, readonly userId: string, private readonly shareKey: CryptoKey, private readonly tagKey: CryptoKey) {}
+  private constructor(readonly keyId: string, private readonly key: CryptoKey, readonly userId: string, private readonly shareKey: CryptoKey, private readonly tagKey: CryptoKey, private readonly blobKey: CryptoKey) {}
 
   /** Imports the key and wipes the raw bytes it was given. */
   static async from(raw: Bytes, userId: string): Promise<Vault> {
@@ -556,7 +557,12 @@ export class Vault {
     const tagKey = await crypto.subtle.deriveKey(
       { name: "HKDF", hash: "SHA-256", salt: SALT, info: enc.encode("read-tag") },
       ikm, { name: "HMAC", hash: "SHA-256", length: 256 }, false, ["sign"]);
-    const v = new Vault(await keyIdOf(raw), await aesKey(raw), userId, shareKey, tagKey);
+    // Names for an app's binary files (note_app_blobs): the same bytes have the same name in this
+    // account, and no name anyone without the key could compute from a file they have.
+    const blobKey = await crypto.subtle.deriveKey(
+      { name: "HKDF", hash: "SHA-256", salt: SALT, info: enc.encode("app-blob") },
+      ikm, { name: "HMAC", hash: "SHA-256", length: 256 }, false, ["sign"]);
+    const v = new Vault(await keyIdOf(raw), await aesKey(raw), userId, shareKey, tagKey, blobKey);
     raw.fill(0);
     return v;
   }
@@ -614,6 +620,13 @@ export class Vault {
   async openIdentity(sealed: string): Promise<Bytes> {
     return fromBase64(await open(sealed, this.key, `identity:${this.userId.toLowerCase()}`));
   }
+  /** An app's binary file's name: hex HMAC-SHA256 of its bytes under HKDF(DK, info "app-blob"). */
+  async blobName(bytes: Uint8Array): Promise<string> {
+    return hex(new Uint8Array(await crypto.subtle.sign("HMAC", this.blobKey, bytes as BufferSource)));
+  }
+  /** A binary file as note_app_blobs keeps it: its packed bytes, sealed for its name. */
+  sealBlob(hash: string, packed: Bytes) { return seal(packed, this.key, this.keyId, appBlobContext(hash)); }
+  openBlob(hash: string, sealed: string) { return openBytes(sealed, this.key, appBlobContext(hash)); }
   openFile(id: string, bytes: Bytes) { return openFile(bytes, this.key, id); }
   sealFileBytes(id: string, bytes: Bytes) { return sealFile(bytes, this.key, this.keyId, id); }
 }

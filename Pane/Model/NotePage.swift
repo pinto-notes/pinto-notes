@@ -391,15 +391,23 @@ final class NotePageStore {
     /// A version you asked for after it was reverted: shown even though it failed.
     private(set) var forced: [UUID: String] = [:]
 
-    private struct Saved: Codable { var pages: [UUID: Page]; var history: [UUID: [Page]]; var unpushed: [UUID: Date]?; var broken: [UUID: Set<String>]? }
+    /// Apps from the server that name binary files this device doesn't have yet: they take their
+    /// place once the sync engine has fetched the files (`blobsArrived`), never half there.
+    private(set) var waiting: [UUID: Page] = [:]
+    /// The binary files the apps and their versions name, each once (NotePageProject.blobs).
+    @ObservationIgnored let blobs: AppBlobs
 
-    init(file: URL?) {
+    private struct Saved: Codable { var pages: [UUID: Page]; var history: [UUID: [Page]]; var unpushed: [UUID: Date]?; var broken: [UUID: Set<String>]?; var waiting: [UUID: Page]? }
+
+    init(file: URL?, blobs: AppBlobs = .shared) {
         self.file = file
+        self.blobs = blobs
         if let file, let data = try? Data(contentsOf: file), let saved = try? JSONDecoder().decode(Saved.self, from: data) {
             pages = saved.pages
             history = saved.history
             broken = saved.broken ?? [:]
             unpushed = saved.unpushed ?? [:]
+            waiting = saved.waiting ?? [:]
         }
         for (id, p) in pages { NoteWidgets.update(id, html: p.html) }
     }
@@ -450,12 +458,39 @@ final class NotePageStore {
     /// The page before this one, if any.
     func previous(_ id: UUID) -> Page? { history[id]?.last }
 
-    /// A change made here (Remove App): kept and pushed to the other devices.
-    func setHere(_ id: UUID, _ page: Page?) {
-        self[id] = page
+    /// A change made here (Remove App, a folder dropped on a note): kept and pushed to the other
+    /// devices. Its binary files are kept apart, once each, when this device has the account's key.
+    func setHere(_ id: UUID, _ page: Page?, sealer: Sealer? = Wire.sealer) {
+        self[id] = page.map { apart($0, sealer: sealer) }
         unpushed[id] = .now
         save()
         SyncSignal.changed()
+    }
+
+    /// The page with its packed binary files stored in `blobs` and named instead.
+    func apart(_ page: Page, sealer: Sealer?) -> Page {
+        guard let sealer, NotePageProject.isProject(page.html), page.html.contains("\"binary\""),
+              let p = NotePageProject.parse(page.html), !p.binary.isEmpty else { return page }
+        return Page(html: p.storingBlobs(sealer, in: blobs).stored, by: page.by, at: page.at)
+    }
+
+    /// The names of the files `html` keeps apart that this device doesn't have.
+    func missingBlobs(_ html: String) -> Set<String> {
+        NotePageProject.blobNames(in: html).filter { !blobs.has($0) }
+    }
+
+    /// Every file the apps waiting here still need.
+    var wantedBlobs: Set<String> { waiting.values.reduce(into: Set<String>()) { $0.formUnion(missingBlobs($1.html)) } }
+
+    /// Files arrived: each waiting app whose files are all here takes its place. One that names a
+    /// file the server doesn't have either (`unavailable`) takes it too: it then doesn't open, and
+    /// the version before it runs, as for any app that fails here.
+    func blobsArrived(unavailable: Set<String> = []) {
+        for (id, page) in waiting where missingBlobs(page.html).isSubset(of: unavailable) {
+            waiting[id] = nil
+            arrived(id, html: page.html, by: page.by, at: page.at)
+        }
+        save()
     }
 
     /// Pushed: the server has this device's page.
@@ -493,8 +528,15 @@ final class NotePageStore {
             if mine > r.updated_at { return }
             unpushed[r.note_id] = nil
         }
-        guard let box = r.page_ct else { self[r.note_id] = nil; return }
+        guard let box = r.page_ct else { waiting[r.note_id] = nil; self[r.note_id] = nil; return }
         guard let html = Wire.sealer?.open(box, context: E2EE.page(r.note_id)) else { return }
+        // An app whose binary files aren't here yet waits for them (SyncEngine fetches them).
+        if !missingBlobs(html).isEmpty {
+            waiting[r.note_id] = Page(html: html, by: r.client ?? "AI", at: r.updated_at)
+            save()
+            return
+        }
+        waiting[r.note_id] = nil
         arrived(r.note_id, html: html, by: r.client ?? "AI", at: r.updated_at)
     }
 
@@ -511,12 +553,22 @@ final class NotePageStore {
         pages = [:]
         history = [:]
         unpushed = [:]
+        waiting = [:]
         if let file { try? FileManager.default.removeItem(at: file) }
+        blobs.forgetAll()
+    }
+
+    /// Every binary file a page, a kept version or a waiting app here names.
+    var namedBlobs: Set<String> {
+        let all = pages.values.map(\.html) + history.values.flatMap { $0.map(\.html) } + waiting.values.map(\.html)
+        return all.reduce(into: Set<String>()) { $0.formUnion(NotePageProject.blobNames(in: $1)) }
     }
 
     private func save() {
-        guard let file, let data = try? JSONEncoder().encode(Saved(pages: pages, history: history, unpushed: unpushed, broken: broken)) else { return }
+        guard let file, let data = try? JSONEncoder().encode(Saved(pages: pages, history: history, unpushed: unpushed, broken: broken, waiting: waiting)) else { return }
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        // Files nothing names any more go (a version that left the last 10).
+        blobs.keep(namedBlobs)
     }
 }
