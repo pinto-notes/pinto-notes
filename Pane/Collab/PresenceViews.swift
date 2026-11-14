@@ -153,6 +153,8 @@ struct PresenceAvatars: View {
         var canEdit = true
         /// Not heard from for a while (CollabSession.Peer.isStale).
         var stale = false
+        /// Their colour in the note (CollabSession.color(of:)); the one their id picks without it.
+        var color: Color? = nil
     }
     let people: [Person]
     var size: CGFloat = 28
@@ -179,7 +181,7 @@ struct PresenceAvatars: View {
         return HStack(spacing: 0) {
             ForEach(Array(shown.enumerated()), id: \.element.id) { i, p in
                 let badge = option.badge(typing: p.typing, canEdit: p.canEdit)
-                PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: size, photo: p.photo,
+                PersonAvatar(name: p.name, color: p.color ?? CollabSession.color(for: p.id), size: size, photo: p.photo,
                              badge: badge, stale: p.stale, roomForBadge: true, badgeOnly: badges, pencilStyle: pencilStyle)
                     // The next avatar overlaps this one gently, or, when this one has a badge, starts
                     // where the badge ends, so a badge never sits on the next person.
@@ -264,7 +266,8 @@ struct PresenceStack: View {
                 TimelineView(.periodic(from: .now, by: 0.5)) { t in
                     PresenceAvatars(people: here.map { p in
                         .init(id: p.id, name: p.name, photo: CollabStore.shared?.photos[p.id], typing: p.isTyping,
-                              canEdit: session.members.first { $0.id == p.id }?.role != "viewer", stale: p.isStale(at: t.date))
+                              canEdit: session.members.first { $0.id == p.id }?.role != "viewer", stale: p.isStale(at: t.date),
+                              color: session.color(of: p.id))
                     }, option: Self.badges)
                 }
                 .padding(.horizontal, 2)

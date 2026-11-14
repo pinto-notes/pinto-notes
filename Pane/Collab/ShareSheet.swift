@@ -31,6 +31,8 @@ struct ShareState: Equatable {
         var verified = false
         /// Their key isn't the one first seen for them: what to say (Collab.KeyChange.message).
         var keyChanged: String? = nil
+        /// Their colour in this note (CollabSession.paletteSlot), when its members are known.
+        var colorSlot: Int? = nil
     }
     var link: URL?
     var access: Access = .off
@@ -225,9 +227,11 @@ struct PersonRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// One colour per person, from their account id: the same in everyone's view (yours too), and
-    /// the same as their caret. Never the app's accent.
-    static func color(_ person: ShareState.Person) -> Color { CollabSession.color(for: person.id) }
+    /// One colour per person in the note, none shared with anyone else in it: the same in
+    /// everyone's view (yours too), and the same as their caret. Never the app's accent.
+    static func color(_ person: ShareState.Person) -> Color {
+        person.colorSlot.map { CollabSession.color(at: $0) } ?? CollabSession.color(for: person.id)
+    }
 }
 
 /// A person, opened: their safety code, calmly, for anyone who wants to check, "They match", and
@@ -248,7 +252,7 @@ struct PersonDetail: View {
         Form {
             Section {
                 HStack(spacing: 14) {
-                    PersonAvatar(name: person.name, color: CollabSession.color(for: person.id), size: 48, photo: person.photo, ring: .clear)
+                    PersonAvatar(name: person.name, color: PersonRow.color(person), size: 48, photo: person.photo, ring: .clear)
                     VStack(alignment: .leading) {
                         Text(person.name).font(.headline)
                         Text(ShareCopy.role(person.role)).foregroundStyle(.secondary)

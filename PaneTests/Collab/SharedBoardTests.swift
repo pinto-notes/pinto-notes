@@ -231,7 +231,7 @@ import Testing
         let sara = try #require(e.boardPeers.first)
         #expect(e.boardPeers.count == 1 && sara.name == "Sara" && sara.id == others[0].id)
         #expect(sara.pointer == CGPoint(x: 140.5, y: -32) && sara.selection == ["b"] && sara.showsName)
-        #expect(sara.color == String(format: "#%06X", CollabSession.palette[Int(CollabSession.paletteIndex(for: others[0].id))]))
+        #expect(sara.color == String(format: "#%06X", CollabSession.palette[e.paletteSlot(of: others[0].id)]))
         #expect(!drawn.isEmpty, "handed to the open board as it came")
         #expect(sara.payload["x"] as? Double == 140.5 && sara.payload["sel"] as? [String] == ["b"] && sara.payload["flag"] as? Bool == true)
 
@@ -244,6 +244,88 @@ import Testing
         s.boardPresence(pointer: nil, selection: [])
         await server.eventually { e.boardPeers.isEmpty }
         #expect(e.boardPeers.isEmpty)
+    }
+
+    /// `count` account ids that all pick the same colour from their id alone.
+    static func idsWithOneColour(_ count: Int) -> [UUID] {
+        let first = UUID()
+        var ids = [first]
+        while ids.count < count {
+            let id = UUID()
+            if CollabSession.paletteIndex(for: id) == CollabSession.paletteIndex(for: first) { ids.append(id) }
+        }
+        return ids
+    }
+
+    /// No two people in a note or board share a colour (Emil and Sara were both olive): two whose
+    /// ids pick the same one get two, six get six, the owner keeps the one their id picks, and
+    /// past six it's the id's again.
+    @Test func noTwoPeopleShareAColour() {
+        let two = Self.idsWithOneColour(2)
+        let slots = CollabSession.slots(for: two)
+        #expect(slots[two[0]] != nil && slots[two[1]] != nil && slots[two[0]] != slots[two[1]], "two people, two colours: \(slots)")
+        #expect(slots[two[0]] == Int(CollabSession.paletteIndex(for: two[0])), "the owner keeps their own")
+        let six = Self.idsWithOneColour(6)
+        #expect(Set(CollabSession.slots(for: six).values).count == 6, "six with one colour get six")
+        var shared = 0
+        for _ in 0..<500 {
+            let pair = [UUID(), UUID()], group = (0..<6).map { _ in UUID() }
+            let p = CollabSession.slots(for: pair), g = CollabSession.slots(for: group)
+            if p[pair[0]] == p[pair[1]] || Set(group.compactMap { g[$0] }).count != 6 { shared += 1 }
+        }
+        #expect(shared == 0, "random pairs and groups of six never share a colour")
+        // Given in order: the same list gives the same colours, wherever it's worked out.
+        #expect(CollabSession.slots(for: six) == CollabSession.slots(for: six))
+        let seventh = UUID()
+        #expect(CollabSession.slots(for: six + [seventh])[seventh] == nil, "a seventh: the colour their id picks")
+    }
+
+    /// Six people on one board whose ids all pick one colour: each has their own, the owner's is
+    /// the one their id picks, and each person is the same colour on all six devices, in their
+    /// pointer on the board, their avatar and their row in Share.
+    @Test func everyoneOnABoardHasTheirOwnColourOnEveryDevice() async throws {
+        let ids = Self.idsWithOneColour(6)
+        let names = ["Emil", "Sara", "Ola", "Mia", "Leo", "Ida"]
+        let emil = try people.device(server.account(names[0], id: ids[0]), name: names[0])
+        let note = CanvasNote.make(in: .all, context: emil.context, scene: Self.scene([Self.shape("a")]), named: "Launch plan")
+        try await emil.store.setAccess(.edit, for: note)
+        let url = try #require(emil.store.linkURL(note))
+        var devices = [emil]
+        for i in 1..<6 {
+            let d = try people.device(server.account(names[i], id: ids[i]), name: names[i])
+            #expect(await d.store.join(url))
+            devices.append(d)
+        }
+        await server.eventually { server.channelCount(note.id) == 6 }
+        let sessions = try devices.map { try session($0, note) }
+        await server.eventually { sessions.allSatisfy { $0.members.count == 6 } }
+        #expect(sessions.allSatisfy { $0.members.count == 6 }, "everyone's members loaded")
+
+        let colours = sessions.map { s in ids.map { s.paletteSlot(of: $0) } }
+        #expect(Set(colours[0]).count == 6, "six people, six colours: \(colours[0])")
+        #expect(colours.allSatisfy { $0 == colours[0] }, "the same on every device: \(colours)")
+        #expect(colours[0][0] == Int(CollabSession.paletteIndex(for: ids[0])), "the owner keeps theirs")
+
+        // Everyone's pointer on Emil's board, each in their own colour.
+        for (i, s) in sessions.enumerated().dropFirst() { s.boardPresence(pointer: CGPoint(x: Double(i) * 40, y: 10), selection: []) }
+        await server.eventually { sessions[0].boardPeers.count == 5 }
+        let drawn = sessions[0].boardPeers
+        #expect(drawn.count == 5 && Set(drawn.map(\.color)).count == 5, "five pointers, five colours: \(drawn.map(\.color))")
+        for p in drawn {
+            let i = try #require(ids.firstIndex(of: p.id))
+            #expect(p.color == String(format: "#%06X", CollabSession.palette[colours[0][i]]), "\(p.name)'s pointer in their colour")
+        }
+        // Their avatars and their rows in Share, on every device.
+        for (d, s) in zip(devices, sessions) {
+            let mine = try #require(d.id == ids[0] ? note : d.context.pointer(forShared: note.id))
+            let rows = d.store.shareState(for: mine).people
+            #expect(rows.count == 6)
+            for row in rows {
+                let i = try #require(ids.firstIndex(of: row.id))
+                #expect(PersonRow.color(row) == CollabSession.color(at: colours[0][i]), "\(row.name)'s row on \(d.id == ids[0] ? "Emil's" : "another") device")
+                #expect(s.color(of: row.id) == PersonRow.color(row), "avatar and row agree")
+            }
+        }
     }
 
     // MARK: Pictures

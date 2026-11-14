@@ -177,7 +177,7 @@ extension CollabStore: ShareBackend {
             ShareState.Person(id: m.id, name: m.name, isMe: m.id == session.me, role: m.role,
                               safetyCode: m.id == session.me ? nil : identity.flatMap { id in m.publicKey.map { CollabCrypto.safetyCode(id.publicRaw, $0) } },
                               verified: m.publicKey.map { verified.isVerified(m.id, key: $0) } ?? false,
-                              keyChanged: keyChanges.first { $0.user == m.id }?.message)
+                              keyChanged: keyChanges.first { $0.user == m.id }?.message, colorSlot: session.paletteSlot(of: m.id))
         }.sorted { ($0.isMe ? 0 : 1, $0.role == "owner" ? 0 : 1) < ($1.isMe ? 0 : 1, $1.role == "owner" ? 0 : 1) }
     }
 

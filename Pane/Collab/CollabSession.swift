@@ -931,10 +931,11 @@ final class CollabSession {
     var boardPeers: [BoardPeer] { boardPeers(at: .now) }
 
     func boardPeers(at now: Date) -> [BoardPeer] {
-        peers.values.compactMap { p in
+        let slots = Self.slots(for: colorOrder)
+        return peers.values.compactMap { p in
             guard p.pointer != nil || !p.selectedIDs.isEmpty else { return nil }
             let stale = p.isStale(at: now)
-            let rgb = stale ? 0x8E8E93 : Self.palette[Int(Self.paletteIndex(for: p.id))]
+            let rgb = stale ? 0x8E8E93 : Self.palette[slots[p.id] ?? Int(Self.paletteIndex(for: p.id))]
             return BoardPeer(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: String(format: "#%06X", rgb),
                              pointer: p.pointer, selection: p.selectedIDs, showsName: !stale && now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
         }.sorted { $0.id.uuidString < $1.id.uuidString }
@@ -1231,15 +1232,42 @@ final class CollabSession {
 
     // MARK: Showing people
 
-    /// Each person keeps one colour everywhere: six muted, earthy tones that sit beside the amber
-    /// brand without competing with it (clay, sage, dusk blue, plum, teal, olive). Amber itself is
-    /// you, and AI edits. All take white initials at 4.5:1 or better.
+    /// Six muted, earthy tones that sit beside the amber brand without competing with it (clay,
+    /// sage, dusk blue, plum, teal, olive). Amber itself is you, and AI edits. All take white
+    /// initials at 4.5:1 or better. In a note or board each person's colour comes from its members
+    /// (`slots(for:)`); this is the one their account id picks, for anyone not in a member list.
     static func color(for user: UUID) -> Color { color(at: Int(paletteIndex(for: user))) }
 
     static func paletteIndex(for user: UUID) -> UInt32 {
         let h = user.uuidString.unicodeScalars.reduce(UInt32(7)) { ($0 &* 31) &+ $1.value }
         return h % UInt32(palette.count)
     }
+
+    /// Everyone's colour in one note or board, so no two people in it share one (Emil and Sara
+    /// were both olive). The owner first, then the others in the order they joined (the server's
+    /// member list, the same on every device): each takes the colour their account id picks unless
+    /// someone before them has it, and then the next one free. So a person keeps the same colour
+    /// on every device, and in most notes the one they have everywhere. Past six people, the
+    /// colour their id picks.
+    static func slots(for members: [UUID]) -> [UUID: Int] {
+        var slots: [UUID: Int] = [:], taken = Set<Int>()
+        for id in members where slots[id] == nil && taken.count < palette.count {
+            let own = Int(paletteIndex(for: id))
+            let slot = (0..<palette.count).lazy.map { (own + $0) % palette.count }.first { !taken.contains($0) } ?? own
+            slots[id] = slot
+            taken.insert(slot)
+        }
+        return slots
+    }
+
+    /// The members in the order their colours are given: the owner, then the others as they joined.
+    private var colorOrder: [UUID] { members.filter { $0.role == "owner" }.map(\.id) + members.filter { $0.role != "owner" }.map(\.id) }
+
+    /// Someone's place in the palette in this note.
+    func paletteSlot(of user: UUID) -> Int { Self.slots(for: colorOrder)[user] ?? Int(Self.paletteIndex(for: user)) }
+
+    /// Someone's colour in this note: their avatar, caret and pointer, and their row in Share.
+    func color(of user: UUID) -> Color { Self.color(at: paletteSlot(of: user)) }
 
     static let palette: [UInt32] = [0xA85A3C, 0x5E7A5A, 0x4F6B87, 0x7E5878, 0x3F7774, 0x7A6F3A]
 
@@ -1257,7 +1285,7 @@ final class CollabSession {
             guard let s = p.selection else { return nil }
             let stale = p.isStale(at: now)
             return RemoteCaret(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name,
-                               color: stale ? Self.staleColor : Self.color(for: p.id), range: s,
+                               color: stale ? Self.staleColor : color(of: p.id), range: s,
                                showsName: !stale && now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
         }.sorted { $0.id.uuidString < $1.id.uuidString }
     }

@@ -745,7 +745,7 @@ struct CollaborateRows: View {
                 .padding(.leading, -QuietButtonStyle.inset)
                 .accessibilityIdentifier("share.back")
             HStack(spacing: 10) {
-                PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: 36, photo: p.photo, ring: .clear)
+                PersonAvatar(name: p.name, color: PersonRow.color(p), size: 36, photo: p.photo, ring: .clear)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(p.name).font(.system(size: 13, weight: .semibold))
                     Text(ShareCopy.role(p.role)).font(.system(size: 11)).foregroundStyle(.secondary)
