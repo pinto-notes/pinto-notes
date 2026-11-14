@@ -337,14 +337,31 @@ function bridge(api) {
         const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
         const fit = Math.min(1, (s.width * 0.6 / z) / c.width, (s.height * 0.6 / z) / c.height, 900 / Math.max(c.width, c.height));
         const w = c.width * fit, h = c.height * fit;
-        const at = typeof c.x === "number"
+        let at = typeof c.x === "number"
           ? viewportCoordsToSceneCoords({ clientX: c.x, clientY: c.y }, s)
           : { x: -s.scrollX + s.width / 2 / z, y: -s.scrollY + s.height / 2 / z };
+        // Pasted (no point given) onto a drawing: beside it instead, then brought into view
+        // (whiteboard council, round 2, 11: a screenshot landed on top of the flowchart).
+        let moved = false;
+        if (typeof c.x !== "number") {
+          const drawn = api.getSceneElements().filter((e) => !e.containerId);
+          const over = (x, y) => drawn.some((e) => { const [x1, y1, x2, y2] = getCommonBounds([e]); return x - w / 2 < x2 && x + w / 2 > x1 && y - h / 2 < y2 && y + h / 2 > y1; });
+          if (drawn.length && over(at.x, at.y)) {
+            const [, y1, x2, y2] = getCommonBounds(drawn);
+            at = { x: x2 + 60 + w / 2, y: Math.max(y1 + h / 2, Math.min(at.y, y2 - h / 2)) };
+            moved = true;
+          }
+        }
         const fileId = "pinto-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
         api.addFiles([{ id: fileId, dataURL: c.dataURL, mimeType: c.mimeType || "image/jpeg", created: Date.now() }]);
         const [made] = convertToExcalidrawElements([{ type: "image", fileId, x: at.x - w / 2, y: at.y - h / 2, width: w, height: h }], { regenerateIds: true });
         api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), made], appState: { selectedElementIds: { [made.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
         api.setActiveTool({ type: "selection" });
+        if (moved) {
+          // In view at the zoom you had, at once.
+          const v = api.getAppState();
+          flushSync(() => api.updateScene({ appState: { scrollX: -(made.x + w / 2) + v.width / 2 / z, scrollY: -(made.y + h / 2) + v.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+        }
         break;
       }
       case "background":

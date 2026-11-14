@@ -384,6 +384,11 @@ import UIKit
         await j.until("the picture is selected") { j.canvas.state.selection == ["image"] }
         let kept = try await j.js("(() => { const s = amber._canvas.scene(); const i = s.elements.find((e) => e.type === 'image'); return [!!i, !!(i && s.files[i.fileId]), i ? Math.round(i.width) : 0].join(','); })()") as? String
         #expect(kept?.hasPrefix("true,true,") == true, "an image element with its file, saved in the scene: \(kept ?? "")")
+        // Pasted over the drawing, it goes beside it, in view (whiteboard council, round 2, 11).
+        let left = try await j.js("Math.round(amber._canvas.api.getSceneElements().find((e) => e.type === 'image').x)") as? Int
+        #expect((left ?? 0) >= 520, "right of the box and arrow: \(left ?? -1)")
+        let b = try #require(j.canvas.state.bounds)
+        #expect(b.minX >= 0 && b.maxX <= 900 && b.minY >= 0 && b.maxY <= 600, "in view: \(b)")
         // A save the store refuses is said, not lost quietly.
         j.canvas.receive(["error": "Not saved: too big"])
         #expect(j.canvas.notice == "Not saved: too big")
