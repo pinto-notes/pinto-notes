@@ -476,6 +476,13 @@ extension AppPerfTests {
             w.displayIfNeeded()
             samples.append(ms(clock.now - start))
             try? await Task.sleep(for: .milliseconds(200))
+            // Made by now on a quiet Mac; beside other suites the list can take a few more turns.
+            // The time above is what's measured: this only checks the row came.
+            for _ in 0..<40 where !HoverProbe.hover(open.title, false) {
+                try? await Task.sleep(for: .milliseconds(25))
+                host.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+            }
             #expect(HoverProbe.hover(open.title, false), "the open note's row was made: it is on screen")
             box.scope = .folder(small.id)
             try? await Task.sleep(for: .milliseconds(300))

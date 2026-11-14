@@ -171,7 +171,8 @@ import Testing
         func walk(_ v: NSView) { if let t = v as? NSTableView { tables.append(t) }; v.subviews.forEach(walk) }
         walk(try #require(w.contentView))
         let table = try #require(tables.max { $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX })
-        let rows = (0..<table.numberOfRows).filter { table.rect(ofRow: $0).height >= 40 }
+        // Note rows: taller than the date headings, which are 40 points (NoteListGeometryTests).
+        let rows = (0..<table.numberOfRows).filter { table.rect(ofRow: $0).height > 40.5 }
         try #require(rows.count >= 4)
         table.selectRowIndexes([rows[0]], byExtendingSelection: false)
         await settle()
