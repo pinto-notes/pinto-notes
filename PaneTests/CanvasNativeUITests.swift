@@ -610,6 +610,25 @@ import UIKit
             // full size (round 1 of the whiteboard council: some had titles, some opened at 60%).
             let texts = t.elements.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }
             #expect(texts.first == t.title, "\(t): its title first: \(texts)")
+            // Named by you, it carries your board's name; the default name leaves the template's.
+            let named = t.elements(titled: "Product launch").compactMap { $0["text"] as? String }
+            #expect(named.first == "Product launch" && t.elements(titled: CanvasNote.title).compactMap { $0["text"] as? String }.first == t.title)
+            #expect(!texts.contains { $0.contains("\u{2610}") }, "\(t): no box character that looks tickable and isn't")
+            if t == .mindMap {
+                // Branches are joined arrows with no heads, ending at each box's edge (round 2, 03).
+                let branches = t.elements.filter { $0["type"] as? String == "arrow" }
+                #expect(!branches.isEmpty && branches.allSatisfy { $0["endArrowhead"] is NSNull })
+                let boxes = Dictionary(uniqueKeysWithValues: t.elements.compactMap { e -> (String, CGRect)? in
+                    guard let id = e["id"] as? String, let x = e["x"] as? Double, let y = e["y"] as? Double, let w = e["width"] as? Double, let h = e["height"] as? Double else { return nil }
+                    return (id, CGRect(x: x, y: y, width: w, height: h))
+                })
+                for b in branches {
+                    let to = try? #require(((b["end"] as? [String: Any])?["id"] as? String).flatMap { boxes[$0] })
+                    let pts = b["points"] as? [[Double]] ?? []
+                    let end = CGPoint(x: (b["x"] as? Double ?? 0) + (pts.last?[0] ?? 0), y: (b["y"] as? Double ?? 0) + (pts.last?[1] ?? 0))
+                    #expect(to.map { !$0.insetBy(dx: 1, dy: 1).contains(end) } == true, "a branch stops at its box's edge: \(end) \(String(describing: to))")
+                }
+            }
             let frames = t.outline.map(\.frame)
             let width = (frames.map(\.maxX).max() ?? 0) - (frames.map(\.minX).min() ?? 0)
             #expect(width <= 760, "\(t) is \(Int(width)) wide")
@@ -654,7 +673,8 @@ import UIKit
         #expect(sketch.shapes[0].fill == "#b2f2bb" && sketch.shapes[2].points.count == 3)
         #expect(CanvasSketch(elements: []).preview == nil)
         #expect(CanvasSketch(elements: [["type": "freedraw", "x": 0, "y": 0, "width": 9, "height": 9]]).preview == "Drawing")
-        #expect(CanvasSketch(elements: WhiteboardTemplate.kanban.elements).preview?.hasPrefix("Kanban \u{00B7} To do") == true, "the how-to line left out")
+        #expect(CanvasSketch(elements: WhiteboardTemplate.kanban.elements).preview?.hasPrefix("To do \u{00B7} Write the brief") == true, "the title and how-to line left out: \(CanvasSketch(elements: WhiteboardTemplate.kanban.elements).preview ?? "")")
+        #expect(NoteRow.boardPreview(nil) == "Empty whiteboard" && NoteRow.boardPreview(CanvasSketch(elements: [])) == "Empty whiteboard")
 
         let c = try Self.canvasLibrary()
         let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })

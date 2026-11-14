@@ -215,8 +215,11 @@ struct CanvasSketch: Equatable {
             guard let type = e["type"] as? String else { continue }
             let num = { (k: String) -> Double in (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
             if type == "text" {
-                // A template's how-to line isn't the board's words.
-                if (e["customData"] as? [String: Any])?["pintoHint"] as? Bool == true { continue }
+                // A template's how-to line isn't the board's words, and its title is the board's
+                // name, already the row's title (whiteboard council, round 2: two flowcharts' rows
+                // both began "Flowchart ·").
+                let mark = e["customData"] as? [String: Any]
+                if mark?["pintoHint"] as? Bool == true || mark?["pintoTitle"] as? Bool == true { continue }
                 let t = ((e["originalText"] as? String) ?? (e["text"] as? String) ?? "")
                     .split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
                 if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }

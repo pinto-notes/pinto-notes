@@ -2111,7 +2111,8 @@ struct NoteRow: View {
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         // A whiteboard: its words as the preview and its shapes as the picture.
-        let board = app && CanvasNote.has(note) && !note.isLocked ? Self.sketch(note.id) : nil
+        let isBoard = app && CanvasNote.has(note) && !note.isLocked
+        let board = isBoard ? Self.sketch(note.id) : nil
         let found = self.found
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
@@ -2182,7 +2183,7 @@ struct NoteRow: View {
                         .foregroundStyle(Color.amberInk)
                         .lineLimit(1)
                     } else {
-                        Text(board?.preview ?? note.preview)
+                        Text(isBoard ? Self.boardPreview(board) : note.preview)
                             .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
                     }
@@ -2240,6 +2241,11 @@ struct NoteRow: View {
                              ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
     }
+
+    /// A whiteboard's line in the list: its words, "Drawing" for shapes alone, "Empty whiteboard"
+    /// with nothing on it (round 2: it said "No additional text").
+    static func boardPreview(_ sketch: CanvasSketch?) -> String { sketch?.preview ?? emptyBoard }
+    static let emptyBoard = "Empty whiteboard"
 
     /// A whiteboard's words and shapes for its row, read again a moment after the board changes
     /// (whiteboard council, round 2: a row still said "No additional text" over a whole flowchart).

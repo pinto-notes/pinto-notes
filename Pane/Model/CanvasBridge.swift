@@ -311,8 +311,9 @@ enum CanvasCommand: Equatable, Sendable {
     /// Moves the view by this many points (the drawing follows the pointer).
     case pan(dx: Double, dy: Double)
     case background(String)
-    /// Adds elements in the short form (a template), in one step Undo takes back.
-    case insert(WhiteboardTemplate)
+    /// Adds elements in the short form (a template), in one step Undo takes back. Its title is
+    /// the board's name when it has one.
+    case insert(WhiteboardTemplate, title: String? = nil)
     /// A picture onto the board (CanvasImage), at a point of the page or the middle of the view.
     case image(CanvasImage, at: CGPoint?)
     /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
@@ -325,7 +326,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .action(let a): ["op": "action", "name": a.rawValue]
         case .pan(let dx, let dy): ["op": "pan", "dx": dx, "dy": dy]
         case .background(let c): ["op": "background", "color": c]
-        case .insert(let t): ["op": "insert", "elements": t.elements]
+        case .insert(let t, let title): ["op": "insert", "elements": t.elements(titled: title)]
         case .sticky: ["op": "sticky"]
         case .image(let i, let at):
             ["op": "image", "dataURL": i.dataURL, "mimeType": i.mimeType, "width": i.width, "height": i.height]
@@ -488,9 +489,11 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
         if type == "rectangle" { e["roundness"] = ["type": 3] }
         return e
     }
-    private static func arrow(from a: String, to b: String, x: Double, y: Double, dx: Double, dy: Double, line: Bool = false, label: String? = nil) -> [String: Any] {
-        var e: [String: Any] = ["type": line ? "line" : "arrow", "x": x, "y": y, "width": dx, "height": dy, "strokeColor": ink,
+    /// `branch`: a mind map's joint, an arrow with no heads, so it stays joined when either end moves.
+    private static func arrow(from a: String, to b: String, x: Double, y: Double, dx: Double, dy: Double, branch: Bool = false, label: String? = nil) -> [String: Any] {
+        var e: [String: Any] = ["type": "arrow", "x": x, "y": y, "width": dx, "height": dy, "strokeColor": ink,
                                 "points": [[0, 0], [dx, dy]], "start": ["id": a], "end": ["id": b]]
+        if branch { e["endArrowhead"] = NSNull(); e["startArrowhead"] = NSNull() }
         if let label { e["label"] = ["text": label, "fontSize": 16] }
         return e
     }
@@ -499,7 +502,8 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
     }
     private static func title(_ s: String, hint h: String) -> [[String: Any]] {
         // The how-to line is marked, so the list's preview and search leave it out (CanvasSketch).
-        [text(s, x: 0, y: -96, size: 32), text(h, x: 0, y: -50, size: 16, color: hint).merging(["customData": ["pintoHint": true]]) { a, _ in a }]
+        [text(s, x: 0, y: -96, size: 32).merging(["customData": ["pintoTitle": true]]) { a, _ in a },
+         text(h, x: 0, y: -50, size: 16, color: hint).merging(["customData": ["pintoHint": true]]) { a, _ in a }]
     }
     /// A lane with its heading on top and cards under it.
     private static func column(_ id: String, x: Double, title: String, fill: String, cards: [String], width: Double = 220, height: Double = 380) -> [[String: Any]] {
@@ -552,11 +556,13 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
                 let len = (x * x + y * y).squareRoot(), ux = x / len, uy = y / len
                 let r = 1 / ((ux * ux) / (120 * 120) + (uy * uy) / (55 * 55)).squareRoot()
                 let sx = ux * r, sy = uy * r
-                let ex = x - ux * 70, ey = y - uy * 36
-                out.append(T.arrow(from: "main", to: "idea\(i)", x: sx, y: sy, dx: ex - sx, dy: ey - sy, line: true))
+                // To the branch box's edge (it's 170 by 64), not into it.
+                let reach = min(85 / max(abs(ux), 0.0001), 32 / max(abs(uy), 0.0001))
+                let ex = x - ux * (reach + 4), ey = y - uy * (reach + 4)
+                out.append(T.arrow(from: "main", to: "idea\(i)", x: sx, y: sy, dx: ex - sx, dy: ey - sy, branch: true))
             }
             out.append(T.box("sub0", x: -355, y: 250, w: 150, h: 56, text: "First step", fill: T.green, size: 16))
-            out.append(T.arrow(from: "idea2", to: "sub0", x: -280, y: 182, dx: 0, dy: 68, line: true))
+            out.append(T.arrow(from: "idea2", to: "sub0", x: -280, y: 186, dx: 0, dy: 60, branch: true))
             return out
         case .retro:
             return T.title("Retro", hint: "Double-click a card to write. Option-drag a card to add another.")
@@ -570,10 +576,21 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
                 + T.column("done", x: 480, title: "Done", fill: T.green, cards: ["Pick a date \u{00B7} team"])
         case .meeting:
             return T.title("Meeting", hint: "Date:            People:")
-                + T.section("agenda", x: 0, y: 0, w: 340, h: 220, title: "Agenda", fill: "#e7f5ff", lines: ["1.", "2.", "3."])
+                + T.section("agenda", x: 0, y: 0, w: 340, h: 220, title: "Agenda", fill: "#e7f5ff", lines: ["1. Where we are", "2. What\u{2019}s next", "3. Anything else"])
                 + T.section("notes", x: 360, y: 0, w: 340, h: 220, title: "Notes", fill: "#fff9db")
                 + T.section("decisions", x: 0, y: 240, w: 340, h: 200, title: "Decisions", fill: "#ebfbee")
-                + T.section("actions", x: 360, y: 240, w: 340, h: 200, title: "Action items", fill: "#f8f0fc", lines: ["\u{2610} Who, what, by when"])
+                + T.section("actions", x: 360, y: 240, w: 340, h: 200, title: "Action items", fill: "#f8f0fc", lines: ["Who does what, by when"])
+        }
+    }
+
+    /// Its elements, the title the board's name when it has one of its own ("Product launch"
+    /// rather than "Flowchart"; whiteboard council, round 2).
+    func elements(titled name: String?) -> [[String: Any]] {
+        let name = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !name.isEmpty, name != CanvasNote.title else { return elements }
+        return elements.map { e in
+            guard (e["customData"] as? [String: Any])?["pintoTitle"] as? Bool == true else { return e }
+            var e = e; e["text"] = name; return e
         }
     }
 

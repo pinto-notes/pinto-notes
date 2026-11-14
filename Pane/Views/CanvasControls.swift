@@ -156,7 +156,7 @@ struct CanvasStart: View {
                 .foregroundStyle(Color.muted)
             HStack(spacing: 10) {
                 ForEach(WhiteboardTemplate.allCases) { t in
-                    Button { canvas.send(.insert(t)) } label: {
+                    Button { canvas.send(.insert(t, title: canvas.title)) } label: {
                         VStack(spacing: 8) {
                             CanvasTemplatePreview(template: t)
                                 .frame(width: 92, height: 58)
