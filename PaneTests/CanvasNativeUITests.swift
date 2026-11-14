@@ -586,12 +586,25 @@ import UIKit
         try await Task.sleep(for: .milliseconds(200))
         let back = try #require(try await j.js("amber._canvas.api.getAppState().zoom.value") as? Double)
         #expect(back > zoom + 0.05 && back <= 1, "zoomed back in, not past 100%: \(zoom) → \(back)")
+        // A wide board, whole at 100%; the window narrows: it stays whole, zoomed out (round 4, 15).
+        _ = try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState();
+          const wide = { ...api.getSceneElements().find((e) => e.id === 'box'), id: 'far', x: 1000, y: 140, width: 150, height: 80, boundElements: [], seed: 7, version: 1 };
+          api.updateScene({ elements: [...api.getSceneElements(), wide], appState: { zoom: { value: 1 }, scrollX: -80 + 48, scrollY: 0 } }); return 0; })()
+        """)
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await j.js(allInView) as? Bool == true, "whole before")
         j.rig.window.setContentSize(CGSize(width: 900, height: 600))
         j.web.frame = CGRect(x: 0, y: 0, width: 900, height: 600)
         for _ in 0..<100 {
             if (try await j.js("amber._canvas.api.getAppState().width") as? Double) == 900 { break }
             try await Task.sleep(for: .milliseconds(50))
         }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try await j.js(allInView) as? Bool == true, "still whole after the window narrowed")
+        let narrowed = try #require(try await j.js("amber._canvas.api.getAppState().zoom.value") as? Double)
+        #expect(narrowed < 1 && narrowed >= 0.5, "zoomed out to keep it whole: \(narrowed)")
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.id !== 'far') }); return 0; })()")
         // Panned so part of the board is cut off; the AI renames the box and adds one beside it, in
         // view: the whole board comes back into view (it fits at this zoom).
         _ = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(); api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'image'), appState: { zoom: { value: 1 }, scrollX: -200, scrollY: 0 } }); return 0; })()")

@@ -803,14 +803,21 @@ function Canvas({ initial }) {
     const keepCentre = new ResizeObserver(() => {
       const w = area.clientWidth, h = area.clientHeight;
       if (!last || !w || !h) { last = { w, h }; return; }
-      const dw = w - last.w, dh = h - last.h;
+      const dw = w - last.w, dh = h - last.h, was = last;
       last = { w, h };
       if (!dw && !dh) return;
       const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+      // Was the whole board in view before the window narrowed?
+      const els = api.getSceneElements();
+      const whole = els.length > 0 && (() => { const [x1, y1, x2, y2] = getCommonBounds(els);
+        return (x1 + s.scrollX) * z >= 0 && (y1 + s.scrollY) * z >= 0 && (x2 + s.scrollX) * z <= was.w && (y2 + s.scrollY) * z <= was.h; })();
       api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
       // More room (Full Screen, a wider window): the whole board if it now fits and was cut off
       // (round 3, 13: Full Screen kept a frame with the flowchart cut at the left).
       if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true });
+      // Less room: a board that was whole stays whole, down to half size (round 4, 15: a
+      // narrower window cut the flowchart on both sides). One cut off already stays as it is.
+      else if (whole) setTimeout(() => frameBoard(api, { onlyIfCut: true, minZoom: 0.5 }), 60);
     });
     if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
