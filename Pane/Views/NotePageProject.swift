@@ -13,7 +13,9 @@ import WebKit
 /// bytes compressed with raw DEFLATE; they're served as they are, with their type (2026-11-14).
 /// A binary file can instead be stored once, apart, and named here by its hash:
 /// `"/doom1.wad": {"hash": "<64 hex>", "size": 4196020}` (AppBlobs on the device, note_app_blobs on
-/// the server; 2026-11-15), so a version of the app doesn't copy it again.
+/// the server; 2026-11-15), so a version of the app doesn't copy it again. A file over `partBytes`
+/// (a disk image, a dataset) is stored in parts of `partBytes`, named in order:
+/// `"/disk.img": {"size": 62914560, "parts": [{"hash": "…", "size": 4194304}, …]}` (2026-11-16).
 /// Anything else is a one-file app: its HTML is /index.html. Served at pinto-app:///<path> (and at
 /// amber-app:, the name older apps use), with the document at pinto-app:///index.html so relative modules and links work.
 struct NotePageProject: Equatable {
@@ -23,6 +25,8 @@ struct NotePageProject: Equatable {
     var binary: [String: String] = [:]
     /// Binary files stored apart, by name (AppBlobs).
     var blobs: [String: BlobRef] = [:]
+    /// Binary files stored apart in parts, in order (AppBlobs, a name each).
+    var parts: [String: [BlobRef]] = [:]
 
     struct BlobRef: Equatable, Hashable {
         var hash: String
@@ -30,12 +34,18 @@ struct NotePageProject: Equatable {
         var size: Int
     }
 
-    static let maxFiles = 200
-    /// Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
-    static let maxFileBytes = 8 * 1024 * 1024
+    /// The limits, as the server has them (app_project.ts, 2026-11-16): the app's text (its text files,
+    /// what they compile to, and the names of its binary files) is synced and kept in each version
+    /// whole, so it has 16 MB. A binary file is stored apart in parts and served part by part, so it
+    /// can be as big as a file added to a note: 100 MB.
+    static let maxFiles = 10_000
     static let maxBytes = 16 * 1024 * 1024
+    /// One text file: as much as the whole app's text.
+    static let maxFileBytes = maxBytes
     /// A binary file unpacked: past this it isn't served, so a small file can't unpack into a huge one.
-    static let maxBinaryBytes = 64 * 1024 * 1024
+    static let maxBinaryBytes = 100 * 1024 * 1024
+    /// A binary file over this is stored in parts of this size (PART_BYTES on the server).
+    static let partBytes = 4 * 1024 * 1024
     static let base = URL(string: "pinto-app:///index.html")!
 
     var index: String { files["/index.html"] ?? "" }
@@ -54,8 +64,12 @@ struct NotePageProject: Equatable {
         for (path, v) in o["binary"] as? [String: Any] ?? [:] {
             if let packed = v as? String {
                 p.binary[path] = packed
-            } else if let ref = v as? [String: Any], let hash = ref["hash"] as? String, let size = ref["size"] as? Int {
-                p.blobs[path] = BlobRef(hash: hash, size: size)
+            } else if let ref = blobRef(v) {
+                p.blobs[path] = ref
+            } else if let o = v as? [String: Any], let size = o["size"] as? Int, let list = o["parts"] as? [Any] {
+                let refs = list.compactMap(blobRef)
+                guard !refs.isEmpty, refs.count == list.count, refs.reduce(0, { $0 + $1.size }) == size else { return nil }
+                p.parts[path] = refs
             } else {
                 return nil
             }
@@ -63,22 +77,30 @@ struct NotePageProject: Equatable {
         return p.problem == nil ? p : nil
     }
 
-    /// The names of the files a stored project keeps apart: what has to be here (and on the server) for it to open.
+    private static func blobRef(_ v: Any) -> BlobRef? {
+        guard let o = v as? [String: Any], let hash = o["hash"] as? String, let size = o["size"] as? Int else { return nil }
+        return BlobRef(hash: hash, size: size)
+    }
+
+    /// The names of the files a stored project keeps apart, parts included: what has to be here (and on the server) for it to open.
     static func blobNames(in stored: String) -> Set<String> {
         guard isProject(stored), stored.contains("\"hash\""),
               let o = try? JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [String: Any],
               let binary = o["binary"] as? [String: Any] else { return [] }
-        return Set(binary.values.compactMap { ($0 as? [String: Any])?["hash"] as? String })
+        return Set(binary.values.flatMap { v -> [String] in
+            guard let o = v as? [String: Any] else { return [] }
+            if let hash = o["hash"] as? String { return [hash] }
+            return (o["parts"] as? [Any] ?? []).compactMap { ($0 as? [String: Any])?["hash"] as? String }
+        })
     }
 
     /// Why this project can't be shown, or nil.
     var problem: String? {
         if files["/index.html"] == nil { return "The app has no /index.html." }
-        if files.count + binary.count + blobs.count > Self.maxFiles { return "The app has more than \(Self.maxFiles) files." }
-        for (path, packed) in binary {
+        if files.count + binary.count + blobs.count + parts.count > Self.maxFiles { return "The app has more than \(Self.maxFiles) files." }
+        for (path, _) in binary {
             if !Self.validPath(path) { return "\(path) isn't a valid path." }
             if files[path] != nil { return "\(path) is both a text file and a binary one." }
-            if packed.utf8.count > Self.maxFileBytes { return "\(path) is over \(Self.maxFileBytes / 1024 / 1024) MB." }
         }
         for (path, ref) in blobs {
             if !Self.validPath(path) { return "\(path) isn't a valid path." }
@@ -86,13 +108,20 @@ struct NotePageProject: Equatable {
             if !AppBlobs.validName(ref.hash) { return "\(path) has no valid name." }
             if ref.size > Self.maxBinaryBytes { return "\(path) is over \(Self.maxBinaryBytes / 1024 / 1024) MB." }
         }
+        for (path, refs) in parts {
+            if !Self.validPath(path) { return "\(path) isn't a valid path." }
+            if files[path] != nil || binary[path] != nil || blobs[path] != nil { return "\(path) is in the app twice." }
+            if refs.isEmpty || !refs.allSatisfy({ AppBlobs.validName($0.hash) && $0.size >= 0 }) { return "\(path) has no valid name." }
+            if refs.reduce(0, { $0 + $1.size }) > Self.maxBinaryBytes { return "\(path) is over \(Self.maxBinaryBytes / 1024 / 1024) MB." }
+        }
         for (path, text) in files {
             if !Self.validPath(path) { return "\(path) isn't a valid path." }
             if text.utf8.count > Self.maxFileBytes { return "\(path) is over \(Self.maxFileBytes / 1024 / 1024) MB." }
             if Self.compiles(path), compiled[path] == nil { return "\(path) wasn't compiled." }
         }
-        let total = files.values.reduce(0) { $0 + $1.utf8.count } + compiled.values.reduce(0) { $0 + $1.utf8.count } + binary.values.reduce(0) { $0 + $1.utf8.count }
-        if total > Self.maxBytes { return "The app is over \(Self.maxBytes / 1024 / 1024) MB." }
+        // The text only: a binary file is stored apart (storingBlobs) before the app is kept, as on the server.
+        let total = files.values.reduce(0) { $0 + $1.utf8.count } + compiled.values.reduce(0) { $0 + $1.utf8.count }
+        if total > Self.maxBytes { return "The app's text is over \(Self.maxBytes / 1024 / 1024) MB." }
         return nil
     }
 
@@ -105,32 +134,50 @@ struct NotePageProject: Equatable {
 
     /// What's sealed as the page: a lone /index.html stays plain HTML, as the server writes it.
     var stored: String {
-        if files.count == 1, files["/index.html"] != nil, compiled.isEmpty, binary.isEmpty, blobs.isEmpty { return index }
+        if files.count == 1, files["/index.html"] != nil, compiled.isEmpty, binary.isEmpty, blobs.isEmpty, parts.isEmpty { return index }
         var o: [String: Any] = ["amberApp": 1, "files": files, "compiled": compiled]
         var all: [String: Any] = binary
         for (path, ref) in blobs { all[path] = ["hash": ref.hash, "size": ref.size] }
+        for (path, refs) in parts {
+            all[path] = ["size": refs.reduce(0) { $0 + $1.size }, "parts": refs.map { ["hash": $0.hash, "size": $0.size] }] as [String: Any]
+        }
         if !all.isEmpty { o["binary"] = all }
         let data = (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys, .withoutEscapingSlashes])) ?? Data()
         return String(data: data, encoding: .utf8) ?? ""
     }
 
     /// The project with each packed binary file stored once in `store`, by its name in this account,
-    /// and named here instead. What's already named stays as it is.
+    /// and named here instead; one over `partBytes` in parts of `partBytes`, as the server cuts it, so
+    /// the same file has the same names wherever it was added. What's already named stays as it is.
     func storingBlobs(_ sealer: Sealer, in store: AppBlobs) -> NotePageProject {
         var p = self
         for (path, packed) in binary {
             guard let bytes = Data(base64Encoded: packed), let data = Self.unpack(packed) else { continue }
-            let hash = sealer.blobName(data)
-            store.put(hash, packed: bytes)
             p.binary[path] = nil
-            p.blobs[path] = BlobRef(hash: hash, size: data.count)
+            if data.count <= Self.partBytes {
+                let hash = sealer.blobName(data)
+                store.put(hash, packed: bytes)
+                p.blobs[path] = BlobRef(hash: hash, size: data.count)
+                continue
+            }
+            p.parts[path] = stride(from: 0, to: data.count, by: Self.partBytes).map { at in
+                let part = data.subdata(in: at..<min(data.count, at + Self.partBytes))
+                let hash = sealer.blobName(part)
+                if !store.has(hash) { store.put(hash, packed: Self.packData(part)) }
+                return BlobRef(hash: hash, size: part.count)
+            }
         }
         return p
     }
 
     /// A binary file as stored: its bytes, raw DEFLATE (the server's "deflate-raw"), base64.
     static func pack(_ data: Data) -> String {
-        ((try? (data as NSData).compressed(using: .zlib)) as Data? ?? Data()).base64EncodedString()
+        packData(data).base64EncodedString()
+    }
+
+    /// A binary file's bytes, raw DEFLATE.
+    static func packData(_ data: Data) -> Data {
+        (try? (data as NSData).compressed(using: .zlib)) as Data? ?? Data()
     }
 
     /// A stored binary file's bytes, or nil when it isn't one or unpacks past `max`.
@@ -214,9 +261,8 @@ struct NotePageProject: Equatable {
     /// (`import "./index.css"`, compiled to "./index.css?import") is a module that adds it.
     func serve(_ path: String, query: String? = nil, blobs store: AppBlobs = .shared) -> (data: Data, type: String)? {
         guard let path = resolve(path) else { return nil }
-        let packed = binary[path].flatMap { Data(base64Encoded: $0) } ?? blobs[path].flatMap { store.packed($0.hash) }
-        if binary[path] != nil || blobs[path] != nil {
-            guard let packed, let data = Self.unpack(data: packed) else { return nil }
+        if binary[path] != nil || blobs[path] != nil || parts[path] != nil {
+            guard let data = bytes(path, blobs: store) else { return nil }
             let type = Self.mime(path)
             return (data, type == "text/plain" && !path.hasSuffix(".txt") ? "application/octet-stream" : type)
         }
@@ -229,8 +275,22 @@ struct NotePageProject: Equatable {
         return (Data(text.utf8), Self.mime(path))
     }
 
+    /// A binary file's bytes: unpacked, or its parts unpacked in order. Nil when one isn't on this
+    /// device yet or a part doesn't unpack to the size it's named with.
+    func bytes(_ path: String, blobs store: AppBlobs = .shared) -> Data? {
+        if let packed = binary[path] { return Self.unpack(packed) }
+        if let ref = blobs[path] { return store.packed(ref.hash).flatMap { Self.unpack(data: $0) } }
+        guard let refs = parts[path] else { return nil }
+        var out = Data(capacity: refs.reduce(0) { $0 + $1.size })
+        for ref in refs {
+            guard let packed = store.packed(ref.hash), let part = Self.unpack(data: packed, max: ref.size), part.count == ref.size else { return nil }
+            out.append(part)
+        }
+        return out
+    }
+
     func resolve(_ path: String) -> String? {
-        if files[path] != nil || binary[path] != nil || blobs[path] != nil { return path }
+        if files[path] != nil || binary[path] != nil || blobs[path] != nil || parts[path] != nil { return path }
         for ext in [".tsx", ".ts", ".jsx", ".js", "/index.tsx", "/index.ts", "/index.jsx", "/index.js"] where files[path + ext] != nil {
             return path + ext
         }

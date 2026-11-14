@@ -1670,7 +1670,7 @@ import AppKit
         #expect(NotePageProject.parse(stored(["/index.html": "x", "/big.js": String(repeating: "a", count: NotePageProject.maxFileBytes + 1)])) == nil)
         // A game's data fits: Doom's 4 MB shareware WAD is 5.6 MB as base64 (2026-11-14).
         #expect(NotePageProject.parse(stored(["/index.html": "x", "/doom1.wad.b64": String(repeating: "A", count: 5_594_696)])) != nil)
-        let parts = (0..<3).reduce(into: ["/index.html": "x"]) { $0["/p\($1).txt"] = String(repeating: "a", count: NotePageProject.maxFileBytes - 1) }
+        let parts = (0..<2).reduce(into: ["/index.html": "x"]) { $0["/p\($1).txt"] = String(repeating: "a", count: NotePageProject.maxBytes / 2 + 1) }
         #expect(NotePageProject.parse(stored(parts)) == nil, "over the total")
         var many = ["/index.html": "x"]; for i in 0..<NotePageProject.maxFiles { many["/f\(i).js"] = "" }
         #expect(NotePageProject.parse(stored(many)) == nil)
