@@ -900,6 +900,20 @@ import UIKit
         #expect(abs(below.y - (60 + gap + 20)) < 0.01, "no room above: below it (\(below.y))")
         let edge = CanvasSelectionBar.position(bounds: CGRect(x: -50, y: 300, width: 60, height: 50), bar: bar, area: area)
         #expect(abs(edge.x - 108) < 0.01, "kept inside the canvas (\(edge.x))")
+        // Something drawn just above (an arrow coming in, a shape): it slides along, or goes
+        // below, or beside, to cover none of it (whiteboard council, round 2, 07).
+        let box = CGRect(x: 300, y: 300, width: 100, height: 50)
+        let arrowIn = CanvasObstacle.line([CGPoint(x: 350, y: 200), CGPoint(x: 350, y: 298)])
+        let slid = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [arrowIn])
+        #expect(abs(slid.y - above.y) < 0.01 && abs(slid.x - 350) > 100, "above, slid clear of the arrow: \(slid)")
+        let shapeAbove = CanvasObstacle.box(CGRect(x: 0, y: 200, width: 800, height: 60))
+        let under = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [shapeAbove, arrowIn])
+        #expect(abs(under.y - (350 + gap + 20)) < 0.01, "below it: \(under)")
+        let arrowOut = CanvasObstacle.line([CGPoint(x: 350, y: 352), CGPoint(x: 350, y: 500)])
+        let beside = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [shapeAbove, arrowIn, arrowOut, .box(CGRect(x: 0, y: 360, width: 800, height: 200))])
+        #expect(abs(beside.y - 325) < 0.01 && (beside.x < 300 || beside.x > 400), "beside it: \(beside)")
+        #expect(CanvasObstacle.line([CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 100)]).hits(CGRect(x: 45, y: 45, width: 10, height: 10)))
+        #expect(!CanvasObstacle.line([CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 100)]).hits(CGRect(x: 70, y: 0, width: 20, height: 20)), "a diagonal's box isn't the line")
         var state = CanvasState()
         state.selection = ["rectangle"]
         state.bounds = CGRect(x: 0, y: 0, width: 10, height: 10)

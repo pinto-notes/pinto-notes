@@ -169,10 +169,33 @@ export function stateOf(api, app) {
     const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);
     bounds = { x: Math.round(a.x), y: Math.round(a.y), width: Math.round(b.x - a.x), height: Math.round(b.y - a.y) };
   }
+  // What's drawn near the selection, so the style bar can float where it covers none of it:
+  // shapes as boxes, arrows and lines as the points they run through (their boxes are mostly air).
+  const nearby = [];
+  if (bounds) {
+    const reach = 260, z = (s.zoom && s.zoom.value) || 1;
+    const view = (x, y) => { const p = sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, s); return [Math.round(p.x), Math.round(p.y)]; };
+    const near = (x1, y1, x2, y2) => x2 >= bounds.x - reach && x1 <= bounds.x + bounds.width + reach && y2 >= bounds.y - reach && y1 <= bounds.y + bounds.height + reach;
+    for (const e of api.getSceneElements()) {
+      if (nearby.length >= 80) break;
+      if (ids[e.id] || (e.containerId && ids[e.containerId])) continue;
+      if ((e.type === "arrow" || e.type === "line" || e.type === "freedraw") && Array.isArray(e.points)) {
+        const step = Math.max(1, Math.ceil(e.points.length / 24));
+        const pts = e.points.filter((_, i) => i % step === 0 || i === e.points.length - 1).map(([px, py]) => view(e.x + px, e.y + py));
+        const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+        if (near(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys))) nearby.push({ line: pts.flat() });
+      } else {
+        const [x1, y1, x2, y2] = getCommonBounds([e]);
+        const p = view(x1, y1), q = view(x2, y2);
+        if (near(p[0], p[1], q[0], q[1])) nearby.push({ box: [p[0], p[1], Math.round((x2 - x1) * z), Math.round((y2 - y1) * z)] });
+      }
+    }
+  }
   return {
     tool: s.activeTool && s.activeTool.type,
     selection: selected.map((e) => e.type),
     bounds,
+    nearby,
     // Moving, resizing or drawing: the style bar stays out of the way.
     busy: !!(s.selectedElementsAreBeingDragged || s.isResizing || s.isRotating || s.newElement || s.multiElement),
     editing: !!s.editingTextElement,

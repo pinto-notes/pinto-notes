@@ -475,13 +475,39 @@ struct CanvasSelectionBar: View {
     static let gap: CGFloat = 30
     #endif
 
-    /// Its centre: above the selection, or below it with no room above, kept inside the canvas.
-    static func position(bounds: CGRect, bar: CGSize, area: CGSize, margin: CGFloat = 8) -> CGPoint {
-        var y = bounds.minY - gap - bar.height / 2
-        if y - bar.height / 2 < margin { y = bounds.maxY + gap + bar.height / 2 }
-        let x = min(max(bounds.midX, margin + bar.width / 2), max(area.width - margin - bar.width / 2, margin + bar.width / 2))
-        y = min(max(y, margin + bar.height / 2), max(area.height - margin - bar.height / 2, margin + bar.height / 2))
-        return CGPoint(x: x, y: y)
+    /// Its centre. Above the selection where it covers nothing drawn; else slid along above it,
+    /// then below, then beside it; with nowhere clear, where it covers least (whiteboard council,
+    /// round 2, 07: it sat on the arrow into the box and on the shape above). Always in the canvas.
+    static func position(bounds: CGRect, bar: CGSize, area: CGSize, nearby: [CanvasObstacle] = [], margin: CGFloat = 8) -> CGPoint {
+        func clamp(_ p: CGPoint) -> CGPoint {
+            CGPoint(x: min(max(p.x, margin + bar.width / 2), max(area.width - margin - bar.width / 2, margin + bar.width / 2)),
+                    y: min(max(p.y, margin + bar.height / 2), max(area.height - margin - bar.height / 2, margin + bar.height / 2)))
+        }
+        func rect(_ c: CGPoint) -> CGRect { CGRect(x: c.x - bar.width / 2, y: c.y - bar.height / 2, width: bar.width, height: bar.height).insetBy(dx: -4, dy: -4) }
+        func fits(_ c: CGPoint) -> Bool {
+            c.y - bar.height / 2 >= margin && c.y + bar.height / 2 <= area.height - margin
+                && c.x - bar.width / 2 >= margin && c.x + bar.width / 2 <= area.width - margin
+        }
+        let above = bounds.minY - gap - bar.height / 2, below = bounds.maxY + gap + bar.height / 2
+        let slide = (bounds.width + bar.width) / 2
+        let offsets: [CGFloat] = [0] + stride(from: CGFloat(16), through: slide, by: 16).flatMap { [-$0, $0] }
+        var spots = [CGPoint]()
+        // Slid spots are kept inside the canvas side to side; one that can't be is left out.
+        let lo = margin + bar.width / 2, hi = max(area.width - margin - bar.width / 2, lo)
+        for y in [above, below] {
+            for o in offsets {
+                let c = CGPoint(x: min(max(bounds.midX + o, lo), hi), y: y)
+                if !spots.contains(c) { spots.append(c) }
+            }
+        }
+        spots += [CGPoint(x: bounds.minX - gap - bar.width / 2, y: bounds.midY), CGPoint(x: bounds.maxX + gap + bar.width / 2, y: bounds.midY)]
+        let inside = spots.filter(fits)
+        if let clear = inside.first(where: { c in !nearby.contains { $0.hits(rect(c)) } }) { return clear }
+        // Nowhere clear: the old place, above (below with no room above), kept in the canvas.
+        let fallback = CGPoint(x: bounds.midX, y: above - bar.height / 2 < margin ? below : above)
+        let least = inside.min { a, b in nearby.filter { $0.hits(rect(a)) }.count < nearby.filter { $0.hits(rect(b)) }.count }
+        if let least, nearby.filter({ $0.hits(rect(least)) }).count < nearby.filter({ $0.hits(rect(fallback)) }).count { return least }
+        return clamp(fallback)
     }
 
     var body: some View {
@@ -540,7 +566,7 @@ struct CanvasSelectionBar: View {
         }
         .fixedSize()
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
-        .position(Self.position(bounds: bounds, bar: size, area: area))
+        .position(Self.position(bounds: bounds, bar: size, area: area, nearby: canvas.state.nearby))
         .animation(.easeOut(duration: 0.15), value: tray)
         .onChange(of: canvas.state.selection) { _, _ in tray = nil }
         .accessibilityElement(children: .contain)

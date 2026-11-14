@@ -166,6 +166,37 @@ enum CanvasStyle {
     }
 }
 
+/// Something drawn that the style bar shouldn't cover.
+enum CanvasObstacle: Equatable, Sendable {
+    case box(CGRect)
+    case line([CGPoint])
+
+    init?(_ m: [String: Any]) {
+        func nums(_ k: String) -> [CGFloat]? { (m[k] as? [Any])?.compactMap { ($0 as? NSNumber).map { CGFloat($0.doubleValue) } } }
+        if let b = nums("box"), b.count == 4 { self = .box(CGRect(x: b[0], y: b[1], width: b[2], height: b[3])); return }
+        if let l = nums("line"), l.count >= 4 { self = .line(stride(from: 0, to: l.count - 1, by: 2).map { CGPoint(x: l[$0], y: l[$0 + 1]) }); return }
+        return nil
+    }
+
+    /// Whether it runs through `r`.
+    func hits(_ r: CGRect) -> Bool {
+        switch self {
+        case .box(let b): return b.intersects(r)
+        case .line(let pts):
+            if pts.contains(where: r.contains) { return true }
+            for (a, b) in zip(pts, pts.dropFirst()) where Self.segment(a, b, crosses: r) { return true }
+            return false
+        }
+    }
+
+    private static func segment(_ a: CGPoint, _ b: CGPoint, crosses r: CGRect) -> Bool {
+        guard CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)).intersects(r.insetBy(dx: -0.5, dy: -0.5)) else { return false }
+        let corners = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
+        let side = corners.map { (b.x - a.x) * ($0.y - a.y) - (b.y - a.y) * ($0.x - a.x) }
+        return !(side.allSatisfy { $0 > 0 } || side.allSatisfy { $0 < 0 })
+    }
+}
+
 /// What the page reports.
 struct CanvasState: Equatable, Sendable {
     var tool: CanvasTool = .selection
@@ -173,6 +204,9 @@ struct CanvasState: Equatable, Sendable {
     var selection: [String] = []
     /// Where the selection is in the page, in points from its top left (nil: nothing selected).
     var bounds: CGRect?
+    /// What's drawn near the selection, in the page's points: boxes for shapes, the points an
+    /// arrow or line runs through. The style bar floats where it covers none of it.
+    var nearby: [CanvasObstacle] = []
     /// Something is being moved, resized or drawn: the style bar steps out of the way.
     var busy = false
     /// Text is being typed on the canvas.
@@ -205,6 +239,7 @@ struct CanvasState: Equatable, Sendable {
            let w = (b["width"] as? NSNumber)?.doubleValue, let h = (b["height"] as? NSNumber)?.doubleValue {
             bounds = CGRect(x: x, y: y, width: w, height: h)
         }
+        nearby = ((m["nearby"] as? [[String: Any]]) ?? []).compactMap(CanvasObstacle.init)
         let s = (m["style"] as? [String: Any]) ?? [:]
         func num(_ k: String) -> Double? { (s[k] as? NSNumber)?.doubleValue }
         strokeColor = (s["strokeColor"] as? String) ?? strokeColor
