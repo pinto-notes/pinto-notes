@@ -542,6 +542,14 @@ import UIKit
         """) as? String)
         let v = place.split(separator: ",").compactMap { Double($0) }
         #expect(v.count == 4 && v[0] >= 0 && v[2] <= 900 && v[1] >= 0 && v[3] <= 600, "in view on the retro: \(place)")
+        let clear = try await j.js("""
+        (() => { const all = amber._canvas.api.getSceneElements(); const st = all.find((e) => e.customData && e.customData.pintoSticky);
+          const cards = all.filter((e) => e.type === 'rectangle' && !(e.customData && e.customData.pintoSticky) && e.width * e.height < 180 * 180 * 2);
+          const over = cards.some((c) => st.x < c.x + c.width && st.x + st.width > c.x && st.y < c.y + c.height && st.y + st.height > c.y);
+          const words = all.find((e) => e.containerId === st.id);
+          return JSON.stringify({ over, ink: words && words.strokeColor }); })()
+        """) as? String
+        #expect(clear == "{\"over\":false,\"ink\":\"#2a1d10\"}", "not on a card, its words in ink: \(clear ?? "")")
     }
 
     /// Two or more shapes line up and space out from the bar; an arrow turns straight, curved or
@@ -1035,6 +1043,7 @@ import UIKit
                 if dark, let png = await canvas.export(.png) { try png.write(to: dir.appending(path: "18-exported-from-dark.png")) }
                 // The AI changes what's there: renames a step and adds one; the receipt says what.
                 if !dark {
+                    try await js("amber._canvas.api.scrollToContent(undefined, { animate: false })")
                     await MacWindowChromeTests.settle(w, 30)
                     var now = (NotePageDataStore.shared.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any] ?? [:]
                     var all = now["elements"] as? [[String: Any]] ?? []

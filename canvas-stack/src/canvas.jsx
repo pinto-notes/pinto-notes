@@ -177,16 +177,28 @@ export function addSticky(api) {
   const at = next
     ? { x: next.x + next.width + STICKY.gap, y: next.y }
     : { x: -s.scrollX + s.width / 2 / z - size / 2, y: -s.scrollY + s.height / 2 / z - size / 2 };
-  // Never on top of another sticky note: along to the right until the spot is free. Other
-  // shapes don't count: a sticky goes on a lane or a section, as on a retro.
-  const taken = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => getCommonBounds([e]));
-  const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 && x + size > x1 && y < y2 && y + size > y1);
-  for (let i = 0; i < 20 && !free(at.x, at.y); i++) at.x += size + STICKY.gap;
+  // Never on top of another card or shape: the nearest free spot in view, any direction. Big
+  // shapes (a retro's lanes, a meeting's sections) don't count: a sticky goes on them.
+  const big = size * size * 2;
+  const taken = api.getSceneElements().filter((e) => !e.containerId && e.type !== "text" && e.width * e.height < big).map((e) => getCommonBounds([e]));
+  const free = (x, y) => !taken.some(([x1, y1, x2, y2]) => x < x2 + 8 && x + size > x1 - 8 && y < y2 + 8 && y + size > y1 - 8);
+  if (!free(at.x, at.y)) {
+    const step = (size + STICKY.gap) / 2, vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
+    const inView = (x, y) => x >= vx && y >= vy && x + size <= vx + vw && y + size <= vy + vh;
+    let best = null;
+    for (let i = -8; i <= 8; i++) for (let j = -8; j <= 8; j++) {
+      const x = at.x + i * step, y = at.y + j * step, d = i * i + j * j + (i < 0 ? 0.5 : 0) + (j < 0 ? 0.3 : j > 0 ? 0.1 : 0);
+      if ((!next || inView(x, y)) && free(x, y) && (inView(x, y) || next) && (!best || d < best.d)) best = { x, y, d };
+    }
+    if (best) { at.x = best.x; at.y = best.y; }
+  }
   const [card, ...rest] = convertToExcalidrawElements([{
     type: "rectangle", x: at.x, y: at.y, width: size, height: size, backgroundColor: STICKY.color, fillStyle: "solid",
-    strokeColor: "#e6c84f", roundness: { type: 3 }, label: { text: " ", fontSize: 20, verticalAlign: "top", textAlign: "left" },
+    strokeColor: "#e6c84f", roundness: { type: 3 }, label: { text: " ", fontSize: 20, verticalAlign: "top", textAlign: "left", strokeColor: "#2a1d10" },
     customData: { pintoSticky: true },
   }], { regenerateIds: true });
+  // Its words in ink; only the card's edge is yellow.
+  for (const e of rest) if (e.type === "text") e.strokeColor = "#2a1d10";
   api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), card, ...rest], appState: { selectedElementIds: { [card.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
   api.setActiveTool({ type: "selection" });
   // Typing starts in it, as Return does on a selected shape, once the engine has it (a timer, not
