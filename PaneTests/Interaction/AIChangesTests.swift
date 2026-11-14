@@ -274,10 +274,8 @@ extension AIChangesTests {
         #expect(undo.title == "Undo ChatGPT's changes", "VoiceOver says whose change it undoes")
         #expect(Self.yourUndoItem(in: open) == nil, "never two")
         try Self.shot(open, "2-note-\(mode)")
-        try? await Task.sleep(for: .seconds(6))
-        #expect(controller.isTinted, "still tinted while you read")
-        #expect(Self.aiUndoItem(in: open) != nil, "and Undo still there")
-
+        // The tint fades on its own after a few seconds (Emil, 12 November 2026; the Mac's
+        // theOpenNoteMarksTheChangeThenLetsItGo): Undo is taken while the change is marked.
         Self.tap(undo)
         try? await Task.sleep(for: .seconds(1.0))
         #expect(note.body == Self.before, "Undo put the note back")

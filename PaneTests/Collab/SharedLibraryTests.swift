@@ -1304,7 +1304,8 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(mine.deletedAt != nil)
         let removal = try #require(said.all.first)
         #expect(removal.copy == "Offsite plan\n- Venue\n- Dinner at 8")
-        #expect(removal.message == "Its owner removed you from this note. You can keep a copy of it as it is on this Mac.")
+        // "on this Mac", "on this iPhone": the device it runs on.
+        #expect(removal.message == "Its owner removed you from this note. You can keep a copy of it as it is on this \(InstallID.kind).")
 
         // Keep a Copy: an ordinary note of Sara's with her text, not in Shared with me.
         let queue = SharedRemovals()
