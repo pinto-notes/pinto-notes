@@ -45,7 +45,9 @@ describe("the consent's words", () => {
     expect(hereFrom({ allow_here: true })).toBe("yes");
     expect(hereFrom({ allow_here: false, allow_here_why: "reauth" })).toBe("reauth");
     expect(hereFrom({ allow_here: false, allow_here_why: "paused" })).toBe("paused");
-    for (const why of ["strict", "no_copy", "no_key", "off", undefined]) expect(hereFrom({ allow_here: false, allow_here_why: why })).toBe("app");
+    for (const why of ["strict", "no_copy", "off", undefined]) expect(hereFrom({ allow_here: false, allow_here_why: why })).toBe("app");
+    // No key: an account Sign in with Apple or Google made on the web, never opened in the app.
+    expect(hereFrom({ allow_here: false, allow_here_why: "no_key" })).toBe("none");
     // A server from before this says nothing at all.
     expect(hereFrom({})).toBe("app");
     expect(parseLabel({ redirect_host: "chatgpt.com", claimed_name: "ChatGPT", allow_here: true })?.allow_here).toBe(true);
@@ -224,6 +226,34 @@ describe("connecting on the page alone", () => {
     await until(() => heading() === "Allow this in Pinto Notes");
     act(() => button("Continue").click());
     await until(() => container.textContent === "the page as it was");
+  });
+
+  // An account Sign in with Google or Apple made on this page has no key: it never opened the app.
+  // It gets what an email with no account gets, and is signed out; never "Allow this in Pinto Notes",
+  // which leads on to the recovery key it doesn't have.
+  it("an account with no key yet hears there's no Pinto Notes account, with Get Pinto Notes, and is signed out", async () => {
+    for (const where of ["request", "allow"] as const) {
+      act(() => root.unmount());
+      root = createRoot(container);
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token: "old", refresh_token: "rt-old", user_id: "u1", email: "new@gmail.com" }));
+      const server = fakeServer(where === "request"
+        ? { here: { allow_here: false, allow_here_why: "no_key" } }
+        : { allow: { status: 409, body: { error: "Set up Pinto Notes on your iPhone or Mac first, then connect again.", hint: "no_key" } } });
+      vi.stubGlobal("fetch", server.fetch);
+      render();
+      if (where === "allow") {
+        await until(() => heading() === "Connect ChatGPT to your notes?");
+        act(() => button("Allow").click());
+      }
+      await until(() => container.textContent!.includes("No Pinto Notes account uses this email."));
+      expect(container.textContent).toContain("Accounts start in the app on your iPhone or Mac, which makes your notes\u2019 key. Get Pinto Notes, sign up there, then connect again.");
+      expect([...container.querySelectorAll("a")].find((a) => a.textContent === "Get Pinto Notes")).toBeTruthy();
+      expect(heading()).not.toBe("Allow this in Pinto Notes");
+      expect(container.textContent).not.toContain("the page as it was");
+      expect(localStorage.getItem(SESSION_KEY)).toBeNull();
+      expect(server.calls.some((c) => c.url.startsWith(`${SUPABASE}/auth/v1/logout`))).toBe(true);
+      expect(server.calls.some((c) => c.url === `${MCP}/connect/release`)).toBe(true);
+    }
   });
 
   it("a server that turns Allow down for the account sends it to the app, and an expired request says so", async () => {

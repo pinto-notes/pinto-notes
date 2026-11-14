@@ -13,7 +13,7 @@ import {
 } from "@/lib/connect-flow";
 import { newHandoffKeys, openHandoff, parseRecoveryKey, toBase64 } from "@/lib/e2ee";
 import {
-  EndedScreen, LeavingScreen, NotifyScreen, NotifySignInScreen, RecoverScreen, ScanScreen, WorkingScreen,
+  EndedScreen, LeavingScreen, NoAccountScreen, NotifyScreen, NotifySignInScreen, RecoverScreen, ScanScreen, WorkingScreen,
 } from "./ConnectScreens";
 
 // The connect page in the browser. See lib/connect.ts for the whole flow.
@@ -25,6 +25,8 @@ type View =
   | { kind: "working"; text: string }
   | { kind: "notify" }
   | { kind: "recover" }
+  /// Signed in to an account with no notes' key: Sign in with Apple or Google just made it here.
+  | { kind: "noAccount" }
   | { kind: "leaving"; to: string; allowed: boolean }
   | { kind: "ended"; title: string; text: string; retry?: boolean };
 
@@ -325,6 +327,8 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
   /// Asks the account's devices with the same key and pickup as the QR code, so the code keeps working.
   async function ask(s: Session) {
     setView({ kind: "working", text: "Asking your iPhone or Mac…" });
+    // An account with no key has no device to ask and no recovery key: it never opened the app.
+    if (await keyless(s)) return await noAccount(s);
     const pub = publicRaw.current, secret = pickup.current;
     if (!pub || !secret || !handoffKey.current) {
       await signOut(s.token);
@@ -415,12 +419,46 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
         await signOut(s.token);
         return end(info.expired ? EXPIRED : { kind: "ended", title: "Couldn't connect", text: info.error, retry: true });
       }
+      if (!info.row) return await noAccount(s);
       setRequest(info.request);
       setView({ kind: "recover" });
     } catch {
       setView({ kind: "recover" });
       setFailure(OFFLINE);
     }
+  }
+
+  /// Whether the account has no notes' key yet (no account_keys row). Only a clear answer counts:
+  /// when the server can't say, the page goes on as before.
+  async function keyless(s: Session): Promise<boolean> {
+    try {
+      const k = await fetch(`${base}/rest/v1/account_keys?select=key_id`, {
+        headers: { apikey: anonKey, authorization: `Bearer ${s.token}`, accept: "application/json" }, cache: "no-store",
+      });
+      if (!k.ok) return false;
+      const rows = await k.json().catch(() => null);
+      return Array.isArray(rows) && rows.length === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /// No account to connect: Sign in with Apple or Google made this one on the web, and accounts
+  /// start in the app (it makes the notes' key). The same words as an email with no account; the
+  /// web session ends, as at the page's other dead ends.
+  async function noAccount(s: Session) {
+    await signOut(s.token);
+    end({ kind: "noAccount" });
+  }
+
+  /// From "No Pinto Notes account": sign in again with another account, with a fresh code.
+  async function differentAccount() {
+    forget();
+    setFailure(null);
+    setEmail("");
+    setPassword("");
+    setView({ kind: "working", text: "Loading…" });
+    if (await prepare()) setView({ kind: "notifySignIn" });
   }
 
   async function submitRecovery(e: React.FormEvent) {
@@ -565,6 +603,8 @@ export default function ConnectFlow({ requestId, supabaseURL, anonKey, label, re
           other={{ label: "Scan the code instead", onClick: () => void backToScan() }}
         />
       );
+    case "noAccount":
+      return <NoAccountScreen onDifferent={() => void differentAccount()} />;
     case "working":
       return <WorkingScreen text={view.text} />;
     case "leaving":

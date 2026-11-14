@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { GOOGLE_ON_WEB, APPLE_ON_WEB } from "@/lib/connect";
 import { CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
-import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { Shell } from "@/lib/ui";
-import { ErrorLine, SignInButtons, Spinner } from "./ConnectScreens";
+import { ACCOUNTS_START, ErrorLine, GetPintoNotes, NO_ACCOUNT, SignInButtons, Spinner } from "./ConnectScreens";
 import styles from "./connect.module.css";
 
 // The screens of connecting on the web page alone (BrowserConnect.tsx), from props only. One page
@@ -56,9 +55,9 @@ export function BrowserSignInScreen({ who, email, onEmail, onSubmit, onGoogle, o
         </label>
         {noAccount ? (
           <div className={styles.said} role="status">
-            <p><b>No Pinto Notes account uses this email.</b></p>
-            <p>Accounts start in the app on your iPhone or Mac, which makes your notes&apos; key. Get Pinto Notes, sign up there, then connect again.</p>
-            <a className={styles.primary} href={APP_STORE_LIVE ? APP_STORE_URL : "/download"}>Get Pinto Notes</a>
+            <p><b>{NO_ACCOUNT}</b></p>
+            <p>{ACCOUNTS_START}</p>
+            <GetPintoNotes />
             <div className={styles.formLinks}>
               <button type="button" className={styles.link} onClick={onDifferent}>Use a different email</button>
             </div>
