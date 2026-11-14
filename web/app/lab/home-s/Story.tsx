@@ -6,27 +6,30 @@ import { APP_STORE_URL, SITE_URL } from "@/lib/site";
 import { mailLink, sendLink } from "@/lib/platform";
 import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
-import { AiCards } from "./AiCards";
-import { Devices } from "./Devices";
-import { AppFace, BoardBig, BoardFace, HabitApp, hand, HeroNote, Note } from "./Things";
+import { AiShow } from "./AiShow";
+import { BuildShow } from "./Build";
+import { FreeLines, SyncMoment } from "./Close";
+import { HeroOne } from "./HeroOne";
+import { AppFace, BoardBig, BoardFace, HeroNote, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study S, "Editorial colour", round 7 (2026-11-14). The page is a ring binder printed like a
+// Study S, "Editorial colour", round 8 (2026-11-15). The page is a ring binder printed like a
 // risograph collage. The first screen is the Lisbon trip on a torn-paper collage: the note (with the
-// decision you made and the line ChatGPT added because of it), the whiteboard and the app. Below it,
-// each thing is a full-bleed colour divider with a torn top edge. Scrolling lays each one over the
-// last, whole, and when it lands its tab stays docked under the header, beside the others. The same
-// Lisbon things run through every chapter. At the end the trip is on a Mac and an iPhone, and the
-// notebook's cover closes over everything, tabs and all: "Pinto Notes is free."
+// decision you made and the line ChatGPT added because of it), the whiteboard and the app; or, with
+// `?hero=one`, the note alone, written by your pencil and by ChatGPT. Below it, each thing is a
+// full-bleed colour divider with a torn top edge. Scrolling lays each one over the last, whole, and
+// when it lands its tab rises out of it and stays docked under the header. The tabs end at Your AI.
+// Then the notebook's last page (the note on a Mac and an iPhone), and its cover closes over
+// everything, tabs and all: "Pinto Notes is free."
 //
 // The sheets move by `position: sticky` alone (the browser scrolls them; no script moves them). The
-// script only measures how far each one is through its stay, to time the typing, Claude's arrow and
-// ChatGPT's changes. With Reduce Motion or `?t=`, those show their end state.
+// script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
+// dock. With Reduce Motion or `?t=`, everything shows its end state.
 
-type Tone = "write" | "draw" | "build" | "ai" | "sync" | "cover";
-const ORDER: Tone[] = ["write", "draw", "build", "ai", "sync", "cover"];
-const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", sync: "Mac and iPhone", cover: "" };
+type Tone = "write" | "draw" | "build" | "ai" | "last" | "cover";
+const ORDER: Tone[] = ["write", "draw", "build", "ai", "last", "cover"];
+const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", last: "", cover: "" };
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
@@ -46,8 +49,10 @@ function calm() {
   return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Where to scroll to see a chapter: docked, and for the drawing and the AI, most of the way through its stay. */
-const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.15, ai: 0.8, sync: 0.1, cover: 0 };
+/** Where a tab scrolls to: docked, and for the drawing, most of the way through its stay. */
+const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, last: 0.1, cover: 0 };
+/** A chapter's stay as a show's clock source (see show.ts). */
+const stayOf = (tone: Tone) => (fn: (dwell: number, arrive: number) => void) => listen(tone, fn);
 let jump: (tone: Tone) => void = () => {};
 
 /* ───────────────────────── The binder: what the script does ───────────────────────── */
@@ -89,6 +94,8 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
         const dwell = clamp((stick - nt) / dwellLen);
         listeners.get(ORDER[i])?.forEach((fn) => fn(dwell, arrive));
       }
+      // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
+      for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
       // A chapter under a docked one is filed: its page stays (its colour shows through the next
       // one's torn edge) but its contents aren't painted.
       for (let i = 0; i < chs.length; i++) {
@@ -125,7 +132,7 @@ function Chapter({ tone, label, className = "", children }: { tone: Tone; label:
     <section id={`s-${tone}`} data-ch={tone} className={`${s.ch} ${s[tone]} ${className}`} aria-labelledby={label} style={{ zIndex: i + 2 }}>
       {TAB[tone] && (
         <a data-tab className={s.tab} href={`#s-${tone}`} onClick={(e) => { e.preventDefault(); jump(tone); }} style={{ "--slot": i } as React.CSSProperties}>
-          <span className={s.tabLong}>{TAB[tone]}</span><span className={s.tabShort}>{tone === "sync" ? "iPhone" : TAB[tone]}</span>
+          {TAB[tone]}
         </a>
       )}
       <div className={s.paper} aria-hidden="true"><i className={s.under} /><i className={s.rim} /><i className={s.sheetBg} /><i className={s.dots} /></div>
@@ -136,38 +143,46 @@ function Chapter({ tone, label, className = "", children }: { tone: Tone; label:
 
 /* ───────────────────────── The first screen ───────────────────────── */
 
-function Hero() {
+const Cta = () => (
+  <div className={`${x.ctas} ${s.ctas}`}>
+    <Download note={false} />
+    <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
+      Get it for iPhone
+    </a>
+    <a className={x.offMac} href="/download">Download for Mac</a>
+    <p className={`${x.fine} ${x.offApple}`} data-off-apple>
+      Pinto Notes is for iPhone and Mac.{" "}
+      <a href={mailLink(SITE_URL)} onClick={(e) => sendLink(navigator, e, SITE_URL)}>Send myself the link</a>
+    </p>
+  </div>
+);
+
+function Hero({ one }: { one: boolean }) {
   return (
-    <section data-hero className={s.hero} aria-labelledby="s-h1">
+    <section data-hero className={`${s.hero} ${one ? s.heroOne : ""}`} aria-labelledby="s-h1">
       <div className={s.heroText}>
         <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
         <p className={s.lede}>Write notes, draw on whiteboards and build apps. ChatGPT and Claude work in all three with you, and remember what you decided.</p>
-        <div className={`${x.ctas} ${s.ctas}`}>
-          <Download note={false} />
-          <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
-            Get it for iPhone
-          </a>
-          <a className={x.offMac} href="/download">Download for Mac</a>
-          <p className={`${x.fine} ${x.offApple}`} data-off-apple>
-            Pinto Notes is for iPhone and Mac.{" "}
-            <a href={mailLink(SITE_URL)} onClick={(e) => sendLink(navigator, e, SITE_URL)}>Send myself the link</a>
-          </p>
-        </div>
+        <Cta />
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
       <div className={s.art}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={s.collage} src="/lab/s/collage-v1.webp" alt="" width="1122" height="1402" fetchPriority="high" />
-        <div className={s.objs}>
-          <a className={`${s.obj} ${s.oBoard}`} href="#s-draw" onClick={(e) => { e.preventDefault(); jump("draw"); }} aria-label="Draw on whiteboards: Friday in Lisbon, with Claude drawing an arrow">
-            <BoardFace />
-          </a>
-          <div className={`${s.obj} ${s.oNote}`}><HeroNote /></div>
-          <a className={`${s.obj} ${s.oApp}`} href="#s-build" onClick={(e) => { e.preventDefault(); jump("build"); }} aria-label="Build apps: a habit tracker for the trip">
-            <AppFace />
-          </a>
-        </div>
+        <img className={s.collage} src={one ? "/lab/s/collage-nohand-v1.webp" : "/lab/s/collage-v1.webp"} alt="" width="1122" height="1402" fetchPriority="high" />
+        {one ? (
+          <div className={s.objs}><HeroOne /></div>
+        ) : (
+          <div className={s.objs}>
+            <a className={`${s.obj} ${s.oBoard}`} href="#s-draw" onClick={(e) => { e.preventDefault(); jump("draw"); }} aria-label="Draw on whiteboards: Friday in Lisbon, with Claude drawing an arrow">
+              <BoardFace />
+            </a>
+            <div className={`${s.obj} ${s.oNote}`}><HeroNote /></div>
+            <a className={`${s.obj} ${s.oApp}`} href="#s-build" onClick={(e) => { e.preventDefault(); jump("build"); }} aria-label="Build apps: a habit tracker for the trip">
+              <AppFace />
+            </a>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -177,7 +192,7 @@ function Hero() {
 function Underline() {
   const [d, d2] = underline();
   return (
-    <svg className={s.under} viewBox="0 0 564 40" preserveAspectRatio="none" aria-hidden="true">
+    <svg className={s.uline} viewBox="0 0 564 40" preserveAspectRatio="none" aria-hidden="true">
       <defs><mask id="s-under"><rect className={s.underWipe} x="0" y="-10" width="564" height="60" fill="#fff" /></mask></defs>
       <g mask="url(#s-under)"><path d={d} /><path d={d2} /></g>
     </svg>
@@ -207,15 +222,16 @@ function Write() {
 function Draw() {
   // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives.
   const bind = useCallback((set: (k: number) => void) => listen("draw", (d, p) => set(still() || (calm() && p >= 1) ? 1 : d)), []);
-  const wrap = useRef<HTMLDivElement>(null), title = useRef<SVGTextElement>(null);
-  // The pencil hand underlines the board's title: its tip sits at the start of "Friday in Lisbon".
+  const wrap = useRef<HTMLDivElement>(null), tip = useRef<SVGCircleElement>(null);
+  // Your hand, printed in the board's own cream ink, reaches in from the left edge: its pencil is
+  // where it has just drawn the first shape. Claude draws the last arrow.
   useEffect(() => {
-    const w = wrap.current, t = title.current; if (!w || !t) return;
+    const w = wrap.current, t = tip.current; if (!w || !t) return;
     const place = () => {
       const a = w.getBoundingClientRect(), b = t.getBoundingClientRect();
-      if (!b.width) return;
-      w.style.setProperty("--tipx", `${(b.left - a.left + 2).toFixed(1)}px`);
-      w.style.setProperty("--tipy", `${(b.bottom - a.top - b.height * 0.06).toFixed(1)}px`);
+      if (!b.width && !b.height && !b.left) return;
+      w.style.setProperty("--tipx", `${(b.left + b.width / 2 - a.left).toFixed(1)}px`);
+      w.style.setProperty("--tipy", `${(b.top + b.height / 2 - a.top).toFixed(1)}px`);
     };
     place();
     const ro = new ResizeObserver(place); ro.observe(w);
@@ -229,11 +245,11 @@ function Draw() {
           <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
           <p className={s.say}>A whiteboard beside your notes. Your AI can read it, and draw on it with you.</p>
         </div>
-        <div ref={wrap} className={s.dBoard} role="img" aria-label="A hand-drawn whiteboard, Friday in Lisbon: land at 10:40, bags to Alfama, then if it rains the tile museum, if not Belém by the river, both ending at the sunset at Graça. A hand writes the title; Claude's cursor draws the last arrow.">
-          <span className={s.wideOnly}><BoardBig bind={bind} titleRef={title} /></span>
+        <div ref={wrap} className={s.dBoard} role="img" aria-label="A hand-drawn whiteboard, Friday in Lisbon: land at 10:40, bags to Alfama, then if it rains the tile museum, if not Belém by the river, both ending at the sunset at Graça. Your pencil drew the first shape; Claude's cursor draws the last arrow.">
+          <span className={s.wideOnly}><BoardBig bind={bind} tipRef={tip} /></span>
           <span className={s.tallOnly}><BoardBig tall bind={bind} /></span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={s.pencilHand} src="/lab/s/hand-v1.webp" alt="" width="1000" height="667" loading="lazy" />
+          <img className={s.pencilHand} src="/lab/s/hand-ink-v1.webp" alt="" width="840" height="560" loading="lazy" />
         </div>
       </div>
     </Chapter>
@@ -243,22 +259,14 @@ function Draw() {
 /* ───────────────────────── Build apps ───────────────────────── */
 
 function Build() {
-  const nudge = (
-    <span className={`${s.nudge} ${hand.className}`} aria-hidden="true">
-      <span>it works.<br />tap today</span>
-      <svg className={s.nudgeWide} viewBox="0 0 90 80"><path d="M80 8 C 70 34, 50 52, 14 66" /><path d="M14 66 L 30 52 M14 66 L 33 72" /></svg>
-      {/* On a phone the note sits above the card, and the arrow threads between the habit's name and
-          its count to land on today's circle. Drawn 1:1 from the circle's top. */}
-      <svg className={s.nudgeNarrow} viewBox="-60 -150 100 160"><path d="M14 -138 C -30 -100, -40 -40, -17 3" /><path d="M-17 3 L -16.5 -11 M-17 3 L -29 -4.5" /></svg>
-    </span>
-  );
+  const sub = useCallback(stayOf("build"), []);
   return (
     <Chapter tone="build" label="s-build-h">
       <div className={s.bBody}>
-        <div className={s.bApp}><HabitApp nudge={nudge} /></div>
+        <div className={s.bApp}><BuildShow subscribe={sub} /></div>
         <div className={s.bHead}>
           <h2 id="s-build-h" className={s.bTitle}>Build <br />apps.</h2>
-          <p className={s.say}>A note can be a small app, like this habit tracker. Pick a template, or ask your AI to make one.</p>
+          <p className={s.say}>A note can be a small app. Pick a template, or describe one and your AI makes it.</p>
         </div>
       </div>
     </Chapter>
@@ -268,43 +276,32 @@ function Build() {
 /* ───────────────────────── Your AI ───────────────────────── */
 
 function Ai() {
-  const subscribe = useCallback((fn: (d: number) => void) => listen("ai", (d, p) => fn(still() || (calm() && p >= 1) ? 1 : d)), []);
+  const sub = useCallback(stayOf("ai"), []);
   return (
     <Chapter tone="ai" label="s-ai-h">
-      <div className={s.aBody}>
-        <div className={s.aTop}>
-          <h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />in all three.</h2>
-          <div className={s.askWrap}>
-            <p className={s.ask}><span className={s.askMark}><AIGlyph name="openai" size={22} color="#fff" /></span>“Add a day in Sintra to my Lisbon trip.”</p>
-            <p className={s.askSub}>One request in ChatGPT. It knows you decided on no car, changes all three, and says so.</p>
+      <AiShow
+        subscribe={sub}
+        title={<h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />in all three.</h2>}
+        foot={
+          <div className={s.aFoot}>
+            <p className={s.works}>Connect <span className={s.with}><AIGlyph name="openai" size={17} color="#fff1e2" />ChatGPT</span>, <span className={s.with}><AIGlyph name="claude" size={17} color="#d97757" />Claude</span>, Claude Code or Codex. Every chat starts knowing your notes.</p>
+            <p className={s.study}>In a new chat, Claude answered 18% of questions about past chats. With Pinto, 82.5%. <a href="/blog/ai-memory-with-notes">Read the study</a></p>
           </div>
-        </div>
-        <AiCards subscribe={subscribe} />
-        <div className={s.aFoot}>
-          <p className={s.works}>Connect <span className={s.with}><AIGlyph name="openai" size={17} color="#fff1e2" />ChatGPT</span>, <span className={s.with}><AIGlyph name="claude" size={17} color="#d97757" />Claude</span>, Claude Code or Codex. Every chat starts knowing your notes.</p>
-          <p className={s.study}>In a new chat, Claude answered 18% of questions about past chats. With Pinto, 82.5%. <a href="/blog/ai-memory-with-notes">Read the study</a></p>
-        </div>
-      </div>
+        }
+      />
     </Chapter>
   );
 }
 
-/* ───────────────────────── Mac and iPhone ───────────────────────── */
+/* ───────────────────────── The last page: Mac and iPhone ───────────────────────── */
 
-function Sync() {
+function Last() {
+  const sub = useCallback(stayOf("last"), []);
   return (
-    <Chapter tone="sync" label="s-sync-h">
-      <div className={s.yBody}>
-        <div className={s.yHead}>
-          <h2 id="s-sync-h" className={s.yTitle}>The same trip, on your Mac and&nbsp;iPhone.</h2>
-          <ul className={s.yFacts}>
-            <li>Always in sync, and it works offline.</li>
-            <li>Encrypted on your device before it syncs.</li>
-            <li>Bring your notes from Apple Notes, Obsidian, Bear, Evernote and Keep.</li>
-            <li>Open source. Anyone can check the code.</li>
-          </ul>
-        </div>
-        <Devices />
+    <Chapter tone="last" label="s-last-h">
+      <div className={s.lBody}>
+        <h2 id="s-last-h" className={s.lTitle}>On your Mac and iPhone, <em>at once.</em></h2>
+        <SyncMoment subscribe={sub} />
       </div>
     </Chapter>
   );
@@ -316,36 +313,32 @@ function Cover() {
   return (
     <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={{ zIndex: 9 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className={s.coverArt} src="/lab/s/cover-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
+      <img className={s.coverArt} src="/lab/s/cover-v2.webp" alt="" width="1536" height="1024" loading="lazy" />
       <div data-body className={s.coverBody}>
-        <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is <em>free.</em></h2>
-        <div className={`${x.ctas} ${s.ctas} ${s.fCtas}`}>
-          <Download note={false} />
-          <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
-            Get it for iPhone
-          </a>
-          <a className={x.offMac} href="/download">Download for Mac</a>
+        <div className={s.coverText}>
+          <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is <em>free.</em></h2>
+          <div className={s.fCtas}><Cta /></div>
+          <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
         </div>
-        <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
+        <FreeLines />
       </div>
     </section>
   );
 }
 
-export function Story({ className }: { className: string }) {
+export function Story({ className, hero }: { className: string; hero: "one" | "three" }) {
   const root = useRef<HTMLDivElement>(null);
   useBinder(root);
   return (
     <div ref={root} className={`${s.stack} ${className}`}>
       <span data-probe className={s.probe} aria-hidden="true" />
       <span data-probe-hh className={s.probeHh} aria-hidden="true" />
-      <Hero />
+      <Hero one={hero === "one"} />
       <Write />
       <Draw />
       <Build />
       <Ai />
-      <Sync />
+      <Last />
       <Cover />
       <div className={s.tail} aria-hidden="true" />
     </div>

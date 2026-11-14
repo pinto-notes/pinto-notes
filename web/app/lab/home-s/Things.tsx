@@ -16,6 +16,8 @@ export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "blo
 /** ChatGPT's colour and Claude's, the same everywhere on the page (the app marks their edits so). */
 export const GPT = "#10a37f";
 export const CLAUDE = "#d97757";
+/** Your cursor: ink, outlined in paper, like a real pointer. */
+export const YOU = "#24170d";
 
 export const Tick = ({ className = "" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 12.4l3.6 3.6 7.4-7.6" /></svg>
@@ -177,11 +179,13 @@ export function Note({ live }: { live: boolean }) {
 type Pt = [number, number];
 type Node = { kind: "ellipse" | "box" | "diamond"; c: Pt; w: number; h: number; label: string[] };
 type Arrow = { a: Pt; c1: Pt; c2: Pt; b: Pt; label?: [string, Pt] };
-export type Board = { view: [number, number]; font: number; nodes: Node[]; arrows: Arrow[]; last: Arrow; title?: Pt };
+export type Board = { view: [number, number]; font: number; nodes: Node[]; arrows: Arrow[]; last: Arrow; title?: Pt; tip?: Pt };
 
 // Friday in Lisbon, left to right: land, drop the bags, and the weather decides; both ways end at the sunset.
 export const WIDE: Board = {
-  view: [1200, 540], font: 30, title: [210, 500],
+  // The title is the board's frame name, small, top left. `tip` is where your pencil is: it has just
+  // drawn the first shape (Claude draws the last arrow).
+  view: [1200, 540], font: 30, title: [4, 26], tip: [22, 146],
   nodes: [
     { kind: "ellipse", c: [126, 120], w: 236, h: 100, label: ["Land 10:40"] },
     { kind: "box", c: [442, 120], w: 284, h: 96, label: ["Bags to Alfama"] },
@@ -209,16 +213,16 @@ export const TALL: Board = {
     { kind: "diamond", c: [179, 292], w: 170, h: 112, label: ["Raining?"] },
     { kind: "box", c: [86, 430], w: 152, h: 64, label: ["Tile museum"] },
     { kind: "box", c: [272, 430], w: 160, h: 70, label: ["Belém by", "the river"] },
-    { kind: "ellipse", c: [179, 550], w: 244, h: 78, label: ["Sunset at Graça"] },
+    { kind: "ellipse", c: [179, 558], w: 244, h: 74, label: ["Sunset at Graça"] },
   ],
   arrows: [
     { a: [179, 87], c1: [177, 100], c2: [181, 114], b: [179, 127] },
     { a: [179, 197], c1: [177, 210], c2: [181, 222], b: [179, 232] },
     { a: [134, 322], c1: [112, 344], c2: [94, 370], b: [88, 394], label: ["yes", [92, 348]] },
     { a: [224, 322], c1: [246, 344], c2: [264, 370], b: [270, 390], label: ["no", [268, 348]] },
-    { a: [96, 466], c1: [102, 484], c2: [114, 500], b: [126, 512] },
+    { a: [96, 466], c1: [102, 486], c2: [114, 506], b: [124, 522] },
   ],
-  last: { a: [262, 469], c1: [258, 486], c2: [244, 502], b: [230, 512] },
+  last: { a: [262, 469], c1: [258, 488], c2: [246, 508], b: [232, 522] },
 };
 
 function diamond(r: () => number, c: Pt, w: number, h: number) {
@@ -255,7 +259,7 @@ const cubic = (a: Arrow) => `M${a.a[0]} ${a.a[1]} C${a.c1[0]} ${a.c1[1]} ${a.c2[
 
 /** The whiteboard, in cream ink on the green. Claude's cursor draws the last arrow as the chapter's
  *  dwell goes from 0 to 1 (`bind` hands the setter to the scroll loop; no React render per frame). */
-export function BoardBig({ tall, bind, titleRef }: { tall?: boolean; bind: (set: (k: number) => void) => () => void; titleRef?: React.Ref<SVGTextElement> }) {
+export function BoardBig({ tall, bind, tipRef }: { tall?: boolean; bind: (set: (k: number) => void) => () => void; tipRef?: React.Ref<SVGCircleElement> }) {
   const g = tall ? TALL : WIDE;
   const r = rng(tall ? 17 : 7);
   const [W, H] = g.view;
@@ -293,7 +297,8 @@ export function BoardBig({ tall, bind, titleRef }: { tall?: boolean; bind: (set:
           <rect ref={wipe} x="0" y={top - span} width={W} height={span} fill="#fff" transform={`translate(0 ${Math.max(g.last.a[1], g.last.b[1]) + 8 - top})`} />
         </mask>
       </defs>
-      {g.title && <text ref={titleRef} x={g.title[0]} y={g.title[1]} fontSize={g.font * 1.5} className={s.boardTitle}>Friday in Lisbon</text>}
+      {g.title && <text x={g.title[0]} y={g.title[1]} fontSize={g.font * 0.8} className={s.boardTitle}>Friday in Lisbon</text>}
+      {g.tip && <circle ref={tipRef} cx={g.tip[0]} cy={g.tip[1]} r="1" fill="none" />}
       {ink}
       <path ref={path} d={cubic(g.last)} fill="none" stroke="none" />
       <g mask={`url(#${mid})`} className={s.chalkClaude}><path d={lastD} /></g>
@@ -306,61 +311,5 @@ export function BoardBig({ tall, bind, titleRef }: { tall?: boolean; bind: (set:
 /* ───────────────────────── The app ───────────────────────── */
 
 export const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
-type Habit = { name: string; days: boolean[] };
-const HABITS: Habit[] = [
-  { name: "Portuguese, 10 min", days: [true, true, true, true, false, false, false] },
-  { name: "Run, 5 km", days: [false, true, false, true, false, false, false] },
-];
 export const TODAY = 4;
-const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-/** The habit tracker, for real: tap today, add a habit, take one away. The count is the days done
- *  this week, so it always matches the ticks you see. */
-export function HabitApp({ nudge }: { nudge?: React.ReactNode }) {
-  const [habits, setHabits] = useState(HABITS);
-  const [draft, setDraft] = useState("");
-  const tap = (h: number, d: number) => setHabits((hs) => hs.map((x, i) => (i === h ? { ...x, days: x.days.map((v, j) => (j === d ? !v : v)) } : x)));
-  const add = (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = draft.trim(); if (!name) return;
-    setHabits((hs) => [...hs, { name, days: WEEK.map(() => false) }].slice(-4));
-    setDraft("");
-  };
-  const remove = (h: number) => setHabits((hs) => hs.filter((_, i) => i !== h));
-  return (
-    <div className={s.app}>
-      <div className={s.appBar}>
-        <p className={s.appName}>Before Lisbon<span>App</span></p>
-      </div>
-      <ul className={s.habits}>
-        {habits.map((h, i) => {
-          const n = h.days.filter(Boolean).length;
-          return (
-            <li key={h.name + i} className={s.habitRow}>
-              <div className={s.habitHead}>
-                <p className={s.habitName}>{h.name}</p>
-                <p className={s.habitStreak} aria-live="polite"><b key={n}>{n}</b> {n === 1 ? "day" : "days"}</p>
-                {habits.length > 1 && <button type="button" className={s.habitX} onClick={() => remove(i)} aria-label={`Remove ${h.name}`}>×</button>}
-              </div>
-              <div className={s.week}>
-                {WEEK.map((d, j) => (
-                  <span key={j} className={s.dayCell}>
-                    <button type="button" className={s.day} data-on={h.days[j] || undefined} data-now={j === TODAY || undefined} disabled={j > TODAY}
-                      onClick={() => tap(i, j)} aria-pressed={h.days[j]} aria-label={`${h.name}, ${DAY_NAMES[j]}`}>
-                      <small>{d}</small><i><Tick /></i>
-                    </button>
-                    {i === 0 && j === TODAY && nudge}
-                  </span>
-                ))}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <form className={s.addRow} onSubmit={add}>
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add a habit" aria-label="Add a habit" maxLength={28} />
-        <button type="submit" disabled={!draft.trim()}>Add</button>
-      </form>
-    </div>
-  );
-}
