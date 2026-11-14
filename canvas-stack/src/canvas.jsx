@@ -589,7 +589,11 @@ function Canvas({ initial }) {
       // Each changed thing on its own (round 3, 16: one box round them all took in what the AI
       // didn't touch), and all of them together for bringing into view.
       const ids = new Set(changed.map((e) => e.id));
-      const tops = changed.filter((e) => !(e.containerId && ids.has(e.containerId)));
+      const pieces = changed.filter((e) => !(e.containerId && ids.has(e.containerId)));
+      // Arrows between outlined shapes go without: a dashed box on each was noise (round 4 check);
+      // arrows alone are outlined.
+      const linear = (e) => e.type === "arrow" || e.type === "line";
+      const tops = pieces.some((e) => !linear(e)) ? pieces.filter((e) => !linear(e)) : pieces;
       const rect = (els, s) => {
         const [x1, y1, x2, y2] = getCommonBounds(els);
         const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);

@@ -519,6 +519,7 @@ import UIKit
         var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
         for i in elements.indices where elements[i]["id"] as? String == "box-t" { elements[i]["text"] = "Finance review"; elements[i]["version"] = 50 }
         elements.append(["type": "rectangle", "id": "ai-box", "x": 560, "y": 120, "width": 200, "height": 100, "label": ["text": "Notify team"]])
+        elements.append(["type": "arrow", "id": "ai-arrow", "x": 300, "y": 170, "width": 260, "height": 0, "points": [[0, 0], [260, 0]]])
         CanvasController.highlightTime = 60
         defer { CanvasController.highlightTime = 4 }
         j.canvas.arrived(by: "ChatGPT")
@@ -526,7 +527,7 @@ import UIKit
         await j.until("outlined") { j.canvas.highlight != nil }
         #expect(try await j.js(allInView) as? Bool == true, "the whole board in view after the AI's change")
         let h = try #require(j.canvas.highlight)
-        #expect(h.boxes.count == 2, "the renamed box and the new one, each on its own: \(h.boxes)")
+        #expect(h.boxes.count == 2, "the renamed box and the new one, each on its own; the arrow between them without a box: \(h.boxes)")
         // The renamed box's outline goes round the box, not just its words.
         let box = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'box');
