@@ -46,7 +46,7 @@ const CARDS: Card[] = [
     pic: <NotePic />,
     sheet: {
       line: "Feels like Apple Notes, on Mac and iPhone.",
-      crop: { src: "/lab/big3/layout-two-columns-main.webp", ...MAC, x: 0, y: 0, w: 1800, h: 1000, alt: "Pinto Notes on a Mac: the list of notes, and the Groceries note open with its checklist." },
+      crop: { src: "/lab/big3/layout-two-columns-main.webp", ...MAC, x: 0, y: 0, w: 1940, h: 1078, alt: "Pinto Notes on a Mac: the list of notes, and the Groceries note open with its checklist." },
       facts: [
         ["Like Apple Notes.", "Checklists, tables, folders and links between notes."],
         ["Bring yours over.", "Import Apple Notes in one go. Folders, checklists and tables come along."],
@@ -72,7 +72,7 @@ const CARDS: Card[] = [
     pic: <div className={s.appPic}><img src="/templates/apps/phone/habit-tracker-light.webp" alt="The Habit tracker app in a note: 62% this week, 2 of 6 done today, Walk on an 11-day streak." width={600} height={662} loading="lazy" decoding="async" /></div>,
     sheet: {
       line: "A habit tracker, a budget, a trip plan. Ready now, or made for you.",
-      crop: { src: "/lab/big3/create-mac-newapp-page-chatgpt-light.webp", W: 2938, H: 1840, x: 1200, y: 150, w: 1738, h: 950, alt: "The New app page in Pinto Notes: four templates, and a box to describe your own and make it with ChatGPT." },
+      crop: { src: "/lab/big3/create-mac-newapp-page-chatgpt-light.webp", W: 2938, H: 1840, x: 1190, y: 140, w: 1748, h: 1000, alt: "The New app page in Pinto Notes: four templates, and a box to describe your own and make it with ChatGPT." },
       facts: [
         ["Ready now.", "Pick a template and start using it."],
         ["Or describe it.", "Say what you need, and your AI builds it."],
@@ -124,7 +124,8 @@ export function Cards() {
           <div className={s.sheetIn} data-sheet={card.id}>
             <button type="button" className={s.close} onClick={() => setOpen(null)} aria-label="Close"><Close /></button>
             <h2 id="sheet-title" className={s.sheetHead}><b>{card.title}</b> {card.sheet.line}</h2>
-            <div className={s.sheetPic}><Crop {...card.sheet.crop} /></div>
+            {/* Never wider than the capture at 2x, so it stays sharp. */}
+            <div className={s.sheetPic} style={{ width: "100%", maxWidth: card.sheet.crop.w / 2, justifySelf: "center" }}><Crop {...card.sheet.crop} /></div>
             <ul className={s.facts}>
               {card.sheet.facts.map(([b, t]) => <li key={b}><b>{b}</b> {t}</li>)}
             </ul>
