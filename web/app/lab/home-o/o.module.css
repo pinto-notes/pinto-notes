@@ -9,11 +9,12 @@
 .h1 { margin: 0; font-size: clamp(48px, 7.2vw, 106px); font-weight: 750; letter-spacing: -0.048em; line-height: 1; color: var(--ink); }
 .tabs { display: inline-flex; flex-wrap: nowrap; gap: 0.24em; }
 .tab { all: unset; box-sizing: border-box; cursor: pointer; position: relative; padding: 0.04em 0.02em 0.1em; border-radius: 0.16em; white-space: nowrap;
-  color: rgba(74, 48, 22, 0.26); text-decoration: underline; text-decoration-thickness: 0.042em; text-underline-offset: 0.12em; text-decoration-color: transparent;
+  color: rgba(74, 48, 22, 0.42); text-decoration: underline; text-decoration-thickness: 0.042em; text-underline-offset: 0.12em; text-decoration-color: rgba(240, 144, 26, 0.3);
+  /* Unchosen words stay readable and carry a faint underline, so they read as choices, not as switched off (five-second test, 11-14). */
   -webkit-tap-highlight-color: transparent; }
 .tab[aria-selected="true"] { color: var(--ink); text-decoration-color: var(--amber); }
 @media (hover: hover) {
-  .tab[aria-selected="false"]:hover { color: rgba(74, 48, 22, 0.5); text-decoration-color: rgba(240, 144, 26, 0.35); }
+  .tab[aria-selected="false"]:hover { color: rgba(74, 48, 22, 0.66); text-decoration-color: rgba(240, 144, 26, 0.6); }
 }
 .tab:focus-visible { outline: 3px solid var(--amber); outline-offset: 0.06em; }
 @media (prefers-reduced-motion: no-preference) {
