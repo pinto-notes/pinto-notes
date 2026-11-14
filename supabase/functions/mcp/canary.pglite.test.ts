@@ -199,7 +199,6 @@ Deno.test("no text of an encrypted account is stored or logged readably, whateve
     await tool("set_note_page", { id: tracker, html: `<!doctype html><main>${CANARY}</main><script>amber.onChange(() => {})</script>` });
     assertStringIncludes((await tool("get_note_page", { id: tracker })).html, CANARY);
     await tool("edit_note_page", { id: tracker, edits: [{ old_text: `<main>${CANARY}`, new_text: `<main>edited ${CANARY}` }] });
-    await tool("list_api_keys");
     // The data tools and the page's data: the canary goes through every one of them.
     await tool("add_table_rows", { id: tracker, csv: `Date,Mood,Note\n2026-09-03,3,csv ${CANARY}` });
     await tool("add_table_rows", { id: tracker, rows: [{ Date: "2026-09-04", Mood: 5, Note: `row ${CANARY}` }] });

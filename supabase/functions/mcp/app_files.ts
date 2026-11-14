@@ -4,11 +4,10 @@
 // opens it, and says what to fix. See app_project.ts for the format and checks, app_scaffold.ts for
 // the project a new app starts from.
 
-import { hostDeclared, declaredHosts } from "./page.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
 import { flakyTests, render, renderedFindings, testSummary } from "./app_check.ts";
 import {
-  brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, parseStored, type Project, projectProblems, serialize, sourceProblems, styleWarnings,
+  brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, packBinary, parseStored, type Project, projectProblems, serialize, sourceProblems, styleWarnings,
 } from "./app_project.ts";
 import { scaffold } from "./app_scaffold.ts";
 import { bodyOf, Content, findNote, type Note, ToolError, type Call, type Tx } from "./tools.ts";
@@ -88,7 +87,24 @@ async function dataOf(tx: Tx, c: Call, id: string): Promise<unknown> {
 }
 
 const lines = (t: string) => t.split("\n").length;
-export const fileList = (p: Project) => Object.keys(p.files).sort().map((path) => ({ path, bytes: new TextEncoder().encode(p.files[path]).length, lines: lines(p.files[path]) }));
+export const fileList = (p: Project) => [
+  ...Object.keys(p.files).map((path) => ({ path, bytes: new TextEncoder().encode(p.files[path]).length, lines: lines(p.files[path]) })),
+  // A binary file: its size as stored (compressed), and no lines.
+  ...Object.keys(p.binary ?? {}).map((path) => ({ path, bytes: Math.floor(p.binary![path].length * 3 / 4), lines: 0, binary: true as const })),
+].sort((a, b) => a.path < b.path ? -1 : 1);
+
+/** A project without these paths, text or binary. */
+export function without(p: Project, ...paths: string[]): Project {
+  const files = { ...p.files }, compiled = { ...p.compiled }, binary = { ...p.binary ?? {} };
+  for (const path of paths) { delete files[path]; delete compiled[path]; delete binary[path]; }
+  return { amberApp: 1, files, compiled, ...(Object.keys(binary).length ? { binary } : {}) };
+}
+
+/** A project with a binary file set (a .wasm, a game's data, a picture): stored compressed, served as-is. */
+export async function withBinary(p: Project, path: string, data: Uint8Array): Promise<Project> {
+  const next = without(p, path);
+  return { ...next, binary: { ...next.binary ?? {}, [path]: await packBinary(data) } };
+}
 
 /** Checks, stores and reports a project after one change. Refuses what the app couldn't run. */
 /**
@@ -103,8 +119,7 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   if (linked.error) throw new ToolError(`Not saved: the CSS doesn't compile.\n${linked.error}`);
   const p = linked.project;
   const stored = serialize(p);
-  const declared = declaredHosts(p.files["/index.html"] ?? "");
-  const problems = [...projectProblems(p), ...sourceProblems(p, (h) => hostDeclared(declared, h))];
+  const problems = [...projectProblems(p), ...sourceProblems(p)];
   if (problems.length) throw new ToolError(`Not saved:\n- ${problems.join("\n- ")}`);
   const broken = brokenImports(p);
   const warnings = styleWarnings(p);
@@ -175,7 +190,8 @@ export function withFile(p: Project, path: string, content: string): Promise<Pro
 
 /** A project with these files set, compiled in one build. A syntax error refuses the write. */
 export async function withFiles(p: Project, files: Record<string, string>): Promise<Project> {
-  const next: Project = { amberApp: 1, files: { ...p.files, ...files }, compiled: { ...p.compiled } };
+  const base = without(p, ...Object.keys(files).filter((f) => p.binary?.[f] !== undefined));
+  const next: Project = { ...base, files: { ...base.files, ...files }, compiled: { ...base.compiled } };
   const react = isReact(next);
   const items = Object.entries(files).filter(([path]) => needsCompile(path, react)).map(([path, source]) => ({ path, source }));
   let built;
@@ -245,10 +261,8 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const path = pathArg(a.path);
     if (path === "/index.html") throw new ToolError("/index.html is the page the app opens; it can't be deleted. To remove the whole app, use set_note_page with an empty html.");
     const { project: p } = await projectOf(tx, c, n.id);
-    if (p.files[path] === undefined) throw new ToolError(`No ${path}.`);
-    const files = { ...p.files }, compiled = { ...p.compiled };
-    delete files[path]; delete compiled[path];
-    return await saveProject(tx, c, n, { amberApp: 1, files, compiled }, `deleted ${path}`, a);
+    if (p.files[path] === undefined && p.binary?.[path] === undefined) throw new ToolError(`No ${path}.`);
+    return await saveProject(tx, c, n, without(p, path), `deleted ${path}`, a);
   },
 
   async move_app_file(tx, a, c) {
@@ -256,11 +270,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const from = pathArg(a.from), to = pathArg(a.to);
     if (from === "/index.html") throw new ToolError("/index.html stays where it is: the app opens it.");
     const { project: p } = await projectOf(tx, c, n.id);
-    if (p.files[from] === undefined) throw new ToolError(`No ${from}.`);
-    if (p.files[to] !== undefined) throw new ToolError(`${to} already exists. Delete it first, or pick another name.`);
-    const files = { ...p.files }, compiled = { ...p.compiled };
-    const content = files[from];
-    delete files[from]; delete compiled[from];
-    return await saveProject(tx, c, n, await withFile({ amberApp: 1, files, compiled }, to, content), `${from} → ${to}`, a);
+    if (p.files[from] === undefined && p.binary?.[from] === undefined) throw new ToolError(`No ${from}.`);
+    if (p.files[to] !== undefined || p.binary?.[to] !== undefined) throw new ToolError(`${to} already exists. Delete it first, or pick another name.`);
+    const rest = without(p, from);
+    const moved = p.binary?.[from] !== undefined ? { ...rest, binary: { ...rest.binary ?? {}, [to]: p.binary[from] } } : await withFile(rest, to, p.files[from]);
+    return await saveProject(tx, c, n, moved, `${from} → ${to}`, a);
   },
 };

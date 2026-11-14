@@ -47,6 +47,9 @@ struct PaneApp: App {
         let args = ProcessInfo.processInfo.arguments
         let inMemory = args.contains("-uitest") || args.contains("-synctest") || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         if inMemory { UserDefaults.standard.removeObject(forKey: "lastScope") }
+        // Apps reach the internet themselves now (2026-11-14): what the old network proxy allowed
+        // and logged goes.
+        for key in ["notePageApprovedHosts", "notePageNetLog"] { UserDefaults.standard.removeObject(forKey: key) }
         // Performance runs can keep their library on disk, as the app does: `-uitest -perfStore /tmp/probe.store`.
         let perfStore = args.contains("-uitest") ? Capture.argument("-perfStore") : nil
         let config = perfStore.map { ModelConfiguration(url: URL(fileURLWithPath: $0)) } ?? ModelConfiguration(AppIdentity.dataFolder, isStoredInMemoryOnly: inMemory)

@@ -199,7 +199,7 @@ import Testing
         var body: some View {
             let _ = RenderProbe.count("SettingsPage", context: context)
             let _ = { navigation.open = { open?($0) } }()
-            Button(place.title) { open?(.appKeys) }
+            Button(place.title) { open?(.shortcuts) }
         }
     }
 
@@ -207,7 +207,7 @@ import Testing
         let (container, _) = try AppPerfTests().library(notes: 1, big: false)
         let route = SettingsRoute()
         let navigation = SettingsNavigation()
-        let card = SettingsCard(backend: Backend(), available: [.account, .appearance, .security, .appKeys],
+        let card = SettingsCard(backend: Backend(), available: [.account, .appearance, .security, .shortcuts],
                                 page: { AnyView(ProbePage(place: $0, navigation: navigation)) }, route: route, start: .account, close: {})
         let (window, _) = AppPerfTests().window(card.modelContainer(container), width: 1100)
         defer { window.close() }
@@ -232,16 +232,16 @@ import Testing
         // doesn't follow each key: one render per change of page, none per key.
         let queries = ["a", "ap", "app", "apps", "app", "ap", "a", ""]
         let pages = queries.map { q in
-            q.isEmpty ? .account : SettingsCard.pageWhileSearching(SettingsIndex.matches(q, available: [.account, .appearance, .security, .appKeys])) ?? .account
+            q.isEmpty ? .account : SettingsCard.pageWhileSearching(SettingsIndex.matches(q, available: [.account, .appearance, .security, .shortcuts])) ?? .account
         }
         let changes = zip([Pane.SettingsPage.account] + pages, pages).filter { $0 != $1 }.count
         #expect(changes < queries.count)
         #expect(counts["SettingsPage", default: 0] <= changes,
                 "the page doesn't follow the search field: \(counts["SettingsPage", default: 0]) renders for \(changes) changes of page")
         let earlier = try #require(navigation.open)
-        earlier(.appKeys)
+        earlier(.shortcuts)
         await update(window)
-        #expect(route.page == .appKeys, "the retained callback still navigates")
+        #expect(route.page == .shortcuts, "the retained callback still navigates")
         earlier(.appearance)
         await update(window)
         #expect(route.page == .appearance, "the earlier callback appends to the current path")

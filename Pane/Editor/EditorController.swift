@@ -77,6 +77,8 @@ final class EditorController {
     @ObservationIgnored var canSharePicture: () -> Bool = { false }
     /// Copies files into Pane (set by the note screen, which has the model context).
     @ObservationIgnored var addFiles: ([URL]) -> [Attachment] = { _ in [] }
+    /// A web project's folder dropped on the note: it becomes the note's app (NoteApps.takeFolder).
+    @ObservationIgnored var dropAppFolder: (URL) -> Bool = { _ in false }
     @ObservationIgnored var addData: (Data, String, UTType) -> Attachment? = { _, _, _ in nil }
     /// Opens the file picker (set by the note screen).
     @ObservationIgnored var attach: () -> Void = {}

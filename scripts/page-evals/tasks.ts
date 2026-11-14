@@ -702,7 +702,7 @@ export const TASKS: Task[] = [
         unchanged(f), pageChanged(f),
         // Goals are the app's own settings, kept in its data: not the note's text.
         check("goals_saved", /5/.test(d) && /4/.test(d) && /3/.test(d) && /walk/i.test(d), `page data: ${d.slice(0, 120)}`),
-        check("goals_changeable", /amber\.(setData|store\.set)\s*\(/.test(f.page ?? ""), "the goals can't be changed in the app (no setData or store.set)"),
+        check("goals_changeable", /(?:amber|pinto)\.(setData|store\.set)\s*\(/.test(f.page ?? ""), "the goals can't be changed in the app (no setData or store.set)"),
         check("no_local_storage", !/localStorage/.test(f.page ?? ""), "uses localStorage"),
       ];
     },
@@ -713,7 +713,7 @@ export const TASKS: Task[] = [
     seed: { body: FLASH }, page: true, interact: true,
     checks: (f) => [
       unchanged(f),
-      check("remembers_with_page_data", /amber\.setData\s*\(/.test(f.page ?? "") || /set_cell|append_row/.test(f.page ?? ""), "nothing stores what's known"),
+      check("remembers_with_page_data", /(?:amber|pinto)\.setData\s*\(/.test(f.page ?? "") || /set_cell|append_row/.test(f.page ?? ""), "nothing stores what's known"),
       check("no_local_storage", !/localStorage|sessionStorage|indexedDB/.test(f.page ?? ""), "uses browser storage"),
     ],
   },
@@ -723,7 +723,7 @@ export const TASKS: Task[] = [
     seed: { body: STOCKS }, page: false,
     checks: (f) => [
       rowsKept(f.before, f.after), proseKept(f.before, f.after),
-      check("network_only_declared", !f.page || ((!/(?<!amber\s*\.\s*)\bfetch\s*\(/.test(f.page)) && (!/https:\/\//.test(f.page) || /name=["']amber-needs["']/.test(f.page))), "the page calls the network directly or uses an undeclared host"),
+      check("network_only_declared", !f.page || ((!/(?<!(?:amber|pinto)\s*\.\s*)\bfetch\s*\(/.test(f.page)) && (!/https:\/\//.test(f.page) || /name=["']amber-needs["']/.test(f.page))), "the page calls the network directly or uses an undeclared host"),
       check("explained", /network|offline|internet|web requests?|can['’]t (fetch|load|reach|get|pull)|no (live|internet)|sandbox|not able to fetch|cannot fetch|isn['’]t able|approve|allow|api key/i.test(f.answer), "didn't tell the person what live prices need"),
       check("few_refusals", f.calls.filter((c) => c.name === "set_note_page" && c.error).length <= 1, `${f.calls.filter((c) => c.name === "set_note_page" && c.error).length} refused set_note_page calls`),
     ],
@@ -848,7 +848,7 @@ export const TASKS: Task[] = [
     seed: { body: TRIP_MESSY }, page: true,
     checks: (f) => [
       check("facts_kept", ["TP 781", "CC-55821", "Graham"].every((x) => f.after.includes(x)), "a booking detail is gone"),
-      check("uses_reminders", /amber\.device\.reminders\.create\s*\(/.test(f.page ?? ""), "doesn't use amber.device.reminders.create"),
+      check("uses_reminders", /(?:amber|pinto)\.device\.reminders\.create\s*\(/.test(f.page ?? ""), "doesn't use pinto.device.reminders.create"),
       check("handles_refusal", /\.ok\b/.test(f.page ?? ""), "doesn't check whether the reminder was made"),
     ],
   },
@@ -858,9 +858,9 @@ export const TASKS: Task[] = [
     seed: { body: TRIP_MESSY, page: TRIP_TEMPLATE }, page: true,
     checks: (f) => [
       unchanged(f), pageChanged(f),
-      check("weather_source", /amber\.device\.weather\.current|amber\.fetch\s*\(/.test(f.page ?? ""), "no weather source (amber.device.weather or amber.fetch)"),
-      check("no_direct_network", !/(?<!amber\s*\.\s*)\bfetch\s*\(/.test(f.page ?? ""), "calls fetch directly"),
-      check("declares_hosts", !/amber\.fetch\s*\(/.test(f.page ?? "") || /name=["']amber-needs["']/.test(f.page ?? ""), "uses amber.fetch without declaring the host"),
+      check("weather_source", /(?:amber|pinto)\.device\.weather\.current|(?:amber|pinto)\.fetch\s*\(/.test(f.page ?? ""), "no weather source (pinto.device.weather or pinto.fetch)"),
+      check("no_direct_network", !/(?<!(?:amber|pinto)\s*\.\s*)\bfetch\s*\(/.test(f.page ?? ""), "calls fetch directly"),
+      check("declares_hosts", !/(?:amber|pinto)\.fetch\s*\(/.test(f.page ?? "") || /name=["']amber-needs["']/.test(f.page ?? ""), "uses pinto.fetch without declaring the host"),
     ],
   },
   {
@@ -873,7 +873,7 @@ export const TASKS: Task[] = [
         unchanged(f),
         check("program_in_data", (d.match(/squat/gi) ?? []).length >= 8 && /deadlift/i.test(d) && /62\.5/.test(d), `data: ${d.slice(0, 150)}`),
         check("four_weeks", (d.match(/week/gi) ?? []).length >= 4 || /"weeks"\s*:\s*\[(\s*\{[^]*?){4}/.test(d), "four weeks aren't all there"),
-        check("app_reads_data", /amber\.(data|store)|onChange\(\s*\(?\s*\w+\s*,\s*\w+/.test(f.page ?? ""), "the app doesn't read its data"),
+        check("app_reads_data", /(?:amber|pinto)\.(data|store)|onChange\(\s*\(?\s*\w+\s*,\s*\w+/.test(f.page ?? ""), "the app doesn't read its data"),
       ];
     },
   },
@@ -917,7 +917,7 @@ export const TASKS: Task[] = [
     seed: { body: TRIP_MESSY }, page: true,
     checks: (f) => [
       check("declares_key", /name=["']amber-needs["'][^>]*openweather[^>]*api\.openweathermap\.org|name=["']amber-needs["'][^>]*api\.openweathermap\.org[^>]*openweather/i.test(f.page ?? ""), "amber-needs doesn't declare an OpenWeather key for api.openweathermap.org"),
-      check("fetch_with_key", /amber\.fetch\s*\([^)]*key\s*:/s.test(f.page ?? ""), "doesn't call amber.fetch with { key }"),
+      check("fetch_with_key", /(?:amber|pinto)\.fetch\s*\([^)]*key\s*:/s.test(f.page ?? ""), "doesn't call pinto.fetch with { key }"),
       check("explains_settings", /settings/i.test(f.answer) && /api keys?/i.test(f.answer), "doesn't tell the person to add the key in Settings › API Keys"),
       check("explains_signup", /openweathermap\.org|sign ?up|free (plan|tier|account)/i.test(f.answer), "doesn't say where to get a key"),
       check("not_in_chat", !/(paste|send|share|give)[^.]{0,40}(key)[^.]{0,30}(here|to me|in (the|this) chat)/i.test(f.answer), "asks for the key in the chat"),
@@ -946,8 +946,8 @@ export const TASKS: Task[] = [
       return [
         unchanged(f), pageChanged(f),
         // Settings live inside the app (no declared settings): a field the person can change, saved in values.settings.
-        check("no_declared_settings", !/name=["']amber-settings["']|amber\.(settings|openSettings)\b/.test(page), "uses the removed amber-settings / amber.settings"),
-        check("changeable_in_app", /<input|<select|createElement\(["']input/i.test(page) && /amber\.(setData|store\.set)\s*\(/.test(page) && /settings/.test(page), "no field in the app that saves the limit to its settings"),
+        check("no_declared_settings", !/name=["']amber-settings["']|(?:amber|pinto)\.(settings|openSettings)\b/.test(page), "uses the removed amber-settings / amber.settings"),
+        check("changeable_in_app", /<input|<select|createElement\(["']input/i.test(page) && /(?:amber|pinto)\.(setData|store\.set)\s*\(/.test(page) && /settings/.test(page), "no field in the app that saves the limit to its settings"),
         check("starts_at_12000", /12\s?000/.test(saved) || /12_?000/.test(page), "the limit doesn't start at 12 000"),
         check("not_hardcoded", !/(const|let|var)\s+\w*(limit|budget)\w*\s*=\s*12\s?000/i.test(f.page ?? ""), "the limit is hardcoded in the app"),
       ];
@@ -965,7 +965,7 @@ export const TASKS: Task[] = [
     seed: { body: FLASH }, page: true, plays: true, varied: true,
     checks: (f) => [
       unchanged(f),
-      check("keeps_score", /amber\.(store|setData)|update_page_data/.test((f.page ?? "") + JSON.stringify(f.calls.map((c) => c.name))), "nothing keeps scores or progress in the app's store"),
+      check("keeps_score", /(?:amber|pinto)\.(store|setData)|update_page_data/.test((f.page ?? "") + JSON.stringify(f.calls.map((c) => c.name))), "nothing keeps scores or progress in the app's store"),
       check("uses_the_words", /\.tables\b|\.markdown\b/.test(f.page ?? "") && !/hablar[^]{0,200}comer[^]{0,200}vivir/.test(f.page ?? ""), "the game doesn't read the note's words (or copies them in)"),
     ],
   },
@@ -1016,7 +1016,7 @@ export const TASKS: Task[] = [
     seed: { body: PLANETS }, page: true, plays: true, varied: true,
     checks: (f) => [
       unchanged(f), noPasted(f), libsOk(f),
-      check("uses_three", /name=["']amber-libs["'][^>]*content=["'][^"']*\bthree\b|amber\.lib\(\s*["']three["']/.test(f.page ?? ""), "doesn't load the bundled three"),
+      check("uses_three", /name=["']amber-libs["'][^>]*content=["'][^"']*\bthree\b|(?:amber|pinto)\.lib\(\s*["']three["']/.test(f.page ?? ""), "doesn't load the bundled three"),
       check("reads_the_table", /\.tables\b/.test(f.page ?? "") && !/69911[^]{0,300}58232/.test(f.page ?? ""), "planets aren't read from the note"),
     ],
   },
@@ -1028,7 +1028,7 @@ export const TASKS: Task[] = [
       unchanged(f), noPasted(f), libsOk(f),
       check("pinned_npm", /name=["']amber-libs["'][^>]*npm:[^"',]+@\d+\.\d+\.\d+[^"',]*#sha(256|384|512)-/.test(f.page ?? ""), "no pinned, hashed npm package in amber-libs"),
       check("wifi_payload", /WIFI:/.test(f.page ?? ""), "doesn't build a WIFI: QR payload"),
-      check("reads_the_note", /amber\.note|\.markdown\b/.test(f.page ?? "") && !/kanelbulle-42/.test(f.page ?? ""), "the password is copied into the app instead of read from the note"),
+      check("reads_the_note", /(?:amber|pinto)\.note|\.markdown\b/.test(f.page ?? "") && !/kanelbulle-42/.test(f.page ?? ""), "the password is copied into the app instead of read from the note"),
     ],
   },
   // MARK: The tool-set benchmark: normal notes first (old tools vs the file-like set), then apps.

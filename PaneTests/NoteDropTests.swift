@@ -117,6 +117,50 @@ import AppKit
         // The link is the kind [[ makes: it opens that note.
         #expect(WikiLinks.links(in: view.string).map(\.target) == ["Packing list"])
     }
+
+    /// A web project's folder (index.html at its top) dropped on a note becomes its app, as built
+    /// (2026-11-14): dropped in the text it goes to the app, not in as a file; the app is the
+    /// folder's files, binary ones too; the app's own view takes the drop the same way; a note that
+    /// can't have an app says so.
+    @Test func aFolderWithIndexHTMLDroppedOnANoteBecomesItsApp() async throws {
+        let note = ctx.createNote(in: .all, body: "Doom\n")
+        let dir = FileManager.default.temporaryDirectory.appending(path: "dropped-app-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("<!doctype html><canvas></canvas><script src=\"main.js\"></script>".utf8).write(to: dir.appending(path: "index.html"))
+        try Data("fetch('game.wad')".utf8).write(to: dir.appending(path: "main.js"))
+        try Data([0x49, 0x57, 0x41, 0x44, 0, 0, 0, 1, 0xFF]).write(to: dir.appending(path: "game.wad"))
+
+        let view = PaneTextView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        view.configure(text: note.body, header: "")
+        let controller = EditorController()
+        view.controller = controller
+        controller.target = view
+        var taken: [URL] = [], attached: [URL] = []
+        controller.dropAppFolder = { taken.append($0); return true }
+        controller.addFiles = { attached += $0; return [] }
+        #expect(view.dropFiles([dir], at: 0))
+        #expect(taken == [dir] && attached.isEmpty && view.string == "Doom\n", "the folder went to the app, not into the text")
+        // A file, or the folder with something else: attached, as before.
+        view.dropFiles([dir.appending(path: "main.js")], at: 0)
+        view.dropFiles([dir, dir.appending(path: "main.js")], at: 0)
+        #expect(taken.count == 1 && attached.count == 3)
+
+        let store = NotePageStore(file: nil)
+        try NoteApps.takeFolder(dir, for: note, store: store, enabled: true)
+        let page = try #require(store[note.id])
+        #expect(page.by == "You")
+        let project = try #require(NotePageProject.parse(page.html))
+        #expect(Set(project.files.keys) == ["/index.html", "/main.js"] && Set(project.binary.keys) == ["/game.wad"])
+        #expect(project.serve("/game.wad")?.data == Data([0x49, 0x57, 0x41, 0x44, 0, 0, 0, 1, 0xFF]))
+
+        // The app's own view: the same drop replaces it there (NotePageWebView).
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        #expect(sandbox.webView is NotePageWebView)
+
+        note.trashedAt = .now
+        #expect(throws: NotePageProject.FolderError.self) { try NoteApps.takeFolder(dir, for: note, store: store, enabled: true) }
+    }
     #endif
 }
 

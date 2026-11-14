@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Check, ChevronRight, Dumbbell } from "lucide-react"
 import { toast } from "sonner"
-import { setSummary, useSettings } from "@/lib/amber"
+import { setSummary, useSettings } from "@/lib/pinto"
 import { DAYS, DEFAULTS, today, weight, useTraining } from "@/lib/training"
 import { PageHeader } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
@@ -61,7 +61,7 @@ export default function Today() {
       </Card>
 
       <Sheet open={!!logging} onOpenChange={(o) => !o && setLogging(null)}>
-        <SheetContent side="bottom" className="rounded-t-2xl" style={{ paddingBottom: "max(16px, var(--amber-safe-bottom))" }}>
+        <SheetContent side="bottom" className="rounded-t-2xl" style={{ paddingBottom: "max(16px, var(--pinto-safe-bottom))" }}>
           <SheetHeader>
             <SheetTitle>{logging}</SheetTitle>
             <SheetDescription>The same sets and reps as last time.</SheetDescription>

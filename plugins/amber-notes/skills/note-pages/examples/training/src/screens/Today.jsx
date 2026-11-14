@@ -1,6 +1,6 @@
 import { useState, useLayoutEffect } from "preact/hooks";
-import { useSettings, setSummary } from "amber";
-import { List, ListRow, Sheet, Input, Button, EmptyState } from "amber-ui";
+import { useSettings, setSummary } from "pinto";
+import { List, ListRow, Sheet, Input, Button, EmptyState } from "pinto-ui";
 import ScreenHeader from "../components/ScreenHeader.jsx";
 import { DAYS, DEFAULTS, today, weight, lastSet, useTraining } from "../data.js";
 

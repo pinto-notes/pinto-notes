@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { CalendarCheck, Flame, Weight } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
-import { useSettings } from "@/lib/amber"
+import { useSettings } from "@/lib/pinto"
 import { DEFAULTS, today, weight, useTraining } from "@/lib/training"
 import { PageHeader } from "@/components/app-shell"
 import { StatCard } from "@/components/stat-card"

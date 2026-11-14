@@ -125,7 +125,6 @@ extension ModelContext {
         AIEditStore.shared.forgetAll()
         NotePageStore.shared.forgetAll()
         NotePageDataStore.shared.forgetAll()
-        NotePageNetLog.shared.forgetAll()
     }
 }
 

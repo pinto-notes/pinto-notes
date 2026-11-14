@@ -2,8 +2,8 @@ import Foundation
 import Observation
 
 /// Note pages (prototype): an optional view an AI writes over a note. The note's markdown stays
-/// the data; a page is one self-contained HTML document that shows it, rendered in a sandbox with
-/// no network (NotePageView). The page gets the note as data and can change it only through a few
+/// the data; a page is one self-contained HTML document that shows it, rendered in a sandbox that
+/// reaches only the internet and its own note (NotePageView). The page gets the note as data and can change it only through a few
 /// edits, which the app applies to the markdown like any other edit. Deleting a page loses nothing.
 ///
 /// What a page sees, as `window.amber.note`:

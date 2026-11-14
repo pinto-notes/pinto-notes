@@ -38,7 +38,7 @@ Deno.test("get_note_page returns the page and the rules; read_note says there is
   const id = await note(pg, a, HABITS);
   const none = await tool(pg, a, "get_note_page", { id });
   assertEquals(none.has_page, false);
-  assertStringIncludes(none.rules, "amber.update");
+  assertStringIncludes(none.rules, "pinto.update");
   assertEquals((await tool(pg, a, "read_note", { id })).has_page, undefined);
   await tool(pg, a, "set_note_page", { id, html: PAGE });
   const got = await tool(pg, a, "get_note_page", { id });
@@ -60,14 +60,15 @@ Deno.test("replacing and removing a page; removing keeps a row so devices see it
   assertEquals((await opened(pg, a, id)).body, HABITS);
 });
 
-Deno.test("pages with external addresses or network calls are refused, and nothing is stored", async () => {
+// A page reaches the internet like a web page (2026-11-14); a frame would take it out of its note.
+Deno.test("pages that frame other documents are refused, and nothing is stored; internet addresses pass", async () => {
   const pg = await schemaDB();
   const a = await account(pg);
   const id = await note(pg, a, HABITS);
-  const err = await assertRejects(() => tool(pg, a, "set_note_page", { id, html: PAGE.replace("<main", `<img src="https://tracker.example/p.gif"><main`) }), ToolError);
-  assertStringIncludes(err.message, "https://tracker.example/p.gif");
-  await assertRejects(() => tool(pg, a, "set_note_page", { id, html: PAGE.replace("amber.onChange", "fetch('/x'); amber.onChange") }), ToolError, "fetch");
+  await assertRejects(() => tool(pg, a, "set_note_page", { id, html: PAGE.replace("<main", `<iframe src="https://tracker.example/"></iframe><main`) }), ToolError, "<iframe>");
   assertEquals((await pg.query(`select 1 from public.note_pages`)).rows.length, 0);
+  await tool(pg, a, "set_note_page", { id, html: PAGE.replace("<main", `<img alt="" src="https://example.com/p.png"><main`).replace("amber.onChange", "fetch('https://api.example.com/x').catch(() => {}); amber.onChange") });
+  assertEquals((await pg.query(`select 1 from public.note_pages`)).rows.length, 1);
 });
 
 Deno.test("locked notes take no page", async () => {
@@ -172,9 +173,9 @@ Deno.test("edit_note_page changes the page in place, keeps the one before, and c
   assertEquals((await tool(pg, a, "get_note_page", { id, version_id: got.versions[0].version_id })).html, PAGE);
   await assertRejects(() => tool(pg, a, "edit_note_page", { id, edits: [{ old_text: "nowhere", new_text: "x" }] }), ToolError, "get_note_page");
   await assertRejects(() => tool(pg, a, "edit_note_page", { id, edits: [{ old_text: "n", new_text: "x" }] }), ToolError, "appears");
-  // An edit that would reach the network is refused whole.
-  const err = await assertRejects(() => tool(pg, a, "edit_note_page", { id, edits: [{ old_text: "<main", new_text: `<img src="https://t.example/p.gif"><main` }] }), ToolError);
-  assertStringIncludes(err.message, "https://t.example/p.gif");
+  // An edit that would frame another document is refused whole.
+  const err = await assertRejects(() => tool(pg, a, "edit_note_page", { id, edits: [{ old_text: "<main", new_text: `<iframe src="https://t.example/"></iframe><main` }] }), ToolError);
+  assertStringIncludes(err.message, "<iframe>");
   assertEquals((await tool(pg, a, "get_note_page", { id })).html, got.html);
   assertEquals((await tool(pg, a, "edit_note_page", { id, edits: [{ old_text: "<main", new_text: "<main" }] })).page, "unchanged");
 });
@@ -230,16 +231,4 @@ Deno.test("data changes keep a version at most once a minute; a new page keeps i
   const kept = await tool(pg, a, "get_note_page", { id, version_id: got.versions[0].version_id });
   assertEquals([kept.html, kept.data.values], [PAGE, { n: 4 }]);
   assertEquals(got.data.values, { n: 4 });
-});
-
-Deno.test("list_api_keys shows names, hosts and whether set, never values", async () => {
-  const pg = await schemaDB();
-  const a = await account(pg);
-  const id = crypto.randomUUID();
-  const meta = await a.vault.sealAPIKeyMeta(id, JSON.stringify({ name: "OpenWeather", hosts: ["api.openweathermap.org"], set: true }));
-  await app(pg, a.id, `insert into public.api_key_names (id, meta_ct) values ($1, $2)`, [id, meta]);
-  const r = await tool(pg, a, "list_api_keys", {});
-  assertEquals(r.keys, [{ name: "OpenWeather", hosts: ["api.openweathermap.org"], set: true }]);
-  const b = await account(pg);
-  assertEquals((await tool(pg, b, "list_api_keys", {})).keys, []);
 });

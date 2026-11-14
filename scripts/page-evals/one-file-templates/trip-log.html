@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg: var(--amber-bg); --card: var(--amber-surface); --ink: var(--amber-text); --muted: var(--amber-text-secondary); --line: var(--amber-separator); --accent: var(--amber-accent); --accent-ink: var(--amber-on-accent); --soft: var(--amber-accent-soft); --field: var(--amber-fill); }
+  :root { --bg: var(--pinto-bg); --card: var(--pinto-surface); --ink: var(--pinto-text); --muted: var(--pinto-text-secondary); --line: var(--pinto-separator); --accent: var(--pinto-accent); --accent-ink: var(--pinto-on-accent); --soft: var(--pinto-accent-soft); --field: var(--pinto-fill); }
   * { box-sizing: border-box; }
   body { padding: 20px 18px 96px; max-width: 680px; margin: 0 auto; }
   h1 { font-size: 30px; letter-spacing: -.02em; margin: 4px 0 4px; }
   h2 { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 22px 4px 8px; }
   .count { display: inline-flex; align-items: baseline; gap: 8px; background: var(--soft); color: var(--ink); border-radius: 14px; padding: 10px 14px; margin: 8px 0 4px; }
   .count b { font-size: 34px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--amber-radius); overflow: hidden; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--pinto-radius); overflow: hidden; }
   .fact { display: grid; grid-template-columns: minmax(80px, 30%) 1fr; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
   .fact:first-child, .day:first-child, .item:first-child { border-top: 0; }
   .fact dt { color: var(--muted); font-size: 14px; }
@@ -28,7 +28,7 @@
   .item.done span { color: var(--muted); text-decoration: line-through; }
   .bar { height: 6px; border-radius: 3px; background: var(--field); overflow: hidden; margin: 0 4px 8px; }
   .bar div { height: 100%; background: var(--accent); }
-  .err { color: var(--amber-danger); min-height: 1em; margin: 8px 4px; }
+  .err { color: var(--pinto-danger); min-height: 1em; margin: 8px 4px; }
   /* This app's own look (ocean blue); Amber's tokens fill in the rest. */
   :root { --accent: #0369a1; --accent-ink: #ffffff; --soft: #dbeef8; --card: #eff6fa; --field: #e3eef5; }
   @media (prefers-color-scheme: dark) { :root { --accent: #7cc4ee; --accent-ink: #05243a; --soft: #14304a; --card: #16212a; --field: #1f2c36; } }
@@ -36,7 +36,7 @@
   .settings summary { cursor: pointer; color: var(--muted); min-height: 44px; padding: 11px 4px; }
   .settings .card { display: grid; gap: 14px; padding: 14px 16px; }
   .settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
 </style>
 </head>
 <body>
@@ -44,7 +44,7 @@
 <script>
   // Settings live inside the app: a section at the end, saved in values.settings (an AI sets them with update_page_data).
   const SETTINGS = [{"key": "start", "label": "Trip starts", "type": "text", "default": "", "help": "yyyy-mm-dd, for the countdown. Empty: the first date in the plan."}];
-  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (amber.data.values || {}).settings || {});
+  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (pinto.data.values || {}).settings || {});
   let settingsOpen = false;
   function settingsHTML() {
     const v = settings();
@@ -58,7 +58,7 @@
     box.querySelectorAll("[data-setting]").forEach((el) => { el.onchange = () => {
       const s = SETTINGS.find((x) => x.key === el.dataset.setting), raw = el.value.trim();
       const value = s.type === "number" ? Number(raw.replace(",", ".")) || 0 : s.type === "list" ? raw.split(",").map((x) => x.trim()).filter(Boolean) : raw;
-      amber.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
+      pinto.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
     }; });
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -98,12 +98,12 @@
       ${settingsHTML()}`;
     wireSettings();
     app.querySelectorAll("[data-line]").forEach((box) => box.addEventListener("change", async () => {
-      const r = await amber.update({ op: "toggle_checklist", line: Number(box.dataset.line) });
+      const r = await pinto.update({ op: "toggle_checklist", line: Number(box.dataset.line) });
       error = r.ok ? "" : r.error;
-      if (!r.ok) render(amber.note, amber.data);
+      if (!r.ok) render(pinto.note, pinto.data);
     }));
   }
-  amber.onChange(render);
+  pinto.onChange(render);
 </script>
 </body>
 </html>

@@ -8,9 +8,9 @@
 
 import { appendText, mimeOf, previewOf, searchFilter, searchInMemory, titleOf, wikiLinks } from "./notes.ts";
 import { noteChecks } from "./note_checks.ts";
-import { cleanPath, type Project } from "./app_project.ts";
+import { binaryType, cleanPath, isBinaryBytes, type Project, unpackBinary } from "./app_project.ts";
 import { scaffold } from "./app_scaffold.ts";
-import { fileList, projectOf, saveProject, withFile, withFiles } from "./app_files.ts";
+import { fileList, projectOf, saveProject, withBinary, withFile, withFiles, without } from "./app_files.ts";
 import { pageDataOf, storePageData } from "./data_tools.ts";
 import { dataShape } from "./data_ops.ts";
 import { fetchTemplateApp, type TemplateApp } from "./template_apps.ts";
@@ -112,7 +112,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a picture): content_base64 to its path, and the app loads it with fetch like any web page. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -925,7 +925,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (r.kind === "app" || r.kind === "appfile" || r.kind === "data") {
       const p = await appProject(tx, c, r.note);
       const inDir = r.kind === "app" && r.dir ? `/${r.dir}` : "";
-      const files = [...fileList(p).filter((f) => f.path.startsWith(inDir)).map((f) => ({ path: `${r.base}${f.path}`, lines: f.lines })), ...(inDir ? [] : [{ path: `${r.base}/data.json`, what: "the app's data" }])];
+      const files = [...fileList(p).filter((f) => f.path.startsWith(inDir)).map((f) => "binary" in f ? { path: `${r.base}${f.path}`, binary: true, bytes: f.bytes } : { path: `${r.base}${f.path}`, lines: f.lines }), ...(inDir ? [] : [{ path: `${r.base}/data.json`, what: "the app's data" }])];
       if (inDir && !files.length) throw new ToolError(`No folder ${r.base}${inDir}. Its files: list "${r.base}".`);
       const want = typeof a.pattern === "string" && a.pattern ? globRe(`${r.base}/${a.pattern.replace(/^\/+/, "")}`) : null;
       const shown = want ? files.filter((f) => want.test(f.path)) : files;
@@ -1040,12 +1040,23 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     }
     if (r.kind === "app") {
       const { draft } = await projectOf(tx, c, r.note.id);
-      return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${f.lines} lines)`), `${r.base}/data.json`].join("\n"), url: `pintonotes://note/${r.note.id}`,
+      return { id: `${r.base}/`, title: `${r.note.title} (app)`, text: [...fileList(p).map((f) => `${r.base}${f.path}  (${"binary" in f ? `binary, ${f.bytes} bytes stored` : `${f.lines} lines`})`), `${r.base}/data.json`].join("\n"), url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/`, readme: p.files["/README.md"] ?? null, ...(await loadFailure(tx, r.note.id)),
-          ...(Object.keys(p.files).length === 1 ? { one_file: `An older app: one HTML document, ${r.base}/index.html, with its CSS and script inline and its data (data.json) through window.amber. Change it with edit and write like any file.` } : {}),
+          ...(Object.keys(p.files).length === 1 ? { one_file: `An older app: one HTML document, ${r.base}/index.html, with its CSS and script inline and its data (data.json) through window.pinto. Change it with edit and write like any file.` } : {}),
           ...(draft !== null && draft !== undefined ? { held_back: `These files are a version that failed its checks, so the person still has the last one that passed. What failed:\n${draft}` } : {}) } };
     }
     const file = appPath(r.file);
+    if (p.binary?.[file] !== undefined) {
+      // A binary file (a .wasm, a game's data): its size, and its bytes only when asked for raw.
+      const data = await unpackBinary(p.binary[file]);
+      await markRead(tx, c, fileItem(r.note.id, file), await hash(c, p.binary[file]));
+      const head = { path: `${r.base}${file}`, binary: true, bytes: data.length, kind: binaryType(file) };
+      if (a.raw === true) {
+        return new Content([{ type: "text", text: JSON.stringify({ ...head, raw: "The file's bytes are the resource below (base64). Write new bytes with content_base64." }) },
+          { type: "resource", resource: { uri: `pintonotes://file/${encodeURIComponent(r.base + file)}`, mimeType: head.kind, blob: toBase64(data) } }], head);
+      }
+      return { id: `${r.base}${file}`, title: file.slice(1), text: `A binary file, ${data.length} bytes, served to the app as it is. fetch with raw: true for its bytes; write content_base64 to replace it.`, url: `pintonotes://note/${r.note.id}`, metadata: head };
+    }
     if (p.files[file] === undefined) throw new ToolError(`No ${r.base}${file}. Its files: list "${r.base}".`);
     const shown = numberedLines(p.files[file], a.offset, a.limit);
     await markRead(tx, c, fileItem(r.note.id, file), await hash(c, p.files[file]));
@@ -1306,10 +1317,8 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const p = await appProject(tx, c, r.note);
       const file = appPath(r.file);
       if (file === "/index.html") throw new ToolError("/index.html is the page the app opens; it can't be deleted.");
-      if (p.files[file] === undefined) throw new ToolError(`No ${r.base}${file}.`);
-      const files = { ...p.files }, compiled = { ...p.compiled };
-      delete files[file]; delete compiled[file];
-      return appResult(await saveProject(tx, c, await full(tx, c, r.note.id), { amberApp: 1, files, compiled }, `deleted ${file}`, a) as Record<string, unknown>, `${r.base}${file}`);
+      if (p.files[file] === undefined && p.binary?.[file] === undefined) throw new ToolError(`No ${r.base}${file}.`);
+      return appResult(await saveProject(tx, c, await full(tx, c, r.note.id), without(p, file), `deleted ${file}`, a) as Record<string, unknown>, `${r.base}${file}`);
     }
     if (r.kind === "app") {
       await tx`update public.note_pages set page_ct = null, draft_ct = null where note_id = ${r.note.id}`;
@@ -1546,6 +1555,7 @@ async function writeFileTool(tx: Tx, a: Args, c: Call) {
   else throw new ToolError("A file takes content (text) or content_base64 with mime_type.");
   let r: Ref | null = null;
   try { r = await resolve(tx, c, path); } catch (e) { if (!/^Nothing at/.test((e as Error).message)) throw e; }
+  if (r?.kind === "appfile") return await writeAppBytes(tx, c, r, bytes, a);
   if (r && r.kind !== "file") throw new ToolError(`${path} isn't a file.`);
   if (r?.kind === "file") {
     const { meta, version } = await readFile(tx, c, r.id, r.path);
@@ -1576,6 +1586,21 @@ async function writeFileTool(tx: Tx, a: Args, c: Call) {
   return { created: at, bytes: bytes.length };
 }
 
+/** Bytes for a file in an app (content_base64): a .wasm, a game's data, a picture. Text that comes
+ *  this way is kept as text, so it stays editable; anything else is a binary file, served as-is. */
+async function writeAppBytes(tx: Tx, c: Call, r: Extract<Ref, { kind: "appfile" }>, bytes: Uint8Array, a: Args) {
+  const p = await appProject(tx, c, r.note);
+  const file = appPath(r.file);
+  const was = p.binary?.[file] ?? p.files[file];
+  if (was !== undefined) await mustHaveRead(tx, c, fileItem(r.note.id, file), await hash(c, was), `${r.base}${file}`);
+  const binary = isBinaryBytes(bytes);
+  if (!binary && file === "/index.html") throw new ToolError("/index.html must be text.");
+  const next = binary ? await withBinary(p, file, bytes) : await withFile(p, file, new TextDecoder().decode(bytes));
+  const out = await saveProject(tx, c, await full(tx, c, r.note.id), next, `${file} (${was === undefined ? "created" : "replaced"}, ${bytes.length} bytes)`, a) as Record<string, unknown>;
+  await markRead(tx, c, fileItem(r.note.id, file), await hash(c, binary ? next.binary![file] : next.files[file]));
+  return appResult(out, `${r.base}${file}`);
+}
+
 async function loadFailure(tx: Tx, id: string): Promise<Record<string, unknown>> {
   const [f] = await tx<{ message: string; device: string | null; at: Date }[]>`select message, device, at from public.app_load_failures where note_id = ${id} order by at desc limit 1`;
   return f ? { load_failure: { message: f.message, device: f.device, at: iso(f.at), what_happened: "A device couldn't open the live version and went back to an earlier one, with the current data. Fix the cause and save." } } : {};
@@ -1585,12 +1610,12 @@ async function moveAppFile(tx: Tx, c: Call, n: Note, base: string, from: string,
   const p = await appProject(tx, c, n);
   const src = appPath(from), dst = appPath(to);
   if (src === "/index.html") throw new ToolError("/index.html stays where it is: the app opens it.");
-  if (p.files[src] === undefined) throw new ToolError(`No ${base}${src}.`);
-  if (p.files[dst] !== undefined) throw new ToolError(`${base}${dst} already exists.`);
-  const files = { ...p.files }, compiled = { ...p.compiled };
-  const content = files[src];
-  delete files[src]; delete compiled[src];
-  const out = await saveProject(tx, c, await full(tx, c, n.id), await withFile({ amberApp: 1, files, compiled }, dst, content), `${src} → ${dst}`, a);
+  if (p.files[src] === undefined && p.binary?.[src] === undefined) throw new ToolError(`No ${base}${src}.`);
+  if (p.files[dst] !== undefined || p.binary?.[dst] !== undefined) throw new ToolError(`${base}${dst} already exists.`);
+  const rest = without(p, src);
+  const content = p.binary?.[src] ?? p.files[src];
+  const moved = p.binary?.[src] !== undefined ? { ...rest, binary: { ...rest.binary ?? {}, [dst]: content } } : await withFile(rest, dst, content);
+  const out = await saveProject(tx, c, await full(tx, c, n.id), moved, `${src} → ${dst}`, a);
   await markRead(tx, c, fileItem(n.id, dst), await hash(c, content));
   return appResult(out as Record<string, unknown>, `${base}${dst}`);
 }

@@ -2,7 +2,7 @@
 //   plan: [{ day: "Mon", workout: "Upper", exercises: ["Bench press", ...] }]
 //   log (a collection): { id, date, exercise, sets, reps, weight }
 // The first time, it starts from the tables the note held before it became an app.
-import { useStore, useCollection, useImported, batch } from "amber";
+import { useStore, useCollection, useImported, batch } from "pinto";
 
 export const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const DEFAULTS = { unit: "kg", goal: 3 };

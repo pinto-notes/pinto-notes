@@ -1,4 +1,4 @@
-import { List, ListRow } from "amber-ui";
+import { List, ListRow } from "pinto-ui";
 import ScreenHeader from "../components/ScreenHeader.jsx";
 import { useTraining } from "../data.js";
 

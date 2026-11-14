@@ -51,7 +51,7 @@ export const FAQ: QA[] = [
   ...(NOTE_APPS_LIVE ? [{ id: "apps", q: "How do I make a note an app?", a: [
     "Your AI makes it. Connect ChatGPT, Claude, Claude Code or Codex first (Settings → Connect an AI). Then open a note, choose More (•••) → Make It an App…, and send the words it gives you to your AI. Or just ask your AI: \"In Pinto Notes, make my note Habits an app.\"",
     "The note then opens as the app: a habit tracker you tick, a budget that adds up. Ask your AI to change it whenever you like. More (•••) → App Info… has the version before and Remove App, and the note itself is never deleted.",
-    "An app runs inside Pinto Notes and can't reach the internet unless you allow an address. What it saves is encrypted and synced like your notes.",
+    "An app runs inside Pinto Notes and sees only its own note and the data it saves. It reaches the internet directly, like a web page. What it saves is encrypted and synced like your notes.",
   ] }] : []),
   { id: "collaborate", q: "How do I share a note so we can both edit it?", a: [
     "On a Mac, open the note, click Share in the toolbar, choose Collaborate and then Invite People…. On iPhone, tap More (…) → Share → Collaborate… → Invite People….",

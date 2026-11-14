@@ -11,7 +11,7 @@
 //     { tailwind: css, sources } -> { css } | { error }
 //
 // Nothing is stored or logged but timings and sizes. Each request gets fresh browser contexts with
-// no network: the page's own requests are refused, as in the app.
+// no internet: the page's requests outside the app are refused here (the app reaches it on the device).
 import { renderPage, type RenderOptions, type Step, testRunnerProject } from "./render.ts";
 import { compileHere, tailwindHere } from "../../supabase/functions/mcp/app_build.ts";
 

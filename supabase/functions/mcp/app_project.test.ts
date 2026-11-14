@@ -1,7 +1,7 @@
 // The app-project format, path rules, edits, compile and import checks.
 //   cd supabase/functions/mcp && deno test -A app_project.test.ts
-import { assert, assertEquals, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
-import { brokenImports, cleanPath, compile, editText, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES } from "./app_project.ts";
+import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
+import { BARE_IMPORTS, binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
 
 Deno.test("a one-file app stays plain HTML; a project round-trips as JSON", () => {
   const html = "<!doctype html><p>hi</p>";
@@ -93,17 +93,124 @@ Deno.test("the stack's bare names match the app's import map", () => {
   for (const name of STACK_NAMES) assert(name in map, `${name} isn't in stack.json`);
 });
 
-Deno.test("a game fits: Doom's engine and its 4 MB WAD as base64, and Emscripten's loader as it's built (2026-11-14)", () => {
-  const wad = "A".repeat(5_594_694); // DOOM1.WAD (4,196,020 bytes) as base64
+Deno.test("binary files: stored as compressed bytes, unpacked the same, with the web's type, and kept by serialize (2026-11-14)", async () => {
+  const wad = new Uint8Array(4_196_020).map((_, i) => (i % 5 === 0 ? 0 : (i * 31) % 97)); // DOOM1.WAD's size, with zeros like it
+  const stored = await packBinary(wad);
+  assertEquals(await unpackBinary(stored), wad);
+  assert(stored.length < wad.length, `${stored.length} stored for ${wad.length} bytes`);
+  const p = { amberApp: 1 as const, files: { "/index.html": "<canvas></canvas>" }, compiled: {}, binary: { "/doom1.wad": stored } };
+  assertEquals(parseStored(serialize(p)), p);
+  // A text project stays as it was: no binary key.
+  assertEquals(serialize({ amberApp: 1, files: { "/index.html": "<p>", "/a.js": "" }, compiled: {} }).includes("binary"), false);
+  assertEquals(binaryType("/doom.wasm"), "application/wasm");
+  assertEquals(binaryType("/doom1.wad"), "application/octet-stream");
+  assert(isBinaryBytes(new Uint8Array([0x00, 0x61, 0x73, 0x6d])) && !isBinaryBytes(new TextEncoder().encode("héllo")));
+  // A small file that would unpack into a huge one is refused.
+  const bomb = await packBinary(new Uint8Array(2 * 1024 * 1024));
+  await assertRejects(() => unpackBinary(bomb, 1024 * 1024), Error, "more than 1 MB");
+  // The same path can't be both, and what's stored counts toward the limits.
+  assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/doom1.wad": "x" } }).join(), "both a text file and a binary one");
+  assertStringIncludes(projectProblems({ ...p, binary: { "/big.bin": "A".repeat(MAX_FILE_BYTES + 4) } }).join(), "stored (compressed)");
+});
+
+Deno.test("a game fits: Doom's engine and its 4 MB WAD as raw binary files, and Emscripten's loader as it's built (2026-11-14)", async () => {
+  const wad = await packBinary(new Uint8Array(4_196_020).map((_, i) => (i % 5 === 0 ? 0 : (i * 31) % 97)));
   const glue = `var readAsync=async url=>{var response=await fetch(url,{credentials:"same-origin"})};function lazy(){var xhr=new XMLHttpRequest;xhr.open("GET",url,false)}`;
-  const p = { amberApp: 1 as const, files: { "/index.html": `<html lang="en"><canvas></canvas><script src="doom.js"></script>`, "/doom.js": glue, "/doom1.wad.b64": wad, "/doom.wasm.b64": "A".repeat(528_832) }, compiled: {} };
+  const p = { amberApp: 1 as const, files: { "/index.html": `<html lang="en"><canvas></canvas><script src="doom.js"></script>`, "/doom.js": glue }, compiled: {}, binary: { "/doom1.wad": wad, "/doom.wasm": await packBinary(new Uint8Array(396_621)) } };
   assertEquals(projectProblems(p), []);
-  assertEquals(sourceProblems(p, () => false), []);
+  assertEquals(sourceProblems(p), []);
   assertEquals(brokenImports(p), []);
   // The limits still hold, raised.
   assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/big.txt": "x".repeat(MAX_FILE_BYTES + 1) } }).join(), "at most 8 MB");
   const many = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`/part${i}.txt`, "x".repeat(MAX_FILE_BYTES - 10)]));
   assertStringIncludes(projectProblems({ ...p, files: { ...p.files, ...many } }).join(), `at most ${MAX_PROJECT_BYTES / 1048576} MB`);
-  // An address outside is still refused.
-  assertStringIncludes(sourceProblems({ ...p, files: { ...p.files, "/x.js": `fetch("https://example.com/x")` } }, () => false).join(), "external addresses");
+});
+
+Deno.test("an app reaches the internet like a web page: no address, fetch or WebSocket is refused on save (2026-11-14)", () => {
+  const p = {
+    amberApp: 1 as const, compiled: {},
+    files: {
+      "/index.html": `<html lang="en"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter"><img src="https://example.com/a.png"><script src="main.js"></script>`,
+      "/main.js": `fetch("https://api.open-meteo.com/v1/forecast").then((r) => r.json()); new WebSocket("wss://echo.example/ws"); const x = new XMLHttpRequest(); x.open("GET", "https://example.com/x");`,
+    },
+  };
+  assertEquals(projectProblems(p), []);
+  assertEquals(sourceProblems(p), []);
+  assertEquals(brokenImports(p), []);
+  // Frames and plugins would take the app out of its note: still refused.
+  assertStringIncludes(sourceProblems({ ...p, files: { ...p.files, "/index.html": `<iframe src="https://example.com"></iframe>` } }).join(), "<iframe> isn't allowed");
+});
+
+/// Pinto Notes was Amber Notes (2026-11-14). Everything the AI is told uses the new names; apps
+/// written with the old ones (window.amber, "amber", "amber-ui", amber-app:, --amber-*) keep working.
+const OLD_NAMES = new RegExp([
+  String.raw`window\.amber\b`,
+  String.raw`(?<![\w-])amber\s*\.\s*(note|data|store|onChange|update|batch|device|files|lib|context|open|insets|setData|setSummary|ai|fetch|ready|share|onError)\b`,
+  String.raw`(from\s*|import\s*\(\s*)["']amber["']`,
+  String.raw`["']amber-(ui|router)["']`,
+  String.raw`\bamber-(app|lib|file):`,
+  String.raw`--amber-`,
+  String.raw`\bamber-(widget|narrow|medium|wide)\b`,
+  String.raw`data-amber-context`,
+  String.raw`amber:insets`,
+  String.raw`@/lib/amber\b`,
+].join("|"));
+
+Deno.test("what the AI is told uses only the pinto names (2026-11-14)", async () => {
+  await import("./tools.ts");
+  const { instructions, servedPrompts, servedResources } = await import("./server.ts");
+  const { servedTools } = await import("./tool_set.ts");
+  const { PAGE_CONTRACT } = await import("./page.ts");
+  const { PAGE_API, PAGE_INSTRUCTIONS, FILE_APP_INSTRUCTIONS, pageGuide, appsGuide } = await import("./page_guide.ts");
+  const { appGuide, scaffold } = await import("./app_scaffold.ts");
+  const { STACK_FILES } = await import("./app_stack.gen.ts");
+  const { APP_EXAMPLES } = await import("./app_examples.gen.ts");
+  const { PAGE_TEMPLATES } = await import("./page_templates.gen.ts");
+  const texts: [string, string][] = [
+    ["PAGE_CONTRACT", PAGE_CONTRACT], ["PAGE_API", PAGE_API], ["PAGE_INSTRUCTIONS", PAGE_INSTRUCTIONS], ["FILE_APP_INSTRUCTIONS", FILE_APP_INSTRUCTIONS],
+    ["pageGuide", await pageGuide()], ["appsGuide", appsGuide()], ["appGuide", appGuide()],
+    ...Object.entries(await scaffold("Water")).map(([p, t]): [string, string] => [`scaffold ${p}`, t]),
+    ...Object.entries(STACK_FILES).map(([p, t]): [string, string] => [`stack ${p}`, t]),
+    ...Object.entries(APP_EXAMPLES).flatMap(([n, ex]) => Object.entries(ex.files).map(([p, t]): [string, string] => [`example ${n}${p}`, t])),
+    ...PAGE_TEMPLATES.map((t): [string, string] => [`template ${t.name}`, t.description + t.expects + t.html]),
+  ];
+  for (const set of [undefined, "files", "classic", "pages"]) {
+    texts.push([`instructions ${set}`, instructions(set)]);
+    for (const p of servedPrompts(set)) texts.push([`prompt ${p.name}`, p.text({ note: "N", idea: "I", data: "D", change: "C" })]);
+    for (const t of servedTools(set)) texts.push([`tool ${t.name}`, t.description + JSON.stringify(t.inputSchema ?? {})]);
+    for (const r of await servedResources(set)) texts.push([`resource ${r.uri}`, r.description + r.text]);
+  }
+  // The template apps' READMEs (their code keeps the old names, so they still run on 1.3).
+  const web = new URL("../../../web/", import.meta.url);
+  for (const e of Deno.readDirSync(new URL("content/templates/", web))) {
+    if (!e.isDirectory || !e.name.endsWith(".app")) continue;
+    const slug = e.name.replace(/\.app$/, "");
+    const readme = Deno.readTextFileSync(new URL(`content/templates/${e.name}/README.md`, web));
+    // Their own file is still src/lib/amber.ts, so the README names it.
+    texts.push([`${slug} README.md`, readme.replaceAll(`"@/lib/amber"`, "")]);
+    const served = JSON.parse(Deno.readTextFileSync(new URL(`public/templates/apps/${slug}.project.json`, web)));
+    assertEquals(served.files["/README.md"], readme, `${slug}: the site serves the README as it is`);
+  }
+  const found = texts.map(([name, t]) => [name, t.match(OLD_NAMES)?.[0]]).filter(([, m]) => m);
+  assertEquals(found, []);
+  assert(texts.length > 50, `only ${texts.length} texts`);
+});
+
+Deno.test("a project importing pinto, pinto-ui and pinto-router links, and the amber names still do (2026-11-14)", () => {
+  const app = (core: string, ui: string, router: string) => ({
+    amberApp: 1 as const, compiled: {},
+    files: {
+      "/index.html": `<!doctype html><html lang="en"><div id="app"></div><script type="module" src="/src/main.jsx"></script></html>`,
+      "/src/main.jsx": `import { render } from "preact";\nimport { useStore } from "${core}";\nimport { Button } from "${ui}";\nimport { Router, route } from "${router}";\nrender(<Router><Button onClick={() => route("/")}>Hi</Button></Router>, document.getElementById("app"));\n`,
+    },
+  });
+  for (const names of [["pinto", "pinto-ui", "pinto-router"], ["amber", "amber-ui", "amber-router"]] as [string, string, string][]) {
+    const p = app(...names);
+    assertEquals(brokenImports(p), [], names.join());
+    assertEquals(sourceProblems(p), [], names.join());
+  }
+  for (const name of ["pinto", "pinto-ui", "pinto-router", "amber", "amber-ui", "amber-router"]) assert(BARE_IMPORTS.includes(name), name);
+  // An app made before the rename has src/lib/amber.ts: importing "@/lib/pinto" there says which file it has.
+  const older = { amberApp: 1 as const, compiled: {}, files: { "/src/lib/amber.ts": `export * from "amber";`, "/src/App.tsx": `import { useStore } from "@/lib/pinto";\nexport default () => null;\n` } };
+  assertStringIncludes(brokenImports(older).join(), `its file is "@/lib/amber"`);
 });

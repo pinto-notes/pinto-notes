@@ -1,7 +1,7 @@
 // check_app and preview_app: let an AI see what it built. See app_check.ts for the findings and
 // app_sample.ts for the sample a note's app is rendered over.
 
-import { type KeyInfo, render, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
+import { render, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
 import { noteForPage } from "./page_input.ts";
 import { resolvePackage } from "./libraries.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
@@ -25,7 +25,7 @@ const REAL_OFF = "Real data isn't available for previews: they always use a samp
 export const appTools = [
   {
     name: "check_app", title: "Check a note's app",
-    description: "Checks a note's app and reports what to fix, as text: the note's title as the app's first heading (and only once), script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, a layout that leaves most of a wide window empty, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, not using the --amber-* theme, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
+    description: "Checks a note's app and reports what to fix, as text: the note's title as the app's first heading (and only once), script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, a layout that leaves most of a wide window empty, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, not using the --pinto-* theme, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
       "Run it after every set_note_page or edit_note_page and fix what it finds before telling the person the app is done. It renders a sample with the note's shape, not the person's data.",
     inputSchema: { type: "object", properties: { ...noteRef } },
     annotations: read,
@@ -92,28 +92,16 @@ async function appOf(tx: Tx, c: Call, a: Args) {
   return { n, html, data, body: await bodyOf(c.v, n) };
 }
 
-async function keysOf(tx: Tx, c: Call): Promise<KeyInfo[]> {
-  const rows = await tx<{ id: string; meta_ct: string }[]>`select id, meta_ct from public.api_key_names`;
-  const out: KeyInfo[] = [];
-  for (const r of rows) {
-    try {
-      const m = JSON.parse(await c.v.openAPIKeyMeta(r.id, r.meta_ct));
-      out.push({ name: String(m.name ?? ""), hosts: Array.isArray(m.hosts) ? m.hosts.map(String) : [], set: m.set === true });
-    } catch { /* sealed with another key */ }
-  }
-  return out;
-}
-
 export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unknown>> = {
   async check_app(tx, a, c) {
     const { n, html, data, body } = await appOf(tx, c, a);
     const t = today();
-    const found = staticReport(html, body, await keysOf(tx, c));
+    const found = staticReport(html, body);
     const r = await render({
       html, markdown: sampleNote(body, t), data: sampleData(data, t), today: t,
       views: [{ width: 390, scheme: "light" }, { width: 390, scheme: "dark" }, { width: 320, scheme: "light" }, { width: 1280, scheme: "light" }, { width: 1280, scheme: "dark" }], interact: true, probes: true,
       // Shown inside a parent note too: also as the widget strip.
-      widget: n.parent_id !== null || /amber-widget/.test(html),
+      widget: n.parent_id !== null || /(amber|pinto)-widget/.test(html),
     });
     const browser = typeof r === "string" ? null : renderedFindings(r);
     const errors = [...found.errors, ...(browser?.errors ?? [])];
@@ -123,7 +111,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
       ok: errors.length === 0 && browser !== null,
       errors,
       notes,
-      ...(browser === null ? { browser: r } : { browser_checked: `390 px and 1280 px in light and dark, and 320 px${n.parent_id !== null || /amber-widget/.test(html) ? ", and the 340 px widget strip" : ""}, over a sample of its data` }),
+      ...(browser === null ? { browser: r } : { browser_checked: `390 px and 1280 px in light and dark, and 320 px${n.parent_id !== null || /(amber|pinto)-widget/.test(html) ? ", and the 340 px widget strip" : ""}, over a sample of its data` }),
       next: errors.length ? "Fix the errors: the app is broken for the person until they're gone. The notes are information; act on the ones you agree with." : notes.length ? "Nothing is broken. The notes are information; act on the ones you agree with." : "Nothing to fix.",
     };
   },

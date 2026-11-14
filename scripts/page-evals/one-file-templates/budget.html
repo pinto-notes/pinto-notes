@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg: var(--amber-bg); --card: var(--amber-surface); --ink: var(--amber-text); --muted: var(--amber-text-secondary); --line: var(--amber-separator); --accent: var(--amber-accent); --accent-ink: var(--amber-on-accent); --field: var(--amber-fill); --over: var(--amber-danger); --c0: var(--amber-accent); --c1: #2f7d5b; --c2: #3c63b0; --c3: #a3478a; --c4: var(--amber-text-secondary); }
+  :root { --bg: var(--pinto-bg); --card: var(--pinto-surface); --ink: var(--pinto-text); --muted: var(--pinto-text-secondary); --line: var(--pinto-separator); --accent: var(--pinto-accent); --accent-ink: var(--pinto-on-accent); --field: var(--pinto-fill); --over: var(--pinto-danger); --c0: var(--pinto-accent); --c1: #2f7d5b; --c2: #3c63b0; --c3: #a3478a; --c4: var(--pinto-text-secondary); }
   @media (prefers-color-scheme: dark) { :root { --c1: #5cc497; --c2: #8aa8ef; --c3: #e38ccb; } }
   * { box-sizing: border-box; }
   body { padding: 20px 18px 96px; max-width: 680px; margin: 0 auto; }
@@ -17,7 +17,7 @@
   .sub.over { color: var(--over); font-weight: 600; }
   .meter { height: 10px; border-radius: 5px; background: var(--field); overflow: hidden; margin: 12px 0 4px; display: flex; }
   .meter div { height: 100%; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--amber-radius); overflow: hidden; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--pinto-radius); overflow: hidden; }
   .row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); min-height: 48px; }
   .row:first-child { border-top: 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
@@ -26,7 +26,7 @@
   .num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
   form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; }
   label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-  input, select { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+  input, select { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
   button { font: inherit; font-weight: 600; min-height: 44px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); }
   form button { grid-column: 1 / -1; }
   .month { min-height: 40px; width: auto; }
@@ -37,7 +37,7 @@
   .settings summary { cursor: pointer; color: var(--muted); min-height: 44px; padding: 11px 4px; }
   .settings .card { display: grid; gap: 14px; padding: 14px 16px; }
   .settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
 </style>
 </head>
 <body>
@@ -45,7 +45,7 @@
 <script>
   // Settings live inside the app: a section at the end, saved in values.settings (an AI sets them with update_page_data).
   const SETTINGS = [{"key": "budget", "label": "Monthly budget", "type": "number", "default": 0, "help": "0 for no limit"}, {"key": "currency", "label": "Currency", "type": "text", "default": "SEK"}, {"key": "categories", "label": "Categories", "type": "list", "default": ["Food", "Home", "Transport", "Fun"]}];
-  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (amber.data.values || {}).settings || {});
+  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (pinto.data.values || {}).settings || {});
   let settingsOpen = false;
   function settingsHTML() {
     const v = settings();
@@ -59,7 +59,7 @@
     box.querySelectorAll("[data-setting]").forEach((el) => { el.onchange = () => {
       const s = SETTINGS.find((x) => x.key === el.dataset.setting), raw = el.value.trim();
       const value = s.type === "number" ? Number(raw.replace(",", ".")) || 0 : s.type === "list" ? raw.split(",").map((x) => x.trim()).filter(Boolean) : raw;
-      amber.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
+      pinto.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
     }; });
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -111,24 +111,24 @@
     wireSettings();
 
     const m = document.getElementById("month");
-    if (m) m.onchange = () => { month = m.value; render(amber.note, amber.data); };
+    if (m) m.onchange = () => { month = m.value; render(pinto.note, pinto.data); };
     const f = document.getElementById("add");
     f.onsubmit = async (e) => {
       e.preventDefault();
       const fd = new FormData(f);
       form = { item: String(fd.get("item") ?? ""), amount: String(fd.get("amount") ?? ""), cat: String(fd.get("cat") ?? "") };
-      if (!num(form.amount)) { error = "Write the amount as a number."; render(amber.note, amber.data); return; }
+      if (!num(form.amount)) { error = "Write the amount as a number."; render(pinto.note, pinto.data); return; }
       const values = { [t.columns[a].name]: form.amount.trim() };
       if (it >= 0) values[t.columns[it].name] = form.item.trim();
       if (c >= 0) values[t.columns[c].name] = form.cat.trim();
       if (d >= 0) values[t.columns[d].name] = note.today;
-      const r = await amber.update({ op: "append_row", table: t.index, values });
+      const r = await pinto.update({ op: "append_row", table: t.index, values });
       error = r.ok ? "" : r.error;
       if (r.ok) form = { item: "", amount: "", cat: "" };
-      render(amber.note, amber.data);
+      render(pinto.note, pinto.data);
     };
   }
-  amber.onChange(render);
+  pinto.onChange(render);
 </script>
 </body>
 </html>

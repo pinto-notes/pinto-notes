@@ -2,13 +2,56 @@
 // them, the compile step (the device never compiles) and import checks. Pure; the tools are in
 // app_files.ts.
 import type { CompileItem, Compiled } from "./app_build.ts";
+import { fromBase64, toBase64 } from "../_shared/e2ee.ts";
 
-export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string> };
+/** binary: files that aren't text (a .wasm, a game's .wad, a picture), each stored as base64 of its
+ *  bytes compressed with raw DEFLATE, and served as-is with its type (2026-11-14). */
+export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string>; binary?: Record<string, string> };
 
 export const MAX_FILES = 200;
 // Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
+/** A binary file unpacked. What's stored (compressed) counts toward the limits above. */
+export const MAX_BINARY_BYTES = 64 * 1024 * 1024;
+
+/** A binary file as stored: its bytes, raw DEFLATE, base64. */
+export async function packBinary(data: Uint8Array): Promise<string> {
+  const z = await new Response(new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+  return toBase64(new Uint8Array(z));
+}
+
+/** A stored binary file's bytes; refused past `max` unpacked, so a small file can't unpack into a huge one. */
+export async function unpackBinary(stored: string, max = MAX_BINARY_BYTES): Promise<Uint8Array> {
+  const reader = new Blob([fromBase64(stored) as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const parts: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.length;
+    if (n > max) { await reader.cancel(); throw new Error(`unpacks to more than ${max / 1048576} MB`); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(n);
+  let at = 0;
+  for (const part of parts) { out.set(part, at); at += part.length; }
+  return out;
+}
+
+/** A binary file's type as the app serves it (NotePageProject.mime): the web's own, else plain bytes. */
+const BINARY_MIME: Record<string, string> = {
+  wasm: "application/wasm", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif", ico: "image/x-icon", svg: "image/svg+xml",
+  mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg", mp4: "video/mp4", webm: "video/webm", woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
+  pdf: "application/pdf", json: "application/json", zip: "application/zip",
+};
+export const binaryType = (path: string) => BINARY_MIME[path.split(".").pop()!.toLowerCase()] ?? "application/octet-stream";
+
+/** Bytes that need the binary map: not UTF-8, or a NUL in the first 8 KB. */
+export function isBinaryBytes(data: Uint8Array): boolean {
+  if (data.subarray(0, 8192).includes(0)) return true;
+  try { new TextDecoder("utf-8", { fatal: true }).decode(data); return false; } catch { return true; }
+}
 
 /** The stack's bare names: React on preact/compat, shadcn v4's radix-ui and the rest. Radix's own
  *  @radix-ui/react-* packages are in the map only because radix-ui is built from them. */
@@ -24,7 +67,9 @@ export const isTest = (path: string) => /^\/tests?\/.*\.test\.(tsx|ts|jsx|js)$/.
 
 /** Bare names the app's import map resolves (the host owns the map; the page never writes one). */
 export const BARE_IMPORTS = [
-  "preact", "preact/hooks", "preact/jsx-runtime", "htm", "amber", "amber-ui", "amber-router",
+  "preact", "preact/hooks", "preact/jsx-runtime", "htm", "pinto", "pinto-ui", "pinto-router",
+  // The names before Pinto Notes was renamed: apps written with them keep working.
+  "amber", "amber-ui", "amber-router",
   "chart.js", "d3", "three", "tone", "dayjs", "marked", "dompurify", "animejs", "canvas-confetti", "topojson-client", "world-atlas",
   // The React stack (Pane/Resources/AppLibraries/stack.json; app_project.test.ts keeps this in step).
   ...STACK_NAMES,
@@ -39,7 +84,9 @@ export function parseStored(text: string | null): Project {
   if (text.trimStart().startsWith("{")) {
     try {
       const p = JSON.parse(text);
-      if (p?.amberApp === 1 && p.files && typeof p.files === "object") return { amberApp: 1, files: p.files, compiled: p.compiled ?? {} };
+      if (p?.amberApp === 1 && p.files && typeof p.files === "object") {
+        return { amberApp: 1, files: p.files, compiled: p.compiled ?? {}, ...(p.binary && typeof p.binary === "object" && Object.keys(p.binary).length ? { binary: p.binary } : {}) };
+      }
     } catch { /* HTML that starts with a brace is still HTML */ }
   }
   return { amberApp: 1, files: { "/index.html": text }, compiled: {} };
@@ -48,9 +95,10 @@ export function parseStored(text: string | null): Project {
 /** What's sealed into page_ct: a lone /index.html stays plain HTML, so one-file apps are unchanged. */
 export function serialize(p: Project): string {
   const names = Object.keys(p.files);
-  if (names.length === 1 && names[0] === "/index.html" && !Object.keys(p.compiled).length) return p.files["/index.html"];
+  const binary = Object.keys(p.binary ?? {}).length ? p.binary! : null;
+  if (names.length === 1 && names[0] === "/index.html" && !Object.keys(p.compiled).length && !binary) return p.files["/index.html"];
   const sorted = (o: Record<string, string>) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
-  return JSON.stringify({ amberApp: 1, files: sorted(p.files), compiled: sorted(p.compiled) });
+  return JSON.stringify({ amberApp: 1, files: sorted(p.files), compiled: sorted(p.compiled), ...(binary ? { binary: sorted(binary) } : {}) });
 }
 
 /** A path as the tools accept it: "/src/App.jsx"; "src/App.jsx" gets its slash. */
@@ -68,11 +116,16 @@ export function projectProblems(p: Project): string[] {
   const out: string[] = [];
   const names = Object.keys(p.files);
   if (!p.files["/index.html"]) out.push("The project needs /index.html: it's the page the app opens.");
-  if (names.length > MAX_FILES) out.push(`${names.length} files; at most ${MAX_FILES}.`);
+  const binary = Object.keys(p.binary ?? {});
+  if (names.length + binary.length > MAX_FILES) out.push(`${names.length + binary.length} files; at most ${MAX_FILES}.`);
   for (const n of names) if (bytes(p.files[n]) > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(bytes(p.files[n]) / 1024)} KB; a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
+  for (const n of binary) {
+    if (p.files[n] !== undefined) out.push(`${n} is both a text file and a binary one.`);
+    if (p.binary![n].length > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(p.binary![n].length / 1024)} KB stored (compressed); a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
+  }
   const total = bytes(serialize(p));
   if (total > MAX_PROJECT_BYTES) out.push(`The project is ${(total / 1048576).toFixed(1)} MB with its compiled files; at most ${MAX_PROJECT_BYTES / 1048576} MB.`);
-  if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, amber, amber-ui and the bundled libraries.");
+  if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, pinto, pinto-ui and the bundled libraries.");
   return out;
 }
 
@@ -170,7 +223,7 @@ export async function linkProject(p: Project): Promise<{ project: Project; ms: {
     if (!path.endsWith(".css") || !/@import\s+["']tailwindcss["']/.test(css)) continue;
     try { compiled[path] = await tailwind(css, sources); } catch (e) { return { project: p, ms: { tailwind: 0 }, error: `${path}: ${(e as Error).message}` }; }
   }
-  return { project: { amberApp: 1, files: p.files, compiled }, ms: { tailwind: Math.round(performance.now() - t0) } };
+  return { project: { ...p, compiled }, ms: { tailwind: Math.round(performance.now() - t0) } };
 }
 
 /** Tailwind v4 for one stylesheet, from the classes in the project's sources. */
@@ -208,33 +261,30 @@ export function brokenImports(p: Project): string[] {
     if (/\.(m?js|jsx|tsx?)$/.test(path)) {
       for (const spec of importsOf(text)) {
         if (/^https?:|^\/\//.test(spec)) out.push(`${path} imports ${spec}: the app has no network. Use a bundled library or a file in the project.`);
-        else if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/")) { if (!resolveImport(p, path, spec)) out.push(`${path} imports ${spec}, but there's no such file.`); }
+        else if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/")) { if (!resolveImport(p, path, spec)) out.push(`${path} imports ${spec}, but there's no such file.${spec === "@/lib/pinto" && p.files["/src/lib/amber.ts"] !== undefined ? ' This app is older: its file is "@/lib/amber" (the same exports).' : ""}`); }
         else if (!BARE_IMPORTS.includes(spec) && !spec.startsWith("@radix-ui/") && !(isTest(path) && TEST_IMPORTS.includes(spec))) out.push(`${path} imports "${spec}", which isn't available (${BARE_IMPORTS.join(", ")}). Use one of those, pin an npm file with resolve_package, or add the code as a file.`);
       }
     }
     if (path.endsWith(".html")) {
-      for (const m of text.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["']/gi)) {
-        const ref = m[1];
-        if (/^(https?:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: the app has no network.`);
-        else if (!/^(amber-lib|data):/.test(ref) && !p.files[resolveFrom(path, ref)]) out.push(`${path} loads ${ref}, but ${resolveFrom(path, ref)} doesn't exist.`);
+      for (const m of text.matchAll(/<(script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["']/gi)) {
+        const ref = m[2];
+        if (/^https:\/\//.test(ref) && m[1].toLowerCase() === "link") continue;
+        if (/^(https?:)?\/\//.test(ref)) out.push(`${path} loads ${ref}: scripts come from the project or the bundled libraries.`);
+        else if (!/^(pinto-lib|amber-lib|data):/.test(ref) && !p.files[resolveFrom(path, ref)]) out.push(`${path} loads ${ref}, but ${resolveFrom(path, ref)} doesn't exist.`);
       }
     }
   }
   return out;
 }
 
-const NAMESPACES = /^https?:\/\/www\.w3\.org\/(2000\/svg|1999\/xhtml|1999\/xlink|XML\/1998\/namespace)$/;
 const isCode = (path: string) => /\.(m?js|jsx|tsx?)$/.test(path);
 
-/** What would make the app refuse to run or reach the network, across every file. */
-export function sourceProblems(p: Project, declared: (host: string) => boolean): string[] {
+/** What would make the app refuse to run, across every file: frames and plugins, which would take
+ *  it out of its note. The internet is open to it like to any web page (2026-11-14). */
+export function sourceProblems(p: Project): string[] {
   const out: string[] = [];
   for (const [path, text] of Object.entries(p.files)) {
     if (path.endsWith(".md")) continue;
-    const urls = [...text.matchAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>)]*/gi)].map((m) => m[0])
-      .filter((u) => !NAMESPACES.test(u.replace(/\/$/, "")) && !/^amber-(lib|file|app):/i.test(u))
-      .filter((u) => { try { const x = new URL(u); return !(/^https?:$/.test(x.protocol) && declared(x.host.toLowerCase())); } catch { return true; } });
-    if (urls.length) out.push(`${path}: external addresses aren't allowed (${[...new Set(urls)].slice(0, 3).join(", ")}). The app has no network; declare a host in amber-needs (in /index.html) and use fetch from "amber".`);
     if (path.endsWith(".html")) {
       const tags = [...new Set([...text.matchAll(/<(base|iframe|frame|frameset|object|embed|portal|applet)\b/gi)].map((m) => m[1].toLowerCase()))];
       if (tags.length) out.push(`${path}: <${tags.join(">, <")}> isn't allowed.`);
@@ -243,24 +293,24 @@ export function sourceProblems(p: Project, declared: (host: string) => boolean):
   return out;
 }
 
-/** The style a project should be written in: hooks from "amber", tables by name. */
+/** The style a project should be written in: hooks from "pinto", tables by name. */
 export function styleWarnings(p: Project): string[] {
   const out: string[] = [];
   const code = Object.entries(p.files).filter(([path]) => isCode(path));
   // Tests may read the bridge to see what was saved (the starter's test does).
-  const globals = code.filter(([path]) => !isTest(path)).filter(([, t]) => /\bwindow\b[^;\n]{0,20}\.amber\b|(?<![\w.])amber\s*\.\s*(note|update|onChange|setData|store|data)\b/.test(t)).map(([path]) => path);
-  if (globals.length) out.push(`${globals.slice(0, 3).join(", ")} use window.amber directly. In a project, import what you need from "@/lib/amber" (useStore, useCollection, useSettings, batch, fetch, device…).`);
+  const globals = code.filter(([path]) => !isTest(path)).filter(([, t]) => /\bwindow\b[^;\n]{0,20}\.(amber|pinto)\b|(?<![\w.])(amber|pinto)\s*\.\s*(note|update|onChange|setData|store|data)\b/.test(t)).map(([path]) => path);
+  if (globals.length) out.push(`${globals.slice(0, 3).join(", ")} use window.pinto directly. In a project, import what you need from "@/lib/pinto" (useStore, useCollection, useSettings, batch, fetch, device…).`);
   // The app's data is JSON in its own store; the note's text is only read once, to convert an old note.
   const noteData = code.filter(([, t]) => /\buse(Table|Checklist)\s*\(|\.tables\s*\[|\bop\s*:\s*["'](append_row|set_cell|toggle_checklist|add_checklist_item|delete_row)/.test(t)).map(([path]) => path);
-  if (noteData.length) out.push(`${noteData.slice(0, 3).join(", ")} keep data in the note's tables or checklists. An app's data is JSON in its own store: useStore / useCollection / useSettings from "amber" (or localStorage, which syncs). useImported() gives what an older note held, to start from once.`);
+  if (noteData.length) out.push(`${noteData.slice(0, 3).join(", ")} keep data in the note's tables or checklists. An app's data is JSON in its own store: useStore / useCollection / useSettings from "pinto" (or localStorage, which syncs). useImported() gives what an older note held, to start from once.`);
   const radix = code.filter(([, t]) => /from\s*["']@radix-ui\/react-/.test(t)).map(([path]) => path);
   if (radix.length) out.push(`${radix.slice(0, 3).join(", ")} import @radix-ui/react-* directly. The app ships Radix as the radix-ui package (what shadcn v4 uses): import { Dialog as DialogPrimitive } from "radix-ui".`);
   if (!p.files["/README.md"]) out.push("Add /README.md: what the app is for, its screens and files, and where its data lives (the note's tables by heading, the app's own data). Keep it current; the next AI reads it first.");
   if (!/<html[^>]*\blang\s*=/i.test(p.files["/index.html"] ?? "")) out.push('Add lang="en" (or the note\'s language) to <html> in /index.html.');
   if (code.some(([, t]) => /\b(indexedDB|document\.cookie)\b/.test(t))) out.push("IndexedDB and cookies aren't available. Use the store (useStore, useCollection) or localStorage, which is kept and synced.");
-  if (code.some(([, t]) => /(?<![\w.])(alert|confirm|prompt)\s*\(/.test(t))) out.push("alert/confirm/prompt don't show. Use a Sheet or Dialog from amber-ui, or an inline message.");
+  if (code.some(([, t]) => /(?<![\w.])(alert|confirm|prompt)\s*\(/.test(t))) out.push("alert/confirm/prompt don't show. Use a Sheet or Dialog from pinto-ui, or an inline message.");
   const css = Object.entries(p.files).filter(([path]) => path.endsWith(".css")).map(([, t]) => t).join("\n");
   const important = (css.match(/!\s*important/gi) ?? []).length;
-  if (important) out.push(`!important appears ${important} time${important > 1 ? "s" : ""}: it isn't needed. amber-base.css and amber-ui sit in cascade layers, so any rule the app writes already wins.`);
+  if (important) out.push(`!important appears ${important} time${important > 1 ? "s" : ""}: it isn't needed. amber-base.css and pinto-ui sit in cascade layers, so any rule the app writes already wins.`);
   return out;
 }

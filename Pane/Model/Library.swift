@@ -306,7 +306,6 @@ extension ModelContext {
         note.lockedBody = nil
         note.touch()
         saveOrReport()
-        NotePageNetLog.shared.forgetNote(note.id)
         // Someone else's shared note deleted for good: you leave it, as in Apple Notes.
         if note.isShared { SharedNotes.purged?(note) }
     }

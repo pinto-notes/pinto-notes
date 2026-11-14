@@ -4,7 +4,7 @@
 import { pageProblems } from "../../supabase/functions/mcp/page.ts";
 import { staticReport } from "../../supabase/functions/mcp/app_check.ts";
 // What the server refuses: a one-file page\'s problems, or a project\'s.
-const serverProblems = (stored: string) => staticReport(stored, "", []).errors;
+const serverProblems = (stored: string) => staticReport(stored, "").errors;
 import { closeBrowser, renderPage } from "../page-render/render.ts";
 import { scoreTask } from "./score.ts";
 import { TASKS, type Final } from "./tasks.ts";

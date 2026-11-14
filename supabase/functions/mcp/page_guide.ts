@@ -14,8 +14,8 @@ const LIBS_BY_PACKAGE = "chart.js, d3, three, tone, dayjs, marked, dompurify, an
 export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app (some tools call a one-file app a page).
 - Before making or changing an app, call get_page_guide once. It says where an app lives; how it looks and works is up to you.
 - An app is a normal Vite + React + TypeScript + Tailwind + shadcn/ui project. create_app starts one; list_app_files, read_app_file, write_app_file and edit_app_file work on it like any codebase. Every save compiles it and tells you what broke.
-- Its data is JSON the app keeps (useStore, useCollection, useSettings from "@/lib/amber", or localStorage: all synced and encrypted). You read and change it with get_page_data, query_app_data and update_page_data.
-- It runs inside a note on iPhone and Mac, light and dark, with no network except hosts the person allows.
+- Its data is JSON the app keeps (useStore, useCollection, useSettings from "@/lib/pinto", or localStorage: all synced and encrypted). You read and change it with get_page_data, query_app_data and update_page_data.
+- It runs inside a note on iPhone and Mac, light and dark, and reaches the internet like any web page.
 - See your work with preview_app and check_app before you say it's done.`;
 
 /** What the file tools' instructions (files_tools.ts) say about apps, and the Claude skill with them. */
@@ -43,7 +43,7 @@ A note can be an app: a habit tracker, a budget, a workout log, a game. The pers
 
 - Inside a note in Pinto Notes, on iPhone (320-440 pt wide, safe areas at the edges, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Both matter: a phone layout and a real wide layout.
 - Light and dark mode follow the device (prefers-color-scheme).
-- In a sandbox with no network (see Network).
+- Like a web page: fetch, XMLHttpRequest and WebSocket reach any https or wss address (see Network). It sees only its own note and data.
 - Nothing around the app shows the note's title, so the app shows it if it wants a title.
 
 ## The project
@@ -56,10 +56,10 @@ ${Object.keys(SCAFFOLD).sort().join("\n")}
 
 - Work on it like any codebase: list_app_files, read_app_file, write_app_file, edit_app_file, move_app_file, delete_app_file. Keep README.md current; the next AI reads it first.
 - Every save compiles the project the way Vite would (TSX/JSX/TS, the @/ alias, imports without extensions, Tailwind from the classes you use) and answers with errors (the app is broken: compile errors, imports to nothing, script errors, content wider than the screen, unreadable text) and notes (information; use your judgment). Nothing is installed: package.json is there for orientation.
-- React runs on preact/compat. Import by name: react, react-dom, react-dom/client, radix-ui (what shadcn v4 builds on), lucide-react (every icon), recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, amber-router (screens: Router, Route, route(), back()), and ${LIBS_BY_PACKAGE} (each library's global as its default export: import Chart from "chart.js").
+- React runs on preact/compat. Import by name: react, react-dom, react-dom/client, radix-ui (what shadcn v4 builds on), lucide-react (every icon), recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, pinto-router (screens: Router, Route, route(), back()), and ${LIBS_BY_PACKAGE} (each library's global as its default export: import Chart from "chart.js").
 - src/components/ui/ has 20 shadcn/ui components and src/components/app-shell.tsx a frame with a tab bar on iPhone and a sidebar from 900 px; they're the app's own files, so add and change them freely.
 - Any other npm package: resolve_package pins an exact file with a hash; add it to <meta name="amber-libs" content="npm:…"> in index.html and it loads before your code as a global.
-- Styling: Tailwind, with shadcn's variables (--background, --primary, …) set from Amber's colours in src/index.css; change them to give the app its own look. Two stylesheets load first, in cascade layers your CSS always beats: amber-tokens.css (the --amber-* variables: ${AMBER_TOKENS.join(", ")}) and amber-base.css:
+- Styling: Tailwind, with shadcn's variables (--background, --primary, …) set from Amber's colours in src/index.css; change them to give the app its own look. Two stylesheets load first, in cascade layers your CSS always beats: amber-tokens.css (the --pinto-* variables: ${AMBER_TOKENS.join(", ")}) and amber-base.css:
 
 \`\`\`css
 ${AMBER_BASE_CSS.trim()}
@@ -69,7 +69,7 @@ ${AMBER_BASE_CSS.trim()}
 
 The app's data is JSON that Pinto Notes keeps for it: encrypted, synced across the person's devices, versioned, with Undo for changes the person makes. Up to 4 MB; photos and recordings as files.
 
-- From "@/lib/amber" (which re-exports "amber"): const [value, setValue] = useStore("key", initial); const workouts = useCollection("workouts") → { items, add(fields) → id, update(id, patch), remove(id) }; const [settings, update] = useSettings({ unit: "kg" }); batch(async () => { … }) for several changes as one Undo; setSummary("3 of 4 habits today") for the line under the note's title in the list.
+- From "@/lib/pinto" (which re-exports "pinto"; an app made before Pinto Notes was renamed has the same file as src/lib/amber.ts): const [value, setValue] = useStore("key", initial); const workouts = useCollection("workouts") → { items, add(fields) → id, update(id, patch), remove(id) }; const [settings, update] = useSettings({ unit: "kg" }); batch(async () => { … }) for several changes as one Undo; setSummary("3 of 4 habits today") for the line under the note's title in the list.
 - localStorage works and is kept the same way (synced), so code written for the web just works. sessionStorage lasts while the app is open; there's no IndexedDB.
 - ${IN_CONTROL}
 - Settings the person can change live inside the app, in the app's own design.
@@ -77,13 +77,9 @@ The app's data is JSON that Pinto Notes keeps for it: encrypted, synced across t
 - When a note that already had text becomes an app, useImported() gives what it held ({ tables: { Heading: [rows] }, checklists, text }): start the app's data from it once.
 - You read and change the data from here: get_page_data (all of it, a collection, or a path), query_app_data (filter, group by a field or by day/week/month, sum/avg/min/max: "how was my week?"), update_page_data (merge values, add/update/remove records, import CSV, attach files). The app updates at once; you never rewrite the app to change its data.
 
-## Network and API keys
+## Network
 
-The app can't reach the internet by itself. For live data, declare the hosts in index.html and the person allows them once:
-
-\`<meta name="amber-needs" content='{"hosts": ["api.open-meteo.com"], "keys": [{ "name": "OpenWeather", "hosts": ["api.openweathermap.org"], "query": "appid={key}", "help": "Where to get one" }]}'>\`
-
-Then call fetch(url, { key: "OpenWeather" }) from "@/lib/amber"; it returns { ok, status, body }. Keys live in Pinto Notes › Settings › API Keys; the app and you never see their values. list_api_keys shows which exist. Walk the person through getting one (the site, the free plan, where the key is) and adding it there. Never ask for a key in the chat; if one is pasted, don't store or repeat it, and suggest they make a new one. Prefer services that need no key (api.open-meteo.com for weather). fetch("/src/data.json") reads the app's own files.
+The app reaches the internet like any web page: fetch, XMLHttpRequest and WebSocket to any https or wss address, and images, styles and fonts over https. There's no prompt and nothing to declare; the server has to allow CORS, as for any web page. For a service that needs an API key, let the person paste it into the app's own settings and keep it in the store; never put a key in the code, and never ask for one in the chat. The checks on save run without the internet, so handle a request that fails. fetch("/src/data.json") reads the app's own files.
 
 Links to the person's notes and other apps are plain links, written like a [[link]] in a note: <a href="pinto:Work/Acme">Acme</a>, pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. Tapping one opens it in Pinto Notes the way a [[link]] does.
 

@@ -813,9 +813,6 @@ struct GeneralSettingsPage: View {
                 .accessibilityIdentifier("settings.importNotes")
             }
             #endif
-            #if os(iOS)
-            if NoteApps.enabled { APIKeysSection() }
-            #endif
         }
         #if os(macOS)
         .task { login = await LoginItem.refresh() }

@@ -16,10 +16,6 @@ import Testing
     static func open(_ title: String, size: CGSize, dark: Bool) async throws -> NSWindow {
         let c = try AppSnapshotTests.container()
         Capture.bestApps(c.mainContext, dir: dir)
-        // As if the forecast's host had been allowed once already (the iPhone recording shows the question).
-        if let rome = ((try? c.mainContext.fetch(FetchDescriptor<Note>())) ?? []).first(where: { $0.title == "Rome" }) {
-            NotePageNetLog.shared.approve("api.open-meteo.com", for: rome.id)
-        }
         let w = await AppSnapshotTests.withLastNote(c, title) {
             let w = MacStoreShots.window(RootView().modelContainer(c).environment(SetupStore()), size: size, dark: dark)
             try? await Task.sleep(for: .seconds(1))

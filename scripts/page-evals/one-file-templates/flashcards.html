@@ -1,14 +1,14 @@
 <!doctype html>
-<!-- template: flashcards | Flip cards one at a time, mark each Known or Again; cards you don't know yet come first, and what you know is remembered in the app's data. Which side shows first is a setting at the end of the app. | A table whose first two columns are the front and the back (e.g. Spanish | English, Question | Answer). Keeps amber.data.values.known, front text to the date it was known. -->
+<!-- template: flashcards | Flip cards one at a time, mark each Known or Again; cards you don't know yet come first, and what you know is remembered in the app's data. Which side shows first is a setting at the end of the app. | A table whose first two columns are the front and the back (e.g. Spanish | English, Question | Answer). Keeps pinto.data.values.known, front text to the date it was known. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg: var(--amber-bg); --card: var(--amber-surface); --ink: var(--amber-text); --muted: var(--amber-text-secondary); --line: var(--amber-separator); --accent: var(--amber-accent); --accent-ink: var(--amber-on-accent); --field: var(--amber-fill); --ok: #2f7d5b; }
+  :root { --bg: var(--pinto-bg); --card: var(--pinto-surface); --ink: var(--pinto-text); --muted: var(--pinto-text-secondary); --line: var(--pinto-separator); --accent: var(--pinto-accent); --accent-ink: var(--pinto-on-accent); --field: var(--pinto-fill); --ok: #2f7d5b; }
   @media (prefers-color-scheme: dark) { :root { --ok: #5cc497; } }
   * { box-sizing: border-box; }
-  body { padding: 20px var(--amber-gutter, 18px) 96px; max-width: 1000px; margin: 0 auto; }
+  body { padding: 20px var(--pinto-gutter, 18px) 96px; max-width: 1000px; margin: 0 auto; }
   @media (min-width: 900px) { .layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 32px; align-items: start; } .list { margin-top: 0; } .list[open] summary, .list summary { padding-top: 0; } }
   h1 { font-size: 28px; letter-spacing: -.02em; margin: 4px 0 4px; }
   .sub { color: var(--muted); margin: 0 0 16px; }
@@ -26,18 +26,18 @@
   .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 4px; border-top: 1px solid var(--line); }
   .row .k { color: var(--ok); font-size: 14px; white-space: nowrap; }
   .reset { font: inherit; color: var(--accent); background: none; border: 0; min-height: 44px; padding: 0 4px; }
-  .err { color: var(--amber-danger); min-height: 1em; margin: 8px 4px; }
-  .empty { padding: 28px 16px; text-align: center; color: var(--muted); background: var(--card); border-radius: var(--amber-radius); border: 1px solid var(--line); }
+  .err { color: var(--pinto-danger); min-height: 1em; margin: 8px 4px; }
+  .empty { padding: 28px 16px; text-align: center; color: var(--muted); background: var(--card); border-radius: var(--pinto-radius); border: 1px solid var(--line); }
   @media (prefers-reduced-motion: no-preference) { .flip { transition: transform .15s; } .flip:active { transform: scale(.98); } }
   /* This app's own look (violet); Amber's tokens fill in the rest. */
   :root { --accent: #6d28d9; --accent-ink: #ffffff; --card: #f5f2fb; --field: #ebe5f7; }
   @media (prefers-color-scheme: dark) { :root { --accent: #c4a5ff; --accent-ink: #1e0f3d; --card: #1e1a27; --field: #2a2436; } }
-  .flip .word { font-family: var(--amber-font-rounded); }
+  .flip .word { font-family: var(--pinto-font-rounded); }
   .settings { margin-top: 28px; }
   .settings summary { cursor: pointer; color: var(--muted); min-height: 44px; padding: 11px 4px; }
   .settings .card { display: grid; gap: 14px; padding: 14px 16px; }
   .settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
 </style>
 </head>
 <body>
@@ -45,7 +45,7 @@
 <script>
   // Settings live inside the app: a section at the end, saved in values.settings (an AI sets them with update_page_data).
   const SETTINGS = [{"key": "side", "label": "Show first", "type": "choice", "options": ["Front first", "Back first"], "default": "Front first"}];
-  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (amber.data.values || {}).settings || {});
+  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (pinto.data.values || {}).settings || {});
   let settingsOpen = false;
   function settingsHTML() {
     const v = settings();
@@ -59,7 +59,7 @@
     box.querySelectorAll("[data-setting]").forEach((el) => { el.onchange = () => {
       const s = SETTINGS.find((x) => x.key === el.dataset.setting), raw = el.value.trim();
       const value = s.type === "number" ? Number(raw.replace(",", ".")) || 0 : s.type === "list" ? raw.split(",").map((x) => x.trim()).filter(Boolean) : raw;
-      amber.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
+      pinto.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
     }; });
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -100,25 +100,25 @@
     wireSettings();
 
     const next = () => {
-      const rest = cards.filter((c) => !((amber.data.values.known || {})[c.front]) && c.front !== current);
+      const rest = cards.filter((c) => !((pinto.data.values.known || {})[c.front]) && c.front !== current);
       current = (rest[0] || cards[(cards.findIndex((c) => c.front === current) + 1) % cards.length]).front;
       showBack = false;
     };
-    const save = async (patch) => { const r = await amber.setData({ values: patch }); error = r.ok ? "" : r.error; return r.ok; };
-    document.getElementById("flip").onclick = () => { showBack = !showBack; render(amber.note, amber.data); };
+    const save = async (patch) => { const r = await pinto.setData({ values: patch }); error = r.ok ? "" : r.error; return r.ok; };
+    document.getElementById("flip").onclick = () => { showBack = !showBack; render(pinto.note, pinto.data); };
     document.getElementById("again").onclick = async () => {
-      if (known[current]) { if (!(await save({ known: { [current]: null } }))) return render(amber.note, amber.data); }
-      next(); render(amber.note, amber.data);
+      if (known[current]) { if (!(await save({ known: { [current]: null } }))) return render(pinto.note, pinto.data); }
+      next(); render(pinto.note, pinto.data);
     };
     document.getElementById("know").onclick = async () => {
       const was = current;
       next();
-      if (!(await save({ known: { [was]: note.today } }))) { current = was; render(amber.note, amber.data); }
+      if (!(await save({ known: { [was]: note.today } }))) { current = was; render(pinto.note, pinto.data); }
     };
     const reset = document.getElementById("reset");
-    if (reset) reset.onclick = async () => { await save({ known: null }); current = null; render(amber.note, amber.data); };
+    if (reset) reset.onclick = async () => { await save({ known: null }); current = null; render(pinto.note, pinto.data); };
   }
-  amber.onChange(render);
+  pinto.onChange(render);
 </script>
 </body>
 </html>

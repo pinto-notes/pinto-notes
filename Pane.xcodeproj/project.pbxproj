@@ -266,7 +266,6 @@
 		2303CD3870336F60D24602F1 /* WelcomeNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 393568B67D8EEBF493C50F93 /* WelcomeNoteTests.swift */; };
 		23269B7D56F61F717EB6C4C7 /* template-cover-gift-ideas.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 695A1AFB9BA9A60183F68508 /* template-cover-gift-ideas.jpg */; };
 		235AD4EADE1953AA846A9024 /* Tips.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEF55394E3ADF3DB9CF451B /* Tips.swift */; };
-		238F04FBBB428E8794754CF1 /* NotePageNetLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 209BA8BD7E2B2E18130FE1F6 /* NotePageNetLogTests.swift */; };
 		2391E10DDD008F470265DF7F /* ListOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E45D9F4A1C01EDA2629F7A /* ListOrder.swift */; };
 		23968ED15CCDE44F1B4335E3 /* SharedNoteEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A89888BA134B0D17719F024 /* SharedNoteEditorTests.swift */; };
 		23C4F4D3148DE01C86E96346 /* ChecklistWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B15BAE937AA38FE2E0983D /* ChecklistWidgetView.swift */; };
@@ -613,7 +612,6 @@
 		5BEC8B6966D6A4C9EE618938 /* ConnectGuideSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92322EAC09047DABE673BD1B /* ConnectGuideSnapshots.swift */; };
 		5C1FF8DBA7600470AC5B653F /* KeyFault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C244999D8DFA81130C0CCD /* KeyFault.swift */; };
 		5C2F7191A35BBC9293975419 /* IncrementalStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599DE60FE9E6F13C56486743 /* IncrementalStyleTests.swift */; };
-		5C6E98AB33671AE17E68D216 /* NotePageNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97049D2AEE2C89B14A54B08B /* NotePageNetwork.swift */; };
 		5CABF6503D037751767E8C01 /* ListTitleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10AB39932C3189F22847302 /* ListTitleUITests.swift */; };
 		5CCE3E781F4A728571FABEE1 /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEF0851FCB14FCFAF85EB6EC /* ImageViewer.swift */; };
 		5D116AB6E97BB439C1057FCE /* PastedLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31647BC8B35CBD0E08BADA01 /* PastedLinkTests.swift */; };
@@ -655,7 +653,6 @@
 		63275A4C35ED4EFF7754101F /* d3.js in Resources */ = {isa = PBXBuildFile; fileRef = F9539637FC0845A1B6AD2C29 /* d3.js */; };
 		635EB0854859743AEBF90BC5 /* anime.js in Resources */ = {isa = PBXBuildFile; fileRef = CFFEC0432D36C47F49C28AEB /* anime.js */; };
 		637B62F72EAF63CEBE29212D /* ListEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE4742CB403A340CF931A03 /* ListEditing.swift */; };
-		63B8C0E40C655A8710B468AD /* NotePageNetwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97049D2AEE2C89B14A54B08B /* NotePageNetwork.swift */; };
 		642E8498CF240ABF38149885 /* PhoneRenderTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 297A8D5C0D6571D39EBBA5BF /* PhoneRenderTests+Shared.swift */; };
 		643C33C74DEA0C17FDEA431C /* BulletLookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF514831FEE33CB560873B07 /* BulletLookTests.swift */; };
 		64823E1DF5CB4EF7EB81A4D4 /* LinkPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F743BED91F9AD58A3BFA6CCB /* LinkPolicy.swift */; };
@@ -1751,7 +1748,6 @@
 		1FEB7015C9735D0998823A75 /* FilmSlides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmSlides.swift; sourceTree = "<group>"; };
 		205EB78628F64ADE88A5BF62 /* Info-Direct.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Info-Direct.plist"; sourceTree = "<group>"; };
 		208CE096254355D087558FA7 /* LinkedFromMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedFromMenuTests.swift; sourceTree = "<group>"; };
-		209BA8BD7E2B2E18130FE1F6 /* NotePageNetLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageNetLogTests.swift; sourceTree = "<group>"; };
 		20BEF7BDF0FB91CAF7F007D5 /* NetFault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetFault.swift; sourceTree = "<group>"; };
 		21035C8288026E72D5F0D413 /* FormatPanelLookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPanelLookTests.swift; sourceTree = "<group>"; };
 		212906CC78A0D33147DA9115 /* AIEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIEditTests.swift; sourceTree = "<group>"; };
@@ -2220,7 +2216,6 @@
 		9676DA5BDCEE33EF5357B9BF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		96BF2077E54147D5949A2E4B /* EditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorController.swift; sourceTree = "<group>"; };
 		96E8277205CE8467252CB1A6 /* confetti.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = confetti.js; sourceTree = "<group>"; };
-		97049D2AEE2C89B14A54B08B /* NotePageNetwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageNetwork.swift; sourceTree = "<group>"; };
 		977A543BBB6A9AE0D3019BBE /* preact-jsx-runtime.module.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "preact-jsx-runtime.module.js"; sourceTree = "<group>"; };
 		978E50D544DB24F72EA59957 /* AccountSwitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSwitchTests.swift; sourceTree = "<group>"; };
 		978F8AC668B82A7AC132A11E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -2949,7 +2944,6 @@
 				8AFF5865DFB1F37542A9EF3A /* NoteListView.swift */,
 				1DB0DAFE95B79BD85E820E69 /* NotePageDevice.swift */,
 				999D65FF932EF270CB1D17B4 /* NotePageLibraries.swift */,
-				97049D2AEE2C89B14A54B08B /* NotePageNetwork.swift */,
 				1CE7E9207A8F80614C5BB35C /* NotePageProject.swift */,
 				34BFC88418CBABA209D07247 /* NotePageView.swift */,
 				1ABEE5E0E13F4DD195A1FF52 /* NotePictureSheet.swift */,
@@ -3433,7 +3427,6 @@
 				FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */,
 				2856CB2ECE7B50E11419DC6C /* NoteLockTests.swift */,
 				A57B1C31988997DD4107396A /* NoteMoreMenuTests.swift */,
-				209BA8BD7E2B2E18130FE1F6 /* NotePageNetLogTests.swift */,
 				899423D08E417A77E021D351 /* NotePageTests.swift */,
 				39B2AE48742A6251278D61B2 /* NotePictureTests.swift */,
 				ADE746DF5EC2FAE02F068197 /* NotePreloadTests.swift */,
@@ -4715,7 +4708,6 @@
 				0A6B9A9A19248ECD421938B7 /* NoteLockTests.swift in Sources */,
 				04C3A9A03F88D696176FDA96 /* NoteMoreMenuTests.swift in Sources */,
 				243D97CBA0ECF493F4DF7D86 /* NoteOpenTests+Shared.swift in Sources */,
-				238F04FBBB428E8794754CF1 /* NotePageNetLogTests.swift in Sources */,
 				BEA8E72E2F808BDE1C3C1D5E /* NotePageTests.swift in Sources */,
 				C58E10B4E8646D90F9F8E84D /* NotePictureTests.swift in Sources */,
 				890902D4299B130C920C5DEC /* NotePreloadTests.swift in Sources */,
@@ -4975,7 +4967,6 @@
 				E92AC6AF1FE507EBE1778496 /* NotePageData.swift in Sources */,
 				730DED4757B02155361FB0E4 /* NotePageDevice.swift in Sources */,
 				16A1317773F12574F6C85584 /* NotePageLibraries.swift in Sources */,
-				5C6E98AB33671AE17E68D216 /* NotePageNetwork.swift in Sources */,
 				4E40076CD2A78F48319B1D0A /* NotePageProject.swift in Sources */,
 				83D3C7CBEE74D767F5D349E2 /* NotePageView.swift in Sources */,
 				ED99F4D5ECECFE19B9357EC8 /* NotePicture.swift in Sources */,
@@ -5753,7 +5744,6 @@
 				FA3706C99C0A3F68BC5AE172 /* NotePageData.swift in Sources */,
 				FED98958CC1697484A0A2034 /* NotePageDevice.swift in Sources */,
 				E919027807E1DEA72B51E0FC /* NotePageLibraries.swift in Sources */,
-				63B8C0E40C655A8710B468AD /* NotePageNetwork.swift in Sources */,
 				B29F2A3CDF3B7AB2C36912B9 /* NotePageProject.swift in Sources */,
 				2B69CBFA3196047D9F11B805 /* NotePageView.swift in Sources */,
 				B77283614CABE539B96B4CDE /* NotePicture.swift in Sources */,

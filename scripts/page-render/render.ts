@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge, no network)
+// Opens a note's app the way Pinto Notes does (the same CSP, theme, window.amber bridge; the internet refused quietly)
 // in headless WebKit at the widths and color schemes asked for, and measures it: script errors,
 // overflow, contrast, small or faint text, unlabeled controls, an edit from the app, and probes
 // over changed notes. Used by the render service (server.ts, behind check_app and preview_app) and
@@ -10,10 +10,11 @@ import { applyPageOp, importedFrom, noteForPage } from "../../supabase/functions
 import { mergePatch } from "../../supabase/functions/mcp/data_ops.ts";
 import { findTables } from "../../supabase/functions/mcp/notes.ts";
 import { AMBER_BASE_CSS } from "../../supabase/functions/mcp/amber-base.ts";
+import { binaryType, unpackBinary } from "../../supabase/functions/mcp/app_project.ts";
 
 // Pane/Views/NotePageView.swift: NotePageSandbox.policy and sandboxed(_:).
-const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; " +
-  "connect-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
+const POLICY = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: https:; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; " +
+  "connect-src https: wss:; frame-src 'none'; child-src 'none'; worker-src blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'";
 
 // amber-tokens.css as the iPhone app writes it (Pane/Views/NotePageView.swift, NotePageTheme.tokens),
 // then amber-base.css, the file the app ships, unless the page opts out with <meta name="amber-base" content="none">.
@@ -29,7 +30,11 @@ export const TOKENS = `@layer amber-tokens {\n:root { ${vars(false)}; --amber-ra
   `--amber-root-font: 17px/1.35 -apple-system, system-ui, sans-serif; ` +
   `--amber-font: -apple-system, system-ui, sans-serif; --amber-font-rounded: ui-rounded, -apple-system, system-ui, sans-serif; --amber-font-mono: ui-monospace, Menlo, monospace; ` +
   `--amber-safe-top: env(safe-area-inset-top, 0px); --amber-safe-right: env(safe-area-inset-right, 0px); --amber-safe-bottom: env(safe-area-inset-bottom, 0px); --amber-safe-left: env(safe-area-inset-left, 0px); }\n` +
-  `@media (prefers-color-scheme: dark) { :root { ${vars(true)}; } }\n}\n`;
+  `@media (prefers-color-scheme: dark) { :root { ${vars(true)}; } }\n}\n` +
+  // Each again as --pinto-* (the name apps are told to use, 2026-11-14), following its amber one.
+  `@layer amber-tokens { :root { ${[...new Set(["inset-bottom", "keyboard", ...[...vars(false).matchAll(/--amber-([a-z-]+):/g)].map((m) => m[1]),
+    "radius", "radius-small", "content-max", "gutter", "root-font", "font", "font-rounded", "font-mono", "safe-top", "safe-right", "safe-bottom", "safe-left"])]
+    .map((n) => `--pinto-${n}: var(--amber-${n});`).join(" ")} } }\n`;
 const baseOptOut = (html: string) => /<meta[^>]*name=["']amber-base["'][^>]*content=["']none["']/i.test(html);
 
 // Libraries (<meta name="amber-libs">, see supabase/functions/mcp/libraries.ts). The app serves them
@@ -58,7 +63,7 @@ function prepare(html: string): { html: string; integrity: Map<string, string> }
     if (npm) integrity.set(path, npm[2]);
     tags.push(`<script src="${LIB_HOST}${encodeURI(path)}"></script>`);
   }
-  const policy = POLICY.replace("script-src 'unsafe-inline' 'wasm-unsafe-eval'", `script-src 'unsafe-inline' 'wasm-unsafe-eval' ${LIB_HOST}`);
+  const policy = POLICY.replace("script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'", `script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${LIB_HOST}`);
   return {
     html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
       `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(html) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + tags.join("") + rest,
@@ -76,19 +81,20 @@ const ESM: Record<string, string> = { preact: "preact.module.js", "preact-hooks"
 type Bundled = { name: string; global: string; package: string };
 const bundledLibs = (): Bundled[] => JSON.parse(Deno.readTextFileSync(new URL("libraries.json", APP_LIBS))).libraries;
 const kit = (() => { let k: { src: Record<string, string>; compiled: Record<string, string>; css: string } | null = null; return () => (k ??= JSON.parse(Deno.readTextFileSync(new URL("amber-ui.json", APP_LIBS)))); })();
-/** amber-lib:/// and amber-app:/// as this harness serves them. */
-const hosts = (text: string) => text.replaceAll("amber-lib:///", LIB_HOST).replaceAll("amber-app:///", APP_HOST);
+/** pinto-lib:///, pinto-app:/// and their amber names as this harness serves them. */
+const hosts = (text: string) => text.replaceAll(/(?:amber|pinto)-lib:\/\/\//g, LIB_HOST).replaceAll(/(?:amber|pinto)-app:\/\/\//g, APP_HOST);
 
-export type AppProject = { files: Record<string, string>; compiled: Record<string, string> };
+export type AppProject = { files: Record<string, string>; compiled: Record<string, string>; binary: Record<string, string> };
 export function projectOf(stored: string): AppProject | null {
   if (!stored.trimStart().startsWith("{") || !stored.includes('"amberApp"')) return null;
-  try { const p = JSON.parse(stored); return p?.amberApp === 1 && p.files ? { files: p.files, compiled: p.compiled ?? {} } : null; } catch { return null; }
+  try { const p = JSON.parse(stored); return p?.amberApp === 1 && p.files ? { files: p.files, compiled: p.compiled ?? {}, binary: p.binary ?? {} } : null; } catch { return null; }
 }
 
 function importMap(): string {
   const imports: Record<string, string> = {
     preact: `${LIB_HOST}esm/preact.js`, "preact/hooks": `${LIB_HOST}esm/preact-hooks.js`, "preact/jsx-runtime": `${LIB_HOST}esm/preact-jsx-runtime.js`,
     htm: `${LIB_HOST}esm/htm.js`, "amber-router": `${LIB_HOST}esm/amber-router.js`, amber: `${LIB_HOST}esm/amber.js`, "amber-ui": `${LIB_HOST}amber-ui/index.js`,
+    "pinto-router": `${LIB_HOST}esm/amber-router.js`, pinto: `${LIB_HOST}esm/amber.js`, "pinto-ui": `${LIB_HOST}amber-ui/index.js`,
   };
   for (const l of bundledLibs()) if (!["preact", "preact-hooks", "htm", "router"].includes(l.name)) imports[l.package] = `${LIB_HOST}esm/${l.name}.js`;
   // The React stack the app ships (Pane/Resources/AppLibraries/stack.json), and "@/" for /src/.
@@ -104,8 +110,8 @@ function importMap(): string {
 function prepareProject(p: AppProject): string {
   let rest = (p.files["/index.html"] ?? "").replace(/^[\s\uFEFF]+/, "");
   if (/^<!doctype/i.test(rest)) rest = rest.slice(rest.indexOf(">") + 1);
-  const policy = `default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST}; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST}; img-src data: ${APP_HOST}; font-src data: ${APP_HOST}; media-src data: ${APP_HOST}; ` +
-    `connect-src ${APP_HOST}; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
+  const policy = `default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${APP_HOST} ${LIB_HOST} blob: https:; style-src 'unsafe-inline' ${APP_HOST} ${LIB_HOST} https:; img-src data: blob: ${APP_HOST} https:; font-src data: ${APP_HOST} https:; media-src data: blob: ${APP_HOST} https:; ` +
+    `connect-src ${APP_HOST} https: wss:; frame-src 'none'; child-src 'none'; worker-src ${APP_HOST} blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'`;
   return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${policy}"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
     `<style id="amber-tokens">${TOKENS}</style>` + (baseOptOut(rest) ? "" : `<style id="amber-base">${AMBER_BASE_CSS}</style>`) + importMap() + hosts(rest);
 }
@@ -247,7 +253,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
       const s = document.createElement("script"); s.src = "${LIB_HOST}" + name; s.onload = () => ok(window[g]); s.onerror = () => fail(new Error("Couldn't load " + name)); document.head.append(s);
     }),
     context: { embedded: !!window.__amberWidget, width: innerWidth, height: innerHeight },
-    fetch: (url) => { window.__amberFetched && window.__amberFetched(String(url)); return Promise.resolve({ ok: false, error: "The person hasn't allowed this host yet." }); },
+    fetch: (url) => { window.__amberFetched && window.__amberFetched(String(url)); return Promise.resolve({ ok: false, error: "This check runs without the internet." }); },
   };
   amber.batch = async (fn) => {
     if (batching) return fn();
@@ -291,7 +297,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     amber.note = note; if (data) amber.data = data;
     for (const fn of listeners) { try { fn(note, amber.data); } catch (e) { console.error(e); } }
   } });
-  window.amber = amber;
+  window.amber = window.pinto = amber;
   // Links to the person's notes and apps (pinto:Work/Acme) open in Pinto Notes; here they're kept
   // in window.__amberOpened and the page stays where it is, as in the app.
   window.__amberOpened = [];
@@ -302,9 +308,9 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     if (/^pinto:/i.test(href)) { e.preventDefault(); amber.open(href); }
   }, true);
   const sized = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", sized, { once: true }); const w = window.innerWidth, c = document.documentElement.classList;
-    c.toggle("amber-narrow", w < 600); c.toggle("amber-medium", w >= 600 && w < 900); c.toggle("amber-wide", w >= 900); };
+    for (const p of ["amber", "pinto"]) { c.toggle(p + "-narrow", w < 600); c.toggle(p + "-medium", w >= 600 && w < 900); c.toggle(p + "-wide", w >= 900); } };
   sized(); addEventListener("resize", sized);
-  { const w = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", w, { once: true }); document.documentElement.dataset.amberContext = window.__amberWidget ? "widget" : "full"; if (window.__amberWidget) document.documentElement.classList.add("amber-widget"); }; w(); }
+  { const w = () => { if (!document.documentElement) return addEventListener("DOMContentLoaded", w, { once: true }); document.documentElement.dataset.amberContext = document.documentElement.dataset.pintoContext = window.__amberWidget ? "widget" : "full"; if (window.__amberWidget) document.documentElement.classList.add("amber-widget", "pinto-widget"); }; w(); }
 })();`;
 
 type DataDoc = { values: Record<string, unknown>; collections: Record<string, unknown> };
@@ -505,7 +511,7 @@ for (const f of ${JSON.stringify(files)}) {
 }
 window.__testResults = { results, errors };
 </script></body></html>`;
-  return JSON.stringify({ amberApp: 1, files: { ...p.files, "/index.html": html }, compiled: p.compiled });
+  return JSON.stringify({ amberApp: 1, files: { ...p.files, "/index.html": html }, compiled: p.compiled, binary: p.binary });
 }
 
 async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>): Promise<Render> {
@@ -591,7 +597,9 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
     // cover the whole context, so even its first request is refused).
     ctx.on("page", (p) => { blocked.push("window.open"); p.close().catch(() => {}); });
     const errors: string[] = [];
-    page.on("console", (m) => { if (m.type() === "error") errors.push(m.text().slice(0, 300)); });
+    // A load that failed is reported where it's refused (a missing file, a blocked library), not as
+    // the browser's console line: an internet request refused here isn't the app's fault.
+    page.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource|due to access control checks/.test(m.text())) errors.push(m.text().slice(0, 300)); });
     page.on("pageerror", (e) => errors.push(`pageerror: ${String(e.message).slice(0, 300)}`));
     // The document is served at one made-up address, so init scripts run on it like the app's
     // user script; every other request is recorded and refused.
@@ -602,6 +610,12 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       const u = r.request().url();
       if (u === home) return r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: prepared.html });
       if (project && u.startsWith(APP_HOST)) {
+        // A binary file (a .wasm, a game's data): its bytes as they are, with their type.
+        const stored = project.binary[decodeURIComponent(new URL(u).pathname)];
+        if (stored !== undefined) {
+          return unpackBinary(stored).then((body) => r.fulfill({ status: 200, contentType: binaryType(new URL(u).pathname), headers: { "access-control-allow-origin": "*" }, body: Buffer.from(body) }))
+            .catch((e) => { errors.push(`${new URL(u).pathname}: ${(e as Error).message}`); return r.fulfill({ status: 500, body: "" }); });
+        }
         const f = serveFile(project, "/" + decodeURIComponent(new URL(u).pathname.slice(1)), new URL(u).search.slice(1));
         if (!f) { errors.push(`missing file: ${new URL(u).pathname}`); return r.fulfill({ status: 404, body: "" }); }
         return r.fulfill({ status: 200, contentType: `${f.type}; charset=utf-8`, headers: { "access-control-allow-origin": "*" }, body: f.body });
@@ -616,10 +630,15 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
           return r.fulfill({ status: 200, contentType: "text/javascript; charset=utf-8", headers: { "access-control-allow-origin": "*" }, body: Buffer.from(bytes) });
         });
       }
-      if (u.startsWith("data:")) return r.continue();
+      if (u.startsWith("data:") || u.startsWith("blob:")) return r.continue();
+      // The internet: open to the app on the device, refused here without counting against it. This
+      // service runs on a server, so it never makes requests the app asks for (2026-11-14).
+      if (u.startsWith("https:")) return r.abort("internetdisconnected");
       blocked.push(u);
       return r.abort();
     });
+    // WebSockets too: answered by nothing, so nothing leaves this server.
+    await ctx.routeWebSocket(/.*/, () => {});
     await page.exposeFunction("__amberUpdate", async (op: unknown) => {
       try {
         md = applyPageOp(md, op);

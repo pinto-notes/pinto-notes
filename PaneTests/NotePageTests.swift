@@ -183,6 +183,37 @@ import AppKit
         Issue.record("timed out waiting for \(until)")
     }
 
+    /// A note app reaches the internet like a web page (2026-11-14): fetch, XMLHttpRequest, an image
+    /// and a WebSocket to https and wss addresses leave the sandbox with no prompt. Here each goes to
+    /// a listener of its own on this Mac, which sees the connection (the TLS handshake then fails:
+    /// the listener speaks no TLS, which doesn't matter for what's tested).
+    @Test func aPageReachesHTTPSAndWSSAddresses() async throws {
+        var ports: [String: UInt16] = [:]
+        var listeners: [String: Listener] = [:]
+        for kind in ["fetch", "xhr", "img", "ws", "amber.fetch"] {
+            let l = try Listener()
+            ports[kind] = try await l.start()
+            listeners[kind] = l
+        }
+        defer { for l in listeners.values { l.listener.cancel() } }
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: """
+        <main>online</main><script>
+          window.__tried = [];
+          fetch("https://127.0.0.1:\(ports["fetch"]!)/f").catch(() => {}).finally(() => __tried.push("fetch"));
+          const x = new XMLHttpRequest(); x.open("GET", "https://127.0.0.1:\(ports["xhr"]!)/x"); x.onloadend = () => __tried.push("xhr"); x.send();
+          const i = new Image(); i.onerror = i.onload = () => __tried.push("img"); i.src = "https://127.0.0.1:\(ports["img"]!)/i.png";
+          try { const w = new WebSocket("wss://127.0.0.1:\(ports["ws"]!)/w"); w.onerror = w.onclose = () => __tried.push("ws"); } catch (e) { __tried.push("ws refused: " + e); }
+          // An app written for the old proxy: amber.fetch is the web's fetch now.
+          amber.fetch("https://127.0.0.1:\(ports["amber.fetch"]!)/old").then((r) => __tried.push("amber.fetch " + r.ok));
+        </script>
+        """, body: "Online")
+        for _ in 0..<100 where listeners.values.contains(where: { $0.connections == 0 }) { try await Task.sleep(for: .milliseconds(50)) }
+        for (kind, l) in listeners { #expect(l.connections > 0, "\(kind) didn't leave the sandbox") }
+        #expect(!sandbox.blocked.contains { $0.contains("127.0.0.1") })
+    }
+
+    /// Plain http, frames, forms, beacons, windows and navigation stay off: only https and wss leave.
     @Test func aPageCanReachNothingOutside() async throws {
         // Without the sandbox, the same page does reach a listener: the test can tell. (Its own
         // listener, so its late requests can't count against the sandbox.)
@@ -208,47 +239,158 @@ import AppKit
         let results = try await sandbox.webView.evaluateJavaScript("window.__results") as? [String]
         #expect(results == ["fetch blocked", "xhr blocked", "image blocked"])
         #expect(server.connections == before, "the sandboxed page reached the network")
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html")
         #expect(sandbox.blocked.contains { $0.hasPrefix("navigation \(base)") })
     }
 
-    /// A note app can run WebAssembly ('wasm-unsafe-eval'), so a real engine like Doom runs in a
-    /// note; eval and new Function stay refused (2026-11-14).
-    @Test func aPageRunsWebAssemblyButNotEval() async throws {
+    /// A note app runs WebAssembly, eval and new Function, and Web Workers from its own files and
+    /// from blobs, as on any web page (2026-11-14). A worker has no bridge to the note.
+    @Test func aPageRunsWebAssemblyEvalAndWorkers() async throws {
+        let project = NotePageProject(files: [
+            "/index.html": """
+            <main>wasm</main><script>
+              // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
+              const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
+              window.__wasm = null; window.__file = null; window.__blob = null;
+              WebAssembly.instantiate(bytes).then((r) => { window.__wasm = r.instance.exports.add(2, 40); }, (e) => { window.__wasm = "refused: " + e; });
+              try { window.__eval = eval("1 + 1") + " " + new Function("return 'ran'")(); } catch (e) { window.__eval = "refused: " + e; }
+              try {
+                const w = new Worker("/worker.js");
+                w.onmessage = (e) => { window.__file = e.data; };
+                w.onerror = (e) => { window.__file = "error: " + (e.message || "load"); };
+                w.postMessage(20);
+              } catch (e) { window.__file = "refused: " + e; }
+              try {
+                const b = new Worker(URL.createObjectURL(new Blob(["onmessage = (e) => postMessage([e.data * 2, typeof webkit])"], { type: "text/javascript" })));
+                b.onmessage = (e) => { window.__blob = e.data.join(" "); };
+                b.onerror = (e) => { window.__blob = "error: " + (e.message || "load"); };
+                b.postMessage(21);
+              } catch (e) { window.__blob = "refused: " + e; }
+            </script>
+            """,
+            "/worker.js": "onmessage = (e) => postMessage(e.data + 22);",
+        ])
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
-        sandbox.load(html: """
-        <main>wasm</main><script>
-          // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
-          const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
-          window.__wasm = null;
-          WebAssembly.instantiate(bytes).then((r) => { window.__wasm = r.instance.exports.add(2, 40); }, (e) => { window.__wasm = "refused: " + e; });
-          try { window.__eval = new Function("return 'ran'")(); } catch (e) { window.__eval = "refused"; }
+        sandbox.load(html: project.stored, body: "Wasm")
+        try await run(sandbox.webView, until: "window.__wasm != null && window.__file != null && window.__blob != null")
+        let js = { (s: String) async throws -> String? in try await sandbox.webView.evaluateJavaScript("String(\(s))") as? String }
+        #expect(try await js("window.__wasm") == "42")
+        #expect(try await js("window.__eval") == "2 ran")
+        #expect(try await js("window.__file") == "42", "a worker from the app's own file")
+        // From a blob too, and in a worker there's no webkit bridge to reach the note through.
+        #expect(try await js("window.__blob") == "42 undefined")
+    }
+
+    /// The Pinto names (2026-11-14): window.pinto, the "pinto", "pinto-ui" and "pinto-router"
+    /// imports, pinto-app:/pinto-lib:/pinto-file:, the --pinto-* variables and pinto-* classes; and
+    /// every amber name an older app uses still works, as the same thing.
+    @Test func appsUseThePintoNamesAndTheAmberOnesStillWork() async throws {
+        let project = NotePageProject(files: [
+            "/index.html": """
+            <main id="m">names</main>
+            <script type="module">
+              import { pinto, useStore } from "pinto";
+              import * as old from "amber";
+              import { Button } from "pinto-ui";
+              import { Router } from "pinto-router";
+              import { helper } from "pinto-app:///src/helper.js";
+              import { helper as again } from "/src/helper.js";
+              const root = getComputedStyle(document.documentElement);
+              const c = document.documentElement.classList;
+              window.__names = [
+                pinto === window.pinto, window.pinto === window.amber, old.amber === pinto, typeof useStore, typeof Button, typeof Router,
+                helper(), helper === again, location.href,
+                root.getPropertyValue("--pinto-accent").trim() !== "" && root.getPropertyValue("--pinto-accent") === root.getPropertyValue("--amber-accent"),
+                c.contains("pinto-narrow") || c.contains("pinto-medium") || c.contains("pinto-wide"),
+                document.documentElement.dataset.pintoContext,
+                pinto.files.url("00000000-0000-0000-0000-000000000000").split(":")[0],
+              ].join(" ");
+            </script>
+            """,
+            "/src/helper.js": "export const helper = () => \"helped\";",
+        ])
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: project.stored, body: "Names")
+        try await run(sandbox.webView, until: "window.__names != null")
+        let names = try await sandbox.webView.evaluateJavaScript("window.__names") as? String
+        #expect(names == "true true true function function function helped true pinto-app:///index.html true true full pinto-file")
+        #expect(NotePageSandbox.policy.contains("pinto-app: amber-app:") && NotePageSandbox.rules.contains("^pinto-file:"))
+    }
+
+    /// A project's binary files (2026-11-14) are served as they are, with the web's type: a .wasm
+    /// compiles with instantiateStreaming (which needs application/wasm) and a game's data arrives
+    /// byte for byte, with no base64 in the app.
+    @Test func binaryFilesAreServedAsTheyAre() async throws {
+        // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
+        let wasm = Data([0, 97, 115, 109, 1, 0, 0, 0, 1, 7, 1, 96, 2, 127, 127, 1, 127, 3, 2, 1, 0, 7, 7, 1, 3, 97, 100, 100, 0, 0, 10, 9, 1, 7, 0, 32, 0, 32, 1, 106, 11])
+        let wad = Data((0..<300_000).map { (i: Int) -> UInt8 in i % 7 == 0 ? 0 : UInt8(i % 251) })
+        let project = NotePageProject(files: ["/index.html": """
+        <main>bytes</main><script>
+          window.__out = null;
+          (async () => {
+            const { instance } = await WebAssembly.instantiateStreaming(fetch("/engine/add.wasm"), {});
+            const r = await fetch("data.wad");
+            const b = new Uint8Array(await r.arrayBuffer());
+            window.__out = [instance.exports.add(2, 40), b.length, b[1], b[7], r.headers.get("content-type")].join(" ");
+          })().catch((e) => { window.__out = "failed: " + e; });
         </script>
-        """, body: "Wasm")
-        try await run(sandbox.webView, until: "window.__wasm !== null && window.__wasm !== undefined")
-        let wasm = try await sandbox.webView.evaluateJavaScript("String(window.__wasm)") as? String
-        #expect(wasm == "42")
-        #expect(try await sandbox.webView.evaluateJavaScript("window.__eval") as? String == "refused")
+        """], binary: ["/engine/add.wasm": NotePageProject.pack(wasm), "/data.wad": NotePageProject.pack(wad)])
+        #expect(project.problem == nil)
+        // Stored compressed, and back the same.
+        #expect(NotePageProject.parse(project.stored) == project)
+        #expect(NotePageProject.unpack(project.binary["/data.wad"]!) == wad)
+        #expect(project.binary["/data.wad"]!.utf8.count < wad.base64EncodedString().utf8.count / 2)
+        #expect(project.serve("/engine/add.wasm")?.type == "application/wasm")
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: project.stored, body: "Bytes")
+        try await run(sandbox.webView, until: "window.__out !== null && window.__out !== undefined")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__out") as? String == "42 300000 1 0 application/octet-stream")
+        // A text project is stored as before: no binary key.
+        #expect(!NotePageProject(files: ["/index.html": "<p>", "/a.js": ""]).stored.contains("binary"))
+        // A small file that would unpack into a huge one isn't served.
+        #expect(NotePageProject.unpack(NotePageProject.pack(Data(count: 2_000_000)), max: 1_000_000) == nil)
+    }
+
+    /// A web project's folder becomes an app as it is on disk: text as text, the rest binary,
+    /// hidden files left out; a folder an app can't be made from says why.
+    @Test func aFolderBecomesAnApp() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "folder-app-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir.appending(path: "assets"), withIntermediateDirectories: true)
+        try Data("<!doctype html><p>hi</p>".utf8).write(to: dir.appending(path: "index.html"))
+        try Data("console.log(1)".utf8).write(to: dir.appending(path: "assets/app.js"))
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13]).write(to: dir.appending(path: "assets/logo.png"))
+        try Data("x".utf8).write(to: dir.appending(path: ".DS_Store"))
+        let p = try NotePageProject.folder(dir)
+        #expect(Set(p.files.keys) == ["/index.html", "/assets/app.js"])
+        #expect(Set(p.binary.keys) == ["/assets/logo.png"])
+        #expect(p.serve("/assets/logo.png")?.type == "image/png")
+        try Data("x".utf8).write(to: dir.appending(path: "a b.js"))
+        #expect(throws: NotePageProject.FolderError.self) { try NotePageProject.folder(dir) }
+        try FileManager.default.removeItem(at: dir.appending(path: "index.html"))
+        #expect(throws: NotePageProject.FolderError.self) { try NotePageProject.folder(dir) }
     }
 
     #if os(macOS)
     /// Doom (doomgeneric + the shareware DOOM1.WAD) as a note app, through the real loading path and
-    /// policy, in a web view that is never on screen. Runs only when DOOM_DIR names a folder with the
-    /// app's files (index.html, main.js, doom.js, README.md) and its two binaries (doom.wasm, DOOM1.WAD),
-    /// which become doom.wasm.b64 and doom1.wad.b64 as in the stored project; DOOM_SHOTS is a folder for
-    /// its pictures (TEST_RUNNER_DOOM_DIR, TEST_RUNNER_DOOM_SHOTS).
+    /// policy, in a web view that is never on screen. Runs only when DOOM_DIR names the app's folder as
+    /// it's built (index.html, main.js, touch.js, doom.js, README.md, and the raw doom.wasm and
+    /// doom1.wad, which the app stores as binary files, 2026-11-14); DOOM_SHOTS is a folder for its
+    /// pictures and report (TEST_RUNNER_DOOM_DIR, TEST_RUNNER_DOOM_SHOTS).
     @Test func doomRunsInANoteApp() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let dir = env["DOOM_DIR"], let shots = env["DOOM_SHOTS"] else { return }
         try FileManager.default.createDirectory(atPath: shots, withIntermediateDirectories: true)
-        let from = URL(fileURLWithPath: dir)
-        var files: [String: String] = [:]
-        for name in ["index.html", "main.js", "doom.js", "README.md"] { files["/" + name] = try String(contentsOf: from.appending(path: name), encoding: .utf8) }
-        files["/doom.wasm.b64"] = try Data(contentsOf: from.appending(path: "doom.wasm")).base64EncodedString()
-        files["/doom1.wad.b64"] = try Data(contentsOf: from.appending(path: "DOOM1.WAD")).base64EncodedString()
-        let stored = try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": files, "compiled": [String: String]()], options: [.sortedKeys]), encoding: .utf8))
-        let parsed = NotePageProject.parse(stored)
-        #expect(parsed != nil, "over the app's limits")
+        let project = try NotePageProject.folder(URL(fileURLWithPath: dir))
+        #expect(Set(project.binary.keys) == ["/doom.wasm", "/doom1.wad"])
+        let stored = project.stored
+        #expect(NotePageProject.parse(stored) == project, "over the app's limits")
+        // What the same app took as base64 text files before binary files.
+        var old = project.files
+        for (path, packed) in project.binary { old[path + ".b64"] = try #require(NotePageProject.unpack(packed)).base64EncodedString() }
+        let oldStored = try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": old, "compiled": [String: String]()], options: [.sortedKeys]), encoding: .utf8))
+        #expect(stored.utf8.count < oldStored.utf8.count / 2, "stored \(stored.utf8.count) bytes, was \(oldStored.utf8.count)")
+        let sizes = "stored \(stored.utf8.count) bytes (binary files), was \(oldStored.utf8.count) (base64 text files)"
         let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
         let web = sandbox.webView
         let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 640, height: 528), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -312,18 +454,18 @@ import AppKit
         let loadMs = (try? await js("[doom.loadMs, doom.startMs, doom.wadSha1 || 'no subtle crypto']")) as? [Any] ?? []
         // How fast it could go: Doom's own benchmark (-timedemo demo1: a tic and a frame per call, no
         // waiting), on a copy of the app that starts with it, 700 frames as fast as they come.
-        var bench = files
-        bench["/main.js"] = files["/main.js"]?.replacingOccurrences(of: #"["-iwad", "/doom1.wad"]"#, with: #"["-iwad", "/doom1.wad", "-timedemo", "demo1"]"#)
-        #expect(bench["/main.js"] != files["/main.js"])
+        var bench = project
+        bench.files["/main.js"] = project.files["/main.js"]?.replacingOccurrences(of: #"["-iwad", "/doom1.wad"]"#, with: #"["-iwad", "/doom1.wad", "-timedemo", "demo1"]"#)
+        #expect(bench.files["/main.js"] != project.files["/main.js"])
         let second = NotePageSandbox(rules: try await NotePageSandbox.prepare())
-        second.load(html: try #require(String(data: try JSONSerialization.data(withJSONObject: ["amberApp": 1, "files": bench, "compiled": [String: String]()]), encoding: .utf8)), body: "Doom")
+        second.load(html: bench.stored, body: "Doom")
         for _ in 0..<300 where ((try? await second.webView.evaluateJavaScript("window.doom ? doom.state : ''")) as? String) != "running" { try await Task.sleep(for: .milliseconds(100)) }
         let flat = try await second.webView.evaluateJavaScript("(() => { const t0 = performance.now(); let n = 0; try { for (; n < 700; n++) doom.step(1); } catch (e) {} return [n, performance.now() - t0]; })()") as? [Double] ?? []
         #expect(timed.count == 3 && flat.count == 2)
         if timed.count == 3, flat.count == 2 {
             let fps = timed[0] / (timed[2] / 1000), ms = flat[1] / max(1, flat[0])
             #expect(fps > 30, "Doom runs at 35 fps")
-            let report = "fps \(String(format: "%.1f", fps)) (Doom's cap is 35); flat out (-timedemo demo1) \(Int(flat[0])) frames in \(Int(flat[1])) ms = \(String(format: "%.2f", ms)) ms a frame, \(Int(1000 / ms)) fps possible; offscreen timer loop \(String(format: "%.1f", shown)) fps (hidden view, timers slowed); load ms, start ms, WAD SHA-1 \(loadMs); ready \(ready); failures \(failures); log: \(inGame)\n"
+            let report = "fps \(String(format: "%.1f", fps)) (Doom's cap is 35); flat out (-timedemo demo1) \(Int(flat[0])) frames in \(Int(flat[1])) ms = \(String(format: "%.2f", ms)) ms a frame, \(Int(1000 / ms)) fps possible; offscreen timer loop \(String(format: "%.1f", shown)) fps (hidden view, timers slowed); load ms, start ms, WAD SHA-1 \(loadMs); \(sizes); ready \(ready); failures \(failures); log: \(inGame)\n"
             try report.write(to: URL(fileURLWithPath: shots).appending(path: "report.txt"), atomically: true, encoding: .utf8)
         }
     }
@@ -577,100 +719,6 @@ import AppKit
         #expect(throws: NotePage.OpError("No heading Budget.")) { try apply(["op": "set_text", "heading": "Budget", "text": "x"], to: body) }
     }
 
-    // MARK: Network and API keys
-
-    /// A local server that answers {"ok":true} and keeps what it was sent.
-    final class Echo: @unchecked Sendable {
-        let listener: NWListener
-        private let lock = NSLock()
-        private var got: [String] = []
-        var requests: [String] { lock.withLock { got } }
-
-        init() throws {
-            let params = NWParameters.tcp
-            params.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
-            listener = try NWListener(using: params)
-            listener.newConnectionHandler = { [weak self] c in
-                guard let me = self else { return }
-                c.start(queue: .global())
-                c.receive(minimumIncompleteLength: 1, maximumLength: 65536) { data, _, _, _ in
-                    if let data, let s = String(data: data, encoding: .utf8) { me.lock.withLock { me.got.append(s) } }
-                    let body = #"{"ok":true}"#
-                    c.send(content: Data("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)".utf8),
-                           completion: .contentProcessed { _ in c.cancel() })
-                }
-            }
-        }
-
-        func start() async throws -> UInt16 {
-            listener.start(queue: .global())
-            for _ in 0..<100 {
-                if let p = listener.port?.rawValue, p != 0 { return p }
-                try await Task.sleep(for: .milliseconds(20))
-            }
-            throw CancellationError()
-        }
-    }
-
-    @Test func aPageDeclaresHostsAndKeys() {
-        let html = #"<meta name="amber-needs" content='{"hosts":["API.Open-Meteo.com"],"keys":[{"name":"OpenWeather","hosts":["api.openweathermap.org"],"query":"appid={key}","help":"Free at openweathermap.org"}]}'><p>x</p>"#
-        let n = NotePageNetwork.needs(of: html)
-        #expect(n.hosts == ["api.open-meteo.com"])
-        #expect(n.keys.first?.name == "OpenWeather" && n.keys.first?.query == "appid={key}")
-        #expect(NotePageNetwork.needs(of: "<p>none</p>") == .init())
-        // Either list may be left out.
-        #expect(NotePageNetwork.needs(of: #"<meta name="amber-needs" content='{"hosts":["a.example"]}'>"#).hosts == ["a.example"])
-        #expect(NotePageNetwork.needs(of: #"<meta name="amber-needs" content='{"keys":[{"name":"K","hosts":["b.example"]}]}'>"#).keys.map(\.name) == ["K"])
-        var r = URLRequest(url: URL(string: "https://api.openweathermap.org/data?q=Lisbon")!)
-        try? NotePageNetwork.inject(n.keys[0], value: "s3cret", into: &r)
-        #expect(r.url?.absoluteString == "https://api.openweathermap.org/data?q=Lisbon&appid=s3cret")
-        var h = URLRequest(url: URL(string: "https://api.example.com/x")!)
-        try? NotePageNetwork.inject(.init(name: "X", hosts: [], header: "Authorization: Bearer {key}"), value: "s3cret", into: &h)
-        #expect(h.value(forHTTPHeaderField: "Authorization") == "Bearer s3cret")
-        #expect(NotePageNetwork.carriesNoteText("https://x.example/?q=Buy%20running%20shoes", note: "Todo\n- [ ] Buy running shoes"))
-        #expect(!NotePageNetwork.carriesNoteText("https://x.example/?q=weather", note: "Todo\n- [ ] Buy running shoes"))
-    }
-
-    @Test func fetchGoesOnlyWhereAllowedAndKeepsTheKeyOutOfThePageAndTheLog() async throws {
-        let echo = try Echo()
-        let port = try await echo.start()
-        defer { echo.listener.cancel() }
-        let host = "127.0.0.1:\(port)"
-        let html = #"<meta name="amber-needs" content='{"hosts":["\#(host)"],"keys":[{"name":"Demo","hosts":["\#(host)"],"header":"X-Api-Key: {key}"}]}'>"#
-        let note = Note(body: "Trip\n\nMeet Sara at the Alfama gate")
-        let netLog = NotePageNetLog(defaults: nil)
-        var asked: [String] = []
-        var needed: [String] = []
-        func fetch(_ m: [String: Any], allow: Bool = true) async throws -> [String: Any] {
-            try await NotePageNetwork.fetch(m, note: note, html: html, log: netLog, ask: { asked.append($0); return allow }, needKey: { needed.append($0.name) })
-        }
-        // Undeclared hosts never go out; a refusal sends nothing.
-        await #expect(throws: NotePage.OpError.self) { _ = try await fetch(["url": "https://example.com/"]) }
-        await #expect(throws: NotePage.OpError("You didn't allow this app to reach \(host).")) { _ = try await fetch(["url": "http://\(host)/a"], allow: false) }
-        #expect(echo.requests.isEmpty)
-        // Allowed once, then not asked again; what was sent is logged, marked when it carries note text.
-        let r = try await fetch(["url": "http://\(host)/a?q=Meet%20Sara%20at%20the%20Alfama%20gate"])
-        #expect(r["status"] as? Int == 200 && r["body"] as? String == #"{"ok":true}"#)
-        _ = try await fetch(["url": "http://\(host)/b"])
-        #expect(asked == [host, host])
-        let log = netLog.entries[note.id] ?? []
-        #expect(log.count == 2 && log[0].carriesNoteText && !log[1].carriesNoteText)
-        // A key that isn't set up shows the card instead of sending.
-        await #expect(throws: NotePage.OpError.self) { _ = try await fetch(["url": "http://\(host)/k", "key": "Demo"]) }
-        #expect(needed == ["Demo"])
-        // Set up, it's added by the app: the server gets it; the log and the page don't.
-        APIKeyStore.shared.save(.init(name: "Demo", hosts: [host], header: "X-Api-Key: {key}"), value: "s3cret-value")
-        defer { APIKeyStore.shared.remove("Demo") }
-        let k = try await fetch(["url": "http://\(host)/k?echo=s3cret-value", "key": "Demo"])
-        #expect(!(k.description.contains("s3cret-value") && !(k["body"] as? String ?? "").contains("s3cret")))
-        #expect(echo.requests.last?.contains("X-Api-Key: s3cret-value") == true)
-        #expect(netLog.entries[note.id]?.last?.url.contains("s3cret-value") == false)
-        #expect(netLog.entries[note.id]?.last?.key == "Demo")
-        // A key listed for other hosts isn't sent here.
-        APIKeyStore.shared.save(.init(name: "Demo", hosts: ["api.example.com"], header: "X-Api-Key: {key}"), value: "s3cret-value")
-        await #expect(throws: NotePage.OpError("The Demo key isn't sent to \(host).")) { _ = try await fetch(["url": "http://\(host)/k", "key": "Demo"]) }
-    }
-
     // MARK: Shortcuts
 
     @Test func shortcutsAddToTheEndOfANote() throws {
@@ -741,10 +789,9 @@ import AppKit
             }
         }
         #expect(asked.count == 6)
-        #expect(NoteDetailView.HostAsk(host: "leak.example", link: links[0]) { _ in }.title == "This app wants to open a link")
-        #expect(NoteDetailView.HostAsk(host: "", link: links[1]) { _ in }.title == "This app wants to start an email")
-        #expect(NoteDetailView.HostAsk(host: "", link: links[2]) { _ in }.title == "This app wants to start a call")
-        #expect(NoteDetailView.HostAsk(host: "api.example.org") { _ in }.title == "This app wants to reach api.example.org")
+        #expect(NoteDetailView.HostAsk(link: links[0]) { _ in }.title == "This app wants to open a link")
+        #expect(NoteDetailView.HostAsk(link: links[1]) { _ in }.title == "This app wants to start an email")
+        #expect(NoteDetailView.HostAsk(link: links[2]) { _ in }.title == "This app wants to start a call")
     }
 
     /// Saving an app's data writes its row again, stamped with the device that saved. That is not
@@ -972,7 +1019,7 @@ import AppKit
         try await Task.sleep(for: .milliseconds(400))
         #expect(opened.count == 4 && asked.isEmpty, "other links open nothing and ask nothing")
         #expect(sandbox.blocked.contains("navigation https://example.org/"), "a web link stays blocked, as before: device.openURL asks")
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html", "the app stayed where it was")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html", "the app stayed where it was")
 
         // Past the bridge's own functions: still only a tapped link to a note.
         await #expect(throws: NotePage.OpError.self) {
@@ -1170,19 +1217,8 @@ import AppKit
         #expect(try await sandbox.webView.evaluateJavaScript("window.__r") as? String == "255")
     }
 
-    @Test func wildcardHostsCoverWholeLabelsOnly() {
-        typealias N = NotePageNetwork
-        #expect(N.rule(for: "ia800505.us.archive.org", in: ["*.archive.org"]) == "*.archive.org")
-        #expect(N.rule(for: "archive.org", in: ["*.archive.org"]) == nil)
-        #expect(N.rule(for: "evilarchive.org", in: ["*.archive.org"]) == nil)
-        #expect(N.rule(for: "example.org", in: ["*.org"]) == nil)
-        #expect(N.rule(for: "covers.openlibrary.org", in: ["*.openlibrary.org", "covers.openlibrary.org"]) == "covers.openlibrary.org")
-        #expect(N.shown("*.archive.org") == "archive.org and its servers")
-    }
-
     /// Declarations written over several lines are read like one-line ones.
     @Test func declarationsCanSpanLines() {
-        #expect(NotePageNetwork.needs(of: "<meta name=\"amber-needs\" content='{\n\"hosts\": [\"api.example.com\"]\n}'>").hosts == ["api.example.com"])
         #expect(NotePageLibraries.declared(in: "<meta name=\"amber-libs\" content=\"chart,\n d3\">").count == 2)
     }
 
@@ -1251,7 +1287,7 @@ import AppKit
         _ = try await sandbox.webView.evaluateJavaScript("document.getElementById('go').click(); 1")
         try await run(sandbox.webView, until: "document.getElementById('item') !== null")
         #expect(try await sandbox.webView.evaluateJavaScript("document.getElementById('item').textContent") as? String == "item 7")
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html")
     }
 
     /// Something too wide in an app never makes the whole page pan sideways.
@@ -1356,7 +1392,7 @@ import AppKit
         try await run(sandbox.webView, until: "document.querySelector('h1').textContent === 'Plan'")
         // The source of each component ships too, for copying into the app's /src/components.
         #expect(NotePageLibraries.kit?.src["Button.jsx"]?.contains("export function Button") == true)
-        #expect(sandbox.webView.url?.absoluteString == "amber-app:///index.html")
+        #expect(sandbox.webView.url?.absoluteString == "pinto-app:///index.html")
     }
 
     /// The "amber" module: tables and checklists by heading, edits through the usual ops, batch()
@@ -1673,40 +1709,5 @@ import AppKit
         #expect(try await sandbox.webView.evaluateJavaScript("window.__r.pkg") as? String == "from the device")
         #expect(try await sandbox.webView.evaluateJavaScript("window.__r.other") as? String == "refused")
         #expect(NotePageLibraries.downloaded(for: "<meta name=\"amber-libs\" content=\"npm:tiny-pkg@1.0.0/index.js#\(good)\">") == ["tiny-pkg 1.0.0"])
-    }
-
-    @Test func redirectsGoOnlyToDeclaredAllowedHosts() async throws {
-        let target = try Echo()
-        let tport = try await target.start()
-        defer { target.listener.cancel() }
-        // A server that sends every request on to the target.
-        let hop = try NWListener(using: { let p = NWParameters.tcp; p.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any); return p }())
-        hop.newConnectionHandler = { c in
-            c.start(queue: .global())
-            c.receive(minimumIncompleteLength: 1, maximumLength: 65536) { _, _, _, _ in
-                c.send(content: Data("HTTP/1.1 302 Found\r\nLocation: http://localhost:\(tport)/landed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".utf8),
-                       completion: .contentProcessed { _ in c.cancel() })
-            }
-        }
-        hop.start(queue: .global())
-        defer { hop.cancel() }
-        for _ in 0..<100 where hop.port == nil || hop.port?.rawValue == 0 { try await Task.sleep(for: .milliseconds(20)) }
-        let from = "127.0.0.1:\(hop.port!.rawValue)", to = "localhost:\(tport)"
-        let note = Note(body: "Redirects")
-        let netLog = NotePageNetLog(defaults: nil)
-        func fetch(_ hosts: [String]) async throws -> [String: Any] {
-            let html = #"<meta name="amber-needs" content='{"hosts":\#(hosts.map { "\"\($0)\"" }.joined(separator: ","))]}'>"#
-                .replacingOccurrences(of: "{\"hosts\":", with: "{\"hosts\":[")
-            return try await NotePageNetwork.fetch(["url": "http://\(from)/start"], note: note, html: html, log: netLog, ask: { _ in true }, needKey: { _ in })
-        }
-        // Not declared: not followed, and nothing reaches it.
-        await #expect(throws: NotePage.OpError.self) { _ = try await fetch([from]) }
-        #expect(target.requests.isEmpty)
-        #expect(netLog.entries[note.id]?.last?.url.contains("/landed") == true)
-        // Declared and allowed: followed, and the hop is logged.
-        netLog.approve(to, for: note.id)
-        let r = try await fetch([from, to])
-        #expect(r["status"] as? Int == 200)
-        #expect(target.requests.count == 1)
     }
 }

@@ -239,6 +239,21 @@ describe("privacy copy", () => {
     expect(policy).toMatch(/\| Consent, which you can withdraw at any time with Cookie settings \|/);
   });
 
+  it("says note apps reach the internet directly and see only their own note, with no ask-first proxy (14 November 2026)", () => {
+    const apps = policy.slice(policy.indexOf("## Notes that are apps"), policy.indexOf("## Shared notes"));
+    expect(apps).toContain("it reaches the internet directly");
+    expect(apps).toContain("It sees the one note it belongs to and its own data");
+    const help = HELP.find((f) => f.id === "apps")?.a.join(" ") ?? "";
+    if (help) {
+      expect(help).toContain("sees only its own note and the data it saves");
+      expect(help).toContain("reaches the internet directly");
+    }
+    for (const gone of ["Pinto Notes asks you first", "Settings → API Keys", "can't reach the internet", "no connection to the internet"]) {
+      expect(all).not.toContain(gone);
+      expect(help).not.toContain(gone);
+    }
+  });
+
   it("is a cream page that ends in the dark band, like Help and the changelog (site audit, 13 October 2026)", () => {
     expect(themeFor(PRIVACY_PATH)).toBe("cream");
   });

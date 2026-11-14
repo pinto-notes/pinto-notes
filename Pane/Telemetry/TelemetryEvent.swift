@@ -399,7 +399,6 @@ enum TodayFolderWord: String, TelemetryWord { case `default`, custom }
 /// A page of Settings, Mac or iPhone.
 enum SettingsPageWord: String, TelemetryWord {
     case account, ai, general, appearance, security, storage, help
-    case appKeys = "app_keys"
     case personal
     case signIn = "sign_in"
     case encryption
@@ -411,7 +410,6 @@ enum SettingsPageWord: String, TelemetryWord {
 
     init(_ page: SettingsPage) {
         switch page {
-        case .appKeys: self = .appKeys
         case .aiConnection: self = .aiConnection
         case .addAI: self = .addAI
         case .signIn: self = .signIn

@@ -25,7 +25,7 @@ export const TOOL_CATEGORY: Readonly<Record<string, UseCategory>> = {
   set_note_page: "edit", edit_note_page: "edit", get_note_page: "read", get_page_data: "read", query_app_data: "read",
   update_page_data: "edit", create_app: "create", list_app_files: "read", read_app_file: "read", write_app_file: "edit",
   edit_app_file: "edit", delete_app_file: "delete_move", move_app_file: "delete_move",
-  list_api_keys: "other", get_page_guide: "other", check_app: "other", preview_app: "other", try_app: "other",
+  get_page_guide: "other", check_app: "other", preview_app: "other", try_app: "other",
   run_app_tests: "other", resolve_package: "other",
 };
 

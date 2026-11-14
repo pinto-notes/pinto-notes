@@ -3,60 +3,18 @@
 // (RENDER_URL, RENDER_SECRET). The service gets a sample note and sample data unless the person
 // turned on previews with real data.
 
-import { declaredHosts, hostDeclared, pageProblems } from "./page.ts";
+import { pageProblems } from "./page.ts";
 import { pageWarnings } from "./page_lint.ts";
 import { libraryReport } from "./libraries.ts";
 import { brokenImports, parseStored, projectProblems, sourceProblems, styleWarnings } from "./app_project.ts";
 
-export type KeyInfo = { name: string; hosts: string[]; set: boolean };
-
-/** What amber-needs declares, as the app reads it. */
-export function declaredNeeds(html: string): { hosts: string[]; keys: { name: string; hosts: string[] }[] } {
-  const tag = html.match(/<meta[^>]*name=["']amber-needs["'][^>]*>/i)?.[0];
-  const content = tag?.match(/content=(['"])([\s\S]*?)\1/)?.[2];
-  if (!content) return { hosts: [], keys: [] };
-  try {
-    const n = JSON.parse(content.replace(/&quot;/g, '"'));
-    return { hosts: (n.hosts ?? []).map(String), keys: (n.keys ?? []).map((k: { name?: unknown; hosts?: unknown[] }) => ({ name: String(k.name ?? ""), hosts: (k.hosts ?? []).map(String) })) };
-  } catch {
-    return { hosts: [], keys: [] };
-  }
-}
-
-/** Network and key findings: hosts called but not declared, declared but unused, keys used but not set up. */
-export function networkReport(html: string, keys: KeyInfo[]): string[] {
-  const out: string[] = [];
-  const needs = declaredNeeds(html);
-  const declared = declaredHosts(html);
-  const calls = [...html.matchAll(/amber\s*\.\s*fetch\s*\(\s*[`'"](https?:\/\/[^/`'"$?#]+)/gi)].map((m) => new URL(m[1]).host.toLowerCase());
-  const usedKeys = [...html.matchAll(/\bkey\s*:\s*["']([^"']+)["']/g)].map((m) => m[1]);
-  if (/amber\s*\.\s*fetch\s*\(/.test(html) && !/name=["']amber-needs["']/i.test(html)) out.push("amber.fetch is used but the app declares no hosts: add <meta name=\"amber-needs\" content='{\"hosts\": [\"…\"]}'>.");
-  for (const h of new Set(calls)) if (!hostDeclared(declared, h)) out.push(`amber.fetch calls ${h}, which amber-needs doesn't declare; the app will refuse it.`);
-  const withoutNeeds = html.replace(/<meta[^>]*name=["']amber-needs["'][^>]*>/gi, "");
-  for (const h of needs.hosts) if (!calls.some((c) => hostDeclared(new Set([h.toLowerCase()]), c)) && !withoutNeeds.includes(h.replace(/^\*\./, ""))) out.push(`amber-needs declares ${h} but nothing calls it; remove it so the person isn't asked to allow it.`);
-  for (const k of new Set(usedKeys)) {
-    if (!needs.keys.some((d) => d.name === k)) out.push(`The app asks for the key "${k}" but amber-needs doesn't declare it.`);
-  }
-  for (const d of needs.keys) {
-    const have = keys.find((k) => k.name.toLowerCase() === d.name.toLowerCase());
-    if (!have) out.push(`Key "${d.name}" isn't in Settings › API Keys yet: tell the person how to get one and add it there (never in the chat).`);
-    else if (!have.set) out.push(`Key "${d.name}" exists in Settings but has no value yet: the person still needs to paste it there.`);
-  }
-  const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join("\n");
-  if (/["'`][0-9a-f]{24,}["'`]|\bsk-[A-Za-z0-9]{10,}|appid=[0-9a-z]{16,}/i.test(script)) out.push("Something in the app looks like an API key. Keys never go in the app: declare them in amber-needs and let the person add them in Settings › API Keys.");
-  return [...new Set(out)];
-}
-
-/** Findings that need only the HTML: the server's refusals and warnings, and the network. */
-export function staticReport(html: string, body: string, keys: KeyInfo[]): { errors: string[]; warnings: string[] } {
+/** Findings that need only the HTML: the server's refusals and warnings. */
+export function staticReport(html: string, body: string): { errors: string[]; warnings: string[] } {
   const p = parseStored(html);
   if (Object.keys(p.files).length > 1 || Object.keys(p.compiled).length) {
-    // A project of files: its own checks, and the network report over all of its code.
-    const declared = declaredHosts(p.files["/index.html"] ?? "");
-    const all = Object.entries(p.files).filter(([f]) => !f.endsWith(".md")).map(([, t]) => t).join("\n").replace(/(?<![\w.])fetch\s*\(/g, "amber.fetch(");
-    return { errors: [...projectProblems(p), ...sourceProblems(p, (h) => hostDeclared(declared, h)), ...brokenImports(p)], warnings: [...styleWarnings(p), ...networkReport(all, keys)] };
+    return { errors: [...projectProblems(p), ...sourceProblems(p), ...brokenImports(p)], warnings: styleWarnings(p) };
   }
-  return { errors: pageProblems(html), warnings: [...pageWarnings(html, body), ...networkReport(html, keys), ...libraryReport(html)] };
+  return { errors: pageProblems(html), warnings: [...pageWarnings(html, body), ...libraryReport(html)] };
 }
 
 type View = {
@@ -96,7 +54,7 @@ export function titleReport(r: Rendered, title: string): string[] {
   if (!v?.headings) return [];
   const out: string[] = [];
   if (!v.headings.length || !same(v.headings[0], title)) {
-    out.push(`The app's first heading should be the note's title ("${title}"), read from amber.note.title: nothing around the app shows the title.${v.headings[0] ? ` Its first heading is "${v.headings[0]}".` : " It has no heading."}`);
+    out.push(`The app's first heading should be the note's title ("${title}"), read from pinto.note.title: nothing around the app shows the title.${v.headings[0] ? ` Its first heading is "${v.headings[0]}".` : " It has no heading."}`);
   }
   const twice = Math.max(v.headings.filter((h) => same(h, title)).length, v.titleCount ?? 0);
   if (twice > 1) out.push(`The note's title is shown ${twice} times; show it once, as the first heading.`);

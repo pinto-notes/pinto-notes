@@ -3216,8 +3216,15 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         let urls = droppedFiles(sender)
         guard !urls.isEmpty else { return super.performDragOperation(sender) }
-        let at = characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil))
-        setSelectedRange(NSRange(location: at, length: 0))
+        return dropFiles(urls, at: characterIndexForInsertion(at: convert(sender.draggingLocation, from: nil)))
+    }
+
+    /// Files dropped at a place in the text: attached there. A web project's folder (index.html at
+    /// its top) becomes the note's app instead.
+    @discardableResult
+    func dropFiles(_ urls: [URL], at index: Int) -> Bool {
+        if let folder = NotePageProject.appFolder(in: urls), let controller { return controller.dropAppFolder(folder) }
+        setSelectedRange(NSRange(location: min(max(index, 0), (string as NSString).length), length: 0))
         controller?.insertFiles(controller?.addFiles(urls) ?? [])
         return true
     }

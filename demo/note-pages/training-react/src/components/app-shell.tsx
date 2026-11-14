@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
-import { route, useRoute } from "amber-router"
+import { route, useRoute } from "pinto-router"
 import { cn } from "@/lib/utils"
 
 export type Screen = { path: string; label: string; icon: LucideIcon }
@@ -36,7 +36,7 @@ export function AppShell({ title, screens, children }: { title: string; screens:
       <nav
         aria-label="Screens"
         className="fixed inset-x-0 bottom-0 z-10 flex border-t bg-background px-2 pt-1 min-[900px]:hidden"
-        style={{ paddingBottom: "max(6px, var(--amber-safe-bottom), var(--amber-inset-bottom))" }}
+        style={{ paddingBottom: "max(6px, var(--pinto-safe-bottom), var(--pinto-inset-bottom))" }}
       >
         {screens.map((s) => link(s, false))}
       </nav>

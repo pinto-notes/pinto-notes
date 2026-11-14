@@ -5,13 +5,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg: var(--amber-bg); --card: var(--amber-surface); --ink: var(--amber-text); --muted: var(--amber-text-secondary); --line: var(--amber-separator); --accent: var(--amber-accent); --accent-ink: var(--amber-on-accent); --soft: var(--amber-accent-soft); --empty: var(--amber-fill); --field: var(--amber-fill); }
+  :root { --bg: var(--pinto-bg); --card: var(--pinto-surface); --ink: var(--pinto-text); --muted: var(--pinto-text-secondary); --line: var(--pinto-separator); --accent: var(--pinto-accent); --accent-ink: var(--pinto-on-accent); --soft: var(--pinto-accent-soft); --empty: var(--pinto-fill); --field: var(--pinto-fill); }
   * { box-sizing: border-box; }
   body { padding: 20px 18px 96px; max-width: 680px; margin: 0 auto; }
   h1 { font-size: 28px; letter-spacing: -.02em; margin: 4px 0 4px; }
   h2 { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 22px 4px 8px; }
   .sub { color: var(--muted); margin: 0 0 18px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--amber-radius); overflow: hidden; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--pinto-radius); overflow: hidden; }
   .habit { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 16px; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; }
   .habit:first-child { border-top: 0; }
   .habit .name { flex: 1; min-width: 0; font-size: 17px; overflow-wrap: anywhere; }
@@ -31,8 +31,8 @@
   .goal .name { flex: 1; min-width: 0; }
   .bar { flex: 2; height: 8px; border-radius: 4px; background: var(--empty); overflow: hidden; }
   .bar div { height: 100%; background: var(--accent); }
-  .goal input { width: 64px; min-height: 40px; font: inherit; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 8px; padding: 6px 8px; text-align: center; }
-  .err { color: var(--amber-danger); min-height: 1.2em; margin: 8px 4px; }
+  .goal input { width: 64px; min-height: 40px; font: inherit; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 8px; padding: 6px 8px; text-align: center; }
+  .err { color: var(--pinto-danger); min-height: 1.2em; margin: 8px 4px; }
   .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
   /* This app's own look (garden green); Amber's tokens fill in the rest. */
   :root { --accent: #2f7d4f; --accent-ink: #ffffff; --soft: #dff1e6; --card: #f1f6f2; --empty: #e1eae3; --field: #e6eee8; }
@@ -41,7 +41,7 @@
   .settings summary { cursor: pointer; color: var(--muted); min-height: 44px; padding: 11px 4px; }
   .settings .card { display: grid; gap: 14px; padding: 14px 16px; }
   .settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
 </style>
 </head>
 <body>
@@ -49,7 +49,7 @@
 <script>
   // Settings live inside the app: a section at the end, saved in values.settings (an AI sets them with update_page_data).
   const SETTINGS = [{"key": "goal", "label": "Days a week per habit", "type": "number", "default": 5}, {"key": "habits", "label": "Habits to show", "type": "list", "default": [], "help": "Column names. Leave empty to show every habit in the table."}];
-  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (amber.data.values || {}).settings || {});
+  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (pinto.data.values || {}).settings || {});
   let settingsOpen = false;
   function settingsHTML() {
     const v = settings();
@@ -63,7 +63,7 @@
     box.querySelectorAll("[data-setting]").forEach((el) => { el.onchange = () => {
       const s = SETTINGS.find((x) => x.key === el.dataset.setting), raw = el.value.trim();
       const value = s.type === "number" ? Number(raw.replace(",", ".")) || 0 : s.type === "list" ? raw.split(",").map((x) => x.trim()).filter(Boolean) : raw;
-      amber.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
+      pinto.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
     }; });
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -115,13 +115,13 @@
       const row = byDate.get(today);
       const value = done(today, h) ? "" : "✓";
       const r = row
-        ? await amber.update({ op: "set_cell", table: t.index, row: row.i, col: h.name, value })
-        : await amber.update({ op: "append_row", table: t.index, values: { [t.columns[dc].name]: today, [h.name]: value } });
+        ? await pinto.update({ op: "set_cell", table: t.index, row: row.i, col: h.name, value })
+        : await pinto.update({ op: "append_row", table: t.index, values: { [t.columns[dc].name]: today, [h.name]: value } });
       error = r.ok ? "" : r.error;
-      if (!r.ok) render(amber.note, amber.data);
+      if (!r.ok) render(pinto.note, pinto.data);
     }));
   }
-  amber.onChange(render);
+  pinto.onChange(render);
 </script>
 </body>
 </html>

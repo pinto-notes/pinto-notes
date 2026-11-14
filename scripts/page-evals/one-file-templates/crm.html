@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg: var(--amber-bg); --card: var(--amber-surface); --ink: var(--amber-text); --muted: var(--amber-text-secondary); --line: var(--amber-separator); --accent: var(--amber-accent); --accent-ink: var(--amber-on-accent); --field: var(--amber-fill); --won: #2f7d5b; --lost: #8a8178; }
+  :root { --bg: var(--pinto-bg); --card: var(--pinto-surface); --ink: var(--pinto-text); --muted: var(--pinto-text-secondary); --line: var(--pinto-separator); --accent: var(--pinto-accent); --accent-ink: var(--pinto-on-accent); --field: var(--pinto-fill); --won: #2f7d5b; --lost: #8a8178; }
   @media (prefers-color-scheme: dark) { :root { --won: #5cc497; --lost: #a39a90; } }
   * { box-sizing: border-box; }
   body { padding: 20px 18px 96px; max-width: 760px; margin: 0 auto; }
@@ -15,14 +15,14 @@
   .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-width: 0; }
   .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
   .stat span { color: var(--muted); font-size: 13px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--amber-radius); overflow: hidden; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--pinto-radius); overflow: hidden; }
   .deal { display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-top: 1px solid var(--line); min-height: 56px; flex-wrap: wrap; }
   .deal:first-child { border-top: 0; }
   .who { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
   .who b { display: block; }
   .muted { color: var(--muted); font-size: 14px; }
   .num { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-  select, input { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 8px 10px; min-height: 44px; }
+  select, input { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 8px 10px; min-height: 44px; }
   .deal select { width: 9.5em; }
   .search { width: 100%; margin: 4px 0 0; }
   form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px; }
@@ -30,7 +30,7 @@
   form input, form select { width: 100%; }
   button { grid-column: 1 / -1; font: inherit; font-weight: 600; min-height: 44px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); }
   .won { color: var(--won); }
-  .err { color: var(--amber-danger); padding: 0 16px 12px; min-height: 1em; }
+  .err { color: var(--pinto-danger); padding: 0 16px 12px; min-height: 1em; }
   .empty { padding: 24px 16px; text-align: center; color: var(--muted); }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   select { -webkit-appearance: none; appearance: none; padding-right: 28px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: right 14px center, right 9px center; background-size: 5px 5px; background-repeat: no-repeat; }
@@ -41,7 +41,7 @@
   .settings summary { cursor: pointer; color: var(--muted); min-height: 44px; padding: 11px 4px; }
   .settings .card { display: grid; gap: 14px; padding: 14px 16px; }
   .settings label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
-  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--amber-field); border: 1px solid var(--amber-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+  .settings input, .settings select { font: inherit; font-size: 16px; color: var(--ink); background: var(--pinto-field); border: 1px solid var(--pinto-field-border); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
 </style>
 </head>
 <body>
@@ -49,7 +49,7 @@
 <script>
   // Settings live inside the app: a section at the end, saved in values.settings (an AI sets them with update_page_data).
   const SETTINGS = [{"key": "currency", "label": "Currency", "type": "text", "default": "SEK"}, {"key": "stages", "label": "Stages", "type": "list", "default": ["Lead", "Proposal", "Won", "Lost"], "help": "In order. Stages already used in the note are added."}];
-  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (amber.data.values || {}).settings || {});
+  const settings = () => Object.assign(Object.fromEntries(SETTINGS.map((s) => [s.key, s.default])), (pinto.data.values || {}).settings || {});
   let settingsOpen = false;
   function settingsHTML() {
     const v = settings();
@@ -63,7 +63,7 @@
     box.querySelectorAll("[data-setting]").forEach((el) => { el.onchange = () => {
       const s = SETTINGS.find((x) => x.key === el.dataset.setting), raw = el.value.trim();
       const value = s.type === "number" ? Number(raw.replace(",", ".")) || 0 : s.type === "list" ? raw.split(",").map((x) => x.trim()).filter(Boolean) : raw;
-      amber.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
+      pinto.setData({ values: { settings: { [s.key]: value } } }).then((r) => { if (!r.ok) { el.setCustomValidity(r.error); el.reportValidity(); } });
     }; });
   }
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -122,11 +122,11 @@
     wireSettings();
 
     const search = document.getElementById("q");
-    search.oninput = () => { query = search.value; render(amber.note, amber.data); const s = document.getElementById("q"); s.focus(); s.setSelectionRange(s.value.length, s.value.length); };
+    search.oninput = () => { query = search.value; render(pinto.note, pinto.data); const s = document.getElementById("q"); s.focus(); s.setSelectionRange(s.value.length, s.value.length); };
     app.querySelectorAll("select[data-row]").forEach((sel) => sel.addEventListener("change", async () => {
-      const r = await amber.update({ op: "set_cell", table: t.index, row: Number(sel.dataset.row), col: t.columns[st].name, value: sel.value });
+      const r = await pinto.update({ op: "set_cell", table: t.index, row: Number(sel.dataset.row), col: t.columns[st].name, value: sel.value });
       error = r.ok ? "" : r.error;
-      if (!r.ok) render(amber.note, amber.data);
+      if (!r.ok) render(pinto.note, pinto.data);
     }));
     document.getElementById("add").onsubmit = async (e) => {
       e.preventDefault();
@@ -136,12 +136,12 @@
       if (ct >= 0 && ct !== co) values[t.columns[ct].name] = String(f.get("ct") ?? "").trim();
       if (em >= 0) values[t.columns[em].name] = String(f.get("em") ?? "").trim();
       if (va >= 0) values[t.columns[va].name] = String(f.get("va") ?? "").trim();
-      const r = await amber.update({ op: "append_row", table: t.index, values });
+      const r = await pinto.update({ op: "append_row", table: t.index, values });
       error = r.ok ? "" : r.error;
-      render(amber.note, amber.data);
+      render(pinto.note, pinto.data);
     };
   }
-  amber.onChange(render);
+  pinto.onChange(render);
 </script>
 </body>
 </html>

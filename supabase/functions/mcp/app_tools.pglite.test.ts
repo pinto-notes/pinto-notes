@@ -4,7 +4,6 @@
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
 import { sampleData, sampleNote } from "./app_sample.ts";
-import { networkReport } from "./app_check.ts";
 import { libraryReport } from "./libraries.ts";
 import { pageWarnings } from "./page_lint.ts";
 import { findTables } from "./notes.ts";
@@ -37,19 +36,7 @@ Deno.test("the sample keeps the note's shape and none of its words", () => {
   assert(!JSON.stringify(d).includes("Lisbon") && !JSON.stringify(d).includes("Ana") && !JSON.stringify(d).includes("abc"));
 });
 
-Deno.test("network and keys: declared vs used vs set up, and keys pasted into the app", () => {
-  const html = `<meta name="amber-needs" content='{"hosts": ["api.open-meteo.com"], "keys": [{"name": "OpenWeather", "hosts": ["api.openweathermap.org"], "query": "appid={key}"}]}'><script>amber.fetch("https://api.openweathermap.org/data/2.5/weather?q=Porto", { key: "OpenWeather" }); amber.fetch("https://evil.example/x"); const k = "3f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c";</script>`;
-  const r = networkReport(html, [{ name: "OpenWeather", hosts: ["api.openweathermap.org"], set: false }]).join("\n");
-  assertStringIncludes(r, "evil.example, which amber-needs doesn't declare");
-  assertStringIncludes(r, "declares api.open-meteo.com but nothing calls it");
-  assertStringIncludes(r, "has no value yet");
-  assertStringIncludes(r, "looks like an API key");
-  assertStringIncludes(networkReport(html, []).join(), "isn't in Settings › API Keys yet");
-});
-
-Deno.test("wildcard hosts cover their servers; !important is called out because the base never needs it", () => {
-  const html = `<meta name="amber-needs" content='{"hosts": ["*.archive.org"]}'><script>amber.fetch("https://ia800.us.archive.org/x"); amber.onChange(() => {})</script>`;
-  assertEquals(networkReport(html, []), []);
+Deno.test("!important is called out because the base never needs it", () => {
   assertStringIncludes(pageWarnings(`<html lang="en"><style>input { border: 0 !important; }</style><p style="color: red !important">x</p>`).join(), "!important appears 2 times");
   assertEquals(pageWarnings(`<html lang="en"><style>input { border: 0; }</style>`).some((w) => w.includes("!important")), false);
   assertStringIncludes(pageWarnings(`<html lang="en"><meta name="amber-settings" content="{}"><script>amber.openSettings()</script>`).join(), "were removed");
@@ -99,7 +86,7 @@ Deno.test({ name: "check_app and preview_app render a sample through the render 
     assertEquals(r.ok, false);
     // Breakage is an error; the rest is information.
     for (const want of ["script error", "wider than the screen", "ran as HTML"]) assertStringIncludes(r.errors.join("\n"), want);
-    for (const want of ["under 12 px", "without a label", "--amber-*"]) assertStringIncludes(r.notes.join("\n"), want);
+    for (const want of ["under 12 px", "without a label", "--pinto-*"]) assertStringIncludes(r.notes.join("\n"), want);
     // The render service got a sample, not the note.
     assert(!all.includes("Hotel Avenida") && !all.includes("Pastéis"));
 
@@ -127,6 +114,65 @@ Deno.test({ name: "check_app and preview_app render a sample through the render 
     await server.shutdown();
     Deno.env.delete("RENDER_URL");
     Deno.env.delete("AMBER_APP_REAL_PREVIEWS");
+    await closeBrowser();
+  }
+});
+
+// An app that reaches the internet as it opens (2026-11-14): the render service runs on a server, so
+// it refuses those requests without counting them against the app, and nothing leaves it.
+Deno.test({ name: "an app that fetches and opens a WebSocket passes check_app, and the render service sends nothing out", ignore: !hasWebKit }, async () => {
+  Deno.env.set("RENDER_SECRET", "test-secret");
+  const { handle } = await import("../../../scripts/page-render/server.ts");
+  const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+  const server = Deno.serve({ hostname: "127.0.0.1", port: 0, onListen: () => {} }, handle);
+  Deno.env.set("RENDER_URL", `http://127.0.0.1:${server.addr.port}`);
+  // Where the app's requests would go: a listener that counts connections.
+  const outside = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  let reached = 0;
+  (async () => { for await (const c of outside) { reached++; c.close(); } })().catch(() => {});
+  const port = (outside.addr as Deno.NetAddr).port;
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    const id = await note(pg, a, BODY);
+    const online = `<!doctype html><html lang="en"><body><main id="m" style="max-width:var(--amber-content-max);margin:0 auto;padding:16px var(--amber-gutter)"><h1>Weather</h1><p id="t">Loading the forecast…</p></main>` +
+      `<img alt="" src="https://127.0.0.1:${port}/icon.png" width="1" height="1"><script>amber.onChange(() => {});` +
+      `fetch("https://127.0.0.1:${port}/forecast").then((r) => r.json()).then((d) => { t.textContent = d.summary; }, () => { t.textContent = "Offline right now."; });` +
+      `try { const w = new WebSocket("wss://127.0.0.1:${port}/live"); w.onerror = () => {}; } catch (e) {}</script></body></html>`;
+    await tool(pg, a, "set_note_page", { id, html: online });
+    const r = await tool(pg, a, "check_app", { id });
+    assertEquals(r.errors, []);
+    assertEquals(reached, 0, "the render service reached the internet");
+  } finally {
+    outside.close();
+    await server.shutdown();
+    Deno.env.delete("RENDER_URL");
+    await closeBrowser();
+  }
+});
+
+// eval, new Function and Web Workers run in an app as on any web page (2026-11-14): the render
+// service's policy matches the app's, so an app that uses them passes its checks.
+Deno.test({ name: "an app that uses eval and a worker passes check_app", ignore: !hasWebKit }, async () => {
+  Deno.env.set("RENDER_SECRET", "test-secret");
+  const { handle } = await import("../../../scripts/page-render/server.ts");
+  const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+  const server = Deno.serve({ hostname: "127.0.0.1", port: 0, onListen: () => {} }, handle);
+  Deno.env.set("RENDER_URL", `http://127.0.0.1:${server.addr.port}`);
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    const id = await note(pg, a, BODY);
+    const html = `<!doctype html><html lang="en"><body><main id="m" style="max-width:var(--amber-content-max);margin:0 auto;padding:16px var(--amber-gutter)"><h1>Sums</h1><p id="t">…</p></main>` +
+      `<script>amber.onChange(() => {}); const total = eval("1 + 1") + new Function("return 40")();` +
+      `const w = new Worker(URL.createObjectURL(new Blob(["onmessage = (e) => postMessage(e.data)"], { type: "text/javascript" })));` +
+      `w.onmessage = (e) => { t.textContent = "Total " + e.data; }; w.postMessage(total);</script></body></html>`;
+    await tool(pg, a, "set_note_page", { id, html });
+    const r = await tool(pg, a, "check_app", { id });
+    assertEquals(r.errors, []);
+  } finally {
+    await server.shutdown();
+    Deno.env.delete("RENDER_URL");
     await closeBrowser();
   }
 });

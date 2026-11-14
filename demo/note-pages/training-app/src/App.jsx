@@ -1,5 +1,5 @@
-import { Router, Route } from "amber-router";
-import { Shell, Icon } from "amber-ui";
+import { Router, Route } from "pinto-router";
+import { Shell, Icon } from "pinto-ui";
 import Today from "./screens/Today.jsx";
 import Plan from "./screens/Plan.jsx";
 import PlanDay from "./screens/PlanDay.jsx";

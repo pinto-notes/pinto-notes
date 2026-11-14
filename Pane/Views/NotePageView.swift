@@ -6,10 +6,10 @@ import WebKit
 
 /// The locked web view a note's page runs in (prototype; see NotePage).
 ///
-/// - JavaScript runs, but nothing loads or leaves: a Content Security Policy of `default-src 'none'`
-///   (inline script and style, data: images and fonts only), a content rule list that blocks every
-///   request, and a navigation policy that allows only the page itself. No cookies or storage
-///   outlive the view.
+/// - JavaScript runs and reaches the internet like a web page: fetch, XMLHttpRequest, WebSocket and
+///   images to any https or wss address, with no prompt (2026-11-14). The Content Security Policy
+///   and content rule list refuse everything else (plain http, file:, other schemes), and the
+///   navigation policy allows only the page itself. No cookies or storage outlive the view.
 /// - The page gets one note's data as `window.amber.note` and nothing else of the app.
 /// - It changes the note only through `amber.update(op)`, a message the app checks and applies to
 ///   the markdown (NotePage.apply). It can't run anything in the app or edit text freely.
@@ -29,12 +29,22 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Requests and navigations the sandbox stopped (for the Dev readout and tests).
     private(set) var blocked: [String] = []
 
-    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib:; img-src data: amber-app: amber-file:; font-src data: amber-app:; media-src data: amber-app: amber-file:; "
-        + "connect-src amber-app:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
+    /// The internet (https, wss) is open to the app like to any web page, and so are eval and
+    /// workers (2026-11-14): neither reaches anything the page's own scripts can't, since the page
+    /// already runs any inline script, and a worker has no bridge to the note. Frames, plugins,
+    /// forms and a <base> stay off (they would take the app out of its note).
+    /// Pinto's scheme names (pinto-app:, pinto-lib:, pinto-file:, 2026-11-14) next to the amber ones,
+    /// which older apps use.
+    static let policy = ("default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' amber-app: amber-lib: blob: https:; style-src 'unsafe-inline' amber-app: amber-lib: https:; img-src data: blob: amber-app: amber-file: https:; font-src data: amber-app: https:; media-src data: blob: amber-app: amber-file: https:; "
+        + "connect-src amber-app: https: wss:; frame-src 'none'; child-src 'none'; worker-src amber-app: blob:; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'")
+        .replacingOccurrences(of: "amber-app:", with: "pinto-app: amber-app:")
+        .replacingOccurrences(of: "amber-lib:", with: "pinto-lib: amber-lib:")
+        .replacingOccurrences(of: "amber-file:", with: "pinto-file: amber-file:")
 
-    /// Every request is blocked; the page's own document is given as a string, not loaded.
-    /// The note's own files (amber-file:, served by the app from this device) are the one exception.
-    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}}]"#
+    /// Everything is blocked but the internet over TLS (https, wss) and the app's own schemes: the
+    /// note's files (amber-file:, served from this device), the libraries and the app's files. The
+    /// page's own document is given as a string, not loaded.
+    static let rules = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^wss:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^amber-app:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^blob:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^pinto-file:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^pinto-lib:"},"action":{"type":"ignore-previous-rules"}},{"trigger":{"url-filter":"^pinto-app:"},"action":{"type":"ignore-previous-rules"}}]"#
     private static var compiled: WKContentRuleList?
 
     /// One sandbox made ahead of time, its web content process already running, so opening a note
@@ -92,7 +102,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Compiles the rule list once. Pages wait for it: none loads without it.
     static func prepare() async throws -> WKContentRuleList {
         if let compiled { return compiled }
-        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v4", encodedContentRuleList: rules) else {
+        guard let list = try await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "amber-note-page-v7", encodedContentRuleList: rules) else {
             throw NotePage.OpError("The app couldn't start.")
         }
         compiled = list
@@ -109,11 +119,14 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.setURLSchemeHandler(scheme, forURLScheme: "amber-file")
         config.setURLSchemeHandler(libraries, forURLScheme: "amber-lib")
         config.setURLSchemeHandler(app, forURLScheme: "amber-app")
+        config.setURLSchemeHandler(scheme, forURLScheme: "pinto-file")
+        config.setURLSchemeHandler(libraries, forURLScheme: "pinto-lib")
+        config.setURLSchemeHandler(app, forURLScheme: "pinto-app")
         #if os(iOS)
         config.dataDetectorTypes = []
         config.allowsInlineMediaPlayback = false
         #endif
-        webView = WKWebView(frame: .zero, configuration: config)
+        webView = NotePageWebView(frame: .zero, configuration: config)
         super.init()
         scheme.owner = self
         // Through a weak proxy: the content controller keeps its handlers alive, and the sandbox
@@ -283,7 +296,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               read: (ref) => ask({ op: "file.read", id: (ref && ref.$file) || ref }),
               // An address for <img>, <audio> or <video> right away (no data: URL in the data):
               // only for files this note or its app's data refer to. width: a smaller picture.
-              url: (ref, o) => "amber-file:///" + ((ref && ref.$file) || ref) + (o && o.width ? "?w=" + Math.round(o.width) : ""),
+              url: (ref, o) => "pinto-file:///" + ((ref && ref.$file) || ref) + (o && o.width ? "?w=" + Math.round(o.width) : ""),
             },
             // The device: a link (asked about first), the share sheet, and pickers for photos and
             // files. What apps could once also use answers that it isn't available, by name, so an
@@ -307,8 +320,19 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               available: () => Promise.resolve({ ok: true, available: false, reason: "on-device AI isn't available in apps yet" }),
               respond: gone("On-device AI isn't"),
             },
-            // Through the app, to hosts the page declared and you allowed, logged; keys added by the app.
-            fetch: (url, o) => ask({ op: "fetch", url, ...(o || {}) }),
+            // Apps written for the old proxy (amber.fetch, before 2026-11-14) keep working: the same
+            // answer, from the web's own fetch. A key named in the options isn't added any more.
+            fetch: async (url, o) => {
+              try {
+                const r = await fetch(url, { method: (o && o.method) || "GET", headers: (o && o.headers) || {}, body: o && o.body });
+                const type = r.headers.get("content-type") || "";
+                const bytes = new Uint8Array(await r.arrayBuffer());
+                let body, base64 = false;
+                try { body = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+                catch (e) { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); body = btoa(s); base64 = true; }
+                return Object.assign({ ok: true, status: r.status, contentType: type, body }, base64 ? { base64 } : {});
+              } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+            },
           };
           // A write's reply carries the new data, so it's there as soon as the promise resolves.
           // A change's reply carries the new data: it's there when the promise resolves, and the
@@ -396,7 +420,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             for (const r of libRequires[name] || []) await amber.lib(r);
             return new Promise((ok, no) => {
               const s = document.createElement("script");
-              s.src = "amber-lib:///" + name;
+              s.src = "pinto-lib:///" + name;
               s.onload = () => ok(g ? window[g] : true);
               s.onerror = () => no(new Error("No library " + name + ". Bundled: " + Object.keys(libGlobals).join(", ")));
               document.head.appendChild(s);
@@ -404,7 +428,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           };
           // Where the app is: full screen, or a widget in its parent note; its real size.
           Object.defineProperty(amber, "context", { get() { return { embedded: \(widget ? "true" : "false"), width: window.innerWidth, height: window.innerHeight }; } });
-          const markContext = () => { if (document.documentElement) document.documentElement.dataset.amberContext = \(widget ? "\"widget\"" : "\"full\""); };
+          const markContext = () => { if (document.documentElement) document.documentElement.dataset.amberContext = document.documentElement.dataset.pintoContext = \(widget ? "\"widget\"" : "\"full\""); };
           markContext();
           addEventListener("DOMContentLoaded", markContext);
           // Which field has focus, for the app: nothing of its own is drawn over a field you're typing in.
@@ -425,8 +449,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             insetBottom = bottom;
             insetSheet.replaceSync("@layer amber-tokens { :root { --amber-inset-bottom: " + bottom + "px; } }");
             dispatchEvent(new CustomEvent("amber:insets", { detail: { bottom } }));
+            dispatchEvent(new CustomEvent("pinto:insets", { detail: { bottom } }));
           } });
-          window.amber = amber;
+          // window.pinto is the name apps are told to use (2026-11-14); window.amber stays for older apps.
+          window.amber = window.pinto = amber;
           // Links to the person's notes and apps: <a href="pinto:Work/Acme">, pinto:Acme#Agenda,
           // pinto:Work/Habits.app. Pinto Notes opens them like a [[link]] in a note (Back comes back
           // here), and only when tapped. Every other link stays as it was (device.openURL asks).
@@ -472,8 +498,10 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           const sized = () => {
             if (!document.documentElement) return;
             const w = window.innerWidth, c = document.documentElement.classList;
-            c.toggle("amber-widget", \(widget ? "true" : "false"));
-            c.toggle("amber-narrow", w < 600); c.toggle("amber-medium", w >= 600 && w < 900); c.toggle("amber-wide", w >= 900);
+            for (const p of ["amber", "pinto"]) {
+              c.toggle(p + "-widget", \(widget ? "true" : "false"));
+              c.toggle(p + "-narrow", w < 600); c.toggle(p + "-medium", w >= 600 && w < 900); c.toggle(p + "-wide", w >= 900);
+            }
           };
           sized();
           addEventListener("resize", sized);
@@ -566,6 +594,37 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
 /// A note's page on screen. Rebuilt when the page changes; the note's text goes in as it changes.
 /// While the page loads, the picture of it from last time shows in its place.
+/// The app's web view. On the Mac, a web project's folder dropped on the app replaces it, as on the
+/// note's text; any other drop is the page's, as on any web page.
+final class NotePageWebView: WKWebView {
+    var onAppFolder: ((URL) -> Bool)?
+
+    #if os(macOS)
+    private func appFolder(_ info: NSDraggingInfo) -> URL? {
+        guard onAppFolder != nil else { return nil }
+        let urls = (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        return NotePageProject.appFolder(in: urls)
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        appFolder(sender) != nil ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        appFolder(sender) != nil ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        appFolder(sender) != nil || super.prepareForDragOperation(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if let folder = appFolder(sender), let take = onAppFolder { return take(folder) }
+        return super.performDragOperation(sender)
+    }
+    #endif
+}
+
 struct NotePageView: View {
     let noteID: UUID
     let html: String
@@ -582,6 +641,8 @@ struct NotePageView: View {
     var files: @MainActor (UUID) -> URL? = { _ in nil }
     /// A field in the app has focus, or not.
     var onFocus: (Bool) -> Void = { _ in }
+    /// A web project's folder dropped on the app (Mac): nil where a drop can't replace it.
+    var onAppFolder: ((URL) -> Bool)?
     /// What Amber's own things cover at the bottom of the app (see NotePageSandbox.setInsets).
     var insetBottom: CGFloat = 0
     /// A preview's own data (the template library), in place of the note's stored data. It keeps
@@ -657,6 +718,7 @@ struct NotePageView: View {
                 }
                 s.onFailure = onFailure
                 s.onFocus = onFocus
+                (s.webView as? NotePageWebView)?.onAppFolder = onAppFolder
                 s.onData = onData
                 s.files = files
                 s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)
@@ -951,7 +1013,9 @@ enum NotePageTheme {
     /// amber-base.css as shipped (Pane/Resources/AppLibraries; page.ts has the same text for the AI).
     static let base: String = Bundle.main.url(forResource: "amber-base", withExtension: "css").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
 
-    /// amber-tokens.css: the --amber-* variables for this device, light and dark.
+    /// amber-tokens.css: the --amber-* variables for this device, light and dark, and each again as
+    /// --pinto-* (the name apps are told to use, 2026-11-14), following its amber one so an older
+    /// app that sets an --amber-* variable still changes both.
     static let tokens: String = {
         func hex(_ c: PColor, dark: Bool) -> String {
             var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -984,7 +1048,7 @@ enum NotePageTheme {
                 "--amber-danger: \(d ? "#FF6B5E" : "#C62828")",
             ].joined(separator: "; ")
         }
-        return """
+        let css = """
         /* amber-tokens.css (Amber Notes): the variables every app can use, for this device, light and dark. */
         @layer amber-tokens {
           :root { \(vars(dark: false)); --amber-radius: \(radius.0)px; --amber-radius-small: \(radius.1)px;
@@ -998,6 +1062,8 @@ enum NotePageTheme {
         }
 
         """
+        let names = Set(css.matches(of: /--amber-([a-z-]+):/).map { String($0.1) }).sorted()
+        return css + "@layer amber-tokens { :root { " + names.map { "--pinto-\($0): var(--amber-\($0));" }.joined(separator: " ") + " } }\n"
     }()
 }
 
@@ -1112,9 +1178,8 @@ enum NotePageActions {
 
     /// The app's own data and files (amber.store, amber.files). Returns the reply for the page, and
     /// the data before a data change (nil for files), for Undo.
-    static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?, html: String = "",
-                     ask: (String) async -> Bool = { _ in false }, askLink: (String) async -> Bool = { _ in false },
-                     needKey: (NotePageNetwork.KeyNeed) async -> Void = { _ in },
+    static func data(_ message: Any, note: Note, context: ModelContext, sync: SyncEngine?,
+                     askLink: (String) async -> Bool = { _ in false },
                      open: (AppLinks.Link) throws -> Void = { _ in throw NotePage.OpError("Links to notes open only in the note's own screen.") }) async throws -> (reply: [String: Any], before: NotePageData.Doc?) {
         let m = message as? [String: Any] ?? [:]
         if m["op"] as? String == "note.open" {
@@ -1147,8 +1212,6 @@ enum NotePageActions {
             let body = line.isEmpty ? title : "\(title)\n\n\(line)"
             if body != note.body { note.body = body; note.touch(); try? context.save() }
             return ([:], nil)
-        case "fetch":
-            return (try await NotePageNetwork.fetch(m, note: note, html: html, ask: ask, needKey: needKey), nil)
         case "file.save":
             guard let b64 = m["base64"] as? String, let bytes = Data(base64Encoded: b64) else { throw NotePage.OpError("Send { name, type, base64 }.") }
             guard bytes.count <= 50 * 1024 * 1024 else { throw NotePage.OpError("Files can be at most 50 MB.") }
