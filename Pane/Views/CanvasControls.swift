@@ -909,6 +909,13 @@ enum CanvasEdgePeekFlag {
 /// The canvas's tools as the note's toolbar items: the same glass group and buttons as a text
 /// note's Aa, Checklist and Table, the picked tool in the accent (as the Table menu shows a table).
 /// The shapes share one button, the last shape picked, the rest in its menu, as Freeform does.
+private extension View {
+    /// The picked tool in the accent; the others untouched, as the toolbar's other buttons are.
+    @ViewBuilder func picked(_ on: Bool) -> some View {
+        if on { foregroundStyle(Color.amberInk) } else { self }
+    }
+}
+
 struct CanvasToolbarTools: View {
     let canvas: CanvasController
 
@@ -933,7 +940,9 @@ struct CanvasToolbarTools: View {
 
     private func tool(_ t: CanvasTool, _ current: CanvasTool) -> some View {
         Button { canvas.pick(t) } label: {
-            Label(t.title, systemImage: t.symbol).foregroundStyle(t == current ? Color.amberInk : Color.primary)
+            // Only the picked tool is tinted; the rest keep the toolbar's own style, so they dim
+            // with the window like its other buttons (round 2: forced black, the others looked off).
+            Label(t.title, systemImage: t.symbol).picked(t == current)
         }
         .help(t.help)
         .accessibilityAddTraits(t == current ? .isSelected : [])
@@ -951,7 +960,7 @@ struct CanvasToolbarTools: View {
             Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
                 .accessibilityIdentifier("canvas.tool.sticky")
         } label: {
-            Label("Shapes", systemImage: shown.symbol).foregroundStyle(picked ? Color.amberInk : Color.primary)
+            Label("Shapes", systemImage: shown.symbol).picked(picked)
         } primaryAction: {
             canvas.pick(shown)
         }
