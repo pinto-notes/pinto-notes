@@ -33,7 +33,7 @@ Deno.test("a 12 MB file the app fetches reaches the save check exactly, sent to 
   try {
     const pg = await schemaDB();
     const a = await account(pg);
-    await tool(pg, a, "create", { type: "app", path: "Lab.md" });
+    await tool(pg, a, "create", { type: "app", path: "Notes/Lab.md" });
     // 12 MB that doesn't compress, with a checksum the page works out again.
     const disk = new Uint8Array(12 * MB + 99);
     for (let i = 0; i < disk.length; i += 65536) crypto.getRandomValues(disk.subarray(i, Math.min(disk.length, i + 65536)));
@@ -47,18 +47,18 @@ if (b.length !== ${disk.length} || s !== ${sum}) throw new Error("disk.img arriv
 document.getElementById("out").textContent = "disk.img: " + b.length + " bytes, exact";
 </script></body></html>`;
     // The scaffold goes, the page and its file come: one save.
-    const listed = (await tool(pg, a, "list", { path: "Lab.app", limit: 1000 }));
+    const listed = (await tool(pg, a, "list", { path: "Notes/Lab.app", limit: 1000 }));
     const scaffold = (listed.structuredContent?.files ?? listed.files).map((f: { path: string }) => f.path).filter((p: string) => !p.endsWith("/data.json") && !p.endsWith("/index.html"));
-    await tool(pg, a, "fetch", { id: "Lab.app/index.html" });
+    await tool(pg, a, "fetch", { id: "Notes/Lab.app/index.html" });
     // The file in pieces first, the last piece with the rest.
     const cut = 8 * MB;
-    assertEquals((await tool(pg, a, "write", { path: "Lab.app/disk.img", content_base64: toBase64(disk.subarray(0, cut)), offset: 0, size: disk.length })).saved, false);
+    assertEquals((await tool(pg, a, "write", { path: "Notes/Lab.app/disk.img", content_base64: toBase64(disk.subarray(0, cut)), offset: 0, size: disk.length })).saved, false);
     const before = { ...seen };
     const r = await tool(pg, a, "write", {
-      path: "Lab.app", files: [
+      path: "Notes/Lab.app", files: [
         { path: "index.html", content: html },
         { path: "disk.img", content_base64: toBase64(disk.subarray(cut)), offset: cut, size: disk.length },
-        ...scaffold.map((p: string) => ({ path: p.slice("Lab.app/".length), delete: true })),
+        ...scaffold.map((p: string) => ({ path: p.slice("Notes/Lab.app/".length), delete: true })),
       ],
     });
     assertStringIncludes(r.live, "Live", JSON.stringify(r));
@@ -68,8 +68,8 @@ document.getElementById("out").textContent = "disk.img: " + b.length + " bytes, 
     assertEquals(seen.parts - before.parts, 4);
     assert(seen.partBytes - before.partBytes >= disk.length, `${seen.partBytes - before.partBytes} bytes of parts sent`);
     // The next save of the app sends no part again.
-    await tool(pg, a, "fetch", { id: "Lab.app/index.html" });
-    const again = await tool(pg, a, "write", { path: "Lab.app/index.html", content: html.replace("<h1>Lab</h1>", "<h1>Lab</h1><p>again</p>") });
+    await tool(pg, a, "fetch", { id: "Notes/Lab.app/index.html" });
+    const again = await tool(pg, a, "write", { path: "Notes/Lab.app/index.html", content: html.replace("<h1>Lab</h1>", "<h1>Lab</h1><p>again</p>") });
     assertStringIncludes(again.live, "Live");
     assertEquals(seen.parts - before.parts, 4);
     console.log(`renders: ${seen.renders}, checks: ${seen.checks}, parts sent: ${seen.parts} (${(seen.partBytes / MB).toFixed(1)} MB)`);

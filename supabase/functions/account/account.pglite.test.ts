@@ -106,6 +106,8 @@ async function seed(pg: PGlite, me: string) {
   // An app's binary file, stored once (note_app_blobs, 20261115090000_note_app_blobs.sql).
   const blob = await a.vault.blobName(new Uint8Array([1, 2, 3]));
   await pg.query(`insert into public.note_app_blobs (user_id, hash, blob_ct) values ($1, $2, $3)`, [me, blob, await a.vault.sealBlob(blob, new Uint8Array([1, 2, 3]))]);
+  // A big app file still coming in, in pieces (note_app_uploads, 20261116120000_note_app_uploads.sql).
+  await pg.query(`insert into public.note_app_uploads (user_id, note_id, path_tag, size, pieces, blobs) values ($1, (select id from public.notes where user_id = $1 limit 1), $2, 3, '[]'::jsonb, array[$3])`, [me, "0123456789abcdef01234567", blob]);
   await pg.query(`insert into public.pane_setup (user_id, imported_at) values ($1, now())`, [me]);
   await pg.query(`insert into public.pane_activity (user_id, day, kind, n) values ($1, current_date, 'ai_edit', 3) on conflict do nothing`, [me]);
   await pg.query(`insert into public.pane_tip_activity (user_id, day, tip, event, n) values ($1, current_date, 'shareLink', 'shown', 1)`, [me]);
