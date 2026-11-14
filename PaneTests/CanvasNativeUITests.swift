@@ -1673,6 +1673,148 @@ import UIKit
         #expect(empty.find("canvas.library.import") != nil && empty.find("canvas.library.item") == nil)
     }
 
+    /// Each item shows its name (or what it is, when its library leaves it unnamed), grouped under
+    /// the library file it came from, yours under Saved, newest group first (library council,
+    /// round 6). The file's name is kept with each item, so the groups come back after a relaunch.
+    @Test func libraryItemsShowTheirNamesUnderTheLibraryTheyCameFrom() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "library-groups-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let flow = dir.appending(path: "data-flow.excalidrawlib"), shapes = dir.appending(path: "basic_shapes.excalidrawlib")
+        try Data(Self.dataFlowLibrary.utf8).write(to: flow)
+        try Data(Self.basicShapesLibrary.utf8).write(to: shapes)
+        #expect(CanvasLibraryFile.displayName(flow) == "Data flow" && CanvasLibraryFile.displayName(shapes) == "Basic shapes")
+        let lib = CanvasLibrary(folder: dir.appending(path: "kept"))
+        #expect(CanvasLibraryImport.add([flow], to: lib).added == 2)
+        #expect(CanvasLibraryImport.add([shapes], to: lib).added == 2)
+        let mine = try #require(lib.add(elements: [["type": "diamond", "id": "d", "x": 0, "y": 0, "width": 120, "height": 80]]))
+        #expect(mine.source == nil && mine.title == "Diamond", "yours, named by what it is: \(mine.title)")
+        let grid = CanvasLibraryGrid(lib.items)
+        #expect(grid.groups.map(\.title) == ["Saved", "Basic shapes", "Data flow"], "\(grid.groups.map(\.title))")
+        #expect(grid.groups.map { $0.items.map(\.title) } == [["Diamond"], ["Line", "Line"], ["Process", "Data storage"]])
+        // Kept with each item, so a relaunch groups them the same.
+        lib.flush()
+        let again = CanvasLibraryGrid(CanvasLibrary(folder: dir.appending(path: "kept")).items)
+        #expect(again.groups.map(\.title) == grid.groups.map(\.title) && again.items.map(\.id) == grid.items.map(\.id))
+        // The popover: a heading for each group, each tile says its name.
+        let canvas = CanvasController()
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: lib), size: CGSize(width: CanvasLibraryPopover.width, height: 460))
+        defer { ax.close() }
+        await ax.settle()
+        let tree = ax.ids()
+        #expect(tree.filter { $0 == "canvas.library.group" }.count == 3, "\(tree)")
+        #expect(tree.filter { $0 == "canvas.library.item" }.count == 5, "\(tree)")
+        let heading = try #require(ax.find("canvas.library.group"))
+        #expect(heading.text == "Saved", "\(heading.text)")
+        let tile = try #require(ax.find("canvas.library.item"))
+        #expect(tile.text.contains("Diamond"), "\(tile.text)")
+        #expect(ax.find("canvas.library.search") == nil, "five items: no search field")
+    }
+
+    /// Past 12 items the popover has a search field; it filters by the item's name or its
+    /// library's, and says so when nothing matches.
+    @Test func theLibrarySearchFiltersByNameOnceThereAreMoreThan12() async throws {
+        #expect(!CanvasLibraryGrid.showsSearch(12) && CanvasLibraryGrid.showsSearch(13))
+        let lib = CanvasLibrary(folder: nil)
+        _ = lib.importLibrary(Data(Self.dataFlowLibrary.utf8), source: "Data flow")
+        for i in 0..<11 {
+            lib.add(elements: [["type": "rectangle", "id": "r\(i)", "x": 0, "y": 0, "width": 100 + i, "height": 60]], name: "Box \(i)")
+        }
+        #expect(lib.items.count == 13)
+        #expect(CanvasLibraryGrid(lib.items, query: "stor").items.map(\.title) == ["Data storage"])
+        #expect(CanvasLibraryGrid(lib.items, query: "DATA FLOW").items.map(\.title) == ["Process", "Data storage"], "its library's name finds it too")
+        #expect(CanvasLibraryGrid(lib.items, query: "box 1").items.map(\.title) == ["Box 10", "Box 1"])
+        #expect(CanvasLibraryGrid(lib.items, query: "  ").items.count == 13, "nothing typed: everything")
+        #expect(CanvasLibraryGrid(lib.items, query: "zebra").groups.isEmpty)
+        let canvas = CanvasController()
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: lib), size: CGSize(width: CanvasLibraryPopover.width, height: 480))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(ax.find("canvas.library.search") != nil, "13 items: a search field, \(ax.ids())")
+        lib.remove(lib.items[0].id)
+        await ax.settle()
+        #expect(ax.find("canvas.library.search") == nil, "12: none")
+    }
+
+    /// The arrow keys move through the grid as it shows (beside, and row by row across groups);
+    /// Return adds the picked item, or the first match while searching.
+    @Test func arrowKeysMoveThroughTheLibraryAndReturnAddsTheItem() throws {
+        func item(_ name: String, _ source: String?) throws -> CanvasLibraryItem {
+            try #require(CanvasLibraryItem(id: name, name: name, source: source, elements: [["type": "rectangle", "id": "r", "x": 0, "y": 0, "width": 10, "height": 10]]))
+        }
+        // Mine: a0 a1 a2 a3 / a4; then Kit: b0 b1 b2.
+        let items = try (0..<5).map { try item("a\($0)", nil) } + (0..<3).map { try item("b\($0)", "Kit") }
+        let grid = CanvasLibraryGrid(items, columns: 4)
+        #expect(grid.moved(nil, .down) == "a0", "nothing picked: the first")
+        #expect(grid.moved("a0", .left) == "a0" && grid.moved("a0", .right) == "a1")
+        #expect(grid.moved("a3", .right) == "a4", "right runs on to the next row")
+        #expect(grid.moved("a2", .down) == "a4", "down to the row below, its last tile when it's shorter")
+        #expect(grid.moved("a4", .down) == "b0", "down into the next group")
+        #expect(grid.moved("b2", .up) == "a4" && grid.moved("a1", .up) == "a1" && grid.moved("b1", .down) == "b1")
+        #expect(grid.moved("a4", .up) == "a0")
+        #expect(grid.chosen("b1", searching: false)?.id == "b1")
+        #expect(grid.chosen(nil, searching: false) == nil, "Return with nothing picked adds nothing")
+        let found = CanvasLibraryGrid(items, query: "b2")
+        #expect(found.chosen(nil, searching: true)?.id == "b2", "searching: Return adds the first match")
+        #expect(found.chosen("a0", searching: true)?.id == "b2", "a pick the search hid doesn't count")
+    }
+
+    /// The gap between what was just added and everything else on the board, in screen points,
+    /// and where its middle is in the view.
+    static func room(_ j: Joined, before: [String]) async throws -> (gap: Double, centre: CGPoint, fresh: Int) {
+        let json = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, old = new Set(\(String(decoding: try JSONSerialization.data(withJSONObject: before), as: UTF8.self)));
+          const box = (e) => { if (Array.isArray(e.points) && e.points.length) { const xs = e.points.map((p) => e.x + p[0]), ys = e.points.map((p) => e.y + p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; } return [e.x, e.y, e.x + e.width, e.y + e.height]; };
+          const all = api.getSceneElements(), fresh = all.filter((e) => !old.has(e.id)).map(box), was = all.filter((e) => old.has(e.id)).map(box);
+          const a = Math.min(...fresh.map((b) => b[0])), b = Math.min(...fresh.map((b) => b[1])), c = Math.max(...fresh.map((b) => b[2])), d = Math.max(...fresh.map((b) => b[3]));
+          let gap = Infinity;
+          for (const [x1, y1, x2, y2] of was) gap = Math.min(gap, Math.hypot(Math.max(x1 - c, a - x2, 0), Math.max(y1 - d, b - y2, 0)));
+          return JSON.stringify({ gap: gap * z, centre: [((a + c) / 2 + s.scrollX) * z, ((b + d) / 2 + s.scrollY) * z], fresh: fresh.length }); })()
+        """) as? String)
+        let o = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let c = o["centre"] as? [Double] ?? [0, 0]
+        return ((o["gap"] as? Double) ?? 0, CGPoint(x: c[0], y: c[1]), (o["fresh"] as? Int) ?? 0)
+    }
+
+    /// A click in the library never squeezes the item into a tight gap: it keeps 48 pt from every
+    /// shape, line and word, and goes in the roomiest empty part of the view (library council,
+    /// round 6: "D1 Store" landed 25 pt above an arrowhead).
+    @Test func aLibraryItemKeeps48PointsFromEverythingInTheRoomiestSpot() async throws {
+        try await Self.withLibrary { lib in
+            _ = try #require(lib.importLibrary(Data(Self.dataFlowLibrary.utf8)))
+            let store = try #require(lib.items.first { $0.name == "Data storage" })
+            // The flowchart filling the view, as the judges had it.
+            do {
+                let j = try await Joined(scene: Self.flowchart)
+                defer { j.close() }
+                try await j.ready()
+                _ = try await j.js("(() => { const api = amber._canvas.api; api.scrollToContent(api.getSceneElements(), { fitToContent: true, animate: false }); return 1; })()")
+                try await Task.sleep(for: .milliseconds(200))
+                let before = try await Self.ids(j)
+                j.canvas.insert(store)
+                for _ in 0..<100 where (try await Self.ids(j)).count < before.count + 4 { try await Task.sleep(for: .milliseconds(30)) }
+                let r = try await Self.room(j, before: before)
+                #expect(r.fresh == 4 && r.gap >= 47.5, "at least 48 pt from everything: \(r)")
+            }
+            // A tight gap in the middle (between two boxes) and the right half empty: it goes right.
+            let j = try await Joined(scene: CanvasTests.scene([
+                ["type": "rectangle", "id": "top", "x": 0, "y": 0, "width": 400, "height": 250],
+                ["type": "rectangle", "id": "bottom", "x": 0, "y": 410, "width": 400, "height": 190],
+                ["type": "arrow", "id": "link", "x": 200, "y": 250, "width": 0, "height": 160, "points": [[0, 0], [0, 160]]],
+            ]))
+            defer { j.close() }
+            try await j.ready()
+            _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { scrollX: 0, scrollY: 0, zoom: { value: 1 } } }); return 1; })()")
+            try await Task.sleep(for: .milliseconds(100))
+            let before = try await Self.ids(j)
+            j.canvas.insert(store)
+            for _ in 0..<100 where (try await Self.ids(j)).count < before.count + 4 { try await Task.sleep(for: .milliseconds(30)) }
+            let r = try await Self.room(j, before: before)
+            #expect(r.fresh == 4 && r.gap >= 100, "well clear of the drawing: \(r)")
+            #expect(r.centre.x > 560 && r.centre.x < 900 && r.centre.y > 0 && r.centre.y < 600, "in the empty right half, in view: \(r.centre)")
+        }
+    }
+
     /// In dark mode a tile shows the item in the colours the dark canvas shows it in (the board
     /// draws it light and turns it): the same as a swatch in the style bar, see-through kept.
     @Test func aLibraryPictureShowsInTheDarkCanvasColours() throws {
@@ -2389,7 +2531,8 @@ import UIKit
 
     /// The library popover's view drawn on its own at 2x, on a popover's plain card.
     static func libraryPopoverPicture(canvas: CanvasController, library: CanvasLibrary, dark: Bool) async throws -> NSBitmapImageRep {
-        let height = library.items.isEmpty ? 120 : CanvasLibraryPopover.gridHeight(library.items.count) + 44
+        let search: CGFloat = CanvasLibraryGrid.showsSearch(library.items.count) ? 34 : 0
+        let height = library.items.isEmpty ? 120 : CanvasLibraryPopover.gridHeight(CanvasLibraryGrid(library.items)) + 44 + search
         let size = CGSize(width: CanvasLibraryPopover.width, height: height)
         let ax = OffscreenAX(CanvasLibraryPopover(canvas: canvas, library: library)
             .frame(width: size.width, height: size.height, alignment: .top)

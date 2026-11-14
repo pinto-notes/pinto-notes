@@ -1427,8 +1427,10 @@ struct CanvasToolbarTools: View {
 
 /// Your whiteboard library, in a popover from the toolbar's Library button (whiteboard council,
 /// round 5: "a native shape library, including importing existing Excalidraw libraries and saving
-/// a selected group for reuse"). Each item as the board draws it; a click puts it in the middle of
-/// the view in a free spot, selected; a drag puts it where it's dropped; right-click › Remove.
+/// a selected group for reuse"). Each item as the board draws it with its name under it, grouped
+/// under the library file it came from (CanvasLibraryGrid), with a search field once there are
+/// more than 12 (round 6). A click, or the arrow keys and Return, puts it in the middle of the view
+/// in a free spot, selected; a drag puts it where it's dropped; right-click › Remove.
 struct CanvasLibraryPopover: View {
     let canvas: CanvasController
     var library: CanvasLibrary = .shared
@@ -1440,17 +1442,35 @@ struct CanvasLibraryPopover: View {
     static let importTitle = "Import Library\u{2026}"
     static let removeTitle = "Remove"
     static let emptyLine = "Select shapes and choose Save to Library to keep them here."
+    static let searchPrompt = "Search"
+    static let noMatches = "No items match"
 
     static let tile: CGFloat = 76
+    /// The name under each picture.
+    static let label: CGFloat = 18
     static let columns = 4
     static let spacing: CGFloat = 8
     static let padding: CGFloat = 12
+    static let heading: CGFloat = 22
     static var width: CGFloat { CGFloat(columns) * tile + CGFloat(columns - 1) * spacing + 2 * padding }
-    /// Four rows and a bit of the fifth, so a longer library shows it scrolls.
-    static func gridHeight(_ count: Int) -> CGFloat {
-        let rows = CGFloat((count + columns - 1) / columns)
-        return min(rows * tile + max(rows - 1, 0) * spacing + 2 * padding, 4.5 * (tile + spacing) + padding)
+    /// The groups' height, up to about four rows, so a longer library shows it scrolls.
+    static func gridHeight(_ grid: CanvasLibraryGrid) -> CGFloat {
+        let row = tile + label
+        let content = grid.groups.reduce(CGFloat(0)) { sum, g in
+            let rows = CGFloat((g.items.count + columns - 1) / columns)
+            return sum + heading + rows * row + max(rows - 1, 0) * spacing + spacing
+        }
+        return min(max(content + 2 * padding - spacing, 60), 4.4 * (row + spacing) + padding)
     }
+
+    @State private var query = ""
+    /// The item the arrow keys are on (its id).
+    @State private var picked: String?
+    @FocusState private var focus: Field?
+    private enum Field { case search, grid }
+
+    private var searching: Bool { CanvasLibraryGrid.showsSearch(library.items.count) }
+    private var grid: CanvasLibraryGrid { CanvasLibraryGrid(library.items, query: searching ? query : "", columns: Self.columns) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1468,13 +1488,45 @@ struct CanvasLibraryPopover: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(Self.tile), spacing: Self.spacing), count: Self.columns), spacing: Self.spacing) {
-                        ForEach(library.items) { tile($0) }
-                    }
-                    .padding(Self.padding)
+                let grid = self.grid
+                if searching {
+                    TextField(Self.searchPrompt, text: $query, prompt: Text(Self.searchPrompt))
+                        .textFieldStyle(.roundedBorder)
+                        .focused($focus, equals: .search)
+                        .onKeyPress(keys: [.upArrow, .downArrow]) { press in key(press.key, grid) }
+                        .onSubmit { if let item = grid.chosen(picked, searching: true) { add(item) } }
+                        .padding([.horizontal, .top], Self.padding)
+                        .accessibilityIdentifier("canvas.library.search")
                 }
-                .frame(height: Self.gridHeight(library.items.count))
+                ScrollViewReader { scroll in
+                    ScrollView {
+                        if grid.groups.isEmpty {
+                            Text(Self.noMatches)
+                                .font(.system(size: 13))
+                                .foregroundStyle(Color.muted)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 20)
+                                .accessibilityIdentifier("canvas.library.noMatches")
+                        }
+                        VStack(alignment: .leading, spacing: Self.spacing) {
+                            ForEach(grid.groups) { group in
+                                Text(group.title)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.muted)
+                                    .lineLimit(1)
+                                    .frame(height: Self.heading, alignment: .bottomLeading)
+                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityIdentifier("canvas.library.group")
+                                LazyVGrid(columns: Array(repeating: GridItem(.fixed(Self.tile), spacing: Self.spacing), count: Self.columns), spacing: Self.spacing) {
+                                    ForEach(group.items) { tile($0).id($0.id) }
+                                }
+                            }
+                        }
+                        .padding(Self.padding)
+                    }
+                    .onChange(of: picked) { _, id in if let id { withAnimation(.snappy(duration: 0.15)) { scroll.scrollTo(id) } } }
+                }
+                .frame(height: Self.gridHeight(grid))
                 HStack {
                     importButton
                     Spacer(minLength: 8)
@@ -1487,11 +1539,40 @@ struct CanvasLibraryPopover: View {
             }
         }
         .frame(width: Self.width)
+        // The arrow keys and Return, with the search field or the grid in focus.
+        .focusable(!library.items.isEmpty)
+        .focused($focus, equals: .grid)
+        .focusEffectDisabled()
+        .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow, .return]) { press in
+            if press.key == .return {
+                guard let item = grid.chosen(picked, searching: searching && !query.isEmpty) else { return .ignored }
+                add(item)
+                return .handled
+            }
+            // In the search field, left and right move through its words.
+            if focus == .search, press.key == .leftArrow || press.key == .rightArrow { return .ignored }
+            return key(press.key, grid)
+        }
+        .onChange(of: query) { picked = nil }
+        .onAppear { focus = searching ? .search : .grid }
         // Pictures for what has none yet (an imported library), drawn by the board.
         .task(id: library.items.map(\.id)) { await canvas.drawThumbnails(library) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Self.title)
         .accessibilityIdentifier("canvas.library")
+    }
+
+    private func key(_ key: KeyEquivalent, _ grid: CanvasLibraryGrid) -> KeyPress.Result {
+        let move: CanvasLibraryGrid.Move
+        switch key {
+        case .leftArrow: move = .left
+        case .rightArrow: move = .right
+        case .upArrow: move = .up
+        case .downArrow: move = .down
+        default: return .ignored
+        }
+        picked = grid.moved(picked, move)
+        return .handled
     }
 
     private var importButton: some View {
@@ -1500,24 +1581,35 @@ struct CanvasLibraryPopover: View {
     }
 
     private func tile(_ item: CanvasLibraryItem) -> some View {
-        Button { add(item) } label: {
-            CanvasLibraryThumbnail(item: item, light: library.thumbnails[item.id], dark: library.darkThumbnails[item.id])
-                .padding(9)
-                .frame(width: Self.tile, height: Self.tile)
-                .background(Color.primary.opacity(0.045), in: .rect(cornerRadius: 10, style: .continuous))
-                .contentShape(.rect(cornerRadius: 10, style: .continuous))
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        return Button { add(item) } label: {
+            VStack(spacing: 2) {
+                CanvasLibraryThumbnail(item: item, light: library.thumbnails[item.id], dark: library.darkThumbnails[item.id])
+                    .padding(9)
+                    .frame(width: Self.tile, height: Self.tile)
+                    .background(Color.primary.opacity(0.045), in: shape)
+                    .overlay { if picked == item.id { shape.strokeBorder(Color.accentColor, lineWidth: 2) } }
+                Text(item.title)
+                    .font(.system(size: 11))
+                    .foregroundStyle(picked == item.id ? Color.primary : Color.muted)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(width: Self.tile, height: Self.label - 2)
+            }
+            .contentShape(.rect)
         }
         .buttonStyle(CanvasPressStyle())
-        .hoverHighlight(.rect(cornerRadius: 10, style: .continuous))
-        .help(item.name.map { "\($0). Click to add it, or drag it onto the board." } ?? "Click to add it, or drag it onto the board.")
+        .hoverHighlight(shape)
+        .help("\(item.title). Click to add it, or drag it onto the board.")
         .contextMenu {
             Button("Add to Whiteboard") { add(item) }
             Divider()
             Button(Self.removeTitle, role: .destructive) { library.remove(item.id) }
         }
         .onDrag { CanvasLibraryDrag.provider(item) }
-        .accessibilityLabel(item.name ?? "Library item")
+        .accessibilityLabel(item.title)
         .accessibilityHint("Adds it to the whiteboard")
+        .accessibilityAddTraits(picked == item.id ? .isSelected : [])
         .accessibilityIdentifier("canvas.library.item")
     }
 
@@ -1581,7 +1673,7 @@ enum CanvasLibraryDrag {
         for url in urls {
             let reach = url.startAccessingSecurityScopedResource()
             defer { if reach { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url), let got = library.importLibrary(data) else { r.refused.append(url.lastPathComponent); continue }
+            guard let data = try? Data(contentsOf: url), let got = library.importLibrary(data, source: CanvasLibraryFile.displayName(url)) else { r.refused.append(url.lastPathComponent); continue }
             r.added += got.added
             r.already += got.already
         }
