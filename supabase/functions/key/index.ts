@@ -6,6 +6,9 @@
 //   → 200 { on: true, pub, ticket }     a public key to seal a copy to, and the ticket to send back
 //   POST /functions/v1/key     { op: "store", ticket, box, choose?, from?, platform? }
 //   → 200 { stored: true }
+//   POST /functions/v1/key     { op: "create", ticket, box, key_id, verifier, recovery_wrap, platform? }
+//   → 200 { created: true }     an account with no key: its key row, copy and standard mode in one step (the web connect page)
+//   → 409 { hint: "key_exists" | "strict" }
 //   POST /functions/v1/key     { op: "fetch", pub, platform? }
 //   → 200 { sealed, key_id, generation }     the key, sealed to `pub`
 //   → 403 { hint: "paused_after_reset", until } after a password reset, only while KEY_COPY_HOLD_HOURS is set (default 0: no hold)

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { GOOGLE_ON_WEB, APPLE_ON_WEB } from "@/lib/connect";
 import { CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
+import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { Shell } from "@/lib/ui";
 import { ACCOUNTS_START, ErrorLine, GetPintoNotes, NO_ACCOUNT, SignInButtons, Spinner } from "./ConnectScreens";
 import styles from "./connect.module.css";
@@ -17,13 +18,15 @@ import styles from "./connect.module.css";
 /// chat glyph; then Pinto's icon. `done` puts a tick between them.
 export type Verified = "ChatGPT" | "Claude" | "Grok" | null;
 
-/// The frame around every step: no card, no side panel, no picture.
-export function BrowserFrame({ ai, done = false, children }: { ai: Verified; done?: boolean; children: React.ReactNode }) {
+/// The frame around every step: no card, no side panel, no picture. `after`: something quiet
+/// under the step (NewAccountCard), outside its column's reading order.
+export function BrowserFrame({ ai, done = false, after = null, children }: { ai: Verified; done?: boolean; after?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Shell className={styles.flowShell}>
       <main className={styles.flow}>
         <PairMark ai={ai} done={done} />
         {children}
+        {after}
       </main>
       <p className={styles.flowFoot}>
         <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a>
@@ -43,7 +46,7 @@ export function BrowserSignInScreen({ who, email, onEmail, onSubmit, onGoogle, o
   return (
     <>
       <h1 className={styles.title}>{again ? "Sign in again" : `Connect ${who} to your notes?`}</h1>
-      <p className={styles.lede}>{again ? SIGN_IN_AGAIN : "Sign in to Pinto Notes, then choose Allow."}</p>
+      <p className={styles.lede}>{again ? SIGN_IN_AGAIN : SIGN_IN_LEDE}</p>
       {APPLE_ON_WEB && <SignInButtons onApple={onApple} onGoogle={GOOGLE_ON_WEB ? onGoogle : undefined} busy={busy} />}
       <form className={styles.form} method="post" onSubmit={onSubmit}>
         <label className={styles.field}>
@@ -72,6 +75,48 @@ export function BrowserSignInScreen({ who, email, onEmail, onSubmit, onGoogle, o
         )}
       </form>
     </>
+  );
+}
+
+/// Under the sign-in's title. Signing in with an address or an Apple or Google account that has no
+/// Pinto Notes account makes one: the same steps, nothing more to do.
+export const SIGN_IN_LEDE = "Sign in or sign up, then choose Allow.";
+
+/// Which platform the visitor is on, as lib/platform.ts marked <html> before first paint
+/// (?as= previews included). "other" when it couldn't tell.
+export type VisitorPlatform = "ios" | "mac" | "windows" | "android" | "linux" | "other";
+export function visitorPlatform(): VisitorPlatform {
+  if (typeof document === "undefined") return "other";
+  const p = document.documentElement.dataset.platform;
+  return p === "ios" || p === "mac" || p === "windows" || p === "android" || p === "linux" ? p : "other";
+}
+
+/// What the card under a new account's consent says, and where its one link goes. Pinto Notes is
+/// for iPhone and Mac: on Android, Windows or Linux it says so and offers nothing that can't work
+/// there, and nothing about other platforms (lib/platform.ts, app/PlatformNote.tsx).
+export function newAccountWords(platform: VisitorPlatform, ai: Verified, appStoreLive = APP_STORE_LIVE): { line: string; link: { text: string; href: string } | null } {
+  const writes = ai ? `everything ${ai} writes` : "everything your AI writes";
+  if (platform === "android" || platform === "windows" || platform === "linux") {
+    return { line: `Pinto Notes is an app for iPhone and Mac. Your notes live there, with ${writes}, when you sign in on one.`, link: null };
+  }
+  const line = `Pinto Notes is an app for iPhone and Mac. Your notes live there, with ${writes}.`;
+  if (platform === "ios") return { line, link: appStoreLive ? { text: "Get it on the App Store", href: APP_STORE_URL } : { text: "Get Pinto Notes", href: "/download" } };
+  if (platform === "mac") return { line, link: { text: "Download for Mac", href: "/download" } };
+  return { line, link: { text: "Get Pinto Notes", href: "/download" } };
+}
+
+/// A small, quiet card under a new account's consent: where the notes live, and one link to the
+/// app. Only for an account this page just made (BrowserConnect's isNew), never for one signing in.
+/// The link opens in a new tab, so the consent stays where it is.
+export function NewAccountCard({ ai, platform }: { ai: Verified; platform?: VisitorPlatform }) {
+  const [p, setP] = useState<VisitorPlatform>(platform ?? "other");
+  useEffect(() => { if (!platform) setP(visitorPlatform()); }, [platform]);
+  const words = newAccountWords(p, ai);
+  return (
+    <aside className={styles.appCard} data-testid="connect-get-app" data-platform={p}>
+      <p>{words.line}</p>
+      {words.link && <a className={styles.appCardLink} href={words.link.href} target="_blank" rel="noopener noreferrer">{words.link.text}</a>}
+    </aside>
   );
 }
 

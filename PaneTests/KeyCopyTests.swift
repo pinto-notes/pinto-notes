@@ -14,12 +14,66 @@ extension KeyCopyTests {
         var user_id: String, data: String, recovery: String, id: String, nonce: String
         var receiver_private: String, receiver_public: String, sender_ephemeral_private: String
         var up: String, down: String
+        /// A new account's key row as the web connect page makes it (web/lib/account-key.ts).
+        var web_account: WebAccount
+        struct WebAccount: Decodable { var key_id: String, verifier: String, wrap_nonce: String, recovery_wrap: String }
+    }
+
+    static func vectors() throws -> Vectors {
+        let url = try #require(Bundle(for: VectorsToken.self).url(forResource: "keycopy-vectors", withExtension: "json"))
+        return try JSONDecoder().decode(Vectors.self, from: Data(contentsOf: url))
+    }
+
+    // MARK: An account the web connect page signed up (Emil, 14 November 2026)
+
+    /// The page makes the key in the browser, as this app does at a first sign-in, and the server
+    /// keeps its copy: the row it makes is the one serverRow makes, and the copy it sends is ours.
+    @Test func aKeyTheWebPageMadeIsTheAccountsKeyHere() throws {
+        let v = try Self.vectors(), w = v.web_account
+        let user = try #require(UUID(uuidString: v.user_id))
+        let key = try #require(StoredKey(dataKey: Data(base64Encoded: v.data)!, recovery: Data(base64Encoded: v.recovery)!))
+        let webRow = ServerKey(key_id: w.key_id, verifier: w.verifier, recovery_wrap: w.recovery_wrap, recovery_saved_at: nil)
+        let ours = try key.serverRow(user: user)
+        #expect(ours.key_id == webRow.key_id && ours.verifier == webRow.verifier)
+        #expect(key.matches(webRow, user: user))
+        #expect(AccountCrypto.isAccountsKey(key, webRow, user: user), "its recovery key opens the web's recovery wrap to the same data key")
+        // The copy the page sent up opens here to the same key (what the server stores).
+        let receiver = try P256.KeyAgreement.PrivateKey(rawRepresentation: Data(base64Encoded: v.receiver_private)!)
+        #expect(try KeyCopyBox.open(v.up, with: receiver, direction: .up, user: user, keyID: w.key_id) == key)
+        // A key that isn't this one doesn't pass for it.
+        #expect(!AccountCrypto.isAccountsKey(StoredKey.generate(), webRow, user: user))
+        // A device signing in with nothing in its Keychain fetches the copy: no key is made here.
+        #expect(KeyStartup.decide(user: user, synced: nil, pending: nil, server: .key(webRow), copy: true) == .fetch(mismatch: false))
+    }
+
+    /// The account's first sign-in in the app, after the web page made its key and the AI wrote in
+    /// it: the server already has a key and a copy, so the app gets the key by signing in (as a
+    /// second device does), opens the notes, and makes no key of its own.
+    @Test func theFirstSignInInTheAppOpensTheNotesTheWebPageAndTheAIMade() async throws {
+        let v = try Self.vectors(), w = v.web_account
+        let user = try #require(UUID(uuidString: v.user_id))
+        let key = try #require(StoredKey(dataKey: Data(base64Encoded: v.data)!, recovery: Data(base64Encoded: v.recovery)!))
+        server.row = ServerKey(key_id: w.key_id, verifier: w.verifier, recovery_wrap: w.recovery_wrap, recovery_saved_at: nil)
+        server.copy = key
+        server.protection = .standard
+        // A note the AI wrote with the key, as the MCP server seals it.
+        let note = UUID()
+        let box = try NoteCrypto.seal("Groceries\n- [ ] milk", key: key.key, keyID: key.keyID, context: E2EE.body(note))
+
+        let (phone, keychain) = device()
+        await phone.attach(account: user, server: server, copies: server)
+        #expect(phone.phase == .ready && !phone.unverified && phone.arrivedHow == .signIn)
+        #expect(server.fetches == 1 && server.stores.isEmpty, "fetched, and nothing stored or made")
+        #expect(server.row?.key_id == w.key_id, "the account's key is still the web's")
+        #expect(keychain.local[user] == key)
+        #expect(phone.serverCopy && phone.protection == .standard && !phone.asksProtection)
+        let opened = try NoteCrypto.open(box, key: try #require(phone.dataKey), context: E2EE.body(note))
+        #expect(opened == "Groceries\n- [ ] milk")
     }
 
     /// supabase/functions/_shared/keycopy-vectors.json, the file the server's tests check too.
     @Test func theBoxesAreExactlyTheServers() throws {
-        let url = try #require(Bundle(for: VectorsToken.self).url(forResource: "keycopy-vectors", withExtension: "json"))
-        let v = try JSONDecoder().decode(Vectors.self, from: Data(contentsOf: url))
+        let v = try Self.vectors()
         let user = try #require(UUID(uuidString: v.user_id))
         let key = try #require(StoredKey(dataKey: Data(base64Encoded: v.data)!, recovery: Data(base64Encoded: v.recovery)!))
         #expect(key.keyID == v.id)

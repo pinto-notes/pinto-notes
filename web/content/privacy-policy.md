@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 12 November 2026
+Last updated: 14 November 2026
 
 ## The short version
 
@@ -47,7 +47,7 @@ This policy covers the Pinto Notes apps for iPhone and Mac, the service that let
 
 **Your encryption key, locked**
 
-- Your notes' key is made on your first device and kept in your iCloud Keychain.
+- Your notes' key is made on your first device and kept in your iCloud Keychain. If you sign up on our website to connect an AI, your browser makes it there instead, and your devices get it when you sign in.
 - Unless **Advanced protection** is on: a copy of your notes' key and your recovery key, sealed with a secret that is kept outside our database (see Encryption).
 - Whether your account is standard or has Advanced protection on.
 - A log of each time our copy was stored, fetched by a device or removed, and each time a request for it was refused: when, and the kind of device. We keep it for 12 months.
@@ -155,7 +155,7 @@ We don't use your data for advertising. The only emails about Pinto Notes we sen
 
 ## Encryption
 
-**What's encrypted.** Your notes, their titles and previews, folder names, file names and files, and every earlier version are encrypted on your iPhone or Mac (AES-256-GCM) before they're uploaded, with a key made on your first device. We store the encrypted copies.
+**What's encrypted.** Your notes, their titles and previews, folder names, file names and files, and every earlier version are encrypted on your iPhone or Mac (AES-256-GCM) before they're uploaded, with a key made on your first device, or in your browser if you sign up on our website. We store the encrypted copies.
 
 **Your key, and our copy of it.** Your devices hold your notes' key, and iCloud Keychain carries it between your iPhone and Mac. By default we keep a copy too: your notes' key and your recovery key, sealed with a secret that is kept in our server's settings and not in the database. We store the copy for one purpose: so that signing in opens your notes on a new device, with no other device and no recovery key. When you sign in on a new device, our server unlocks the copy in memory and sends the key to that device, sealed so that only that device can open it. There is no waiting period, and that includes after a password reset. A device asks for the key right after you sign in. One that has been signed in for more than an hour without your notes asks you to sign in again first.
 

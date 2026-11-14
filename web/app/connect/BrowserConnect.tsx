@@ -3,15 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { didntFinish, functionURL, oauthSignInURL, pkcePair, returnURL, type ConnectLabel, type ConnectRequest, type OAuthProvider } from "@/lib/connect";
 import { browserFrom } from "@/lib/connect-flow";
+import { makeAccountKey } from "@/lib/account-key";
 import {
   allowRequest, backTo, codeDigits, codeRequest, codeRequestError, consentWords, denyRequest, forgetPre, forgetSession, hereFrom, loadPre,
   loadSession, preAllowRequest, refreshRequest, requestedLine, safeReturn, saveSession, sessionFrom, verifyError, verifyRequest, type StoredSession,
 } from "@/lib/connect-browser";
 import { EndedScreen, LeavingScreen, WorkingScreen } from "./ConnectScreens";
-import { BrowserFrame, BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen, type Verified } from "./BrowserScreens";
+import { BrowserFrame, BrowserSignInScreen, CodeScreen, ConnectedScreen, ConsentScreen, InAppScreen, NewAccountCard, type Verified } from "./BrowserScreens";
 
 // The connect page for a server that lets the page answer itself (/connect/label's allow_here):
-// sign in, the consent, Allow. Right after Connect in the app, none of that: a brief Connected. Accounts whose key is only on their devices go on to the app's way
+// sign in (or sign up), the consent, Allow. A new account's notes' key is made here, out of sight,
+// behind the loading line (lib/account-key.ts); a small card under the page then says where the
+// notes live (NewAccountCard), for that new account only. Right after Connect in the app, none of that: a brief Connected. Accounts whose key is only on their devices go on to the app's way
 // (`inApp`, the page as it was). See lib/connect-browser.ts for the whole flow.
 
 type View =
@@ -58,6 +61,8 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
   const [answering, setAnswering] = useState<"allow" | "deny" | null>(null);
   const [ready, setReady] = useState(false);
   const [noAccount, setNoAccount] = useState(false);
+  // This page made the account's key just now: a new account, which gets the card about the app.
+  const [isNew, setIsNew] = useState(false);
   const [resent, setResent] = useState(false);
   const session = useRef<StoredSession | null>(null);
   const [signedIn, setSignedIn] = useState<string | null>(null);
@@ -110,6 +115,8 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     const s = session.current;
     session.current = null;
     setSignedIn(null);
+    // Whoever signs in next is new only if the page makes their key.
+    setIsNew(false);
     forgetSession(local());
     if (!s) return;
     // Lets go of the request too, so another account can answer it.
@@ -119,7 +126,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     ]);
   }
 
-  async function switchAccount() {
+  async function switchAccount(): Promise<void> {
     setFailure(null);
     setCode("");
     setEmail("");
@@ -154,7 +161,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
 
   // MARK: Who is asking, and whether this page may answer
 
-  async function loadRequest(s: StoredSession) {
+  async function loadRequest(s: StoredSession, keyJustMade = false): Promise<void> {
     setView({ kind: "loading" });
     try {
       const res = await fetch(`${mcp}/connect/request?id=${requestId}`, { headers: { authorization: `Bearer ${s.access_token}` }, cache: "no-store" });
@@ -179,7 +186,8 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
         case "app":
           return setView({ kind: "inApp" });
         case "none":
-          return await noAccountYet();
+          // Once only: a key was just made, and the server still says none.
+          return keyJustMade ? await noAccountYet() : await makeKey(s);
       }
     } catch {
       setView({ kind: "ended", title: "Couldn't connect", text: OFFLINE, retry: true });
@@ -276,9 +284,31 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
     }
   }
 
-  /// Signed in to an account with no key: Sign in with Apple or Google made it here, and accounts
-  /// start in the app. What an email with no account gets, and the session ends with it.
-  async function noAccountYet() {
+  /// Signed in to an account with no key: one just made here (by email, Google or Apple). Its key is
+  /// made now, as the app makes it at a first sign-in, behind the same loading line, and the page
+  /// goes on to the consent. The person never sees a key or a recovery key.
+  async function makeKey(s: StoredSession): Promise<void> {
+    setView({ kind: "loading" });
+    const r = await makeAccountKey(base, s.access_token, s.user_id);
+    if (r.made) {
+      setIsNew(true);
+      return await loadRequest(s, true);
+    }
+    switch (r.why) {
+      // Made a moment ago by the app or another tab: the request again.
+      case "key_exists": return await loadRequest(s, true);
+      case "strict": return setView({ kind: "inApp" });
+      case "sign_in": return await switchAccount();
+      case "rate": return setView({ kind: "ended", title: "Couldn't connect", text: "Too many tries. Wait a while, then connect again.", retry: true });
+      case "offline": case "error": case "unreadable": return setView({ kind: "ended", title: "Couldn't connect", text: OFFLINE, retry: true });
+      // The server makes no copies ("off"): accounts start in the app, as before.
+      default: return await noAccountYet();
+    }
+  }
+
+  /// No key, and none can be made here (the server keeps no copies): accounts start in the app.
+  /// What an email with no account gets, and the session ends with it.
+  async function noAccountYet(): Promise<void> {
     setView({ kind: "loading" });
     await signOut();
     setNoAccount(true);
@@ -315,7 +345,7 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
       }
       if (res.status === 404) return setView(EXPIRED);
       if (body?.hint === "reauth") return setView({ kind: "signIn", again: true });
-      if (body?.hint === "no_key") return await noAccountYet();
+      if (body?.hint === "no_key") return await makeKey(s);
       if (["strict", "no_copy", "no_key", "off", "unreadable", "rate"].includes(body?.hint ?? "")) {
         if (body?.hint === "rate") return setView({ kind: "ended", title: "Allow this in Pinto Notes", text: body?.error ?? OFFLINE });
         return setView({ kind: "inApp" });
@@ -331,7 +361,9 @@ export default function BrowserConnect({ requestId, supabaseURL, anonKey, authCo
   // MARK: The page
 
   if (view.kind === "legacy") return <>{inApp}</>;
-  return <BrowserFrame ai={ai} done={view.kind === "connected"}>{step()}</BrowserFrame>;
+  // The card about the app: a new account only, once it's past signing in. It never holds up a step.
+  const card = isNew && (view.kind === "consent" || view.kind === "connected") ? <NewAccountCard ai={ai} /> : null;
+  return <BrowserFrame ai={ai} done={view.kind === "connected"} after={card}>{step()}</BrowserFrame>;
 
   function step() {
   switch (view.kind) {

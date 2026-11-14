@@ -9,5 +9,12 @@
   "receiver_public": "BK9UVJFFOUIVTsSUpYNV3UxnHJDcdDxhBku4sbTTreT3DLEyPUco0UiCeYKZb+qWErEcuYT/3HcRWxnYsMFGx8M=",
   "sender_ephemeral_private": "mv4ekNAtMnOAUgdYkMSMSEL9u2KWSfl9fk1ANRmDQkk=",
   "up": "amb2t.BJgbbmR7v1utkIThichjwbNcLtkSsO6Io4byJvSWMnivOrGvp16poywexhsGTfDyqW3oBISg1Wal8OYiNL6cUV+goaKjpKWmp6ipqquvDH/D7ZFcoVSR5F6TTK1t3ecsc5HAhJtSynRQh39Tr4Rey7sbplmsbR3jVkhA8KFaopFEQepw36ne3FX5vSze",
-  "down": "amb2t.BJgbbmR7v1utkIThichjwbNcLtkSsO6Io4byJvSWMnivOrGvp16poywexhsGTfDyqW3oBISg1Wal8OYiNL6cUV+goaKjpKWmp6ipqqvOnJkq54nh9VtWJP0o9RqFRv2AA1ZpL10eEV2VQlS+xh5JFPP1VQEYtA3tWRhScC4GunoAQ8ueFqX91toYukrk"
+  "down": "amb2t.BJgbbmR7v1utkIThichjwbNcLtkSsO6Io4byJvSWMnivOrGvp16poywexhsGTfDyqW3oBISg1Wal8OYiNL6cUV+goaKjpKWmp6ipqqvOnJkq54nh9VtWJP0o9RqFRv2AA1ZpL10eEV2VQlS+xh5JFPP1VQEYtA3tWRhScC4GunoAQ8ueFqX91toYukrk",
+  "web_account": {
+    "about": "A new account's key row as the web connect page makes it (web/lib/account-key.ts) from this file's data and recovery keys and user, with wrap_nonce for the recovery wrap. The page's copy for the server is this file's 'up' box. Made with the server's e2ee.ts; the app's serverRow makes the same key_id and verifier and opens the same wrap.",
+    "key_id": "ae216c2ef5247a37",
+    "verifier": "3da82bcd7d876d683a8ab8df352b2aad23d5e0e6601e661211537c8607c8be7e",
+    "wrap_nonce": "sLGys7S1tre4ubq7",
+    "recovery_wrap": "amb2.ae216c2ef5247a37.sLGys7S1tre4ubq71Vge7BE9DhztwPu2qiVJ+vq6ke2XAUgnQo1SJZ/6La9N2bjYrB/VAPBRBWnVHjGmTT5Df8X82pbM2Ck3"
+  }
 }
