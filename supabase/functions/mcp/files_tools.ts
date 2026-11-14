@@ -40,7 +40,7 @@ const add = { readOnlyHint: false, destructiveHint: false, openWorldHint: false 
 const PATH = "A path, as list and search show them: \"Work/Acme.md\", a folder \"Work/\", a sub-note \"Work/Acme/Agenda.md\", a note's file \"Work/Acme/contract.pdf\", a file in a folder \"To read/Paper.pdf\", an app's file \"Work/Habits.app/src/App.tsx\" or its data \"Work/Habits.app/data.json\".";
 
 /** Trying an app (see_app steps) and its tests on save; off only in the experiment's control arm. */
-export const tryOn = () => Deno.env.get("AMBER_NO_TRY") !== "1";
+export const tryOn = () => (Deno.env.get("PINTO_NO_TRY") ?? Deno.env.get("AMBER_NO_TRY")) !== "1";
 
 export const FILE_TOOLS: Tool[] = ([
   {

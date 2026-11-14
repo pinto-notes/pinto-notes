@@ -47,7 +47,7 @@ The download (`public_fetch.ts`, shared with ChatGPT's file links):
 - The connection goes to the address that was checked (TCP to that IP, then TLS with the name for the certificate), so DNS can't answer differently the second time.
 - Redirects are followed by hand, at most 3, and each hop is checked the same way.
 - No cookies, credentials or caller headers go along. It asks for the bytes unpacked (`Accept-Encoding: identity`).
-- 30 s for the whole download. It stops reading past 10 MB (the `content_base64` limit) and says so.
+- 30 s for the whole download. It stops reading past 10 MB for a note's or folder's file and past 100 MB for an app's file (the binary file limit, docs/Technical/note-app-limits.md), and says so.
 - Exactly one of `content`, `content_base64`, `content_url` (or ChatGPT's `file`).
 
 ## Numbers

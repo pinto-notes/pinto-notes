@@ -34,8 +34,8 @@ for every save.
   tools allow.
 - Text files only, UTF-8: `.md .json .html .css .ts .tsx .js .jsx .svg .txt`. No dotfiles
   (`.env`, `.gitignore`), no `node_modules/`, `dist/` or lock files.
-- The server's limits: at most 200 files, 8 MB a file, 16 MB for the whole project with its
-  compiled files. `data.json` at most 1 MB.
+- The server's limits: at most 10,000 files, 16 MB of text for the whole project with its
+  compiled files (docs/Technical/note-app-limits.md). `data.json` at most 1 MB.
 - `data.json` is an object `{ "values": { … }, "collections": { … } }`. Sample rows are fine;
   `{"$file": …}` references aren't (files don't come along).
 - No secrets: no API keys, tokens, private keys or passwords, and no `.env`. The generator refuses

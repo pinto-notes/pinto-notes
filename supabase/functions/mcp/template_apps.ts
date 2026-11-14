@@ -43,7 +43,7 @@ export function treeProblems(tree: Record<string, string>): string[] {
     if (!TEXT.test(p)) { out.push(`${p}: only text files (.md .json .html .css .ts .tsx .js .jsx .svg .txt).`); continue; }
     try { cleanPath(p); } catch (e) { out.push((e as Error).message); continue; }
     const text = tree[p];
-    if (p !== DATA_FILE && bytes(text) > MAX_FILE_BYTES) out.push(`${p} is over ${MAX_FILE_BYTES / 1024} KB.`);
+    if (p !== DATA_FILE && bytes(text) > MAX_FILE_BYTES) out.push(`${p} is over ${MAX_FILE_BYTES / 1024 / 1024} MB.`);
     for (const [what, re] of SECRETS) if (re.test(text)) out.push(`${p} holds what looks like ${what}. Templates are public: take it out.`);
   }
   if (names.includes(DATA_FILE)) {

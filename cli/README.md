@@ -98,15 +98,17 @@ pinto push ./doom Games/Doom                      # the folder becomes the note'
 
 `pinto push <folder> <note>` does what dropping the folder on the note in Pinto Notes does: the
 folder (with `index.html` at its top) becomes the note's app. It makes the note and its app if
-needed, writes every file, and deletes the app's files the folder doesn't have. Hidden files are left
-out, and `data.json` stays the app's data. Pushing again sends only what changed in text files (the
-server answers "unchanged" for the rest) and every binary file. The app before is in its history.
+needed, writes every file, and deletes the app's files the folder doesn't have, all in one save: one
+version of the app and one check. A binary file over 9 MB (a disk image, a dataset; up to 100 MB)
+goes first in 8 MB pieces, and its last piece comes with the rest. If the files are more than one
+write carries (about 9 MB), it takes a few saves, `index.html` in the last. Hidden files are left
+out, and `data.json` stays the app's data. Pushing again saves nothing when nothing changed. The app
+before is in its history.
 
-What the server refuses, pinto prints as the server said it, with the file:
+What the server refuses, pinto prints as the server said it, and nothing of that save is kept:
 
 ```
-pinto: Games/Big.app/data.bin: Not saved:
-- /data.bin is 12290 KB stored (compressed); a file can be at most 8 MB.
+pinto: Games/Big.app/disk.img: /disk.img would be 101.0 MB; an app's binary file can be at most 100 MB.
 ```
 
 ## Agents
