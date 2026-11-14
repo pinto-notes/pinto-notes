@@ -271,7 +271,7 @@ import UIKit
         let joined = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'arrow' && e.startBinding && e.endBinding).length") as? Int
         #expect(joined == 5, "every arrow joins two shapes: \(joined ?? -1)")
         let labels = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'text').map((e) => e.originalText).sort().join('|')") as? String
-        #expect(labels == "Did it work?|Do the thing|Done|Fix it|Start")
+        #expect(labels?.hasPrefix("Did it work?|Do the thing|Done|Double-click a shape") == true && labels?.contains("|No|") == true && labels?.contains("|Yes") == true, "\(labels ?? "")")
         let web = try #require(j.web as? NotePageWebView)
         NSApp.sendAction(#selector(NotePageWebView.undo(_:)), to: web, from: NSMenuItem(title: "Undo", action: #selector(NotePageWebView.undo(_:)), keyEquivalent: "z"))
         await j.until("one Undo takes it back") { j.canvas.state.empty }
@@ -314,6 +314,94 @@ import UIKit
         #expect(CanvasExport.filename("Q3: plan/roadmap", .png) == "Q3 planroadmap.png")
         #expect(CanvasExport.filename("  ", .svg) == "Whiteboard.svg")
     }
+
+    #if os(macOS)
+    static func png(width: Int, height: Int, clear: Bool) -> Data {
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                   isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        (clear ? NSColor.clear : NSColor.systemTeal).setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill(using: .copy)
+        NSColor.systemOrange.setFill()
+        NSRect(x: width / 4, y: height / 4, width: width / 2, height: height / 2).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.representation(using: .png, properties: [:])!
+    }
+
+    /// Pictures go on a board: pasted, dropped or picked, each made at most 1600 pixels across and
+    /// a JPEG unless it has see-through parts, placed in the view, selected, and saved with the
+    /// board (whiteboard council, round 1: "images on the board" was missing).
+    @Test func aPictureGoesOnTheBoardSmallEnoughToKeep() async throws {
+        let big = try #require(CanvasImage(data: Self.png(width: 3200, height: 2000, clear: false)))
+        #expect(big.mimeType == "image/jpeg" && big.dataURL.hasPrefix("data:image/jpeg;base64,"))
+        #expect(big.width == 1600 && big.height == 1000, "\(big.width)x\(big.height)")
+        #expect(big.dataURL.utf8.count < 400_000, "small enough to keep: \(big.dataURL.utf8.count) bytes")
+        let cut = try #require(CanvasImage(data: Self.png(width: 400, height: 300, clear: true)))
+        #expect(cut.mimeType == "image/png", "see-through parts stay see-through")
+        #expect(CanvasImage(data: Data("not a picture".utf8)) == nil)
+
+        // The clipboard: a picture, or picture files; never the board's own copied shapes (text).
+        let pb = NSPasteboard(name: .init("pinto.test.\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        pb.clearContents(); pb.setData(Self.png(width: 20, height: 20, clear: false), forType: .png)
+        #expect(NotePageWebView.pictures(on: pb).count == 1)
+        pb.clearContents(); pb.setString("{\"type\":\"excalidraw/clipboard\"}", forType: .string)
+        #expect(NotePageWebView.pictures(on: pb).isEmpty, "the board's own shapes paste as they did")
+
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.image(big, at: nil))
+        await j.until("the picture is selected") { j.canvas.state.selection == ["image"] }
+        let kept = try await j.js("(() => { const s = amber._canvas.scene(); const i = s.elements.find((e) => e.type === 'image'); return [!!i, !!(i && s.files[i.fileId]), i ? Math.round(i.width) : 0].join(','); })()") as? String
+        #expect(kept?.hasPrefix("true,true,") == true, "an image element with its file, saved in the scene: \(kept ?? "")")
+        // A save the store refuses is said, not lost quietly.
+        j.canvas.receive(["error": "Not saved: too big"])
+        #expect(j.canvas.notice == "Not saved: too big")
+    }
+
+    /// When an AI draws on the open board, what it drew is outlined with its name, and the receipt
+    /// says it drew (whiteboard council, round 1: "show what the AI did").
+    @Test func whatAnAIDrewIsOutlinedWithItsName() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        let stored = try #require(try await j.js("JSON.stringify(amber._canvas.scene().elements)") as? String)
+        var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
+        // As an AI writes it over MCP: the short form, far to the right of what's there.
+        elements.append(["type": "rectangle", "id": "ai-box", "x": 2400, "y": 200, "width": 220, "height": 90, "label": ["text": "Launch"]])
+        j.canvas.arrived(by: "Claude")
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        await j.until("outlined") { j.canvas.highlight != nil }
+        let h = try #require(j.canvas.highlight)
+        #expect(h.by == "Claude" && h.count >= 1)
+        // Off to the side, so it was brought into view.
+        #expect(h.rect.minX >= -1 && h.rect.maxX <= 901, "in view: \(h.rect)")
+        #expect(h.rect.width > 100)
+        let r = AIEdit.Receipt(noteID: UUID(), by: "Claude", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
+        #expect(r.summary == "Claude drew on this whiteboard" && r.shortSummary == "Claude drew on it")
+    }
+
+    /// When the board gets wider (the sidebar folding away, Full Screen) the drawing stays where
+    /// it was in the middle of the view; the engine kept its left edge, which left a drawing in the
+    /// left half (whiteboard council, round 1, 08-fullscreen).
+    @Test func theViewStaysCentredWhenTheBoardGetsWider() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        let centre = "(() => { const s = amber._canvas.api.getAppState(); const z = s.zoom.value; return [Math.round(-s.scrollX + s.width / 2 / z), Math.round(-s.scrollY + s.height / 2 / z)].join(','); })()"
+        let before = try await j.js(centre) as? String
+        j.rig.window.setContentSize(CGSize(width: 1400, height: 800))
+        j.web.frame = CGRect(x: 0, y: 0, width: 1400, height: 800)
+        var after: String?
+        for _ in 0..<60 {
+            try await Task.sleep(for: .milliseconds(50))
+            if (try await j.js("amber._canvas.api.getAppState().width") as? Double) == 1400 { after = try await j.js(centre) as? String; break }
+        }
+        #expect(before != nil && after == before, "the middle of the view is the same point of the drawing: \(before ?? "?") then \(after ?? "?")")
+    }
+    #endif
 
     @Test func editUndoAndRedoReachTheDrawingsHistory() async throws {
         let j = try await Joined(scene: CanvasTests.scene(Self.box))
@@ -370,6 +458,13 @@ import UIKit
             }
             #expect(NSImage(systemSymbolName: t.symbol, accessibilityDescription: nil) != nil, "\(t.symbol) exists")
             #expect(CanvasCommand.insert(t).payload["op"] as? String == "insert")
+            // Every one has a title and a line on how to use it, and is small enough to open near
+            // full size (round 1 of the whiteboard council: some had titles, some opened at 60%).
+            let texts = t.elements.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }
+            #expect(texts.first == t.title, "\(t): its title first: \(texts)")
+            let frames = t.outline.map(\.frame)
+            let width = (frames.map(\.maxX).max() ?? 0) - (frames.map(\.minX).min() ?? 0)
+            #expect(width <= 760, "\(t) is \(Int(width)) wide")
         }
         var s = CanvasState()
         #expect(!CanvasStart.shows(s), "not before the page has said it's empty")
@@ -379,6 +474,47 @@ import UIKit
         #expect(!CanvasStart.shows(s), "a drawing tool picked: you're drawing")
         s.tool = .selection; s.busy = true
         #expect(!CanvasStart.shows(s))
+    }
+
+    /// An empty whiteboard's last line asks your AI to draw (whiteboard council, round 1): the
+    /// questions are about drawing on this board, by its name, and your own line says "draw this".
+    @Test func anEmptyWhiteboardAsksYourAIToDraw() {
+        let board = AskAI.Subject.whiteboard(.init(title: "Launch plan", folder: "Work"))
+        let qs = AskAI.questions(board)
+        #expect(qs.count == 3)
+        #expect(qs.allSatisfy { $0.prompt.hasPrefix("In Pinto Notes, open my whiteboard \u{201C}Launch plan\u{201D} in \u{201C}Work\u{201D} (an Excalidraw scene)") }, "\(qs.map(\.prompt))")
+        #expect(AskAI.own("a timeline of the launch", board) == "In Pinto Notes, open my whiteboard \u{201C}Launch plan\u{201D} in \u{201C}Work\u{201D} (an Excalidraw scene) and draw this on it: a timeline of the launch")
+        #expect(AskAI.ownPlaceholder(board) == "Describe what to draw")
+        #expect(AskAI.ownPlaceholder(.note(.init(title: "x"))) == AskAI.ownPlaceholder)
+        #expect(board.menuName == "This Whiteboard")
+        #expect(CanvasStart.askTitle(.init(ai: "ChatGPT")) == "Ask ChatGPT to draw it\u{2026}")
+    }
+
+    /// A board's row in the list shows its words and a small picture of it, and search finds its
+    /// words (whiteboard council, round 1: "No additional text" under a whole flowchart).
+    @Test func aBoardsWordsShowInTheListAndSearchFindsThem() throws {
+        let sketch = CanvasSketch(elements: [
+            ["type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 50, "label": ["text": "Start"], "backgroundColor": "#b2f2bb"],
+            ["type": "text", "x": 0, "y": 80, "text": "Did it\nwork?", "originalText": "Did it work?"],
+            ["type": "text", "x": 0, "y": 120, "text": "Start"],
+            ["type": "text", "x": 0, "y": 160, "text": "Gone", "isDeleted": true],
+            ["type": "arrow", "x": 50, "y": 50, "width": 0, "height": 30, "points": [[0, 0], [0, 30]]],
+            ["type": "freedraw", "x": 10, "y": 10, "width": 20, "height": 5, "points": [[0, 0], [10, 5], [20, 0]]],
+        ])
+        #expect(sketch.preview == "Start \u{00B7} Did it work?", "each word once, in the order drawn, none deleted")
+        #expect(sketch.shapes.map(\.kind) == ["rectangle", "arrow", "freedraw"])
+        #expect(sketch.shapes[0].fill == "#b2f2bb" && sketch.shapes[2].points.count == 3)
+        #expect(CanvasSketch(elements: []).preview == nil)
+
+        let c = try Self.canvasLibrary()
+        let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([["type": "text", "x": 0, "y": 0, "text": "Quarterly roadmap"]])], "collections": [String: Any]()])
+        #expect(CanvasSketch.of(note.id)?.preview == "Quarterly roadmap")
+        #expect(CanvasSketch.notes(holding: "roadmap").contains(note.id), "search finds a word on the board")
+        #expect(!CanvasSketch.notes(holding: "zebra").contains(note.id))
+        // A change to the board is read again.
+        NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([["type": "text", "x": 0, "y": 0, "text": "Hiring plan"]])], "collections": [String: Any]()])
+        #expect(CanvasSketch.of(note.id)?.preview == "Hiring plan")
     }
 
     /// Naming a canvas: one line, trimmed; empty or unchanged leaves it (13 November 2026).
@@ -642,6 +778,9 @@ import UIKit
         let bar = CGSize(width: 200, height: 40), area = CGSize(width: 800, height: 600)
         let above = CanvasSelectionBar.position(bounds: CGRect(x: 300, y: 300, width: 100, height: 50), bar: bar, area: area)
         let gap = CanvasSelectionBar.gap
+        #if os(macOS)
+        #expect(gap >= 24, "clear of the rotate handle above the selection (whiteboard council, round 1)")
+        #endif
         #expect(abs(above.x - 350) < 0.01 && abs(above.y - (300 - gap - 20)) < 0.01, "just above, centred")
         let below = CanvasSelectionBar.position(bounds: CGRect(x: 300, y: 10, width: 100, height: 50), bar: bar, area: area)
         #expect(abs(below.y - (60 + gap + 20)) < 0.01, "no room above: below it (\(below.y))")

@@ -209,6 +209,11 @@ struct NoteListView: View {
     /// note's text, and reading it a note at a time cost a query per note.
     static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder, context: ModelContext) -> [NoteEntry] {
         var matching = Set((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(query) }))) ?? [])
+        // The words on whiteboards, which live in their drawings, not their text.
+        let boards = CanvasSketch.notes(holding: query)
+        if !boards.isEmpty {
+            matching.formUnion((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { boards.contains($0.id) }))) ?? [])
+        }
         if !base.contains(where: { matching.contains($0.pid) }) { matching = closeMatches(query, context: context) }
         let found = base.filter { matching.contains($0.pid) }
         return order.sortsLike(.standard) ? found : found.sorted { $0.date > $1.date }
@@ -2105,6 +2110,8 @@ struct NoteRow: View {
         let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
+        // A whiteboard: its words as the preview and its shapes as the picture.
+        let board = app && CanvasNote.has(note) && !note.isLocked ? CanvasSketch.of(note.id) : nil
         let found = self.found
         return HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
@@ -2175,7 +2182,7 @@ struct NoteRow: View {
                         .foregroundStyle(Color.amberInk)
                         .lineLimit(1)
                     } else {
-                        Text(note.preview)
+                        Text(board?.preview ?? note.preview)
                             .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
                     }
@@ -2213,6 +2220,14 @@ struct NoteRow: View {
                 Spacer(minLength: 0)
                 FileThumbnail(file: picture, side: RowMetrics.thumbnail, iconWhileLoading: false)
                     .accessibilityIdentifier("note.thumbnail")
+            } else if let board, !board.shapes.isEmpty {
+                Spacer(minLength: 0)
+                CanvasSketchView(sketch: board, lineWidth: 0.6)
+                    .padding(4)
+                    .frame(width: RowMetrics.thumbnail, height: RowMetrics.thumbnail)
+                    .background(Color.notePage, in: .rect(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.1)))
+                    .accessibilityIdentifier("note.thumbnail")
             }
         }
         .padding(.top, RowMetrics.top(folderLine: folderLine) + RowMetrics.calmAir)
@@ -2239,7 +2254,8 @@ struct NoteRow: View {
     private var found: SearchLines.Found? {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty, !note.isLocked else { return nil }
-        return SearchLines.find(in: note.body, query: q, skipping: note.title, lead: SearchLines.rowLead)
+        let words = NoteAppMark.has(note) && CanvasNote.has(note) ? CanvasSketch.of(note.id).map { "\n" + $0.searchText } ?? "" : ""
+        return SearchLines.find(in: note.body + words, query: q, skipping: note.title, lead: SearchLines.rowLead)
     }
 }
 

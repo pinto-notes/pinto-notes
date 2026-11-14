@@ -16,6 +16,8 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
   --color-on-primary-container: var(--amber-accent-text);
   --focus-highlight-color: var(--amber-accent-soft);
   --select-highlight-color: var(--amber-accent);
+  /* The selection's outline and handles: the app's accent, not the engine's purple. */
+  --color-selection: var(--amber-accent);
   --island-bg-color: var(--amber-bg);
   --default-bg-color: var(--amber-bg);
   --popup-bg-color: var(--amber-bg);

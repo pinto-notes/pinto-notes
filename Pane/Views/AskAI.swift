@@ -22,6 +22,9 @@ enum AskAI {
         /// One note, by its title and folder, with what it holds (round 2 of the councils: Ask
         /// about this note, with questions fit to it).
         case note(NoteAbout)
+        /// A whiteboard: what to draw on it (whiteboard council, round 1: "make the AI line an
+        /// action").
+        case whiteboard(NoteAbout)
 
         /// "“Running”", "Your Notes" or "This Note" in a menu title.
         var menuName: String {
@@ -29,6 +32,7 @@ enum AskAI {
             case .folder(let name): "\u{201C}\(name)\u{201D}"
             case .all: "Your Notes"
             case .note: "This Note"
+            case .whiteboard: "This Whiteboard"
             }
         }
 
@@ -37,7 +41,7 @@ enum AskAI {
             switch self {
             case .folder(let name): "\u{201C}\(name)\u{201D}"
             case .all: "your notes"
-            case .note(let n): "\u{201C}\(n.title)\u{201D}"
+            case .note(let n), .whiteboard(let n): "\u{201C}\(n.title)\u{201D}"
             }
         }
     }
@@ -71,6 +75,12 @@ enum AskAI {
             if lines.contains(where: { $0.firstMatch(of: /^\s*[-*+]\s+\[( |x|X)\]\s/) != nil }) { return true }
             let words = title.lowercased()
             return words.firstMatch(of: /\b(plan|plans|planning|to-?do|to-dos|todos|checklist)\b/) != nil
+        }
+
+        /// "my whiteboard “Launch” in “Work”".
+        var boardNamed: String {
+            if let folder, !folder.isEmpty { return "my whiteboard \u{201C}\(title)\u{201D} in \u{201C}\(folder)\u{201D}" }
+            return "my whiteboard \u{201C}\(title)\u{201D}"
         }
 
         /// "my note “Week plan” in “Running”": enough for the AI to find it by title.
@@ -163,6 +173,13 @@ enum AskAI {
             }
             out.append(Question(id: "related", title: "Find related notes", prompt: "\(read) and find my other notes that relate to it. List them with a line on how each one relates, and offer to link them from it."))
             return Array(out.prefix(3))
+        case .whiteboard(let n):
+            let open = "In Pinto Notes, open \(n.boardNamed) (an Excalidraw scene)"
+            return [
+                Question(id: "draw", title: "Draw a flowchart of a process", prompt: "\(open). Ask me which process to show, then draw it there as a flowchart: one box per step, arrows joined to the boxes, decisions as diamonds."),
+                Question(id: "notes", title: "Map my notes on a topic", prompt: "\(open). Ask me for a topic, read my notes about it, and draw a mind map of them on the whiteboard, with the note titles on the branches."),
+                Question(id: "tidy", title: "Tidy this whiteboard", prompt: "\(open) and tidy it: line up the shapes, space them evenly and keep every arrow joined. Don\u{2019}t change any text."),
+            ]
         }
     }
 
@@ -176,6 +193,7 @@ enum AskAI {
         case .folder: return "In Pinto Notes, read my folder \(s.inLine). \(text)"
         case .all: return "In Pinto Notes, read my notes. \(text)"
         case .note(let n): return "In Pinto Notes, read \(n.named). \(text)"
+        case .whiteboard(let n): return "In Pinto Notes, open \(n.boardNamed) (an Excalidraw scene) and draw this on it: \(text)"
         }
     }
 
@@ -207,10 +225,16 @@ enum AskAI {
     }
 
     /// The note as Ask names it: by the title the list shows (its first line with words in it).
-    @MainActor static func subject(_ note: Note) -> Subject {
+    @MainActor static func subject(_ note: Note, whiteboard: Bool = false) -> Subject {
         var about = NoteAbout(body: note.body, folder: note.folder?.name)
         about.title = note.title
-        return .note(about)
+        return whiteboard ? .whiteboard(about) : .note(about)
+    }
+
+    /// What the popover's own line asks for.
+    static func ownPlaceholder(_ s: Subject) -> String {
+        if case .whiteboard = s { return "Describe what to draw" }
+        return ownPlaceholder
     }
 
     /// The AI's page with the question typed in, for ChatGPT and Claude.
@@ -360,7 +384,7 @@ struct AskAIPopover: View {
                 .accessibilityIdentifier("ask.question.\(q.id)")
             }
             HStack(spacing: 6) {
-                TextField(AskAI.ownPlaceholder, text: $typed)
+                TextField(AskAI.ownPlaceholder(subject), text: $typed)
                     .textFieldStyle(.plain)
                     .font(.system(size: Self.compact ? 16 : 13))
                     .focused($typing)

@@ -245,6 +245,11 @@ final class NotePageDataStore {
     /// drawing back before each save.
     @ObservationIgnored private var decoded: [UUID: (data: Data, doc: NotePageData.Doc)] = [:]
 
+    /// A note's bytes, read without being watched (the list's whiteboard rows: CanvasSketch).
+    func peek(_ id: UUID) -> Data? { _docs[id] }
+    /// The notes that have data, read without being watched.
+    var ids: Dictionary<UUID, Data>.Keys { _docs.keys }
+
     func doc(_ id: UUID) -> NotePageData.Doc {
         guard let data = docs[id] else { return NotePageData.decode(nil) }
         if let c = decoded[id], c.data == data { return c.doc }

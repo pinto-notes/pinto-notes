@@ -19,7 +19,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import {
   Excalidraw, MainMenu, restore, restoreElements, convertToExcalidrawElements, CaptureUpdateAction,
-  getCommonBounds, sceneCoordsToViewportCoords, exportToCanvas, exportToSvg, serializeAsJSON,
+  getCommonBounds, sceneCoordsToViewportCoords, viewportCoordsToSceneCoords, exportToCanvas, exportToSvg, serializeAsJSON,
 } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
@@ -253,6 +253,23 @@ function bridge(api) {
         });
         break;
       }
+      case "image": {
+        // A picture the app made ready (CanvasImage): kept in the scene's files, placed where it
+        // was dropped or in the middle of the view, at most 60% of the view across, selected.
+        if (typeof c.dataURL !== "string" || !c.width || !c.height) return false;
+        const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+        const fit = Math.min(1, (s.width * 0.6 / z) / c.width, (s.height * 0.6 / z) / c.height, 900 / Math.max(c.width, c.height));
+        const w = c.width * fit, h = c.height * fit;
+        const at = typeof c.x === "number"
+          ? viewportCoordsToSceneCoords({ clientX: c.x, clientY: c.y }, s)
+          : { x: -s.scrollX + s.width / 2 / z, y: -s.scrollY + s.height / 2 / z };
+        const fileId = "pinto-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        api.addFiles([{ id: fileId, dataURL: c.dataURL, mimeType: c.mimeType || "image/jpeg", created: Date.now() }]);
+        const [made] = convertToExcalidrawElements([{ type: "image", fileId, x: at.x - w / 2, y: at.y - h / 2, width: w, height: h }], { regenerateIds: true });
+        api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), made], appState: { selectedElementIds: { [made.id]: true } }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+        api.setActiveTool({ type: "selection" });
+        break;
+      }
       case "background":
         if (typeof c.color !== "string") return false;
         run("changeViewBackgroundColor", { viewBackgroundColor: c.color });
@@ -313,7 +330,11 @@ function Canvas({ initial }) {
       if (print === lastSent) return;
       lastSent = print;
       base = scene.elements;
-      amber.store.set("scene", scene);
+      // Refused (over the size limit): said in the app, and tried again on the next change.
+      Promise.resolve(amber.store.set("scene", scene)).catch((e) => {
+        lastSent = null;
+        try { window.webkit.messageHandlers.amberCanvas.postMessage({ error: "Not saved: " + String((e && e.message) || e) }); } catch (_) {}
+      });
     };
     const flush = () => { if (timer) { clearTimeout(timer); save(); } };
     const schedule = () => { clearTimeout(timer); timer = setTimeout(save, SAVE_DELAY); };
@@ -332,6 +353,10 @@ function Canvas({ initial }) {
       // Its own save, back as the store's reply and the app's push: nothing to merge.
       if (!scene || fingerprint(scene) === lastSent) return;
       const { elements: remote } = normalize(scene.elements);
+      // What each element looks like before, to tell what the change touched (versions move when
+      // the merge repairs bindings, so they can't tell).
+      const look = (e) => `${Math.round(e.x)},${Math.round(e.y)},${Math.round(e.width)},${Math.round(e.height)},${e.text || ""},${e.strokeColor},${e.backgroundColor},${e.isDeleted}`;
+      const prior = new Map(api.getSceneElementsIncludingDeleted().map((e) => [e.id, look(e)]));
       const merged = merge(api.getSceneElementsIncludingDeleted(), remote, base);
       const files = Object.values(scene.files || {});
       if (files.length) api.addFiles(files);
@@ -340,9 +365,31 @@ function Canvas({ initial }) {
       base = remote;
       lastSent = fingerprint(scene);
       if (scene.elements.some((e) => e && typeof e.seed !== "number")) remeasure();
+      showChanged(api.getSceneElements().filter((e) => prior.get(e.id) !== look(e)));
       // Ours had changes theirs didn't (or theirs was in the short form): saved back merged.
       if (!same(merged.map((e) => [e.id, e.version]), remote.map((e) => [e.id, e.version]))) schedule();
     });
+
+    // What came from elsewhere (an AI, another device), for the app to outline: where it is in
+    // the view, brought into view first if none of it was.
+    const showChanged = (changed) => {
+      if (!changed.length) return;
+      const where = () => {
+        const s = api.getAppState();
+        const [x1, y1, x2, y2] = getCommonBounds(changed);
+        const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);
+        return { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y, view: s };
+      };
+      let r = where();
+      if (r.x + r.width < 0 || r.y + r.height < 0 || r.x > r.view.width || r.y > r.view.height) {
+        // Centred at the zoom you had, at once (the engine's own scroll lands a frame later).
+        const s = r.view, z = (s.zoom && s.zoom.value) || 1;
+        const [x1, y1, x2, y2] = getCommonBounds(changed);
+        flushSync(() => api.updateScene({ appState: { scrollX: -(x1 + x2) / 2 + s.width / 2 / z, scrollY: -(y1 + y2) / 2 + s.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+        r = where();
+      }
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, count: changed.length } }); } catch (_) {}
+    };
 
     // Text an AI wrote was measured before the hand-drawn font arrived: measured again once it has.
     const remeasure = () => document.fonts.load("20px Excalifont").then(() => {
@@ -356,9 +403,23 @@ function Canvas({ initial }) {
     Object.defineProperty(amber, "_flush", { value: flush, configurable: true });
     const controls = bridge(api);
     // For the app's tests: the scene as it would be saved now, and what the app's controls see.
+    // The view stays centred when the board's width or height changes (the sidebar folding away,
+    // Full Screen): the engine keeps its left edge, which left a drawing in the left half.
+    const area = document.getElementById("canvas");
+    let last = area ? { w: area.clientWidth, h: area.clientHeight } : null;
+    const keepCentre = new ResizeObserver(() => {
+      const w = area.clientWidth, h = area.clientHeight;
+      if (!last || !w || !h) { last = { w, h }; return; }
+      const dw = w - last.w, dh = h - last.h;
+      last = { w, h };
+      if (!dw && !dh) return;
+      const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+      api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
+    });
+    if (area) keepCentre.observe(area);
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected) => exportScene(api, format, selected), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
-    return () => { controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
+    return () => { keepCentre.disconnect(); controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);
 
   const setRef = useCallback((a) => setApi(a), []);

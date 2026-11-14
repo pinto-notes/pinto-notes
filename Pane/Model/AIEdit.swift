@@ -165,6 +165,8 @@ enum AIEdit {
         var edits = 1
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
+        /// The change was to a whiteboard's drawing: it's said as drawing.
+        var board = false
 
         /// The note is back to what it was before the edit: undone here or, on a shared note, by
         /// someone else. There's nothing left for the receipt to speak of (persona council r7).
@@ -239,7 +241,7 @@ enum AIEdit {
         var summary: String {
             if kind == .reverted { return "Reverted to the last working version" }
             if kind == .heldBack { return "\(who)'s new version didn't pass its checks: kept the working one" }
-            if kind == .dataEdit, by != AIGlyph.page { return "\(who) changed this app's data" }
+            if kind == .dataEdit, by != AIGlyph.page { return board ? "\(who) drew on this whiteboard" : "\(who) changed this app's data" }
             if kind == .pageEdit || kind == .dataEdit { return "Changed in the app" }
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
@@ -261,7 +263,7 @@ enum AIEdit {
             switch kind {
             case .reverted: "Reverted"
             case .heldBack: "Kept the working one"
-            case .dataEdit where by != AIGlyph.page: "\(who) changed it"
+            case .dataEdit where by != AIGlyph.page: board ? "\(who) drew on it" : "\(who) changed it"
             case .pageEdit, .dataEdit: "Changed"
             case .pageMade: "\(who) made it"
             case .pageChanged: "\(who) updated it"

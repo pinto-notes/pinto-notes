@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// A canvas's own controls, over the drawing (direction B, "Dock", 13 November 2026):
 /// - one floating dock centred at the foot: Undo and Redo, then the tools (Mac); the tools and the
@@ -8,6 +9,9 @@ import SwiftUI
 /// All of it native; the drawing itself is the only web part (CanvasBridge).
 struct CanvasOverlay: View {
     let canvas: CanvasController
+    /// For the empty board's "Ask your AI to draw it".
+    var targets: [AskAI.Target] = []
+    var subject: AskAI.Subject?
 
     var body: some View {
         ZStack {
@@ -19,12 +23,17 @@ struct CanvasOverlay: View {
                     if canvas.state.showsSelectionBar, let bounds = canvas.state.bounds {
                         CanvasSelectionBar(canvas: canvas, bounds: bounds, area: geo.size)
                     }
+                    if let h = canvas.highlight {
+                        CanvasAIHighlight(highlight: h)
+                            .transition(.opacity)
+                    }
                 }
+                .animation(.easeOut(duration: 0.3), value: canvas.highlight)
                 #if os(iOS)
                 .ignoresSafeArea()
                 #endif
                 if CanvasStart.shows(canvas.state) {
-                    CanvasStart(canvas: canvas)
+                    CanvasStart(canvas: canvas, targets: targets, subject: subject)
                         .transition(.opacity)
                 }
                 VStack(spacing: 0) {
@@ -56,6 +65,70 @@ struct CanvasOverlay: View {
     }
 }
 
+/// Pictures dropped on a board: image files from Finder, or an image dragged from another app.
+@MainActor enum CanvasImageDrop {
+    static let types: [UTType] = [.fileURL, .image]
+
+    static func place(_ providers: [NSItemProvider], at point: CGPoint, on canvas: CanvasController) {
+        Task { @MainActor in
+            var placed = 0
+            for p in providers.prefix(10) {
+                guard let data = await load(p) else { continue }
+                guard let image = await Task.detached(priority: .userInitiated, operation: { CanvasImage(data: data) }).value else { continue }
+                // Several at once: each a little lower and to the right of the last.
+                canvas.send(.image(image, at: CGPoint(x: point.x + CGFloat(placed) * 28, y: point.y + CGFloat(placed) * 28)))
+                placed += 1
+            }
+            if placed == 0 { canvas.confirm("Only pictures can go on a whiteboard") }
+        }
+    }
+
+    private static func load(_ p: NSItemProvider) async -> Data? {
+        if p.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            let url: URL? = await withCheckedContinuation { done in
+                _ = p.loadObject(ofClass: URL.self) { url, _ in done.resume(returning: url) }
+            }
+            if let url, (UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) ?? false) { return try? Data(contentsOf: url) }
+            return nil
+        }
+        guard p.hasItemConformingToTypeIdentifier(UTType.image.identifier) else { return nil }
+        return await withCheckedContinuation { done in
+            _ = p.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { d, _ in done.resume(returning: d) }
+        }
+    }
+}
+
+/// Around what an AI just drew: an accent outline and its name at the top left, for a few
+/// seconds. The receipt at the foot says it too, with Undo.
+struct CanvasAIHighlight: View {
+    let highlight: CanvasController.Highlight
+
+    var body: some View {
+        let r = highlight.rect.insetBy(dx: -10, dy: -10)
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.paneAccent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                .background(Color.paneAccent.opacity(0.05), in: .rect(cornerRadius: 10, style: .continuous))
+            HStack(spacing: 5) {
+                AIGlyph(ai: highlight.by, size: 12, monochrome: true)
+                Text(highlight.by)
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(Color.paneAccent, in: Capsule())
+            .offset(x: 8, y: -11)
+        }
+        .frame(width: max(r.width, 40), height: max(r.height, 30))
+        .position(x: r.midX, y: r.midY)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(highlight.by) drew this")
+        .accessibilityIdentifier("canvas.aiHighlight")
+    }
+}
+
 // MARK: An empty whiteboard
 
 /// On an empty whiteboard: draw, or start from a template, or ask your AI (Emil, 13 November 2026).
@@ -63,11 +136,20 @@ struct CanvasOverlay: View {
 /// step Undo takes back.
 struct CanvasStart: View {
     let canvas: CanvasController
+    /// The connected AIs, and what they'd be asked about (this whiteboard): the last line asks
+    /// one to draw (whiteboard council, round 1: "make the AI line an action").
+    var targets: [AskAI.Target] = []
+    var subject: AskAI.Subject?
+    @State private var asking: AskAI.Target?
 
     static func shows(_ s: CanvasState) -> Bool { s.empty && !s.busy && !s.editing && !s.tool.draws && s.tool != .eraser }
 
+    static let askTitle = "Ask your AI to draw it\u{2026}"
+    static func askTitle(_ t: AskAI.Target) -> String { "Ask \(t.ai) to draw it\u{2026}" }
+    static let connectTitle = "Connect an AI to draw it for you\u{2026}"
+
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             Text("Draw anything, or start from a template")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color.muted)
@@ -75,31 +157,120 @@ struct CanvasStart: View {
                 ForEach(WhiteboardTemplate.allCases) { t in
                     Button { canvas.send(.insert(t)) } label: {
                         VStack(spacing: 8) {
-                            Image(systemName: t.symbol)
-                                .font(.system(size: 22, weight: .regular))
-                                .frame(height: 26)
+                            CanvasTemplatePreview(template: t)
+                                .frame(width: 92, height: 58)
                             Text(t.title)
                                 .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Color.ink)
                         }
-                        .foregroundStyle(Color.ink)
-                        .frame(width: 96, height: 80)
+                        .padding(.vertical, 10)
+                        .frame(width: 116)
                         .contentShape(.rect(cornerRadius: 14))
                     }
                     .buttonStyle(.plain)
+                    .background(Color.card, in: .rect(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.08)))
                     .hoverHighlight(.rect(cornerRadius: 14))
-                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
                     .help("Start from \(t.title.lowercased())")
+                    .accessibilityLabel(t.title)
                     .accessibilityIdentifier("canvas.template.\(t.rawValue)")
                 }
             }
-            Text("Or ask your AI to draw it for you.")
-                .font(.system(size: 12))
-                .foregroundStyle(Color.muted)
+            ask
         }
         .padding(20)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Start this whiteboard")
         .accessibilityIdentifier("canvas.start")
+    }
+
+    @ViewBuilder private var ask: some View {
+        Group {
+            if let subject, targets.count == 1, let t = targets.first {
+                Button { asking = t } label: {
+                    Label { Text(Self.askTitle(t)) } icon: { AIGlyph(ai: t.ai, size: 14, monochrome: true) }
+                }
+                .askAIPopover($asking, subject: subject, arrowEdge: .bottom)
+            } else if let subject, targets.count > 1 {
+                Menu {
+                    ForEach(targets) { t in Button(AskAI.submenuItem(t)) { asking = t } }
+                } label: {
+                    Label(Self.askTitle, systemImage: "sparkles")
+                }
+                .menuStyle(.button)
+                #if os(macOS)
+                .menuIndicator(.hidden)
+                #endif
+                .fixedSize()
+                .askAIPopover($asking, subject: subject, arrowEdge: .bottom)
+            } else {
+                Button { NotificationCenter.default.post(name: .paneConnectAI, object: nil) } label: {
+                    Label(Self.connectTitle, systemImage: "sparkles")
+                }
+            }
+        }
+        .buttonStyle(.hoverLink)
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(Color.amberInk)
+        .accessibilityIdentifier("canvas.ask")
+    }
+}
+
+/// A template's shapes drawn small, in their colours, for its tile on an empty whiteboard (round
+/// 1 of the whiteboard council: "show a preview, not a glyph").
+struct CanvasTemplatePreview: View {
+    let template: WhiteboardTemplate
+    var body: some View { CanvasSketchView(sketch: CanvasSketch(elements: template.elements)) }
+}
+
+/// A board's shapes drawn small: boxes, ellipses and diamonds in their fills, lines, arrows and
+/// pencil strokes as thin lines. The list's whiteboard rows and the template tiles.
+struct CanvasSketchView: View {
+    let sketch: CanvasSketch
+    var lineWidth: CGFloat = 0.8
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        Canvas { ctx, size in
+            let shapes = sketch.shapes
+            guard let first = shapes.first?.frame.standardized else { return }
+            let box = shapes.dropFirst().reduce(first) { $0.union($1.frame.standardized) }.insetBy(dx: -2, dy: -2)
+            let scale = min(size.width / max(box.width, 1), size.height / max(box.height, 1))
+            let dx = (size.width - box.width * scale) / 2 - box.minX * scale
+            let dy = (size.height - box.height * scale) / 2 - box.minY * scale
+            let ink = Color.ink.opacity(0.75)
+            func at(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x * scale + dx, y: p.y * scale + dy) }
+            for s in shapes {
+                let f = s.frame.standardized
+                let r = CGRect(origin: at(f.origin), size: CGSize(width: f.width * scale, height: f.height * scale))
+                let path: Path
+                switch s.kind {
+                case "ellipse": path = Path(ellipseIn: r)
+                case "diamond":
+                    path = Path { p in
+                        p.move(to: CGPoint(x: r.midX, y: r.minY)); p.addLine(to: CGPoint(x: r.maxX, y: r.midY))
+                        p.addLine(to: CGPoint(x: r.midX, y: r.maxY)); p.addLine(to: CGPoint(x: r.minX, y: r.midY)); p.closeSubpath()
+                    }
+                case "arrow", "line", "freedraw":
+                    // Points run from the element's own origin (as written, not standardised).
+                    let o = s.frame.origin
+                    let pts = s.points.isEmpty ? [CGPoint.zero, CGPoint(x: s.frame.size.width, y: s.frame.size.height)] : s.points
+                    let line = Path { p in
+                        for (i, q) in pts.enumerated() {
+                            let pt = at(CGPoint(x: o.x + q.x, y: o.y + q.y))
+                            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+                        }
+                    }
+                    ctx.stroke(line, with: .color(ink), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                    continue
+                case "image": path = Path(r)
+                default: path = Path(roundedRect: r, cornerRadius: min(3, r.height / 4))
+                }
+                if let hex = s.fill, let c = CanvasStyle.shown(hex, dark: scheme == .dark) { ctx.fill(path, with: .color(c)) }
+                ctx.stroke(path, with: .color(ink), lineWidth: lineWidth)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 
@@ -299,7 +470,8 @@ struct CanvasSelectionBar: View {
     #if os(iOS)
     static let gap: CGFloat = 28
     #else
-    static let gap: CGFloat = 6
+    /// Clear of the rotate handle, which stands about 20 pt above the selection's box.
+    static let gap: CGFloat = 30
     #endif
 
     /// Its centre: above the selection, or below it with no room above, kept inside the canvas.
@@ -360,7 +532,10 @@ struct CanvasSelectionBar: View {
                 menuButton("More", symbol: "ellipsis", id: "canvas.bar.more") { CanvasMoreItems(canvas: canvas) }
             }
             .padding(4)
-            .glassEffect(.regular, in: .capsule)
+            // Solid, as a menu is: over a drawing, glass let the lines behind run through the
+            // buttons (whiteboard council, round 1).
+            .background(Color.card, in: Capsule())
+            .raised(in: Capsule())
         }
         .fixedSize()
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
@@ -421,7 +596,8 @@ struct CanvasSelectionBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .glassEffect(.regular, in: .capsule)
+        .background(Color.card, in: Capsule())
+        .raised(in: Capsule())
         .accessibilityIdentifier("canvas.tray")
     }
 
@@ -682,6 +858,9 @@ struct CanvasToolbarTools: View {
             tool(.arrow, current)
             tool(.text, current)
             tool(.eraser, current)
+            Button { Self.pickImage(canvas) } label: { Label(Self.imageTitle, systemImage: "photo") }
+                .help("Add a picture (or paste or drop one)")
+                .accessibilityIdentifier("canvas.tool.image")
         }
         .disabled(!canvas.connected)
     }
@@ -711,6 +890,28 @@ struct CanvasToolbarTools: View {
         .help("\(shown.help), more shapes on a long press")
         .accessibilityAddTraits(picked ? .isSelected : [])
         .accessibilityIdentifier("canvas.tool.shapes")
+    }
+
+    static let imageTitle = "Image"
+
+    /// Pictures from a file, onto the middle of the view.
+    static func pickImage(_ canvas: CanvasController) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = true
+        panel.begin { response in
+            guard response == .OK else { return }
+            let urls = panel.urls
+            Task { @MainActor in
+                for (i, url) in urls.prefix(10).enumerated() {
+                    guard let image = await Task.detached(priority: .userInitiated, operation: { (try? Data(contentsOf: url)).flatMap(CanvasImage.init(data:)) }).value else {
+                        canvas.confirm("\u{201C}\(url.lastPathComponent)\u{201D} couldn\u{2019}t be read"); continue
+                    }
+                    _ = i
+                    canvas.send(.image(image, at: nil))
+                }
+            }
+        }
     }
 
     /// The shape the button draws when pressed: the last one picked from its menu.

@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import UniformTypeIdentifiers
 import SwiftUI
 
@@ -266,6 +267,8 @@ enum CanvasCommand: Equatable, Sendable {
     case background(String)
     /// Adds elements in the short form (a template), in one step Undo takes back.
     case insert(WhiteboardTemplate)
+    /// A picture onto the board (CanvasImage), at a point of the page or the middle of the view.
+    case image(CanvasImage, at: CGPoint?)
 
     var payload: [String: Any] {
         switch self {
@@ -275,6 +278,9 @@ enum CanvasCommand: Equatable, Sendable {
         case .pan(let dx, let dy): ["op": "pan", "dx": dx, "dy": dy]
         case .background(let c): ["op": "background", "color": c]
         case .insert(let t): ["op": "insert", "elements": t.elements]
+        case .image(let i, let at):
+            ["op": "image", "dataURL": i.dataURL, "mimeType": i.mimeType, "width": i.width, "height": i.height]
+                .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
         }
     }
 }
@@ -308,6 +314,9 @@ final class CanvasController {
 
     func receive(_ message: Any) {
         guard let m = message as? [String: Any] else { return }
+        // A save the store refused (a board over the size limit): said, not lost quietly.
+        if let error = m["error"] as? String { confirm(error, for: .seconds(6)); return }
+        if let r = m["remote"] as? [String: Any] { remoteChange(r); return }
         let next = CanvasState(m)
         if !connected { connected = true }
         if next != state { state = next }
@@ -329,13 +338,41 @@ final class CanvasController {
         await exporter?(format, selected)
     }
 
-    func confirm(_ text: String) {
+    func confirm(_ text: String, for time: Duration = .seconds(1.8)) {
         notice = text
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(1.8))
+            try? await Task.sleep(for: time)
             if self?.notice == text { self?.notice = nil }
         }
     }
+
+    /// What an AI just drew or changed, outlined over the board with its name for a few seconds
+    /// (whiteboard council, round 1: "show what the AI did").
+    struct Highlight: Equatable {
+        var rect: CGRect
+        var by: String
+        var count: Int
+    }
+    var highlight: Highlight?
+    @ObservationIgnored private var expecting: (by: String, at: Date)?
+
+    /// An AI's change to this board has arrived (the data store's arrival): the page's report of
+    /// where it landed, next, is outlined with its name.
+    func arrived(by: String) { expecting = (by, .now) }
+
+    private func remoteChange(_ r: [String: Any]) {
+        guard let e = expecting, e.at.timeIntervalSinceNow > -5 else { return }
+        expecting = nil
+        let num = { (k: String) in (r[k] as? Double) ?? (r[k] as? Int).map(Double.init) ?? 0 }
+        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")))
+        highlight = h
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(Self.highlightTime))
+            if self?.highlight == h { self?.highlight = nil }
+        }
+    }
+
+    nonisolated(unsafe) static var highlightTime: Double = 4
 
     func pick(_ tool: CanvasTool) { send(.tool(tool)) }
     func run(_ action: CanvasCommand.Action) { send(.action(action)) }
@@ -383,7 +420,10 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
     }
 
     // Excalidraw's light palette; the canvas inverts it in dark mode.
-    private static let ink = "#2a1d10", yellow = "#ffec99", green = "#b2f2bb", blue = "#a5d8ff", red = "#ffc9c9", violet = "#eebefa", grey = "#e9ecef"
+    private static let ink = "#2a1d10", yellow = "#ffec99", green = "#b2f2bb", blue = "#a5d8ff", red = "#ffc9c9", violet = "#eebefa"
+    /// A lane: a hair lighter than the paper, with a quiet solid edge (dashed grey read as a
+    /// disabled drop zone, whiteboard council round 1).
+    private static let lane = "#f8f9fa", laneEdge = "#ced4da", hint = "#868e96"
 
     private static func box(_ id: String, _ type: String = "rectangle", x: Double, y: Double, w: Double, h: Double, text: String, fill: String = "transparent", size: Double = 20) -> [String: Any] {
         var e: [String: Any] = ["type": type, "id": id, "x": x, "y": y, "width": w, "height": h, "strokeColor": ink,
@@ -391,21 +431,34 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
         if type == "rectangle" { e["roundness"] = ["type": 3] }
         return e
     }
-    private static func arrow(from a: String, to b: String, x: Double, y: Double, dx: Double, dy: Double, line: Bool = false) -> [String: Any] {
-        ["type": line ? "line" : "arrow", "x": x, "y": y, "width": dx, "height": dy, "strokeColor": ink,
-         "points": [[0, 0], [dx, dy]], "start": ["id": a], "end": ["id": b]]
+    private static func arrow(from a: String, to b: String, x: Double, y: Double, dx: Double, dy: Double, line: Bool = false, label: String? = nil) -> [String: Any] {
+        var e: [String: Any] = ["type": line ? "line" : "arrow", "x": x, "y": y, "width": dx, "height": dy, "strokeColor": ink,
+                                "points": [[0, 0], [dx, dy]], "start": ["id": a], "end": ["id": b]]
+        if let label { e["label"] = ["text": label, "fontSize": 16] }
+        return e
     }
-    private static func text(_ s: String, x: Double, y: Double, size: Double = 28) -> [String: Any] {
-        ["type": "text", "x": x, "y": y, "text": s, "fontSize": size, "strokeColor": ink]
+    private static func text(_ s: String, x: Double, y: Double, size: Double = 28, color: String = ink) -> [String: Any] {
+        ["type": "text", "x": x, "y": y, "text": s, "fontSize": size, "strokeColor": color]
     }
-    /// A column with its heading on top and cards under it.
-    private static func column(_ id: String, x: Double, title: String, fill: String, cards: [String]) -> [[String: Any]] {
-        var out: [[String: Any]] = [["type": "rectangle", "id": id, "x": x, "y": 0, "width": 300, "height": 460, "strokeColor": ink,
-                                     "backgroundColor": grey, "fillStyle": "solid", "roundness": ["type": 3], "strokeStyle": "dashed"],
-                                    text(title, x: x + 20, y: 16, size: 24)]
+    private static func title(_ s: String, hint h: String) -> [[String: Any]] {
+        [text(s, x: 0, y: -96, size: 32), text(h, x: 0, y: -50, size: 16, color: hint)]
+    }
+    /// A lane with its heading on top and cards under it.
+    private static func column(_ id: String, x: Double, title: String, fill: String, cards: [String], width: Double = 220, height: Double = 380) -> [[String: Any]] {
+        var out: [[String: Any]] = [["type": "rectangle", "id": id, "x": x, "y": 0, "width": width, "height": height, "strokeColor": laneEdge,
+                                     "backgroundColor": lane, "fillStyle": "solid", "roundness": ["type": 3]],
+                                    text(title, x: x + 16, y: 14, size: 20)]
         for (i, c) in cards.enumerated() {
-            out.append(box("\(id)-\(i)", x: x + 20, y: 70 + Double(i) * 110, w: 260, h: 90, text: c, fill: fill, size: 18))
+            out.append(box("\(id)-\(i)", x: x + 14, y: 56 + Double(i) * 92, w: width - 28, h: 76, text: c, fill: fill, size: 16))
         }
+        return out
+    }
+    /// A section to write in: its heading at the top left, the space under it left empty.
+    private static func section(_ id: String, x: Double, y: Double, w: Double, h: Double, title: String, fill: String, lines: [String] = []) -> [[String: Any]] {
+        var out: [[String: Any]] = [["type": "rectangle", "id": id, "x": x, "y": y, "width": w, "height": h, "strokeColor": laneEdge,
+                                     "backgroundColor": fill, "fillStyle": "solid", "roundness": ["type": 3]],
+                                    text(title, x: x + 16, y: y + 14, size: 20)]
+        for (i, l) in lines.enumerated() { out.append(text(l, x: x + 16, y: y + 52 + Double(i) * 28, size: 16)) }
         return out
     }
 
@@ -413,42 +466,66 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
         typealias T = WhiteboardTemplate
         switch self {
         case .flowchart:
-            return [
+            return T.title("Flowchart", hint: "Double-click a shape to write in it. Drag from its edge to add an arrow.") + [
                 T.box("start", "ellipse", x: 0, y: 0, w: 180, h: 70, text: "Start", fill: T.green),
-                T.box("step", x: 0, y: 140, w: 180, h: 80, text: "Do the thing", fill: T.blue),
-                T.box("check", "diamond", x: -10, y: 290, w: 200, h: 130, text: "Did it work?", fill: T.yellow),
-                T.box("end", "ellipse", x: 0, y: 500, w: 180, h: 70, text: "Done", fill: T.green),
-                T.box("fix", x: 280, y: 315, w: 180, h: 80, text: "Fix it", fill: T.red),
-                T.arrow(from: "start", to: "step", x: 90, y: 70, dx: 0, dy: 70),
-                T.arrow(from: "step", to: "check", x: 90, y: 220, dx: 0, dy: 70),
-                T.arrow(from: "check", to: "end", x: 90, y: 420, dx: 0, dy: 80),
-                T.arrow(from: "check", to: "fix", x: 190, y: 355, dx: 90, dy: 0),
-                T.arrow(from: "fix", to: "step", x: 370, y: 315, dx: -190, dy: -135),
+                T.box("step", x: 0, y: 130, w: 180, h: 76, text: "Do the thing", fill: T.blue),
+                T.box("check", "diamond", x: -10, y: 266, w: 200, h: 124, text: "Did it work?", fill: T.yellow),
+                T.box("end", "ellipse", x: 0, y: 460, w: 180, h: 70, text: "Done", fill: T.green),
+                T.box("fix", x: 300, y: 290, w: 170, h: 76, text: "Fix it", fill: T.red),
+                T.arrow(from: "start", to: "step", x: 90, y: 70, dx: 0, dy: 60),
+                T.arrow(from: "step", to: "check", x: 90, y: 206, dx: 0, dy: 60),
+                T.arrow(from: "check", to: "end", x: 90, y: 390, dx: 0, dy: 70, label: "Yes"),
+                T.arrow(from: "check", to: "fix", x: 190, y: 328, dx: 110, dy: 0, label: "No"),
+                T.arrow(from: "fix", to: "step", x: 385, y: 290, dx: -205, dy: -122),
             ]
         case .mindMap:
-            let ideas: [(String, Double, Double, String)] = [("Why", -360, -170, T.yellow), ("Who", 360, -170, T.blue), ("How", -360, 170, T.green), ("When", 360, 170, T.violet)]
-            var out: [[String: Any]] = [T.box("main", "ellipse", x: -110, y: -50, w: 220, h: 100, text: "The big idea", fill: T.yellow, size: 24)]
+            // Branches leave the middle at their own angles, one with a second level to show how
+            // a map grows.
+            let ideas: [(String, Double, Double, String)] = [("Why it matters", -280, -150, T.yellow), ("Who it\u{2019}s for", 280, -150, T.blue),
+                                                              ("How", -280, 150, T.green), ("When", 280, 150, T.violet), ("Risks", 0, 230, T.red)]
+            var out: [[String: Any]] = T.title("Mind map", hint: "Double-click to write. Alt-drag a branch to copy it, then join it with a line.").map { e in
+                var e = e; e["y"] = (e["y"] as! Double) - 230; e["x"] = -365.0; return e
+            }
+            out.append(T.box("main", "ellipse", x: -120, y: -55, w: 240, h: 110, text: "The big idea", fill: T.yellow, size: 24))
             for (i, idea) in ideas.enumerated() {
                 let (t, x, y, fill) = idea
-                out.append(T.box("idea\(i)", x: x - 80, y: y - 35, w: 160, h: 70, text: t, fill: fill))
-                out.append(T.arrow(from: "main", to: "idea\(i)", x: x > 0 ? 110 : -110, y: 0, dx: x > 0 ? x - 190 : x + 190, dy: y, line: true))
+                out.append(T.box("idea\(i)", x: x - 85, y: y - 32, w: 170, h: 64, text: t, fill: fill, size: 18))
+                // From the ellipse's edge toward the branch.
+                let len = (x * x + y * y).squareRoot(), ux = x / len, uy = y / len
+                let r = 1 / ((ux * ux) / (120 * 120) + (uy * uy) / (55 * 55)).squareRoot()
+                let sx = ux * r, sy = uy * r
+                let ex = x - ux * 70, ey = y - uy * 36
+                out.append(T.arrow(from: "main", to: "idea\(i)", x: sx, y: sy, dx: ex - sx, dy: ey - sy, line: true))
             }
+            out.append(T.box("sub0", x: -355, y: 250, w: 150, h: 56, text: "First step", fill: T.green, size: 16))
+            out.append(T.arrow(from: "idea2", to: "sub0", x: -280, y: 182, dx: 0, dy: 68, line: true))
             return out
         case .retro:
-            return [T.text("Retro", x: 0, y: -80, size: 36)]
-                + T.column("well", x: 0, title: "Went well", fill: T.green, cards: ["Add a note"])
-                + T.column("better", x: 340, title: "Could be better", fill: T.red, cards: ["Add a note"])
-                + T.column("try", x: 680, title: "Try next", fill: T.blue, cards: ["Add a note"])
+            return T.title("Retro", hint: "Double-click a card to write. Alt-drag a card to add another.")
+                + T.column("well", x: 0, title: "Went well", fill: T.green, cards: ["Shipped on time"])
+                + T.column("better", x: 240, title: "Could be better", fill: T.red, cards: ["Too many meetings"])
+                + T.column("try", x: 480, title: "Try next", fill: T.blue, cards: ["Demo every Friday"])
         case .kanban:
-            return T.column("todo", x: 0, title: "To do", fill: T.yellow, cards: ["First task", "Second task"])
-                + T.column("doing", x: 340, title: "Doing", fill: T.blue, cards: ["In progress"])
-                + T.column("done", x: 680, title: "Done", fill: T.green, cards: [])
+            return T.title("Kanban", hint: "Drag cards between columns. Alt-drag a card to add another.")
+                + T.column("todo", x: 0, title: "To do", fill: T.yellow, cards: ["Write the brief \u{00B7} Sam", "Book the venue \u{00B7} Alex"])
+                + T.column("doing", x: 240, title: "Doing", fill: T.blue, cards: ["Draft the post \u{00B7} you"])
+                + T.column("done", x: 480, title: "Done", fill: T.green, cards: ["Pick a date \u{00B7} team"])
         case .meeting:
-            return [T.text("Meeting", x: 0, y: -80, size: 36),
-                    T.box("agenda", x: 0, y: 0, w: 420, h: 260, text: "Agenda", fill: T.blue),
-                    T.box("notes", x: 460, y: 0, w: 420, h: 260, text: "Notes", fill: T.yellow),
-                    T.box("decisions", x: 0, y: 300, w: 420, h: 260, text: "Decisions", fill: T.green),
-                    T.box("actions", x: 460, y: 300, w: 420, h: 260, text: "Action items", fill: T.violet)]
+            return T.title("Meeting", hint: "Date:            People:")
+                + T.section("agenda", x: 0, y: 0, w: 340, h: 220, title: "Agenda", fill: "#e7f5ff", lines: ["1.", "2.", "3."])
+                + T.section("notes", x: 360, y: 0, w: 340, h: 220, title: "Notes", fill: "#fff9db")
+                + T.section("decisions", x: 0, y: 240, w: 340, h: 200, title: "Decisions", fill: "#ebfbee")
+                + T.section("actions", x: 360, y: 240, w: 340, h: 200, title: "Action items", fill: "#f8f0fc", lines: ["\u{2610} Who, what, by when"])
+        }
+    }
+
+    /// The template's shapes as boxes, for its preview tile: kind, frame and fill.
+    var outline: [(kind: String, frame: CGRect, fill: String?)] {
+        elements.compactMap { e in
+            guard let type = e["type"] as? String, type != "text", let x = e["x"] as? Double, let y = e["y"] as? Double,
+                  let w = e["width"] as? Double, let h = e["height"] as? Double else { return nil }
+            let fill = (e["backgroundColor"] as? String).flatMap { $0 == "transparent" ? nil : $0 }
+            return (type, CGRect(x: x, y: y, width: w, height: h), fill)
         }
     }
 }
@@ -482,5 +559,53 @@ enum CanvasExport: String, CaseIterable, Identifiable, Sendable {
         let bad = CharacterSet(charactersIn: "/:\\")
         let name = title.components(separatedBy: bad).joined().trimmingCharacters(in: .whitespacesAndNewlines)
         return "\(name.isEmpty ? "Whiteboard" : name).\(format.fileExtension)"
+    }
+}
+
+/// A picture made ready for a board: at most 1600 pixels on its long side, a JPEG (a PNG when it
+/// has see-through parts), as a data URL in the scene's files, which is how Excalidraw keeps it.
+/// A board's data is capped at 4 MB, and a screenshot as it comes is often 2 MB or more.
+struct CanvasImage: Equatable, Sendable {
+    var dataURL: String
+    var mimeType: String
+    var width: Double
+    var height: Double
+
+    static let maxSide = 1600
+
+    init(dataURL: String, mimeType: String, width: Double, height: Double) {
+        self.dataURL = dataURL; self.mimeType = mimeType; self.width = width; self.height = height
+    }
+
+    init?(data: Data) {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(src, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceThumbnailMaxPixelSize: Self.maxSide,
+              ] as CFDictionary) else { return nil }
+        let alpha = Self.seeThrough(image)
+        let type = alpha ? UTType.png : UTType.jpeg
+        let out = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(out, type.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(dest, image, alpha ? nil : [kCGImageDestinationLossyCompressionQuality: 0.82] as CFDictionary)
+        guard CGImageDestinationFinalize(dest) else { return nil }
+        let mime = alpha ? "image/png" : "image/jpeg"
+        self.init(dataURL: "data:\(mime);base64," + (out as Data).base64EncodedString(), mimeType: mime, width: Double(image.width), height: Double(image.height))
+    }
+
+    /// Whether any pixel is see-through (a PNG with a transparent background keeps it).
+    private static func seeThrough(_ image: CGImage) -> Bool {
+        switch image.alphaInfo {
+        case .none, .noneSkipFirst, .noneSkipLast: return false
+        default: break
+        }
+        let w = min(image.width, 256), h = min(image.height, 256)
+        var px = [UInt8](repeating: 255, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return true }
+        ctx.clear(CGRect(x: 0, y: 0, width: w, height: h))
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return stride(from: 3, to: px.count, by: 4).contains { px[$0] < 250 }
     }
 }

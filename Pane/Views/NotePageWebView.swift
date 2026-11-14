@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import UniformTypeIdentifiers
 import WebKit
 
 /// The web view every note page runs in on the Mac. An ordinary page gets WebKit's behaviour; a
@@ -13,8 +14,15 @@ import WebKit
 /// - Two-finger scrolling, pinching, middle-button drag and space-drag reach the page as they are:
 ///   the engine pans and zooms on them itself.
 final class NotePageWebView: WKWebView {
-    /// The canvas this view shows, while it shows one.
-    weak var canvas: CanvasController?
+    /// The canvas this view shows, while it shows one. A board leaves image drags to the note pane
+    /// (CanvasImageDrop), which makes them small enough to keep; the page would take them whole.
+    weak var canvas: CanvasController? {
+        didSet { if canvas != nil { unregisterDraggedTypes() } }
+    }
+
+    override func registerForDraggedTypes(_ newTypes: [NSPasteboard.PasteboardType]) {
+        if canvas == nil { super.registerForDraggedTypes(newTypes) }
+    }
 
     /// How far a right press moves before it's a pan, not a click (points).
     static let dragSlop: CGFloat = 3
@@ -92,6 +100,43 @@ final class NotePageWebView: WKWebView {
         super.willOpenMenu(menu, with: event)
     }
 
+    // MARK: Pictures
+
+    /// Paste over a board: a picture on the clipboard (a screenshot, an image copied in Finder or
+    /// a browser) goes onto the board, made small enough to keep (CanvasImage); anything else (the
+    /// board's own shapes, text) is the page's, as before. WKWebView's paste: isn't public, so
+    /// it's reached through the runtime.
+    @objc func paste(_ sender: Any?) {
+        if let canvas, !canvas.state.editing, let picture = Self.pictures(on: .general).first {
+            Task { @MainActor in
+                guard let image = await Task.detached(priority: .userInitiated, operation: { CanvasImage(data: picture) }).value else {
+                    canvas.confirm("That picture couldn\u{2019}t be read"); return
+                }
+                canvas.send(.image(image, at: nil))
+            }
+            return
+        }
+        let sel = #selector(paste(_:))
+        typealias Paste = @convention(c) (AnyObject, Selector, Any?) -> Void
+        if let imp = class_getMethodImplementation(WKWebView.self, sel), WKWebView.instancesRespond(to: sel) {
+            unsafeBitCast(imp, to: Paste.self)(self, sel, sender)
+        }
+    }
+
+    /// The pictures on a pasteboard: image files first (Finder), then image data. The board's own
+    /// copied shapes are text, so they're never taken for one.
+    static func pictures(on pb: NSPasteboard) -> [Data] {
+        let images: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: [UTType.image.identifier]]
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: images) as? [URL], !urls.isEmpty {
+            return urls.prefix(10).compactMap { try? Data(contentsOf: $0) }
+        }
+        if pb.string(forType: .string) != nil { return [] }
+        for t in [NSPasteboard.PasteboardType.png, .tiff, NSPasteboard.PasteboardType(UTType.jpeg.identifier), NSPasteboard.PasteboardType(UTType.heic.identifier)] {
+            if let d = pb.data(forType: t) { return [d] }
+        }
+        return []
+    }
+
     // MARK: Undo and Redo
 
     @objc func undo(_ sender: Any?) {
@@ -111,6 +156,9 @@ final class NotePageWebView: WKWebView {
 
     override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
         if let canvas {
+            // A board takes a paste whatever's on the clipboard (no text field has focus to make
+            // WebKit allow it).
+            if item.action == #selector(paste(_:)) { return true }
             if item.action == #selector(undo(_:)) { return canvas.canUndo }
             if item.action == #selector(redo(_:)) { return canvas.canRedo }
         }

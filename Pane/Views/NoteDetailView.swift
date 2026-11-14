@@ -334,7 +334,8 @@ struct NoteDetailView: View {
             .onChange(of: NotePageDataStore.shared.arrivals[note.id]) { _, a in
                 guard let a, showingPage else { return }
                 undoData = NotePageData.decode(a.before)
-                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit))
+                if showingCanvas { canvasControls.arrived(by: a.by) }
+                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit, board: showingCanvas))
             }
             // Captures: `-lockCapture setup` or `confirm` (see Capture).
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
@@ -868,11 +869,18 @@ struct NoteDetailView: View {
                         .opacity(showingPage ? 1 : 0)
                         .allowsHitTesting(showingPage)
                         .accessibilityHidden(!showingPage)
+                        // Pictures dropped on a board go onto it, where they're dropped (its web
+                        // view leaves image drags to this: NotePageWebView).
+                        .onDrop(of: CanvasImageDrop.types, isTargeted: nil) { providers, at in
+                            guard showingCanvas else { return false }
+                            CanvasImageDrop.place(providers, at: at, on: canvasControls)
+                            return true
+                        }
                         #if os(iOS)
                         // A canvas runs edge to edge, under the bars (its controls float over it).
                         .ignoresSafeArea(.container, edges: showingCanvas ? .all : [])
                         #endif
-                        .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls) } }
+                        .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls, targets: askTargets, subject: AskAI.subject(note, whiteboard: true)) } }
                         // B: the first-open card inside the app, at its top, until Start.
                         .safeAreaInset(edge: .top, spacing: 0) {
                             if showingPage, let m = firstOpen, m.full, m.isApp, FirstOpen.variant == .b {
@@ -1787,7 +1795,7 @@ struct NoteDetailView: View {
             #if os(macOS)
             .tint(.primary)
             #endif
-            .askAIPopover($asking, subject: AskAI.subject(note))
+            .askAIPopover($asking, subject: AskAI.subject(note, whiteboard: showingCanvas))
     }
 
     private var moreMenu: some View {

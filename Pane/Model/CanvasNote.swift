@@ -154,3 +154,79 @@ final class NewCanvas {
         return true
     }
 }
+
+/// What a board holds, for its row in the list (whiteboard council, round 1: the row said "No
+/// additional text" over a whole flowchart): its words for the preview and search, and its shapes
+/// for a small picture. Worked out from the scene's bytes, once per change.
+struct CanvasSketch: Equatable {
+    struct Shape: Equatable {
+        var kind: String
+        var frame: CGRect
+        var fill: String?
+        /// A line, arrow or pencil stroke: its points, from the frame's origin.
+        var points: [CGPoint] = []
+    }
+    var texts: [String] = []
+    var shapes: [Shape] = []
+
+    /// "Start · Do the thing · Did it work?", or nil for a board with no words.
+    var preview: String? { texts.isEmpty ? nil : texts.joined(separator: " \u{00B7} ") }
+    /// Its words, one a line, for search.
+    var searchText: String { texts.joined(separator: "\n") }
+
+    init(texts: [String] = [], shapes: [Shape] = []) { self.texts = texts; self.shapes = shapes }
+
+    /// From the scene's elements, in drawing order; deleted ones left out. Words keep the order
+    /// they were drawn in, each once.
+    init(elements: [[String: Any]]) {
+        var seen = Set<String>()
+        for e in elements where (e["isDeleted"] as? Bool) != true {
+            guard let type = e["type"] as? String else { continue }
+            let num = { (k: String) -> Double in (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+            if type == "text" {
+                let t = ((e["originalText"] as? String) ?? (e["text"] as? String) ?? "")
+                    .split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+                if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }
+                continue
+            }
+            if let label = (e["label"] as? [String: Any])?["text"] as? String {
+                let t = label.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }
+            }
+            let frame = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
+            let fill = (e["backgroundColor"] as? String).flatMap { $0 == "transparent" ? nil : $0 }
+            var points: [CGPoint] = []
+            if let ps = e["points"] as? [[Any]] {
+                points = ps.compactMap { p in
+                    guard p.count >= 2 else { return nil }
+                    let x = (p[0] as? Double) ?? (p[0] as? Int).map(Double.init), y = (p[1] as? Double) ?? (p[1] as? Int).map(Double.init)
+                    return x.flatMap { x in y.map { CGPoint(x: x, y: $0) } }
+                }
+            }
+            shapes.append(Shape(kind: type, frame: frame, fill: fill, points: points))
+        }
+    }
+
+    /// The whiteboards whose words hold `query`, as search finds text in a note.
+    @MainActor static func notes(holding query: String, data: NotePageDataStore = .shared, pages: NotePageStore = .shared) -> Set<UUID> {
+        var out = Set<UUID>()
+        for id in data.ids where CanvasNote.isCanvas(NoteApps.page(id, in: pages)?.html) {
+            if let s = of(id, in: data), s.searchText.localizedStandardContains(query) { out.insert(id) }
+        }
+        return out
+    }
+
+    @MainActor private static var cache: [UUID: (data: Data, sketch: CanvasSketch)] = [:]
+
+    /// The board's sketch, from the page data store's bytes, read without watching them: a row
+    /// that watched the store would redraw on every stroke on any board. The row redraws when the
+    /// note's date moves, which a save does.
+    @MainActor static func of(_ id: UUID, in store: NotePageDataStore = .shared) -> CanvasSketch? {
+        guard let data = store.peek(id) else { return nil }
+        if let c = cache[id], c.data == data { return c.sketch }
+        let scene = (NotePageData.decode(data)["values"] as? [String: Any])?["scene"] as? [String: Any]
+        let sketch = CanvasSketch(elements: scene?["elements"] as? [[String: Any]] ?? [])
+        cache[id] = (data, sketch)
+        return sketch
+    }
+}
