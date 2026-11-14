@@ -375,6 +375,24 @@ enum WikiDirectory {
     private static var quiet = false
     private static var lastSignature: [String] = []
 
+    /// Other libraries' index and links, kept while one library's are in: two libraries open at
+    /// once (each test window has its own) took turns, each asking for its own and reading every
+    /// note again, after every change, a tenth of a second each (ActionSpeedTests, 13 November
+    /// 2026). Asked again, a library's come back as they were; a save in it lets them go.
+    private struct Kept {
+        weak var context: ModelContext?
+        let index: WikiIndex
+        let outgoing: LinkGraph
+        let paths: [UUID: [String]]
+    }
+    private static var kept: [ObjectIdentifier: Kept] = [:]
+    /// At most this many other libraries are kept.
+    private static let keepsOthers = 4
+    #if DEBUG || QA
+    /// Tests: how many times every note was read on the main thread (`ready`).
+    private(set) static var readsHere = 0
+    #endif
+
     /// Where each note that links to others links, by its id: what Linked From is worked out
     /// from, instead of every note's text being searched each time a note opens.
     private static var outgoing: LinkGraph?
@@ -402,11 +420,30 @@ enum WikiDirectory {
     /// up to `readHere` notes is read here and now: quick enough, and its links show at once.
     static func ready(_ context: ModelContext) -> WikiIndex? {
         if let cached, cachedContext === context, outgoing != nil, outgoingContext === context { return cached }
+        if reading !== context, let back = kept[ObjectIdentifier(context)], back.context === context {
+            keepCurrent()
+            kept[ObjectIdentifier(context)] = nil
+            cached = back.index
+            cachedContext = context
+            outgoing = back.outgoing
+            outgoingContext = context
+            folderPaths = back.paths
+            lastSignature = []
+            // Another library's titles: whoever reads by the generation reads again. Nobody is
+            // told (see `quiet`).
+            quiet = true
+            generation += 1
+            quiet = false
+            return cached
+        }
         let live = #Predicate<Note> { $0.deletedAt == nil && $0.trashedAt == nil }
         if reading !== context, ((try? context.fetchCount(FetchDescriptor<Note>(predicate: live))) ?? 0) <= readHere {
             watchSaves()
             reading = context
             savedWhileReading = []
+            #if DEBUG || QA
+            readsHere += 1
+            #endif
             // Whoever asked gets it now: nobody is told it was read (telling the open note made it
             // ask again, the same turn).
             install(read(using: context), announce: false)
@@ -440,6 +477,8 @@ enum WikiDirectory {
         quiet = !announce
         defer { quiet = false }
         if cached == nil || cachedContext !== context {
+            keepCurrent()
+            kept[ObjectIdentifier(context)] = nil
             cached = WikiIndex(read.entries)
             cachedContext = context
             lastSignature = []
@@ -520,10 +559,19 @@ enum WikiDirectory {
         return index
     }
 
+    /// The library that's in, put with the others before another comes in.
+    private static func keepCurrent() {
+        kept = kept.filter { $0.value.context != nil }
+        guard let cached, let context = cachedContext, outgoingContext === context, let outgoing else { return }
+        if kept.count >= keepsOthers, let any = kept.keys.first { kept[any] = nil }
+        kept[ObjectIdentifier(context)] = Kept(context: context, index: cached, outgoing: outgoing, paths: folderPaths)
+    }
+
     static func invalidate() {
         cached = nil
         outgoing = nil
         folderPaths = [:]
+        kept = [:]
         LinkChanges.shared.bump()
     }
 
@@ -533,6 +581,8 @@ enum WikiDirectory {
     /// same save twice is harmless.
     static func take(_ saved: Notification) {
         guard let context = saved.object as? ModelContext else { return }
+        // A library that isn't in: what was kept of it is read again when it's asked for.
+        kept[ObjectIdentifier(context)] = nil
         // A folder that only gained or lost notes (the store saves it with them) leaves every
         // path as it was: only a rename or a move of a folder makes the index read again.
         let changes = context.savedModels(saved).map { (notes: $0.notes, folders: movedOrRenamed($0.folders, in: context)) }

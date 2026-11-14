@@ -111,6 +111,31 @@ import Testing
         #expect(LinkChanges.shared.version == version, "a read asked for is the asker's; the other menu isn't made again")
     }
 
+    /// Two libraries asking in turn don't each read every note again: each gets its own index and
+    /// links back as they were (a closed test window's library took turns with the next test's,
+    /// a tenth of a second a turn, 13 November 2026). A save in one is read again when it's asked.
+    @Test func twoLibrariesAskingInTurnReadEachOnce() throws {
+        let a = try Self.container(), b = try Self.container()
+        let one = a.mainContext.createNote(in: .all, body: "Lisbon\nTiles")
+        _ = a.mainContext.createNote(in: .all, body: "Trip\nSee [[Lisbon]]")
+        let two = b.mainContext.createNote(in: .all, body: "Porto\nBridges")
+        try a.mainContext.save()
+        try b.mainContext.save()
+        WikiDirectory.invalidate()
+        let reads = WikiDirectory.readsHere
+        for _ in 0..<3 {
+            #expect(LinkedFromMenu.notes(linkingTo: one, in: a.mainContext).total == 1)
+            #expect(LinkedFromMenu.notes(linkingTo: two, in: b.mainContext).total == 0)
+        }
+        #expect(WikiDirectory.readsHere - reads == 2, "each library read once, then kept")
+        // A new link in the library that isn't in: it's read again, with the link.
+        _ = b.mainContext.createNote(in: .all, body: "Plan\nSee [[Porto]]")
+        try b.mainContext.save()
+        #expect(LinkedFromMenu.notes(linkingTo: one, in: a.mainContext).total == 1)
+        #expect(LinkedFromMenu.notes(linkingTo: two, in: b.mainContext).total == 1, "the save in the other library is in")
+        #expect(LinkedFromMenu.notes(linkingTo: one, in: a.mainContext).total == 1)
+    }
+
     /// The link index finds the notes that link by a name without resolving every link: kept as
     /// each note's links change, a link's whole target counted too (a title with a slash).
     @Test func theLinkGraphFollowsEachNote() {
