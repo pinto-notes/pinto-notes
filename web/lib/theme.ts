@@ -10,8 +10,8 @@ export function themeFor(path: string): "cream" | "leaf" | "connect" | null {
   if (/^\/(open\/)?connect(\/|$)/.test(path)) return "connect";
   if (/^\/(changelog|support|help|privacy|terms)(\/|$)/.test(path)) return "leaf";
   // Design studies (/lab/*, noindex, unlinked) follow the visitor's system: cream in light, leaf brown in
-  // dark. The home page studies (/lab/home-d to -h) are cream like the home page: the home page is never dark.
-  if (/^\/lab(\/|$)/.test(path) && !/^\/lab\/(home-[defghi]|hero-lab|home)(\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
+  // dark. The home page studies (/lab/home-d to -m) are cream like the home page: the home page is never dark.
+  if (/^\/lab(\/|$)/.test(path) && !/^\/lab\/(home-[d-m]|hero-lab|home)(\/|$)/.test(path)) return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches ? "leaf" : "cream";
   return "cream";
 }
 
@@ -27,4 +27,4 @@ export function ownTopBar(path: string, copyIds: readonly string[] = []): boolea
 
 /// Runs in <head> before first paint, so a page never flashes the wrong theme. The consent page's
 /// CSP allows it by its hash (middleware.ts), so change it only here.
-export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(open\\/)?connect(\\/|$)/.test(p)?"connect":/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/(home-[defghi]|hero-lab|home)(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
+export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(open\\/)?connect(\\/|$)/.test(p)?"connect":/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/(home-[d-m]|hero-lab|home)(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
