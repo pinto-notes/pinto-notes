@@ -606,8 +606,8 @@ enum CanvasExport: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// A picture made ready for a board: at most 1600 pixels on its long side, a JPEG (a PNG when it
-/// has see-through parts), as a data URL in the scene's files, which is how Excalidraw keeps it.
+/// A picture made ready for a board: a screenshot at most 2560 pixels on its long side as a PNG
+/// (or with see-through parts), a photo at most 1920 as a JPEG, as a data URL in the scene's files, which is how Excalidraw keeps it.
 /// A board's data is capped at 4 MB, and a screenshot as it comes is often 2 MB or more.
 struct CanvasImage: Equatable, Sendable {
     var dataURL: String
@@ -615,27 +615,50 @@ struct CanvasImage: Equatable, Sendable {
     var width: Double
     var height: Double
 
-    static let maxSide = 1600
+    /// Sharp enough for a retina screenshot's small text, zoomed in (whiteboard council, round 2:
+    /// at 1600 a dense screenshot lost its detail).
+    static let maxSide = 2560
+    /// Past this a picture is a JPEG, however it compresses: a board keeps 4 MB in all.
+    static let pngLimit = 1_200_000
 
     init(dataURL: String, mimeType: String, width: Double, height: Double) {
         self.dataURL = dataURL; self.mimeType = mimeType; self.width = width; self.height = height
     }
 
+    /// A photo needs less: grain costs bytes, and it isn't read up close.
+    static let photoSide = 1920
+
     init?(data: Data) {
-        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateThumbnailAtIndex(src, 0, [
-                  kCGImageSourceCreateThumbnailFromImageAlways: true,
-                  kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: Self.maxSide,
-              ] as CFDictionary) else { return nil }
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        func sized(_ side: Int) -> CGImage? {
+            CGImageSourceCreateThumbnailAtIndex(src, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: side,
+            ] as CFDictionary)
+        }
+        guard var image = sized(Self.maxSide) else { return nil }
+        func encode(_ type: UTType, _ props: [CFString: Any]?) -> Data? {
+            let out = NSMutableData()
+            guard let dest = CGImageDestinationCreateWithData(out, type.identifier as CFString, 1, nil) else { return nil }
+            CGImageDestinationAddImage(dest, image, props as CFDictionary?)
+            return CGImageDestinationFinalize(dest) ? out as Data : nil
+        }
+        // A PNG when it has see-through parts, or when it's a screenshot (flat colours and text
+        // compress well and stay crisp); a photo is a JPEG.
+        let png = encode(.png, nil)
         let alpha = Self.seeThrough(image)
-        let type = alpha ? UTType.png : UTType.jpeg
-        let out = NSMutableData()
-        guard let dest = CGImageDestinationCreateWithData(out, type.identifier as CFString, 1, nil) else { return nil }
-        CGImageDestinationAddImage(dest, image, alpha ? nil : [kCGImageDestinationLossyCompressionQuality: 0.82] as CFDictionary)
-        guard CGImageDestinationFinalize(dest) else { return nil }
-        let mime = alpha ? "image/png" : "image/jpeg"
-        self.init(dataURL: "data:\(mime);base64," + (out as Data).base64EncodedString(), mimeType: mime, width: Double(image.width), height: Double(image.height))
+        var chosen: (Data, String)?
+        if let png, alpha || png.count <= Self.pngLimit {
+            let jpeg = alpha ? nil : encode(.jpeg, [kCGImageDestinationLossyCompressionQuality: 0.85])
+            chosen = jpeg.map { $0.count * 2 < png.count } == true ? (jpeg!, "image/jpeg") : (png, "image/png")
+        }
+        if chosen == nil || chosen?.1 == "image/jpeg" {
+            if max(image.width, image.height) > Self.photoSide, let smaller = sized(Self.photoSide) { image = smaller }
+            chosen = encode(.jpeg, [kCGImageDestinationLossyCompressionQuality: 0.82]).map { ($0, "image/jpeg") }
+        }
+        guard let (bytes, mime) = chosen else { return nil }
+        self.init(dataURL: "data:\(mime);base64," + bytes.base64EncodedString(), mimeType: mime, width: Double(image.width), height: Double(image.height))
     }
 
     /// Whether any pixel is see-through (a PNG with a transparent background keeps it).

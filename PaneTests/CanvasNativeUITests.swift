@@ -332,14 +332,38 @@ import UIKit
         return rep.representation(using: .png, properties: [:])!
     }
 
-    /// Pictures go on a board: pasted, dropped or picked, each made at most 1600 pixels across and
-    /// a JPEG unless it has see-through parts, placed in the view, selected, and saved with the
+    /// Like a photo: smooth colour that changes everywhere, with grain.
+    static func photo(width: Int, height: Int) -> Data {
+        let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 3, hasAlpha: false,
+                                   isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        let p = rep.bitmapData!, row = rep.bytesPerRow
+        var seed: UInt32 = 7
+        for y in 0..<height {
+            for x in 0..<width {
+                seed = seed &* 1_664_525 &+ 1_013_904_223
+                let grain = Int(seed >> 28)
+                let i = y * row + x * 3
+                p[i] = UInt8(clamping: 128 + Int(100 * sin(Double(x) / 90)) + grain)
+                p[i + 1] = UInt8(clamping: 128 + Int(100 * cos(Double(y) / 70)) + grain)
+                p[i + 2] = UInt8(clamping: (x + y) / 20 % 256 + grain)
+            }
+        }
+        return rep.representation(using: .png, properties: [:])!
+    }
+
+    /// Pictures go on a board: pasted, dropped or picked, each made at most 2560 pixels across, a
+    /// PNG for a screenshot and a JPEG for a photo, placed in the view, selected, and saved with the
     /// board (whiteboard council, round 1: "images on the board" was missing).
     @Test func aPictureGoesOnTheBoardSmallEnoughToKeep() async throws {
+        // A screenshot (flat colours): sharp, as a PNG, at most 2560 across.
         let big = try #require(CanvasImage(data: Self.png(width: 3200, height: 2000, clear: false)))
-        #expect(big.mimeType == "image/jpeg" && big.dataURL.hasPrefix("data:image/jpeg;base64,"))
-        #expect(big.width == 1600 && big.height == 1000, "\(big.width)x\(big.height)")
+        #expect(big.mimeType == "image/png" && big.dataURL.hasPrefix("data:image/png;base64,"))
+        #expect(big.width == 2560 && big.height == 1600, "\(big.width)x\(big.height)")
         #expect(big.dataURL.utf8.count < 400_000, "small enough to keep: \(big.dataURL.utf8.count) bytes")
+        // A photo (every pixel different): a JPEG, at most 1920 across, still small enough to keep.
+        let photo = try #require(CanvasImage(data: Self.photo(width: 3000, height: 2000)))
+        #expect(photo.mimeType == "image/jpeg" && photo.width == 1920, "\(photo.mimeType) \(photo.width)")
+        #expect(photo.dataURL.utf8.count < 1_200_000, "\(photo.dataURL.utf8.count) bytes")
         let cut = try #require(CanvasImage(data: Self.png(width: 400, height: 300, clear: true)))
         #expect(cut.mimeType == "image/png", "see-through parts stay see-through")
         #expect(CanvasImage(data: Data("not a picture".utf8)) == nil)
