@@ -65,7 +65,7 @@
 /* ── One section template for every feature, on a 12-column grid: the title in columns 1 to 7, the one
    sentence in columns 8 to 12 on the title's baseline, then one full-width frame ── */
 .section { display: grid; gap: var(--q-head-gap); }
-.headRow { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; align-items: last baseline; }
+.headRow { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; align-items: first baseline; }
 .headRow .title { grid-column: 1 / 8; }
 .headText { grid-column: 8 / 13; }
 .headText .body.body { margin: 0; }

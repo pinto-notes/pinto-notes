@@ -17,6 +17,8 @@
 .inset > .win { flex: 1; }
 /* AI: the chat and the result side by side, both straight, their tops in line. */
 .inset > .chat { flex: none; width: 31%; display: flex; flex-direction: column; }
+/* Like a real chat: your messages on the right, the composer at the bottom. */
+.inset > .chat .me { align-self: flex-end; }
 .chat .composer { margin-top: auto; padding: 12px 16px; border-radius: 999px; border: 1px solid rgba(0, 0, 0, 0.1); color: rgba(0, 0, 0, 0.4); font-size: 15px; }
 
 /* ── The Mac window, rebuilt from the captures ── */
@@ -113,7 +115,7 @@
   box-shadow: 0 0 0 0.5px rgba(30, 14, 2, 0.2), 0 24px 48px -24px rgba(20, 8, 0, 0.4); }
 .chat p { margin: 0; }
 .chatHead { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 650; padding-bottom: 4px; }
-.me { justify-self: end; max-width: 85%; padding: 10px 14px; border-radius: 18px; background: #f2f2f2; font-size: 15px; line-height: 1.4; }
+.me { justify-self: end; max-width: 85%; text-wrap: pretty; padding: 10px 14px; border-radius: 18px; background: #f2f2f2; font-size: 15px; line-height: 1.4; }
 .them { display: grid; gap: 8px; font-size: 15px; line-height: 1.45; }
 .tool { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #6b6b6b; }
 .toolMark img { display: block; width: 18px; height: 18px; border-radius: 5px; }
@@ -238,3 +240,6 @@
   .screen { border-radius: 25px; }
   .mini { zoom: 1.2; }
 }
+
+/* "Mentioned in 1 note" at the note's small-print size, not the page's body size. */
+.mention { margin: 18px 0 0; font-size: 12.5px; color: #8a8580; }

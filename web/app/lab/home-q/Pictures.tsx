@@ -167,8 +167,13 @@ export function AiWin() {
 /** What was said: one line to ChatGPT, and its answer, beside the window and as tall as it. */
 export function AiChat() {
   return (
-    <div className={s.chat} role="img" aria-label="In ChatGPT: Deadlift today, 120 kg for 3. Log it. ChatGPT answers: Logged in your Workout log. That's a new best.">
+    <div className={s.chat} role="img" aria-label="In ChatGPT: What did I squat last week? ChatGPT answers from your notes: 100 kg for 5, on Nov 6. Then: Deadlift today, 120 kg for 3. Log it. ChatGPT answers: Logged in your Workout log. That's a new best.">
       <p className={s.chatHead}><AIGlyph name="openai" size={18} />ChatGPT</p>
+      <p className={s.me}>What did I squat last week?</p>
+      <div className={s.them}>
+        <p className={s.tool}><span className={s.toolMark}><img src="/mark-256.png" alt="" width={256} height={256} /></span>Used Pinto Notes</p>
+        <p>100 kg for 5, on Nov 6. It&apos;s in your Workout log.</p>
+      </div>
       <p className={s.me}>Deadlift today, 120 kg for 3. Log it.</p>
       <div className={s.them}>
         <p className={s.tool}><span className={s.toolMark}><img src="/mark-256.png" alt="" width={256} height={256} /></span>Used Pinto Notes</p>
