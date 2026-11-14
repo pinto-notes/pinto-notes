@@ -261,6 +261,24 @@ export function TableMini() {
   );
 }
 
+export function HistoryMini() {
+  // Version history: every earlier version kept; a change your AI made carries its name.
+  const rows: [string, string?][] = [["Today, 21:40", "Claude"], ["Today, 09:12"], ["Yesterday, 18:03"]];
+  return (
+    <div className={s.mini} aria-hidden="true">
+      <ul className={s.hMini}>
+        {rows.map(([t, by], i) => (
+          <li key={t} data-on={i === 1 || undefined}>
+            <span>{t}</span>
+            {by && <Chip ai="claude" name={by} />}
+            {i === 1 && <em className={s.restore}>Restore</em>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function LinkMini() {
   return (
     <div className={s.mini} aria-hidden="true">

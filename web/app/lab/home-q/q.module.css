@@ -5,12 +5,14 @@
 
 .main { width: 100%; max-width: 1240px; margin: 0 auto 40px; padding: 0 var(--gutter); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: 240px; }
 /* The live hero's headline, a step smaller so "The notebook for" holds one line and "you and your AI." the next. */
-.h1.h1 { font-size: min(clamp(40px, min(4.6vw, 7.4vh), 84px), 12.4cqi); }
+.h1.h1 { font-family: var(--q-display), Georgia, serif; font-weight: 400; letter-spacing: 0.002em; line-height: 0.98; font-size: min(clamp(56px, min(6.6vw, 10.8vh), 112px), 17.6cqi); }
+.h1Em { font-style: italic; letter-spacing: 0.006em; white-space: nowrap; }
 .cols[data-solo] { grid-template-columns: minmax(0, 1fr); }
 
 /* ── Type: section titles a clear step under the hero's headline ── */
-.title { margin: 0; font-size: clamp(36px, 4vw, 58px); font-weight: 750; letter-spacing: -0.04em; line-height: 1.02; color: var(--ink); text-wrap: balance; }
-.line { margin: 18px 0 0; max-width: 30em; font-size: clamp(18px, 1.5vw, 21px); line-height: 1.42; color: #6b5a48; text-wrap: pretty; }
+.title { margin: 0; font-family: var(--q-display), Georgia, serif; font-size: clamp(46px, 5.4vw, 80px); font-weight: 400; letter-spacing: 0.004em; line-height: 1; color: var(--ink); text-wrap: balance; }
+.title em, .closingTitle em { font-style: italic; letter-spacing: 0.008em; }
+.line { margin: 22px 0 0; max-width: 30em; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.42; color: #6b5a48; text-wrap: pretty; }
 .center { display: grid; justify-items: center; text-align: center; }
 .center .line { text-wrap: balance; max-width: 34em; }
 .inline { color: var(--ink); font-weight: 650; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 4px; white-space: nowrap; transition: color 0.15s; }
@@ -23,10 +25,10 @@
 .feature[data-flip] .words { order: 2; }
 .words { display: grid; justify-items: start; }
 .details { list-style: none; margin: 34px 0 0; padding: 0; display: grid; gap: 18px; }
-.details li { position: relative; padding-left: 22px; font-size: 16.5px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.details li { position: relative; padding-left: 22px; font-size: 17.5px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
 .details li::before { content: ""; position: absolute; left: 0; top: 0.5em; width: 9px; height: 9px; border-radius: 3px; background: #f3b067; transform: rotate(8deg); }
 .details b { color: var(--ink); font-weight: 700; }
-.more { margin-top: 26px; display: inline-flex; align-items: center; gap: 6px; font-size: 16.5px; font-weight: 650; color: var(--link); text-decoration: none; transition: color 0.15s; }
+.more { margin-top: 26px; display: inline-flex; align-items: center; gap: 6px; font-size: 17.5px; font-weight: 650; color: var(--link); text-decoration: none; transition: color 0.15s; }
 .more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
 .more:hover { color: var(--ink); }
 .more:hover svg { transform: translateX(3px); }
@@ -195,19 +197,13 @@
 .pb span::before { content: "•"; margin-right: 8px; color: #8a7a68; }
 .pb [data-new] { width: fit-content; padding: 0 6px; margin-left: -6px; border-radius: 6px; background: #fff0db; font-weight: 600; }
 
-.aiBelow { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 40px 80px; align-items: start; }
-.num { margin: 0; display: flex; align-items: center; gap: 18px; font-size: clamp(48px, 5.6vw, 80px); font-weight: 750; letter-spacing: -0.045em; line-height: 1; }
-.num span { color: #c4ad93; }
-.num b { color: var(--ink); font-weight: 750; }
-.num svg { width: 0.6em; height: auto; fill: none; stroke: #d97a17; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.studySay { margin: 18px 0 0; max-width: 32em; font-size: 17.5px; line-height: 1.5; color: #6b5a48; text-wrap: pretty; }
-.aiSide { display: grid; gap: 26px; padding-top: 8px; }
-.aiRow { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 18px; }
-.aiRow li { display: flex; align-items: center; gap: 13px; font-size: 17.5px; font-weight: 650; color: var(--ink); white-space: nowrap; }
-.aiMark { flex: none; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 15px; background: #fffaf3; color: #1d1b19;
+/* The four AIs under the line, quiet. */
+.aiRow { margin: 34px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 30px; }
+.aiRow li { display: flex; align-items: center; gap: 11px; font-size: 17.5px; font-weight: 650; color: var(--ink); white-space: nowrap; }
+.aiMark { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 13px; background: #fffaf3; color: #1d1b19;
   box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 10px 22px -14px rgba(60, 30, 5, 0.45); }
 .aiMark[data-ai="claude"] { color: #d97757; }
-.marks { margin: 0; font-size: 16px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.marks { margin: 0; justify-self: center; text-align: center; font-size: 17.5px; line-height: 1.45; color: #6b5a48; text-wrap: balance; }
 
 /* ── Mac and iPhone ── */
 .bothRoom { aspect-ratio: 1200 / 720; }
@@ -232,16 +228,20 @@
 .pCheck li[data-on] i { background: #c8691c; box-shadow: none; }
 .pCheck svg { width: 70%; height: 70%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-/* ── And so much more: small paper cards ── */
-.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.card { display: grid; align-content: start; gap: 6px; padding: 18px 18px 26px; border-radius: 26px; background: #fffaf3;
-  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.07), 0 16px 34px -26px rgba(60, 30, 5, 0.45); }
-.card h3 { margin: 18px 8px 0; font-size: 19px; font-weight: 750; letter-spacing: -0.015em; color: var(--ink); }
-.card p { margin: 0 8px; font-size: 15.5px; line-height: 1.42; color: #6b5a48; text-wrap: pretty; }
-.cardPic { height: 150px; border-radius: 18px; background: #f7e8d4; display: grid; place-items: center; overflow: hidden; }
-/* 160 px icons, drawn at 80 CSS px. */
-.cardPic > img { width: 80px; height: 80px; }
-.mini { width: 78%; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #1d1b19; }
+/* ── And so much more: three with a piece of the real UI, then three in a tidy row ── */
+.moreSec .title { text-align: left; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.card { display: grid; align-content: start; gap: 8px; }
+.card h3, .smalls b { margin: 22px 0 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.card p { margin: 0; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; max-width: 22em; }
+.cardPic { height: 230px; border-radius: 26px; background: #f6e2c6; display: grid; place-items: center; overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(80, 45, 10, 0.06); }
+.smalls { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.smalls li { display: flex; align-items: flex-start; gap: 16px; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.smalls b { display: block; margin: 0 0 2px; font-size: 17px; }
+/* 160 px icons, drawn at 56 CSS px. */
+.smalls img { flex: none; width: 56px; height: 56px; margin-top: 2px; }
+.mini { width: min(78%, 300px); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #1d1b19; }
 .miniLine { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
 .caret { color: #a85700; }
 .slash { list-style: none; margin: 0; padding: 5px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 20px -10px rgba(0, 0, 0, 0.3); display: grid; }
@@ -257,15 +257,64 @@
 .miniText { margin: 0; padding: 14px 16px; border-radius: 12px; background: #fff; font-size: 14px; line-height: 1.45; box-shadow: 0 0 0 0.5px #e0d8cd, 0 10px 20px -12px rgba(0, 0, 0, 0.3); }
 .miniText u { color: #a85700; font-weight: 600; text-decoration-color: rgba(168, 87, 0, 0.4); text-underline-offset: 3px; }
 
-/* ── Free, then the download ── */
-.free { display: grid; justify-items: center; text-align: center; padding: 104px var(--gutter) 112px; border-radius: 40px; background: #f7e3c6; }
-.freeTitle { margin: 0; font-size: clamp(44px, 6vw, 88px); font-weight: 750; letter-spacing: -0.045em; line-height: 1; color: var(--ink); text-wrap: balance; }
-.free .line { text-align: center; text-wrap: balance; }
-.closing { display: grid; justify-items: center; text-align: center; gap: 22px; margin-top: -60px; }
+.hMini { list-style: none; margin: 0; padding: 5px; border-radius: 12px; background: #fff; display: grid; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 10px 20px -10px rgba(0, 0, 0, 0.3); }
+.hMini li { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 13.5px; }
+.hMini li[data-on] { background: #f3e2cc; font-weight: 600; }
+.hMini li > span { margin-right: auto; }
+.restore { padding: 2px 9px; border-radius: 7px; background: #d97a17; color: #fff; font-style: normal; font-size: 12px; font-weight: 650; }
+
+/* ── Closing: free and the download in one moment, over the paper town ── */
+.closing { display: grid; justify-items: center; text-align: center; gap: 0; padding-top: 40px; margin-bottom: -20px; }
 .closingIcon { border-radius: 24px; box-shadow: 0 18px 40px -18px rgba(80, 45, 10, 0.45); }
-.closingTitle { margin: 4px 0 0; font-size: clamp(36px, 4.4vw, 60px); font-weight: 750; letter-spacing: -0.04em; line-height: 1.02; color: var(--ink); }
-.closingCtas.closingCtas { justify-content: center; }
-.fine { margin: -6px 0 0; font-size: 14px; font-weight: 600; color: #8a7a68; }
+.closingTitle { margin: 34px 0 0; font-family: var(--q-display), Georgia, serif; font-size: clamp(60px, 8.4vw, 128px); font-weight: 400; letter-spacing: 0.004em; line-height: 0.95; color: var(--ink); }
+.closingLine { margin: 22px 0 0; font-size: clamp(18px, 1.45vw, 21px); line-height: 1.42; color: #6b5a48; text-wrap: balance; }
+.closingCtas.closingCtas { justify-content: center; margin-top: 38px; }
+.fine { margin: 18px 0 0; font-size: 14px; font-weight: 600; color: #8a7a68; }
+
+/* ── Round 5: the hero pushed in on her phone, so the note and the exchange read at 1440 ── */
+.hero.hero { grid-template-columns: minmax(0, 1fr) min(45vw, 650px); }
+/* The art three times the card's width: her phone's screen is about a third of the picture. */
+.heroArt.heroArt { --w: 300cqw; --h: calc(var(--w) * 941 / 1672); left: calc(66cqw - var(--w) * 0.63875); top: calc(50cqh - var(--h) * 0.503); }
+.heroScreen.heroScreen p:first-child { font-size: 5cqw; }
+.heroScreen.heroScreen li { font-size: 5.7cqw; padding: 2.8cqw 2cqw; gap: 3cqw; }
+.heroScreen.heroScreen li i { width: 5.6cqw; height: 5.6cqw; }
+.heroScreen.heroScreen li em { flex: none; font-size: 3.5cqw; padding: 0.7cqw 1.6cqw; gap: 0.8cqw; }
+.heroSaid.heroSaid { left: auto; right: calc(100% - 58.91% + 20px); top: 33%; bottom: auto; width: min(280px, 44cqw); gap: 10px; }
+.heroSaid.heroSaid > p { font-size: 15.5px; line-height: 1.38; padding: 11px 14px; }
+.heroSaid.heroSaid > p > span { font-size: 13px; }
+
+/* ── Draw: no frame; the night runs edge to edge under the words ── */
+.draw { display: grid; gap: 64px; }
+.drawWords { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 24px 64px; align-items: end; }
+.drawWords .line { margin: 0 0 6px; }
+.drawRoom.drawRoom { width: 100vw; margin-left: calc(50% - 50vw); aspect-ratio: auto; height: clamp(560px, 58vw, 880px); border-radius: 0; box-shadow: none; }
+.drawRoom.drawRoom .edge { box-shadow: none; }
+.drawRoom.drawRoom .at { left: max(var(--gutter), calc(50vw - 560px)); right: max(var(--gutter), calc(50vw - 560px)); top: 8%; bottom: 10%; }
+/* The drawing fills the bigger window. */
+.drawRoom.drawRoom .board { max-width: 960px; }
+.drawFoot { margin: -24px 0 0; justify-self: center; text-align: center; font-size: 17px; line-height: 1.45; color: #6b5a48; text-wrap: balance; }
+
+/* ── The number: a dark band, the biggest type on the page ── */
+.numBand { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: clamp(110px, 12vw, 180px) var(--gutter) clamp(110px, 12vw, 170px);
+  display: grid; justify-items: center; text-align: center; background: #2b1a0e; color: #fbeedd; }
+.bigNum { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 0.12em; font-family: var(--q-display), Georgia, serif; font-weight: 400;
+  font-size: clamp(76px, 15vw, 232px); line-height: 0.9; letter-spacing: 0.005em; white-space: nowrap; }
+.numFrom { color: rgba(251, 238, 221, 0.36); }
+.numTo { color: #fbeedd; font-style: italic; }
+.bigNum svg { flex: none; width: 0.42em; height: auto; fill: none; stroke: #f0901a; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.numSay { margin: 44px 0 0; max-width: 30em; font-size: clamp(19px, 1.6vw, 23px); line-height: 1.45; color: rgba(251, 238, 221, 0.78); text-wrap: balance; }
+.numLink { margin-top: 26px; display: inline-flex; align-items: center; gap: 7px; font-size: 18px; font-weight: 650; color: #f7b865; text-decoration: none; transition: color 0.15s; }
+.numLink svg, .more svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+.numLink:hover { color: #fff4e6; }
+.numLink:hover svg { transform: translateX(3px); }
+.numLink:focus-visible { outline: 2px solid #f7b865; outline-offset: 4px; border-radius: 4px; }
+
+/* ── Mac and iPhone: a marigold band, the devices standing in it, no room ── */
+.both.both { width: 100vw; margin-left: calc(50% - 50vw); box-sizing: border-box; padding: clamp(100px, 10vw, 150px) var(--gutter) 0; background: #f4b75e; overflow: hidden; gap: 64px; }
+.both .line { color: #5b3a16; }
+.bothStage { position: relative; width: 100%; max-width: 1240px; justify-self: center; aspect-ratio: 1200 / 640; }
+.bothStage .mac { top: 0; left: 6%; }
+.bothStage .iphone { bottom: 8%; right: 8%; }
 
 /* ── Narrower windows ── */
 @media (max-width: 1100px) {
@@ -276,6 +325,18 @@
 
 /* ── Phones: every section stacks, the words then the picture; the rooms grow taller so the
    product stays readable; the Mac windows lose their list column like the iPhone app ── */
+@media (max-width: 900px) {
+  .hero.hero { grid-template-columns: minmax(0, 1fr); }
+  .h1.h1 { font-size: clamp(52px, 14vw, 80px); }
+  .heroCard.heroCard { height: min(156vw, 680px); }
+  /* Her phone about half the card wide, low in the card; the exchange above it. */
+  .heroArt.heroArt { --w: 480cqw; left: calc(50cqw - var(--w) * 0.63875); top: calc(100cqh - 18px - var(--h) * 0.6897); }
+  .heroSaid.heroSaid { --sw: min(310px, 90cqw); width: var(--sw); right: auto; left: calc(63.875% - var(--sw) / 2); top: auto; bottom: calc(100% - 31.67% + 12px); }
+  .heroSaid.heroSaid > p { font-size: 15px; padding: 10px 13px; }
+  /* Her phone is small here: the ChatGPT mark alone says who added the line. */
+  .heroScreen.heroScreen li em { font-size: 0; gap: 0; padding: 1cqw; }
+}
+
 @media (max-width: 760px) {
   .main { gap: 120px; }
   .feature, .feature[data-flip] { grid-template-columns: minmax(0, 1fr); gap: 32px; }
@@ -332,20 +393,32 @@
   .grid { grid-template-columns: 0.9fr 1.3fr 1.4fr; }
   .grid > :nth-child(5n + 2), .grid > :nth-child(5n) { display: none; }
   .grid > * { padding: 7px 8px; font-size: 12.5px; }
-  .aiBelow { grid-template-columns: minmax(0, 1fr); gap: 40px; }
-  .num { font-size: 52px; gap: 12px; }
-  .aiRow li { font-size: 16px; gap: 10px; }
-  .aiMark { width: 44px; height: 44px; border-radius: 13px; }
 
   .bothRoom { aspect-ratio: 358 / 400; }
   .mac { left: 14px; right: 14px; width: auto; top: 30px; }
   .iphone { right: 18px; bottom: 16px; width: 44%; border-radius: 30px; padding: 6px; }
   .screen { border-radius: 25px; }
 
-  .cards { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .cardPic { height: 140px; }
-  .free { padding: 52px 20px 56px; border-radius: 28px; }
-  .closing { margin-top: -40px; }
-  .closingTitle { font-size: 32px; }
+  .cards { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .cardPic { height: 200px; }
+  .smalls { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .card h3 { margin-top: 16px; }
+  .closingTitle { font-size: 60px; }
   .closingCtas.closingCtas { flex-direction: column; }
+
+  .drawWords { grid-template-columns: minmax(0, 1fr); }
+  .drawRoom.drawRoom { height: 520px; }
+  .drawRoom.drawRoom .at { left: 14px; right: 14px; top: 28px; bottom: 28px; }
+  .drawFoot { margin-top: -28px; font-size: 16px; }
+  .numBand { padding: 96px 20px 100px; }
+  .bigNum { flex-direction: column; gap: 0.14em; font-size: 104px; }
+  .bigNum svg { transform: rotate(90deg); width: 0.36em; }
+  .numSay { margin-top: 32px; font-size: 19px; }
+  .both.both { gap: 40px; padding-top: 88px; }
+  .bothStage { aspect-ratio: 358 / 400; }
+  .bothStage .mac { left: 0; right: 0; width: auto; top: 0; }
+  .bothStage .iphone { right: 10px; bottom: 20px; width: 44%; }
+  .aiRow { gap: 12px 20px; margin-top: 26px; }
+  .aiRow li { font-size: 16px; }
+  .marks { font-size: 16px; }
 }

@@ -46,9 +46,9 @@ export function Hero() {
   const k1 = span(t, 0.1, 1.1), v1 = mj(span(t, 0, 0.25));
   const v2 = mj(span(t, 2.0, 2.3));
   return (
-    <section className={x.hero}>
+    <section className={`${x.hero} ${q.hero}`}>
       <div className={x.words}>
-        <h1 className={`${x.h1} ${q.h1} rise`} style={rise(0)}>The notebook for <span className={x.mark}>you and your AI</span>.</h1>
+        <h1 className={`${x.h1} ${q.h1} rise`} style={rise(0)}>The notebook for <em className={q.h1Em}>you and your AI</em>.</h1>
         {/* Write, draw and build name the three things next to their nouns (Emil, 11-14). */}
         <p className={`${x.lede} rise`} style={rise(1)}>Write notes, draw on whiteboards and build small apps, with your AI.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
@@ -67,12 +67,12 @@ export function Hero() {
         </div>
         <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free on Mac and iPhone. Works with ChatGPT and Claude.</p>
       </div>
-      <div className={`${x.card} rise`} style={rise(1)} role="img"
+      <div className={`${x.card} ${q.heroCard} rise`} style={rise(1)} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">
-      <div className={x.art}>
-        <img className={x.artImg} src="/home-v5/hero/phone-shoulder.webp" srcSet="/home-v5/hero/phone-shoulder-1400.webp 1400w, /home-v5/hero/phone-shoulder.webp 2200w"
-          sizes="(max-width: 900px) 330vw, (min-height: 1100px) 1800px, 1400px" alt="" fetchPriority="high" />
-        <div className={x.screen} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
+      <div className={`${x.art} ${q.heroArt}`}>
+        {/* Pushed in on her phone, so the note reads: the art is the largest file there is (2200 px). */}
+        <img className={x.artImg} src="/home-v5/hero/phone-shoulder.webp" width={2200} height={1238} alt="" fetchPriority="high" />
+        <div className={`${x.screen} ${q.heroScreen}`} aria-label="Her Tomorrow note in Pinto Notes on her phone, filling in as she talks to ChatGPT.">
           <div className={x.scIn}>
           <p className={x.scStatus}><b>21:40</b><span /></p>
           <p className={x.scBack}>‹ My notebook</p>
@@ -83,7 +83,7 @@ export function Hero() {
               const v = mj(span(t, l.at, l.at + 0.4)), fresh = v * (1 - span(t, l.at + 1.4, l.at + 2.6));
               return (
                 <li key={l.text} style={{ opacity: v, transform: `translateY(${((1 - v) * 6).toFixed(1)}px)`, background: `rgba(240,144,26,${(0.16 * fresh).toFixed(3)})` }}>
-                  <i />{l.text}<em><AIGlyph name="openai" size={8} />ChatGPT</em>
+                  <i />{l.text}<em><AIGlyph name="openai" size={10} />ChatGPT</em>
                 </li>
               );
             })}
@@ -104,12 +104,12 @@ export function Hero() {
             </ul>
           </div>
         </div>
-        <div className={x.said}>
+        <div className={`${x.said} ${q.heroSaid}`}>
           <p className={x.me} style={{ opacity: v1, transform: `translateY(${((1 - v1) * 8).toFixed(1)}px)` }}>
             <span className={x.wave} aria-hidden="true"><i /><i /><i /><i /></span>{said.slice(0, Math.round(said.length * k1))}
           </p>
           <p className={x.ai} style={{ opacity: v2, transform: `translateY(${((1 - v2) * 8).toFixed(1)}px)` }}>
-            <span><AIGlyph name="openai" size={12} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
+            <span><AIGlyph name="openai" size={14} />ChatGPT</span>Done. You also need to book the Lisbon flights by Friday. Added that too.
           </p>
         </div>
       </div>
