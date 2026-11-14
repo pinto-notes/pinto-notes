@@ -52,7 +52,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "apps", title: "Build.", line: "A note that works like a small app. Your AI can make one.", scene: <AppsScene />,
+    id: "apps", title: "Build.", line: "Small apps in a note, like a habit tracker. Your AI can make one.", scene: <AppsScene />,
     sheet: {
       line: "A habit tracker, a budget, a trip plan. Ready now, or made for you.",
       crop: { src: "/lab/big3/create-mac-newapp-page-chatgpt-light.webp", W: 2938, H: 1840, x: 1190, y: 140, w: 1748, h: 1000, alt: "The New app page in Pinto Notes: four templates, and a box to describe your own and make it with ChatGPT." },

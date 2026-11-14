@@ -112,7 +112,7 @@ const CARDS: Card[] = [
     },
   },
   {
-    id: "apps", title: "Build.", line: "A note that works like a small app. Your AI can make one.",
+    id: "apps", title: "Build.", line: "Small apps in a note, like a habit tracker. Your AI can make one.",
     pic: <HabitPic />,
     sheet: {
       line: "A habit tracker, a budget, a trip plan. Ready now, or made for you.",

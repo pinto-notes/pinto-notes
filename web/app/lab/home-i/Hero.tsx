@@ -48,7 +48,7 @@ export function Hero() {
     <section className={x.hero}>
       <div className={x.words}>
         <h1 className={`${x.h1} rise`} style={rise(0)}>Write. Draw. Build. <span style={{ display: "block", marginTop: "0.22em", fontSize: "0.56em", letterSpacing: "-0.025em", color: "#9a7650", textWrap: "balance" }}>The notebook for you and your AI.</span></h1>
-        <p className={`${x.lede} rise`} style={rise(1)}>Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life.</p>
+        <p className={`${x.lede} rise`} style={rise(1)}>Notes, whiteboards and small apps, free on Mac and iPhone. Connect ChatGPT or Claude, and they finally know your life.</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download note={false} />
           <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">

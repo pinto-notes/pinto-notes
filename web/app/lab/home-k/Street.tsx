@@ -37,7 +37,7 @@ const UNITS: Unit[] = [
     x: 432, w: 534, room: { x: 32, y: 128, w: 470, h: 288 }, label: "Jonas's window: a whiteboard on his Mac.",
   },
   {
-    key: "apps", title: "Build.", line: "A note that works like a small app.",
+    key: "apps", title: "Build.", line: "Small apps in a note, like a habit tracker.",
     facts: ["Pick a template and it's ready, or describe one and your AI builds it.", "Any AI can update it. Tell Claude you went to the gym and it's ticked."],
     x: 973, w: 412, room: { x: 30, y: 262, w: 352, h: 290 }, label: "Sara's window at the café: a habit tracker on her phone.",
   },

@@ -31,7 +31,7 @@ export default function Page() {
         <div className={s.head}>
           <h1 className={s.h1}>Write. Draw. Build. <span style={{ display: "block", marginTop: "0.22em", fontSize: "0.56em", letterSpacing: "-0.025em", color: "#9a7650", textWrap: "balance" }}>The notebook for you and your AI.</span></h1>
           <div className={s.side}>
-            <p className={s.lede}>Write notes, draw on whiteboards and make small apps. ChatGPT and Claude work in all three, with your OK.</p>
+            <p className={s.lede}>Notes, whiteboards and small apps, free on Mac and iPhone. Connect ChatGPT or Claude and they work in all three.</p>
             <div className={x.ctas}>
               <Download note={false} />
               <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">

@@ -20,7 +20,7 @@ type Card = { id: "notes" | "whiteboards" | "apps"; title: string; line: string;
 const CARDS: Card[] = [
   { id: "notes", title: "Write.", line: "Notes that feel like Apple Notes, on Mac and iPhone.", ai: { name: "ChatGPT", glyph: "openai" }, said: "Add olive oil to my groceries." },
   { id: "whiteboards", title: "Draw.", line: "A whiteboard next to your notes. Your AI can read it and draw on it.", ai: { name: "Claude Code", glyph: "claude" }, said: "Sketch how a post gets published." },
-  { id: "apps", title: "Build.", line: "A note that works like a small app.", ai: { name: "Claude", glyph: "claude" }, said: "Make me a habit tracker." },
+  { id: "apps", title: "Build.", line: "Small apps in a note, like a habit tracker.", ai: { name: "Claude", glyph: "claude" }, said: "Make me a habit tracker." },
 ];
 
 /* ── The turn: one angle per card, 180 on its back, 0 on its front ── */
@@ -120,7 +120,7 @@ export function Flip() {
       <div className={s.head}>
         <h1 id="j-h1" className={`${s.h1} rise`} style={rise(0)}>Write. Draw. Build. <span style={{ display: "block", marginTop: "0.22em", fontSize: "0.56em", letterSpacing: "-0.025em", color: "#9a7650", textWrap: "balance" }}>The notebook for you and your AI.</span></h1>
         <div className={`${s.side} rise`} style={rise(1)}>
-          <p className={s.lede}>A notes app for Mac and iPhone, with whiteboards and small apps. Your AI works in all of it, with your OK.</p>
+          <p className={s.lede}>A free notes app for Mac and iPhone, with whiteboards and small apps. Connect ChatGPT or Claude and they work in all of it.</p>
           <div className={x.ctas}>
             <Download note={false} />
             <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">

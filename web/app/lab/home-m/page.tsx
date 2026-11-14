@@ -24,7 +24,7 @@ export default function Page() {
       <Desk />
 
       <section className={m.ai} aria-labelledby="ai">
-        <h2 id="ai" className={m.aiTitle}>Your AI works in all three, <span>with your OK.</span></h2>
+        <h2 id="ai" className={m.aiTitle}>Your AI works in all three, <span>when you let it.</span></h2>
         <ul className={m.aiRow}>
           {AIS.map((a) => (
             <li key={a.name}><span className={m.aiMark} data-ai={a.glyph}><AIGlyph name={a.glyph} size={24} /></span>{a.name}</li>
