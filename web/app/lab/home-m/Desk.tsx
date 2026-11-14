@@ -29,7 +29,7 @@ const THINGS: Thing[] = [
   {
     id: "notes", title: "Notes.", tag: "Feels like Apple Notes.",
     label: "The Groceries note in Pinto Notes on an iPhone: a checklist, with olive oil just added by ChatGPT.",
-    W: 320, H: 672, cx: 770, cy: 376, rot: -5, s: 0.7, tagAt: [668, 648, -2],
+    W: 320, H: 672, cx: 815, cy: 344, rot: -5, s: 0.66, tagAt: [716, 600, -2],
     facts: [
       ["Feels like Apple Notes.", "Checklists, tables and folders, on iPhone and Mac, always in sync."],
       ["Brings yours over.", "Import your Apple Notes in one go, folders and checklists included."],
@@ -38,7 +38,7 @@ const THINGS: Thing[] = [
   {
     id: "whiteboards", title: "Whiteboards.", tag: "Draw it. Your AI can read it.",
     label: "A whiteboard called Publishing flow, drawn by hand: Idea, Draft, Ready? Yes goes to Publish, no goes to Fix it.",
-    W: 720, H: 448, cx: 318, cy: 552, rot: -2.5, s: 0.66, tagAt: [70, 722, 1.5],
+    W: 720, H: 448, cx: 362, cy: 562, rot: -1.5, s: 0.88, tagAt: [470, 738, 2],
     facts: [
       ["Draw it out.", "Boxes, arrows and words by hand, with the tools you know from Excalidraw."],
       ["Your AI sees it.", "ChatGPT and Claude can read a whiteboard and draw into it."],
@@ -47,7 +47,7 @@ const THINGS: Thing[] = [
   {
     id: "apps", title: "Apps.", tag: "A note that's a small app.",
     label: "The Habit tracker app in a note on an iPhone: 62% this week, 2 of 6 done today, Walk on an 11-day streak.",
-    W: 320, H: 672, cx: 1134, cy: 420, rot: 4, s: 0.7, tagAt: [1040, 702, 2],
+    W: 320, H: 672, cx: 1180, cy: 410, rot: 4, s: 0.66, tagAt: [1070, 668, 2],
     facts: [
       ["Ready now.", "Pick a template, like this habit tracker, and start using it."],
       ["Or describe it.", "Your AI builds it, and any AI you use can keep it up to date."],
