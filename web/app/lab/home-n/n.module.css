@@ -1,0 +1,198 @@
+/* Study N, L's paper dioramas at reference-site scale. Cream throughout (lib/theme.ts keeps
+   /lab/home-n cream). The first screen is one big headline, its line and the download, then the
+   three rooms with the real UI filling each. */
+
+@font-face { font-family: "Excalifont N"; src: url("/lab/home-l/excalifont.woff2") format("woff2"); font-display: block; }
+
+.main { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: 150px; }
+
+/* ── The first screen ── */
+.hero { width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: clamp(16px, 4.4vh, 48px) var(--gutter) 0; display: grid; gap: clamp(44px, 6vh, 64px); }
+.head { display: grid; justify-items: start; }
+.h1 { margin: 0; font-size: clamp(44px, min(6.2vw, 10vh), 92px); font-weight: 750; letter-spacing: -0.045em; line-height: 0.98; color: #2a1d10; text-wrap: balance; }
+.sub { margin: 0.12em 0 0; font-size: clamp(28px, min(3.8vw, 6.1vh), 56px); font-weight: 700; letter-spacing: -0.038em; line-height: 1.08; color: #9a7650; text-wrap: balance; }
+.act { margin-top: clamp(24px, 3.8vh, 36px); display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; }
+.free { margin: 0; font-size: 15px; font-weight: 550; line-height: 1.4; color: #8a7058; text-wrap: balance; }
+
+/* ── The three rooms ── */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 2vw, 28px); }
+.card { position: relative; perspective: 1100px; --mx: 0; --my: 0; display: grid; align-content: start; }
+.box { position: relative; aspect-ratio: 0.82; width: 100%; border-radius: 26px; overflow: hidden; isolation: isolate; container-type: size;
+  transform: rotateX(calc(var(--my) * -3.5deg)) rotateY(calc(var(--mx) * 4.5deg)); will-change: transform;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 2px 4px rgba(80, 45, 10, 0.06), 0 30px 60px -34px rgba(60, 30, 5, 0.5); }
+.card[data-card="notes"] .box { background: #efd0a6; }
+.card[data-card="whiteboards"] .box { background: #3c3754; }
+.card[data-card="apps"] .box { background: #5f7f6a; }
+.stage { position: absolute; inset: 0; }
+
+/* A plane slides against the frame by its depth: the farther back, the more. */
+.plane, .ui { position: absolute; will-change: transform;
+  transform: translate3d(calc(var(--mx) * var(--z) * -7px), calc(var(--my) * var(--z) * -6px), 0); }
+.plane { inset: -6%; }
+.ui { inset: 0; }
+.plane svg { display: block; width: 100%; height: 100%; }
+.plane[data-shade] svg { filter: drop-shadow(0 4px 7px rgba(30, 15, 5, 0.28)); }
+.frame { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.frame svg { display: block; width: 100%; height: 100%; fill: #f9ebd8; filter: drop-shadow(0 3px 6px rgba(30, 15, 5, 0.32)); }
+
+/* The words over each room, and the "See it" that says the room opens. The cards share two grid rows,
+   so the rooms line up whatever the length of the words. */
+.cards { grid-template-rows: auto auto; row-gap: 0; }
+.card { grid-row: span 2; grid-template-rows: subgrid; }
+.cap { position: relative; margin: 0 0 18px; padding: 0 4px; }
+.cardHead { margin: 0; padding-right: 64px; font-size: clamp(16px, 1.25vw, 18px); font-weight: 550; letter-spacing: -0.01em; line-height: 1.38; color: #8a7058; text-wrap: pretty; }
+.cardHead b { display: block; margin-bottom: 4px; font-size: clamp(26px, 2.1vw, 30px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.1; color: #2a1d10; }
+.mini { display: none; }
+.see { position: absolute; top: 8px; right: 6px; display: inline-flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 650; color: #a85700; white-space: nowrap; transition: color 0.15s; }
+.see svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+
+/* The whole card is one button, laid over it. */
+.hit { position: absolute; inset: -8px; z-index: 5; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 30px; -webkit-tap-highlight-color: transparent; }
+.hit:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.card:has(.hit:focus-visible) .see { color: #2a1d10; }
+.card:has(.hit:focus-visible) .see svg { transform: translateX(3px); }
+@media (hover: hover) {
+  .card:hover .box, .card[data-hover] .box { box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.1), 0 2px 4px rgba(80, 45, 10, 0.06), 0 44px 80px -38px rgba(60, 30, 5, 0.6); }
+  .card:hover .see, .card[data-hover] .see { color: #2a1d10; }
+  .card:hover .see svg, .card[data-hover] .see svg { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) { .box, .plane, .ui { transform: none !important; } .see svg { transition: none; } }
+
+/* ── Notes: the Groceries note, as the Mac app draws it, stood up in front and filling the room.
+   Inside the note, sizes are in the note's own width (it is a container). ── */
+.noteAt .note { position: absolute; left: 17cqw; top: 22cqh; width: 76cqw; height: 100cqh; box-sizing: border-box; padding-top: 1px; border-radius: 4cqw;
+  container-type: inline-size; background: #fffdfa; color: #1d1b19; transform: rotate(-1.4deg); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.14), 0 16px 30px -12px rgba(60, 30, 5, 0.45); }
+.note > * { margin-inline: 9cqw; }
+.noteTitle { margin-top: 8.5cqw; margin-bottom: 3cqw; font-size: 11.2cqw; font-weight: 750; letter-spacing: -0.015em; line-height: 1.1; }
+.noteText { margin-top: 0; margin-bottom: 5cqw; font-size: 5.3cqw; line-height: 1.4; color: #3a3632; }
+.check { list-style: none; padding: 0; display: grid; gap: 3.3cqw; }
+.check li { display: flex; align-items: center; gap: 3.6cqw; font-size: 5.9cqw; white-space: nowrap; }
+.check i { flex: none; display: grid; place-items: center; width: 6.6cqw; height: 6.6cqw; border-radius: 50%; box-shadow: inset 0 0 0 1.2px #b9b2aa; }
+.check li[data-on] { color: #9a928a; text-decoration: line-through; text-decoration-color: #b0a89f; }
+.check li[data-on] i { background: #c8691c; box-shadow: none; }
+.check svg { width: 70%; height: 70%; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Whiteboards: the sheet pinned to the wall, nearly as wide as the room ── */
+.pinned { position: absolute; left: 4cqw; top: 6cqh; width: 82cqw; height: auto; transform: rotate(-1.8deg); overflow: visible;
+  filter: drop-shadow(0 8px 10px rgba(10, 5, 20, 0.45)); }
+.stroke { fill: none; stroke: #1e1e1e; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.hand { font-family: "Excalifont N", "Comic Sans MS", cursive; font-size: 18px; text-anchor: middle; dominant-baseline: central; fill: #1e1e1e; }
+
+/* ── Apps: the habit tracker on an iPhone, stood on the café table, filling the room ── */
+.phoneAt .phone { position: absolute; left: 14cqw; top: 7cqh; width: 70cqw; box-sizing: border-box; padding: 1.8cqw; border-radius: 11cqw; background: #2a1d10;
+  transform: rotate(1.6deg); box-shadow: 0 18px 30px -12px rgba(20, 10, 5, 0.55); }
+.app { container-type: inline-size; box-sizing: border-box; min-height: 100cqh; padding: 8cqw 6cqw 5cqw; border-radius: 9.4cqw; background: #fdfcfa; color: #1d1b19; overflow: hidden; }
+.aTop { margin: 0; display: flex; align-items: center; gap: 2cqw; font-size: 4.8cqw; color: #8a7a68; }
+.aTop b { font-weight: 600; }
+.aTop span { padding: 0.6cqw 2cqw; border-radius: 2cqw; background: #f1ece5; font-size: 3.4cqw; font-weight: 600; }
+.aTitle { margin: 1.5cqw 0 4cqw; font-size: 10.5cqw; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.aWeek { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4cqw; }
+.aWeek span { display: grid; justify-items: center; gap: 1.4cqw; }
+.aWeek small { font-size: 3.8cqw; font-weight: 600; color: #8a7a68; }
+.aWeek i { width: 6.4cqw; height: 6.4cqw; border-radius: 50%; background: #efe8df; }
+.aWeek span[data-on] i { background: #d97a17; }
+.aWeek span[data-now] i { box-shadow: 0 0 0 0.8cqw #fdfcfa, 0 0 0 1.4cqw #d97a17; }
+.aList { margin: 0; padding: 0; list-style: none; display: grid; gap: 2cqw; }
+.aList li { display: flex; align-items: center; justify-content: space-between; gap: 3cqw; padding: 3cqw 3.4cqw; border-radius: 4.4cqw; background: #f5f0ea; }
+.aList li > span { display: grid; gap: 0.6cqw; min-width: 0; }
+.aList b { font-size: 5.3cqw; font-weight: 650; white-space: nowrap; }
+.aList small { display: flex; align-items: center; gap: 1cqw; font-size: 4.1cqw; color: #8a7a68; white-space: nowrap; }
+.aList li[data-ai] small { color: #b4593b; font-weight: 600; }
+.aList i { flex: none; display: grid; place-items: center; width: 8cqw; height: 8cqw; border-radius: 50%; box-shadow: inset 0 0 0 1.3px #d6cbbd; }
+.aList i svg { width: 62%; height: 62%; fill: none; stroke: transparent; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.aList i[data-on] { background: #d97a17; box-shadow: none; }
+.aList i[data-on] svg { stroke: #fff; }
+
+/* ── The sheet: the real app, bigger, and three facts (from study L) ── */
+.sheet { width: min(1080px, calc(100vw - 48px)); max-width: none; max-height: calc(100vh - 48px); margin: auto; padding: 0; border: 0; border-radius: 30px; background: #fffaf3; color: var(--ink);
+  box-shadow: 0 50px 120px -40px rgba(60, 30, 5, 0.55); overflow: auto; overscroll-behavior: contain; }
+.sheet::backdrop { background: rgba(42, 29, 16, 0.38); backdrop-filter: blur(6px); }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet[open] { animation: sheetIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .sheet[open]::backdrop { animation: fade 0.3s ease-out; }
+  .box { transition: box-shadow 0.4s; }
+}
+@keyframes sheetIn { from { opacity: 0; transform: translateY(28px) scale(0.98); } }
+@keyframes fade { from { opacity: 0; } }
+.sheetIn { position: relative; padding: 44px 56px 48px; display: grid; gap: 28px; }
+.sheetHead { margin: 0; padding-right: 56px; max-width: 30ch; font-size: clamp(26px, 2.6vw, 36px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.08; color: #8a7058; text-wrap: balance; }
+.sheetHead b { color: var(--ink); font-weight: 750; }
+.close { position: absolute; top: 22px; right: 22px; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: #f1e3cf; color: #2a1d10; cursor: pointer; transition: background-color 0.15s; }
+.close:hover { background: #e8d4b8; }
+.close:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.sheetPic { width: 100%; justify-self: center; border-radius: 18px; overflow: hidden; background: #fff; box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.14), 0 30px 60px -40px rgba(80, 45, 10, 0.5); }
+.crop { position: relative; display: block; width: 100%; overflow: hidden; }
+.crop img { position: absolute; max-width: none; height: auto; }
+.facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px; }
+.facts li { font-size: 18px; line-height: 1.42; color: var(--muted); text-wrap: pretty; }
+.facts b { color: var(--ink); font-weight: 700; }
+
+/* ── The AIs, and what the memory study measured ── */
+.ai { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 40px 72px; align-items: end; }
+.aiTitle { margin: 0; font-size: clamp(34px, 4.3vw, 60px); font-weight: 750; letter-spacing: -0.035em; line-height: 1.03; color: #2a1d10; text-wrap: balance; }
+.aiTitle span { color: #a08467; }
+.aiSay { margin: 22px 0 0; max-width: 34em; font-size: clamp(17px, 1.4vw, 19px); line-height: 1.45; color: #6b5a48; text-wrap: pretty; }
+.inline { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--amber); text-decoration-thickness: 2px; text-underline-offset: 4px; transition: color 0.15s; }
+.inline:hover { color: var(--link); }
+.inline:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 3px; }
+.aiRow { margin: 0; padding: 0 0 6px; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 20px; }
+.aiRow li { display: flex; align-items: center; gap: 14px; font-size: 18px; font-weight: 650; color: #2a1d10; white-space: nowrap; }
+.aiMark { flex: none; display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: #fffaf3; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 10px 22px -14px rgba(60, 30, 5, 0.45); }
+.aiMark[data-ai="claude"] { color: #d97757; }
+
+/* ── The download ── */
+.closing { display: grid; justify-items: center; text-align: center; gap: 22px; margin-bottom: 40px; padding: 0 var(--gutter); }
+.closingIcon { border-radius: 22px; box-shadow: 0 18px 40px -18px rgba(80, 45, 10, 0.45); }
+.closingTitle { margin: 4px 0 0; font-size: clamp(36px, 4.4vw, 60px); font-weight: 750; letter-spacing: -0.04em; line-height: 1.02; color: var(--ink); }
+.closingCta.closingCta { justify-items: center; }
+.closingCta p { text-align: center; }
+
+/* ── Narrower windows ── */
+@media (max-width: 900px) {
+  .ai { grid-template-columns: minmax(0, 1fr); }
+  .sheetIn { padding: 48px 40px 44px; }
+}
+
+/* ── Phones: the headline at phone scale, then the three rooms as a 3-up strip of small rooms, each
+   with its word and a short line under it. All three show in the first screen; each opens its sheet. ── */
+@media (max-width: 760px) {
+  .main { gap: 96px; }
+  .hero { padding: 6px var(--gutter) 0; gap: 30px; }
+  .h1 { font-size: clamp(42px, 12.6vw, 52px); line-height: 1; letter-spacing: -0.042em; }
+  .sub { font-size: clamp(28px, 7.9vw, 32px); margin-top: 8px; letter-spacing: -0.035em; }
+  .act { margin-top: 22px; flex-direction: column; align-items: stretch; gap: 14px; }
+  .free { font-size: 13.5px; text-align: center; }
+  .cards { gap: 10px; }
+  .card { perspective: none; }
+  .box { order: 1; border-radius: 16px; aspect-ratio: 0.74; box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.08), 0 14px 26px -18px rgba(60, 30, 5, 0.55); }
+  .cards { grid-template-rows: auto; }
+  .card { grid-row: auto; grid-template-rows: none; }
+  .cap { order: 2; margin: 10px 0 0; padding: 0 2px; display: grid; gap: 4px; }
+  .cardHead { padding-right: 0; font-size: 13px; line-height: 1.3; }
+  .cardHead b { margin-bottom: 1px; font-size: 20px; letter-spacing: -0.03em; line-height: 1.15; }
+  .see { position: static; }
+  .long { display: none; }
+  .mini { display: inline; }
+  .see { font-size: 13px; gap: 3px; }
+  .see svg { width: 12px; height: 12px; }
+  .hit { inset: -4px; border-radius: 20px; }
+  .plane[data-shade] svg { filter: drop-shadow(0 1.5px 2.5px rgba(30, 15, 5, 0.28)); }
+  .frame svg { filter: drop-shadow(0 1px 2px rgba(30, 15, 5, 0.32)); }
+  .pinned { filter: drop-shadow(0 3px 4px rgba(10, 5, 20, 0.45)); }
+  .noteAt .note, .phoneAt .phone { box-shadow: 0 6px 12px -6px rgba(20, 10, 5, 0.5); }
+  .sheet { width: 100vw; max-height: calc(100dvh - 24px); margin: auto 0 0; border-radius: 26px 26px 0 0; }
+  .sheetIn { padding: 30px var(--gutter) 40px; gap: 26px; }
+  .sheetHead { font-size: 28px; padding-right: 48px; }
+  .close { top: 18px; right: 14px; width: 36px; height: 36px; }
+  .sheetPic { border-radius: 14px; }
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .facts li { font-size: 17px; }
+  .aiRow { gap: 18px 14px; }
+  .aiRow li { font-size: 16px; gap: 12px; }
+  .aiMark { width: 46px; height: 46px; border-radius: 14px; }
+}
+@media (max-width: 700px) and (prefers-reduced-motion: no-preference) { .sheet[open] { animation-name: sheetUp; } }
+@keyframes sheetUp { from { transform: translateY(40%); opacity: 0.4; } }
