@@ -27,7 +27,7 @@ import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNote
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
-import { NotPublic, publicFetch } from "./public_fetch.ts";
+import { FetchTimeout, NotPublic, publicFetch } from "./public_fetch.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
 
 type Args = Record<string, unknown>;
@@ -112,11 +112,12 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a picture): content_base64 to its path, and the app loads it with fetch like any web page. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a picture): content_base64 to its path, and the app loads it with fetch like any web page. Instead of content_base64, content_url takes a public https address: the server downloads the file (up to 10 MB) and stores its bytes as they are. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
-        path: str(PATH), content: str("The whole text (data.json: JSON)."), content_base64: str("A file's bytes, base64 (up to 10 MB)."), mime_type: str("With content_base64, like \"application/pdf\"."),
+        path: str(PATH), content: str("The whole text (data.json: JSON)."), content_base64: str("A file's bytes, base64 (up to 10 MB)."),
+        content_url: str("A public https address the server downloads the file's bytes from, instead of content_base64 (up to 10 MB)."), mime_type: str("With content_base64, like \"application/pdf\"."),
         file: { type: "object", description: "A file from the chat (ChatGPT hands these over), instead of content_base64.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } }, required: ["download_url", "file_id"] },
       },
       required: ["path"],
@@ -220,7 +221,9 @@ export async function runFileTool(name: string, args: Args, ctx: ToolContext): P
   const a = Object.fromEntries(Object.entries(args).map(([k, v]) => [k, SWITCHES.has(k) && v === "true" ? true : SWITCHES.has(k) && v === "false" ? false : v]));
   if (a.path === undefined && a.id !== undefined && name !== "fetch") a.path = a.id;
   if (name === "fetch" && a.id === undefined && a.path !== undefined) a.id = a.path;
-  return await runIn(FILE_TOOLS, fileHandlers, name, a, ctx);
+  // write's content_url is downloaded before the transaction opens: a slow server holds no database connection.
+  const download = name === "write" && given(a.content_url) ? async () => { sources(a, false); FETCHED.set(a, await fromUrl(a.content_url)); } : undefined;
+  return await runIn(FILE_TOOLS, fileHandlers, name, a, ctx, download);
 }
 
 // MARK: What this session has read
@@ -1156,7 +1159,8 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   },
 
   async write(tx, a, c) {
-    if (typeof a.content_base64 === "string" || (a.file && typeof a.file === "object") || (typeof a.content === "string" && looksLikeFile(clean(a.path)))) return await writeFileTool(tx, a, c);
+    sources(a);
+    if (typeof a.content_base64 === "string" || (a.file && typeof a.file === "object") || FETCHED.has(a) || (typeof a.content === "string" && looksLikeFile(clean(a.path)))) return await writeFileTool(tx, a, c);
     if (typeof a.content !== "string") throw new ToolError("content is the whole new text (content_base64 with mime_type for a file's bytes).");
     const content = a.content;
     let r: Ref;
@@ -1511,6 +1515,48 @@ async function chatFile(f: Record<string, unknown>): Promise<Uint8Array> {
   return await readCapped(res, AI_FILE_BYTES).catch(() => { throw new ToolError("The file is over 10 MB. The AI can write files up to 10 MB; larger ones are added in Pinto Notes."); });
 }
 
+/** write's bytes from a public https address (content_url), downloaded by the server. */
+type Fetched = { bytes: Uint8Array; type?: string; from: string; sha256: string };
+const FETCHED = new WeakMap<Args, Fetched>();
+const given = (v: unknown) => typeof v === "string" && v.trim() !== "";
+
+/** write takes its content one way: content, content_base64, content_url or a chat's file. */
+function sources(a: Args, downloaded = true) {
+  const n = [given(a.content), given(a.content_base64), given(a.content_url), !!(a.file && typeof a.file === "object")].filter(Boolean).length;
+  if (n > 1) throw new ToolError("Give one of content, content_base64 or content_url.");
+  if (downloaded && given(a.content_url) && !FETCHED.has(a)) throw new ToolError("content_url wasn't downloaded. Nothing was saved.");
+}
+
+/** Downloads content_url (public_fetch.ts: https, public addresses only, every redirect checked,
+ *  30 s), stopping past 10 MB like content_base64. The bytes are kept exactly as they came. */
+async function fromUrl(raw: unknown): Promise<Fetched> {
+  const link = String(raw).trim();
+  let url: URL;
+  try { url = new URL(link); } catch { throw new ToolError("content_url isn't a web address (https://…). Nothing was saved."); }
+  const failed = (e: unknown): never => {
+    if (e instanceof ToolError) throw e;
+    if (e instanceof NotPublic) throw new ToolError(`content_url was refused: ${e.message} Only public https addresses are downloaded. Nothing was saved.`);
+    if (e instanceof FetchTimeout) throw new ToolError(`content_url: the download from ${url.host} ${e.message}, so it stopped. Nothing was saved.`);
+    if (e instanceof RangeError) throw new ToolError(`content_url: the file is over ${AI_FILE_BYTES / 1048576} MB, so the download stopped there. Nothing was saved.`);
+    throw new ToolError(`content_url couldn't be downloaded from ${url.host} (${String((e as Error)?.message ?? e).slice(0, 200)}). Nothing was saved.`);
+  };
+  const res = await publicFetch(url).catch(failed);
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {});
+    throw new ToolError(`content_url: ${url.host} answered ${res.status}${res.statusText ? ` ${res.statusText}` : ""}. Nothing was saved.`);
+  }
+  const bytes = await readCapped(res, AI_FILE_BYTES).catch(failed);
+  const sha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const type = res.headers.get("content-type")?.split(";")[0].trim().toLowerCase() || undefined;
+  return { bytes, ...(type ? { type } : {}), from: link, sha256 };
+}
+
+/** What the AI is told about a downloaded file, next to where it was saved. */
+function withFetched(out: unknown, f: Fetched | undefined): unknown {
+  if (!f || out instanceof Content || !out || typeof out !== "object") return out;
+  return { ...out as Record<string, unknown>, bytes: f.bytes.length, sha256: f.sha256, downloaded_from: f.from, ...(f.type ? { content_type: f.type } : {}) };
+}
+
 /** A file as the AI reads it: text to edit, extracted text, a picture, or (raw) its bytes. */
 async function fetchFile(tx: Tx, a: Args, c: Call, r: Extract<Ref, { kind: "file" }>) {
   const { bytes, meta, version } = await readFile(tx, c, r.id, r.path);
@@ -1541,24 +1587,28 @@ async function fetchFile(tx: Tx, a: Args, c: Call, r: Extract<Ref, { kind: "file
 async function writeFileTool(tx: Tx, a: Args, c: Call) {
   const path = clean(a.path);
   let bytes: Uint8Array;
-  if (typeof a.content_base64 === "string") {
+  const fetched = FETCHED.get(a);
+  if (fetched) {
+    bytes = fetched.bytes;
+    if (typeof a.mime_type !== "string" && fetched.type) a.mime_type = fetched.type;
+  } else if (typeof a.content_base64 === "string") {
     try { bytes = fromBase64(a.content_base64.replace(/^data:[^,]*,/, "").replace(/\s+/g, "")); } catch { throw new ToolError("content_base64 isn't base64."); }
   } else if (a.file && typeof a.file === "object") {
     bytes = await chatFile(a.file as Record<string, unknown>);
     if (typeof a.mime_type !== "string" && typeof (a.file as Record<string, unknown>).mime_type === "string") a.mime_type = (a.file as Record<string, unknown>).mime_type;
   } else if (typeof a.content === "string") bytes = new TextEncoder().encode(a.content);
-  else throw new ToolError("A file takes content (text) or content_base64 with mime_type.");
+  else throw new ToolError("A file takes content (text), content_base64 with mime_type, or content_url.");
   let r: Ref | null = null;
   try { r = await resolve(tx, c, path); } catch (e) { if (!/^Nothing at/.test((e as Error).message)) throw e; }
-  if (r?.kind === "appfile") return await writeAppBytes(tx, c, r, bytes, a);
+  if (r?.kind === "appfile") return withFetched(await writeAppBytes(tx, c, r, bytes, a), fetched);
   if (r && r.kind !== "file") throw new ToolError(`${path} isn't a file.`);
   if (r?.kind === "file") {
     const { meta, version } = await readFile(tx, c, r.id, r.path);
     await mustHaveRead(tx, c, blobItem(r.id), String(version), r.path);
-    if (typeof a.content_base64 !== "string" && !isTextFile(meta.name, meta.type)) throw new ToolError(`${r.path} isn't text: write its bytes with content_base64.`);
+    if (typeof a.content_base64 !== "string" && !fetched && !isTextFile(meta.name, meta.type)) throw new ToolError(`${r.path} isn't text: write its bytes with content_base64.`);
     const w = await writeFile(tx, c, { id: r.id, name: meta.name, type: meta.type, bytes, path: r.path });
     await markRead(tx, c, blobItem(r.id), String(w.version));
-    return { written: r.path, bytes: bytes.length, kept: "The version before is in history; restore brings it back." };
+    return withFetched({ written: r.path, bytes: bytes.length, kept: "The version before is in history; restore brings it back." }, fetched);
   }
   if (!looksLikeFile(path)) throw new ToolError(`${path}: a file's path ends in its kind, like "To read/Summary.txt" or "To read/Paper.pdf".`);
   const slash = path.lastIndexOf("/");
@@ -1578,7 +1628,7 @@ async function writeFileTool(tx: Tx, a: Args, c: Call) {
   const now = await pathsOf(tx, c, true);
   const at = now.filePathOf(made.id) ?? (where.parent ? (await noteFiles(tx, c, now, where.parent)).find((f) => f.id === made.id)?.path : path) ?? path;
   await markRead(tx, c, blobItem(made.id), "0");
-  return { created: at, bytes: bytes.length };
+  return withFetched({ created: at, bytes: bytes.length }, fetched);
 }
 
 /** Bytes for a file in an app (content_base64): a .wasm, a game's data, a picture. Text that comes
