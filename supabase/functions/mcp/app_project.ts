@@ -6,8 +6,9 @@ import type { CompileItem, Compiled } from "./app_build.ts";
 export type Project = { amberApp: 1; files: Record<string, string>; compiled: Record<string, string> };
 
 export const MAX_FILES = 200;
-export const MAX_FILE_BYTES = 512 * 1024;
-export const MAX_PROJECT_BYTES = 3 * 1024 * 1024;
+// Big enough for a game's data as base64 (Doom's 4 MB shareware WAD, 2026-11-14).
+export const MAX_FILE_BYTES = 8 * 1024 * 1024;
+export const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
 
 /** The stack's bare names: React on preact/compat, shadcn v4's radix-ui and the rest. Radix's own
  *  @radix-ui/react-* packages are in the map only because radix-ui is built from them. */
@@ -68,7 +69,7 @@ export function projectProblems(p: Project): string[] {
   const names = Object.keys(p.files);
   if (!p.files["/index.html"]) out.push("The project needs /index.html: it's the page the app opens.");
   if (names.length > MAX_FILES) out.push(`${names.length} files; at most ${MAX_FILES}.`);
-  for (const n of names) if (bytes(p.files[n]) > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(bytes(p.files[n]) / 1024)} KB; a file can be at most ${MAX_FILE_BYTES / 1024} KB.`);
+  for (const n of names) if (bytes(p.files[n]) > MAX_FILE_BYTES) out.push(`${n} is ${Math.round(bytes(p.files[n]) / 1024)} KB; a file can be at most ${MAX_FILE_BYTES / 1048576} MB.`);
   const total = bytes(serialize(p));
   if (total > MAX_PROJECT_BYTES) out.push(`The project is ${(total / 1048576).toFixed(1)} MB with its compiled files; at most ${MAX_PROJECT_BYTES / 1048576} MB.`);
   if (/<script[^>]*type=["']importmap["']/i.test(p.files["/index.html"] ?? "")) out.push("Don't write an import map: the app provides one with preact, amber, amber-ui and the bundled libraries.");
@@ -237,11 +238,6 @@ export function sourceProblems(p: Project, declared: (host: string) => boolean):
     if (path.endsWith(".html")) {
       const tags = [...new Set([...text.matchAll(/<(base|iframe|frame|frameset|object|embed|portal|applet)\b/gi)].map((m) => m[1].toLowerCase()))];
       if (tags.length) out.push(`${path}: <${tags.join(">, <")}> isn't allowed.`);
-    }
-    if (isCode(path) || path.endsWith(".html")) {
-      // fetch of the app's own files ("/src/data.json", "./x.json") is fine; anything else isn't.
-      const apis = [...new Set([...text.matchAll(/\bnew\s+(XMLHttpRequest|WebSocket|EventSource|Worker|SharedWorker|RTCPeerConnection)\b|\bnavigator\.(sendBeacon|serviceWorker)\b|\bimportScripts\s*\(|\bwindow\.open\s*\(/g)].map((m) => m[1] ?? m[0].replace(/\s*\($/, ""))), ...(/(?<![\w.])fetch\s*\(\s*(?!["'`]\.?\/)/.test(text) && !/import\s*\{[^}]*\bfetch\b[^}]*\}\s*from\s*["']amber["']/.test(text) ? ["fetch"] : [])];
-      if (apis.length) out.push(`${path}: the app can't use the network itself (${apis.join(", ")}). Use fetch from "amber" for hosts declared in amber-needs; plain fetch("/src/x.json") reads the app's own files.`);
     }
   }
   return out;

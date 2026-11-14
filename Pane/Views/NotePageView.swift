@@ -29,7 +29,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// Requests and navigations the sandbox stopped (for the Dev readout and tests).
     private(set) var blocked: [String] = []
 
-    static let policy = "default-src 'none'; script-src 'unsafe-inline' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib:; img-src data: amber-app: amber-file:; font-src data: amber-app:; media-src data: amber-app: amber-file:; "
+    static let policy = "default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' amber-app: amber-lib:; style-src 'unsafe-inline' amber-app: amber-lib:; img-src data: amber-app: amber-file:; font-src data: amber-app:; media-src data: amber-app: amber-file:; "
         + "connect-src amber-app:; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
 
     /// Every request is blocked; the page's own document is given as a string, not loaded.

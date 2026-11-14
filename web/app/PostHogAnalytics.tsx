@@ -5,6 +5,10 @@ import type { PostHog } from "posthog-js";
 import { SITE_EVENT } from "@/lib/open-in-app";
 import { clickEvents, newScrollMarks, posthogAllowed, scrolledPercent, type SiteEvent } from "@/lib/posthog";
 import { startPostHog } from "./posthog-client";
+import { campaignProperties, heldCampaign } from "@/lib/campaign";
+
+/// A named event's properties, plus the paid campaign this visit came from (lib/campaign.ts).
+const withCampaign = (properties: Record<string, string>) => ({ ...properties, ...campaignProperties(heldCampaign()) });
 
 /// Website usage with PostHog (lib/posthog.ts). SiteAnalytics renders this only on public pages,
 /// and only when the build has a key. Named clicks and scroll depth are sent from here; page views,
@@ -20,12 +24,12 @@ export default function PostHogAnalytics({ apiKey, host, path }: { apiKey: strin
       const el = e.target instanceof Element ? e.target.closest("a, button") : null;
       if (!posthog || !el || !posthogAllowed(window.location.pathname)) return;
       for (const named of clickEvents(el, new URL(window.location.href))) {
-        posthog.capture(named.event, named.properties, named.leaves ? { transport: "sendBeacon" } : { send_instantly: true });
+        posthog.capture(named.event, withCampaign(named.properties), named.leaves ? { transport: "sendBeacon" } : { send_instantly: true });
       }
     };
     // Kept until PostHog has loaded: an old link's attempt is sent as the page loads.
     const early: SiteEvent[] = [];
-    const capture = (named: SiteEvent) => posthog?.capture(named.event, named.properties, { send_instantly: true });
+    const capture = (named: SiteEvent) => posthog?.capture(named.event, withCampaign(named.properties), { send_instantly: true });
     const onSiteEvent = (e: Event) => {
       const named = (e as CustomEvent<SiteEvent>).detail;
       if (!named || !posthogAllowed(window.location.pathname)) return;

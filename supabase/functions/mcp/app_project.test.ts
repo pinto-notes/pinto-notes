@@ -1,7 +1,7 @@
 // The app-project format, path rules, edits, compile and import checks.
 //   cd supabase/functions/mcp && deno test -A app_project.test.ts
 import { assert, assertEquals, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
-import { brokenImports, cleanPath, compile, editText, numbered, parseStored, projectProblems, resolveFrom, serialize, STACK_NAMES } from "./app_project.ts";
+import { brokenImports, cleanPath, compile, editText, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES } from "./app_project.ts";
 
 Deno.test("a one-file app stays plain HTML; a project round-trips as JSON", () => {
   const html = "<!doctype html><p>hi</p>";
@@ -91,4 +91,19 @@ Deno.test("the stack's bare names match the app's import map", () => {
   const ours = new Set(STACK_NAMES);
   for (const name of Object.keys(map)) if (!name.startsWith("@radix-ui/") && !/^preact(\/hooks|\/jsx-runtime)?$/.test(name)) assert(ours.has(name), `${name} is in stack.json but not in STACK_NAMES`);
   for (const name of STACK_NAMES) assert(name in map, `${name} isn't in stack.json`);
+});
+
+Deno.test("a game fits: Doom's engine and its 4 MB WAD as base64, and Emscripten's loader as it's built (2026-11-14)", () => {
+  const wad = "A".repeat(5_594_694); // DOOM1.WAD (4,196,020 bytes) as base64
+  const glue = `var readAsync=async url=>{var response=await fetch(url,{credentials:"same-origin"})};function lazy(){var xhr=new XMLHttpRequest;xhr.open("GET",url,false)}`;
+  const p = { amberApp: 1 as const, files: { "/index.html": `<html lang="en"><canvas></canvas><script src="doom.js"></script>`, "/doom.js": glue, "/doom1.wad.b64": wad, "/doom.wasm.b64": "A".repeat(528_832) }, compiled: {} };
+  assertEquals(projectProblems(p), []);
+  assertEquals(sourceProblems(p, () => false), []);
+  assertEquals(brokenImports(p), []);
+  // The limits still hold, raised.
+  assertStringIncludes(projectProblems({ ...p, files: { ...p.files, "/big.txt": "x".repeat(MAX_FILE_BYTES + 1) } }).join(), "at most 8 MB");
+  const many = Object.fromEntries(Array.from({ length: 3 }, (_, i) => [`/part${i}.txt`, "x".repeat(MAX_FILE_BYTES - 10)]));
+  assertStringIncludes(projectProblems({ ...p, files: { ...p.files, ...many } }).join(), `at most ${MAX_PROJECT_BYTES / 1048576} MB`);
+  // An address outside is still refused.
+  assertStringIncludes(sourceProblems({ ...p, files: { ...p.files, "/x.js": `fetch("https://example.com/x")` } }, () => false).join(), "external addresses");
 });
