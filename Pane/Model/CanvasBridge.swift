@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 import SwiftUI
 
 /// A canvas's controls are the app's own (13 November 2026, after "we really need to work on the UI"):
@@ -316,6 +317,26 @@ final class CanvasController {
         if !next.stylable, showingStyle { showingStyle = false }
     }
 
+    /// Makes a file of the board (set by the page view while it shows): `selected` takes only
+    /// what's selected when something is.
+    @ObservationIgnored var exporter: ((CanvasExport, Bool) async -> Data?)?
+    /// The board's name, for the files it exports to.
+    @ObservationIgnored var title = "Whiteboard"
+    /// A line confirming what was just done ("Copied as PNG"), shown for a moment over the board.
+    var notice: String?
+
+    func export(_ format: CanvasExport, selected: Bool = false) async -> Data? {
+        await exporter?(format, selected)
+    }
+
+    func confirm(_ text: String) {
+        notice = text
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.8))
+            if self?.notice == text { self?.notice = nil }
+        }
+    }
+
     func pick(_ tool: CanvasTool) { send(.tool(tool)) }
     func run(_ action: CanvasCommand.Action) { send(.action(action)) }
     func set(_ key: CanvasCommand.StyleKey, _ value: CanvasCommand.Value) { send(.style(key, value)) }
@@ -429,5 +450,37 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
                     T.box("decisions", x: 0, y: 300, w: 420, h: 260, text: "Decisions", fill: T.green),
                     T.box("actions", x: 460, y: 300, w: 420, h: 260, text: "Action items", fill: T.violet)]
         }
+    }
+}
+
+/// The files a board exports to (the More menu's Export).
+enum CanvasExport: String, CaseIterable, Identifiable, Sendable {
+    case png, svg, excalidraw
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .png: "PNG Image\u{2026}"
+        case .svg: "SVG Image\u{2026}"
+        case .excalidraw: "Excalidraw File\u{2026}"
+        }
+    }
+
+    var fileExtension: String { rawValue }
+
+    var contentType: UTType {
+        switch self {
+        case .png: .png
+        case .svg: .svg
+        case .excalidraw: UTType(filenameExtension: "excalidraw") ?? .json
+        }
+    }
+
+    /// A file name from the board's name: what a file name can't hold is left out.
+    static func filename(_ title: String, _ format: CanvasExport) -> String {
+        let bad = CharacterSet(charactersIn: "/:\\")
+        let name = title.components(separatedBy: bad).joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(name.isEmpty ? "Whiteboard" : name).\(format.fileExtension)"
     }
 }

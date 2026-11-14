@@ -227,6 +227,13 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
                                     arguments: ["c": command.payload], in: nil, in: .page) { _ in }
     }
 
+    /// The board as a file (CanvasExport), or nil when it's empty or the page isn't a board.
+    func canvasExport(_ format: CanvasExport, selected: Bool) async -> Data? {
+        let r = try? await webView.callAsyncJavaScript("return window.amber && window.amber._canvasExport ? await window.amber._canvasExport(f, s) : null",
+                                                       arguments: ["f": format.rawValue, "s": selected], in: nil, contentWorld: .page)
+        return (r as? String).flatMap { Data(base64Encoded: $0) }
+    }
+
     func push(body: String, data: NotePageData.Doc? = nil) {
         webView.callAsyncJavaScript("window.amber && window.amber._receive(note, data)", arguments: ["note": NotePage.data(of: body), "data": data ?? NSNull()], in: nil, in: .page) { _ in }
     }
@@ -715,6 +722,7 @@ struct NotePageView: View {
                 if let canvas {
                     s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
                     canvas.deliver = { [weak s] c in s?.canvas(c) }
+                    canvas.exporter = { [weak s] f, selected in await s?.canvasExport(f, selected: selected) }
                     #if os(macOS)
                     (s.webView as? NotePageWebView)?.canvas = canvas
                     #endif

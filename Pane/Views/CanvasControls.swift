@@ -36,6 +36,14 @@ struct CanvasOverlay: View {
                         Spacer(minLength: 0)
                         CanvasZoom(canvas: canvas)
                     }
+                    .overlay {
+                        if let notice = canvas.notice {
+                            Toast(text: notice)
+                                .transition(.opacity)
+                                .accessibilityIdentifier("canvas.notice")
+                        }
+                    }
+                    .animation(.smooth(duration: 0.2), value: canvas.notice)
                     .padding(.trailing, 16)
                     .padding(.bottom, CanvasDock.margin)
                     #else
@@ -707,6 +715,38 @@ struct CanvasToolbarTools: View {
 
     /// The shape the button draws when pressed: the last one picked from its menu.
     nonisolated(unsafe) static var lastShape: CanvasTool = .rectangle
+}
+
+/// Export and Copy as PNG, from the More menu and File › Export (Excalidraw's Export image and
+/// Copy to clipboard as PNG, ⇧⌥C there; ⇧⌥⌘C here, with the Mac's ⌘).
+@MainActor enum CanvasExportAction {
+    static func save(_ format: CanvasExport, canvas: CanvasController) {
+        Task { @MainActor in
+            guard let data = await canvas.export(format) else { canvas.confirm("Nothing to export yet"); return }
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [format.contentType]
+            panel.nameFieldStringValue = CanvasExport.filename(canvas.title, format)
+            panel.canCreateDirectories = true
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else { return }
+                do { try data.write(to: url, options: .atomic); canvas.confirm("Exported \(url.lastPathComponent)") }
+                catch { canvas.confirm("Couldn\u{2019}t save \(url.lastPathComponent)") }
+            }
+        }
+    }
+
+    /// The selection if there is one, else the whole board.
+    static func copy(_ canvas: CanvasController) {
+        Task { @MainActor in
+            let selected = canvas.state.bounds != nil
+            guard let data = await canvas.export(.png, selected: selected), let image = NSImage(data: data) else { canvas.confirm("Nothing to copy yet"); return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects([image])
+            canvas.confirm(selected ? "Copied the selection as PNG" : "Copied as PNG")
+        }
+    }
+
+    static let copyTitle = "Copy as PNG"
 }
 
 /// A canvas's name, in the toolbar after where it is: click it to rename, Return or a click away

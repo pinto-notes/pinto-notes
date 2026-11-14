@@ -26,6 +26,7 @@ import UIKit
             let s = rig.sandbox
             s.onCanvas = { [weak canvas] m in canvas?.receive(m) }
             canvas.deliver = { [weak s] c in s?.canvas(c) }
+            canvas.exporter = { [weak s] f, selected in await s?.canvasExport(f, selected: selected) }
             #if os(macOS)
             (s.webView as? NotePageWebView)?.canvas = canvas
             #endif
@@ -141,7 +142,7 @@ import UIKit
         #expect((j.rig.scene?["appState"] as? [String: Any])?["viewBackgroundColor"] as? String == "#fffce8")
         // The ••• menu has the canvas's items, first.
         let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, dev: false, canvas: true)
-        #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasZoomToFit, .canvasBackground, .canvasClear])
+        #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear])
         #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true).joined().contains(.canvasClear))
     }
 
@@ -274,6 +275,44 @@ import UIKit
         let web = try #require(j.web as? NotePageWebView)
         NSApp.sendAction(#selector(NotePageWebView.undo(_:)), to: web, from: NSMenuItem(title: "Undo", action: #selector(NotePageWebView.undo(_:)), keyEquivalent: "z"))
         await j.until("one Undo takes it back") { j.canvas.state.empty }
+    }
+
+    /// A board exports as a PNG, an SVG that carries its scene, and an .excalidraw file, the
+    /// whole board or only what's selected (14 November 2026: Excalidraw's Export image and Copy
+    /// as PNG; nothing could leave a whiteboard before).
+    @Test func aBoardExportsAsPNGSVGAndExcalidraw() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        #expect(await j.canvas.export(.png) == nil, "an empty board has nothing to export")
+        j.canvas.send(.insert(.flowchart))
+        await j.until("the flowchart is in") { !j.canvas.state.empty }
+        let png = try #require(await j.canvas.export(.png))
+        #expect(png.prefix(4) == Data([0x89, 0x50, 0x4E, 0x47]), "a PNG")
+        #if os(macOS)
+        let whole = try #require(NSBitmapImageRep(data: png))
+        #expect(whole.pixelsWide > 800, "at 2x: \(whole.pixelsWide)")
+        #endif
+        let svgFile = try #require(await j.canvas.export(.svg))
+        let svg = String(decoding: svgFile, as: UTF8.self)
+        #expect(svg.hasPrefix("<svg") && svg.contains("payload-type:application/vnd.excalidraw+json"), "an SVG that carries its scene")
+        let file = try #require(await j.canvas.export(.excalidraw))
+        let json = try #require(try JSONSerialization.jsonObject(with: file) as? [String: Any])
+        #expect(json["type"] as? String == "excalidraw")
+        let all = (json["elements"] as? [[String: Any]])?.count ?? 0
+        #expect(all >= 15, "every shape, arrow and label: \(all)")
+        // Only the selection, when asked and something is selected.
+        _ = try await j.js("const api = amber._canvas.api; const box = api.getSceneElements().find((e) => e.type === 'rectangle'); api.updateScene({ appState: { selectedElementIds: { [box.id]: true } } }); 1")
+        let oneFile = try #require(await j.canvas.export(.excalidraw, selected: true))
+        let one = try #require(try JSONSerialization.jsonObject(with: oneFile) as? [String: Any])
+        #expect((one["elements"] as? [[String: Any]])?.count == 1, "only the selected box")
+        #if os(macOS)
+        let partFile = try #require(await j.canvas.export(.png, selected: true))
+        let part = try #require(NSBitmapImageRep(data: partFile))
+        #expect(part.pixelsWide < whole.pixelsWide, "the selection's picture is smaller than the board's")
+        #endif
+        #expect(CanvasExport.filename("Q3: plan/roadmap", .png) == "Q3 planroadmap.png")
+        #expect(CanvasExport.filename("  ", .svg) == "Whiteboard.svg")
     }
 
     @Test func editUndoAndRedoReachTheDrawingsHistory() async throws {
@@ -461,6 +500,89 @@ import UIKit
             #expect(canvas.state.bounds?.minX == 158, "the controller has the last move")
             #expect(dragRenders <= 2, "a drag of 30 moves redraws the note pane at most twice: \(dragRenders)")
             print("PERF canvas app strokes=\(strokes) saves=\(saves) heard=\(heard) noteDetailRenders stroke=\(strokeRenders) drag=\(dragRenders)")
+        }
+    }
+
+    /// The whiteboard in the app's window, light and dark: empty with its templates, a template
+    /// in, and Full Screen. Drawn only when WHITEBOARD_SHOTS is set (TEST_RUNNER_WHITEBOARD_SHOTS=dir).
+    @Test func whiteboardWindowPictures() async throws {
+        guard let path = ProcessInfo.processInfo.environment["WHITEBOARD_SHOTS"] else { return }
+        let dir = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        for dark in [false, true] {
+            let c = try AppSnapshotTests.container()
+            let note = CanvasNote.make(in: .all, context: c.mainContext)
+            note.body = "Product launch"
+            note.updatedAt = .now.addingTimeInterval(-30)
+            NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([])], "collections": [String: Any]()])
+            try c.mainContext.save()
+            try await AppSnapshotTests.withLastNote(c, "Product launch") {
+                let size = CGSize(width: 1400, height: 900)
+                let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
+                                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+                w.isReleasedWhenClosed = false
+                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore())
+                    .tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key))
+                w.setContentSize(size)
+                defer { w.close() }
+                await MacWindowChromeTests.settle(w, 20)
+                var found: WKWebView?
+                for _ in 0..<100 where found == nil {
+                    found = NotePageLive.view(note.id)
+                    if found == nil { await MacWindowChromeTests.settle(w, 1) }
+                }
+                let web = try #require(found as? NotePageWebView, "the whiteboard opened")
+                try await CanvasTests().run(web, until: "!!(window.amber && window.amber._canvas)")
+                let canvas = try #require(web.canvas)
+                for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                await MacWindowChromeTests.settle(w, 10)
+                @MainActor func shot(_ name: String) async throws {
+                    _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+                    await MacWindowChromeTests.settle(w, 10)
+                    let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
+                    let cover = NSImageView(frame: web.bounds)
+                    cover.image = image
+                    cover.imageScaling = .scaleAxesIndependently
+                    cover.wantsLayer = true
+                    web.addSubview(cover)
+                    defer { cover.removeFromSuperview() }
+                    w.contentView?.layoutSubtreeIfNeeded()
+                    w.displayIfNeeded()
+                    let rep = try MacEmptyDetailTests.picture(w)
+                    let png = try #require(rep.representation(using: .png, properties: [:]))
+                    try png.write(to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"))
+                }
+                @MainActor func clear() async throws {
+                    _ = try await web.evaluateJavaScript("amber._canvas.api.updateScene({ elements: [] }); 1")
+                    for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                }
+                @MainActor func insert(_ t: WhiteboardTemplate) async throws {
+                    try await clear()
+                    canvas.send(.insert(t))
+                    for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 10)
+                }
+                try await shot("01-empty")
+                for (i, t) in (dark ? [WhiteboardTemplate.flowchart] : WhiteboardTemplate.allCases).enumerated() {
+                    try await insert(t)
+                    try await shot(String(format: "%02d-template-%@", 2 + i, t.rawValue))
+                }
+                try await insert(.flowchart)
+                // One shape selected: the bar over it with its style.
+                _ = try await web.evaluateJavaScript("""
+                const api = amber._canvas.api; const box = api.getSceneElements().find((e) => e.type === 'rectangle');
+                api.updateScene({ appState: { selectedElementIds: { [box.id]: true } } }); 1
+                """)
+                for _ in 0..<100 where canvas.state.bounds == nil { await MacWindowChromeTests.settle(w, 1) }
+                try await shot("07-selected")
+                _ = try await web.evaluateJavaScript("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); 1")
+                let found2 = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
+                let e = try #require(found2 ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
+                _ = e.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+                await MacWindowChromeTests.settle(w, 15)
+                try await shot("08-fullscreen")
+            }
         }
     }
     #endif

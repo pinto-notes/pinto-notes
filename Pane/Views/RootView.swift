@@ -1638,6 +1638,15 @@ struct PaneCommands: Commands {
         CommandGroup(after: .saveItem) {
             Button(NoteMoreMenu.historyTitle) { showHistory?() }
                 .disabled(showHistory == nil)
+            if let canvas {
+                Menu("Export") {
+                    ForEach(CanvasExport.allCases) { f in
+                        Button(f.title) { CanvasExportAction.save(f, canvas: canvas) }
+                    }
+                }
+                Button(CanvasExportAction.copyTitle) { CanvasExportAction.copy(canvas) }
+                    .keyboardShortcut("c", modifiers: [.command, .option, .shift])
+            }
         }
         // View › Hide Sidebar, then AI Changes (everything an AI changed, across all notes) and
         // the rest. The sidebar group is replaced, not added to: an empty replacement (11-01)

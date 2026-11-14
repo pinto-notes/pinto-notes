@@ -1167,6 +1167,19 @@ struct NoteDetailView: View {
                 }
             }
             .accessibilityIdentifier("canvas.background")
+        case .canvasExport:
+            #if os(macOS)
+            Menu("Export", systemImage: "square.and.arrow.up.on.square") {
+                ForEach(CanvasExport.allCases) { f in
+                    Button(f.title) { CanvasExportAction.save(f, canvas: canvasControls) }
+                        .accessibilityIdentifier("canvas.export.\(f.rawValue)")
+                }
+                Divider()
+                Button(CanvasExportAction.copyTitle) { CanvasExportAction.copy(canvasControls) }
+                    .accessibilityIdentifier("canvas.copyPNG")
+            }
+            .accessibilityIdentifier("canvas.export")
+            #endif
         case .canvasClear:
             DestructiveMenuButton("Clear Whiteboard\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
                 .accessibilityIdentifier("canvas.clear")
@@ -1327,6 +1340,7 @@ struct NoteDetailView: View {
                 Text("Everything on it is removed. Undo brings it back.")
             }
             .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
+            .onChange(of: note.title, initial: true) { _, t in canvasControls.title = t }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
             } message: {
@@ -1841,7 +1855,7 @@ enum NoteMoreMenu {
 
     enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete
         /// A canvas's own: Zoom to Fit, its background, Clear Canvas.
-        case canvasZoomToFit, canvasBackground, canvasClear
+        case canvasZoomToFit, canvasBackground, canvasExport, canvasClear
     }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
@@ -1875,7 +1889,7 @@ enum NoteMoreMenu {
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
         // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
-        let drawing: [[Item]] = canvas ? [[.canvasZoomToFit, .canvasBackground, .canvasClear]] : []
+        let drawing: [[Item]] = canvas ? [[.canvasZoomToFit, .canvasBackground, .canvasExport, .canvasClear]] : []
         return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }

@@ -19,7 +19,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import {
   Excalidraw, MainMenu, restore, restoreElements, convertToExcalidrawElements, CaptureUpdateAction,
-  getCommonBounds, sceneCoordsToViewportCoords,
+  getCommonBounds, sceneCoordsToViewportCoords, exportToCanvas, exportToSvg, serializeAsJSON,
 } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
@@ -125,6 +125,32 @@ export function blockedKey(e) {
   return false;
 }
 
+const base64 = (text) => btoa(unescape(encodeURIComponent(text)));
+
+/**
+ * The board (or only what's selected) as a file, base64: a PNG at 2x, an SVG that carries its
+ * scene (Excalidraw opens it again), or the .excalidraw file itself. As it looks, light or dark.
+ */
+export async function exportScene(api, format, selected) {
+  const all = api.getSceneElements();
+  const s = api.getAppState();
+  const ids = s.selectedElementIds || {};
+  const picked = selected ? all.filter((e) => ids[e.id]) : [];
+  const elements = picked.length ? picked : all;
+  if (!elements.length) return null;
+  const files = api.getFiles();
+  const appState = { ...s, exportBackground: true, exportWithDarkMode: s.theme === "dark", exportScale: 2, exportEmbedScene: format === "svg" };
+  // Drawn to a canvas and read as a data URL: a blob can't be read in the note's sandboxed page
+  // (NotReadableError).
+  if (format === "png") {
+    const canvas = await exportToCanvas({ elements, appState, files, exportPadding: 32, getDimensions: (w, h) => ({ width: w * 2, height: h * 2, scale: 2 }) });
+    return canvas.toDataURL("image/png").replace(/^data:[^,]*,/, "");
+  }
+  if (format === "svg") return base64((await exportToSvg({ elements, appState, files, exportPadding: 32 })).outerHTML);
+  if (format === "excalidraw") return base64(serializeAsJSON(elements, s, files, "local"));
+  return null;
+}
+
 /** What the page tells the app: the tool, what's selected, and the style the controls show. */
 export function stateOf(api, app) {
   const s = api.getAppState();
@@ -215,10 +241,16 @@ function bridge(api) {
       case "insert": {
         // A template (or any skeleton elements): added in one step you can undo, then shown whole.
         if (!Array.isArray(c.elements) || !c.elements.length) return false;
-        const made = convertToExcalidrawElements(c.elements, { regenerateIds: true });
-        api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...made], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
-        api.setActiveTool({ type: "selection" });
-        api.scrollToContent(made, { fitToViewport: true, viewportZoomFactor: 0.8, animate: true });
+        // Labels are measured in the hand-drawn font, so it's loaded first (measured in the
+        // fallback, "Do the thing" was cut to "o the thin"). Shown whole at once, no animation:
+        // an animated fit needs animation frames and left the template at the edge.
+        const elements = c.elements;
+        document.fonts.load("20px Excalifont").catch(() => {}).then(() => {
+          const made = convertToExcalidrawElements(elements, { regenerateIds: true });
+          api.updateScene({ elements: [...api.getSceneElementsIncludingDeleted(), ...made], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+          api.setActiveTool({ type: "selection" });
+          api.scrollToContent(made, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false });
+        });
         break;
       }
       case "background":
@@ -324,6 +356,7 @@ function Canvas({ initial }) {
     Object.defineProperty(amber, "_flush", { value: flush, configurable: true });
     const controls = bridge(api);
     // For the app's tests: the scene as it would be saved now, and what the app's controls see.
+    Object.defineProperty(amber, "_canvasExport", { value: (format, selected) => exportScene(api, format, selected), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
     return () => { controls.stop(); off(); unlisten(); removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); flush(); };
   }, [api]);
