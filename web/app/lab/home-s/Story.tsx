@@ -219,14 +219,16 @@ function Write() {
 function Draw() {
   // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives.
   const bind = useCallback((set: (k: number) => void) => listen("draw", (d, p) => set(still() || (calm() && p >= 1) ? 1 : d)), []);
-  const wrap = useRef<HTMLDivElement>(null), tip = useRef<SVGCircleElement>(null);
+  const wrap = useRef<HTMLDivElement>(null), tip = useRef<SVGCircleElement>(null), tipTall = useRef<SVGCircleElement>(null);
   // Your hand, printed in the board's own cream ink, reaches in from the left edge: its pencil is
-  // where it has just drawn the first shape. Claude draws the last arrow.
+  // where it has just drawn the first shape. On a phone it comes up from under the compact board, its
+  // pencil on the sunset. Claude draws the last arrow.
   useEffect(() => {
-    const w = wrap.current, t = tip.current; if (!w || !t) return;
+    const w = wrap.current; if (!w) return;
     const place = () => {
+      // The pencil's point on whichever board is showing.
+      const t = [tip.current, tipTall.current].find((c) => c && c.getBoundingClientRect().width > 0); if (!t) return;
       const a = w.getBoundingClientRect(), b = t.getBoundingClientRect();
-      if (!b.width && !b.height && !b.left) return;
       w.style.setProperty("--tipx", `${(b.left + b.width / 2 - a.left).toFixed(1)}px`);
       w.style.setProperty("--tipy", `${(b.top + b.height / 2 - a.top).toFixed(1)}px`);
     };
@@ -244,7 +246,7 @@ function Draw() {
         </div>
         <div ref={wrap} className={s.dBoard} role="img" aria-label="A hand-drawn whiteboard, Friday in Lisbon: land at 10:40, bags to Alfama, then if it rains the tile museum, if not Belém by the river, both ending at the sunset at Graça. Your pencil drew the first shape; Claude's cursor draws the last arrow.">
           <span className={s.wideOnly}><BoardBig bind={bind} tipRef={tip} /></span>
-          <span className={s.tallOnly}><BoardBig tall bind={bind} /></span>
+          <span className={s.tallOnly}><BoardBig tall bind={bind} tipRef={tipTall} /></span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={s.pencilHand} src="/lab/s/hand-ink-v1.webp" alt="" width="840" height="560" loading="lazy" />
         </div>

@@ -146,26 +146,28 @@ export const WIDE: Board = {
   // Claude's: from Belém, along the bottom, under the museum, to the sunset.
   last: { a: [1066, 456], c1: [1050, 540], c2: [430, 548], b: [304, 456] },
 };
-// The same board, standing up, for a phone.
+// The same board for a phone, compact: four rows, the start side by side, then the weather, its two
+// answers side by side, and the sunset. Claude draws the last arrow, from Belém to the sunset.
 export const TALL: Board = {
-  view: [358, 600], font: 22,
+  view: [358, 336], font: 20,
   nodes: [
-    { kind: "ellipse", c: [179, 50], w: 184, h: 66, label: ["Land 10:40"] },
-    { kind: "box", c: [179, 162], w: 224, h: 62, label: ["Bags to Alfama"] },
-    { kind: "diamond", c: [179, 292], w: 170, h: 112, label: ["Raining?"] },
-    { kind: "box", c: [86, 430], w: 152, h: 64, label: ["Tile museum"] },
-    { kind: "box", c: [272, 430], w: 160, h: 70, label: ["Belém by", "the river"] },
-    { kind: "ellipse", c: [179, 558], w: 244, h: 74, label: ["Sunset at Graça"] },
+    { kind: "ellipse", c: [74, 34], w: 132, h: 54, label: ["Land 10:40"] },
+    { kind: "box", c: [266, 34], w: 172, h: 52, label: ["Bags to Alfama"] },
+    { kind: "diamond", c: [266, 116], w: 150, h: 76, label: ["Raining?"] },
+    { kind: "box", c: [88, 196], w: 156, h: 52, label: ["Tile museum"] },
+    { kind: "box", c: [272, 208], w: 148, h: 62, label: ["Belém by", "the river"] },
+    { kind: "ellipse", c: [176, 280], w: 236, h: 58, label: ["Sunset at Graça"] },
   ],
   arrows: [
-    { a: [179, 87], c1: [177, 100], c2: [181, 114], b: [179, 127] },
-    { a: [179, 197], c1: [177, 210], c2: [181, 222], b: [179, 232] },
-    { a: [134, 322], c1: [112, 344], c2: [94, 370], b: [88, 394], label: ["yes", [92, 348]] },
-    { a: [224, 322], c1: [246, 344], c2: [264, 370], b: [270, 390], label: ["no", [268, 348]] },
-    { a: [96, 466], c1: [102, 486], c2: [114, 506], b: [124, 522] },
+    { a: [143, 34], c1: [154, 32], c2: [166, 36], b: [176, 34] },
+    { a: [266, 62], c1: [265, 67], c2: [267, 72], b: [266, 77] },
+    { a: [196, 120], c1: [160, 130], c2: [120, 146], b: [100, 168], label: ["yes", [148, 125]] },
+    { a: [268, 155], c1: [269, 162], c2: [270, 168], b: [270, 175], label: ["no", [294, 170]] },
+    { a: [100, 223], c1: [108, 238], c2: [118, 250], b: [130, 258] },
   ],
-  last: { a: [262, 469], c1: [258, 488], c2: [246, 508], b: [232, 522] },
-  rest: [16, -26],
+  last: { a: [262, 240], c1: [256, 249], c2: [246, 254], b: [232, 256] },
+  // Your pencil rests on the sunset's lower left; the hand comes up from below the board.
+  tip: [82, 297], rest: [30, 44],
 };
 
 function diamond(r: () => number, c: Pt, w: number, h: number) {
@@ -207,10 +209,10 @@ export function BoardBig({ tall, bind, tipRef }: { tall?: boolean; bind: (set: (
   const r = rng(tall ? 17 : 7);
   const [W, H] = g.view;
   const lastD = curve(r, g.last.a, g.last.c1, g.last.c2, g.last.b, 2);
-  const lastHead = head(r, g.last.c2, g.last.b, tall ? 15 : 22);
-  const ink = boardInk(g, r, tall ? 13 : 20);
+  const lastHead = head(r, g.last.c2, g.last.b, tall ? 12 : 22);
+  const ink = boardInk(g, r, tall ? 10 : 20);
   const path = useRef<SVGPathElement>(null), ink2 = useRef<SVGPathElement>(null), cur = useRef<SVGGElement>(null), tip = useRef<SVGGElement>(null);
-  const sc = tall ? 1.05 : 1.45;
+  const sc = tall ? 0.95 : 1.45;
   const rest = g.rest ?? [26, -40];
   useEffect(() => {
     const p = path.current; if (!p) return;

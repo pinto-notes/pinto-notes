@@ -12,10 +12,13 @@ import s from "./s.module.css";
 // arrow draws itself, the way Claude's did in Draw), a habit in the app. Each change carries its own
 // "Added by ChatGPT · Undo" under it. Then your cursor presses Undo on the habit: that row leaves, and
 // the rest holds. Redo brings it back. Each card sits in its chapter's colour, the three of one height,
-// and a change opens its row in place. On a phone it does one thing at a time: the request in one
-// line, then one card, which steps note, board, app (a slow crossfade, about 3 s each), each showing
-// its one change with the mark and Undo. No cursors and no Undo performance there; three small dots
-// are the only progress, and the card keeps stepping after the show.
+// and a change opens its row in place. Under the request, one line says what it remembered: "It knows
+// you decided: no car." On a phone it does one thing at a time: the request in one line, that line,
+// then one card, which steps note, board, app (a slow crossfade, about 3 s each), each showing its one
+// change with the mark and Undo. The card's height is locked (each change's room is kept from the
+// start), so it never jumps between steps. Under it, a short caption names where the change is ("In
+// your note"), with three small dots. No cursors and no Undo performance there, and the card keeps
+// stepping after the show.
 // Everything is a function of the show's time t (see show.ts), so stills are exact.
 
 const REQ = "“Add a day in Sintra to my Lisbon trip.”";
@@ -31,7 +34,7 @@ const WIDE_PLAN: Plan = {
   type: [0.5, 2.0], gptIn: 2.2, f1: [2.3, 3.05], read: [3.1, 3.75], f2: [3.8, 4.2],
   land: [4.25, 6.95, 8.4], rec: [4.65, 7.25, 8.8], ride0: 0.5, ride2: 0.45,
   f3: [4.95, 5.8], draw: [5.9, 6.9], f4: [7.5, 8.3], gptOut: [9.1, 9.5],
-  youIn: [9.7, 10.7], press: 10.8, undo: 10.9, youOut: [12.4, 12.9], end: 13,
+  youIn: [10.0, 10.7], press: 10.8, undo: 10.9, youOut: [12.4, 12.9], end: 13,
   sw: [99, 99], gone: [], back: [],
 };
 // On a phone one card shows at a time: the note's change lands, then the board's arrow draws itself,
@@ -46,6 +49,8 @@ const TALL_PLAN: Plan = {
 };
 /** After the show, the phone's card keeps stepping, this often (ms). */
 const STEP = 3400;
+/** Where each change is, named under the phone's card. */
+const WHERE = ["In your note", "On your whiteboard", "In your app"];
 
 type Snap = { n: number; read: boolean; land: boolean[]; rec: boolean[]; undo: boolean; press: boolean; active: number };
 const same = (a: Snap, b: Snap) => a.n === b.n && a.read === b.read && a.undo === b.undo && a.press === b.press && a.active === b.active
@@ -140,9 +145,10 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       if (g) g = [Math.min(g[0], B.width - 84), g[1]];
       place(gpt.current, g, go);
 
-      // Your cursor, from off the stage to Undo, and resting there.
+      // Your cursor comes in from just below and right of Undo (fading in as it moves, so it never
+      // points at nothing), presses it, and rests there.
       const undo = at(B, q("undo2")?.querySelector("button"), 0.45, 0.6);
-      const from: Pt = [B.width + 30, B.height + 40];
+      const from: Pt = undo ? [undo[0] + 70, undo[1] + 84] : [B.width, B.height];
       let y: Pt | null = null, yo = 1;
       if (t < P.youIn[0]) { y = from; yo = 0; }
       else if (t < P.youIn[1]) { y = undo && mix(from, undo, mj(seg(t, ...P.youIn))); yo = seg(t, P.youIn[0], P.youIn[0] + 0.2); }
@@ -173,7 +179,7 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
             <span className={s.askRest}>{REQ.slice(snap.n)}</span>
           </span>
         </p>
-        <p className={s.askSub}>One request in ChatGPT. It knows you decided on no car, changes all three, and says so.</p>
+        <p className={s.askSub}>It knows you decided: <span className={s.askNoCar} data-on={snap.read || snap.land[0] || undefined}>no car</span>.</p>
       </div>
       </div>
       <div ref={stage} className={s.aStage} style={{ "--headOn": 0 } as React.CSSProperties}>
@@ -193,10 +199,13 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
         <span ref={gpt} className={s.cur} aria-hidden="true"><Flag name="ChatGPT" color={GPT} /></span>
         <span ref={you} className={`${s.cur} ${s.curYou}`} aria-hidden="true"><Flag name="You" color={YOU} /></span>
       </div>
-      <div className={s.markers} role="tablist" aria-label="What ChatGPT changed">
-        {["Note", "Whiteboard", "App"].map((n, i) => (
-          <button key={n} type="button" role="tab" aria-selected={i === active} aria-label={n} onClick={() => setPick(i)}><i /></button>
-        ))}
+      <div className={s.markers}>
+        <p key={active} className={s.markCap} aria-live="polite">{WHERE[active]}</p>
+        <div className={s.markDots} role="tablist" aria-label="What ChatGPT changed">
+          {["Note", "Whiteboard", "App"].map((n, i) => (
+            <button key={n} type="button" role="tab" aria-selected={i === active} aria-label={WHERE[i]} onClick={() => setPick(i)}><i /></button>
+          ))}
+        </div>
       </div>
       {foot}
     </div>
@@ -251,27 +260,27 @@ const WIDE: Lay = {
   gpt: { a: [258, 262], c1: [236, 290], c2: [204, 290], b: [188, 254] },
   add: { kind: "box", c: [100, 240], w: 168, h: 50, t: ["Saturday: Sintra"] },
 };
-// The same, standing up, for a phone.
+// The same, standing up, for a phone: four rows, as compact as the words allow.
 const TALL: Lay = {
-  view: [340, 372], font: 17,
+  view: [340, 334], font: 17,
   nodes: [
     { kind: "ellipse", c: [76, 30], w: 132, h: 48, t: ["Land 10:40"] },
     { kind: "box", c: [252, 30], w: 164, h: 44, t: ["Bags to Alfama"] },
-    { kind: "diamond", c: [252, 106], w: 128, h: 64, t: ["Raining?"], size: 16 },
-    { kind: "box", c: [84, 180], w: 140, h: 44, t: ["Tile museum"] },
-    { kind: "box", c: [262, 184], w: 132, h: 56, t: ["Belém by", "the river"], size: 16 },
-    { kind: "ellipse", c: [170, 262], w: 200, h: 52, t: ["Sunset at Graça"] },
+    { kind: "diamond", c: [252, 96], w: 128, h: 60, t: ["Raining?"], size: 16 },
+    { kind: "box", c: [84, 166], w: 140, h: 44, t: ["Tile museum"] },
+    { kind: "box", c: [262, 168], w: 132, h: 56, t: ["Belém by", "the river"], size: 16 },
+    { kind: "ellipse", c: [170, 240], w: 200, h: 50, t: ["Sunset at Graça"] },
   ],
   arrows: [
     { a: [143, 30], c1: [152, 29], c2: [162, 31], b: [168, 30] },
-    { a: [252, 53], c1: [251, 60], c2: [253, 68], b: [252, 74] },
-    { a: [188, 108], c1: [160, 118], c2: [130, 134], b: [112, 157], label: ["yes", [140, 122]] },
-    { a: [254, 139], c1: [256, 146], c2: [258, 150], b: [260, 155], label: ["no", [282, 150]] },
-    { a: [98, 203], c1: [104, 216], c2: [114, 228], b: [124, 238] },
+    { a: [252, 53], c1: [251, 57], c2: [253, 61], b: [252, 64] },
+    { a: [190, 100], c1: [160, 108], c2: [128, 122], b: [110, 142], label: ["yes", [146, 111]] },
+    { a: [254, 126], c1: [256, 131], c2: [258, 135], b: [260, 139], label: ["no", [282, 136]] },
+    { a: [98, 189], c1: [104, 200], c2: [114, 210], b: [124, 218] },
   ],
-  claude: { a: [244, 213], c1: [238, 222], c2: [228, 232], b: [220, 240] },
-  gpt: { a: [266, 272], c1: [302, 292], c2: [300, 340], b: [246, 344] },
-  add: { kind: "box", c: [150, 342], w: 184, h: 46, t: ["Saturday: Sintra"] },
+  claude: { a: [244, 197], c1: [238, 205], c2: [228, 212], b: [220, 219] },
+  gpt: { a: [266, 250], c1: [302, 266], c2: [300, 306], b: [246, 308] },
+  add: { kind: "box", c: [150, 306], w: 184, h: 46, t: ["Saturday: Sintra"] },
 };
 
 function shapeOf(r: () => number, n: N) {
@@ -330,6 +339,11 @@ function AppObj() {
         <p><span>Portuguese, 10 min</span><small>1 day</small></p>
         <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={i === TODAY || undefined}><Tick /></i>)}</div>
       </div>
+      {/* The second habit Build made (wide screens only, as there). */}
+      <div className={s.aHabit} data-wide>
+        <p><span>Podcast in Portuguese</span><small className={s.aZero}>0 days</small></p>
+        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-now={i === TODAY || undefined}><Tick /></i>)}</div>
+      </div>
       <div className={`${s.aGrow} ${s.aNewRow}`}>
         <div>
           <div className={s.aHabit}>
@@ -338,6 +352,8 @@ function AppObj() {
           </div>
         </div>
       </div>
+      {/* The app's own add row (shown on a phone, where the card has the room). */}
+      <p className={s.aAddRow} aria-hidden="true"><span>Add a habit</span><b>Add</b></p>
     </div>
   );
 }

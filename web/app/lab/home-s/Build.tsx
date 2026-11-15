@@ -9,21 +9,25 @@ import s from "./s.module.css";
 // Build apps, from the first word to the first tap. The note starts as Pinto's own New app page: you
 // describe the app ("Make me a tracker for Portuguese practice") and press Make it with ChatGPT. The
 // page becomes the tracker, piece by piece, in the same paper. Then your cursor taps today, and the
-// count goes from 0 to 1. After that it's yours: tap any day, add a habit, take one away. On a phone
-// the week is a list of days, so the app fills the screen the way it would on an iPhone.
+// count goes from 0 to 1 (a second habit, Podcast in Portuguese, sits under it on wide screens). After that it's yours: tap any day, add a habit, take one away. On a phone
+// the request is already typed when the chapter arrives (the show starts at the press), and the week
+// is a short list of the days around today, the way a tracker reads on an iPhone.
 
 const ASK = "Make me a tracker for Portuguese practice";
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const B = { type: [0.5, 2.1] as [number, number], press: 2.4, built: 2.75, name: 2.95, days: 3.15, add: 3.65, made: 3.95, youIn: [4.5, 5.4] as [number, number], tap: 5.5, youOut: [6.6, 7.1] as [number, number], end: 7.2 };
 
-type Habit = { name: string; days: boolean[] };
+/** A habit. `wide`: shown on wide screens only (a phone shows the one habit, at reading size). */
+type Habit = { name: string; days: boolean[]; wide?: boolean };
 const FIRST: Habit = { name: "Portuguese, 10 min", days: WEEK.map(() => false) };
+const SECOND: Habit = { name: "Podcast in Portuguese", days: WEEK.map(() => false), wide: true };
 type Snap = { n: number; press: boolean; built: boolean; name: boolean; days: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
 const START: Snap = { n: 0, press: false, built: false, name: false, days: 0, add: false, made: false, tapped: false, down: false };
 const same = (a: Snap, b: Snap) => (Object.keys(a) as (keyof Snap)[]).every((k) => a[k] === b[k]);
 
 export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arrive: number) => void) => () => void }) {
   const card = useRef<HTMLDivElement>(null), you = useRef<HTMLSpanElement>(null);
+  const narrow = useRef<boolean | null>(null);
   const [snap, setSnap] = useState<Snap>(START);
   // Once you touch the app, it's yours: the show stops steering it.
   const [mine, setMine] = useState<Habit[] | null>(null);
@@ -33,8 +37,9 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
   useShow({
     name: "build", end: B.end, subscribe,
     apply: (t) => {
+      if (narrow.current === null && typeof matchMedia === "function") narrow.current = matchMedia("(max-width: 760px)").matches;
       const next: Snap = {
-        n: Math.round(seg(t, ...B.type) * ASK.length), press: t >= B.press && t < B.press + 0.18, built: t >= B.built, name: t >= B.name,
+        n: narrow.current ? ASK.length : Math.round(seg(t, ...B.type) * ASK.length), press: t >= B.press && t < B.press + 0.18, built: t >= B.built, name: t >= B.name,
         days: t < B.days ? 0 : Math.min(7, 1 + Math.floor((t - B.days) / 0.06)), add: t >= B.add, made: t >= B.made, tapped: t >= B.tap, down: t >= B.tap && t < B.tap + 0.16,
       };
       setSnap((o) => (same(o, next) ? o : next));
@@ -51,7 +56,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
     },
   });
 
-  const habits: Habit[] = mine ?? [{ ...FIRST, days: FIRST.days.map((_, j) => j === TODAY && snap.tapped) }];
+  const habits: Habit[] = mine ?? [{ ...FIRST, days: FIRST.days.map((_, j) => j === TODAY && snap.tapped) }, SECOND];
   const take = (f: (hs: Habit[]) => Habit[]) => setMine((m) => f(m ?? habits));
   const tap = (h: number, d: number) => take((hs) => hs.map((x, i) => (i === h ? { ...x, days: x.days.map((v, j) => (j === d ? !v : v)) } : x)));
   const add = (e: React.FormEvent) => {
@@ -68,6 +73,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
       {/* The New app page, as in Pinto: describe it, and ChatGPT makes it. */}
       <div className={s.makeAsk} aria-hidden={built || undefined}>
         <p className={s.makeH}>New app</p>
+        <p className={s.makeSub}>Your AI builds it, as a new note.</p>
         <p className={s.makeLabel}>Describe your app</p>
         <p className={s.makeBox}>
           <span>{ASK.slice(0, snap.n)}</span><span className={s.makeCaret} data-done={snap.n >= ASK.length || undefined} /><span className={s.askRest}>{ASK.slice(snap.n)}</span>
@@ -76,6 +82,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
           <small>Opens ChatGPT with this typed in. The app appears here when it’s built.</small>
           <span className={s.makeGo} data-press={snap.press || undefined} data-ready={snap.n >= ASK.length || undefined}><AIGlyph name="openai" size={15} color="currentColor" />Make it with ChatGPT</span>
         </div>
+        <p className={s.makeTpl}>Or start from a template</p>
       </div>
       {/* The app it made. */}
       <div className={s.makeApp} aria-hidden={!built || undefined}>
@@ -84,7 +91,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
           {habits.map((h, i) => {
             const n = h.days.filter(Boolean).length;
             return (
-              <li key={h.name + i} className={s.habitRow}>
+              <li key={h.name + i} className={s.habitRow} data-wide={h.wide || undefined}>
                 <div className={s.habitHead} data-in={snap.name || mine ? true : undefined}>
                   <p className={s.habitName}>{h.name}</p>
                   <p className={s.habitStreak} aria-live="polite"><b key={n}>{n}</b> {n === 1 ? "day" : "days"}</p>
