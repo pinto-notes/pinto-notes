@@ -17,5 +17,21 @@
   "link_sealed": "amb3r./IcqvYYB7BNK6rWUg8hUbvYavw6EpwLl5bpSeQXVIREtRA3ufzS2kT1Kmj4X0zCIwBFDEfXynlDT0Lsl/J/cCluWSVKj3O24nzWCRQh3myPytDpKdTjdYQibROgSCFVEFIFbegWda6DyHR6obNVnE2tFbIkR6I6OBLy/dm7npukAwW9QS99lKm8wVtEZS6gMd88It5SKFyOc5RpiJ+2sJLCgnH1imsDyEtOfkUynhTD6W3DCPZ2DZrQ=",
   "picture_id": "Pic-Ab_9",
   "picture_png": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "picture": "amb3f.3.eKmOaLZNSMfqiBrThS9vZeHJcYDH8ENAbECx/aOUz/yjM9jJ+X/gNQP7q8ixBRug9PF03Sfj1gaZ37YZY8kPz6aypDg6EMnbRpo64aCensn1ZL3V1vU3NFEzMg95UgP/CO+lYXIe6zBuTA=="
+  "picture": "amb3f.3.eKmOaLZNSMfqiBrThS9vZeHJcYDH8ENAbECx/aOUz/yjM9jJ+X/gNQP7q8ixBRug9PF03Sfj1gaZ37YZY8kPz6aypDg6EMnbRpo64aCensn1ZL3V1vU3NFEzMg95UgP/CO+lYXIe6zBuTA==",
+  "web": {
+    "about": "What the whiteboard page in a browser seals and writes (web/lib/board-*.ts), made by scripts/board-web-vectors.ts with that code. The app opens it in CollabCryptoTests; the page's tests check it.",
+    "user": "1a2b3c4d-0000-4000-8000-000000000002",
+    "data_key": "QkFOQU5BUy1BUkUtR09PRC1GT1ItWU9VLTEyMzQ1Njc=",
+    "identity_wrap": "amb2.393272c0f71bccf3.GMjOtka67NeWvbJnOLOhICx9/Qn5nBtUdjt7UcrlVQ40xOzQ2doXWF6dAqewconMhodCUEAdcQNUv7s2T03KYjc6l0+H81TH",
+    "self_wrap": "amb2.393272c0f71bccf3.6nHt6CAyUysKqE9XNSl9i+iHPCMAFx8cl+15shP4/1hUHlunoQlnH42zpD5A5evrFV30V+riV4xSEU6KsnrAkS84JVRpwtvw",
+    "link_answer": "877ace9885919c999f0f7717c0b4e8757d176f3da4e636d64e1989d59aea0449",
+    "link_answer_hash": "12e31410d5530134b4683ce1b09f13ad98af78bd2e2e1f5b0f623da0c78a7f0f",
+    "link_key_wrap": "amb2.bfea420f6bc8f1b6.2P2baL4K1CU/hAUvvTgKNow3Msaqy6KMHoDzsL6EyYmtF/t+VbwBlBSOFuIbD2oTQVIxyI/0rTOSMhOd0bgLoh/BBh+B9sx9",
+    "presence_plain": "{\"name\":\"Sara\",\"pointer\":[120.5,80],\"sel\":[\"box-1\"]}",
+    "board_upto": 42,
+    "board_snapshot": "amb3s.3.AgjTHaDWJQttJqJLRs0xuoyd6a9ewmpwTX+sXwDEoJRrQxipvrzFJ6wnHKvJn4cZfCIqTv9XLo+FER0jqm24z0RQ+G62BZJpA+FO3V/ZipdjE/+b88XG4N3ua+UIEzDLQ2c6+Of/iHvTKKxTFJ1+RS9MK8U/wxfMPYtVJyu9vW24XT0w8hfoMIDhuGb2XR09/NQuJ1GZNnQOV9FymuBV+0XBcoPQwWmCf4uSH4dfH7n6GY7IKuHDu6NV8FrfAB5Vjs/0Z2aDz/npQ0suk7JJcwnTS0Ff+jnk4ChHnImaFWVkjZPI1e1W2arz8EXv+rep7KaQG9xFD2jmQn6c/SXrxysm8WsTE2g62v8Qc8SF4tnWN12XMSetguhnZefNaoLYD5s8UQcQY6QhLrKGFHqvCaaf0f59Q7nsy9SLUoY+LeIlQl5b91ZhVO7iT9jDRlNQ4i8ZvoUKfc37eQWVI5+G6kZ2JU8//0H85xIYaJYWFgGsthBiD/Vw21kmtHbFGDbDfDo5Jt7drmGexdQD0yxlmofVjLZ8qTlwCb8mKm0j9yLwNwiWebfxWeilr+RApbk24NevEMUv5t006u7Tc/+4sWBm5BeOTXagWYPtrH2NBp32NExZp4B30MJT4OIcXb5a7eVp+ee/SMmnJmNTXgBqIB8mQvorUuXowAcLgQhHmqKdaqSmiOK0ptD7dTv2IUR0A+Xf2uIG4VBlXBxS5SHkvcTntjFsZDAYAyAFTu5i4VlX0zLFxfqRMU3tZh35D9wPwSIx7jQPkqwE/DYyR4iNLwP59l6rk8dia560mNQzB4nVMkScT3wBDs55hqaXI9p/QHMqI0FQPvM9ZSTajuSdbF0lhHw2u3pD2ODM9Gb6J+xRQ2LZ2TLS+5WgR17gNvALTnao2BIwrmoQ6O/BPflLrn+mcO0cul1DwHm/f0Ql59sFfGxmTlWR0lcjKESKUBYuE1EOUPWjt5aiR15/VTytLXKTeKKJzfj1ZJyS1IVBS3ISpQHCHCUNa8fvK2NYPozuvnPM4ecHHioPvB7yhktb+XXaI09zm+SsOa/IzUeqBO+E0HPFZctVYWmsmE4JxCesOJd71whXhFjEFh6z4zcT8l55/l9X0vql8BsICfvbQ/WRLfoHpNQn0Z1n8cjrC8qUBgCi5n0=",
+    "board_change": "amb3u.3.+lVBipQj2SKbnPBzUmcAZGOVLGU7gFNJBcm6IMEMWapZKax8hIDAvUbh6FwLzIp0RAxGa6IkLW/XCEfhl3kRtUfh325a4YUgK2jVuZdGyOb6v2iJAH+/RyWcwHdj35uVKUEjCtLOtm3VnelojAAaIusuV6bDI8+/WKi4YcG54e899oIgHA4/x3cN4Eb5GR7ycfv/gSTTXUIL+GzKOALb8DCMY8sxfRX7Yt4lqCf78k6yQZG1Rlv1D9nQzap9eKboYwh5VGV6XRPxln9Q+eYS12/7+zrbf3+I6xN24V5S5tTSH++5W6ljGJjMEKDbdLGj30XEhJIIuiNmPSEhq8GC9jrNDaPQhYlWrmbrFypT3kESNBwQvID+5H4VByAfa/s7v+S1hDmCzRE39cu4lNdDewkgT0ThTU8Dvluv/UzauwjtWKnrvol21MBeQ0SdI3YvvsXii36yEgvbX7TlFLjHqbKj5ksVGUfJJJg5ld6QEQVl3bhhIsuZWeto7jaGDJANkKhzt2alM/5BOvOO9ophnR9g3vmE3ow3fRWygIqrEon15HAfzTEXBQwktone1IZJ0dPSSyupEBzsEWXnkpZWT2W8l3eMXzs+nMwx9kkRn9GaQJpVK1ET9HJy5fH5jN7kvSARYYW4LRp5jfsQGGSqr6pHENsukJlvfTAM1BvX07cXsqTE",
+    "board_message": "u:1A2B3C4D-0000-4000-8000-000000000002",
+    "presence": "amb3p.3.5RAgkRvFmk/39N+UhghS7H/KbHXOXZ9qcQVwHwnZSo2Zh0gIX5Ti84DXjGZXBrOVUsfZxM2yWqwiVEbmTFMLqgXR8ba+BfQGWcX5JEN1odw="
+  }
 }
