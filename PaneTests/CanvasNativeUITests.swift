@@ -3578,8 +3578,15 @@ extension CanvasNativeUITests {
         j.canvas.onBoardDelta = { e, _ in deltas.append(e) }
         j.canvas.share(true)
         await j.until("the page has the drawing as known") { true }
-        // You're dragging "a".
-        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { a: true }, selectedElementsAreBeingDragged: true } }); 1")
+        // You're dragging "a". The engine takes app state on a later turn (React): wait until it has,
+        // or the remote scene below can arrive first (half the runs failed on 2026-11-15).
+        func dragging(_ on: Bool) async throws {
+            _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { a: true }, selectedElementsAreBeingDragged: \(on) } }); 1")
+            for _ in 0..<100 where try await j.js("amber._canvas.api.getAppState().selectedElementsAreBeingDragged") as? Bool != on {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+        }
+        try await dragging(true)
         var a = try #require(try await Self.element(j, "a")), b = try #require(try await Self.element(j, "b"))
         let aX = a["x"] as? Double
         a["x"] = 999; a["version"] = (a["version"] as? Int ?? 1) + 5
@@ -3596,7 +3603,7 @@ extension CanvasNativeUITests {
         #expect(try await j.js("JSON.stringify(amber._canvas.api.getAppState().selectedElementIds)") as? String == "{\"a\":true}", "your selection stays")
 
         // Let go: their newer edit of it lands (a drag of yours would have made yours newer).
-        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementsAreBeingDragged: false } }); 1")
+        try await dragging(false)
         j.canvas.remote(scene: CollabBoard.scene(elements: [a, b, c], settings: [:]))
         for _ in 0..<100 where try await Self.element(j, "a")?["x"] as? Double != 999 { try await Task.sleep(for: .milliseconds(30)) }
         #expect(try await Self.element(j, "a")?["x"] as? Double == 999)
