@@ -35,12 +35,20 @@ const offline = {
     build.onResolve({ filter: /^\.\/subset-(shared|worker)\.chunk\.js$/ }, () => ({ path: "subset", namespace: "stub" }));
     build.onResolve({ filter: /^\.\/locales\// }, (a) => /^\.\/locales\/(en|percentages)-/.test(a.path) ? undefined : { path: "locale", namespace: "stub" });
     build.onLoad({ filter: /.*/, namespace: "stub" }, (args) => ({ contents: stubs[args.path], loader: "js" }));
-    build.onLoad({ filter: /@excalidraw[\\/]excalidraw[\\/]dist[\\/]prod[\\/].*\.js$/ }, (args) => ({
-      contents: readFileSync(args.path, "utf8")
+    build.onLoad({ filter: /@excalidraw[\\/]excalidraw[\\/]dist[\\/]prod[\\/].*\.js$/ }, (args) => {
+      let contents = readFileSync(args.path, "utf8")
         .replaceAll("https://esm.sh/", "amber-lib:///canvas/none/")
-        .replace(/VITE_APP_FIREBASE_CONFIG:'[^']*'/g, "VITE_APP_FIREBASE_CONFIG:'{}'"),
-      loader: "js",
-    }));
+        .replace(/VITE_APP_FIREBASE_CONFIG:'[^']*'/g, "VITE_APP_FIREBASE_CONFIG:'{}'");
+      // The box words are typed in: no grey inline prediction (Tab grows a mind map's branch and
+      // must never accept one), no autocorrect or autofill changing what was typed. Spelling is
+      // still underlined, as in Notes. Set as the box is made, before it takes the keys.
+      if (/index\.js$/.test(args.path)) {
+        const made = /(\w+)\.classList\.add\("excalidraw-wysiwyg"\)/;
+        if (!made.test(contents)) throw new Error("The engine's text box changed: set its typing attributes again (build.mjs).");
+        contents = contents.replace(made, (m, v) => `${m},${v}.setAttribute("writingsuggestions","false"),${v}.setAttribute("autocorrect","off"),${v}.setAttribute("autocomplete","off")`);
+      }
+      return { contents, loader: "js" };
+    });
   },
 };
 

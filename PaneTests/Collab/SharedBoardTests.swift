@@ -3,6 +3,9 @@ import CryptoKit
 import Foundation
 import SwiftData
 import Testing
+#if os(macOS)
+import AppKit
+#endif
 @testable import Pane
 
 /// Whiteboards shared with people (Pane/Collab/CollabBoard.swift): the drawing in the note's shared
@@ -31,16 +34,17 @@ import Testing
         return Device(id: user, store: store, context: container.mainContext, container: container)
     }
 
-    /// Emil's board with `scene`, shared with an Edit (or View) link; `people` join it.
-    func share(_ scene: [String: Any], access: ShareState.Access = .edit, people: [String] = ["Sara", "Ola"], title: String = "Launch plan")
+    /// Emil's board with `scene`, shared with an Edit (or View) link; `people` join it. `accounts`:
+    /// fixed account ids by name (so a person has the same colour from one board to the next).
+    func share(_ scene: [String: Any], access: ShareState.Access = .edit, people: [String] = ["Sara", "Ola"], title: String = "Launch plan", accounts: [String: UUID] = [:])
         async throws -> (emil: Device, others: [Device], note: Note) {
-        let emil = try device(server.account("Emil"), name: "Emil")
+        let emil = try device(server.account("Emil", id: accounts["Emil"] ?? UUID()), name: "Emil")
         let note = CanvasNote.make(in: .all, context: emil.context, scene: scene, named: title)
         try await emil.store.setAccess(access, for: note)
         let url = try #require(emil.store.linkURL(note))
         var others: [Device] = []
         for name in people {
-            let d = try device(server.account(name), name: name)
+            let d = try device(server.account(name, id: accounts[name] ?? UUID()), name: name)
             #expect(await d.store.join(url))
             others.append(d)
         }
@@ -231,7 +235,9 @@ import Testing
         let sara = try #require(e.boardPeers.first)
         #expect(e.boardPeers.count == 1 && sara.name == "Sara" && sara.id == others[0].id)
         #expect(sara.pointer == CGPoint(x: 140.5, y: -32) && sara.selection == ["b"] && sara.showsName)
-        #expect(sara.color == String(format: "#%06X", CollabSession.palette[e.paletteSlot(of: others[0].id)]))
+        #expect(sara.color == CollabSession.hex(CollabSession.palette[e.paletteSlot(of: others[0].id)].light))
+        #expect(sara.dark == CollabSession.hex(CollabSession.palette[e.paletteSlot(of: others[0].id)].dark), "and its dark shade for a dark board")
+        #expect(sara.payload["dark"] as? String == sara.dark)
         #expect(!drawn.isEmpty, "handed to the open board as it came")
         #expect(sara.payload["x"] as? Double == 140.5 && sara.payload["sel"] as? [String] == ["b"] && sara.payload["flag"] as? Bool == true)
 
@@ -280,6 +286,63 @@ import Testing
         #expect(CollabSession.slots(for: six + [seventh])[seventh] == nil, "a seventh: the colour their id picks")
     }
 
+    /// People's colours stay clear of the app's accent, which marks your own selection and AI
+    /// edits (round 10, board-collab: Sara's clay outline looked like Emil's own selection), and
+    /// each person reads as one colour in light and dark (Emil was slate blue in one, mauve in the
+    /// other). Six hues, each 60° or more from both shades of the accent and 25° or more from the
+    /// next, in light and dark; a person's two shades the same hue; white initials readable on
+    /// both; the light shade clear on a white board, the dark one on a black board.
+    @Test func peoplesColoursStayClearOfTheAccentAndKeepTheirHueInTheDark() {
+        func rgb(_ c: UInt32) -> (Double, Double, Double) { (Double(c >> 16 & 0xFF) / 255, Double(c >> 8 & 0xFF) / 255, Double(c & 0xFF) / 255) }
+        func hue(_ c: UInt32) -> Double {
+            let (r, g, b) = rgb(c), mx = max(r, g, b), mn = min(r, g, b), d = mx - mn
+            guard d > 0 else { return 0 }
+            let h = mx == r ? (g - b) / d : mx == g ? (b - r) / d + 2 : (r - g) / d + 4
+            return (h * 60 + 360).truncatingRemainder(dividingBy: 360)
+        }
+        func apart(_ a: Double, _ b: Double) -> Double { let d = abs(a - b).truncatingRemainder(dividingBy: 360); return min(d, 360 - d) }
+        func luminance(_ c: UInt32) -> Double {
+            let (r, g, b) = rgb(c)
+            func lin(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+            return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+        }
+        func contrast(_ a: UInt32, _ b: UInt32) -> Double { let x = luminance(a), y = luminance(b); return (max(x, y) + 0.05) / (min(x, y) + 0.05) }
+        let accent = [Palette.Accent.amber.light, Palette.Accent.amber.dark]
+        let pal = CollabSession.palette
+        #expect(pal.count == 6)
+        #expect(!pal.contains { $0.light == 0xA85A3C || $0.dark == 0xA85A3C }, "no clay")
+        for (i, p) in pal.enumerated() {
+            for shade in [p.light, p.dark] {
+                let fromAccent = accent.map { apart(hue(shade), hue($0)) }.min() ?? 0
+                #expect(fromAccent >= 60, "colour \(i) #\(String(shade, radix: 16)) is \(Int(fromAccent))° from the accent")
+                #expect(contrast(shade, 0xFFFFFF) >= 4.5, "white initials on colour \(i) #\(String(shade, radix: 16)): \(contrast(shade, 0xFFFFFF))")
+            }
+            #expect(apart(hue(p.light), hue(p.dark)) <= 3, "colour \(i) is one hue in light and dark: \(hue(p.light)) and \(hue(p.dark))")
+            #expect(luminance(p.dark) > luminance(p.light), "colour \(i) is lighter on black")
+            #expect(contrast(p.light, 0xFFFFFF) >= 4.5 && contrast(p.dark, 0x000000) >= 4.4, "colour \(i) clear on a white board and on a black one")
+        }
+        for mode in [\(light: UInt32, dark: UInt32).light, \.dark] {
+            let hues = pal.map { hue($0[keyPath: mode]) }
+            for a in hues.indices { for b in hues.indices where b > a {
+                #expect(apart(hues[a], hues[b]) >= 25, "colours \(a) and \(b) are \(Int(apart(hues[a], hues[b])))° apart")
+            } }
+        }
+        #if os(macOS)
+        // As the app draws them: the light shade in light mode, the dark one in dark mode.
+        for (i, p) in pal.enumerated() {
+            for (name, want) in [(NSAppearance.Name.aqua, p.light), (.darkAqua, p.dark)] {
+                var got: UInt32 = 0
+                NSAppearance(named: name)?.performAsCurrentDrawingAppearance {
+                    if let c = NSColor(CollabSession.color(at: i)).usingColorSpace(.sRGB) {
+                        got = UInt32((c.redComponent * 255).rounded()) << 16 | UInt32((c.greenComponent * 255).rounded()) << 8 | UInt32((c.blueComponent * 255).rounded())
+                    }
+                }
+                #expect(got == want, "colour \(i) in \(name.rawValue): #\(String(got, radix: 16)), not #\(String(want, radix: 16))")
+            }
+        }
+        #endif
+    }
+
     /// Six people on one board whose ids all pick one colour: each has their own, the owner's is
     /// the one their id picks, and each person is the same colour on all six devices, in their
     /// pointer on the board, their avatar and their row in Share.
@@ -313,7 +376,7 @@ import Testing
         #expect(drawn.count == 5 && Set(drawn.map(\.color)).count == 5, "five pointers, five colours: \(drawn.map(\.color))")
         for p in drawn {
             let i = try #require(ids.firstIndex(of: p.id))
-            #expect(p.color == String(format: "#%06X", CollabSession.palette[colours[0][i]]), "\(p.name)'s pointer in their colour")
+            #expect(p.color == CollabSession.hex(CollabSession.palette[colours[0][i]].light), "\(p.name)'s pointer in their colour")
         }
         // Their avatars and their rows in Share, on every device.
         for (d, s) in zip(devices, sessions) {

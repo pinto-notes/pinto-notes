@@ -387,6 +387,11 @@ struct CanvasSketch: Equatable {
     }
     var texts: [String] = []
     var shapes: [Shape] = []
+    /// Where its words sit, one frame a line (kind "text"): words on the board and in its shapes,
+    /// not an arrow's label, nor the template's title and how-to line. A template's tile draws them
+    /// as thin lines, so two boards of the same boxes still look like what they hold (whiteboard
+    /// council, round 10: "Weekly review" looked the same as "Meeting").
+    var words: [Shape] = []
 
     /// "Start · Do the thing · Did it work?"; "Drawing" for shapes with no words; nil for an empty board.
     var preview: String? { texts.isEmpty ? (shapes.isEmpty ? nil : Self.drawing) : texts.joined(separator: " \u{00B7} ") }
@@ -394,12 +399,15 @@ struct CanvasSketch: Equatable {
     /// Its words, one a line, for search.
     var searchText: String { texts.joined(separator: "\n") }
 
-    init(texts: [String] = [], shapes: [Shape] = []) { self.texts = texts; self.shapes = shapes }
+    init(texts: [String] = [], shapes: [Shape] = [], words: [Shape] = []) { self.texts = texts; self.shapes = shapes; self.words = words }
 
     /// From the scene's elements, in drawing order; deleted ones left out. Words keep the order
     /// they were drawn in, each once.
     init(elements: [[String: Any]]) {
         var seen = Set<String>()
+        var kinds: [String: String] = [:]
+        for e in elements { if let id = e["id"] as? String, let t = e["type"] as? String { kinds[id] = t } }
+        let linear: Set<String> = ["arrow", "line"]
         for e in elements where (e["isDeleted"] as? Bool) != true {
             guard let type = e["type"] as? String else { continue }
             let num = { (k: String) -> Double in (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
@@ -421,16 +429,34 @@ struct CanvasSketch: Equatable {
                 // both began "Flowchart ·").
                 let mark = e["customData"] as? [String: Any]
                 if mark?["pintoHint"] as? Bool == true || mark?["pintoTitle"] as? Bool == true { continue }
-                let t = ((e["originalText"] as? String) ?? (e["text"] as? String) ?? "")
-                    .split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+                let raw = (e["originalText"] as? String) ?? (e["text"] as? String) ?? ""
+                let t = raw.split(whereSeparator: \.isNewline).joined(separator: " ").trimmingCharacters(in: .whitespaces)
                 if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }
+                let size = num("fontSize") > 0 ? num("fontSize") : 20
+                if let box = e["containerId"] as? String {
+                    // A shape's words, where the engine set them (an arrow's label would sit on its line).
+                    if !linear.contains(kinds[box] ?? ""), num("width") > 0 {
+                        words += Self.lines(raw, x: num("x"), y: num("y"), width: num("width"), size: size, centred: true)
+                    }
+                } else {
+                    words += Self.lines(raw, x: num("x"), y: num("y"), width: num("width") > 0 ? num("width") : nil, size: size,
+                                        centred: e["textAlign"] as? String == "center")
+                }
                 continue
             }
-            if let label = (e["label"] as? [String: Any])?["text"] as? String {
-                let t = label.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }
-            }
             let frame = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
+            if let label = e["label"] as? [String: Any], let raw = label["text"] as? String {
+                let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty, seen.insert(t).inserted { texts.append(t) }
+                // A shape written with its words (as a template or an AI writes it): in its middle.
+                if !linear.contains(type) {
+                    let size = (label["fontSize"] as? Double) ?? (label["fontSize"] as? Int).map(Double.init) ?? 20
+                    let rows = raw.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+                    let width = min(Double(rows.map(\.count).max() ?? 0) * size * 0.5, max(frame.width - 16, 0))
+                    let height = Double(rows.count) * size * 1.25
+                    words += Self.lines(raw, x: frame.midX - width / 2, y: frame.midY - height / 2, width: width, size: size, centred: true)
+                }
+            }
             let fill = (e["backgroundColor"] as? String).flatMap { $0 == "transparent" ? nil : $0 }
             var points: [CGPoint] = []
             if let ps = e["points"] as? [[Any]] {
@@ -441,6 +467,20 @@ struct CanvasSketch: Equatable {
                 }
             }
             shapes.append(Shape(kind: type, frame: frame, fill: fill, points: points))
+        }
+    }
+
+    /// A text's lines as frames, each as wide as its words: of `width` for the longest line (as the
+    /// engine measured it), or about half an em a letter; at the left or in the middle.
+    static func lines(_ raw: String, x: Double, y: Double, width: Double?, size: Double, centred: Bool) -> [Shape] {
+        let rows = raw.split(separator: "\n", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+        let longest = Double(rows.map(\.count).max() ?? 0)
+        guard longest > 0 else { return [] }
+        let full = width ?? longest * size * 0.5
+        return rows.enumerated().compactMap { i, row in
+            guard !row.isEmpty else { return nil }
+            let w = full * Double(row.count) / longest
+            return Shape(kind: "text", frame: CGRect(x: x + (centred ? (full - w) / 2 : 0), y: y + Double(i) * size * 1.25, width: w, height: size))
         }
     }
 

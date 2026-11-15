@@ -560,8 +560,19 @@ final class CanvasController {
         var count: Int
         /// Each thing it added or changed, outlined on its own (whiteboard council, round 3, 16).
         var boxes: [CGRect] = []
-        /// What else is drawn nearby, for the name tag to keep clear of.
+        /// What else is drawn nearby, for the name tag to keep clear of: shapes and words.
         var near: [CGRect] = []
+        /// …and arrows and lines, as they're drawn (round 10, 16: an arrow's box is a hairline).
+        var lines: [Line] = []
+        /// The board's size, for the tag to stay in it.
+        var view: CGSize? = nil
+
+        /// A drawn line (or one barb of an arrowhead), in the view's points; its ink reaches
+        /// `radius` either side.
+        struct Line: Equatable {
+            var points: [CGPoint]
+            var radius: CGFloat
+        }
     }
     var highlight: Highlight?
     @ObservationIgnored private var expecting: (by: String, at: Date)?
@@ -577,19 +588,29 @@ final class CanvasController {
             return v.count == 4 ? CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) : nil
         } }
         let boxes = rects("boxes"), near = rects("near")
+        let double = { (v: Any) in (v as? Double) ?? (v as? Int).map(Double.init) }
+        let lines = ((r["lines"] as? [[String: Any]]) ?? []).compactMap { l -> Highlight.Line? in
+            let v = ((l["p"] as? [Any]) ?? []).compactMap(double)
+            guard v.count >= 4, let radius = l["r"].flatMap(double) else { return nil }
+            return Highlight.Line(points: stride(from: 0, to: v.count - 1, by: 2).map { CGPoint(x: v[$0], y: v[$0 + 1]) }, radius: radius)
+        }
+        let size = ((r["view"] as? [Any]) ?? []).compactMap(double)
+        let view = size.count == 2 ? CGSize(width: size[0], height: size[1]) : nil
         // The view moved under an outline: it moves with it.
         if r["follow"] as? Bool == true {
             if var h = highlight {
                 h.rect = CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height"))
                 h.boxes = boxes
                 h.near = near
+                h.lines = lines
+                h.view = view
                 highlight = h
             }
             return
         }
         guard let e = expecting, e.at.timeIntervalSinceNow > -5 else { return }
         expecting = nil
-        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes, near: near)
+        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes, near: near, lines: lines, view: view)
         highlight = h
         lastChangeBy = e.by
         Task { @MainActor [weak self] in

@@ -653,7 +653,9 @@ import UIKit
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, a = api.getSceneElements().find((e) => e.id === 'ai-arrow');
           return [(a.x + s.scrollX) * z, (a.y + s.scrollY) * z, a.width * z].join(','); })()
         """) as? String).split(separator: ",").compactMap { Double($0) }
-        #expect(h.near.contains { abs($0.minX - arrowAt[0]) < 4 && abs($0.minY - arrowAt[1]) < 6 && abs($0.width - arrowAt[2]) < 4 }, "the AI's own arrow is among what the tag avoids: \(arrowAt) in \(h.near)")
+        #expect(h.lines.contains { l in l.points.count == 2 && abs(l.points[0].x - arrowAt[0]) < 4 && abs(l.points[0].y - arrowAt[1]) < 6 && abs(l.points[1].x - l.points[0].x - arrowAt[2]) < 4 },
+                "the AI's own arrow is among what the tag avoids, as the line it draws: \(arrowAt) in \(h.lines)")
+        #expect(!h.near.contains { $0.width < 2 || $0.height < 2 }, "arrows aren't boxes any more: \(h.near)")
         // The renamed box's outline goes round the box, not just its words.
         let box = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'box');
@@ -672,11 +674,19 @@ import UIKit
         let at = CanvasAIHighlight.tag(over: [shape2], avoiding: [hint])
         #expect(!CGRect(x: at.x, y: at.y, width: 96, height: 22).intersects(hint), "clear of the hint line: \(at)")
         #expect(at.y + 22 <= shape2.minY || at.y >= shape2.maxY, "still clear of the shape: \(at)")
-        // An arrow running down just past the tag's end: its box is a hairline, its head is
-        // wider. The tag keeps clear of the head too (round 7, 16: "ChatGPT" touched it).
-        let arrow = CGRect(x: shape2.minX + 99, y: 140, width: 0, height: 58)
-        let byArrow = CanvasAIHighlight.tag(over: [shape2], avoiding: [arrow])
-        #expect(!CGRect(x: byArrow.x, y: byArrow.y, width: 96, height: 22).insetBy(dx: -6, dy: -6).intersects(arrow.insetBy(dx: -8, dy: 0)), "clear of the arrowhead: \(byArrow)")
+        // An arrow running down into the shape just past the tag's end, its head's barbs
+        // spreading 8.5 pt either side. The tag keeps 8 pt from the line and the head (rounds 7
+        // and 10, 16: "ChatGPT" touched it).
+        let tip = CGPoint(x: shape2.minX + 99, y: shape2.minY - 4)
+        let arrow: [CanvasAIHighlight.Line] = [
+            .init(points: [CGPoint(x: tip.x, y: 140), tip], radius: 2.5),
+            .init(points: [tip, CGPoint(x: tip.x - 8.5, y: tip.y - 23.5)], radius: 2.5),
+            .init(points: [tip, CGPoint(x: tip.x + 8.5, y: tip.y - 23.5)], radius: 2.5),
+        ]
+        let byArrow = CanvasAIHighlight.tag(over: [shape2], lines: arrow)
+        let gap = CanvasAIHighlight.gap(CGRect(x: byArrow.x, y: byArrow.y, width: 96, height: 22), to: [], lines: arrow)
+        #expect(gap >= 8, "8 pt clear of the arrow and its head: \(gap) at \(byArrow)")
+        #expect(byArrow.y + 22 <= shape2.minY, "still above the shape: \(byArrow)")
     }
 
     /// Undo and Redo give back exactly what was there: after Align, Undo, Redo, a bound arrow
@@ -1615,6 +1625,7 @@ import UIKit
         let when = try await node("When")
         let whenID = try #require(when["id"] as? String)
         let before = try await all().count
+        let viewBefore = try await Self.mindMapView(j, whenID)
         _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(whenID)': true } } }); return 1; })()")
         _ = try await until("When selected") { $0 == [whenID] }
         try await tab()
@@ -1637,9 +1648,10 @@ import UIKit
         #expect(joint["endArrowhead"] is NSNull && joint["startArrowhead"] is NSNull, "drawn as the mind map's other branches are")
         #expect(((child["boundElements"] as? [[String: Any]]) ?? []).contains { $0["id"] as? String == joint["id"] as? String }, "bound both ends")
         #expect(els.count >= before + 2, "a box and its arrow (and the words being typed)")
-        // The board was whole: it stays whole, the title and the left branches too (round 7, 26).
-        let whole = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value; return api.getSceneElements().every((e) => (e.x + s.scrollX) * z >= -1 && (e.y + s.scrollY) * z >= -1 && (e.x + e.width + s.scrollX) * z <= s.width + 1 && (e.y + e.height + s.scrollY) * z <= s.height + 1); })()") as? Bool
-        #expect(whole == true, "the whole mind map in view after Tab")
+        // The parent and the new branch in view at the zoom you had; and the whole map, in the
+        // middle, as it fits at that zoom (round 10: each Tab zoomed out and pushed it right).
+        let viewAfter = try await Self.mindMapView(j, whenID, childID)
+        Self.expectBranchInView(before: viewBefore, after: viewAfter)
 
         // Tab while typing in it: its own branch, to its right.
         try await tab()
@@ -1694,6 +1706,126 @@ import UIKit
         #expect(after == n, "nothing selected: Tab adds nothing")
     }
 
+
+    /// Where the view is round a mind map, in the view's points: the zoom, the board's size, the
+    /// map's boxes together, and the parent with its new branch (`ids`).
+    struct MindMapView { var zoom: Double; var width: Double; var height: Double; var map: CGRect; var pair: CGRect }
+
+    static func mindMapView(_ j: Joined, _ ids: String...) async throws -> MindMapView {
+        let list = ids.map { "'\($0)'" }.joined(separator: ",")
+        let r = try await json(j, """
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, els = api.getSceneElements();
+          const box = (l) => { const x1 = Math.min(...l.map((e) => e.x)), y1 = Math.min(...l.map((e) => e.y)), x2 = Math.max(...l.map((e) => e.x + e.width)), y2 = Math.max(...l.map((e) => e.y + e.height));
+            return [(x1 + s.scrollX) * z, (y1 + s.scrollY) * z, (x2 - x1) * z, (y2 - y1) * z]; };
+          const want = new Set([\(list)]);
+          return { zoom: z, width: s.width, height: s.height, map: box(els.filter((e) => e.type !== 'arrow' && e.type !== 'line' && !e.containerId)), pair: box(els.filter((e) => want.has(e.id))) }; })()
+        """)
+        func rect(_ k: String) -> CGRect { let v = (r[k] as? [Double]) ?? [0, 0, 0, 0]; return CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
+        return MindMapView(zoom: r["zoom"] as? Double ?? 0, width: r["width"] as? Double ?? 0, height: r["height"] as? Double ?? 0, map: rect("map"), pair: rect("pair"))
+    }
+
+    /// The rule for the view after Tab (round 10): the parent and new branch in view; the zoom you
+    /// had if the whole map fits at it, with the map in the middle; else zoomed out only as far as
+    /// it fits, never below 75% (nor below where you were).
+    static func expectBranchInView(before: MindMapView, after: MindMapView, sourceLocation: SourceLocation = #_sourceLocation) {
+        let pair = after.pair
+        #expect(pair.minX >= 39 && pair.minY >= 39 && pair.maxX <= after.width - 39 && pair.maxY <= after.height - 39,
+                "the parent and its new branch in view: \(pair) in \(after.width)×\(after.height)", sourceLocation: sourceLocation)
+        let fitsBefore = after.map.width / after.zoom * before.zoom <= after.width - 96 && after.map.height / after.zoom * before.zoom <= after.height - 96
+        if fitsBefore {
+            #expect(abs(after.zoom - before.zoom) < 1e-6, "the zoom you had, as the map fits at it: \(before.zoom) → \(after.zoom)", sourceLocation: sourceLocation)
+        } else {
+            #expect(after.zoom <= before.zoom + 1e-6 && after.zoom >= min(before.zoom, 0.75) - 1e-6, "zoomed out no further than 75%: \(before.zoom) → \(after.zoom)", sourceLocation: sourceLocation)
+        }
+        let whole = after.map.minX >= -1 && after.map.minY >= -1 && after.map.maxX <= after.width + 1 && after.map.maxY <= after.height + 1
+        if after.map.width <= after.width - 96 && after.map.height <= after.height - 96 {
+            #expect(whole, "the whole map in view: \(after.map)", sourceLocation: sourceLocation)
+            // Where the view moved, it put the map in the middle (not against an edge).
+            let moved = abs(after.map.minX - before.map.minX) > 1 || abs(after.map.minY - before.map.minY) > 1 || abs(after.zoom - before.zoom) > 1e-6
+            if moved {
+                #expect(abs(after.map.midX - after.width / 2) < 2 && abs(after.map.midY - after.height / 2) < 2, "moved, so the map is in the middle: \(after.map) in \(after.width)×\(after.height)", sourceLocation: sourceLocation)
+            }
+        }
+    }
+
+    /// Tab on a mind map in a board too small for it (the MacBook Air's board column, round 10,
+    /// real-mindmap-second-tab: 90, 75 then 60%, the map against the right edge): the first Tab
+    /// zooms out only to 75%, the next ones not at all; each time the parent and the new branch
+    /// show. In a big board at 80%, a branch off the right edge brings the whole map to the middle
+    /// at 80%. Already below 75%, a Tab only pans.
+    @Test func tabKeepsTheZoomAndZoomsOutOnlyWhenTheMapCantFit() async throws {
+        func tab(_ j: Joined) async throws {
+            _ = try await j.js("(() => { (document.activeElement && document.activeElement.tagName === 'TEXTAREA' ? document.activeElement : window).dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true })); return 1; })()")
+        }
+        func open(_ size: CGSize) async throws -> Joined {
+            let j = try await Joined(size: size)
+            try await j.ready()
+            j.canvas.send(.insert(.mindMap, title: "Plan"))
+            await j.until("the mind map is in") { !j.canvas.state.empty }
+            try await Task.sleep(for: .milliseconds(300))
+            return j
+        }
+        func whenID(_ j: Joined) async throws -> String {
+            try #require(try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.type === 'text' && e.containerId && e.text === 'When'); return t ? t.containerId : null; })()") as? String)
+        }
+        func editing(_ j: Joined) async throws -> String? {
+            try await j.js("(() => { const t = amber._canvas.api.getAppState().editingTextElement; return t && t.containerId ? t.containerId : null; })()") as? String
+        }
+        func grow(_ j: Joined, from parent: String, select: Bool) async throws -> (MindMapView, MindMapView, String) {
+            if select {
+                _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(parent)': true } } }); return 1; })()")
+                try await Task.sleep(for: .milliseconds(150))
+            }
+            let before = try await Self.mindMapView(j, parent)
+            try await tab(j)
+            var child: String?
+            for _ in 0..<100 { child = try await editing(j); if let child, child != parent { break }; try await Task.sleep(for: .milliseconds(30)) }
+            let id = try #require(child, "a branch grew and is typed in")
+            try await Task.sleep(for: .milliseconds(100))
+            return (before, try await Self.mindMapView(j, parent, id), id)
+        }
+
+        // A board column narrower than the map once it has grown (the Air's was 828 pt), at 100%.
+        let air = try await open(CGSize(width: 760, height: 780))
+        defer { air.close() }
+        _ = try await air.js("(() => { const api = amber._canvas.api; api.updateScene({ appState: { zoom: { value: 1 } } }); api.scrollToContent(undefined, { animate: false }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        let when = try await whenID(air)
+        let (b1, a1, first) = try await grow(air, from: when, select: true)
+        Self.expectBranchInView(before: b1, after: a1)
+        #expect(abs(a1.zoom - 0.75) < 1e-6, "zoomed out to 75% and no further: \(a1.zoom)")
+        // Tab while typing in it: its own branch; the zoom stays.
+        let (b2, a2, second) = try await grow(air, from: first, select: false)
+        Self.expectBranchInView(before: b2, after: a2)
+        #expect(abs(a2.zoom - a1.zoom) < 1e-6, "the next Tab keeps the zoom: \(a1.zoom) → \(a2.zoom)")
+        let (b3, a3, _) = try await grow(air, from: second, select: false)
+        Self.expectBranchInView(before: b3, after: a3)
+        #expect(a3.zoom >= 0.75 - 1e-6, "never below 75% for a Tab: \(a3.zoom)")
+
+        // A big board at 80%, the map pushed against its right edge: the new branch would be off
+        // it, the map fits at 80%, so it comes to the middle, at 80%.
+        let big = try await open(CGSize(width: 1400, height: 900))
+        defer { big.close() }
+        _ = try await big.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), els = api.getSceneElements();
+          const x2 = Math.max(...els.map((e) => e.x + e.width)), y1 = Math.min(...els.map((e) => e.y)), y2 = Math.max(...els.map((e) => e.y + e.height));
+          api.updateScene({ appState: { zoom: { value: 0.8 }, scrollX: (s.width - 20) / 0.8 - x2, scrollY: s.height / 2 / 0.8 - (y1 + y2) / 2 } }); return 1; })()
+        """)
+        try await Task.sleep(for: .milliseconds(200))
+        let (b4, a4, _) = try await grow(big, from: try await whenID(big), select: true)
+        Self.expectBranchInView(before: b4, after: a4)
+        #expect(abs(a4.zoom - 0.8) < 1e-6, "the zoom you had: \(a4.zoom)")
+        #expect(abs(a4.map.midX - a4.width / 2) < 2, "the map in the middle, not against the edge: \(a4.map) in \(a4.width)")
+
+        // Already at 60% in the small board: a Tab pans, and doesn't zoom.
+        let small = try await open(CGSize(width: 600, height: 600))
+        defer { small.close() }
+        _ = try await small.js("(() => { const api = amber._canvas.api; api.updateScene({ appState: { zoom: { value: 0.6 } } }); api.scrollToContent(undefined, { animate: false }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        let (b5, a5, _) = try await grow(small, from: try await whenID(small), select: true)
+        Self.expectBranchInView(before: b5, after: a5)
+        #expect(abs(a5.zoom - 0.6) < 1e-6, "below 75% already: the zoom stays: \(a5.zoom)")
+    }
 
     /// Keys typed straight after Tab go into the new branch (seen on a Mac, 15 November 2026:
     /// "Next spring" typed fast after Tab showed only "spring" in the box). Typing started 30 to 70
@@ -1767,6 +1899,60 @@ import UIKit
         // Your own size, once the typing ends (not the first branch's, after a run of Tabs).
         try await Task.sleep(for: .milliseconds(400))
         #expect(try await j.js("amber._canvas.api.getAppState().currentItemFontSize") as? Int == 36, "your own font size is back")
+    }
+
+    /// Tab while typing grows the next branch and never takes the Mac's grey typing suggestion
+    /// (round 10, real-select-and-tab: "sp" with a grey "ring" after it, inside a branch; in a Mac
+    /// text field Tab accepts that suggestion). The board's text box asks for no inline
+    /// predictions, autocorrect or autofill, and the web view allows no inline predictions, so
+    /// what's typed is what's kept: "Next spr", Tab, "Book the venue" gives exactly those two.
+    @Test func tabWhileTypingNeverTakesATypingSuggestion() async throws {
+        let j = try await Joined(size: CGSize(width: 900, height: 760))
+        defer { j.close() }
+        try await j.ready()
+        #expect(j.web.configuration.allowsInlinePredictions == false, "the web view shows no inline predictions")
+        j.canvas.send(.insert(.mindMap, title: "Plan"))
+        await j.until("the mind map is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        let whenID = try #require(try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.type === 'text' && e.containerId && e.text === 'When'); return t ? t.containerId : null; })()") as? String)
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(whenID)': true } } }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        let w = j.rig.window
+        #expect(w.makeFirstResponder(j.web))
+        let codes: [Character: UInt16] = ["N": 45, "e": 14, "x": 7, "t": 17, " ": 49, "s": 1, "p": 35, "r": 15, "B": 11, "o": 31, "k": 40, "h": 4, "v": 9, "n": 45, "u": 32, "\t": 48]
+        func type(_ text: String) {
+            for c in text {
+                let chars = String(c), flags: NSEvent.ModifierFlags = c.isUppercase ? .shift : []
+                for kind in [NSEvent.EventType.keyDown, .keyUp] {
+                    let e = NSEvent.keyEvent(with: kind, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: w.windowNumber,
+                                             context: nil, characters: chars, charactersIgnoringModifiers: chars.lowercased(), isARepeat: false, keyCode: codes[c] ?? 0)
+                    if let e { w.sendEvent(e) }
+                }
+            }
+        }
+        type("\tNext spr\tBook the venue")
+        func branches() async throws -> [String] {
+            try await j.js("JSON.stringify(amber._canvas.api.getSceneElementsIncludingDeleted().filter((e) => e.type === 'text' && !e.isDeleted && e.containerId).map((e) => e.originalText))").flatMap { $0 as? String }
+                .flatMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String] } ?? []
+        }
+        for _ in 0..<100 where try await !branches().contains("Book the venue") { try await Task.sleep(for: .milliseconds(30)) }
+        // The box being typed in asks for no suggestions.
+        let box = try await Self.json(j, "(() => { const t = document.querySelector('textarea.excalidraw-wysiwyg'); return t ? { writingsuggestions: t.getAttribute('writingsuggestions'), autocorrect: t.getAttribute('autocorrect'), autocomplete: t.getAttribute('autocomplete'), spellcheck: t.spellcheck } : {}; })()")
+        #expect(box["writingsuggestions"] as? String == "false", "no inline predictions in the box: \(box)")
+        #expect(box["autocorrect"] as? String == "off" && box["autocomplete"] as? String == "off", "no autocorrect or autofill: \(box)")
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("not typing") { !j.canvas.state.editing }
+        let words = try await branches()
+        #expect(words.contains("Next spr"), "the first branch has exactly what was typed: \(words)")
+        #expect(words.contains("Book the venue"), "the second, grown by Tab while typing: \(words)")
+        #expect(!words.contains { $0.hasPrefix("Next spr") && $0 != "Next spr" }, "nothing was added to it: \(words)")
+        // The second grew from the first: Tab grew a branch rather than taking anything.
+        let joined = try await j.js("""
+        (() => { const api = amber._canvas.api, els = api.getSceneElements(), box = (w) => { const t = els.find((e) => e.type === 'text' && e.originalText === w); return t && t.containerId; };
+          const a = box('Next spr'), b = box('Book the venue');
+          return !!a && !!b && els.some((e) => e.type === 'arrow' && e.startBinding && e.startBinding.elementId === a && e.endBinding && e.endBinding.elementId === b); })()
+        """) as? Bool
+        #expect(joined == true, "Book the venue is a branch of Next spr")
     }
 
     /// An AI writes a card in the short form, a shape whose customData names a note by title: the
@@ -2850,6 +3036,65 @@ import UIKit
         #expect(title == "Sprint 12", "\(title ?? "nil")")
     }
 
+    /// A template's tile shows what it holds, words too, so no two look alike (round 10, 28: "Weekly
+    /// review" looked the same as "Meeting"; Retro and Kanban were three like columns). The tile drew
+    /// the boxes only: a board's own words, a lane's heading, the lines written in a section, the
+    /// words on a card, weren't drawn, so a meeting board with its notes written in drew exactly as
+    /// the empty template. Now each line of words is a soft bar where it sits.
+    @Test func templateTilesShowWhatTheyHold() throws {
+        typealias T = WhiteboardTemplate
+        // Every line of words, a template's title and how-to aside; not an arrow's Yes and No.
+        #expect(CanvasSketch(elements: T.flowchart.elements).words.count == 5)
+        #expect(CanvasSketch(elements: T.mindMap.elements).words.count == 7)
+        #expect(CanvasSketch(elements: T.retro.elements).words.count == 6, "three headings, three cards")
+        #expect(CanvasSketch(elements: T.kanban.elements).words.count == 7, "three headings, four cards")
+        #expect(CanvasSketch(elements: T.meeting.elements).words.count == 8, "four headings, four lines")
+        // On a board the engine set them: a shape's words where it put them, an arrow's left out.
+        let drawn = CanvasSketch(elements: [
+            ["type": "rectangle", "id": "b", "x": 0, "y": 0, "width": 200, "height": 80],
+            ["type": "text", "id": "bt", "x": 50, "y": 28, "width": 100, "height": 25, "text": "Draft", "fontSize": 20, "containerId": "b"],
+            ["type": "arrow", "id": "a", "x": 200, "y": 40, "width": 100, "height": 0, "points": [[0, 0], [100, 0]]],
+            ["type": "text", "id": "at", "x": 230, "y": 30, "width": 40, "height": 20, "text": "Yes", "fontSize": 16, "containerId": "a"],
+            ["type": "text", "id": "t", "x": 0, "y": 120, "width": 180, "height": 50, "text": "Ask Sam\nby Friday", "fontSize": 20],
+        ])
+        #expect(drawn.words.map(\.frame) == [CGRect(x: 50, y: 28, width: 100, height: 20),
+                                             CGRect(x: 0, y: 120, width: 140, height: 20), CGRect(x: 0, y: 145, width: 180, height: 20)],
+                "a line as wide as its words: \(drawn.words.map(\.frame))")
+
+        func tile(_ elements: [[String: Any]]) throws -> [UInt8] {
+            let r = ImageRenderer(content: CanvasSketchView(sketch: CanvasSketch(elements: elements)).frame(width: 100, height: 70)
+                .background(Color.white).environment(\.colorScheme, .light))
+            r.scale = 2
+            let cg = try #require(r.cgImage)
+            var bytes = [UInt8](repeating: 0, count: cg.width * cg.height * 4)
+            let ctx = try #require(CGContext(data: &bytes, width: cg.width, height: cg.height, bitsPerComponent: 8, bytesPerRow: cg.width * 4,
+                                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+            return bytes
+        }
+        /// The share of the tile's pixels that differ.
+        func apart(_ a: [UInt8], _ b: [UInt8]) -> Double {
+            var n = 0
+            for i in stride(from: 0, to: min(a.count, b.count), by: 4) where (0..<3).contains(where: { abs(Int(a[i + $0]) - Int(b[i + $0])) > 24 }) { n += 1 }
+            return Double(n) / Double(a.count / 4)
+        }
+        // A meeting board with its notes written in isn't the empty meeting template.
+        let written = T.meeting.elements + [
+            ["type": "text", "x": 376, "y": 52, "text": "Launch moves to Friday\nSam writes the post", "fontSize": 16],
+            ["type": "text", "x": 16, "y": 292, "text": "Ship the beta first", "fontSize": 16],
+        ]
+        let meeting = try tile(T.meeting.elements)
+        let notes = apart(meeting, try tile(written))
+        #expect(notes > 0.01, "the written-in meeting draws its notes: \(notes)")
+        // Every tile on the empty board, and the pictures' weekly review: each its own at a glance.
+        var tiles = try T.allCases.map { ($0.title, try tile($0.elements)) }
+        tiles.append(("Weekly review", try tile(Self.weeklyReview)))
+        for i in tiles.indices { for k in tiles.indices where k > i {
+            let d = apart(tiles[i].1, tiles[k].1)
+            #expect(d > 0.08, "\(tiles[i].0) and \(tiles[k].0) look alike: \(d)")
+        } }
+    }
+
     /// The empty board shows your templates after the five built-in tiles, each with its drawing
     /// and name; a click puts it in. Rename and Delete (with Undo) from the right-click menu.
     @Test func yourTemplatesShowOnTheEmptyBoardAndCanBeRenamedAndDeleted() async throws {
@@ -2986,6 +3231,9 @@ import UIKit
                 @MainActor func capture(_ w: NSWindow, _ web: NotePageWebView) async throws -> NSBitmapImageRep {
                     _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
                     await MacWindowChromeTests.settle(w, 10)
+                    // The view settled at the window's size first (round 10, 13-fullscreen-dark was
+                    // taken a resize step early, the drawing centred for a narrower board).
+                    _ = try? await Self.settledView(w, web)
                     let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
                     let cover = NSImageView(frame: web.bounds)
                     cover.image = image
@@ -3021,7 +3269,7 @@ import UIKit
                     let mine = WhiteboardTemplates.shared
                     let kept = mine.items
                     defer { for t in mine.items where !kept.contains(where: { $0.id == t.id }) { mine.remove(t.id) } }
-                    mine.add(name: "Weekly review", elements: WhiteboardTemplate.meeting.elements)
+                    mine.add(name: "Weekly review", elements: Self.weeklyReview)
                     mine.add(name: "Release checklist", elements: WhiteboardTemplate.kanban.elements + [
                         ["type": "rectangle", "x": 720, "y": 0, "width": 220, "height": 380, "strokeColor": "#ced4da", "backgroundColor": "#fff5f5", "fillStyle": "solid"],
                     ])
@@ -3271,8 +3519,12 @@ import UIKit
                 ]
                 let json = String(decoding: try JSONSerialization.data(withJSONObject: launch), as: UTF8.self)
                 try await js("amber._canvasCommand({ op: 'insert', elements: \(json) })")
-                // Until both cards have found their notes (they then name them by id).
+                // Until both cards have found their notes (they then name them by id). Each pass
+                // takes a picture of the page, which lets through what an offscreen window holds
+                // back (round 11: the dark pass once waited it out with the cards drawn but the
+                // page's report still naming them by title).
                 for _ in 0..<150 where canvas.state.cardNotes.count < 2 || canvas.state.cardNotes.contains(where: { UUID(uuidString: $0) == nil }) {
+                    _ = try? await web.takeSnapshot(configuration: nil)
                     await MacWindowChromeTests.settle(w, 2)
                 }
                 #expect(Set(canvas.state.cardNotes) == [planNote.id.uuidString, pressNote.id.uuidString], "both cards found their notes")
@@ -3636,6 +3888,23 @@ extension CanvasNativeUITests {
         #expect(made[0].last?["text"] as? String == "Plan" && made[0].last?["containerId"] as? String == "plan")
     }
 
+    /// On a dark board each person shows in the dark shade of their colour, the same hue as on a
+    /// light board (round 10: Emil was slate blue on a light board, mauve on a dark one).
+    @Test(arguments: [false, true]) func aPersonShowsInTheirShadeForTheBoard(dark: Bool) async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes), dark: dark)
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.share(true)
+        let (light, deep) = CollabSession.palette[2]
+        j.canvas.show(peers: [BoardPeer(id: UUID(), name: "Emil", color: CollabSession.hex(light), dark: CollabSession.hex(deep), pointer: CGPoint(x: 300, y: 260), selection: ["b"])])
+        try await Task.sleep(for: .milliseconds(300))
+        let r = try await Self.json(j, "(() => { const p = document.querySelector('.pinto-peer-pointer'), f = document.querySelector('.pinto-peer-flag'), b = document.querySelector('.pinto-peer-box'); return { theme: amber._canvas.api.getAppState().theme, fill: p.querySelector('path').getAttribute('fill'), flag: getComputedStyle(f).backgroundColor, box: getComputedStyle(b).borderTopColor }; })()")
+        let want = dark ? deep : light
+        let css = "rgb(\(want >> 16 & 0xFF), \(want >> 8 & 0xFF), \(want & 0xFF))"
+        #expect(r["theme"] as? String == (dark ? "dark" : "light"))
+        #expect(r["fill"] as? String == CollabSession.hex(want) && r["flag"] as? String == css && r["box"] as? String == css, "\(r)")
+    }
+
     /// Everyone else on the board: a solid pointer in their colour, edged white, with their first
     /// name on a small flag, and an outline round what they've selected. In the board's own
     /// coordinates, so it stays on the same spot as you zoom or scroll; nothing in it takes a click.
@@ -3755,12 +4024,15 @@ extension CanvasNativeUITests {
     @Test func twoPeopleOnOneBoard() async throws {
         let dir = ProcessInfo.processInfo.environment["BOARD_COLLAB_SHOTS"].map { URL(fileURLWithPath: $0) }
         if let dir { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
+        // The same two accounts in light and dark, so each is in the same colour in both pictures
+        // (round 10: Emil was slate blue in one and mauve in the other, two runs with new accounts).
+        let accounts = ["Emil": UUID(uuidString: "E0000000-0000-4000-8000-000000000001")!, "Sara": UUID(uuidString: "5A000000-0000-4000-8000-000000000002")!]
         for dark in [false, true] {
             let people = BoardPeople()
             // The drawing as a board saves it: every element with an id (an arrow's too).
             var flow = Self.flowchart
             flow["elements"] = ((flow["elements"] as? [[String: Any]]) ?? []).enumerated().map { i, e in e["id"] == nil ? e.merging(["id": "arrow-\(i)"]) { a, _ in a } : e }
-            let (emilDevice, others, note) = try await people.share(flow, people: ["Sara"], title: "Publishing flow")
+            let (emilDevice, others, note) = try await people.share(flow, people: ["Sara"], title: "Publishing flow", accounts: accounts)
             let emil = try people.session(emilDevice, note), sara = try people.session(others[0], note)
             let size = CGSize(width: 760, height: 520)
             let left = try await Joined(scene: CanvasNote.emptyScene(), size: size, dark: dark)
@@ -3817,7 +4089,7 @@ extension CanvasNativeUITests {
                 try pair.write(to: dir.appending(path: "board-collab-two-people-\(dark ? "dark" : "light").png"))
                 if !dark {
                     // The same moment with Sara's flag faded (she's been still a few seconds).
-                    left.canvas.show(peers: left.canvas.peers.map { BoardPeer(id: $0.id, name: $0.name, color: $0.color, pointer: $0.pointer, selection: $0.selection, showsName: false) })
+                    left.canvas.show(peers: left.canvas.peers.map { BoardPeer(id: $0.id, name: $0.name, color: $0.color, dark: $0.dark, pointer: $0.pointer, selection: $0.selection, showsName: false) })
                     try await Task.sleep(for: .milliseconds(400))
                     // An offscreen page doesn't run the 200 ms fade: ended, as it is on screen by now.
                     _ = try await left.js("(() => { document.getAnimations().forEach((a) => a.finish()); return getComputedStyle(document.querySelector('.pinto-peer-flag')).opacity; })()")
@@ -3828,6 +4100,231 @@ extension CanvasNativeUITests {
             }
             BoardCollab.unwire(emil, left.canvas)
             BoardCollab.unwire(sara, right.canvas)
+        }
+    }
+
+    /// A board in the app's own window, offscreen, as `whiteboardWindowPictures` opens it.
+    static func boardWindow(_ c: ModelContainer, _ note: Note, size: CGSize = CGSize(width: 1400, height: 900), dark: Bool) async throws -> (NSWindow, NotePageWebView, CanvasController) {
+        let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
+                         styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore())
+            .tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key))
+        w.setContentSize(size)
+        do {
+            await MacWindowChromeTests.settle(w, 20)
+            var found: WKWebView?
+            for _ in 0..<100 where found == nil {
+                found = NotePageLive.view(note.id)
+                if found == nil { await MacWindowChromeTests.settle(w, 1) }
+            }
+            let web = try #require(found as? NotePageWebView, "the whiteboard opened")
+            try await CanvasTests().run(web, until: "!!(window.amber && window.amber._canvas && window.amber._canvasView)")
+            return (w, web, try #require(web.canvas))
+        } catch {
+            w.close()
+            throw error
+        }
+    }
+
+    /// Waits for the board's view to settle after its size changed (Full Screen, a wider window):
+    /// the page has seen every resize step and the view stopped moving. An offscreen window holds
+    /// back the page's rendering, and with it the resize steps; a picture of the page lets one
+    /// through (round 10, 13-fullscreen-dark: the picture was taken a step early, the view still
+    /// centred for a narrower board). Returns where the view is (`amber._canvasView`).
+    static func settledView(_ w: NSWindow, _ web: WKWebView) async throws -> [String: Any] {
+        func view() async throws -> [String: Any] {
+            let json = try await web.evaluateJavaScript("JSON.stringify(amber._canvasView())") as? String ?? "{}"
+            return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] ?? [:]
+        }
+        func same(_ a: [String: Any], _ b: [String: Any]) -> Bool {
+            ["width", "height", "scrollX", "scrollY", "zoom"].allSatisfy { k in
+                guard let x = a[k] as? Double, let y = b[k] as? Double else { return false }
+                return abs(x - y) < 0.01
+            }
+        }
+        var last: [String: Any] = [:]
+        for _ in 0..<60 {
+            _ = try? await web.takeSnapshot(configuration: nil)
+            await MacWindowChromeTests.settle(w, 1)
+            let now = try await view()
+            if now["settled"] as? Bool == true, same(now, last) { return now }
+            last = now
+        }
+        return last
+    }
+
+    /// The scene of picture 16: the flowchart template, then an AI's approval flow beside it, then
+    /// the AI renaming a step and adding one under it.
+    static let approvalFlow: [[String: Any]] = {
+        let ink = "#2a1d10"
+        return [
+            ["type": "rectangle", "id": "ai-req", "x": 560, "y": 0, "width": 180, "height": 70, "label": ["text": "Request"], "strokeColor": ink, "backgroundColor": "#eebefa", "fillStyle": "solid", "roundness": ["type": 3]],
+            ["type": "rectangle", "id": "ai-rev", "x": 560, "y": 130, "width": 180, "height": 70, "label": ["text": "Manager review"], "strokeColor": ink, "backgroundColor": "#eebefa", "fillStyle": "solid", "roundness": ["type": 3]],
+            ["type": "rectangle", "id": "ai-ok", "x": 560, "y": 260, "width": 180, "height": 70, "label": ["text": "Approved"], "strokeColor": ink, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "roundness": ["type": 3]],
+            ["type": "arrow", "x": 650, "y": 70, "width": 0, "height": 60, "points": [[0, 0], [0, 60]], "start": ["id": "ai-req"], "end": ["id": "ai-rev"], "strokeColor": ink],
+            ["type": "arrow", "x": 650, "y": 200, "width": 0, "height": 60, "points": [[0, 0], [0, 60]], "start": ["id": "ai-rev"], "end": ["id": "ai-ok"], "strokeColor": ink],
+        ]
+    }()
+
+    /// A weekly review as someone draws it (picture 28's "Weekly review" tile): what went well on
+    /// stickies, what got in the way, next week's list. Its own board, not the meeting template's.
+    static let weeklyReview: [[String: Any]] = {
+        let ink = "#2a1d10", edge = "#ced4da"
+        func text(_ s: String, _ x: Double, _ y: Double, _ size: Double = 20) -> [String: Any] {
+            ["type": "text", "x": x, "y": y, "text": s, "fontSize": size, "strokeColor": ink]
+        }
+        func area(_ id: String, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ fill: String) -> [String: Any] {
+            ["type": "rectangle", "id": id, "x": x, "y": y, "width": w, "height": h, "strokeColor": edge, "backgroundColor": fill, "fillStyle": "solid", "roundness": ["type": 3]]
+        }
+        func sticky(_ id: String, _ s: String, _ x: Double) -> [String: Any] {
+            ["type": "rectangle", "id": id, "x": x, "y": 60, "width": 130, "height": 100, "label": ["text": s, "fontSize": 16], "strokeColor": ink, "backgroundColor": "#ffec99", "fillStyle": "solid"]
+        }
+        return [
+            text("Week 46", 0, -60, 32),
+            area("wins", 0, 0, 460, 190, "#ebfbee"), text("Wins", 16, 14),
+            sticky("w1", "Shipped\nsharing", 16), sticky("w2", "Ten new\nusers", 162), sticky("w3", "Fixed the\nsync bug", 308),
+            area("stuck", 480, 0, 300, 190, "#fff5f5"), text("In the way", 496, 14),
+            text("Review queue\nToo many meetings", 496, 60, 16),
+            area("next", 0, 210, 780, 150, "#e7f5ff"), text("Next week", 16, 224),
+            text("1. Ship 1.4\n2. Write the launch post\n3. Book three user calls", 16, 262, 16),
+        ]
+    }()
+
+    /// The AI's name tag keeps real room round it in picture 16's own scene and window (round 10,
+    /// 16-ai-changed: "ChatGPT" over "Finance review" sat against the arrow coming down into it
+    /// from "Request", reported fixed three rounds running). The arrow's box was a hairline and the
+    /// tag, finding no clear spot above or below, took the first one anyway. Arrows now count as
+    /// the lines they draw, heads and all, and the tag moves to where it's clear. Checked on the
+    /// page as drawn: nothing is drawn within 8 pt of the tag (its own shape aside), at the zoom
+    /// the AI's change left and at three others.
+    @Test func theAIsNameTagKeepsClearOfTheArrowIntoItsShape() async throws {
+        let c = try AppSnapshotTests.container()
+        let note = CanvasNote.make(in: .all, context: c.mainContext)
+        note.body = "Product launch"
+        NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([])], "collections": [String: Any]()])
+        try c.mainContext.save()
+        CanvasController.highlightTime = 60
+        defer { CanvasController.highlightTime = 4 }
+        try await AppSnapshotTests.withLastNote(c, "Product launch") {
+            let (w, web, canvas) = try await Self.boardWindow(c, note, dark: false)
+            defer { w.close() }
+            canvas.send(.insert(.flowchart, title: canvas.title))
+            for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+            await MacWindowChromeTests.settle(w, 10)
+            // The AI's flow beside it, as an MCP write arrives through sync.
+            @MainActor func scene() -> [String: Any] { (NotePageDataStore.shared.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any] ?? [:] }
+            @MainActor func take(_ elements: [[String: Any]]) {
+                var s = scene()
+                s["elements"] = elements
+                NotePageDataStore.shared.take(note.id, server: NotePageData.encode(["values": ["scene": s], "collections": [String: Any]()]), by: "ChatGPT")
+            }
+            await MacWindowChromeTests.settle(w, 10)
+            take((scene()["elements"] as? [[String: Any]] ?? []) + Self.approvalFlow)
+            for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+            _ = try await web.evaluateJavaScript("(() => { amber._canvas.api.scrollToContent(undefined, { animate: false }); return 1; })()")
+            await MacWindowChromeTests.settle(w, 20)
+            // It renames Manager review and adds Notify team under Approved.
+            var all = scene()["elements"] as? [[String: Any]] ?? []
+            for i in all.indices where all[i]["containerId"] as? String == "ai-rev" {
+                all[i]["text"] = "Finance review"; all[i]["originalText"] = "Finance review"
+                all[i]["version"] = ((all[i]["version"] as? Int) ?? 1) + 1
+            }
+            all += [
+                ["type": "rectangle", "id": "ai-tell", "x": 560, "y": 390, "width": 180, "height": 70, "label": ["text": "Notify team"], "strokeColor": "#2a1d10", "backgroundColor": "#a5d8ff", "fillStyle": "solid", "roundness": ["type": 3]],
+                ["type": "arrow", "x": 650, "y": 330, "width": 0, "height": 60, "points": [[0, 0], [0, 60]], "start": ["id": "ai-ok"], "end": ["id": "ai-tell"], "strokeColor": "#2a1d10"],
+            ]
+            canvas.highlight = nil
+            take(all)
+            for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+            await MacWindowChromeTests.settle(w, 10)
+            let width = CanvasAIHighlight.tagWidth("ChatGPT")
+            for zoom in [nil, 1.0, 0.8, 1.25] as [Double?] {
+                if let zoom {
+                    // Zoomed about the renamed shape, as a pinch over it would: the outline follows.
+                    _ = try await web.evaluateJavaScript("""
+                    (() => { const api = amber._canvas.api, s = api.getAppState(), b = api.getSceneElements().find((e) => e.id === 'ai-rev');
+                      const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+                      api.updateScene({ appState: { zoom: { value: \(zoom) }, scrollX: s.width / 2 / \(zoom) - cx, scrollY: s.height / 2 / \(zoom) - cy } }); return 1; })()
+                    """)
+                    await MacWindowChromeTests.settle(w, 6)
+                }
+                let h = try #require(canvas.highlight, "the AI's change is outlined")
+                let outlines = CanvasAIHighlight(highlight: h).outlines
+                let top = try #require(outlines.min { ($0.minY, $0.minX) < ($1.minY, $1.minX) })
+                let spot = CanvasAIHighlight.tag(over: outlines, avoiding: h.near, lines: h.lines, in: h.view, width: width)
+                let tag = CGRect(x: spot.x, y: spot.y, width: width, height: CanvasAIHighlight.tagHeight)
+                #expect(h.lines.count >= 6, "the arrows round it are known as lines, heads and all: \(h.lines.count)")
+                // Beside its shape: within 40 pt of its outline, and off it.
+                #expect(!tag.intersects(top) && tag.insetBy(dx: -40, dy: -40).intersects(top), "by its outline: \(tag) at \(top)")
+                // On the page as drawn: nothing within 8 pt of the tag but its own shape.
+                let shot = try await Self.pixels(web)
+                func at(_ x: Int, _ y: Int) -> [Int] { let i = (y * shot.width + x) * 4; return (0..<3).map { Int(shot.bytes[i + $0]) } }
+                let paper = at(shot.width - 3, shot.height / 2)
+                let room = tag.insetBy(dx: -CanvasAIHighlight.clearance, dy: -CanvasAIHighlight.clearance)
+                var inked: [CGPoint] = []
+                for y in stride(from: Int(room.minY * shot.scale), to: Int(room.maxY * shot.scale), by: 1) where y >= 0 && y < shot.height {
+                    for x in stride(from: Int(room.minX * shot.scale), to: Int(room.maxX * shot.scale), by: 1) where x >= 0 && x < shot.width {
+                        let p = CGPoint(x: CGFloat(x) / shot.scale, y: CGFloat(y) / shot.scale)
+                        if top.contains(p) { continue }
+                        if zip(at(x, y), paper).contains(where: { abs($0 - $1) > 40 }) { inked.append(p) }
+                    }
+                }
+                #expect(inked.isEmpty, "at zoom \(zoom.map { "\($0)" } ?? "as left"): \(inked.count) drawn points within 8 pt of the tag \(tag), first \(inked.prefix(3))")
+                if let dir = ProcessInfo.processInfo.environment["AI_TAG_SHOTS"], let png = shot.png {
+                    try png.write(to: URL(fileURLWithPath: dir).appending(path: "ai-tag-\(zoom.map { "\($0)" } ?? "left").png"))
+                    print("AI_TAG zoom \(zoom.map { "\($0)" } ?? "left") tag \(tag) top \(top) view \(String(describing: h.view))")
+                }
+            }
+        }
+    }
+
+    /// Full Screen keeps the drawing in the middle of the board, in light and dark (round 10,
+    /// 13-fullscreen-dark: the drawing sat about 100 pt left of centre, the light one centred).
+    /// The view was right; the picture was taken before the page had seen the last step of the
+    /// resize (an offscreen window holds back its rendering, and its resize steps with it), with
+    /// the view still centred for the narrower board in between. The view now settles first, for
+    /// the pictures too. Checked on the page's own view and on the page as drawn.
+    @Test(arguments: [false, true]) func fullScreenKeepsTheDrawingCentred(dark: Bool) async throws {
+        let c = try AppSnapshotTests.container()
+        let note = CanvasNote.make(in: .all, context: c.mainContext)
+        note.body = "Product launch"
+        NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene(WhiteboardTemplate.flowchart.elements + Self.approvalFlow)], "collections": [String: Any]()])
+        try c.mainContext.save()
+        try await AppSnapshotTests.withLastNote(c, "Product launch") {
+            let (w, web, _) = try await Self.boardWindow(c, note, dark: dark)
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w, 10)
+            let before = try await Self.settledView(w, web)
+            let full = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
+            let button = try #require(full ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
+            _ = button.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            // What the page has seen while the window lays out, before anything draws it.
+            var early: [String] = []
+            for _ in 0..<8 {
+                await MacWindowChromeTests.settle(w, 2)
+                let json = try await web.evaluateJavaScript("JSON.stringify(amber._canvasView())") as? String ?? ""
+                early.append(json)
+            }
+            print("FULLSCREEN \(dark ? "dark" : "light") before \(before) early \(early)")
+            let view = try await Self.settledView(w, web)
+            #expect(view["settled"] as? Bool == true, "the view settles: \(view)")
+            let width = try #require(view["width"] as? Double), height = try #require(view["height"] as? Double)
+            #expect(width > (before["width"] as? Double ?? 0) + 300, "the board is wider: \(before) → \(view)")
+            let d = try #require(view["drawing"] as? [Double])
+            #expect(abs(d[0] + d[2] / 2 - width / 2) < 3, "the drawing in the middle across: \(d) in \(width)")
+            #expect(abs(d[1] + d[3] / 2 - height / 2) < 3 || d[3] > height, "and down: \(d) in \(height)")
+            // On the page as drawn: the ink is as far from the left edge as from the right.
+            let shot = try await Self.pixels(web)
+            func px(_ x: Int, _ y: Int) -> [Int] { let i = (y * shot.width + x) * 4; return (0..<3).map { Int(shot.bytes[i + $0]) } }
+            let paper = px(shot.width - 3, shot.height / 2)
+            var lo = shot.width, hi = 0
+            for y in stride(from: shot.height / 4, to: shot.height * 3 / 4, by: 4) {
+                for x in 0..<shot.width where zip(px(x, y), paper).contains(where: { abs($0 - $1) > 60 }) { lo = min(lo, x); hi = max(hi, x) }
+            }
+            let left = CGFloat(lo) / shot.scale, right = width - CGFloat(hi) / shot.scale
+            #expect(abs(left - right) < 12, "drawn in the middle: \(left) pt on the left, \(right) on the right")
         }
     }
 

@@ -935,8 +935,8 @@ final class CollabSession {
         return peers.values.compactMap { p in
             guard p.pointer != nil || !p.selectedIDs.isEmpty else { return nil }
             let stale = p.isStale(at: now)
-            let rgb = stale ? 0x8E8E93 : Self.palette[slots[p.id] ?? Int(Self.paletteIndex(for: p.id))]
-            return BoardPeer(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: String(format: "#%06X", rgb),
+            let shades: (light: UInt32, dark: UInt32) = stale ? (0x8E8E93, 0x8E8E93) : Self.palette[slots[p.id] ?? Int(Self.paletteIndex(for: p.id))]
+            return BoardPeer(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: Self.hex(shades.light), dark: Self.hex(shades.dark),
                              pointer: p.pointer, selection: p.selectedIDs, showsName: !stale && now.timeIntervalSince(p.movedAt) < RemoteCaret.flagFor)
         }.sorted { $0.id.uuidString < $1.id.uuidString }
     }
@@ -1232,10 +1232,12 @@ final class CollabSession {
 
     // MARK: Showing people
 
-    /// Six muted, earthy tones that sit beside the amber brand without competing with it (clay,
-    /// sage, dusk blue, plum, teal, olive). Amber itself is you, and AI edits. All take white
-    /// initials at 4.5:1 or better. In a note or board each person's colour comes from its members
-    /// (`slots(for:)`); this is the one their account id picks, for anyone not in a member list.
+    /// Six people colours, all well away from the amber accent, which is you, your selection and
+    /// AI edits (whiteboard council, round 10: Sara's clay looked like your own selection). Each is
+    /// one hue in two shades: deeper on white, lighter on black, so a person reads as the same
+    /// colour in light and dark (`palette`). All take white initials at 4.5:1 or better. In a note
+    /// or board each person's colour comes from its members (`slots(for:)`); this is the one their
+    /// account id picks, for anyone not in a member list.
     static func color(for user: UUID) -> Color { color(at: Int(paletteIndex(for: user))) }
 
     static func paletteIndex(for user: UUID) -> UInt32 {
@@ -1269,12 +1271,21 @@ final class CollabSession {
     /// Someone's colour in this note: their avatar, caret and pointer, and their row in Share.
     func color(of user: UUID) -> Color { Self.color(at: paletteSlot(of: user)) }
 
-    static let palette: [UInt32] = [0xA85A3C, 0x5E7A5A, 0x4F6B87, 0x7E5878, 0x3F7774, 0x7A6F3A]
+    /// Green, teal, blue, indigo, violet and pink: each hue at least 60° from the accent's (amber,
+    /// 28° and 38°) and 25° from the next, in a light-mode shade (6:1 on white) and a dark-mode
+    /// one of the same hue (4.5:1 on black).
+    static let palette: [(light: UInt32, dark: UInt32)] = [
+        (0x2D6E36, 0x368340), (0x186B70, 0x1C8086), (0x2D639A, 0x3677B9),
+        (0x5252C5, 0x6868CD), (0x8841AC, 0x9C56BF), (0xA43777, 0xC1448D),
+    ]
 
-    static func color(at i: Int) -> Color {
-        let rgb = palette[i % palette.count]
-        return Color(red: Double(rgb >> 16 & 0xFF) / 255, green: Double(rgb >> 8 & 0xFF) / 255, blue: Double(rgb & 0xFF) / 255)
-    }
+    /// Made once, so a person's colour is the same value wherever it's asked for.
+    private static let colors: [Color] = palette.map { Color(Palette.pair($0.light, $0.dark)) }
+
+    static func color(at i: Int) -> Color { colors[i % colors.count] }
+
+    /// "#RRGGBB", as the board's page takes a colour.
+    static func hex(_ rgb: UInt32) -> String { String(format: "#%06X", rgb) }
 
     /// Other people's carets and selections for the editor to draw. Someone not heard from for a
     /// while is drawn grey, without the name flag: where their caret was, not where it is.
@@ -1296,14 +1307,16 @@ final class CollabSession {
 struct BoardPeer: Equatable, Identifiable, Sendable {
     let id: UUID
     let name: String
-    /// "#RRGGBB"
+    /// "#RRGGBB", on a light board.
     let color: String
+    /// The same hue on a dark board.
+    var dark: String? = nil
     let pointer: CGPoint?
     let selection: [String]
     var showsName = true
 
     var payload: [String: Any] {
-        var p: [String: Any] = ["id": id.uuidString, "name": name, "color": color, "sel": selection, "flag": showsName]
+        var p: [String: Any] = ["id": id.uuidString, "name": name, "color": color, "dark": dark ?? color, "sel": selection, "flag": showsName]
         if let pointer { p["x"] = Double(pointer.x); p["y"] = Double(pointer.y) }
         return p
     }

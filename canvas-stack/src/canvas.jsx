@@ -290,6 +290,40 @@ export function frameBoard(api, { minZoom, onlyIfCut = false, size } = {}) {
 }
 
 /**
+ * An arrow or line as it's drawn, in the view's points: the line through its points, and each
+ * arrowhead's two barbs as the engine draws them (25 long at 20° for an arrow, 15 at 25° for the
+ * rest, at most half the last segment). Each with how far its ink reaches either side (`r`). For
+ * the AI's name tag to keep clear of (round 10, 16: its box was a hairline beside the head).
+ */
+export function drawnLine(e, s) {
+  const z = (s.zoom && s.zoom.value) || 1;
+  const pts = (e.points && e.points.length ? e.points : [[0, 0], [e.width, e.height]]).map(([px, py]) => [e.x + px, e.y + py]);
+  const view = ([x, y]) => { const p = sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, s); return [p.x, p.y]; };
+  // The stroke's half width and the hand-drawn wobble (about a point and a half a side).
+  const r = ((e.strokeWidth || 1) / 2 + 1.5 * (e.roughness || 0) + 1) * z;
+  const out = [{ r, p: pts.map(view).flat() }];
+  const head = (kind, tip, from) => {
+    if (!kind || !tip || !from) return;
+    const dx = tip[0] - from[0], dy = tip[1] - from[1], len = Math.hypot(dx, dy);
+    if (!len) return;
+    const size = kind === "arrow" ? 25 : kind === "diamond" || kind === "diamond_outline" ? 12 : String(kind).startsWith("crowfoot") ? 20 : 15;
+    const angle = (kind === "bar" ? 90 : kind === "arrow" ? 20 : 25) * Math.PI / 180;
+    const l = Math.min(size, len * (kind === "diamond" || kind === "diamond_outline" ? 0.25 : 0.5));
+    const ux = dx / len, uy = dy / len, bx = tip[0] - ux * l, by = tip[1] - uy * l;
+    for (const a of [angle, -angle]) {
+      const c = Math.cos(a), sn = Math.sin(a);
+      const barb = [tip[0] + (bx - tip[0]) * c - (by - tip[1]) * sn, tip[1] + (bx - tip[0]) * sn + (by - tip[1]) * c];
+      out.push({ r, p: [...view(tip), ...view(barb)] });
+    }
+  };
+  if (pts.length > 1) {
+    head(e.endArrowhead, pts[pts.length - 1], pts[pts.length - 2]);
+    head(e.startArrowhead, pts[0], pts[1]);
+  }
+  return out;
+}
+
+/**
  * A note's card, selected and in view ("On boards" at the foot of a note opens the board here):
  * the first card for the note, its whole group selected, centred at a zoom you can read it at
  * (at least 100%, unless the card is bigger than the view). Null when no card names the note.
@@ -454,21 +488,58 @@ export function addBranch(api, node) {
     ...arrow, startBinding: { elementId: node.id, focus: 0, gap: g }, endBinding: { elementId: child.id, focus: 0, gap: g },
   };
   const bound = (e, more) => ({ ...e, boundElements: [...(e.boundElements || []), ...more], version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() });
-  // Was the whole board in view? Then it stays whole (round 7, 26-mindmap-tab: the view
-  // followed the new branch right and cut the title and left branches).
-  const whole = (() => { const v = api.getAppState(), vz = (v.zoom && v.zoom.value) || 1, [a1, b1, a2, b2] = getCommonBounds(api.getSceneElements());
-    return (a1 + v.scrollX) * vz >= 0 && (b1 + v.scrollY) * vz >= 0 && (a2 + v.scrollX) * vz <= v.width && (b2 + v.scrollY) * vz <= v.height; })();
   const before = api.getSceneElementsIncludingDeleted().map((e) => (e.id === node.id ? bound(e, [{ id: joined.id, type: "arrow" }]) : e));
   const made = bound(child, [{ id: joined.id, type: "arrow" }]);
   api.updateScene({ elements: [...before, made, joined], appState: { selectedElementIds: { [child.id]: true }, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
   api.setActiveTool({ type: "selection" });
-  // In view: the view follows it down or right, as far as it went out.
-  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, m = 40 / z;
-  const vx = -s.scrollX, vy = -s.scrollY, vw = s.width / z, vh = s.height / z;
-  const dx = x + w + m > vx + vw ? x + w + m - (vx + vw) : 0, dy = y + h + m > vy + vh ? y + h + m - (vy + vh) : 0;
-  if ((dx || dy) && !(whole && frameBoard(api, { onlyIfCut: true, minZoom: z * 0.6 }))) flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX - dx, scrollY: s.scrollY - dy }, captureUpdate: CaptureUpdateAction.NEVER }));
+  branchInView(api, node, made);
   typeInto(api, child.id, { fontSize, color: (words && words.strokeColor) || node.strokeColor, family: words && words.fontFamily });
   return child.id;
+}
+
+/**
+ * The view after Tab grows a branch (round 10, real-mindmap-second-tab: each Tab zoomed out, 90,
+ * 75, 60%, and pushed the map to the right edge with empty board on the left). The parent and its
+ * new branch in view already: nothing moves. Else, at the zoom you have, the whole map in the
+ * middle if it fits; if it doesn't, zoomed out until it does, but for a Tab never below 75% (nor
+ * below where you were); still too big, the view moves just far enough for the parent and the
+ * new branch to show.
+ */
+export const BRANCH_VIEW = { minZoom: 0.75, margin: 40, fit: 48 };
+export function branchInView(api, node, child) {
+  const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1, W = s.width, H = s.height;
+  const m = BRANCH_VIEW.margin, f = BRANCH_VIEW.fit;
+  const [p1, q1, p2, q2] = getCommonBounds([node, child]);
+  const shows = (sx, sy, zz) => (p1 + sx) * zz >= m && (q1 + sy) * zz >= m && (p2 + sx) * zz <= W - m && (q2 + sy) * zz <= H - m;
+  if (shows(s.scrollX, s.scrollY, z)) return;
+  const [x1, y1, x2, y2] = getCommonBounds(api.getSceneElements());
+  const fits = (zz) => (x2 - x1) * zz <= W - 2 * f && (y2 - y1) * zz <= H - 2 * f;
+  let nz = z;
+  if (!fits(z)) {
+    const fit = Math.min((W - 2 * f) / Math.max(1, x2 - x1), (H - 2 * f) / Math.max(1, y2 - y1));
+    nz = Math.min(z, Math.max(fit, Math.min(z, BRANCH_VIEW.minZoom)));
+  }
+  let scrollX, scrollY;
+  if (fits(nz)) {
+    scrollX = W / 2 / nz - (x1 + x2) / 2;
+    scrollY = H / 2 / nz - (y1 + y2) / 2;
+  } else {
+    // From where the middle of the view was, only as far as it takes; the new branch in the
+    // middle when even the two of them don't fit.
+    const along = (lo, hi, scroll, size, mid) => {
+      const mm = m / nz;
+      if (hi - lo > size - 2 * mm) return size / 2 - mid;
+      if (lo + scroll < mm) return mm - lo;
+      if (hi + scroll > size - mm) return size - mm - hi;
+      return scroll;
+    };
+    const cx = W / 2 / z - s.scrollX, cy = H / 2 / z - s.scrollY;
+    scrollX = along(p1, p2, W / 2 / nz - cx, W / nz, child.x + child.width / 2);
+    scrollY = along(q1, q2, H / 2 / nz - cy, H / nz, child.y + child.height / 2);
+  }
+  // Zoomed out for it: more room later zooms back in towards where you were (frameBoard).
+  if (nz < z - 1e-3) autoZoom = { from: autoZoom && Math.abs(autoZoom.set - z) < 1e-3 ? autoZoom.from : z, set: nz };
+  flushSync(() => api.updateScene({ appState: { scrollX, scrollY, ...(nz !== z ? { zoom: { value: nz } } : {}) }, captureUpdate: CaptureUpdateAction.NEVER }));
 }
 
 /** The node a Tab grows from: one shape selected (a box, an ellipse or a diamond), or the shape
@@ -1529,12 +1600,18 @@ function Canvas({ initial }) {
         const s = api.getAppState();
         const [x, y, width, height] = rect(changed, s);
         const boxes = tops.map((e) => rect([e, ...changed.filter((t) => t.containerId === e.id)], s));
-        // The rest of what's in view, for the name tag to keep clear of.
+        // The rest of what's in view, for the name tag to keep clear of: shapes and words as their
+        // boxes, arrows and lines as the lines they draw, heads and all (round 10, 16: an arrow's box
+        // is a hairline, and the tag sat against the head of the arrow coming into the shape).
         // Arrows it changed too (round 8, 16: the tag sat on the head of an arrow the AI added).
         const outlined = new Set(tops.map((e) => e.id));
-        const near = api.getSceneElements().filter((e) => !outlined.has(e.id) && !e.containerId).map((e) => rect([e], s))
-          .filter(([nx, ny, nw, nh]) => nx + nw > 0 && ny + nh > 0 && nx < s.width && ny < s.height).slice(0, 120);
-        return { x, y, width, height, boxes, near, view: s };
+        const all = api.getSceneElements(), byId = new Map(all.map((e) => [e.id, e]));
+        const shown = ([nx, ny, nw, nh]) => nx + nw > -40 && ny + nh > -40 && nx < s.width + 40 && ny < s.height + 40;
+        const onLine = (e) => e.containerId && byId.get(e.containerId) && linear(byId.get(e.containerId));
+        const near = all.filter((e) => !outlined.has(e.id) && !linear(e) && (!e.containerId || onLine(e))).map((e) => rect([e], s))
+          .filter(shown).slice(0, 120);
+        const lines = all.filter((e) => linear(e) && shown(rect([e], s))).slice(0, 120).map((e) => drawnLine(e, s));
+        return { x, y, width, height, boxes, near, lines: lines.flat(), view: s };
       };
       let r = where();
       const out = r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height;
@@ -1563,7 +1640,7 @@ function Canvas({ initial }) {
         flushSync(() => api.updateScene({ appState: { scrollX, scrollY }, captureUpdate: CaptureUpdateAction.NEVER }));
         r = where();
       }
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, count: changed.length } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, view: [r.view.width, r.view.height], count: changed.length } }); } catch (_) {}
       // While it's shown (the app decides how long), the outline follows the view as you pan,
       // zoom or resize the window (whiteboard council, round 2, 15: it came loose after 8 s).
       outlined = { changed, until: Date.now() + 120000, where };
@@ -1573,7 +1650,7 @@ function Canvas({ initial }) {
       if (!outlined) return;
       if (Date.now() > outlined.until) { outlined = null; return; }
       const r = outlined.where();
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, count: outlined.changed.length, follow: true } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, view: [r.view.width, r.view.height], count: outlined.changed.length, follow: true } }); } catch (_) {}
     });
 
     // Text an AI wrote was measured before the hand-drawn font arrived: measured again once it has.
@@ -1621,6 +1698,18 @@ function Canvas({ initial }) {
       else if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true, size });
     });
     if (area) keepCentre.observe(area);
+    // For the app's pictures and tests: where the view is, and whether it has taken the board's
+    // latest size (the resize steps above all seen, and the engine's own size caught up). A
+    // picture taken before then shows the view centred for a size the board no longer has
+    // (round 10, 13-fullscreen-dark: 100 pt left of centre).
+    Object.defineProperty(amber, "_canvasView", { configurable: true, value: () => {
+      const s = api.getAppState(), w = area ? area.clientWidth : s.width, h = area ? area.clientHeight : s.height;
+      const els = api.getSceneElements(), z = (s.zoom && s.zoom.value) || 1;
+      const b = els.length ? getCommonBounds(els) : null;
+      return { width: w, height: h, scrollX: s.scrollX, scrollY: s.scrollY, zoom: z,
+        drawing: b ? [(b[0] + s.scrollX) * z, (b[1] + s.scrollY) * z, (b[2] - b[0]) * z, (b[3] - b[1]) * z] : null,
+        settled: !!last && last.w === w && last.h === h && s.width === w && s.height === h };
+    } });
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
     // What the app asks the board and waits for: the selection as a library item, an item's picture.
     const calls = { libraryPiece: () => libraryPiece(api), boardPiece: () => boardPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), freeSpot: (a) => freeSpot(api, a.width, a.height) };

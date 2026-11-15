@@ -106,6 +106,9 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.websiteDataStore = .nonPersistent()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.javaScriptCanOpenWindowsAutomatically = false
+        // No grey inline predictions while typing: on a whiteboard, Tab grows a mind map's branch
+        // and must never accept one (whiteboard council, round 10). WebKit's default, said outright.
+        config.allowsInlinePredictions = false
         config.userContentController.add(rules)
         let scheme = FileScheme()
         config.setURLSchemeHandler(scheme, forURLScheme: "amber-file")

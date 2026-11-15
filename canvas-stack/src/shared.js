@@ -141,6 +141,9 @@ export function peersLayer(api, host) {
 
   const draw = (moving) => {
     const s = api.getAppState();
+    // Each person's colour in the board's shade of it: lighter on a dark board, the same hue
+    // (round 10: Emil read slate blue in light and mauve in dark).
+    const tint = (p) => (s.theme === "dark" && typeof p.dark === "string" ? p.dark : p.color);
     const all = api.getSceneElements();
     const byId = new Map(all.map((e) => [e.id, e]));
     const seen = new Set();
@@ -165,7 +168,7 @@ export function peersLayer(api, host) {
         d.style.transform = `translate(${x}px, ${y}px)`;
         d.style.width = `${Math.max(0, w)}px`;
         d.style.height = `${Math.max(0, h)}px`;
-        d.style.borderColor = p.color;
+        d.style.borderColor = tint(p);
       });
       // The pointer: where they are on the board, wherever your view is.
       let flagAt = null;
@@ -175,7 +178,7 @@ export function peersLayer(api, host) {
         n.pointer.style.transition = moving && n.at && !still() ? "transform 100ms linear" : "none";
         n.pointer.style.transform = `translate(${v.x - 1.5}px, ${v.y - 1.5}px)`;
         n.pointer.style.display = "block";
-        n.pointer.querySelector("path").setAttribute("fill", p.color);
+        n.pointer.querySelector("path").setAttribute("fill", tint(p));
         n.at = [v.x, v.y];
         flagAt = [v.x + 12, v.y + 17];
       } else {
@@ -184,7 +187,7 @@ export function peersLayer(api, host) {
         if (rects.length) flagAt = [rects[0][0], rects[0][1] - FLAG.height - 3];
       }
       n.flag.textContent = p.name || "";
-      n.flag.style.background = p.color;
+      n.flag.style.background = tint(p);
       if (flagAt) {
         n.flag.style.transition = `opacity ${p.flag ? FLAG.in : FLAG.out}ms ease-out` + (moving && typeof p.x === "number" && !still() ? ", transform 100ms linear" : "");
         n.flag.style.transform = `translate(${flagAt[0]}px, ${flagAt[1]}px)`;

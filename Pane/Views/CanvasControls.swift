@@ -463,29 +463,94 @@ struct CanvasAIHighlight: View {
         (highlight.boxes.isEmpty ? [highlight.rect] : highlight.boxes).map { $0.insetBy(dx: -6, dy: -6) }
     }
 
-    /// Where the name tag's top-left corner goes: above the topmost outline and clear of it
-    /// (round 3, 16: it covered a shape's corner), or under it when there's no room above.
-    /// …and clear of the rest of the drawing too, when it can be (round 4: it covered the
-    /// template's how-to line and an arrow): above or below the topmost outline, at its left or
-    /// right end, the first spot that covers nothing.
-    static func tag(over outlines: [CGRect], avoiding near: [CGRect] = [], width: CGFloat = 96) -> CGPoint {
+    typealias Line = CanvasController.Highlight.Line
+
+    /// How far the name tag keeps from everything else drawn: shapes, words, arrows and their
+    /// heads (round 10, 16: "ChatGPT" sat against the head of the arrow coming into the shape).
+    static let clearance: CGFloat = 8
+    static let tagHeight: CGFloat = 22
+
+    /// The tag's width for a name: its mark, the name in 12 pt semibold, and its padding.
+    static func tagWidth(_ name: String) -> CGFloat {
+        #if os(macOS)
+        let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        #else
+        let font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+        #endif
+        return 8 + 12 + 5 + ceil((name as NSString).size(withAttributes: [.font: font]).width) + 8
+    }
+
+    /// Where the name tag's top-left corner goes: above the topmost outline, 4 pt off it (round 3,
+    /// 16: it covered a shape's corner), and at least `clearance` from every other shape, word,
+    /// line, arrow and arrowhead (rounds 4, 7, 8 and 10, 16). The first clear spot of: above at
+    /// its left end, then slid along above it (over it a while it fits its width, then staying over
+    /// it by 24 pt), beside it at its top, slid down its side, then below it; in the view. With no
+    /// clear spot, the roomiest one.
+    static func tag(over outlines: [CGRect], avoiding near: [CGRect] = [], lines: [Line] = [], in view: CGSize? = nil, width: CGFloat = 96) -> CGPoint {
         guard let top = outlines.min(by: { ($0.minY, $0.minX) < ($1.minY, $1.minX) }) else { return .zero }
-        let above = top.minY - 4 - 22, below = top.maxY + 4
-        let spots = [CGPoint(x: top.minX, y: above), CGPoint(x: top.maxX - width, y: above),
-                     CGPoint(x: top.minX, y: below), CGPoint(x: top.maxX - width, y: below)].filter { $0.y >= 4 }
-        // Arrows and lines come as their boxes, and a straight one's box is a hairline: its head
-        // stands about 8 either side (round 7, 16: the tag touched an arrowhead).
-        let others = outlines.filter { $0 != top } + near.map { $0.insetBy(dx: $0.width < 16 ? -8 : 0, dy: $0.height < 16 ? -8 : 0) }
-        let clear = spots.first { p in
-            let r = CGRect(x: p.x, y: p.y, width: width, height: 22).insetBy(dx: -6, dy: -6)
-            return !others.contains { $0.intersects(r) }
+        let h = tagHeight, keep = min(24, width / 2)
+        let above = top.minY - 4 - h, below = top.maxY + 4
+        var spots: [(p: CGPoint, cost: CGFloat)] = []
+        for dx in stride(from: CGFloat(0), through: width + top.width, by: 2) {
+            for x in Set([top.minX - dx, top.minX + dx]) where x >= top.minX - width + keep && x <= top.maxX - keep {
+                let over = x >= top.minX && x + width <= top.maxX
+                spots.append((CGPoint(x: x, y: above), over ? dx / 2 : dx))
+                spots.append((CGPoint(x: x, y: below), dx + 80))
+            }
         }
-        return clear ?? spots.first ?? CGPoint(x: top.minX, y: below)
+        for dy in stride(from: CGFloat(0), through: max(0, top.height - h), by: 2) {
+            spots.append((CGPoint(x: top.minX - 6 - width, y: top.minY + dy), 60 + dy))
+            spots.append((CGPoint(x: top.maxX + 6, y: top.minY + dy), 60 + dy))
+        }
+        let inView = spots.filter { s in
+            s.p.x >= 4 && s.p.y >= 4 && view.map { s.p.x + width <= $0.width - 4 && s.p.y + h <= $0.height - 4 } ?? true
+        }.sorted { $0.cost < $1.cost }
+        let others = outlines.filter { $0 != top } + near
+        let rect = { (p: CGPoint) in CGRect(x: p.x, y: p.y, width: width, height: h) }
+        if let clear = inView.first(where: { gap(rect($0.p), to: others, lines: lines) >= clearance }) { return clear.p }
+        let roomiest = inView.max { gap(rect($0.p), to: others, lines: lines) < gap(rect($1.p), to: others, lines: lines) }
+        return roomiest?.p ?? CGPoint(x: max(4, top.minX), y: above >= 4 ? above : below)
+    }
+
+    /// How far a rect is from the nearest of these boxes and drawn lines (0 when it touches one).
+    static func gap(_ r: CGRect, to boxes: [CGRect], lines: [Line]) -> CGFloat {
+        var least = CGFloat.infinity
+        for b in boxes {
+            let dx = max(0, b.minX - r.maxX, r.minX - b.maxX), dy = max(0, b.minY - r.maxY, r.minY - b.maxY)
+            least = min(least, hypot(dx, dy))
+        }
+        for l in lines {
+            if l.points.count == 1 { least = min(least, max(0, distance(l.points[0], r) - l.radius)) }
+            for i in l.points.indices.dropLast() { least = min(least, max(0, distance(r, l.points[i], l.points[i + 1]) - l.radius)) }
+        }
+        return least
+    }
+
+    static func distance(_ p: CGPoint, _ r: CGRect) -> CGFloat {
+        hypot(max(0, r.minX - p.x, p.x - r.maxX), max(0, r.minY - p.y, p.y - r.maxY))
+    }
+
+    static func distance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy
+        let t = len == 0 ? 0 : min(1, max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len))
+        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    }
+
+    /// From a rect to a line segment: 0 when they meet.
+    static func distance(_ r: CGRect, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        if r.contains(a) || r.contains(b) { return 0 }
+        let corners = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
+        func cross(_ o: CGPoint, _ p: CGPoint, _ q: CGPoint) -> CGFloat { (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x) }
+        for i in 0..<4 {
+            let c = corners[i], d = corners[(i + 1) % 4]
+            if cross(a, b, c) * cross(a, b, d) <= 0 && cross(c, d, a) * cross(c, d, b) <= 0 { return 0 }
+        }
+        return min(distance(a, r), distance(b, r), corners.map { distance($0, a, b) }.min() ?? .infinity)
     }
 
     var body: some View {
         let boxes = outlines
-        let at = Self.tag(over: boxes, avoiding: highlight.near)
+        let at = Self.tag(over: boxes, avoiding: highlight.near, lines: highlight.lines, in: highlight.view, width: Self.tagWidth(highlight.by))
         ZStack {
             ForEach(Array(boxes.enumerated()), id: \.offset) { _, r in
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -730,7 +795,8 @@ struct CanvasTemplatePreview: View {
 }
 
 /// A board's shapes drawn small: boxes, ellipses and diamonds in their fills, lines, arrows and
-/// pencil strokes as thin lines. The list's whiteboard rows and the template tiles.
+/// pencil strokes as thin lines, and its words as soft bars where they sit, one a line, as wide
+/// as the line. The list's whiteboard rows and the template tiles.
 struct CanvasSketchView: View {
     let sketch: CanvasSketch
     var lineWidth: CGFloat = 0.8
@@ -738,9 +804,9 @@ struct CanvasSketchView: View {
 
     var body: some View {
         Canvas { ctx, size in
-            let shapes = sketch.shapes
-            guard let first = shapes.first?.frame.standardized else { return }
-            let box = shapes.dropFirst().reduce(first) { $0.union($1.frame.standardized) }.insetBy(dx: -2, dy: -2)
+            let shapes = sketch.shapes, all = shapes + sketch.words
+            guard let first = all.first?.frame.standardized else { return }
+            let box = all.dropFirst().reduce(first) { $0.union($1.frame.standardized) }.insetBy(dx: -2, dy: -2)
             let scale = min(size.width / max(box.width, 1), size.height / max(box.height, 1))
             let dx = (size.width - box.width * scale) / 2 - box.minX * scale
             let dy = (size.height - box.height * scale) / 2 - box.minY * scale
@@ -774,6 +840,13 @@ struct CanvasSketchView: View {
                 }
                 if let hex = s.fill, let c = CanvasStyle.shown(hex, dark: scheme == .dark) { ctx.fill(path, with: .color(c)) }
                 ctx.stroke(path, with: .color(ink), lineWidth: lineWidth)
+            }
+            for w in sketch.words {
+                let f = w.frame.standardized
+                let line = CGRect(x: f.minX * scale + dx, y: f.minY * scale + dy, width: f.width * scale, height: f.height * scale)
+                let h = min(max(line.height * 0.45, 1.2), 3)
+                let bar = CGRect(x: line.minX, y: line.midY - h / 2, width: max(line.width, h), height: h)
+                ctx.fill(Path(roundedRect: bar, cornerRadius: h / 2), with: .color(Color.ink.opacity(0.42)))
             }
         }
         .accessibilityHidden(true)
