@@ -4,7 +4,7 @@ import { appsServed, instructions, servedPrompts, servedResources } from "./serv
 import { serverCard } from "./card.ts";
 import { CLASSIC_TOOL_NAMES } from "./tools.ts";
 import { servedTools } from "./tool_set.ts";
-import { ABOUT_ME_INSTRUCTIONS, FILE_INSTRUCTIONS } from "./files_tools.ts";
+import { ABOUT_ME_INSTRUCTIONS, FILE_INSTRUCTIONS, LOOK_INSTRUCTIONS } from "./files_tools.ts";
 import { appGuide, IN_CONTROL, scaffold } from "./app_scaffold.ts";
 import { appsGuide, PAGE_INSTRUCTIONS, pageGuide } from "./page_guide.ts";
 
@@ -143,4 +143,10 @@ Deno.test("every tool set tells an AI to read the About me note first and keep i
   }
   // It names no tool, so it holds whatever tools are served.
   assertEquals(named(ABOUT_ME_INSTRUCTIONS), []);
+});
+
+Deno.test("the file tools tell an AI it restyles the app through the Pinto look note, with no tool of its own", () => {
+  assertStringIncludes(FILE_INSTRUCTIONS, LOOK_INSTRUCTIONS);
+  for (const s of ['titled "Pinto look"', "changes as soon as it's saved", "folder with its name", "Custom look"]) assertStringIncludes(LOOK_INSTRUCTIONS, s);
+  assertEquals(named(LOOK_INSTRUCTIONS), []);
 });

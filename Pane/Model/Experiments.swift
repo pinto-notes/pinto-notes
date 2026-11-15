@@ -12,6 +12,9 @@ enum Experiment: String, CaseIterable, Identifiable {
     case gallery
     /// Labels on notes from their right-click, in colours, and the colours of #tags.
     case tags
+    /// The Pinto look note sets the app's colours, fonts, text size, page picture and Dock icon
+    /// (LookNote; Emil, 15 November 2026).
+    case look
 
     var id: String { rawValue }
     /// Its switch's UserDefaults key (also an `-experimentCovers YES` launch argument for tests).
@@ -24,6 +27,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         case .covers: "Covers and icons"
         case .gallery: "Gallery view"
         case .tags: "Tags"
+        case .look: "Custom look"
         }
     }
 
@@ -32,6 +36,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         case .covers: "Give a note a cover photo and an icon, from the buttons by its title."
         case .gallery: "Show a folder as cards with each note\u{2019}s cover or first picture, from the list\u{2019}s menu."
         case .tags: "Put coloured labels on notes from their right-click. Tags show their colours in notes and the sidebar."
+        case .look: "Ask your AI to change how Pinto looks: colours, fonts, a picture behind your notes, even the Dock icon. It edits a note called Pinto look, and the app changes as soon as it\u{2019}s saved."
         }
     }
 
@@ -40,6 +45,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         case .covers: "photo.artframe"
         case .gallery: "square.grid.2x2"
         case .tags: "tag"
+        case .look: "paintpalette"
         }
     }
 }

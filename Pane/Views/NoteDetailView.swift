@@ -1304,7 +1304,7 @@ struct NoteDetailView: View {
             }
             #endif
             .ignoresSafeArea(.container, edges: .bottom)
-            .background(Color.notePage.ignoresSafeArea())
+            .background(LookGround().ignoresSafeArea())
             .onChange(of: note.trashedAt, initial: true) { _, at in
                 controller.readOnly = SharedEditing.readOnly(trashed: at != nil, shared: note.isShared, viewOnly: collab?.isViewOnly)
             }
@@ -2677,3 +2677,23 @@ struct WindowSpokenTitle: NSViewRepresentable {
     }
 }
 #endif
+
+/// The note page's ground: its colour, and the Pinto look note's picture under it when it sets
+/// one, faded by the page colour so the text reads (LookNote).
+struct LookGround: View {
+    var body: some View {
+        let look = LookStore.shared
+        ZStack {
+            Color.notePage
+            if let picture = look.background {
+                Image(platform: picture)
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: look.blur)
+                    .clipped()
+                Color.notePage.opacity(look.fade)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}

@@ -9,7 +9,7 @@ import Testing
     /// (the window, the note and every list row as each note opened; BackForwardTests counted it).
     @Test func eachSwitchHasAKeyWithoutADot() {
         let keys = Experiment.allCases.map(\.key)
-        #expect(keys == ["experimentCovers", "experimentGallery", "experimentTags"])
+        #expect(keys == ["experimentCovers", "experimentGallery", "experimentTags", "experimentLook"])
         #expect(keys.allSatisfy { !$0.contains(".") })
     }
 

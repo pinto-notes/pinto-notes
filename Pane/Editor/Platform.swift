@@ -211,7 +211,9 @@ enum TextSize {
     static let smallerTitle = "Make Text Smaller"
     static let actualTitle = "Actual Size"
 
-    static var body: CGFloat { size(stored: UserDefaults.standard.double(forKey: key)) }
+    static var body: CGFloat { lookOverride ?? size(stored: UserDefaults.standard.double(forKey: key)) }
+    /// The Pinto look note's text size, over the one chosen here (LookNote).
+    nonisolated(unsafe) static var lookOverride: CGFloat?
 
     /// Note text only: the sidebar and note list stay at the system's size whatever the slider
     /// says, as in Apple Notes, where zoom grows the note (Emil, 7 November 2026: the slider said
@@ -315,5 +317,15 @@ enum NoteFont: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// The note face as it reads now.
-    static func note(ofSize size: CGFloat, weight: PFont.Weight = .regular) -> PFont { current.font(ofSize: size, weight: weight) }
+    /// The Pinto look note's face wins when it names one (LookNote).
+    static func note(ofSize size: CGFloat, weight: PFont.Weight = .regular) -> PFont {
+        if let face = LookFaces.body { return face.font(ofSize: size, weight: weight) }
+        return current.font(ofSize: size, weight: weight)
+    }
+
+    /// A title or heading: the look's heading face, else the note's.
+    static func heading(ofSize size: CGFloat, weight: PFont.Weight) -> PFont {
+        if let face = LookFaces.heading { return face.font(ofSize: size, weight: weight) }
+        return current.font(ofSize: size, weight: weight)
+    }
 }

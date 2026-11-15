@@ -569,7 +569,7 @@ struct SidebarView: View {
         selectList(files)
             .listStyle(.sidebar)
             // A theme's sidebar is solid: the glass steps aside for its colour.
-            .scrollContentBackground(ThemeStore.shared.look.colors == nil ? .automatic : .hidden)
+            .scrollContentBackground(ThemeStore.shared.look.paintsSidebar ? .hidden : .automatic)
             // A little of the icon's brown inside the sidebar's glass, which stays vibrant.
             .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
         #endif

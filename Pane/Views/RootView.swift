@@ -686,6 +686,7 @@ struct RootView: View {
         content
             .onAppear {
                 wireTags()
+                LookStore.shared.start(context)
                 #if os(iOS)
                 // On iPhone restoring the folder pushes the note list; doing that after the first
                 // layout lets the list open with its large title showing, as it does when you tap in.

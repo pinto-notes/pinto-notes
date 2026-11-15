@@ -187,6 +187,10 @@ export const FILE_TOOLS: Tool[] = ([
  *  Both tool sets say it, in words that name no tool. */
 export const ABOUT_ME_INSTRUCTIONS = `If the person has a note titled "About me" that isn't locked, read it first, before anything else: it's what they want every AI to know about them. Keep it current: when they tell you something lasting about themselves (their work, the people in their life, their plans, what they like), add it there in a line and tell them you did. Never remove what they wrote there unless they ask.`;
 
+/** The Pinto look note: the person's AI restyles the app by editing it, with the tools it has
+ *  (Settings › Experimental › Custom look; Emil, 15 November 2026). Names no tool. */
+export const LOOK_INSTRUCTIONS = `When the person asks to change how Pinto Notes itself looks (its colours, fonts, text size, a picture behind their notes, the Dock icon), edit their note titled "Pinto look": it lists every setting and how to write one, and the app changes as soon as it's saved. Its pictures and font files go in the folder with its name. If they have no such note, tell them to turn on Custom look in Pinto's Settings › Experimental.`;
+
 /** What the server tells every client when this tool set is on: how the files are laid out. The
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
@@ -194,6 +198,7 @@ ${ABOUT_ME_INSTRUCTIONS}
 In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title (renaming a note with move, edit or write updates the links to it; fetch lists what links to a note). A tag is #name in the text ("#needs-review", "#work/clients"; no spaces): the person sees it as a coloured label and finds every note with it in the sidebar, so tag notes when they ask you to sort or flag them, on the line of tags under the title.
 A note listed with locked: true is locked by the person with a separate password: it shows here as "Locked note", without its title or text, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
 ${FILE_APP_INSTRUCTIONS}
+${LOOK_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
 
 /** MCP prompts with the file tools: starting points a client can offer the person. */

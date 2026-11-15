@@ -49,7 +49,7 @@ enum Theme: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// One colour in the light and one in the dark.
-    struct Hex: Equatable, Sendable {
+    struct Hex: Hashable, Sendable {
         let light: UInt32, dark: UInt32
         init(_ light: UInt32, _ dark: UInt32) { self.light = light; self.dark = dark }
     }
@@ -145,10 +145,28 @@ enum AccentChoice: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Colours the Pinto look note sets (LookNote), by their name in `Theme.Colors`. Each wins over
+/// the theme's; the rest stay the theme's.
+struct LookColors: Hashable, Sendable {
+    var values: [String: Theme.Hex]
+
+    /// The name each colour has in the note's settings and here.
+    nonisolated(unsafe) static let names: [PartialKeyPath<Theme.Colors>: String] = [
+        \Theme.Colors.page: "page", \Theme.Colors.sidebar: "sidebar", \Theme.Colors.list: "list",
+        \Theme.Colors.selection: "selection", \Theme.Colors.ink: "ink", \Theme.Colors.muted: "muted",
+        \Theme.Colors.line: "line", \Theme.Colors.soft: "soft", \Theme.Colors.card: "card",
+        \Theme.Colors.code: "code", \Theme.Colors.panel: "panel", \Theme.Colors.accent: "accent",
+    ]
+
+    func hex(_ key: PartialKeyPath<Theme.Colors>) -> Theme.Hex? { Self.names[key].flatMap { values[$0] } }
+}
+
 /// What the colours follow right now: a theme, an accent, and the system's Increase Contrast.
 struct ThemeLook: Hashable, Sendable {
     var theme: Theme
     var accent: AccentChoice
+    /// The Pinto look note's colours, over the theme's (Settings › Experimental › Custom look).
+    var custom: LookColors?
     /// The system's Increase Contrast (macOS) or Darken Colors (iPhone) is on: a theme's muted
     /// text takes its ink and its hairlines the muted text's colour, solid. Not stored: the store
     /// follows the system (`ThemeStore.followSystemContrast`). Default draws as always.
@@ -157,9 +175,11 @@ struct ThemeLook: Hashable, Sendable {
     static let standard = ThemeLook(theme: .standard, accent: .theme)
 
     /// Default with the theme's own accent: every colour exactly as it always was.
-    var isStock: Bool { theme == .standard && accent == .theme }
+    var isStock: Bool { theme == .standard && accent == .theme && custom == nil }
     /// The theme's colours, nil for Default.
     var colors: Theme.Colors? { theme.colors }
+    /// The sidebar is a solid colour (a theme's, or the look note's), not the system's glass.
+    var paintsSidebar: Bool { colors != nil || custom?.values["sidebar"] != nil }
 
     /// The accent that draws: High contrast always uses its own blue and yellow (7:1 on its every
     /// ground), whatever is stored; the stored choice comes back with another theme.
@@ -167,13 +187,14 @@ struct ThemeLook: Hashable, Sendable {
 
     /// The accent's shades: the chosen accent, else the theme's, else the build's own.
     var accentShades: Palette.Accent {
-        if let hex = drawnAccent.hex ?? theme.colors?.accent { return Palette.Accent(light: hex.light, dark: hex.dark) }
+        if let hex = custom?.hex(\Theme.Colors.accent) ?? drawnAccent.hex ?? theme.colors?.accent { return Palette.Accent(light: hex.light, dark: hex.dark) }
         return Palette.buildAccent
     }
 
     /// The theme's colour for `key` as drawn: with Increase Contrast on, muted text is the ink and
     /// a hairline the muted text's colour. Nil for Default.
     func hex(_ key: KeyPath<Theme.Colors, Theme.Hex>) -> Theme.Hex? {
+        if let mine = custom?.hex(key) { return mine }
         guard let c = colors else { return nil }
         if increaseContrast {
             if key == \Theme.Colors.muted { return c.ink }
