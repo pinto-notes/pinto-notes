@@ -277,6 +277,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-trip-planner-template",
+    title: "Apple Notes trip planner template, bookings to packing",
+    description: "Apple Notes has no trip planner, but one note can hold the bookings, the days and the packing list. A template to paste in, and a free trip plan that counts.",
+    excerpt: "A trip planner for Apple Notes, ready to paste in: bookings you tick when paid, a heading per day and a packing list. Where it stops, and a trip plan note with a countdown.",
+    category: "Apple Notes",
+    date: "2026-11-15",
+    updated: "2026-11-15",
+    image: SHOTS.tripApp,
+    thumb: cover("peach", "trip-planner", 1600, 1000, "A paper suitcase with a luggage tag beside a checklist card and a small paper plane"),
+    draft: false,
+  },
+  {
     slug: "apple-notes-habit-tracker",
     title: "Apple Notes habit tracker template, and where it stops",
     description: "Apple Notes has no habit tracker, but a weekly checklist does the daily part. A template to paste in, how to keep it going, and a free tracker with streaks.",
