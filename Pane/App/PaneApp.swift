@@ -114,7 +114,7 @@ struct PaneApp: App {
             }
             #endif
         }
-        let sync = SyncEngine(backend: backend, context: container.mainContext)
+        let sync = SyncEngine(backend: backend, context: container.mainContext, library: .shared)
         _sync = State(initialValue: sync)
         // A Sign Out and Remove Notes that a quit cut short: the notes go before they can be shown.
         if !inMemory { SignOutRemoval.live(backend: backend, sync: sync, context: context).eraseIfInterrupted() }

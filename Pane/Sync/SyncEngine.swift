@@ -134,13 +134,22 @@ final class SyncEngine {
     /// moment it's back. Tests give each engine its own.
     let path: NetworkPath
 
+    /// The whiteboard library this engine keeps in step (LibrarySync); nil syncs none (most tests).
+    let library: CanvasLibrary?
+    /// The server has no library table yet (an app newer than its server): not asked again until then.
+    private var libraryPausedUntil: Date?
+
     init(backend: Backend, context: ModelContext, defaults: UserDefaults = .standard, vault: NoteVault? = nil, crypto: AccountCrypto? = nil,
-         path: NetworkPath = .shared) {
+         path: NetworkPath = .shared, library: CanvasLibrary? = nil) {
         self.backend = backend
         self.context = context
         self.defaults = defaults
         self.lockVault = vault
         self.path = path
+        self.library = library
+        // A change to the library goes up with a sync of its own; opening it brings what's new.
+        library?.onChange = { [weak self] in self?.schedule(after: 0.5) }
+        library?.onLook = { [weak self] in self?.schedule(after: 0) }
         SyncSignal.onChange = { [weak self] in self?.localChanged() }
         path.watch { [weak self] up in self?.networkChanged(up: up) }
         // Start fresh removes the account's files from Storage through here. It happens when this
@@ -289,6 +298,7 @@ final class SyncEngine {
                     knowsAccount = true
                 }
                 reportSynced(seconds: Date.now.timeIntervalSince(began), first: first)
+                await syncLibrary(client, sealer: sealer, gen: gen)
             }
             failures.succeeded()
             // Only when it changes: views read it, and every write would redraw them.
@@ -315,6 +325,25 @@ final class SyncEngine {
             status = .offline(Self.describe(error))
             if let r = Self.reach(after: error), r != lastReach { lastReach = r }
             reportFailed(error, pulling: pulling)
+        }
+    }
+
+    /// The whiteboard library's part of a sync (LibrarySync): after the notes, and failing nothing
+    /// else. What didn't go up goes with the next sync.
+    private func syncLibrary(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
+        guard let library, let uid = backend.userID else { return }
+        if let until = libraryPausedUntil, until > .now { return }
+        do {
+            try await LibrarySync.sync(client, sealer: sealer, library: library, owner: uid) { try self.ensure(sealer, gen) }
+            libraryPausedUntil = nil
+        } catch {
+            if outlived(sealer, gen) { return }
+            if LibrarySync.missingTable(error) {
+                libraryPausedUntil = .now.addingTimeInterval(3600)
+                log.notice("the server has no whiteboard library yet; it stays on this device")
+                return
+            }
+            log.error("whiteboard library sync failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -505,6 +534,7 @@ final class SyncEngine {
         guard startedFreshHere || (known != nil && known != keyID) else { return }
         DebouncedSave.flushAll()
         let n = Self.markAllForUpload(context)
+        library?.update(local: false) { $0.forgetServer() }
         forgetCursors()
         synced = [:]
         refused = [:]

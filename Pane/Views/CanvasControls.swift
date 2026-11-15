@@ -887,6 +887,7 @@ struct CanvasDock: View {
             toolButton(.arrow)
             toolButton(.text)
             toolButton(.eraser)
+            CanvasLibraryDockButton(canvas: canvas)
             styleButton
             #endif
         }

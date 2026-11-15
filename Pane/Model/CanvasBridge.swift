@@ -1169,8 +1169,9 @@ final class CanvasController {
     /// Asks the page something and waits for the answer (canvas.jsx `amber._canvasCall`): set by
     /// the page view while it shows.
     @ObservationIgnored var call: ((String, [String: Any]) async -> Any?)?
-    /// The library popover is open (Mac).
-    var showingLibrary = false
+    /// The library is open: the popover on the Mac, the sheet on iPhone. Opening it brings what
+    /// changed on the account's other devices.
+    var showingLibrary = false { didSet { if showingLibrary, !oldValue { CanvasLibrary.shared.looked() } } }
     /// The library item whose name is being typed in the popover (right-click › Rename…).
     var renamingLibraryItem: String?
     /// The Present bar's Order list is open.
@@ -1419,10 +1420,22 @@ enum CanvasLibraryFile {
         return nil
     }
 
-    /// The items as a library file (version 2), which Excalidraw opens too.
-    static func data(_ items: [CanvasLibraryItem]) -> Data {
-        let file: [String: Any] = ["type": "excalidrawlib", "version": 2, "source": "https://pintonotes.com", "libraryItems": items.map(\.libraryItem)]
+    /// The items as a library file (version 2), which Excalidraw opens too. `ledger`: the app's own
+    /// file keeps what it knows of the server beside them (Pinto's own key, which Excalidraw passes over).
+    static func data(_ items: [CanvasLibraryItem], ledger: CanvasLibraryLedger? = nil) -> Data {
+        var file: [String: Any] = ["type": "excalidrawlib", "version": 2, "source": "https://pintonotes.com", "libraryItems": items.map(\.libraryItem)]
+        if let ledger, let json = try? JSONEncoder().encode(ledger), let o = try? JSONSerialization.jsonObject(with: json) { file[ledgerKey] = o }
         return (try? JSONSerialization.data(withJSONObject: file)) ?? Data()
+    }
+
+    /// Pinto's own key on the app's library file: what it knows of the server (CanvasLibraryLedger).
+    static let ledgerKey = "pintoSync"
+
+    /// What the app's library file knows of the server; nil for a file without it (one from before sync).
+    static func ledger(from data: Data) -> CanvasLibraryLedger? {
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any], let o = json[ledgerKey],
+              let d = try? JSONSerialization.data(withJSONObject: o) else { return nil }
+        return try? JSONDecoder().decode(CanvasLibraryLedger.self, from: d)
     }
 }
 
@@ -1430,6 +1443,9 @@ enum CanvasLibraryFile {
 /// importing existing Excalidraw libraries (.excalidrawlib) and saving a selected group for
 /// reuse"): kept in the app, for every board, not in any board's file. Newest first, as
 /// Excalidraw shows its library. Each item's picture is drawn by a board once and kept beside it.
+/// The same on every device of the account: names, groups, order and the pictures in items sync,
+/// sealed like notes (CanvasLibrarySync.swift, LibrarySync); the items' own pictures (thumbnails)
+/// are drawn again on each device.
 @MainActor @Observable
 final class CanvasLibrary {
     /// The app's library. Tests and UI tests keep theirs in memory (they never touch yours).
@@ -1440,6 +1456,9 @@ final class CanvasLibrary {
     }
 
     private(set) var items: [CanvasLibraryItem] = []
+    /// What this library knows of the account's copy on the server (CanvasLibraryLedger), kept in
+    /// its file with the items.
+    private(set) var ledger = CanvasLibraryLedger()
     /// Each item's picture (CanvasController.picture), by its id.
     private(set) var thumbnails: [String: PImage] = [:]
     /// The same in dark mode, its colours turned as the canvas turns them (`darkened`).
@@ -1447,13 +1466,22 @@ final class CanvasLibrary {
     /// nil: kept in memory only.
     @ObservationIgnored let folder: URL?
     @ObservationIgnored private let writer = DispatchQueue(label: "pinto.whiteboard-library.save", qos: .utility)
+    /// The sync engine's: something changed here that goes up.
+    @ObservationIgnored var onChange: (() -> Void)?
+    /// The sync engine's: the library is showing, so what changed on the account's other devices
+    /// comes down now rather than at the next sync.
+    @ObservationIgnored var onLook: (() -> Void)?
 
     init(folder: URL?) {
         self.folder = folder
         guard let folder, let data = try? Data(contentsOf: folder.appending(path: "library.excalidrawlib")),
               let kept = CanvasLibraryFile.items(from: data, keepIDs: true) else { return }
-        items = kept
-        for item in kept {
+        var contents = CanvasLibraryContents(items: kept, ledger: CanvasLibraryFile.ledger(from: data) ?? CanvasLibraryLedger())
+        // A library from before sync: each item gets its place, in the order it was kept.
+        contents.placeAll()
+        items = contents.items
+        ledger = contents.ledger
+        for item in items {
             if let png = try? Data(contentsOf: thumbnailFile(item.id, in: folder)), let image = PImage(data: png) {
                 thumbnails[item.id] = image
                 darkThumbnails[item.id] = Self.darkened(png)
@@ -1490,8 +1518,7 @@ final class CanvasLibrary {
     @discardableResult
     func add(elements: [[String: Any]], files: [String: Any] = [:], name: String? = nil) -> CanvasLibraryItem? {
         guard let item = CanvasLibraryItem(name: name, elements: elements, files: files) else { return nil }
-        items.insert(item, at: 0)
-        save()
+        update(local: true) { $0.made([item]) }
         return item
     }
 
@@ -1506,10 +1533,7 @@ final class CanvasLibrary {
         var seen = Set(items.map(\.look))
         var fresh: [CanvasLibraryItem] = []
         for item in incoming where seen.insert(item.look).inserted { fresh.append(item) }
-        if !fresh.isEmpty {
-            items.insert(contentsOf: fresh, at: 0)
-            save()
-        }
+        if !fresh.isEmpty { update(local: true) { $0.made(fresh) } }
         return Imported(added: fresh.count, already: incoming.count - fresh.count)
     }
 
@@ -1518,19 +1542,48 @@ final class CanvasLibrary {
     func rename(_ id: String, to name: String) {
         guard let i = items.firstIndex(where: { $0.id == id }) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        var item = items[i]
-        item.name = trimmed.isEmpty ? CanvasLibraryItem(elements: item.elements)?.name : String(trimmed.prefix(80))
-        guard item != items[i] else { return }
-        items[i] = item
-        save()
+        let named = trimmed.isEmpty ? CanvasLibraryItem(elements: items[i].elements)?.name : String(trimmed.prefix(80))
+        guard named != items[i].name else { return }
+        update(local: true) { $0.renamed(id, to: named) }
     }
 
     func remove(_ id: String) {
-        items.removeAll { $0.id == id }
-        thumbnails[id] = nil
-        darkThumbnails[id] = nil
+        guard items.contains(where: { $0.id == id }) else { return }
+        update(local: true) { $0.removed(id) }
+    }
+
+    /// Changes the items and the ledger together (CanvasLibraryContents), keeps them in order and
+    /// saved, and lets the pictures of items that went go too. `local`: a change made here, which
+    /// goes up (`onChange`).
+    @discardableResult
+    func update<T>(local: Bool, _ change: (inout CanvasLibraryContents) -> T) -> T {
+        var contents = CanvasLibraryContents(items: items, ledger: ledger)
+        let result = change(&contents)
+        guard contents != CanvasLibraryContents(items: items, ledger: ledger) else { return result }
+        let gone = Set(items.map(\.id)).subtracting(contents.items.map(\.id))
+        items = contents.items
+        ledger = contents.ledger
+        for id in gone { forgetThumbnail(id) }
         save()
-        if let folder { let f = thumbnailFile(id, in: folder); writer.async { try? FileManager.default.removeItem(at: f) } }
+        if local { onChange?() }
+        return result
+    }
+
+    /// The items and the ledger, as sync reads them.
+    var contents: CanvasLibraryContents { CanvasLibraryContents(items: items, ledger: ledger) }
+
+    /// Asks for what's new on the account's other devices (the library is showing).
+    func looked() { onLook?() }
+
+    /// Everything goes: the account's notes left this device (Sign Out and Remove Notes, another
+    /// account, Delete Account). The next sync brings the account's library back down.
+    func erase() {
+        for id in items.map(\.id) { forgetThumbnail(id) }
+        items = []
+        ledger = CanvasLibraryLedger()
+        thumbnails = [:]
+        darkThumbnails = [:]
+        save()
     }
 
     func setThumbnail(_ png: Data, for id: String) {
@@ -1545,10 +1598,29 @@ final class CanvasLibrary {
         }
     }
 
+    /// An item's picture now belongs to another id (the same item, as the server knows it).
+    func moveThumbnail(from old: String, to new: String) {
+        guard old != new else { return }
+        if let image = thumbnails.removeValue(forKey: old) { thumbnails[new] = image }
+        if let image = darkThumbnails.removeValue(forKey: old) { darkThumbnails[new] = image }
+        guard let folder else { return }
+        let from = thumbnailFile(old, in: folder), to = thumbnailFile(new, in: folder)
+        writer.async {
+            try? FileManager.default.removeItem(at: to)
+            try? FileManager.default.moveItem(at: from, to: to)
+        }
+    }
+
+    private func forgetThumbnail(_ id: String) {
+        thumbnails[id] = nil
+        darkThumbnails[id] = nil
+        if let folder { let f = thumbnailFile(id, in: folder); writer.async { try? FileManager.default.removeItem(at: f) } }
+    }
+
     /// Written off the main thread, in order: a library with pictures in it can be a few MB.
     private func save() {
         guard let folder else { return }
-        let data = CanvasLibraryFile.data(items), file = folder.appending(path: "library.excalidrawlib")
+        let data = CanvasLibraryFile.data(items, ledger: ledger), file = folder.appending(path: "library.excalidrawlib")
         writer.async {
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try? data.write(to: file, options: .atomic)
