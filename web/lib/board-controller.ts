@@ -184,6 +184,7 @@ export class BoardController {
     this.host.onNotice = (line) => this.say(line);
     this.host.onState = () => this.changed();
     this.host.onAnchor = () => this.changed();
+    this.host.onPeople = () => this.changed();
     this.comments.show(session.comments);
     if (this.pageLoad) { this.host.message(this.pageLoad); this.pageLoad = null; }
   }

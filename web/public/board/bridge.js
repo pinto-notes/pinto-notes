@@ -38,4 +38,10 @@
     var c = e.data && e.data.pintoCommand;
     if (c && typeof c === "object") run(c);
   });
+  // A press on the board while the framing page has focus (after a click on its toolbar, its title,
+  // anywhere): the frame takes focus first. Otherwise the focus moving mid-press ends the engine's
+  // drag before it starts, and drawing a shape does nothing.
+  window.addEventListener("pointerdown", function () {
+    if (!document.hasFocus()) window.focus();
+  }, true);
 })();

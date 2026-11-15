@@ -121,6 +121,20 @@ describe("the whiteboard page and its canvas", () => {
     expect(anchors.at(-1)).toBeNull();
   });
 
+  it("the page's avatars draw again when someone comes, goes or turns grey, not on every pointer move", () => {
+    const { host, s } = make();
+    let drawn = 0;
+    host.onPeople = () => drawn++;
+    host.message({ load: "1" });
+    const sara = { id: "u2", name: "Sara", color: "#B5445B", dark: "#E07A8F", sel: [], flag: false, x: 1, y: 2 };
+    s.onPeers!([sara]);
+    s.onPeers!([{ ...sara, x: 5, y: 9, flag: true }]);
+    expect(drawn).toBe(1);
+    s.onPeers!([{ ...sara, color: "#8E8E93" }]);
+    s.onPeers!([]);
+    expect(drawn).toBe(3);
+  });
+
   it("refused pictures and an AI's change are said, and the page is told", () => {
     const { host, sent, s } = make();
     const notices: string[] = [];

@@ -43,7 +43,7 @@ export default function BoardPage({ id, supabaseURL, anonKey }: Props) {
     <div className={s.board} data-phase={ctl.phase}>
       <iframe ref={frame} className={s.frame} src="/board/canvas.html" title={ctl.title} data-board-frame />
       {ctl.phase === "opening" && <p className={s.opening} role="status">Opening the board</p>}
-      {ctl.phase === "board" && <Board ctl={ctl} id={id} />}
+      {ctl.phase === "board" && <Board ctl={ctl} id={id} focusBoard={() => frame.current?.contentWindow?.focus()} />}
     </div>
   );
 }
@@ -86,13 +86,14 @@ const Icon = ({ children, size = 22 }: { children: React.ReactNode; size?: numbe
   <svg width={size} height={size} viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
 
-function Board({ ctl, id }: { ctl: BoardController; id: string }) {
+function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focusBoard: () => void }) {
   const [list, setList] = useState(false);
   const [menu, setMenu] = useState(false);
   const host = ctl.host, state = host?.state ?? {};
   const peers = ctl.session?.boardPeers() ?? [];
   const href = useMemo(() => appLink(id, typeof window === "undefined" ? "" : window.location.hash), [id]);
-  const command = useCallback((c: Record<string, unknown>) => host?.command(c), [host]);
+  // A tool or action from the toolbar, then the board has the keys again (as in the app: R, V, Delete).
+  const command = useCallback((c: Record<string, unknown>) => { host?.command(c); focusBoard(); }, [host, focusBoard]);
   const status = ctl.status === "offline" ? "Offline. Trying again" : ctl.canEdit ? null : ctl.linkRole === "editor" ? "View only until you sign in" : "Can view";
   const myColor = ctl.account && ctl.session ? ctl.session.colorOf(ctl.account.id) : "#2D639A";
   const anchor = host?.anchor ?? null;

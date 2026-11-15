@@ -35,6 +35,10 @@ export class BoardHost {
   onAnchor: ((a: Anchor | null) => void) | null = null;
   /** A line to show for a moment: a picture that couldn't go on, an AI's change. */
   onNotice: ((line: string) => void) | null = null;
+  /** Who's on the board changed (someone came, went or turned grey), not just where they point:
+   *  the page's avatars draw again. */
+  onPeople: (() => void) | null = null;
+  private people = "";
 
   constructor(private readonly send: (command: Message) => void, public session: BoardSession, readonly comments: BoardComments, viewOnly: boolean) {
     this.viewOnly = viewOnly;
@@ -77,7 +81,11 @@ export class BoardHost {
     this.send({ op: "remoteScene", scene: { ...scene, files } });
   }
 
-  private peers(list: BoardPeer[]) { if (this.loaded) this.send({ op: "peers", peers: list }); }
+  private peers(list: BoardPeer[]) {
+    if (this.loaded) this.send({ op: "peers", peers: list });
+    const people = list.map((p) => `${p.id}|${p.name}|${p.color}`).sort().join(",");
+    if (people !== this.people) { this.people = people; this.onPeople?.(); }
+  }
 
   private sendComments(force = false) {
     if (!this.loaded) return;
