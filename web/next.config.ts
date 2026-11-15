@@ -3,6 +3,7 @@ import { OLD_DMG_NAMES } from "./lib/downloads";
 import { posthogSettings } from "./lib/posthog";
 import { REMOVED_POSTS } from "./lib/removed-posts";
 import { pastLastPageRedirects } from "./lib/posts";
+import { boardCanvasCSP, boardPageCSP } from "./lib/board-csp";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -129,8 +130,15 @@ const config: NextConfig = {
       { source: "/blog/:slug", headers: security },
       // Sealed links and shared templates (prototype) show a note's page in a frame from the
       // user-content origin, never this one; everything else stays as strict as the rest.
-      ...["/s/:id", "/t/:id"].map((source) => ({ source, headers: [...security.filter((h) => h.key !== "Content-Security-Policy"),
-        { key: "Content-Security-Policy", value: csp("'self'") + `; frame-src ${process.env.NEXT_PUBLIC_USERCONTENT_ORIGIN ?? "http://127.0.0.1:56481"}` }] })),
+      { source: "/t/:id", headers: [...security.filter((h) => h.key !== "Content-Security-Policy"),
+        { key: "Content-Security-Policy", value: csp("'self'") + `; frame-src ${process.env.NEXT_PUBLIC_USERCONTENT_ORIGIN ?? "http://127.0.0.1:56481"}` }] },
+      // A shared whiteboard opens live on its link's page (app/s/[id]/BoardPage.tsx): it reads the
+      // board from Supabase and frames its canvas from this site (lib/board-csp.ts).
+      { source: "/s/:id", headers: [...security.filter((h) => h.key !== "Content-Security-Policy"),
+        { key: "Content-Security-Policy", value: boardPageCSP(process.env.SUPABASE_URL ?? "", process.env.NEXT_PUBLIC_USERCONTENT_ORIGIN ?? "http://127.0.0.1:56481") }] },
+      // Its canvas: framed by this site only.
+      { source: "/board/canvas.html", headers: [...security.filter((h) => h.key !== "Content-Security-Policy" && h.key !== "X-Frame-Options"),
+        { key: "X-Frame-Options", value: "SAMEORIGIN" }, { key: "Content-Security-Policy", value: boardCanvasCSP() }, { key: "Cache-Control", value: "no-cache" }] },
       { source: "/templates", headers: security },
       { source: "/templates/:slug", headers: security },
       // The template data the app fetches: public and read-only, so any origin may read it.
