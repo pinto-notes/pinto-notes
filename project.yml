@@ -233,6 +233,7 @@ targets:
       - Pane/Editor/Platform.swift
       - Pane/Editor/Palette.swift
       - Pane/Editor/Theme.swift
+      - Pane/Editor/LookFaces.swift
       - path: Pane/Resources/Assets.xcassets
         buildPhase: resources
     info:

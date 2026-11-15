@@ -105,6 +105,7 @@
 		0CE42E2F8EB8C877954B36E0 /* RowClickLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B5618336684876E7AA8BDE /* RowClickLog.swift */; };
 		0CFA5D9AA5E3C401C4CC3995 /* WarmGreySnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B31DC6FB48849DBCA14CD4A /* WarmGreySnapshots+Shared.swift */; };
 		0D31B2E5C2082D78B0FFD6A4 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA6ECF7DA4BD18007EE9AD20 /* RootView.swift */; };
+		0D348635214D28712CC1BC64 /* LookFaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CAEF18351707E12A660F14 /* LookFaces.swift */; };
 		0D35178AA7B9313E46F2E0EC /* ChecklistCaretTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 348FCD0EB02217FD93310370 /* ChecklistCaretTests.swift */; };
 		0D356C0F0C81693FB142B1F1 /* template-stage.js in Resources */ = {isa = PBXBuildFile; fileRef = 2229A98EC2F04AFD03C9EDAC /* template-stage.js */; };
 		0D3EAD2F503174B76B8D17CD /* template-app-study-flashcards.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 6E7E10B519DA24BDFE5025EF /* template-app-study-flashcards.data.json */; };
@@ -391,6 +392,7 @@
 		36E6FA211A8FFB7B9FD39936 /* CheckPop.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE674CEBF2979E842FF6221C /* CheckPop.swift */; };
 		3714EC393A0F1059D5F35D13 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAD911A07A941123F09D16 /* TelemetryEvent.swift */; };
 		376B9B114A17C82BFEE1BC07 /* template-app-budget-log.project.json in Resources */ = {isa = PBXBuildFile; fileRef = DFF88F74CEAE28123B39E3CB /* template-app-budget-log.project.json */; };
+		37ABB7BBBBCFE0EDAE0BE56E /* LookFaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CAEF18351707E12A660F14 /* LookFaces.swift */; };
 		37C1D212EBEE11126B9718BE /* CollabSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3136DA96503DF8954D6202 /* CollabSession.swift */; };
 		37C6AB1286ED0A36BEBB37E2 /* ImageViewerSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D68988C5FC56AA41E5868A8 /* ImageViewerSnapshots.swift */; };
 		37DA42A0A54D63D272E67BF8 /* ProdSignInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3D1FC679B3D44D2E2C46F9 /* ProdSignInTests.swift */; };
@@ -1478,6 +1480,7 @@
 		EFAC942E69893F0E6EA5B5ED /* CollabScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19F18EFC180D18F05B904827 /* CollabScript.swift */; };
 		EFE203C5B833E65CB5DF46D9 /* FilmSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = BADEE9B1C7F1AFB8C0DF0946 /* FilmSource.swift */; };
 		EFF19E0409D6E45FCD522DD8 /* CustomEquatableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B4CC8D504E7DB350BC1B169 /* CustomEquatableTests.swift */; };
+		F05A19AC8C6CDDE77F49F5ED /* LookFaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CAEF18351707E12A660F14 /* LookFaces.swift */; };
 		F06C63A50FD4F976355471A8 /* SettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3520A0FE8D011FB9720866C4 /* SettingsCard.swift */; };
 		F07B444374D25D67964AA14C /* KeyCopyTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEBEBA9B6E126278869D32D /* KeyCopyTests+Shared.swift */; };
 		F0D87957CAA84B40A46A334F /* SharedDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D124B8907A00FB061D8E03A /* SharedDelete.swift */; };
@@ -2105,6 +2108,7 @@
 		75759167CE7F0B24B4814F25 /* keycopy-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "keycopy-vectors.json"; sourceTree = "<group>"; };
 		758321D9F9783C849CA65451 /* SecurityPageShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityPageShots.swift; sourceTree = "<group>"; };
 		758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedHistoryTests.swift; sourceTree = "<group>"; };
+		75CAEF18351707E12A660F14 /* LookFaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LookFaces.swift; sourceTree = "<group>"; };
 		7637BBECC7048C6C96F739D2 /* CellText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellText.swift; sourceTree = "<group>"; };
 		767EFC73DF3FB181F63A6458 /* CoverControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverControls.swift; sourceTree = "<group>"; };
 		7693F09926468E8130148F1D /* ImportSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSources.swift; sourceTree = "<group>"; };
@@ -3611,6 +3615,7 @@
 				1D78B0A2D3E9ED73435A8B91 /* Highlights.swift */,
 				F743BED91F9AD58A3BFA6CCB /* LinkPolicy.swift */,
 				EBE4742CB403A340CF931A03 /* ListEditing.swift */,
+				75CAEF18351707E12A660F14 /* LookFaces.swift */,
 				020E4F46F8521511BB37EAAA /* MarkdownEditor.swift */,
 				07F39A5C43FC5474BC9B28E4 /* MarkdownStyler.swift */,
 				C6C9464F9C134E363D175AAA /* NoteDates.swift */,
@@ -4964,6 +4969,7 @@
 				7E4D089A2EACB9DEBABAB688 /* ListOrder.swift in Sources */,
 				4F264DC410A3B3E4C0D00EBB /* LocalUpkeep.swift in Sources */,
 				FE1601E04DEF44C46A22A314 /* LockedNotes.swift in Sources */,
+				37ABB7BBBBCFE0EDAE0BE56E /* LookFaces.swift in Sources */,
 				E1A84259F1B6463791AD7D64 /* LookNote.swift in Sources */,
 				D4E65675891D948C33B1A9DC /* MakeAnApp.swift in Sources */,
 				9C0EAC3CEB28D1B88D6F3E91 /* MarkdownEditor.swift in Sources */,
@@ -5130,6 +5136,7 @@
 				14AE7021BA248A59791620E8 /* AppMark.swift in Sources */,
 				7055FF7B1A3AAC5BD7603C3E /* ChecklistShelf.swift in Sources */,
 				3351028ED7A66AD203F9A841 /* Inbox.swift in Sources */,
+				0D348635214D28712CC1BC64 /* LookFaces.swift in Sources */,
 				91533D9CCF68D531C9CEC2CA /* OfflineHTML.swift in Sources */,
 				775D63D6F1202F5821D528CE /* Palette.swift in Sources */,
 				38AA7C49BB9C58937D725CC8 /* Platform.swift in Sources */,
@@ -5745,6 +5752,7 @@
 				2391E10DDD008F470265DF7F /* ListOrder.swift in Sources */,
 				5D2E69DB57D760723521978C /* LocalUpkeep.swift in Sources */,
 				4299C66147CB91F133747E6E /* LockedNotes.swift in Sources */,
+				F05A19AC8C6CDDE77F49F5ED /* LookFaces.swift in Sources */,
 				1344F5FFE15DA4F25BB64BE2 /* LookNote.swift in Sources */,
 				E7933FDAE381F1F67D4D6FE9 /* MakeAnApp.swift in Sources */,
 				E804D64F1C27943B1AD7EEAF /* MarkdownEditor.swift in Sources */,
