@@ -321,6 +321,12 @@ extension CollabBoard {
             canvas?.confirm(why, for: .seconds(4))
         }
         canvas.onPresence = { [weak session] pointer, selection in session?.boardPresence(pointer: pointer, selection: selection) }
+        // Following someone (BoardFollow): what you present and see goes out with your pointer;
+        // everyone else's comes back, and their laser trails.
+        canvas.onBoardLook = { [weak session] look in session?.boardLook(look) }
+        canvas.onFollow = { [weak session] id in session?.boardFollow(id) }
+        session.onBoardPeople = { [weak canvas] people in canvas?.show(people: people) }
+        session.onBoardLaser = { [weak canvas] id, points in canvas?.laser(from: id, points: points) }
         canvas.onLoad = { [weak session, weak canvas] in
             guard let session, let canvas else { return }
             canvas.remote(scene: session.boardScene())
@@ -330,6 +336,7 @@ extension CollabBoard {
         // after a moment): it's handed the document's.
         canvas.remote(scene: session.boardScene())
         canvas.show(peers: session.boardPeers)
+        canvas.show(people: session.boardPeople)
         // Comments (BoardComments): in the document, sealed as the drawing is; viewers read them.
         canvas.author = BoardComments.Author(id: session.me.uuidString, name: BoardComments.firstName(session.myName))
         canvas.colorOf = { [weak session] id in session?.boardColor(of: id) ?? BoardComments.color(for: id) }
@@ -373,8 +380,15 @@ extension CollabBoard {
             session.onBoardPeers = nil
             session.onPicturesRefused = nil
             session.onBoardComments = nil
+            session.onBoardPeople = nil
+            session.onBoardLaser = nil
             session.boardPresence(pointer: nil, selection: [])
+            session.boardLook(BoardLook())
+            session.boardFollow(nil)
         }
+        canvas.onBoardLook = nil
+        canvas.onFollow = nil
+        canvas.stopFollowing()
         canvas.onBoardFiles = nil
         canvas.onComments = nil
         canvas.mentionable = []
@@ -391,6 +405,7 @@ extension CollabBoard {
     static func tick(_ session: CollabSession, _ canvas: CanvasController) {
         canvas.share(true, viewOnly: !session.canWrite)
         canvas.show(peers: session.boardPeers)
+        canvas.show(people: session.boardPeople)
         canvas.setCanComment(session.canWrite)
         mention(session, canvas)
     }

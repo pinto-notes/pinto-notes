@@ -104,6 +104,44 @@ import WebKit
         #expect(try await Self.pins(j)["c-spot"] == nil)
     }
 
+    /// On an iPhone a thread opens in a sheet over the lower half: its pin is brought into the top
+    /// part of the board, above the sheet, and one already there stays where it is. So is the pin
+    /// of a comment being written.
+    @Test func aPinStaysAboveTheThreadsSheet() async throws {
+        let j = try await joined()
+        defer { j.close() }
+        j.canvas.focusRoom = BoardCommentUI.sheetRoom
+        j.canvas.show(comments: [Self.thread("c-low", x: 500, y: 560), Self.thread("c-high", x: 300, y: 200, created: "2026-11-15T09:01:00Z")])
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { zoom: { value: 1 }, scrollX: 0, scrollY: 0 } }); 1")
+        for _ in 0..<100 where try await Self.pins(j).count < 2 { try await Task.sleep(for: .milliseconds(30)) }
+        let height = try #require(try await j.js("amber._canvas.api.getAppState().height") as? Double)
+        let top = try #require(try await j.js("amber._canvas.api.getAppState().offsetTop") as? Double)
+
+        // Low on the board: under where the sheet will be. Opened, it moves up above it.
+        j.canvas.open(thread: "c-low")
+        #expect(j.canvas.sent.last == .focusComment("c-low", above: BoardCommentUI.sheetRoom))
+        var low = try await Self.viewport(j, 500, 560)
+        for _ in 0..<50 where low.y - top > height * BoardCommentUI.sheetRoom { try await Task.sleep(for: .milliseconds(30)); low = try await Self.viewport(j, 500, 560) }
+        #expect(low.y - top <= height * BoardCommentUI.sheetRoom && low.y - top >= 40, "above the sheet: \(low.y - top) of \(height)")
+        j.canvas.closeThread()
+
+        // High on the board already: it stays.
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { scrollX: 0, scrollY: 0 } }); 1")
+        try await Task.sleep(for: .milliseconds(100))
+        let before = try await Self.viewport(j, 300, 200)
+        j.canvas.open(thread: "c-high")
+        try await Task.sleep(for: .milliseconds(150))
+        let after = try await Self.viewport(j, 300, 200)
+        #expect(abs(after.y - before.y) < 0.5 && abs(after.x - before.x) < 0.5, "\(before) → \(after)")
+        j.canvas.closeThread()
+
+        // On a Mac (no sheet): the whole view is the room, as before.
+        j.canvas.focusRoom = nil
+        j.canvas.open(thread: "c-low")
+        #expect(j.canvas.sent.last == .focusComment("c-low"))
+        j.canvas.closeThread()
+    }
+
     /// An AI's pin is its own mark on neutral graphite (light grey on a dark board, the mark in
     /// black), never the accent or a letter (round 12: an orange "C"). The page names the shapes
     /// the threads are on, for the list ("on Idea"), and again when a shape's words change.

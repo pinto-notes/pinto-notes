@@ -227,9 +227,11 @@ extension Color {
 }
 
 /// The avatars of everyone else who has the note open. Tapping opens Share (the people are
-/// listed there). With nobody else here it's the plain "people" button.
+/// listed there). With nobody else here it's the plain "people" button. On a shared whiteboard
+/// (`board`) it's a menu: Follow each person here (their view, as FigJam's observe), then People.
 struct PresenceStack: View {
     let session: CollabSession
+    var board: CanvasController? = nil
     var action: () -> Void
 
     private var here: [CollabSession.Peer] { session.peers.values.sorted { $0.name < $1.name } }
@@ -239,7 +241,26 @@ struct PresenceStack: View {
     static func barWidth(viewOnly: Bool) -> CGFloat { 130 + (viewOnly ? 66 : 0) }
 
     var body: some View {
-        Button(action: action) {
+        if let board, board.shared, !here.isEmpty {
+            Menu {
+                CanvasFollowItems(canvas: board)
+                Divider()
+                Button("People\u{2026}", systemImage: "person.2", action: action)
+                    .accessibilityIdentifier("collab.people.share")
+            } label: { label }
+            .menuIndicator(.hidden)
+            .buttonStyle(.quietIcon)
+            .accessibilityLabel(accessibilityText)
+            .accessibilityIdentifier("collab.people")
+        } else {
+            Button(action: action) { label }
+                .buttonStyle(.quietIcon)
+                .accessibilityLabel(accessibilityText)
+                .accessibilityIdentifier("collab.people")
+        }
+    }
+
+    private var label: some View {
             HStack(spacing: 6) {
                 // Can view: said once, beside the people, so a tap that types nothing isn't a mystery.
                 if session.isViewOnly {
@@ -255,10 +276,6 @@ struct PresenceStack: View {
                 #endif
                 avatars
             }
-        }
-        .buttonStyle(.quietIcon)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityIdentifier("collab.people")
     }
 
     @ViewBuilder private var avatars: some View {

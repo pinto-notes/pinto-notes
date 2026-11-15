@@ -36,6 +36,11 @@ final class CollabSession {
         /// what they have selected.
         var pointer: CGPoint?
         var selectedIDs: [String] = []
+        /// On a whiteboard (BoardFollow): what they're presenting, what of the board they see (in
+        /// its own coordinates), and whose view they follow.
+        var presenting: BoardPresenting?
+        var view: CGRect?
+        var following: UUID?
         /// When their caret last moved or they last typed: the name flag shows for a moment after.
         var movedAt: Date = .now
         /// When their presence last arrived. It comes every 2 seconds while they're connected.
@@ -109,6 +114,11 @@ final class CollabSession {
     @ObservationIgnored var onBoardSettled: (([String: Any]) -> Void)?
     /// Hands other people's pointers and selections to the open board, as soon as they move.
     @ObservationIgnored var onBoardPeers: (([BoardPeer]) -> Void)?
+    /// Hands everyone else on the board to the open board, for following them (BoardFollow): who
+    /// presents, where each one looks, whom each follows.
+    @ObservationIgnored var onBoardPeople: (([BoardPerson]) -> Void)?
+    /// Someone's laser trail, the points it went through since their last beat (board coordinates).
+    @ObservationIgnored var onBoardLaser: ((UUID, [CGPoint]) -> Void)?
     /// The board's comments as the document holds them (BoardComments), each conflict resolved.
     @ObservationIgnored private(set) var boardComments: [BoardComment] = []
     /// Hands the board's comments to the open board whenever they change (someone else's, or yours).
@@ -593,13 +603,22 @@ final class CollabSession {
             peer.pointer = pointer
             peer.selectedIDs = selected
             if p.typing == true { peer.typingUntil = .now.addingTimeInterval(1.6); peer.movedAt = .now }
+            let wasLooking = BoardFollow.Look(presenting: peer.presenting, view: peer.view, following: peer.following)
+            peer.presenting = p.present?.checked
+            peer.view = BoardFollow.rect(p.view)
+            peer.following = p.follow.flatMap { UUID(uuidString: $0) }
             peers[user] = peer
             resolvePeers()
-            if isBoard { onBoardPeers?(boardPeers) }
+            if isBoard {
+                onBoardPeers?(boardPeers)
+                if wasLooking != BoardFollow.Look(presenting: peer.presenting, view: peer.view, following: peer.following) || !wasHere { onBoardPeople?(boardPeople) }
+                let trail = BoardFollow.points(p.laser)
+                if !trail.isEmpty { onBoardLaser?(user, trail) }
+            }
             if !wasHere { Task { await refreshMembers() }; sendPresence() }
         case .leave(let user):
             peers[user] = nil
-            if isBoard { onBoardPeers?(boardPeers) }
+            if isBoard { onBoardPeers?(boardPeers); onBoardPeople?(boardPeople) }
             // They may have left the note itself (Leave), not just closed it: People follows now,
             // not on the next poll.
             Task { await refreshMembers() }
@@ -976,6 +995,47 @@ final class CollabSession {
         guard isBoard, pointer != myPointer || selection != myBoardSelection else { return }
         myPointer = pointer
         myBoardSelection = selection
+        boardPresenceSoon()
+    }
+
+    /// What you present and see of the board, and your laser's trail (BoardFollow): with your
+    /// pointer, at most ten times a second. The trail's points wait for the next beat, so none of
+    /// them is lost between beats.
+    func boardLook(_ look: BoardLook) {
+        guard isBoard else { return }
+        let trail = look.laser ?? []
+        let presenting = look.presenting?.checked, view = look.view.map(BoardFollow.rounded)
+        guard presenting != myPresenting || view != myView || !trail.isEmpty || (look.laser != nil) != myLaserOn else { return }
+        myPresenting = presenting
+        myView = view
+        myLaserOn = look.laser != nil
+        myLaser.append(contentsOf: trail)
+        if myLaser.count > BoardFollow.mostLaserPoints { myLaser.removeFirst(myLaser.count - BoardFollow.mostLaserPoints) }
+        boardPresenceSoon()
+    }
+
+    /// Whose view you follow on the board (nil: nobody), told to the others: the one you follow
+    /// sees how many do.
+    func boardFollow(_ id: UUID?) {
+        guard isBoard, id != myFollow else { return }
+        myFollow = id
+        boardPresenceSoon()
+    }
+
+    /// Everyone else on the board, for following them: their colour, what they present, what they
+    /// see and whom they follow, whether or not their pointer is on the board.
+    var boardPeople: [BoardPerson] { boardPeople(at: .now) }
+
+    func boardPeople(at now: Date) -> [BoardPerson] {
+        let slots = Self.slots(for: colorOrder)
+        return peers.values.map { p in
+            let shades = Self.palette[slots[p.id] ?? Int(Self.paletteIndex(for: p.id))]
+            return BoardPerson(id: p.id, name: p.name.split(separator: " ").first.map(String.init) ?? p.name, color: Self.hex(shades.light), dark: Self.hex(shades.dark),
+                               presenting: p.presenting, view: p.view, following: p.following, stale: p.isStale(at: now))
+        }.sorted { $0.id.uuidString < $1.id.uuidString }
+    }
+
+    private func boardPresenceSoon() {
         let wait = Self.pointerEvery - Date.now.timeIntervalSince(pointerSentAt)
         guard wait > 0 else { pointerSentAt = .now; sendPresence(); return }
         guard pointerTask == nil else { return }
@@ -993,6 +1053,11 @@ final class CollabSession {
     static var pointerEvery: TimeInterval = 0.1
     @ObservationIgnored private var myPointer: CGPoint?
     @ObservationIgnored private var myBoardSelection: [String] = []
+    @ObservationIgnored private(set) var myPresenting: BoardPresenting?
+    @ObservationIgnored private(set) var myView: CGRect?
+    @ObservationIgnored private(set) var myFollow: UUID?
+    @ObservationIgnored private var myLaserOn = false
+    @ObservationIgnored private var myLaser: [CGPoint] = []
     @ObservationIgnored private var pointerSentAt = Date.distantPast
     @ObservationIgnored private var pointerTask: Task<Void, Never>?
 
@@ -1532,6 +1597,12 @@ final class CollabSession {
         /// On a whiteboard: the pointer (x, y in the board's coordinates) and the selected ids.
         var pointer: [Double]?
         var sel: [String]?
+        /// On a whiteboard (BoardFollow): the frame being presented, what of the board is in view
+        /// (x, y, width, height), the laser's points since the last beat, and whose view is followed.
+        var present: BoardPresenting?
+        var view: [Double]?
+        var laser: [[Double]]?
+        var follow: String?
     }
 
     /// The anchor for a UTF-16 offset in this document's text.
@@ -1563,6 +1634,12 @@ final class CollabSession {
         if isBoard {
             p.pointer = myPointer.map { [Double($0.x), Double($0.y)] }
             p.sel = myBoardSelection.isEmpty ? nil : myBoardSelection
+            p.present = myPresenting
+            p.view = myView.map { [Double($0.minX), Double($0.minY), Double($0.width), Double($0.height)] }
+            // The trail's points go once: the beat after carries the next ones.
+            p.laser = myLaserOn || !myLaser.isEmpty ? myLaser.map { [Double($0.x), Double($0.y)] } : nil
+            myLaser = []
+            p.follow = myFollow?.uuidString
         }
         guard let data = try? JSONEncoder().encode(p),
               let ct = try? CollabCrypto.seal(.presence, data, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return }

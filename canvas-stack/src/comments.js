@@ -250,17 +250,27 @@ export function commentsLayer(api, host, post, changed = () => {}) {
       place(where);
       return true;
     },
-    /** Brings a pin into view when none of it shows, at the zoom you have; then says where it is. */
-    focus(id) {
-      const p = pins.find((x) => x.id === id);
+    /**
+     * Brings a pin into view when none of it shows, at the zoom you have; then says where it is.
+     * `above` (iPhone, where a thread opens in a sheet over the lower half): the pin stays in the
+     * top part of the view, that fraction of its height, so the sheet doesn't cover it. The pin of
+     * a comment being written is "draft".
+     */
+    focus(id, above) {
+      const p = id === "draft" && draft ? draft : pins.find((x) => x.id === id);
       if (!p) return false;
       const point = pinPoint(p, new Map(api.getSceneElements().map((e) => [e.id, e])));
       if (!point) return false;
       const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
       const v = sceneCoordsToViewportCoords({ sceneX: point.x, sceneY: point.y }, s);
-      const m = 60;
-      if (v.x < s.offsetLeft + m || v.y < s.offsetTop + m + PIN.size || v.x > s.offsetLeft + s.width - m || v.y > s.offsetTop + s.height - m) {
-        api.updateScene({ appState: { scrollX: -point.x + s.width / 2 / z, scrollY: -point.y + s.height / 2 / z } });
+      const m = 60, room = Number.isFinite(above) && above > 0.2 && above <= 1 ? above : 1;
+      const bottom = s.offsetTop + s.height * room - (room < 1 ? 16 : m);
+      const outX = v.x < s.offsetLeft + m || v.x > s.offsetLeft + s.width - m, outY = v.y < s.offsetTop + m + PIN.size || v.y > bottom;
+      if (outX || outY) {
+        const y = room < 1 ? s.height * room * 0.55 : s.height / 2;
+        // Over a sheet (iPhone): only as far as it has to, so the shape stays where it was beside it.
+        const keepX = room < 1 && !outX;
+        api.updateScene({ appState: { scrollX: keepX ? s.scrollX : -point.x + s.width / 2 / z, scrollY: -point.y + y / z } });
       }
       sent = "";
       draw();

@@ -5,17 +5,23 @@ import { describe, expect, it } from "vitest";
 import { BoardComments, Seen } from "./board-comments";
 import { BoardHost } from "./board-host";
 import type { BoardSession, Scene } from "./board-session";
+import type { BoardPerson } from "./board-follow";
 
 const picture = (id: string) => ({ id, dataURL: "data:image/png;base64,AAAA", mimeType: "image/png", created: 1 });
 
 function fakeSession(scene: Scene) {
-  const calls = { local: [] as unknown[][], presence: [] as unknown[][], comments: [] as unknown[] };
+  const calls = { local: [] as unknown[][], presence: [] as unknown[][], comments: [] as unknown[], look: [] as unknown[][], follow: [] as unknown[] };
   const s = {
     scene: () => scene,
     boardPeers: () => [{ id: "u2", name: "Sara", color: "#B5445B", pointer: [1, 2] }],
     local: async (...a: unknown[]) => { calls.local.push(a); },
     presence: (...a: unknown[]) => { calls.presence.push(a); },
     commentLocal: (c: unknown) => { calls.comments.push(c); },
+    look: (...a: unknown[]) => { calls.look.push(a); },
+    follow: (id: unknown) => { calls.follow.push(id); },
+    boardPeople: () => [] as BoardPerson[],
+    onPeople: null as null | ((p: BoardPerson[]) => void),
+    onLaser: null as null | ((id: string, pts: [number, number][]) => void),
     onScene: null as null | ((s: Scene) => void),
     onPeers: null as null | ((p: unknown[]) => void),
     onComments: null as null | ((c: unknown[]) => void),
@@ -80,6 +86,27 @@ describe("the whiteboard page and its canvas", () => {
     expect(calls.presence).toEqual([[[10, 20], ["b"]], [null, []]]);
   });
 
+  it("following: what the page presents and sees goes into the session; the laser and the view come back to the page", () => {
+    const { host, sent, calls, s } = make();
+    host.message({ presence: { pointer: [1, 2], sel: [], present: { frame: "f1", i: 0, n: 2 }, view: [0, 0, 800, 600], laser: [[1, 2], ["x", 3]] } });
+    host.message({ presence: { pointer: [1, 2], sel: [], present: { i: 9, n: 2 }, view: "x" } });
+    expect(calls.look).toEqual([[{ frame: "f1", i: 0, n: 2 }, [0, 0, 800, 600], [[1, 2]]], [null, null, null]]);
+    // Nothing reaches a page that hasn't loaded; once it has, the laser and the view do.
+    const sara: BoardPerson = { id: "u2", name: "Sara", color: "#B5445B", dark: "#E07A8F", presenting: { frame: "f2", i: 1, n: 2 }, view: null, following: null, stale: false };
+    s.onPeople!([sara]);
+    host.follow.follow("u2");
+    s.onLaser!("u2", [[5, 6]]);
+    expect(sent).toEqual([]);
+    expect(calls.follow).toEqual(["u2"]);
+    host.message({ load: "1" });
+    expect(sent.filter((c) => c.op === "follow")).toEqual([{ op: "follow", frame: "f2" }]);
+    s.onLaser!("u2", [[5, 6]]);
+    expect(sent.at(-1)).toEqual({ op: "laser", id: "u2", points: [[5, 6]] });
+    // Moving the board yourself (or Escape) stops it, and tells the others.
+    host.message({ unfollow: true });
+    expect([host.follow.following, calls.follow.at(-1), sent.at(-1)]).toEqual([null, null, { op: "follow", off: true }]);
+  });
+
   it("joining turns editing on in the page; the same mode again sends nothing", () => {
     const { host, sent } = make(true);
     host.message({ load: "1" });
@@ -100,6 +127,8 @@ describe("the whiteboard page and its canvas", () => {
     comments.fromPage({ new: { x: 1, y: 1 } });
     comments.post("hello");
     expect(next.calls.comments.length).toBe(1);
+    // Whom you follow carries over to the new session.
+    expect(next.calls.follow).toEqual([null]);
   });
 
   it("the comments' pins go only when they change; a pin click opens its thread; the anchor follows the open one", () => {

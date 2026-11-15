@@ -4207,6 +4207,159 @@ extension CanvasNativeUITests {
         #expect(j.canvas.notice == CollabBoard.Pictures.viewOnly)
     }
 
+    // MARK: Following someone (BoardFollow)
+
+    /// Two frames far apart, as someone presenting them has them.
+    static let twoFrames: [String: Any] = CanvasTests.scene([
+        ["type": "rectangle", "id": "a", "x": 40, "y": 40, "width": 120, "height": 80],
+        ["type": "rectangle", "id": "b", "x": 1460, "y": 960, "width": 420, "height": 280],
+        ["type": "frame", "id": "f1", "children": ["a"], "name": "Intro"],
+        ["type": "frame", "id": "f2", "children": ["b"], "name": "Plan"],
+    ])
+
+    /// The frame fills the view, as Present fills the presenter's.
+    static func frameFills(_ j: Joined, _ id: String) async throws -> Bool {
+        try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === '\(id)');
+          const x1 = (f.x + s.scrollX) * z, y1 = (f.y + s.scrollY) * z, x2 = (f.x + f.width + s.scrollX) * z, y2 = (f.y + f.height + s.scrollY) * z;
+          return x1 >= -1 && y1 >= -1 && x2 <= s.width + 1 && y2 <= s.height + 1 && ((x2 - x1) > s.width * 0.6 || (y2 - y1) > s.height * 0.6); })()
+        """) as? Bool == true
+    }
+
+    /// Following someone, on the page: the board goes at once to the frame they show, filling the
+    /// view, or to what they see, all of it in view. Moving the board yourself ends it: a scroll, a
+    /// press on the board, a key that moves it, Escape. The app is told, and tells the others.
+    @Test func aFollowersBoardGoesWhereTheyLookUntilTheyMoveIt() async throws {
+        let j = try await Joined(scene: Self.twoFrames)
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.share(true)
+        var told: [UUID?] = []
+        j.canvas.onFollow = { told.append($0) }
+        var sara = BoardPerson(id: UUID(), name: "Sara", color: "#B5445B", dark: "#E07A8F", presenting: BoardPresenting(frame: "f2", i: 1, n: 2))
+        j.canvas.show(people: [sara])
+        #expect(j.canvas.followBanner == .presenting(sara))
+        j.canvas.follow(sara.id)
+        #expect(told == [sara.id] && j.canvas.followBanner == .following(sara))
+        for _ in 0..<50 where try await !Self.frameFills(j, "f2") { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await Self.frameFills(j, "f2"), "the frame she shows fills the view")
+        // She steps back: the board goes with her.
+        sara.presenting = BoardPresenting(frame: "f1", i: 0, n: 2)
+        j.canvas.show(people: [sara])
+        for _ in 0..<50 where try await !Self.frameFills(j, "f1") { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await Self.frameFills(j, "f1"))
+
+        // Her view, from her avatar: all of what she sees is in view, its middle in the middle.
+        j.canvas.stopFollowing()
+        sara.presenting = nil
+        sara.view = CGRect(x: 1400, y: 900, width: 600, height: 400)
+        j.canvas.show(people: [sara])
+        j.canvas.follow(sara.id)
+        let middle = "(() => { const s = amber._canvas.api.getAppState(), z = s.zoom.value; return [Math.round(-s.scrollX + s.width / 2 / z), Math.round(-s.scrollY + s.height / 2 / z), Math.round(s.width / z), Math.round(s.height / z)]; })()"
+        for _ in 0..<50 where (try await j.js(middle) as? [Int])?.first != 1700 { try await Task.sleep(for: .milliseconds(30)) }
+        let v = try #require(try await j.js(middle) as? [Int])
+        #expect(abs(v[0] - 1700) <= 1 && abs(v[1] - 1100) <= 1, "her view's middle in the middle: \(v)")
+        #expect(v[2] >= 599 && v[3] >= 399 && (v[2] <= 601 || v[3] <= 401), "all of it in view, filling one side: \(v)")
+
+        // Moving the board yourself ends it: a scroll.
+        _ = try await j.js("window.dispatchEvent(new WheelEvent('wheel', { deltaY: 40, bubbles: true })); 1")
+        await j.until("a scroll ends following") { j.canvas.following == nil }
+        #expect(told.last == .some(nil) && j.canvas.sent.last == .follow(nil))
+        // Escape, which the board doesn't also take (nothing is deselected or put down).
+        j.canvas.follow(sara.id)
+        _ = try await j.js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); 1")
+        await j.until("Escape ends following") { j.canvas.following == nil }
+        // A press on the board.
+        j.canvas.follow(sara.id)
+        _ = try await j.js("""
+        (() => { const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1];
+          c.dispatchEvent(new PointerEvent('pointerdown', { clientX: 200, clientY: 200, bubbles: true, button: 0, pointerType: 'mouse', isPrimary: true }));
+          c.dispatchEvent(new PointerEvent('pointerup', { clientX: 200, clientY: 200, bubbles: true, button: 0, pointerType: 'mouse', isPrimary: true })); return 1; })()
+        """)
+        await j.until("a press ends following") { j.canvas.following == nil }
+        // Not following: a scroll is a scroll, and the app hears nothing.
+        let heard = told.count
+        _ = try await j.js("window.dispatchEvent(new WheelEvent('wheel', { deltaY: 40, bubbles: true })); 1")
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(told.count == heard)
+        // Not shared: the page takes no follow.
+        j.canvas.share(false)
+        let pageTook = try await j.js("amber._canvasCommand({ op: 'follow', frame: 'f2' })") as? Bool
+        #expect(pageTook == false)
+    }
+
+    /// On a shared board your presence says what you present (the frame, its step, the steps), what
+    /// of the board you see, and, while the laser is pressed, its points: the others follow you by it.
+    @Test func yourPresenceSaysWhatYouPresentAndSee() async throws {
+        let j = try await Joined(scene: Self.twoFrames)
+        defer { j.close() }
+        try await j.ready()
+        var looks: [BoardLook] = []
+        j.canvas.onBoardLook = { looks.append($0) }
+        j.canvas.share(true)
+        j.canvas.send(.present(.start))
+        await j.until("it says the first frame") { looks.last?.presenting == BoardPresenting(frame: "f1", i: 0, n: 2) }
+        try await Task.sleep(for: .milliseconds(400))
+        let seen = try #require(looks.last?.view)
+        #expect(seen.contains(CGRect(x: 40, y: 40, width: 120, height: 80)) && seen.width < 1000, "what's in view is the first frame: \(seen)")
+        j.canvas.send(.present(.next))
+        await j.until("then the second") { looks.last?.presenting == BoardPresenting(frame: "f2", i: 1, n: 2) }
+
+        // The laser (picked when presenting), pressed and drawn across the frame: its points go.
+        #expect(j.canvas.state.tool == .laser)
+        // A hand's events, each on its own turn (the engine takes the press on a later one).
+        func hand(_ kind: String, _ x: Double, _ y: Double) async throws {
+            _ = try await j.js("""
+            (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
+              const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1];
+              c.dispatchEvent(new PointerEvent('\(kind)', { clientX: (\(x) + s.scrollX) * z + s.offsetLeft, clientY: (\(y) + s.scrollY) * z + s.offsetTop, bubbles: true, button: 0, buttons: \(kind == "pointerup" ? 0 : 1), pointerType: 'mouse', isPrimary: true, pointerId: 1 }));
+              return 1; })()
+            """)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try await hand("pointerdown", 1500, 1000)
+        for i in 1...6 { try await hand("pointermove", 1500 + Double(i) * 40, 1000 + Double(i) * 20) }
+        try await hand("pointerup", 1740, 1120)
+        await j.until("the laser's points go") { looks.compactMap(\.laser).joined().count >= 3 }
+        let points = looks.compactMap(\.laser).joined()
+        #expect(points.count >= 3 && points.allSatisfy { $0.x >= 1490 && $0.x <= 1750 && $0.y >= 990 && $0.y <= 1130 }, "in the board's coordinates: \(Array(points))")
+        // Done: nothing presented any more.
+        j.canvas.send(.present(.stop))
+        await j.until("Done says so") { looks.last.map { $0.presenting == nil } == true && j.canvas.state.present == nil }
+        // Not shared: nothing goes.
+        j.canvas.share(false)
+        let n = looks.count
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { scrollX: 300 } }); 1")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(looks.count == n)
+    }
+
+    /// Someone's laser on your board: their trail, in the laser's red, at the spot of the board they
+    /// drew it, fading.
+    @Test func someonesLaserDrawsOnYourBoard() async throws {
+        let j = try await Joined(scene: Self.twoFrames)
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.share(true)
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { zoom: { value: 1 }, scrollX: 0, scrollY: 0 } }); 1")
+        let sara = UUID()
+        j.canvas.laser(from: sara, points: [CGPoint(x: 200, y: 200), CGPoint(x: 260, y: 230), CGPoint(x: 320, y: 260)])
+        #expect(j.canvas.sent.last == .laser(sara, [CGPoint(x: 200, y: 200), CGPoint(x: 260, y: 230), CGPoint(x: 320, y: 260)]))
+        let trail = try #require(try await Self.json(j, "amber._canvas.trails()")[sara.uuidString] as? [[String: Any]])
+        let at = try await Self.json(j, "(() => { const s = amber._canvas.api.getAppState(); return { x: s.offsetLeft, y: s.offsetTop }; })()")
+        #expect(trail.count == 3 && abs((trail[2]["x"] as? Double ?? 0) - 320 - (at["x"] as? Double ?? 0)) < 1, "where she drew it: \(trail)")
+        // Drawn: red along the trail (the page draws on its next frame).
+        let red = """
+        (() => { const c = document.querySelector('.pinto-laser'); if (!c) return -1; const g = c.getContext('2d'), r = window.devicePixelRatio || 1;
+          const d = g.getImageData(Math.round(260 * r), Math.round(230 * r), 1, 1).data; return d[0] > 150 && d[1] < 120 && d[2] < 120 ? 1 : 0; })()
+        """
+        #expect(try await j.js(red) as? Int == 1, "the trail is drawn in red, as it comes")
+        #expect(try await j.js("getComputedStyle(document.querySelector('.pinto-laser')).pointerEvents") as? String == "none", "it takes no click")
+        // A second later it has faded away.
+        try await Task.sleep(for: .milliseconds(1200))
+        #expect(try await Self.json(j, "amber._canvas.trails()").isEmpty)
+    }
+
     #if os(macOS)
     /// Two people on one board, end to end: each one's board in its own offscreen page, joined to
     /// their own session (BoardCollab), through the in-memory server. What one draws reaches the
@@ -4292,6 +4445,119 @@ extension CanvasNativeUITests {
             }
             BoardCollab.unwire(emil, left.canvas)
             BoardCollab.unwire(sara, right.canvas)
+        }
+    }
+
+    /// Following the presenter between two Macs, in the app's own window (offscreen), each board
+    /// joined to its own session through the in-memory server: the follower's board with "Sara is
+    /// presenting · Follow"; following, her frame and her laser on it; and the presenter's own
+    /// board with "Emil is following" in the Present bar. Light and dark, when BOARD_COLLAB_SHOTS
+    /// names a folder.
+    @Test func followPictures() async throws {
+        guard let path = ProcessInfo.processInfo.environment["BOARD_COLLAB_SHOTS"] else { return }
+        let dir = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let accounts = ["Emil": UUID(uuidString: "E0000000-0000-4000-8000-000000000001")!, "Sara": UUID(uuidString: "5A000000-0000-4000-8000-000000000002")!]
+        let frames = """
+        amber._canvasCommand({ op: 'insert', elements: [
+          { type: 'text', id: 'p1', x: 40, y: 40, text: 'Sign-up takes 6 steps', fontSize: 28 },
+          { type: 'rectangle', id: 'p2', x: 40, y: 110, width: 200, height: 120, backgroundColor: '#ffc9c9', fillStyle: 'solid', roundness: { type: 3 }, label: { text: '42% drop at step 4' } },
+          { type: 'rectangle', id: 'p3', x: 270, y: 110, width: 200, height: 120, backgroundColor: '#ffec99', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Email code is slow' } },
+          { type: 'frame', id: 'fp', children: ['p1', 'p2', 'p3'], name: 'The problem' },
+          { type: 'text', id: 'i1', x: 640, y: 40, text: 'One screen, then the app', fontSize: 28 },
+          { type: 'ellipse', id: 'i2', x: 640, y: 120, width: 180, height: 90, backgroundColor: '#b2f2bb', fillStyle: 'solid', label: { text: 'Sign in with Apple' } },
+          { type: 'rectangle', id: 'i3', x: 900, y: 120, width: 180, height: 90, backgroundColor: '#a5d8ff', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Open the app' } },
+          { type: 'arrow', x: 822, y: 165, width: 76, height: 0, start: { id: 'i2' }, end: { id: 'i3' } },
+          { type: 'frame', id: 'fi', children: ['i1', 'i2', 'i3'], name: 'The idea' },
+        ] }); 1
+        """
+        @MainActor func capture(_ w: NSWindow, _ web: WKWebView, settle: Bool = true) async throws -> Data {
+            if settle {
+                _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+                await MacWindowChromeTests.settle(w, 10)
+                _ = try? await Self.settledView(w, web)
+            }
+            let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
+            let cover = NSImageView(frame: web.bounds)
+            cover.image = image
+            cover.imageScaling = .scaleAxesIndependently
+            web.addSubview(cover)
+            defer { cover.removeFromSuperview() }
+            w.contentView?.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+            return try #require(try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:]))
+        }
+        for dark in [false, true] {
+            for presenterHere in [false, true] {
+                let people = BoardPeople()
+                let (emilDevice, others, shared) = try await people.share(CanvasTests.scene([]), people: ["Sara"], title: "Sign-up plan", accounts: accounts)
+                let e = try people.session(emilDevice, shared), s = try people.session(others[0], shared)
+                let c = try AppSnapshotTests.container()
+                let note = CanvasNote.make(in: .all, context: c.mainContext)
+                note.body = "Sign-up plan"
+                NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene([])], "collections": [String: Any]()])
+                try c.mainContext.save()
+                try await AppSnapshotTests.withLastNote(c, "Sign-up plan") {
+                    let (w, web, canvas) = try await Self.boardWindow(c, note, dark: dark)
+                    defer { w.close() }
+                    let other = try await Joined(scene: CanvasNote.emptyScene(), size: CGSize(width: 1100, height: 700), dark: dark)
+                    defer { other.close() }
+                    try await other.ready()
+                    // The window is the follower's board (Emil's), then the presenter's (Sara's).
+                    let (here, there) = presenterHere ? (s, e) : (e, s)
+                    BoardCollab.wire(here, canvas)
+                    BoardCollab.wire(there, other.canvas)
+                    defer { BoardCollab.unwire(here, canvas); BoardCollab.unwire(there, other.canvas) }
+                    let presenter = presenterHere ? canvas : other.canvas, follower = presenterHere ? other.canvas : canvas
+                    let presenterPage: WKWebView = presenterHere ? web : other.web, followerPage: WKWebView = presenterHere ? other.web : web
+                    _ = try await presenterPage.evaluateJavaScript(frames)
+                    for _ in 0..<150 where (try await followerPage.evaluateJavaScript("amber._canvas.api.getSceneElements().filter((e) => e.type === 'frame').length") as? Int ?? 0) < 2 {
+                        await MacWindowChromeTests.settle(w, 1)
+                    }
+                    _ = try await followerPage.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false }); 1")
+                    await MacWindowChromeTests.settle(w, 10)
+                    presenter.send(.present(.start))
+                    for _ in 0..<150 where follower.followBanner == nil { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(follower.followBanner?.line == "Sara is presenting")
+                    let sara = accounts["Sara"]!
+                    if !presenterHere {
+                        try await capture(w, web).write(to: dir.appending(path: "follow-1-banner-\(dark ? "dark" : "light").png"))
+                        follower.follow(sara)
+                        presenter.send(.present(.next))
+                        // Frames inserted get ids of their own: her first, then her second.
+                        @MainActor func steps() -> [CanvasCommand] { follower.sent.filter { if case .follow(.frame?) = $0 { true } else { false } } }
+                        for _ in 0..<150 where steps().count < 2 { await MacWindowChromeTests.settle(w, 1) }
+                        #expect(steps().count == 2 && steps()[0] != steps()[1], "his board went to her first frame, then her second: \(steps())")
+                        _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+                        await MacWindowChromeTests.settle(w, 10)
+                        _ = try? await Self.settledView(w, web)
+                        // Her laser, drawn across "Sign in with Apple" on her board.
+                        let mark = follower.sent.count
+                        for i in 0...8 {
+                            let kind = i == 0 ? "pointerdown" : "pointermove"
+                            _ = try await other.js("""
+                            (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
+                              const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1];
+                              c.dispatchEvent(new PointerEvent('\(kind)', { clientX: (\(660 + i * 50) + s.scrollX) * z + s.offsetLeft, clientY: (\(215 + Double(i * i) * 0.9) + s.scrollY) * z + s.offsetTop, bubbles: true, button: 0, buttons: 1, pointerType: 'mouse', isPrimary: true, pointerId: 1 }));
+                              return 1; })()
+                            """)
+                            try await Task.sleep(for: .milliseconds(25))
+                        }
+                        for _ in 0..<100 where !follower.sent.dropFirst(mark).contains(where: { if case .laser = $0 { true } else { false } }) { try await Task.sleep(for: .milliseconds(10)) }
+                        #expect(follower.sent.dropFirst(mark).contains { if case .laser = $0 { true } else { false } }, "her laser reached his board")
+                        try await capture(w, web, settle: false).write(to: dir.appending(path: "follow-2-following-\(dark ? "dark" : "light").png"))
+                        _ = try await other.js("(() => { const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1]; c.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerType: 'mouse', isPrimary: true, pointerId: 1 })); return 1; })()")
+                    } else {
+                        follower.follow(sara)
+                        for _ in 0..<150 where presenter.followers.isEmpty { await MacWindowChromeTests.settle(w, 1) }
+                        #expect(BoardFollow.followersLine(presenter.followers) == "Emil is following")
+                        try await capture(w, web).write(to: dir.appending(path: "follow-3-presenter-\(dark ? "dark" : "light").png"))
+                    }
+                    presenter.send(.present(.stop))
+                    await MacWindowChromeTests.settle(w, 5)
+                }
+                _ = (emilDevice, others)
+            }
         }
     }
 

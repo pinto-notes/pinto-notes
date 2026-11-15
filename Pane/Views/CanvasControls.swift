@@ -64,6 +64,8 @@ struct CanvasOverlay: View {
                     .padding(.trailing, 16)
                     .padding(.bottom, CanvasDock.margin)
                     #else
+                    // Comments (BoardCommentPhone): the Comment tool's bar, the list, a viewer's button.
+                    CanvasPhoneComments(canvas: canvas)
                     if !canvas.viewOnly {
                         CanvasDock(canvas: canvas)
                             .padding(.bottom, CanvasDock.margin)
@@ -83,6 +85,8 @@ struct CanvasOverlay: View {
                     }
                     .transition(.opacity)
                 }
+                // Someone presenting on a shared board, or whom you follow (BoardFollow).
+                CanvasFollowBanner(canvas: canvas)
             }
         }
         .animation(.easeOut(duration: 0.2), value: canvas.state.present == nil)
@@ -186,6 +190,8 @@ struct CanvasPresentBar: View {
                 .help("Next (\u{2192} or Space)")
                 .accessibilityLabel("Next")
                 .accessibilityIdentifier("canvas.present.next")
+            // Who follows you on a shared board (BoardFollow).
+            CanvasFollowers(canvas: canvas)
             // The laser, lit while it's on (round 6: nothing showed it was on).
             let laser = canvas.state.tool == .laser
             Button { canvas.send(.tool(laser ? .selection : .laser)) } label: {
@@ -888,6 +894,7 @@ struct CanvasDock: View {
             toolButton(.text)
             toolButton(.eraser)
             CanvasLibraryDockButton(canvas: canvas)
+            CanvasCommentDockButton(canvas: canvas, well: well)
             styleButton
             #endif
         }

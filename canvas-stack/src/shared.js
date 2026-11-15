@@ -10,7 +10,7 @@
 //   from the element's own id), so two people with the board open don't each add its label.
 // - Other people's pointers and selections are drawn over the board in their colour, in the
 //   board's own coordinates, so they land on the same spot whatever each person's zoom and scroll.
-import { reconcileElements, restoreElements, convertToExcalidrawElements, getCommonBounds, sceneCoordsToViewportCoords } from "@excalidraw/excalidraw";
+import { reconcileElements, restoreElements, convertToExcalidrawElements, getCommonBounds, sceneCoordsToViewportCoords, CaptureUpdateAction } from "@excalidraw/excalidraw";
 
 /** An element's edit, as Excalidraw tells two apart. */
 export const stamp = (e) => `${e.version || 0}:${e.versionNonce || 0}`;
@@ -113,6 +113,35 @@ export function newPictures(elements, files, sent) {
     if (f && typeof f.dataURL === "string") out[e.fileId] = { id: e.fileId, dataURL: f.dataURL, mimeType: f.mimeType, created: f.created };
   }
   return out;
+}
+
+// MARK: Following someone (Pane/Collab/BoardFollow.swift)
+
+/** What of the board is in view, in its own coordinates: x, y, width, height, to the point. */
+export function viewOf(s) {
+  const z = (s.zoom && s.zoom.value) || 1;
+  return [Math.round(-s.scrollX), Math.round(-s.scrollY), Math.round(s.width / z), Math.round(s.height / z)];
+}
+
+/**
+ * The view moved to what's followed: the frame someone presents (or the whole board, which has no
+ * frames), filling the view as Present fills theirs; or what they see, all of it in view, its
+ * middle in the middle. At once, no glide (motion restraint). `size`: the view's new size, when
+ * the window is changing it. False when there's nothing to show.
+ */
+export function followTo(api, c, size) {
+  const s = api.getAppState(), W = (size && size.width) || s.width, H = (size && size.height) || s.height;
+  if (Array.isArray(c.view) && c.view.length === 4 && c.view.every(Number.isFinite) && c.view[2] > 0 && c.view[3] > 0) {
+    const [x, y, w, h] = c.view;
+    const z = Math.min(30, Math.max(0.1, Math.min(W / w, H / h)));
+    api.updateScene({ appState: { zoom: { value: z }, scrollX: -(x + w / 2) + W / 2 / z, scrollY: -(y + h / 2) + H / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
+    return true;
+  }
+  const els = api.getSceneElements();
+  const target = typeof c.frame === "string" ? els.filter((e) => e.id === c.frame) : c.whole ? els : [];
+  if (!target.length) return false;
+  api.scrollToContent(target, { fitToViewport: true, viewportZoomFactor: 0.9, animate: false });
+  return true;
 }
 
 // MARK: Other people on the board
@@ -218,11 +247,71 @@ export function peersLayer(api, host) {
     for (const [id, n] of nodes) if (!seen.has(id)) { n.root.remove(); nodes.delete(id); }
   };
 
+  // Someone's laser: the trail their pointer drew, in the laser's red, fading over a second as
+  // the engine's own does. Points come in beats a tenth of a second apart: each beat's are spread
+  // over the tenth before it, so the trail draws on rather than in jumps.
+  const trails = new Map();
+  let paint = null, frame = 0;
+  const LASER = { life: 1000, width: 5, color: "255, 59, 48" };
+  const drawTrails = () => {
+    frame = 0;
+    const now = performance.now(), s = api.getAppState();
+    if (!paint) {
+      paint = document.createElement("canvas");
+      paint.className = "pinto-laser";
+      layer.prepend(paint);
+    }
+    const ratio = window.devicePixelRatio || 1, w = layer.clientWidth || s.width, h = layer.clientHeight || s.height;
+    if (paint.width !== Math.round(w * ratio) || paint.height !== Math.round(h * ratio)) { paint.width = Math.round(w * ratio); paint.height = Math.round(h * ratio); }
+    const g = paint.getContext("2d");
+    g.setTransform(ratio, 0, 0, ratio, 0, 0);
+    g.clearRect(0, 0, w, h);
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    let live = false;
+    for (const [id, pts] of trails) {
+      while (pts.length && now - pts[0].t > LASER.life) pts.shift();
+      if (!pts.length) { trails.delete(id); continue; }
+      live = true;
+      const v = pts.map((p) => ({ ...sceneCoordsToViewportCoords({ sceneX: p.x, sceneY: p.y }, s), t: p.t }));
+      for (let i = 1; i < v.length; i++) {
+        if (v[i].t > now) break;
+        const left = 1 - (now - v[i].t) / LASER.life;
+        g.strokeStyle = `rgba(${LASER.color}, ${Math.max(0, left)})`;
+        g.lineWidth = Math.max(1, LASER.width * left);
+        g.shadowColor = `rgba(${LASER.color}, ${0.5 * Math.max(0, left)})`;
+        g.shadowBlur = 6;
+        g.beginPath();
+        g.moveTo(v[i - 1].x - s.offsetLeft, v[i - 1].y - s.offsetTop);
+        g.lineTo(v[i].x - s.offsetLeft, v[i].y - s.offsetTop);
+        g.stroke();
+      }
+    }
+    if (live) frame = requestAnimationFrame(drawTrails);
+  };
+
   const off = api.onChange(() => { if (peers.length) draw(false); });
   const offScroll = api.onScrollChange(() => { if (peers.length) draw(false); });
   return {
     set(list) { peers = Array.isArray(list) ? list.filter((p) => p && typeof p.id === "string" && typeof p.color === "string") : []; draw(true); },
     get peers() { return peers; },
-    stop() { off(); offScroll(); layer.remove(); },
+    /** Their laser's newest points (board coordinates). */
+    laser(id, points) {
+      const pts = (Array.isArray(points) ? points : []).filter((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)).slice(0, 120);
+      if (!pts.length) return true;
+      const list = trails.get(id) || [];
+      const now = performance.now(), step = 100 / pts.length;
+      pts.forEach(([x, y], i) => list.push({ x, y, t: now - 100 + step * (i + 1) }));
+      trails.set(id, list.slice(-400));
+      // Drawn as they come, then fading frame by frame.
+      if (!frame) drawTrails();
+      return true;
+    },
+    /** For tests and pictures: each person's trail as it stands (what hasn't faded), in the view's points. */
+    get trails() {
+      const s = api.getAppState(), now = performance.now();
+      return Object.fromEntries([...trails].map(([id, pts]) => [id, pts.filter((p) => now - p.t <= LASER.life).map((p) => sceneCoordsToViewportCoords({ sceneX: p.x, sceneY: p.y }, s))]).filter(([, pts]) => pts.length));
+    },
+    stop() { off(); offScroll(); if (frame) cancelAnimationFrame(frame); layer.remove(); },
   };
 }

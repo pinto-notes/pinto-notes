@@ -10,6 +10,7 @@
 //   have yet (CanvasController.remote).
 // - What you changed, into the session; your pointer and selection, to the others.
 import type { BoardComments } from "./board-comments";
+import { BoardFollow, pointsOf, presentingOf, viewOf } from "./board-follow";
 import type { BoardPeer, BoardSession, Scene } from "./board-session";
 
 /** What the page says about itself (canvas.jsx stateOf); only what the page here reads. */
@@ -39,9 +40,12 @@ export class BoardHost {
    *  the page's avatars draw again. */
   onPeople: (() => void) | null = null;
   private people = "";
+  /** Following someone (board-follow.ts): the banner, Follow from an avatar. */
+  readonly follow: BoardFollow;
 
   constructor(private readonly send: (command: Message) => void, public session: BoardSession, readonly comments: BoardComments, viewOnly: boolean) {
     this.viewOnly = viewOnly;
+    this.follow = new BoardFollow((c) => { if (this.loaded) this.send(c); });
     this.wire(session);
     comments.onChange = () => this.sendComments();
   }
@@ -53,6 +57,8 @@ export class BoardHost {
     this.wire(session);
     this.setViewOnly(viewOnly);
     if (this.loaded) { this.remote(session.scene()); this.peers(session.boardPeers()); this.sendComments(true); }
+    session.follow(this.follow.following);
+    this.follow.show(session.boardPeople());
   }
 
   private wire(session: BoardSession) {
@@ -61,6 +67,9 @@ export class BoardHost {
     session.onComments = (list) => this.comments.show(list);
     session.onRefused = (ids, why) => { this.send({ op: "refusePictures", ids }); this.onNotice?.(why); };
     session.onAI = (by, ids) => { this.send({ op: "outline", ids }); this.onNotice?.(`${by} changed the board`); };
+    session.onPeople = (people) => this.follow.show(people);
+    session.onLaser = (id, points) => { if (this.loaded) this.send({ op: "laser", id, points }); };
+    this.follow.onFollow = (id) => session.follow(id);
     this.comments.onWrite = (changed) => session.commentLocal(changed);
   }
 
@@ -108,11 +117,14 @@ export class BoardHost {
       return;
     }
     if (m.presence && typeof m.presence === "object") {
-      const p = m.presence as { pointer?: unknown; sel?: unknown };
+      const p = m.presence as { pointer?: unknown; sel?: unknown; present?: unknown; view?: unknown; laser?: unknown };
       const pointer = Array.isArray(p.pointer) && p.pointer.length === 2 && p.pointer.every((n) => typeof n === "number" && Number.isFinite(n)) ? [p.pointer[0], p.pointer[1]] as [number, number] : null;
       this.session.presence(pointer, Array.isArray(p.sel) ? p.sel.filter((s): s is string => typeof s === "string").slice(0, 500) : []);
+      this.session.look(presentingOf(p.present), viewOf(p.view), Array.isArray(p.laser) ? pointsOf(p.laser) : null);
       return;
     }
+    // You moved the board yourself (or pressed Escape) while following someone.
+    if (m.unfollow === true) { this.follow.stop(); return; }
     if (m.comment && typeof m.comment === "object") { this.comments.fromPage(m.comment as Parameters<BoardComments["fromPage"]>[0]); return; }
     if (m.commentAt && typeof m.commentAt === "object") {
       const a = m.commentAt as Partial<Anchor>;
@@ -138,6 +150,7 @@ export class BoardHost {
       this.remote(this.session.scene());
       this.peers(this.session.boardPeers());
       this.sendComments(true);
+      this.follow.reload();
     }
     this.state = s;
     this.onState?.(s);

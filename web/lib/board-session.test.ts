@@ -252,6 +252,46 @@ describe("a shared board in the browser", () => {
     emil.s.close();
   });
 
+  it("following: what someone presents and sees, their laser and whom they follow cross, as the app sends them", async () => {
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock, { name: "Emil Wagman" });
+    const sara = await open(server, SARA, clock, { name: "Sara Berg" });
+    let people: ReturnType<BoardSession["boardPeople"]> = [];
+    const lasers: [string, [number, number][]][] = [];
+    emil.s.onPeople = (p) => { people = p; };
+    emil.s.onLaser = (id, pts) => { lasers.push([id, pts]); };
+    // Sara presents her second frame, with the laser down: two points, then two more.
+    sara.s.presence([40, 50], []);
+    sara.s.look({ frame: "f2", i: 1, n: 3 }, [-10.4, 20.6, 800, 500], [[40, 50], [41, 52]]);
+    await clock.advance(120);
+    sara.s.look({ frame: "f2", i: 1, n: 3 }, [-10.4, 20.6, 800, 500], [[43, 55], [44, 57]]);
+    await clock.advance(120);
+    expect(people.map((p) => [p.name, p.presenting, p.view, p.following, p.stale])).toEqual([["Sara", { frame: "f2", i: 1, n: 3 }, [-10, 21, 800, 500], null, false]]);
+    expect(people[0].color).toBe(PALETTE[slots([EMIL, SARA]).get(SARA)!][0]);
+    // Each laser point once, in order.
+    expect(lasers.flatMap(([, pts]) => pts)).toEqual([[40, 50], [41, 52], [43, 55], [44, 57]]);
+    expect(lasers.every(([id]) => id === SARA)).toBe(true);
+    // Emil follows Sara: she reads it (upper case from the app works too).
+    let hers: ReturnType<BoardSession["boardPeople"]> = [];
+    sara.s.onPeople = (p) => { hers = p; };
+    emil.s.follow(SARA.toUpperCase());
+    await clock.advance(120);
+    expect(hers.map((p) => [p.name, p.following])).toEqual([["Emil", SARA]]);
+    // Done: no frame any more, and the laser off.
+    sara.s.look(null, [0, 0, 800, 500], null);
+    await clock.advance(120);
+    expect(people[0].presenting).toBeNull();
+    // What a malformed beat carries is left out, not half taken.
+    const k = sara.s as unknown as { myPresenting: unknown; myView: unknown };
+    k.myPresenting = { frame: "", i: 5, n: 2 };
+    k.myView = [0, 0, -1, 10];
+    sara.s.presence([1, 1], []);
+    await clock.advance(120);
+    expect([people[0].presenting, people[0].view]).toEqual([null, null]);
+    emil.s.close(); sara.s.close();
+  });
+
   it("someone silent for 6 seconds is drawn grey", async () => {
     const server = new Server(), clock = new TestClock();
     await server.share();
