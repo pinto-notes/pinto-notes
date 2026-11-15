@@ -107,6 +107,9 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
   -webkit-appearance: none; appearance: none; outline: none; -webkit-user-select: none; user-select: none;
 }
 .pinto-pin:hover { filter: brightness(1.12); }
+/* An AI's pin: its mark, 13 points, in the middle of the bubble (comments.js colours it). */
+.pinto-pin-mark { position: absolute; left: 3.5px; top: 3.5px; width: 13px; height: 13px; pointer-events: none;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
 .pinto-pin.open { box-shadow: 0 0 0 2px var(--pin); z-index: 1; }
 /* The Comment tool's pointer, over the board. */
 .pinto-commenting .excalidraw canvas { cursor: var(--pinto-comment-cursor) !important; }

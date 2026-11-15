@@ -234,6 +234,10 @@ struct PresenceStack: View {
 
     private var here: [CollabSession.Peer] { session.peers.values.sorted { $0.name < $1.name } }
 
+    /// The most room it takes in a toolbar: three faces and "+2", with "View Only" for a viewer
+    /// (a whiteboard's toolbar keeps this much for it).
+    static func barWidth(viewOnly: Bool) -> CGFloat { 130 + (viewOnly ? 66 : 0) }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {

@@ -94,3 +94,39 @@ Deno.test("records are kept as the app keeps them: sorted keys, thread starts wi
   const d = keepIn({ values: {}, collections: { comments: [{ id: "c-1", text: "old" }] } as Record<string, unknown> }, [thread("c-1"), thread("c-2")]);
   assertEquals(storedIn(d).map((c) => [c.id, c.text]), [["c-1", "About c-1"], ["c-2", "About c-2"]]);
 });
+
+Deno.test("edited, deleted and mentions (round 12): kept as written, shown as the app shows them", () => {
+  const sara = "33333333-3333-4333-8333-333333333333";
+  const list = [
+    thread("c-gone", { deleted: true, text: "", version: 3 }),
+    reply("c-gone-1", "c-gone", { by: sara, name: "Sara" }),
+    thread("c-alone", { deleted: true, text: "", version: 2, created: "2026-11-15T09:20:00Z" }),
+    thread("c-changed", { text: "Ask @Sara first", edited: "2026-11-15T09:40:00Z", mentions: [sara], version: 2, created: "2026-11-15T09:21:00Z" }),
+    reply("c-r-gone", "c-changed", { deleted: true, text: "", version: 2 }),
+  ];
+  // A deleted start with replies shows, without text, with its reply; one without replies, and a
+  // deleted reply, don't.
+  assertEquals(present(list), [
+    { id: "c-gone", by: "Emil", created: "2026-11-15T09:06:00Z", deleted: true, on: "box", x: 1, y: 0 },
+    { id: "c-gone-1", thread: "c-gone", by: "Sara", created: "2026-11-15T09:30:00Z", text: "Re c-gone" },
+    { id: "c-changed", by: "Emil", created: "2026-11-15T09:21:00Z", text: "Ask @Sara first", edited: "2026-11-15T09:40:00Z", on: "box", x: 1, y: 0 },
+  ]);
+  // Kept as the app keeps them: a deletion has no text; a change keeps "edited" and "mentions".
+  const raw = JSON.parse(json(list[0]));
+  assertEquals(raw.deleted, true);
+  assert(!("text" in raw));
+  assertEquals(parseStored(raw)?.deleted, true);
+  assertEquals(parseStored(JSON.parse(json(list[3])))?.mentions, [sara]);
+  assertEquals(parseStored(JSON.parse(json(list[3])))?.edited, "2026-11-15T09:40:00Z");
+  // An AI resolving the changed thread keeps its edit and mentions.
+  const { changed } = merge(list, [{ id: "c-changed", resolved: true }], me, new Set(["box"]), at);
+  assertEquals(changed[0].mentions, [sara]);
+  assertEquals(changed[0].edited, "2026-11-15T09:40:00Z");
+  assertEquals(changed[0].version, 3);
+  // It can't bring back a deleted comment's words, or reply to one that's gone.
+  const r = merge(list, [{ id: "c-gone", text: "back" }, { thread: "c-alone", text: "hello?" }, { thread: "c-gone", text: "Still here" }], me, new Set(["box"]), at);
+  assertEquals(r.changed.map((c) => c.thread), ["c-gone"]);
+  assertEquals(r.refused.length, 2);
+  assertStringIncludes(r.refused[0], "stays deleted");
+  assertStringIncludes(r.refused[1], "deleted");
+});

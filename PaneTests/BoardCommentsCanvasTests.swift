@@ -104,6 +104,42 @@ import WebKit
         #expect(try await Self.pins(j)["c-spot"] == nil)
     }
 
+    /// An AI's pin is its own mark on neutral graphite (light grey on a dark board, the mark in
+    /// black), never the accent or a letter (round 12: an orange "C"). The page names the shapes
+    /// the threads are on, for the list ("on Idea"), and again when a shape's words change.
+    @Test func anAIPinShowsItsMarkAndThePageNamesTheShapes() async throws {
+        let j = try await Joined(scene: CanvasNativeUITests.flowchart)
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.author = BoardComments.Author(id: "me", name: "Emil")
+        j.canvas.seenStore = BoardComments.Seen(defaults: TestDefaults())
+        j.canvas.show(comments: [Self.thread("c-ai", on: "fix", ai: "Claude"), Self.thread("c-idea", on: "idea", by: Self.sara, name: "Sara"),
+                                 Self.thread("c-spot", x: 900, y: 300, created: "2026-11-15T09:02:00Z")])
+        for _ in 0..<100 where try await Self.pins(j).count < 3 { try await Task.sleep(for: .milliseconds(30)) }
+        let markJS = "(() => { const b = document.querySelector('[data-comment=\"c-ai\"]'), m = b.querySelector('.pinto-pin-mark'); return { letter: b.textContent, mark: !!m, mask: m ? (getComputedStyle(m).webkitMaskImage || '') : '', ink: m ? getComputedStyle(m).backgroundColor : '', w: m ? m.getBoundingClientRect().width : 0 }; })()"
+        var m = try await CanvasNativeUITests.json(j, markJS)
+        #expect(m["mark"] as? Bool == true && (m["letter"] as? String ?? "x").isEmpty, "a mark, no letter: \(m)")
+        #expect((m["mask"] as? String ?? "").contains("data:image/png"), "\(m)")
+        #expect(m["ink"] as? String == "rgb(255, 255, 255)" && (m["w"] as? Double ?? 0) >= 12, "\(m)")
+        var p = try await Self.pins(j)
+        #expect(p["c-ai"]?["bg"] as? String == Self.rgb(BoardComments.aiColor), "graphite, not the accent: \(p["c-ai"] ?? [:])")
+        #expect(p["c-idea"]?["letter"] as? String == "S", "a person keeps their initial")
+
+        // A dark board: the light grey pin, the mark in black.
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { theme: 'dark' } }); 1")
+        for _ in 0..<50 where try await Self.pins(j)["c-ai"]?["bg"] as? String != Self.rgb(BoardComments.aiDark) { try await Task.sleep(for: .milliseconds(30)) }
+        p = try await Self.pins(j)
+        m = try await CanvasNativeUITests.json(j, markJS)
+        #expect(p["c-ai"]?["bg"] as? String == Self.rgb(BoardComments.aiDark) && m["ink"] as? String == "rgb(29, 29, 31)", "\(p["c-ai"] ?? [:]) \(m)")
+
+        // The shapes' names, for the list.
+        await j.until("the page names the shapes") { j.canvas.commentShapes["idea"] == "Idea" && j.canvas.commentShapes["fix"] == "Fix it" }
+        let idea = try #require(j.canvas.threads.first { $0.id == "c-idea" }), spot = try #require(j.canvas.threads.first { $0.id == "c-spot" })
+        #expect(j.canvas.place(of: idea) == "on Idea" && j.canvas.place(of: spot) == "on the board")
+        _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElementsIncludingDeleted().map((e) => e.containerId === 'idea' && e.type === 'text' ? { ...e, text: 'Ideas from readers', originalText: 'Ideas from readers', version: e.version + 1 } : e) }); return 1; })()")
+        await j.until("renamed with its words") { j.canvas.commentShapes["idea"] == "Ideas from readers" }
+    }
+
     /// The layer over the board takes no click: only a pin does, and only on itself. A click on a
     /// pin opens its thread (and nothing on the board is selected); beside it, the board has it.
     /// Natively, the thread's popover anchor lies over the board and takes no click either.
@@ -269,6 +305,147 @@ import WebKit
         #expect(kept == "[\"box\",\"other\"]")
     }
 
+    // MARK: The views (round 12)
+
+    /// The list: New Comment at its top picks the Comment tool (as C does) and closes the list;
+    /// rows, latest activity first, give the first comment's time and "on Idea · 2 replies · last
+    /// reply …". A viewer's list has no New Comment.
+    @Test func theListOffersNewCommentAndSaysWhereEachThreadIs() async throws {
+        let canvas = CanvasController()
+        canvas.author = BoardComments.Author(id: "me", name: "Emil")
+        canvas.seenStore = BoardComments.Seen(defaults: TestDefaults())
+        let now = Date.now
+        canvas.now = { now }
+        let ago = { (m: Double) in BoardComments.stamp(now.addingTimeInterval(-m * 60)) }
+        canvas.show(comments: [
+            BoardComment(id: "c-idea", on: "idea", by: Self.sara, name: "Sara", text: "Newsletter replies too?", created: ago(48)),
+            BoardComment(id: "c-r1", thread: "c-idea", by: "me", name: "Emil", text: "Yes", created: ago(31)),
+            BoardComment(id: "c-r2", thread: "c-idea", by: Self.sara, name: "Sara", text: "Thanks", created: ago(2)),
+            BoardComment(id: "c-ai", on: "fix", by: "me", name: "Emil", ai: "Claude", text: "No owner yet", created: ago(12)),
+        ])
+        canvas.receive(["commentShapes": ["idea": "Idea", "fix": "Fix it"]])
+        canvas.showingComments = true
+        let ax = OffscreenAX(BoardCommentsList(canvas: canvas), size: CGSize(width: BoardCommentUI.listWidth, height: 480))
+        defer { ax.close() }
+        await ax.settle()
+        let ids = ax.ids()
+        let new = try #require(ax.find("comments.new"), "\(ids)")
+        #expect(new.text.contains(BoardCommentUI.new))
+        #expect(ids.firstIndex(of: "comments.new")! < ids.firstIndex(of: "comments.row")!, "at the top")
+        // A row reads as one button: who, when it was started, what it says, where and its replies.
+        let rows = ax.all("comments.row").map(\.text)
+        #expect(rows.count == 2, "\(rows)")
+        let first = try #require(rows.first)
+        #expect(first.contains("Sara") && first.contains("on Idea \u{00B7} 2 replies \u{00B7} last reply 2 min ago"), "Sara's thread first, the latest word: \(first)")
+        #expect(first.contains("48 min ago"), "the time beside the first comment is the first comment's: \(first)")
+        #expect(rows.last?.contains("on Fix it") == true && rows.last?.contains("repl") == false, "\(rows)")
+        new.press()
+        await ax.settle(100)
+        #expect(!canvas.showingComments && canvas.sent.last == .tool(.comment), "\(canvas.sent.suffix(2))")
+
+        // A viewer: no New Comment.
+        canvas.setCanComment(false)
+        await ax.settle()
+        #expect(ax.find("comments.new") == nil)
+    }
+
+    /// The toolbar's one Comments button (round 12: Comment and Comments were two near-identical
+    /// bubbles): named Comments, its help says C adds one, it says when there's something new (the
+    /// dot) and stays so while the Comment tool is picked. Its popover isn't opened here: no window.
+    @Test func oneCommentsButtonKeepsTheDot() async throws {
+        let canvas = CanvasController()
+        canvas.author = BoardComments.Author(id: "me", name: "Emil")
+        canvas.seenStore = BoardComments.Seen(defaults: TestDefaults())
+        canvas.noteID = UUID()
+        canvas.show(comments: [])
+        let ax = OffscreenAX(CanvasCommentsButton(canvas: canvas), size: CGSize(width: 80, height: 40))
+        defer { ax.close() }
+        await ax.settle()
+        let quiet = try #require(ax.find("canvas.comments"), "\(ax.ids())")
+        #expect(quiet.text.contains(BoardCommentUI.title) && !quiet.text.contains("New comments"), "\(quiet.text)")
+        #expect(OffscreenAX.Element.string(quiet.ax, kAXHelpAttribute) == BoardCommentUI.help)
+        canvas.show(comments: [Self.thread("c-1", on: "box", by: Self.sara, name: "Sara")])
+        #expect(canvas.unseen)
+        // The page says the Comment tool is picked (C, or the list's New Comment).
+        canvas.receive(["tool": CanvasTool.comment.rawValue])
+        #expect(canvas.state.tool == .comment)
+        await ax.settle()
+        let new = try #require(ax.find("canvas.comments"))
+        #expect(new.text.contains("New comments"), "the dot, with the Comment tool picked: \(new.text)")
+    }
+
+    /// Your own comment in its thread: Edit and Delete (Delete asks once, in place); a thread start
+    /// deleted with replies reads "Comment deleted", the replies after it. Someone else's has neither.
+    @Test func yourOwnCommentIsEditedAndDeletedInItsThread() async throws {
+        let canvas = CanvasController()
+        canvas.author = BoardComments.Author(id: "me", name: "Emil")
+        canvas.seenStore = BoardComments.Seen(defaults: TestDefaults())
+        var kept: [BoardComment] = []
+        canvas.onComments = { kept += $0 }
+        canvas.show(comments: [Self.thread("c-1", on: "box"), BoardComment(id: "c-r", thread: "c-1", by: Self.sara, name: "Sara", text: "Agreed", created: "2026-11-15T09:05:00Z")])
+        let ax = OffscreenAX(BoardThreadView(canvas: canvas, id: "c-1"), size: CGSize(width: BoardCommentUI.width, height: 320))
+        defer { ax.close() }
+        await ax.settle()
+        let ids = ax.ids()
+        #expect(ids.filter { $0 == "comment.row.mine" }.count == 1 && ids.filter { $0 == "comment.row" }.count == 1, "\(ids)")
+        #expect(ids.contains("comment.more"), "your own has its ⋯: \(ids)")
+
+        // Edit: the field with its words; saved, marked edited.
+        canvas.editingComment = "c-1"
+        await ax.settle()
+        #expect(ax.find("comment.editor") != nil && ax.find("comment.field")?.text.contains("About c-1") == true)
+        #expect(canvas.edit("c-1", "About the box, again") != nil && canvas.editingComment == nil)
+        await ax.settle()
+        #expect(ax.find("comment.edited")?.text.contains(BoardCommentUI.edited) == true, "\(ax.ids())")
+
+        // Delete asks once, in place; Cancel keeps it.
+        canvas.deletingComment = "c-1"
+        await ax.settle()
+        #expect(ax.find("comment.deleteAsk") != nil && ax.find("comment.deleteQuestion")?.text.contains(BoardCommentUI.deleteQuestion) == true, "\(ax.ids())")
+        try #require(ax.find("comment.deleteCancel")).press()
+        await ax.settle()
+        #expect(canvas.deletingComment == nil && canvas.comments.first { $0.id == "c-1" }?.deleted == false)
+        canvas.deletingComment = "c-1"
+        await ax.settle()
+        try #require(ax.find("comment.deleteConfirm")).press()
+        await ax.settle()
+        #expect(kept.last?.deleted == true && kept.last?.id == "c-1")
+        #expect(ax.find("comment.deleted")?.text.contains(BoardComments.deletedText) == true, "\(ax.ids())")
+        #expect(ax.ids().contains("comment.row") && !ax.ids().contains("comment.more"), "Sara's reply stays; nothing left of yours to change")
+    }
+
+    /// Typing @ offers the board's people; a pick puts in "@Sara ".
+    @Test func typingAtOffersTheBoardsPeople() async throws {
+        let people = [BoardComments.Person(id: "u2", name: "Sara"), BoardComments.Person(id: "u3", name: "Sam"), BoardComments.Person(id: "u4", name: "Mo")]
+        let ax = OffscreenAX(BoardCommentField(prompt: "Reply", initial: "Thanks @Sa", people: people) { _ in true }.frame(width: 280), size: CGSize(width: 300, height: 200))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(ax.find("comment.mention.Sara") != nil && ax.find("comment.mention.Sam") != nil && ax.find("comment.mention.Mo") == nil, "\(ax.ids())")
+        try #require(ax.find("comment.mention.Sara")).press()
+        await ax.settle()
+        #expect(ax.find("comment.field")?.text.contains("Thanks @Sara ") == true, "\(ax.find("comment.field")?.text ?? "")")
+        #expect(ax.find("comment.mentions") == nil, "the offer goes once it's picked")
+        // No people (a board of your own): nothing offered.
+        let alone = OffscreenAX(BoardCommentField(prompt: "Reply", initial: "@") { _ in true }.frame(width: 280), size: CGSize(width: 300, height: 120))
+        defer { alone.close() }
+        await alone.settle()
+        #expect(alone.find("comment.mentions") == nil)
+    }
+
+    /// In a thread an AI's avatar is its mark on graphite, not a letter on the accent.
+    @Test func anAIsAvatarIsItsMark() throws {
+        @MainActor func picture(_ ai: String?) throws -> NSBitmapImageRep {
+            let r = ImageRenderer(content: BoardCommentAvatar(letter: "C", color: BoardComments.aiColor, ai: ai, size: 40).environment(\.colorScheme, .light))
+            r.scale = 1
+            return NSBitmapImageRep(cgImage: try #require(r.cgImage))
+        }
+        let mark = try picture("Claude"), letter = try picture(nil)
+        #expect(mark.tiffRepresentation != letter.tiffRepresentation, "the mark, not the letter")
+        // Graphite: a dark neutral grey (not the accent's orange).
+        let edge = try #require(mark.colorAt(x: 4, y: 20)?.usingColorSpace(.sRGB))
+        #expect(abs(edge.redComponent - edge.greenComponent) < 0.03 && abs(edge.blueComponent - edge.greenComponent) < 0.03 && edge.redComponent < 0.45, "graphite: \(edge)")
+    }
+
     // MARK: Two people
 
     /// Emil comments on a shape with the Comment tool on his board; the pin is drawn on Sara's, on
@@ -346,9 +523,11 @@ import WebKit
             // On the oval's edge, up and to the right; on Fix it's top right corner.
             let ask = BoardComment(id: "c-ready", on: "idea", x: 0.85, y: 0.15, by: Self.sara, name: "Sara", text: "Can ideas come from newsletter replies too? Half of ours did last month.", created: ago(48))
             let answer = BoardComment(id: "c-ready-1", thread: "c-ready", by: "me", name: "Emil", text: "Yes. I'll add an arrow from the inbox.", created: ago(31))
+            // An AI's reply in the thread: its own mark, in neutral colours (round 12).
+            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: "Added the arrow from Inbox to Idea.", created: ago(20))
             let ai = BoardComment(id: "c-publish", on: "fix", x: 1, y: 0, by: "me", name: "Emil", ai: "Claude", text: "Fix it has no owner yet. Sara reviewed the last three drafts: should it be her?", created: ago(12))
             let old = BoardComment(id: "c-old", on: "draft", x: 1, y: 0, by: "me", name: "Emil", text: "Split Draft in two?", created: ago(60 * 26), resolved: true, version: 2)
-            NotePageDataStore.shared.set(note.id, BoardComments.keeping([ask, answer, ai, old], in: ["values": ["scene": CanvasNativeUITests.flowchart], "collections": [String: Any]()]))
+            NotePageDataStore.shared.set(note.id, BoardComments.keeping([ask, answer, aiReply, ai, old], in: ["values": ["scene": CanvasNativeUITests.flowchart], "collections": [String: Any]()]))
             try c.mainContext.save()
             try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
                 let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1400, height: 900),
@@ -372,8 +551,9 @@ import WebKit
                 canvas.author = BoardComments.Author(id: "me", name: "Emil")
                 _ = try await web.evaluateJavaScript("amber._canvasCommand({ op: 'action', name: 'zoomToFit' })")
                 await MacWindowChromeTests.settle(w, 10)
-                // Sara's newest, arriving now (synced in): the quiet dot.
-                let late = BoardComment(id: "c-ready-2", thread: "c-ready", by: Self.sara, name: "Sara", text: "Thanks, that works.", created: ago(2))
+                // Sara's newest, arriving now (synced in), with a mention of Emil: the quiet dot, and
+                // "Mentions you" in the list.
+                let late = BoardComment(id: "c-ready-2", thread: "c-ready", by: Self.sara, name: "Sara", text: "Thanks, that works. @Emil, can Fix it be yours?", created: ago(2), mentions: ["me"])
                 NotePageDataStore.shared.set(note.id, BoardComments.keeping([late], in: NotePageDataStore.shared.doc(note.id)))
                 for _ in 0..<50 where !canvas.unseen { await MacWindowChromeTests.settle(w, 1) }
                 #expect(canvas.unseen && canvas.pins.count == 2)

@@ -12,6 +12,12 @@
 // An AI adds a comment or a reply (a new entry: no id, or one that isn't there yet), and resolves
 // a thread ("resolved": true). It never changes what someone wrote, and nothing is deleted by
 // leaving it out. What it writes is the person's, and says which AI wrote it.
+//
+// People change and delete their own comments in the app (round 12): a change keeps the id with a
+// higher version and "edited"; a deletion keeps only who and when ("deleted": true, no text). A
+// deleted thread start with replies shows as { id, by, created, deleted: true }, so the replies
+// still read in place; one without replies, and a deleted reply, aren't shown. "mentions" (account
+// ids) is kept as it was written.
 
 export const MAX_TEXT = 5000;
 export const COLLECTION = "comments";
@@ -20,10 +26,11 @@ export const COLLECTION = "comments";
 export type Stored = {
   id: string; thread?: string; on?: string; x?: number; y?: number;
   by: string; name: string; ai?: string; text: string; created: string; resolved?: boolean; version?: number;
+  edited?: string; deleted?: boolean; mentions?: string[];
 };
 
 /** A comment as data.json shows it. */
-export type Shown = { id: string; thread?: string; on?: string; x?: number; y?: number; by: string; created: string; text: string };
+export type Shown = { id: string; thread?: string; on?: string; x?: number; y?: number; by: string; created: string; text?: string; edited?: string; deleted?: boolean };
 
 /** Who's writing: the person's account, their first name, and their AI. */
 export type Writer = { id: string; name: string; ai: string };
@@ -36,10 +43,18 @@ export function parseStored(r: unknown): Stored | null {
   if (!r || typeof r !== "object" || Array.isArray(r)) return null;
   const o = r as Record<string, unknown>;
   const id = str(o.id, 200), by = str(o.by, 200), created = str(o.created, 64);
-  const text = typeof o.text === "string" && o.text.trim() && o.text.length <= MAX_TEXT ? o.text : undefined;
-  if (!id || !by || !created || !text) return null;
+  const deleted = o.deleted === true;
+  const text = deleted ? "" : typeof o.text === "string" && o.text.trim() && o.text.length <= MAX_TEXT ? o.text : undefined;
+  if (!id || !by || !created || text === undefined) return null;
   const thread = str(o.thread, 200);
   const c: Stored = { id, by, name: str(o.name, 200) ?? "Someone", text, created, version: typeof o.version === "number" ? o.version : 1 };
+  if (deleted) c.deleted = true;
+  else {
+    const edited = str(o.edited, 64);
+    if (edited) c.edited = edited;
+    const mentions = Array.isArray(o.mentions) ? o.mentions.filter((m): m is string => typeof m === "string" && m.length > 0 && m.length <= 200).slice(0, 50) : [];
+    if (mentions.length) c.mentions = mentions;
+  }
   if (thread) c.thread = thread;
   else {
     const on = str(o.on, 200);
@@ -55,12 +70,15 @@ export function parseStored(r: unknown): Stored | null {
 
 /** The record as it's kept: thread starts carry x and y, replies don't (BoardComment.record). */
 export function record(c: Stored): Record<string, unknown> {
-  const r: Record<string, unknown> = { id: c.id, by: c.by, name: c.name, text: c.text, created: c.created, version: c.version ?? 1 };
+  const r: Record<string, unknown> = { id: c.id, by: c.by, name: c.name, created: c.created, version: c.version ?? 1 };
+  if (c.deleted) r.deleted = true; else r.text = c.text;
   if (c.thread) r.thread = c.thread;
   else { r.x = c.x ?? 1; r.y = c.y ?? 0; }
   if (c.on) r.on = c.on;
   if (c.ai) r.ai = c.ai;
   if (c.resolved) r.resolved = true;
+  if (c.edited && !c.deleted) r.edited = c.edited;
+  if (c.mentions?.length && !c.deleted) r.mentions = c.mentions;
   return r;
 }
 
@@ -84,11 +102,14 @@ export function resolveRaw(raws: string[]): Stored | null {
 
 const order = (a: Stored, b: Stored) => a.created < b.created ? -1 : a.created > b.created ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
-/** The threads, oldest first, with their replies oldest first. */
+/** The threads, oldest first, with their replies oldest first (BoardComments.threads): a deleted
+ *  reply goes, and a deleted thread start stays only while it has replies. */
 export function threads(list: Stored[]) {
   const replies = new Map<string, Stored[]>();
-  for (const c of list) if (c.thread) replies.set(c.thread, [...(replies.get(c.thread) ?? []), c]);
-  return list.filter((c) => !c.thread).sort(order).map((first) => ({ first, replies: (replies.get(first.id) ?? []).sort(order) }));
+  for (const c of list) if (c.thread && !c.deleted) replies.set(c.thread, [...(replies.get(c.thread) ?? []), c]);
+  return list.filter((c) => !c.thread).sort(order)
+    .map((first) => ({ first, replies: (replies.get(first.id) ?? []).sort(order) }))
+    .filter((t) => !t.first.deleted || t.replies.length > 0);
 }
 
 /** Who wrote it, as anyone reading the board sees it: "Sara", "Sara's Claude". */
@@ -100,7 +121,9 @@ export function present(list: Stored[]): Shown[] {
   for (const t of threads(list)) {
     if (t.first.resolved) continue;
     for (const c of [t.first, ...t.replies]) {
-      const s: Shown = { id: c.id, ...(c.thread ? { thread: c.thread } : {}), by: byline(c), created: c.created, text: c.text };
+      const s: Shown = { id: c.id, ...(c.thread ? { thread: c.thread } : {}), by: byline(c), created: c.created };
+      if (c.deleted) s.deleted = true; else s.text = c.text;
+      if (c.edited) s.edited = c.edited;
       if (!c.thread) {
         if (c.on) s.on = c.on;
         s.x = c.x ?? 1;
@@ -137,8 +160,8 @@ export function merge(stored: Stored[], wanted: unknown, who: Writer, elements: 
         const c = { ...had, resolved: true, version: (had.version ?? 1) + 1 };
         changed.push(c);
         byId.set(c.id, c);
-      } else if (typeof o.text === "string" && o.text !== had.text) {
-        refused.push(`Comment ${had.id} is ${byline(had)}'s: its text stays as written. Reply to it instead.`);
+      } else if (typeof o.text === "string" && o.text !== had.text && !(had.deleted && !o.text)) {
+        refused.push(had.deleted ? `Comment ${had.id} was deleted by its writer: it stays deleted.` : `Comment ${had.id} is ${byline(had)}'s: its text stays as written. Reply to it instead.`);
       }
       continue;
     }
@@ -150,6 +173,7 @@ export function merge(stored: Stored[], wanted: unknown, who: Writer, elements: 
     if (typeof o.thread === "string" && o.thread) {
       const t = byId.get(o.thread) ?? made.get(o.thread);
       if (!t || t.thread) { refused.push(`A reply to ${o.thread} was left out: there's no thread with that id.`); continue; }
+      if (t.deleted && !stored.some((r) => r.thread === t.id && !r.deleted)) { refused.push(`A reply to ${o.thread} was left out: that comment was deleted.`); continue; }
       c.thread = t.id;
     } else if (typeof o.on === "string" && o.on) {
       if (!elements.has(o.on)) { refused.push(`A comment on ${o.on} was left out: no element has that id.`); continue; }
@@ -213,4 +237,4 @@ export function keepIn<T extends { collections?: Record<string, unknown> }>(d: T
 export const refusedLine = (refused: string[]) => refused.length ? { comments_left_out: refused.slice(0, 10) } : {};
 
 /** What fetch says about the comments section. */
-export const ABOUT = `collections.comments holds the board's open comments (resolved ones aren't shown): a thread is { id, by, created, text } with "on" (the element it's on; x and y say where on its box, 0 to 1) or x and y (a spot on the board); a reply has "thread" (its thread's id). Comments aren't part of the drawing. To comment, add an entry with text and "on" or x and y; to reply, add one with "thread" and text. It shows as this person's AI. Add "resolved": true to a thread to resolve it. What people wrote can't be changed, and leaving a comment out doesn't delete it.`;
+export const ABOUT = `collections.comments holds the board's open comments (resolved ones aren't shown): a thread is { id, by, created, text } with "on" (the element it's on; x and y say where on its box, 0 to 1) or x and y (a spot on the board); a reply has "thread" (its thread's id). "edited" says when its writer changed it; a thread start its writer deleted shows "deleted": true and no text, with its replies. Comments aren't part of the drawing. To comment, add an entry with text and "on" or x and y; to reply, add one with "thread" and text. It shows as this person's AI. Add "resolved": true to a thread to resolve it. What people wrote can't be changed, and leaving a comment out doesn't delete it.`;

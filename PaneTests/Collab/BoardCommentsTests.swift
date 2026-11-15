@@ -27,7 +27,7 @@ import Testing
 
     /// The pins the page was last sent.
     private static func pins(_ canvas: CanvasController) -> [BoardComments.Pin] {
-        for c in canvas.sent.reversed() { if case .comments(let pins, _, _, _, _) = c { return pins } }
+        for c in canvas.sent.reversed() { if case .comments(let pins, _, _, _, _, _) = c { return pins } }
         return []
     }
 
@@ -151,7 +151,7 @@ import Testing
         let e = try people.session(emil, note), s = try people.session(others[0], note)
         let mine = page(e, note: note.id), theirs = page(s, note: UUID())
         #expect(!theirs.canComment && theirs.viewOnly)
-        guard case .comments(_, _, _, _, let can)? = theirs.sent.last(where: { if case .comments = $0 { true } else { false } }) else {
+        guard case .comments(_, _, _, _, let can, _)? = theirs.sent.last(where: { if case .comments = $0 { true } else { false } }) else {
             Issue.record("the page wasn't told"); return
         }
         #expect(!can)
@@ -168,6 +168,208 @@ import Testing
         await server.settle()
         #expect((server.updates[note.id]?.count ?? 0) == before)
         #expect(e.boardComments.count == 1 && s.boardComments.count == 1 && !e.boardComments[0].resolved)
+    }
+
+    // MARK: Changing and deleting your own (round 12)
+
+    /// Emil changes his comment and deletes another; Sara sees both: the new words marked edited,
+    /// and "Comment deleted" where the thread start was, its reply still there. A deleted reply,
+    /// and a deleted thread start with no replies, go. None of the words reach the server. Sara
+    /// can't change or delete Emil's.
+    @Test func yourOwnCommentsCanBeChangedAndDeletedOnEveryBoard() async throws {
+        let (emil, others, note) = try await people.share(Self.scene, people: ["Sara"])
+        let e = try people.session(emil, note), s = try people.session(others[0], note)
+        let mine = page(e, note: note.id)
+        let theirs = page(s, note: try #require(others[0].context.pointer(forShared: note.id)).id)
+        mine.receive(["comment": ["new": ["on": "a", "x": 1, "y": 0]]])
+        let first = try #require(mine.post("Make this bigger"))
+        mine.receive(["comment": ["new": ["on": "b", "x": 1, "y": 0]]])
+        let second = try #require(mine.post("Wrong box, ignore"))
+        mine.receive(["comment": ["new": ["x": 300, "y": 40]]])
+        let alone = try #require(mine.post("Typo here"))
+        await server.eventually { s.boardComments.count == 3 }
+        let answer = try #require(theirs.reply(to: second.id, "Which one then?"))
+        let aside = try #require(theirs.reply(to: first.id, "Sure"))
+        await server.eventually { e.boardComments.count == 5 }
+
+        // Sara can't change or delete what Emil wrote.
+        #expect(theirs.edit(first.id, "Hacked") == nil)
+        theirs.delete(first.id)
+        #expect(s.boardComments.first { $0.id == first.id }?.text == "Make this bigger")
+
+        // Changed: new words, marked edited, version up; the same on Sara's board.
+        let changed = try #require(mine.edit(first.id, "  Make this twice as big  "))
+        #expect(changed.text == "Make this twice as big" && changed.edited != nil && changed.version == 2 && changed.id == first.id)
+        #expect(mine.edit(first.id, "Make this twice as big") == nil, "the same words change nothing")
+        await server.eventually { s.boardComments.first { $0.id == first.id }?.text == "Make this twice as big" }
+        #expect(theirs.threads.first { $0.id == first.id }?.first.edited != nil)
+
+        // Deleted (asked first, in its thread): the words go; its reply stays under "Comment deleted".
+        mine.deletingComment = second.id
+        mine.delete(second.id)
+        #expect(mine.deletingComment == nil && mine.notice == CanvasController.deletedLine && mine.noticeUndo != nil)
+        await server.eventually { s.boardComments.first { $0.id == second.id }?.deleted == true }
+        let kept = try #require(theirs.threads.first { $0.id == second.id })
+        #expect(kept.first.deleted && kept.first.text.isEmpty && kept.replies.map(\.id) == [answer.id])
+        #expect(!s.boardComments.contains { $0.id == second.id && $0.text.contains("Wrong") })
+        #expect(Self.pins(theirs).contains { $0.id == second.id }, "its pin stays while it has replies")
+        // A thread start with no replies goes, pin and all; so does a deleted reply.
+        mine.delete(alone.id)
+        let ownReply = try #require(mine.reply(to: first.id, "Or three times"))
+        mine.delete(ownReply.id)
+        await server.eventually { theirs.threads.count == 2 && theirs.threads.first { $0.id == first.id }?.replies.map(\.id) == [aside.id] }
+        #expect(!Self.pins(theirs).contains { $0.id == alone.id })
+        // Sealed like everything else: no words of any version on the server.
+        #expect((server.updates[note.id] ?? []).allSatisfy { !$0.ct.contains("twice") && !$0.ct.contains("Wrong") && !$0.ct.contains("Typo") })
+        // Undo puts the last one back.
+        mine.noticeUndo?()
+        await server.eventually { s.boardComments.first { $0.id == ownReply.id }?.deleted == false }
+        #expect(s.boardComments.first { $0.id == ownReply.id }?.text == "Or three times")
+        // A deleted one can't be changed.
+        #expect(mine.edit(alone.id, "Back") == nil)
+    }
+
+    /// A deletion and a change are records like any other: kept and read back, the newest version
+    /// winning; a deleted one keeps no words.
+    @Test func changesAndDeletionsAreKept() throws {
+        var c = BoardComment(id: "c-1", on: "a", by: "u1", name: "Emil", text: "Ask @Sara", created: "2026-11-15T09:00:00Z", mentions: ["u2"])
+        #expect(BoardComment(json: c.json) == c && c.record["mentions"] as? [String] == ["u2"])
+        var edited = c
+        edited.text = "Ask @Sara and @Mo"
+        edited.edited = "2026-11-15T09:05:00Z"
+        edited.version = 2
+        #expect(BoardComment(json: edited.json) == edited)
+        c.deleted = true
+        c.text = ""
+        c.mentions = []
+        c.version = 3
+        #expect(c.record["text"] == nil && c.record["deleted"] as? Bool == true)
+        #expect(BoardComment(json: c.json)?.deleted == true)
+        #expect(BoardComments.resolve([edited.json, c.json])?.deleted == true, "the newest version wins")
+        // Thread starts deleted with no replies, and deleted replies, aren't shown.
+        let r = BoardComment(id: "c-r", thread: "c-1", by: "u2", name: "Sara", text: "Ok", created: "2026-11-15T09:10:00Z")
+        var gone = r
+        gone.deleted = true
+        gone.version = 2
+        #expect(BoardComments.threads([c, r]).first?.replies == [r])
+        #expect(BoardComments.threads([c, gone]).isEmpty)
+    }
+
+    // MARK: Mentions (round 12)
+
+    /// Typing @ offers the board's people; a pick puts in "@Sara "; a posted comment keeps who it
+    /// mentions; "@Sarah" or an email address isn't Sara.
+    @Test func mentionsAreOfferedAndKept() {
+        let sara = BoardComments.Person(id: "u2", name: "Sara"), sam = BoardComments.Person(id: "u3", name: "Sam"), mo = BoardComments.Person(id: "u4", name: "Mo")
+        let people = [sara, sam, mo]
+        #expect(BoardComments.mentionQuery(in: "Ask @Sa")?.query == "Sa")
+        #expect(BoardComments.mentionQuery(in: "@")?.query == "")
+        #expect(BoardComments.mentionQuery(in: "mail me at a@b") == nil, "not in the middle of a word")
+        #expect(BoardComments.mentionQuery(in: "Ask @Sara now") == nil, "done once a space follows")
+        #expect(BoardComments.suggestions("sa", from: people) == [sara, sam])
+        #expect(BoardComments.suggestions("", from: people) == people)
+        #expect(BoardComments.complete("Ask @Sa", with: sara) == "Ask @Sara ")
+        #expect(BoardComments.mentioned(in: "Ask @Sara and @mo, not @Sarah or sara@x.com", people: people) == ["u2", "u4"])
+        #expect(BoardComments.mentioned(in: "@Sarah", people: people).isEmpty)
+        let canvas = CanvasController()
+        canvas.author = BoardComments.Author(id: "u1", name: "Emil")
+        canvas.mentionable = people
+        canvas.receive(["comment": ["new": ["x": 1, "y": 1]]])
+        let c = canvas.post("@Sam can you check this?")
+        #expect(c?.mentions == ["u3"])
+        #expect(canvas.names(of: ["u3", "u1", "nobody"]) == ["Sam", "Emil"])
+        let text = BoardCommentUI.text("Hi @Sam and @Samantha", mentions: ["Sam"])
+        let marked = text.runs.filter { $0.foregroundColor != nil }.map { String(text[$0.range].characters) }
+        #expect(marked == ["@Sam"], "only the mention is set apart: \(marked)")
+    }
+
+    /// Sara mentions Emil on the shared board: he gets the dot even after he'd read everything,
+    /// and on a board he first opens on this device; it stays until he opens that thread. The
+    /// board's people are who can be mentioned, never you.
+    @Test func aMentionShowsTheDotUntilItsThreadIsOpened() async throws {
+        let (emil, others, note) = try await people.share(Self.scene, people: ["Sara"])
+        let e = try people.session(emil, note), s = try people.session(others[0], note)
+        let mine = page(e, note: note.id)
+        let theirs = page(s, note: try #require(others[0].context.pointer(forShared: note.id)).id)
+        await server.eventually { BoardCollab.people(s).contains { $0.name == "Emil" } }
+        BoardCollab.tick(s, theirs)
+        BoardCollab.tick(e, mine)
+        #expect(theirs.mentionable.map(\.name) == ["Emil"], "\(theirs.mentionable)")
+        #expect(!mine.mentionable.contains { $0.id == emil.id.uuidString }, "never yourself")
+        theirs.receive(["comment": ["new": ["on": "a", "x": 1, "y": 0]]])
+        let plain = try #require(theirs.post("Looks good"))
+        await server.eventually { e.boardComments.count == 1 }
+        mine.showingComments = true
+        mine.showingComments = false
+        #expect(!mine.unseen, "read everything")
+
+        // A change of her comment mentions him: the dot, though he'd seen that comment.
+        let asked = try #require(theirs.edit(plain.id, "Looks good. @Emil can you sign off?"))
+        #expect(asked.mentions == [emil.id.uuidString])
+        await server.eventually { e.boardComments.first?.mentions.isEmpty == false }
+        #expect(mine.unseen && mine.threads.first.map(mine.unreadMention) == true)
+        // Opening the list isn't enough: the mention waits for its thread.
+        mine.showingComments = true
+        mine.showingComments = false
+        #expect(mine.unseen)
+        // A device that opens the board for the first time: old comments count as seen, the
+        // mention doesn't.
+        let fresh = CanvasController()
+        fresh.noteID = note.id
+        fresh.seenStore = BoardComments.Seen(defaults: TestDefaults())
+        BoardCollab.wire(e, fresh)
+        #expect(fresh.unseen)
+        BoardCollab.unwire(e, fresh)
+        BoardCollab.wire(e, mine)
+        mine.open(thread: plain.id)
+        let opened = try #require(mine.threads.first)
+        #expect(!mine.unseen && !mine.unreadMention(opened))
+    }
+
+    // MARK: The list (round 12)
+
+    /// Each row says where its thread is and when its last reply came; the latest activity first.
+    @Test func theListNamesWhereAThreadIsAndSortsByLatestActivity() {
+        let canvas = CanvasController()
+        canvas.author = BoardComments.Author(id: "u1", name: "Emil")
+        let idea = BoardComment(id: "c-idea", on: "idea", by: "u2", name: "Sara", text: "Newsletter replies too?", created: "2026-11-15T09:00:00Z")
+        let r1 = BoardComment(id: "c-r1", thread: "c-idea", by: "u1", name: "Emil", text: "Yes", created: "2026-11-15T09:20:00Z")
+        let r2 = BoardComment(id: "c-r2", thread: "c-idea", by: "u2", name: "Sara", text: "Thanks", created: "2026-11-15T09:46:00Z")
+        let ai = BoardComment(id: "c-ai", on: "fix", by: "u1", name: "Emil", ai: "Claude", text: "No owner yet", created: "2026-11-15T09:36:00Z")
+        let spot = BoardComment(id: "c-spot", x: 400, y: 20, by: "u2", name: "Sara", text: "Room here", created: "2026-11-15T09:10:00Z")
+        canvas.show(comments: [idea, r1, r2, ai, spot])
+        canvas.receive(["commentShapes": ["idea": "Idea"]])
+        let threads = canvas.threads
+        #expect(BoardCommentsList.ordered(threads).map(\.id) == ["c-idea", "c-ai", "c-spot"], "the latest word first")
+        let t = { (id: String) in threads.first { $0.id == id }! }
+        #expect(canvas.place(of: t("c-idea")) == "on Idea")
+        #expect(canvas.place(of: t("c-spot")) == "on the board")
+        #expect(canvas.place(of: t("c-ai")) == CanvasController.onShape, "a shape the page hasn't named")
+        #expect(BoardCommentUI.foot(place: "on Idea", replies: 2, last: "2 min ago") == "on Idea \u{00B7} 2 replies \u{00B7} last reply 2 min ago")
+        #expect(BoardCommentUI.foot(place: "on the board", replies: 0, last: nil) == "on the board")
+        // The page is asked to name the shapes threads are on.
+        #expect(canvas.commentedShapes == ["fix", "idea"])
+    }
+
+    /// An AI's pin and avatar: neutral graphite (light grey on a dark board) with its own mark,
+    /// never the accent or a letter.
+    @Test func anAIShowsItsOwnMarkInNeutralColours() throws {
+        let canvas = CanvasController()
+        canvas.author = BoardComments.Author(id: "u1", name: "Emil")
+        let ai = BoardComment(id: "c-ai", on: "fix", by: "u1", name: "Emil", ai: "Claude", text: "No owner yet", created: "2026-11-15T09:36:00Z")
+        canvas.show(comments: [ai])
+        let pin = try #require(canvas.pins.first)
+        #expect(pin.color == BoardComments.aiColor && BoardComments.dark(of: pin.color) == BoardComments.aiDark)
+        #expect(pin.payload["dark"] as? String == BoardComments.aiDark)
+        let mark = try #require(pin.payload["mark"] as? String, "the AI's mark goes to the page")
+        #expect(mark.hasPrefix("data:image/png;base64,") && mark.count > 100)
+        #expect(BoardComments.markPicture("Some AI") == nil, "an AI with no mark of its own keeps its letter")
+        // Neutral: no colour of its own, and far from the accent.
+        for hex in [BoardComments.aiColor, BoardComments.aiDark] {
+            let v = try #require(UInt32(hex.dropFirst(), radix: 16))
+            let r = Int(v >> 16 & 0xFF), g = Int(v >> 8 & 0xFF), b = Int(v & 0xFF)
+            #expect(max(r, g, b) - min(r, g, b) <= 8, "\(hex) is a grey")
+        }
     }
 
     // MARK: The model

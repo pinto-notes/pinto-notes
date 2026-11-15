@@ -1,5 +1,10 @@
 import Automerge
 import Foundation
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// Comments on a whiteboard (15 November 2026): FigJam's, made calm. A comment sits on a shape (and
 /// moves with it) or on a spot of the board, marked by a small pin in its writer's colour; a click
@@ -10,7 +15,14 @@ import Foundation
 ///
 ///     { "id": "c-…", "thread": "c-…" (a reply), "on": "<element id>" (a thread on a shape),
 ///       "x": 1, "y": 0, "by": "<account id>", "name": "Sara", "ai": "Claude" (an AI wrote it),
-///       "text": "…", "created": "2026-11-15T09:12:00Z", "resolved": true (a thread), "version": 1 }
+///       "text": "…", "created": "2026-11-15T09:12:00Z", "resolved": true (a thread), "version": 1,
+///       "edited": "2026-11-15T09:20:00Z" (its writer changed it), "mentions": ["<account id>"],
+///       "deleted": true (its writer deleted it: no text) }
+///
+/// Its writer can change or delete it (round 12): a change keeps its id with the new text and a
+/// higher version; a deletion keeps only who and when, with no text. A deleted thread start that
+/// has replies stays, as "Comment deleted", so the replies still read in place; one without
+/// replies, and a deleted reply, go.
 ///
 /// `x`, `y`: on a shape, where on its box as a fraction of its width and height (0 to 1 from its top
 /// left), so the pin stays on it when it moves or grows; on a spot, the board's own coordinates.
@@ -47,17 +59,26 @@ struct BoardComment: Equatable, Identifiable, Sendable {
     var created: String
     var resolved = false
     var version = 1
+    /// When its writer last changed it (ISO 8601); nil when never.
+    var edited: String?
+    /// Deleted by its writer: no text kept.
+    var deleted = false
+    /// The people it mentions (@Sara), by account id: each gets the dot until they open it.
+    var mentions: [String] = []
 
     var isReply: Bool { thread != nil }
     var date: Date? { BoardComments.date(created) }
 
     /// The record as it's kept.
     var record: [String: Any] {
-        var r: [String: Any] = ["id": id, "by": by, "name": name, "text": text, "created": created, "version": version]
+        var r: [String: Any] = ["id": id, "by": by, "name": name, "created": created, "version": version]
+        if deleted { r["deleted"] = true } else { r["text"] = text }
         if let thread { r["thread"] = thread } else { r["x"] = x; r["y"] = y }
         if let on { r["on"] = on }
         if let ai { r["ai"] = ai }
         if resolved { r["resolved"] = true }
+        if let edited, !deleted { r["edited"] = edited }
+        if !mentions.isEmpty, !deleted { r["mentions"] = mentions }
         return r
     }
 
@@ -68,9 +89,10 @@ struct BoardComment: Equatable, Identifiable, Sendable {
     }
 
     init(id: String, thread: String? = nil, on: String? = nil, x: Double = 1, y: Double = 0, by: String, name: String, ai: String? = nil,
-         text: String, created: String, resolved: Bool = false, version: Int = 1) {
+         text: String, created: String, resolved: Bool = false, version: Int = 1, edited: String? = nil, deleted: Bool = false, mentions: [String] = []) {
         self.id = id; self.thread = thread; self.on = on; self.x = x; self.y = y; self.by = by; self.name = name; self.ai = ai
         self.text = text; self.created = created; self.resolved = resolved; self.version = version
+        self.edited = edited; self.deleted = deleted; self.mentions = mentions
     }
 
     /// A record as kept, checked: anything malformed is left out rather than shown half.
@@ -79,13 +101,20 @@ struct BoardComment: Equatable, Identifiable, Sendable {
             guard let s = r[k] as? String, !s.isEmpty, s.count <= max else { return nil }
             return s
         }
-        guard let id = string("id", max: 200), let by = string("by", max: 200), let text = r["text"] as? String,
-              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= BoardComments.maxText,
-              let created = string("created", max: 64) else { return nil }
+        let deleted = (r["deleted"] as? Bool) == true
+        guard let id = string("id", max: 200), let by = string("by", max: 200), let created = string("created", max: 64) else { return nil }
+        if deleted {
+            text = ""
+        } else {
+            guard let t = r["text"] as? String, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, t.count <= BoardComments.maxText else { return nil }
+            text = t
+        }
+        self.deleted = deleted
         self.id = id
         self.by = by
-        self.text = text
         self.created = created
+        edited = deleted ? nil : string("edited", max: 64)
+        mentions = deleted ? [] : Array(((r["mentions"] as? [Any]) ?? []).compactMap { ($0 as? String).flatMap { $0.isEmpty || $0.count > 200 ? nil : $0 } }.prefix(50))
         thread = string("thread", max: 200)
         on = thread == nil ? string("on", max: 200) : nil
         name = string("name", max: 200) ?? "Someone"
@@ -112,6 +141,8 @@ struct BoardThread: Equatable, Identifiable, Sendable {
     var all: [BoardComment] { [first] + replies }
     /// When the last word in it was written.
     var latest: String { replies.last?.created ?? first.created }
+    /// When its last word was written, as a date (for the list's order).
+    var latestDate: Date? { BoardComments.date(latest) }
 }
 
 enum BoardComments {
@@ -121,8 +152,11 @@ enum BoardComments {
     static let collection = "comments"
     /// The longest comment taken (characters).
     static let maxText = 5000
-    /// An AI's pin and avatar: the accent deepened so a white letter reads on it (Palette.Accent.fill).
-    static let aiColor = "#BB5B05"
+    /// An AI's pin and avatar: neutral graphite, never the accent (round 12: Claude's orange read
+    /// as the app's own colour, and as a person called C). Its mark on it in white; on a dark board
+    /// the pin is a light grey (`aiDark`) with the mark in black.
+    static let aiColor = "#48484A"
+    static let aiDark = "#D1D1D6"
 
     static func newID() -> String { "c-" + String(UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "").prefix(16)) }
 
@@ -148,12 +182,72 @@ enum BoardComments {
     // MARK: Threads
 
     /// The threads, oldest first, each with its replies oldest first. A reply whose thread isn't
-    /// here (it arrived before it, or its thread was left out) waits, unshown.
+    /// here (it arrived before it, or its thread was left out) waits, unshown. A deleted reply
+    /// goes; a deleted thread start stays (as "Comment deleted") only while it has replies.
     static func threads(_ comments: [BoardComment]) -> [BoardThread] {
         let order: (BoardComment, BoardComment) -> Bool = { ($0.created, $0.id) < ($1.created, $1.id) }
         var replies: [String: [BoardComment]] = [:]
-        for c in comments { if let t = c.thread { replies[t, default: []].append(c) } }
-        return comments.filter { !$0.isReply }.sorted(by: order).map { BoardThread(first: $0, replies: (replies[$0.id] ?? []).sorted(by: order)) }
+        for c in comments where !c.deleted { if let t = c.thread { replies[t, default: []].append(c) } }
+        return comments.filter { !$0.isReply }.sorted(by: order).compactMap { first in
+            let r = (replies[first.id] ?? []).sorted(by: order)
+            return first.deleted && r.isEmpty ? nil : BoardThread(first: first, replies: r)
+        }
+    }
+
+    /// What's shown for a deleted comment.
+    static let deletedText = "Comment deleted"
+
+    // MARK: Mentions
+
+    /// Someone who can be mentioned: their account id and first name.
+    struct Person: Equatable, Hashable, Sendable, Identifiable {
+        var id: String
+        var name: String
+    }
+
+    /// The word being typed when it's a mention: "@Sa" at the end of the text, after a space or
+    /// at the start. Its range in the text and what's typed after the @.
+    static func mentionQuery(in text: String) -> (range: Range<String.Index>, query: String)? {
+        guard let at = text.lastIndex(of: "@") else { return nil }
+        if at > text.startIndex, !text[text.index(before: at)].isWhitespace { return nil }
+        let query = String(text[text.index(after: at)...])
+        guard query.count <= 30, !query.contains(where: \.isWhitespace) else { return nil }
+        return (at..<text.endIndex, query)
+    }
+
+    /// The people whose name starts with what's typed after the @ (case and accents ignored), in
+    /// the board's order.
+    static func suggestions(_ query: String, from people: [Person]) -> [Person] {
+        let q = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return people.filter { q.isEmpty || $0.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).hasPrefix(q) }
+    }
+
+    /// The text with the mention being typed made whole: "@Sara " in place of "@Sa".
+    static func complete(_ text: String, with person: Person) -> String {
+        guard let m = mentionQuery(in: text) else { return text }
+        var t = text
+        t.replaceSubrange(m.range, with: "@\(person.name) ")
+        return t
+    }
+
+    /// The people a comment mentions: each whose "@Name" stands in it as a word.
+    static func mentioned(in text: String, people: [Person]) -> [String] {
+        var out: [String] = []
+        for p in people where !out.contains(p.id) && mentionRanges(of: p.name, in: text).first != nil { out.append(p.id) }
+        return out
+    }
+
+    /// Where "@Name" stands in the text as a word (not inside "@Name2" or an email address).
+    static func mentionRanges(of name: String, in text: String) -> [Range<String.Index>] {
+        guard !name.isEmpty else { return [] }
+        var out: [Range<String.Index>] = [], from = text.startIndex
+        while let r = text.range(of: "@" + name, options: [.caseInsensitive], range: from..<text.endIndex) {
+            let before = r.lowerBound == text.startIndex || !(text[text.index(before: r.lowerBound)].isLetter || text[text.index(before: r.lowerBound)].isNumber)
+            let after = r.upperBound == text.endIndex || !(text[r.upperBound].isLetter || text[r.upperBound].isNumber)
+            if before && after { out.append(r) }
+            from = r.upperBound
+        }
+        return out
     }
 
     /// The winner among values written for one comment at once: the higher version, then the lower
@@ -201,6 +295,7 @@ enum BoardComments {
     /// lighter, for a pin on a dark board. A colour not in the palette (an AI's) has none.
     static func dark(of color: String) -> String? {
         let hex = color.uppercased()
+        if hex == aiColor { return aiDark }
         return CollabSession.palette.first { String(format: "#%06X", $0.light) == hex }.map { String(format: "#%06X", $0.dark) }
     }
 
@@ -302,6 +397,18 @@ enum BoardComments {
         func set(_ ids: Set<String>, for board: UUID) {
             defaults.set(Array(ids.sorted().suffix(Self.most)), forKey: key(board))
         }
+
+        /// The comments that mention you whose thread you opened, by id and version. A mention
+        /// keeps the dot until then, even on a board first looked at here, and again when a
+        /// change of the comment adds it.
+        func mentions(_ board: UUID) -> Set<String> { Set((defaults.array(forKey: "boardMentionsSeen.\(board.uuidString)") as? [String]) ?? []) }
+
+        func setMentions(_ keys: Set<String>, for board: UUID) {
+            defaults.set(Array(keys.sorted().suffix(Self.most)), forKey: "boardMentionsSeen.\(board.uuidString)")
+        }
+
+        /// A mention as it's remembered: the comment and the version that mentions you.
+        static func mentionKey(_ c: BoardComment) -> String { "\(c.id)#\(c.version)" }
     }
 
     // MARK: The pins
@@ -315,12 +422,46 @@ enum BoardComments {
         var color: String
         var letter: String
         var open = false
+        /// The mark of the AI that wrote it (markPicture): its pin shows it, not a letter.
+        var mark: String? = nil
 
         var payload: [String: Any] {
             var p: [String: Any] = ["id": id, "x": x, "y": y, "color": color, "letter": letter, "open": open]
             if let on { p["on"] = on }
             if let dark = BoardComments.dark(of: color) { p["dark"] = dark }
+            if let mark { p["mark"] = mark }
             return p
         }
     }
+
+    /// An AI's mark as the page draws it on a pin: a data URL of its shape (only the shape counts,
+    /// as a mask the page colours), 36 pixels square. Nil for an AI with no mark of its own, or in
+    /// App Store captures (AIGlyph.storeSafe).
+    @MainActor static func markPicture(_ ai: String) -> String? {
+        if let kept = marks[ai] { return kept }
+        guard !AIGlyph.storeSafe, let asset = AIGlyph.asset(ai) else { return nil }
+        let side = 36
+        #if os(macOS)
+        guard let image = NSImage(named: asset),
+              let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side, bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        NSGraphicsContext.restoreGraphicsState()
+        guard let png = rep.representation(using: .png, properties: [:]) else { return nil }
+        #else
+        guard let image = UIImage(named: asset) else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let png = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).pngData { _ in
+            image.draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        #endif
+        let url = "data:image/png;base64," + png.base64EncodedString()
+        marks[ai] = url
+        return url
+    }
+
+    @MainActor private static var marks: [String: String] = [:]
 }

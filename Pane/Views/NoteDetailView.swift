@@ -1433,11 +1433,14 @@ struct NoteDetailView: View {
             saidAction: said?.action,
             attachment: AnyView(attachMenu),
             people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            peopleWidth: collab.map { PresenceStack.barWidth(viewOnly: $0.isViewOnly) } ?? 0,
+            ask: askTargets.isEmpty ? nil : AnyView(askButton),
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
-                if !askTargets.isEmpty { askButton }
                 if !trashed { shareMenu }
-                moreMenu
+                // Ask AI from More while its own button isn't in the bar (a narrow board): the
+                // popover opens from here.
+                moreMenu.modifier(AskFromMore(asking: $asking, on: !askTargets.isEmpty) { [note, showingCanvas] in AskAI.subject(note, whiteboard: showingCanvas) })
             }),
             canvas: showingCanvas && !trashed ? canvasControls : nil)
     }
@@ -2259,6 +2262,10 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     var attachment: AnyView
     /// Who else is in a shared note.
     var people: AnyView?
+    /// How wide the people are in the bar, at most (a board's toolbar keeps room for them).
+    var peopleWidth: CGFloat = 0
+    /// Ask AI, when an AI is connected: beside Share. A narrow board's bar leaves it to More (•••).
+    var ask: AnyView? = nil
     /// Share and More.
     var sharing: AnyView
     /// A canvas shows: its tools take the writing tools' place (CanvasToolbarTools).
@@ -2309,11 +2316,38 @@ struct NoteToolbarStage<Pane: View>: View {
     var showColumns: ToggleSidebarAction? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
-    /// The column's width: a whiteboard in a narrow one gets its compact tools.
+    /// The column's width, and where it stands in the window (WindowSpot): a whiteboard's toolbar
+    /// shows what fits (CanvasToolbarTools.Fit).
     @State private var width: CGFloat = 1200
+    @State private var spot: CGRect?
     #if DEBUG
     @Environment(\.modelContext) private var context
     #endif
+
+    /// What a whiteboard's toolbar shows at this width: its Fit, and the width its name gets.
+    private var boardBar: (fit: CanvasToolbarTools.Fit, title: CGFloat) {
+        guard let parts, let canvas = parts.canvas else { return (.full, CanvasToolbarTools.titleMax) }
+        let focus = focusBack != nil
+        var room = CanvasToolbarTools.Room()
+        room.title = CanvasToolbarTools.titleWidth(place?.title ?? "")
+        room.place = place.map { NoteBreadcrumbs.width($0) } ?? 0
+        room.asks = parts.ask != nil
+        room.people = parts.peopleWidth
+        room.said = parts.said.map { NoticeText.barWidth($0, action: parts.saidAction?.title) } ?? 0
+        room.focus = focus
+        room.viewOnly = canvas.viewOnly
+        return CanvasToolbarTools.layout(room, width: Self.boardWidth(column: width, spot: spot, besideList: !focus && !ownWindow))
+    }
+
+    /// The room the board's items have: from where they can start to the window's edge. Beside
+    /// the list they start after its buttons, which run past a narrow list's column while the
+    /// sidebar is hidden (Back stood at 373 pt over a list 330 pt wide); in Full Screen and a
+    /// window of its own, after the window's buttons.
+    static func boardWidth(column: CGFloat, spot: CGRect?, besideList: Bool) -> CGFloat {
+        guard let spot, spot.width > 0 else { return column }
+        let start = besideList ? max(spot.minX, CanvasToolbarTools.listBarEnd - 4) : max(spot.minX, CanvasToolbarTools.windowButtonsEnd - 4)
+        return spot.maxX - start
+    }
 
     var body: some View {
         #if DEBUG
@@ -2331,8 +2365,10 @@ struct NoteToolbarStage<Pane: View>: View {
                 withTransaction(instant) { parts.wrappedValue = made }
             }
         }
-            .onGeometryChange(for: Bool.self, of: { CanvasToolbarTools.compact($0.size.width) }) { narrow in width = narrow ? 500 : 1200 }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width.rounded() }) { width = $0 }
+            .background { WindowSpot { spot = $0 } }
             .toolbar {
+                let board = boardBar
                 if self.parts != nil, let focusBack {
                     ToolbarItem(placement: .navigation) {
                         Button("Notes", systemImage: "chevron.backward", action: focusBack)
@@ -2343,7 +2379,7 @@ struct NoteToolbarStage<Pane: View>: View {
                     if let place {
                         ToolbarItem(placement: .navigation) {
                             if self.parts?.canvas != nil {
-                                CanvasTitleField(note: place)
+                                CanvasTitleField(note: place, maxWidth: board.title)
                             } else {
                                 Text(place.title)
                                     .font(.system(size: 13, weight: .semibold))
@@ -2386,14 +2422,15 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
                     .hidden(!showsItems)
-                    if let place, !(self.parts?.canvas != nil && CanvasToolbarTools.compact(width)) {
-                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
+                    if let place, self.parts?.canvas == nil || board.fit.showsPlace {
+                        // A board's name has its own field: its folder alone.
+                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope, showsTitle: self.parts?.canvas == nil) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
                     }
                     if let place {
                         if self.parts?.canvas != nil {
-                            ToolbarItem { CanvasTitleField(note: place) }
+                            ToolbarItem { CanvasTitleField(note: place, maxWidth: board.title) }
                                 .sharedBackgroundVisibility(.hidden)
                                 .hidden(!showsItems)
                         }
@@ -2456,7 +2493,7 @@ struct NoteToolbarStage<Pane: View>: View {
                     if let canvas = shown.canvas {
                         // A board shared with you to look at: its tools show, off, as a viewer's
                         // formatting does in a note.
-                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, compact: CanvasToolbarTools.compact(width)).disabled(!showsItems || canvas.viewOnly) }
+                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, fit: board.fit, fullScreen: fullScreen).disabled(!showsItems || canvas.viewOnly) }
                             .hidden(!showsItems)
                         // Comments: viewers read them too, so it's never off for them.
                         ToolbarItem { CanvasCommentsButton(canvas: canvas).disabled(!showsItems || !canvas.connected) }
@@ -2466,14 +2503,18 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
                     }
                     ToolbarItemGroup {
-                        if let fullScreen {
+                        // A whiteboard in a narrow column has Full Screen in More Tools instead
+                        // (a viewer's tools are off, so theirs stays), and Ask AI in More.
+                        if let fullScreen, shown.canvas.map({ $0.viewOnly || board.fit.showsFullScreen }) ?? true {
                             Button(fullScreen.title, systemImage: fullScreen.symbol, action: fullScreen.run)
                                 .help(fullScreen.title + " (\u{21E7}\u{2318}F)")
                                 .keyboardShortcut("f", modifiers: [.command, .shift])
                                 .disabled(!showsItems)
                                 .accessibilityIdentifier("note.fullScreen")
                         }
-                        shown.sharing.disabled(!showsItems)
+                        let askInBar = shown.canvas == nil || board.fit.showsAsk
+                        if let ask = shown.ask, askInBar { ask.disabled(!showsItems) }
+                        shown.sharing.disabled(!showsItems).environment(\.askInBar, askInBar)
                     }
                     .hidden(!showsItems)
                 }
@@ -2702,6 +2743,21 @@ struct NoteBreadcrumbs: View {
     let note: Note
     var controller: EditorController? = nil
     let open: (Scope) -> Void
+    /// The note's title after its folder once it scrolls away. A whiteboard's name has a field of
+    /// its own, so its breadcrumbs are the folder alone (round 12: the faded copy kept 110 pt of the
+    /// board's bar for nothing).
+    var showsTitle = true
+
+    /// How wide the folder's part is in the bar: each name with its padding, and the chevrons.
+    static func width(_ note: Note) -> CGFloat {
+        #if os(macOS)
+        let font = NSFont.systemFont(ofSize: ButtonSize.compact.textSize, weight: .semibold)
+        let names = path(note).map { ceil($0.name.size(withAttributes: [.font: font]).width) + ButtonSize.compact.padding * 1.5 }
+        return names.reduce(0, +) + CGFloat(max(0, names.count - 1)) * 8
+        #else
+        return 0
+        #endif
+    }
 
     /// The note's place, outermost first: Recently Deleted, its folders, or All Notes.
     static func path(_ note: Note) -> [(scope: Scope, name: String)] {
@@ -2735,6 +2791,7 @@ struct NoteBreadcrumbs: View {
             // Always laid out, only faded: adding and removing it changed the item's width, and
             // the toolbar slid "Notes" about and drew the two over each other mid-change (Emil,
             // 8 November 2026: "transition here is janky").
+            if showsTitle {
             HStack(spacing: 0) {
                 chevron
                 Text(note.title.isEmpty ? "New note" : note.title)
@@ -2747,6 +2804,7 @@ struct NoteBreadcrumbs: View {
             .opacity(titled ? 1 : 0)
             .accessibilityHidden(!titled)
             .animation(.easeOut(duration: 0.15), value: titled)
+            }
         }
         .lineLimit(1)
         // Its own width: a toolbar item is otherwise given too little, and showed only "…".
@@ -2764,6 +2822,70 @@ struct NoteBreadcrumbs: View {
 }
 
 #if os(macOS)
+/// Where a view stands in its window, reported when it moves or changes size: the board's column,
+/// for what its toolbar has room for (NoteToolbarStage.boardWidth). It takes no click.
+struct WindowSpot: NSViewRepresentable {
+    let changed: (CGRect) -> Void
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) {
+        view.changed = changed
+        view.report()
+    }
+
+    final class Probe: NSView {
+        var changed: ((CGRect) -> Void)?
+        private var last: CGRect?
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            report()
+        }
+        override func setFrameSize(_ newSize: NSSize) {
+            super.setFrameSize(newSize)
+            report()
+        }
+        override func setFrameOrigin(_ newOrigin: NSPoint) {
+            super.setFrameOrigin(newOrigin)
+            report()
+        }
+        override func layout() {
+            super.layout()
+            report()
+        }
+        /// Said a turn later, never in the middle of the window's layout.
+        func report() {
+            guard window != nil else { return }
+            let f = convert(bounds, to: nil)
+            let spot = CGRect(x: f.minX.rounded(), y: 0, width: f.width.rounded(), height: 0)
+            guard spot != last else { return }
+            last = spot
+            DispatchQueue.main.async { [weak self] in self?.changed?(spot) }
+        }
+    }
+}
+
+/// Ask AI from the note's More (•••) while its own button isn't in the bar (a narrow whiteboard):
+/// its popover opens from More. With the button there, the popover is the button's.
+struct AskFromMore: ViewModifier {
+    @Binding var asking: AskAI.Target?
+    let on: Bool
+    let subject: () -> AskAI.Subject
+    @Environment(\.askInBar) private var askInBar
+
+    func body(content: Content) -> some View {
+        if on, !askInBar {
+            content.askAIPopover($asking, subject: subject())
+        } else {
+            content
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The bar shows Ask AI's own button (NoteToolbarStage): More's Ask opens from it.
+    @Entry var askInBar = true
+}
+
 /// VoiceOver names the window after the open note; the title drawn in the bar stays the list's
 /// (round 22's dump: the window was "All Notes" with Lisbon open).
 struct WindowSpokenTitle: NSViewRepresentable {

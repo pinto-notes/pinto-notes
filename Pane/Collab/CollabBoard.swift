@@ -336,7 +336,22 @@ extension CollabBoard {
         canvas.onComments = { [weak session] list in session?.commentLocal(list) }
         session.onBoardComments = { [weak canvas] list in canvas?.show(comments: list) }
         canvas.setCanComment(session.canWrite)
+        mention(session, canvas)
         canvas.show(comments: session.boardComments)
+    }
+
+    /// The people a comment can mention (@Sara): the board's other members who joined, by first
+    /// name, never you.
+    static func people(_ session: CollabSession) -> [BoardComments.Person] {
+        session.members.filter { $0.id != session.me && $0.accepted }.compactMap { m in
+            let name = BoardComments.firstName(m.name)
+            return name == "You" ? nil : BoardComments.Person(id: m.id.uuidString, name: name)
+        }
+    }
+
+    private static func mention(_ session: CollabSession, _ canvas: CanvasController) {
+        let p = people(session)
+        if p != canvas.mentionable { canvas.mentionable = p }
     }
 
     /// A board of your own: its comments are in its page data, which syncs as the drawing does
@@ -362,6 +377,7 @@ extension CollabBoard {
         }
         canvas.onBoardFiles = nil
         canvas.onComments = nil
+        canvas.mentionable = []
         canvas.colorOf = { BoardComments.color(for: $0) }
         canvas.show(comments: [])
         canvas.onBoardDelta = nil
@@ -376,5 +392,6 @@ extension CollabBoard {
         canvas.share(true, viewOnly: !session.canWrite)
         canvas.show(peers: session.boardPeers)
         canvas.setCanComment(session.canWrite)
+        mention(session, canvas)
     }
 }

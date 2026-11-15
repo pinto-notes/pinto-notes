@@ -1607,72 +1607,245 @@ private extension View {
 
 struct CanvasToolbarTools: View {
     let canvas: CanvasController
+    /// How much of the board's toolbar its column has room for (Fit).
+    var fit = Fit.full
+    /// Full Screen, for More Tools when the column has no room for its own button.
+    var fullScreen: FullScreenAction? = nil
     /// A narrow window: the tools used most, the rest in one menu, so nothing falls off the
     /// toolbar (whiteboard council, round 2, 15: everything after the pencil was gone).
-    var compact = false
+    var compact: Bool { fit >= .compact }
 
     static let tools: [CanvasTool] = [.selection, .hand, .freedraw, .arrow, .text, .eraser]
-    /// Narrower than this, the column shows the compact tools (and the board drops its breadcrumb).
-    static let compactWidth: CGFloat = 760
-    static func compact(_ width: CGFloat) -> Bool { width < compactWidth }
+
+    /// How much of the board's toolbar shows, fullest first. Each step moves something out of the
+    /// bar into a menu, so every item is whole in the bar or in a menu, and Share and More always
+    /// show (round 12: at 1400 pt the board's items pushed into the list's side of the bar, over
+    /// its title; in a narrow window Share and More fell into AppKit's overflow).
+    enum Fit: Int, Comparable, CaseIterable, Sendable {
+        /// Every tool and the library, and the board's folder.
+        case full
+        /// Without the folder (the list shows it, and More's Move To).
+        case noPlace
+        /// Hand, eraser and the library in More Tools.
+        case compact
+        /// Full Screen in More Tools too (⇧⌘F still works).
+        case tight
+        /// Arrow and text in More Tools too; Ask AI in More (•••), where it also is.
+        case narrow
+        /// Every tool in one Tools menu.
+        case narrowest
+
+        static func < (a: Fit, b: Fit) -> Bool { a.rawValue < b.rawValue }
+
+        /// The tools with a button of their own, besides the shapes' (whose button shows down to
+        /// `narrow`).
+        var shown: [CanvasTool] {
+            switch self {
+            case .full, .noPlace: [.selection, .hand, .freedraw, .arrow, .text, .eraser]
+            case .compact, .tight: [.selection, .freedraw, .arrow, .text]
+            case .narrow: [.selection, .freedraw]
+            case .narrowest: []
+            }
+        }
+        /// The tools in More Tools (at `narrowest`, the Tools menu holds them all).
+        var inMore: [CanvasTool] {
+            switch self {
+            case .full, .noPlace: []
+            case .compact, .tight: [.hand, .eraser, .laser]
+            case .narrow: [.hand, .arrow, .text, .eraser, .laser]
+            case .narrowest: [.selection, .hand, .freedraw, .arrow, .text, .eraser, .laser]
+            }
+        }
+        var showsPlace: Bool { self == .full }
+        var showsLibrary: Bool { self <= .noPlace }
+        var showsFullScreen: Bool { self <= .compact }
+        var showsAsk: Bool { self <= .tight }
+    }
+
+    /// What the bar holds beside the board's tools, for working out the Fit: the widths are as
+    /// drawn (text with its padding).
+    struct Room: Equatable, Sendable {
+        /// The board's name, whole, as the title field draws it.
+        var title: CGFloat = 120
+        /// The board's folder (the breadcrumbs).
+        var place: CGFloat = 0
+        /// An Ask AI button (an AI is connected).
+        var asks = false
+        /// The people of a shared board (PresenceStack).
+        var people: CGFloat = 0
+        /// A line said in the bar ("Added to Habits", with its Undo).
+        var said: CGFloat = 0
+        /// Full Screen has the window: "Notes" and the name on the left, no back and forward.
+        var focus = false
+        /// The board can't be drawn on (a viewer): its tools are off, More Tools with them, so
+        /// Full Screen keeps its own button.
+        var viewOnly = false
+    }
+
+    // The bar's measures (Tahoe, measured offscreen in the notes window: CanvasNativeUITests,
+    // theBoardsToolbarNeverClips). A button is 36 to 39 pt; the bar puts 8 pt between its glass
+    // groups (the shapes' button is a group of its own).
+    static let item: CGFloat = 37
+    static let groupGap: CGFloat = 8
+    /// After the name: the toolbar's anchor item (18 pt), and the least the flexible space after
+    /// it keeps (26 pt, measured with a long name).
+    static let titleTail: CGFloat = 18 + 26
+    /// From the column's left edge to its first item, and from the last item to the window's edge.
+    static let edges: CGFloat = 4 + 8
+    /// Kept spare, so a bar a few points off this Mac's measures still fits (the Air's back and
+    /// forward stood 9 pt further apart, round 10).
+    static let margin: CGFloat = 12
+    /// The name gets at least this much before the tools give up their buttons, by step: the whole
+    /// name up to 200 pt while the bar is full, less as it narrows.
+    static func titleFloor(_ fit: Fit) -> CGFloat {
+        switch fit {
+        case .full, .noPlace: 200
+        case .compact, .tight: 140
+        case .narrow: 80
+        case .narrowest: 60
+        }
+    }
+    static let titleMax: CGFloat = 280
+    static let titleMin: CGFloat = 60
+
+    /// The width the bar needs at a step, the name aside.
+    static func needed(_ fit: Fit, _ room: Room) -> CGFloat {
+        var left = room.focus ? item : 2 * item
+        if fit.showsPlace, room.place > 0, !room.focus { left += room.place }
+        if room.said > 0 { left += room.said + groupGap }
+        left += titleTail
+        // The tools: before the shapes, the shapes, after them (More Tools, the library).
+        var groups: [Int]
+        let before = fit.shown.filter { [.selection, .hand, .freedraw].contains($0) }.count
+        // At the narrowest the one Tools menu stands alone.
+        let after = fit == .narrowest ? 0 : fit.shown.count - before + (fit.showsLibrary ? 1 : 0) + (fit.inMore.isEmpty ? 0 : 1)
+        groups = fit == .narrowest ? [1] : [before, 1]
+        // The last group runs on: the tools after the shapes, Comments, Full Screen, Ask AI,
+        // Share and More.
+        var last = after + 1 + 2
+        if fit.showsFullScreen || room.viewOnly { last += 1 }
+        if fit.showsAsk, room.asks { last += 1 }
+        groups.append(last)
+        let right = CGFloat(groups.reduce(0, +)) * item + CGFloat(groups.count - 1) * groupGap + room.people
+        return left + right + edges + margin
+    }
+
+    /// The fullest step whose tools fit beside the name at its floor, and the width the name gets.
+    static func layout(_ room: Room, width: CGFloat) -> (fit: Fit, title: CGFloat) {
+        let whole = min(max(room.title, titleMin), titleMax)
+        for fit in Fit.allCases {
+            let spare = width - needed(fit, room)
+            if spare >= min(whole, titleFloor(fit)) || fit == .narrowest {
+                return (fit, max(titleMin, min(whole, spare)))
+            }
+        }
+        return (.narrowest, titleMin)
+    }
+
+    /// The board's name as the title field draws it (CanvasTitleField): its words and padding.
+    static func titleWidth(_ name: String) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        return ceil((name.isEmpty ? CanvasNote.title : name).size(withAttributes: [.font: font]).width) + 12
+    }
+
+    /// Where the board's items can start: beside the window's buttons, the sidebar's and the
+    /// list's (a narrow list's own buttons run past its column), or the column's own edge.
+    static let listBarEnd: CGFloat = 373
+    static let windowButtonsEnd: CGFloat = 92
+
     /// In the compact set: shown, and in its More Tools menu.
-    static let compactShown: [CanvasTool] = [.selection, .freedraw, .arrow, .text]
-    static let compactMore: [CanvasTool] = [.hand, .eraser, .laser, .comment]
+    static let compactShown: [CanvasTool] = Fit.compact.shown
+    static let compactMore: [CanvasTool] = Fit.compact.inMore
+    /// Not among the tools: the Comment tool is the Comments button's (its list's New Comment, and C).
+    static let inComments: [CanvasTool] = [.comment]
     /// In the Shapes menu after the shapes (and the sticky note).
     static let inShapesMenu: [CanvasTool] = [.frame]
+    /// In the note's More (•••), at every width (NoteMoreMenu's canvasLaser).
+    static let inNoteMore: [CanvasTool] = [.laser]
 
     var body: some View {
         let current = canvas.state.tool
         Group {
-            if compact {
-                tool(.selection, current)
-                tool(.freedraw, current)
-                shapes(current)
-                tool(.arrow, current)
-                tool(.text, current)
-                moreTools(current)
+            if fit == .narrowest {
+                allTools(current)
             } else {
-                tool(.selection, current)
-                tool(.hand, current)
-                tool(.freedraw, current)
+                ForEach(fit.shown.filter { [.selection, .hand, .freedraw].contains($0) }) { tool($0, current) }
                 shapes(current)
-                tool(.arrow, current)
-                tool(.text, current)
-                tool(.eraser, current)
-                tool(.comment, current)
-                // Image is in the Shapes menu (and pictures paste and drop): its toolbar room went
-                // to the library, so the note list keeps its title (round 6, "All Notes…").
-                Button { canvas.showingLibrary.toggle() } label: {
-                    Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary)
+                ForEach(fit.shown.filter { ![.selection, .hand, .freedraw].contains($0) }) { tool($0, current) }
+                if fit.showsLibrary {
+                    // Image is in the Shapes menu (and pictures paste and drop): its toolbar room went
+                    // to the library, so the note list keeps its title (round 6, "All Notes…").
+                    Button { canvas.showingLibrary.toggle() } label: {
+                        Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary)
+                    }
+                    .help(CanvasLibraryPopover.help)
+                    .accessibilityIdentifier("canvas.tool.library")
+                    .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
+                } else {
+                    moreTools(current)
                 }
-                .help(CanvasLibraryPopover.help)
-                .accessibilityIdentifier("canvas.tool.library")
-                .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
             }
         }
         .disabled(!canvas.connected)
     }
 
+    /// What a narrow bar keeps in More Tools besides its tools: pictures, sticky notes, the
+    /// library, note cards, and Full Screen when its own button has gone.
+    @ViewBuilder private func moreItems() -> some View {
+        Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
+        Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
+        // The library's own button, in a narrow window (its popover comes from this menu).
+        Button(CanvasLibraryPopover.title + "\u{2026}", systemImage: CanvasLibraryPopover.symbol) { canvas.showingLibrary = true }
+            .accessibilityIdentifier("canvas.tool.more.library")
+        Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
+        if !fit.showsFullScreen, let fullScreen {
+            Divider()
+            Button(fullScreen.title, systemImage: fullScreen.symbol, action: fullScreen.run)
+                .accessibilityIdentifier("canvas.tool.more.fullScreen")
+        }
+    }
+
     private func moreTools(_ current: CanvasTool) -> some View {
-        let picked = Self.compactMore.contains(current)
+        let picked = fit.inMore.contains(current)
         return Menu {
-            ForEach(Self.compactMore) { t in
+            ForEach(fit.inMore) { t in
                 Button(t.help, systemImage: t.symbol) { canvas.pick(t) }
             }
-            Button(Self.imageTitle + "\u{2026}", systemImage: "photo") { Self.pickImage(canvas) }
-            Button(Self.stickyTitle, systemImage: "note.text") { canvas.send(.sticky) }
-            // The library's own button, in a narrow window (its popover comes from this menu).
-            Button(CanvasLibraryPopover.title + "\u{2026}", systemImage: CanvasLibraryPopover.symbol) { canvas.showingLibrary = true }
-                .accessibilityIdentifier("canvas.tool.more.library")
-            Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
+            moreItems()
         } label: {
             Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked)
         }
         .menuIndicator(.hidden)
-        .help("Hand, eraser, laser pointer, pictures, sticky notes and the library")
-        .help("Hand, eraser, pictures, sticky notes and note cards")
+        .help(Self.moreHelp(fit))
         .accessibilityIdentifier("canvas.tool.more")
         .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
+    }
+
+    /// The narrowest bar's one Tools menu: every tool and shape, then what More Tools holds. Its
+    /// button shows the tool that's picked.
+    private func allTools(_ current: CanvasTool) -> some View {
+        Menu {
+            ForEach(Fit.narrowest.inMore.prefix(3)) { t in Button(t.help, systemImage: t.symbol) { canvas.pick(t) } }
+            Menu("Shapes") {
+                ForEach(CanvasTool.shapes + Self.inShapesMenu) { t in
+                    Button(t.help, systemImage: t.symbol) { if CanvasTool.shapes.contains(t) { CanvasToolbarTools.lastShape = t }; canvas.pick(t) }
+                }
+            }
+            ForEach(Fit.narrowest.inMore.dropFirst(3)) { t in Button(t.help, systemImage: t.symbol) { canvas.pick(t) } }
+            Divider()
+            moreItems()
+        } label: {
+            Label("Tools", systemImage: current == .comment ? CanvasTool.selection.symbol : current.symbol).picked(current != .selection && current != .comment)
+        }
+        .menuIndicator(.hidden)
+        .help("Tools: select, draw, shapes, arrows, text and more")
+        .accessibilityIdentifier("canvas.tool.more")
+        .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
+    }
+
+    static func moreHelp(_ fit: Fit) -> String {
+        let names = fit.inMore.map { $0.title.lowercased() } + ["pictures", "sticky notes", "note cards", "the library"] + (fit.showsFullScreen ? [] : ["full screen"])
+        return "More tools: " + names.dropLast().joined(separator: ", ") + " and " + (names.last ?? "")
     }
 
     private func tool(_ t: CanvasTool, _ current: CanvasTool) -> some View {
@@ -2154,6 +2327,8 @@ enum CanvasLibraryDrag {
 /// named (Emil, 13 November 2026: "there is no way to name the canvas").
 struct CanvasTitleField: View {
     let note: Note
+    /// Its widest (CanvasToolbarTools.titleWidth): a long name is cut short in a narrow column.
+    var maxWidth: CGFloat = 280
     @State private var text = ""
     @FocusState private var focused: Bool
 
@@ -2164,12 +2339,27 @@ struct CanvasTitleField: View {
             .lineLimit(1)
             .padding(.horizontal, 6)
             .hidden()
-            .frame(minWidth: 60, maxWidth: 280)
+            .frame(minWidth: 60, maxWidth: maxWidth)
             .overlay {
                 TextField(CanvasNote.title, text: $text)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13, weight: .semibold))
+                    // Its own text clear while the name is only shown: the label below draws it.
+                    .foregroundStyle(labelled ? AnyShapeStyle(Color.clear) : AnyShapeStyle(.primary))
                     .padding(.horizontal, 6)
+                    .overlay(alignment: .leading) {
+                        // A name cut short ends in "…" (round 12: the field clipped it mid-letter,
+                        // "Product laun", in a narrow window). Clicks go to the field under it.
+                        if labelled {
+                            Text(text)
+                                .font(.system(size: 13, weight: .semibold))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .padding(.horizontal, 6)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
                     .focused($focused)
                     .onSubmit { commit() }
                     .onExitCommand { text = note.title; focused = false }
@@ -2184,6 +2374,9 @@ struct CanvasTitleField: View {
             .onChange(of: note.title) { _, t in if !focused { text = t } }
             .onChange(of: focused) { _, now in if !now { commit() } }
     }
+
+    /// Shown, not being renamed: the label draws the name.
+    private var labelled: Bool { !focused && !text.isEmpty }
 
     private func commit() {
         if let t = Self.renamed(note, to: text) { text = t } else { text = note.title }

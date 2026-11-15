@@ -60,6 +60,29 @@ export function placeAt(elements, x, y) {
   return { on: e.id, x: r(clamp01((x - x1) / w)), y: r(clamp01((y - y1) / h)) };
 }
 
+const TYPE_NAMES = { rectangle: "Rectangle", ellipse: "Oval", diamond: "Diamond", freedraw: "Drawing", image: "Picture", text: "Text", frame: "Frame", magicframe: "Frame", embeddable: "Embed", iframe: "Embed" };
+
+/**
+ * What a shape is called where a comment list names it ("on Idea"): the words in it (its first
+ * line, at most 30 characters), a frame's name, or what kind of shape it is. Null for one that's
+ * gone.
+ */
+export function shapeName(e, all) {
+  if (!e || e.isDeleted) return null;
+  const words = (t) => {
+    const line = String(t || "").split("\n").map((l) => l.trim()).find((l) => l) || "";
+    return line.length > 30 ? line.slice(0, 29).trimEnd() + "\u2026" : line;
+  };
+  if (e.type === "text") { const w = words(e.originalText || e.text); if (w) return w; }
+  const bound = all.find((x) => !x.isDeleted && x.type === "text" && x.containerId === e.id);
+  if (bound) { const w = words(bound.originalText || bound.text); if (w) return w; }
+  if ((e.type === "frame" || e.type === "magicframe") && e.name) return words(e.name);
+  const card = e.customData && (e.customData.pintoCardTitle || e.customData.title);
+  if (typeof card === "string" && card.trim()) return words(card);
+  if (e.customData && e.customData.pintoSticky) return "Sticky note";
+  return TYPE_NAMES[e.type] || "Shape";
+}
+
 /** A new comment on the selection: on its first shape (not the words inside one), at the top
  *  right corner. Null with nothing selected. */
 export function placeOnSelection(api) {
@@ -87,6 +110,8 @@ export function commentsLayer(api, host, post, changed = () => {}) {
   host.appendChild(layer);
   const nodes = new Map();
   let pins = [], me = { color: "#2D639A", dark: "#3677B9", letter: "" }, open = null, draft = null, can = true, commenting = false, sent = "";
+  // The shapes the app wants named (its threads'), and the names last told.
+  let asked = [], named = "";
 
   const node = (id) => {
     let n = nodes.get(id);
@@ -128,15 +153,38 @@ export function commentsLayer(api, host, post, changed = () => {}) {
       const tint = shade(p, s.theme);
       b.style.background = tint;
       b.style.setProperty("--pin", tint);
-      b.textContent = p.letter || "";
+      // An AI's: its own mark (the shape of it, coloured by the page: white on its graphite pin,
+      // black on the light grey one of a dark board), never a letter.
+      if (typeof p.mark === "string" && p.mark.startsWith("data:image/")) {
+        let m = b.firstElementChild;
+        if (!m || !m.classList.contains("pinto-pin-mark")) { b.textContent = ""; m = document.createElement("span"); m.className = "pinto-pin-mark"; b.appendChild(m); }
+        const url = `url("${p.mark}")`;
+        if (m.style.webkitMaskImage !== url) { m.style.webkitMaskImage = url; m.style.maskImage = url; }
+        m.style.background = s.theme === "dark" ? "#1D1D1F" : "#FFFFFF";
+        b.classList.add("ai");
+      } else {
+        if (b.firstElementChild || b.textContent !== (p.letter || "")) b.textContent = p.letter || "";
+        b.classList.remove("ai");
+      }
       b.classList.toggle("open", p.id === open);
       if (p.id === open) at = { id: p.id, x: v.x, y: v.y - PIN.size, width: PIN.size, height: PIN.size };
     }
     for (const [id, b] of nodes) if (!seen.has(id)) { b.remove(); nodes.delete(id); }
+    name(byId);
     // Where the open pin is, for the app's popover: when it moved.
     const key = open ? JSON.stringify(at) : "";
     if (open && key !== sent) { sent = key; post({ commentAt: at ? { ...at, x: Math.round(at.x), y: Math.round(at.y) } : { id: open } }); }
     if (!open) sent = "";
+  };
+
+  // The names of the shapes the threads are on, told to the app when they change (a shape's words
+  // edited, the shape deleted).
+  const name = (byId) => {
+    if (!asked.length) return;
+    const all = [...byId.values()], out = {};
+    for (const id of asked) { const n = shapeName(byId.get(id), all); if (n) out[id] = n; }
+    const key = JSON.stringify(out);
+    if (key !== named) { named = key; post({ commentShapes: out }); }
   };
 
   const setCommenting = (on) => {
@@ -169,7 +217,7 @@ export function commentsLayer(api, host, post, changed = () => {}) {
   };
   window.addEventListener("pointerdown", press, true);
 
-  const off = api.onChange(() => { if (nodes.size || pins.length || draft) draw(); });
+  const off = api.onChange(() => { if (nodes.size || pins.length || draft || asked.length) draw(); });
   const offScroll = api.onScrollChange(() => { if (nodes.size || pins.length || draft) draw(); });
 
   return {
@@ -182,6 +230,7 @@ export function commentsLayer(api, host, post, changed = () => {}) {
       if (open !== was) sent = "";
       draft = c.draft && typeof c.draft === "object" && Number.isFinite(c.draft.x) ? c.draft : null;
       can = c.can !== false;
+      asked = Array.isArray(c.shapes) ? c.shapes.filter((x) => typeof x === "string").slice(0, 500) : [];
       if (!can) setCommenting(false);
       draw();
     },
