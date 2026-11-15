@@ -30,8 +30,9 @@
 .status { margin: 0; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .right { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
 .people { display: flex; margin: 0 2px 0 4px; padding: 0; list-style: none; }
-.avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 12.5px; font-weight: 700; box-shadow: 0 0 0 2px var(--surface); }
-.avatar + .avatar { margin-left: -6px; }
+.avatar { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; color: #fff !important; font-size: 12.5px; font-weight: 700; box-shadow: 0 0 0 2px var(--surface); cursor: pointer; }
+.people li + li { margin-left: -6px; }
+.avatar[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
 .iconButton, .me { position: relative; width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; display: grid; place-items: center; cursor: pointer; }
 .iconButton[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
 .me { width: 32px; height: 32px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 13px; }
@@ -151,6 +152,11 @@
 .mentionsYou { color: var(--accent-ink); font-weight: 650; }
 
 /* ── A line for a moment ── */
+/* Following someone (board-follow.ts): a solid banner in their colour at the top, and while you
+   follow, an outline round the board in it. */
+.follow { position: absolute; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 58px); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 5px 5px 5px 14px; border-radius: 999px; color: #fff; font-weight: 650; font-size: 14px; white-space: nowrap; z-index: 5; }
+.follow button { min-height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: #fff; font-weight: 650; cursor: pointer; }
+.followOutline { position: absolute; inset: 0; border: 3px solid; pointer-events: none; z-index: 4; }
 .toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 999px; background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: 14px; box-shadow: var(--shadow); z-index: 6; white-space: nowrap; }
 .toastUndo { padding: 0; border: 0; background: none; color: inherit !important; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) {

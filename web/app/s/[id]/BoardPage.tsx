@@ -95,7 +95,16 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
         <div className={s.right}>
           {peers.length > 0 && (
             <ul className={s.people} aria-label="On the board now">
-              {peers.slice(0, 5).map((p) => <li key={p.id} className={s.avatar} style={{ background: p.color }} title={p.name}>{(p.name[0] ?? "?").toUpperCase()}</li>)}
+              {/* A click follows their view, as in the app (board-follow.ts); again stops. */}
+              {peers.slice(0, 5).map((p) => {
+                const on = host?.follow.following === p.id;
+                return (
+                  <li key={p.id}>
+                    <button className={s.avatar} style={{ background: p.color }} title={on ? `Stop following ${p.name}` : `Follow ${p.name}`} aria-pressed={on}
+                      onClick={() => (on ? host?.follow.stop() : host?.follow.follow(p.id))}>{(p.name[0] ?? "?").toUpperCase()}</button>
+                  </li>
+                );
+              })}
             </ul>
           )}
           <button className={s.iconButton} aria-label="Comments" title="Comments" aria-pressed={list} onClick={() => { setList(!list); if (!list) comments.markSeen(); }}>
@@ -130,10 +139,34 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
         <button className={s.zoomButton} aria-label="Zoom in" onClick={() => command({ op: "action", name: "zoomIn" })}>+</button>
       </div>
 
+      {host && <FollowBanner ctl={ctl} />}
       {threadOpen && <ThreadCard ctl={ctl} anchor={anchor} />}
       {list && <CommentList ctl={ctl} onClose={() => setList(false)} />}
       {ctl.signIn && <SignInSheet ctl={ctl} href={href} />}
       {ctl.notice && <Toast ctl={ctl} />}
+    </>
+  );
+}
+
+/** Someone presenting ("Sara is presenting · Follow"), or whom you follow ("Following Sara · Stop
+ *  following", with an outline round the board in their colour): board-follow.ts. */
+function FollowBanner({ ctl }: { ctl: BoardController }) {
+  const follow = ctl.host?.follow;
+  const b = follow?.banner;
+  useEffect(() => {
+    if (b?.kind !== "following") return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") follow?.stop(); };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [b?.kind, follow]);
+  if (!follow || !b) return null;
+  return (
+    <>
+      {b.kind === "following" && <div className={s.followOutline} style={{ borderColor: b.person.color }} aria-hidden="true" />}
+      <div className={s.follow} style={{ background: b.person.color }} role="status" data-follow={b.kind}>
+        <span>{b.line}</span>
+        <button style={{ color: b.person.color }} onClick={() => (b.kind === "following" ? follow.stop() : follow.follow(b.person.id))}>{b.action}</button>
+      </div>
     </>
   );
 }

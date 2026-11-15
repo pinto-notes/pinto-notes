@@ -1436,7 +1436,7 @@ struct NoteDetailView: View {
             said: said?.text ?? (noticeInBar ? undoFailed : nil),
             saidAction: said?.action,
             attachment: AnyView(attachMenu),
-            people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            people: collab.map { collab in AnyView(PresenceStack(session: collab, board: showingCanvas ? canvasControls : nil) { showPeople = true }) },
             peopleWidth: collab.map { PresenceStack.barWidth(viewOnly: $0.isViewOnly) } ?? 0,
             ask: askTargets.isEmpty ? nil : AnyView(askButton),
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
@@ -1738,7 +1738,7 @@ struct NoteDetailView: View {
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
         if let collab {
-            ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
+            ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab, board: showingCanvas ? canvasControls : nil) { showPeople = true } }
         }
         // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
         ToolbarItemGroup(placement: .primaryAction) {

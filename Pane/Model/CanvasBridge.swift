@@ -420,8 +420,12 @@ enum CanvasCommand: Equatable, Sendable {
     case comments([BoardComments.Pin], me: BoardComments.Pin, open: String?, draft: BoardComments.Place?, canComment: Bool, shapes: [String] = [])
     /// A new comment on the selection, or at a point of the page (a right-click on nothing).
     case commentHere(CGPoint?)
-    /// A comment's pin into view.
-    case focusComment(String)
+    /// A comment's pin into view: `above`, kept in that top part of the view (iPhone, over its sheet).
+    case focusComment(String, above: Double? = nil)
+    /// The view to someone you follow (BoardFollow): their frame or their view; nil: following ends.
+    case follow(BoardFollow.Target?)
+    /// Someone's laser trail, the points it went through since the last (board coordinates).
+    case laser(UUID, [CGPoint])
     /// A version from the board's History (a scene, as JSON), back on the board in one step Undo
     /// takes back (BoardHistoryModel.restore).
     case restoreVersion(Data)
@@ -457,7 +461,9 @@ enum CanvasCommand: Equatable, Sendable {
             ["op": "comments", "pins": pins.map(\.payload), "me": me.payload, "open": open ?? NSNull(), "can": can, "shapes": shapes,
              "draft": draft.map { d -> Any in ["x": d.x, "y": d.y].merging(d.on.map { ["on": $0] } ?? [:]) { a, _ in a } } ?? NSNull()]
         case .commentHere(let at): ["op": "commentHere"].merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
-        case .focusComment(let id): ["op": "focusComment", "id": id]
+        case .focusComment(let id, let above): ["op": "focusComment", "id": id].merging(above.map { ["above": $0] } ?? [:]) { a, _ in a }
+        case .follow(let target): target?.payload ?? ["op": "follow", "off": true]
+        case .laser(let id, let points): ["op": "laser", "id": id.uuidString, "points": points.map { [Double($0.x), Double($0.y)] }]
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -524,8 +530,11 @@ final class CanvasController {
         if let p = m["presence"] as? [String: Any] {
             let xy = (p["pointer"] as? [NSNumber])?.map { CGFloat($0.doubleValue) }
             onPresence?(xy.flatMap { $0.count == 2 ? CGPoint(x: $0[0], y: $0[1]) : nil }, (p["sel"] as? [String]) ?? [])
+            onBoardLook?(Self.look(p))
             return
         }
+        // You moved the board yourself (or pressed Escape) while following someone.
+        if m["unfollow"] as? Bool == true { stopFollowing(); return }
         // A page loaded (the first, or again after the web view's content went away): what it was
         // told about sharing, it's told again.
         if let l = m["load"] as? String, l != load {
@@ -536,8 +545,13 @@ final class CanvasController {
             // Its comments, again.
             lastPins = nil
             sendPins()
+            // And whose view it follows.
+            lastFollowTarget = nil
+            if let p = followed { applyFollow(p) }
         }
         let next = CanvasState(m)
+        // Presenting yourself ends following someone else.
+        if next.present != nil, state.present == nil, following != nil { stopFollowing() }
         if !connected {
             connected = true
             // A board opened from "On boards": its card for that note, once the page can take it.
@@ -721,6 +735,7 @@ final class CanvasController {
         self.viewOnly = view
         if view { showingStyle = false; showingLibrary = false }
         if !on, !peers.isEmpty { peers = [] }
+        if !on { stopFollowing(); if !people.isEmpty { people = [] } }
         if !on { pageFiles = [] }
         sendShared()
     }
@@ -755,6 +770,80 @@ final class CanvasController {
         guard shared, list != peers else { return }
         peers = list
         send(.peers(list))
+    }
+
+    // MARK: Following someone (BoardFollow)
+
+    /// Everyone else on a shared board, for following them: who presents, where each one looks.
+    private(set) var people: [BoardPerson] = []
+    /// Whose view you follow: a presenter's (the banner's Follow), or anyone's (Follow from the avatars).
+    private(set) var following: UUID?
+    /// You followed them because they were presenting: their Done ends it.
+    @ObservationIgnored private(set) var followingPresenter = false
+    @ObservationIgnored private var lastFollowTarget: BoardFollow.Target?
+    /// Tells the others whose view you follow (set by the wiring).
+    @ObservationIgnored var onFollow: ((UUID?) -> Void)?
+    /// What you present and see, and your laser's trail, for the others (set by the wiring).
+    @ObservationIgnored var onBoardLook: ((BoardLook) -> Void)?
+
+    /// The person you follow, while they're on the board.
+    var followed: BoardPerson? { following.flatMap { id in people.first { $0.id == id } } }
+    /// What the banner over the board says: someone presenting (Follow), or whom you follow.
+    var followBanner: BoardFollow.Banner? { shared ? BoardFollow.banner(people: people, following: following, presentingHere: state.present != nil) : nil }
+    /// The people following you (the Present bar counts them).
+    var followers: [BoardPerson] { BoardFollow.followers(of: UUID(uuidString: author.id), in: people) }
+
+    /// Everyone else on the board, as their presence says: followed views move with them.
+    func show(people list: [BoardPerson]) {
+        guard shared || list.isEmpty else { return }
+        if list != people { people = list }
+        guard let id = following else { return }
+        // They left, or ended the presentation you followed: following ends where it is.
+        guard let p = list.first(where: { $0.id == id }), !(followingPresenter && p.presenting == nil) else { stopFollowing(); return }
+        applyFollow(p)
+    }
+
+    /// Follows someone on the board: your view goes where theirs is, and moves with it.
+    func follow(_ id: UUID) {
+        guard shared, let p = people.first(where: { $0.id == id }) else { return }
+        if following != id { onFollow?(id) }
+        following = id
+        followingPresenter = p.presenting != nil
+        lastFollowTarget = nil
+        applyFollow(p)
+    }
+
+    /// Stops following (Stop following, Escape, your own move of the board).
+    func stopFollowing() {
+        guard following != nil else { return }
+        following = nil
+        followingPresenter = false
+        lastFollowTarget = nil
+        onFollow?(nil)
+        send(.follow(nil))
+    }
+
+    private func applyFollow(_ p: BoardPerson) {
+        guard let target = BoardFollow.target(for: p), target != lastFollowTarget else { return }
+        lastFollowTarget = target
+        send(.follow(target))
+    }
+
+    /// Someone's laser trail, drawn on the board as it fades.
+    func laser(from id: UUID, points: [CGPoint]) {
+        guard shared, !points.isEmpty else { return }
+        send(.laser(id, points))
+    }
+
+    /// What the page says of your view with your pointer (BoardFollow).
+    static func look(_ p: [String: Any]) -> BoardLook {
+        let nums = { (k: String) in (p[k] as? [Any])?.compactMap { ($0 as? NSNumber)?.doubleValue } }
+        var presenting: BoardPresenting?
+        if let pr = p["present"] as? [String: Any], let i = (pr["i"] as? NSNumber)?.intValue, let n = (pr["n"] as? NSNumber)?.intValue {
+            presenting = BoardPresenting(frame: pr["frame"] as? String, i: i, n: n).checked
+        }
+        let laser = (p["laser"] as? [Any]).map { list in BoardFollow.points(list.compactMap { ($0 as? [Any])?.compactMap { ($0 as? NSNumber)?.doubleValue } }) }
+        return BoardLook(presenting: presenting, view: BoardFollow.rect(nums("view")), laser: laser)
     }
 
     /// Sends the others again (a page that just loaded).
@@ -804,6 +893,10 @@ final class CanvasController {
     var showingComments = false {
         didSet { if showingComments, !oldValue { markSeen() } }
     }
+    /// Where a thread opens over the board, as a fraction of its height from the top that stays in
+    /// sight: on iPhone a thread is a sheet over the lower half, and its pin moves above it. Nil:
+    /// a popover beside the pin (Mac).
+    @ObservationIgnored var focusRoom: Double?
     /// The comment of yours being changed in its thread.
     var editingComment: String?
     /// The comment of yours that Delete asks about.
@@ -960,6 +1053,8 @@ final class CanvasController {
             commentAnchor = nil
             commentOpenedAt = .now
             sendPins()
+            // Over a sheet (iPhone): its pin moves up out of the sheet's way.
+            if let room = focusRoom { send(.focusComment("draft", above: room)) }
         } else if let id = m["open"] as? String {
             open(thread: id)
         }
@@ -983,7 +1078,7 @@ final class CanvasController {
         editingComment = nil
         markSeen()
         sendPins()
-        send(.focusComment(id))
+        send(.focusComment(id, above: focusRoom))
     }
 
     /// The thread's popover closed.

@@ -6,8 +6,26 @@ import SwiftUI
 /// lines; a reply field at the foot; Resolve at the top, as the thread's one action.
 enum BoardCommentUI {
     static let width: CGFloat = 300
-    static let avatar: CGFloat = 22
     static let listWidth: CGFloat = 320
+    #if os(iOS)
+    // iPhone: the system's text sizes (Dynamic Type), and taps 44 points square (the HIG).
+    static let avatar: CGFloat = 28
+    static let nameFont = Font.subheadline.weight(.semibold)
+    static let textFont = Font.body
+    static let mentionFont = Font.body.weight(.semibold)
+    static let metaFont = Font.footnote
+    static let tagFont = Font.caption.weight(.semibold)
+    static let target: CGFloat = 44
+    #else
+    static let avatar: CGFloat = 22
+    static let nameFont = Font.system(size: 13, weight: .semibold)
+    static let textFont = Font.system(size: 13)
+    static let mentionFont = Font.system(size: 13, weight: .semibold)
+    static let metaFont = Font.system(size: 12)
+    static let tagFont = Font.system(size: 11, weight: .semibold)
+    #endif
+    /// How much of the board stays in sight above an iPhone thread's sheet: its pin moves up into it.
+    static let sheetRoom = 0.45
     static let title = "Comments"
     /// The action: the selection bar's, the right-click menu's.
     static let comment = "Comment"
@@ -54,7 +72,7 @@ enum BoardCommentUI {
                 let lower = text.distance(from: text.startIndex, to: r.lowerBound), length = text.distance(from: r.lowerBound, to: r.upperBound)
                 let a = out.index(out.startIndex, offsetByCharacters: lower), b = out.index(a, offsetByCharacters: length)
                 out[a..<b].foregroundColor = Color.amberInk
-                out[a..<b].font = .system(size: 13, weight: .semibold)
+                out[a..<b].font = mentionFont
             }
         }
         return out
@@ -118,11 +136,11 @@ struct BoardCommentRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(canvas.byline(comment))
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(BoardCommentUI.nameFont)
                         .foregroundStyle(Color.ink)
                         .lineLimit(1)
                     Text(BoardComments.when(comment, now: canvas.now()) + (comment.edited != nil && !comment.deleted ? " \u{00B7} " + BoardCommentUI.edited : ""))
-                        .font(.system(size: 12))
+                        .font(BoardCommentUI.metaFont)
                         .foregroundStyle(Color.muted)
                         .lineLimit(1)
                         .accessibilityIdentifier(comment.edited != nil ? "comment.edited" : "comment.when")
@@ -132,7 +150,11 @@ struct BoardCommentRow: View {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(Color.muted)
+                                #if os(iOS)
+                                .frame(width: BoardCommentUI.target, height: BoardCommentUI.target)
+                                #else
                                 .frame(width: 22, height: 18)
+                                #endif
                                 .contentShape(.rect)
                         }
                         .menuStyle(.button)
@@ -140,10 +162,14 @@ struct BoardCommentRow: View {
                         .menuIndicator(.hidden)
                         .fixedSize()
                         .hoverHighlight(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        #if os(macOS)
                         // Faint until the pointer is on the comment: there to find, and to VoiceOver.
                         .opacity(hovering ? 1 : 0.45)
-                        #if os(macOS)
                         .help("Edit or delete")
+                        #else
+                        // Room for a 44-point tap without pushing the line down.
+                        .padding(.vertical, -13)
+                        .padding(.trailing, -12)
                         #endif
                         .accessibilityLabel("More")
                         .accessibilityIdentifier("comment.more")
@@ -157,17 +183,18 @@ struct BoardCommentRow: View {
                         .accessibilityIdentifier("comment.editor")
                 } else if comment.deleted {
                     Text(BoardComments.deletedText)
-                        .font(.system(size: 13).italic())
+                        .font(BoardCommentUI.textFont.italic())
                         .foregroundStyle(Color.muted)
                         .accessibilityIdentifier("comment.deleted")
                 } else {
                     Text(BoardCommentUI.text(comment.text, mentions: canvas.names(of: comment.mentions)))
-                        .font(.system(size: 13))
+                        .font(BoardCommentUI.textFont)
                         .foregroundStyle(Color.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                         .accessibilityIdentifier("comment.text")
                 }
+                #if os(macOS)
                 if canvas.deletingComment == comment.id {
                     HStack(spacing: 8) {
                         Text(BoardCommentUI.deleteQuestion)
@@ -188,11 +215,24 @@ struct BoardCommentRow: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("comment.deleteAsk")
                 }
+                #endif
             }
         }
         .contentShape(.rect)
         .onHover { hovering = $0 }
         .contextMenu { if mine { actions } }
+        #if os(iOS)
+        // Delete asks once, as iPhone asks: a sheet of choices from the foot.
+        .confirmationDialog(BoardCommentUI.deleteQuestion, isPresented: Binding(get: { canvas.deletingComment == comment.id },
+                                                                               set: { if !$0, canvas.deletingComment == comment.id { canvas.deletingComment = nil } }),
+                            titleVisibility: .visible) {
+            Button(BoardCommentUI.deleteConfirm, role: .destructive) { canvas.delete(comment.id) }
+                .accessibilityIdentifier("comment.deleteConfirm")
+            Button(BoardCommentUI.cancel, role: .cancel) { canvas.deletingComment = nil }
+        } message: {
+            Text(comment.isReply ? "The reply goes for everyone on the board." : "Its replies stay, under \u{201C}\(BoardComments.deletedText)\u{201D}.")
+        }
+        #endif
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(mine ? "comment.row.mine" : "comment.row")
     }
@@ -239,12 +279,15 @@ struct BoardCommentField: View {
                         Button { pick(p) } label: {
                             HStack(spacing: 6) {
                                 Text("@" + p.name)
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(BoardCommentUI.mentionFont)
                                     .foregroundStyle(Color.ink)
                                 Spacer(minLength: 0)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
+                            #if os(iOS)
+                            .frame(minHeight: BoardCommentUI.target)
+                            #endif
                             .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
@@ -274,7 +317,7 @@ struct BoardCommentField: View {
         HStack(alignment: .bottom, spacing: 6) {
             TextField(prompt, text: $text, prompt: Text(prompt), axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(BoardCommentUI.textFont)
                 .lineLimit(1...6)
                 .focused($focused)
                 .onSubmit { if let first = offered.first { pick(first) } else { send() } }
@@ -285,7 +328,12 @@ struct BoardCommentField: View {
                 .accessibilityIdentifier("comment.field")
             Button(action: send) {
                 Image(systemName: "arrow.up.circle.fill")
+                    #if os(iOS)
+                    .font(.system(size: 28))
+                    .frame(width: BoardCommentUI.target, height: BoardCommentUI.target)
+                    #else
                     .font(.system(size: 20))
+                    #endif
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, empty ? Color.muted.opacity(0.5) : Color.paneAccent)
                     .contentShape(.circle)
@@ -471,36 +519,49 @@ struct BoardCommentsList: View {
     }
 
     private func row(_ t: BoardThread) -> some View {
-        let now = canvas.now()
-        let foot = BoardCommentUI.foot(place: canvas.place(of: t), replies: t.replies.count, last: t.replies.last.map { BoardComments.when($0, now: now) })
-        return Button {
+        BoardThreadRow(canvas: canvas, thread: t) {
             canvas.showingComments = false
             // After the list has closed: a popover opening while another closes doesn't show.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { canvas.open(thread: t.id) }
-        } label: {
+        }
+    }
+}
+
+/// A thread in the Comments list: who started it and when, what it says, and where it is with its
+/// replies ("on Idea · 2 replies · last reply 2 min ago"). The same on the Mac and iPhone.
+struct BoardThreadRow: View {
+    let canvas: CanvasController
+    let thread: BoardThread
+    let open: () -> Void
+
+    var body: some View {
+        let t = thread
+        let now = canvas.now()
+        let foot = BoardCommentUI.foot(place: canvas.place(of: t), replies: t.replies.count, last: t.replies.last.map { BoardComments.when($0, now: now) })
+        return Button(action: open) {
             HStack(alignment: .top, spacing: 8) {
                 BoardCommentAvatar(letter: BoardComments.initial(t.first), color: canvas.color(of: t.first), ai: t.first.ai)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(canvas.byline(t.first))
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(BoardCommentUI.nameFont)
                             .foregroundStyle(Color.ink)
                             .lineLimit(1)
                         // When it was started: the first comment's time, beside the first comment.
                         Text(BoardComments.when(t.first, now: now))
-                            .font(.system(size: 12))
+                            .font(BoardCommentUI.metaFont)
                             .foregroundStyle(Color.muted)
                             .lineLimit(1)
                             .accessibilityIdentifier("comments.row.when")
                         Spacer(minLength: 0)
                         if canvas.unreadMention(t) {
                             Text(BoardCommentUI.mentionsYou)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(BoardCommentUI.tagFont)
                                 .foregroundStyle(Color.amberInk)
                                 .accessibilityIdentifier("comments.row.mention")
                         } else if t.resolved {
                             Text(BoardCommentUI.resolvedTag)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(BoardCommentUI.tagFont.weight(.medium))
                                 .foregroundStyle(Color.muted)
                         }
                     }
@@ -511,11 +572,11 @@ struct BoardCommentsList: View {
                             Text(BoardCommentUI.text(t.first.text, mentions: canvas.names(of: t.first.mentions))).foregroundStyle(Color.ink)
                         }
                     }
-                    .font(.system(size: 13))
+                    .font(BoardCommentUI.textFont)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     Text(foot)
-                        .font(.system(size: 12))
+                        .font(BoardCommentUI.metaFont)
                         .foregroundStyle(Color.muted)
                         .lineLimit(1)
                         .accessibilityIdentifier("comments.row.foot")
@@ -597,23 +658,32 @@ struct CanvasCommentAnchor: View {
     }
 
     var body: some View {
+        #if os(iOS)
+        // iPhone: a thread, or a new comment, is a sheet over the lower half (BoardCommentPhone),
+        // with its pin moved up above it. The board stays live round it: another pin, or a tap
+        // with the Comment tool, changes what the sheet shows.
+        Color.clear
+            .frame(width: 1, height: 1)
+            .allowsHitTesting(false)
+            .sheet(isPresented: Binding(get: { canvas.openThread != nil || canvas.draft != nil }, set: { if !$0 { canvas.closeThread() } })) {
+                BoardThreadSheet(canvas: canvas)
+            }
+            .onAppear { canvas.focusRoom = BoardCommentUI.sheetRoom }
+            .accessibilityHidden(true)
+        #else
         let r = Self.placed(canvas.commentAnchor ?? CGRect(x: -100, y: -100, width: 1, height: 1), in: area)
         Color.clear
             .frame(width: max(r.width, 1), height: max(r.height, 1))
             .allowsHitTesting(false)
             .popover(item: Binding(get: { shown }, set: { if $0 == nil { canvas.popoverClosed() } }), arrowEdge: .trailing) { s in
-                Group {
-                    switch s {
-                    case .draft: BoardCommentComposer(canvas: canvas)
-                    case .thread(let id): BoardThreadView(canvas: canvas, id: id)
-                    }
+                switch s {
+                case .draft: BoardCommentComposer(canvas: canvas)
+                case .thread(let id): BoardThreadView(canvas: canvas, id: id)
                 }
-                #if os(iOS)
-                .presentationCompactAdaptation(.popover)
-                #endif
             }
             .position(x: r.midX, y: r.midY)
             .accessibilityHidden(true)
+        #endif
     }
 }
 

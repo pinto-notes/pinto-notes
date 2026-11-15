@@ -17,6 +17,7 @@
 // - Comments: read from the document; yours go in as changes, like the drawing.
 import type { Bytes } from "./e2ee";
 import { open3, pictureBytes, pictureOf, seal3 } from "./collab";
+import { type BoardPerson, MOST_LASER_POINTS, type Presenting, pointsOf, presentingOf, type View, viewOf } from "./board-follow";
 import {
   type Automerge, type BoardDoc, changedIDs, type Comment, darkOf, type El, type Entry, entries, fileIdOf, firstName, inUse, isBoard, ordered,
   PALETTE, paletteIndex, type Picture, put, readComments, scene, type Settings, settingsOf, slots, STALE, winners,
@@ -58,7 +59,11 @@ export type Scene = ReturnType<typeof scene>;
 
 export type BoardPeer = { id: string; name: string; color: string; dark: string; sel: string[]; flag: boolean; x?: number; y?: number };
 
-type Peer = { id: string; name: string; pointer: [number, number] | null; sel: string[]; movedAt: number; heardAt: number };
+type Peer = {
+  id: string; name: string; pointer: [number, number] | null; sel: string[]; movedAt: number; heardAt: number;
+  /** Following (board-follow.ts): what they present, what they see, whose view they follow. */
+  presenting: Presenting | null; view: View | null; following: string | null;
+};
 
 export type Clock = { now(): number; every(ms: number, fn: () => void): () => void; after(ms: number, fn: () => void): () => void };
 const realClock: Clock = {
@@ -138,11 +143,20 @@ export class BoardSession {
   private pointerSentAt = 0;
   private myPointer: [number, number] | null = null;
   private mySelection: string[] = [];
+  private myPresenting: Presenting | null = null;
+  private myView: View | null = null;
+  private myLaserOn = false;
+  private myLaser: [number, number][] = [];
+  private myFollow: string | null = null;
   private closed = false;
 
   /** The whole drawing, whenever it changed from outside (another person, an AI) or a picture came. */
   onScene: ((scene: Scene) => void) | null = null;
   onPeers: ((peers: BoardPeer[]) => void) | null = null;
+  /** Everyone else on the board, for following them (board-follow.ts). */
+  onPeople: ((people: BoardPerson[]) => void) | null = null;
+  /** Someone's laser trail since their last beat (board coordinates). */
+  onLaser: ((id: string, points: [number, number][]) => void) | null = null;
   onComments: ((comments: Comment[]) => void) | null = null;
   onStatus: ((s: Status) => void) | null = null;
   /** Elements whose pictures couldn't go on the board, and why. */
@@ -194,7 +208,7 @@ export class BoardSession {
       this.live = await this.transport.live({
         update: (u) => this.receive(u),
         presence: (user, ct) => void this.presenceIn(user, ct),
-        leave: (user) => { if (this.peers.delete(user.toLowerCase())) this.sendPeers(); void this.refreshMembers(); },
+        leave: (user) => { if (this.peers.delete(user.toLowerCase())) { this.sendPeers(); this.onPeople?.(this.boardPeople()); } void this.refreshMembers(); },
         members: () => void this.refreshMembers(),
         relaying: () => { this.relayed = true; void this.catchUp(); void this.flush(); },
         notRelaying: () => { this.relayed = false; },
@@ -208,6 +222,7 @@ export class BoardSession {
       if (this.live) {
         this.sendPresence();
         this.sendPeers();
+        this.onPeople?.(this.boardPeople());
         if (ticks % 10 === 0) void this.catchUp();
         else if (!this.relayed) void this.catchUp(false);
       } else if (!this.hidden() || ticks % 15 === 0) void this.catchUp(ticks % 10 === 0);
@@ -550,6 +565,33 @@ export class BoardSession {
     if (same) return;
     this.myPointer = pointer;
     this.mySelection = selection;
+    this.presenceSoon();
+  }
+
+  /** What you present and see, and your laser's points since the page last said (null: off): with
+   *  your pointer, at most ten times a second; the laser's points wait for the next beat. */
+  look(presenting: Presenting | null, view: View | null, laser: [number, number][] | null) {
+    if (!this.live) return;
+    const v = view ? view.map(Math.round) as View : null;
+    const same = JSON.stringify([presenting, v, laser !== null]) === JSON.stringify([this.myPresenting, this.myView, this.myLaserOn]);
+    if (same && !laser?.length) return;
+    this.myPresenting = presenting;
+    this.myView = v;
+    this.myLaserOn = laser !== null;
+    if (laser) this.myLaser.push(...laser);
+    if (this.myLaser.length > MOST_LASER_POINTS) this.myLaser.splice(0, this.myLaser.length - MOST_LASER_POINTS);
+    this.presenceSoon();
+  }
+
+  /** Whose view you follow (null: nobody), told to the others. */
+  follow(id: string | null) {
+    const next = id ? id.toLowerCase() : null;
+    if (next === this.myFollow) return;
+    this.myFollow = next;
+    this.presenceSoon();
+  }
+
+  private presenceSoon() {
     const wait = POINTER_EVERY - (this.clock.now() - this.pointerSentAt);
     if (wait <= 0) { this.pointerSentAt = this.clock.now(); this.sendPresence(); return; }
     if (this.pointerTimer) return;
@@ -561,6 +603,11 @@ export class BoardSession {
     const p: Record<string, unknown> = { name: this.name };
     if (this.myPointer) p.pointer = this.myPointer;
     if (this.mySelection.length) p.sel = this.mySelection;
+    if (this.myPresenting) p.present = this.myPresenting;
+    if (this.myView) p.view = this.myView;
+    // The laser's points go once: the next beat carries the next ones.
+    if (this.myLaserOn || this.myLaser.length) p.laser = this.myLaser.splice(0);
+    if (this.myFollow) p.follow = this.myFollow;
     const live = this.live;
     void seal3("p", new TextEncoder().encode(JSON.stringify(p)) as Bytes, this.nk, this.note, this.epoch, this.me).then((ct) => live.presence(ct)).catch(() => {});
   }
@@ -568,15 +615,21 @@ export class BoardSession {
   private async presenceIn(user: string, ct: string) {
     const id = user.toLowerCase();
     if (id === this.me) return;
-    let p: { name?: unknown; pointer?: unknown; sel?: unknown };
+    let p: { name?: unknown; pointer?: unknown; sel?: unknown; present?: unknown; view?: unknown; laser?: unknown; follow?: unknown };
     try { p = JSON.parse(new TextDecoder().decode(await open3("p", ct, this.nk, this.note, id))); } catch { return; }
     const now = this.clock.now();
     const had = this.peers.get(id);
     const pointer = Array.isArray(p.pointer) && p.pointer.length === 2 && p.pointer.every((n) => typeof n === "number" && Number.isFinite(n)) ? [p.pointer[0], p.pointer[1]] as [number, number] : null;
     const sel = Array.isArray(p.sel) ? p.sel.filter((s): s is string => typeof s === "string").slice(0, 500) : [];
     const moved = !had || JSON.stringify(had.pointer) !== JSON.stringify(pointer) || JSON.stringify(had.sel) !== JSON.stringify(sel);
-    this.peers.set(id, { id, name: typeof p.name === "string" ? p.name : "Someone", pointer, sel, movedAt: moved ? now : had!.movedAt, heardAt: now });
+    const presenting = presentingOf(p.present), view = viewOf(p.view);
+    const following = typeof p.follow === "string" && /^[0-9a-f-]{36}$/i.test(p.follow) ? p.follow.toLowerCase() : null;
+    const looked = !had || JSON.stringify([had.presenting, had.view, had.following]) !== JSON.stringify([presenting, view, following]);
+    this.peers.set(id, { id, name: typeof p.name === "string" ? p.name : "Someone", pointer, sel, movedAt: moved ? now : had!.movedAt, heardAt: now, presenting, view, following });
     this.sendPeers();
+    if (looked) this.onPeople?.(this.boardPeople());
+    const trail = pointsOf(p.laser);
+    if (trail.length) this.onLaser?.(id, trail);
     // The name flag goes 3 seconds after the last move: drawn again then, not at the next beat.
     if (moved) { this.flagTimer?.(); this.flagTimer = this.clock.after(FLAG_FOR + 20, () => { this.flagTimer = null; this.sendPeers(); }); }
     if (!had) { void this.refreshMembers(); this.sendPresence(); }
@@ -596,6 +649,17 @@ export class BoardSession {
       out.push(peer);
     }
     return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  /** Everyone else on the board, for following them, whether or not their pointer is on it
+   *  (CollabSession.boardPeople). */
+  boardPeople(now = this.clock.now()): BoardPerson[] {
+    const order = [...this.members.filter((m) => m.role === "owner"), ...this.members.filter((m) => m.role !== "owner")].map((m) => m.user_id);
+    const s = slots(order);
+    return [...this.peers.values()].map((p) => {
+      const [light, dark] = PALETTE[s.get(p.id) ?? paletteIndex(p.id)];
+      return { id: p.id, name: p.name.split(/\s+/)[0] || p.name, color: light, dark, presenting: p.presenting, view: p.view, following: p.following, stale: now - p.heardAt >= STALE_AFTER };
+    }).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
   private lastPeers = "";

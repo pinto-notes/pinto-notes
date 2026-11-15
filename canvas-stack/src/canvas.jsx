@@ -24,7 +24,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
-import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
+import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp, followTo, viewOf } from "./shared.js";
 import { commentsLayer } from "./comments.js";
 
 const amber = window.amber;
@@ -34,7 +34,7 @@ const SHARED_DELAY = 250;
 // This page's load: the app sets a shared board up again when the page is new (CanvasController).
 const LOAD = Math.random().toString(36).slice(2, 10);
 // What the page does with a shared board (set by the Canvas, called by the bridge's commands).
-const sharedHooks = { set: null, remote: null, outline: null, peers: null, pointer: null, refuse: null };
+const sharedHooks = { set: null, remote: null, outline: null, peers: null, pointer: null, refuse: null, follow: null, laser: null, trails: null };
 // Deleted elements are kept a while so another device's copy can't bring them back, then dropped.
 const KEEP_DELETED_MS = 7 * 24 * 3600 * 1000;
 
@@ -864,6 +864,8 @@ function clearSpot(api, count) {
  * sees it. Frames without one follow, in the order they were made.
  */
 let presenting = null;
+/** The view being followed (BoardFollow), while it is: a new size fits it again. */
+const followed = { at: null };
 const isFrame = (e) => e.type === "frame" || e.type === "magicframe";
 const frameName = (f, i) => (f.name && String(f.name).trim()) || `Frame ${i + 1}`;
 export function framesInOrder(api) {
@@ -1159,6 +1161,12 @@ function bridge(api) {
         if (!sharedHooks.refuse || !Array.isArray(c.ids)) return false;
         sharedHooks.refuse(c.ids);
         break;
+      case "follow":
+        if (!sharedHooks.follow || !sharedHooks.follow(c)) return false;
+        return true;
+      case "laser":
+        if (!sharedHooks.laser || typeof c.id !== "string" || !Array.isArray(c.points)) return false;
+        return sharedHooks.laser(c);
       case "tool":
         if (c.tool === "comment") {
           if (!comments) return false;
@@ -1178,7 +1186,7 @@ function bridge(api) {
         if (!comments || !comments.here(c.x, c.y)) return false;
         break;
       case "focusComment":
-        if (!comments || !comments.focus(c.id)) return false;
+        if (!comments || !comments.focus(c.id, c.above)) return false;
         break;
       case "style": {
         const f = STYLE[c.key];
@@ -1610,14 +1618,22 @@ function Canvas({ initial }) {
       return true;
     };
 
-    // Your pointer and selection, for the others (a few times a second at most).
-    let pointer = null, presenceSent = "", presenceTimer = null;
+    // Your pointer and selection, for the others (a few times a second at most). With them, for
+    // following you (Pane/Collab/BoardFollow.swift): what of the board you see, the frame you're
+    // presenting, and your laser's trail since the last time (its points go once).
+    let pointer = null, presenceSent = "", presenceTimer = null, laserOn = false;
+    const trail = [];
     const presenceNow = () => {
       presenceTimer = null;
       if (!shared) return;
       const s = api.getAppState();
       const sel = Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]).sort();
-      const m = { pointer: pointer ? [Math.round(pointer.x * 10) / 10, Math.round(pointer.y * 10) / 10] : null, sel };
+      const m = { pointer: pointer ? [Math.round(pointer.x * 10) / 10, Math.round(pointer.y * 10) / 10] : null, sel, view: viewOf(s) };
+      if (presenting) {
+        const steps = presentSteps(api), i = Math.min(presenting.index, steps.length - 1);
+        m.present = { frame: steps[i].id || null, i, n: steps.length };
+      }
+      if (laserOn || trail.length) m.laser = trail.splice(0);
       const j = JSON.stringify(m);
       if (j === presenceSent) return;
       presenceSent = j;
@@ -1625,6 +1641,35 @@ function Canvas({ initial }) {
     };
     const presenceSoon = () => { if (shared && !presenceTimer) presenceTimer = setTimeout(presenceNow, 50); };
     const offSelection = api.onChange(() => { if (shared) presenceSoon(); });
+    const offViewMoved = api.onScrollChange(() => { if (shared) presenceSoon(); });
+
+    // Following someone's view (their presenting, or their avatar's Follow): the app says where to
+    // look; moving the board yourself (scrolling, zooming, a press on it, a key that moves it, or
+    // Escape) ends it, and the app is told.
+    let followingNow = null;
+    const unfollow = () => { if (!followingNow) return; followingNow = null; followed.at = null; post({ unfollow: true }); };
+    const wheel = () => unfollow();
+    const press = (e) => { if (followingNow && !(e.target && e.target.closest && e.target.closest(".pinto-pin"))) unfollow(); };
+    const moveKeys = new Set(["Escape", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "+", "-", "=", "0", "1", "2"]);
+    const key = (e) => {
+      if (!followingNow || !moveKeys.has(e.key)) return;
+      const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
+      if (typing) return;
+      if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); }
+      unfollow();
+    };
+    window.addEventListener("wheel", wheel, { capture: true, passive: true });
+    window.addEventListener("pointerdown", press, true);
+    window.addEventListener("keydown", key, true);
+    sharedHooks.follow = (c) => {
+      if (!shared) return false;
+      if (c.off) { followingNow = null; followed.at = null; return true; }
+      followingNow = c;
+      followed.at = c;
+      return followTo(api, c);
+    };
+    sharedHooks.laser = (c) => { if (shared) shared.layer.laser(c.id, c.points); return !!shared; };
+    sharedHooks.trails = () => (shared ? shared.layer.trails : {});
     const host = document.getElementById("canvas") || document.body;
     const left = () => { if (pointer) { pointer = null; presenceSoon(); } };
     host.addEventListener("pointerleave", left);
@@ -1656,6 +1701,9 @@ function Canvas({ initial }) {
     sharedHooks.pointer = (p) => {
       if (!shared || !p || !p.pointer) return;
       pointer = { x: p.pointer.x, y: p.pointer.y };
+      // The laser draws while it's pressed: its points go with the next beat.
+      laserOn = p.pointer.tool === "laser";
+      if (laserOn && p.button === "down" && trail.length < 120) trail.push([Math.round(pointer.x * 10) / 10, Math.round(pointer.y * 10) / 10]);
       presenceSoon();
     };
 
@@ -1821,6 +1869,8 @@ function Canvas({ initial }) {
       // Presenting: the step fits the new size (round 6, 25-present-1: step 1 was fitted
       // before Full Screen hid the columns, under-zoomed with the next frame at the edge).
       if (presenting) present(api, presenting.index);
+      // Following someone: their view again, at the new size.
+      else if (followed.at) followTo(api, followed.at, size);
       else if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size, floor: true });
       else if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true, size });
     });
@@ -1842,9 +1892,10 @@ function Canvas({ initial }) {
     const calls = { libraryPiece: () => libraryPiece(api), boardPiece: () => boardPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), versionPicture: (a) => versionPicture(a && a.elements, a && a.files, a && a.dark, a && a.background), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
-    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });
+    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}) }, configurable: true });
     return () => {
-      follow(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); unlisten(); removeEventListener("pagehide", flush);
+      follow(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); offViewMoved(); unlisten(); removeEventListener("pagehide", flush);
+      window.removeEventListener("wheel", wheel, { capture: true }); window.removeEventListener("pointerdown", press, true); window.removeEventListener("keydown", key, true);
       document.removeEventListener("visibilitychange", hidden); host.removeEventListener("pointerleave", left); flush();
       if (shared) shared.layer.stop();
       for (const k of Object.keys(sharedHooks)) sharedHooks[k] = null;
