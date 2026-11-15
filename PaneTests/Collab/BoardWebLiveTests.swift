@@ -18,6 +18,9 @@ import Testing
 ///    comments on it mentioning the browser's person; `mac.json` {comment}.
 /// 4. The browser has the move, the app's pointer and the comment, and replies; `reply.json`.
 /// 5. The app has the reply, sealed and in its thread: `done.txt`.
+/// 6. The browser presents (its More menu, Present): `presenting.json`. The app sees "Sara is
+///    presenting · Launch · 1 of 2" and follows; the browser's bar says "Emil is following" and
+///    steps on; the app sees the second step: `followed.txt`. Done: `presented.json`.
 @MainActor
 @Suite(.enabled(if: BoardWebLive.config != nil), .serialized)
 struct BoardWebLiveTests {
@@ -53,9 +56,15 @@ struct BoardWebLiveTests {
         store.context = container.mainContext
         defer { store.stop() }
 
-        // 1. Shared with an Edit link, a box on it.
+        // 1. Shared with an Edit link, a box on it, in the first of two frames.
+        @MainActor func box(x: Double, version: Int = 1, nonce: Int = 1) -> [String: Any] {
+            Board.shape("mac-1", x: x, y: 80, version: version, nonce: nonce, text: nil).merging(["frameId": "launch"]) { _, b in b }
+        }
+        @MainActor func frame(_ id: String, _ name: String, x: Double, index: String) -> [String: Any] {
+            Board.shape(id, x: x, y: 0, index: index, type: "frame").merging(["width": 520, "height": 320, "name": name]) { _, b in b }
+        }
         let note = CanvasNote.make(in: .all, context: container.mainContext,
-                                   scene: Board.scene([Board.shape("mac-1", x: 40, y: 80, text: nil)]), named: "Launch plan")
+                                   scene: Board.scene([box(x: 40), frame("launch", "Launch", x: 0, index: "a1"), frame("plan", "Plan", x: 700, index: "a2")]), named: "Launch plan")
         try await store.setAccess(.edit, for: note)
         let link = try #require(store.linkURL(note))
         let e = try #require(store.session(for: note.id))
@@ -79,7 +88,7 @@ struct BoardWebLiveTests {
         #expect(row.role == "editor" && row.accepted)
 
         // 3. The app moves its box, points at it, and asks the browser's person about it.
-        e.boardLocal([Board.shape("mac-1", x: 260, y: 80, version: 2, nonce: 5)])
+        e.boardLocal([box(x: 260, version: 2, nonce: 5)])
         e.boardPresence(pointer: CGPoint(x: 300, y: 110), selection: ["mac-1"])
         let ask = BoardComment(id: BoardComments.newID(), on: "mac-1", x: 1, y: 0, by: me.uuidString, name: "Emil",
                                text: "@Sara does this read right?", created: BoardComments.stamp(), mentions: [user.uuidString])
@@ -107,6 +116,28 @@ struct BoardWebLiveTests {
             .eq("note_id", value: note.id.uuidString.lowercased()).execute().value
         #expect(stored.contains { $0.author_id == user } && stored.allSatisfy { !$0.ct.contains("rectangle") && !$0.ct.contains("Sara") }, "sealed")
         try write("done.txt", "ok")
+
+        // 6. The browser presents: the app sees her frame and step, as its banner says them, and
+        // follows; she steps on, and the app has that too. Then Done.
+        _ = await file("presenting.json", within: 120)
+        @MainActor func hers() -> BoardPresenting? { e.boardPeople.first { $0.id == user }?.presenting }
+        await until(30) { hers() != nil }
+        let shown = try #require(hers(), "the browser's Present reached the app")
+        #expect(shown.frame == "launch" && shown.i == 0 && shown.n == 2, "\(shown)")
+        let names = Dictionary(uniqueKeysWithValues: ((e.boardScene()["elements"] as? [[String: Any]]) ?? []).compactMap { el -> (String, String)? in
+            guard el["type"] as? String == "frame", let id = el["id"] as? String, let name = el["name"] as? String else { return nil }
+            return (id, name)
+        })
+        let banner = try #require(BoardFollow.banner(people: e.boardPeople, following: nil, presentingHere: false))
+        #expect(banner.words { names[$0] } == "Sara is presenting \u{00B7} Launch \u{00B7} 1 of 2")
+        e.boardFollow(user)
+        await until(60) { hers()?.i == 1 }
+        #expect(hers()?.frame == "plan" && hers()?.i == 1, "her next step reached the app: \(String(describing: hers()))")
+        try write("followed.txt", "ok")
+        _ = await file("presented.json", within: 60)
+        await until(30) { hers() == nil }
+        #expect(hers() == nil, "Done reached the app")
+        e.boardFollow(nil)
     }
 }
 

@@ -450,6 +450,13 @@ final class SyncEngine {
 
     /// Who wrote a note app's row, for its receipt: an AI's name (the MCP tools set pane.client), or
     /// nil for one of your devices (they send x-pane-device: iPhone, iPad or Mac).
+    /// The device a change came from, when it was one of yours ("iPhone", "iPad", "Mac"): an open
+    /// board names it on the change (round 14).
+    nonisolated static func device(_ client: String?) -> String? {
+        guard let c = client?.trimmingCharacters(in: .whitespaces), VersionAuthor.devices.contains(c) else { return nil }
+        return c
+    }
+
     nonisolated static func writer(_ client: String?) -> String? {
         guard let c = client?.trimmingCharacters(in: .whitespaces), !c.isEmpty else { return nil }
         if ["iPhone", "iPad", "Mac"].contains(c) || UUID(uuidString: c) != nil { return nil }
@@ -1429,7 +1436,7 @@ final class SyncEngine {
     /// wrote in between; otherwise it merges again on the next run. A backend without the column
     /// leaves the data here, unchanged.
     private func pushPageData(_ client: SupabaseClient, sealer: Sealer) async {
-        struct Row: Decodable { var data_ct: String?; var server_updated_at: Date? }
+        struct Row: Decodable { var data_ct: String?; var server_updated_at: Date?; var client: String? }
         struct Upsert: Encodable { var note_id: UUID; var data_ct: String }
         let store = NotePageDataStore.shared
         var pushed: [UUID] = []
@@ -1438,10 +1445,12 @@ final class SyncEngine {
             // A shared board's drawing travels in its shared document (CollabBoard), not here.
             if context.note(id)?.isShared == true { store.clean(id); continue }
             do {
-                let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at").eq("note_id", value: id).execute().value
+                let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at,client").eq("note_id", value: id).execute().value
                 let server = rows.first?.data_ct.flatMap { sealer.open($0, context: E2EE.pageData(id)) }.map { Data($0.utf8) }
                 if rows.first?.data_ct != nil, server == nil { continue }   // sealed with another key: leave it
-                store.take(id, server: server)
+                // Merged in before this device's own goes up: another device's change is marked as
+                // it would be when pulled (round 14, 38-sync-2).
+                store.take(id, server: server, device: Self.device(rows.first?.client))
                 guard store.dirty.contains(id), let doc = store.docs[id], let json = String(data: doc, encoding: .utf8),
                       let box = sealer.seal(json, context: E2EE.pageData(id)) else { continue }
                 if let stamp = rows.first?.server_updated_at {
@@ -1638,7 +1647,7 @@ final class SyncEngine {
                 // row held from before it was shared isn't taken over it.
                 if self.context.note(r.note_id)?.isShared == true {
                 } else if let box = r.data_ct, let json = Wire.sealer?.open(box, context: E2EE.pageData(r.note_id)) {
-                    NotePageDataStore.shared.take(r.note_id, server: Data(json.utf8), by: Self.writer(r.client))
+                    NotePageDataStore.shared.take(r.note_id, server: Data(json.utf8), by: Self.writer(r.client), device: Self.device(r.client))
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))
                 }

@@ -24,7 +24,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
-import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp, followTo, viewOf } from "./shared.js";
+import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp, fitTo, followTo, viewOf } from "./shared.js";
 import { commentsLayer } from "./comments.js";
 
 const amber = window.amber;
@@ -34,7 +34,7 @@ const SHARED_DELAY = 250;
 // This page's load: the app sets a shared board up again when the page is new (CanvasController).
 const LOAD = Math.random().toString(36).slice(2, 10);
 // What the page does with a shared board (set by the Canvas, called by the bridge's commands).
-const sharedHooks = { set: null, remote: null, outline: null, peers: null, pointer: null, refuse: null, follow: null, laser: null, trails: null };
+const sharedHooks = { set: null, remote: null, outline: null, find: null, peers: null, pointer: null, refuse: null, follow: null, laser: null, trails: null };
 // Deleted elements are kept a while so another device's copy can't bring them back, then dropped.
 const KEEP_DELETED_MS = 7 * 24 * 3600 * 1000;
 
@@ -867,6 +867,9 @@ let presenting = null;
 /** The view being followed (BoardFollow), while it is: a new size fits it again. */
 const followed = { at: null };
 const isFrame = (e) => e.type === "frame" || e.type === "magicframe";
+// A frame's name sits this far above it, in view points at any zoom (the engine draws it at
+// 14 pt, 3 pt up).
+const FRAME_NAME = 22;
 const frameName = (f, i) => (f.name && String(f.name).trim()) || `Frame ${i + 1}`;
 export function framesInOrder(api) {
   const frames = api.getSceneElements().filter(isFrame);
@@ -911,7 +914,31 @@ function startStep(api, steps, from) {
   const i = id ? steps.findIndex((s) => s.id === id) : -1;
   return i < 0 ? 0 : i;
 }
-export function present(api, to, from) {
+/**
+ * A board's first view: the whole drawing, centred in the room the page's own controls leave
+ * (`insets`: top, right, bottom, left, in points; the browser's title and toolbar), at no more
+ * than 100%, and no less than 10%.
+ */
+export function openingView(api, insets) {
+  const els = api.getSceneElements();
+  if (!els.length) return false;
+  const m = { top: 24, right: 24, bottom: 24, left: 24, ...(insets && typeof insets === "object" ? insets : {}) };
+  const size = viewSize(api), W = Math.max(80, size.width - m.left - m.right), H = Math.max(80, size.height - m.top - m.bottom);
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const z = Math.min(1, Math.max(0.1, Math.min(W / Math.max(1, x2 - x1), H / Math.max(1, y2 - y1))));
+  const cx = m.left + W / 2, cy = m.top + H / 2;
+  flushSync(() => api.updateScene({ appState: { zoom: { value: z }, scrollX: -(x1 + x2) / 2 + cx / z, scrollY: -(y1 + y2) / 2 + cy / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+  return true;
+}
+
+/** The board's size as the page lays it out now (the engine's own catches up a frame or more later). */
+export function viewSize(api) {
+  const area = typeof document !== "undefined" ? document.getElementById("canvas") : null;
+  if (area && area.clientWidth > 0 && area.clientHeight > 0) return { width: area.clientWidth, height: area.clientHeight };
+  const s = api.getAppState();
+  return { width: s.width, height: s.height };
+}
+export function present(api, to, from, size) {
   const v = api.getAppState(), vz = (v.zoom && v.zoom.value) || 1;
   if (to === "stop") {
     if (!presenting) return;
@@ -940,8 +967,33 @@ export function present(api, to, from) {
   const step = steps[index];
   const els = api.getSceneElements();
   const target = step.id ? els.filter((e) => e.id === step.id) : els;
-  // At once, no glide (motion restraint; a hidden window never runs the glide).
-  if (target.length) api.scrollToContent(target, { fitToViewport: true, viewportZoomFactor: 0.9, animate: false });
+  // At once, no glide (motion restraint; a hidden window never runs the glide), to the size the
+  // board has now: every step, the first included, fills it the same way (round 13, 25-present-1).
+  fitTo(api, target, size || viewSize(api));
+}
+
+/**
+ * The shapes whose words hold `query` (case and accents aside), for a search that opened the board:
+ * the first match in reading order (top to bottom, then left to right), as the shape that holds
+ * the words (a label's box) or the words themselves. A template's how-to line doesn't count.
+ */
+export function findWords(api, query) {
+  const fold = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+  const q = fold(query);
+  if (!q) return [];
+  const all = api.getSceneElements(), byId = new Map(all.map((e) => [e.id, e]));
+  const hits = [];
+  for (const e of all) {
+    if (e.type !== "text" || (e.customData && e.customData.pintoHint)) continue;
+    if (!fold(e.originalText || e.text).includes(q)) continue;
+    const box = e.containerId && byId.get(e.containerId);
+    hits.push(box && box.type !== "arrow" && box.type !== "line" ? box : e);
+  }
+  // A note card's words are its own elements (cards.js), found the same way.
+  hits.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  if (!hits.length) return [];
+  const first = hits[0];
+  return all.filter((e) => e.id === first.id || e.containerId === first.id);
 }
 
 export function stateOf(api, app) {
@@ -1151,7 +1203,11 @@ function bridge(api) {
         break;
       case "outline":
         if (!sharedHooks.outline || !Array.isArray(c.ids)) return false;
-        sharedHooks.outline(c.ids);
+        if (!sharedHooks.outline(c.ids, { move: c.move !== false })) return false;
+        break;
+      case "find":
+        if (!sharedHooks.find || typeof c.query !== "string" || !c.query.trim()) return false;
+        if (!sharedHooks.find(c.query.trim())) return false;
         break;
       case "peers":
         if (!sharedHooks.peers) return false;
@@ -1591,6 +1647,10 @@ function Canvas({ initial }) {
     // rule, what you have in hand kept. What came is known, so it isn't sent back as yours.
     const takeShared = (scene) => {
       if (!shared || !scene || !Array.isArray(scene.elements)) return false;
+      // The board's drawing arriving on an empty page (a link opened in a browser, a board you just
+      // joined): shown whole and centred once, at no more than 100% (round 13, web-01: it opened at
+      // 100% with its first shape under the title, the rest of the page empty).
+      const opening = !shared.opened && !api.getSceneElements().length;
       const { elements: remote, converted, made } = normalizeShared(scene.elements);
       const drawn = expandSeeds(remote);
       for (const e of scene.elements) if (e && typeof e.id === "string") shared.known.set(e.id, stamp(e));
@@ -1603,6 +1663,10 @@ function Canvas({ initial }) {
       api.updateScene({ elements: merged, ...(bg ? { appState: { viewBackgroundColor: bg } } : {}), captureUpdate: CaptureUpdateAction.NEVER });
       shared.settings = JSON.stringify(settingsOf(api.getAppState()));
       shared.ready = true;
+      if (api.getSceneElements().length) {
+        if (opening) openingView(api, amber.fitInsets);
+        shared.opened = true;
+      }
       // The short form filled out here, or what you have in hand: goes back as yours. Measuring a
       // label bumps it with a random nonce: stamped again, the same on every device.
       if (converted || drawn.changed) {
@@ -1666,7 +1730,7 @@ function Canvas({ initial }) {
       if (c.off) { followingNow = null; followed.at = null; return true; }
       followingNow = c;
       followed.at = c;
-      return followTo(api, c);
+      return followTo(api, c, viewSize(api));
     };
     sharedHooks.laser = (c) => { if (shared) shared.layer.laser(c.id, c.points); return !!shared; };
     sharedHooks.trails = () => (shared ? shared.layer.trails : {});
@@ -1691,11 +1755,23 @@ function Canvas({ initial }) {
     };
     sharedHooks.remote = takeShared;
     sharedHooks.refuse = refusePictures;
-    sharedHooks.outline = (ids) => {
+    // `move: false`: a person's change, outlined where it is; the view stays yours (round 14).
+    sharedHooks.outline = (ids, opts = {}) => {
       const want = new Set(ids);
       const all = api.getSceneElements();
       for (const e of all) if (e.containerId && want.has(e.id)) want.add(e.containerId);
-      showChanged(all.filter((e) => want.has(e.id) || (e.containerId && want.has(e.containerId))));
+      const els = all.filter((e) => want.has(e.id) || (e.containerId && want.has(e.containerId)));
+      if (!els.length) return false;
+      showChanged(els, opts);
+      return true;
+    };
+    // Opened from a search: the first shape whose words hold it, brought into view and outlined
+    // for a moment (round 14: search found a board, and the board opened wherever it was).
+    sharedHooks.find = (query) => {
+      const els = findWords(api, query);
+      if (!els.length) return false;
+      showChanged(els, { find: true });
+      return true;
     };
     sharedHooks.peers = (list) => { if (shared) shared.layer.set(list); };
     sharedHooks.pointer = (p) => {
@@ -1753,13 +1829,15 @@ function Canvas({ initial }) {
       showChanged(els);
       return true;
     } });
-    const showChanged = (changed) => {
+    const showChanged = (changed, opts = {}) => {
       if (!changed.length) return;
-      lastChanged = changed.map((e) => e.id);
+      if (!opts.find) lastChanged = changed.map((e) => e.id);
       // Each changed thing on its own (round 3, 16: one box round them all took in what the AI
       // didn't touch), and all of them together for bringing into view.
       const ids = new Set(changed.map((e) => e.id));
-      const pieces = changed.filter((e) => !(e.containerId && ids.has(e.containerId)));
+      // What's in a frame that came too goes in the frame's box (round 14, follow-0: a box in a
+      // box in a box when someone drew whole frames).
+      const pieces = changed.filter((e) => !(e.containerId && ids.has(e.containerId)) && !(e.frameId && ids.has(e.frameId)));
       // Arrows between outlined shapes go without: a dashed box on each was noise (round 4 check);
       // arrows alone are outlined.
       const linear = (e) => e.type === "arrow" || e.type === "line";
@@ -1772,7 +1850,12 @@ function Canvas({ initial }) {
       const where = () => {
         const s = api.getAppState();
         const [x, y, width, height] = rect(changed, s);
-        const boxes = tops.map((e) => rect([e, ...changed.filter((t) => t.containerId === e.id)], s));
+        // A frame's box takes in its name, drawn above it at a fixed size, so the name tag goes
+        // above the name, not on it (round 14, follow-0: "Sara" hid "The problem").
+        const boxes = tops.map((e) => {
+          const b = rect([e, ...changed.filter((t) => t.containerId === e.id)], s);
+          return isFrame(e) ? [b[0], b[1] - FRAME_NAME, b[2], b[3] + FRAME_NAME] : b;
+        });
         // The rest of what's in view, for the name tag to keep clear of: shapes and words as their
         // boxes, arrows and lines as the lines they draw, heads and all (round 10, 16: an arrow's box
         // is a hairline, and the tag sat against the head of the arrow coming into the shape).
@@ -1787,11 +1870,20 @@ function Canvas({ initial }) {
         return { x, y, width, height, boxes, near, lines: lines.flat(), view: s };
       };
       let r = where();
-      const out = r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height;
+      const out = opts.move !== false && (r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height);
       // The whole board when it fits, so what the AI drew is seen next to what it joins: zoomed
       // out to half if the change is out of sight, else only scrolled, and only if some of the
       // board was cut off (round 3, 12: the person's flowchart was off screen).
-      if (frameBoard(api, out ? { minZoom: 0.5 } : { onlyIfCut: true })) r = where();
+      if (opts.move === false) {}
+      else if (opts.find) {
+        // A search's match: in the middle of the view, readable (your zoom when it's near 100%,
+        // else 100%), so it isn't found at the board's edge under its controls (round 14).
+        const s = r.view, z0 = (s.zoom && s.zoom.value) || 1, z = z0 >= 0.75 && z0 <= 1.5 ? z0 : 1;
+        const [x1, y1, x2, y2] = getCommonBounds(changed);
+        flushSync(() => api.updateScene({ appState: { zoom: { value: z }, scrollX: -(x1 + x2) / 2 + s.width / 2 / z, scrollY: -(y1 + y2) / 2 + s.height / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
+        r = where();
+      }
+      else if (frameBoard(api, out ? { minZoom: 0.5 } : { onlyIfCut: true })) r = where();
       else if (out) {
         // At the zoom you had, at once (the engine's own scroll lands a frame later).
         const s = r.view, z = (s.zoom && s.zoom.value) || 1;
@@ -1813,7 +1905,9 @@ function Canvas({ initial }) {
         flushSync(() => api.updateScene({ appState: { scrollX, scrollY }, captureUpdate: CaptureUpdateAction.NEVER }));
         r = where();
       }
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, view: [r.view.width, r.view.height], count: changed.length } }); } catch (_) {}
+      // With the ids, so the app can show this change again later (Show Last AI Change, an AI's
+      // reply in a thread: round 14), and whether it's a search's match.
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, view: [r.view.width, r.view.height], count: changed.length, ids: changed.filter((e) => !e.containerId).map((e) => e.id), ...(opts.find ? { find: true } : {}) } }); } catch (_) {}
       // While it's shown (the app decides how long), the outline follows the view as you pan,
       // zoom or resize the window (whiteboard council, round 2, 15: it came loose after 8 s).
       outlined = { changed, until: Date.now() + 120000, where };
@@ -1868,7 +1962,7 @@ function Canvas({ initial }) {
       // Screen, a wider window): the whole board if it now fits and was cut off (round 3, 13).
       // Presenting: the step fits the new size (round 6, 25-present-1: step 1 was fitted
       // before Full Screen hid the columns, under-zoomed with the next frame at the edge).
-      if (presenting) present(api, presenting.index);
+      if (presenting) present(api, presenting.index, undefined, size);
       // Following someone: their view again, at the new size.
       else if (followed.at) followTo(api, followed.at, size);
       else if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size, floor: true });

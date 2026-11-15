@@ -10,7 +10,9 @@ import { BoardController } from "@/lib/board-controller";
 import type { Comment, Thread } from "@/lib/board-doc";
 import { complete, DELETED_TEXT, mentionQuery, mentionRanges, suggestions, when } from "@/lib/board-doc";
 import { codeDigits, CODE_LENGTH, looksLikeEmail } from "@/lib/board-auth";
-import { showsBar } from "@/lib/board-style";
+import { followers as followersOf, followersLine, words } from "@/lib/board-follow";
+import type { PageState } from "@/lib/board-host";
+import { presentHint, presentKey, styleBarShows } from "@/lib/board-present";
 import { Icon, StyleBar, ToolBar, TOOLS, useWidth } from "./BoardControls";
 import NoteLink, { appLink } from "./NoteLink";
 import s from "./board.module.css";
@@ -73,6 +75,7 @@ function Unavailable({ gone }: { gone: boolean }) {
 function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focusBoard: () => void }) {
   const [list, setList] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [more, setMore] = useState(false);
   const width = useWidth(), height = typeof window === "undefined" ? 800 : window.innerHeight;
   const host = ctl.host, state = host?.state ?? {};
   const peers = ctl.session?.boardPeers() ?? [];
@@ -84,6 +87,11 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
   const anchor = host?.anchor ?? null;
   const comments = ctl.comments;
   const threadOpen = !!(comments.openThread || comments.draft);
+  const presenting = state.present ?? null;
+  const meName = ctl.account ? (ctl.account.name ?? ctl.account.email).trim() : "";
+
+  // Presenting: the frame alone, the Present bar at the foot, nothing else (as the app presents).
+  if (presenting) return <Presenting ctl={ctl} step={presenting} command={command} />;
 
   return (
     <>
@@ -93,8 +101,10 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
           <p className={s.status} role="status">{status ?? (ctl.owner ? `${ctl.owner}’s board` : "Live")}</p>
         </div>
         <div className={s.right}>
-          {peers.length > 0 && (
-            <ul className={s.people} aria-label="On the board now">
+          {/* Everyone on the board in one group, gently overlapping, white letters on every colour,
+              you last (as the app's toolbar groups them; round 13, web-04: E, Comments, then S). */}
+          {(peers.length > 0 || ctl.account) && (
+            <ul className={s.people} aria-label="On the board now" data-people>
               {/* A click follows their view, as in the app (board-follow.ts); again stops. */}
               {peers.slice(0, 5).map((p) => {
                 const on = host?.follow.following === p.id;
@@ -105,6 +115,20 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
                   </li>
                 );
               })}
+              {ctl.account && (
+                <li className={s.menuWrap} data-me>
+                  <button className={`${s.avatar} ${s.me}`} style={{ background: myColor }} aria-label="Your account" title={`You (${meName})`} aria-expanded={menu} onClick={() => setMenu(!menu)}>
+                    {(meName[0] ?? "?").toUpperCase()}
+                  </button>
+                  {menu && (
+                    <div className={s.menu} role="menu">
+                      <p className={s.menuLine}>Signed in as {ctl.account.email}</p>
+                      {href && <a className={s.menuItem} role="menuitem" href={href}>Open in Pinto Notes</a>}
+                      <button className={s.menuItem} role="menuitem" onClick={() => { setMenu(false); void ctl.signOut(); }}>Sign out</button>
+                    </div>
+                  )}
+                </li>
+              )}
             </ul>
           )}
           <button className={s.iconButton} aria-label="Comments" title="Comments" aria-pressed={list} onClick={() => { setList(!list); if (!list) comments.markSeen(); }}>
@@ -113,25 +137,13 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
           </button>
           {ctl.offersSignIn && <button className={s.primarySmall} onClick={() => ctl.startSignIn()}>Sign in to edit</button>}
           {!ctl.offersSignIn && !ctl.account && href && <a className={s.secondarySmall} href={href}>Open in Pinto Notes</a>}
-          {ctl.account && (
-            <div className={s.menuWrap}>
-              <button className={s.me} style={{ background: myColor }} aria-label="Your account" aria-expanded={menu} onClick={() => setMenu(!menu)}>
-                {((ctl.account.name ?? ctl.account.email).trim()[0] ?? "?").toUpperCase()}
-              </button>
-              {menu && (
-                <div className={s.menu} role="menu">
-                  <p className={s.menuLine}>Signed in as {ctl.account.email}</p>
-                  {href && <a className={s.menuItem} role="menuitem" href={href}>Open in Pinto Notes</a>}
-                  <button className={s.menuItem} role="menuitem" onClick={() => { setMenu(false); void ctl.signOut(); }}>Sign out</button>
-                </div>
-              )}
-            </div>
-          )}
+          {ctl.canEdit && <BoardMore open={more} setOpen={setMore} command={command} steps={state.frames?.length ?? 0} />}
         </div>
       </header>
 
       {ctl.canEdit && <ToolBar state={state} command={command} width={width} />}
-      {showsBar(state, ctl.canEdit) && <StyleBar state={state} command={command} width={width} height={height} />}
+      {/* Never over an open thread: the thread is what you're reading (round 13, web-06). */}
+      {styleBarShows(state, ctl.canEdit, threadOpen) && <StyleBar state={state} command={command} width={width} height={height} />}
 
       <div className={s.zoom}>
         <button className={s.zoomButton} aria-label="Zoom out" onClick={() => command({ op: "action", name: "zoomOut" })}>−</button>
@@ -145,6 +157,117 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
       {ctl.signIn && <SignInSheet ctl={ctl} href={href} />}
       {ctl.notice && <Toast ctl={ctl} />}
     </>
+  );
+}
+
+/** The board's More menu (people who can edit): Present, and Zoom to Fit. */
+function BoardMore({ open, setOpen, command, steps }: { open: boolean; setOpen: (v: boolean) => void; command: (c: Record<string, unknown>) => void; steps: number }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const down = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false); };
+    window.addEventListener("keydown", key);
+    window.addEventListener("pointerdown", down, true);
+    return () => { window.removeEventListener("keydown", key); window.removeEventListener("pointerdown", down, true); };
+  }, [open, setOpen]);
+  return (
+    <div ref={wrap} className={s.menuWrap}>
+      <button className={s.iconButton} aria-label="More" title="More" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Icon><path d="M5 11h.01M11 11h.01M17 11h.01" strokeWidth="2.6" /></Icon>
+      </button>
+      {open && (
+        <div className={s.menu} role="menu" aria-label="More">
+          <button className={s.menuItem} role="menuitem" data-present onClick={() => { setOpen(false); startPresenting(command); }}>
+            <Icon size={18}><path d="M3.5 4.5h15v10h-15zM11 14.5v3M7.5 17.5h7" /><path d="M9.5 7.5v4l3.5-2z" fill="currentColor" /></Icon>
+            <span>{PRESENT}</span>
+            <span className={s.menuHint}>{presentHint(steps)}</span>
+          </button>
+          <button className={s.menuItem} role="menuitem" onClick={() => { setOpen(false); command({ op: "action", name: "zoomToFit" }); }}>
+            <Icon size={18}><path d="M4 8V4h4M14 4h4v4M18 14v4h-4M8 18H4v-4" /></Icon><span>Zoom to Fit</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export const PRESENT = "Present";
+
+
+/** Present, as the app starts it: the whole window (Full Screen where the browser allows it), the
+ *  first frame filling it, the laser picked. Followers in the app and other browsers see it. */
+function startPresenting(command: (c: Record<string, unknown>) => void) {
+  const el = typeof document === "undefined" ? null : document.documentElement;
+  try { void el?.requestFullscreen?.().catch(() => {}); } catch { /* not allowed here: the window will do */ }
+  command({ op: "present", to: "start" });
+}
+
+function stopPresenting(command: (c: Record<string, unknown>) => void) {
+  command({ op: "present", to: "stop" });
+  try { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); } catch { /* fine */ }
+}
+
+/** Presenting from the browser: everything round the current frame covered in the board's colour,
+ *  and the Present bar (back, the frame's name and "2 of 3", next, the laser, Done). The arrow
+ *  keys, Space and Page Up/Down step; Escape ends (here and on the board). Leaving Full Screen ends
+ *  it too, as Done does. */
+function Presenting({ ctl, step, command }: { ctl: BoardController; step: NonNullable<PageState["present"]>; command: (c: Record<string, unknown>) => void }) {
+  const state = ctl.host?.state ?? {};
+  const laser = state.tool === "laser";
+  const followers = followersLine(followers_(ctl));
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      const to = presentKey(e.key);
+      if (!to) return;
+      e.preventDefault();
+      if (to === "stop") stopPresenting(command); else command({ op: "present", to });
+    };
+    const left = () => { if (!document.fullscreenElement && ctl.host?.state.present) command({ op: "present", to: "stop" }); };
+    window.addEventListener("keydown", key);
+    document.addEventListener("fullscreenchange", left);
+    return () => { window.removeEventListener("keydown", key); document.removeEventListener("fullscreenchange", left); };
+  }, [command, ctl]);
+  const bg = String((state as { background?: string }).background ?? "#ffffff");
+  return (
+    <>
+      {step.frame && <PresentMask frame={step.frame} color={bg} />}
+      <div className={s.presentBar} role="toolbar" aria-label="Presenting" data-presenting>
+        <button className={s.tool} aria-label="Back" title="Back (←)" disabled={step.index === 0} onClick={() => command({ op: "present", to: "prev" })}>
+          <Icon><path d="M13.5 5l-6 6 6 6" /></Icon>
+        </button>
+        <span className={s.presentStep}>
+          <b>{step.name}</b>
+          <span>{`${step.index + 1} of ${step.count}`}</span>
+        </span>
+        <button className={s.tool} aria-label="Next" title="Next (→)" disabled={step.index >= step.count - 1} onClick={() => command({ op: "present", to: "next" })}>
+          <Icon><path d="M8.5 5l6 6-6 6" /></Icon>
+        </button>
+        <button className={`${s.tool} ${laser ? s.laserOn : ""}`} aria-label="Laser pointer" title="Laser pointer (K)" aria-pressed={laser}
+          onClick={() => command({ op: "tool", tool: laser ? "selection" : "laser" })}>
+          <Icon><path d="M11 3v3M11 16v3M3 11h3M16 11h3M5.5 5.5l2 2M14.5 14.5l2 2M16.5 5.5l-2 2M7.5 14.5l-2 2" /></Icon>
+        </button>
+        {followers && <span className={s.presentFollowers}>{followers}</span>}
+        <button className={s.presentDone} onClick={() => stopPresenting(command)}>Done</button>
+      </div>
+    </>
+  );
+}
+
+const followers_ = (ctl: BoardController) => {
+  const me = ctl.account?.id ?? null;
+  return followersOf(me, ctl.host?.follow.people ?? []);
+};
+
+/** The rest of the board covered, solid, in its own colour: only the frame shows. Takes no clicks. */
+function PresentMask({ frame, color }: { frame: [number, number, number, number]; color: string }) {
+  const [x, y, w, h] = frame, pad = 12;
+  return (
+    <svg className={s.presentMask} aria-hidden="true" data-present-mask>
+      <path fillRule="evenodd" fill={color} d={`M-10000 -10000H20000V20000H-10000Z M${x - pad} ${y - pad}h${w + 2 * pad}v${h + 2 * pad}h${-(w + 2 * pad)}Z`} />
+    </svg>
   );
 }
 
@@ -164,7 +287,7 @@ function FollowBanner({ ctl }: { ctl: BoardController }) {
     <>
       {b.kind === "following" && <div className={s.followOutline} style={{ borderColor: b.person.color }} aria-hidden="true" />}
       <div className={s.follow} style={{ background: b.person.color }} role="status" data-follow={b.kind}>
-        <span>{b.line}</span>
+        <span data-follow-line>{words(b, (id) => ctl.host?.state.frames?.find((f) => f.id === id)?.name)}</span>
         <button style={{ color: b.person.color }} onClick={() => (b.kind === "following" ? follow.stop() : follow.follow(b.person.id))}>{b.action}</button>
       </div>
     </>

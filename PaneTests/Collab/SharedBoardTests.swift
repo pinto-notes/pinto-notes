@@ -115,6 +115,26 @@ import AppKit
         }
     }
 
+    /// A shared board's row in everyone's list follows the drawing: Sara writes on it and Emil's
+    /// row and Ola's say her words, not "Empty whiteboard" (round 13, follow-1 and follow-2).
+    @Test func aSharedBoardsListRowFollowsWhatOthersDraw() async throws {
+        let (emil, others, note) = try await sharedBoard([])
+        let s = try session(others[0], note)
+        let ola = try #require(others[1].context.pointer(forShared: note.id))
+        #expect(NoteRow.boardPreview(CanvasSketch.of(note.id)) == NoteRow.emptyBoard)
+        s.boardLocal([Self.shape("t", x: 20, y: 20, text: "Launch checklist", type: "text")])
+        await server.settle()
+        await server.eventually { NoteRow.boardPreview(CanvasSketch.of(note.id)) == "Launch checklist" && NoteRow.boardPreview(CanvasSketch.of(ola.id)) == "Launch checklist" }
+        #expect(NoteRow.boardPreview(CanvasSketch.of(note.id)) == "Launch checklist", "Emil's row")
+        #expect(NoteRow.boardPreview(CanvasSketch.of(ola.id)) == "Launch checklist", "Ola's row")
+        // And again when she changes it.
+        s.boardLocal([Self.shape("t", x: 20, y: 20, version: 2, nonce: 3, text: "Launch list", type: "text")])
+        await server.settle()
+        await server.eventually { NoteRow.boardPreview(CanvasSketch.of(note.id)) == "Launch list" }
+        #expect(NoteRow.boardPreview(CanvasSketch.of(note.id)) == "Launch list")
+        _ = emil
+    }
+
     /// Three people draw at once, each before seeing the others: a new shape each, and two move
     /// different shapes. Every change lands, and all three end with the same board.
     @Test func threePeopleDrawingAtOnceAllEndWithTheSameBoard() async throws {

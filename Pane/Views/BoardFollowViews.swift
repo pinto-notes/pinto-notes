@@ -44,8 +44,9 @@ struct CanvasFollowBanner: View {
 
     private func bar(_ banner: BoardFollow.Banner) -> some View {
         let tint = BoardCommentUI.color(banner.person.color)
+        let frames = canvas.state.frames
         return HStack(spacing: 10) {
-            Text(banner.line)
+            Text(banner.words { id in frames.first { $0.id == id }?.name })
                 .font(BoardFollowUI.font)
                 .foregroundStyle(Color.white)
                 .lineLimit(1)

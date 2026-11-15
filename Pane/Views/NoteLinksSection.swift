@@ -175,13 +175,14 @@ struct NoteLinksSection: View {
         }
     }
 
-    /// "On 1 board: Launch plan", "On 2 boards: Product launch, Q3 roadmap": the line's words
-    /// before the names, and the names as they're listed.
+    /// "On Launch plan", "On 2 boards: Product launch, Q3 roadmap": the line's words before the
+    /// names, and the names as they're listed. One board isn't counted (round 13, 27: "On 1 board:
+    /// Product launch" read as a count).
     static func boardsSummary(_ titles: [String]) -> String {
         "\(boardsLead(titles.count)) \(titles.joined(separator: ", "))"
     }
 
-    static func boardsLead(_ count: Int) -> String { count == 1 ? "On 1 board:" : "On \(count) boards:" }
+    static func boardsLead(_ count: Int) -> String { count == 1 ? "On" : "On \(count) boards:" }
 
     /// The scheme of the links in the boards line; the rest of the link is the board's id.
     static let boardScheme = "pinto-board"

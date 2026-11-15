@@ -12,6 +12,30 @@
 import { getCommonBounds, sceneCoordsToViewportCoords, viewportCoordsToSceneCoords } from "@excalidraw/excalidraw";
 import { shade } from "./shared.js";
 
+/**
+ * What's drawn round an open pin, in the view's points, for the app to hang the thread where it
+ * covers none of it (round 13, comments-2: the thread hid Draft and its arrows): `on`, the shape
+ * the comment is on, and `near`, the boxes of what else is drawn within reach (arrows and lines as
+ * boxes; at most 60).
+ */
+export function around(pin, byId, s, v) {
+  const view = (x, y) => sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, s);
+  const box = (e) => { const [x1, y1, x2, y2] = getCommonBounds([e]); const a = view(x1, y1), b = view(x2, y2); return [Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), Math.round(b.y - a.y)]; };
+  const shape = pin.on ? byId.get(pin.on) : null;
+  const out = {};
+  if (shape && !shape.isDeleted) out.on = box(shape);
+  const reach = 420, near = [];
+  for (const e of byId.values()) {
+    if (near.length >= 60) break;
+    if (e.isDeleted || (shape && e.id === shape.id) || (e.containerId && byId.get(e.containerId))) continue;
+    const b = box(e);
+    if (b[0] + b[2] < v.x - reach || b[0] > v.x + reach || b[1] + b[3] < v.y - reach || b[1] > v.y + reach) continue;
+    near.push(b);
+  }
+  out.near = near;
+  return out;
+}
+
 /** A pin: 24 points square, its point (the lower left corner) on the spot. */
 export const PIN = { size: 24 };
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -167,7 +191,7 @@ export function commentsLayer(api, host, post, changed = () => {}) {
         b.classList.remove("ai");
       }
       b.classList.toggle("open", p.id === open);
-      if (p.id === open) at = { id: p.id, x: v.x, y: v.y - PIN.size, width: PIN.size, height: PIN.size };
+      if (p.id === open) at = { id: p.id, x: v.x, y: v.y - PIN.size, width: PIN.size, height: PIN.size, ...around(p, byId, s, v) };
     }
     for (const [id, b] of nodes) if (!seen.has(id)) { b.remove(); nodes.delete(id); }
     name(byId);

@@ -72,6 +72,24 @@ enum BoardFollow {
             case .following: BoardFollow.stop
             }
         }
+
+        /// Where the presenter is in their talk, when they're presenting: the frame's name and the
+        /// step ("Launch · 2 of 4"), as the Present bar says it (round 13, follow-2: the follower
+        /// knew whom they followed but not where they were). `name`: a frame's name on this board.
+        func step(name: (String) -> String?) -> String? {
+            guard let p = person.presenting else { return nil }
+            let of = "\(p.i + 1) of \(p.n)"
+            guard let frame = p.frame, let title = name(frame)?.trimmingCharacters(in: .whitespaces), !title.isEmpty else {
+                return p.n > 1 ? of : nil
+            }
+            // One step needs no count.
+            return p.n > 1 ? "\(title) \u{00B7} \(of)" : title
+        }
+
+        /// The whole line: "Emil is presenting · Launch · 2 of 4".
+        func words(name: (String) -> String?) -> String {
+            step(name: name).map { "\(line) \u{00B7} \($0)" } ?? line
+        }
     }
 
     static let follow = "Follow"

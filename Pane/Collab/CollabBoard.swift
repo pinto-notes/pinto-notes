@@ -313,6 +313,12 @@ extension CollabBoard {
         canvas.share(true, viewOnly: !session.canWrite)
         session.onRemoteBoard = { [weak canvas] scene in canvas?.remote(scene: scene) }
         session.onBoardAI = { [weak canvas] by, ids in canvas?.outline(by: by, ids: ids) }
+        // Someone's change, or yours from another device: outlined quietly in their colour, unless
+        // you can see them at it (round 14).
+        session.onBoardArrived = { [weak canvas, weak session] authors, ids in
+            guard let canvas, let session, let arrival = arrival(authors, in: session) else { return }
+            canvas.arrived(from: arrival.name, kind: arrival.kind, ids: ids)
+        }
         session.onBoardPeers = { [weak canvas] peers in canvas?.show(peers: peers) }
         canvas.onBoardFiles = { [weak session] files in session?.offerPictures(files) }
         canvas.onBoardDelta = { [weak session] elements, settings in session?.boardLocal(elements, settings: settings) }
@@ -347,6 +353,20 @@ extension CollabBoard {
         canvas.show(comments: session.boardComments)
     }
 
+    /// The name a change from elsewhere is marked with ("Sara", "Sara and Ola", or your other
+    /// device), and its look; nil when everyone it came from is at work on the board in view.
+    static let yourOtherDevice = "Your other device"
+    static func arrival(_ authors: [UUID], in session: CollabSession) -> (name: String, kind: CanvasController.Highlight.Kind)? {
+        let unseen = authors.filter { $0 == session.me || !session.watching($0) }
+        guard !unseen.isEmpty else { return nil }
+        let people = unseen.filter { $0 != session.me }
+        guard let first = people.first else { return (yourOtherDevice, .device) }
+        let names = people.map { session.firstName(of: $0) ?? AIEdit.someone }
+        let name = names.count == 1 ? names[0] : names.count == 2 ? "\(names[0]) and \(names[1])" : "\(names[0]) and \(names.count - 1) others"
+        let c = session.boardColors(of: first)
+        return (name, .person(color: c.light, dark: c.dark))
+    }
+
     /// The people a comment can mention (@Sara): the board's other members who joined, by first
     /// name, never you.
     static func people(_ session: CollabSession) -> [BoardComments.Person] {
@@ -377,6 +397,7 @@ extension CollabBoard {
         if let session {
             session.onRemoteBoard = nil
             session.onBoardAI = nil
+            session.onBoardArrived = nil
             session.onBoardPeers = nil
             session.onPicturesRefused = nil
             session.onBoardComments = nil

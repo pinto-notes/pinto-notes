@@ -110,6 +110,15 @@ final class CollabSession {
     /// An AI's change reached the drawing: whose ("Sara's Claude") and the elements it changed, for
     /// the open board to outline.
     @ObservationIgnored var onBoardAI: ((String, [String]) -> Void)?
+    /// Someone else's change to the drawing arrived, or one from another of your devices (not an
+    /// AI's: `onBoardAI`): whose (account ids, in the order they came) and which elements. The
+    /// open board outlines it for a moment (round 14).
+    @ObservationIgnored var onBoardArrived: (([UUID], [String]) -> Void)?
+    /// Whose changes went in since the drawing was last read again.
+    @ObservationIgnored private var arrivedFrom: [UUID] = []
+    /// More than this many elements at once (a whole board caught up after a long time away) are
+    /// not outlined: an outline round everything says nothing.
+    nonisolated static let mostOutlined = 25
     /// Mirrors the drawing into the board's data once it settles (the list's picture, search, cards).
     @ObservationIgnored var onBoardSettled: (([String: Any]) -> Void)?
     /// Hands other people's pointers and selections to the open board, as soon as they move.
@@ -643,6 +652,8 @@ final class CollabSession {
             let heads = u.client == nil ? nil : doc.heads()
             try CollabText.absorb(change, into: doc)
             keep(change)
+            // A person's change (yours from another device included): whose, for the board's outline.
+            if isBoard, (u.client?.trimmingCharacters(in: .whitespaces) ?? "").isEmpty, !arrivedFrom.contains(u.author_id) { arrivedFrom.append(u.author_id) }
             // An AI's change that didn't go in: Automerge holds it back for one it builds on.
             if let heads, doc.heads() == heads { hold(u, change) }
             return true
@@ -843,16 +854,22 @@ final class CollabSession {
     /// The document's drawing changed from outside: read again (only what changed is decoded),
     /// and to the open board. Nothing when it's the same.
     private func boardChanged() {
+        let from = arrivedFrom
+        arrivedFrom = []
         if boardObj == nil { boardObj = CollabBoard.board(in: doc) }
         guard let boardObj else { return }
         let entries = CollabBoard.entries(in: doc, boardObj, reuse: boardEntries)
         let settings = CollabBoard.settings(in: doc)
-        let same = entries.count == boardEntries.count && CollabBoard.changedIDs(from: boardEntries, to: entries).isEmpty
+        let changed = CollabBoard.changedIDs(from: boardEntries, to: entries)
+        let same = entries.count == boardEntries.count && changed.isEmpty
             && NSDictionary(dictionary: settings).isEqual(to: boardSettings)
         guard !same else { return }
         boardEntries = entries
         boardSettings = settings
         onRemoteBoard?(boardScene())
+        // Whose change it was, for the open board to outline (after it has the drawing).
+        let shown = changed.filter { entries[$0].map { ($0.element["isDeleted"] as? Bool) != true } ?? false }
+        if !from.isEmpty, !shown.isEmpty, shown.count <= Self.mostOutlined { onBoardArrived?(from, shown) }
         settleBoard()
         fetchPictures()
     }
@@ -1063,6 +1080,20 @@ final class CollabSession {
 
     /// Everyone else's pointer and selection for the board to draw, now.
     var boardPeers: [BoardPeer] { boardPeers(at: .now) }
+
+    /// You can see them at work on the board now: their pointer or selection shows, and they've
+    /// been heard from lately. Their changes need no outline (round 14: "nothing while you're
+    /// watching them draw live").
+    func watching(_ user: UUID, at now: Date = .now) -> Bool {
+        guard let p = peers[user] else { return false }
+        return !p.isStale(at: now) && (p.pointer != nil || !p.selectedIDs.isEmpty)
+    }
+
+    /// Someone's colour on this board, on white and on a dark board ("#RRGGBB").
+    func boardColors(of user: UUID) -> (light: String, dark: String) {
+        let shades = Self.palette[paletteSlot(of: user)]
+        return (Self.hex(shades.light), Self.hex(shades.dark))
+    }
 
     func boardPeers(at now: Date) -> [BoardPeer] {
         let slots = Self.slots(for: colorOrder)

@@ -241,6 +241,60 @@ import WebKit
         }
     }
 
+    /// An open thread hangs where it covers neither its shape nor what's drawn near it, when there's
+    /// room (round 13, comments-2-thread-open: the thread on Draft hid Draft and its arrows). The
+    /// page says where the shape and its neighbours are; the popover takes the first clear side,
+    /// off the pin or off the shape's own edges.
+    @Test func anOpenThreadKeepsClearOfItsShapeAndWhatsNearIt() async throws {
+        let j = try await joined([
+            ["type": "rectangle", "id": "idea", "x": 0, "y": 140, "width": 170, "height": 90],
+            ["type": "rectangle", "id": "draft", "x": 280, "y": 140, "width": 190, "height": 90],
+            ["type": "rectangle", "id": "ready", "x": 560, "y": 120, "width": 220, "height": 130],
+            ["type": "arrow", "id": "a1", "x": 172, "y": 185, "width": 106, "height": 0, "start": ["id": "idea"], "end": ["id": "draft"]],
+            ["type": "arrow", "id": "a2", "x": 472, "y": 185, "width": 86, "height": 0, "start": ["id": "draft"], "end": ["id": "ready"]],
+        ])
+        defer { j.close() }
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { zoom: { value: 1 }, scrollX: 80, scrollY: 120 } }); 1")
+        j.canvas.show(comments: [Self.thread("c-draft", on: "draft"), BoardComment(id: "r1", thread: "c-draft", by: "me", name: "Emil", text: "Shorter?", created: "2026-11-15T09:05:00Z")])
+        for _ in 0..<100 where try await Self.pins(j)["c-draft"]?["shown"] as? Bool != true { try await Task.sleep(for: .milliseconds(30)) }
+        j.canvas.open(thread: "c-draft")
+        await j.until("the page says where the pin and its shape are") { j.canvas.commentAnchor != nil && j.canvas.commentAround.on != nil }
+        let around = j.canvas.commentAround
+        let draft = try #require(around.on)
+        let at = try await Self.viewport(j, 280, 140)
+        #expect(abs(draft.minX - at.x) < 2 && abs(draft.width - 190) < 2, "the shape, in the view's points: \(draft) at \(at)")
+        #expect(around.near.count >= 2, "Idea and Ready (and the arrows) are near it: \(around.near)")
+        let area = j.web.bounds.size
+        let size = CanvasCommentAnchor.popoverSize(j.canvas)
+        let place = CanvasCommentAnchor.placement(pin: try #require(j.canvas.commentAnchor), around: around, area: area, size: size)
+        let popover = CanvasCommentAnchor.frame(place.edge, anchor: place.anchor, size: size, area: area)
+        #expect(!popover.intersects(draft), "the thread doesn't cover its shape: \(popover) over \(draft)")
+        #expect(around.near.allSatisfy { !popover.intersects($0) }, "nor what's near it: \(popover) over \(around.near)")
+        #expect(popover.minX >= 0 && popover.minY >= 0 && popover.maxX <= area.width && popover.maxY <= area.height, "in the board: \(popover) in \(area)")
+        j.canvas.closeThread()
+    }
+
+    /// The placement on its own: beside the pin when that side is clear; off the shape's edge when
+    /// the pin's sides all cover something; the side that covers least when nothing is clear.
+    @Test func theThreadsPlacementTakesTheFirstClearSide() {
+        typealias A = CanvasCommentAnchor
+        let area = CGSize(width: 1000, height: 700), size = CGSize(width: 304, height: 244)
+        let draft = CGRect(x: 380, y: 260, width: 190, height: 90)
+        let pin = CGRect(x: 556, y: 246, width: 24, height: 24)
+        // Nothing near: to the right of the pin, as before.
+        #expect(A.placement(pin: pin, around: .init(on: draft, near: []), area: area, size: size) == A.Placement(anchor: pin, edge: .trailing))
+        // Idea to the left, Ready to the right (round 13, comments-2): below Draft, clear of all three.
+        let idea = CGRect(x: 100, y: 260, width: 170, height: 90), ready = CGRect(x: 660, y: 240, width: 220, height: 130)
+        let p = A.placement(pin: pin, around: .init(on: draft, near: [idea, ready]), area: area, size: size)
+        let f = A.frame(p.edge, anchor: p.anchor, size: size, area: area)
+        #expect(![draft, idea, ready].contains { f.intersects($0) }, "\(p) \(f)")
+        // A board full of shapes: the side that covers least, still in the board.
+        let full = (0..<6).flatMap { r in (0..<5).map { c in CGRect(x: c * 200 + 10, y: r * 115 + 10, width: 170, height: 90) } }
+        let q = A.placement(pin: pin, around: .init(on: draft, near: full), area: area, size: size)
+        let g = A.frame(q.edge, anchor: q.anchor, size: size, area: area)
+        #expect(q.anchor == pin && g.minX >= 0 && g.maxX <= area.width && g.minY >= 0 && g.maxY <= area.height, "\(q) \(g)")
+    }
+
     /// The Comment tool (C, or the toolbar's): the next click on the board places a comment on the
     /// shape there, at that spot of its box, in your colour; the app opens its composer. Escape
     /// puts the tool down. Right-click's Comment with nothing selected places one at the click.
@@ -562,7 +616,8 @@ import WebKit
             let ask = BoardComment(id: "c-ready", on: "idea", x: 0.85, y: 0.15, by: Self.sara, name: "Sara", text: "Can ideas come from newsletter replies too? Half of ours did last month.", created: ago(48))
             let answer = BoardComment(id: "c-ready-1", thread: "c-ready", by: "me", name: "Emil", text: "Yes. I'll add an arrow from the inbox.", created: ago(31))
             // An AI's reply in the thread: its own mark, in neutral colours (round 12).
-            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: Self.claudesReply, created: ago(20))
+            // It comes with its change (below), so it offers Show change (round 14).
+            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: Self.claudesReply, created: ago(0.2))
             let ai = BoardComment(id: "c-publish", on: "fix", x: 1, y: 0, by: "me", name: "Emil", ai: "Claude", text: "Fix it has no owner yet. Sara reviewed the last three drafts: should it be her?", created: ago(12))
             let old = BoardComment(id: "c-old", on: "draft", x: 1, y: 0, by: "me", name: "Emil", text: "Split Draft in two?", created: ago(60 * 26), resolved: true, version: 2)
             NotePageDataStore.shared.set(note.id, BoardComments.keeping([ask, answer, aiReply, ai, old], in: ["values": ["scene": CanvasNativeUITests.flowchart], "collections": [String: Any]()]))
@@ -643,16 +698,41 @@ import WebKit
                 try write(try board(try await capture()), "comments-1-board-two-pins")
 
                 // A thread open by its pin: the pin ringed, its popover beside it.
-                canvas.send(.comments(canvas.pins.map { var p = $0; p.open = p.id == "c-ready"; return p }, me: BoardComments.Pin(id: "me", x: 0, y: 0, color: BoardComments.color(for: "me"), letter: "E"),
-                                      open: "c-ready", draft: nil, canComment: true))
-                await MacWindowChromeTests.settle(w, 4)
-                let r = try await Self.json(web, "(() => { const r = document.querySelector('[data-comment=\"c-ready\"]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()")
-                let pinInWeb = CGRect(x: r["x"] as? Double ?? 0, y: r["y"] as? Double ?? 0, width: r["w"] as? Double ?? 24, height: r["h"] as? Double ?? 24)
-                let pin = web.convert(web.isFlipped ? pinInWeb : CGRect(x: pinInWeb.minX, y: web.bounds.height - pinInWeb.maxY, width: pinInWeb.width, height: pinInWeb.height), to: nil)
+                // Opened as a click on the pin opens it: the page says where the pin, its shape and
+                // what's near are, and the thread hangs where it covers none of them (round 13,
+                // comments-2: it hid Idea and its arrows).
+                canvas.highlight = nil
+                canvas.open(thread: "c-ready")
+                for _ in 0..<100 where canvas.commentAnchor == nil || canvas.commentAround.on == nil { await MacWindowChromeTests.settle(w, 1) }
+                await MacWindowChromeTests.settle(w, 6)
                 let thread = try await Self.popover(BoardThreadView(canvas: canvas, id: "c-ready"), dark: dark)
-                try write(try board(try Self.beside(thread, pin: pin, on: try await capture(), size: w.frame.size, dark: dark)), "comments-2-thread-open")
-                canvas.send(.comments(canvas.pins, me: BoardComments.Pin(id: "me", x: 0, y: 0, color: BoardComments.color(for: "me"), letter: "E"),
-                                      open: nil, draft: nil, canComment: true))
+                #expect(canvas.change(for: aiReply) != nil, "Claude's reply offers Show change")
+                @MainActor func hang(_ popover: NSBitmapImageRep) throws -> (frame: CGRect, edge: Edge, anchor: CGRect) {
+                    let anchor = try #require(canvas.commentAnchor)
+                    let scale = popover.size.width > 0 ? CGFloat(popover.pixelsWide) / popover.size.width : 2
+                    let size = CGSize(width: CGFloat(popover.pixelsWide) / scale, height: CGFloat(popover.pixelsHigh) / scale)
+                    // Placed as the app places it, from its estimate of the popover's size.
+                    let place = CanvasCommentAnchor.placement(pin: CanvasCommentAnchor.placed(anchor, in: web.bounds.size), around: canvas.commentAround, area: web.bounds.size, size: CanvasCommentAnchor.popoverSize(canvas))
+                    let f = CanvasCommentAnchor.frame(place.edge, anchor: place.anchor, size: size, area: web.bounds.size)
+                    #expect(!f.intersects(canvas.commentAround.on ?? .null), "the thread is off its shape: \(f) \(String(describing: canvas.commentAround.on))")
+                    #expect(canvas.commentAround.near.allSatisfy { !f.intersects($0) } || place.anchor == anchor, "and off what's near, when there's room")
+                    func toWindow(_ r: CGRect) -> CGRect { web.convert(web.isFlipped ? r : CGRect(x: r.minX, y: web.bounds.height - r.maxY, width: r.width, height: r.height), to: nil) }
+                    // Above in the page is above on screen: the edge is the same.
+                    return (toWindow(f), place.edge, toWindow(place.anchor))
+                }
+                let hung = try hang(thread)
+                try write(try board(try Self.hung(thread, at: hung.frame, edge: hung.edge, anchor: hung.anchor, on: try await capture(), size: w.frame.size, dark: dark)), "comments-2-thread-open")
+
+                // Show change on Claude's reply: its change outlined again with its name, in view.
+                let mark = try #require(canvas.change(for: aiReply), "Claude's reply has its change")
+                _ = try await web.evaluateJavaScript("amber._canvas.api.updateScene({ appState: { scrollX: -1400, scrollY: 400 } }); 1")
+                canvas.closeThread()
+                canvas.show(mark)
+                for _ in 0..<100 where canvas.highlight?.by != "Claude" { await MacWindowChromeTests.settle(w, 1) }
+                #expect(canvas.highlight?.by == "Claude" && canvas.highlight?.boxes.count == 1, "outlined again: \(String(describing: canvas.highlight))")
+                _ = try? await CanvasNativeUITests.settledView(w, web)
+                try write(try board(try await capture()), "comments-4-show-change")
+                canvas.highlight = nil
 
                 // The Comments list, under its toolbar button.
                 let list = try await Self.popover(BoardCommentsList(canvas: canvas), dark: dark)
@@ -712,6 +792,57 @@ import WebKit
         let rep = try #require(v.bitmapImageRepForCachingDisplay(in: v.bounds))
         v.cacheDisplay(in: v.bounds, to: rep)
         return rep
+    }
+
+    /// `popover` drawn over a window's picture at `card` (the window's points, y up), its arrow on
+    /// the side facing `anchor`: `edge` is the side of the anchor it opens on, as seen (.top: above
+    /// it on screen, its arrow on its lower edge).
+    static func hung(_ popover: NSBitmapImageRep, at card: CGRect, edge: Edge, anchor: CGRect, on window: NSBitmapImageRep, size points: CGSize, dark: Bool) throws -> NSBitmapImageRep {
+        let scale = CGFloat(window.pixelsWide) / points.width
+        let out = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: window.pixelsWide, pixelsHigh: window.pixelsHigh, bitsPerSample: 8, samplesPerPixel: 4,
+                                                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        out.size = points
+        let saved = NSGraphicsContext.current
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
+        defer { NSGraphicsContext.current = saved }
+        window.draw(in: CGRect(origin: .zero, size: points))
+        let arrow: CGFloat = 9
+        let shape = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
+        let tip = NSBezierPath()
+        switch edge {
+        case .trailing, .leading:
+            let right = edge == .trailing
+            let x = right ? card.minX : card.maxX, y = min(max(anchor.midY, card.minY + 18), card.maxY - 18)
+            tip.move(to: CGPoint(x: x + (right ? 1 : -1), y: y + arrow))
+            tip.line(to: CGPoint(x: x + (right ? -arrow : arrow), y: y))
+            tip.line(to: CGPoint(x: x + (right ? 1 : -1), y: y - arrow))
+        case .top, .bottom:
+            // Above the anchor on screen: the arrow on the card's bottom edge, pointing down.
+            let above = edge == .top
+            let y = above ? card.minY : card.maxY, x = min(max(anchor.midX, card.minX + 18), card.maxX - 18)
+            tip.move(to: CGPoint(x: x - arrow, y: y + (above ? 1 : -1)))
+            tip.line(to: CGPoint(x: x, y: y + (above ? -arrow : arrow)))
+            tip.line(to: CGPoint(x: x + arrow, y: y + (above ? 1 : -1)))
+        }
+        tip.close()
+        shape.append(tip)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(dark ? 0.55 : 0.22)
+        shadow.shadowBlurRadius = 18
+        shadow.shadowOffset = CGSize(width: 0, height: -6)
+        shadow.set()
+        (dark ? NSColor(white: 0.17, alpha: 1) : NSColor(white: 0.93, alpha: 1)).setFill()
+        shape.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12).addClip()
+        popover.draw(in: card)
+        NSGraphicsContext.restoreGraphicsState()
+        NSColor(white: dark ? 1 : 0, alpha: dark ? 0.16 : 0.12).setStroke()
+        shape.lineWidth = 1 / scale
+        shape.stroke()
+        return out
     }
 
     /// `popover` drawn over a window's picture beside `pin` (in the window's points), its arrow on

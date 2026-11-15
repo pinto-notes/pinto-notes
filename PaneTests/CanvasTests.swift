@@ -211,7 +211,9 @@ import AppKit
         #expect(links.boards.map(\.id) == [roadmap.id, launch.id])
         #expect(!links.isEmpty && links.linksEmpty, "the foot shows for boards alone")
         #expect(NoteLinksSection.boardsSummary(links.boards.map(\.title)) == "On 2 boards: Q3 roadmap, Product launch")
-        #expect(NoteLinksSection.boardsSummary(["Product launch"]) == "On 1 board: Product launch")
+        // One board isn't counted (round 13, 27); two or more are.
+        #expect(NoteLinksSection.boardsSummary(["Product launch"]) == "On Product launch")
+        #expect(String(NoteLinksSection.boardsText([CanvasBoards.Board(id: UUID(), title: "Product launch")]).characters) == "On Product launch")
         let text = NoteLinksSection.boardsText(links.boards)
         #expect(String(text.characters) == "On 2 boards: Q3 roadmap, Product launch")
         let urls = text.runs.compactMap(\.link)

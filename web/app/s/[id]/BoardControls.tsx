@@ -24,6 +24,11 @@ export const TOOLS: { tool: string; label: string; key: string; icon: React.Reac
   { tool: "comment", label: "Comment", key: "C", icon: <path d="M4.5 4.5h13a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V15.5h-1A1.5 1.5 0 0 1 3 14V6a1.5 1.5 0 0 1 1.5-1.5z" /> },
 ];
 
+/** More Tools before one of its tools is picked: the shapes (a square on a circle, as the Mac's
+ *  Tools button and the iPhone's Shapes show), not two lines that read as a stroke width (round 13,
+ *  web-08). */
+export const SHAPES_ICON = <><circle cx="13.5" cy="8.5" r="5" /><rect x="3.5" y="9.5" width="9" height="9" rx="1.5" /></>;
+
 export const Icon = ({ children, size = 22 }: { children: React.ReactNode; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
@@ -81,7 +86,7 @@ export function ToolBar({ state, command, width }: { state: PageState; command: 
           // narrow toolbar's Tools button does).
           <button className={`${s.tool} ${s.moreTools}`} aria-label="More tools" title="More tools" aria-haspopup="menu" aria-expanded={open} aria-pressed={inMenu}
             onClick={() => setOpen(!open)}>
-            <Icon>{inMenu ? byTool(state.tool!).icon : <path d="M4 8h14M4 14h14" />}</Icon>
+            <Icon>{inMenu ? byTool(state.tool!).icon : SHAPES_ICON}</Icon>
             <Chevron />
           </button>
         )}

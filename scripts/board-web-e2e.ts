@@ -83,6 +83,20 @@ try {
   // The engine's own fonts load from the site.
   const fonts = await canvas(page).evaluate(async () => (await document.fonts.load("20px Excalifont")).map((f) => f.status));
   if (!fonts.length || fonts.some((st) => st !== "loaded")) throw new Error(`the engine's font didn't load: ${JSON.stringify(fonts)}`);
+  // It opens with the whole drawing in view, centred between the title bar and the tools (round
+  // 13, web-01 and web-04: it opened at the engine's corner, the drawing off to one side).
+  const view = await canvas(page).evaluate(() => {
+    const api = (window as unknown as { amber: { _canvas: { api: { getAppState(): { zoom: { value: number }; scrollX: number; scrollY: number }; getSceneElements(): { x: number; y: number; width: number; height: number }[] } } } }).amber._canvas.api;
+    const s = api.getAppState(), z = s.zoom.value, els = api.getSceneElements();
+    const c = document.querySelector("#canvas") as HTMLElement | null, W = c?.clientWidth ?? innerWidth, H = c?.clientHeight ?? innerHeight;
+    const x1 = Math.min(...els.map((e) => e.x)), y1 = Math.min(...els.map((e) => e.y));
+    const x2 = Math.max(...els.map((e) => e.x + e.width)), y2 = Math.max(...els.map((e) => e.y + e.height));
+    return { l: (x1 + s.scrollX) * z, r: (x2 + s.scrollX) * z, t: (y1 + s.scrollY) * z, b: (y2 + s.scrollY) * z, W, H, z };
+  });
+  log("opening view:", JSON.stringify(view));
+  if (view.l < 0 || view.t < 0 || view.r > view.W || view.b > view.H) problems.push(`the board didn't open whole: ${JSON.stringify(view)}`);
+  if (Math.abs((view.l + view.r) / 2 - view.W / 2) > 4 || Math.abs((view.t + view.b) / 2 - (76 + (view.H - 76 - 92) / 2)) > 4 || view.z > 1)
+    problems.push(`the board didn't open centred, at 100% or less: ${JSON.stringify(view)}`);
   await page.screenshot({ path: `${OUT}01-view-before-sign-in.png` });
 
   // 2. Sign in to edit: an email code, and an account made with it; then a name.
@@ -138,6 +152,9 @@ try {
     return p ? (p.textContent ?? "").trim() || "shown" : null;
   }));
   log("the app's pointer:", pointer);
+  // Everyone in one group, you last, as the app's toolbar groups them (round 13, web-04).
+  const group = await page.locator("ul[data-people] > li").evaluateAll((li) => li.map((n) => (n as HTMLElement).dataset.me !== undefined ? "me" : (n.textContent ?? "").trim()));
+  if (group.length < 2 || group.at(-1) !== "me" || group.filter((x) => x === "me").length !== 1) problems.push(`the avatars aren't one group with you last: ${JSON.stringify(group)}`);
   await page.screenshot({ path: `${OUT}04-board-with-the-apps-pointer.png` });
   const pin = canvas(page).locator(`.pinto-pin[data-comment="${mac.comment}"]`);
   await pin.waitFor({ timeout: 30_000 });
@@ -156,10 +173,45 @@ try {
   await thread.getByText("it reads right.").waitFor();
   await sleep(1500);
   await write("reply.json", "{}");
+  // A shape picked while the thread is open: its style bar waits, never over the thread (round 13,
+  // web-06: the bar covered the thread's foot).
+  await select(page, drawn.id);
+  const card = await thread.boundingBox();
+  const styleBar = page.getByRole("toolbar", { name: "Selection" });
+  const barBox = (await styleBar.count()) ? await styleBar.boundingBox() : null;
+  if (card && barBox && !(barBox.x >= card.x + card.width || barBox.x + barBox.width <= card.x || barBox.y >= card.y + card.height || barBox.y + barBox.height <= card.y))
+    problems.push(`the style bar is over the open thread: ${JSON.stringify({ card, barBox })}`);
   await page.screenshot({ path: `${OUT}06-thread.png` });
 
   // 5. The app says it has all of it.
   await until("done.txt", 120, () => exists("done.txt"));
+  await page.keyboard.press("Escape");
+  await sleep(500);
+
+  // 6. Present, from the board's More menu (someone who can edit), as the app presents: the first
+  // frame alone, the Present bar; the app follows, and the bar says so (round 14).
+  const more = page.locator('header button[aria-label="More"]');
+  await more.click();
+  const present = page.getByRole("menuitem", { name: /Present/ });
+  await present.waitFor();
+  if (!/2 frames/.test((await present.textContent()) ?? "")) problems.push(`Present doesn't say what it walks: ${await present.textContent()}`);
+  await page.screenshot({ path: `${OUT}10-more-present.png` });
+  await present.click();
+  const presentBar = page.getByRole("toolbar", { name: "Presenting" });
+  await presentBar.waitFor({ timeout: 10_000 });
+  await until("the first frame, named", 10, async () => /Launch/.test((await presentBar.textContent()) ?? "") && /1 of 2/.test((await presentBar.textContent()) ?? ""));
+  if (!(await page.locator("[data-present-mask]").count())) problems.push("presenting: nothing covers the rest of the board");
+  if (await page.getByRole("navigation", { name: "Tools" }).count()) problems.push("presenting: the tools still show");
+  await write("presenting.json", "{}");
+  await until("the app follows", 60, async () => /Emil is following/.test((await presentBar.textContent()) ?? ""));
+  await sleep(600);
+  await page.screenshot({ path: `${OUT}11-presenting-followed.png` });
+  await page.keyboard.press("ArrowRight");
+  await until("the second frame", 10, async () => /Plan/.test((await presentBar.textContent()) ?? "") && /2 of 2/.test((await presentBar.textContent()) ?? ""));
+  await until("the app saw the second step", 60, () => exists("followed.txt"));
+  await presentBar.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("navigation", { name: "Tools" }).waitFor({ timeout: 10_000 });
+  await write("presented.json", "{}");
 
   // Phone width, for looking: the board, its title and Comments, nothing cut off.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -176,6 +228,9 @@ try {
   if (tools.left < 0 || tools.right > 390 || tools.scroll > 0) problems.push(`phone width: the toolbar doesn't fit: ${JSON.stringify(tools)}`);
   await page.getByRole("button", { name: "More tools" }).click();
   await page.getByRole("menu", { name: "More tools" }).waitFor();
+  // More Tools shows the shapes before one is picked, not two lines (round 13, web-08).
+  const shapes = await page.locator('button[aria-label="More tools"] > svg').first().evaluate((svg) => ({ circle: svg.querySelectorAll("circle").length, rect: svg.querySelectorAll("rect").length }));
+  if (!shapes.circle || !shapes.rect) problems.push(`More Tools' icon isn't the shapes: ${JSON.stringify(shapes)}`);
   await page.screenshot({ path: `${OUT}08-phone-more-tools.png` });
   await page.getByRole("menuitemradio", { name: /Rectangle/ }).click();
   // The folded tool, once picked, shows on More Tools.

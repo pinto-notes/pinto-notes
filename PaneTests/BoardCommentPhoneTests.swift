@@ -211,8 +211,16 @@ import WebKit
     @Test func theCommentToolPinsACommentWhereYouTap() async throws {
         let phone = try await Phone()
         defer { phone.close() }
+        // The dock is the same on a board of your own as on a shared one, Comment and the library
+        // with the tools (round 13: the sync and library pictures had no Comment button).
+        _ = await phone.appears("canvas.tool.comment")
+        let dock = { Set(phone.ids().filter { $0.hasPrefix("canvas.tool.") }) }
+        let ownDock = dock()
+        #expect(ownDock.isSuperset(of: ["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.arrow", "canvas.tool.text", "canvas.tool.eraser", "canvas.tool.library", "canvas.tool.comment"]), "\(ownDock)")
         let shared = try await share(phone)
         defer { BoardCollab.unwire(shared.emil, phone.canvas) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(dock() == ownDock, "the shared board's dock: \(dock()) against \(ownDock)")
         let hers = CanvasController()
         BoardCollab.wire(shared.sara, hers)
         defer { BoardCollab.unwire(shared.sara, hers) }
@@ -292,8 +300,16 @@ import WebKit
     @Test func theCommentsListOpensAThread() async throws {
         let phone = try await Phone()
         defer { phone.close() }
+        // The dock is the same on a board of your own as on a shared one, Comment and the library
+        // with the tools (round 13: the sync and library pictures had no Comment button).
+        _ = await phone.appears("canvas.tool.comment")
+        let dock = { Set(phone.ids().filter { $0.hasPrefix("canvas.tool.") }) }
+        let ownDock = dock()
+        #expect(ownDock.isSuperset(of: ["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.arrow", "canvas.tool.text", "canvas.tool.eraser", "canvas.tool.library", "canvas.tool.comment"]), "\(ownDock)")
         let shared = try await share(phone)
         defer { BoardCollab.unwire(shared.emil, phone.canvas) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(dock() == ownDock, "the shared board's dock: \(dock()) against \(ownDock)")
         let hers = CanvasController()
         BoardCollab.wire(shared.sara, hers)
         defer { BoardCollab.unwire(shared.sara, hers) }

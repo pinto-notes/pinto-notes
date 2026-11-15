@@ -49,6 +49,7 @@ enum BoardCommentUI {
     static let resolve = "Resolve"
     static let reopen = "Open Again"
     static let resolvedTag = "Resolved"
+    static let showChange = "Show change"
     static let symbol = "text.bubble"
 
     /// "1 reply", "3 replies".
@@ -193,6 +194,30 @@ struct BoardCommentRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                         .accessibilityIdentifier("comment.text")
+                    // An AI's reply about its change: that change, outlined and brought into view
+                    // (round 13: "nothing in the thread links to the change").
+                    if let change = canvas.change(for: comment) {
+                        Button {
+                            #if os(iOS)
+                            canvas.closeThread()
+                            #endif
+                            canvas.show(change)
+                        } label: {
+                            Label(BoardCommentUI.showChange, systemImage: "scope")
+                                .font(BoardCommentUI.metaFont.weight(.medium))
+                                .foregroundStyle(Color.paneAccent)
+                                #if os(iOS)
+                                .frame(minHeight: BoardCommentUI.target)
+                                #endif
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.hoverLink)
+                        .padding(.top, 2)
+                        #if os(macOS)
+                        .help("Outline what \(change.by) changed, and bring it into view")
+                        #endif
+                        .accessibilityIdentifier("comment.showChange")
+                    }
                 }
                 #if os(macOS)
                 if canvas.deletingComment == comment.id {
@@ -649,6 +674,66 @@ struct CanvasCommentAnchor: View {
         return CGRect(x: min(max(r.minX, 0), max(area.width - w, 0)), y: min(max(r.minY, 0), max(area.height - h, 0)), width: w, height: h)
     }
 
+    /// About how big the open thread's popover is: its width, and a height for its comments.
+    static func popoverSize(_ canvas: CanvasController) -> CGSize {
+        let n = canvas.openThread.map { id in canvas.comments.filter { $0.id == id || $0.thread == id }.count } ?? 0
+        return CGSize(width: BoardCommentUI.width + 4, height: min(420, 76 + CGFloat(max(n, 1)) * 56))
+    }
+
+    /// Where a popover of `size` hanging off `anchor` lands on each side (`edge` is the side it
+    /// opens on, as AppKit hangs one, with its 13 pt arrow), slid along that side to stay in the board.
+    static func frame(_ edge: Edge, anchor a: CGRect, size: CGSize, area: CGSize) -> CGRect {
+        let arrow: CGFloat = 13
+        var f: CGRect
+        switch edge {
+        case .trailing: f = CGRect(x: a.maxX + arrow, y: a.midY - size.height / 2, width: size.width, height: size.height)
+        case .leading: f = CGRect(x: a.minX - arrow - size.width, y: a.midY - size.height / 2, width: size.width, height: size.height)
+        case .top: f = CGRect(x: a.midX - size.width / 2, y: a.minY - arrow - size.height, width: size.width, height: size.height)
+        case .bottom: f = CGRect(x: a.midX - size.width / 2, y: a.maxY + arrow, width: size.width, height: size.height)
+        }
+        if edge == .top || edge == .bottom { f.origin.x = min(max(f.minX, 4), max(4, area.width - 4 - f.width)) }
+        else { f.origin.y = min(max(f.minY, 4), max(4, area.height - 4 - f.height)) }
+        return f
+    }
+
+    struct Placement: Equatable {
+        /// What the popover hangs off: the pin, or the shape the comment is on.
+        var anchor: CGRect
+        /// The side it opens on.
+        var edge: Edge
+    }
+
+    /// Where the thread hangs: beside its pin (right, left, above, below), else off the commented
+    /// shape's own edges (its arrow still points at the shape), on the first side where it covers
+    /// none of the shape and what's drawn near it (round 13, comments-2-thread-open: it hid Draft
+    /// and its arrows). With no side clear, the side that covers least, beside the pin.
+    static func placement(pin: CGRect, around: CanvasController.CommentSurroundings, area: CGSize, size: CGSize) -> Placement {
+        let sides: [Edge] = [.trailing, .leading, .top, .bottom]
+        let keep = around.near + (around.on.map { [$0] } ?? [])
+        func fits(_ f: CGRect) -> Bool { f.minX >= 0 && f.minY >= 0 && f.maxX <= area.width && f.maxY <= area.height }
+        func covered(_ f: CGRect) -> CGFloat {
+            var sum: CGFloat = 0
+            for k in around.near { let i = f.intersection(k.insetBy(dx: -6, dy: -6)); if !i.isNull { sum += max(i.width * i.height, 1) } }
+            // The commented shape counts four times what's near it.
+            if let on = around.on { let i = f.intersection(on.insetBy(dx: -6, dy: -6)); if !i.isNull { sum += max(i.width * i.height, 1) * 4 } }
+            return sum
+        }
+        var anchors = [pin]
+        if let on = around.on, !keep.isEmpty { anchors.append(placed(on, in: area)) }
+        for a in anchors {
+            for e in sides {
+                let f = frame(e, anchor: a, size: size, area: area)
+                if fits(f), covered(f) == 0 { return Placement(anchor: a, edge: e) }
+            }
+        }
+        let scored = sides.map { e -> (Edge, CGFloat, Bool) in
+            let f = frame(e, anchor: pin, size: size, area: area)
+            return (e, covered(f), fits(f))
+        }
+        let fitting = scored.filter(\.2)
+        return Placement(anchor: pin, edge: (fitting.isEmpty ? scored : fitting).min { $0.1 < $1.1 }?.0 ?? .trailing)
+    }
+
     /// The clear spot over the pin: never takes a click (the pin under it does).
     static func spot(_ r: CGRect) -> some View {
         Color.clear
@@ -671,11 +756,13 @@ struct CanvasCommentAnchor: View {
             .onAppear { canvas.focusRoom = BoardCommentUI.sheetRoom }
             .accessibilityHidden(true)
         #else
-        let r = Self.placed(canvas.commentAnchor ?? CGRect(x: -100, y: -100, width: 1, height: 1), in: area)
+        let pin = Self.placed(canvas.commentAnchor ?? CGRect(x: -100, y: -100, width: 1, height: 1), in: area)
+        let where_ = Self.placement(pin: pin, around: canvas.commentAround, area: area, size: Self.popoverSize(canvas))
+        let r = where_.anchor, edge = where_.edge
         Color.clear
             .frame(width: max(r.width, 1), height: max(r.height, 1))
             .allowsHitTesting(false)
-            .popover(item: Binding(get: { shown }, set: { if $0 == nil { canvas.popoverClosed() } }), arrowEdge: .trailing) { s in
+            .popover(item: Binding(get: { shown }, set: { if $0 == nil { canvas.popoverClosed() } }), arrowEdge: edge) { s in
                 switch s {
                 case .draft: BoardCommentComposer(canvas: canvas)
                 case .thread(let id): BoardThreadView(canvas: canvas, id: id)

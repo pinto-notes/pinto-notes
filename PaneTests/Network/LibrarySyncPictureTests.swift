@@ -83,6 +83,18 @@ extension NetworkFaults {
         ])
     }
 
+    /// A third library file: six planning shapes.
+    static var planning: Data {
+        CanvasLibraryFile.data([
+            CanvasLibraryItem(name: "Sticky note", elements: [element(["type": "rectangle", "width": 140, "height": 140, "backgroundColor": "#fff3bf"])])!,
+            CanvasLibraryItem(name: "Milestone", elements: [element(["type": "diamond", "width": 80, "height": 80, "backgroundColor": "#b2f2bb"])])!,
+            CanvasLibraryItem(name: "Owner", elements: [element(["type": "ellipse", "width": 90, "height": 90, "backgroundColor": "#d0bfff"])])!,
+            CanvasLibraryItem(name: "Timeline", elements: [element(["type": "arrow", "width": 220, "height": 0, "points": [[0, 0], [220, 0]], "endArrowhead": "triangle"])])!,
+            CanvasLibraryItem(name: "Lane", elements: [element(["type": "rectangle", "width": 260, "height": 70, "backgroundColor": "#e9ecef"])])!,
+            CanvasLibraryItem(name: "Risk", elements: [element(["type": "ellipse", "width": 100, "height": 70, "backgroundColor": "#ffc9c9"])])!,
+        ])
+    }
+
     func engine(_ library: CanvasLibrary) throws -> (SyncEngine, ModelContainer) {
         let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let engine = SyncEngine(backend: Backend(testClient: StubSupabase.client(), email: "qa@example.com", userID: SealedAccount.user),
@@ -136,6 +148,11 @@ extension NetworkFaults {
         guard let dir = Self.shotsFolder else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let s = try await synced()
+        // A full library, as a team's grows: more than 12 items, so it has its search field and
+        // scrolls, with the footer in its own row under the last one (round 13: retake on this
+        // build, with 13 or more).
+        _ = s.synced.importLibrary(Self.planning, source: "Planning")
+        #expect(s.synced.items.count >= 13 && CanvasLibraryGrid.showsSearch(s.synced.items.count), "\(s.synced.items.count) items")
         // The board draws each item's picture, as the popover asks it to.
         let j = try await CanvasNativeUITests.Joined()
         defer { j.close() }
@@ -143,10 +160,12 @@ extension NetworkFaults {
         await j.canvas.drawThumbnails(s.synced)
         #expect(s.synced.items.allSatisfy { s.synced.thumbnails[$0.id] != nil }, "every item has its picture")
         for dark in [false, true] {
-            let rep = try await CanvasNativeUITests.libraryPopoverPicture(canvas: j.canvas, library: s.synced, dark: dark)
-            let url = dir.appending(path: "library-sync-mac-\(dark ? "dark" : "light").png")
-            try #require(rep.representation(using: .png, properties: [:])).write(to: url)
-            print("CANVAS_SHOT \(url.path)")
+            for end in [false, true] {
+                let rep = try await CanvasNativeUITests.libraryPopoverPicture(canvas: j.canvas, library: s.synced, dark: dark, scrolledToEnd: end)
+                let url = dir.appending(path: "library-sync-mac-\(end ? "end-" : "")\(dark ? "dark" : "light").png")
+                try #require(rep.representation(using: .png, properties: [:])).write(to: url)
+                print("CANVAS_SHOT \(url.path)")
+            }
         }
         _ = s.keep
     }
@@ -215,6 +234,10 @@ extension NetworkFaults {
             return image
         }
         try await Task.sleep(for: .seconds(1))
+        // The same dock as every board's: the library and Comment with the tools (round 13: these
+        // pictures had no Comment button; they were taken on a build from before it).
+        let dock = BoardSyncPictureTests.ids(window)
+        #expect(["canvas.tool.selection", "canvas.tool.freedraw", "canvas.tool.arrow", "canvas.tool.text", "canvas.tool.eraser", "canvas.tool.library", "canvas.tool.comment"].allSatisfy(dock.contains), "\(dock)")
         try shot("library-sync-iphone-dock")
 
         // The dock's Library button opens the sheet: the same items, groups and order as the Mac's.

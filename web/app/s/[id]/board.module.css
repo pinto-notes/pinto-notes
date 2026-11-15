@@ -35,7 +35,8 @@
 .avatar[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
 .iconButton, .me { position: relative; width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; display: grid; place-items: center; cursor: pointer; }
 .iconButton[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-ink); }
-.me { width: 32px; height: 32px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 13px; }
+/* You, last in the people's group, as the others: white letters on every colour (round 13, web-04). */
+.me { width: 28px; height: 28px; border-radius: 50%; color: #fff !important; font-weight: 700; font-size: 12.5px; }
 .dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
 .primarySmall, .secondarySmall { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border: 0; border-radius: 10px; font-weight: 650; font-size: 14px; text-decoration: none; cursor: pointer; white-space: nowrap; }
 .primarySmall { background: var(--primary); color: var(--on-primary) !important; }
@@ -43,7 +44,8 @@
 .menuWrap { position: relative; }
 .menu { position: absolute; right: 0; top: 42px; min-width: 240px; padding: 6px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 2px; z-index: 5; }
 .menuLine { margin: 0; padding: 8px 10px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-.menuItem { display: block; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; text-decoration: none; color: var(--ink); cursor: pointer; font-size: 14px; }
+.menuItem { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; text-decoration: none; color: var(--ink); cursor: pointer; font-size: 14px; }
+.menuHint { margin-left: auto; color: var(--muted); font-size: 12.5px; }
 
 /* ── The tools, at the foot ── */
 .tools { position: absolute; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 6px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); max-width: calc(100vw - 24px); overflow-x: auto; scrollbar-width: none; }
@@ -67,7 +69,8 @@
 @media (max-width: 600px) {
   .zoom { display: none; }
   .titleBox { max-width: 44vw; }
-  .people { display: none; }
+  /* Only you stay (your account's menu); the others' avatars go. */
+  .people li:not([data-me]) { display: none; }
 }
 .toolsWrap { display: contents; }
 .moreTools { width: 52px; grid-auto-flow: column; gap: 2px; }
@@ -183,3 +186,14 @@
 .primary:disabled { opacity: 0.4; cursor: default; }
 .spinner { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); }
 @media (prefers-reduced-motion: no-preference) { .spinner { animation: turn 0.8s linear infinite; } @keyframes turn { to { transform: rotate(1turn); } } }
+
+/* ── Presenting (the app's Present): the frame alone, the bar at the foot ── */
+.presentMask { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+.presentBar { position: absolute; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); z-index: 4; white-space: nowrap; }
+.presentStep { display: grid; justify-items: center; min-width: 120px; padding: 0 8px; line-height: 1.25; }
+.presentStep b { font-size: 14px; font-weight: 650; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.presentStep span { font-size: 12px; color: var(--muted); }
+.laserOn { background: #e5322d !important; color: #fff !important; }
+.presentFollowers { padding: 0 6px; font-size: 12px; color: var(--muted); }
+.presentDone { height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-weight: 600; font-size: 14px; cursor: pointer; }
+@media (hover: hover) { .presentDone:hover { background: var(--hover); } }

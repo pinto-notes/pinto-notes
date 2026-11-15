@@ -68,6 +68,420 @@ import UIKit
         ["type": "arrow", "id": "line", "x": 400, "y": 200, "width": 120, "height": 0],
     ]
 
+    // MARK: Round 14
+
+    /// Present fills the view from its first step: Full Screen and Present start together, the
+    /// window grows as the first frame is fitted, and the step is fitted to the size the page has
+    /// now, not the one the engine had (round 13, 25-present-1: the first step kept the column's
+    /// size, the frame off centre with the next one showing). Each step fills alike, and the cover
+    /// round the frame is opaque.
+    #if os(macOS)
+    @Test func presentFillsTheViewFromTheFirstStepAfterTheWindowGrows() async throws {
+        let j = try await Joined(scene: Self.twoFrames)
+        defer { j.close() }
+        try await j.ready()
+        #expect(CanvasPresentMask.opacity == 1, "only the frame shows: nothing reads through the cover")
+        let size = CGSize(width: 1400, height: 860)
+        j.rig.window.setContentSize(size)
+        j.web.frame = CGRect(origin: .zero, size: size)
+        j.canvas.send(.present(.start))
+        await j.until("presenting") { j.canvas.state.present?.index == 0 }
+        @MainActor func fill(_ id: String) async throws -> [Double] {
+            try #require(try await j.js("""
+            (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === '\(id)');
+              const c = document.querySelector('#canvas') || document.body, W = c.clientWidth, H = c.clientHeight;
+              const x1 = (f.x + s.scrollX) * z, y1 = (f.y + s.scrollY) * z, x2 = (f.x + f.width + s.scrollX) * z, y2 = (f.y + f.height + s.scrollY) * z;
+              return [W, H, Math.max((x2 - x1) / W, (y2 - y1) / H), Math.abs((x1 + x2) / 2 - W / 2), y1, H - y2]; })()
+            """) as? [Double])
+        }
+        var first: [Double] = []
+        for _ in 0..<40 {
+            first = try await fill("f1")
+            if first[0] == Double(size.width), first[2] > 0.8, first[3] < 3 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(first[0] == Double(size.width), "the page has the new size: \(first)")
+        #expect(first[2] > 0.8 && first[2] <= 0.95, "the first frame fills the view: \(first)")
+        #expect(first[3] < 3 && first[4] >= -1 && first[5] >= -1, "centred across, and whole: \(first)")
+        j.canvas.send(.present(.next))
+        await j.until("the second") { j.canvas.state.present?.index == 1 }
+        try await Task.sleep(for: .milliseconds(500))
+        let second = try await fill("f2")
+        #expect(abs(second[2] - first[2]) < 0.03 && second[3] < 3, "the second fills it alike: \(second) against \(first)")
+        j.canvas.send(.present(.prev))
+        await j.until("back to the first") { j.canvas.state.present?.index == 0 }
+        try await Task.sleep(for: .milliseconds(500))
+        let again = try await fill("f1")
+        #expect(abs(again[2] - first[2]) < 0.03 && again[3] < 3, "and the first again: \(again)")
+        j.canvas.send(.present(.stop))
+    }
+    #endif
+
+    /// A change from another of your devices is outlined for a moment, quieter than an AI's: grey,
+    /// with the device's name, no receipt, gone after a few seconds (round 13, 38-sync-2 and
+    /// 41-sync-iphone-2: it came in unmarked). The sync names the device from the row's client.
+    @Test func aChangeFromYourOtherDeviceIsOutlinedQuietlyWithItsName() async throws {
+        #expect(SyncEngine.device("iPhone") == "iPhone" && SyncEngine.device("Mac") == "Mac" && SyncEngine.device("Claude") == nil && SyncEngine.device(nil) == nil)
+        let id = UUID()
+        let store = NotePageDataStore.shared
+        store.set(id, ["values": ["scene": CanvasTests.scene(Self.box)], "collections": [String: Any]()])
+        defer { store.set(id, nil) }
+        store.take(id, server: NotePageData.encode(["values": ["scene": CanvasTests.scene(Self.box + [["type": "rectangle", "id": "x", "x": 0, "y": 0, "width": 10, "height": 10]])], "collections": [String: Any]()]), device: "iPhone")
+        #expect(store.fromDevices[id]?.device == "iPhone", "the store says which device")
+        #expect(store.arrivals[id] == nil, "not an AI's")
+
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("amber._flush(); 0")
+        try await Task.sleep(for: .milliseconds(300))
+        let stored = try #require(try await j.js("JSON.stringify(amber._canvas.scene().elements)") as? String)
+        var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
+        elements.append(["type": "rectangle", "id": "phone-box", "x": 420, "y": 120, "width": 180, "height": 70, "label": ["text": "Added on iPhone"]])
+        let time = CanvasController.arrivalTime
+        CanvasController.arrivalTime = 0.8
+        defer { CanvasController.arrivalTime = time }
+        j.canvas.arrived(from: "iPhone", kind: .device)
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        await j.until("outlined") { j.canvas.highlight != nil }
+        let h = try #require(j.canvas.highlight)
+        #expect(h.kind == .device && h.by == "iPhone" && h.kind.quiet && h.time == 0.8, "\(h)")
+        #expect(h.boxes.count == 1 && h.rect.width < 240, "only what came: \(h.rect)")
+        #expect(j.canvas.notice == nil && j.canvas.lastChangeBy == nil && j.canvas.aiChanges.isEmpty, "no receipt, and not an AI's change")
+        #expect(CanvasAIHighlight.tagWidth("iPhone", mark: true) > CanvasAIHighlight.tagWidth("iPhone", mark: false), "the device's symbol in its tag")
+        try await Task.sleep(for: .seconds(1.3))
+        #expect(j.canvas.highlight == nil, "gone after a moment")
+        // Only a device or a person is taken this way.
+        j.canvas.arrived(from: "Claude", kind: .ai)
+        elements.append(["type": "rectangle", "id": "later", "x": 420, "y": 320, "width": 180, "height": 70])
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(j.canvas.highlight == nil)
+    }
+
+    /// Someone's change on a shared board is outlined in their colour with their name, the view
+    /// left where you have it; nothing while you can see them drawing (their pointer is there);
+    /// your own other device is named as such (round 13: changes from another person came in
+    /// unmarked).
+    @Test func someonesChangeIsOutlinedInTheirColourUnlessYouWatchThem() async throws {
+        let people = BoardPeople()
+        let (emilDevice, others, note) = try await people.share(CanvasTests.scene([SharedBoardTests.shape("a", x: 40, y: 40)]), people: ["Sara", "Ola"])
+        let e = try people.session(emilDevice, note), s = try people.session(others[0], note), o = try people.session(others[1], note)
+        let j = try await Joined(scene: CanvasNote.emptyScene())
+        defer { j.close() }
+        try await j.ready()
+        BoardCollab.wire(e, j.canvas)
+        defer { BoardCollab.unwire(e, j.canvas) }
+        @MainActor func has(_ id: String) async -> Bool { (try? await j.js("amber._canvas.api.getSceneElements().some((e) => e.id === '\(id)')") as? Bool) == true }
+        for _ in 0..<100 where !(await has("a")) { try await Task.sleep(for: .milliseconds(30)) }
+        let times = (CanvasController.highlightTime, CanvasController.arrivalTime)
+        CanvasController.highlightTime = 60; CanvasController.arrivalTime = 60
+        defer { (CanvasController.highlightTime, CanvasController.arrivalTime) = times }
+        let view = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.scrollX, s.scrollY, s.zoom.value].join(','); })()") as? String
+
+        s.boardLocal([SharedBoardTests.shape("sara-1", x: 500, y: 300, index: "a5")])
+        await people.server.settle()
+        await j.until("outlined") { j.canvas.highlight != nil }
+        let h = try #require(j.canvas.highlight)
+        let c = e.boardColors(of: others[0].id)
+        #expect(h.kind == .person(color: c.light, dark: c.dark) && h.by == "Sara" && h.kind.quiet, "\(h)")
+        #expect(j.canvas.sent.contains(.outline(["sara-1"], move: false)), "outlined where it is, the view yours")
+        #expect(try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.scrollX, s.scrollY, s.zoom.value].join(','); })()") as? String == view, "the view didn't move")
+        #expect(j.canvas.notice == nil && j.canvas.aiChanges.isEmpty, "no receipt for people")
+
+        // Two at once: both named.
+        j.canvas.highlight = nil
+        s.boardLocal([SharedBoardTests.shape("sara-2", x: 700, y: 300, index: "a6")])
+        o.boardLocal([SharedBoardTests.shape("ola-1", x: 900, y: 300, index: "a7")])
+        await people.server.settle()
+        await j.until("outlined again") { j.canvas.highlight != nil }
+        #expect(["Sara", "Ola", "Sara and Ola", "Ola and Sara"].contains(j.canvas.highlight?.by ?? ""), "\(String(describing: j.canvas.highlight))")
+
+        // Sara's pointer is on the board: you see her drawing, so nothing more marks it.
+        s.boardPresence(pointer: CGPoint(x: 520, y: 320), selection: [])
+        await people.server.eventually { e.watching(others[0].id) }
+        #expect(e.watching(others[0].id))
+        j.canvas.highlight = nil
+        s.boardLocal([SharedBoardTests.shape("sara-3", x: 500, y: 500, index: "a8")])
+        await people.server.settle()
+        for _ in 0..<100 where !(await has("sara-3")) { try await Task.sleep(for: .milliseconds(30)) }
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(await has("sara-3") && j.canvas.highlight == nil, "on the board, not outlined: \(String(describing: j.canvas.highlight))")
+
+        // Who's named, from the authors of what came.
+        #expect(BoardCollab.arrival([others[0].id], in: e) == nil, "watching her")
+        let me = e.me
+        #expect(BoardCollab.arrival([me], in: e)?.name == BoardCollab.yourOtherDevice && BoardCollab.arrival([me], in: e)?.kind == .device)
+        #expect(BoardCollab.arrival([others[1].id], in: e)?.name == "Ola")
+        _ = note
+    }
+
+    /// Whole frames that came at once get one outline each, round the frame and its name, not one
+    /// round every shape inside as well; the name tag goes above the frame's name (round 14,
+    /// follow-0: boxes in boxes, and "Sara" on "The problem").
+    @Test func framesThatCameAreOutlinedOnceEachNameAndAll() async throws {
+        let j = try await Joined(scene: CanvasNote.emptyScene())
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("""
+        amber._canvasCommand({ op: 'insert', elements: [
+          { type: 'text', id: 'p1', x: 40, y: 40, text: 'Sign-up takes 6 steps', fontSize: 28 },
+          { type: 'rectangle', id: 'p2', x: 40, y: 110, width: 200, height: 120, label: { text: '42% drop at step 4' } },
+          { type: 'frame', id: 'fp', children: ['p1', 'p2'], name: 'The problem' },
+          { type: 'rectangle', id: 'i2', x: 640, y: 120, width: 180, height: 90, label: { text: 'Sign in with Apple' } },
+          { type: 'frame', id: 'fi', children: ['i2'], name: 'The idea' },
+        ] }); 1
+        """)
+        for _ in 0..<100 where (try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'frame').length") as? Int ?? 0) < 2 {
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        _ = try await j.js("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.7, animate: false }); 1")
+        try await Task.sleep(for: .milliseconds(200))
+        let time = CanvasController.highlightTime
+        CanvasController.highlightTime = 60
+        defer { CanvasController.highlightTime = time }
+        // Inserting gives everything new ids: all of it, as it came.
+        let ids = try #require(try await j.js("amber._canvas.api.getSceneElements().filter((e) => !e.containerId).map((e) => e.id).join(',')") as? String).split(separator: ",").map(String.init)
+        #expect(ids.count == 5)
+        j.canvas.highlight = nil
+        j.canvas.arrived(by: "Sara")
+        j.canvas.send(.outline(ids, move: false))
+        await j.until("outlined") { j.canvas.highlight?.by == "Sara" }
+        let h = try #require(j.canvas.highlight)
+        #expect(h.boxes.count == 2, "one box for each frame: \(h.boxes)")
+        let frame = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.type === 'frame' && e.name === 'The problem');
+          return [(f.x + s.scrollX) * z, (f.y + s.scrollY) * z, f.width * z, f.height * z].join(','); })()
+        """) as? String).split(separator: ",").compactMap { Double($0) }
+        let drawn = CGRect(x: frame[0], y: frame[1], width: frame[2], height: frame[3])
+        // Its name is drawn 14 pt high, just above it, at any zoom.
+        let name = CGRect(x: drawn.minX, y: drawn.minY - 20, width: 90, height: 18)
+        let box = try #require(h.boxes.first { $0.insetBy(dx: -2, dy: -2).contains(drawn) }, "round the frame: \(drawn) in \(h.boxes)")
+        #expect(box.minY <= name.minY, "and its name: \(box) over \(name)")
+        let outlines = CanvasAIHighlight(highlight: h).outlines
+        let spot = CanvasAIHighlight.tag(for: h, outlines: outlines)
+        let tag = CGRect(origin: spot, size: CGSize(width: CanvasAIHighlight.tagWidth("Sara"), height: CanvasAIHighlight.tagHeight))
+        #expect(!tag.intersects(name), "the tag isn't on the frame's name: \(tag) on \(name)")
+    }
+
+    /// The AI's name tag stands at least 8 pt from words beside it, ink and all (round 13, 12, 13
+    /// and 15: the ChatGPT tag sat a few points from the end of the how-to line, third round).
+    @Test func theAIsTagKeepsEightPointsFromWords() {
+        let shape = CGRect(x: 300, y: 200, width: 180, height: 70)
+        for words in [CGRect(x: 40, y: 150, width: 262, height: 25), CGRect(x: 40, y: 166, width: 250, height: 25), CGRect(x: 380, y: 150, width: 300, height: 22)] {
+            let h = CanvasController.Highlight(rect: shape, by: "ChatGPT", count: 1, boxes: [shape], near: [words], view: CGSize(width: 900, height: 600))
+            let outlines = CanvasAIHighlight(highlight: h).outlines
+            let spot = CanvasAIHighlight.tag(for: h, outlines: outlines)
+            let tag = CGRect(origin: spot, size: CGSize(width: CanvasAIHighlight.tagWidth("ChatGPT"), height: CanvasAIHighlight.tagHeight))
+            let gap = max(words.minX - tag.maxX, tag.minX - words.maxX, words.minY - tag.maxY, tag.minY - words.maxY)
+            #expect(gap >= CanvasAIHighlight.clearance + CanvasAIHighlight.inkReach - 0.5, "\(gap) pt: \(tag) by \(words)")
+        }
+    }
+
+    /// An AI's reply in a comment thread that comes with a change offers Show change: it outlines
+    /// that change with the AI's name and brings it into view, as Show Last AI Change does (round
+    /// 14). A person's reply, another AI's, or one from long before offers nothing.
+    @Test func anAIsReplyWithAChangeOffersShowChange() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("amber._flush(); 0")
+        try await Task.sleep(for: .milliseconds(300))
+        let stored = try #require(try await j.js("JSON.stringify(amber._canvas.scene().elements)") as? String)
+        var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
+        elements.append(["type": "rectangle", "id": "ai-box", "x": 600, "y": 120, "width": 180, "height": 70, "label": ["text": "Notify team"]])
+        let time = CanvasController.highlightTime
+        CanvasController.highlightTime = 60
+        defer { CanvasController.highlightTime = time }
+        j.canvas.arrived(by: "Claude")
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        await j.until("outlined") { j.canvas.highlight != nil }
+        let mark = try #require(j.canvas.aiChanges.last)
+        #expect(mark.by == "Claude" && mark.ids.contains("ai-box"), "\(mark)")
+        let now = BoardComments.stamp(.now)
+        func reply(_ ai: String?, at: String = now) -> BoardComment {
+            BoardComment(id: UUID().uuidString, thread: "t", by: "me", name: "Emil", ai: ai, text: "I added Notify team under Approved.", created: at)
+        }
+        #expect(j.canvas.change(for: reply("Claude")) == mark)
+        #expect(j.canvas.change(for: reply("Emil's Claude")) == mark, "named with its person")
+        #expect(j.canvas.change(for: reply(nil)) == nil, "a person's reply")
+        #expect(j.canvas.change(for: reply("ChatGPT")) == nil, "another AI's")
+        #expect(j.canvas.change(for: reply("Claude", at: BoardComments.stamp(.now.addingTimeInterval(-3600)))) == nil, "an hour before")
+        #expect(BoardCommentUI.showChange == "Show change")
+        // Shown: outlined again, in view.
+        j.canvas.highlight = nil
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { scrollX: -3000, scrollY: 0 } }); 1")
+        j.canvas.show(mark)
+        #expect(j.canvas.sent.contains(.outline(mark.ids)))
+        await j.until("outlined again") { j.canvas.highlight?.by == "Claude" }
+        let inView = try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'ai-box');
+          const x1 = (b.x + s.scrollX) * z, x2 = (b.x + b.width + s.scrollX) * z, y1 = (b.y + s.scrollY) * z, y2 = (b.y + b.height + s.scrollY) * z;
+          return x1 >= 0 && x2 <= s.width && y1 >= 0 && y2 <= s.height; })()
+        """) as? Bool
+        #expect(inView == true, "brought into view")
+        #expect(j.canvas.aiChanges.count == 1, "the same change, not a new one")
+    }
+
+    /// The follower's banner names the frame and the step: "Emil is presenting · Launch · 2 of 4"
+    /// (round 14), the step alone for an unnamed frame, nothing more for one step.
+    @Test func theFollowBannerNamesTheFrameAndStep() {
+        let emil = BoardPerson(id: UUID(), name: "Emil", color: "#3B5BDB", dark: "#91A7FF", presenting: BoardPresenting(frame: "f2", i: 1, n: 4))
+        let names = ["f2": "Launch"]
+        #expect(BoardFollow.Banner.presenting(emil).words { names[$0] } == "Emil is presenting \u{00B7} Launch \u{00B7} 2 of 4")
+        #expect(BoardFollow.Banner.following(emil).words { names[$0] } == "Following Emil \u{00B7} Launch \u{00B7} 2 of 4")
+        #expect(BoardFollow.Banner.presenting(emil).words { _ in nil } == "Emil is presenting \u{00B7} 2 of 4")
+        var one = emil
+        one.presenting = BoardPresenting(frame: nil, i: 0, n: 1)
+        #expect(BoardFollow.Banner.presenting(one).words { _ in "Board" } == "Emil is presenting")
+        one.presenting = BoardPresenting(frame: "f2", i: 0, n: 1)
+        #expect(BoardFollow.Banner.presenting(one).words { names[$0] } == "Emil is presenting \u{00B7} Launch", "one step needs no count")
+        var none = emil
+        none.presenting = nil
+        #expect(BoardFollow.Banner.following(none).words { names[$0] } == "Following Emil")
+    }
+
+    /// A board opened from a search shows its first match: in view, outlined for a moment, with no
+    /// name (round 14: a search for a word on a board found the board, but it opened anywhere).
+    /// Asked before the page is ready, it's done once it is. Case and accents don't matter.
+    @Test func aSearchOpensTheBoardAtItsMatch() async throws {
+        let id = UUID()
+        SearchJump.set(id, query: " Fix ")
+        #expect(SearchJump.take(id) == "Fix" && SearchJump.take(id) == nil, "the words, once")
+        var scene = Self.flowchart
+        scene["elements"] = (scene["elements"] as? [[String: Any]] ?? []) + [["type": "text", "id": "far", "x": 3200, "y": 1800, "text": "Email the waitlist", "fontSize": 20]]
+        let j = try await Joined(scene: scene)
+        defer { j.close() }
+        let times = (CanvasController.highlightTime, CanvasController.foundTime)
+        CanvasController.highlightTime = 60; CanvasController.foundTime = 60
+        defer { (CanvasController.highlightTime, CanvasController.foundTime) = times }
+        j.canvas.find("WAITLIST")
+        try await j.ready()
+        await j.until("the match is outlined") { j.canvas.highlight?.kind == .found }
+        #expect(j.canvas.finding == nil)
+        @MainActor func inView(_ id: String) async throws -> Bool {
+            try await j.js("""
+            (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === '\(id)');
+              const x1 = (b.x + s.scrollX) * z, x2 = (b.x + b.width + s.scrollX) * z, y1 = (b.y + s.scrollY) * z, y2 = (b.y + b.height + s.scrollY) * z;
+              return x1 >= 0 && x2 <= s.width && y1 >= 0 && y2 <= s.height && z >= 0.5; })()
+            """) as? Bool == true
+        }
+        #expect(try await inView("far"), "the far words in view, readable")
+        let centre = try #require(try await j.js("""
+        (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'far');
+          return [((b.x + b.width / 2) + s.scrollX) * z - s.width / 2, ((b.y + b.height / 2) + s.scrollY) * z - s.height / 2]; })()
+        """) as? [Double])
+        // (Within a few points: words are measured again once the hand-drawn font is in.)
+        #expect(abs(centre[0]) < 40 && abs(centre[1]) < 40, "in the middle of the view, not at its edge: \(centre)")
+        let h = try #require(j.canvas.highlight)
+        #expect(h.by.isEmpty && h.count >= 1 && h.kind.quiet, "\(h)")
+        #expect(j.canvas.aiChanges.isEmpty && j.canvas.lastChangeBy == nil, "not an AI's change")
+        // A shape's words: the shape.
+        j.canvas.highlight = nil
+        j.canvas.find("réady")
+        await j.until("Ready? is outlined") { j.canvas.highlight?.kind == .found }
+        #expect(try await inView("ready"))
+        // Nothing found: nothing outlined.
+        j.canvas.highlight = nil
+        j.canvas.find("zebra")
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(j.canvas.highlight == nil)
+    }
+
+    #if os(macOS)
+    /// End to end in the notes window: a search for a word that's on a board lists the board, and
+    /// opening it shows the word in view, outlined for a moment (round 14). Pictures with
+    /// WHITEBOARD_SHOTS.
+    @Test func aBoardFoundBySearchOpensAtTheWord() async throws {
+        let dir = ProcessInfo.processInfo.environment["WHITEBOARD_SHOTS"].map { URL(fileURLWithPath: $0) }
+        if let dir { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
+        let c = try AppSnapshotTests.container()
+        let launch = CanvasNote.make(in: .all, context: c.mainContext)
+        launch.body = "Product launch"
+        launch.updatedAt = .now.addingTimeInterval(-600)
+        var scene = Self.flowchart
+        scene["elements"] = (scene["elements"] as? [[String: Any]] ?? []) + [
+            ["type": "rectangle", "id": "wait", "x": 1500, "y": 700, "width": 230, "height": 90, "label": ["text": "Email the waitlist"], "backgroundColor": "#ffec99", "fillStyle": "solid", "roundness": ["type": 3]],
+        ]
+        NotePageDataStore.shared.set(launch.id, ["values": ["scene": scene], "collections": [String: Any]()])
+        defer { NotePageDataStore.shared.set(launch.id, nil) }
+        let roadmap = CanvasNote.make(in: .all, context: c.mainContext)
+        roadmap.body = "Q3 roadmap"
+        NotePageDataStore.shared.set(roadmap.id, ["values": ["scene": CanvasTests.scene(WhiteboardTemplate.kanban.elements)], "collections": [String: Any]()])
+        defer { NotePageDataStore.shared.set(roadmap.id, nil) }
+        try c.mainContext.save()
+        let times = (CanvasController.highlightTime, CanvasController.foundTime)
+        CanvasController.highlightTime = 60; CanvasController.foundTime = 60
+        defer { (CanvasController.highlightTime, CanvasController.foundTime) = times }
+        for dark in [false, true] where dir != nil || !dark {
+            // Each window opens on the roadmap, as after a launch, so picking the result opens the board.
+            try await AppSnapshotTests.withLastNote(c, "Q3 roadmap") {
+                let size = CGSize(width: 1400, height: 900)
+                let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
+                                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+                w.isReleasedWhenClosed = false
+                w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore())
+                    .tint(Color(PColor.paneAccent)).environment(\.controlActiveState, .key))
+                w.setContentSize(size)
+                defer { w.close() }
+                await MacWindowChromeTests.settle(w, 20)
+                @MainActor func shot(_ name: String, web: WKWebView?) async throws {
+                    guard let dir else { return }
+                    await MacWindowChromeTests.settle(w, 10)
+                    var cover: NSImageView?
+                    if let web {
+                        _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+                        let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
+                        let v = NSImageView(frame: web.bounds)
+                        v.image = image
+                        v.imageScaling = .scaleAxesIndependently
+                        web.addSubview(v)
+                        cover = v
+                    }
+                    defer { cover?.removeFromSuperview() }
+                    w.contentView?.layoutSubtreeIfNeeded()
+                    w.displayIfNeeded()
+                    try #require(try MacEmptyDetailTests.picture(w).representation(using: .png, properties: [:])).write(to: dir.appending(path: "\(name)-\(dark ? "dark" : "light").png"))
+                }
+                // The list's search, as ⌘F or Go to Note starts it, for a word on the board.
+                NotificationCenter.default.post(name: .paneSearchNotes, object: "waitlist")
+                await MacWindowChromeTests.settle(w, 10)
+                let table = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSTableView.self, in: $0) })
+                for _ in 0..<100 where table.numberOfRows == 0 { await MacWindowChromeTests.settle(w, 1) }
+                #expect(table.numberOfRows >= 1, "the board is in the results")
+                try await shot("42-search-1-results", web: NotePageLive.view(roadmap.id))
+                // Opened from the results: the board at the word.
+                // The board's own view in this window, with its canvas (not the last window's).
+                @MainActor func opened() -> NotePageWebView? {
+                    guard let v = NotePageLive.view(launch.id) as? NotePageWebView, v.window === w, v.canvas != nil else { return nil }
+                    return v
+                }
+                var web: NotePageWebView?
+                for row in 0..<table.numberOfRows where web == nil {
+                    table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                    for _ in 0..<60 where web == nil { web = opened(); if web == nil { await MacWindowChromeTests.settle(w, 1) } }
+                }
+                let board = try #require(web, "the board opened from its result")
+                try await CanvasTests().run(board, until: "!!(window.amber && window.amber._canvas)")
+                let canvas = try #require(board.canvas)
+                for _ in 0..<150 where canvas.highlight?.kind != .found { await MacWindowChromeTests.settle(w, 1) }
+                #expect(canvas.highlight?.kind == .found, "the match is outlined: \(String(describing: canvas.highlight))")
+                let inView = try await board.evaluateJavaScript("""
+                (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'wait');
+                  const x1 = (b.x + s.scrollX) * z, x2 = (b.x + b.width + s.scrollX) * z, y1 = (b.y + s.scrollY) * z, y2 = (b.y + b.height + s.scrollY) * z;
+                  return x1 >= 0 && x2 <= s.width && y1 >= 0 && y2 <= s.height && z >= 0.5; })()
+                """) as? Bool
+                #expect(inView == true, "the waitlist's shape is in view, readable")
+                _ = try? await Self.settledView(w, board)
+                try await shot("42-search-2-board-at-the-word", web: board)
+                NotificationCenter.default.post(name: .paneToggleSearch, object: nil)
+                await MacWindowChromeTests.settle(w, 5)
+            }
+        }
+    }
+    #endif
+
     // MARK: The bridge
 
     @Test func aToolPickedInTheAppReachesThePageAndComesBack() async throws {
@@ -1041,6 +1455,14 @@ import UIKit
         // (theBoardsToolbarNeverClips measures that it fits).
         let least = T.layout(room, width: 710 - T.listBarEnd + 4)
         #expect(least.fit == .narrowest && least.title == T.titleMin, "\(least)")
+        // Folding: Pencil goes before Arrow and Text, and Ask AI keeps its button until the one
+        // Tools menu (round 13, 15-narrow-window: at 1000 pt Pencil stayed and Ask AI folded).
+        let order = T.Fit.allCases.map { fit in (fit, T.Fit.allCases.firstIndex { !$0.shown.contains(.freedraw) }!, T.Fit.allCases.firstIndex { !$0.shown.contains(.arrow) }!) }
+        #expect(order.allSatisfy { $0.1 < $0.2 }, "Pencil folds before Arrow")
+        #expect(T.Fit.narrow.shown == [.selection, .arrow, .text] && T.Fit.narrow.inMore.contains(.freedraw))
+        #expect(T.Fit.allCases.filter { $0 != .narrowest }.allSatisfy(\.showsAsk) && !T.Fit.narrowest.showsAsk)
+        let at1000 = T.layout(room, width: 1000 - T.listBarEnd + 4)
+        #expect(at1000.fit <= .narrow && at1000.fit.showsAsk, "\(at1000)")
     }
 
     /// A sticky note: yellow, square, typed into at once; the next one goes beside it, never on
@@ -4240,7 +4662,7 @@ import UIKit
     }
 
     /// The library popover's view drawn on its own at 2x, on a popover's plain card.
-    static func libraryPopoverPicture(canvas: CanvasController, library: CanvasLibrary, dark: Bool) async throws -> NSBitmapImageRep {
+    static func libraryPopoverPicture(canvas: CanvasController, library: CanvasLibrary, dark: Bool, scrolledToEnd: Bool = false) async throws -> NSBitmapImageRep {
         let search: CGFloat = CanvasLibraryGrid.showsSearch(library.items.count) ? 34 : 0
         let height = library.items.isEmpty ? 120 : CanvasLibraryPopover.gridHeight(CanvasLibraryGrid(library.items)) + 44 + search
         let size = CGSize(width: CanvasLibraryPopover.width, height: height)
@@ -4250,6 +4672,13 @@ import UIKit
         defer { ax.close() }
         await ax.settle(600)
         let v = try #require(ax.window.contentView)
+        if scrolledToEnd, let scroll = MacWindowChromeTests.find(NSScrollView.self, in: v), let doc = scroll.documentView {
+            // The grid scrolled to its last row, as someone scrolling a long library sees it.
+            let end = doc.isFlipped ? max(0, doc.frame.height - scroll.contentView.bounds.height) : 0
+            scroll.contentView.scroll(to: NSPoint(x: 0, y: end))
+            scroll.reflectScrolledClipView(scroll.contentView)
+            await ax.settle(200)
+        }
         let rep = try #require(v.bitmapImageRepForCachingDisplay(in: v.bounds))
         v.cacheDisplay(in: v.bounds, to: rep)
         return rep
@@ -4981,17 +5410,37 @@ extension CanvasNativeUITests {
                     BoardCollab.wire(here, canvas)
                     BoardCollab.wire(there, other.canvas)
                     defer { BoardCollab.unwire(here, canvas); BoardCollab.unwire(there, other.canvas) }
+                    // The window's note keeps the shared drawing for its list row, as the library
+                    // keeps a shared board's (SharedLibrary.open): round 13's follow pictures had
+                    // a note of their own beside the session, and its row said "Empty whiteboard".
+                    let kept = here.onBoardSettled
+                    here.onBoardSettled = { scene in kept?(scene); NotePageDataStore.shared.takeShared(note.id, scene: scene) }
                     let presenter = presenterHere ? canvas : other.canvas, follower = presenterHere ? other.canvas : canvas
                     let presenterPage: WKWebView = presenterHere ? web : other.web, followerPage: WKWebView = presenterHere ? other.web : web
+                    let times = (CanvasController.highlightTime, CanvasController.arrivalTime)
+                    CanvasController.highlightTime = 60; CanvasController.arrivalTime = 60
                     _ = try await presenterPage.evaluateJavaScript(frames)
                     for _ in 0..<150 where (try await followerPage.evaluateJavaScript("amber._canvas.api.getSceneElements().filter((e) => e.type === 'frame').length") as? Int ?? 0) < 2 {
                         await MacWindowChromeTests.settle(w, 1)
                     }
                     _ = try await followerPage.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false }); 1")
                     await MacWindowChromeTests.settle(w, 10)
+                    if !presenterHere {
+                        // What Sara drew, outlined in her colour with her name for a moment (round 14).
+                        for _ in 0..<150 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+                        let c = here.boardColors(of: accounts["Sara"]!)
+                        #expect(canvas.highlight?.by == "Sara" && canvas.highlight?.kind == .person(color: c.light, dark: c.dark), "\(String(describing: canvas.highlight))")
+                        try await capture(w, web).write(to: dir.appending(path: "follow-0-sara-drew-\(dark ? "dark" : "light").png"))
+                    }
+                    canvas.highlight = nil
+                    (CanvasController.highlightTime, CanvasController.arrivalTime) = times
                     presenter.send(.present(.start))
                     for _ in 0..<150 where follower.followBanner == nil { await MacWindowChromeTests.settle(w, 1) }
                     #expect(follower.followBanner?.line == "Sara is presenting")
+                    // The banner names her frame and step (round 13).
+                    #expect(follower.followBanner?.words { id in follower.state.frames.first { $0.id == id }?.name } == "Sara is presenting \u{00B7} The problem \u{00B7} 1 of 2")
+                    for _ in 0..<150 where NoteRow.boardPreview(CanvasSketch.of(note.id)) == NoteRow.emptyBoard { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(NoteRow.boardPreview(CanvasSketch.of(note.id)) != NoteRow.emptyBoard, "the board's row shows its words")
                     let sara = accounts["Sara"]!
                     if !presenterHere {
                         try await capture(w, web).write(to: dir.appending(path: "follow-1-banner-\(dark ? "dark" : "light").png"))

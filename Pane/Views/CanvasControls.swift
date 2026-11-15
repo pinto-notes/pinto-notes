@@ -145,6 +145,9 @@ extension Notification.Name {
 /// the frame shows (whiteboard council, round 6: the next frame's edge showed beside it). The
 /// pointer goes through it, to the laser.
 struct CanvasPresentMask: View {
+    /// Solid: nothing of the next frame shows through (round 13, 25-present-1: at 96% its words
+    /// read faintly at the right edge).
+    static let opacity: Double = 1
     let frame: CGRect
     /// The board's background as stored (light; dark mode shows it dark).
     let light: String
@@ -158,7 +161,7 @@ struct CanvasPresentMask: View {
                 p.addRect(CGRect(origin: .zero, size: geo.size))
                 p.addRoundedRect(in: frame.insetBy(dx: -12, dy: -12), cornerSize: CGSize(width: 8, height: 8))
             }
-            .fill(fill.opacity(0.96), style: FillStyle(eoFill: true))
+            .fill(fill.opacity(Self.opacity), style: FillStyle(eoFill: true))
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -486,14 +489,26 @@ struct CanvasAIHighlight: View {
     static let clearance: CGFloat = 8
     static let tagHeight: CGFloat = 22
 
-    /// The tag's width for a name: its mark, the name in 12 pt semibold, and its padding.
-    static func tagWidth(_ name: String) -> CGFloat {
+    /// The tag's width for a name: its mark, the name in 12 pt semibold, and its padding. A
+    /// person's tag has no mark.
+    static func tagWidth(_ name: String, mark: Bool = true) -> CGFloat {
         #if os(macOS)
         let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
         #else
         let font = UIFont.systemFont(ofSize: 12, weight: .semibold)
         #endif
-        return 8 + 12 + 5 + ceil((name as NSString).size(withAttributes: [.font: font]).width) + 8
+        return 8 + (mark ? 12 + 5 : 0) + ceil((name as NSString).size(withAttributes: [.font: font]).width) + 8
+    }
+
+    /// The hand-drawn letters and strokes reach past the boxes the engine gives them by a few
+    /// points: the tag keeps its clearance from where they're drawn (round 13, 12-ai-drew: "ChatGPT"
+    /// sat a hair from the end of the how-to line, the third round running).
+    static let inkReach: CGFloat = 4
+
+    /// Where the tag goes for this highlight, clear of everything drawn.
+    static func tag(for h: CanvasController.Highlight, outlines: [CGRect]) -> CGPoint {
+        tag(over: outlines, avoiding: h.near.map { $0.insetBy(dx: -inkReach, dy: -inkReach) }, lines: h.lines, in: h.view,
+            width: tagWidth(h.by, mark: h.kind == .ai || h.kind == .device))
     }
 
     /// Where the name tag's top-left corner goes: above the topmost outline, 4 pt off it (round 3,
@@ -564,34 +579,72 @@ struct CanvasAIHighlight: View {
         return min(distance(a, r), distance(b, r), corners.map { distance($0, a, b) }.min() ?? .infinity)
     }
 
+    @Environment(\.colorScheme) private var scheme
+
+    /// The outline's and tag's colour: the accent for an AI and a search's match, the person's own
+    /// colour (as their pointer has it on this board), grey for your other device.
+    var tint: Color {
+        switch highlight.kind {
+        case .ai, .found: Color.paneAccent
+        case .person(let color, let dark): BoardCommentUI.color(scheme == .dark ? dark : color)
+        case .device: Color.secondary
+        }
+    }
+
+    /// What a screen reader hears.
+    static func spoken(_ h: CanvasController.Highlight) -> String {
+        switch h.kind {
+        case .ai: "\(h.by) drew this"
+        case .person: "\(h.by) changed this"
+        case .device: "Changed on \(h.by)"
+        case .found: "Found here"
+        }
+    }
+
+    /// Another device's symbol by its name.
+    static func deviceSymbol(_ name: String) -> String {
+        name.localizedCaseInsensitiveContains("iPhone") ? "iphone" : name.localizedCaseInsensitiveContains("iPad") ? "ipad"
+            : name.localizedCaseInsensitiveContains("Mac") ? "laptopcomputer" : "macbook.and.iphone"
+    }
+
     var body: some View {
         let boxes = outlines
-        let at = Self.tag(over: boxes, avoiding: highlight.near, lines: highlight.lines, in: highlight.view, width: Self.tagWidth(highlight.by))
+        let kind = highlight.kind
+        let at = Self.tag(for: highlight, outlines: boxes)
+        // A person's or a device's change is quieter than an AI's: thinner, solid, no wash.
+        let quiet = kind.quiet
         ZStack {
             ForEach(Array(boxes.enumerated()), id: \.offset) { _, r in
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.paneAccent, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                    .background(Color.paneAccent.opacity(0.05), in: .rect(cornerRadius: 8, style: .continuous))
+                    .strokeBorder(tint.opacity(kind == .device ? 0.8 : 1), style: quiet ? StrokeStyle(lineWidth: 1.5) : StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .background(tint.opacity(quiet ? 0.03 : 0.05), in: .rect(cornerRadius: 8, style: .continuous))
                     .frame(width: max(r.width, 20), height: max(r.height, 20))
                     .position(x: r.midX, y: r.midY)
             }
-            HStack(spacing: 5) {
-                AIGlyph(ai: highlight.by, size: 12, monochrome: true)
-                Text(highlight.by)
+            if kind != .found {
+                HStack(spacing: 5) {
+                    switch kind {
+                    case .ai: AIGlyph(ai: highlight.by, size: 12, monochrome: true)
+                    case .device: Image(systemName: Self.deviceSymbol(highlight.by)).font(.system(size: 10, weight: .semibold)).frame(width: 12)
+                    default: EmptyView()
+                    }
+                    Text(highlight.by)
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .background(kind == .device ? Color(white: scheme == .dark ? 0.38 : 0.48) : tint, in: Capsule())
+                .fixedSize()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .offset(x: at.x, y: at.y)
+                .accessibilityIdentifier("canvas.highlight.tag")
             }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(Color.paneAccent, in: Capsule())
-            .fixedSize()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .offset(x: at.x, y: at.y)
         }
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(highlight.by) drew this")
-        .accessibilityIdentifier("canvas.aiHighlight")
+        .accessibilityLabel(Self.spoken(highlight))
+        .accessibilityIdentifier(kind == .ai ? "canvas.aiHighlight" : "canvas.highlight")
     }
 }
 
@@ -1669,7 +1722,8 @@ struct CanvasToolbarTools: View {
         case compact
         /// Full Screen in More Tools too (⇧⌘F still works).
         case tight
-        /// Arrow and text in More Tools too; Ask AI in More (•••), where it also is.
+        /// Pencil in More Tools too, before arrow and text (round 13, 15-narrow-window: at 1000 pt
+        /// Pencil stayed while Arrow and Text folded); Ask AI keeps its button.
         case narrow
         /// Every tool in one Tools menu.
         case narrowest
@@ -1682,7 +1736,7 @@ struct CanvasToolbarTools: View {
             switch self {
             case .full, .noPlace: [.selection, .hand, .freedraw, .arrow, .text, .eraser]
             case .compact, .tight: [.selection, .freedraw, .arrow, .text]
-            case .narrow: [.selection, .freedraw]
+            case .narrow: [.selection, .arrow, .text]
             case .narrowest: []
             }
         }
@@ -1691,14 +1745,15 @@ struct CanvasToolbarTools: View {
             switch self {
             case .full, .noPlace: []
             case .compact, .tight: [.hand, .eraser, .laser]
-            case .narrow: [.hand, .arrow, .text, .eraser, .laser]
+            case .narrow: [.hand, .freedraw, .eraser, .laser]
             case .narrowest: [.selection, .hand, .freedraw, .arrow, .text, .eraser, .laser]
             }
         }
         var showsPlace: Bool { self == .full }
         var showsLibrary: Bool { self <= .noPlace }
         var showsFullScreen: Bool { self <= .compact }
-        var showsAsk: Bool { self <= .tight }
+        /// Ask AI has its button until the one Tools menu (round 13: it folded at 1000 pt).
+        var showsAsk: Bool { self <= .narrow }
     }
 
     /// What the bar holds beside the board's tools, for working out the Fit: the widths are as

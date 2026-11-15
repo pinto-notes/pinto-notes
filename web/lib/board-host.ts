@@ -17,6 +17,9 @@ import type { BoardPeer, BoardSession, Scene } from "./board-session";
 export type PageState = {
   tool?: string; selection?: string[]; zoom?: number; canUndo?: boolean; canRedo?: boolean; empty?: boolean; load?: string;
   editing?: boolean; busy?: boolean; style?: Record<string, unknown>; bounds?: { x: number; y: number; width: number; height: number } | null;
+  /** The frames in the order Present walks them, and what you present (canvas.jsx stateOf). */
+  frames?: { id: string; name: string }[];
+  present?: { index: number; count: number; name: string; frame: [number, number, number, number] | null } | null;
 };
 
 export type Anchor = { id: string; x: number; y: number; width: number; height: number };

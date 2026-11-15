@@ -352,6 +352,12 @@ struct NoteDetailView: View {
                 if showingCanvas { r.drew = CanvasNote.change(from: NotePageData.decode(a.before), to: NotePageDataStore.shared.doc(note.id)) }
                 showPageReceipt(r)
             }
+            // Another of your devices changed the open board: outlined with its name, quietly, for
+            // a moment (round 14, 38-sync-2). A shared board's come through its session (BoardCollab).
+            .onChange(of: NotePageDataStore.shared.fromDevices[note.id]) { _, a in
+                guard let a, showingCanvas, !canvasControls.shared else { return }
+                canvasControls.arrived(from: a.device, kind: .device)
+            }
             // Captures: `-lockCapture setup` or `confirm` (see Capture).
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
                 switch n.object as? String {
@@ -374,8 +380,11 @@ struct NoteDetailView: View {
             }
             .task(id: note.id) {
                 await noteOpened()
-                // Opened from a search: at the first line that holds it, once the text is in.
-                if let q = SearchJump.take(note.id), let r = SearchJump.range(of: q, in: note.body) {
+                // Opened from a search: a whiteboard shows the shape whose words hold it (round 14);
+                // a note opens at the first line that holds it, once the text is in.
+                if isCanvas, let q = SearchJump.take(note.id) {
+                    canvasControls.find(q)
+                } else if let q = SearchJump.take(note.id), let r = SearchJump.range(of: q, in: note.body) {
                     try? await Task.sleep(for: .seconds(0.2))
                     controller.showFound(r)
                 }

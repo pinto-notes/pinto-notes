@@ -179,7 +179,22 @@ export function followTo(api, c, size) {
   const els = api.getSceneElements();
   const target = typeof c.frame === "string" ? els.filter((e) => e.id === c.frame) : c.whole ? els : [];
   if (!target.length) return false;
-  api.scrollToContent(target, { fitToViewport: true, viewportZoomFactor: 0.9, animate: false });
+  fitTo(api, target, { width: W, height: H });
+  return true;
+}
+
+/**
+ * Fills a view of `size` with `els` (90% of it, as Present shows a frame), its middle in the
+ * middle. At once, no glide. The size is the one the page has just measured: the engine's own
+ * lags a resize (round 13, 25-present-1: step 1 was fitted to the column Full Screen had just
+ * hidden, the cards in the left two thirds and the next frame at the right edge).
+ */
+export function fitTo(api, els, size, factor = 0.9) {
+  if (!els.length) return false;
+  const s = api.getAppState(), W = (size && size.width) || s.width, H = (size && size.height) || s.height;
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const z = Math.min(30, Math.max(0.1, Math.min(W / Math.max(1, x2 - x1), H / Math.max(1, y2 - y1)) * factor));
+  api.updateScene({ appState: { zoom: { value: z }, scrollX: -(x1 + x2) / 2 + W / 2 / z, scrollY: -(y1 + y2) / 2 + H / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
   return true;
 }
 

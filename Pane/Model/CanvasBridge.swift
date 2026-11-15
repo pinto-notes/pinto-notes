@@ -408,7 +408,10 @@ enum CanvasCommand: Equatable, Sendable {
     /// A shared board's whole drawing (a scene, as JSON), merged into what's on screen.
     case remoteScene(Data)
     /// What an AI just changed on a shared board, outlined with its name (`arrived(by:)`).
-    case outline([String])
+    /// `move: false`: outlined where it is, the view left alone (a person's change, round 14).
+    case outline([String], move: Bool = true)
+    /// Opened from a search: the first shape whose words hold it, brought into view and outlined.
+    case find(String)
     /// The others on a shared board: each one's pointer, name and selection.
     case peers([BoardPeer])
     /// Pictures that can't go on the shared board (no room, or their bytes didn't come): taken off
@@ -454,7 +457,8 @@ enum CanvasCommand: Equatable, Sendable {
         case .shared(let on, let viewOnly): ["op": "shared", "on": on, "viewOnly": viewOnly]
         case .remoteScene(let json): ["op": "remoteScene", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
         case .restoreVersion(let json): ["op": "restoreVersion", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
-        case .outline(let ids): ["op": "outline", "ids": ids]
+        case .outline(let ids, let move): ["op": "outline", "ids": ids, "move": move]
+        case .find(let query): ["op": "find", "query": query]
         case .peers(let list): ["op": "peers", "peers": list.map(\.payload)]
         case .refusePictures(let ids): ["op": "refusePictures", "ids": ids]
         case .comments(let pins, let me, let open, let draft, let can, let shapes):
@@ -558,6 +562,9 @@ final class CanvasController {
             if let note = focusing { focusing = nil; send(.focusCard(note)) }
             // A board made from the templates gallery: its template, now the page can take it.
             if let t = starting { starting = nil; insert(t) }
+            // A board opened from a search: its match (after the first report, so the page has
+            // laid the drawing out).
+            if let q = finding { finding = nil; Task { @MainActor [weak self] in self?.find(q) } }
         }
         if next != state { state = next }
         if next.cardNotes != cardNotes {
@@ -630,6 +637,9 @@ final class CanvasController {
         var rect: CGRect
         var by: String
         var count: Int
+        /// Whose change it is: an AI's (the accent and its mark), a person's on a shared board (their
+        /// colour), your own from another device (neutral), or a search's match (round 14).
+        var kind: Kind = .ai
         /// Each thing it added or changed, outlined on its own (whiteboard council, round 3, 16).
         var boxes: [CGRect] = []
         /// What else is drawn nearby, for the name tag to keep clear of: shapes and words.
@@ -645,13 +655,70 @@ final class CanvasController {
             var points: [CGPoint]
             var radius: CGFloat
         }
+
+        enum Kind: Equatable {
+            case ai
+            /// Someone on a shared board, in their colour ("#RRGGBB" on white, and on a dark board).
+            case person(color: String, dark: String)
+            /// Another of your devices (its name: "iPhone"), or your own from elsewhere.
+            case device
+            /// What a search found on the board: outlined, no name.
+            case found
+
+            /// Quieter than an AI's: a thinner outline, a shorter time, no receipt.
+            var quiet: Bool { self != .ai }
+        }
+
+        /// How long it stays: an AI's 4 s, a person's or a device's 3 s, a search's match 2.5 s.
+        var time: Double {
+            switch kind {
+            case .ai: CanvasController.highlightTime
+            case .person, .device: min(CanvasController.highlightTime, CanvasController.arrivalTime)
+            case .found: min(CanvasController.highlightTime, CanvasController.foundTime)
+            }
+        }
     }
     var highlight: Highlight?
-    @ObservationIgnored private var expecting: (by: String, at: Date)?
+    @ObservationIgnored private var expecting: (by: String, kind: Highlight.Kind, at: Date)?
 
     /// An AI's change to this board has arrived (the data store's arrival): the page's report of
     /// where it landed, next, is outlined with its name.
-    func arrived(by: String) { expecting = (by, .now) }
+    func arrived(by: String) { expecting = (by, .ai, .now) }
+
+    /// A change from another of your devices (`kind: .device`, its name) or from someone on a
+    /// shared board (their name and colour) arrived: outlined for a few seconds, quieter than an
+    /// AI's, with no receipt (round 14: "a card added on the other device appears with nothing
+    /// to mark it"). A board of your own is outlined from the page's report of what changed; a
+    /// shared board's change is named here by its ids (`moved: false`: the view stays yours).
+    func arrived(from name: String, kind: Highlight.Kind, ids: [String]? = nil) {
+        guard kind == .device || { if case .person = kind { true } else { false } }() else { return }
+        expecting = (name, kind, .now)
+        if let ids, !ids.isEmpty { send(.outline(ids, move: false)) }
+    }
+
+    nonisolated(unsafe) static var arrivalTime: Double = 3
+    nonisolated(unsafe) static var foundTime: Double = 2.5
+
+    /// The AI changes seen on this board since it opened, newest last: who, when, what (element
+    /// ids). Show Last AI Change, and an AI's reply in a comment thread ("Show change"), outline
+    /// one of them again (round 14).
+    struct AIChangeMark: Equatable {
+        var by: String
+        var at: Date
+        var ids: [String]
+    }
+    private(set) var aiChanges: [AIChangeMark] = []
+
+    /// Opened from a search: its first match on the board, in view and outlined for a moment
+    /// (round 14). At once when the page is ready, else as soon as it first reports.
+    func find(_ query: String) {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return }
+        guard connected else { finding = q; return }
+        expecting = ("", .found, .now)
+        send(.find(q))
+    }
+    @ObservationIgnored private(set) var finding: String?
 
     private func remoteChange(_ r: [String: Any]) {
         let num = { (k: String) in (r[k] as? Double) ?? (r[k] as? Int).map(Double.init) ?? 0 }
@@ -681,13 +748,24 @@ final class CanvasController {
             return
         }
         guard let e = expecting, e.at.timeIntervalSinceNow > -5 else { return }
+        // A search's match is only taken as one (an AI's change arriving meanwhile isn't).
+        guard (r["find"] as? Bool == true) == (e.kind == .found) else { return }
         expecting = nil
-        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")), boxes: boxes, near: near, lines: lines, view: view)
+        let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")),
+                          kind: e.kind, boxes: boxes, near: near, lines: lines, view: view)
         highlight = h
-        lastChangeBy = e.by
+        if e.kind == .ai {
+            lastChangeBy = e.by
+            let ids = ((r["ids"] as? [Any]) ?? []).compactMap { $0 as? String }
+            // Shown again (Show Last AI Change, Show change): the same change, not a new one.
+            if !ids.isEmpty, aiChanges.last.map({ $0.by == e.by && $0.ids == ids }) != true {
+                aiChanges.append(AIChangeMark(by: e.by, at: .now, ids: ids))
+                if aiChanges.count > 50 { aiChanges.removeFirst(aiChanges.count - 50) }
+            }
+        }
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(Self.highlightTime))
-            if self?.highlight?.by == h.by, self?.highlight?.count == h.count { self?.highlight = nil }
+            try? await Task.sleep(for: .seconds(h.time))
+            if self?.highlight?.by == h.by, self?.highlight?.count == h.count, self?.highlight?.kind == h.kind { self?.highlight = nil }
         }
     }
 
@@ -700,8 +778,26 @@ final class CanvasController {
     /// Outlines the last AI change again, with its name, and brings it into view.
     func showLastChange() {
         guard let by = lastChangeBy else { return }
+        if let last = aiChanges.last(where: { $0.by == by }) { show(last); return }
         arrived(by: by)
         send(.showLastChange)
+    }
+
+    /// One AI change outlined again, named, and brought into view (Show change on an AI's reply).
+    func show(_ change: AIChangeMark) {
+        arrived(by: change.by)
+        send(.outline(change.ids))
+    }
+
+    /// The change an AI's comment speaks of: that AI's change to this board made closest before it
+    /// (up to ten minutes), else just after it (a minute: it wrote first, then drew). Nil for a
+    /// person's comment, or when this board hasn't seen a change of that AI's since it opened.
+    func change(for comment: BoardComment) -> AIChangeMark? {
+        guard let ai = comment.ai, !comment.deleted, let at = comment.date else { return nil }
+        let mine = aiChanges.filter { AIEdit.sameAI($0.by, ai) }
+        let before = mine.filter { $0.at <= at.addingTimeInterval(5) && $0.at >= at.addingTimeInterval(-600) }
+        if let b = before.max(by: { $0.at < $1.at }) { return b }
+        return mine.filter { $0.at > at && $0.at <= at.addingTimeInterval(60) }.min { $0.at < $1.at }
     }
 
     // MARK: Shared with people
@@ -1065,8 +1161,22 @@ final class CanvasController {
         let n = { (k: String) in (a[k] as? NSNumber).map { CGFloat($0.doubleValue) } }
         guard let x = n("x"), let y = n("y") else { if commentAnchor != nil { commentAnchor = nil }; return }
         let r = CGRect(x: x, y: y, width: n("width") ?? 24, height: n("height") ?? 24)
+        let box = { (v: Any?) -> CGRect? in
+            let q = ((v as? [Any]) ?? []).compactMap { ($0 as? NSNumber).map { CGFloat($0.doubleValue) } }
+            return q.count == 4 ? CGRect(x: q[0], y: q[1], width: q[2], height: q[3]) : nil
+        }
+        let around = CommentSurroundings(on: box(a["on"]), near: ((a["near"] as? [Any]) ?? []).compactMap(box))
+        if around != commentAround { commentAround = around }
         if r != commentAnchor { commentAnchor = r }
     }
+
+    /// What's drawn round the open pin (the shape it's on, and what's near), in the view's points:
+    /// the thread hangs where it covers none of it, when there's room (round 14).
+    struct CommentSurroundings: Equatable {
+        var on: CGRect?
+        var near: [CGRect] = []
+    }
+    private(set) var commentAround = CommentSurroundings()
 
     /// Opens a thread's popover (its pin clicked, or its row in the list), its pin brought into view.
     func open(thread id: String) {

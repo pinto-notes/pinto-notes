@@ -223,6 +223,10 @@ final class NotePageDataStore {
     /// device): who, and the data before it, for "Claude changed this · Undo" in an open app.
     struct Arrival: Equatable { var by: String; var at: Date; var before: Data? }
     private(set) var arrivals: [UUID: Arrival] = [:]
+    /// A change another of your devices made ("iPhone"), as it came down: an open board outlines
+    /// it with the device's name for a moment (round 14). No receipt, nothing to undo.
+    struct DeviceArrival: Equatable { var device: String; var at: Date }
+    private(set) var fromDevices: [UUID: DeviceArrival] = [:]
     @ObservationIgnored private let file: URL?
     /// The file is written here, in order, off the main thread: encoding every app's data to it took
     /// 26 ms a save on a canvas of 500 strokes, in the middle of drawing.
@@ -286,11 +290,13 @@ final class NotePageDataStore {
     }
 
     /// The server's copy arrived. Changes made here since the last sync are merged in, not lost.
-    func take(_ id: UUID, server: Data?, by: String? = nil) {
+    func take(_ id: UUID, server: Data?, by: String? = nil, device: String? = nil) {
         let before = docs[id]
         defer {
             if let by, !NotePageData.same(NotePageData.decode(before), doc(id)) {
                 arrivals[id] = Arrival(by: by, at: .now, before: before)
+            } else if by == nil, let device, before != nil, !NotePageData.same(NotePageData.decode(before), doc(id)) {
+                fromDevices[id] = DeviceArrival(device: device, at: .now)
             }
         }
         let theirs = NotePageData.decode(server)

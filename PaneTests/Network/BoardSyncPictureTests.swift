@@ -140,7 +140,12 @@ extension NetworkFaults {
             try await shot("38-sync-1-on-the-mac")
 
             // On the iPhone, the same board gets a note: drawn there, it goes up as the iPhone
-            // sends it (sealed, its own row), and comes down to the open board here.
+            // sends it (sealed, its own row), and comes down to the open board here, outlined in
+            // grey with "iPhone" for a moment (round 13, 38-sync-2: it came in unmarked). Held for
+            // the picture.
+            let times = (CanvasController.highlightTime, CanvasController.arrivalTime)
+            CanvasController.highlightTime = 60; CanvasController.arrivalTime = 60
+            defer { (CanvasController.highlightTime, CanvasController.arrivalTime) = times }
             try await Self.sendFromOtherDevice(board.id, scene: try await Self.drawnElsewhere(try await Self.scene(web), adding: "Added on iPhone", y: 230), client: "iPhone")
             let rows = StubSupabase.rows("note_pages").filter { ($0["note_id"] as? String)?.lowercased() == board.id.uuidString.lowercased() }
             #expect(rows.count == 1 && Self.onServer(board.id)?.contains("Added on iPhone") == true, "the iPhone's drawing is on the server: \(rows.count) rows")
@@ -150,7 +155,13 @@ extension NetworkFaults {
             for _ in 0..<100 where !(await Self.says(web, "Added on iPhone")) { await MacWindowChromeTests.settle(w, 1) }
             #expect(await Self.says(web, "Added on iPhone"), "the iPhone's note is on the open board")
             #expect(await Self.says(web, "Ready?"), "and what was there stays")
+            #expect(NotePageDataStore.shared.fromDevices[board.id]?.device == "iPhone")
+            for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+            #expect(canvas.highlight?.kind == .device && canvas.highlight?.by == "iPhone" && canvas.highlight?.boxes.count == 1, "\(String(describing: canvas.highlight))")
+            #expect(canvas.notice == nil && canvas.lastChangeBy == nil, "no receipt, and not an AI's change")
             try await shot("38-sync-2-from-the-iphone")
+            canvas.highlight = nil
+            (CanvasController.highlightTime, CanvasController.arrivalTime) = times
 
             // Offline: the board says so, and what's drawn is kept here until it can go up.
             path.force(down: true)
@@ -202,6 +213,28 @@ extension NetworkFaults {
         }
     }
 
+    /// The accessibility identifiers in a window (the app's buttons, as VoiceOver has them), as
+    /// BoardCommentPhoneTests reads them.
+    static func ids(_ window: UIWindow) -> [String] {
+        _ = BoardCommentPhoneTests.accessibilityOn
+        var out: [String] = []
+        var seen = Set<ObjectIdentifier>()
+        func walk(_ o: NSObject, _ depth: Int) {
+            guard depth < 80, seen.insert(ObjectIdentifier(o)).inserted else { return }
+            let pick = NSSelectorFromString("accessibilityIdentifier")
+            if o.responds(to: pick), let id = o.perform(pick)?.takeUnretainedValue() as? String, !id.isEmpty { out.append(id) }
+            if let list = o.accessibilityElements as? [NSObject] {
+                for e in list { walk(e, depth + 1) }
+            } else {
+                let n = o.accessibilityElementCount()
+                if n != NSNotFound, n > 0 { for i in 0..<n { if let e = o.accessibilityElement(at: i) as? NSObject { walk(e, depth + 1) } } }
+            }
+            if let v = o as? UIView { for sub in v.subviews where !sub.isHidden { walk(sub, depth + 1) } }
+        }
+        walk(window, 0)
+        return out
+    }
+
     /// The iPhone's side: what the Mac draws arrives on the open board; offline, the board says so
     /// above its dock; back, Synced once the next sync is through.
     @Test func aBoardOnTheIPhoneTakesTheMacsDrawingAndSaysWhenItsOfflineAndBack() async throws {
@@ -246,14 +279,25 @@ extension NetworkFaults {
         try await fit()
         try await shot("41-sync-iphone-1-board")
 
-        // On the Mac, a note is added: it comes down to the open board here.
+        // On the Mac, a note is added: it comes down to the open board here, outlined in grey
+        // with "Mac" for a moment (round 13, 41-sync-iphone-2). Held for the picture.
+        let times = (CanvasController.highlightTime, CanvasController.arrivalTime)
+        CanvasController.highlightTime = 60; CanvasController.arrivalTime = 60
+        defer { (CanvasController.highlightTime, CanvasController.arrivalTime) = times }
         try await Self.sendFromOtherDevice(board.id, scene: try await Self.drawnElsewhere(try await Self.scene(web), adding: "Added on the Mac", y: 230), client: "Mac")
         await engine.sync()
         for _ in 0..<150 where !(await Self.says(web, "Added on the Mac")) { try await Task.sleep(for: .milliseconds(50)) }
         #expect(await Self.says(web, "Added on the Mac"), "the Mac's note is on the open board")
         #expect(await Self.says(web, "Ready?"))
-        try await fit()
+        let canvas = try #require(BoardPicture.board(board.id))
+        for _ in 0..<100 where canvas.highlight == nil { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(canvas.highlight?.kind == .device && canvas.highlight?.by == "Mac", "\(String(describing: canvas.highlight))")
+        // The dock is the whole dock on a board that syncs, Comment with it (round 13: the sync
+        // pictures had no Comment button; they were taken on a build from before it).
+        #expect(Self.ids(window).contains("canvas.tool.comment") && Self.ids(window).contains("canvas.tool.library"), "\(Self.ids(window))")
         try await shot("41-sync-iphone-2-from-the-mac")
+        canvas.highlight = nil
+        (CanvasController.highlightTime, CanvasController.arrivalTime) = times
 
         // Offline: said above the dock; back: Synced once the next sync is through.
         path.force(down: true)

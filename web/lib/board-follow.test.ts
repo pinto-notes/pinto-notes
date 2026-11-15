@@ -1,7 +1,7 @@
 // Following someone on a shared board in the browser (board-follow.ts): the banner, who follows
 // whom, and where the page's view goes, as the app does it (Pane/Collab/BoardFollow.swift).
 import { describe, expect, it } from "vitest";
-import { banner, BoardFollow, type BoardPerson, followers, followersLine, pointsOf, presenter, presentingOf, target, viewOf } from "./board-follow";
+import { banner, BoardFollow, type BoardPerson, followers, followersLine, pointsOf, presenter, presentingOf, step, target, viewOf, words } from "./board-follow";
 
 const SARA = "22222222-2222-4222-8222-222222222222", MIA = "33333333-3333-4333-8333-333333333333", ME = "11111111-1111-4111-8111-111111111111";
 const person = (id: string, name: string, over: Partial<BoardPerson> = {}): BoardPerson => ({
@@ -28,6 +28,19 @@ describe("following someone on a shared board", () => {
     // Someone not heard from isn't offered; of two presenting, every device picks the same one.
     expect(presenter([{ ...sara, stale: true }])).toBeNull();
     expect(presenter([person(MIA, "Mia", { presenting: { frame: null, i: 0, n: 1 } }), sara])?.name).toBe("Sara");
+  });
+
+  it("names the frame and the step in the banner, as the app does (round 14)", () => {
+    const names: Record<string, string> = { f2: "Launch" };
+    const name = (id: string) => names[id];
+    const b = banner([person(SARA, "Sara", { presenting: { frame: "f2", i: 1, n: 4 } })], null)!;
+    expect(words(b, name)).toBe("Sara is presenting · Launch · 2 of 4");
+    expect(step(b, () => undefined)).toBe("2 of 4");
+    expect(words(banner([person(SARA, "Sara", { presenting: { frame: "f2", i: 0, n: 1 } })], null)!, name)).toBe("Sara is presenting · Launch");
+    expect(words(banner([person(SARA, "Sara", { presenting: { frame: null, i: 0, n: 1 } })], null)!, name)).toBe("Sara is presenting");
+    const following = banner([person(SARA, "Sara", { presenting: { frame: "f2", i: 2, n: 4 } })], SARA)!;
+    expect(words(following, name)).toBe("Following Sara · Launch · 3 of 4");
+    expect(words(banner([person(MIA, "Mia")], MIA)!, name)).toBe("Following Mia");
   });
 
   it("tells the presenter who follows", () => {

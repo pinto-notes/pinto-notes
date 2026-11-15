@@ -18,6 +18,9 @@
   }
   window.webkit = { messageHandlers: { amberCanvas: { postMessage: post } } };
   window.amber = {
+    // The room the page's own controls take round the board (BoardPage.tsx: the title and avatars
+    // at the top, the tools at the foot): a board opens whole and centred inside it.
+    fitInsets: { top: 76, right: 24, bottom: 92, left: 24 },
     data: { values: {}, collections: {} },
     store: { set: function () { return Promise.resolve(); } },
     onChange: function () { return function () {}; },

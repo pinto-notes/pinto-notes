@@ -69,6 +69,25 @@ export function banner(people: BoardPerson[], following: string | null, presenti
   return p ? { kind: "presenting", person: p, line: `${p.name} is presenting`, action: FOLLOW } : null;
 }
 
+/** Where the presenter is in their talk, while they present: the frame's name and the step
+ *  ("Launch · 2 of 4"), as the app's banner says it (BoardFollow.Banner.step). `name`: a frame's
+ *  name on this board. */
+export function step(b: Banner, name: (id: string) => string | undefined): string | null {
+  const p = b.person.presenting;
+  if (!p) return null;
+  const of = `${p.i + 1} of ${p.n}`;
+  const title = p.frame ? name(p.frame)?.trim() : undefined;
+  if (!title) return p.n > 1 ? of : null;
+  // One step needs no count.
+  return p.n > 1 ? `${title} · ${of}` : title;
+}
+
+/** The banner's whole line: "Emil is presenting · Launch · 2 of 4". */
+export function words(b: Banner, name: (id: string) => string | undefined): string {
+  const s = step(b, name);
+  return s ? `${b.line} · ${s}` : b.line;
+}
+
 /** The people following you. */
 export function followers(me: string | null, people: BoardPerson[]): BoardPerson[] {
   if (!me) return [];

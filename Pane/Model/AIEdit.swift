@@ -45,6 +45,12 @@ enum AIEdit {
     /// An AI as a note names it: "Claude", or "Sara's Claude" when it's someone else's.
     nonisolated static func whose(_ ai: String, person: String?) -> String { person.map { "\($0)'s \(ai)" } ?? ai }
 
+    /// The same AI, named with or without whose it is ("Claude", "Sara's Claude").
+    nonisolated static func sameAI(_ a: String, _ b: String) -> Bool {
+        let x = a.trimmingCharacters(in: .whitespaces), y = b.trimmingCharacters(in: .whitespaces)
+        return x.caseInsensitiveCompare(y) == .orderedSame || x.hasSuffix("'s \(y)") || y.hasSuffix("'s \(x)")
+    }
+
     /// Who an AI's change is from when the note doesn't know their name yet.
     static let someone = "Someone"
 
