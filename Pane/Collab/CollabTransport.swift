@@ -74,6 +74,18 @@ protocol CollabTransport: AnyObject {
     /// The server drops the changes it covers (`upto`).
     func send(snapshot ct: String, note: UUID, upto: Int64, epoch: Int) async throws
 
+    // MARK: Pictures on a shared whiteboard (note_files, 20261116150000_collab_board_pictures.sql)
+
+    /// A picture's bytes, sealed under the note key (`amb3f`). Refused with `.readOnly` for a
+    /// viewer, `.staleEpoch` for an old key and `.picturesFull` past the board's room. Under a newer
+    /// key than the one it's stored under, it replaces that (sealed again after a removal); under
+    /// the same key, what's there stays.
+    func putFile(note: UUID, id: String, epoch: Int, ct: String) async throws
+    /// One picture, by its id; nil when the server has none (yet).
+    func file(note: UUID, id: String) async throws -> Collab.File?
+    /// Which pictures the server has for the note, and the key each is sealed under.
+    func files(of note: UUID) async throws -> [Collab.FileRow]
+
     // MARK: Live
 
     /// Joins the note's channel (members only). Events arrive on the main actor until `close()`.
@@ -143,6 +155,18 @@ enum Collab {
         let ct: String
     }
 
+    /// A picture on a shared whiteboard, sealed (`amb3f`).
+    struct File: Decodable, Sendable, Equatable {
+        let file_id: String
+        let epoch: Int
+        let ct: String
+    }
+
+    struct FileRow: Decodable, Sendable, Equatable {
+        let file_id: String
+        let epoch: Int
+    }
+
     struct Pull: Decodable, Sendable {
         let snapshot: Snapshot?
         let updates: [Update]
@@ -203,6 +227,8 @@ enum Collab {
         case notMember
         /// The note is too long to share: its snapshot would be over the server's limit.
         case tooLongToShare
+        /// The whiteboard has no room for this picture (`files_full`).
+        case picturesFull
         case server(String)
 
         var errorDescription: String? {
@@ -215,6 +241,7 @@ enum Collab {
             case .wrapsIncomplete: "Every remaining person needs the new key."
             case .notMember: "You're not in this note anymore."
             case .tooLongToShare: "This note is too long to share. Split it into smaller notes."
+            case .picturesFull: "This whiteboard has no room for more pictures."
             case .server(let m): m
             }
         }
@@ -227,6 +254,7 @@ enum Collab {
             case "not_owner": .notOwner
             case "wraps_incomplete": .wrapsIncomplete
             case "not_member": .notMember
+            case "files_full": .picturesFull
             default: .server(message)
             }
         }

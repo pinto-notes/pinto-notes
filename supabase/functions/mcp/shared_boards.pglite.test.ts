@@ -108,7 +108,7 @@ Deno.test("a member's AI reads a shared whiteboard's drawing as its data.json", 
   assertEquals(json.values.scene.elements.map((e: { id: string; x: number }) => [e.id, e.x]), [["a", 10], ["b", 200]]);
   assertEquals(json.values.scene.appState.viewBackgroundColor, "#ffffff");
   assertStringIncludes(read.metadata.shared, "draw");
-  assertStringIncludes(read.metadata.about, "Pictures can't go on a shared whiteboard yet");
+  assertStringIncludes(read.metadata.about, "an AI can't add a new picture");
 });
 
 Deno.test("an AI's drawing is one sealed change by the person, newer than every copy, merged with people drawing", async () => {
@@ -158,14 +158,40 @@ Deno.test("an element left out of data.json is deleted, unless someone drew it a
   assertEquals(els.b.version, 1, "untouched");
 });
 
-Deno.test("pictures aren't put on a shared whiteboard, and the AI is told", async () => {
+Deno.test("an AI doesn't put a new picture on a shared whiteboard, and is told", async () => {
   const pg = await schemaDB();
   const { sara, mac } = await board(pg);
   await tool(pg, sara, "fetch", { id: DATA });
   const out = await tool(pg, sara, "edit", { path: DATA, old_string: `"elements": [`, new_string: `"elements": [\n{ "type": "image", "id": "pic", "fileId": "f1", "x": 0, "y": 0, "width": 10, "height": 10 },` });
   assertEquals(out.unchanged, true);
-  assertStringIncludes(out.pictures, "pictures can't go on a shared whiteboard yet");
+  assertStringIncludes(out.pictures, "A new picture was left out: an AI can't put a new picture on a shared whiteboard");
   assertEquals(Object.keys((await mac.pull(), mac.elements())).sort(), ["a", "b"]);
+});
+
+Deno.test("a picture people put on a shared whiteboard: an AI reads it, moves it and deletes it like any element", async () => {
+  const pg = await schemaDB();
+  const { sara, mac } = await board(pg);
+  // Emil pastes a screenshot on his Mac: the image element goes in the document (its bytes in note_files).
+  await mac.draw((d) => { d.board!.pic = raw(shape("pic", { type: "image", fileId: "pinto-shot", status: "saved", index: "a2" })); });
+  const read = async () => JSON.parse((await tool(pg, sara, "fetch", { id: DATA })).text.split("\n").map((l: string) => l.replace(/^\s*\d+\t/, "")).join("\n")).values.scene;
+  const scene = await read();
+  const pic = scene.elements.find((e: { id: string }) => e.id === "pic");
+  assertEquals([pic.type, pic.fileId], ["image", "pinto-shot"]);
+  assertEquals(scene.files, {}, "its bytes aren't in data.json");
+
+  // Moved: taken as any element's change.
+  pic.x = 300;
+  const out = await tool(pg, sara, "write", { path: DATA, content: JSON.stringify({ values: { scene }, collections: {} }) });
+  assertEquals([out.saved, out.pictures], [DATA, undefined]);
+  let els = (await mac.pull(), mac.elements());
+  assertEquals([els.pic.x, els.pic.version, els.pic.fileId], [300, 2, "pinto-shot"]);
+
+  // Left out of the next write: deleted, as any element is.
+  const again = await read();
+  again.elements = again.elements.filter((e: { id: string }) => e.id !== "pic");
+  await tool(pg, sara, "write", { path: DATA, content: JSON.stringify({ values: { scene: again }, collections: {} }) });
+  els = (await mac.pull(), mac.elements());
+  assertEquals([els.pic.isDeleted, els.pic.version], [true, 3]);
 });
 
 Deno.test("a viewer's AI reads a shared whiteboard but doesn't change it, nor anyone's AI its page", async () => {

@@ -405,6 +405,9 @@ enum CanvasCommand: Equatable, Sendable {
     case outline([String])
     /// The others on a shared board: each one's pointer, name and selection.
     case peers([BoardPeer])
+    /// Pictures that can't go on the shared board (no room, or their bytes didn't come): taken off
+    /// the page again, by element id.
+    case refusePictures([String])
 
     var payload: [String: Any] {
         switch self {
@@ -431,6 +434,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .remoteScene(let json): ["op": "remoteScene", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
         case .outline(let ids): ["op": "outline", "ids": ids]
         case .peers(let list): ["op": "peers", "peers": list.map(\.payload)]
+        case .refusePictures(let ids): ["op": "refusePictures", "ids": ids]
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -456,8 +460,8 @@ final class CanvasController {
     @ObservationIgnored var deliver: ((CanvasCommand) -> Void)?
 
     func send(_ command: CanvasCommand) {
-        // A picture's bytes aren't shared yet: a shared board takes none (SharedNoteLimits).
-        if shared, case .image = command { confirm(SharedNoteLimits.boardPictures, for: .seconds(4)); return }
+        // Can view: no picture goes on the board (the page refuses it too), and it says why.
+        if shared, viewOnly, case .image = command { confirm(CollabBoard.Pictures.viewOnly, for: .seconds(3)); return }
         // The last hundred or so: a shared board sends its drawing and the others' pointers often.
         if sent.count >= 200 { sent.removeFirst(100) }
         sent.append(command)
@@ -479,6 +483,11 @@ final class CanvasController {
         if let r = m["remote"] as? [String: Any] { remoteChange(r); return }
         if let ref = m["open"] as? String { openCard(ref); return }
         if let b = m["board"] as? [String: Any] {
+            // The pictures its new image elements show come with the change, first.
+            if let files = b["files"] as? [String: Any], !files.isEmpty {
+                pageFiles.formUnion(files.keys)
+                onBoardFiles?(files)
+            }
             onBoardDelta?((b["elements"] as? [[String: Any]]) ?? [], (b["settings"] as? [String: Any]) ?? [:])
             return
         }
@@ -491,6 +500,7 @@ final class CanvasController {
         // told about sharing, it's told again.
         if let l = m["load"] as? String, l != load {
             load = l
+            pageFiles = []
             if shared { sendShared() }
             onLoad?()
         }
@@ -644,6 +654,12 @@ final class CanvasController {
     @ObservationIgnored var onBoardDelta: (([[String: Any]], [String: Any]) -> Void)?
     /// Your pointer, in the board's own coordinates (nil: off the board), and selection.
     @ObservationIgnored var onPresence: ((CGPoint?, [String]) -> Void)?
+    /// The pictures a change from the page shows that it hadn't sent before (`{ id, dataURL,
+    /// mimeType, created }` by file id), handed over just before the change itself.
+    @ObservationIgnored var onBoardFiles: (([String: Any]) -> Void)?
+    /// The pictures the page has (sent to it, or by it), so each crosses once: a shared board's
+    /// whole drawing goes to the page on every change from someone else.
+    @ObservationIgnored private(set) var pageFiles: Set<String> = []
     /// The page loaded: the note's view sends it the drawing and the others again.
     @ObservationIgnored var onLoad: (() -> Void)?
     @ObservationIgnored private var load: String?
@@ -657,6 +673,7 @@ final class CanvasController {
         self.viewOnly = view
         if view { showingStyle = false; showingLibrary = false }
         if !on, !peers.isEmpty { peers = [] }
+        if !on { pageFiles = [] }
         sendShared()
     }
 
@@ -665,9 +682,16 @@ final class CanvasController {
         if !shared { send(.peers([])) }
     }
 
-    /// The shared document's drawing, into the page.
+    /// The shared document's drawing, into the page, with only the pictures it doesn't have yet.
     func remote(scene: [String: Any]) {
-        guard shared, JSONSerialization.isValidJSONObject(scene), let json = try? JSONSerialization.data(withJSONObject: scene) else { return }
+        guard shared else { return }
+        var scene = scene
+        if let files = scene["files"] as? [String: Any] {
+            let new = files.filter { !pageFiles.contains($0.key) }
+            pageFiles.formUnion(new.keys)
+            scene["files"] = new
+        }
+        guard JSONSerialization.isValidJSONObject(scene), let json = try? JSONSerialization.data(withJSONObject: scene) else { return }
         send(.remoteScene(json))
     }
 

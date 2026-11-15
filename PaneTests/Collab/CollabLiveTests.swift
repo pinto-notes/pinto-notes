@@ -185,6 +185,66 @@ struct CollabLiveTests {
 
         for p in [emil, sara, eve] { p.store.stop() }
     }
+
+    /// Pictures on a shared whiteboard against the real backend (note_files, collab_put_file): Emil
+    /// shares a board with a picture on it; Sara joins with an Edit link and Eve with a View link,
+    /// and both have it. Sara pastes one: it reaches the other two, sealed on the server. Eve, a
+    /// viewer, sees pictures and can't put one there. Sara is removed: the pictures are sealed
+    /// again under the new key, the server gives her none, and Eve, who stays, opens them.
+    @Test func picturesOnASharedBoardReachEveryoneAndAreSealedAgainAfterARemoval() async throws {
+        let emil = try await person(0, name: "Emil"), sara = try await person(1, name: "Sara"), eve = try await person(2, name: "Eve")
+        typealias Board = SharedBoardTests
+        var scene = Board.scene([Board.shape("a", x: 10), Board.image("pic", file: "Live-Pic1")])
+        scene["files"] = ["Live-Pic1": Board.picture("Live-Pic1", bytes: 40_000)]
+        let note = CanvasNote.make(in: .all, context: emil.container.mainContext, scene: scene, named: "Moodboard")
+        try await emil.store.setAccess(.edit, for: note)
+        #expect(await sara.store.join(try #require(emil.store.linkURL(note))))
+        try await emil.store.setAccess(.view, for: note)
+        #expect(await eve.store.join(try #require(emil.store.linkURL(note))))
+        let e = try #require(emil.store.session(for: note.id))
+        func session(_ p: Person) throws -> CollabSession {
+            try #require(p.store.session(for: p.container.mainContext.pointer(forShared: note.id)?.id ?? UUID()))
+        }
+        let s = try session(sara), v = try session(eve)
+        #expect(s.canWrite && !v.canWrite)
+        let first = Board.picture("Live-Pic1", bytes: 40_000)
+        await until { Board.has(s, "Live-Pic1", first) && Board.has(v, "Live-Pic1", first) }
+        #expect(Board.has(s, "Live-Pic1", first) && Board.has(v, "Live-Pic1", first), "the board's picture came with it")
+
+        // Sara pastes one.
+        let second = Board.picture("Sara-Pic2", bytes: 120_000)
+        Board.put(s, Board.image("pic2", file: "Sara-Pic2", index: "a2"), second)
+        await until(20) { Board.has(e, "Sara-Pic2", second) && Board.has(v, "Sara-Pic2", second) }
+        #expect(Board.has(e, "Sara-Pic2", second) && Board.has(v, "Sara-Pic2", second), "Sara's picture reached Emil and Eve")
+        let rows: [Collab.File] = try await emil.client.from("note_files").select("file_id,epoch,ct").eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(Set(rows.map(\.file_id)) == ["Live-Pic1", "Sara-Pic2"] && rows.allSatisfy { $0.epoch == 1 && $0.ct.hasPrefix("amb3f.1.") })
+        let b64 = String((second["dataURL"] as! String).split(separator: ",")[1].prefix(64))
+        #expect(rows.allSatisfy { !$0.ct.contains(b64) }, "sealed")
+
+        // Eve views: the server refuses her picture, and her board takes none.
+        let sealed = try CollabBoard.Pictures.seal(Board.picture("Eve-Pic3"), nk: SymmetricKey(size: .bits256), note: note.id, epoch: 1)
+        await #expect(throws: Collab.Failure.readOnly) { try await eve.store.transport!.putFile(note: note.id, id: "Eve-Pic3", epoch: 1, ct: sealed) }
+        Board.put(v, Board.image("pic3", file: "Eve-Pic3", index: "a3"), Board.picture("Eve-Pic3"))
+        try await Task.sleep(for: .seconds(1))
+        #expect(Board.element("pic3", in: e) == nil)
+
+        // Sara is removed: sealed again under the new key, for whoever stays.
+        try await emil.store.remove(sara.id, from: note)
+        let after: [Collab.File] = try await emil.client.from("note_files").select("file_id,epoch,ct").eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(after.count == 2 && after.allSatisfy { $0.epoch == 2 && $0.ct.hasPrefix("amb3f.2.") }, "sealed again: \(after.map { "\($0.file_id)@\($0.epoch)" })")
+        #expect(try await sara.store.transport!.files(of: note.id).isEmpty)
+        #expect(try await sara.store.transport!.file(note: note.id, id: "Sara-Pic2") == nil, "the server gives her none")
+        await eve.store.checkMemberships()
+        let eveRow = try #require(try await eve.store.transport!.memberships().first { $0.note_id == note.id })
+        #expect(eveRow.epoch == 2)
+        let nk = try await eve.store.openKey(eveRow).nk
+        for f in after {
+            let opened = try CollabBoard.Pictures.open(f, keys: [2: nk], note: note.id)
+            #expect(opened["dataURL"] as? String == (f.file_id == "Sara-Pic2" ? second : first)["dataURL"] as? String, "Eve opens \(f.file_id) under the new key")
+        }
+
+        for p in [emil, sara, eve] { p.store.stop() }
+    }
 }
 
 /// Where the live test runs, from TEST_RUNNER_COLLAB_LIVE.

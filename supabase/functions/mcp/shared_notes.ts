@@ -259,8 +259,10 @@ export async function boardData(at: Loaded) {
  * one change, newer than any device's copy so it wins everywhere, and merges with what people draw
  * meanwhile. An element left out is deleted (kept as `isDeleted`, so a device that was away can't
  * bring it back), unless it was drawn after `readAt`, when the AI last read the drawing; a copy older
- * than the board's isn't taken over someone's newer edit. One without an id gets one. Pictures
- * aren't shared yet and are left out.
+ * than the board's isn't taken over someone's newer edit. One without an id gets one. A picture
+ * already on the board (its `fileId` is one of the board's) is an element like any other, so an AI
+ * can move, resize or delete it; a new one is left out and counted: its bytes are sealed by the
+ * device that puts it there (note_files), and data.json carries none.
  */
 export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: unknown, readAt: Date = new Date()): Promise<{ changed: boolean; update?: number; pictures: number }> {
   refuseViewer(s);
@@ -270,6 +272,7 @@ export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: u
   }
   if (!isBoard(at)) throw notYet(s);
   const current = await boardElements(at);
+  const onBoard = new Set([...current.values()].filter((e) => e.type === "image" && typeof e.fileId === "string").map((e) => e.fileId as string));
   const now = Date.now();
   const puts: [string, string][] = [];
   const seen = new Set<string>();
@@ -277,7 +280,7 @@ export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: u
   for (const raw of scene.elements as unknown[]) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw) || typeof (raw as El).type !== "string") continue;
     const e: El = { ...(raw as El) };
-    if (e.type === "image") { pictures++; continue; }
+    if (e.type === "image" && !(typeof e.fileId === "string" && onBoard.has(e.fileId))) { pictures++; continue; }
     if (typeof e.id !== "string" || !e.id || e.id.length > 200) e.id = `ai-${crypto.randomUUID().slice(0, 8)}-${made++}`;
     const id = e.id as string;
     seen.add(id);
@@ -293,7 +296,7 @@ export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: u
     puts.push([id, JSON.stringify(canon(e))]);
   }
   for (const [id, had] of current) {
-    if (seen.has(id) || had.isDeleted === true || had.type === "image") continue;
+    if (seen.has(id) || had.isDeleted === true) continue;
     // Drawn after this was read: never seen, so not left out on purpose.
     if (typeof had.updated === "number" && had.updated > +readAt) continue;
     puts.push([id, JSON.stringify(canon({ ...had, isDeleted: true, version: stampOf(had).v + 1, versionNonce: nonce(), updated: now }))]);

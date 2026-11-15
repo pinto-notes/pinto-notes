@@ -260,6 +260,9 @@ final class FakeCollabTransport: CollabTransport {
         try server.insertSnapshot(note: note, author: me, upto: upto, epoch: epoch, ct: ct)
     }
 
+    func putFile(note: UUID, id: String, epoch: Int, ct: String) async throws { try call("putFile") }
+    func file(note: UUID, id: String) async throws -> Collab.File? { try call("file"); return nil }
+    func files(of note: UUID) async throws -> [Collab.FileRow] { try call("files"); return [] }
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel {
         try call("join")
         guard server.role(note, me) != nil else { throw Collab.Failure.notMember }

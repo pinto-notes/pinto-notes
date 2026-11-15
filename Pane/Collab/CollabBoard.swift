@@ -1,4 +1,5 @@
 import Automerge
+import CryptoKit
 import Foundation
 
 /// A shared whiteboard's drawing in its Automerge document (14 November 2026).
@@ -13,8 +14,13 @@ import Foundation
 /// - `boardState`: the scene's `viewBackgroundColor` and `gridModeEnabled`.
 ///
 /// Deleted elements stay as Excalidraw keeps them (`isDeleted`), so a device that was away can't
-/// bring them back. Pictures aren't in it: their bytes are the scene's `files`, which aren't
-/// shared yet (SharedNoteLimits), so a shared board takes none.
+/// bring them back.
+///
+/// A picture is an image element in `board` like any other. Its bytes aren't in the document (a
+/// change holds 256 KB, a snapshot 4 MB, and the document keeps every change for good): each
+/// picture is sealed under the note key on its own and stored beside the document (`note_files`,
+/// `Pictures`), put there once by whoever added it, and fetched by its file id when a device
+/// first draws it.
 enum CollabBoard {
     typealias Document = CollabText.Document
     typealias ObjId = CollabText.ObjId
@@ -54,8 +60,8 @@ enum CollabBoard {
         return id
     }
 
-    /// A new board's maps, holding `scene`'s drawing (the owner, when sharing). Pictures and
-    /// elements without an id aren't taken.
+    /// A new board's maps, holding `scene`'s drawing (the owner, when sharing). Elements without
+    /// an id aren't taken, nor a picture without its file id. The pictures' bytes go up beside it.
     @discardableResult
     static func create(in doc: Document, scene: [String: Any]) throws -> ObjId {
         let board = try doc.putObject(obj: .ROOT, key: key, ty: .Map)
@@ -135,21 +141,26 @@ enum CollabBoard {
         return out
     }
 
-    /// The whole scene, as a board's data keeps it (`values.scene`), with no pictures.
-    static func scene(elements: [Element], settings: [String: Any]) -> [String: Any] {
+    /// The whole scene, as a board's data keeps it (`values.scene`), with the pictures given in
+    /// `files` that its pictures in use show (as a board of your own keeps only those).
+    static func scene(elements: [Element], settings: [String: Any], files: [String: [String: Any]] = [:]) -> [String: Any] {
         var s = CanvasNote.emptyScene()
         s["elements"] = elements
         var appState = (s["appState"] as? [String: Any]) ?? [:]
         for (k, v) in settings { appState[k] = v }
         s["appState"] = appState
+        if !files.isEmpty {
+            let used = Pictures.inUse(elements)
+            s["files"] = files.filter { used.contains($0.key) }
+        }
         return s
     }
 
     // MARK: Writing
 
     /// What of `elements` (a board's scene as the page saved it) the document should take, given
-    /// what it holds now: each element that wins over the document's copy. Pictures aren't taken,
-    /// nor anything without an id.
+    /// what it holds now: each element that wins over the document's copy. Nothing without an id
+    /// is taken, nor a picture without its file id.
     static func winners(_ elements: [Element], over current: [String: Stamp]) -> [(id: String, element: Element)] {
         var out: [(String, Element)] = []
         for e in elements {
@@ -165,12 +176,12 @@ enum CollabBoard {
         return id
     }
 
-    /// Pictures aren't shared yet: their bytes are the scene's files.
-    static func keeps(_ e: Element) -> Bool { (e["type"] as? String) != "image" }
+    /// A picture goes in with the id of the file it shows; every other element as it is.
+    static func keeps(_ e: Element) -> Bool { (e["type"] as? String) != "image" || Pictures.fileID(of: e) != nil }
 
-    /// Whether a scene holds a picture (not deleted): such a board can't be shared yet.
+    /// Whether a scene holds a picture (not deleted).
     static func hasPictures(_ scene: [String: Any]?) -> Bool {
-        ((scene?["elements"] as? [Element]) ?? []).contains { ($0["type"] as? String) == "image" && ($0["isDeleted"] as? Bool) != true }
+        !Pictures.inUse((scene?["elements"] as? [Element]) ?? []).isEmpty
     }
 
     static func encode(_ e: Element) -> String? {
@@ -211,17 +222,104 @@ enum CollabBoard {
     }
 }
 
+extension CollabBoard {
+    /// The pictures on a shared whiteboard (16 November 2026). Each is sealed under the note key on
+    /// its own (`amb3f`, AAD with the note, the key's epoch and the file id) and stored beside the
+    /// document (`note_files`): what's sealed is its type, a newline, then its bytes. The board
+    /// keeps each one as Excalidraw does, `{ id, dataURL, mimeType, created }`.
+    enum Pictures {
+        typealias File = [String: Any]
+
+        /// At most this much of pictures in use on one board, as on a board of your own (its data
+        /// is 4 MB in all): counted as the scene keeps them, data URLs.
+        static let maxInUse = 4 * 1024 * 1024
+        /// One picture sealed is at most this (note_files.ct).
+        static let maxSealed = 4_194_304
+
+        static let tooBig = "This picture doesn\u{2019}t fit: a whiteboard\u{2019}s pictures can be 4 MB in all"
+        static let notThere = "This picture didn\u{2019}t reach the board. Try adding it again."
+        static let viewOnly = "You can view this whiteboard but not change it"
+
+        static func fileID(of e: Element) -> String? {
+            guard (e["type"] as? String) == "image", let id = e["fileId"] as? String,
+                  id.range(of: "^[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil else { return nil }
+            return id
+        }
+
+        /// The file ids the pictures in use show (not deleted ones).
+        static func inUse(_ elements: [Element]) -> Set<String> {
+            Set(elements.compactMap { ($0["isDeleted"] as? Bool) == true ? nil : fileID(of: $0) })
+        }
+
+        /// A picture as the board gave it, when it's one: a data URL of an image.
+        static func valid(_ f: Any?, id: String) -> File? {
+            guard let f = f as? File, f["id"] as? String == id, let url = f["dataURL"] as? String, url.hasPrefix("data:image/"),
+                  url.contains(";base64,") else { return nil }
+            var out: File = ["id": id, "dataURL": url, "mimeType": (f["mimeType"] as? String) ?? mime(of: url)]
+            out["created"] = (f["created"] as? NSNumber) ?? NSNumber(value: Date.now.timeIntervalSince1970 * 1000)
+            return out
+        }
+
+        static func mime(of url: String) -> String {
+            String(url.dropFirst(5).prefix { $0 != ";" && $0 != "," })
+        }
+
+        /// How much of the board's room a picture takes: its data URL, as a scene keeps it.
+        static func size(_ f: File) -> Int { (f["dataURL"] as? String)?.utf8.count ?? 0 }
+
+        /// How big it is sealed (`amb3f.<epoch>.` and base64 of its type, its bytes, the nonce and tag).
+        static func sealedSize(_ f: File) -> Int {
+            guard let url = f["dataURL"] as? String, let comma = url.firstIndex(of: ",") else { return .max }
+            let b64 = url.utf8.count - url[...comma].utf8.count
+            let bytes = b64 / 4 * 3 + ((f["mimeType"] as? String) ?? mime(of: url)).utf8.count + 1 + 28
+            return 12 + (bytes + 2) / 3 * 4
+        }
+
+        /// The picture sealed for the server.
+        static func seal(_ f: File, nk: SymmetricKey, note: UUID, epoch: Int) throws -> String {
+            guard let id = f["id"] as? String, let url = f["dataURL"] as? String, let comma = url.firstIndex(of: ","),
+                  let bytes = Data(base64Encoded: String(url[url.index(after: comma)...])) else { throw CollabCrypto.Failure.malformed }
+            let mime = (f["mimeType"] as? String) ?? mime(of: url)
+            return try CollabCrypto.seal(.file, Data((mime + "\n").utf8) + bytes, nk: nk, note: note, epoch: epoch, extra: id)
+        }
+
+        /// A picture from the server, opened: as the board keeps it.
+        static func open(_ row: Collab.File, keys: [Int: SymmetricKey], note: UUID) throws -> File {
+            guard let nk = keys[row.epoch] else { throw CollabCrypto.Failure.wrongKey }
+            let plain = try CollabCrypto.open(.file, row.ct, nk: nk, note: note, extra: row.file_id)
+            guard let nl = plain.firstIndex(of: 0x0A), nl > plain.startIndex, plain.distance(from: plain.startIndex, to: nl) <= 100,
+                  let mime = String(data: plain[plain.startIndex..<nl], encoding: .utf8), mime.hasPrefix("image/") else { throw CollabCrypto.Failure.malformed }
+            let bytes = plain[plain.index(after: nl)...]
+            return ["id": row.file_id, "dataURL": "data:\(mime);base64," + Data(bytes).base64EncodedString(), "mimeType": mime,
+                    "created": NSNumber(value: Date.now.timeIntervalSince1970 * 1000)]
+        }
+
+        /// What a picture's box opens to, sealed again under a newer key.
+        static func reseal(_ row: Collab.File, keys: [Int: SymmetricKey], to epoch: Int, note: UUID) throws -> String {
+            guard let old = keys[row.epoch], let nk = keys[epoch] else { throw CollabCrypto.Failure.wrongKey }
+            let plain = try CollabCrypto.open(.file, row.ct, nk: old, note: note, extra: row.file_id)
+            return try CollabCrypto.seal(.file, plain, nk: nk, note: note, epoch: epoch, extra: row.file_id)
+        }
+    }
+}
+
 /// An open shared whiteboard joined to its session: what the page draws goes into the document as
-/// changes, the document's drawing comes back into the page whenever someone else's change moves
-/// it, the others' pointers and selections are drawn, an AI's change is outlined with its name,
-/// and a viewer's board is in the engine's view mode.
+/// changes (a new picture's bytes with it), the document's drawing comes back into the page
+/// whenever someone else's change moves it (with the pictures the page doesn't have yet), the
+/// others' pointers and selections are drawn, an AI's change is outlined with its name, and a
+/// viewer's board is in the engine's view mode.
 @MainActor enum BoardCollab {
     static func wire(_ session: CollabSession, _ canvas: CanvasController) {
         canvas.share(true, viewOnly: !session.canWrite)
         session.onRemoteBoard = { [weak canvas] scene in canvas?.remote(scene: scene) }
         session.onBoardAI = { [weak canvas] by, ids in canvas?.outline(by: by, ids: ids) }
         session.onBoardPeers = { [weak canvas] peers in canvas?.show(peers: peers) }
+        canvas.onBoardFiles = { [weak session] files in session?.offerPictures(files) }
         canvas.onBoardDelta = { [weak session] elements, settings in session?.boardLocal(elements, settings: settings) }
+        session.onPicturesRefused = { [weak canvas] ids, why in
+            if !ids.isEmpty { canvas?.send(.refusePictures(ids)) }
+            canvas?.confirm(why, for: .seconds(4))
+        }
         canvas.onPresence = { [weak session] pointer, selection in session?.boardPresence(pointer: pointer, selection: selection) }
         canvas.onLoad = { [weak session, weak canvas] in
             guard let session, let canvas else { return }
@@ -240,8 +338,10 @@ enum CollabBoard {
             session.onRemoteBoard = nil
             session.onBoardAI = nil
             session.onBoardPeers = nil
+            session.onPicturesRefused = nil
             session.boardPresence(pointer: nil, selection: [])
         }
+        canvas.onBoardFiles = nil
         canvas.onBoardDelta = nil
         canvas.onPresence = nil
         canvas.onLoad = nil

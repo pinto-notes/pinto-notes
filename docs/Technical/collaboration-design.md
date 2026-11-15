@@ -66,6 +66,7 @@ Formats (`Pane/Collab/CollabCrypto.swift`, `supabase/functions/_shared/collab.ts
 | Snapshot | `amb3s.<epoch>.…`, AAD `amb3s\|<note>\|<epoch>\|<upto>` |
 | Presence | `amb3p.<epoch>.…`, AAD `amb3p\|<note>\|<epoch>\|<user id>` |
 | Head (title, preview for lists) | `amb3h.<epoch>.…`, AAD `amb3h\|<note>\|<epoch>` |
+| Picture on a shared whiteboard | `amb3f.<epoch>.…` of `<mime type>\n<bytes>`, AAD `amb3f\|<note>\|<epoch>\|<file id>` (the board's file id as it is, not lowercased) |
 | Safety code | 12 digits from SHA-256 of `amber-notes safety v1` and both public keys in a fixed order; the same on both phones |
 
 The second ECDH in the wrap is what makes it authenticated: only the holder of the sender's identity key could have produced it. The recipient checks it against the public key of the member named in `wrapped_by`. The author id in a change's AAD means the server can't pass Sara's change off as Emil's.
@@ -301,7 +302,19 @@ Branch `feature/board-collab` (2026-11-14). A whiteboard (a canvas note) is shar
 
 **AI.** A member's AI reads the board as the note's `data.json` (`values.scene`, the same shape as a private whiteboard's) and changes it with edit or write. The server (`shared_notes.ts`, `writeBoard`) turns that into one sealed change by the person, named for their AI: each changed element gets a version above every copy and a fresh nonce, a copy older than what's there is skipped, and an element left out is deleted unless someone drew it after the AI read the board. The app marks it like an AI edit to a note ("Sara's Claude added 2 shapes", with Undo), and Show last AI change outlines what it drew. Undo writes the elements back as they were, with higher versions, so it takes the change out for everyone. The page (`index.html` and the app files) of a shared whiteboard can't be changed by an AI.
 
-**Parked.** Pictures: a whiteboard with pictures can't be shared yet (the sheet says "A whiteboard with pictures can't be shared with people yet. Send a copy instead."), and a picture added to a shared board is taken out again with "Pictures can't go on a shared whiteboard yet". Pictures need the shared files that notes don't have yet. Also parked: a member's AI only finds the board once their device has saved its canvas page; two windows of one shared board share one session's callbacks.
+**Pictures** (branch `feature/shared-board-pictures`, 2026-11-15). Pasted, dropped, from the Image button or the library, a picture on a shared board reaches everyone, and a board with pictures can be shared with them. The image element goes in the document like any element. The bytes don't: each picture is sealed on its own under the note key (`amb3f`, with its file id in the AAD) and stored in `note_files`, one row per picture, fetched by file id when a board shows a picture the device doesn't have.
+
+Why not in the document: a change is at most 256 KB and a snapshot at most 4 MB, so a single photo wouldn't fit in a change, and a few would fill the snapshot that every new device downloads. The document keeps everything forever, so a deleted picture would still be in every snapshot, re-sealed after every 200 changes and every key change. A row per picture is fetched once, only by whoever needs it, and the document stays small.
+
+- *Order.* The page sends a new picture's bytes with the change that first shows it (`newPictures` in `shared.js`). The device seals and stores the bytes before it sends that change, so nobody sees the element before its bytes can be fetched. A device that sees the element first anyway (the bytes were held up) shows Excalidraw's placeholder and asks again after 1 s, then less often, up to every 30 s; each arrival is drawn at once (`api.addFiles`).
+- *Limits.* As on a board of your own, the pictures in use on a board are at most 4 MB (data URLs, as the scene keeps them); one that doesn't fit stays off the board, and the board says "This picture doesn't fit: a whiteboard's pictures can be 4 MB in all". The server allows 4 MB per picture and 32 MB per board in all, deleted pictures included, as a guard rail; a picture it has no room for comes off the board for everyone, with the same line.
+- *Viewers* see the pictures and can't add one: `collab_put_file` refuses them, the session drops it, and the app says "You can view this whiteboard but not change it".
+- *Removing someone.* After the new key, the owner's device seals every picture again under it, from its own copy or the stored one (it holds both keys). The server replaces a row only with a newer epoch, so a picture can't be rolled back to the old key. Any editor's device that holds both keys does the same when it gets the new key, so a picture the owner's device couldn't reseal is still sealed again. A removed person's old key opens nothing that's stored, and RLS gives them no rows.
+- *Offline and relaunch.* The pictures a device has are kept beside the note with its drawing (`values.scene.files`, as on a board of your own), so the board opens with them offline. On connect and after a new key, a device compares its pictures with the server's rows and sends any in use that never went up.
+- *Stopping sharing.* The owner's device fetches any picture it doesn't have first; the board keeps its pictures as the owner's own again.
+- *An AI* reads a picture as an image element and can move, resize or delete it like any element (`writeBoard`); it can't add a new picture (its bytes aren't in `data.json`), and is told so.
+
+**Parked.** Pictures in shared notes (not whiteboards): a note's attachments live in the owner's private file storage under their data key. Sharing them would take the same shape as here: each attachment sealed under the note key in a member-readable table or bucket, its reference in the document, fetched by id, and resealed on removal; plus the editor's attachment views loading from there instead of the owner's library. Not done here. Also parked: deleted pictures stay in `note_files` until the shared note goes (a cleanup that keeps pictures version history still shows is for later); an AI can't add a new picture to a shared board; a member's AI only finds the board once their device has saved its canvas page; two windows of one shared board share one session's callbacks.
 
 ## Data model
 
@@ -314,6 +327,11 @@ Branch `feature/board-collab` (2026-11-14). A whiteboard (a canvas note) is shar
 - `note_invite_links`: the Edit side of a note's link (the same id as its sealed link), with the hashed answer and NK sealed under the link's key.
 - Functions: `collab_publish_identity`, `collab_find_person`, `collab_members`, `collab_share`, `collab_invite` (kept for a later email invite), `collab_accept`, `collab_remove` (with no one removed it only renews the key), `collab_create_link`, `collab_stop_link`, `collab_open_link`, `collab_join_link`, `collab_role`.
 - Realtime: `note_updates` and `note_members` published; RLS policies for the private `note:<id>` channels.
+
+`supabase/migrations/20261116150000_collab_board_pictures.sql` (tested in `supabase/functions/mcp/collab_files.pglite.test.ts`):
+
+- `note_files`: a shared whiteboard's pictures, one sealed row per file id (`amb3f`, at most 4 MB), with the epoch it's sealed under and who put it there; goes with the shared note. Members read it (RLS through `collab_role`); nobody writes it directly.
+- `collab_put_file(note, file, epoch, ct)`: editors only, under the note's current epoch; replaces a row only with a newer epoch; refuses past 32 MB per board (`files_full`).
 
 `supabase/migrations/20261007163100_sealed_links_and_templates.sql` (same tests):
 

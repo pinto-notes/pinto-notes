@@ -3829,8 +3829,15 @@ extension CanvasNativeUITests {
         j.canvas.onBoardDelta = { e, _ in deltas.append(e) }
         j.canvas.share(true)
         await j.until("the page has the drawing as known") { true }
-        // You're dragging "a".
-        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { a: true }, selectedElementsAreBeingDragged: true } }); 1")
+        // You're dragging "a". The engine takes app state on a later turn (React): wait until it has,
+        // or the remote scene below can arrive first (half the runs failed on 2026-11-15).
+        func dragging(_ on: Bool) async throws {
+            _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: { a: true }, selectedElementsAreBeingDragged: \(on) } }); 1")
+            for _ in 0..<100 where try await j.js("amber._canvas.api.getAppState().selectedElementsAreBeingDragged") as? Bool != on {
+                try await Task.sleep(for: .milliseconds(10))
+            }
+        }
+        try await dragging(true)
         var a = try #require(try await Self.element(j, "a")), b = try #require(try await Self.element(j, "b"))
         let aX = a["x"] as? Double
         a["x"] = 999; a["version"] = (a["version"] as? Int ?? 1) + 5
@@ -3847,7 +3854,7 @@ extension CanvasNativeUITests {
         #expect(try await j.js("JSON.stringify(amber._canvas.api.getAppState().selectedElementIds)") as? String == "{\"a\":true}", "your selection stays")
 
         // Let go: their newer edit of it lands (a drag of yours would have made yours newer).
-        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementsAreBeingDragged: false } }); 1")
+        try await dragging(false)
         j.canvas.remote(scene: CollabBoard.scene(elements: [a, b, c], settings: [:]))
         for _ in 0..<100 where try await Self.element(j, "a")?["x"] as? Double != 999 { try await Task.sleep(for: .milliseconds(30)) }
         #expect(try await Self.element(j, "a")?["x"] as? Double == 999)
@@ -3991,14 +3998,16 @@ extension CanvasNativeUITests {
         #expect(j.canvas.viewOnly && !j.canvas.showingStyle)
     }
 
-    /// A picture put on a shared board some way the app doesn't see first (pasted in the page):
-    /// it goes again at once, and the app says why. The app's own picture paths refuse it before.
-    @Test func aPictureOnASharedBoardGoesAgainWithAReason() async throws {
+    /// A picture pasted on a shared board goes to the app with the change that shows it. One the
+    /// board can't take (the app says which) comes off the page again, and isn't sent as a
+    /// deletion: it never reached anyone. A viewer's board takes none, and the app says why.
+    @Test func aPictureTheSharedBoardCantTakeComesOffThePage() async throws {
         let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
         defer { j.close() }
         try await j.ready()
-        var deltas: [[[String: Any]]] = []
+        var deltas: [[[String: Any]]] = [], files: [[String: Any]] = []
         j.canvas.onBoardDelta = { e, _ in deltas.append(e) }
+        j.canvas.onBoardFiles = { files.append($0) }
         j.canvas.share(true)
         // The document's drawing, as the app hands it over when the board opens.
         let a = try #require(try await Self.element(j, "a")), b = try #require(try await Self.element(j, "b"))
@@ -4006,13 +4015,27 @@ extension CanvasNativeUITests {
         try await Task.sleep(for: .milliseconds(100))
         let png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
         _ = try await j.js("amber._canvasCommand({ op: 'image', dataURL: '\(png)', mimeType: 'image/png', width: 40, height: 40 })")
-        await j.until("the app says why") { j.canvas.notice == SharedNoteLimits.boardPictures }
+        await j.until("the picture goes with its change") { !files.isEmpty }
+        let image = try #require(deltas.joined().first { $0["type"] as? String == "image" })
+        let id = try #require(image["id"] as? String), file = try #require(image["fileId"] as? String)
+        #expect((files.first?[file] as? [String: Any])?["dataURL"] as? String == png)
+        #expect(j.canvas.pageFiles.contains(file), "the page has it: the app won't hand it back")
+
+        let mark = deltas.count
+        j.canvas.send(.refusePictures([id]))
+        func images() async throws -> Int { try await j.js("amber._canvas.api.getSceneElementsIncludingDeleted().filter((e) => e.type === 'image').length") as? Int ?? -1 }
+        for _ in 0..<100 where try await images() != 0 { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await images() == 0, "off the page")
         try await Task.sleep(for: .milliseconds(400))
-        #expect(try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.type === 'image').length") as? Int == 0)
-        #expect(!deltas.joined().contains { $0["type"] as? String == "image" })
-        // Through the app: refused before it reaches the page.
+        #expect(!deltas.dropFirst(mark).joined().contains { $0["id"] as? String == id })
+        // Sent again only once: each picture goes with the change that first shows it.
+        #expect(files.count == 1)
+
+        // A viewer's board: the app's own picture paths refuse it, and say why.
+        j.canvas.share(true, viewOnly: true)
         j.canvas.send(.image(CanvasImage(dataURL: png, mimeType: "image/png", width: 40, height: 40), at: nil))
         #expect(!j.canvas.sent.contains { if case .image = $0 { true } else { false } })
+        #expect(j.canvas.notice == CollabBoard.Pictures.viewOnly)
     }
 
     #if os(macOS)
@@ -4343,6 +4366,98 @@ extension CanvasNativeUITests {
             let left = CGFloat(lo) / shot.scale, right = width - CGFloat(hi) / shot.scale
             #expect(abs(left - right) < 12, "drawn in the middle: \(left) pt on the left, \(right) on the right")
         }
+    }
+
+    /// Emil pastes a picture on a shared board: it draws on Sara's board too, its bytes sealed on
+    /// the way through the in-memory server and fetched by her device. Both boards end the same.
+    /// A picture of both side by side when BOARD_COLLAB_SHOTS names a folder.
+    @Test func aPictureOnePersonPastesDrawsOnTheOthersBoard() async throws {
+        let dir = ProcessInfo.processInfo.environment["BOARD_COLLAB_SHOTS"].map { URL(fileURLWithPath: $0) }
+        if let dir { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
+        let people = BoardPeople()
+        var flow = Self.flowchart
+        flow["elements"] = ((flow["elements"] as? [[String: Any]]) ?? []).enumerated().map { i, e in e["id"] == nil ? e.merging(["id": "arrow-\(i)"]) { a, _ in a } : e }
+        let (emilDevice, others, note) = try await people.share(flow, people: ["Sara"], title: "Publishing flow")
+        let emil = try people.session(emilDevice, note), sara = try people.session(others[0], note)
+        let size = CGSize(width: 760, height: 520)
+        let left = try await Joined(scene: CanvasNote.emptyScene(), size: size)
+        let right = try await Joined(scene: CanvasNote.emptyScene(), size: size)
+        defer { left.close(); right.close() }
+        try await left.ready()
+        try await right.ready()
+        BoardCollab.wire(emil, left.canvas)
+        BoardCollab.wire(sara, right.canvas)
+        defer { BoardCollab.unwire(emil, left.canvas); BoardCollab.unwire(sara, right.canvas) }
+        func count(_ j: Joined) async throws -> Int { try await j.js("amber._canvas.api.getSceneElements().length") as? Int ?? 0 }
+        for _ in 0..<150 { let l = try await count(left), r = try await count(right); if l >= 9 && l == r { break }; try await Task.sleep(for: .milliseconds(40)) }
+
+        // Emil pastes a picture, made ready as the app makes a paste ready.
+        let pasted = try #require(CanvasImage(data: try Self.landscape()))
+        let photo = pasted.dataURL
+        left.canvas.send(.image(pasted, at: nil))
+        func picture(_ j: Joined) async throws -> [String: Any] {
+            try await Self.json(j, "(() => { const api = amber._canvas.api, e = api.getSceneElements().find((x) => x.type === 'image'); const f = e && api.getFiles()[e.fileId]; return e ? { id: e.id, fileId: e.fileId, x: e.x, width: e.width, dataURL: f ? f.dataURL : null } : {}; })()")
+        }
+        var theirs: [String: Any] = [:]
+        for _ in 0..<250 {
+            theirs = try await picture(right)
+            if theirs["dataURL"] as? String != nil { break }
+            try await Task.sleep(for: .milliseconds(40))
+        }
+        let mine = try await picture(left)
+        let file = try #require(mine["fileId"] as? String)
+        #expect(theirs["dataURL"] as? String == photo, "the photo is on Sara's board")
+        #expect(theirs["id"] as? String == mine["id"] as? String && theirs["x"] as? Double == mine["x"] as? Double && theirs["width"] as? Double == mine["width"] as? Double)
+        // Through the server sealed, under the note key.
+        let stored = try #require(people.server.files[note.id]?[file])
+        #expect(stored.ct.hasPrefix("amb3f.1.") && !stored.ct.contains(String(photo.dropFirst(30).prefix(40))))
+
+        // Drawn on both: the photo's sun shows on each board, the same at the same zoom.
+        for j in [left, right] { _ = try await j.js("amber._canvasCommand({ op: 'action', name: 'zoomToFit' })") }
+        func sun(_ j: Joined) async throws -> Int {
+            let p = try await Self.pixels(j.web)
+            var n = 0
+            for i in stride(from: 0, to: p.bytes.count, by: 4) where p.bytes[i] > 220 && (90...160).contains(p.bytes[i + 1]) && p.bytes[i + 2] < 60 { n += 1 }
+            return n
+        }
+        var drawn = (0, 0)
+        for _ in 0..<100 {
+            drawn = (try await sun(left), try await sun(right))
+            if drawn.0 > 100 && drawn.1 > 100 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(drawn.0 > 100 && drawn.1 > 100, "the photo is drawn on both boards: \(drawn)")
+        #expect(abs(drawn.0 - drawn.1) < max(drawn.0, drawn.1) / 5, "the same on both: \(drawn)")
+
+        if let dir {
+            _ = try? await left.web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+            try await Task.sleep(for: .milliseconds(300))
+            let a = try await Self.pixels(left.web), b = try await Self.pixels(right.web)
+            try Self.sideBySide(a.png, b.png, gap: 24, dark: false).write(to: dir.appending(path: "board-collab-picture-light.png"))
+        }
+    }
+
+    /// A small picture of a landscape (sky, sun, hills), as a PNG: something to paste.
+    static func landscape(width: Int = 320, height: Int = 200) throws -> Data {
+        let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+                                                isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        let w = CGFloat(width), h = CGFloat(height)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGradient(starting: NSColor(red: 0.85, green: 0.93, blue: 1, alpha: 1), ending: NSColor(red: 0.33, green: 0.58, blue: 0.93, alpha: 1))?.draw(in: NSRect(x: 0, y: 0, width: w, height: h), angle: 90)
+        NSColor(red: 1, green: 0.48, blue: 0, alpha: 1).setFill()
+        NSBezierPath(ovalIn: NSRect(x: w * 0.62, y: h * 0.52, width: h * 0.34, height: h * 0.34)).fill()
+        let hills = NSBezierPath()
+        hills.move(to: .zero)
+        hills.line(to: NSPoint(x: 0, y: h * 0.32))
+        hills.curve(to: NSPoint(x: w * 0.55, y: h * 0.3), controlPoint1: NSPoint(x: w * 0.18, y: h * 0.52), controlPoint2: NSPoint(x: w * 0.36, y: h * 0.5))
+        hills.curve(to: NSPoint(x: w, y: h * 0.4), controlPoint1: NSPoint(x: w * 0.72, y: h * 0.14), controlPoint2: NSPoint(x: w * 0.86, y: h * 0.46))
+        hills.line(to: NSPoint(x: w, y: 0))
+        hills.close()
+        NSColor(red: 0.27, green: 0.6, blue: 0.32, alpha: 1).setFill()
+        hills.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        return try #require(rep.representation(using: .png, properties: [:]))
     }
 
     /// Two pictures side by side on the window's ground, with a gap.
