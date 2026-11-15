@@ -167,6 +167,8 @@ extension CollabStore: ShareBackend {
         // Under the new key, or nobody who starts from the server could open the note: tried again
         // until it's in.
         await session.requireSnapshot()
+        // A board's pictures, sealed again under the new key: nothing stored opens with the old one.
+        await session.syncPictures().value
         await session.refreshMembers()
     }
 

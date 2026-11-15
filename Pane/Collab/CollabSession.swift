@@ -235,7 +235,10 @@ final class CollabSession {
         record.saved = doc.save()
         record.tail = Data()
         record.tailChanges = 0
-        return CollabSession(record: record, keys: [record.epoch: nk], doc: doc, body: body, transport: transport, me: me, name: name)
+        let session = CollabSession(record: record, keys: [record.epoch: nk], doc: doc, body: body, transport: transport, me: me, name: name)
+        // A board's pictures come with it: they go up before anyone can open it (SharedLibrary.becomeShared).
+        if let files = scene?["files"] as? [String: Any] { session.seedPictures(files, send: true) }
+        return session
     }
 
     /// The document as this device has it, with no network: what it saved, and the changes since.
@@ -359,6 +362,8 @@ final class CollabSession {
         saveSoon()
         sendPresence()
         flush()
+        // The board's pictures, sealed again under the new key by an editor who has both.
+        if isBoard { syncPictures() }
     }
 
     /// The whole document sealed, for the server to hand to devices starting out.
@@ -391,6 +396,8 @@ final class CollabSession {
         // Catch up on anything that landed while this device was away, and send what was typed meanwhile.
         catchUp()
         flush()
+        // A board's pictures this device doesn't have yet, and what the server has of them.
+        if isBoard { fetchPictures(); syncPictures() }
         // Presence is re-sent now and then, so someone who joins later sees you without waiting.
         // A pull every 20 seconds too: a relayed change can be lost (a dropped socket, a change
         // stored while the channel was joining), and Automerge holds every later one back until the
@@ -410,6 +417,8 @@ final class CollabSession {
     }
 
     func disconnect() {
+        pictureRetry?.cancel()
+        pictureRetry = nil
         presenceTask?.cancel()
         pointerTask?.cancel()
         pointerTask = nil
@@ -796,7 +805,7 @@ final class CollabSession {
 
     /// The drawing as the document has it now: a whole scene, as the board's data keeps it.
     func boardScene() -> [String: Any] {
-        CollabBoard.scene(elements: CollabBoard.ordered(boardEntries), settings: boardSettings)
+        CollabBoard.scene(elements: CollabBoard.ordered(boardEntries), settings: boardSettings, files: pictures)
     }
 
     /// The document's drawing changed from outside: read again (only what changed is decoded),
@@ -813,13 +822,18 @@ final class CollabSession {
         boardSettings = settings
         onRemoteBoard?(boardScene())
         settleBoard()
+        fetchPictures()
     }
 
     /// What the open board drew or changed (elements the page saw change since it last said, and
     /// its settings): each element that wins over the document's copy goes in, as one change, and
-    /// up as typing does. Pictures don't (CollabBoard.keeps). A viewer's go nowhere.
+    /// up as typing does. A new picture goes in with its bytes (`offerPictures`), which go up
+    /// first, and only while the board's pictures in use fit in 4 MB; one that can't is handed
+    /// back to the page to take off (`onPicturesRefused`). A viewer's go nowhere.
     func boardLocal(_ elements: [[String: Any]], settings: [String: Any] = [:]) {
+        defer { offered = [:] }
         guard !isClosed, let boardObj, record.canEdit, !isViewOnly else { return }
+        let elements = admitPictures(elements)
         let wins = CollabBoard.winners(elements, over: boardEntries.mapValues(\.stamp))
         // Something the page changed lost to what the document holds (someone else's edit of it
         // that the page hadn't merged yet): the page is handed the document's, so it ends the same.
@@ -941,6 +955,275 @@ final class CollabSession {
         }.sorted { $0.id.uuidString < $1.id.uuidString }
     }
 
+    // MARK: The whiteboard's pictures
+
+    typealias Picture = CollabBoard.Pictures.File
+
+    /// The board's pictures this device has, by file id, as the board keeps them: put on the board
+    /// here, fetched, or kept beside the note from before (the board's data, offline).
+    @ObservationIgnored private(set) var pictures: [String: Picture] = [:]
+    /// Pictures the open board handed over with the change it's about to send.
+    @ObservationIgnored private var offered: [String: Picture] = [:]
+    /// Pictures put on the board here that the server doesn't have yet, oldest first. They go up
+    /// before the changes that show them (`sendPending`), so nobody draws a picture whose bytes
+    /// aren't there to fetch.
+    @ObservationIgnored private(set) var picturesToSend: [String] = []
+    /// Pictures the server is known to have (sent or fetched here, or listed by it).
+    @ObservationIgnored private var stored: Set<String> = []
+    @ObservationIgnored private var fetching: Set<String> = []
+    /// Pictures that weren't there when asked for: asked for again by the retry, not on every change.
+    @ObservationIgnored private var waitingFor: Set<String> = []
+    @ObservationIgnored private var pictureRetry: Task<Void, Never>?
+    @ObservationIgnored private var pictureDelay: Duration = .seconds(1)
+    @ObservationIgnored private var syncing: Task<Void, Never>?
+    /// How long a picture that wasn't there waits before it's asked for again, at most.
+    static var pictureRetryLongest: Duration = .seconds(30)
+    /// Pictures that can't go on the shared board, and why: the elements that show them, for the
+    /// open board to take off, and a line to say.
+    @ObservationIgnored var onPicturesRefused: (([String], String) -> Void)?
+
+    /// The image elements on the board now, deleted ones too.
+    private var boardImages: [[String: Any]] {
+        boardEntries.values.compactMap { CollabBoard.Pictures.fileID(of: $0.element) == nil ? nil : $0.element }
+    }
+
+    /// Pictures this device already has for the board (kept beside the note, or the owner's board
+    /// as it was before it was shared). `send`: the server doesn't have them yet.
+    func seedPictures(_ files: [String: Any], send: Bool = false) {
+        let inUse = CollabBoard.Pictures.inUse(boardImages)
+        for (id, f) in files {
+            guard pictures[id] == nil, let picture = CollabBoard.Pictures.valid(f, id: id) else { continue }
+            pictures[id] = picture
+            if send, inUse.contains(id), !picturesToSend.contains(id) { picturesToSend.append(id) }
+        }
+    }
+
+    /// Pictures the open board sends with its next change (pasted, dropped, from the Image button
+    /// or the library): taken when that change shows them.
+    func offerPictures(_ files: [String: Any]) {
+        guard isBoard, canWrite else { return }
+        for (id, f) in files { if let picture = CollabBoard.Pictures.valid(f, id: id) { offered[id] = picture } }
+    }
+
+    /// `elements` with the pictures that can't go on the board left out, and those handed back to
+    /// the page. A picture already on the board goes as any element does (moved, resized, copied).
+    /// One that starts showing here (new, or deleted and brought back) needs its bytes, here
+    /// already or offered with it, and room: the board's pictures in use stay within 4 MB, as on a
+    /// board of your own. One brought back whose bytes this device never had went up with it first.
+    private func admitPictures(_ elements: [[String: Any]]) -> [[String: Any]] {
+        let showing = elements.filter { e in
+            guard let id = CollabBoard.id(of: e), CollabBoard.Pictures.fileID(of: e) != nil, (e["isDeleted"] as? Bool) != true else { return false }
+            return boardEntries[id].map { ($0.element["isDeleted"] as? Bool) == true } ?? true
+        }
+        guard !showing.isEmpty else { return elements }
+        var inUse = CollabBoard.Pictures.inUse(boardImages)
+        var used = inUse.reduce(0) { $0 + (pictures[$1].map(CollabBoard.Pictures.size) ?? 0) }
+        var refused: Set<String> = [], why: String?
+        for e in showing {
+            let file = CollabBoard.Pictures.fileID(of: e)!, id = CollabBoard.id(of: e)!
+            if inUse.contains(file) { continue }
+            guard let picture = pictures[file] ?? offered[file] else {
+                if boardEntries[id] != nil { continue }
+                refused.insert(id)
+                why = why ?? CollabBoard.Pictures.notThere
+                continue
+            }
+            let size = CollabBoard.Pictures.size(picture)
+            guard used + size <= CollabBoard.Pictures.maxInUse, CollabBoard.Pictures.sealedSize(picture) <= CollabBoard.Pictures.maxSealed else {
+                refused.insert(id)
+                why = CollabBoard.Pictures.tooBig
+                continue
+            }
+            used += size
+            inUse.insert(file)
+            if pictures[file] == nil { pictures[file] = picture }
+            if !stored.contains(file), !picturesToSend.contains(file) { picturesToSend.append(file) }
+        }
+        if !refused.isEmpty {
+            CollabScript.trace("\(refused.count) picture\(refused.count == 1 ? "" : "s") kept off the shared board: \(why ?? "")")
+            onPicturesRefused?(refused.sorted(), why ?? CollabBoard.Pictures.notThere)
+        }
+        return elements.filter { e in CollabBoard.id(of: e).map { !refused.contains($0) } ?? true }
+    }
+
+    /// The new pictures, sealed and sent, oldest first. One the server has no room for comes off
+    /// the board again, as a change of yours, and the board says why.
+    private func sendPictures() async -> SendOutcome {
+        while let id = picturesToSend.first {
+            guard let picture = pictures[id], let ct = try? CollabBoard.Pictures.seal(picture, nk: nk, note: noteID, epoch: epoch) else {
+                picturesToSend.removeFirst()
+                continue
+            }
+            do {
+                try await transport.putFile(note: noteID, id: id, epoch: epoch, ct: ct)
+                guard !isClosed else { return .stop }
+                stored.insert(id)
+                picturesToSend.removeAll { $0 == id }
+                progressed()
+            } catch let failure as Collab.Failure {
+                switch failure {
+                case .staleEpoch:
+                    onKeyChanged?()
+                    return .stop
+                case .readOnly:
+                    setRole("viewer")
+                    record.pending = []
+                    picturesToSend = []
+                    return .stop
+                case .notMember:
+                    onRemoved?()
+                    return .stop
+                case .picturesFull:
+                    picturesToSend.removeAll { $0 == id }
+                    withdraw(picture: id)
+                default:
+                    log.error("sending a picture failed: \(String(describing: failure), privacy: .public)")
+                    return .later
+                }
+            } catch {
+                return .later
+            }
+        }
+        return .done
+    }
+
+    /// A picture the server wouldn't take: the elements showing it go off the board for everyone
+    /// (deleted, newer than any copy), and the board says why.
+    private func withdraw(picture id: String) {
+        let at = Int(now().timeIntervalSince1970 * 1000)
+        let gone = boardEntries.values.compactMap { entry -> [String: Any]? in
+            guard CollabBoard.Pictures.fileID(of: entry.element) == id, (entry.element["isDeleted"] as? Bool) != true else { return nil }
+            var e = entry.element
+            e["isDeleted"] = true
+            e["version"] = entry.stamp.version + 1
+            e["versionNonce"] = Int.random(in: 1..<Int(Int32.max))
+            e["updated"] = at
+            return e
+        }
+        pictures[id] = nil
+        if !gone.isEmpty { boardLocal(gone) }
+        onRemoteBoard?(boardScene())
+        onPicturesRefused?([], CollabBoard.Pictures.tooBig)
+    }
+
+    /// The pictures the board shows that this device doesn't have, from the server. One that isn't
+    /// there yet (still on its way up, or sealed under a key this device doesn't hold until it's
+    /// sealed again) is asked for again a little later, then less often.
+    func fetchPictures(again: Bool = false) {
+        guard isBoard, !isClosed else { return }
+        var wanted = CollabBoard.Pictures.inUse(boardImages).subtracting(pictures.keys).subtracting(fetching)
+        if !again { wanted.subtract(waitingFor) }
+        guard !wanted.isEmpty else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            await loadPictures(wanted)
+            guard !isClosed else { return }
+            if waitingFor.isEmpty { pictureDelay = .seconds(1) } else { retryPicturesLater() }
+        }
+    }
+
+    /// Fetches and opens `ids`; true when some weren't there.
+    @discardableResult
+    private func loadPictures(_ ids: Set<String>) async -> Bool {
+        fetching.formUnion(ids)
+        defer { fetching.subtract(ids) }
+        var got = 0, missing = false
+        for id in ids.sorted() {
+            guard !isClosed else { return false }
+            do {
+                guard let row = try await transport.file(note: noteID, id: id) else { missing = true; waitingFor.insert(id); continue }
+                pictures[id] = try CollabBoard.Pictures.open(row, keys: keys, note: noteID)
+                stored.insert(id)
+                waitingFor.remove(id)
+                got += 1
+            } catch {
+                missing = true
+                waitingFor.insert(id)
+            }
+        }
+        CollabScript.trace("\(got) of \(ids.count) picture\(ids.count == 1 ? "" : "s") fetched for the board")
+        if got > 0, !isClosed {
+            onRemoteBoard?(boardScene())
+            settleBoard()
+        }
+        return missing
+    }
+
+    private func retryPicturesLater() {
+        guard pictureRetry == nil else { return }
+        let delay = pictureDelay
+        pictureDelay = min(pictureDelay * 2, Self.pictureRetryLongest)
+        pictureRetry = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard let self, !Task.isCancelled else { return }
+            pictureRetry = nil
+            fetchPictures(again: true)
+        }
+    }
+
+    /// Every picture the board shows, fetched now if it isn't here (before the board stops being
+    /// shared: its pictures stay with the owner's board).
+    func picturesReady() async {
+        let wanted = CollabBoard.Pictures.inUse(boardImages).subtracting(pictures.keys)
+        if !wanted.isEmpty { await loadPictures(wanted) }
+    }
+
+    /// What the server has of the board's pictures, against this device's: a picture in use that's
+    /// here and not there goes up (put on the board just before the app quit, say); one stored under
+    /// an older key is sealed again under the current one, from the copy here or the stored one,
+    /// so whoever joins after a removal can open it and the removed person's key opens none.
+    /// Editors only. Once at a time; asked again while running, it's the same run.
+    @discardableResult
+    func syncPictures() -> Task<Void, Never> {
+        if let syncing { return syncing }
+        let task = Task { [weak self] in
+            guard let self else { return }
+            defer { syncing = nil }
+            await syncPicturesNow()
+        }
+        syncing = task
+        return task
+    }
+
+    private func syncPicturesNow() async {
+        guard isBoard, !isClosed, canWrite, !boardImages.isEmpty || !pictures.isEmpty else { return }
+        guard let rows = try? await transport.files(of: noteID), !isClosed else { return }
+        let there = Dictionary(rows.map { ($0.file_id, $0.epoch) }, uniquingKeysWith: max)
+        stored.formUnion(there.keys)
+        for id in CollabBoard.Pictures.inUse(boardImages).sorted() where there[id] == nil && pictures[id] != nil && !picturesToSend.contains(id) {
+            picturesToSend.append(id)
+        }
+        let current = epoch
+        for row in rows.sorted(by: { $0.file_id < $1.file_id }) where row.epoch < current {
+            guard !isClosed, epoch == current else { return }
+            do {
+                let ct: String
+                if let picture = pictures[row.file_id] {
+                    ct = try CollabBoard.Pictures.seal(picture, nk: nk, note: noteID, epoch: current)
+                } else {
+                    guard keys[row.epoch] != nil, let old = try await transport.file(note: noteID, id: row.file_id) else { continue }
+                    ct = try CollabBoard.Pictures.reseal(old, keys: keys, to: current, note: noteID)
+                }
+                try await transport.putFile(note: noteID, id: row.file_id, epoch: current, ct: ct)
+            } catch {
+                log.error("sealing a picture again failed: \(String(describing: error), privacy: .public)")
+                if (error as? Collab.Failure) == .staleEpoch || (error as? Collab.Failure) == .readOnly { return }
+            }
+        }
+        CollabScript.trace("the board's pictures checked with the server: \(rows.count) stored, \(rows.filter { $0.epoch < current }.count) sealed again")
+        flush()
+    }
+
+    /// The new pictures sent now, before anything else (the board was just shared with them: the
+    /// first snapshot that shows them goes after).
+    func sendPicturesNow() async {
+        guard !isClosed, !picturesToSend.isEmpty, !sending else { return }
+        sending = true
+        let outcome = await sendPictures()
+        sending = false
+        if outcome == .later { retry() }
+    }
+
     // MARK: Version history
 
     /// The clock changes are stamped with; tests set it.
@@ -981,11 +1264,12 @@ final class CollabSession {
     /// Sends the changes waiting to go up, oldest first, one at a time. Offline (or any failure
     /// that may pass), they stay, saved, and go when the server answers again.
     func flush() {
-        guard !isClosed, !sending, !record.outbox.isEmpty else { setSent(record.outbox.isEmpty); return }
+        guard !isClosed, !sending, !record.outbox.isEmpty || !picturesToSend.isEmpty else { setSent(record.outbox.isEmpty && picturesToSend.isEmpty); return }
         guard record.canEdit else {
             // A viewer's edits are refused by the server: they stay on this device only until
             // the document is opened again.
             record.pending = []
+            picturesToSend = []
             setSent(true)
             return
         }
@@ -995,12 +1279,12 @@ final class CollabSession {
             let outcome = await sendPending()
             sending = false
             guard !isClosed else { return }
-            setSent(record.pending.isEmpty)
+            setSent(record.pending.isEmpty && picturesToSend.isEmpty)
             saveSoon()
             switch outcome {
             case .done:
                 retryDelay = .seconds(2)
-                if !record.pending.isEmpty { flush() } else { scheduleSnapshot() }
+                if !record.pending.isEmpty || !picturesToSend.isEmpty { flush() } else { scheduleSnapshot() }
             case .later:
                 retry()
             case .stop:
@@ -1009,12 +1293,15 @@ final class CollabSession {
         }
     }
 
-    /// Changes made here that the server doesn't have yet.
-    var unsent: Int { isClosed ? 0 : record.pending.count }
+    /// Changes (and pictures) made here that the server doesn't have yet.
+    var unsent: Int { isClosed ? 0 : record.pending.count + picturesToSend.count }
 
     private enum SendOutcome { case done, later, stop }
 
     private func sendPending() async -> SendOutcome {
+        // A board's new pictures first: a change that shows one never reaches anyone before its bytes.
+        let pictures = await sendPictures()
+        guard pictures == .done else { return pictures }
         while let change = record.pending.first {
             let ct: String
             do {

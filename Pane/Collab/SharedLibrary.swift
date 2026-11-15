@@ -141,6 +141,9 @@ final class SharedLibrary {
         // The notes row becomes the pointer (placeholder text) on the next push.
         note.touch()
         context.saveOrReport()
+        // A board's pictures go up first: whoever opens it from the snapshot below fetches them.
+        sessions[note.id] = session
+        await session.sendPicturesNow()
         open(session, note: note)
         await session.writeSnapshot()
         return session
@@ -351,6 +354,9 @@ final class SharedLibrary {
         if session.isBoard {
             // A whiteboard: its drawing is kept beside the note as a board's is (the list's
             // picture, search, note cards), and a note for it you joined shows it as a board.
+            // Its pictures kept there are this device's: not fetched again, and there offline.
+            let kept = (NotePageDataStore.shared.doc(id)["values"] as? [String: Any])?["scene"] as? [String: Any]
+            session.seedPictures((kept?["files"] as? [String: Any]) ?? [:])
             session.onBoardSettled = { scene in NotePageDataStore.shared.takeShared(id, scene: scene) }
             if !CanvasNote.isCanvas(NotePageStore.shared[id]?.html) {
                 NotePageStore.shared.setHere(id, .init(html: CanvasNote.project, by: CanvasNote.writer, at: .now))
@@ -498,6 +504,8 @@ final class SharedLibrary {
         guard let session = await ensureDocument(note) else { throw Problem.notUpToDate }
         await session.catchUp().value
         guard session.isUpToDate else { throw Problem.notUpToDate }
+        // A board's pictures stay with it: any not fetched here yet are, before they go with the shared note.
+        if session.isBoard { await session.picturesReady() }
         let text = session.text
         let scene = session.isBoard ? session.boardScene() : nil
         let upto = session.lastSeen
@@ -515,10 +523,18 @@ final class SharedLibrary {
         if let scene { Self.keepBoard(scene, for: note.id) }
     }
 
-    /// A board that is no longer shared keeps the drawing as it last was, synced from here.
+    /// A board that is no longer shared keeps the drawing as it last was, synced from here, and the
+    /// pictures it shows: the ones given, else those kept beside it.
     static func keepBoard(_ scene: [String: Any], for id: UUID) {
         let store = NotePageDataStore.shared
-        store.set(id, NotePageDataStore.with(scene, in: store.doc(id)))
+        let doc = store.doc(id)
+        var scene = scene
+        let kept = ((doc["values"] as? [String: Any])?["scene"] as? [String: Any])?["files"] as? [String: Any] ?? [:]
+        var files = kept.merging((scene["files"] as? [String: Any]) ?? [:]) { _, given in given }
+        let used = CollabBoard.Pictures.inUse((scene["elements"] as? [[String: Any]]) ?? [])
+        files = files.filter { used.contains($0.key) }
+        scene["files"] = files
+        store.set(id, NotePageDataStore.with(scene, in: doc))
     }
 
     /// Someone else's shared note you deleted for good: its document goes, and you leave it (as

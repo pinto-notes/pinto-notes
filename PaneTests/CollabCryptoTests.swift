@@ -13,6 +13,7 @@ import Testing
         var sender_d: String; var sender_public: String; var recipient_d: String; var recipient_public: String
         var note_key: String; var wrap: String; var update: String; var update_plain: String; var safety_code: String
         var link_id: String; var link_secret: String; var link_sealed: String
+        var picture_id: String; var picture_png: String; var picture: String
     }
 
     let v: Vectors
@@ -35,6 +36,21 @@ import Testing
         #expect(String(decoding: plain, as: UTF8.self) == v.update_plain)
         #expect(CollabCrypto.safetyCode(b64(v.sender_public), b64(v.recipient_public)) == v.safety_code)
         #expect(CollabCrypto.safetyCode(b64(v.recipient_public), b64(v.sender_public)) == v.safety_code)
+    }
+
+    /// A picture on a shared whiteboard sealed by the server's code opens here, as the board keeps
+    /// it; only under its own id, kept as it is (a board's file ids mix cases), and only as a picture.
+    @Test func aPictureFromTheServerCodeOpens() throws {
+        let nk = SymmetricKey(data: b64(v.note_key)), note = UUID(uuidString: v.note)!
+        let row = Collab.File(file_id: v.picture_id, epoch: v.epoch, ct: v.picture)
+        let picture = try CollabBoard.Pictures.open(row, keys: [v.epoch: nk], note: note)
+        #expect(picture["dataURL"] as? String == "data:image/png;base64," + v.picture_png && picture["mimeType"] as? String == "image/png")
+        #expect(throws: (any Error).self) { try CollabCrypto.open(.file, v.picture, nk: nk, note: note, extra: v.picture_id.lowercased()) }
+        #expect(throws: (any Error).self) { try CollabCrypto.open(.update, v.picture, nk: nk, note: note, extra: v.picture_id) }
+        #expect(throws: (any Error).self) { try CollabBoard.Pictures.open(row, keys: [v.epoch + 1: nk], note: note) }
+        // Sealed here, it opens there the same way: the round trip through this side's own seal.
+        let again = try CollabBoard.Pictures.seal(picture, nk: nk, note: note, epoch: v.epoch)
+        #expect(try CollabBoard.Pictures.open(Collab.File(file_id: v.picture_id, epoch: v.epoch, ct: again), keys: [v.epoch: nk], note: note)["dataURL"] as? String == picture["dataURL"] as? String)
     }
 
     @Test func aWrapFromSomeoneElseOrMovedIsRefused() throws {

@@ -237,6 +237,29 @@ final class SupabaseCollabTransport: CollabTransport {
         }
     }
 
+    // MARK: Pictures on a shared whiteboard
+
+    func putFile(note: UUID, id: String, epoch: Int, ct: String) async throws {
+        struct Params: Encodable { let p_note: String; let p_file: String; let p_epoch: Int; let p_ct: String }
+        try await call("put file") {
+            try await client.rpc("collab_put_file", params: Params(p_note: Self.id(note), p_file: id, p_epoch: epoch, p_ct: ct)).execute()
+        }
+    }
+
+    func file(note: UUID, id: String) async throws -> Collab.File? {
+        try await call("file") {
+            let rows: [Collab.File] = try await client.from("note_files").select("file_id,epoch,ct")
+                .eq("note_id", value: Self.id(note)).eq("file_id", value: id).limit(1).execute().value
+            return rows.first
+        }
+    }
+
+    func files(of note: UUID) async throws -> [Collab.FileRow] {
+        try await call("files") {
+            try await client.from("note_files").select("file_id,epoch").eq("note_id", value: Self.id(note)).execute().value
+        }
+    }
+
     // MARK: Live
 
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel {

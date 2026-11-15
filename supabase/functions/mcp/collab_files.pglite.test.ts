@@ -7,7 +7,7 @@
 import { assert, assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
 import { asUser, newUser, schemaDB } from "./pglite.ts";
-import { aesKey, hex, keyIdOf, newDataKey, seal, toBase64 } from "../_shared/e2ee.ts";
+import { aesKey, fromBase64, hex, keyIdOf, newDataKey, seal, toBase64 } from "../_shared/e2ee.ts";
 import {
   bytes, identityContext, newIdentity, noteKeyContext, open3, openNoteKey, pictureBytes, pictureOf, seal3, sealNoteKey,
 } from "../_shared/collab.ts";
@@ -169,4 +169,14 @@ Deno.test("a board's pictures have a limit, and go with the shared note", async 
   await pg.query(`delete from public.shared_notes where id = $1`, [note]);
   assertEquals((await pg.query(`select 1 from public.note_files`)).rows.length, 0);
   assertEquals(nk.length, 32);
+});
+
+Deno.test("the picture in the shared vectors (_shared/collab-vectors.json, opened by the app's tests too) opens only under its own id", async () => {
+  const v = JSON.parse(await Deno.readTextFile(new URL("../_shared/collab-vectors.json", import.meta.url)));
+  const nk = fromBase64(v.note_key);
+  const picture = pictureOf(await open3("f", v.picture, nk, v.note, v.picture_id));
+  assertEquals(picture.mimeType, "image/png");
+  assertEquals(toBase64(picture.data), v.picture_png);
+  await refused(open3("f", v.picture, nk, v.note, v.picture_id.toLowerCase()), "doesn't open");
+  await refused(open3("u", v.picture, nk, v.note, v.picture_id), "not a note box");
 });

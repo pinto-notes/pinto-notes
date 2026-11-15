@@ -330,45 +330,278 @@ import Testing
 
     // MARK: Pictures
 
-    /// A picture's bytes are sealed under its owner's key, so a board with pictures isn't shared
-    /// yet (said plainly), and a shared board takes none. Other apps still can't be shared.
-    @Test func picturesAreNotSharedYet() async throws {
-        #expect(SharedNoteLimits.notYet(text: "Launch plan", hasApp: true, board: true, alreadyShared: false) == nil)
-        #expect(SharedNoteLimits.notYet(text: "Launch plan", hasApp: true, board: true, boardHasPictures: true, alreadyShared: false) == SharedNoteLimits.boardPicturesLine)
-        #expect(SharedNoteLimits.notYet(text: "Habits", hasApp: true, board: false, alreadyShared: false) == SharedNoteLimits.appLine)
-        for line in [SharedNoteLimits.boardPicturesLine, SharedNoteLimits.boardPictures] { #expect(!line.contains("\u{2014}") && !line.lowercased().contains("end-to-end")) }
+    /// A picture as the board keeps it: `bytes` of data (a 1×1 PNG when 0).
+    static func picture(_ id: String, bytes: Int = 0) -> [String: Any] {
+        let b64 = bytes == 0 ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+            : Data((0..<bytes).map { UInt8(truncatingIfNeeded: $0 &* 31) }).base64EncodedString()
+        return ["id": id, "dataURL": "data:image/png;base64," + b64, "mimeType": "image/png", "created": 1]
+    }
 
-        // The Share controls ask the board itself.
-        let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let plain = CanvasNote.make(in: .all, context: container.mainContext, scene: Self.scene([Self.shape("a")]))
-        let alone = ShareState(people: [.init(id: UUID(), name: "Emil Wagman", isMe: true, role: "owner")])
-        #expect(ShareController(note: plain, backend: SampleShare(alone)).notYet == nil)
-        var picture = Self.shape("p", type: "image")
-        picture["fileId"] = "f1"
-        let photo = CanvasNote.make(in: .all, context: container.mainContext, scene: Self.scene([Self.shape("a"), picture]))
-        let share = ShareController(note: photo, backend: SampleShare(alone))
-        #expect(share.notYet == SharedNoteLimits.boardPicturesLine)
-        // A deleted picture isn't one.
-        picture["isDeleted"] = true
-        #expect(!CollabBoard.hasPictures(Self.scene([picture])))
+    /// An image element showing the picture `file`.
+    static func image(_ id: String, file: String, index: String = "a1", deleted: Bool = false) -> [String: Any] {
+        var e = shape(id, x: 300, index: index, type: "image")
+        e["fileId"] = file
+        e["status"] = "saved"
+        e["scale"] = [1, 1]
+        if deleted { e["isDeleted"] = true }
+        return e
+    }
 
-        // A shared board takes none, from the page or from sharing.
-        let (emil, others, note) = try await sharedBoard([Self.shape("a"), picture], people: ["Sara"])
-        let e = try session(emil, note), s = try session(others[0], note)
-        #expect(Self.said(e) == ["a:1:1"])
-        var dropped = Self.shape("q", index: "a1", type: "image")
-        dropped["fileId"] = "f2"
-        e.boardLocal([dropped])
-        await server.settle()
-        #expect(Self.said(e) == ["a:1:1"] && Self.said(s) == ["a:1:1"])
+    /// Someone puts a picture on the board, as the open board hands it over: its element and its bytes.
+    static func put(_ s: CollabSession, _ element: [String: Any], _ picture: [String: Any]) {
+        s.offerPictures([picture["id"] as! String: picture])
+        s.boardLocal([element])
+    }
 
-        // The app refuses a picture on a shared board, and says why.
+    static func has(_ s: CollabSession, _ file: String, _ picture: [String: Any]) -> Bool {
+        s.pictures[file]?["dataURL"] as? String == picture["dataURL"] as? String
+    }
+
+    /// One person pastes a picture: everyone on the board gets the element and the picture, the
+    /// bytes go up sealed under the note key before the change that shows them, and neither the
+    /// stored picture nor any change reads as it.
+    @Test func aPictureOnePersonPutsOnTheBoardReachesEveryone() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")])
+        let e = try session(emil, note), s = try session(others[0], note), o = try session(others[1], note)
+        let photo = Self.picture("Photo-1aB")
         let canvas = CanvasController()
         BoardCollab.wire(e, canvas)
-        let before = canvas.sent.count
-        canvas.send(.image(CanvasImage(dataURL: "data:image/png;base64,AA==", mimeType: "image/png", width: 1, height: 1), at: nil))
-        #expect(canvas.sent.count == before && canvas.notice == SharedNoteLimits.boardPictures)
+        let mark = server.calls.count
+        // Through the open board, as a paste reaches the app: the element and the picture with it.
+        canvas.receive(["board": ["elements": [Self.image("pic", file: "Photo-1aB")], "settings": [String: Any](), "files": ["Photo-1aB": photo]]])
+        await server.eventually { Self.has(s, "Photo-1aB", photo) && Self.has(o, "Photo-1aB", photo) }
+        #expect(Self.has(s, "Photo-1aB", photo) && Self.has(o, "Photo-1aB", photo))
+        #expect(Self.said(s) == ["a:1:1", "pic:1:1"] && Self.said(o) == Self.said(e))
+        // The bytes first, then the change that shows them.
+        #expect(server.calls.dropFirst(mark).first { $0 == "put_file" || $0 == "update" } == "put_file")
+        let stored = try #require(server.files[note.id]?["Photo-1aB"])
+        #expect(stored.epoch == 1 && stored.ct.hasPrefix("amb3f.1.") && stored.author == emil.id)
+        let b64 = String((photo["dataURL"] as! String).split(separator: ",")[1])
+        #expect(!stored.ct.contains(b64))
+        #expect((server.updates[note.id] ?? []).allSatisfy { !$0.ct.contains(b64) && !$0.ct.contains("Photo-1aB") })
+        // The board that pasted it isn't handed the picture back; the others' boards get it.
+        let sara = CanvasController()
+        BoardCollab.wire(s, sara)
+        guard case .remoteScene(let json)? = sara.sent.last(where: { if case .remoteScene = $0 { true } else { false } }),
+              let scene = try JSONSerialization.jsonObject(with: json) as? [String: Any] else { Issue.record("no scene for Sara's board"); return }
+        #expect(((scene["files"] as? [String: Any])?["Photo-1aB"] as? [String: Any])?["dataURL"] as? String == photo["dataURL"] as? String)
+        #expect(canvas.pageFiles.contains("Photo-1aB"))
+        canvas.remote(scene: e.boardScene())
+        guard case .remoteScene(let mine)? = canvas.sent.last, let back = try JSONSerialization.jsonObject(with: mine) as? [String: Any] else { Issue.record("no scene"); return }
+        #expect(((back["files"] as? [String: Any]) ?? [:]).isEmpty, "the page has it already")
+        // Kept beside the note on each device, for the list and for opening it offline.
+        await server.eventually {
+            let kept = (NotePageDataStore.shared.doc(others[0].context.pointer(forShared: note.id)?.id ?? UUID())["values"] as? [String: Any])?["scene"] as? [String: Any]
+            return (kept?["files"] as? [String: Any])?["Photo-1aB"] != nil
+        }
+        let pointer = try #require(others[0].context.pointer(forShared: note.id))
+        let kept = (NotePageDataStore.shared.doc(pointer.id)["values"] as? [String: Any])?["scene"] as? [String: Any]
+        #expect(((kept?["files"] as? [String: Any])?["Photo-1aB"] as? [String: Any])?["dataURL"] as? String == photo["dataURL"] as? String)
         BoardCollab.unwire(e, canvas)
+        BoardCollab.unwire(s, sara)
+    }
+
+    /// A picture whose bytes aren't there yet when its element arrives: the board shows the element
+    /// and asks for the picture again a little later, until it's there.
+    @Test func aPictureNotThereYetIsFetchedWhenItIs() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        server.holdFiles = true
+        Self.put(e, Self.image("pic", file: "late"), Self.picture("late"))
+        await server.eventually { Self.said(s) == ["a:1:1", "pic:1:1"] }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(Self.said(s) == ["a:1:1", "pic:1:1"] && s.pictures["late"] == nil)
+        let asked = server.calls.filter { $0 == "file" }.count
+        server.holdFiles = false
+        for _ in 0..<150 where s.pictures["late"] == nil { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(Self.has(s, "late", Self.picture("late")))
+        #expect(server.calls.filter { $0 == "file" }.count > asked, "asked again, later")
+    }
+
+    /// A viewer sees the pictures on the board but can't put one there: not through the session,
+    /// not through the server, and the open board says so.
+    @Test func aViewerSeesPicturesButCantAddThem() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], access: .view, people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        Self.put(e, Self.image("pic", file: "f1"), Self.picture("f1"))
+        await server.eventually { Self.has(s, "f1", Self.picture("f1")) }
+        #expect(Self.has(s, "f1", Self.picture("f1")))
+
+        Self.put(s, Self.image("hers", file: "f2", index: "a2"), Self.picture("f2"))
+        await server.settle()
+        #expect(Self.said(s) == ["a:1:1", "pic:1:1"] && server.files[note.id]?["f2"] == nil)
+        let sealed = try CollabBoard.Pictures.seal(Self.picture("f2"), nk: SymmetricKey(size: .bits256), note: note.id, epoch: 1)
+        await #expect(throws: Collab.Failure.readOnly) { try await server.transport(for: others[0].id).putFile(note: note.id, id: "f2", epoch: 1, ct: sealed) }
+
+        let canvas = CanvasController()
+        BoardCollab.wire(s, canvas)
+        canvas.send(.image(CanvasImage(dataURL: Self.picture("f3")["dataURL"] as! String, mimeType: "image/png", width: 1, height: 1), at: nil))
+        #expect(!canvas.sent.contains { if case .image = $0 { true } else { false } })
+        #expect(canvas.notice == CollabBoard.Pictures.viewOnly)
+        #expect(!CollabBoard.Pictures.viewOnly.contains("\u{2014}"))
+        BoardCollab.unwire(s, canvas)
+    }
+
+    /// A board with pictures can be shared: its pictures go up with it, and whoever joins has them.
+    /// A deleted picture doesn't count, and doesn't go.
+    @Test func aBoardWithPicturesIsSharedWithThem() async throws {
+        var scene = Self.scene([Self.shape("a"), Self.image("pic", file: "f1"), Self.image("old", file: "gone", index: "a2", deleted: true)])
+        scene["files"] = ["f1": Self.picture("f1"), "gone": Self.picture("gone")]
+        // The Share controls don't hold it back.
+        let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let photo = CanvasNote.make(in: .all, context: container.mainContext, scene: scene)
+        let alone = ShareState(people: [.init(id: UUID(), name: "Emil Wagman", isMe: true, role: "owner")])
+        #expect(ShareController(note: photo, backend: SampleShare(alone)).notYet == nil)
+        #expect(SharedNoteLimits.notYet(text: "Habits", hasApp: true, board: false, alreadyShared: false) == SharedNoteLimits.appLine)
+
+        let (emil, others, note) = try await people.share(scene, people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        await server.eventually { Self.has(s, "f1", Self.picture("f1")) }
+        #expect(Self.has(s, "f1", Self.picture("f1")))
+        #expect(Set(server.files[note.id]?.keys.map { $0 } ?? []) == ["f1"])
+        #expect(s.pictures["gone"] == nil)
+        // Emil brings the deleted one back (Undo): its bytes go up from his copy, and Sara has it.
+        e.boardLocal([Self.image("old", file: "gone", index: "a2").merging(["version": 2, "versionNonce": 5]) { _, b in b }])
+        await server.eventually { Self.has(s, "gone", Self.picture("gone")) }
+        #expect(Self.has(s, "gone", Self.picture("gone")) && Self.said(s) == ["a:1:1", "pic:1:1", "old:2:5"])
+    }
+
+    /// Someone is removed: the board's pictures are sealed again under the new key, so whoever
+    /// joins after opens them, the server gives the removed person none, and their key opens none.
+    @Test func removingSomeoneSealsThePicturesAgainForWhoeverStays() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")])
+        let e = try session(emil, note), s = try session(others[0], note), o = try session(others[1], note)
+        Self.put(s, Self.image("pic", file: "f1"), Self.picture("f1"))
+        await server.eventually { Self.has(e, "f1", Self.picture("f1")) && Self.has(o, "f1", Self.picture("f1")) }
+        let olaRow = try #require(try await server.transport(for: others[1].id).memberships().first { $0.note_id == note.id })
+        let olaKey = try await others[1].store.openKey(olaRow).nk
+
+        try await emil.store.remove(others[1].id, from: note)
+        await server.eventually { e.epoch == 2 && server.files[note.id]?["f1"]?.epoch == 2 }
+        let stored = try #require(server.files[note.id]?["f1"])
+        #expect(stored.epoch == 2 && stored.ct.hasPrefix("amb3f.2.") && stored.author == others[0].id, "sealed again, still Sara's")
+        #expect(throws: (any Error).self) { try CollabCrypto.open(.file, stored.ct, nk: olaKey, note: note.id, extra: "f1") }
+        #expect(try await server.transport(for: others[1].id).file(note: note.id, id: "f1") == nil)
+        #expect(try await server.transport(for: others[1].id).files(of: note.id).isEmpty)
+
+        // Lin joins with the new link: only the new key, and the picture opens.
+        let url = try #require(emil.store.linkURL(note))
+        let lin = try people.device(server.account("Lin"), name: "Lin")
+        #expect(await lin.store.join(url))
+        let l = try session(lin, note)
+        await server.eventually { Self.has(l, "f1", Self.picture("f1")) }
+        #expect(Self.has(l, "f1", Self.picture("f1")))
+        // Sara stays, and still has it; what she adds now goes under the new key.
+        await server.eventually { s.epoch == 2 }
+        #expect(Self.has(s, "f1", Self.picture("f1")))
+        Self.put(s, Self.image("pic2", file: "f2", index: "a2"), Self.picture("f2", bytes: 64))
+        await server.eventually { Self.has(l, "f2", Self.picture("f2", bytes: 64)) }
+        #expect(server.files[note.id]?["f2"]?.epoch == 2)
+    }
+
+    /// The person who put a picture there is removed, and the owner's device never fetched it: it's
+    /// sealed again from the stored copy, so it stays on the board for whoever stays and joins.
+    @Test func aRemovedPersonsPictureStaysForEveryoneElse() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        server.holdFiles = true
+        let mark = server.calls.count
+        Self.put(s, Self.image("pic", file: "f1"), Self.picture("f1"))
+        await server.eventually { Self.said(e).count == 2 && server.calls.dropFirst(mark).contains("file") }
+        #expect(e.pictures["f1"] == nil)
+        server.holdFiles = false
+        try await emil.store.remove(others[0].id, from: note)
+        await server.eventually { server.files[note.id]?["f1"]?.epoch == 2 }
+        let stored = try #require(server.files[note.id]?["f1"])
+        #expect(stored.epoch == 2 && stored.author == others[0].id)
+        let row = try #require(try await server.transport(for: emil.id).memberships().first { $0.note_id == note.id })
+        #expect(row.epoch == 2)
+        let nk = try await emil.store.openKey(row).nk
+        #expect(try CollabBoard.Pictures.open(Collab.File(file_id: "f1", epoch: 2, ct: stored.ct), keys: [2: nk], note: note.id)["dataURL"] as? String
+                == Self.picture("f1")["dataURL"] as? String)
+    }
+
+    /// A picture too big for the board's room (4 MB of pictures in use, as on a board of your own)
+    /// stays off it, and the board says why; one that fits goes on.
+    @Test func aPictureTooBigForTheBoardStaysOffWithAReason() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        var refused: [([String], String)] = []
+        e.onPicturesRefused = { refused.append(($0, $1)) }
+        let big = Self.picture("big", bytes: 2_400_000), bigger = Self.picture("bigger", bytes: 2_400_000)
+        Self.put(e, Self.image("p1", file: "big"), big)
+        await server.eventually { Self.has(s, "big", big) }
+        Self.put(e, Self.image("p2", file: "bigger", index: "a2"), bigger)
+        await server.settle()
+        #expect(refused.count == 1 && refused.first?.0 == ["p2"] && refused.first?.1 == CollabBoard.Pictures.tooBig)
+        #expect(Self.said(e) == ["a:1:1", "p1:1:1"] && server.files[note.id]?["bigger"] == nil)
+        #expect(!CollabBoard.Pictures.tooBig.contains("\u{2014}"))
+        // A picture with no bytes at all doesn't go on either.
+        e.boardLocal([Self.image("p3", file: "nothing", index: "a3")])
+        #expect(refused.last?.0 == ["p3"] && refused.last?.1 == CollabBoard.Pictures.notThere)
+        // Once the first is deleted, there's room.
+        e.boardLocal([Self.image("p1", file: "big", deleted: true).merging(["version": 2, "versionNonce": 9]) { _, b in b }])
+        Self.put(e, Self.image("p2", file: "bigger", index: "a2"), bigger)
+        await server.eventually { Self.has(s, "bigger", bigger) }
+        #expect(Self.said(s) == ["a:1:1", "p1:2:9:deleted", "p2:1:1"])
+    }
+
+    /// The server has no room for the picture (the board's 32 MB): it comes off the board again for
+    /// everyone, and the board says why.
+    @Test func aPictureTheServerHasNoRoomForComesOff() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        var refused: [String] = []
+        e.onPicturesRefused = { refused.append($1) }
+        server.filesRoom = 1000
+        Self.put(e, Self.image("pic", file: "f1"), Self.picture("f1", bytes: 2000))
+        await server.eventually { e.unsent == 0 && Self.said(s).count == 2 }
+        #expect(refused == [CollabBoard.Pictures.tooBig])
+        #expect(server.files[note.id]?["f1"] == nil)
+        #expect(Self.said(e).last?.hasSuffix(":deleted") == true && Self.said(s) == Self.said(e))
+        #expect(e.pictures["f1"] == nil)
+    }
+
+    /// A picture that's on the board but never reached the server (the app quit first): the next
+    /// look at the server sends it, from the copy kept beside the note.
+    @Test func aPictureThatNeverWentUpGoesAtTheNextCheck() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        Self.put(e, Self.image("pic", file: "f1"), Self.picture("f1"))
+        await server.eventually { server.files[note.id]?["f1"] != nil && Self.said(s).count == 2 }
+        server.forgetFile(note: note.id, id: "f1")
+        await e.syncPictures().value
+        await server.eventually { server.files[note.id]?["f1"] != nil }
+        #expect(server.files[note.id]?["f1"]?.epoch == 1)
+        // A device that has it only beside the note (opened offline, say) has it for the board.
+        server.holdFiles = true
+        let fresh = try await CollabSession.load(record: SharedDocument(id: note.id, epoch: 1, role: "editor", saved: Data()),
+                                                 nk: try await emil.store.openKey(try #require(try await server.transport(for: emil.id).memberships().first { $0.note_id == note.id })).nk,
+                                                 transport: server.transport(for: emil.id), me: emil.id, name: "Emil")
+        fresh.seedPictures(["f1": Self.picture("f1"), "f9": Self.picture("f9")])
+        #expect(Self.has(fresh, "f1", Self.picture("f1")))
+        // The board is handed the pictures it shows, and only those.
+        #expect(((fresh.boardScene()["files"] as? [String: Any]) ?? [:]).keys.sorted() == ["f1"])
+        fresh.close()
+        server.holdFiles = false
+    }
+
+    /// A board that stops being shared keeps its pictures with its drawing, as the owner's own;
+    /// any the owner's device hasn't fetched yet are fetched first.
+    @Test func aBoardThatStopsBeingSharedKeepsItsPictures() async throws {
+        let (emil, others, note) = try await sharedBoard([Self.shape("a")], people: ["Sara"])
+        let e = try session(emil, note), s = try session(others[0], note)
+        server.holdFiles = true
+        Self.put(s, Self.image("pic", file: "f1"), Self.picture("f1"))
+        await server.eventually { Self.said(e).count == 2 }
+        #expect(e.pictures["f1"] == nil)
+        server.holdFiles = false
+        await e.picturesReady()
+        #expect(Self.has(e, "f1", Self.picture("f1")))
+        try #require(emil.store.library).removeLocally(note)
+        let scene = try #require((NotePageDataStore.shared.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any])
+        #expect(((scene["elements"] as? [[String: Any]]) ?? []).compactMap { $0["id"] as? String } == ["a", "pic"])
+        #expect(((scene["files"] as? [String: Any])?["f1"] as? [String: Any])?["dataURL"] as? String == Self.picture("f1")["dataURL"] as? String)
     }
 
     /// A board too big for one snapshot isn't shared: nobody could open it.

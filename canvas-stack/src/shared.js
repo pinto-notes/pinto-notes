@@ -90,13 +90,27 @@ export function reconcile(local, remote, appState) {
   return reconcileElements(local, theirs, appState);
 }
 
-/** The elements that changed since the page last said, or heard: what goes to the app. Pictures
- *  don't (their bytes aren't shared yet). */
+/** The elements that changed since the page last said, or heard: what goes to the app. */
 export function changedSince(elements, known) {
   const out = [];
   for (const e of elements) {
-    if (!e || !e.id || e.type === "image") continue;
+    if (!e || !e.id) continue;
     if (known.get(e.id) !== stamp(e)) out.push(e);
+  }
+  return out;
+}
+
+/**
+ * The pictures `elements` show that the app hasn't had yet (`sent`: the file ids it has, from this
+ * page or from the shared document), from the engine's files: they go with the change, so the app
+ * seals each one and sends it before the change that shows it. A deleted picture's aren't sent.
+ */
+export function newPictures(elements, files, sent) {
+  const out = {};
+  for (const e of elements) {
+    if (!e || e.type !== "image" || e.isDeleted || typeof e.fileId !== "string" || sent.has(e.fileId)) continue;
+    const f = files && files[e.fileId];
+    if (f && typeof f.dataURL === "string") out[e.fileId] = { id: e.fileId, dataURL: f.dataURL, mimeType: f.mimeType, created: f.created };
   }
   return out;
 }

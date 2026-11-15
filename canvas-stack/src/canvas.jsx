@@ -24,7 +24,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
-import { changedSince, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
+import { changedSince, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
 
 const amber = window.amber;
 const SAVE_DELAY = 300;
@@ -33,7 +33,7 @@ const SHARED_DELAY = 250;
 // This page's load: the app sets a shared board up again when the page is new (CanvasController).
 const LOAD = Math.random().toString(36).slice(2, 10);
 // What the page does with a shared board (set by the Canvas, called by the bridge's commands).
-const sharedHooks = { set: null, remote: null, outline: null, peers: null, pointer: null };
+const sharedHooks = { set: null, remote: null, outline: null, peers: null, pointer: null, refuse: null };
 // Deleted elements are kept a while so another device's copy can't bring them back, then dropped.
 const KEEP_DELETED_MS = 7 * 24 * 3600 * 1000;
 
@@ -1012,6 +1012,10 @@ function bridge(api) {
         if (!sharedHooks.peers) return false;
         sharedHooks.peers(c.peers);
         return true;
+      case "refusePictures":
+        if (!sharedHooks.refuse || !Array.isArray(c.ids)) return false;
+        sharedHooks.refuse(c.ids);
+        break;
       case "tool":
         if (!TOOLS.has(c.tool)) return false;
         api.setActiveTool({ type: c.tool });
@@ -1347,7 +1351,11 @@ function Canvas({ initial }) {
       if (!changed.length && !moved) return;
       for (const e of changed) shared.known.set(e.id, stamp(e));
       shared.settings = JSON.stringify(settings);
-      post({ board: { elements: changed, settings } });
+      // A new picture's bytes go with the change that shows it (pasted, dropped, from the Image
+      // button or the library): the app seals them and sends them first.
+      const files = newPictures(changed, api.getFiles(), shared.files);
+      for (const id of Object.keys(files)) shared.files.add(id);
+      post({ board: Object.keys(files).length ? { elements: changed, settings, files } : { elements: changed, settings } });
     };
     // A few times a second while you draw, not once you stop: the others see it move.
     const sharedSoon = () => { if (shared && !shared.timer) shared.timer = setTimeout(sendShared, SHARED_DELAY); };
@@ -1373,19 +1381,17 @@ function Canvas({ initial }) {
       // Pans and zooms change nothing that's kept.
       const v = changeKey(elements, appState, files);
       if (v === lastVersion) return;
-      if (shared) { refusePictures(); sharedSoon(); } else if (lastVersion !== null) schedule();
+      if (shared) sharedSoon(); else if (lastVersion !== null) schedule();
       lastVersion = v;
     });
 
-    // Pictures can't go on a shared board yet (their bytes aren't shared): one pasted or dropped
-    // goes again at once, and the app says why.
-    const refusePictures = () => {
-      if (!shared || !shared.ready || api.getAppState().viewModeEnabled) return;
-      const pictures = api.getSceneElements().filter((e) => e.type === "image" && !shared.known.has(e.id));
-      if (!pictures.length) return;
-      const gone = new Set(pictures.map((e) => e.id));
+    // A picture the shared board couldn't take (no room, or its bytes didn't come with it): off
+    // this page again, as it never reached the others. The app says why.
+    const refusePictures = (ids) => {
+      if (!shared) return;
+      const gone = new Set(ids);
+      for (const id of gone) shared.known.delete(id);
       api.updateScene({ elements: api.getSceneElementsIncludingDeleted().filter((e) => !gone.has(e.id)), captureUpdate: CaptureUpdateAction.NEVER });
-      post({ error: "Pictures can\u2019t go on a shared whiteboard yet" });
     };
 
     // Someone else's drawing (the app, from the note's shared document): merged by Excalidraw's own
@@ -1395,6 +1401,10 @@ function Canvas({ initial }) {
       const { elements: remote, converted, made } = normalizeShared(scene.elements);
       const drawn = expandSeeds(remote);
       for (const e of scene.elements) if (e && typeof e.id === "string") shared.known.set(e.id, stamp(e));
+      // The pictures the page doesn't have yet (the app sends each once): drawn as they arrive.
+      const files = Object.values(scene.files || {}).filter((f) => f && typeof f.id === "string" && typeof f.dataURL === "string");
+      for (const f of files) shared.files.add(f.id);
+      if (files.length) api.addFiles(files);
       const merged = reconcile(api.getSceneElementsIncludingDeleted(), drawn.elements, api.getAppState());
       const bg = scene.appState && scene.appState.viewBackgroundColor;
       api.updateScene({ elements: merged, ...(bg ? { appState: { viewBackgroundColor: bg } } : {}), captureUpdate: CaptureUpdateAction.NEVER });
@@ -1441,7 +1451,7 @@ function Canvas({ initial }) {
         api.updateScene({ appState: { viewModeEnabled: false }, captureUpdate: CaptureUpdateAction.NEVER });
         return;
       }
-      if (!shared) { flush(); shared = { known: new Map(), timer: null, settings: null, ready: false, layer: peersLayer(api, host) }; }
+      if (!shared) { flush(); shared = { known: new Map(), files: new Set(), timer: null, settings: null, ready: false, layer: peersLayer(api, host) }; }
       const view = !!c.viewOnly;
       if (api.getAppState().viewModeEnabled !== view) {
         api.updateScene({ appState: { viewModeEnabled: view, ...(view ? { selectedElementIds: {}, editingTextElement: null } : {}) }, captureUpdate: CaptureUpdateAction.NEVER });
@@ -1450,6 +1460,7 @@ function Canvas({ initial }) {
       }
     };
     sharedHooks.remote = takeShared;
+    sharedHooks.refuse = refusePictures;
     sharedHooks.outline = (ids) => {
       const want = new Set(ids);
       const all = api.getSceneElements();
