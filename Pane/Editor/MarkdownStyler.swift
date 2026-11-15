@@ -983,6 +983,24 @@ private struct StyleWalker: MarkupWalker {
         if trail > 0, r.length >= lead + trail { storage.addAttributes(dim, range: NSRange(location: NSMaxRange(r) - trail, length: trail)) }
     }
 
+    /// A heading cmark made from text and a "-" on the line under it (a setext underline of one dash).
+    private func isDashUnderline(_ r: NSRange) -> Bool {
+        let text = ns.substring(with: r) as NSString
+        // "## Plans" is a heading as written, whatever comes under it.
+        if text.trimmingCharacters(in: .whitespaces).hasPrefix("#") { return false }
+        let newline = text.range(of: "\n", options: .backwards)
+        let under: String
+        if newline.location != NSNotFound {
+            under = text.substring(from: NSMaxRange(newline))
+        } else {
+            // The underline outside the heading's range: the line after it.
+            let next = NSMaxRange(ns.paragraphRange(for: r))
+            guard next < ns.length else { return false }
+            under = ns.substring(with: ns.paragraphRange(for: NSRange(location: next, length: 0)))
+        }
+        return under.trimmingCharacters(in: .whitespacesAndNewlines) == "-"
+    }
+
     private func delimiterLength(_ r: NSRange, char: unichar) -> Int {
         var n = 0
         while n < r.length, ns.character(at: r.location + n) == char { n += 1 }
@@ -991,6 +1009,9 @@ private struct StyleWalker: MarkupWalker {
 
     mutating func visitHeading(_ heading: Heading) {
         guard let r = map.range(heading.range), safe(r) else { return descendInto(heading) }
+        // A lone dash under a line of text is a dashed list just started, as in Notes, though
+        // Markdown reads it as a heading underline (Emil, 15 November 2026).
+        if isDashUnderline(r) { return descendInto(heading) }
         storage.addAttribute(.font, value: styler.headingFont(heading.level), range: r)
         if DesignLook.current == .paper, heading.level <= 2 {
             storage.addAttribute(.kern, value: Palette.tracking(styler.headingFont(heading.level).pointSize), range: r)

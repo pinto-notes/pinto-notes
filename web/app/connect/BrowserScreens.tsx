@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { GOOGLE_ON_WEB, APPLE_ON_WEB } from "@/lib/connect";
 import { CODE_LENGTH, IN_APP, SIGN_IN_AGAIN, type ConsentWords } from "@/lib/connect-browser";
-import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { Shell } from "@/lib/ui";
 import { ACCOUNTS_START, ErrorLine, GetPintoNotes, NO_ACCOUNT, SignInButtons, Spinner } from "./ConnectScreens";
 import styles from "./connect.module.css";
