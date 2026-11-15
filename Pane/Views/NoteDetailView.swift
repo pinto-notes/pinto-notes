@@ -1272,6 +1272,11 @@ struct NoteDetailView: View {
             #if os(macOS)
             // Handed up to the toolbar that stays as the notes change (NoteToolbarStage).
             .preference(key: NoteToolbarKey.self, value: toolbarParts)
+            // A note showing its app has no big title: the bar names it while the app shows. Each
+            // note's pane sets it as it opens, so the next note never inherits it.
+            .onChange(of: showingPage, initial: true) { _, shown in
+                if controller.showingApp != shown { controller.showingApp = shown }
+            }
             #else
             .toolbar { toolbar }
             #endif
@@ -2366,8 +2371,9 @@ private struct ReceiptUndoneWatcher: View {
 
 /// Where the open note is, right of back and forward (Mac) or the list button (iPad, the Duo
 /// open): its folders, outermost first, each opening in the list; on the Mac its title too once
-/// the big title has scrolled out of view (Emil, 3 November 2026: breadcrumbs back, now that the
-/// left side often shows the folders and not the note's own list).
+/// the big title has scrolled out of view, or while the note shows its app (Emil, 3 November
+/// 2026: breadcrumbs back, now that the left side often shows the folders and not the note's
+/// own list).
 struct NoteBreadcrumbs: View {
     static let titleWidth: CGFloat = 240
     let note: Note
@@ -2389,9 +2395,16 @@ struct NoteBreadcrumbs: View {
         return folders.suffix(2).map { (.folder($0.id), $0.name) }
     }
 
+    /// The note's title joins the path once its big title has scrolled away, and all the time
+    /// while the note shows its app (an app has no big title of its own).
+    static func showsTitle(_ controller: EditorController?) -> Bool {
+        guard let controller else { return false }
+        return controller.titleScrolledAway || controller.showingApp
+    }
+
     var body: some View {
         let path = Self.path(note)
-        let titled = controller?.titleScrolledAway == true
+        let titled = Self.showsTitle(controller)
         HStack(spacing: 0) {
             ForEach(Array(path.enumerated()), id: \.offset) { i, step in
                 if i > 0 { chevron }
@@ -2414,6 +2427,7 @@ struct NoteBreadcrumbs: View {
                     .padding(.horizontal, ButtonSize.compact.padding * 0.75)
                     // Room kept for it all the time now, so a long title can't crowd out Share and •••.
                     .frame(maxWidth: Self.titleWidth, alignment: .leading)
+                    .accessibilityIdentifier("note.crumb.title")
             }
             .opacity(titled ? 1 : 0)
             .accessibilityHidden(!titled)
