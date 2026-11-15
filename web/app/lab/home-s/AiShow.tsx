@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
 import { along, at, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { ADDED, Flag, GPT, hand, Receipt, Tick, WEEK, YOU } from "./Things";
+import { ADDED, Flag, GPT, hand, Receipt, Tick, TODAY, WEEK, YOU } from "./Things";
 import s from "./s.module.css";
 
 // The climax, staged. The request types in. ChatGPT's cursor reads the decision in the note, then
 // makes each change in place, in turn: a line in the note, a step drawn into the whiteboard (its
 // arrow draws itself, the way Claude's did in Draw), a habit in the app. Each change carries its own
 // "Added by ChatGPT · Undo" under it. Then your cursor presses Undo on the habit: that row leaves, and
-// the rest holds. Redo brings it back. On a phone, one thing at a time, and the switcher moves itself.
+// the rest holds. Redo brings it back. Each card sits in its chapter's colour, the three of one height,
+// and a change opens its row in place. On a phone, one thing at a time, centred in a frame that fills
+// the screen, and the switcher moves itself.
 // Everything is a function of the show's time t (see show.ts), so stills are exact.
 
 const REQ = "“Add a day in Sintra to my Lisbon trip.”";
@@ -63,24 +65,6 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
   const [user, setUser] = useState<(boolean | null)[]>([null, null, null]);
   const [pick, setPick] = useState<number | null>(null);
   const userRef = useRef(user); userRef.current = user;
-
-  // Each card is laid out at its full size; its paper is clipped back to what it holds before the
-  // change lands (and after a row is undone), so there's never empty paper under the content.
-  useEffect(() => {
-    const st = stage.current; if (!st) return;
-    const top = (el: HTMLElement, li: HTMLElement) => { let y = 0, e: HTMLElement | null = el; while (e && e !== li) { y += e.offsetTop; e = e.offsetParent as HTMLElement | null; } return y; };
-    const measure = () => st.querySelectorAll<HTMLElement>("li[data-obj]").forEach((li) => {
-      const prev = li.querySelector<HTMLElement>("[data-prev]"), row = li.querySelector<HTMLElement>("[data-row]"), rec = li.querySelector<HTMLElement>("[data-rec]");
-      if (!prev || !rec) return;
-      const pad = parseFloat(getComputedStyle(li).getPropertyValue("--padB")) || 16;
-      li.style.setProperty("--cut0", `${Math.max(0, li.offsetHeight - (top(prev, li) + prev.offsetHeight + pad))}px`);
-      li.style.setProperty("--shift", `${row ? top(rec, li) - top(row, li) : 0}px`);
-    });
-    measure();
-    const ro = new ResizeObserver(measure); ro.observe(st);
-    document.fonts?.ready.then(measure);
-    return () => ro.disconnect();
-  }, [narrow]);
 
   useShow({
     name: "ai", end: P.end, subscribe,
@@ -180,11 +164,10 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
           {objs.map((o, i) => (
             <li key={i} data-obj className={`${s.aObj} ${[s.aoNote, s.aoBoard, s.aoApp][i]}`} data-land={snap.land[i] || undefined}
               data-undone={(snap.land[i] && undone(i)) || undefined} data-current={i === active || undefined} aria-label={["Note", "Whiteboard", "App"][i]}>
-              <div className={s.aPaper} aria-hidden="true" />
-              <div className={s.aIn}>
+              <div className={s.aCard}>
                 {o}
-                <div className={s.aRec} data-rec data-at={`undo${i}`} data-show={snap.rec[i] || undefined}>
-                  <Receipt undone={undone(i)} onFlip={() => flip(i)} live={snap.rec[i]} />
+                <div className={`${s.aGrow} ${s.aRec}`} data-at={`undo${i}`} data-show={snap.rec[i] || undefined}>
+                  <div><Receipt undone={undone(i)} onFlip={() => flip(i)} live={snap.rec[i]} /></div>
                 </div>
               </div>
             </li>
@@ -215,9 +198,11 @@ function NoteObj({ read }: { read: boolean }) {
         <li><i />Find a flat in Alfama</li>
         <li><i />Pastéis de Belém, early</li>
         <li><i />Tram 28 before nine</li>
-        <li data-prev><i />Ask Marta about the fado place</li>
-        <li className={s.aNewRow} data-row><i /><span data-at="slot0"><b className={s.sweep} />{ADDED}</span></li>
+        <li><i />Ask Marta about the fado place</li>
       </ul>
+      <div className={`${s.aGrow} ${s.aNewRow}`}>
+        <div><p className={s.aRowAdd}><i /><span data-at="slot0"><b className={s.sweep} />{ADDED}</span></p></div>
+      </div>
     </div>
   );
 }
@@ -292,7 +277,7 @@ function BoardObj({ tall }: { tall: boolean }) {
   const g = tall ? TALL : WIDE;
   const r = rng(tall ? 61 : 43);
   return (
-    <div className={s.aBoardWrap} data-prev>
+    <div className={s.aBoardWrap}>
       <svg className={`${s.aBoard} ${hand.className}`} viewBox={`0 0 ${g.view[0]} ${g.view[1]}`} aria-hidden="true">
         <g className={s.chalk}>
           {g.nodes.map((n, i) => <path key={i} d={shapeOf(r, n)} />)}
@@ -323,13 +308,18 @@ function AppObj() {
   return (
     <div className={s.aApp}>
       <p className={s.aAppTop}><b>Before Lisbon</b><span>App</span></p>
-      <div className={s.aHabit} data-prev>
+      <div className={s.aDays} aria-hidden="true">{WEEK.map((d, i) => <small key={i} data-now={i === TODAY || undefined}>{d}</small>)}</div>
+      <div className={s.aHabit}>
         <p><span>Portuguese, 10 min</span><small>1 day</small></p>
-        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={i === 4 || undefined}><Tick /></i>)}</div>
+        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={i === TODAY || undefined}><Tick /></i>)}</div>
       </div>
-      <div className={`${s.aHabit} ${s.aNewRow}`} data-row>
-        <p><span data-at="slot2"><b className={s.sweep} />Walk 8,000 steps</span><small>Sintra is all hills</small></p>
-        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-now={i === 4 || undefined}><Tick /></i>)}</div>
+      <div className={`${s.aGrow} ${s.aNewRow}`}>
+        <div>
+          <div className={s.aHabit}>
+            <p><span data-at="slot2"><b className={s.sweep} />Walk 8,000 steps</span><small>Sintra is all hills</small></p>
+            <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-now={i === TODAY || undefined}><Tick /></i>)}</div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -2,16 +2,27 @@
 
 import { useRef, useState } from "react";
 import { at, mj, mix, place, seg, useShow, type Pt } from "./show";
-import { ADDED, Flag, GPT, Receipt, Tick } from "./Things";
+import { ADDED, DECIDED, Flag, GPT, Receipt, Tick } from "./Things";
 import s from "./s.module.css";
 
-// `?hero=one`: the first screen as a single picture. One page, written by two hands. Your pencil
-// writes the decision; then ChatGPT's line lands under it, marked, with Undo. The note is the only
-// object on the collage (the whiteboard and the app get their own chapters).
+// The first screen's picture: one page, written by two hands. Your hand comes in from the bottom
+// right, its forearm running off the edge of the collage, and writes the decision; then ChatGPT's
+// line lands under it, marked, with Undo. The note is the only object on the collage (the whiteboard
+// and the app get their own chapters).
+//
+// The hand is one cut-out (hand-print-v1.webp), mirrored and turned about its pencil tip. How far it
+// turns and where it rests after writing are CSS custom properties on `.onePen`
+// (--pen-turn, --pen-w, --pen-rest), so each window size poses it without touching this code. The
+// pose keeps the cut end of the forearm below or beyond the collage's edge wherever the tip is on the
+// line, so the arm always comes in from outside the picture.
 
-const W = [0.55, 2.3] as [number, number];
-const TURN = 58;
-const ONE = { land: 2.75, ride: [2.75, 3.25] as [number, number], rec: 3.3, gptIn: 2.45, gptOut: [4.0, 4.4] as [number, number], end: 4.5 };
+const IN = [0.1, 0.6] as [number, number];
+const W = [0.65, 2.35] as [number, number];
+const REST = [2.4, 2.9] as [number, number];
+const ONE = { land: 2.85, ride: [2.85, 3.35] as [number, number], rec: 3.4, gptIn: 2.55, gptOut: [4.1, 4.5] as [number, number], end: 4.6 };
+
+/** The cut-out's pencil tip, as fractions of its width and height, once mirrored. */
+const TIP: Pt = [0.208, 0.975];
 
 export function HeroOne() {
   const box = useRef<HTMLDivElement>(null), pen = useRef<HTMLImageElement>(null), gpt = useRef<HTMLSpanElement>(null);
@@ -28,14 +39,26 @@ export function HeroOne() {
       const a = at(B, line, 0, 0.86), b = at(B, line, 1, 0.86);
       const h = pen.current;
       if (h && a && b) {
+        const cs = getComputedStyle(h);
+        const turn = parseFloat(cs.getPropertyValue("--pen-turn")) || 100;
+        // Where the tip rests after writing, as fractions of the note card (none: on the line's end).
+        const rest = cs.getPropertyValue("--pen-rest").trim().split(/\s+/).map(parseFloat);
+        const card = el.querySelector<HTMLElement>("[data-card]")?.getBoundingClientRect();
         const wob = k > 0 && k < 1 ? Math.sin(t * 34) * 1.6 : 0;
-        const tip: Pt = [a[0] + (b[0] - a[0]) * k + 3, a[1] + wob];
+        let tip: Pt = [a[0] + (b[0] - a[0]) * k + 3, a[1] + wob];
+        // In: from below and to the right, along the forearm, so the arm never shows its end.
+        // The forearm points 30° anticlockwise of the turn (the cut-out's own geometry).
+        const r = ((turn - 30) * Math.PI) / 180, arm: Pt = [Math.cos(r), Math.sin(r)];
+        const inK = 1 - mj(seg(t, ...IN));
+        if (inK > 0) tip = [tip[0] + arm[0] * 260 * inK, tip[1] + arm[1] * 260 * inK];
+        // After writing, the hand lifts off the line and rests, so ChatGPT's line lands clear of it.
+        const rk = mj(seg(t, ...REST));
+        if (rk > 0 && card && rest.length === 2 && rest.every(Number.isFinite)) {
+          tip = mix(tip, [card.left - B.left + card.width * rest[0], card.top - B.top + card.height * rest[1]], rk);
+        }
         const w = h.offsetWidth, hh = h.offsetHeight;
-        // The cut-out is mirrored (its pencil tip then sits 21% in from the left, 97.5% down) and
-        // turned about the tip, so the hand rests to the right of the pen, over the part of the line
-        // not written yet, and never over the title or the rows above.
-        h.style.transform = `translate3d(${tip[0].toFixed(1)}px, ${tip[1].toFixed(1)}px, 0) rotate(${TURN}deg) translate(${(-0.208 * w).toFixed(1)}px, ${(-0.975 * hh).toFixed(1)}px) translate(${w}px, 0) scaleX(-1)`;
-        h.style.opacity = "1";
+        h.style.transform = `translate3d(${tip[0].toFixed(1)}px, ${tip[1].toFixed(1)}px, 0) rotate(${turn}deg) translate(${(-TIP[0] * w).toFixed(1)}px, ${(-TIP[1] * hh).toFixed(1)}px) translate(${w}px, 0) scaleX(-1)`;
+        h.style.opacity = t < IN[0] ? "0" : "1";
       }
       const next = { land: t >= ONE.land, rec: t >= ONE.rec };
       setSt((o) => (o.land === next.land && o.rec === next.rec ? o : next));
@@ -49,14 +72,14 @@ export function HeroOne() {
   });
   return (
     <div ref={box} className={s.oneBox}>
-      <div className={s.oneNote}>
+      <div className={s.oneNote} data-card>
         <p className={s.hNoteDate}>Today at 09:41</p>
         <p className={s.oneTitle}>Lisbon, May 8–12</p>
         <ul className={s.hRows}>
           <li data-on><i><Tick /></i><span>Book the flights</span></li>
           <li><i /><span>Find a flat in Alfama</span></li>
         </ul>
-        <p className={s.oneDecided}><span data-write className={s.oneWrite}><b>Decided:</b> No car this time. Trains and trams.</span></p>
+        <p className={s.oneDecided}><span data-write className={s.oneWrite}><b>Decided:</b> {DECIDED}</span></p>
         <ul className={s.hRows}>
           <li className={s.hAdded} data-in={st.land || undefined} data-undone={undone || undefined}><i /><span data-at="one"><b className={s.mark} />{ADDED}</span></li>
         </ul>

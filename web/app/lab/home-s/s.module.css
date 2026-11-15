@@ -1,14 +1,14 @@
-/* Study S, "Editorial colour", round 8. A ring binder printed like a risograph collage (direction B:
-   fluorescent orange and forest green, halftone, torn paper). The first screen is the Lisbon trip on
-   a torn-paper collage. Each chapter below is a full-bleed colour divider with a torn top edge,
-   laid over the last by `position: sticky`; when it lands, its tab rises out of it and stays under
-   the header. The tabs end at Your AI. Then the notebook's last page (Mac and iPhone), and its cover
-   closes over everything.
+/* Study S, "Editorial colour", round 9. A ring binder printed like a risograph collage (direction B:
+   fluorescent orange and forest green, halftone, torn paper). The first screen is one page of the
+   Lisbon trip note on a torn-paper collage. Each chapter below is a full-bleed colour divider with a
+   torn top edge, laid over the last by `position: sticky`; when it lands, its tab rises out of it and
+   stays under the header. The tabs end at Your AI. Then the notebook's cover closes over everything,
+   in one scene with the download and the note on a Mac and an iPhone.
 
    Type: Newsreader 500 for headings (italic for the words that matter), the system sans for
    sentences and for the things themselves, Excalifont for the whiteboard and for handwriting.
    Colours: cream page, vermilion for notes, forest for whiteboards, lilac for apps, espresso for the
-   AI, ruled cream for the last page. ChatGPT is always its green, Claude always its orange, you are
+   AI, the cover's kraft cream to close. ChatGPT is always its green, Claude always its orange, you are
    ink. Art: /lab/s/*.webp, one file per picture, so a picture can be swapped without touching code. */
 
 .stack {
@@ -38,7 +38,6 @@
 .draw { --prev: #d94f24; --c: #1b4a35; --dot: #0f3022; --ink: var(--cream); --soft: rgba(236, 246, 238, 0.86); }
 .build { --prev: #1b4a35; --c: #dccbf6; --dot: #b49be4; --ink: #24170d; --soft: #43355a; }
 .ai { --prev: #dccbf6; --c: #26190f; --dot: #6b2f12; --ink: var(--cream); --soft: rgba(255, 236, 214, 0.8); }
-.last { --prev: #26190f; --c: #f8ecd9; --dot: transparent; --ink: #24170d; --soft: #5a4220; }
 
 /* ───────────────────────── The first screen ───────────────────────── */
 .hero { position: relative; z-index: 1; height: calc(100svh - 26px); min-height: 640px; box-sizing: border-box; padding-top: var(--hh); }
@@ -59,38 +58,46 @@
 .ctas a, .ctas :global(a) { white-space: nowrap; }
 .fine { margin: 14px 0 0; font-size: 14.5px; font-weight: 600; color: #7a6650; }
 
-/* The collage, and the things on it (sharp HTML). Sizes inside are in design pixels of a 680 x 760
-   board (--u), so the composition holds at any window size. */
-.art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(620px, 43vw) + 44px); container-type: size; }
+/* The collage, and the note on it (sharp HTML). Sizes inside are in design pixels of a 680 x 760
+   board (--u), so the composition holds at any window size. The collage clips your forearm at its
+   top, right and bottom edges, so the arm always runs out of the picture. */
+.art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(620px, 43vw) + 44px); container-type: size; clip-path: inset(0 0 0 -60vw); }
 .collage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; border-radius: 4px 0 0 4px; }
 .objs { position: absolute; inset: 0; --u: min(calc(100cqh / 760), calc(100cqw / 680)); font-size: calc(16 * var(--u)); }
-.obj { position: absolute; display: block; color: inherit; text-decoration: none; }
-.oBoard { left: calc(286 * var(--u)); top: calc(16 * var(--u)); width: calc(372 * var(--u)); rotate: 2.2deg; z-index: 1; }
-.oNote { left: calc(-84 * var(--u)); top: calc(262 * var(--u)); width: calc(500 * var(--u)); z-index: 3; font-size: calc(18 * var(--u)); }
-.oApp { left: calc(-150 * var(--u)); top: calc(600 * var(--u)); width: calc(284 * var(--u)); rotate: -2.4deg; z-index: 4; }
-a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-radius: 1.2em; }
-@media (prefers-reduced-motion: no-preference) {
-  a.obj { transition: translate 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
-}
-@media (hover: hover) { a.obj:hover { translate: 0 -6px; } }
 
-/* The note at reading size. */
-.hNote { box-sizing: border-box; padding: 1.4em 1.6em 1.2em; border-radius: 1.1em; background: #fffdf8; color: #1d1b19;
-  box-shadow: 0 1px 0 rgba(90, 40, 0, 0.12), 0 2.2em 3.6em -1.4em rgba(70, 30, 0, 0.5), 0 0 0 1px rgba(60, 30, 0, 0.05); }
-.hNoteDate { margin: 0; font-size: 0.78em; font-weight: 500; color: #9a8f84; }
-.hNoteTitle { margin: 0.2em 0 0; font-size: 1.7em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
+/* The note: one page, written by two hands. Centred on the collage. */
+.oneBox { position: absolute; inset: 0; }
+.oneNote { position: absolute; z-index: 1; left: 50%; top: 46%; translate: -50% -50%; width: calc(620 * var(--u)); box-sizing: border-box;
+  padding: 1.15em 1.4em 1.05em; border-radius: 0.85em; background: #fffdf8; color: #1d1b19; font-size: calc(26 * var(--u));
+  box-shadow: 0 1px 0 rgba(90, 40, 0, 0.12), 0 2.4em 4em -1.6em rgba(70, 30, 0, 0.5), 0 0 0 1px rgba(60, 30, 0, 0.05); }
+.hNoteDate { margin: 0; font-size: 0.72em; font-weight: 500; color: #9a8f84; }
+.oneTitle { margin: 0.15em 0 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.12; }
 .decided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.4; color: #2b2622; }
 .decided b, .oneDecided b { font-weight: 700; }
-.hRows { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.45em; }
-.hRows li { display: flex; align-items: center; gap: 0.65em; font-size: 1em; font-weight: 500; line-height: 1.3; }
-.hRows i, .dvRows i { flex: none; display: grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%; box-shadow: inset 0 0 0 0.12em #cbbdae; }
+.hRows { margin: 0.5em 0 0; padding: 0; list-style: none; display: grid; gap: 0.4em; }
+.hRows li { display: flex; align-items: center; gap: 0.6em; font-size: 1em; font-weight: 500; line-height: 1.3; }
+.hRows i, .dvRows i { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%; box-shadow: inset 0 0 0 0.11em #cbbdae; }
 .hRows li[data-on], .dvRows li[data-on] { color: #9a8b7a; text-decoration: line-through; text-decoration-color: #b3a493; }
 .hRows li[data-on] i, .dvRows li[data-on] i { background: #e8820f; box-shadow: none; }
-.hRows svg, .dvRows svg, .hWeek svg, .box svg, .day svg, .aWeek svg, .aNote svg { width: 72%; height: 72%; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.hRows svg, .dvRows svg, .box svg, .day svg, .aWeek svg, .aNote svg { width: 72%; height: 72%; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
 .hAdded span, .dvAdded span { position: relative; z-index: 0; }
 .mark { position: absolute; z-index: -1; inset: -0.12em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.18); }
 .hAdded[data-undone], .dvAdded[data-undone] { opacity: 0.35; text-decoration: line-through; }
 .hAdded[data-undone] .mark { opacity: 0; }
+.oneDecided { margin: 0.55em 0 0; font-size: 1em; line-height: 1.4; color: #2b2622; white-space: nowrap; }
+.oneWrite { display: inline-block; clip-path: inset(-0.4em calc((1 - var(--w, 1)) * 100%) -0.5em -0.3em); }
+.oneRec { opacity: 0; translate: 0 6px; }
+.oneRec[data-in] { opacity: 1; translate: none; }
+.oneNote .hAdded { opacity: 0; translate: 0 8px; }
+.oneNote .hAdded[data-in] { opacity: 1; translate: none; }
+.oneNote .hAdded .mark { transform: scaleX(0); transform-origin: 0 50%; }
+.oneNote .hAdded[data-in] .mark { transform: none; }
+.oneNote .hAdded[data-in][data-undone] { opacity: 0.35; }
+/* Your hand: the cut-out, printed on the collage, no shadow. JS puts its pencil tip on the line and
+   turns it by --pen-turn about the tip; after writing the tip rests at --pen-rest (fractions of the
+   card; "none" keeps it on the line's end). */
+.onePen { --pen-turn: 100; --pen-rest: 0.72 0.97; position: absolute; z-index: 2; left: 0; top: 0; transform-origin: 0 0; width: calc(540 * var(--u)); height: auto;
+  opacity: 0; pointer-events: none; will-change: transform; }
 
 /* "Added by ChatGPT · Undo": a line of its own, under what it marks. */
 .receipt { display: flex; align-items: center; gap: 0.45em; margin: 0.55em 0 0 1.9em; font-size: 0.86em; font-weight: 600; color: #0b7a5e; white-space: nowrap; }
@@ -102,64 +109,19 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .receipt button:focus-visible { outline: 2px solid #10a37f; outline-offset: 1px; }
 @media (prefers-reduced-motion: no-preference) { .receipt button { transition: background-color 0.15s, transform 0.1s; } .receipt button:active { transform: scale(0.95); } }
 .receipt[data-undone] { color: #8a7d70; }
-
-/* The whiteboard card. */
-.hBoard { position: relative; box-sizing: border-box; padding: 1.1em 1.2em 1em; border-radius: 1.1em; background: #1b4a35; color: var(--cream);
-  box-shadow: 0 2em 3em -1.6em rgba(10, 30, 15, 0.6); }
-.hBoardInk { display: block; width: 100%; height: auto; overflow: visible; }
-.hBoard .chalk path { stroke-width: 2.6; }
-.miniClaude path { fill: none; stroke: #d97757; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
-.hFlag { position: absolute; left: 71%; top: 57%; }
-/* A cursor with a name, as HTML: never smaller than 12px. */
-.flag { display: inline-flex; align-items: flex-start; pointer-events: none; font-size: max(12.5px, 0.8em); transform-origin: 0 0; }
-.flag svg { width: 1.05em; height: 1.45em; fill: var(--fc); stroke: #fff; stroke-width: 1.4; stroke-linejoin: round; }
-.flag span { margin: 1.05em 0 0 -0.1em; padding: 0.22em 0.55em; border-radius: 0.55em; background: var(--fc); color: #fff; font: 700 1em/1.15 var(--sans); white-space: nowrap; }
-
-/* The app card. */
-.hApp { box-sizing: border-box; padding: 1.05em 1.15em 1.15em; border-radius: 1.1em; background: #fffdf8; color: #1d1b19;
-  box-shadow: 0 1px 0 rgba(60, 20, 120, 0.1), 0 2em 3em -1.6em rgba(50, 20, 80, 0.5); }
-.hAppTop, .appName, .aAppTop { display: flex; align-items: center; gap: 0.5em; }
-.hAppTop { margin: 0; font-size: 1em; }
-.hAppTop span, .appName span, .aAppTop span { padding: 0.15em 0.55em; border-radius: 0.45em; background: #efe9fb; color: #5a3fa0; font-size: 0.75rem; font-weight: 700; }
-.hAppTop span { font-size: 0.75em; }
-.hHabit { margin: 0.8em 0 0.5em; display: flex; justify-content: space-between; align-items: baseline; font-size: 0.95em; font-weight: 650; }
-.hHabit small { font-size: 0.86em; font-weight: 650; color: #c96d06; }
-.hWeek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.4em; }
-.hWeek span { display: grid; justify-items: center; gap: 0.25em; }
-.hWeek small { font-size: 0.7em; font-weight: 650; color: #8a7d70; }
-.hWeek i { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
-.hWeek svg { opacity: 0; }
-.hWeek [data-on] i { background: #e8820f; }
-.hWeek [data-on] svg { opacity: 1; }
-.hWeek [data-now] i { background: transparent; box-shadow: inset 0 0 0 0.16em #e8820f; }
-.hPress { display: grid; place-items: center; height: 2.5em; margin-top: 0.8em; border-radius: 0.75em; background: #24170d; color: #fff4e6; font-size: 0.95em; font-weight: 750; box-shadow: 0 0.18em 0 #000; }
-
-/* ── `?hero=one`: the note alone, written by your pencil and by ChatGPT ── */
-.heroOne .art { clip-path: inset(0 0 0 -60vw); }
-.oneBox { position: absolute; inset: 0; }
-.oneNote { position: absolute; z-index: 1; left: calc(-78 * var(--u)); top: calc(168 * var(--u)); width: calc(610 * var(--u)); box-sizing: border-box;
-  padding: 1.25em 1.55em 1.15em; border-radius: 1em; background: #fffdf8; color: #1d1b19; font-size: calc(21 * var(--u));
-  box-shadow: 0 1px 0 rgba(90, 40, 0, 0.12), 0 2.4em 4em -1.6em rgba(70, 30, 0, 0.5), 0 0 0 1px rgba(60, 30, 0, 0.05); }
-.oneTitle { margin: 0.15em 0 0; font-size: 1.75em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.12; }
-.oneNote .hRows { margin-top: 0.55em; }
-.oneDecided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.4; color: #2b2622; white-space: nowrap; }
-.oneWrite { display: inline-block; clip-path: inset(-0.4em calc((1 - var(--w, 1)) * 100%) -0.5em -0.3em); }
-.oneRec { opacity: 0; translate: 0 6px; }
-.oneRec[data-in] { opacity: 1; translate: none; }
-.oneNote .hAdded { opacity: 0; translate: 0 8px; }
-.oneNote .hAdded[data-in] { opacity: 1; translate: none; }
-.oneNote .hAdded .mark { transform: scaleX(0); transform-origin: 0 50%; }
-.oneNote .hAdded[data-in] .mark { transform: none; }
-.oneNote .hAdded[data-in][data-undone] { opacity: 0.35; }
-/* Your pencil: the cut-out, printed on the collage (no sticker edge, no shadow). JS puts its tip on the line. */
-/* The arm's cut end fades out, so the hand never reads as a sticker. */
-.onePen { -webkit-mask-image: linear-gradient(90deg, transparent 1%, #000 27%); mask-image: linear-gradient(90deg, transparent 1%, #000 27%); }
-.onePen { position: absolute; z-index: 2; left: 0; top: 0; transform-origin: 0 0; width: calc(470 * var(--u)); height: auto; opacity: 0; pointer-events: none; will-change: transform; }
+.oneNote .receipt { margin-left: 1.8em; }
 @media (prefers-reduced-motion: no-preference) {
   .oneRec { transition: opacity 0.25s ease-out, translate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .oneNote .hAdded { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .oneNote .hAdded .mark { transition: transform 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
 }
+
+/* A cursor with a name, as HTML: never smaller than 12px. */
+.flag { display: inline-flex; align-items: flex-start; pointer-events: none; font-size: max(12.5px, 0.8em); transform-origin: 0 0; }
+.flag svg { width: 1.05em; height: 1.45em; fill: var(--fc); stroke: #fff; stroke-width: 1.4; stroke-linejoin: round; }
+.flag span { margin: 1.05em 0 0 -0.1em; padding: 0.22em 0.55em; border-radius: 0.55em; background: var(--fc); color: #fff; font: 700 1em/1.15 var(--sans); white-space: nowrap; }
+.appName, .aAppTop { display: flex; align-items: center; gap: 0.5em; }
+.appName span, .aAppTop span { padding: 0.15em 0.55em; border-radius: 0.45em; background: #efe9fb; color: #5a3fa0; font-size: 0.75rem; font-weight: 700; }
 
 /* ───────────────────────── A chapter: a torn divider page ───────────────────────── */
 .ch { position: sticky; top: var(--tt); height: var(--chH); min-height: 560px; box-sizing: border-box; color: var(--ink); }
@@ -184,9 +146,6 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
   -webkit-mask: radial-gradient(70% 90% at 100% 100%, #000 0, rgba(0, 0, 0, 0.5) 40%, transparent 72%); mask: radial-gradient(70% 90% at 100% 100%, #000 0, rgba(0, 0, 0, 0.5) 40%, transparent 72%); }
 .write .dots, .draw .dots { -webkit-mask: radial-gradient(60% 80% at 0 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 72%); mask: radial-gradient(60% 80% at 0 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 72%); }
 .ai .dots { opacity: 0.55; -webkit-mask: radial-gradient(55% 70% at 100% 0, #000 0, rgba(0, 0, 0, 0.4) 40%, transparent 72%); mask: radial-gradient(55% 70% at 100% 0, #000 0, rgba(0, 0, 0, 0.4) 40%, transparent 72%); }
-/* The last page is the notebook's own ruled paper, with its red margin. */
-.last .sheetBg { background-image: linear-gradient(90deg, transparent calc(var(--pad) - 30px), rgba(217, 79, 36, 0.4) calc(var(--pad) - 30px) calc(var(--pad) - 28px), transparent calc(var(--pad) - 28px)),
-  repeating-linear-gradient(transparent 0 37px, rgba(27, 74, 53, 0.13) 37px 38px); background-position: 0 0, 0 calc(var(--tearH) + 20px); }
 
 /* The tab: docked in its own slot under the header, a quarter of the column each. It's glued on
    over the tear, so it runs down into the page. It rises out of its page only once the page has
@@ -211,8 +170,7 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .ch.draw { margin-top: 55vh; }
 .ch.build { margin-top: 85vh; }
 .ch.ai { margin-top: 80vh; }
-.ch.last { margin-top: 110vh; }
-.cover { margin-top: 55vh; }
+.cover { margin-top: 110vh; }
 
 /* ── Write notes: a big note that fills the chapter ── */
 .wBody { box-sizing: border-box; height: 100%; display: grid; grid-template-columns: minmax(0, 390px) minmax(0, 1fr); column-gap: clamp(36px, 4.6vw, 72px); padding: calc(var(--tearH) + 10px) 0 0 var(--pad); }
@@ -280,7 +238,8 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 /* ── Build apps: from the request to the first tap ── */
 .bBody { box-sizing: border-box; height: 100%; display: grid; grid-template-columns: minmax(0, 540px) minmax(0, 1fr); column-gap: clamp(48px, 7vw, 120px); align-items: center; padding: calc(var(--tearH) + 4px) var(--pad) 12px; }
 .bApp { position: relative; }
-.bHead { align-self: center; }
+/* The heading sits at the top of the page, as in every chapter, so the page never shows a bare strip. */
+.bHead { align-self: start; padding-top: clamp(8px, 3vh, 30px); }
 .bTitle { margin: 0 0 26px; font-family: var(--display); font-weight: 500; font-size: min(13vw, 24vh, 190px); line-height: 0.86; letter-spacing: -0.045em; }
 .bHead .say { max-width: 18em; }
 
@@ -321,6 +280,7 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .day { display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
 .day:disabled { cursor: default; }
 .day small { font-size: 13px; font-weight: 650; color: #8a7d70; }
+.dayName { display: none; }
 .day i { position: relative; display: grid; place-items: center; width: 100%; max-width: 52px; aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
 .day i::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #e8820f; transform: scale(0); }
 .day svg { position: relative; opacity: 0; }
@@ -381,30 +341,33 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .askText { text-indent: 0; }
 .askCaret { display: inline-block; width: 2px; height: 0.92em; margin: 0 1px 0 1px; vertical-align: -0.1em; background: #7fe0c0; text-indent: 0; }
 .askSub { margin: 10px 0 0 48px; font-size: 17px; color: var(--soft); }
-.aStage { position: relative; flex: 1; min-height: 0; margin-top: clamp(18px, 3.4vh, 34px); display: flex; flex-direction: column; justify-content: center; }
-.aObjs { margin: 0; padding: 0; list-style: none; display: flex; align-items: flex-start; gap: var(--gap); }
-.aObj { position: relative; --padB: 18px; --cut: 0px; min-width: 0; filter: drop-shadow(0 22px 26px rgba(0, 0, 0, 0.32)); }
-.aoNote { flex: 0 0 calc(33.3% - 6px); }
-.aoBoard { flex: 1 1 0; }
-.aoApp { flex: 0 0 calc(25% - 6px); }
-/* The card's paper is clipped back to what it holds, so a change grows it and an Undo shrinks it. */
-.aPaper { position: absolute; inset: 0; border-radius: 18px; background: #fffdf8; clip-path: inset(0 0 var(--cut) 0 round 18px); }
-.aoBoard .aPaper { background: #1b4a35; }
-.aObj:not([data-land]) { --cut: var(--cut0, 0px); }
-.aoNote[data-undone], .aoApp[data-undone] { --cut: var(--shift, 0px); }
-.aIn { position: relative; padding: clamp(14px, 2.2vh, 20px) 20px var(--padB); color: #1d1b19; }
-.aoBoard .aIn { padding: 14px 14px var(--padB); }
-.aNewRow { opacity: 0; translate: 0 8px; }
-.aObj[data-land] .aNewRow { opacity: 1; translate: none; }
-.aObj[data-land][data-undone] .aNewRow { opacity: 0; translate: 14px 0; }
+.aStage { position: relative; flex: 1; min-height: 0; margin-top: clamp(22px, 4.4vh, 44px); display: flex; flex-direction: column; justify-content: flex-start; }
+/* Three frames in the chapters' own colours, of one height, so their bottoms always line up. Each
+   card inside is as tall as what it holds: a change opens its row in place, and an Undo closes it. */
+.aObjs { margin: 0; padding: 0; list-style: none; display: flex; align-items: stretch; gap: var(--gap); }
+.aObj { position: relative; min-width: 0; display: flex; flex-direction: column; box-sizing: border-box; padding: 10px; border-radius: 22px; background: var(--fc);
+  box-shadow: 0 22px 40px -18px rgba(0, 0, 0, 0.55); }
+.aoNote { --fc: #d94f24; flex: 0 0 calc(34% - 6px); }
+.aoBoard { --fc: #1b4a35; flex: 1 1 0; padding: 14px 16px 12px; }
+.aoApp { --fc: #dccbf6; flex: 0 0 calc(25% - 6px); }
+.aCard { position: relative; box-sizing: border-box; padding: clamp(14px, 2vh, 18px) 18px clamp(14px, 2vh, 18px); border-radius: 14px; background: #fffdf8; color: #1d1b19;
+  box-shadow: 0 1px 0 rgba(60, 20, 0, 0.12), 0 10px 20px -12px rgba(40, 10, 0, 0.45); }
+.aoBoard .aCard { padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--cream); }
+/* A row that opens: its height goes from nothing to what it holds. */
+.aGrow { display: grid; grid-template-rows: 0fr; }
+.aGrow > * { min-height: 0; overflow: hidden; padding: 0 6px; margin: 0 -6px; }
+.aNewRow > * { opacity: 0; translate: 0 8px; }
+.aObj[data-land]:not([data-undone]) .aNewRow { grid-template-rows: 1fr; }
+.aObj[data-land]:not([data-undone]) .aNewRow > * { opacity: 1; translate: none; }
+.aObj[data-land][data-undone] .aNewRow > * { translate: 14px 0; }
 .sweep { position: absolute; z-index: -1; left: -4px; right: -4px; top: -1px; bottom: -1px; border-radius: 6px; background: rgba(16, 163, 127, 0.22); transform: scaleX(0); transform-origin: 0 50%; }
 .aObj[data-land] .sweep { transform: none; }
-.aRec { opacity: 0; translate: 0 6px; }
-.aRec[data-show] { opacity: 1; translate: none; }
-.aoNote[data-undone] .aRec[data-show], .aoApp[data-undone] .aRec[data-show] { translate: 0 calc(-1 * var(--shift, 0px)); }
-.aRec .receipt { margin: 10px 0 0; font-size: 14px; }
+.aRec > * { opacity: 0; }
+.aRec[data-show] { grid-template-rows: 1fr; }
+.aRec[data-show] > * { opacity: 1; }
+.aRec .receipt { margin: 10px 0 2px; font-size: 14px; }
 .aoNote .aRec .receipt { margin-left: 32px; }
-.aoBoard .aRec .receipt { margin: 8px 0 0 4px; color: #8fe6c8; }
+.aoBoard .aRec .receipt { margin: 8px 0 2px 4px; color: #8fe6c8; }
 .aoBoard .aRec .receipt b { color: rgba(143, 230, 200, 0.6); }
 .aoBoard .aRec .receipt button { color: var(--cream); text-decoration-color: rgba(255, 241, 226, 0.4); }
 .aoBoard .aRec .receipt[data-undone] { color: rgba(255, 241, 226, 0.6); }
@@ -422,6 +385,9 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .aRows i { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cbbdae; }
 .aRows li[data-done] { color: #9a8b7a; text-decoration: line-through; }
 .aRows li[data-done] i { background: #e8820f; box-shadow: none; }
+.aRowAdd { display: flex; align-items: center; gap: 10px; margin: clamp(6px, 1.1vh, 9px) 0 0; padding: 1px 0; font-size: clamp(15px, 1.15vw, 16.5px); font-weight: 500; line-height: 1.3; }
+.aRowAdd > span { position: relative; z-index: 0; }
+.aRowAdd i { flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cbbdae; }
 .aBoardWrap { display: block; }
 .aBoard { display: block; width: 100%; height: auto; overflow: visible; }
 .aBoard .chalk path { stroke-width: 2.4; }
@@ -436,11 +402,15 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .aoBoard[data-undone] .aAdd { opacity: 0; }
 .aApp { color: #1d1b19; }
 .aAppTop { margin: 0 0 2px; font-size: clamp(16px, 1.3vw, 18px); }
+.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: clamp(10px, 1.6vh, 14px); }
+.aDays small { text-align: center; font-size: 12px; font-weight: 650; color: #8a7d70; }
+.aDays small[data-now] { color: #c96d06; }
 .aHabit { padding-top: clamp(8px, 1.5vh, 12px); }
-.aHabit p { margin: 0 0 6px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
+.aDays + .aHabit { padding-top: 6px; }
+.aHabit p { margin: 0 0 6px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
 .aHabit p > span { position: relative; z-index: 0; white-space: nowrap; }
 .aHabit small { font-size: 13.5px; font-weight: 600; color: #c96d06; white-space: nowrap; }
-.aHabit.aNewRow small { color: #0d8a6b; }
+.aNewRow .aHabit small { color: #0d8a6b; }
 .aWeek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
 .aWeek i { display: grid; place-items: center; aspect-ratio: 1; max-height: 34px; border-radius: 50%; background: #f1ece5; }
 .aWeek svg { opacity: 0; }
@@ -448,10 +418,11 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .aWeek [data-on] svg { opacity: 1; }
 .aWeek [data-now]:not([data-on]) { background: transparent; box-shadow: inset 0 0 0 2px #e8820f; }
 @media (prefers-reduced-motion: no-preference) {
-  .aPaper { transition: clip-path 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); }
-  .aNewRow { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  .aObj[data-land][data-undone] .aNewRow { transition: opacity 0.22s ease-out, translate 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
-  .aRec { transition: opacity 0.25s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .aGrow { transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .aNewRow > * { transition: opacity 0.3s 0.08s ease-out, translate 0.42s 0.08s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .aObj[data-land][data-undone] .aNewRow { transition: grid-template-rows 0.35s 0.12s cubic-bezier(0.4, 0, 0.2, 1); }
+  .aObj[data-land][data-undone] .aNewRow > * { transition: opacity 0.2s ease-out, translate 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
+  .aRec > * { transition: opacity 0.25s 0.12s ease-out; }
   .sweep { transition: transform 0.5s 0.08s cubic-bezier(0.6, 0, 0.3, 1); }
   .aRead::after { transition: transform 0.6s cubic-bezier(0.6, 0, 0.3, 1); }
   .aBox, .aBox rect, .aBox text { transition: opacity 0.35s 0.15s ease-out; }
@@ -464,75 +435,69 @@ a.obj:focus-visible { outline: 3px solid #ee8a14; outline-offset: 4px; border-ra
 .study a { color: #f5ad33; font-weight: 650; text-decoration: underline; text-decoration-color: rgba(245, 173, 51, 0.45); text-underline-offset: 3px; white-space: nowrap; }
 @media (hover: hover) { .study a:hover { text-decoration-color: currentColor; } }
 
-/* ── The last page: the note on a Mac, and arriving on the iPhone ── */
-.lBody { box-sizing: border-box; height: 100%; display: grid; grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.4fr); column-gap: clamp(32px, 4vw, 64px); align-items: center; padding: calc(var(--tearH) + 4px) var(--pad) 24px; }
-.lTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(44px, 4.4vw, 66px); line-height: 0.96; letter-spacing: -0.03em; text-wrap: balance; }
-.lTitle em { font-style: italic; color: #c4420f; }
-.devices { position: relative; height: min(100%, 480px); min-height: 0; }
-.mac { position: absolute; left: 0; top: 4%; width: 80%; height: 80%; box-sizing: border-box; border-radius: 14px; background: #fffdf8; overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(60, 35, 10, 0.12), 0 40px 70px -30px rgba(60, 30, 5, 0.5); color: #1d1b19; }
-.macBar { position: relative; display: flex; gap: 8px; height: 38px; align-items: center; padding: 0 16px; background: #f5efe6; box-shadow: 0 1px 0 #ebe2d4; }
-.macBar i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+/* ── The close: the notebook's cover closes over everything, tabs and all, in one scene ──
+   The picture is laid like object-fit: cover, pinned to the top right (--sw is its width), and the Mac
+   and iPhone are placed in the picture's own coordinates (1536 × 1024), so at every window size they
+   sit on the same spot of the tear: on the halftone, above the pencil. */
+.cover { --sw: max(100cqw, 150cqh); position: sticky; top: var(--hh); height: calc(100svh - var(--hh)); min-height: 560px; overflow: hidden; container-type: size;
+  color: #24170d; background: #fbdebb; box-shadow: 0 -10px 24px -8px rgba(50, 25, 5, 0.3); }
+.coverArt { position: absolute; top: 0; right: 0; width: var(--sw); height: auto; pointer-events: none; }
+.coverBody { position: relative; box-sizing: border-box; height: 100%; display: flex; align-items: center;
+  padding: calc(var(--sw) * 0.0687 + 16px) var(--pad) clamp(24px, 5cqh, 56px); }
+.coverText { width: min(560px, 41cqw); }
+.fTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.2cqw, 13cqh, 96px); line-height: 0.86; letter-spacing: -0.045em; }
+.fTitle em { font-style: italic; color: #c4420f; }
+.fCtas .ctas { margin-top: clamp(20px, 3.6cqh, 32px); }
+.fReq { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: #7a6650; }
+/* Four lines in pencil, written on the cover itself (no card, no tilt, no filter: crisp). */
+.claims { margin: clamp(22px, 4.4cqh, 40px) 0 0; padding: 0; list-style: none; font-size: clamp(18px, 1.5cqw, 22px); line-height: 1.6; color: #2a2620; }
+.claims a { color: #c4420f; text-decoration: underline; text-decoration-color: rgba(196, 66, 15, 0.45); text-underline-offset: 4px; }
+@media (hover: hover) { .claims a:hover { text-decoration-color: currentColor; } }
+
+/* The Mac and the iPhone. Every size is in em, so the pair scales as one. */
+.devices { position: absolute; left: calc(100cqw - var(--sw) * 0.4792); top: calc(var(--sw) * 0.088); width: 39em; height: 30em; font-size: calc(var(--sw) * 0.00957); }
+.mac { position: absolute; left: 0; top: 0; width: 32em; box-sizing: border-box; border-radius: 0.85em; background: #fffdf8; overflow: hidden; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(60, 35, 10, 0.14), 0 2.4em 4.4em -1.8em rgba(60, 30, 5, 0.5); }
+.macBar { position: relative; display: flex; gap: 0.55em; height: 2.4em; align-items: center; padding: 0 1em; background: #f5efe6; box-shadow: 0 1px 0 #ebe2d4; }
+.macBar i { width: 0.8em; height: 0.8em; border-radius: 50%; background: #ff5f57; }
 .macBar i:nth-child(2) { background: #febc2e; }
 .macBar i:nth-child(3) { background: #28c840; }
-.macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 600; color: #8a7d70; pointer-events: none; }
-.macWin { display: flex; height: calc(100% - 38px); }
-.macSide { flex: 0 0 31%; box-sizing: border-box; margin: 0; padding: 14px 10px; list-style: none; background: #f7f1e8; box-shadow: 1px 0 0 #ebe2d4; }
-.macSide li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; }
-.macSide b { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.macSide small { font-size: 12px; color: #8a7d70; }
-.macSide li[data-on] { background: #f3dcc0; }
-.mac .dvNote { flex: 1; min-width: 0; padding: 22px 28px; font-size: 16px; }
-.phone { position: absolute; right: 0; bottom: 0; width: clamp(180px, 15vw, 214px); aspect-ratio: 9 / 19.2; box-sizing: border-box; padding: 8px; border-radius: 40px; background: #1d1611;
-  box-shadow: 0 0 0 1.5px #4a3a2c, 0 40px 60px -26px rgba(40, 20, 0, 0.6); }
-.phoneScreen { height: 100%; box-sizing: border-box; border-radius: 32px; background: #fffdf8; overflow: hidden; color: #1d1b19; }
-.phoneStatus { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 13px 20px 0 24px; font-size: 12.5px; }
-.island { position: absolute; left: 50%; top: 9px; width: 32%; height: 21px; translate: -50% 0; border-radius: 12px; background: #1d1611; }
-.phoneIcons { display: flex; gap: 3px; }
-.phoneIcons i { width: 4.5px; height: 8.5px; border-radius: 1.5px; background: #1d1b19; }
-.phoneNav { display: flex; align-items: center; gap: 4px; margin: 14px 0 0; padding: 0 13px; font-size: 14px; color: #d9750f; font-weight: 500; }
-.phoneNav svg { width: 8px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.phone .dvNote { padding: 8px 15px; font-size: 12.5px; }
+.macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.86em; font-weight: 600; color: #8a7d70; pointer-events: none; }
+.mac .dvNote { padding: 1.3em 1.7em 1.5em; }
+.phone { position: absolute; left: 24.8em; top: 1.5em; width: 14em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #1d1611;
+  box-shadow: 0 0 0 1.5px #4a3a2c, 0 2.6em 3.8em -1.6em rgba(40, 20, 0, 0.6); }
+.phoneScreen { height: 100%; container-type: inline-size; box-sizing: border-box; border-radius: 2em; background: #fffdf8; overflow: hidden; color: #1d1b19; }
+.phoneStatus { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0.85em 1.25em 0 1.5em; font-size: 0.8em; }
+.island { position: absolute; left: 50%; top: 0.55em; width: 32%; height: 1.4em; translate: -50% 0; border-radius: 0.8em; background: #1d1611; }
+.phoneIcons { display: flex; gap: 0.2em; }
+.phoneIcons i { width: 0.3em; height: 0.6em; border-radius: 0.1em; background: #1d1b19; }
+.phoneNav { display: flex; align-items: center; gap: 0.3em; margin: 0.9em 0 0; padding: 0 0.9em; font-size: 0.9em; color: #d9750f; font-weight: 500; }
+.phoneNav svg { width: 0.55em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.phone .dvNote { padding: 0.5em 1em 0; font-size: 0.98em; }
 .nw { white-space: nowrap; }
-.dvTitle { margin: 0; font-size: 1.65em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
-.dvDecided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.4; }
+.dvDate { margin: 0 0 0.3em; font-size: 0.8em; font-weight: 500; color: #9a8b7a; }
+.dvTitle { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
+.dvDecided { margin: 0.6em 0 0; line-height: 1.4; }
 .dvDecided b { font-weight: 700; }
 .dvRows { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.45em; }
-.dvRows li { display: flex; align-items: center; gap: 0.6em; font-size: 1em; line-height: 1.3; }
+.dvRows li { display: flex; align-items: center; gap: 0.6em; line-height: 1.3; }
+.phone .dvRows li { align-items: flex-start; }
 .dvAdded span { padding: 0.08em 0.3em; margin: -0.08em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.18); }
 .dvRec .receipt { font-size: 0.86em; margin-left: 1.85em; }
-.phone .dvRec .receipt { margin-left: 0; gap: 0.35em; }
+/* On the iPhone the receipt is one line: the mark, who, and Undo (the dot goes). */
+.phone .dvRec .receipt { margin-left: 0; gap: 0.3em; font-size: 0.8em; }
+.phone .receipt button { margin-left: auto; padding: 0.2em 0.1em 0.2em 0.3em; }
+.phone .dvNote { padding-top: 0.8em; }
+.phone .dvDecided, .phone .dvRows { margin-top: 0.75em; }
+.phone .dvRows { gap: 0.6em; }
+/* A narrow iPhone keeps the receipt on one line: who added it, and Undo. */
+@container (max-width: 172px) { .phone .rcBy { display: none; } }
 .phone .receipt b { display: none; }
-.phone .receipt { flex-wrap: wrap; row-gap: 0; }
 .phone .dvAdded:not([data-in]), .phone .dvRec:not([data-in]) { opacity: 0; translate: 0 8px; }
-.phone .dvAdded span { background-size: 0 100%; }
 @media (prefers-reduced-motion: no-preference) {
   .phone .dvAdded, .phone .dvRec { transition: opacity 0.3s ease-out, translate 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .phone .dvRec { transition-delay: 0.25s; }
 }
-
-/* ── The cover: the notebook closes over everything, tabs and all ── */
-.cover { position: sticky; top: var(--hh); height: calc(100svh - var(--hh)); min-height: 560px; overflow: hidden; color: #24170d; background: #f6dfc3;
-  box-shadow: 0 -10px 24px -8px rgba(50, 25, 5, 0.3); }
-.coverArt { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 100% 0; }
-.coverBody { position: relative; box-sizing: border-box; height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 590px); column-gap: clamp(32px, 5vw, 80px); align-items: center;
-  padding: clamp(96px, 13vh, 130px) var(--pad) clamp(40px, 9vh, 90px); }
-.coverText { min-width: 0; }
-.fTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(9vw, 17vh, 140px); line-height: 0.86; letter-spacing: -0.05em; }
-.fTitle em { font-style: italic; color: #c4420f; }
-.fCtas .ctas { margin-top: clamp(22px, 4vh, 38px); }
-.fReq { margin: 14px 0 0; font-size: 15px; font-weight: 600; color: #7a6650; }
-/* A torn sheet of ruled paper glued to the cover, with four lines in pencil. */
-.ruled { --lh: 46px; position: relative; box-sizing: border-box; padding: 40px 30px 30px 74px; rotate: 1.8deg; background-color: #fdf8ee; color: #2c3a31;
-  background-image: linear-gradient(90deg, transparent 52px, rgba(217, 79, 36, 0.5) 52px 54px, transparent 54px),
-    repeating-linear-gradient(transparent 0 calc(var(--lh) - 1px), rgba(27, 74, 53, 0.24) calc(var(--lh) - 1px) var(--lh));
-  background-position: 0 0, 0 calc(40px + 0.22 * var(--lh));
-  -webkit-mask: url(/lab/s/edge-v1.webp) 0 0 / 1200px 28px repeat-x, linear-gradient(#000, #000) 0 26px / 100% 100% no-repeat;
-  mask: url(/lab/s/edge-v1.webp) 0 0 / 1200px 28px repeat-x, linear-gradient(#000, #000) 0 26px / 100% 100% no-repeat;
-  filter: drop-shadow(0 14px 18px rgba(60, 30, 5, 0.18)); }
-.ruledLines { margin: 0; padding: 0; list-style: none; font-size: 21px; line-height: var(--lh); }
-.ruledLines a { color: #c4420f; text-decoration: underline; text-decoration-color: rgba(196, 66, 15, 0.4); text-underline-offset: 4px; }
-@media (hover: hover) { .ruledLines a:hover { text-decoration-color: currentColor; } }
 
 /* The page ends on the closed notebook, so the site's town is left out here (ROUND7: no village). The
    footer links sit on a strip of the forest green, torn along the top like every sheet above it. */
@@ -549,8 +514,7 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .ch.draw { margin-top: 45vh; }
   .ch.build { margin-top: 75vh; }
   .ch.ai { margin-top: 75vh; }
-  .ch.last { margin-top: 115vh; }
-  .cover { margin-top: 50vh; min-height: 0; }
+  .cover { margin-top: 115vh; }
   .tail { height: 0; }
   .say { font-size: 17px; }
 
@@ -569,19 +533,12 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .lede { margin-top: 12px; font-size: 16.5px; line-height: 1.38; }
   .ctas { margin-top: 14px; }
   .heroText .fine { display: none; }
-  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 500px; margin-top: 16px; }
+  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 470px; margin-top: 16px; clip-path: none; overflow: hidden; }
   .collage { border-radius: 0; object-position: 50% 50%; }
   .objs { --u: calc(100cqw / 390); }
-  .oBoard { left: auto; right: calc(12 * var(--u)); top: calc(10 * var(--u)); width: calc(206 * var(--u)); rotate: 3deg; }
-  .oNote { left: calc(12 * var(--u)); top: calc(128 * var(--u)); width: calc(352 * var(--u)); font-size: 15px; }
-  .oApp { left: auto; right: calc(14 * var(--u)); top: calc(352 * var(--u)); width: calc(206 * var(--u)); rotate: -3deg; font-size: 12.5px; z-index: 4; }
-  .hNote { padding: 14px 16px 12px; }
-  .hBoard { padding: 10px 10px 8px; }
-  .hFlag { font-size: 12px; left: 68%; top: 56%; }
-  .heroOne .art { height: 420px; clip-path: none; overflow: hidden; }
-  .oneNote { left: calc(12 * var(--u)); top: calc(40 * var(--u)); width: calc(366 * var(--u)); font-size: 15px; padding: 15px 16px 13px; }
-  .oneDecided { font-size: min(15px, calc(14.4 * var(--u))); }
-  .onePen { width: calc(250 * var(--u)); }
+  .oneNote { top: calc(22 * var(--u)); translate: -50% 0; width: calc(366 * var(--u)); font-size: 15.5px; padding: 15px 16px 13px; border-radius: 16px; }
+  .oneDecided { font-size: min(15.5px, calc(14.8 * var(--u))); }
+  .onePen { --pen-turn: 132; --pen-rest: none; width: calc(300 * var(--u)); }
 
   .wBody { display: flex; flex-direction: column; padding: calc(var(--tearH) + 10px) 0 0 var(--pad); }
   .wHead { padding-right: var(--pad); }
@@ -608,20 +565,29 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .chalkClaude path { stroke-width: 3.6; }
   .pencilHand { display: none; }
 
-  .bBody { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 18px; padding: calc(var(--tearH) + 6px) var(--pad) 16px; }
-  .bHead { align-self: stretch; }
+  .bBody { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 16px; padding: calc(var(--tearH) + 6px) var(--pad) 16px; }
+  .bHead { align-self: stretch; padding-top: 0; }
   .bTitle { font-size: 60px; margin-bottom: 10px; }
   .bTitle br { display: none; }
-  .bApp { width: 100%; }
-  .make { padding: 18px 16px 16px; border-radius: 22px; }
+  .bApp { width: 100%; flex: 1 1 auto; min-height: 0; display: flex; }
+  .make { flex: 1; padding: 18px 16px 16px; border-radius: 22px; }
   .makeH, .appName { font-size: 21px; }
   .makeBox { font-size: 18px; padding: 12px 14px; }
   .makeRow { flex-direction: column; align-items: stretch; gap: 10px; }
   .makeRow small { max-width: none; }
   .makeGo { justify-content: center; }
-  .habitName { font-size: 16.5px; }
-  .week { gap: 5px; }
-  .day small { font-size: 11.5px; }
+  .habits { flex: 1; align-content: start; }
+  .habitName { font-size: 17px; }
+  /* The week as a list of days, the way a tracker reads on an iPhone. */
+  .week { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .day { grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: 10px; width: 100%; padding: 4px 0; text-align: left; }
+  .dayCell + .dayCell .day { box-shadow: 0 -1px 0 #f3ece3; }
+  .day small { font-size: 13px; }
+  .dayName { display: block; font-size: 16px; font-weight: 550; color: #1d1b19; }
+  .day:disabled .dayName { color: #b3a596; }
+  .day i { width: 32px; max-width: none; }
+  .day[data-now] .dayName { font-weight: 700; }
+  .makeApp .dayCell:not([data-in]) { scale: 1; translate: 0 -6px; }
 
   .aBody { padding: calc(var(--tearH) + 4px) var(--pad) 14px; }
   .aTop { display: block; }
@@ -631,14 +597,26 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .askMark { width: 26px; height: 26px; margin-right: 8px; vertical-align: -3px; }
   .askMark svg { width: 15px; height: 15px; }
   .askSub { margin: 6px 0 0; font-size: 14.5px; }
-  .aStage { margin-top: 10px; flex: 0 0 auto; display: block; }
-  .aObjs { display: grid; }
-  .aObj { grid-area: 1 / 1; opacity: 0; visibility: hidden; }
+  /* One thing at a time, in a frame that fills what's left of the screen, the card centred in it. */
+  .aStage { margin-top: 10px; flex: 1 1 auto; min-height: 0; display: flex; justify-content: stretch; }
+  .aObjs { flex: 1; display: grid; }
+  .aObj { grid-area: 1 / 1; justify-content: center; padding: 12px; border-radius: 22px; opacity: 0; visibility: hidden; }
+  .aoBoard { padding: 14px 12px 10px; }
   .aObj[data-current] { opacity: 1; visibility: visible; }
-  .aIn { padding: 14px 16px var(--padB); }
-  .aRows { gap: 6px; }
-  .aRows li, .aDecided, .aHabit p { font-size: 15px; }
-  .aWeek i { max-height: 36px; }
+  .aCard { padding: 16px 16px 14px; }
+  .aNoteTitle { font-size: 20px; }
+  .aRows { gap: 9px; }
+  .aRows li, .aDecided, .aHabit p, .aRowAdd { font-size: 16px; }
+  .aRowAdd { margin-top: 9px; }
+  .aoApp .aCard { padding: 20px 18px 18px; }
+  .aAppTop { font-size: 20px; }
+  .aDays { margin-top: 16px; }
+  .aDays small { font-size: 13px; }
+  .aHabit { padding-top: 18px; }
+  .aDays + .aHabit { padding-top: 8px; }
+  .aHabit p { margin-bottom: 10px; font-size: 17px; }
+  .aWeek { gap: 7px; }
+  .aWeek i { max-height: 40px; }
   .aTop { order: 0; }
   .markers { order: 1; display: flex; gap: 6px; margin-top: 12px; }
   .aStage { order: 2; }
@@ -651,38 +629,31 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .works { font-size: 15px; }
   .study { display: none; }
 
-  .lBody { display: flex; flex-direction: column; align-items: stretch; gap: 18px; padding: calc(var(--tearH) + 8px) var(--pad) 16px; }
-  .lTitle { font-size: 38px; }
-  .devices { flex: 0 0 auto; height: 470px; }
-  .mac { top: 0; width: 100%; height: 300px; }
-  .macBar { height: 30px; gap: 6px; padding: 0 12px; }
-  .macBar i { width: 9px; height: 9px; }
-  .macBar span { font-size: 11.5px; }
-  .macSide { display: none; }
-  .mac .dvNote { box-sizing: border-box; max-width: 54%; padding: 14px 0 14px 16px; font-size: 13px; }
-  .phone { width: 40%; right: 0; bottom: 0; padding: 6px; border-radius: 28px; }
-  .dvRec .receipt { margin-left: 0; }
-  .phone .receipt { font-size: 0.82em; gap: 0.3em; }
-  .phone .receipt b, .mac .receipt b { display: none; }
-  .phoneScreen { border-radius: 23px; }
-  .phoneStatus { padding: 8px 13px 0 16px; font-size: 10px; }
-  .island { top: 6px; width: 34%; height: 15px; border-radius: 9px; }
-  .phoneIcons i { width: 3.5px; height: 7px; }
-  .phoneNav { margin-top: 9px; padding: 0 10px; font-size: 11.5px; }
-  .phoneNav svg { width: 6px; height: 11px; }
-  .phone .dvNote { padding: 4px 10px; font-size: 10.5px; }
-
-  .cover { height: auto; position: relative; top: auto; }
-  .coverArt { object-position: 0 0; }
-  .coverBody { display: block; height: auto; padding: 96px var(--pad) 40px; }
   :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas.ctas { align-items: flex-start; }
-  .fTitle { font-size: min(19vw, 84px); }
-  .ruled { --lh: 36px; margin: 30px -6px 0; padding: 30px 10px 20px 42px; rotate: -1.2deg; background-image: linear-gradient(90deg, transparent 30px, rgba(217, 79, 36, 0.5) 30px 32px, transparent 32px),
-    repeating-linear-gradient(transparent 0 calc(var(--lh) - 1px), rgba(27, 74, 53, 0.24) calc(var(--lh) - 1px) var(--lh)); background-position: 0 0, 0 calc(30px + 0.22 * var(--lh)); }
-  .ruledLines { font-size: 15.5px; }
 }
 @media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
   .aObj { transition: opacity 0.3s ease-out, visibility 0.3s; }
+}
+
+/* Phones, and windows taller than wide: the cover scrolls like a page. The rings and the plain cover
+   are the picture at the top; its tear and pencil are laid again at the bottom (the same file), under
+   the Mac and the iPhone, with the pencil left showing below them. */
+@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+  .cover { position: relative; top: auto; height: auto; min-height: 0; container-type: normal; }
+  .coverArt { top: 0; right: auto; left: 0; width: 960px; height: auto;
+    -webkit-mask: linear-gradient(#000 0 66%, transparent 92%); mask: linear-gradient(#000 0 66%, transparent 92%); }
+  .cover::after { content: ""; position: absolute; right: 0; bottom: 0; width: 100%; height: 640px; pointer-events: none;
+    background: url(/lab/s/cover-v1.webp) right -56px bottom / 960px auto no-repeat;
+    -webkit-mask: linear-gradient(transparent 0 100px, #000 240px); mask: linear-gradient(transparent 0 100px, #000 240px); }
+  .coverBody { z-index: 1; display: block; height: auto; padding: 96px var(--pad) 300px; }
+  .coverText { width: auto; max-width: 560px; }
+  .fTitle { font-size: min(16.2vw, 84px); }
+  .claims { font-size: 17px; line-height: 1.55; }
+  .claims li + li { margin-top: 6px; }
+  .devices { position: relative; left: auto; top: auto; width: 100%; max-width: 520px; height: 34.4em; margin-top: 30px; font-size: 11.5px; }
+  .mac { width: 100%; }
+  .mac .dvNote { padding: 1.1em calc(14em + 0.6em) 1.3em 1.3em; }
+  .phone { left: auto; right: 0; top: 3.4em; width: 14em; }
 }
 
 /* Tablets and narrow windows: the desktop binder, smaller. */
@@ -692,6 +663,4 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .bBody { grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); }
   .heroText { width: min(560px, 44vw); }
   .art { left: calc(var(--pad) + min(560px, 44vw) + 40px); }
-  .coverBody { grid-template-columns: minmax(0, 1fr); align-content: center; row-gap: 28px; }
-  .ruled { max-width: 520px; }
 }

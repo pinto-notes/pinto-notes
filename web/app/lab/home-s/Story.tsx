@@ -10,26 +10,26 @@ import { AiShow } from "./AiShow";
 import { BuildShow } from "./Build";
 import { FreeLines, SyncMoment } from "./Close";
 import { HeroOne } from "./HeroOne";
-import { AppFace, BoardBig, BoardFace, HeroNote, Note } from "./Things";
+import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study S, "Editorial colour", round 8 (2026-11-15). The page is a ring binder printed like a
-// risograph collage. The first screen is the Lisbon trip on a torn-paper collage: the note (with the
-// decision you made and the line ChatGPT added because of it), the whiteboard and the app; or, with
-// `?hero=one`, the note alone, written by your pencil and by ChatGPT. Below it, each thing is a
-// full-bleed colour divider with a torn top edge. Scrolling lays each one over the last, whole, and
-// when it lands its tab rises out of it and stays docked under the header. The tabs end at Your AI.
-// Then the notebook's last page (the note on a Mac and an iPhone), and its cover closes over
-// everything, tabs and all: "Pinto Notes is free."
+// Study S, "Editorial colour", round 9 (2026-11-15). The page is a ring binder printed like a
+// risograph collage. The first screen is one page of the Lisbon trip note on a torn-paper collage,
+// written by two hands: your pencil writes the decision, then ChatGPT's line lands under it, with
+// Undo. Below it, each thing is a full-bleed colour divider with a torn top edge. Scrolling lays each
+// one over the last, whole, and when it lands its tab rises out of it and stays docked under the
+// header. The tabs end at Your AI. Then the notebook's cover closes over everything, tabs and all, in
+// one scene: "Pinto Notes is free.", the download, four lines in pencil, and the note on a Mac and an
+// iPhone, where ChatGPT's line arrives a moment after the cover lands.
 //
 // The sheets move by `position: sticky` alone (the browser scrolls them; no script moves them). The
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
 // dock. With Reduce Motion or `?t=`, everything shows its end state.
 
-type Tone = "write" | "draw" | "build" | "ai" | "last" | "cover";
-const ORDER: Tone[] = ["write", "draw", "build", "ai", "last", "cover"];
-const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", last: "", cover: "" };
+type Tone = "write" | "draw" | "build" | "ai" | "cover";
+const ORDER: Tone[] = ["write", "draw", "build", "ai", "cover"];
+const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", cover: "" };
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
@@ -50,7 +50,7 @@ function calm() {
 }
 
 /** Where a tab scrolls to: docked, and for the drawing, most of the way through its stay. */
-const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, last: 0.1, cover: 0 };
+const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, cover: 0 };
 /** A chapter's stay as a show's clock source (see show.ts). */
 const stayOf = (tone: Tone) => (fn: (dwell: number, arrive: number) => void) => listen(tone, fn);
 let jump: (tone: Tone) => void = () => {};
@@ -158,9 +158,9 @@ const Cta = () => (
   </div>
 );
 
-function Hero({ one }: { one: boolean }) {
+function Hero() {
   return (
-    <section data-hero className={`${s.hero} ${one ? s.heroOne : ""}`} aria-labelledby="s-h1">
+    <section data-hero className={s.hero} aria-labelledby="s-h1">
       <div className={s.heroText}>
         <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
         <p className={s.lede}>Write notes, draw on whiteboards and build apps. ChatGPT and Claude work in all three with you, and remember what you decided.</p>
@@ -169,20 +169,8 @@ function Hero({ one }: { one: boolean }) {
       </div>
       <div className={s.art}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={s.collage} src={one ? "/lab/s/collage-nohand-v1.webp" : "/lab/s/collage-v1.webp"} alt="" width="1122" height="1402" fetchPriority="high" />
-        {one ? (
-          <div className={s.objs}><HeroOne /></div>
-        ) : (
-          <div className={s.objs}>
-            <a className={`${s.obj} ${s.oBoard}`} href="#s-draw" onClick={(e) => { e.preventDefault(); jump("draw"); }} aria-label="Draw on whiteboards: Friday in Lisbon, with Claude drawing an arrow">
-              <BoardFace />
-            </a>
-            <div className={`${s.obj} ${s.oNote}`}><HeroNote /></div>
-            <a className={`${s.obj} ${s.oApp}`} href="#s-build" onClick={(e) => { e.preventDefault(); jump("build"); }} aria-label="Build apps: a habit tracker for the trip">
-              <AppFace />
-            </a>
-          </div>
-        )}
+        <img className={s.collage} src="/lab/s/collage-nohand-v1.webp" alt="" width="1122" height="1402" fetchPriority="high" />
+        <div className={s.objs}><HeroOne /></div>
       </div>
     </section>
   );
@@ -293,52 +281,39 @@ function Ai() {
   );
 }
 
-/* ───────────────────────── The last page: Mac and iPhone ───────────────────────── */
-
-function Last() {
-  const sub = useCallback(stayOf("last"), []);
-  return (
-    <Chapter tone="last" label="s-last-h">
-      <div className={s.lBody}>
-        <h2 id="s-last-h" className={s.lTitle}>On your Mac and iPhone, <em>at once.</em></h2>
-        <SyncMoment subscribe={sub} />
-      </div>
-    </Chapter>
-  );
-}
-
 /* ───────────────────────── The cover: the notebook closes ───────────────────────── */
 
 function Cover() {
+  const sub = useCallback(stayOf("cover"), []);
   return (
     <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={{ zIndex: 9 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className={s.coverArt} src="/lab/s/cover-v2.webp" alt="" width="1536" height="1024" loading="lazy" />
+      <img className={s.coverArt} src="/lab/s/cover-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
       <div data-body className={s.coverBody}>
         <div className={s.coverText}>
           <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is <em>free.</em></h2>
           <div className={s.fCtas}><Cta /></div>
           <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
+          <FreeLines />
         </div>
-        <FreeLines />
+        <SyncMoment subscribe={sub} />
       </div>
     </section>
   );
 }
 
-export function Story({ className, hero }: { className: string; hero: "one" | "three" }) {
+export function Story({ className }: { className: string }) {
   const root = useRef<HTMLDivElement>(null);
   useBinder(root);
   return (
     <div ref={root} className={`${s.stack} ${className}`}>
       <span data-probe className={s.probe} aria-hidden="true" />
       <span data-probe-hh className={s.probeHh} aria-hidden="true" />
-      <Hero one={hero === "one"} />
+      <Hero />
       <Write />
       <Draw />
       <Build />
       <Ai />
-      <Last />
       <Cover />
       <div className={s.tail} aria-hidden="true" />
     </div>

@@ -8,8 +8,8 @@ import s from "./s.module.css";
 
 // The three things on study S's page, all carrying one trip: Lisbon in May. A note (the plan, with the
 // decision you made and the line ChatGPT added because of it), a whiteboard (Friday, drawn), and a
-// small app (the habits before you go). The first screen shows them small on the collage; each
-// chapter shows its one at full size, with the same words.
+// small app (the habits before you go). The first screen shows the note; each chapter shows its
+// one at full size, with the same words.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -33,67 +33,8 @@ export function Receipt({ undone, onFlip, live = true }: { undone: boolean; onFl
     <p className={s.receipt} data-undone={undone || undefined}>
       {undone
         ? <><span>Undone</span><button type="button" onClick={onFlip} tabIndex={live ? 0 : -1}>Redo</button></>
-        : <><span className={s.receiptMark}><AIGlyph name="openai" size={11} color="#fff" /></span><span>Added by ChatGPT</span><b aria-hidden="true">·</b><button type="button" onClick={onFlip} tabIndex={live ? 0 : -1}>Undo</button></>}
+        : <><span className={s.receiptMark}><AIGlyph name="openai" size={11} color="#fff" /></span><span><span className={s.rcBy}>Added by </span>ChatGPT</span><b aria-hidden="true">·</b><button type="button" onClick={onFlip} tabIndex={live ? 0 : -1}>Undo</button></>}
     </p>
-  );
-}
-
-/* ───────────────────────── The first screen's three ───────────────────────── */
-
-/** The Lisbon note at reading size: your decision, and ChatGPT's line because of it. */
-export function HeroNote() {
-  const [undone, setUndone] = useState(false);
-  return (
-    <div className={s.hNote}>
-      <p className={s.hNoteDate}>Today at 09:41</p>
-      <p className={s.hNoteTitle}>Lisbon, May 8–12</p>
-      <p className={s.decided}><b>Decided:</b> {DECIDED}</p>
-      <ul className={s.hRows}>
-        <li data-on><i><Tick /></i><span>Book the flights</span></li>
-        <li><i /><span>Find a flat in Alfama</span></li>
-        <li className={s.hAdded} data-undone={undone || undefined}><i /><span><b className={s.mark} />{ADDED}</span></li>
-      </ul>
-      <Receipt undone={undone} onFlip={() => setUndone((u) => !u)} />
-    </div>
-  );
-}
-
-export function BoardFace() {
-  const r = rng(31);
-  return (
-    <div className={s.hBoard}>
-      <svg className={`${s.hBoardInk} ${hand.className}`} viewBox="0 0 340 196" aria-hidden="true">
-        <g className={s.chalk}>
-          <path d={ellipse(r, 66, 44, 60, 29)} />
-          <path d={box(r, 172, 16, 132, 56, 14)} />
-          <path d={ellipse(r, 122, 160, 108, 30)} />
-          <path d={line(r, 130, 44, 168, 44, 0)} />
-          <path d={head(r, [140, 44], [168, 44], 12)} />
-        </g>
-        <g className={s.miniClaude}>
-          <path d={curve(r, [236, 78], [240, 98], [232, 112], [214, 128], 1)} />
-          <path d={head(r, [228, 116], [214, 128], 11)} />
-        </g>
-        <text x="66" y="51" fontSize="20" textAnchor="middle" className={s.chalkText}>Land 10:40</text>
-        <text x="238" y="51" fontSize="20" textAnchor="middle" className={s.chalkText}>Alfama</text>
-        <text x="122" y="167" fontSize="20" textAnchor="middle" className={s.chalkText}>Sunset at Graça</text>
-      </svg>
-      {/* The flag is HTML, so it stays readable at any card size. */}
-      <Flag name="Claude" color={CLAUDE} className={s.hFlag} />
-    </div>
-  );
-}
-
-export function AppFace() {
-  return (
-    <div className={s.hApp}>
-      <p className={s.hAppTop}><b>Before Lisbon</b><span>App</span></p>
-      <p className={s.hHabit}>Portuguese, 10 min<small>4 days</small></p>
-      <div className={s.hWeek}>
-        {WEEK.map((d, i) => <span key={i} data-on={i < 4 || undefined} data-now={i === 4 || undefined}><small>{d}</small><i><Tick /></i></span>)}
-      </div>
-      <span className={s.hPress}>Done today</span>
-    </div>
   );
 }
 
@@ -179,30 +120,31 @@ export function Note({ live }: { live: boolean }) {
 type Pt = [number, number];
 type Node = { kind: "ellipse" | "box" | "diamond"; c: Pt; w: number; h: number; label: string[] };
 type Arrow = { a: Pt; c1: Pt; c2: Pt; b: Pt; label?: [string, Pt] };
-export type Board = { view: [number, number]; font: number; nodes: Node[]; arrows: Arrow[]; last: Arrow; title?: Pt; tip?: Pt };
+export type Board = { view: [number, number]; font: number; nodes: Node[]; arrows: Arrow[]; last: Arrow; title?: Pt; tip?: Pt; rest?: Pt };
 
-// Friday in Lisbon, left to right: land, drop the bags, and the weather decides; both ways end at the sunset.
+// Friday in Lisbon, as a loop across the board: land, drop the bags, and the weather decides. If it
+// rains, the tile museum; if not, Belém by the river. Both end at the sunset at Graça, bottom left.
 export const WIDE: Board = {
   // The title is the board's frame name, small, top left. `tip` is where your pencil is: it has just
-  // drawn the first shape (Claude draws the last arrow).
-  view: [1200, 540], font: 30, title: [4, 26], tip: [22, 146],
+  // drawn the first shape (Claude draws the last arrow, along the bottom).
+  view: [1200, 540], font: 30, title: [4, 26], tip: [26, 142], rest: [-112, 24],
   nodes: [
-    { kind: "ellipse", c: [126, 120], w: 236, h: 100, label: ["Land 10:40"] },
-    { kind: "box", c: [442, 120], w: 284, h: 96, label: ["Bags to Alfama"] },
-    { kind: "diamond", c: [752, 120], w: 230, h: 150, label: ["Raining?"] },
-    { kind: "box", c: [1078, 120], w: 216, h: 116, label: ["Belém by", "the river"] },
-    { kind: "box", c: [700, 400], w: 240, h: 96, label: ["Tile museum"] },
-    { kind: "ellipse", c: [1032, 400], w: 330, h: 112, label: ["Sunset at Graça"] },
+    { kind: "ellipse", c: [152, 130], w: 248, h: 100, label: ["Land 10:40"] },
+    { kind: "box", c: [500, 130], w: 290, h: 96, label: ["Bags to Alfama"] },
+    { kind: "diamond", c: [852, 130], w: 236, h: 150, label: ["Raining?"] },
+    { kind: "box", c: [1082, 396], w: 222, h: 116, label: ["Belém by", "the river"] },
+    { kind: "box", c: [648, 396], w: 252, h: 96, label: ["Tile museum"] },
+    { kind: "ellipse", c: [210, 396], w: 352, h: 112, label: ["Sunset at Graça"] },
   ],
   arrows: [
-    { a: [250, 120], c1: [266, 116], c2: [282, 122], b: [296, 120] },
-    { a: [590, 120], c1: [604, 116], c2: [622, 122], b: [634, 120] },
-    { a: [872, 120], c1: [892, 116], c2: [952, 122], b: [966, 120], label: ["no", [916, 98]] },
-    { a: [744, 200], c1: [738, 250], c2: [716, 312], b: [706, 348], label: ["yes", [764, 282]] },
-    { a: [824, 400], c1: [838, 396], c2: [852, 404], b: [864, 400] },
+    { a: [280, 130], c1: [302, 126], c2: [330, 132], b: [350, 130] },
+    { a: [649, 130], c1: [672, 126], c2: [704, 132], b: [728, 130] },
+    { a: [970, 130], c1: [1040, 128], c2: [1084, 220], b: [1082, 334], label: ["no", [1112, 180]] },
+    { a: [836, 202], c1: [810, 262], c2: [742, 312], b: [700, 344], label: ["yes", [744, 262]] },
+    { a: [520, 396], c1: [490, 392], c2: [430, 400], b: [392, 396] },
   ],
-  // Claude's: from Belém down to the sunset.
-  last: { a: [1088, 182], c1: [1120, 236], c2: [1104, 300], b: [1070, 340] },
+  // Claude's: from Belém, along the bottom, under the museum, to the sunset.
+  last: { a: [1066, 456], c1: [1050, 540], c2: [430, 548], b: [304, 456] },
 };
 // The same board, standing up, for a phone.
 export const TALL: Board = {
@@ -223,6 +165,7 @@ export const TALL: Board = {
     { a: [96, 466], c1: [102, 486], c2: [114, 506], b: [124, 522] },
   ],
   last: { a: [262, 469], c1: [258, 488], c2: [246, 508], b: [232, 522] },
+  rest: [16, -26],
 };
 
 function diamond(r: () => number, c: Pt, w: number, h: number) {
@@ -266,10 +209,9 @@ export function BoardBig({ tall, bind, tipRef }: { tall?: boolean; bind: (set: (
   const lastD = curve(r, g.last.a, g.last.c1, g.last.c2, g.last.b, 2);
   const lastHead = head(r, g.last.c2, g.last.b, tall ? 15 : 22);
   const ink = boardInk(g, r, tall ? 13 : 20);
-  const path = useRef<SVGPathElement>(null), wipe = useRef<SVGRectElement>(null), cur = useRef<SVGGElement>(null), tip = useRef<SVGGElement>(null);
-  const mid = tall ? "s-board-tall" : "s-board-wide";
-  const top = Math.min(g.last.a[1], g.last.b[1]) - 24, span = Math.abs(g.last.b[1] - g.last.a[1]) + 48;
+  const path = useRef<SVGPathElement>(null), ink2 = useRef<SVGPathElement>(null), cur = useRef<SVGGElement>(null), tip = useRef<SVGGElement>(null);
   const sc = tall ? 1.05 : 1.45;
+  const rest = g.rest ?? [26, -40];
   useEffect(() => {
     const p = path.current; if (!p) return;
     const len = p.getTotalLength();
@@ -277,31 +219,26 @@ export function BoardBig({ tall, bind, tipRef }: { tall?: boolean; bind: (set: (
       // Claude draws over the first 70% of the dwell, then lets go and rests beside the arrow.
       const u = Math.min(1, Math.max(0, (k - 0.06) / 0.64)), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
       const q = p.getPointAtLength(len * e);
-      wipe.current?.setAttribute("transform", `translate(0 ${(u <= 0 ? -40 : q.y + 8 - top).toFixed(1)})`);
+      if (ink2.current) ink2.current.style.strokeDashoffset = (1 - e).toFixed(4);
       if (tip.current) tip.current.style.opacity = e > 0.985 ? "1" : "0";
       const c = cur.current;
       if (c) {
-        const rest = e > 0.985;
-        const x = rest ? g.last.b[0] + (tall ? 16 : 26) : q.x, y = rest ? g.last.b[1] - (tall ? 26 : 40) : q.y;
+        const done = e > 0.985;
+        const x = done ? g.last.b[0] + rest[0] : q.x, y = done ? g.last.b[1] + rest[1] : q.y;
         c.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
         c.style.opacity = u <= 0 ? "0" : "1";
       }
     };
     set(0);
     return bind(set);
-  }, [bind, g, tall, top]);
+  }, [bind, g, rest]);
   return (
     <svg className={`${s.board} ${hand.className}`} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <defs>
-        <mask id={mid} maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
-          <rect ref={wipe} x="0" y={top - span} width={W} height={span} fill="#fff" transform={`translate(0 ${Math.max(g.last.a[1], g.last.b[1]) + 8 - top})`} />
-        </mask>
-      </defs>
       {g.title && <text x={g.title[0]} y={g.title[1]} fontSize={g.font * 0.8} className={s.boardTitle}>Friday in Lisbon</text>}
       {g.tip && <circle ref={tipRef} cx={g.tip[0]} cy={g.tip[1]} r="1" fill="none" />}
       {ink}
       <path ref={path} d={cubic(g.last)} fill="none" stroke="none" />
-      <g mask={`url(#${mid})`} className={s.chalkClaude}><path d={lastD} /></g>
+      <g className={s.chalkClaude}><path ref={ink2} d={lastD} pathLength={1} strokeDasharray="1 1" strokeDashoffset={1} /></g>
       <g ref={tip} className={s.chalkClaude}><path d={lastHead} /></g>
       <g ref={cur} style={{ opacity: 0 }}><g transform={`scale(${sc})`}><Cursor x={0} y={0} name="Claude" color={CLAUDE} /></g></g>
     </svg>

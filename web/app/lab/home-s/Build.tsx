@@ -9,7 +9,8 @@ import s from "./s.module.css";
 // Build apps, from the first word to the first tap. The note starts as Pinto's own New app page: you
 // describe the app ("Make me a tracker for Portuguese practice") and press Make it with ChatGPT. The
 // page becomes the tracker, piece by piece, in the same paper. Then your cursor taps today, and the
-// count goes from 0 to 1. After that it's yours: tap any day, add a habit, take one away.
+// count goes from 0 to 1. After that it's yours: tap any day, add a habit, take one away. On a phone
+// the week is a list of days, so the app fills the screen the way it would on an iPhone.
 
 const ASK = "Make me a tracker for Portuguese practice";
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -67,7 +68,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
       {/* The New app page, as in Pinto: describe it, and ChatGPT makes it. */}
       <div className={s.makeAsk} aria-hidden={built || undefined}>
         <p className={s.makeH}>New app</p>
-        <p className={s.makeLabel}>Or describe it</p>
+        <p className={s.makeLabel}>Describe your app</p>
         <p className={s.makeBox}>
           <span>{ASK.slice(0, snap.n)}</span><span className={s.makeCaret} data-done={snap.n >= ASK.length || undefined} /><span className={s.askRest}>{ASK.slice(snap.n)}</span>
         </p>
@@ -95,7 +96,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
                       <button type="button" className={s.day} data-on={h.days[j] || undefined} data-now={j === TODAY || undefined} data-today={(i === 0 && j === TODAY) || undefined}
                         data-down={(i === 0 && j === TODAY && snap.down) || undefined} disabled={j > TODAY} tabIndex={built ? 0 : -1}
                         onClick={() => tap(i, j)} aria-pressed={h.days[j]} aria-label={`${h.name}, ${DAY_NAMES[j]}`}>
-                        <small>{d}</small><i><Tick /></i>
+                        <small>{d}</small><span className={s.dayName}>{DAY_NAMES[j]}</span><i><Tick /></i>
                       </button>
                     </span>
                   ))}
