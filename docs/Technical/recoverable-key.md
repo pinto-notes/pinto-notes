@@ -49,6 +49,7 @@ All requests carry the person's normal session (`Authorization: Bearer <access t
 | `GET /functions/v1/key` | `{on, pub, ticket}`: a P-256 public key to seal a copy to, and the ticket to send back with it |
 | `POST {op: "store", ticket, box, choose, platform}` | `{stored: true}` |
 | `POST {op: "fetch", pub, platform}` | `{sealed, key_id, generation}` |
+| `POST {op: "create", ticket, box, key_id, verifier, recovery_wrap, platform}` | `{created: true}`: an account with no key, made on the web connect page (below) |
 
 Refusals are a status and a short `hint`: `sign_in` (401), `off` (503), `rate` (429), `no_key` and `no_copy` (404), `strict` and `not_chosen` (409), `wrong_key` and `bad_request` (400), `paused_after_reset` with `until` (403, only while a hold is set), `unreadable` (503).
 
@@ -82,6 +83,16 @@ A signed-in device of a standard account, unless:
 - **The account is strict**, or has not chosen yet (below).
 
 Each store, fetch, removal and refusal to an account is a row in `key_copy_events` (kept 12 months, readable by the account, in the data export) and a log line of a few fixed words (`_shared/log.ts`). Refusals are rows up to 30 an hour per account and log lines always. A request with no valid session belongs to no account, so it is a log line only. Neither ever holds key bytes, a ticket or a box (`key.pglite.test.ts`, "no row of the log of what happened and no log line ever holds key bytes"). A fetch also writes the notice "A new device opened your notes" to every device of the account and sends an email to its address. What became of the email is a row too (`mailed`: `sent`, `logged`, `failed` or `off`). With the function secret `KEY_NOTICE_SEND=log` the email is rendered and written to the function log (its subject, length and a hash, never the address) and Resend is not called: staging is set so, because Resend's daily quota is shared with production. Unset, it sends.
+
+## An account made on the web connect page
+
+Since 14 November 2026 a person can sign up on pintonotes.com/connect (email code, Google or Apple) and connect an AI before they have the app. Such an account has no key, so the page makes one, out of sight, behind its loading line: no key step, no recovery key shown, no extra click (`web/lib/account-key.ts`, `BrowserConnect.tsx`).
+
+- The key is made in the browser exactly as the app's first sign-in makes it (`StoredKey.generate`, `serverRow`): 32 random bytes, a 16-byte recovery key, the same key id, verifier and recovery wrap. Its copy goes up sealed to the function's ticket (`amb2t`, `up`), as a device's store does. `keycopy-vectors.json` ("web_account" and "up") pins it; the Deno, vitest and Swift tests check the same file, and a vitest checks the page's derivation strings against the app's source.
+- `op: "create"` stores the account's key row, the copy and `standard` in one transaction, or nothing. The page doesn't keep the key, so a row without a copy would be a key nobody holds; that is why this isn't `create_account_key` followed by a store, as on a device (which keeps the key and stores again later). Before anything is stored the function checks that the row is what the sealed key makes (the key id, the verifier, and that the recovery key opens the recovery wrap).
+- Refused: an account that has a key already (`key_exists`; the page reads the request again), an account that is `strict` (Advanced protection survives Start fresh; it is never turned into a copy here), a row the key doesn't make (`wrong_key`), a used ticket. It counts with stores (10 an hour per account) and the function's 30 a minute per address. Nothing sets `strict`.
+- The page's key bytes are wiped once the request is sent, and the page keeps nothing. The account's first sign-in in the app is then a second device's: it gets the key by signing in (`fetch`), makes none, and opens what the AI wrote (`ConnectSignupLiveTests`, `scripts/connect-signup-e2e.sh`). The recovery key is in the app's Settings, as for any account.
+- An email address with no account gets one with the same code (`create_user: true`); there is no password on the web. Such an account signs in to the app with Forgot password, which sets one.
 
 ## Choosing
 

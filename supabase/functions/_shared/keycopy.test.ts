@@ -2,7 +2,7 @@
 // checks too). To write the file again after a deliberate format change:
 //   KEYCOPY_WRITE_VECTORS=1 deno test -A supabase/functions/_shared/keycopy.test.ts
 import { assert, assertEquals, assertNotEquals, assertRejects } from "jsr:@std/assert@1";
-import { fromBase64, hex, keyIdOf, OpenError, toBase64 } from "./e2ee.ts";
+import { fromBase64, hex, keyIdOf, OpenError, recoveryKEK, toBase64, verifierOf, wrap } from "./e2ee.ts";
 import { AT_REST, newTicket, openAtRest, openTicket, openTransport, sealAtRest, sealTransport, SecretMissing, secrets, split,
   TICKET_SECONDS, type KeyMaterial, type Secrets } from "./keycopy.ts";
 
@@ -42,6 +42,15 @@ async function build() {
     sender_ephemeral_private: toBase64(sender.d),
     up: await sealTransport(k, receiver.publicRaw, "up", USER, pair, nonce),
     down: await sealTransport(k, receiver.publicRaw, "down", USER, pair, nonce),
+    // A new account's key row as the web connect page makes it (web/lib/account-key.ts, checked
+    // by its vitest; PaneTests/KeyCopyTests.swift checks the app accepts it). Its copy is "up".
+    web_account: {
+      about: "A new account's key row as the web connect page makes it (web/lib/account-key.ts) from this file's data and recovery keys and user, with wrap_nonce for the recovery wrap. The page's copy for the server is this file's 'up' box. Made with the server's e2ee.ts; the app's serverRow makes the same key_id and verifier and opens the same wrap.",
+      key_id: await keyIdOf(k.dataKey),
+      verifier: await verifierOf(k.dataKey, USER),
+      wrap_nonce: toBase64(bytes(0xb0, 12)),
+      recovery_wrap: await wrap(k.dataKey, await recoveryKEK(k.recovery, USER), "recovery", USER, bytes(0xb0, 12)),
+    },
   };
 }
 

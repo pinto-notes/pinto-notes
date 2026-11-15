@@ -629,3 +629,90 @@ Deno.test("a build from before this reads the same key state it always did", asy
     assertEquals((await pg.query(`select 1 from public.${t}`)).rows, [], t);
   }
 });
+
+// MARK: An account the web connect page signs up (op "create", web/lib/account-key.ts)
+
+/** A new account with no key, signed up on the web: its key made as the page makes it. */
+async function webMade(uid: string) {
+  const key = { dataKey: newDataKey(), recovery: crypto.getRandomValues(new Uint8Array(16)) };
+  const keyId = await keyIdOf(key.dataKey);
+  const row = { key_id: keyId, verifier: await verifierOf(key.dataKey, uid), recovery_wrap: await wrap(key.dataKey, await recoveryKEK(key.recovery, uid), "recovery", uid) };
+  return { id: uid, key, keyId, row };
+}
+
+/** The page's two requests: a ticket, then create with the row and the key sealed to the ticket. */
+async function create(w: World, a: Awaited<ReturnType<typeof webMade>>, o: { row?: Record<string, string>; key?: KeyMaterial; ticket?: string } = {}) {
+  const hello = await call(w, a.id);
+  if (hello.status !== 200) return hello;
+  const box = await sealTransport(o.key ?? a.key, fromBase64(hello.body.pub), "up", a.id);
+  return await call(w, a.id, { op: "create", ticket: o.ticket ?? hello.body.ticket, box, ...(o.row ?? a.row), platform: "web" });
+}
+
+Deno.test("an account signed up on the web gets its key, its copy and standard mode in one step, and a device then gets the key by signing in", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await webMade(await newUser(pg));
+  assertEquals((await state(pg, a.id)).key, null);
+
+  assertEquals(await create(w, a), { status: 200, body: { created: true } });
+  const s = await state(pg, a.id);
+  assertEquals([s.key.key_id, s.key.verifier, s.key.recovery_wrap, s.copy, s.protection], [a.keyId, a.row.verifier, a.row.recovery_wrap, true, "standard"]);
+  assertEquals(await events(pg, a.id), ["stored"]);
+  assertEquals((await pg.query(`select platform from public.key_copy_events where user_id = $1`, [a.id])).rows, [{ platform: "web" }]);
+
+  // The app's first sign-in on a phone: no key on the device, the account has one, so it fetches it.
+  const got = await fetchKey(w, a.id);
+  assertEquals(got.status, 200);
+  const k = await openTransport(got.body.sealed, got.pair.privateKey, "down", a.id, a.keyId);
+  assertEquals([hex(k.dataKey), hex(k.recovery)], [hex(a.key.dataKey), hex(a.key.recovery)]);
+});
+
+Deno.test("the web makes a key only for an account with none, never turns Advanced protection off, and only for a row its key makes", async () => {
+  const pg = await schemaDB();
+  const w = world(pg);
+  // An account with a key (the app made it): nothing changes.
+  const had = await account(pg);
+  const over = await webMade(had.id);
+  assertEquals((await create(w, over)).body.hint, "key_exists");
+  assertEquals((await state(pg, had.id)).key.key_id, had.keyId);
+  assertEquals((await copies(pg, had.id)).length, 0);
+
+  // A strict account that started fresh has no key, and stays strict: the app makes its key.
+  const strict = await webMade(await newUser(pg));
+  await pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, 'strict')`, [strict.id]);
+  assertEquals((await create(w, strict)).body.hint, "strict");
+  assertEquals((await state(pg, strict.id)).key, null);
+
+  // A row that isn't what the key makes: another key's verifier, a wrap another recovery key opens.
+  const a = await webMade(await newUser(pg)), b = await webMade(a.id);
+  assertEquals((await create(w, a, { row: { ...a.row, verifier: "not hex" } })).body.hint, "bad_request");
+  assertEquals((await create(w, a, { row: { ...a.row, verifier: b.row.verifier } })).body.hint, "wrong_key");
+  assertEquals((await create(w, a, { row: { ...a.row, verifier: "0".repeat(64) } })).body.hint, "wrong_key");
+  const otherWrap = await wrap(a.key.dataKey, await recoveryKEK(crypto.getRandomValues(new Uint8Array(16)), a.id), "recovery", a.id);
+  assertEquals((await create(w, a, { row: { ...a.row, recovery_wrap: otherWrap } })).body.hint, "wrong_key");
+  assertEquals((await create(w, a, { key: b.key })).body.hint, "wrong_key");
+  assertEquals((await state(pg, a.id)).key, null);
+  assertEquals((await copies(pg, a.id)).length, 0);
+
+  // A ticket works once, and a second create (another tab) finds the key made.
+  const hello = await call(w, a.id);
+  const box = await sealTransport(a.key, fromBase64(hello.body.pub), "up", a.id);
+  const first = await call(w, a.id, { op: "create", ticket: hello.body.ticket, box, ...a.row, platform: "web" });
+  assertEquals(first.body, { created: true });
+  assertEquals((await call(w, a.id, { op: "create", ticket: hello.body.ticket, box, ...a.row, platform: "web" })).body.hint, "key_exists");
+  assertEquals((await create(w, a)).body.hint, "key_exists");
+
+  // Off, no session: nothing.
+  const off = world(pg, {});
+  const c = await webMade(await newUser(pg));
+  assertEquals((await create(off, c)).body.hint, "off");
+  assertEquals((await call(w, null, { op: "create", ...c.row })).status, 401);
+  assertEquals((await state(pg, c.id)).key, null);
+});
+
+Deno.test("a key the web makes counts with stores: ten an hour per account", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await webMade(await newUser(pg));
+  for (let i = 0; i < LIMITS.storePerHour; i++) await pg.query(`insert into public.key_copy_events (user_id, what, why) values ($1, 'refused', 'wrong_key')`, [a.id]);
+  assertEquals((await create(w, a)).body.hint, "rate");
+  assertEquals((await state(pg, a.id)).key, null);
+});
