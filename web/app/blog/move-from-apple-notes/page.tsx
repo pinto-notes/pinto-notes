@@ -1,6 +1,7 @@
 import { SHOTS } from "@/lib/posts";
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
@@ -36,6 +37,10 @@ export default function Page() {
         <li>A Mac with macOS 26 or later, and your notes in the Notes app on it.</li>
         <li>Pinto Notes, free from the <a href="/download">download page</a>. Open it and sign in, so your notes sync.</li>
       </ul>
+      {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+      <PostCta slug="move-from-apple-notes" position="answer" title="Get Pinto Notes for your Mac first.">
+        <p>It&apos;s free. Install it, sign in, then come back here for the import.</p>
+      </PostCta>
 
       <h2>Import everything on your Mac</h2>
       <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={460}

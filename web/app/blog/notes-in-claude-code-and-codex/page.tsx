@@ -1,5 +1,6 @@
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 
@@ -52,6 +53,10 @@ export default function Page() {
             (<code>claude mcp add</code>) or in Codex (<code>codex mcp add</code>), then you allow it in the app. After that the agent can
             search your notes, write the standup into them and keep a work log you can read anywhere.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="notes-in-claude-code-and-codex" position="answer" title="One notebook for every agent.">
+            <p>Pinto Notes has the server built in. One command in Claude Code or Codex, and you read what the agent wrote on your phone.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/pinto/claude-code-standup-note" width={1250} height={540} maxWidth={625}

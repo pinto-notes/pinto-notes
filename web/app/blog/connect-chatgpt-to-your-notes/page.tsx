@@ -2,6 +2,7 @@ import { NoteMoment } from "@/lib/NoteMoment";
 import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Keep, Path, PostFigure, Steps } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { CLAUDE_DIRECTORY_URL, MCP_URL } from "@/lib/facts";
@@ -70,6 +71,10 @@ export default function Page() {
             have ChatGPT search, write and edit your notes from any chat, they need an app that connects to it, like Pinto Notes:
             open the Pinto Notes plugin in ChatGPT, connect it, then choose Allow on your Mac.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="connect-chatgpt-to-your-notes" position="answer" title="Notes ChatGPT can search, write and edit.">
+            <p>Pinto Notes works like Apple Notes on iPhone and Mac. Connect it to ChatGPT once, and every change ChatGPT makes has an Undo.</p>
+          </PostCta>
         </Answer>
       }
       faq={FAQ}

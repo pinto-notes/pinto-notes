@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import PostHogAnalytics from "./PostHogAnalytics";
 import ConsentBanner from "./ConsentBanner";
+import CampaignLinks from "./CampaignLinks";
 import { analyticsAllowed, analyticsEvent } from "@/lib/analytics";
 import { posthogAllowed, posthogSettings, rememberInternal } from "@/lib/posthog";
 import { replayOnPage } from "./posthog-client";
@@ -33,6 +34,7 @@ export default function SiteAnalytics() {
   }, [path]);
   return (
     <>
+      <CampaignLinks path={path} />
       {analyticsAllowed(path) && <Analytics beforeSend={analyticsEvent} />}
       {posthog && posthogAllowed(path) && <PostHogAnalytics apiKey={posthog.key} host={posthog.host} path={path} />}
       {posthog && posthogAllowed(path) && <ConsentBanner apiKey={posthog.key} host={posthog.host} />}

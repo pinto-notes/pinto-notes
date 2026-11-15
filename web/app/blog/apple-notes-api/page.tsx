@@ -1,6 +1,7 @@
 import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -69,6 +70,10 @@ export default function Page() {
             device: AppleScript on a Mac, Notes&apos; Shortcuts actions on iPhone and Mac, and Claude&apos;s Apple Notes extension on a
             Mac. Nothing in the cloud, so ChatGPT and Claude on your phone can&apos;t reach your notes.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="apple-notes-api" position="answer" title="Want ChatGPT and Claude in your notes?">
+            <p>Pinto Notes works like Apple Notes, brings your notes over in one import, and has the server Apple Notes doesn&apos;t. ChatGPT, Claude, Claude Code and Codex connect to it, with your OK in the app.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/apple/apple-dts-notes-api-answer" width={1176} height={720} maxWidth={588}

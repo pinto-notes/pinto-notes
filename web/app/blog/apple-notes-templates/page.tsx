@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Capture, PostFigure, Steps } from "@/lib/PostParts";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
 import { TemplatePicker } from "@/lib/TemplatePicker";
@@ -40,6 +41,10 @@ export default function Page() {
             (File, Duplicate Note) or copy it into a new note on iPhone. On macOS 27, the templates below paste in with Edit, Paste as
             Markdown, headings and checklists included.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="apple-notes-templates" position="answer" title="Templates, built in.">
+            <p>Pinto Notes works like Apple Notes and comes with a free template library, including a habit tracker that keeps your streaks for you. Your Apple Notes come over in one import.</p>
+          </PostCta>
         </Answer>
       }
       hero={<Capture priority src="/blog/macos27/notes-templates-window" width={1538} height={984} maxWidth={760}
@@ -91,9 +96,10 @@ export default function Page() {
         alt="Three drawn checklist cards fanned out, with tally marks beside them."
         caption="Every copy starts blank. Counting across them is up to you." />
       <p>
-        A template in Apple Notes is a blank form. It&apos;s great for the first day. By the third week of a habit list you&apos;re
+        A template in Apple Notes is a blank form. It&apos;s great for the first day. By the third week of a <a href="/blog/apple-notes-habit-tracker">habit list</a> you&apos;re
         scrolling through copies of the same checklist, counting ticks by hand to see whether you kept your streak, and nothing ever adds
-        up on its own. And whatever you told ChatGPT about your week stays in the chat; it can&apos;t reach the note.
+        up on its own. And whatever you told ChatGPT about your week stays in the chat; it can&apos;t reach the note. (Sums are the
+        exception: a <a href="/blog/apple-notes-budget-template">budget note</a> can total itself with Math Results.)
       </p>
 
       <h2 id="amber-notes">Templates that fill themselves in</h2>

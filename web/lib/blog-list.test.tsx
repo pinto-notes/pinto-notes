@@ -64,6 +64,15 @@ describe("the blog's lists", () => {
     expect(doc.querySelector('[data-blog-pages]')).toBeNull();
   });
 
+  it("lead the front with the memory study, on its own chart cover, and keep it off the answers shelves", () => {
+    const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
+    const first = doc.querySelector(".filter-grid > li > a[data-row]")!;
+    expect(first.getAttribute("href")).toBe("/blog/ai-memory-with-notes");
+    expect(first.querySelector("img")!.getAttribute("src")).toBe("/blog/covers/memory-study.webp");
+    const answers = new DOMParser().parseFromString(renderToStaticMarkup(<AnswersIndex />), "text/html");
+    expect(answers.querySelector('a[href="/blog/ai-memory-with-notes"]')).toBeNull();
+  });
+
   it("list the announcements on the front as compact rows with a small cover, not wide cards", () => {
     const doc = new DOMParser().parseFromString(renderToStaticMarkup(<BlogIndex category={null} page={1} />), "text/html");
     const rows = doc.querySelectorAll(".filter-grid > li > a[data-row]");

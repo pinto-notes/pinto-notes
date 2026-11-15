@@ -119,6 +119,12 @@
   "w": 1600,
   "h": 1000
  },
+ "budget-template": {
+  "ground": "#e6efde",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "budget": {
   "ground": "#fceecc",
   "ink": "dark",
@@ -185,6 +191,12 @@
   "w": 880,
   "h": 550
  },
+ "habit-tracker": {
+  "ground": "#f9dfbb",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "ios-27": {
   "ground": "#fff3d0",
   "ink": "dark",
@@ -196,6 +208,12 @@
   "ink": "dark",
   "w": 880,
   "h": 550
+ },
+ "memory-study": {
+  "ground": "#5d2d47",
+  "ink": "light",
+  "w": 1600,
+  "h": 1000
  },
  "meta-muse-apps": {
   "ground": "#ebebed",
@@ -283,6 +301,12 @@
  },
  "templates": {
   "ground": "#f7e7d0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "version-history": {
+  "ground": "#e6f0df",
   "ink": "dark",
   "w": 880,
   "h": 550

@@ -2,6 +2,7 @@ import { Figure } from "@/lib/blog";
 import { Answer, PostFigure } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
@@ -102,6 +103,10 @@ export default function Page() {
             Obsidian open. With Obsidian closed, mcpvault reads the vault&apos;s files directly. Both run on the computer with the vault,
             so Claude Code and Claude Desktop can use them; ChatGPT, claude.ai and your phone can&apos;t.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="obsidian-mcp" position="answer" title="If you want your notes from anywhere.">
+            <p>Pinto Notes is a free, open-source notes app with an MCP server built in, so ChatGPT and Claude on your phone can use your notes without a computer left on.</p>
+          </PostCta>
         </Answer>
       }
       faq={FAQ}

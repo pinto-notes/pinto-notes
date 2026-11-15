@@ -28,6 +28,9 @@ export type Post = {
   /// A launch of something new in the app: labelled "Announcement" on its card and above its title
   /// (Emil, 7 November 2026: "right now it's honestly not that clear" that these are news).
   announcement?: true;
+  /// On the front of the blog without being a launch: original work about Pinto, such as the memory
+  /// study (Emil, 12 November 2026: "do that then", when asked whether to front it).
+  front?: true;
 };
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
@@ -127,6 +130,19 @@ export const posts: Post[] = [
     thumb: cover("mist", "app-import-your-notes", 1600, 1000, "Apple Notes, Obsidian, Evernote, Google Keep, Bear and Markdown icons, linked to Pinto Notes"),
     draft: false,
     announcement: true,
+  },
+  {
+    slug: "ai-memory-with-notes",
+    title: "Does your AI remember better with notes? I tested it",
+    description: "1,540 questions about months of past chats, asked in a new chat. Claude with no memory: 18% right. With Pinto Notes connected: 82.5%. Method, limits and code.",
+    excerpt: "In a new chat, Claude got 18% of questions about past chats right. With its notes in Pinto, 82.5%. The test, the limits, and the code to run it yourself.",
+    category: "Building Pinto Notes",
+    date: "2026-11-12",
+    updated: "2026-11-12",
+    image: { src: "/blog/memory-study/locomo-types.webp", alt: "Grouped bar chart by question type. One fact: no memory 24, saved facts 66, one notebook 72, Pinto 89. Several facts: 13, 58, 67, 66. When: 3, 48, 80, 87. Inference: 29, 54, 52, 65.", width: 1848, height: 820, window: false },
+    thumb: cover("dusk", "memory-study", 1600, 1000, "Bar chart: no memory 18%, saved facts 60%, one notebook 72%, Pinto 82.5%"),
+    draft: false,
+    front: true,
   },
   {
     slug: "best-ai-notes-app",
@@ -258,6 +274,42 @@ export const posts: Post[] = [
     updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
     thumb: cover("sky", "move-to-icloud", 1600, 1000, "A notes icon with an arrow to iCloud"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-habit-tracker",
+    title: "Apple Notes habit tracker template, and where it stops",
+    description: "Apple Notes has no habit tracker, but a weekly checklist does the daily part. A template to paste in, how to keep it going, and a free tracker with streaks.",
+    excerpt: "A weekly habit tracker for Apple Notes, ready to paste in. How to reset it each week, where it runs out, and a habit tracker note that keeps your streaks.",
+    category: "Apple Notes",
+    date: "2026-11-14",
+    updated: "2026-11-14",
+    image: SHOTS.habitApp,
+    thumb: cover("sand", "habit-tracker", 1600, 1000, "A paper card with a week of ticked squares beside a small paper flame"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-budget-template",
+    title: "Apple Notes budget template that adds itself up",
+    description: "Apple Notes has no budget template, but a note can still do the sums. A monthly budget to paste in, where it stops, and a free budget note that keeps itself.",
+    excerpt: "A budget in Apple Notes that totals itself with Math Results, ready to paste in. Where it runs out, and a budget note that tracks spending for you.",
+    category: "Apple Notes",
+    date: "2026-11-13",
+    updated: "2026-11-13",
+    image: SHOTS.budgetApp,
+    thumb: cover("honey", "budget-template", 1600, 1000, "A paper page with lines and a bar chart beside a small stack of coins"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-version-history",
+    title: "Does Apple Notes have version history? No. What to do",
+    description: "Apple Notes keeps no earlier versions of a note. What Undo, shared notes and backups can still get back, and notes apps that keep every version.",
+    excerpt: "Changed a note and lost the part you needed? Apple Notes has no version history. What can still bring it back, and what to use instead.",
+    category: "Apple Notes",
+    date: "2026-11-13",
+    updated: "2026-11-13",
+    image: SHOTS.history,
+    thumb: cover("orchid", "version-history", 1600, 1000, "Three stacked note pages and a clock with an arrow turning back"),
     draft: false,
   },
   {
@@ -462,7 +514,7 @@ export const categoryFromAnchor = (anchor: string): Category | undefined => cate
 /// The front of the blog: announcements only (Emil, 7 November 2026: "the Pinto Notes blog immediately
 /// became only for announcements"). Every other post answers a search; those live on /blog/answers,
 /// in the sitemap and in the posts that link to them, but not on /blog.
-export const FEATURED = posts.filter((p) => p.announcement && !p.draft).map((p) => p.slug);
+export const FEATURED = posts.filter((p) => (p.announcement || p.front) && !p.draft).map((p) => p.slug);
 export const isFeatured = (p: Post) => FEATURED.includes(p.slug);
 
 /// Posts per page on the index and on each category page.

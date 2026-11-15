@@ -1,4 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { PostCta } from "@/lib/PostCta";
 import { Answer, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
@@ -62,6 +63,10 @@ export default function Page() {
             Format, Table (Option-Command-T) makes one, and Tab in the last cell adds a row. Notes can&apos;t sum a column, sort a table or
             set a width. For a total, name each number under the table and Math Results adds them up for you.
           </p>
+          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
+          <PostCta slug="apple-notes-tables" position="answer" title="A table you can just ask.">
+            <p>Pinto Notes brings your Apple Notes tables over in one import. Connect ChatGPT or Claude, and they add the row you mention and do the sum when you ask.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/macos27/notes27-table-reading-list" width={1400} height={554} maxWidth={700}
@@ -108,7 +113,8 @@ export default function Page() {
       </p>
       <p>
         The trick is to do the sum just under the table. Give each cost a name, then add the names up. Notes fills in the answer, and when
-        the van turns out to be 280, change that one line and the total follows. It&apos;s the closest Apple Notes gets to a spreadsheet.
+        the van turns out to be 280, change that one line and the total follows. It&apos;s the closest Apple Notes gets to a spreadsheet. A whole
+        month built this way is in the <a href="/blog/apple-notes-budget-template">Apple Notes budget template</a>.
       </p>
       <PostFigure src="/blog/apple/iphone-math-notes-named-totals" width={1306} height={1828} maxWidth={420}
         alt="A note called Sequoia Group Expenses on iPhone: each cost named on its own line, the names added up to $475, and $475 divided by 5 to $95 each."

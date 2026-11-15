@@ -41,4 +41,9 @@ describe("a post's call to action", () => {
     expect(render(true)).toContain("apps.apple.com");
     expect(render(true)).not.toContain("coming to the App Store");
   });
+  it("gives an iPhone its own small print, not the Mac's, once the App Store is live", () => {
+    const html = render(true);
+    expect(html).toMatch(/<p class="[^"]*pi pi-ios">Free, for iOS 26 or later.<\/p>/);
+    expect(html).toMatch(/<p class="[^"]*pi-apple pi-not-ios">Free, for macOS 26 or later./);
+  });
 });

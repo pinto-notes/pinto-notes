@@ -54,9 +54,11 @@ export default function Page() {
         alt="The same handwritten note, Urban planner, open in Notes on a MacBook, a tablet and an iPhone at once."
         caption="iCloud keeps one note the same everywhere, mistakes included. Image: Apple." />
       <p>
-        With iCloud, every device signed in to your Apple Account has the same notes, so losing a phone doesn&apos;t lose them.
+        With iCloud, every device signed in to your Apple Account has the same notes, so losing a phone doesn&apos;t lose them. (When a
+        note shows on one device and not another, that&apos;s a different problem: <a href="/blog/apple-notes-not-syncing">Apple Notes not
+        syncing between iPhone and Mac</a>.)
         A mistake travels the same way, though. A deleted note leaves every device and waits in Recently Deleted for 30 days, then it&apos;s
-        gone. A paragraph you delete or overwrite can&apos;t be brought back, because Apple Notes keeps no version history. And
+        gone. A paragraph you delete or overwrite can&apos;t be brought back, because <a href="/blog/apple-notes-version-history">Apple Notes keeps no version history</a>. And
         an iPhone backup won&apos;t help, since <a href="https://support.apple.com/en-us/108770" rel="noopener">iCloud Backup leaves out notes
         already stored in iCloud</a>. If you&apos;re past that point already, <a href="/blog/recover-deleted-apple-notes">how to recover deleted
         Apple Notes</a> covers what can still be done.

@@ -3,6 +3,7 @@ import { OLD_DMG_NAMES } from "./lib/downloads";
 import { posthogSettings } from "./lib/posthog";
 import { REMOVED_POSTS } from "./lib/removed-posts";
 import { pastLastPageRedirects } from "./lib/posts";
+import { sourceLinkRedirects } from "./lib/source-links";
 
 // Note content is sanitized; this is the second line. Next.js needs its own inline
 // scripts, so scripts stay same-origin + inline, and everything else is pinned down:
@@ -89,6 +90,8 @@ const config: NextConfig = {
       { source: "/chatgpt", destination: "/", permanent: false },
       // The old name, typed as an address, lands on the page that says what it's called now.
       { source: "/ambernotes", destination: "/amber-notes", permanent: true },
+      // Short, tagged links for our social bios and video descriptions (lib/source-links.ts).
+      ...sourceLinkRedirects(),
     ];
   },
   async rewrites() {

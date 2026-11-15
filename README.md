@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://pintonotes.com"><img src="docs/images/hero.png" width="900" alt="Pinto Notes: the notebook you and your AI share. A notes app for you and every AI you use. It looks and feels like Apple Notes. Free, imports Apple Notes, open source. Beside it, a woman at dusk asks ChatGPT to plan tomorrow, and her Tomorrow note fills in on her phone."></a>
+  <a href="https://pintonotes.com"><img src="docs/images/hero.png" width="900" alt="Pinto Notes: the notebook you and your AI share. Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life. Free, imports Apple Notes, open source. Beside it, a woman at dusk asks ChatGPT to plan tomorrow, and her Tomorrow note fills in on her phone."></a>
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 Pinto Notes is a notes app for Mac and iPhone that ChatGPT, Claude, Claude Code and Codex can read and edit. Ask ChatGPT on your phone and Claude at your desk: both work in the same note, and every change says who made it.
 
 <p align="center">
-  <img src="docs/images/mac-ai-edit.png" width="900" alt="Pinto Notes on the Mac. ChatGPT has just added five items to the Groceries checklist. Its lines are tinted, and a pill at the bottom says ChatGPT changed 5 lines, with an Undo button.">
+  <img src="docs/images/mac-ai-edit.png" width="900" alt="Pinto Notes on the Mac. ChatGPT has just added five items to the Groceries checklist. Its lines are tinted, and a pill at the bottom says ChatGPT changed 5 lines, with Undo and Review buttons.">
 </p>
 
 - **One notebook for every AI.** Plan a trip in ChatGPT, tick it off in Claude Code, read it on your phone a second later.
@@ -26,8 +26,8 @@ Pinto Notes is a notes app for Mac and iPhone that ChatGPT, Claude, Claude Code 
 
 <table align="center">
   <tr>
-    <td><img src="docs/images/mac-connect.png" width="420" alt="Connect an AI on the Mac: ChatGPT and Claude connected, Codex and any other AI one step away"></td>
-    <td><img src="docs/images/mac-import.png" width="420" alt="Import from Apple Notes on the Mac: 1,284 notes in 5 folders, and Apple Notes stays as it is"></td>
+    <td><img src="docs/images/mac-connect.png" width="420" alt="Connect an AI on the Mac: ChatGPT and Claude connected, Grok, Codex and any other AI one step away"></td>
+    <td><img src="docs/images/mac-import.png" width="420" alt="Bring your Apple Notes to the Mac: 1,284 notes in 5 folders, and Apple Notes stays as it is"></td>
   </tr>
 </table>
 
@@ -76,7 +76,7 @@ Then try "find my Lisbon note and add a day in Sintra". (The plugin keeps its ol
 New versions ship most days. Star the repo to follow along, and see [Releases](https://github.com/pinto-notes/pinto-notes/releases) or the [changelog](https://pintonotes.com/changelog) for what changed.
 
 <p align="center">
-  <img src="docs/images/mac-dark.png" width="900" alt="Pinto Notes in dark mode on the Mac: a Lisbon trip plan open, and a dot on the Groceries note that says Edited by ChatGPT">
+  <img src="docs/images/mac-dark.png" width="900" alt="Pinto Notes in dark mode on the Mac: a Lisbon trip plan open, with a checklist, a link to the hotel booking and a table of places to eat">
 </p>
 
 ## Contribute

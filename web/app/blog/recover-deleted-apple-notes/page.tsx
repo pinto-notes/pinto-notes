@@ -68,7 +68,9 @@ export default function Page() {
       <h2 id="within-30-days">Within 30 days: Recently Deleted</h2>
       <p>
         A deleted note moves to Recently Deleted on all your devices and on iCloud.com, and stays there for 30 days. The folder only shows
-        up when it has something in it. The first time you delete a note on a Mac, Notes says so itself:
+        up when it has something in it. If the note isn&apos;t there and you never deleted it, but it&apos;s missing on just one device, it
+        usually hasn&apos;t synced: see <a href="/blog/apple-notes-not-syncing">Apple Notes not syncing between iPhone and Mac</a>. The first
+        time you delete a note on a Mac, Notes says so itself:
       </p>
       <Capture src="/blog/macos27/notes27-first-delete-30-days-dialog" width={1336} height={880} maxWidth={560}
         alt="Apple Notes on macOS 27: Deleted notes are moved to the Recently Deleted folder. You can recover or remove from Recently Deleted within 30 days. OK."
@@ -153,7 +155,7 @@ export default function Page() {
       <h2 id="amber-notes">The gap Recently Deleted doesn&apos;t cover</h2>
       <p>
         Recently Deleted only helps when the whole note is gone. If you, or an app, change a note and remove the part you needed, Apple Notes
-        has nothing to go back to: it keeps no version history.
+        has nothing to go back to: it keeps <a href="/blog/apple-notes-version-history">no version history</a>.
       </p>
       <p>
         That&apos;s one of the things I built into Pinto Notes, the notes app for iPhone and Mac I make. Deleted notes stay in Recently

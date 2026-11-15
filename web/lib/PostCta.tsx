@@ -38,7 +38,8 @@ export function PostCta({ slug, position, title, children, appStoreLive = APP_ST
         <p className="pi-line"><strong>Pinto Notes is for iPhone and Mac.</strong> Send yourself the link to open on one.</p>
         {send}
       </div>
-      <p className={s.ctaFine}>Free, for macOS 26 or later. Importing from Apple Notes only reads it; nothing there changes.</p>
+      <p className={`${s.ctaFine} pi-apple pi-not-ios`}>Free, for macOS 26 or later. Importing from Apple Notes only reads it; nothing there changes.</p>
+      {appStoreLive ? <p className={`${s.ctaFine} pi pi-ios`}>Free, for iOS 26 or later.</p> : null}
     </div>
   );
 }
