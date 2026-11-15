@@ -1,5 +1,5 @@
 // A shared whiteboard read with its link by someone who isn't signed in, in a browser
-// (20261117100000_collab_link_read.sql), on the whole schema in an in-process Postgres, sealed
+// (20261117130000_collab_link_read.sql), on the whole schema in an in-process Postgres, sealed
 // with the real formats (_shared/collab.ts): the link's answer opens the note key and the
 // document, the same changes a member reads; a wrong answer, a stopped link and a link from before
 // a new key read nothing; and nothing here writes.
