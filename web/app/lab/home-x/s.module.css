@@ -1,0 +1,716 @@
+/* Study X, round 12. S's ring binder with no illustration: no pictures, no halftone, no torn edges,
+   no hands. The first screen is the job offer note on a flat green sheet. Each chapter below is a
+   full-bleed sheet of flat colour with a clean edge, laid over the last by `position: sticky`; when it
+   lands, its tab rises out of it and stays under the header. The tabs end at Your AI. Then the
+   notebook's cover closes over everything, with the download and the note on a Mac and an iPhone.
+
+   Type: Newsreader 500 for headings (italic for the words that matter), the system sans for sentences
+   and for the things themselves, Excalifont only inside the whiteboard (it's the whiteboard's own
+   font). Colours: cream page; deep green for notes, warm stone for whiteboards, sand for apps, ink for
+   the AI, cream to close. One orange accent. ChatGPT is always its green, Claude always its orange,
+   you are ink. Depth comes from shadows: each sheet casts a soft one onto the sheet under it, and each
+   object sits up off its sheet. */
+
+.stack {
+  --display: var(--s-display), "Iowan Old Style", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --cream: #f4efe4;
+  --page: #f7f1e7;
+  --inkc: #1c1a17;
+  --green: #1f3b30;
+  --stone: #d7cfc2;
+  --sand: #e9d7b5;
+  --night: #1a1815;
+  --orange: #d9601b;
+  --hh: 84px;
+  --tabH: 46px;
+  --tt: calc(var(--hh) + var(--tabH));
+  --gap: 16px;
+  --pad: max(var(--gutter), calc((100% - 1240px) / 2 + var(--gutter)));
+  --chH: calc(100svh - var(--tt));
+  /* A chapter's contents are one block: at least 12% of the screen below the tabs, and centred in
+     the whole screen (a touch above the middle) when they're short enough. The block's auto margins
+     centre it between these paddings; when it's taller than the room, it starts at the top one. */
+  --airT: max(12svh, 56px);
+  --airB: calc(var(--airT) + var(--tt) + 6svh);
+  /* An object lifted off its sheet: a contact line, a near shadow and a long soft one. */
+  --lift: 0 0 0 1px rgba(28, 22, 14, 0.06), 0 1px 2px rgba(28, 22, 14, 0.08), 0 8px 18px -6px rgba(28, 22, 14, 0.16), 0 36px 72px -24px rgba(28, 22, 14, 0.34);
+  --liftDark: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.2), 0 10px 22px -6px rgba(0, 0, 0, 0.3), 0 44px 80px -24px rgba(0, 0, 0, 0.55);
+  position: relative; margin-top: calc(-1 * var(--hh)); color: var(--inkc); background: var(--page);
+}
+.tail { height: 30vh; }
+.probe { position: absolute; top: 0; left: 0; width: 1px; height: var(--tt); visibility: hidden; pointer-events: none; }
+.probeHh { position: absolute; top: 0; left: 0; width: 1px; height: var(--hh); visibility: hidden; pointer-events: none; }
+.with { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; vertical-align: -2px; }
+.wideOnly { display: contents; }
+.tallOnly { display: none; }
+
+/* ── Chapter colours ── */
+.write { --c: var(--green); --ink: var(--cream); --soft: rgba(244, 239, 228, 0.8); }
+.draw { --c: var(--stone); --ink: var(--inkc); --soft: #4d463c; }
+.build { --c: var(--sand); --ink: var(--inkc); --soft: #56482f; }
+.ai { --c: var(--night); --ink: var(--cream); --soft: rgba(244, 239, 228, 0.76); }
+
+/* ───────────────────────── The first screen ───────────────────────── */
+.hero { position: relative; z-index: 1; height: calc(100svh - 26px); min-height: 640px; box-sizing: border-box; padding-top: var(--hh); display: flex; flex-direction: column; }
+/* The words sit in the middle of the first screen, a touch above it, never against the header. */
+.heroText { position: relative; z-index: 3; box-sizing: content-box; width: min(620px, 43vw); margin: auto 0; padding: max(5svh, 40px) 0 max(8svh, 48px) var(--pad); }
+.h1 { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.9vw, 11vh, 100px); line-height: 0.94; letter-spacing: -0.04em; color: var(--inkc); }
+.h1You { font-style: italic; letter-spacing: -0.035em; color: var(--orange); }
+.h1Ai { white-space: nowrap; }
+.lede { margin: clamp(16px, 3vh, 28px) 0 0; max-width: 26em; font-size: 20px; line-height: 1.42; color: #4a4339; text-wrap: pretty; }
+.ctas { margin: clamp(18px, 3.4vh, 30px) 0 0; flex-wrap: nowrap; }
+.ctas a, .ctas :global(a) { white-space: nowrap; }
+.fine { margin: 14px 0 0; font-size: 14.5px; font-weight: 600; color: #776d60; }
+
+/* The green sheet, and the note on it (sharp HTML). Sizes inside are in design pixels of a 680 x 760
+   board (--u), so the composition holds at any window size. The sheet runs off the page's right edge;
+   its other corners are rounded, like a sheet laid on the page. */
+.art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(620px, 43vw) + 44px); container-type: size;
+  border-radius: 28px 0 0 28px; background: var(--green); box-shadow: 0 1px 2px rgba(28, 22, 14, 0.12), 0 24px 60px -30px rgba(28, 22, 14, 0.45); }
+.objs { position: absolute; inset: 0; --u: min(calc(100cqh / 600), calc(100cqw / 680)); font-size: calc(16 * var(--u)); }
+
+/* The note: one page, written by two people. Centred on the sheet. */
+.oneBox { position: absolute; inset: 0; }
+.oneNote { position: absolute; z-index: 1; left: 50%; top: 48%; translate: -50% -50%; width: calc(580 * var(--u)); box-sizing: border-box;
+  padding: 1.2em 1.45em 1.1em; border-radius: 0.8em; background: #fffdf9; color: #1d1b19; font-size: calc(24 * var(--u)); box-shadow: var(--liftDark); }
+.hNoteDate { margin: 0; font-size: 0.66em; font-weight: 500; color: #9a9187; }
+.oneTitle { margin: 0.2em 0 0; font-size: 1.5em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.12; }
+.oneCall { margin: 0.55em 0 0; padding: 0; list-style: none; display: grid; gap: 0.25em; font-size: 0.9em; line-height: 1.35; color: #3b3631; }
+.oneCall li, .dvCall li { position: relative; padding-left: 1.05em; }
+.oneCall li::before, .dvCall li::before { content: ""; position: absolute; left: 0.2em; top: 0.6em; width: 0.32em; height: 0.32em; border-radius: 50%; background: #8f857a; }
+.decided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.4; color: #2b2622; }
+.decided b, .oneDecided b { font-weight: 700; }
+.oneDecided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.38; color: #2b2622; text-wrap: pretty; }
+.hRows { margin: 0.5em 0 0; padding: 0; list-style: none; display: grid; gap: 0.4em; }
+.hRows li { display: flex; align-items: center; gap: 0.6em; font-size: 1em; font-weight: 500; line-height: 1.3; }
+.hRows i, .dvRows i { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%; box-shadow: inset 0 0 0 0.11em #cdc3b8; }
+.hRows svg, .dvRows svg, .day svg, .aWeek svg { width: 72%; height: 72%; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.hAdded span, .dvAdded span { position: relative; z-index: 0; }
+.mark { position: absolute; z-index: -1; inset: -0.12em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.16); }
+.hAdded[data-undone], .dvAdded[data-undone] { opacity: 0.35; text-decoration: line-through; }
+.hAdded[data-undone] .mark { opacity: 0; }
+.oneWrite { display: inline; }
+.oneRec { opacity: 0; translate: 0 6px; }
+.oneRec[data-in] { opacity: 1; translate: none; }
+.oneNote .hAdded { opacity: 0; translate: 0 8px; }
+.oneNote .hAdded[data-in] { opacity: 1; translate: none; }
+.oneNote .hAdded .mark { transform: scaleX(0); transform-origin: 0 50%; }
+.oneNote .hAdded[data-in] .mark { transform: none; }
+.oneNote .hAdded[data-in][data-undone] { opacity: 0.35; }
+.caret { display: inline-block; width: 2px; height: 1.12em; margin: 0 1px; vertical-align: -0.2em; background: var(--orange); }
+.askRest { color: transparent; }
+
+/* "Added by ChatGPT · Undo": a line of its own, under what it marks. */
+.receipt { display: flex; align-items: center; gap: 0.45em; margin: 0.55em 0 0 1.9em; font-size: 0.86em; font-weight: 600; color: #0b7a5e; white-space: nowrap; }
+.receipt b { font-weight: 600; color: #8fb8aa; }
+.receiptMark { flex: none; display: grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: #10a37f; }
+.receiptMark svg { width: 0.85em; height: 0.85em; }
+.receipt button { margin: 0; padding: 0.2em 0.5em; border: 0; border-radius: 0.5em; background: none; color: #1d1b19; font: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: rgba(29, 27, 25, 0.3); text-underline-offset: 0.18em; cursor: pointer; }
+@media (hover: hover) { .receipt button:hover { background: rgba(16, 163, 127, 0.12); text-decoration-color: currentColor; } }
+.receipt button:focus-visible { outline: 2px solid #10a37f; outline-offset: 1px; }
+@media (prefers-reduced-motion: no-preference) { .receipt button { transition: background-color 0.15s, transform 0.1s; } .receipt button:active { transform: scale(0.95); } }
+.receipt[data-undone] { color: #8a8076; }
+.oneNote .receipt { margin-left: 1.8em; }
+@media (prefers-reduced-motion: no-preference) {
+  .oneRec { transition: opacity 0.25s ease-out, translate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .oneNote .hAdded { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .oneNote .hAdded .mark { transition: transform 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
+}
+
+/* A cursor with a name, as HTML: never smaller than 12px. */
+.flag { display: inline-flex; align-items: flex-start; pointer-events: none; font-size: max(12.5px, 0.8em); transform-origin: 0 0; }
+.flag svg { width: 1.05em; height: 1.45em; fill: var(--fc); stroke: #fff; stroke-width: 1.4; stroke-linejoin: round; }
+.flag span { margin: 1.05em 0 0 -0.1em; padding: 0.22em 0.55em; border-radius: 0.55em; background: var(--fc); color: #fff; font: 700 1em/1.15 var(--sans); white-space: nowrap; }
+.appName, .aAppTop { display: flex; align-items: center; gap: 0.5em; }
+.appName span, .aAppTop span { padding: 0.15em 0.55em; border-radius: 0.45em; background: #f3e8d6; color: #8a4a14; font-size: 0.75rem; font-weight: 700; }
+
+/* ───────────────────────── A chapter: a divider sheet ───────────────────────── */
+.ch { position: sticky; top: var(--tt); height: var(--chH); min-height: 560px; box-sizing: border-box; color: var(--ink); }
+.ch[data-covered] .body { visibility: hidden; }
+.body { position: absolute; inset: 0; z-index: 2; overflow: hidden; }
+.short { display: none; }
+.say { margin: 0; max-width: 22em; font-size: 20px; line-height: 1.42; font-weight: 500; color: var(--soft); text-wrap: pretty; }
+
+/* The sheet: flat colour, a clean straight edge, and a soft shadow where it lies on what's under it. */
+.paper { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.paper i { position: absolute; inset: 0; }
+.sheetBg { background-color: var(--c); box-shadow: 0 -1px 0 rgba(28, 22, 14, 0.06), 0 -10px 28px -10px rgba(28, 22, 14, 0.28); }
+
+/* The tab: docked in its own slot under the header, a quarter of the column each, in the sheet's own
+   colour. It runs from the tab row down into the sheet, so the tab and its sheet are one piece: no
+   seam. It rises out of its page only once the page has docked, so a tab never crosses the page
+   underneath. */
+.stack { --tabY: calc(-1 * var(--tabH) + 4px); --tabHt: calc(var(--tabH) - 4px + 2px); }
+.tab { position: absolute; z-index: 3; top: var(--tabY); height: var(--tabHt); box-sizing: border-box;
+  left: calc(var(--pad) + var(--slot) * ((100% - 2 * var(--pad) + 10px) / 4)); width: calc((100% - 2 * var(--pad) - 30px) / 4);
+  display: flex; align-items: flex-start; padding: 11px 18px 0; border-radius: 12px 12px 0 0; background: var(--c); color: var(--ink);
+  box-shadow: 0 -6px 16px -10px rgba(28, 22, 14, 0.35);
+  text-decoration: none; font-family: var(--display); font-size: 19px; font-weight: 500; letter-spacing: -0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stack[data-live] .ch:not([data-docked]) .tab { translate: 0 var(--tabHt); clip-path: inset(0 0 var(--tabHt) 0); }
+.tab:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+@media (hover: hover) { .tab:hover { filter: brightness(1.06); } .draw .tab:hover, .build .tab:hover { filter: brightness(0.97); } }
+@media (prefers-reduced-motion: no-preference) {
+  .tab { transition: translate 0.42s cubic-bezier(0.3, 1.35, 0.6, 1), clip-path 0.42s cubic-bezier(0.3, 1.35, 0.6, 1), filter 0.15s ease-out; }
+  .stack[data-live] .ch:not([data-docked]) .tab { transition-duration: 0.26s; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+}
+
+/* Once Notes has docked, the strip beside the tabs is plain page, so nothing of the first screen shows there. */
+.write::before { content: ""; position: absolute; z-index: 0; left: 0; right: 0; top: calc(-1 * var(--tabH)); height: var(--tabH); background: var(--page); opacity: 0; pointer-events: none; }
+.stack[data-live] .write[data-docked]::before { opacity: 1; }
+
+/* How long each one stays before the next is laid over it (a show plays in that stay). */
+.ch.draw { margin-top: 55vh; }
+.ch.build { margin-top: 85vh; }
+.ch.ai { margin-top: 80vh; }
+.cover { margin-top: 110vh; }
+
+/* ── Write notes: a big note that fills the chapter ── */
+.wBody, .dBody, .bBody, .aBody { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; padding: var(--airT) var(--pad) var(--airB); }
+.wIn, .bIn { margin: auto 0; display: grid; align-items: center; }
+.wIn { grid-template-columns: minmax(0, 390px) minmax(0, 1fr); column-gap: clamp(36px, 4.6vw, 72px); }
+.wTitle { margin: 0 0 24px; font-family: var(--display); font-weight: 500; font-size: min(10.4vw, 17vh, 150px); line-height: 0.84; letter-spacing: -0.045em; }
+.wHead .say { font-size: 21px; }
+.sheet { position: relative; box-sizing: border-box; max-width: 760px; padding: clamp(24px, 4vh, 40px) clamp(30px, 3.6vw, 50px) clamp(24px, 3.8vh, 36px); border-radius: 20px; background: #fffdf9; color: #1d1b19; box-shadow: var(--liftDark); }
+.sheetDate { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: #9d948a; }
+.sheetTitle { margin: 0; font-family: var(--sans); font-size: clamp(28px, min(2.9vw, 4.8vh), 40px); font-weight: 750; letter-spacing: -0.025em; line-height: 1.1; }
+.sheetSub { margin: clamp(12px, 2vh, 18px) 0 0; font-size: clamp(16px, min(1.35vw, 2.3vh), 19px); font-weight: 700; color: #1d1b19; }
+.bullets { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: clamp(17px, min(1.45vw, 2.45vh), 20px); line-height: 1.45; color: #34302b; }
+.bullets li { position: relative; padding-left: 22px; }
+.bullets li::before { content: ""; position: absolute; left: 5px; top: 0.62em; width: 6px; height: 6px; border-radius: 50%; background: #8f857a; }
+/* The pros and cons, as a table in the note (as Pinto and Apple Notes draw one). */
+.table { width: 100%; margin: clamp(14px, 2.4vh, 22px) 0 0; border-collapse: collapse; table-layout: fixed; font-size: clamp(16px, min(1.35vw, 2.3vh), 19px); line-height: 1.35; color: #34302b; }
+.table th, .table td { padding: clamp(6px, 1.1vh, 10px) 14px; text-align: left; border: 1px solid #e4ddd3; }
+.table th { font-weight: 700; color: #1d1b19; background: #faf6ef; }
+.sheetDecided { margin-top: clamp(14px, 2.4vh, 22px); font-size: clamp(18px, min(1.55vw, 2.6vh), 22px); line-height: 1.38; }
+.sheetText { margin: clamp(8px, 1.4vh, 14px) 0 0; max-width: 32em; font-size: clamp(15px, min(1.25vw, 2.2vh), 17px); line-height: 1.45; color: #6d655b; }
+.noteLink { color: #b4500f; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(180, 80, 15, 0.35); text-underline-offset: 3px; }
+@media (hover: hover) { .noteLink:hover { text-decoration-color: currentColor; } }
+.sheetDecided + .sheetAside { margin-top: clamp(12px, 2vh, 18px); }
+
+/* ── Draw on whiteboards: the whiteboard as Pinto shows it, Claude's cursor on it ── */
+/* The whiteboard fills the room left under its heading, so the block is the whole page less the air. */
+.dBody { display: grid; grid-template-rows: auto minmax(0, 1fr); padding-bottom: max(6svh, 32px); }
+.dHead { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px 56px; }
+.dTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(56px, 5.6vw, 84px); line-height: 0.95; letter-spacing: -0.03em; white-space: nowrap; }
+.dHead .say { max-width: 21em; padding-bottom: 6px; font-size: 18.5px; }
+.dBoard { position: relative; min-height: 0; margin-top: clamp(16px, 2.8vh, 30px); display: grid; }
+/* The canvas: white, with its name at the top and its tools at the bottom. */
+.canvas { position: relative; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border-radius: 18px; background: #fff; box-shadow: var(--lift); overflow: hidden; }
+.canvasBar { display: flex; align-items: center; gap: 10px; margin: 0; padding: 14px 18px 0; font: 650 15px/1 var(--sans); color: #3a3530; }
+.canvasBack { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #f2efeb; }
+.canvasBack svg { width: 8px; height: 13px; fill: none; stroke: #6f6860; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.canvasBoard { position: relative; min-height: 0; margin: 4px clamp(16px, 2.4vw, 40px) 0; }
+.board { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+.tools { justify-self: center; display: flex; gap: 4px; margin: 6px 0 14px; padding: 5px 8px; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px #ece7e0, 0 4px 12px -4px rgba(28, 22, 14, 0.18); }
+.tools svg { width: 32px; height: 32px; padding: 6px; box-sizing: border-box; border-radius: 9px; fill: none; stroke: #2a2724; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tools svg:first-child path { fill: #2a2724; stroke: none; }
+.tools svg[data-on] { background: #ece8e2; }
+.tools text { fill: #2a2724; stroke: none; font: 600 9px var(--sans); }
+
+/* The whiteboard ink: Pinto's ink, grey and dashed for the options not taken, Claude's orange for its arrow. */
+.ink path { fill: none; stroke: #1e1e1e; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.ink [data-off] path, .ink path[data-off] { stroke: #b4ada4; stroke-dasharray: 8 9; }
+.inkClaude path { fill: none; stroke: #d97757; stroke-width: 4.2; stroke-linecap: round; stroke-linejoin: round; }
+.inkClaudeSm path { fill: none; stroke: #d97757; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.inkGpt path { fill: none; stroke: #10a37f; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.cursorName { fill: #fff; font: 700 12.5px/1 var(--sans); }
+
+/* ── Build apps: from the request to the first tap ── */
+.bIn { grid-template-columns: minmax(0, 700px) minmax(0, 1fr); column-gap: clamp(40px, 5vw, 88px); }
+.bApp { position: relative; }
+.bTitle { margin: 0 0 24px; font-family: var(--display); font-weight: 500; font-size: min(9vw, 15vh, 136px); line-height: 0.86; letter-spacing: -0.045em; }
+.bHead .say { max-width: 18em; }
+/* The app is the focal point: its block is centred in the whole sheet, with as much air under it as above. */
+.bBody { padding-bottom: var(--airT); }
+
+/* One card: Pinto's New app page first, the app it becomes after. Both share one place, so the card
+   never changes size. */
+.make { position: relative; display: grid; box-sizing: border-box; padding: clamp(26px, 4vh, 38px) clamp(28px, 2.8vw, 40px) clamp(24px, 3.6vh, 34px); border-radius: 26px; background: #fffdf9; color: #1d1b19; box-shadow: var(--lift); }
+.makeAsk, .makeApp { grid-area: 1 / 1; min-width: 0; }
+/* The New app page as in Pinto: the words, a box of up to four lines, the button, and the way to a
+   template. It sits in the middle of the card, which is as tall as the app it becomes. */
+.makeAsk { display: flex; flex-direction: column; justify-content: center; }
+.makeTpl { margin: 18px 0 0; text-align: center; font-size: 15px; font-weight: 550; color: #887e73; }
+.make[data-built] .makeAsk { opacity: 0; translate: 0 -12px; filter: blur(2px); visibility: hidden; pointer-events: none; }
+.makeH { margin: 0; font-size: 30px; font-weight: 750; letter-spacing: -0.02em; }
+.makeSub { margin: 6px 0 0; font-size: 17px; line-height: 1.35; color: #6b6259; }
+.makeLabel { margin: clamp(16px, 2.8vh, 26px) 0 10px; font-size: 15.5px; font-weight: 650; color: #6b6259; }
+.makeBox { flex: none; margin: 0; min-height: 4.2em; padding: 16px 18px; border-radius: 16px; box-shadow: inset 0 0 0 1.5px #ddd5cb; font-size: 23px; line-height: 1.38; color: #1d1b19; }
+.makeCaret { display: inline-block; width: 2px; height: 1.12em; margin-left: 1px; vertical-align: -0.2em; background: var(--orange); }
+.makeRow { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 22px; }
+.makeRow small { font-size: 14.5px; line-height: 1.35; color: #887e73; max-width: 19em; }
+.makeGo { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 52px; padding: 0 20px; border-radius: 16px; background: #ebe5dc; color: #a0978d; font-size: 17px; font-weight: 700; white-space: nowrap; }
+.makeGo[data-ready] { background: var(--inkc); color: var(--cream); }
+.makeGo[data-press] { transform: scale(0.95); }
+.makeApp { display: flex; flex-direction: column; }
+.make:not([data-built]) .makeApp { visibility: hidden; }
+.appName { margin: 0; font-size: 30px; font-weight: 750; letter-spacing: -0.02em; }
+.appName span { font-size: 13px; }
+.habits { margin: clamp(10px, 2vh, 18px) 0 0; padding: 0; list-style: none; display: grid; gap: clamp(8px, 1.8vh, 14px); }
+.habitRow { padding: 14px 0 0; }
+.habitRow + .habitRow { box-shadow: 0 -1px 0 #f0ebe4; }
+.habitHead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.habitName { margin: 0; flex: 1; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.habitStreak { margin: 0; font-size: 17px; font-weight: 600; color: #887e73; white-space: nowrap; }
+.habitStreak b { display: inline-block; color: #c96d06; font-size: 20px; }
+.habitX { width: 28px; height: 28px; margin: -6px -6px 0 0; padding: 0; border: 0; border-radius: 8px; background: none; color: #b3a99e; font: 400 22px/1 var(--sans); cursor: pointer; opacity: 0; }
+.habitRow:hover .habitX, .habitX:focus-visible { opacity: 1; }
+@media (hover: hover) { .habitX:hover { background: #f4f0ea; color: #6b6259; } }
+@media (hover: none) { .habitX { opacity: 0.6; } }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
+.dayCell { position: relative; display: grid; }
+.day { display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.day:disabled { cursor: default; }
+.day small { font-size: 14px; font-weight: 650; color: #887e73; }
+.dayName { display: none; }
+.day i { position: relative; display: grid; place-items: center; width: 100%; max-width: 66px; aspect-ratio: 1; border-radius: 50%; background: #f2eee8; }
+.day i::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #e8820f; transform: scale(0); }
+.day svg { position: relative; opacity: 0; }
+.day[data-on] i::before { transform: none; }
+.day[data-on] svg { opacity: 1; }
+.day[data-now] small { color: #c96d06; }
+.day[data-now]:not([data-on]) i { background: #fff; box-shadow: inset 0 0 0 3px #e8820f; }
+.day:disabled i { background: #f7f4f0; }
+.day[data-down] i { transform: scale(0.9); }
+.day:focus-visible { outline: none; }
+.day:focus-visible i { outline: 3px solid #b4530f; outline-offset: 2px; }
+@media (hover: hover) { .day:not(:disabled):not([data-on]):hover i { background: #fbe6cc; } }
+.addRow { display: flex; gap: 10px; margin-top: clamp(14px, 2.6vh, 24px); }
+.addRow input { flex: 1; min-width: 0; height: 52px; padding: 0 18px; border: 0; border-radius: 16px; background: #f4f0ea; color: #1d1b19; font: 500 17px var(--sans); }
+.addRow input::placeholder { color: #9a9086; }
+.addRow input:focus { outline: 2px solid #b4530f; outline-offset: 0; background: #fff; }
+.addRow button { height: 52px; padding: 0 22px; border: 0; border-radius: 16px; background: var(--inkc); color: var(--cream); font: 700 17px var(--sans); cursor: pointer; }
+.addRow button:disabled { background: #e8e2d9; color: #9a9086; cursor: default; }
+@media (hover: hover) { .addRow button:not(:disabled):hover { background: #38332c; } }
+.made { display: flex; align-items: center; gap: 0.45em; margin: 16px 0 0; font-size: 15.5px; font-weight: 600; color: #0b7a5e; }
+/* The app builds itself: each piece drops in, the days pop in order. */
+.makeApp :is(.appName, .habitHead, .addRow, .made):not([data-in]) { opacity: 0; translate: 0 -12px; }
+.makeApp .dayCell:not([data-in]) { opacity: 0; scale: 0.4; }
+@media (prefers-reduced-motion: no-preference) {
+  .makeAsk { transition: opacity 0.26s ease-out, translate 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.26s, visibility 0s 0.3s; }
+  .makeGo { transition: background-color 0.25s, color 0.25s, transform 0.1s; }
+  .makeApp :is(.appName, .habitHead, .addRow, .made) { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .makeApp .dayCell { transition: opacity 0.2s ease-out, scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .day i::before { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .day svg { transition: opacity 0.2s 0.1s; }
+  .day:not(:disabled):active i { transform: scale(0.94); }
+  .day i { transition: transform 0.1s ease-out, background-color 0.15s; }
+  .habitStreak b { animation: bump 0.36s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes bump { from { transform: translateY(6px); opacity: 0.2; } }
+  .day[data-now]:not([data-on]) i { animation: due 1.8s ease-in-out infinite; }
+  @keyframes due { 50% { box-shadow: inset 0 0 0 3px rgba(232, 130, 15, 0.45); } }
+  .addRow button { transition: background-color 0.15s, transform 0.1s; }
+  .addRow button:not(:disabled):active { transform: scale(0.96); }
+  .makeCaret[data-done], .askCaret[data-done] { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+}
+
+/* The named cursors that act in the shows (ChatGPT's and yours). Placed by script at their tip. */
+.cur { position: absolute; z-index: 6; left: 0; top: 0; opacity: 0; pointer-events: none; will-change: transform, opacity; }
+.cur .flag { font-size: 13px; }
+.cur[data-press] .flag { transform: scale(0.84); }
+.curYou .flag svg { stroke: #fffdf9; stroke-width: 1.6; }
+.curYou .flag span { box-shadow: 0 0 0 1.5px #fffdf9; }
+@media (prefers-reduced-motion: no-preference) { .cur .flag { transition: transform 0.12s ease-out; } }
+
+/* ── Your AI, in all three: one request, three changes made in place, one undone ── */
+/* The AI's block starts at the air line and never moves while the cards grow (the changes open rows). */
+.aBody { padding-bottom: max(4svh, 24px); }
+.aTop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--gap); align-items: end; }
+.aTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(52px, 5vw, 78px); line-height: 0.92; letter-spacing: -0.03em; }
+.askWrap { grid-column: 2 / 4; padding-left: clamp(0px, 3vw, 48px); }
+.ask { margin: 0; font-family: var(--display); font-style: italic; font-weight: 450; font-size: clamp(28px, 2.7vw, 40px); line-height: 1.12; letter-spacing: -0.015em; text-indent: -48px; padding-left: 48px; }
+.askMark { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-right: 14px; border-radius: 50%; background: #10a37f; vertical-align: 2px; text-indent: 0; }
+.askText { text-indent: 0; }
+.askCaret { display: inline-block; width: 2px; height: 0.92em; margin: 0 1px 0 1px; vertical-align: -0.1em; background: #7fe0c0; text-indent: 0; }
+/* What it remembered, under the request: the decision takes the same green underline as it does
+   when ChatGPT reads it in the note. */
+.askSub { margin: 10px 0 0 48px; font-size: 18px; font-weight: 550; color: var(--soft); }
+.askNoCar { position: relative; color: var(--cream); font-weight: 700; }
+.askNoCar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 2px; border-radius: 2px; background: #2fc79e; transform: scaleX(0); transform-origin: 0 50%; }
+.askNoCar[data-on]::after { transform: none; }
+@media (prefers-reduced-motion: no-preference) { .askNoCar::after { transition: transform 0.6s cubic-bezier(0.6, 0, 0.3, 1); } }
+.aStage { position: relative; flex: none; margin-top: clamp(22px, 4.4vh, 44px); display: flex; flex-direction: column; justify-content: flex-start; }
+/* Three frames in the chapters' own colours, of one height, so their bottoms always line up. Each
+   card inside is as tall as what it holds: a change opens its row in place, and an Undo closes it. */
+.aObjs { margin: 0; padding: 0; list-style: none; display: flex; align-items: stretch; gap: var(--gap); }
+.aObj { position: relative; min-width: 0; display: flex; flex-direction: column; box-sizing: border-box; padding: 10px; border-radius: 22px; background: var(--fc); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 24px 44px -18px rgba(0, 0, 0, 0.6); }
+.aoNote { --fc: var(--green); flex: 0 0 calc(34% - 6px); }
+.aoBoard { --fc: var(--stone); flex: 1 1 0; }
+.aoApp { --fc: var(--sand); flex: 0 0 calc(25% - 6px); }
+.aCard { position: relative; box-sizing: border-box; padding: clamp(14px, 2vh, 18px) 18px clamp(14px, 2vh, 18px); border-radius: 14px; background: #fffdf9; color: #1d1b19;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 10px 20px -12px rgba(0, 0, 0, 0.4); }
+.aoBoard .aCard { padding: 12px 14px 12px; background: #fff; }
+/* A row that opens: its height goes from nothing to what it holds. */
+.aGrow { display: grid; grid-template-rows: 0fr; }
+.aGrow > * { min-height: 0; overflow: hidden; padding: 0 6px; margin: 0 -6px; }
+.aNewRow > * { opacity: 0; translate: 0 8px; }
+.aObj[data-land]:not([data-undone]) .aNewRow { grid-template-rows: 1fr; }
+.aObj[data-land]:not([data-undone]) .aNewRow > * { opacity: 1; translate: none; }
+.aObj[data-land][data-undone] .aNewRow > * { translate: 14px 0; }
+.sweep { position: absolute; z-index: -1; left: -4px; right: -4px; top: -1px; bottom: -1px; border-radius: 6px; background: rgba(16, 163, 127, 0.18); transform: scaleX(0); transform-origin: 0 50%; }
+.aObj[data-land] .sweep { transform: none; }
+.aRec > * { opacity: 0; }
+.aRec[data-show] { grid-template-rows: 1fr; }
+.aRec[data-show] > * { opacity: 1; }
+.aRec .receipt { margin: 10px 0 2px; font-size: 14px; }
+.aoNote .aRec .receipt { margin-left: 32px; }
+.aoBoard .aRec .receipt { margin: 4px 0 2px 4px; }
+.markers { display: none; }
+
+.aNote { color: #1d1b19; }
+.aNoteTitle { margin: 0; font-size: clamp(18px, 1.55vw, 22px); font-weight: 750; letter-spacing: -0.015em; }
+.aDecided { margin: clamp(8px, 1.4vh, 12px) 0 0; font-size: clamp(15px, 1.15vw, 16.5px); line-height: 1.38; color: #2b2622; }
+.aRead { position: relative; }
+.aRead::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; border-radius: 2px; background: #10a37f; transform: scaleX(0); transform-origin: 0 50%; opacity: 0.9; }
+.aRead[data-on]::after { transform: none; }
+.aRows { margin: clamp(6px, 1vh, 10px) 0 0; padding: 0; list-style: none; display: grid; gap: clamp(3px, 0.6vh, 6px); }
+.aRows li { display: flex; align-items: center; gap: 10px; font-size: clamp(15px, 1.15vw, 16.5px); font-weight: 500; line-height: 1.3; color: #34302b; }
+.aRows li > span { position: relative; z-index: 0; }
+.aRows i { flex: none; display: grid; place-items: center; width: 22px; height: 22px; }
+.aRows i::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #8f857a; }
+.aRowAdd { display: flex; align-items: center; gap: 10px; margin: clamp(8px, 1.3vh, 11px) 0 0; padding: 1px 0; font-size: clamp(15px, 1.15vw, 16.5px); font-weight: 500; line-height: 1.3; }
+.aRowAdd > span { position: relative; z-index: 0; }
+.aRowAdd i { flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cdc3b8; }
+.aBoardWrap { display: block; }
+.aBoard { display: block; width: 100%; height: auto; overflow: visible; }
+.aBoard .ink path { stroke-width: 1.8; }
+.aBoard .ink [data-off] path, .aBoard .ink path[data-off] { stroke-dasharray: 5 6; }
+.aBoard .inkGpt path { stroke-width: 2.2; }
+.aHead { opacity: var(--headOn, 0); }
+.aBox { opacity: 0; }
+.aBox .inkGpt path { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.aBox rect, .aBox text { opacity: 0; }
+.aoBoard[data-land] .aBox { opacity: 1; }
+.aoBoard[data-land] .aBox .inkGpt path { stroke-dashoffset: 0; }
+.aoBoard[data-land] .aBox rect, .aoBoard[data-land] .aBox text { opacity: 1; }
+.aoBoard[data-undone] .aAdd { opacity: 0; }
+.aApp { color: #1d1b19; }
+.aAppTop { margin: 0 0 2px; font-size: clamp(16px, 1.3vw, 18px); }
+.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: clamp(10px, 1.6vh, 14px); }
+.aDays small { text-align: center; font-size: 12px; font-weight: 650; color: #887e73; }
+.aDays small[data-now] { color: #c96d06; }
+.aHabit { padding-top: clamp(8px, 1.5vh, 12px); }
+.aDays + .aHabit { padding-top: 6px; }
+.aHabit p { margin: 0 0 6px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
+.aHabit p > span { position: relative; z-index: 0; white-space: nowrap; }
+.aHabit small { font-size: 13.5px; font-weight: 600; color: #c96d06; white-space: nowrap; }
+.aNewRow .aHabit small { color: #0d8a6b; }
+.aHabit small.aZero { color: #887e73; }
+.aWeek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.aWeek i { display: grid; place-items: center; aspect-ratio: 1; max-height: 34px; border-radius: 50%; background: #f2eee8; }
+.aWeek svg { opacity: 0; }
+.aWeek [data-on] { background: #e8820f; }
+.aWeek [data-on] svg { opacity: 1; }
+.aWeek [data-now]:not([data-on]) { background: transparent; box-shadow: inset 0 0 0 2px #e8820f; }
+@media (prefers-reduced-motion: no-preference) {
+  .aGrow { transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .aNewRow > * { transition: opacity 0.3s 0.08s ease-out, translate 0.42s 0.08s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .aObj[data-land][data-undone] .aNewRow { transition: grid-template-rows 0.35s 0.12s cubic-bezier(0.4, 0, 0.2, 1); }
+  .aObj[data-land][data-undone] .aNewRow > * { transition: opacity 0.2s ease-out, translate 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
+  .aRec > * { transition: opacity 0.25s 0.12s ease-out; }
+  .sweep { transition: transform 0.5s 0.08s cubic-bezier(0.6, 0, 0.3, 1); }
+  .aRead::after { transition: transform 0.6s cubic-bezier(0.6, 0, 0.3, 1); }
+  .aBox, .aBox rect, .aBox text { transition: opacity 0.35s 0.15s ease-out; }
+  .aBox .inkGpt path { transition: stroke-dashoffset 0.45s cubic-bezier(0.6, 0, 0.3, 1); }
+  .aAdd { transition: opacity 0.3s ease-out; }
+}
+.aFoot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px 40px; margin-top: clamp(12px, 2.4vh, 22px); }
+.works { margin: 0; max-width: 34em; font-size: 18px; line-height: 1.4; color: var(--ink); }
+.study { margin: 0; max-width: 30em; font-size: 16px; line-height: 1.45; color: rgba(244, 239, 228, 0.8); }
+.study a { color: #f29a52; font-weight: 650; text-decoration: underline; text-decoration-color: rgba(242, 154, 82, 0.45); text-underline-offset: 3px; white-space: nowrap; }
+@media (hover: hover) { .study a:hover { text-decoration-color: currentColor; } }
+
+/* ── The close: the notebook's cover closes over everything, tabs and all, in one scene ──
+   Cream, like the first screen, with the same green sheet on the right: on it, the note on a Mac and
+   an iPhone. */
+.cover { position: sticky; top: var(--hh); height: calc(100svh - var(--hh)); min-height: 560px; overflow: hidden; container-type: size;
+  color: var(--inkc); background: var(--page); box-shadow: 0 -1px 0 rgba(28, 22, 14, 0.06), 0 -14px 34px -12px rgba(0, 0, 0, 0.4); }
+.coverBody { position: relative; box-sizing: border-box; height: 100%; display: flex; align-items: center; padding: clamp(24px, 5cqh, 56px) var(--pad); }
+.coverText { position: relative; z-index: 1; width: min(520px, 38cqw); }
+.fTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.2cqw, 13cqh, 96px); line-height: 0.88; letter-spacing: -0.045em; }
+.fTitle em { font-style: italic; color: var(--orange); }
+.fCtas .ctas { margin-top: clamp(20px, 3.6cqh, 32px); }
+.fReq { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: #776d60; }
+/* Four plain lines: what a careful person checks before installing. */
+.claims { margin: clamp(24px, 4.6cqh, 42px) 0 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: clamp(16px, 1.3cqw, 18px); line-height: 1.4; color: #3b352e; }
+.claims li { position: relative; padding-left: 28px; }
+.claims li::before { content: ""; position: absolute; left: 2px; top: 0.32em; width: 14px; height: 8px; border: solid var(--green); border-width: 0 0 2px 2px; rotate: -45deg; transform-origin: 50% 50%; scale: 0.85; }
+.claims a { color: #b4500f; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(180, 80, 15, 0.4); text-underline-offset: 3px; }
+@media (hover: hover) { .claims a:hover { text-decoration-color: currentColor; } }
+.devPanel { position: absolute; top: 28px; bottom: 34px; right: 0; left: calc(var(--pad) + min(520px, 38cqw) + 56px); container-type: size; border-radius: 28px 0 0 28px; background: var(--green);
+  box-shadow: 0 1px 2px rgba(28, 22, 14, 0.12), 0 24px 60px -30px rgba(28, 22, 14, 0.45); }
+
+/* The Mac and the iPhone, centred on the sheet. Every size is in em, so the pair scales as one. */
+.devices { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 39em; height: 29em; font-size: min(calc(100cqw / 45), calc(100cqh / 34), 17px); }
+.mac { position: absolute; left: 0; top: 0; width: 32em; box-sizing: border-box; border-radius: 0.85em; background: #fffdf9; overflow: hidden; color: #1d1b19; box-shadow: var(--liftDark); }
+.macBar { position: relative; display: flex; gap: 0.55em; height: 2.4em; align-items: center; padding: 0 1em; background: #f4f0ea; box-shadow: 0 1px 0 #ebe5dc; }
+.macBar i { width: 0.8em; height: 0.8em; border-radius: 50%; background: #ff5f57; }
+.macBar i:nth-child(2) { background: #febc2e; }
+.macBar i:nth-child(3) { background: #28c840; }
+.macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.86em; font-weight: 600; color: #887e73; pointer-events: none; }
+.mac .dvNote { padding: 1.3em 1.7em 1.5em; }
+.phone { position: absolute; left: 24.8em; top: 2em; width: 14em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #161412;
+  box-shadow: 0 0 0 1.5px #3b3631, var(--liftDark); }
+.phoneScreen { height: 100%; container-type: inline-size; box-sizing: border-box; border-radius: 2em; background: #fffdf9; overflow: hidden; color: #1d1b19; }
+.phoneStatus { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0.85em 1.25em 0 1.5em; font-size: 0.8em; }
+.island { position: absolute; left: 50%; top: 0.55em; width: 32%; height: 1.4em; translate: -50% 0; border-radius: 0.8em; background: #161412; }
+.phoneIcons { display: flex; gap: 0.2em; }
+.phoneIcons i { width: 0.3em; height: 0.6em; border-radius: 0.1em; background: #1d1b19; }
+.phoneNav { display: flex; align-items: center; gap: 0.3em; margin: 0.9em 0 0; padding: 0 0.9em; font-size: 0.9em; color: #d9750f; font-weight: 500; }
+.phoneNav svg { width: 0.55em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.phone .dvNote { padding: 0.5em 1em 0; font-size: 0.98em; }
+.nw { white-space: nowrap; }
+.dvDate { margin: 0 0 0.3em; font-size: 0.8em; font-weight: 500; color: #9a9187; }
+.dvTitle { margin: 0; font-size: 1.5em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
+.dvCall { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.2em; font-size: 0.94em; line-height: 1.35; color: #3b3631; }
+.dvDecided { margin: 0.6em 0 0; line-height: 1.4; }
+.dvDecided b { font-weight: 700; }
+.dvRows { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.45em; }
+.dvRows li { display: flex; align-items: center; gap: 0.6em; line-height: 1.3; }
+.phone .dvRows li { align-items: flex-start; }
+.dvAdded span { padding: 0.08em 0.3em; margin: -0.08em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.16); }
+.dvRec .receipt { font-size: 0.86em; margin-left: 1.85em; }
+/* On the iPhone the receipt is one line: the mark, who, and Undo (the dot goes). */
+.phone .dvRec .receipt { margin-left: 0; gap: 0.3em; font-size: 0.8em; }
+.phone .receipt button { margin-left: auto; padding: 0.2em 0.1em 0.2em 0.3em; }
+.phone .dvNote { padding-top: 0.8em; }
+.phone .dvCall { display: none; }
+.phone .dvDecided, .phone .dvRows { margin-top: 0.75em; }
+.phone .dvRows { gap: 0.6em; }
+/* A narrow iPhone keeps the receipt on one line: who added it, and Undo. */
+@container (max-width: 172px) { .phone .rcBy { display: none; } }
+.phone .receipt b { display: none; }
+.phone .dvAdded:not([data-in]), .phone .dvRec:not([data-in]) { opacity: 0; translate: 0 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .phone .dvAdded, .phone .dvRec { transition: opacity 0.3s ease-out, translate 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .phone .dvRec { transition-delay: 0.25s; }
+}
+
+/* The page ends on the closed notebook, so the site's town is left out here. The footer links sit on
+   a strip of the deep green, with a clean edge like every sheet above it. */
+body:has(.stack) :global(.fs) { display: none; }
+body:has(.stack) :global(.site-footer) { margin-top: 0; }
+body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 36px var(--gutter) 22px; background: #1f3b30; }
+
+/* ───────────────────────── Phones ───────────────────────── */
+@media (max-width: 760px) {
+  .stack { --hh: 72px; --tabH: 30px; --gap: 8px; --pad: var(--gutter); --airT: 48px; }
+  .ch { min-height: 600px; }
+  /* A longer stay per chapter, so the next one doesn't rise while this one is being read. */
+  .ch.draw { margin-top: 70vh; }
+  .ch.build { margin-top: 90vh; }
+  .ch.ai { margin-top: 85vh; }
+  .cover { margin-top: 130vh; }
+  .tail { height: 0; }
+  .say { font-size: 17px; line-height: 1.38; }
+  .long { display: none; }
+  .short { display: inline; }
+
+  /* Tabs: short words, sized to them. */
+  .stack { --tabY: calc(-1 * var(--tabH) + 2px); --tabHt: calc(var(--tabH) - 2px + 2px); }
+  .tab { left: calc(var(--pad) + var(--l)); width: var(--w); padding: 6px 0 0; justify-content: center; border-radius: 9px 9px 0 0; font: 650 12.5px/1 var(--sans); letter-spacing: 0; }
+  .write { --l: 0px; --w: 64px; }
+  .draw { --l: 70px; --w: 100px; }
+  .build { --l: 176px; --w: 56px; }
+  .ai { --l: 238px; --w: 72px; }
+
+  /* The first sheet is laid straight onto the green sheet's foot: no cream band between them. */
+  .hero { height: auto; min-height: 0; padding-bottom: 0; display: block; }
+  .heroText { width: auto; margin: 0; padding: 40px var(--pad) 0; }
+  .h1 { font-size: min(13.6vw, 7.2svh); line-height: 0.95; }
+  .lede { margin-top: 12px; font-size: 16.5px; line-height: 1.38; }
+  .ctas { margin-top: 14px; }
+  .heroText .fine { display: none; }
+  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 400px; margin-top: 24px; border-radius: 0; box-shadow: none; }
+  .objs { --u: calc(100cqw / 390); }
+  .oneNote { top: calc(28 * var(--u)); translate: -50% 0; width: calc(358 * var(--u)); font-size: 15.5px; padding: 16px 16px 13px; border-radius: 16px; }
+  .oneDecided { font-size: min(15.5px, calc(14.8 * var(--u))); }
+
+  /* One calm screen per chapter: the heading, a line or two, the thing, with air above and below.
+     Every heading starts at the same height under the tabs; what's left over is below the thing. */
+  .wBody, .dBody, .bBody, .aBody { padding: var(--airT) var(--pad) 28px; }
+  .wIn, .bIn { margin: 0 0 auto; }
+  .wIn { display: flex; flex-direction: column; }
+  .wTitle { font-size: 60px; margin-bottom: 14px; }
+  .wTitle br { display: none; }
+  .wHead .say { font-size: 17px; }
+  .sheet { width: 100%; max-width: none; margin-top: 22px; padding: 20px 18px 16px; border-radius: 18px; }
+  .sheetDate { font-size: 12.5px; }
+  .sheetTitle { font-size: 24px; }
+  .sheetSub { margin-top: 12px; font-size: 15.5px; }
+  .bullets { font-size: 16px; line-height: 1.4; }
+  .bullets li[data-more] { display: none; }
+  .table { margin-top: 12px; font-size: 15px; }
+  .table th, .table td { padding: 6px 10px; }
+  .sheetDecided { margin-top: 12px; font-size: 16.5px; }
+  .sheetAside { display: none; }
+
+  /* The canvas: as wide as the page, its board as tall as its four rows. */
+  .dBody { display: flex; flex-direction: column; }
+  .dHead { display: block; }
+  .dTitle { font-size: 46px; white-space: normal; }
+  .dHead .say { margin-top: 14px; padding: 0; font-size: 17px; }
+  .dBoard { flex: none; width: 100%; margin-top: 22px; }
+  .canvas { border-radius: 16px; }
+  .canvasBar { padding: 10px 12px 0; font-size: 13.5px; gap: 8px; }
+  .canvasBack { width: 26px; height: 26px; }
+  .canvasBoard { flex: none; aspect-ratio: 340 / 356; margin: 6px 8px 0; }
+  .tools { margin: 6px 0 10px; padding: 4px 6px; gap: 2px; }
+  .tools svg { width: 28px; height: 28px; padding: 5px; }
+  .wideOnly { display: none; }
+  .tallOnly { display: contents; }
+  .ink path { stroke-width: 1.7; }
+  .ink [data-off] path, .ink path[data-off] { stroke-dasharray: 5 6; }
+  .inkClaude path { stroke-width: 2.8; }
+
+  .bIn { display: flex; flex-direction: column-reverse; align-items: stretch; gap: 20px; }
+  .bTitle { font-size: 60px; margin-bottom: 10px; }
+  .bTitle br { display: none; }
+  .bApp { width: 100%; }
+  .make { padding: 18px 16px 16px; border-radius: 22px; }
+  .makeH, .appName { font-size: 21px; }
+  .makeSub { font-size: 15.5px; margin-top: 4px; }
+  /* The request is already typed, in a box as tall as its words; the button sits at the card's foot. */
+  .makeBox { flex: none; min-height: 0; font-size: 19px; padding: 12px 14px; }
+  .makeRow { flex-direction: column; align-items: stretch; gap: 10px; margin-top: 16px; }
+  .makeTpl { margin-top: 14px; font-size: 14.5px; }
+  /* The days are there as soon as the app is: no empty card while it builds. */
+  .makeApp .dayCell:not([data-in]) { opacity: 1; translate: none; scale: 1; }
+  .makeRow small { max-width: none; }
+  .makeGo { justify-content: center; }
+  .habits { align-content: start; }
+  .habitName { font-size: 17px; }
+  .habitStreak { font-size: 15px; }
+  .habitStreak b { font-size: 17px; }
+  .addRow input, .addRow button { height: 46px; font-size: 16px; }
+  .made { font-size: 14.5px; }
+  /* The week as a list of days, the way a tracker reads on an iPhone: the three around today
+     (Thursday to Saturday), so the app fits the screen with its words at reading size. */
+  .dayCell:nth-child(-n+3), .dayCell:nth-child(n+7) { display: none; }
+  .week { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .day { grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: 10px; width: 100%; padding: 4px 0; text-align: left; }
+  .dayCell + .dayCell .day { box-shadow: 0 -1px 0 #f3eee7; }
+  .day small { font-size: 13px; }
+  .dayName { display: block; font-size: 16px; font-weight: 550; color: #1d1b19; }
+  .day:disabled .dayName { color: #b3a99e; }
+  .day i { width: 32px; max-width: none; }
+  .day[data-now] .dayName { font-weight: 700; }
+
+  /* Your AI does one thing at a time: the heading, the request in one line, one card. */
+  .aTop { display: block; }
+  .aTitle { font-size: 44px; }
+  .askWrap { padding: 0; margin-top: 16px; }
+  .ask { font-size: min(18px, 4.6vw); white-space: nowrap; text-indent: 0; padding: 0; }
+  .askMark { width: 26px; height: 26px; margin-right: 8px; vertical-align: -5px; }
+  .askMark svg { width: 15px; height: 15px; }
+  .askSub { margin: 8px 0 0 34px; font-size: 15.5px; }
+  .aFoot { display: none; }
+  .aStage { margin-top: 20px; display: grid; }
+  .aObjs { display: grid; }
+  /* The three cards share one place and one height, and each change's room (its new row and its
+     receipt) is kept from the start, so the card never jumps or clips between steps. */
+  .aObj { grid-area: 1 / 1; align-self: stretch; padding: 12px; border-radius: 22px; opacity: 0; visibility: hidden; }
+  .aCard { flex: 1 1 auto; }
+  .aGrow { grid-template-rows: 1fr; }
+  .aoBoard .aCard { display: flex; flex-direction: column; justify-content: center; padding: 10px 8px; }
+  .aObj[data-current] { opacity: 1; visibility: visible; }
+  .aCard { padding: 16px 16px 14px; }
+  .aNoteTitle { font-size: 20px; }
+  .aRows { gap: 6px; }
+  .aRows li, .aDecided, .aHabit p, .aRowAdd { font-size: 16px; }
+  .aRowAdd { margin-top: 10px; }
+  .aoApp .aCard { padding: 20px 18px 16px; }
+  .aAppTop { font-size: 20px; }
+  .aDays { margin-top: 16px; }
+  .aDays small { font-size: 13px; }
+  .aHabit { padding-top: 16px; }
+  .aDays + .aHabit { padding-top: 8px; }
+  .aHabit p { margin-bottom: 10px; font-size: 17px; }
+  .aWeek { gap: 7px; }
+  .aWeek i { max-height: 40px; }
+  /* Under the card: where the change is, in words, with three small dots under it. */
+  .markers { display: grid; justify-items: center; margin-top: 12px; }
+  .markCap { margin: 0; font-size: 16px; font-weight: 650; line-height: 1.3; color: var(--cream); }
+  .markDots { display: flex; justify-content: center; margin-top: 2px; }
+  .markers button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+  .markers i { width: 6px; height: 6px; border-radius: 50%; background: rgba(244, 239, 228, 0.3); }
+  .markers button[aria-selected="true"] i { background: var(--cream); }
+  .markers button:focus-visible { outline: 2px solid #7fe0c0; outline-offset: -2px; }
+
+  .habitRow[data-wide], .aHabit[data-wide] { display: none; }
+  /* With the wide-only habit hidden, the one habit shown can't be removed. */
+  .habits:has(> .habitRow:nth-child(2)[data-wide]:last-child) .habitX { display: none; }
+  .aAddRow { display: flex; gap: 8px; margin: 16px 0 0; }
+  .aAddRow span { flex: 1; display: flex; align-items: center; height: 42px; padding: 0 14px; border-radius: 13px; background: #f4f0ea; color: #9a9086; font-size: 15.5px; font-weight: 500; }
+  .aAddRow b { display: grid; place-items: center; height: 42px; padding: 0 18px; border-radius: 13px; background: #e8e2d9; color: #9a9086; font-size: 15.5px; font-weight: 700; }
+
+  :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas.ctas { align-items: flex-start; }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  /* The card leaves, then the next comes in: never two cards' words over each other. */
+  .aObj { transition: opacity 0.3s ease-in, visibility 0s 0.3s; }
+  .aObj[data-current] { transition: opacity 0.5s 0.28s ease-out, visibility 0s 0.28s; }
+  .markers i { transition: background-color 0.3s; }
+  .markCap { animation: capIn 0.5s 0.28s ease-out both; }
+  @keyframes capIn { from { opacity: 0; translate: 0 4px; } }
+}
+.aAddRow { display: none; }
+@media (max-width: 760px) { .aAddRow { display: flex; } }
+
+/* Phones, and windows taller than wide: the cover scrolls like a page, the free page alone (the note
+   isn't shown again; the first screen and the chapters already did). */
+@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+  .cover { position: relative; top: auto; height: auto; min-height: 0; container-type: normal; }
+  .coverBody { display: block; height: auto; padding: 88px var(--pad) 72px; }
+  .coverText { width: auto; max-width: 560px; }
+  .fTitle { font-size: min(16.2vw, 84px); }
+  .claims { font-size: 16.5px; }
+  .devPanel { display: none; }
+}
+
+/* Laptop heights: the note drops its third line from the call, so the block has air under it too. */
+@media (max-height: 960px) { .bullets li[data-more] { display: none; } }
+
+/* Short windows (a 13-inch laptop at 1280 x 720): the same blocks, tighter, so each still fits under
+   its 12% of air with room below. */
+@media (min-width: 761px) and (max-height: 800px) {
+  .sheetAside { display: none; }
+  /* The app shows its one habit (here and in Your AI), so it fits under its air. */
+  .habitRow[data-wide], .aHabit[data-wide] { display: none; }
+  .habits:has(> .habitRow:nth-child(2)[data-wide]:last-child) .habitX { display: none; }
+  .aTitle { font-size: min(5vw, 56px); }
+  .aStage { margin-top: 18px; }
+  .aRows { gap: 2px; }
+  .aRows li:nth-child(3) { display: none; }
+  .study { display: none; }
+  .works { max-width: none; }
+  .aFoot { margin-top: 12px; }
+  /* The whiteboard keeps its height for the map: its tools step aside. */
+  .tools { display: none; }
+  .canvasBoard { margin-bottom: 14px; }
+}
+
+/* Tablets and narrow windows: the desktop binder, smaller. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .tab { font-size: 16px; padding: 11px 12px 0; }
+  .heroText { width: min(560px, 44vw); }
+  .art { left: calc(var(--pad) + min(560px, 44vw) + 40px); }
+}
+
+/* ── Round 12 X: the first screen's note carries the pros and cons too ── */
+.oneTable { width: 100%; margin: 0.65em 0 0; border-collapse: collapse; font-size: 0.78em; line-height: 1.3; color: #3b3631; }
+.oneTable th, .oneTable td { padding: 0.36em 0.65em; text-align: left; border: 1px solid #e6dfd5; white-space: nowrap; }
+.oneTable th { font-weight: 700; color: #1d1b19; background: #faf6ef; }
+.aDecided { text-wrap: pretty; }
+/* Each AI card fills its frame, so the three frames show no empty colour under a short card. */
+@media (min-width: 761px) { .aCard { flex: 1 1 auto; } }
+@media (max-width: 760px) {
+  .oneTable { display: none; }
+  /* The New app page fades out before the app's days come in: never both at once. */
+  .make:not([data-built]) .makeApp .dayCell:not([data-in]) { opacity: 0; }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  .makeApp .dayCell { transition: opacity 0.25s 0.24s ease-out; }
+}
