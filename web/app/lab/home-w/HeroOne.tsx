@@ -3,15 +3,20 @@
 import { useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { at, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { ADDED_IN, ADDED_RECIPE, DECIDED, Flag, Folder, GPT, Receipt, Tick } from "./Things";
+import { ADDED_IN, ADDED_RECIPE, DECIDED, Flag, Folder, FOLDERS, GPT, Receipt, Tick } from "./Things";
 import s from "./s.module.css";
 
-// The first screen's picture: two notes on the cutting board. Your note, where you write the
-// decision ("Cooking at home five nights a week."), and ChatGPT's line under it, marked, with Undo.
-// Beside it, the recipe it wrote into your Recipes folder because of that decision. Undo takes both
-// back. No hand: your words type in, the way a note fills.
+// The first screen's picture: your note, in its notebook, on one person's table. Beside it, slim and
+// quiet, the folders of a whole life (Recipes open, then Work, Reading, Trips, Health, Studio North),
+// so the note reads as one page of everything you keep. In the note, the decision you write ("Cooking
+// at home five nights a week.") and ChatGPT's line under it, marked, with Undo. Below it, the recipe it
+// wrote into Recipes because of that decision. Undo takes both back. No hand: your words type in, the
+// way a note fills. On a phone the folders are one row of chips over the note, and the recipe card is
+// left out, so the whole note sits above the fold.
 
 const TYPE = [0.35, 1.75] as [number, number];
+/** The decision as the hero sets it: "five nights a week" kept together, so a wrap breaks before it. */
+const SAID = DECIDED.replace("five nights a week", "five\u00a0nights\u00a0a\u00a0week");
 const ONE = { gptIn: 1.95, fly: [1.95, 2.5] as [number, number], land: 2.55, ride: [2.55, 3.05] as [number, number], card: 3.0, rec: 3.2, gptOut: [3.9, 4.3] as [number, number], end: 4.4 };
 
 export function HeroOne() {
@@ -23,7 +28,7 @@ export function HeroOne() {
     apply: (t) => {
       const el = box.current; if (!el) return;
       const B = el.getBoundingClientRect();
-      const next = { n: Math.round(seg(t, ...TYPE) * DECIDED.length), land: t >= ONE.land, card: t >= ONE.card, rec: t >= ONE.rec };
+      const next = { n: Math.round(seg(t, ...TYPE) * SAID.length), land: t >= ONE.land, card: t >= ONE.card, rec: t >= ONE.rec };
       setSt((o) => (o.n === next.n && o.land === next.land && o.card === next.card && o.rec === next.rec ? o : next));
       // ChatGPT comes in from the right, rides along its line as it lands, and leaves.
       const line = el.querySelector("[data-at=one]");
@@ -36,9 +41,17 @@ export function HeroOne() {
       place(gpt.current, g, o);
     },
   });
-  const typing = st.n < DECIDED.length;
+  const typing = st.n < SAID.length;
   return (
     <div ref={box} className={s.oneBox}>
+      <nav className={s.oneFolders} aria-label="Folders">
+        <p className={s.oneFoldersH}>Folders</p>
+        <ul>
+          {FOLDERS.map((name, i) => (
+            <li key={name} data-on={i === 0 || undefined} aria-current={i === 0 ? "true" : undefined}><Folder /><span>{name}</span></li>
+          ))}
+        </ul>
+      </nav>
       <div className={s.oneNote} data-card>
         <p className={s.hNoteDate}>Today at 09:12</p>
         <p className={s.oneTitle}>Weeknight dinners</p>
@@ -47,9 +60,9 @@ export function HeroOne() {
           <li><i /><span>Shop on Sundays</span></li>
         </ul>
         <p className={s.oneDecided}>
-          <b>Decided:</b> <span>{DECIDED.slice(0, st.n)}</span>
+          <b>Decided:</b> <span>{SAID.slice(0, st.n)}</span>
           {typing && <span className={s.oneCaret} data-on={st.n > 0 || undefined} aria-hidden="true" />}
-          <span className={s.askRest} aria-hidden="true">{DECIDED.slice(st.n)}</span>
+          <span className={s.askRest} aria-hidden="true">{SAID.slice(st.n)}</span>
         </p>
         <p className={s.hAdded} data-in={st.land || undefined} data-undone={undone || undefined}>
           <span data-at="one"><b className={s.mark} />{ADDED_IN}<a className={s.noteLink} href="#s-write" tabIndex={st.land ? 0 : -1}>{ADDED_RECIPE}</a></span>

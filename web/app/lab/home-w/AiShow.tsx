@@ -4,25 +4,27 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { curve, head, rng } from "./hand";
 import { along, at, frozenAt, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { COOKED, DAYS, DINNERS, Flag, Folder, GOAL, GPT, hand, NEW_RECIPE, nodeWords, RECIPES, Receipt, shape, Tick, TODAY, YOU, type Arrow, type Node } from "./Things";
+import { COOK_HABIT, Flag, Folder, GPT, hand, NEW_RECIPE, nodeWords, RECIPES, Receipt, shape, Tick, TODAY, WEEK, WRITE_HABIT, YOU, type Arrow, type Node } from "./Things";
 import s from "./s.module.css";
 
-// The climax, staged. The request types in. ChatGPT's cursor reads the decision it remembered, then
-// makes each change in place, in turn: a recipe in your Recipes folder, Friday filled in on next
-// week's whiteboard (the day first, then its arrow to the shopping list draws itself, the way
-// Claude's did in Draw), and next week in the app. Each change carries its own "Added by ChatGPT ·
-// Undo" under it. Then your cursor presses Undo on the app's change: that row leaves, and the rest
-// holds. Redo brings it back. Each card sits in its chapter's colour, the three of one height, and a
-// change opens its row in place. Under the request, one line says what it remembered: "It knows you
-// decided to cook at home five nights." On a phone it does one thing at a time: the request in one
-// line, that line, then one card, which steps note, board, app (a slow crossfade, about 3 s each),
-// each showing its one change with the mark and Undo. The card's height is locked (each change's room
-// is kept from the start), so it never jumps between steps. Under it, a short caption names where the
-// change is ("In your note"), with three small dots. No cursors and no Undo performance there, and
-// the card keeps stepping after the show.
+// The climax, staged: one request that touches three parts of one life. "Plan my week: dinners, and
+// prep for the Studio North call." The request types in. ChatGPT's cursor reads the decision it found
+// in your notes, then makes each change in place, in turn: a recipe in your Recipes folder, a step on
+// the Studio North whiteboard (its arrow from "Talk again in March" draws itself, the way Claude's did
+// in Draw, then the box), and next week's dinners in the habits app. Each change carries its own
+// "Added by ChatGPT · Undo" under it. Then your cursor presses Undo on the app's change: that row
+// leaves, and the rest holds. Redo brings it back. With Reduce Motion (or `?t`) all three changes
+// show, none undone: the end state. Each card sits in its chapter's colour, the three of one height,
+// and a change opens its row in place. Under the request, one line says what it read: "It reads what
+// you decided: cook at home five nights, and wait until March." On a phone it does one thing at a
+// time: the request, that line, then one card, which steps note, board, app (a slow crossfade, about
+// 3 s each), each showing its one change with the mark and Undo. The card's height is locked (each
+// change's room is kept from the start), so it never jumps between steps. Under it, a short caption
+// names where the change is ("In your note"), with three small dots. No cursors and no Undo
+// performance there, and the card keeps stepping after the show.
 // Everything is a function of the show's time t (see show.ts), so stills are exact.
 
-const REQ = "“Plan next week’s dinners from my recipes.”";
+const REQ = "“Plan my week: dinners, and prep for the Studio North call.”";
 
 type Plan = {
   type: [number, number]; gptIn: number; f1: [number, number]; read: [number, number]; f2: [number, number];
@@ -100,14 +102,16 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       if (ink) ink.style.strokeDashoffset = String(1 - e);
       st.style.setProperty("--headOn", e > 0.97 ? "1" : "0");
 
+      // A still at the end (Reduce Motion, or `?t`) shows the three changes made, none undone.
+      const atEnd = frozenAt("ai") === Infinity;
       const next: Snap = {
         n: Math.round(seg(t, P.type[0], P.type[1]) * REQ.length),
         read: t >= P.read[0] && t < P.land[0] + 1.4,
         fill: t >= P.fill,
         land: P.land.map((a) => t >= a),
         rec: P.rec.map((a) => t >= a),
-        undo: t >= P.undo,
-        press: t >= P.press && t < P.press + 0.16,
+        undo: t >= P.undo && !atEnd,
+        press: t >= P.press && t < P.press + 0.16 && !atEnd,
         active: t < P.sw[0] ? 0 : t < P.sw[1] ? 1 : 2,
       };
       setSnap((o) => (same(o, next) ? o : next));
@@ -178,7 +182,7 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
             <span className={s.askRest}>{REQ.slice(snap.n)}</span>
           </span>
         </p>
-        <p className={s.askSub}>It knows you decided to <span data-at="decided" className={s.askNoCar} data-on={snap.read || snap.land[0] || undefined}>cook at home five nights</span>.</p>
+        <p className={s.askSub}>It reads what you decided: <span data-at="decided" className={s.askNoCar} data-on={snap.read || snap.land[0] || undefined}>cook at home five nights</span>, and <span className={s.askNoCar} data-on={snap.land[1] || undefined}>wait until March</span>.</p>
       </div>
       </div>
       <div ref={stage} className={s.aStage} style={{ "--headOn": 0 } as React.CSSProperties}>
@@ -228,44 +232,46 @@ function NoteObj() {
   );
 }
 
-type Lay = { view: [number, number]; font: number; day: number; dayBeside?: boolean; nodes: Node[]; arrows: Arrow[]; claude: Arrow; gpt: Arrow; fri: number };
+type Lay = { view: [number, number]; font: number; nodes: Node[]; arrows: Arrow[]; claude: Arrow; gpt: Arrow; add: Node };
 
-// Next week, the board from Draw, folded to fit: the days in two rows, Wednesday's arrow and Claude's
-// orange one still running to the shopping list. ChatGPT fills in Friday, then draws its arrow.
+// The decision map from Draw, folded to fit: every shape stays, the path not taken stays dashed,
+// Claude's "no" stays orange, and ChatGPT's step for the March call is drawn in under the path.
 const WIDE: Lay = {
-  view: [520, 290], font: 18.5, day: 16.5, fri: 4,
+  view: [520, 290], font: 16,
   nodes: [
-    { kind: "box", c: [88, 44], w: 156, h: 62, day: "Mon", label: ["Lemon chicken"] },
-    { kind: "box", c: [258, 44], w: 156, h: 62, day: "Tue", label: ["Lentil soup"] },
-    { kind: "box", c: [428, 44], w: 156, h: 62, day: "Wed", label: ["Shakshuka"] },
-    { kind: "box", c: [88, 130], w: 156, h: 62, day: "Thu", label: ["Chickpea curry"] },
-    { kind: "box", c: [258, 130], w: 156, h: 62, day: "Fri", label: [], open: true },
-    { kind: "box", c: [230, 238], w: 220, h: 52, label: ["Shopping list"] },
-    { kind: "ellipse", c: [440, 238], w: 150, h: 64, label: ["5 nights", "at home"], size: 16.5 },
-  ],
-  arrows: [{ a: [424, 77], c1: [414, 150], c2: [372, 198], b: [338, 216] }],
-  claude: { a: [92, 163], c1: [96, 186], c2: [122, 202], b: [148, 210] },
-  gpt: { a: [262, 163], c1: [266, 180], c2: [258, 196], b: [250, 210] },
-};
-// The same, standing up, for a phone: the days in a column, the shopping list beside them.
-const TALL: Lay = {
-  view: [340, 304], font: 17, day: 15, dayBeside: true, fri: 4,
-  nodes: [
-    { kind: "box", c: [118, 24], w: 152, h: 38, day: "Mon", label: ["Lemon chicken"] },
-    { kind: "box", c: [118, 72], w: 152, h: 38, day: "Tue", label: ["Lentil soup"] },
-    { kind: "box", c: [118, 120], w: 152, h: 38, day: "Wed", label: ["Shakshuka"] },
-    { kind: "box", c: [118, 168], w: 152, h: 38, day: "Thu", label: ["Chickpea curry"] },
-    { kind: "box", c: [118, 216], w: 152, h: 38, day: "Fri", label: [], open: true },
-    { kind: "box", c: [276, 120], w: 108, h: 204, label: ["Shopping", "list", "", "lemons", "lentils", "eggs", "chickpeas"], size: 15.5 },
-    { kind: "ellipse", c: [170, 278], w: 230, h: 46, label: ["5 nights at home"], size: 15.5 },
+    { kind: "ellipse", c: [60, 46], w: 116, h: 64, label: ["Studio North", "offer"], size: 15 },
+    { kind: "diamond", c: [206, 46], w: 132, h: 80, label: ["Take it now?"], size: 15 },
+    { kind: "box", c: [404, 46], w: 196, h: 60, label: ["Start in January,", "launch half done"], size: 15, faint: true },
+    { kind: "box", c: [206, 152], w: 184, h: 58, label: ["Finish the launch,", "ship in February"], size: 15 },
+    { kind: "ellipse", c: [410, 152], w: 168, h: 64, label: ["Talk again", "in March"], size: 15 },
   ],
   arrows: [
-    { a: [196, 24], c1: [204, 25], c2: [212, 28], b: [220, 33] },
-    { a: [196, 72], c1: [204, 72], c2: [212, 72], b: [220, 72] },
-    { a: [196, 120], c1: [204, 120], c2: [212, 120], b: [220, 120] },
+    { a: [120, 46], c1: [126, 45], c2: [131, 47], b: [137, 46] },
+    { a: [274, 46], c1: [282, 45], c2: [292, 47], b: [302, 46], label: ["yes", [288, 33]], faint: true },
+    { a: [300, 152], c1: [308, 151], c2: [316, 153], b: [324, 152] },
   ],
-  claude: { a: [196, 168], c1: [204, 168], c2: [212, 167], b: [220, 165] },
-  gpt: { a: [196, 216], c1: [204, 216], c2: [212, 213], b: [220, 208] },
+  claude: { a: [206, 88], c1: [205, 100], c2: [207, 110], b: [206, 120], label: ["no", [190, 110]] },
+  gpt: { a: [404, 186], c1: [400, 234], c2: [366, 252], b: [304, 250] },
+  add: { kind: "box", c: [206, 250], w: 192, h: 46, label: ["Questions for Ana"] },
+};
+// The same, standing up, for a phone: as compact as the words allow.
+const TALL: Lay = {
+  view: [340, 334], font: 16,
+  nodes: [
+    { kind: "ellipse", c: [68, 38], w: 130, h: 68, label: ["Studio North", "offer"], size: 15 },
+    { kind: "diamond", c: [248, 38], w: 168, h: 76, label: ["Take it now?"], size: 15 },
+    { kind: "box", c: [252, 126], w: 172, h: 52, label: ["Start in January,", "launch half done"], size: 15, faint: true },
+    { kind: "box", c: [90, 194], w: 172, h: 52, label: ["Finish the launch,", "ship in February"], size: 15 },
+    { kind: "ellipse", c: [252, 248], w: 160, h: 58, label: ["Talk again", "in March"], size: 15 },
+  ],
+  arrows: [
+    { a: [135, 38], c1: [144, 37], c2: [153, 39], b: [162, 38] },
+    { a: [250, 78], c1: [250, 86], c2: [252, 93], b: [252, 99], label: ["yes", [276, 92]], faint: true },
+    { a: [128, 221], c1: [132, 242], c2: [148, 250], b: [170, 249] },
+  ],
+  claude: { a: [198, 54], c1: [172, 90], c2: [124, 130], b: [104, 166], label: ["no", [118, 106]] },
+  gpt: { a: [236, 278], c1: [240, 300], c2: [230, 306], b: [210, 307] },
+  add: { kind: "box", c: [110, 306], w: 196, h: 44, label: ["Questions for Ana"] },
 };
 
 const cubic = (a: Arrow) => `M${a.a[0]} ${a.a[1]} C${a.c1[0]} ${a.c1[1]} ${a.c2[0]} ${a.c2[1]} ${a.b[0]} ${a.b[1]}`;
@@ -273,28 +279,30 @@ const cubic = (a: Arrow) => `M${a.a[0]} ${a.a[1]} C${a.c1[0]} ${a.c1[1]} ${a.c2[
 function BoardObj({ tall }: { tall: boolean }) {
   const g = tall ? TALL : WIDE;
   const r = rng(tall ? 61 : 43);
-  const fri = g.nodes[g.fri];
-  const filled: Node = { ...fri, open: false, label: [NEW_RECIPE[0]] };
   return (
     <div className={s.aBoardWrap}>
       <svg className={`${s.aBoard} ${hand.className}`} viewBox={`0 0 ${g.view[0]} ${g.view[1]}`} aria-hidden="true">
-        <g className={s.chalk}>
-          {g.nodes.map((n, i) => <path key={i} d={shape(r, n)} data-open={n.open || undefined} />)}
-          {g.arrows.map((a, i) => <g key={i}><path d={curve(r, a.a, a.c1, a.c2, a.b, 1.5)} /><path d={head(r, a.c2, a.b, 8)} /></g>)}
-        </g>
-        <g className={s.chalkClaudeSm}><path d={curve(r, g.claude.a, g.claude.c1, g.claude.c2, g.claude.b, 1)} /><path d={head(r, g.claude.c2, g.claude.b, 8)} /></g>
-        {g.nodes.map((n, i) => nodeWords(g, n, i))}
-        {/* ChatGPT's addition: Friday filled in, then its arrow to the shopping list draws itself. */}
-        <g className={s.aAdd}>
-          <g className={s.aBox}>
-            <rect x={fri.c[0] - fri.w / 2} y={fri.c[1] - fri.h / 2} width={fri.w} height={fri.h} rx="12" fill={GPT} fillOpacity="0.26" />
-            <g className={s.chalkGpt}><path d={shape(r, filled)} pathLength={1} /></g>
-            {nodeWords(g, filled, "w", false)}
+        {[false, true].map((faint) => (
+          <g key={String(faint)} className={faint ? `${s.chalk} ${s.chalkFaint}` : s.chalk}>
+            {g.nodes.map((n, i) => !!n.faint === faint && <path key={i} d={shape(r, n, 12)} />)}
+            {g.arrows.map((a, i) => !!a.faint === faint && <g key={i}><path d={curve(r, a.a, a.c1, a.c2, a.b, 1.5)} /><path d={head(r, a.c2, a.b, 9)} /></g>)}
           </g>
+        ))}
+        <g className={s.chalkClaudeSm}><path d={curve(r, g.claude.a, g.claude.c1, g.claude.c2, g.claude.b, 1)} /><path d={head(r, g.claude.c2, g.claude.b, 9)} /></g>
+        {g.claude.label && <text x={g.claude.label[1][0]} y={g.claude.label[1][1]} fontSize={13.5} textAnchor="middle" className={s.claudeNote}>{g.claude.label[0]}</text>}
+        {g.nodes.map((n, i) => nodeWords(n, g.font, i))}
+        {g.arrows.map((a, i) => a.label && <text key={i} x={a.label[1][0]} y={a.label[1][1]} fontSize={13.5} textAnchor="middle" className={a.faint ? `${s.chalkNote} ${s.chalkTextFaint}` : s.chalkNote}>{a.label[0]}</text>)}
+        {/* ChatGPT's addition: the arrow draws itself from "Talk again in March", then the box and its words. */}
+        <g className={s.aAdd}>
           <path data-at="path" d={cubic(g.gpt)} fill="none" stroke="none" />
           <g className={s.chalkGpt}>
             <path data-at="ink" d={curve(r, g.gpt.a, g.gpt.c1, g.gpt.c2, g.gpt.b, 0.6)} pathLength={1} strokeDasharray="1 1" strokeDashoffset={1} />
-            <path className={s.aHead} d={head(r, g.gpt.c2, g.gpt.b, 8)} />
+            <path className={s.aHead} d={head(r, g.gpt.c2, g.gpt.b, 9)} />
+          </g>
+          <g className={s.aBox}>
+            <rect x={g.add.c[0] - g.add.w / 2} y={g.add.c[1] - g.add.h / 2} width={g.add.w} height={g.add.h} rx="12" fill={GPT} fillOpacity="0.26" />
+            <g className={s.chalkGpt}><path d={shape(r, g.add, 12)} pathLength={1} /></g>
+            {nodeWords(g.add, g.font)}
           </g>
         </g>
       </svg>
@@ -302,32 +310,29 @@ function BoardObj({ tall }: { tall: boolean }) {
   );
 }
 
-/** The tracker Build made: this week, four of five, and the row ChatGPT adds for next week. */
+/** The habits app Build made: writing ticked today, cooking at home five nights a week from Monday,
+ *  and the row ChatGPT adds: next week's dinners, five planned. */
 function AppObj() {
-  const cooked = COOKED.map((v, i) => v || i === TODAY);
-  const n = cooked.filter(Boolean).length;
   return (
     <div className={s.aApp}>
-      <p className={s.aAppTop}><b>Home cooking</b><span>App</span></p>
-      <p className={s.aStat}><b>{n}</b> of {GOAL}<small>this week</small></p>
-      <div className={s.aPips} aria-hidden="true">{Array.from({ length: GOAL }, (_, i) => <i key={i} data-on={i < n || undefined} />)}</div>
-      <ul className={s.aNights}>
-        {DAYS.map((d, i) => (
-          <li key={d} data-now={i === TODAY || undefined} data-off={!cooked[i] || undefined} data-early={i < 2 || undefined}>
-            <small>{d}</small><span>{DINNERS[i]}</span><i data-on={cooked[i] || undefined}><Tick /></i>
-          </li>
-        ))}
-      </ul>
+      <p className={s.aAppTop}><b>Habits</b><span>App</span></p>
+      <div className={s.aDays} aria-hidden="true">{WEEK.map((d, i) => <small key={i} data-now={i === TODAY || undefined}>{d}</small>)}</div>
+      <div className={s.aHabit}>
+        <p><span>{WRITE_HABIT}</span><small>1 day</small></p>
+        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={i === TODAY || undefined}><Tick /></i>)}</div>
+      </div>
+      <div className={s.aHabit}>
+        <p><span>{COOK_HABIT}</span><small className={s.aZero}>5 a week</small></p>
+        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-now={i === TODAY || undefined}><Tick /></i>)}</div>
+      </div>
       <div className={`${s.aGrow} ${s.aNewRow}`}>
         <div>
           <div className={s.aHabit}>
-            <p><span data-at="slot2"><b className={s.sweep} />Next week</span><small>{GOAL} planned</small></p>
-            <div className={s.aWeek}>{DAYS.map((d) => <i key={d} data-plan><Tick /></i>)}</div>
+            <p><span data-at="slot2"><b className={s.sweep} />Dinners next week</span><small>5 planned</small></p>
+            <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-plan={i < 5 || undefined}><Tick /></i>)}</div>
           </div>
         </div>
       </div>
-      {/* The app's own row for tonight's dinner (shown on a phone, where the card has the room). */}
-      <p className={s.aAddRow} aria-hidden="true"><span>Tonight’s dinner</span><b>Save</b></p>
     </div>
   );
 }

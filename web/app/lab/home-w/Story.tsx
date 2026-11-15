@@ -14,15 +14,16 @@ import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study W, round 12 (2026-11-15): S's binder with the riso turned down, carrying one real use:
-// ChatGPT building recipes into a Recipes folder for someone who decided to cook at home more. The
-// first screen is your note on a cutting board: the decision, the line ChatGPT added because of it,
-// and beside it the recipe it wrote into Recipes. Below it, each thing is a full-bleed divider in a
-// quiet stock (stone, deep green, kraft, ink) with a torn top edge. Scrolling lays each one over the
-// last, whole, and when it lands its tab rises out of it and stays docked under the header. The tabs
-// end at Your AI. Then the page closes on the kitchen table, in one scene: "Pinto Notes is free.", the
-// download, four lines in pencil, and the note on a Mac and an iPhone, where ChatGPT's line arrives
-// a moment after the page lands.
+// Study W, round 13 (2026-11-15): the lead. S's binder carrying one person's week, three parts of one
+// life. The first screen is your note in its notebook, on your table: the folders of a whole life
+// beside it (Recipes open), the decision to cook at home, the line ChatGPT added because of it, and
+// the recipe it wrote into Recipes. Each chapter shows another part of that life: Notes, the Recipes
+// folder (vermilion); Whiteboards, the job offer from Studio North mapped as a decision (deep green);
+// Apps, the habits they're building (kraft); Your AI, one request that touches all three (ink).
+// Scrolling lays each sheet over the last, whole, and when it lands its tab rises out of it and stays
+// docked under the header. The tabs end at Your AI. Then the page closes on the same table, in one
+// scene: "Pinto Notes is free.", the download, four lines in pencil, and the note on a Mac and an
+// iPhone, where ChatGPT's line arrives a moment after the page lands.
 //
 // The sheets move by `position: sticky` alone (the browser scrolls them; no script moves them). The
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
@@ -171,13 +172,13 @@ function Hero() {
     <section data-hero className={s.hero} aria-labelledby="s-h1">
       <div className={s.heroText}>
         <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
-        <p className={s.lede}>Write notes, draw on whiteboards and build apps. ChatGPT and Claude work in all three with you, and can read what you decided.</p>
+        <p className={s.lede}>Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided.</p>
         <Cta />
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
       <div className={s.art}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={s.collage} src="/lab/w/still-hero-v1.webp" alt="" width="1122" height="1402" fetchPriority="high" />
+        <img className={s.collage} src="/lab/w/still-life-v1.webp" alt="" width="1122" height="1402" fetchPriority="high" />
         <div className={s.objs}><HeroOne /></div>
       </div>
     </section>
@@ -225,9 +226,9 @@ function Draw() {
       <div className={s.dBody}>
         <div className={s.dHead}>
           <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
-          <Say long="A whiteboard beside your notes. Your AI can read it, and draw on it with you." short="Your AI can read it, and draw on it with you." />
+          <Say long="Map out a decision beside your notes. Your AI can read the board and draw on it with you." short="Map out a decision. Your AI can read it, and draw on it with you." />
         </div>
-        <div className={s.dBoard} role="img" aria-label="A hand-drawn whiteboard, next week's dinners: Monday lemon chicken, Tuesday lentil soup, Wednesday shakshuka, Thursday chickpea curry, Friday still open. The cooked days run to a shopping list, and beside it the goal, five nights at home. Claude's cursor draws Thursday's arrow, the last one.">
+        <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
           <span className={s.wideOnly}><BoardBig bind={bind} /></span>
           <span className={s.tallOnly}><BoardBig tall bind={bind} /></span>
         </div>
@@ -282,7 +283,7 @@ function Cover() {
   return (
     <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={{ zIndex: 9 }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className={s.coverArt} src="/lab/w/still-close-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
+      <img className={s.coverArt} src="/lab/w/close-life-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
       <div data-body className={s.coverBody}>
         <div className={s.coverText}>
           <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is <em>free.</em></h2>

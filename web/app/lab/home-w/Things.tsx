@@ -3,13 +3,14 @@
 import localFont from "next/font/local";
 import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
-import { box, curve, ellipse, head, rng } from "./hand";
+import { box, curve, ellipse, head, line, rng } from "./hand";
 import s from "./s.module.css";
 
-// The three things on study W's page, all carrying one habit: cooking at home. A note (the decision,
-// and the recipe ChatGPT wrote into your Recipes folder because of it), a whiteboard (next week's
-// dinners, with the shopping list), and a small app (home-cooked dinners this week). The first screen
-// shows the note; each chapter shows its one at full size, with the same words.
+// The three things on study W's page (round 13), one person's week, three parts of one life. A note
+// in Recipes (the decision to cook at home, and the recipe ChatGPT wrote into the folder because of
+// it), a whiteboard (the job offer from Studio North, mapped: now or March?), and a small app (the
+// habits they're building: writing before work, cooking at home). The first screen shows the note in
+// its notebook, the folders of a whole life beside it; each chapter shows its one at full size.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -62,17 +63,22 @@ export function Flag({ name, color, className = "" }: { name: string; color: str
   );
 }
 
-/** A named cursor in SVG (for the big whiteboard, where it moves along the arrow). */
-export function Cursor({ x, y, name, color, scale = 1 }: { x: number; y: number; name: string; color: string; scale?: number }) {
-  const w = name.length * 7.4 + 18;
+/** A named cursor in SVG (for the big whiteboard, where it moves along the arrow). `above`: the name
+ *  rides over the arrow's tip, so it never sits on the words the arrow points at. */
+export function Cursor({ x, y, name, color, scale = 1, above, left }: { x: number; y: number; name: string; color: string; scale?: number; above?: boolean; left?: boolean }) {
+  // `left`: the name sits above and to the left of the pointer, clear of a stroke drawn down and left.
+  const w = name.length * 7.4 + 18, ty = above || left ? -30 : 15, tx = left ? -(w + 4) : 14;
   return (
     <g transform={`translate(${x} ${y}) scale(${scale})`}>
       <path d="M0 0 L0 17 L4.6 12.6 L8 20 L11 18.6 L7.7 11.4 L13.6 11.2 Z" fill={color} stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" />
-      <rect x="14" y="15" width={w} height="22" rx="7" fill={color} />
-      <text x={14 + w / 2} y="30.5" className={s.cursorName} textAnchor="middle">{name}</text>
+      <rect x={tx} y={ty} width={w} height="22" rx="7" fill={color} />
+      <text x={tx + w / 2} y={ty + 15.5} className={s.cursorName} textAnchor="middle">{name}</text>
     </g>
   );
 }
+
+/** One life's folders, as Pinto's sidebar lists them. Recipes is open on the first screen. */
+export const FOLDERS = ["Recipes", "Work", "Reading", "Trips", "Health", "Studio North"];
 
 /** The folder glyph the notes list uses. */
 export const Folder = () => (
@@ -141,94 +147,100 @@ export function Note({ live }: { live: boolean }) {
   );
 }
 
-/* ───────────────────────── The whiteboard: next week's dinners ───────────────────────── */
+/* ───────────────────────── The whiteboard: the job offer, mapped ───────────────────────── */
 
 export type Pt = [number, number];
-/** A shape on the board. A day is a box with its day's name over the recipe (or, on a phone, beside
- *  it); `open` is a day still to plan, drawn dashed. */
-export type Node = { kind: "ellipse" | "box"; c: Pt; w: number; h: number; label: string[]; day?: string; open?: boolean; size?: number; lh?: number };
-export type Arrow = { a: Pt; c1: Pt; c2: Pt; b: Pt };
-export type Board = { view: [number, number]; font: number; day: number; dayBeside?: boolean; nodes: Node[]; arrows: Arrow[]; last: Arrow; title?: Pt; titleSize?: number };
+/** A shape with its words. `faint`: on the path not taken (dashed, quieter ink). */
+export type Node = { kind: "ellipse" | "box" | "diamond"; c: Pt; w: number; h: number; label: string[]; faint?: boolean; size?: number };
+export type Arrow = { a: Pt; c1: Pt; c2: Pt; b: Pt; label?: [string, Pt]; faint?: boolean };
+export type Board = { view: [number, number]; font: number; nodes: Node[]; arrows: Arrow[]; last: Arrow; title?: Pt; notes?: [string[], Pt][]; rest: Pt };
 
-// Next week, Monday to Friday, a recipe in each box and Friday still open. Each cooked day feeds the
-// shopping list; Claude draws Thursday's arrow, the last one. The decision sits beside it.
+/** The board's title, the question it holds. */
+export const BOARD_TITLE = "Studio North: now or March?";
+
+// The decision, mapped: the offer, the question, and what each answer leads to. Taking it now means
+// starting in January with the launch half done (dashed: the path not taken). Waiting means finishing
+// the launch, shipping in February, and talking again in March. Claude draws the last arrow, the "no"
+// that joins the question to the path they chose.
 export const WIDE: Board = {
-  view: [1200, 540], font: 27, day: 22, title: [4, 24], titleSize: 22,
+  view: [1200, 500], font: 28, title: [4, 24], rest: [10, -4],
   nodes: [
-    { kind: "box", c: [132, 142], w: 212, h: 112, day: "Mon", label: ["Lemon chicken"] },
-    { kind: "box", c: [366, 142], w: 212, h: 112, day: "Tue", label: ["Lentil soup"] },
-    { kind: "box", c: [600, 142], w: 212, h: 112, day: "Wed", label: ["Shakshuka"] },
-    { kind: "box", c: [834, 142], w: 212, h: 112, day: "Thu", label: ["Chickpea curry"] },
-    { kind: "box", c: [1068, 142], w: 212, h: 112, day: "Fri", label: [], open: true },
-    { kind: "box", c: [300, 428], w: 400, h: 164, label: ["Shopping list", "chicken, lemons, thyme", "lentils, eggs, chickpeas"], size: 24, lh: 1.45 },
-    { kind: "ellipse", c: [952, 438], w: 330, h: 112, label: ["5 nights at home"] },
+    { kind: "ellipse", c: [158, 140], w: 290, h: 124, label: ["Studio North", "offer"] },
+    { kind: "diamond", c: [520, 140], w: 290, h: 180, label: ["Take it now?"] },
+    { kind: "box", c: [960, 140], w: 390, h: 120, label: ["Start in January,", "launch half done"], faint: true },
+    { kind: "box", c: [520, 400], w: 390, h: 120, label: ["Finish the launch,", "ship in February"] },
+    { kind: "ellipse", c: [960, 400], w: 330, h: 130, label: ["Talk again", "in March"] },
   ],
   arrows: [
-    { a: [132, 202], c1: [134, 250], c2: [150, 300], b: [168, 344] },
-    { a: [366, 202], c1: [362, 252], c2: [326, 300], b: [304, 344] },
-    { a: [596, 202], c1: [582, 262], c2: [486, 302], b: [436, 344] },
+    { a: [305, 140], c1: [328, 137], c2: [350, 142], b: [372, 140] },
+    { a: [668, 140], c1: [700, 137], c2: [730, 142], b: [760, 140], label: ["yes", [714, 118]], faint: true },
+    { a: [718, 400], c1: [744, 397], c2: [768, 402], b: [792, 400] },
   ],
-  // Claude's: from Thursday, down and across, into the list's right side.
-  last: { a: [830, 202], c1: [820, 330], c2: [640, 440], b: [508, 432] },
+  notes: [[["Ana needs an", "answer by Friday"], [44, 372]]],
+  // Claude's: "no", from the question down to the path they chose.
+  last: { a: [520, 234], c1: [517, 270], c2: [523, 306], b: [520, 336], label: ["no", [492, 296]] },
 };
-// The same board for a phone: the days in a column, the day's name beside its box, the list and the
-// decision on the right.
+// The same map for a phone, compact: the offer and the question side by side, the dashed "yes" under
+// the question, then the path they chose, stepping down. Claude draws the "no".
 export const TALL: Board = {
-  view: [358, 338], font: 17.5, day: 15, dayBeside: true, title: [2, 15], titleSize: 15,
+  view: [358, 344], font: 17, rest: [-40, -30],
   nodes: [
-    { kind: "box", c: [124, 50], w: 168, h: 44, day: "Mon", label: ["Lemon chicken"] },
-    { kind: "box", c: [124, 108], w: 168, h: 44, day: "Tue", label: ["Lentil soup"] },
-    { kind: "box", c: [124, 166], w: 168, h: 44, day: "Wed", label: ["Shakshuka"] },
-    { kind: "box", c: [124, 224], w: 168, h: 44, day: "Thu", label: ["Chickpea curry"] },
-    { kind: "box", c: [124, 282], w: 168, h: 44, day: "Fri", label: [], open: true },
-    { kind: "box", c: [298, 124], w: 112, h: 120, label: ["Shopping", "list"] },
-    { kind: "ellipse", c: [298, 272], w: 116, h: 74, label: ["5 nights", "at home"], size: 16 },
+    { kind: "ellipse", c: [72, 42], w: 138, h: 74, label: ["Studio North", "offer"] },
+    { kind: "diamond", c: [262, 42], w: 180, h: 84, label: ["Take it now?"] },
+    { kind: "box", c: [268, 150], w: 176, h: 62, label: ["Start in January,", "launch half done"], faint: true },
+    { kind: "box", c: [98, 232], w: 190, h: 62, label: ["Finish the launch,", "ship in February"] },
+    { kind: "ellipse", c: [262, 300], w: 176, h: 70, label: ["Talk again", "in March"] },
   ],
   arrows: [
-    { a: [211, 50], c1: [226, 52], c2: [238, 58], b: [246, 70] },
-    { a: [211, 108], c1: [222, 108], c2: [232, 108], b: [240, 108] },
-    { a: [211, 166], c1: [222, 166], c2: [232, 164], b: [240, 160] },
+    { a: [143, 42], c1: [152, 41], c2: [161, 43], b: [169, 42] },
+    { a: [264, 86], c1: [264, 96], c2: [267, 106], b: [267, 116], label: ["yes", [292, 106]], faint: true },
+    { a: [150, 264], c1: [152, 290], c2: [160, 300], b: [171, 300] },
   ],
-  last: { a: [211, 224], c1: [230, 224], c2: [246, 210], b: [254, 190] },
+  last: { a: [208, 62], c1: [190, 100], c2: [160, 150], b: [152, 198], label: ["no", [150, 112]] },
 };
 
-/** A shape, drawn by hand (an open day is dashed, in CSS). */
-export function shape(r: () => number, n: Node) {
-  if (n.kind === "ellipse") return ellipse(r, n.c[0], n.c[1], n.w / 2, n.h / 2);
-  return box(r, n.c[0] - n.w / 2, n.c[1] - n.h / 2, n.w, n.h, 16);
+function diamond(r: () => number, c: Pt, w: number, h: number, over = 3) {
+  const [x, y] = c, t: Pt = [x, y - h / 2], rr: Pt = [x + w / 2, y], b: Pt = [x, y + h / 2], l: Pt = [x - w / 2, y];
+  return [line(r, ...t, ...rr, over), line(r, ...rr, ...b, over), line(r, ...b, ...l, over), line(r, ...l, ...t, over)].join(" ");
 }
 
-/** A node's words: its day (over the recipe, or beside the box on a phone) and its label. */
-export function nodeWords(g: { font: number; day: number; dayBeside?: boolean }, n: Node, key?: React.Key, showDay = true) {
-  const size = n.size ?? g.font, lh = n.lh ?? 1.1;
-  const lines = n.label;
-  const stacked = n.day && !g.dayBeside;
-  // A day's recipe sits under its day's name; otherwise the label is centred in the shape.
-  const y0 = stacked ? n.c[1] + size * 0.62 : n.c[1] + size * 0.34 - (lines.length - 1) * size * lh * 0.5;
+/** A shape, drawn by hand. */
+export function shape(r: () => number, n: Node, rad = 18) {
+  if (n.kind === "ellipse") return ellipse(r, n.c[0], n.c[1], n.w / 2, n.h / 2);
+  if (n.kind === "diamond") return diamond(r, n.c, n.w, n.h, rad > 14 ? 3 : 2);
+  return box(r, n.c[0] - n.w / 2, n.c[1] - n.h / 2, n.w, n.h, rad);
+}
+
+/** A shape's words, centred in it (a dashed shape's words are quieter). */
+export function nodeWords(n: Node, font: number, key?: React.Key) {
+  const size = n.size ?? font;
   return (
-    <g key={key}>
-      {n.day && showDay && (stacked
-        ? <text x={n.c[0]} y={n.c[1] - g.day * 0.55} fontSize={g.day} textAnchor="middle" className={s.chalkNote}>{n.day}</text>
-        : <text x={n.c[0] - n.w / 2 - 8} y={n.c[1] + g.day * 0.34} fontSize={g.day} textAnchor="end" className={s.chalkNote}>{n.day}</text>)}
-      {lines.length > 0 && (
-        <text x={n.c[0]} y={y0} fontSize={size} textAnchor="middle" className={s.chalkText}>
-          {lines.map((l, j) => <tspan key={j} x={n.c[0]} dy={j ? size * lh : 0}>{l}</tspan>)}
-        </text>
-      )}
-    </g>
+    <text key={key} x={n.c[0]} y={n.c[1] + size * 0.34 - (n.label.length - 1) * size * 0.55} fontSize={size} textAnchor="middle" className={n.faint ? `${s.chalkText} ${s.chalkTextFaint}` : s.chalkText}>
+      {n.label.map((l, j) => <tspan key={j} x={n.c[0]} dy={j ? size * 1.1 : 0}>{l}</tspan>)}
+    </text>
   );
 }
 
 /** A board's nodes and arrows in ink, and their words. A plain function, not a component: it draws
  *  from the caller's seeded random, in the caller's render, so the server and the browser agree. */
-function boardInk(g: Board, r: () => number, arrowHead: number) {
+export function boardInk(g: { font: number; nodes: Node[]; arrows: Arrow[]; notes?: [string[], Pt][] }, r: () => number, arrowHead: number, o: { rad?: number; wob?: number; label?: number } = {}) {
+  const ink = (faint: boolean) => (
+    <g className={faint ? `${s.chalk} ${s.chalkFaint}` : s.chalk}>
+      {g.nodes.map((n, i) => !!n.faint === faint && <path key={i} d={shape(r, n, o.rad)} />)}
+      {g.arrows.map((a, i) => !!a.faint === faint && <g key={i}><path d={curve(r, a.a, a.c1, a.c2, a.b, o.wob ?? 2)} /><path d={head(r, a.c2, a.b, arrowHead)} /></g>)}
+    </g>
+  );
+  const lab = o.label ?? g.font * 0.86;
   return (
     <>
-      <g className={s.chalk}>
-        {g.nodes.map((n, i) => <path key={i} d={shape(r, n)} data-open={n.open || undefined} />)}
-        {g.arrows.map((a, i) => <g key={i}><path d={curve(r, a.a, a.c1, a.c2, a.b, 2)} /><path d={head(r, a.c2, a.b, arrowHead)} /></g>)}
-      </g>
-      {g.nodes.map((n, i) => nodeWords(g, n, i))}
+      {ink(false)}{ink(true)}
+      {g.nodes.map((n, i) => nodeWords(n, g.font, i))}
+      {g.arrows.map((a, i) => a.label && <text key={i} x={a.label[1][0]} y={a.label[1][1]} fontSize={lab} textAnchor="middle" className={a.faint ? `${s.chalkNote} ${s.chalkTextFaint}` : s.chalkNote}>{a.label[0]}</text>)}
+      {g.notes?.map(([lines, at], i) => (
+        <text key={i} x={at[0]} y={at[1]} fontSize={g.font * 0.8} className={s.boardTitle}>
+          {lines.map((l, j) => <tspan key={j} x={at[0]} dy={j ? g.font * 1.0 : 0}>{l}</tspan>)}
+        </text>
+      ))}
     </>
   );
 }
@@ -242,11 +254,11 @@ export function BoardBig({ tall, bind }: { tall?: boolean; bind: (set: (k: numbe
   const r = rng(tall ? 17 : 7);
   const [W, H] = g.view;
   const lastD = curve(r, g.last.a, g.last.c1, g.last.c2, g.last.b, 2);
-  const lastHead = head(r, g.last.c2, g.last.b, tall ? 10 : 20);
-  const ink = boardInk(g, r, tall ? 9 : 18);
+  const lastHead = head(r, g.last.c2, g.last.b, tall ? 12 : 22);
+  const ink = boardInk(g, r, tall ? 10 : 20);
   const path = useRef<SVGPathElement>(null), ink2 = useRef<SVGPathElement>(null), cur = useRef<SVGGElement>(null), tip = useRef<SVGGElement>(null);
   const sc = tall ? 0.95 : 1.45;
-  const rest: Pt = tall ? [-34, 14] : [16, 22];
+  const rest = g.rest;
   useEffect(() => {
     const p = path.current; if (!p) return;
     const len = p.getTotalLength();
@@ -258,8 +270,10 @@ export function BoardBig({ tall, bind }: { tall?: boolean; bind: (set: (k: numbe
       if (tip.current) tip.current.style.opacity = e > 0.985 ? "1" : "0";
       const c = cur.current;
       if (c) {
-        const done = e > 0.985;
-        const x = done ? g.last.b[0] + rest[0] : q.x, y = done ? g.last.b[1] + rest[1] : q.y;
+        // Over the stroke's last stretch the cursor drifts to where it rests, so its name never sits
+        // on the words the arrow points at.
+        const off = Math.min(1, Math.max(0, (e - 0.82) / 0.18)), o = off * off * (3 - 2 * off);
+        const x = q.x + rest[0] * o, y = q.y + rest[1] * o;
         c.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
         c.style.opacity = u <= 0 ? "0" : "1";
       }
@@ -267,25 +281,30 @@ export function BoardBig({ tall, bind }: { tall?: boolean; bind: (set: (k: numbe
     set(0);
     return bind(set);
   }, [bind, g, rest]);
+  const lab = g.last.label;
   return (
     <svg className={`${s.board} ${hand.className}`} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      {g.title && <text x={g.title[0]} y={g.title[1]} fontSize={g.titleSize} className={s.boardTitle}>Next week</text>}
+      {g.title && <text x={g.title[0]} y={g.title[1]} fontSize={g.font * 0.8} className={s.boardTitle}>{BOARD_TITLE}</text>}
       {ink}
       <path ref={path} d={cubic(g.last)} fill="none" stroke="none" />
       <g className={s.chalkClaude}><path ref={ink2} d={lastD} pathLength={1} strokeDasharray="1 1" strokeDashoffset={1} /></g>
-      <g ref={tip} className={s.chalkClaude}><path d={lastHead} /></g>
-      <g ref={cur} style={{ opacity: 0 }}><g transform={`scale(${sc})`}><Cursor x={0} y={0} name="Claude" color={CLAUDE} /></g></g>
+      <g ref={tip} className={s.chalkClaude} style={{ opacity: 0 }}>
+        <path d={lastHead} />
+        {lab && <text x={lab[1][0]} y={lab[1][1]} fontSize={g.font * 0.86} textAnchor="middle" className={s.claudeNote}>{lab[0]}</text>}
+      </g>
+      <g ref={cur} style={{ opacity: 0 }}><g transform={`scale(${sc})`}><Cursor x={0} y={0} name="Claude" color={CLAUDE} above={!tall} left={tall} /></g></g>
     </svg>
   );
 }
 
-/* ───────────────────────── The app ───────────────────────── */
+/* ───────────────────────── The app: the habits they're building ───────────────────────── */
 
-/** This week, Monday to Friday: what was cooked, and whether it was at home. Friday is today. */
-export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-export const DINNERS = ["Pasta with greens", "Lemon chicken", "Dinner out", "Lentil soup", "Shakshuka"];
-export const COOKED = [true, true, false, true, false];
+/** The week, Monday first. Friday is today. */
+export const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
+export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 export const TODAY = 4;
-/** The week's goal: the decision. */
-export const GOAL = 5;
+/** The habits in the app Build makes. Cooking at home starts on Monday, five nights a week: the
+ *  decision in the note. Writing is ticked today, by you, in Build. */
+export const WRITE_HABIT = "Write 30 min before work";
+export const COOK_HABIT = "Cook at home";
+export const COOK_GOAL = "5 nights a week";

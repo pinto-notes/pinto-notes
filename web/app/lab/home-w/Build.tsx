@@ -3,23 +3,28 @@
 import { useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { at, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { COOKED, DAY_NAMES, DAYS, DINNERS, Flag, GOAL, Tick, TODAY, YOU } from "./Things";
+import { COOK_HABIT, DAY_NAMES, Flag, Tick, TODAY, WEEK, WRITE_HABIT, YOU } from "./Things";
 import s from "./s.module.css";
 
 // Build apps, from the first word to the first tap. The note starts as Pinto's own New app page: you
-// describe the app ("Make me a tracker for home-cooked dinners") and press Make it with ChatGPT. The
-// page becomes the tracker, piece by piece, in the same paper: this week's count against the five
-// nights you decided on, and the week, a dinner a day. Then your cursor ticks tonight, and the count
-// goes from 3 to 4 of 5. After that it's yours: tick any night, or write in tonight's dinner. On a
-// phone the request is already typed when the chapter arrives (the show starts at the press), and
-// the week shows the three nights up to tonight, so the app fits the screen at reading size.
+// describe the app ("Make me a habit tracker: writing before work, cooking at home") and press Make
+// it with ChatGPT. The page becomes the tracker, piece by piece, in the same paper. Then your cursor
+// taps today on writing, and its count goes from 0 to 1. Cooking at home sits under it on wide
+// screens, five nights a week (the decision in the note), counted once a night is ticked. After that
+// it's yours: tap any day, add a habit, take one away. On a phone the request is already typed when
+// the chapter arrives (the show starts at the press), and the week is a short list of the days around
+// today, the way a tracker reads on an iPhone.
 
-const ASK = "Make me a tracker for home-cooked dinners";
-const B = { type: [0.5, 2.1] as [number, number], press: 2.4, built: 2.75, name: 2.95, stat: 3.1, rows: 3.2, add: 3.75, made: 4.0, youIn: [4.5, 5.4] as [number, number], tap: 5.5, youOut: [6.6, 7.1] as [number, number], end: 7.2 };
+const ASK = "Make me a habit tracker: writing before work, cooking at home";
+const B = { type: [0.5, 2.1] as [number, number], press: 2.4, built: 2.75, name: 2.95, days: 3.15, add: 3.65, made: 3.95, youIn: [4.5, 5.4] as [number, number], tap: 5.5, youOut: [6.6, 7.1] as [number, number], end: 7.2 };
 
-type Week = { cooked: boolean[]; dishes: string[] };
-type Snap = { n: number; press: boolean; built: boolean; name: boolean; stat: boolean; rows: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
-const START: Snap = { n: 0, press: false, built: false, name: false, stat: false, rows: 0, add: false, made: false, tapped: false, down: false };
+/** A habit. `wide`: shown on wide screens only (a phone shows the one habit, at reading size).
+ *  `goal`: nights a week, counted as "n of goal" (and named as the goal until the first one). */
+type Habit = { name: string; days: boolean[]; wide?: boolean; goal?: number };
+const FIRST: Habit = { name: WRITE_HABIT, days: WEEK.map(() => false) };
+const SECOND: Habit = { name: COOK_HABIT, days: WEEK.map(() => false), wide: true, goal: 5 };
+type Snap = { n: number; press: boolean; built: boolean; name: boolean; days: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
+const START: Snap = { n: 0, press: false, built: false, name: false, days: 0, add: false, made: false, tapped: false, down: false };
 const same = (a: Snap, b: Snap) => (Object.keys(a) as (keyof Snap)[]).every((k) => a[k] === b[k]);
 
 export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arrive: number) => void) => () => void }) {
@@ -27,7 +32,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
   const narrow = useRef<boolean | null>(null);
   const [snap, setSnap] = useState<Snap>(START);
   // Once you touch the app, it's yours: the show stops steering it.
-  const [mine, setMine] = useState<Week | null>(null);
+  const [mine, setMine] = useState<Habit[] | null>(null);
   const mineRef = useRef(mine); mineRef.current = mine;
   const [draft, setDraft] = useState("");
 
@@ -36,8 +41,8 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
     apply: (t) => {
       if (narrow.current === null && typeof matchMedia === "function") narrow.current = matchMedia("(max-width: 760px)").matches;
       const next: Snap = {
-        n: narrow.current ? ASK.length : Math.round(seg(t, ...B.type) * ASK.length), press: t >= B.press && t < B.press + 0.18, built: t >= B.built, name: t >= B.name, stat: t >= B.stat,
-        rows: t < B.rows ? 0 : Math.min(5, 1 + Math.floor((t - B.rows) / 0.08)), add: t >= B.add, made: t >= B.made, tapped: t >= B.tap, down: t >= B.tap && t < B.tap + 0.16,
+        n: narrow.current ? ASK.length : Math.round(seg(t, ...B.type) * ASK.length), press: t >= B.press && t < B.press + 0.18, built: t >= B.built, name: t >= B.name,
+        days: t < B.days ? 0 : Math.min(7, 1 + Math.floor((t - B.days) / 0.06)), add: t >= B.add, made: t >= B.made, tapped: t >= B.tap, down: t >= B.tap && t < B.tap + 0.16,
       };
       setSnap((o) => (same(o, next) ? o : next));
       const el = card.current; if (!el) return;
@@ -53,18 +58,17 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
     },
   });
 
-  const week: Week = mine ?? { cooked: COOKED.map((v, j) => v || (j === TODAY && snap.tapped)), dishes: DINNERS };
-  const count = week.cooked.filter(Boolean).length;
-  const take = (f: (w: Week) => Week) => setMine((m) => f(m ?? week));
-  const tick = (d: number) => take((w) => ({ ...w, cooked: w.cooked.map((v, j) => (j === d ? !v : v)) }));
-  const save = (e: React.FormEvent) => {
+  const habits: Habit[] = mine ?? [{ ...FIRST, days: FIRST.days.map((_, j) => j === TODAY && snap.tapped) }, SECOND];
+  const take = (f: (hs: Habit[]) => Habit[]) => setMine((m) => f(m ?? habits));
+  const tap = (h: number, d: number) => take((hs) => hs.map((x, i) => (i === h ? { ...x, days: x.days.map((v, j) => (j === d ? !v : v)) } : x)));
+  const add = (e: React.FormEvent) => {
     e.preventDefault();
     const name = draft.trim(); if (!name) return;
-    take((w) => ({ cooked: w.cooked.map((v, j) => (j === TODAY ? true : v)), dishes: w.dishes.map((x, j) => (j === TODAY ? name : x)) }));
+    take((hs) => [...hs, { name, days: WEEK.map(() => false) }].slice(-3));
     setDraft("");
   };
+  const remove = (h: number) => take((hs) => hs.filter((_, i) => i !== h));
   const built = snap.built || mine !== null;
-  const shown = (k: keyof Snap) => (snap[k] || mine ? true : undefined);
 
   return (
     <div ref={card} className={s.make} data-built={built || undefined}>
@@ -84,29 +88,37 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
       </div>
       {/* The app it made. */}
       <div className={s.makeApp} aria-hidden={!built || undefined}>
-        <p className={s.appName} data-in={shown("name")}>Home cooking<span>App</span></p>
-        <div className={s.stat} data-in={shown("stat")}>
-          <p aria-live="polite"><b key={count}>{count}</b> of {GOAL}<span>home-cooked dinners this week</span></p>
-          <div className={s.pips} aria-hidden="true">{Array.from({ length: GOAL }, (_, i) => <i key={i} data-on={i < count || undefined} />)}</div>
-        </div>
-        <ul className={s.nights}>
-          {DAYS.map((d, j) => (
-            <li key={d} className={s.night} data-in={j < snap.rows || mine ? true : undefined} data-early={j < 2 || undefined} style={{ "--j": j } as React.CSSProperties}>
-              <span className={s.nightDay} data-now={j === TODAY || undefined}>{j === TODAY ? "Tonight" : d}</span>
-              <span className={s.nightDish} data-off={!week.cooked[j] || undefined}>{week.dishes[j]}</span>
-              <button type="button" className={s.day} data-on={week.cooked[j] || undefined} data-now={j === TODAY || undefined} data-today={j === TODAY || undefined}
-                data-down={(j === TODAY && snap.down) || undefined} tabIndex={built ? 0 : -1}
-                onClick={() => tick(j)} aria-pressed={week.cooked[j]} aria-label={`Cooked at home, ${DAY_NAMES[j]}`}>
-                <i><Tick /></i>
-              </button>
-            </li>
-          ))}
+        <p className={s.appName} data-in={snap.built || mine ? true : undefined}>Habits<span>App</span></p>
+        <ul className={s.habits}>
+          {habits.map((h, i) => {
+            const n = h.days.filter(Boolean).length;
+            return (
+              <li key={h.name + i} className={s.habitRow} data-wide={h.wide || undefined}>
+                <div className={s.habitHead} data-in={snap.name || mine ? true : undefined}>
+                  <p className={s.habitName}>{h.name}</p>
+                  <p className={s.habitStreak} aria-live="polite">{h.goal ? (n ? <><b key={n}>{n}</b> of {h.goal}</> : <>{h.goal} a week</>) : <><b key={n}>{n}</b> {n === 1 ? "day" : "days"}</>}</p>
+                  {habits.length > 1 && <button type="button" className={s.habitX} onClick={() => remove(i)} aria-label={`Remove ${h.name}`} tabIndex={built ? 0 : -1}>×</button>}
+                </div>
+                <div className={s.week}>
+                  {WEEK.map((d, j) => (
+                    <span key={j} className={s.dayCell} data-in={j < snap.days || mine ? true : undefined} style={{ "--j": j } as React.CSSProperties}>
+                      <button type="button" className={s.day} data-on={h.days[j] || undefined} data-now={j === TODAY || undefined} data-today={(i === 0 && j === TODAY) || undefined}
+                        data-down={(i === 0 && j === TODAY && snap.down) || undefined} disabled={j > TODAY} tabIndex={built ? 0 : -1}
+                        onClick={() => tap(i, j)} aria-pressed={h.days[j]} aria-label={`${h.name}, ${DAY_NAMES[j]}`}>
+                        <small>{d}</small><span className={s.dayName}>{DAY_NAMES[j]}</span><i><Tick /></i>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
         </ul>
-        <form className={s.addRow} onSubmit={save} data-in={shown("add")}>
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Tonight’s dinner" aria-label="Tonight’s dinner" maxLength={28} tabIndex={built ? 0 : -1} />
-          <button type="submit" disabled={!draft.trim()} tabIndex={built ? 0 : -1}>Save</button>
+        <form className={s.addRow} onSubmit={add} data-in={snap.add || mine ? true : undefined}>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add a habit" aria-label="Add a habit" maxLength={28} tabIndex={built ? 0 : -1} />
+          <button type="submit" disabled={!draft.trim()} tabIndex={built ? 0 : -1}>Add</button>
         </form>
-        <p className={s.made} data-in={shown("made")}><span className={s.receiptMark}><AIGlyph name="openai" size={11} color="#fff" /></span>Made by ChatGPT</p>
+        <p className={s.made} data-in={snap.made || mine ? true : undefined}><span className={s.receiptMark}><AIGlyph name="openai" size={11} color="#fff" /></span>Made by ChatGPT</p>
       </div>
       <span ref={you} className={`${s.cur} ${s.curYou}`} aria-hidden="true"><Flag name="You" color={YOU} /></span>
     </div>
