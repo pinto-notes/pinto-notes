@@ -1159,6 +1159,7 @@
 		B8C8A5D087C757BD71FF8070 /* template-app-study-flashcards-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B3BB6415A47607802EFBEC4C /* template-app-study-flashcards-stage-dark.jpg */; };
 		B94A110CD35CBF3D4579F3B6 /* template-cover-daily-journal.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6D7E3E3F0817F97F2C865387 /* template-cover-daily-journal.jpg */; };
 		B95B234DA31EE4E50A363495 /* router.js in Resources */ = {isa = PBXBuildFile; fileRef = F760CF7B8C66F8A3AD1A896E /* router.js */; };
+		B98089CBBE2C36BDD453EEE1 /* AppNoteTitleInBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88B2830229A604C80B9DD7A4 /* AppNoteTitleInBarTests.swift */; };
 		B99B5C50D751737BEE673D47 /* AIEditSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C667730E3C8E3C905E7874 /* AIEditSnapshots.swift */; };
 		B99E32BED23C506635A1921A /* TagShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97FBF172263893DBEE2CC18 /* TagShots.swift */; };
 		B9AFB8CAF65E33535C1AAD90 /* ImportSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7693F09926468E8130148F1D /* ImportSources.swift */; };
@@ -2167,6 +2168,7 @@
 		887E29254FECA87E7240D624 /* SlowNetworkUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlowNetworkUITests.swift; sourceTree = "<group>"; };
 		88926B24F813EE711911E0C5 /* TagIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagIndex.swift; sourceTree = "<group>"; };
 		88A8C015495E51F8B5B81F3A /* PersonaR7Shots+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PersonaR7Shots+Shared.swift"; sourceTree = "<group>"; };
+		88B2830229A604C80B9DD7A4 /* AppNoteTitleInBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNoteTitleInBarTests.swift; sourceTree = "<group>"; };
 		88F1B99F935635F64B00833B /* ChecklistShelf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistShelf.swift; sourceTree = "<group>"; };
 		8960C267A4A73E8377D155D6 /* EmailSignInFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSignInFlow.swift; sourceTree = "<group>"; };
 		899423D08E417A77E021D351 /* NotePageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageTests.swift; sourceTree = "<group>"; };
@@ -3177,6 +3179,7 @@
 				78F1BFA8CE1F0A571BE42C4A /* AIChangeTickTests.swift */,
 				C693D31BA8697CD4E0DB485B /* AIEditScenarioPictures.swift */,
 				FBA8BFC138D396F3BF6ED0B5 /* AIReviewCardTests.swift */,
+				88B2830229A604C80B9DD7A4 /* AppNoteTitleInBarTests.swift */,
 				79A778DD3EDAA0624680CB3D /* AttachmentInteractionTests.swift */,
 				BED0CD995961135B2CEAD915 /* BigLibraryTests.swift */,
 				FF514831FEE33CB560873B07 /* BulletLookTests.swift */,
@@ -5286,6 +5289,7 @@
 				FC21D1EFDA93C6F99375CF74 /* AdvancedProtectionHiddenTests.swift in Sources */,
 				3D3AAEC7999F4D0D69B712B4 /* AllowSheetTests+Shared.swift in Sources */,
 				42305D0AE2488CA6E382AC10 /* AmberButtonTests+Shared.swift in Sources */,
+				B98089CBBE2C36BDD453EEE1 /* AppNoteTitleInBarTests.swift in Sources */,
 				1B902ACB59FAC824314D9641 /* AppSnapshotTests+Shared.swift in Sources */,
 				A860E8497D7E393F4A59CB23 /* AppleNotesImportTests+Shared.swift in Sources */,
 				E14080D6C5E8C20623591F65 /* AttachmentInteractionTests.swift in Sources */,

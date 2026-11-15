@@ -15,6 +15,9 @@ final class EditorController {
     var isEditing = false
     /// The note's title has scrolled up out of view: the breadcrumbs add it after the folder.
     var titleScrolledAway = false
+    /// The open note is showing its app, which has no big title: the breadcrumbs name it for as
+    /// long as the app shows (Emil, 15 November 2026: the bar said only "Work", never "Doom").
+    var showingApp = false
     /// A note in Recently Deleted: shown, not changed (like Notes). Recover it to edit.
     var readOnly = false
     /// Typing, clicking or tapping into a note in Recently Deleted: the note screen asks to recover it.
