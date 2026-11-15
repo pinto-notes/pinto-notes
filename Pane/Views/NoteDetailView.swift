@@ -412,7 +412,7 @@ struct NoteDetailView: View {
                 }
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
-            .modifier(BoardCollabWiring(note: note, canvas: canvasControls))
+            .modifier(BoardCollabWiring(note: note, canvas: canvasControls, board: isCanvas))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
             .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
                 Button("OK") {}
@@ -2146,16 +2146,27 @@ private struct CollabWiring: ViewModifier {
 private struct BoardCollabWiring: ViewModifier {
     let note: Note
     let canvas: CanvasController
+    /// The note is a whiteboard: its comments are wired too (BoardComments).
+    var board = false
 
     private var session: CollabSession? { CollabStore.shared?.session(for: note) }
 
+    private struct Key: Hashable { let session: ObjectIdentifier?; let board: Bool }
+
+    /// A board of your own: its comments, from its page data.
+    private func wirePrivate() {
+        guard board, !note.isShared else { return }
+        BoardCollab.wirePrivate(note.id, canvas, canComment: note.trashedAt == nil)
+    }
+
     func body(content: Content) -> some View {
         content
-            .task(id: session.map { ObjectIdentifier($0) }) {
+            .task(id: Key(session: session.map { ObjectIdentifier($0) }, board: board)) {
                 let found = note.isShared && session == nil ? await SharedEditing.waitForSession { CollabStore.shared?.session(for: note) } : session
                 if Task.isCancelled { return }
                 guard let session = found, session.isBoard else {
                     if canvas.shared { BoardCollab.unwire(nil, canvas) }
+                    wirePrivate()
                     return
                 }
                 BoardCollab.wire(session, canvas)
@@ -2165,6 +2176,12 @@ private struct BoardCollabWiring: ViewModifier {
                     BoardCollab.tick(session, canvas)
                 }
                 BoardCollab.unwire(session, canvas)
+                wirePrivate()
+            }
+            // Comments on a board of your own arriving through sync (another device, an AI).
+            .onChange(of: board && !note.isShared ? NotePageDataStore.shared.docs[note.id] : nil) { _, _ in
+                guard board, !note.isShared, !canvas.shared else { return }
+                canvas.show(comments: BoardComments.stored(in: NotePageDataStore.shared.doc(note.id)))
             }
     }
 }
@@ -2440,6 +2457,9 @@ struct NoteToolbarStage<Pane: View>: View {
                         // A board shared with you to look at: its tools show, off, as a viewer's
                         // formatting does in a note.
                         ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, compact: CanvasToolbarTools.compact(width)).disabled(!showsItems || canvas.viewOnly) }
+                            .hidden(!showsItems)
+                        // Comments: viewers read them too, so it's never off for them.
+                        ToolbarItem { CanvasCommentsButton(canvas: canvas).disabled(!showsItems || !canvas.connected) }
                             .hidden(!showsItems)
                     }
                     if let people = shown.people {

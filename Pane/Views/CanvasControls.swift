@@ -28,6 +28,10 @@ struct CanvasOverlay: View {
                         CanvasAIHighlight(highlight: h)
                             .transition(.opacity)
                     }
+                    // A comment's thread, by its pin (BoardComments): placed as the page says.
+                    if canvas.state.present == nil {
+                        CanvasCommentAnchor(canvas: canvas, area: geo.size)
+                    }
                 }
                 .animation(.easeOut(duration: 0.3), value: canvas.highlight)
                 #if os(iOS)
@@ -1201,6 +1205,9 @@ struct CanvasSelectionBar: View {
                     Button("Send Backward", systemImage: "arrow.down") { canvas.run(.sendBackward) }
                     Button("Send to Back", systemImage: "square.3.layers.3d.bottom.filled") { canvas.run(.sendToBack) }
                 }
+                if canvas.canComment, !canvas.viewOnly {
+                    iconButton(BoardCommentUI.comment, symbol: "plus.bubble", id: "canvas.bar.comment") { canvas.comment() }
+                }
                 menuButton("More", symbol: "ellipsis", id: "canvas.bar.more") { CanvasMoreItems(canvas: canvas) }
                 }
             }
@@ -1235,6 +1242,24 @@ struct CanvasSelectionBar: View {
         }
         .buttonStyle(.plain)
         .hoverHighlight(Capsule())
+        .accessibilityIdentifier(id)
+    }
+
+    /// One action, as an icon (Comment).
+    private func iconButton(_ title: String, symbol: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 14))
+                .foregroundStyle(Color.ink)
+                .frame(width: 34, height: 34)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .hoverHighlight(Circle())
+        #if os(macOS)
+        .help(title + " (C)")
+        #endif
+        .accessibilityLabel(title)
         .accessibilityIdentifier(id)
     }
 
@@ -1592,7 +1617,7 @@ struct CanvasToolbarTools: View {
     static func compact(_ width: CGFloat) -> Bool { width < compactWidth }
     /// In the compact set: shown, and in its More Tools menu.
     static let compactShown: [CanvasTool] = [.selection, .freedraw, .arrow, .text]
-    static let compactMore: [CanvasTool] = [.hand, .eraser, .laser]
+    static let compactMore: [CanvasTool] = [.hand, .eraser, .laser, .comment]
     /// In the Shapes menu after the shapes (and the sticky note).
     static let inShapesMenu: [CanvasTool] = [.frame]
 
@@ -1614,6 +1639,7 @@ struct CanvasToolbarTools: View {
                 tool(.arrow, current)
                 tool(.text, current)
                 tool(.eraser, current)
+                tool(.comment, current)
                 // Image is in the Shapes menu (and pictures paste and drop): its toolbar room went
                 // to the library, so the note list keeps its title (round 6, "All Notes…").
                 Button { canvas.showingLibrary.toggle() } label: {

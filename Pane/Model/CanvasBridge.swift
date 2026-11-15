@@ -15,6 +15,9 @@ import SwiftUI
 /// The drawing tools, in the toolbar's order, with the engine's single-key shortcuts.
 enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
     case selection, hand, rectangle, diamond, ellipse, arrow, line, freedraw, text, eraser, frame, laser
+    /// The next click on the board places a comment there (BoardComments). Not the engine's: the
+    /// page keeps it.
+    case comment
 
     var id: String { rawValue }
 
@@ -32,6 +35,7 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .eraser: "Eraser"
         case .frame: "Frame"
         case .laser: "Laser Pointer"
+        case .comment: "Comment"
         }
     }
 
@@ -49,6 +53,7 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .eraser: "eraser"
         case .frame: "rectangle.dashed"
         case .laser: "cursorarrow.rays"
+        case .comment: "plus.bubble"
         }
     }
 
@@ -67,6 +72,7 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .eraser: "E"
         case .frame: "F"
         case .laser: "K"
+        case .comment: "C"
         }
     }
 
@@ -74,7 +80,7 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
     var help: String { "\(title) (\(key))" }
 
     /// A tool that draws something new, so its style can be set before drawing.
-    var draws: Bool { ![.selection, .hand, .eraser, .laser].contains(self) }
+    var draws: Bool { ![.selection, .hand, .eraser, .laser, .comment].contains(self) }
 }
 
 extension CanvasTool {
@@ -408,6 +414,14 @@ enum CanvasCommand: Equatable, Sendable {
     /// Pictures that can't go on the shared board (no room, or their bytes didn't come): taken off
     /// the page again, by element id.
     case refusePictures([String])
+    /// The board's comment pins (BoardComments), your own pin's look (for a new comment), the
+    /// thread that's open ("draft" for one being written), where a new one goes, and whether you
+    /// can comment.
+    case comments([BoardComments.Pin], me: BoardComments.Pin, open: String?, draft: BoardComments.Place?, canComment: Bool)
+    /// A new comment on the selection, or at a point of the page (a right-click on nothing).
+    case commentHere(CGPoint?)
+    /// A comment's pin into view.
+    case focusComment(String)
 
     var payload: [String: Any] {
         switch self {
@@ -435,6 +449,11 @@ enum CanvasCommand: Equatable, Sendable {
         case .outline(let ids): ["op": "outline", "ids": ids]
         case .peers(let list): ["op": "peers", "peers": list.map(\.payload)]
         case .refusePictures(let ids): ["op": "refusePictures", "ids": ids]
+        case .comments(let pins, let me, let open, let draft, let can):
+            ["op": "comments", "pins": pins.map(\.payload), "me": me.payload, "open": open ?? NSNull(), "can": can,
+             "draft": draft.map { d -> Any in ["x": d.x, "y": d.y].merging(d.on.map { ["on": $0] } ?? [:]) { a, _ in a } } ?? NSNull()]
+        case .commentHere(let at): ["op": "commentHere"].merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
+        case .focusComment(let id): ["op": "focusComment", "id": id]
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -491,6 +510,8 @@ final class CanvasController {
             onBoardDelta?((b["elements"] as? [[String: Any]]) ?? [], (b["settings"] as? [String: Any]) ?? [:])
             return
         }
+        if let c = m["comment"] as? [String: Any] { commentMessage(c); return }
+        if let at = m["commentAt"] { commentMoved(at); return }
         if let p = m["presence"] as? [String: Any] {
             let xy = (p["pointer"] as? [NSNumber])?.map { CGFloat($0.doubleValue) }
             onPresence?(xy.flatMap { $0.count == 2 ? CGPoint(x: $0[0], y: $0[1]) : nil }, (p["sel"] as? [String]) ?? [])
@@ -503,6 +524,9 @@ final class CanvasController {
             pageFiles = []
             if shared { sendShared() }
             onLoad?()
+            // Its comments, again.
+            lastPins = nil
+            sendPins()
         }
         let next = CanvasState(m)
         if !connected {
@@ -711,6 +735,234 @@ final class CanvasController {
 
     /// Sends the others again (a page that just loaded).
     func resendPeers() { if shared { send(.peers(peers)) } }
+
+    // MARK: Comments
+
+    /// Every comment on the board, threads and replies, as its storage holds them: the board's page
+    /// data, or a shared board's document (BoardComments).
+    private(set) var comments: [BoardComment] = []
+    /// The threads, oldest first.
+    var threads: [BoardThread] { BoardComments.threads(comments) }
+    /// You can add comments here: on your own board, and on a shared one you can edit. A viewer
+    /// reads them (BoardComments says why).
+    private(set) var canComment = true
+    /// You, as your comments say: your account's id and first name (set by the wiring).
+    @ObservationIgnored var author = BoardComments.Author(id: "me", name: "You")
+    /// Each writer's colour on this board ("#RRGGBB"), by account id: on a shared board, the one
+    /// their pointer has.
+    @ObservationIgnored var colorOf: (String) -> String = { BoardComments.color(for: $0) }
+    /// Keeps comments of yours (new ones, replies, a thread resolved) in the board's storage.
+    @ObservationIgnored var onComments: (([BoardComment]) -> Void)?
+    /// What you've seen, per board, on this device.
+    @ObservationIgnored var seenStore = BoardComments.Seen()
+    @ObservationIgnored private var seen: (board: UUID, ids: Set<String>)?
+    /// The clock comments are stamped with; tests set it.
+    @ObservationIgnored var now: () -> Date = { .now }
+    @ObservationIgnored private var lastPins: CanvasCommand?
+
+    /// The thread whose popover is open.
+    private(set) var openThread: String?
+    /// A comment being written, and where it goes.
+    private(set) var draft: BoardComments.Place?
+    /// Where the open thread's pin (or the new comment's) is, in the page's points: the popover's
+    /// anchor. Nil until the page says.
+    private(set) var commentAnchor: CGRect?
+    /// When a thread or a new comment last opened: a popover that closed just before it (a click on
+    /// another pin closes the one that was open) doesn't close it.
+    @ObservationIgnored private(set) var commentOpenedAt = Date.distantPast
+    /// The Comments list is open.
+    var showingComments = false {
+        didSet { if showingComments, !oldValue { markSeen() } }
+    }
+    /// The list shows resolved threads too.
+    var showResolved = false
+    /// A comment from someone else (a person, or an AI) that you haven't seen: a quiet dot on the
+    /// Comments button.
+    private(set) var unseen = false
+
+    /// The board's comments, from its storage (on opening, and whenever they change).
+    func show(comments list: [BoardComment]) {
+        if list != comments { comments = list }
+        if let open = openThread, !comments.contains(where: { $0.id == open }) { closeThread() }
+        updateUnseen()
+        sendPins()
+    }
+
+    /// Whether you can comment (your access changed).
+    func setCanComment(_ can: Bool) {
+        guard can != canComment else { return }
+        canComment = can
+        if !can {
+            draft = nil
+            if state.tool == .comment { pick(.selection) }
+        }
+        sendPins()
+    }
+
+    /// A comment of yours, as opposed to someone else's or an AI's.
+    func isMine(_ c: BoardComment) -> Bool { (c.by == author.id || c.by == "me") && c.ai == nil }
+
+    /// Who wrote it, as the thread says it.
+    func byline(_ c: BoardComment) -> String { isMine(c) ? author.name : BoardComments.byline(c, me: author.id) }
+
+    /// Its writer's colour: an AI's is the accent.
+    func color(of c: BoardComment) -> String { c.ai == nil ? colorOf(c.by) : BoardComments.aiColor }
+
+    private func updateUnseen() {
+        guard let board = noteID else { return }
+        if seen?.board != board {
+            // The first look at this board here: what it has now counts as seen.
+            if let ids = seenStore.ids(board) { seen = (board, ids) } else {
+                seen = (board, Set(comments.map(\.id)))
+                seenStore.set(seen!.ids, for: board)
+            }
+        }
+        let ids = seen?.ids ?? []
+        let new = comments.contains { !ids.contains($0.id) && !isMine($0) }
+        if new != unseen { unseen = new }
+    }
+
+    /// You looked (the list, or a thread): every comment so far counts as seen.
+    func markSeen() {
+        guard let board = noteID else { if unseen { unseen = false }; return }
+        let ids = (seen?.board == board ? seen!.ids : seenStore.ids(board) ?? []).union(comments.map(\.id))
+        seen = (board, ids)
+        seenStore.set(ids, for: board)
+        if unseen { unseen = false }
+    }
+
+    /// The pins the page draws: every open thread, and the one open now even when it's resolved.
+    var pins: [BoardComments.Pin] {
+        threads.filter { !$0.resolved || $0.id == openThread }.map { t in
+            BoardComments.Pin(id: t.id, on: t.first.on, x: t.first.x, y: t.first.y, color: color(of: t.first),
+                              letter: BoardComments.initial(t.first), open: t.id == openThread)
+        }
+    }
+
+    /// Sends the pins when they changed (and again for a page that just loaded).
+    func sendPins() {
+        let me = BoardComments.Pin(id: "me", x: 0, y: 0, color: colorOf(author.id),
+                                   letter: String(author.name.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() } ?? "?"))
+        let c = CanvasCommand.comments(pins, me: me, open: openThread ?? (draft == nil ? nil : "draft"), draft: draft, canComment: canComment)
+        guard c != lastPins else { return }
+        // Nothing to say to a page that has never had a comment.
+        if lastPins == nil, comments.isEmpty, draft == nil, canComment { lastPins = c; return }
+        lastPins = c
+        send(c)
+    }
+
+    /// The Comment tool: the next click on the board places a comment (C).
+    func startCommenting() {
+        guard canComment else { return }
+        pick(.comment)
+    }
+
+    /// A comment on what's selected (the bar's Comment, the right-click menu's), or at a point of
+    /// the page (the right-click menu with nothing selected).
+    func comment(at point: CGPoint? = nil) {
+        guard canComment else { return }
+        send(.commentHere(point))
+    }
+
+    private func commentMessage(_ m: [String: Any]) {
+        if let n = m["new"] as? [String: Any] {
+            guard canComment, let x = (n["x"] as? NSNumber)?.doubleValue, let y = (n["y"] as? NSNumber)?.doubleValue, x.isFinite, y.isFinite else { return }
+            openThread = nil
+            showingComments = false
+            draft = BoardComments.Place(on: n["on"] as? String, x: x, y: y)
+            commentAnchor = nil
+            commentOpenedAt = .now
+            sendPins()
+        } else if let id = m["open"] as? String {
+            open(thread: id)
+        }
+    }
+
+    private func commentMoved(_ at: Any) {
+        guard let a = at as? [String: Any], let id = a["id"] as? String, id == (openThread ?? (draft == nil ? nil : "draft")) else { return }
+        let n = { (k: String) in (a[k] as? NSNumber).map { CGFloat($0.doubleValue) } }
+        guard let x = n("x"), let y = n("y") else { if commentAnchor != nil { commentAnchor = nil }; return }
+        let r = CGRect(x: x, y: y, width: n("width") ?? 24, height: n("height") ?? 24)
+        if r != commentAnchor { commentAnchor = r }
+    }
+
+    /// Opens a thread's popover (its pin clicked, or its row in the list), its pin brought into view.
+    func open(thread id: String) {
+        guard comments.contains(where: { $0.id == id && !$0.isReply }) else { return }
+        draft = nil
+        openThread = id
+        commentAnchor = nil
+        commentOpenedAt = .now
+        markSeen()
+        sendPins()
+        send(.focusComment(id))
+    }
+
+    /// The thread's popover closed.
+    func closeThread() {
+        guard openThread != nil || draft != nil || commentAnchor != nil else { return }
+        openThread = nil
+        draft = nil
+        commentAnchor = nil
+        sendPins()
+    }
+
+    /// The popover closed by itself (a click outside it): unless another thread opened just now.
+    func popoverClosed() {
+        guard Date.now.timeIntervalSince(commentOpenedAt) > 0.3 else { return }
+        closeThread()
+    }
+
+    /// Posts the comment being written. Its thread stays open, for a reply.
+    @discardableResult
+    func post(_ text: String) -> BoardComment? {
+        guard let place = draft, canComment, let t = Self.clean(text) else { return nil }
+        let c = BoardComment(id: BoardComments.newID(), on: place.on, x: place.x, y: place.y, by: author.id, name: author.name,
+                             text: t, created: BoardComments.stamp(now()))
+        draft = nil
+        openThread = c.id
+        commentOpenedAt = .now
+        apply([c])
+        return c
+    }
+
+    @discardableResult
+    func reply(to thread: String, _ text: String) -> BoardComment? {
+        guard canComment, comments.contains(where: { $0.id == thread && !$0.isReply }), let t = Self.clean(text) else { return nil }
+        let c = BoardComment(id: BoardComments.newID(), thread: thread, by: author.id, name: author.name, text: t, created: BoardComments.stamp(now()))
+        apply([c])
+        return c
+    }
+
+    /// Resolves a thread (it goes from the board and stays in the list), or opens it again.
+    func resolve(_ thread: String, _ resolved: Bool = true) {
+        guard canComment, var first = comments.first(where: { $0.id == thread && !$0.isReply }), first.resolved != resolved else { return }
+        first.resolved = resolved
+        first.version += 1
+        apply([first])
+        if resolved, openThread == thread { closeThread() }
+        confirm(resolved ? Self.resolvedLine : Self.reopenedLine, for: .seconds(4), undo: { [weak self] in self?.resolve(thread, !resolved) })
+    }
+
+    private func apply(_ changed: [BoardComment]) {
+        var list = comments
+        for c in changed {
+            if let i = list.firstIndex(where: { $0.id == c.id }) { list[i] = c } else { list.append(c) }
+        }
+        comments = list
+        onComments?(changed)
+        markSeen()
+        sendPins()
+    }
+
+    static let resolvedLine = "Comment resolved"
+    static let reopenedLine = "Comment opened again"
+
+    /// What's posted: trimmed, never empty, at most BoardComments.maxText characters.
+    static func clean(_ text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : String(t.prefix(BoardComments.maxText))
+    }
 
     // MARK: Note cards
 

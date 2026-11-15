@@ -25,6 +25,7 @@ import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
 import { changedSince, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
+import { commentsLayer } from "./comments.js";
 
 const amber = window.amber;
 const SAVE_DELAY = 300;
@@ -142,7 +143,7 @@ const ACTIONS = {
 };
 const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser", "frame", "laser"]);
 /** What changes the drawing, refused on a board you can only view; and the actions that only look. */
-const EDITS = new Set(["style", "insert", "sticky", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards"]);
+const EDITS = new Set(["style", "insert", "sticky", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards", "commentHere"]);
 const LOOKS = new Set(["zoomIn", "zoomOut", "resetZoom", "zoomToFit"]);
 
 /** Keys that would open the engine's own dialogs and panels, which aren't shown here. */
@@ -354,6 +355,8 @@ export const STICKY = { size: 180, color: "#ffec99", gap: 24 };
 export const HANDLE_ROOM = 40;
 /** The engine itself, once the bridge has reached it (for what its API doesn't offer). */
 let engine = null;
+/** The board's comment pins and the Comment tool (comments.js), once the bridge has made them. */
+let comments = null;
 
 /**
  * A sticky note (whiteboard council, round 2: retro and kanban boards with no sticky tool): a
@@ -909,7 +912,8 @@ export function stateOf(api, app) {
   }
   const steps = presenting ? presentSteps(api) : null;
   return {
-    tool: s.activeTool && s.activeTool.type,
+    // The Comment tool is the page's own, over the engine's selection tool.
+    tool: comments && comments.commenting ? "comment" : s.activeTool && s.activeTool.type,
     cropping: !!s.croppingElementId,
     present: steps ? (() => {
       const i = Math.min(presenting.index, steps.length - 1), f = steps[i].id && api.getSceneElements().find((e) => e.id === steps[i].id);
@@ -1088,8 +1092,25 @@ function bridge(api) {
         sharedHooks.refuse(c.ids);
         break;
       case "tool":
+        if (c.tool === "comment") {
+          if (!comments) return false;
+          if (api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
+          if (!comments.tool(true)) return false;
+          break;
+        }
         if (!TOOLS.has(c.tool)) return false;
+        if (comments) comments.tool(false);
         api.setActiveTool({ type: c.tool });
+        break;
+      case "comments":
+        if (!comments) return false;
+        comments.set(c);
+        return true;
+      case "commentHere":
+        if (!comments || !comments.here(c.x, c.y)) return false;
+        break;
+      case "focusComment":
+        if (!comments || !comments.focus(c.id)) return false;
         break;
       case "style": {
         const f = STYLE[c.key];
@@ -1234,7 +1255,9 @@ function bridge(api) {
   };
   // Coalesced to one report a frame (a timer: a page off screen gets no animation frames): a pan or a drag changes the state on every move.
   let queued = false;
-  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); dropEmptyGroups(); roomForHandle(); report(); }, 16); } };
+  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); dropEmptyGroups(); roomForHandle(); leaveComments(); report(); }, 16); } };
+  // Another tool picked on the board itself (a key the engine takes): the Comment tool goes down.
+  const leaveComments = () => { if (comments && comments.commenting && api.getAppState().activeTool.type !== "selection") comments.tool(false); };
   // A group kept selected with none of its elements selected (cards put on the board are
   // selected as a group; a selection cleared by element only left the group): the engine drew
   // its empty selection box at the drawing's origin, a small dark corner bracket by whatever was
@@ -1285,6 +1308,20 @@ function bridge(api) {
     if (api.getAppState().viewModeEnabled) return;
     // S: a sticky note, as in FigJam (the engine's S opens a panel that isn't shown here).
     const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
+    // C: the Comment tool, as in FigJam; Escape (or C again) puts it down.
+    if (comments && !typing && !e.metaKey && !e.ctrlKey && !e.altKey && !api.getAppState().editingTextElement) {
+      const k = (e.key || "").toLowerCase();
+      if ((k === "c" && !e.shiftKey) || (k === "escape" && comments.commenting)) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (k === "escape" || comments.commenting) comments.tool(false);
+        else {
+          if (api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
+          comments.tool(true);
+        }
+        report();
+        return;
+      }
+    }
     // Tab: a mind map's next branch off the selected shape, as in FigJam (whiteboard council,
     // round 6). While typing in a shape, its words are kept first, then the branch grows from it.
     if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selecting()) {
@@ -1331,6 +1368,9 @@ function bridge(api) {
     if (card && tapped && tapped.id === card.id && now - tapped.at < 400) { tapped = null; open(card, e); return; }
     tapped = card ? { id: card.id, at: now } : null;
   };
+  // The comment pins and the Comment tool (comments.js).
+  const post = (m) => { try { window.webkit.messageHandlers.amberCanvas.postMessage(m); } catch (_) {} };
+  comments = commentsLayer(api, document.getElementById("canvas") || document.body, post, () => setTimeout(report, 0));
   window.addEventListener("keydown", keys, true);
   window.addEventListener("contextmenu", menu, true);
   window.addEventListener("dblclick", twice, true);
@@ -1340,6 +1380,7 @@ function bridge(api) {
   report();
   return { command, state: () => stateOf(api, app), stop: () => {
     presenting = null;
+    if (comments) { comments.stop(); comments = null; }
     off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);
     window.removeEventListener("dblclick", twice, true); window.removeEventListener("pointerdown", commandClick, true); window.removeEventListener("touchstart", tap, true);
   } };

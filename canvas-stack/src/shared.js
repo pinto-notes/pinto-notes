@@ -125,6 +125,13 @@ const ARROW = "M1.5 1.5 L1.5 15.5 L5.4 11.8 L8.2 18 L10.8 16.9 L8.1 10.8 L13.5 1
  * colour, edged white) with their first name on a small solid flag, and an outline in their colour
  * round what they have selected. Nothing in it takes a click or is see-through.
  */
+/**
+ * Someone's colour in the board's shade of it (the presence palette, CollabSession.palette):
+ * `dark` on a dark board, the same hue lighter, else `color`. Pointers, selections and comment
+ * pins all take it.
+ */
+export const shade = (p, theme) => (theme === "dark" && typeof p.dark === "string" ? p.dark : p.color);
+
 export function peersLayer(api, host) {
   const layer = document.createElement("div");
   layer.className = "pinto-peers";
@@ -157,7 +164,7 @@ export function peersLayer(api, host) {
     const s = api.getAppState();
     // Each person's colour in the board's shade of it: lighter on a dark board, the same hue
     // (round 10: Emil read slate blue in light and mauve in dark).
-    const tint = (p) => (s.theme === "dark" && typeof p.dark === "string" ? p.dark : p.color);
+    const tint = (p) => shade(p, s.theme);
     const all = api.getSceneElements();
     const byId = new Map(all.map((e) => [e.id, e]));
     const seen = new Set();
