@@ -244,7 +244,8 @@ import UIKit
         web.rightMouseUp(with: Self.event(.rightMouseUp, at: CGPoint(x: 301, y: 301), in: w))
         let menu = try #require(shown.first)
         let titles: [String] = menu.items.map(\.title).filter { !$0.isEmpty }
-        let expected: [String] = ["Duplicate", "Delete", "Save to Library", "Bring to Front", "Bring Forward", "Send Backward", "Send to Back", "Select All", "Zoom to Fit"]
+        // Comment first: on the spot clicked, as nothing is selected (BoardCommentsCanvasTests).
+        let expected: [String] = ["Comment", "Duplicate", "Delete", "Save to Library", "Bring to Front", "Bring Forward", "Send Backward", "Send to Back", "Select All", "Zoom to Fit"]
         #expect(titles == expected)
         #expect(menu.items.first { $0.title == "Delete" }?.isEnabled == false, "nothing selected: nothing to delete")
         // Select All from it reaches the page.

@@ -16,6 +16,7 @@ import { importIdentity, open3, openNoteKey as openWrap, seal3 } from "../_share
 import { type Bytes, fromBase64, OpenError } from "../_shared/e2ee.ts";
 import { previewOf, titleOf } from "./notes.ts";
 import { type Call, checkSize, ToolError, type Tx } from "./tools.ts";
+import { elementIds, json as commentJSON, merge as mergeComments, resolveRaw, type Stored as Comment, withShown } from "./board_comments.ts";
 
 export type Role = "owner" | "editor" | "viewer";
 /** A shared note this account is in, with its key opened. */
@@ -25,7 +26,7 @@ export type Shared = {
 };
 /** A shared note's document: its text, and a whiteboard's drawing beside it (Pane/Collab/CollabBoard.swift):
  *  `board` maps each element's id to the element as JSON, `boardState` holds the scene's settings. */
-type Doc = AM.Doc<{ body?: string; board?: Record<string, unknown>; boardState?: Record<string, unknown> }>;
+type Doc = AM.Doc<{ body?: string; board?: Record<string, unknown>; boardState?: Record<string, unknown>; comments?: Record<string, unknown> }>;
 
 /** Where shared notes others shared with you show, for the file tools. */
 export const SHARED_DIR = "Shared with me/";
@@ -134,9 +135,14 @@ const notYet = (s: Shared) => new ToolError(`"${s.title}" is shared, and its new
 
 /** Who an AI change is from, as the note shows it: "Sara's Claude". */
 async function byline(tx: Tx, c: Call): Promise<string> {
-  const [p] = await tx<{ display_name: string | null }[]>`select display_name from public.profiles where user_id = auth.uid()`;
-  const first = p?.display_name?.trim().split(/\s+/)[0];
+  const first = await firstName(tx);
   return first ? `${first}'s ${c.ctx.client}` : c.ctx.client;
+}
+
+/** The person's first name, as their profile has it (null with none). */
+export async function firstName(tx: Tx): Promise<string | null> {
+  const [p] = await tx<{ display_name: string | null }[]>`select display_name from public.profiles where user_id = auth.uid()`;
+  return p?.display_name?.trim().split(/\s+/)[0] || null;
 }
 
 /** A viewer's AI reads but doesn't write; the server refuses its changes too. */
@@ -238,7 +244,35 @@ export async function boardElements(at: Loaded): Promise<Map<string, El>> {
   return out;
 }
 
-/** A shared whiteboard's data.json: its drawing as a board of the person's own keeps it (`values.scene`). */
+/** A shared board's comments (board_comments.ts), from every `comments` map in its document (two
+ *  devices that made the map at once leave two), each one's values written at once resolved as
+ *  every device resolves them. */
+export async function boardComments(at: Loaded): Promise<Comment[]> {
+  const A = await loadAutomerge();
+  // deno-lint-ignore no-explicit-any
+  const all = A.getConflicts(at.doc as any, "comments");
+  const maps = (all ? Object.values(all) : [at.doc.comments]).filter((m): m is Record<string, unknown> => !!m && typeof m === "object" && !Array.isArray(m));
+  const raws = new Map<string, Set<string>>();
+  for (const m of maps) {
+    for (const id of Object.keys(m)) {
+      // deno-lint-ignore no-explicit-any
+      const values = A.getConflicts(m as any, id);
+      for (const v of values ? Object.values(values) : [m[id]]) {
+        const s = scalar(v);
+        if (s !== null) raws.set(id, (raws.get(id) ?? new Set()).add(s));
+      }
+    }
+  }
+  const out: Comment[] = [];
+  for (const [id, r] of raws) {
+    const c = resolveRaw([...r]);
+    if (c && c.id === id) out.push(c);
+  }
+  return out;
+}
+
+/** A shared whiteboard's data.json: its drawing as a board of the person's own keeps it (`values.scene`),
+ *  and its open comments in `collections.comments`. */
 export async function boardData(at: Loaded) {
   const byIndex = (a: El, b: El) => {
     const x = typeof a.index === "string" ? a.index : null, y = typeof b.index === "string" ? b.index : null;
@@ -251,7 +285,7 @@ export async function boardData(at: Loaded) {
   const st = at.doc.boardState ?? {};
   const appState: El = { viewBackgroundColor: scalar(st.viewBackgroundColor) ?? "#ffffff" };
   if (typeof st.gridModeEnabled === "boolean") appState.gridModeEnabled = st.gridModeEnabled;
-  return { values: { scene: { type: "excalidraw", version: 2, source: "https://pintonotes.com", elements, appState, files: {} } }, collections: {} };
+  return withShown({ values: { scene: { type: "excalidraw", version: 2, source: "https://pintonotes.com", elements, appState, files: {} } }, collections: {} as Record<string, unknown> }, await boardComments(at));
 }
 
 /**
@@ -262,7 +296,7 @@ export async function boardData(at: Loaded) {
  * than the board's isn't taken over someone's newer edit. One without an id gets one. Pictures
  * aren't shared yet and are left out.
  */
-export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: unknown, readAt: Date = new Date()): Promise<{ changed: boolean; update?: number; pictures: number }> {
+export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: unknown, readAt: Date = new Date()): Promise<{ changed: boolean; update?: number; pictures: number; refused: string[] }> {
   refuseViewer(s);
   const scene = (data as { values?: { scene?: { elements?: unknown; appState?: unknown } } })?.values?.scene;
   if (!scene || typeof scene !== "object" || !Array.isArray(scene.elements)) {
@@ -303,9 +337,16 @@ export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: u
   const settings: [string, string | boolean][] = [];
   if (typeof appState.viewBackgroundColor === "string" && appState.viewBackgroundColor !== scalar(st.viewBackgroundColor)) settings.push(["viewBackgroundColor", appState.viewBackgroundColor]);
   if (typeof appState.gridModeEnabled === "boolean" && appState.gridModeEnabled !== st.gridModeEnabled) settings.push(["gridModeEnabled", appState.gridModeEnabled]);
-  if (!puts.length && !settings.length) return { changed: false, pictures };
+  // Comments (board_comments.ts): new ones and replies, attributed to this person's AI, and threads
+  // it resolved. On a shape of the drawing as it is after this write.
+  const ids = elementIds({ values: { scene: { elements: [...current.values()] } } });
+  for (const [id, json] of puts) { const e = JSON.parse(json) as El; if (e.isDeleted === true) ids.delete(id); else ids.add(id); }
+  const first = await firstName(tx);
+  const wanted = (data as { collections?: Record<string, unknown> })?.collections?.comments;
+  const { changed: comments, refused } = mergeComments(await boardComments(at), wanted, { id: c.ctx.userId, name: first ?? "Someone", ai: c.ctx.client }, ids, new Date(now));
+  if (!puts.length && !settings.length && !comments.length) return { changed: false, pictures, refused };
   const A = await loadAutomerge();
-  const message = await byline(tx, c);
+  const message = first ? `${first}'s ${c.ctx.client}` : c.ctx.client;
   const next = A.change(at.doc, { message, time: Math.floor(now / 1000) }, (d) => {
     // Scalar strings, as the devices write them (a plain string would be collaborative text).
     for (const [id, json] of puts) d.board![id] = new A.ImmutableString(json);
@@ -313,8 +354,12 @@ export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: u
       if (!d.boardState) d.boardState = {};
       for (const [k, v] of settings) d.boardState[k] = typeof v === "string" ? new A.ImmutableString(v) : v;
     }
+    if (comments.length) {
+      if (!d.comments) d.comments = {};
+      for (const cm of comments) d.comments[cm.id] = new A.ImmutableString(commentJSON(cm));
+    }
   });
-  return { ...await commit(tx, c, s, at, next), pictures };
+  return { ...await commit(tx, c, s, at, next), pictures, refused };
 }
 
 /** Who changed a shared note lately, newest first: "Sara", "Sara's Claude". */

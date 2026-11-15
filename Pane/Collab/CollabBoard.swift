@@ -232,6 +232,24 @@ enum CollabBoard {
         // after a moment): it's handed the document's.
         canvas.remote(scene: session.boardScene())
         canvas.show(peers: session.boardPeers)
+        // Comments (BoardComments): in the document, sealed as the drawing is; viewers read them.
+        canvas.author = BoardComments.Author(id: session.me.uuidString, name: BoardComments.firstName(session.myName))
+        canvas.colorOf = { [weak session] id in session?.boardColor(of: id) ?? BoardComments.color(for: id) }
+        canvas.onComments = { [weak session] list in session?.commentLocal(list) }
+        session.onBoardComments = { [weak canvas] list in canvas?.show(comments: list) }
+        canvas.setCanComment(session.canWrite)
+        canvas.show(comments: session.boardComments)
+    }
+
+    /// A board of your own: its comments are in its page data, which syncs as the drawing does
+    /// (and merges by comment, so replies written at once on two devices both stay).
+    static func wirePrivate(_ note: UUID, _ canvas: CanvasController, canComment: Bool = true, store: NotePageDataStore = .shared) {
+        guard !canvas.shared else { return }
+        canvas.author = BoardComments.me()
+        canvas.colorOf = { BoardComments.color(for: $0) }
+        canvas.onComments = { [weak store] list in if let store { BoardComments.keep(list, for: note, in: store) } }
+        canvas.setCanComment(canComment)
+        canvas.show(comments: BoardComments.stored(in: store.doc(note)))
     }
 
     /// The board closed, or the note is no longer shared.
@@ -240,8 +258,12 @@ enum CollabBoard {
             session.onRemoteBoard = nil
             session.onBoardAI = nil
             session.onBoardPeers = nil
+            session.onBoardComments = nil
             session.boardPresence(pointer: nil, selection: [])
         }
+        canvas.onComments = nil
+        canvas.colorOf = { BoardComments.color(for: $0) }
+        canvas.show(comments: [])
         canvas.onBoardDelta = nil
         canvas.onPresence = nil
         canvas.onLoad = nil
@@ -253,5 +275,6 @@ enum CollabBoard {
     static func tick(_ session: CollabSession, _ canvas: CanvasController) {
         canvas.share(true, viewOnly: !session.canWrite)
         canvas.show(peers: session.boardPeers)
+        canvas.setCanComment(session.canWrite)
     }
 }

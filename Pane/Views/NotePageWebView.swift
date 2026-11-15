@@ -66,12 +66,14 @@ final class NotePageWebView: WKWebView {
         if wasPanning {
             NSCursor.pop()
         } else {
-            presentMenu(canvasMenu(), event, self)
+            let p = convert(event.locationInWindow, from: nil)
+            presentMenu(canvasMenu(at: CGPoint(x: p.x, y: isFlipped ? p.y : bounds.height - p.y)), event, self)
         }
     }
 
-    /// The canvas's own menu: what acts on the selection, then the whole drawing.
-    func canvasMenu() -> NSMenu {
+    /// The canvas's own menu: what acts on the selection, then the whole drawing. `point` is where
+    /// it opened, in the page's points: Comment with nothing selected goes there.
+    func canvasMenu(at point: CGPoint? = nil) -> NSMenu {
         let menu = NSMenu(title: "Whiteboard")
         let selected = canvas?.state.hasSelection ?? false
         func item(_ title: String, _ action: CanvasCommand.Action, enabled: Bool = true) -> NSMenuItem {
@@ -87,6 +89,13 @@ final class NotePageWebView: WKWebView {
             } else {
                 menu.addItem(CanvasMenuItem(title: CanvasSelectionBar.openNote) { [weak self] in self?.canvas?.openCard(card.note) })
             }
+            menu.addItem(.separator())
+        }
+        // Comment: on the selection, or on the spot you clicked (BoardComments).
+        if let canvas, canvas.canComment, !canvas.viewOnly {
+            menu.addItem(CanvasMenuItem(title: BoardCommentUI.comment) { [weak self] in
+                self?.canvas?.comment(at: selected ? nil : point)
+            })
             menu.addItem(.separator())
         }
         menu.addItem(item("Duplicate", .duplicate, enabled: selected))

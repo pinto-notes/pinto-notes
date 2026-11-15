@@ -78,6 +78,15 @@ final class SharedDocument {
         return CollabBoard.scene(elements: CollabBoard.ordered(CollabBoard.entries(in: doc, board)), settings: CollabBoard.settings(in: doc))
     }
 
+    /// A shared whiteboard's comments as this device last saved them (BoardComments), with no network.
+    func storedComments() -> [BoardComment] {
+        guard !saved.isEmpty else { return [] }
+        let doc = CollabText.Document(textEncoding: .utf16)
+        guard (try? CollabText.absorb(saved, into: doc)) != nil else { return [] }
+        if !tail.isEmpty { try? doc.applyEncodedChanges(encoded: tail) }
+        return BoardComments.read(doc)
+    }
+
     /// The changes waiting to go up.
     var pending: [Data] {
         get { Self.frames(outbox) }

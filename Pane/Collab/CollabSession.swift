@@ -109,6 +109,10 @@ final class CollabSession {
     @ObservationIgnored var onBoardSettled: (([String: Any]) -> Void)?
     /// Hands other people's pointers and selections to the open board, as soon as they move.
     @ObservationIgnored var onBoardPeers: (([BoardPeer]) -> Void)?
+    /// The board's comments as the document holds them (BoardComments), each conflict resolved.
+    @ObservationIgnored private(set) var boardComments: [BoardComment] = []
+    /// Hands the board's comments to the open board whenever they change (someone else's, or yours).
+    @ObservationIgnored var onBoardComments: (([BoardComment]) -> Void)?
     /// The document on this device (SwiftData): saved as it changes, so it opens offline and
     /// nothing typed offline is lost.
     @ObservationIgnored let record: SharedDocument
@@ -224,13 +228,20 @@ final class CollabSession {
     static let rewind: Int64 = 64
 
     /// A new shared document holding `initial` (the owner, when sharing). Saved in `record`.
-    /// `scene`: a whiteboard's drawing, shared with it (CollabBoard).
-    static func create(record: SharedDocument, nk: SymmetricKey, initial: String, scene: [String: Any]? = nil, transport: any CollabTransport, me: UUID,
+    /// `scene`: a whiteboard's drawing, shared with it (CollabBoard), and `comments`, the board's
+    /// comments (BoardComments). The comments map is made now, even empty, so two people adding the
+    /// first comment at once write into the same one.
+    static func create(record: SharedDocument, nk: SymmetricKey, initial: String, scene: [String: Any]? = nil, comments: [BoardComment] = [],
+                       transport: any CollabTransport, me: UUID,
                        name: @escaping @autoclosure @MainActor () -> String) throws -> CollabSession {
         let doc = Document(textEncoding: .utf16)
         let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
         try doc.spliceText(obj: body, start: 0, delete: 0, value: initial)
-        if let scene { try CollabBoard.create(in: doc, scene: scene) }
+        if let scene {
+            try CollabBoard.create(in: doc, scene: scene)
+            _ = try doc.putObject(obj: .ROOT, key: BoardComments.key, ty: .Map)
+            try BoardComments.put(comments, in: doc)
+        }
         doc.commitWith(message: CollabHistory.stamp(me))
         record.saved = doc.save()
         record.tail = Data()
@@ -301,6 +312,7 @@ final class CollabSession {
         if let boardObj {
             boardEntries = CollabBoard.entries(in: doc, boardObj)
             boardSettings = CollabBoard.settings(in: doc)
+            boardComments = BoardComments.read(doc)
         }
         isSent = record.outbox.isEmpty
         // Changes typed here before (offline, then the app quit) still wait.
@@ -708,6 +720,7 @@ final class CollabSession {
     private func textChanged() {
         let mended = mendTicks()
         boardChanged()
+        commentsChanged()
         let merged = (try? doc.text(obj: body)) ?? text
         guard merged != text else { resolvePeers(); if mended { flush() }; return }
         text = merged
@@ -891,6 +904,48 @@ final class CollabSession {
     }
 
     @ObservationIgnored private var boardSettleTask: Task<Void, Never>?
+
+    // MARK: Comments
+
+    /// The document's comments changed from outside: read again, and to the open board.
+    private func commentsChanged() {
+        guard isBoard else { return }
+        let now = BoardComments.read(doc)
+        guard now != boardComments else { return }
+        boardComments = now
+        onBoardComments?(now)
+    }
+
+    /// Comments of yours (new ones, replies, a thread resolved or opened again) into the document,
+    /// as one change, and up as the drawing goes. A viewer's go nowhere (BoardComments).
+    func commentLocal(_ comments: [BoardComment]) {
+        guard !isClosed, isBoard, !comments.isEmpty, record.canEdit, !isViewOnly else { return }
+        let before = doc.heads()
+        let change: Data
+        do {
+            try BoardComments.put(comments, in: doc)
+            doc.commitWith(message: CollabHistory.stamp(me), timestamp: now())
+            change = try doc.encodeChangesSince(heads: before)
+        } catch {
+            log.error("a comment didn't go in: \(String(describing: error), privacy: .public)")
+            return
+        }
+        guard !change.isEmpty else { return }
+        keep(change)
+        record.enqueue(change)
+        setSent(false)
+        typedHere = true
+        saveSoon()
+        flush()
+        commentsChanged()
+    }
+
+    /// Someone's colour on this board ("#RRGGBB"), for their comments' pins: the one their pointer
+    /// has. Anyone not in the board (they left) keeps the one their account id picks.
+    func boardColor(of user: String) -> String {
+        guard let id = UUID(uuidString: user) else { return BoardComments.color(for: user) }
+        return String(format: "#%06X", Self.palette[paletteSlot(of: id)])
+    }
 
     private func settleBoard() {
         boardSettleTask?.cancel()
@@ -1238,7 +1293,7 @@ final class CollabSession {
     /// (`slots(for:)`); this is the one their account id picks, for anyone not in a member list.
     static func color(for user: UUID) -> Color { color(at: Int(paletteIndex(for: user))) }
 
-    static func paletteIndex(for user: UUID) -> UInt32 {
+    nonisolated static func paletteIndex(for user: UUID) -> UInt32 {
         let h = user.uuidString.unicodeScalars.reduce(UInt32(7)) { ($0 &* 31) &+ $1.value }
         return h % UInt32(palette.count)
     }
@@ -1269,7 +1324,7 @@ final class CollabSession {
     /// Someone's colour in this note: their avatar, caret and pointer, and their row in Share.
     func color(of user: UUID) -> Color { Self.color(at: paletteSlot(of: user)) }
 
-    static let palette: [UInt32] = [0xA85A3C, 0x5E7A5A, 0x4F6B87, 0x7E5878, 0x3F7774, 0x7A6F3A]
+    nonisolated static let palette: [UInt32] = [0xA85A3C, 0x5E7A5A, 0x4F6B87, 0x7E5878, 0x3F7774, 0x7A6F3A]
 
     static func color(at i: Int) -> Color {
         let rgb = palette[i % palette.count]

@@ -23,7 +23,8 @@ import {
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
-import { boardData, changesOf, forgetShared, isBoard, loadDoc, refuseViewer, type Shared, sharedNotes, writeBoard, writeDoc } from "./shared_notes.ts";
+import { boardData, changesOf, firstName, forgetShared, isBoard, loadDoc, refuseViewer, type Shared, sharedNotes, writeBoard, writeDoc } from "./shared_notes.ts";
+import { ABOUT as COMMENTS_ABOUT, COLLECTION as COMMENTS, elementIds, isBoardData, keepIn, merge as mergeComments, refusedLine, storedIn, withShown } from "./board_comments.ts";
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
@@ -560,8 +561,8 @@ async function saveBoard(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<type
   try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
   const w = await writeBoard(tx, c, s, at, next, readAt);
   const pictures = w.pictures ? { pictures: `${w.pictures === 1 ? "A picture was" : `${w.pictures} pictures were`} left out: pictures can't go on a shared whiteboard yet.` } : {};
-  if (!w.changed) return { path, unchanged: true, ...pictures };
-  return { saved: path, ...pictures, shared: "One change, merged with what others draw. It shows as this person's AI, and they can undo it." };
+  if (!w.changed) return { path, unchanged: true, ...pictures, ...refusedLine(w.refused) };
+  return { saved: path, ...pictures, ...refusedLine(w.refused), shared: "One change, merged with what others draw. It shows as this person's AI, and they can undo it." };
 }
 
 const sharedApp = (base: string) => new ToolError(`"${base}" is a whiteboard shared with other people: its page stays as it is. Change the drawing in ${base}/data.json.`);
@@ -652,17 +653,33 @@ async function appProject(tx: Tx, c: Call, n: Note): Promise<Project> {
   return project;
 }
 
-/** data.json as the AI sees it: the app's JSON, localStorage parsed. */
+/** data.json as the AI sees it: the app's JSON, localStorage parsed; a whiteboard's comments shown
+ *  readable, open threads only (board_comments.ts). */
 const dataText = (d: PageData) => JSON.stringify(d, null, 2);
+const shownData = (d: PageData): PageData => isBoardData(d) ? withShown(d, storedIn(d)) : d;
+const dataView = (d: PageData) => dataText(shownData(d));
 async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData, text: string) {
   let next: PageData;
   try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
   if (!next || typeof next !== "object" || Array.isArray(next)) throw new ToolError("data.json must be an object: { \"values\": { … }, \"collections\": { … } }.");
   next = { ...next, values: next.values ?? {}, collections: next.collections ?? {} };
-  if (JSON.stringify(next) === JSON.stringify(before)) return { path: `${base}/data.json`, unchanged: true };
+  // A whiteboard's comments: what the AI added to them (or resolved) joins the ones kept, which
+  // stay as they are otherwise. Never deleted by leaving them out.
+  let refused: string[] = [];
+  if (isBoardData(before)) {
+    const wanted = next.collections[COMMENTS];
+    const collections = { ...next.collections };
+    delete collections[COMMENTS];
+    if (before.collections[COMMENTS]) collections[COMMENTS] = before.collections[COMMENTS];
+    next = { ...next, collections };
+    const merged = mergeComments(storedIn(before), wanted, { id: c.ctx.userId, name: await firstName(tx) ?? "Someone", ai: c.ctx.client }, elementIds(next));
+    next = keepIn(next, merged.changed);
+    refused = merged.refused;
+  }
+  if (JSON.stringify(next) === JSON.stringify(before)) return { path: `${base}/data.json`, unchanged: true, ...refusedLine(refused) };
   await storePageData(tx, c, n.id, next);
-  await markRead(tx, c, dataItem(n.id), await hash(c, dataText(await pageDataOf(tx, c, n.id))));
-  return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it." };
+  await markRead(tx, c, dataItem(n.id), await hash(c, dataView(await pageDataOf(tx, c, n.id))));
+  return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it.", ...refusedLine(refused) };
 }
 
 /** What one change did to a note, as lines: those only in the text before it (removed) and those
@@ -1050,11 +1067,11 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/data.json`, lines: shown.lines, shared: sharedLine(r.note.shared).replace("type", "draw"), ...(r.note.shared.role === "viewer" ? { read_only: true } : {}),
           ...(shown.truncated ? { truncated: shown.truncated } : {}),
-          about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Pictures can't go on a shared whiteboard yet." } };
+          about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Pictures can't go on a shared whiteboard yet. " + COMMENTS_ABOUT } };
     }
     if (r.kind === "data") {
       const d = await pageDataOf(tx, c, r.note.id);
-      const text = dataText(d);
+      const text = dataView(d);
       const shown = numberedLines(text, a.offset, a.limit);
       // What the app's own notes say its data means: docs/README.md, else README.md, under "## Data".
       const files = (await projectOf(tx, c, r.note.id)).project.files;
@@ -1062,7 +1079,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       await markRead(tx, c, dataItem(r.note.id), await hash(c, text));
       return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/data.json`, lines: shown.lines, shape: { values: dataShape(d.values), collections: dataShape(d.collections) }, ...(readme ? { readme_data: readme } : {}), ...(shown.truncated ? { truncated: shown.truncated } : {}),
-          about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." } };
+          about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." + (isBoardData(d) ? " " + COMMENTS_ABOUT : "") } };
     }
     const p = await appProject(tx, c, r.note);
     if (r.kind === "app" && r.dir) {
@@ -1164,7 +1181,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (r.kind === "appfile" && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
-      const text = dataText(before);
+      const text = dataView(before);
       await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, text), `${r.base}/data.json`);
       return await saveData(tx, c, r.note, r.base, before, replaceIn(text, a.old_string, a.new_string, all, `${r.base}/data.json`));
     }
@@ -1242,7 +1259,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (r.kind === "appfile" && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
-      await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataText(before)), `${r.base}/data.json`);
+      await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataView(before)), `${r.base}/data.json`);
       return await saveData(tx, c, r.note, r.base, before, content);
     }
     if (r.kind === "appfile") {
