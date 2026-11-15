@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
-import { along, at, mix, mj, place, seg, useShow, type Pt } from "./show";
+import { along, at, frozenAt, mix, mj, place, seg, useShow, type Pt } from "./show";
 import { ADDED, Flag, GPT, hand, Receipt, Tick, TODAY, WEEK, YOU } from "./Things";
 import s from "./s.module.css";
 
@@ -12,8 +12,10 @@ import s from "./s.module.css";
 // arrow draws itself, the way Claude's did in Draw), a habit in the app. Each change carries its own
 // "Added by ChatGPT · Undo" under it. Then your cursor presses Undo on the habit: that row leaves, and
 // the rest holds. Redo brings it back. Each card sits in its chapter's colour, the three of one height,
-// and a change opens its row in place. On a phone, one thing at a time, centred in a frame that fills
-// the screen, and the switcher moves itself.
+// and a change opens its row in place. On a phone it does one thing at a time: the request in one
+// line, then one card, which steps note, board, app (a slow crossfade, about 3 s each), each showing
+// its one change with the mark and Undo. No cursors and no Undo performance there; three small dots
+// are the only progress, and the card keeps stepping after the show.
 // Everything is a function of the show's time t (see show.ts), so stills are exact.
 
 const REQ = "“Add a day in Sintra to my Lisbon trip.”";
@@ -32,14 +34,18 @@ const WIDE_PLAN: Plan = {
   youIn: [9.7, 10.7], press: 10.8, undo: 10.9, youOut: [12.4, 12.9], end: 13,
   sw: [99, 99], gone: [], back: [],
 };
-// On a phone the cards share one place: the cursor lets go before each switch and comes back after.
+// On a phone one card shows at a time: the note's change lands, then the board's arrow draws itself,
+// then the app's habit opens. No cursors, and nothing is undone by the show.
+const N = 99;
 const TALL_PLAN: Plan = {
-  type: [0.5, 2.0], gptIn: 2.2, f1: [2.3, 3.05], read: [3.1, 3.75], f2: [3.8, 4.2],
-  land: [4.25, 7.25, 10.0], rec: [4.65, 7.55, 10.4], ride0: 0.5, ride2: 0.45,
-  f3: [99, 99], draw: [6.15, 7.2], f4: [9.45, 9.9], gptOut: [10.7, 11.1],
-  youIn: [11.3, 12.2], press: 12.3, undo: 12.4, youOut: [13.9, 14.4], end: 14.5,
-  sw: [5.7, 8.95], gone: [[5.25, 5.45], [8.5, 8.7]], back: [5.95, 9.2],
+  type: [0.4, 1.9], gptIn: N, f1: [N, N], read: [1.9, 2.5], f2: [N, N],
+  land: [2.5, 6.9, 10.5], rec: [2.8, 7.2, 10.8], ride0: 0, ride2: 0,
+  f3: [N, N], draw: [6.0, 6.9], f4: [N, N], gptOut: [N, N],
+  youIn: [N, N], press: N, undo: N, youOut: [N, N], end: 13.6,
+  sw: [5.6, 9.9], gone: [], back: [],
 };
+/** After the show, the phone's card keeps stepping, this often (ms). */
+const STEP = 3400;
 
 type Snap = { n: number; read: boolean; land: boolean[]; rec: boolean[]; undo: boolean; press: boolean; active: number };
 const same = (a: Snap, b: Snap) => a.n === b.n && a.read === b.read && a.undo === b.undo && a.press === b.press && a.active === b.active
@@ -64,7 +70,16 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
   const [snap, setSnap] = useState<Snap>(START);
   const [user, setUser] = useState<(boolean | null)[]>([null, null, null]);
   const [pick, setPick] = useState<number | null>(null);
+  const [cycle, setCycle] = useState<number | null>(null);
+  const [ended, setEnded] = useState(false);
   const userRef = useRef(user); userRef.current = user;
+  // On a phone, once the show has played, the card keeps stepping (never with Reduce Motion or in a
+  // still, and not once you've picked one yourself).
+  useEffect(() => {
+    if (!narrow || !ended || pick !== null || frozenAt("ai") !== null) return;
+    const id = setInterval(() => setCycle((c) => ((c ?? 2) + 1) % 3), STEP);
+    return () => clearInterval(id);
+  }, [narrow, ended, pick]);
 
   useShow({
     name: "ai", end: P.end, subscribe,
@@ -89,6 +104,8 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
         active: t < P.sw[0] ? 0 : t < P.sw[1] ? 1 : 2,
       };
       setSnap((o) => (same(o, next) ? o : next));
+      if (t >= P.end) setEnded(true);
+      if (narrow) { place(gpt.current, null, 0); place(you.current, null, 0); return; }
 
       // ChatGPT's cursor.
       const ask = at(B, q("ask"), 1, 0.62);
@@ -138,7 +155,7 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
 
   const undone = (i: number) => user[i] ?? (i === 2 && snap.undo);
   const flip = (i: number) => setUser((u) => u.map((v, k) => (k === i ? !undone(i) : v)));
-  const active = pick ?? snap.active;
+  const active = pick ?? cycle ?? snap.active;
   const objs = [
     <NoteObj key="n" read={snap.read} />,
     <BoardObj key="b" tall={narrow} />,
@@ -178,7 +195,7 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       </div>
       <div className={s.markers} role="tablist" aria-label="What ChatGPT changed">
         {["Note", "Whiteboard", "App"].map((n, i) => (
-          <button key={n} type="button" role="tab" aria-selected={i === active} data-done={snap.land[i] || undefined} onClick={() => setPick(i)}>{n}</button>
+          <button key={n} type="button" role="tab" aria-selected={i === active} aria-label={n} onClick={() => setPick(i)}><i /></button>
         ))}
       </div>
       {foot}

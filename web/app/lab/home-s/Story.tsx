@@ -96,10 +96,12 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       }
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
       for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
-      // A chapter under a docked one is filed: its page stays (its colour shows through the next
-      // one's torn edge) but its contents aren't painted.
+      // A chapter under a docked one is filed: its contents aren't painted, and its torn top edge
+      // goes, so only the front sheet's edge crosses the tabs behind it (each tab stays whole).
       for (let i = 0; i < chs.length; i++) {
-        const cov = i + 1 < chs.length && docked[i + 1] && (doc[i + 1] - y) <= tt - 40;
+        const behind = i + 1 < chs.length && docked[i + 1];
+        if (behind !== (chs[i].dataset.behind !== undefined)) chs[i].toggleAttribute("data-behind", behind);
+        const cov = behind && (doc[i + 1] - y) <= tt - 40;
         if (cov !== covered[i]) { covered[i] = cov; chs[i].toggleAttribute("data-covered", cov); }
       }
     };
@@ -135,11 +137,16 @@ function Chapter({ tone, label, className = "", children }: { tone: Tone; label:
           {TAB[tone]}
         </a>
       )}
-      <div className={s.paper} aria-hidden="true"><i className={s.under} /><i className={s.rim} /><i className={s.sheetBg} /><i className={s.dots} /></div>
+      <div className={s.paper} aria-hidden="true"><i className={s.rim} /><i className={s.sheetBg} /><i className={s.dots} /></div>
       <div data-body className={s.body}>{children}</div>
     </section>
   );
 }
+
+/** A chapter's line: the full sentence on wide screens, a shorter one on a phone (both true). */
+const Say = ({ long, short }: { long: string; short: string }) => (
+  <p className={s.say}><span className={s.long}>{long}</span><span className={s.short}>{short}</span></p>
+);
 
 /* ───────────────────────── The first screen ───────────────────────── */
 
@@ -195,11 +202,13 @@ function Write() {
   return (
     <Chapter tone="write" label="s-write-h">
       <div className={s.wBody}>
-        <div className={s.wHead}>
-          <h2 id="s-write-h" className={s.wTitle}>Write <br />notes.</h2>
-          <p className={s.say}>They feel like Apple Notes, on Mac and iPhone. Bring yours over from Apple Notes.</p>
+        <div className={s.wIn}>
+          <div className={s.wHead}>
+            <h2 id="s-write-h" className={s.wTitle}>Write <br />notes.</h2>
+            <Say long="They feel like Apple Notes, on Mac and iPhone. Bring yours over from Apple Notes." short="Like Apple Notes, on Mac and iPhone. Bring yours over." />
+          </div>
+          <Note live={live} />
         </div>
-        <Note live={live} />
       </div>
     </Chapter>
   );
@@ -231,7 +240,7 @@ function Draw() {
       <div className={s.dBody}>
         <div className={s.dHead}>
           <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
-          <p className={s.say}>A whiteboard beside your notes. Your AI can read it, and draw on it with you.</p>
+          <Say long="A whiteboard beside your notes. Your AI can read it, and draw on it with you." short="Your AI can read it, and draw on it with you." />
         </div>
         <div ref={wrap} className={s.dBoard} role="img" aria-label="A hand-drawn whiteboard, Friday in Lisbon: land at 10:40, bags to Alfama, then if it rains the tile museum, if not Belém by the river, both ending at the sunset at Graça. Your pencil drew the first shape; Claude's cursor draws the last arrow.">
           <span className={s.wideOnly}><BoardBig bind={bind} tipRef={tip} /></span>
@@ -251,10 +260,12 @@ function Build() {
   return (
     <Chapter tone="build" label="s-build-h">
       <div className={s.bBody}>
-        <div className={s.bApp}><BuildShow subscribe={sub} /></div>
-        <div className={s.bHead}>
-          <h2 id="s-build-h" className={s.bTitle}>Build <br />apps.</h2>
-          <p className={s.say}>A note can be a small app. Pick a template, or describe one and your AI makes it.</p>
+        <div className={s.bIn}>
+          <div className={s.bApp}><BuildShow subscribe={sub} /></div>
+          <div className={s.bHead}>
+            <h2 id="s-build-h" className={s.bTitle}>Build <br />apps.</h2>
+            <Say long="A note can be a small app. Pick a template, or describe one and your AI makes it." short="A note can be a small app. Describe one, and your AI makes it." />
+          </div>
         </div>
       </div>
     </Chapter>

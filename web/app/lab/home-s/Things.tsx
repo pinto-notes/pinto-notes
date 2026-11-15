@@ -85,7 +85,7 @@ export function Note({ live }: { live: boolean }) {
     <div className={s.sheet}>
       <p className={s.sheetDate}>Today at 09:41</p>
       <h3 className={s.sheetTitle}>Lisbon, May 8–12</h3>
-      <p className={s.sheetText}>Marta says go up to Graça for the sunset. Pack shoes for the hills.</p>
+      <p className={`${s.sheetText} ${s.sheetMore}`}>Marta says go up to Graça for the sunset. Pack shoes for the hills.</p>
       <p className={`${s.decided} ${s.sheetDecided}`}><b>Decided:</b> {DECIDED}</p>
       <div className={s.sheetSplit}>
         <ul className={s.rows}>
@@ -110,7 +110,7 @@ export function Note({ live }: { live: boolean }) {
           <img src="/lab/s/tram-v1.webp" alt="Tram 28 on a Lisbon hill, printed in orange and green" width="560" height="700" loading="lazy" />
         </figure>
       </div>
-      <p className={s.sheetText}>Friday is on the whiteboard: <a className={s.noteLink} href="#s-draw">Friday in Lisbon</a></p>
+      <p className={`${s.sheetText} ${s.sheetAside}`}>Friday is on the whiteboard: <a className={s.noteLink} href="#s-draw">Friday in Lisbon</a></p>
     </div>
   );
 }
