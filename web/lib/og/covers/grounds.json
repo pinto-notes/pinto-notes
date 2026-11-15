@@ -305,6 +305,12 @@
   "w": 880,
   "h": 550
  },
+ "trip-planner": {
+  "ground": "#fdd8b5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "version-history": {
   "ground": "#e6f0df",
   "ink": "dark",
