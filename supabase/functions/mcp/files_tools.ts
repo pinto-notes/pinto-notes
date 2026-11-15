@@ -559,7 +559,7 @@ async function saveBoard(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<type
   let next: unknown;
   try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
   const w = await writeBoard(tx, c, s, at, next, readAt);
-  const pictures = w.pictures ? { pictures: `${w.pictures === 1 ? "A picture was" : `${w.pictures} pictures were`} left out: pictures can't go on a shared whiteboard yet.` } : {};
+  const pictures = w.pictures ? { pictures: `${w.pictures === 1 ? "A new picture was" : `${w.pictures} new pictures were`} left out: an AI can't put a new picture on a shared whiteboard. The people on it can paste or drop one.` } : {};
   if (!w.changed) return { path, unchanged: true, ...pictures };
   return { saved: path, ...pictures, shared: "One change, merged with what others draw. It shows as this person's AI, and they can undo it." };
 }
@@ -1050,7 +1050,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/data.json`, lines: shown.lines, shared: sharedLine(r.note.shared).replace("type", "draw"), ...(r.note.shared.role === "viewer" ? { read_only: true } : {}),
           ...(shown.truncated ? { truncated: shown.truncated } : {}),
-          about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Pictures can't go on a shared whiteboard yet." } };
+          about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Its pictures are image elements: move, resize or delete them like any element. Their bytes aren't in data.json, and an AI can't add a new picture." } };
     }
     if (r.kind === "data") {
       const d = await pageDataOf(tx, c, r.note.id);
