@@ -100,15 +100,23 @@ extension NetworkFaults {
         let j = try await CanvasNativeUITests.Joined(scene: CanvasNativeUITests.flowchart)
         defer { j.close() }
         try await j.ready()
+        // Nothing selected, as the page says it: the next selection is the one saved.
+        func clear() async throws {
+            _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+            await j.until("nothing selected") { !j.canvas.state.hasSelection }
+        }
         // Two shapes saved from the board, as Save to Library saves them.
         for shape in ["e.type === 'ellipse'", "e.type === 'rectangle' && e.backgroundColor === '#b2f2bb'"] {
+            try await clear()
             _ = try await j.js("(() => { const api = amber._canvas.api; const ids = {}; api.getSceneElements().filter((e) => \(shape)).forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids } }); return 1; })()")
             await j.until("selected") { j.canvas.state.hasSelection }
             #expect(await j.canvas.saveSelectionToLibrary(made) != nil)
         }
         // And a picture.
+        try await clear()
         let url = "data:image/png;base64," + Self.leaf().base64EncodedString()
         _ = try await j.js("(() => { const api = amber._canvas.api; api.addFiles([{ id: 'leaf', dataURL: '\(url)', mimeType: 'image/png', created: 1 }]); api.updateScene({ elements: [...api.getSceneElements(), { type: 'image', id: 'img', fileId: 'leaf', x: 0, y: 420, width: 96, height: 96, angle: 0, strokeColor: 'transparent', backgroundColor: 'transparent', fillStyle: 'solid', strokeWidth: 1, strokeStyle: 'solid', roughness: 0, opacity: 100, groupIds: [], frameId: null, roundness: null, seed: 1, version: 1, versionNonce: 1, isDeleted: false, boundElements: null, updated: 1, link: null, locked: false, status: 'saved', scale: [1, 1] }], appState: { selectedElementIds: { img: true } } }); return 1; })()")
+        await j.until("the picture is selected") { j.canvas.state.hasSelection }
         let logo = try #require(await j.canvas.saveSelectionToLibrary(made))
         made.rename(logo.id, to: "Leaf logo")
 
@@ -117,6 +125,7 @@ extension NetworkFaults {
         await other.sync()
         #expect(synced.items.map(\.title) == made.items.map(\.title) && synced.items.map(\.source) == made.items.map(\.source))
         #expect(CanvasLibraryGrid(synced.items).groups.map(\.title) == ["Saved", "Data flow", "Basic shapes"])
+        #expect(made.items.prefix(3).map(\.title) == ["Leaf logo", "Publish", "Idea"], "each save took what was selected then")
         let picture = synced.items.first { $0.name == "Leaf logo" }
         #expect((picture?.files["leaf"] as? [String: Any])?["dataURL"] as? String == url, "the picture came with it")
         return Synced(made: made, synced: synced, keep: [one, other, a, b])

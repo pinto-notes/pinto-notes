@@ -50,7 +50,7 @@ import Testing
         #expect(c.items.map(\.name) == ["Server", "Database", "Old"], "above what's there, even with a clock that's behind")
         c.made([Self.item("Mine")], now: 2_000_000)
         #expect(c.items.map(\.name) == ["Mine", "Server", "Database", "Old"])
-        #expect(CanvasLibraryGrid(c.items).groups.map(\.title) == ["Saved", "Data flow", "Saved"])
+        #expect(CanvasLibraryGrid(c.items).groups.map(\.title) == ["Saved", "Data flow"], "yours under Saved, above the file")
     }
 
     @Test func everyDeviceShowsTheSameOrder() {

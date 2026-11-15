@@ -123,10 +123,13 @@ struct CanvasLibrarySheet: View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return Button { add(item) } label: {
             VStack(spacing: 4) {
-                CanvasLibraryTilePicture(item: item, light: library.thumbnails[item.id], dark: library.darkThumbnails[item.id])
-                    .padding(10)
-                    .frame(maxWidth: .infinity)
+                // Every tile the same square, whatever the shape inside.
+                Color.clear
                     .aspectRatio(1, contentMode: .fit)
+                    .overlay {
+                        CanvasLibraryTilePicture(item: item, light: library.thumbnails[item.id], dark: library.darkThumbnails[item.id])
+                            .padding(10)
+                    }
                     .background(Color.primary.opacity(0.045), in: shape)
                 Text(item.title)
                     .font(.caption)

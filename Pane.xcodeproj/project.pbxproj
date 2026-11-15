@@ -685,6 +685,7 @@
 		80E5F1164751A401C881FC04 /* preact.js in Resources */ = {isa = PBXBuildFile; fileRef = 19D80BDF04976B1F5E2449A1 /* preact.js */; };
 		80FB9C344AFA09885E0DBCE4 /* KeyboardBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E2ED2A4AF8812202F92B945 /* KeyboardBarUITests.swift */; };
 		810C645C26D79F76CCEE9B91 /* ShareAskSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4588A553F34CCA6E69BAE2FB /* ShareAskSnapshots.swift */; };
+		81210BD40006E3FE89BD045E /* LibrarySyncLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2735A94CD058AD464BAA87B3 /* LibrarySyncLiveTests.swift */; };
 		812D91A3545C6151CE8E7631 /* BlurMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99629D4F11ED9D35B4B851A2 /* BlurMotion.swift */; };
 		815A3505A0A85B6330FB1B7E /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508D7FDAAB7702C132913D85 /* SignInView.swift */; };
 		815B2825F87ACCB4644BFDEB /* RichTextToMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99375A4ACF211AEE18EC4EC3 /* RichTextToMarkdown.swift */; };
@@ -1512,6 +1513,7 @@
 		2704637D02B8697D36D3F82F /* ShortcutsSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSheetTests.swift; sourceTree = "<group>"; };
 		272C6F5EA1562BD7EA619A8E /* TableMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableMenuTests.swift; sourceTree = "<group>"; };
 		27341730693C9C5F11516EAE /* PaneShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaneShare.entitlements; sourceTree = "<group>"; };
+		2735A94CD058AD464BAA87B3 /* LibrarySyncLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncLiveTests.swift; sourceTree = "<group>"; };
 		27BC2BBC304C6026622F0BF6 /* ConnectScan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectScan.swift; sourceTree = "<group>"; };
 		283475786FE6E925FD76C3FC /* QuietChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuietChromeTests.swift; sourceTree = "<group>"; };
 		2856CB2ECE7B50E11419DC6C /* NoteLockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteLockTests.swift; sourceTree = "<group>"; };
@@ -3118,6 +3120,7 @@
 				3F30A429F7F8E70DCBAAD7C3 /* ImportSyncTests.swift */,
 				9D3D3E80F22C4DF32F6C3405 /* KeyCopyLiveTests.swift */,
 				9E5916EC2E6E32C7EB5CEB78 /* KeySwitchSyncTests.swift */,
+				2735A94CD058AD464BAA87B3 /* LibrarySyncLiveTests.swift */,
 				01833E05C1BFF93846F11965 /* LibrarySyncPictureTests.swift */,
 				318C85F79E0FB1ED19D5A13F /* LibrarySyncTests.swift */,
 				527730BB3E3E09A863D6895A /* NetFaultTests.swift */,
@@ -4229,6 +4232,7 @@
 				0A86AB7D095A52739A9CD44B /* LegalLinksTests.swift in Sources */,
 				FFCAF6FD05D62F0A79C4EB00 /* LibraryNotesTests.swift in Sources */,
 				5AE3385B2377244446F89440 /* LibraryStoreTests.swift in Sources */,
+				81210BD40006E3FE89BD045E /* LibrarySyncLiveTests.swift in Sources */,
 				A6828AE83EFBFB1BADDD112F /* LibrarySyncPictureTests.swift in Sources */,
 				211AD6A45063098B111B7034 /* LibrarySyncTests.swift in Sources */,
 				9A61B81732F692C5CBFE89FF /* LibraryUpgradeTests.swift in Sources */,
