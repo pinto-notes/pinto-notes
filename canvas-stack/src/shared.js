@@ -59,8 +59,47 @@ export function normalizeShared(elements) {
   // Repairing bindings bumps what it touches with a random nonce: stamped again from the id, so
   // every device has the same.
   const ids = new Set(steady.map((e) => e.id));
-  const out = restoreElements([...full, ...steady], null, { repairBindings: true, refreshDimensions: false });
+  const joined = joinToBoard(steady, full, named);
+  const out = restoreElements([...joined.full, ...joined.made], null, { repairBindings: true, refreshDimensions: false });
   return { elements: restamp(out, ids), converted: true, made: ids };
+}
+
+/**
+ * Short-form arrows joined to shapes the board already has: an AI writes `"end": { "id": "idea" }`
+ * for a shape that's on the board (its README says to), and the engine's conversion joins only
+ * shapes written along with the arrow. Those are joined here, both ways; the shape's new version
+ * is stamped from its id, so every device makes the same (round 13: Claude's arrow from Inbox into
+ * Idea came in loose). `made`: the converted elements; `full`: the board's; `skeletons`: as written.
+ */
+export function joinToBoard(made, full, skeletons) {
+  const board = new Map(full.map((e) => [e.id, e]));
+  const asked = new Map();
+  for (const s of skeletons) if (s && s.type === "arrow" && s.id) asked.set(s.id, s);
+  if (!asked.size) return { made, full };
+  const onto = new Map();
+  const arrows = made.map((e) => {
+    const s = asked.get(e.id);
+    if (!s || e.type !== "arrow") return e;
+    let next = e;
+    for (const [end, key] of [["start", "startBinding"], ["end", "endBinding"]]) {
+      const id = s[end] && s[end].id, shape = id && board.get(id);
+      if (!shape || shape.isDeleted || (next[key] && next[key].elementId)) continue;
+      next = { ...next, [key]: { elementId: id, focus: 0, gap: 4 } };
+      onto.set(id, [...(onto.get(id) || []), e.id]);
+    }
+    return next;
+  });
+  if (!onto.size) return { made, full };
+  const shapes = full.map((t) => {
+    const ids = onto.get(t.id);
+    if (!ids) return t;
+    const have = new Set((t.boundElements || []).map((b) => b.id));
+    const add = ids.filter((id) => !have.has(id)).map((id) => ({ id, type: "arrow" }));
+    if (!add.length) return t;
+    const version = (t.version || 1) + 1;
+    return { ...t, boundElements: [...(t.boundElements || []), ...add], version, versionNonce: hash(`${t.id}:nonce:${version}`) };
+  });
+  return { made: arrows, full: shapes };
 }
 
 /** The elements in `ids` with the nonce every device gives them at their version. */

@@ -24,7 +24,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
-import { changedSince, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
+import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp } from "./shared.js";
 import { commentsLayer } from "./comments.js";
 
 const amber = window.amber;
@@ -58,8 +58,12 @@ export function normalize(elements) {
   const list = Array.isArray(elements) ? elements.filter((e) => e && typeof e === "object" && typeof e.type === "string") : [];
   const full = [], skeletons = [];
   for (const e of list) (typeof e.seed === "number" && typeof e.version === "number" ? full : skeletons).push(straight(e));
-  const converted = skeletons.length ? convertToExcalidrawElements(skeletons, { regenerateIds: false }) : [];
-  return { elements: restoreElements([...full, ...converted], null, { repairBindings: true, refreshDimensions: false }), converted: skeletons.length > 0 };
+  // An arrow written without an id gets one from what it says, so it can be joined below.
+  const named = skeletons.map((e, i) => (e.id || e.type !== "arrow" ? e : { ...e, id: `ai-${hash(JSON.stringify(e))}-${i}` }));
+  const converted = named.length ? convertToExcalidrawElements(named, { regenerateIds: false }) : [];
+  // Joined to the shapes the board already has, too (shared.js joinToBoard).
+  const joined = joinToBoard(converted, full, named);
+  return { elements: restoreElements([...joined.full, ...joined.made], null, { repairBindings: true, refreshDimensions: false }), converted: skeletons.length > 0 };
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -143,7 +147,7 @@ const ACTIONS = {
 };
 const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser", "frame", "laser"]);
 /** What changes the drawing, refused on a board you can only view; and the actions that only look. */
-const EDITS = new Set(["style", "insert", "sticky", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards", "commentHere"]);
+const EDITS = new Set(["style", "insert", "sticky", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards", "commentHere", "restoreVersion"]);
 const LOOKS = new Set(["zoomIn", "zoomOut", "resetZoom", "zoomToFit"]);
 
 /** Keys that would open the engine's own dialogs and panels, which aren't shown here. */
@@ -270,18 +274,29 @@ export async function exportScene(api, format, selected, light, page) {
 // is still at the app's zoom, it may zoom back in towards yours once there's room (round 4: 12,
 // 13 and 15 stayed at 64% with room to spare). Any zoom of your own ends it.
 let autoZoom = null;
+/** The room kept round a framed board, and the least it keeps in a narrow view. */
+export const MARGIN = 48, NARROW_MARGIN = 16;
 
-export function frameBoard(api, { minZoom, onlyIfCut = false, size } = {}) {
+export function frameBoard(api, { minZoom, onlyIfCut = false, size, floor = false } = {}) {
   const els = api.getSceneElements();
   if (!els.length) return false;
   // The view's size: the engine's, or the one just measured when the engine hasn't caught up.
-  const s = { ...api.getAppState(), ...(size || {}) }, z = (s.zoom && s.zoom.value) || 1, m = 48;
+  const s = { ...api.getAppState(), ...(size || {}) }, z = (s.zoom && s.zoom.value) || 1;
   if (autoZoom && Math.abs(autoZoom.set - z) > 1e-3) autoZoom = null;
   const cap = autoZoom ? autoZoom.from : z;
   const [x1, y1, x2, y2] = getCommonBounds(els);
   const inView = (x1 + s.scrollX) * z >= 0 && (y1 + s.scrollY) * z >= 0 && (x2 + s.scrollX) * z <= s.width && (y2 + s.scrollY) * z <= s.height;
-  const fit = Math.min((s.width - 2 * m) / Math.max(1, x2 - x1), (s.height - 2 * m) / Math.max(1, y2 - y1));
-  const nz = Math.min(cap, fit);
+  const fitWith = (m) => Math.min((s.width - 2 * m) / Math.max(1, x2 - x1), (s.height - 2 * m) / Math.max(1, y2 - y1));
+  // 48 pt round the drawing; a narrow view gives as little as 16 when that keeps the board whole
+  // at `minZoom` (round 12, 15-narrow-760: 44% with 48 pt a side, 52% with 16, and the board
+  // stayed cut off at 76%).
+  let fit = fitWith(MARGIN);
+  if (minZoom !== undefined && fit < minZoom) fit = Math.max(fit, fitWith(NARROW_MARGIN));
+  let nz = Math.min(cap, fit);
+  // `floor`: a board that was whole and no longer fits even at `minZoom` goes to `minZoom`,
+  // centred, so as much of it shows as can (rather than staying at the zoom it had, cut off on
+  // both sides).
+  if (floor && minZoom !== undefined && nz < minZoom) nz = Math.min(z, minZoom);
   if (onlyIfCut && inView && !(autoZoom && nz > z + 1e-3)) return false;
   if (nz < Math.min(z, minZoom === undefined ? z : minZoom)) return false;
   autoZoom = nz < cap - 1e-3 ? { from: cap, set: nz } : null;
@@ -679,6 +694,59 @@ export async function libraryPreview(elements, files) {
     getDimensions: (w, h) => ({ width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)), scale }),
   });
   return canvas.toDataURL("image/png").replace(/^data:[^,]*,/, "");
+}
+
+/** A version of the board from its history, drawn as the board draws it, on the board's own
+ *  ground, at most `side` pixels on its long side: the History sheet's preview. */
+export async function versionPicture(elements, files, dark, background, side = 1600) {
+  const els = restoreElements(Array.isArray(elements) ? elements : [], null, { repairBindings: true, refreshDimensions: false }).filter((e) => !e.isDeleted);
+  if (!els.length) return null;
+  const [x1, y1, x2, y2] = getCommonBounds(els);
+  const pad = 32, scale = Math.min(2, side / Math.max(1, x2 - x1 + 2 * pad, y2 - y1 + 2 * pad));
+  // Light, on the board's own colour; dark, on nothing (the history's black ground shows, as the
+  // board's does), its colours turned as the board turns them.
+  const canvas = await exportToCanvas({
+    elements: els, files: files && typeof files === "object" ? files : {}, exportPadding: pad,
+    appState: { exportBackground: dark !== true, viewBackgroundColor: typeof background === "string" ? background : "#ffffff", exportWithDarkMode: false },
+    getDimensions: (w, h) => ({ width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)), scale }),
+  });
+  if (dark === true) darken(canvas);
+  return canvas.toDataURL("image/png").replace(/^data:[^,]*,/, "");
+}
+
+/** The board's dark look on a picture: its theme filter, invert(93%) then hue-rotate(180deg), in
+ *  the pixels (a canvas's own filter isn't in every WebKit). */
+export function darken(canvas) {
+  const ctx = canvas.getContext("2d"), img = ctx.getImageData(0, 0, canvas.width, canvas.height), d = img.data;
+  const p = 0.93, m = [-0.574, 1.43, 0.144, 0.426, 0.43, 0.144, 0.426, 1.43, -0.856];
+  const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+  for (let i = 0; i < d.length; i += 4) {
+    const r = p * (255 - d[i]) + (1 - p) * d[i], g = p * (255 - d[i + 1]) + (1 - p) * d[i + 1], b = p * (255 - d[i + 2]) + (1 - p) * d[i + 2];
+    d[i] = clamp(m[0] * r + m[1] * g + m[2] * b);
+    d[i + 1] = clamp(m[3] * r + m[4] * g + m[5] * b);
+    d[i + 2] = clamp(m[6] * r + m[7] * g + m[8] * b);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/** The board as a version from its history had it, in one step Undo takes back: what the version
+ *  has comes back as it was, what it didn't have is deleted. Each element's version goes past the
+ *  one on the board, so the change syncs and wins a merge as any edit does. */
+export function restoreVersion(api, scene) {
+  const back = restoreElements(Array.isArray(scene && scene.elements) ? scene.elements : [], null, { repairBindings: true, refreshDimensions: false });
+  const now = api.getSceneElementsIncludingDeleted();
+  const byId = new Map(now.map((e) => [e.id, e]));
+  const ids = new Set(back.map((e) => e.id));
+  const bump = (e) => ({ ...e, version: Math.max(e.version || 1, (byId.get(e.id) || {}).version || 0) + 1,
+    versionNonce: hash(`${e.id}:restore:${Date.now()}`), updated: Date.now() });
+  const gone = now.filter((e) => !ids.has(e.id)).map((e) => (e.isDeleted ? e : bump({ ...e, isDeleted: true })));
+  const files = scene && scene.files && typeof scene.files === "object" ? Object.values(scene.files) : [];
+  if (files.length) api.addFiles(files);
+  const made = back.map(bump);
+  api.updateScene({ elements: [...gone, ...made], captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  const shown = made.filter((e) => !e.isDeleted);
+  if (shown.length) api.scrollToContent(shown, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false });
+  return true;
 }
 
 /**
@@ -1165,6 +1233,11 @@ function bridge(api) {
         break;
       case "libraryInsert":
         if (!insertFromLibrary(api, app, c)) return false;
+        break;
+      case "restoreVersion":
+        // A version from the board's History, back on the board.
+        if (!c.scene || typeof c.scene !== "object") return false;
+        restoreVersion(api, c.scene);
         break;
       case "template":
         // Measured in the hand-drawn font, as a built-in template is.
@@ -1748,7 +1821,7 @@ function Canvas({ initial }) {
       // Presenting: the step fits the new size (round 6, 25-present-1: step 1 was fitted
       // before Full Screen hid the columns, under-zoomed with the next frame at the edge).
       if (presenting) present(api, presenting.index);
-      else if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size });
+      else if (shrink.whole) frameBoard(api, { onlyIfCut: true, minZoom: 0.5, size, floor: true });
       else if (dw > 0 || dh > 0) frameBoard(api, { onlyIfCut: true, size });
     });
     if (area) keepCentre.observe(area);
@@ -1766,7 +1839,7 @@ function Canvas({ initial }) {
     } });
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
     // What the app asks the board and waits for: the selection as a library item, an item's picture.
-    const calls = { libraryPiece: () => libraryPiece(api), boardPiece: () => boardPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), freeSpot: (a) => freeSpot(api, a.width, a.height) };
+    const calls = { libraryPiece: () => libraryPiece(api), boardPiece: () => boardPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), versionPicture: (a) => versionPicture(a && a.elements, a && a.files, a && a.dark, a && a.background), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state }, configurable: true });

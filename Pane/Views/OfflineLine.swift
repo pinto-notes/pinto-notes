@@ -88,6 +88,9 @@ extension EnvironmentValues {
     /// Whether the server can be reached, for the controls that need it (set by the app's root and
     /// by Settings, which is its own window on the Mac).
     @Entry var networkReach: SyncEngine.Reach = .online
+    /// When the last sync got through, while that's the last thing sync did (set beside
+    /// `networkReach`): a board says "Synced" by it once it's back.
+    @Entry var syncedAt: Date? = nil
     /// The app sits behind a setup card: its empty placeholders stay hidden so only the card speaks.
     @Entry var behindSetupCard = false
     /// The last button of an import: Show Imported Notes in the app, Continue during setup, where the
@@ -285,3 +288,102 @@ struct OfflineCloud: View {
 }
 #endif
 #endif
+
+// MARK: On a board
+
+/// A board's sync, said on the board itself (whiteboard council, round 12: offline, the board said
+/// nothing, and with its columns folded away the sidebar's line isn't in view). While sync is away,
+/// the sidebar's words ("Offline · saved on this Mac"); once it's back, "Back online · syncing"
+/// until the sync that follows has got through (the board's drawing goes up in it), then "Synced"
+/// for a moment, then nothing.
+enum BoardSync: Equatable {
+    case away(SyncEngine.Reach)
+    case syncing
+    case synced
+
+    /// `backAt`: when sync came back, until "Synced" has been said. `syncedAt`: the last sync that
+    /// got through, while that's where sync is.
+    static func now(reach: SyncEngine.Reach, backAt: Date?, syncedAt: Date?) -> BoardSync? {
+        if reach != .online { return .away(reach) }
+        guard let backAt else { return nil }
+        if let syncedAt, syncedAt >= backAt { return .synced }
+        return .syncing
+    }
+
+    /// Longest first: the first that fits is shown.
+    func lines(device: String = InstallID.kind) -> [String] {
+        switch self {
+        case .away(let reach): OfflineCopy.lines(reach, device: device)
+        case .syncing: ["Back online \u{00B7} syncing", "Syncing"]
+        case .synced: ["Synced"]
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .away(let reach): OfflineCopy.symbol(reach)
+        case .syncing: "arrow.clockwise.icloud"
+        case .synced: "checkmark.icloud"
+        }
+    }
+}
+
+/// The board's sync line, from the app's sync (`networkReach`, `syncedAt`). Nothing while all is
+/// well. It never takes a click: the board under it does.
+struct BoardSyncLine: View {
+    @Environment(\.networkReach) private var reach
+    @Environment(\.syncedAt) private var syncedAt
+    @State private var backAt: Date?
+    /// How long "Synced" stays.
+    static var hold: Duration = .seconds(2)
+
+    var body: some View {
+        let state = BoardSync.now(reach: reach, backAt: backAt, syncedAt: syncedAt)
+        ZStack {
+            if let state { BoardSyncWords(state: state).transition(.opacity) }
+        }
+        .animation(.easeOut(duration: 0.25), value: state)
+        .onChange(of: reach) { old, new in
+            if new != .online { backAt = nil } else if old != .online { backAt = .now }
+        }
+        .task(id: state) {
+            guard state == .synced else { return }
+            try? await Task.sleep(for: Self.hold)
+            if !Task.isCancelled { backAt = nil }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct BoardSyncWords: View {
+    let state: BoardSync
+
+    var body: some View {
+        Label {
+            ViewThatFits(in: .horizontal) {
+                ForEach(state.lines(), id: \.self) { Text($0).lineLimit(1) }
+            }
+        } icon: {
+            Image(systemName: state.symbol)
+        }
+        #if os(macOS)
+        // Quiet, as the zoom across from it is.
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(Color.muted)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 32)
+        #else
+        // As the iPhone's lists say it: a small solid capsule, above the dock.
+        .font(.footnote)
+        .foregroundStyle(Color.muted)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(Palette.row), in: .capsule)
+        .overlay(Capsule().strokeBorder(Color.line, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        #endif
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(state.lines().first ?? "")
+        .accessibilityIdentifier("canvas.sync")
+    }
+}

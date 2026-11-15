@@ -50,9 +50,12 @@ struct CanvasOverlay: View {
                     // The tools are in the window's toolbar, where a note's are (Emil, 13 November
                     // 2026: "why can't it be at the top like it is for notes"). The zoom stays here.
                     HStack {
+                        // Offline, back and synced, across from the zoom (round 12).
+                        BoardSyncLine()
                         Spacer(minLength: 0)
                         CanvasZoom(canvas: canvas)
                     }
+                    .padding(.leading, 12)
                     .overlay {
                         if let notice = canvas.notice {
                             Toast(text: notice, undo: canvas.noticeUndo)
@@ -64,6 +67,9 @@ struct CanvasOverlay: View {
                     .padding(.trailing, 16)
                     .padding(.bottom, CanvasDock.margin)
                     #else
+                    // Offline, back and synced, above the dock (round 12).
+                    BoardSyncLine()
+                        .padding(.bottom, canvas.viewOnly ? CanvasDock.margin : 8)
                     if !canvas.viewOnly {
                         CanvasDock(canvas: canvas)
                             .padding(.bottom, CanvasDock.margin)
@@ -620,13 +626,17 @@ struct CanvasStart: View {
             Text("Draw anything, or start from a template")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color.muted)
-            HStack(spacing: 10) {
-                ForEach(WhiteboardTemplate.allCases) { t in
-                    Self.tile(t.title) { CanvasTemplatePreview(template: t) } action: { canvas.insert(t) }
-                        .help("Start from \(t.title.lowercased())")
-                        .accessibilityIdentifier("canvas.template.\(t.rawValue)")
-                }
+            templateRow(WhiteboardTemplate.first)
+            // FigJam's other everyday boards, in a row of their own under a quiet heading, as
+            // your own templates are (round 12).
+            VStack(spacing: 10) {
+                Self.rowHeading(Self.moreTemplatesTitle)
+                templateRow(WhiteboardTemplate.more)
             }
+            .frame(width: Self.rowWidth)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Self.moreTemplatesTitle)
+            .accessibilityIdentifier("canvas.moreTemplates")
             if !templates.items.isEmpty { yours }
             ask
             #if os(macOS)
@@ -643,6 +653,30 @@ struct CanvasStart: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Start this whiteboard")
         .accessibilityIdentifier("canvas.start")
+    }
+
+    /// A row of the built-in templates' tiles.
+    private func templateRow(_ row: [WhiteboardTemplate]) -> some View {
+        HStack(spacing: 10) {
+            ForEach(row) { t in
+                Self.tile(t.title) { CanvasTemplatePreview(template: t) } action: { canvas.insert(t) }
+                    .help("Start from \(t.inSentence)")
+                    .accessibilityIdentifier("canvas.template.\(t.rawValue)")
+            }
+        }
+    }
+
+    static let moreTemplatesTitle = "More templates"
+    /// Five tiles and the gaps between them.
+    static let rowWidth: CGFloat = 116 * 5 + 10 * 4
+
+    /// The quiet heading over a row of tiles ("More templates", "Your templates").
+    static func rowHeading(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
     }
 
     /// A template's tile: its drawing small, its name under it.
@@ -673,10 +707,7 @@ struct CanvasStart: View {
     private var yours: some View {
         let row = templates.row
         return VStack(spacing: 10) {
-            Text(Self.yourTemplatesTitle)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.muted)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            Self.rowHeading(Self.yourTemplatesTitle)
             HStack(spacing: 10) {
                 ForEach(row.items) { yourTile($0) }
                 if row.more {
@@ -706,7 +737,7 @@ struct CanvasStart: View {
                 Spacer(minLength: 0)
             }
         }
-        .frame(width: 116 * 5 + 10 * 4)
+        .frame(width: Self.rowWidth)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Self.yourTemplatesTitle)
         .accessibilityIdentifier("canvas.yourTemplates")
@@ -1727,7 +1758,7 @@ struct CanvasToolbarTools: View {
         if fit.showsFullScreen || room.viewOnly { last += 1 }
         if fit.showsAsk, room.asks { last += 1 }
         groups.append(last)
-        let right = CGFloat(groups.reduce(0, +)) * item + CGFloat(groups.count - 1) * groupGap + room.people
+        let right = CGFloat(groups.reduce(0, +)) * item + CGFloat(groups.count - 1) * groupGap + room.people + (fit == .narrowest ? chevron : 0)
         return left + right + edges + margin
     }
 
@@ -1836,13 +1867,28 @@ struct CanvasToolbarTools: View {
             Divider()
             moreItems()
         } label: {
-            Label("Tools", systemImage: current == .comment ? CanvasTool.selection.symbol : current.symbol).picked(current != .selection && current != .comment)
+            // The picked tool, tinted as it is in the full bar (round 12, 15-narrow-760: the grey
+            // arrow read as a button that does nothing more).
+            // Its chevron says it opens a menu, as a toolbar's pull-down buttons do (round 12: the
+            // toolbar draws no indicator of its own for a menu in an item).
+            Label {
+                Text("Tools")
+            } icon: {
+                HStack(spacing: 2) {
+                    Image(systemName: current == .comment ? CanvasTool.selection.symbol : current.symbol)
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(.secondary)
+                }
+            }
+            .picked(current != .comment)
         }
         .menuIndicator(.hidden)
         .help("Tools: select, draw, shapes, arrows, text and more")
         .accessibilityIdentifier("canvas.tool.more")
         .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
     }
+
+    /// What the Tools button's chevron adds to its width.
+    static let chevron: CGFloat = 14
 
     static func moreHelp(_ fit: Fit) -> String {
         let names = fit.inMore.map { $0.title.lowercased() } + ["pictures", "sticky notes", "note cards", "the library"] + (fit.showsFullScreen ? [] : ["full screen"])
@@ -1986,14 +2032,18 @@ struct CanvasLibraryPopover: View {
     static let padding: CGFloat = 12
     static let heading: CGFloat = 22
     static var width: CGFloat { CGFloat(columns) * tile + CGFloat(columns - 1) * spacing + 2 * padding }
-    /// The groups' height, up to about four rows, so a longer library shows it scrolls.
+    /// The groups' height, up to about four rows, so a longer library shows it scrolls. As the
+    /// grid lays them out: each group's heading, the gap under it, its rows; a gap between groups
+    /// (round 12, library-sync-mac: the gap under each heading wasn't counted, and the footer
+    /// covered the last row's names).
     static func gridHeight(_ grid: CanvasLibraryGrid) -> CGFloat {
         let row = tile + label
-        let content = grid.groups.reduce(CGFloat(0)) { sum, g in
+        let groups = grid.groups.map { g -> CGFloat in
             let rows = CGFloat((g.items.count + columns - 1) / columns)
-            return sum + heading + rows * row + max(rows - 1, 0) * spacing + spacing
+            return heading + spacing + rows * row + max(rows - 1, 0) * spacing
         }
-        return min(max(content + 2 * padding - spacing, 60), 4.4 * (row + spacing) + padding)
+        let content = groups.reduce(0, +) + CGFloat(max(groups.count - 1, 0)) * spacing
+        return min(max(content + 2 * padding, 60), 4.4 * (row + spacing) + padding)
     }
 
     @State private var query = ""

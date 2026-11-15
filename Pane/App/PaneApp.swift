@@ -131,6 +131,8 @@ struct PaneApp: App {
         let historyStore: NoteHistoryStore = args.contains("-demoHistory") ? DemoHistoryStore(context: context)
             : backend.client.map { SupabaseHistoryStore(client: $0) } ?? EmptyHistoryStore()
         NoteHistory.shared = NoteHistory(store: historyStore, context: context, sync: backend.client == nil ? nil : sync)
+        // A whiteboard's History: the board's kept versions on the server (none without an account).
+        BoardHistoryModel.store = backend.client.map { SupabaseBoardHistory(client: $0) }
         // AI Changes: the server's list, or the demo history's AI edits.
         AIChangesCenter.shared.store = args.contains("-demoHistory") ? HistoryAIChangesStore(history: historyStore, context: context)
             : backend.client.map { SupabaseAIChangesStore(client: $0) }
@@ -1237,6 +1239,7 @@ struct AppGate: View {
                 .environment(backend)
                 .environment(sync)
                 .environment(\.networkReach, sync.reach)
+                .environment(\.syncedAt, sync.syncedAt)
                 .environment(setup)
                 .environment(onboarding)
                 .shareAskSheet(shareAsk)
@@ -1266,6 +1269,7 @@ struct AppGate: View {
             .environment(backend)
             .environment(sync)
             .environment(\.networkReach, sync.reach)
+            .environment(\.syncedAt, sync.syncedAt)
             .environment(setup)
             .environment(onboarding)
             .modifier(SetupGate(locked: notesLocked, card: setupCard))
@@ -1436,6 +1440,7 @@ struct AppGate: View {
             .environment(backend)
             .environment(sync)
             .environment(\.networkReach, sync.reach)
+            .environment(\.syncedAt, sync.syncedAt)
             .environment(setup)
             .environment(onboarding)
             .modifier(BehindSetupCard(card: card()))

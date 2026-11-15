@@ -10,6 +10,8 @@ import { BoardController } from "@/lib/board-controller";
 import type { Comment, Thread } from "@/lib/board-doc";
 import { complete, DELETED_TEXT, mentionQuery, mentionRanges, suggestions, when } from "@/lib/board-doc";
 import { codeDigits, CODE_LENGTH, looksLikeEmail } from "@/lib/board-auth";
+import { showsBar } from "@/lib/board-style";
+import { Icon, StyleBar, ToolBar, TOOLS, useWidth } from "./BoardControls";
 import NoteLink, { appLink } from "./NoteLink";
 import s from "./board.module.css";
 
@@ -68,27 +70,10 @@ function Unavailable({ gone }: { gone: boolean }) {
 
 // MARK: The board's chrome
 
-const TOOLS: { tool: string; label: string; key: string; icon: React.ReactNode }[] = [
-  { tool: "selection", label: "Select", key: "V", icon: <path d="M5 3.5l11.5 6.2-5 1.4-2.3 4.9z" /> },
-  { tool: "hand", label: "Hand", key: "H", icon: <path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V10m0-.5V4.5a1.5 1.5 0 0 1 3 0V10m0-3.5a1.5 1.5 0 0 1 3 0V13a5.5 5.5 0 0 1-5.5 5.5h-1A5.5 5.5 0 0 1 5 14.6L3.6 12a1.4 1.4 0 0 1 2.3-1.5L8 13" /> },
-  { tool: "rectangle", label: "Rectangle", key: "R", icon: <rect x="3.5" y="5" width="15" height="12" rx="2" /> },
-  { tool: "diamond", label: "Diamond", key: "D", icon: <path d="M11 3l8 8-8 8-8-8z" /> },
-  { tool: "ellipse", label: "Oval", key: "O", icon: <ellipse cx="11" cy="11" rx="8" ry="6.5" /> },
-  { tool: "arrow", label: "Arrow", key: "A", icon: <path d="M4 18L18 4m0 0h-8m8 0v8" /> },
-  { tool: "line", label: "Line", key: "L", icon: <path d="M4 18L18 4" /> },
-  { tool: "freedraw", label: "Draw", key: "P", icon: <path d="M3.5 16c2-3 4-4.5 5.5-3.5s.5 3.5 2.5 3.5 3-5 5-7 2.5-1 2.5-1" /> },
-  { tool: "text", label: "Text", key: "T", icon: <path d="M5 5.5h12M11 5.5v12" /> },
-  { tool: "eraser", label: "Eraser", key: "E", icon: <path d="M8.5 18.5h10M4.6 13.4l7.8-7.8a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 17a2 2 0 0 1-1.4.6H8.3a2 2 0 0 1-1.4-.6l-2.3-2.3a1 1 0 0 1 0-1.3z" /> },
-  { tool: "comment", label: "Comment", key: "C", icon: <path d="M4.5 4.5h13a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V15.5h-1A1.5 1.5 0 0 1 3 14V6a1.5 1.5 0 0 1 1.5-1.5z" /> },
-];
-
-const Icon = ({ children, size = 22 }: { children: React.ReactNode; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
-
 function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focusBoard: () => void }) {
   const [list, setList] = useState(false);
   const [menu, setMenu] = useState(false);
+  const width = useWidth(), height = typeof window === "undefined" ? 800 : window.innerHeight;
   const host = ctl.host, state = host?.state ?? {};
   const peers = ctl.session?.boardPeers() ?? [];
   const href = useMemo(() => appLink(id, typeof window === "undefined" ? "" : window.location.hash), [id]);
@@ -136,19 +121,8 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
         </div>
       </header>
 
-      {ctl.canEdit && (
-        <nav className={s.tools} aria-label="Tools">
-          {TOOLS.map((t) => (
-            <button key={t.tool} className={s.tool} aria-label={`${t.label} (${t.key})`} title={`${t.label} (${t.key})`} aria-pressed={state.tool === t.tool}
-              onClick={() => command({ op: "tool", tool: t.tool })}>
-              <Icon>{t.icon}</Icon>
-            </button>
-          ))}
-          <span className={s.gap} />
-          <button className={s.tool} aria-label="Undo" title="Undo" disabled={!state.canUndo} onClick={() => command({ op: "action", name: "undo" })}><Icon><path d="M8 5L4 9l4 4M4 9h9a5 5 0 0 1 0 10h-3" /></Icon></button>
-          <button className={s.tool} aria-label="Redo" title="Redo" disabled={!state.canRedo} onClick={() => command({ op: "action", name: "redo" })}><Icon><path d="M14 5l4 4-4 4m4-4H9a5 5 0 0 0 0 10h3" /></Icon></button>
-        </nav>
-      )}
+      {ctl.canEdit && <ToolBar state={state} command={command} width={width} />}
+      {showsBar(state, ctl.canEdit) && <StyleBar state={state} command={command} width={width} height={height} />}
 
       <div className={s.zoom}>
         <button className={s.zoomButton} aria-label="Zoom out" onClick={() => command({ op: "action", name: "zoomOut" })}>−</button>

@@ -50,6 +50,15 @@ const elements = (page: Page) => canvas(page).evaluate(() => {
   return c ? c.api.getSceneElements().map((e) => ({ id: e.id, type: e.type, x: Math.round(e.x) })) : [];
 });
 
+/** Picks an element, as a click on it does. */
+async function select(page: Page, id: string) {
+  await canvas(page).evaluate((id) => {
+    const c = (window as unknown as { amber: { _canvas?: { api: { updateScene(s: unknown): void } } } }).amber._canvas;
+    c?.api.updateScene({ appState: { selectedElementIds: { [id]: true } } });
+  }, id);
+  await sleep(400);
+}
+
 const browser = await chromium.launch({ executablePath: SHELL, headless: true });
 const problems: string[] = [];
 const said: string[] = [];
@@ -103,6 +112,20 @@ try {
   for (let i = 1; i <= 10; i++) await page.mouse.move(520 + i * 16, 420 + i * 9);
   await page.mouse.up();
   const drawn = await until("the browser's rectangle", 10, async () => (await elements(page)).find((e) => !before.has(e.id) && e.type === "rectangle"));
+  // Picked, it has the app's bar over it: its colours, width and line, and More (round 12).
+  await select(page, drawn.id);
+  const bar = page.getByRole("toolbar", { name: "Selection" });
+  await bar.waitFor();
+  await bar.getByRole("button", { name: "Fill" }).click();
+  await page.getByRole("menuitemradio", { name: "Yellow" }).click();
+  await until("the rectangle's yellow fill", 10, () => canvas(page).evaluate((id) => {
+    const c = (window as unknown as { amber: { _canvas?: { api: { getSceneElements(): { id: string; backgroundColor: string }[] } } } }).amber._canvas;
+    return c?.api.getSceneElements().find((e) => e.id === id)?.backgroundColor === "#ffec99";
+  }, drawn.id));
+  await bar.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Duplicate" }).waitFor();
+  await page.screenshot({ path: `${OUT}03b-selected-shape-style-bar.png` });
+  await page.keyboard.press("Escape");
   for (let i = 0; i < 8; i++) { await page.mouse.move(700 + i * 10, 300 + i * 6); await sleep(120); }
   await write("browser.json", JSON.stringify({ user, element: drawn.id }));
   log("drew", drawn.id);
@@ -145,6 +168,27 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (overflow) problems.push("phone width: the page scrolls sideways");
   await page.screenshot({ path: `${OUT}07-phone.png` });
+  // The toolbar fits the phone, whole: nothing scrolled or cut off (round 12), the rest in More Tools.
+  const tools = await page.getByRole("navigation", { name: "Tools" }).evaluate((n) => {
+    const r = n.getBoundingClientRect();
+    return { left: r.left, right: r.right, scroll: n.scrollWidth - n.clientWidth, buttons: n.querySelectorAll("button").length };
+  });
+  if (tools.left < 0 || tools.right > 390 || tools.scroll > 0) problems.push(`phone width: the toolbar doesn't fit: ${JSON.stringify(tools)}`);
+  await page.getByRole("button", { name: "More tools" }).click();
+  await page.getByRole("menu", { name: "More tools" }).waitFor();
+  await page.screenshot({ path: `${OUT}08-phone-more-tools.png` });
+  await page.getByRole("menuitemradio", { name: /Rectangle/ }).click();
+  // The folded tool, once picked, shows on More Tools.
+  // (The board says which tool it has a moment after the click.)
+  if (!(await page.getByRole("button", { name: "More tools", pressed: true }).waitFor({ timeout: 5000 }).then(() => true, () => false)))
+    problems.push("phone width: More Tools doesn't show the picked tool");
+  // A shape picked at phone width (with Select, as you pick one): its bar sits over the toolbar,
+  // inside the window.
+  await page.getByRole("button", { name: "Select (V)" }).click();
+  await select(page, drawn.id);
+  const dock = await page.getByRole("toolbar", { name: "Selection" }).evaluate((n) => { const r = n.getBoundingClientRect(); return { left: r.left, right: r.right }; });
+  if (dock.left < 0 || dock.right > 390) problems.push(`phone width: the selection's bar doesn't fit: ${JSON.stringify(dock)}`);
+  await page.screenshot({ path: `${OUT}09-phone-selected.png` });
   await context.close();
 } catch (e) {
   // What the page had when it stopped: a picture, the canvas's state, and its last lines.

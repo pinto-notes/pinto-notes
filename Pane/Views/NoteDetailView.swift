@@ -220,7 +220,11 @@ struct NoteDetailView: View {
                 Button("OK") {}
             } message: { Text(lockProblem ?? "") }
             .sheet(isPresented: $showHistory) {
-                if let history = NoteHistory.shared {
+                // A whiteboard's History is its drawing's, not its words' (round 12).
+                if isCanvas, collab == nil {
+                    BoardHistorySheet(model: BoardHistoryModel(board: note.id, title: note.title, changedAt: note.updatedAt,
+                                                               store: BoardHistoryModel.store ?? MemoryBoardHistory(), canvas: canvasControls))
+                } else if let history = NoteHistory.shared {
                     VersionHistorySheet(note: note, history: collab.map(history.forShared) ?? history)
                 }
             }
@@ -1537,6 +1541,8 @@ struct NoteDetailView: View {
         canvasControls.noteID = id
         // Opened from "On boards" at the foot of a note: that note's card, selected and in view.
         if let card = CanvasLanding.shared.take(id) { canvasControls.focusCard(card) }
+        // Made from the templates gallery: its template goes in once the page is ready.
+        if let t = CanvasLanding.shared.takeTemplate(id) { canvasControls.start(t) }
         canvasControls.cardInfo = { refs in
             let info = CanvasNoteCard.info(for: refs, from: context.note(id), in: context)
             // A shared board: cards say what your notes say. One for a note you don't have (the

@@ -524,7 +524,7 @@ import WebKit
             let ask = BoardComment(id: "c-ready", on: "idea", x: 0.85, y: 0.15, by: Self.sara, name: "Sara", text: "Can ideas come from newsletter replies too? Half of ours did last month.", created: ago(48))
             let answer = BoardComment(id: "c-ready-1", thread: "c-ready", by: "me", name: "Emil", text: "Yes. I'll add an arrow from the inbox.", created: ago(31))
             // An AI's reply in the thread: its own mark, in neutral colours (round 12).
-            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: "Added the arrow from Inbox to Idea.", created: ago(20))
+            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: Self.claudesReply, created: ago(20))
             let ai = BoardComment(id: "c-publish", on: "fix", x: 1, y: 0, by: "me", name: "Emil", ai: "Claude", text: "Fix it has no owner yet. Sara reviewed the last three drafts: should it be her?", created: ago(12))
             let old = BoardComment(id: "c-old", on: "draft", x: 1, y: 0, by: "me", name: "Emil", text: "Split Draft in two?", created: ago(60 * 26), resolved: true, version: 2)
             NotePageDataStore.shared.set(note.id, BoardComments.keeping([ask, answer, aiReply, ai, old], in: ["values": ["scene": CanvasNativeUITests.flowchart], "collections": [String: Any]()]))
@@ -549,6 +549,24 @@ import WebKit
                 let canvas = try #require(web.canvas)
                 for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                 canvas.author = BoardComments.Author(id: "me", name: "Emil")
+                // What Claude's reply says it did, on the board as an AI's change lands: the Inbox
+                // and its arrow into Idea, outlined with Claude's name (round 12: the reply named
+                // an Inbox the board didn't have).
+                CanvasController.highlightTime = 600
+                defer { CanvasController.highlightTime = 4 }
+                var doc = NotePageDataStore.shared.doc(note.id)
+                var values = doc["values"] as? [String: Any] ?? [:]
+                var scene = values["scene"] as? [String: Any] ?? [:]
+                scene["elements"] = (scene["elements"] as? [[String: Any]] ?? []) + Self.claudesChange
+                values["scene"] = scene
+                doc["values"] = values
+                NotePageDataStore.shared.take(note.id, server: NotePageData.encode(doc), by: "Claude")
+                for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+                #expect(canvas.highlight?.by == "Claude", "Claude's change is outlined with its name")
+                #expect(canvas.highlight?.boxes.count == 1, "the Inbox outlined; the arrow it added has no box of its own: \(String(describing: canvas.highlight?.boxes))")
+                let drawn = try await Self.json(web, "(() => { const els = amber._canvas.api.getSceneElements(); const inbox = els.find((e) => e.id === 'inbox'); const a = els.find((e) => e.id === 'inbox-idea'); return { inbox: !!inbox, words: els.filter((e) => e.containerId === 'inbox').map((e) => e.text).join(), from: a && a.startBinding && a.startBinding.elementId, to: a && a.endBinding && a.endBinding.elementId }; })()")
+                #expect(drawn["inbox"] as? Bool == true && drawn["words"] as? String == "Inbox" && drawn["from"] as? String == "inbox" && drawn["to"] as? String == "idea",
+                        "the board has what the reply says: \(drawn)")
                 _ = try await web.evaluateJavaScript("amber._canvasCommand({ op: 'action', name: 'zoomToFit' })")
                 await MacWindowChromeTests.settle(w, 10)
                 // Sara's newest, arriving now (synced in), with a mention of Emil: the quiet dot, and
@@ -608,6 +626,35 @@ import WebKit
                 try write(list, "comments-list-popover")
                 try write(thread, "comments-thread-popover")
             }
+        }
+    }
+
+    /// Claude's reply in the pictured thread, and what it added: an Inbox over Idea, with the
+    /// arrow from it into Idea (on `CanvasNativeUITests.flowchart`, whose Idea is at 0, 20).
+    static let claudesReply = "Added the arrow from Inbox to Idea."
+    static let claudesChange: [[String: Any]] = [
+        ["type": "rectangle", "id": "inbox", "x": -5, "y": -170, "width": 180, "height": 76, "label": ["text": "Inbox"],
+         "backgroundColor": "#a5d8ff", "fillStyle": "solid", "roundness": ["type": 3]],
+        ["type": "arrow", "id": "inbox-idea", "x": 85, "y": -92, "width": 0, "height": 110, "points": [[0, 0], [0, 110]],
+         "start": ["id": "inbox"], "end": ["id": "idea"]],
+    ]
+
+    /// The comments pictures' board and thread agree: what Claude's reply says it added is on the
+    /// board, joined as it says (round 12, comments-1 against comments-2).
+    @Test func theCommentPicturesBoardHasWhatClaudesReplySays() throws {
+        let board = (CanvasNativeUITests.flowchart["elements"] as? [[String: Any]] ?? []) + Self.claudesChange
+        func named(_ text: String) -> String? {
+            board.first { (($0["label"] as? [String: Any])?["text"] as? String) == text }?["id"] as? String
+        }
+        let inbox = try #require(named("Inbox")), idea = try #require(named("Idea"))
+        #expect(Self.claudesReply.contains("Inbox") && Self.claudesReply.contains("Idea"))
+        #expect(board.contains { $0["type"] as? String == "arrow" && ($0["start"] as? [String: Any])?["id"] as? String == inbox && ($0["end"] as? [String: Any])?["id"] as? String == idea },
+                "an arrow from Inbox to Idea")
+        // Clear of the rest: nothing else drawn where the Inbox goes.
+        let at = CGRect(x: -5, y: -170, width: 180, height: 76)
+        for e in board where e["id"] as? String != inbox {
+            guard let x = e["x"] as? Double, let y = e["y"] as? Double, let w = e["width"] as? Double, let h = e["height"] as? Double, e["type"] as? String != "arrow" else { continue }
+            #expect(!CGRect(x: x, y: y, width: w, height: h).intersects(at), "\(e["id"] ?? "") overlaps the Inbox")
         }
     }
 

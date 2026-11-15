@@ -18,6 +18,9 @@ struct CanvasLibraryDockButton: View {
             CanvasLibrarySheet(canvas: canvas, library: library)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+                // Solid, as the app's other sheets are: the glass let the board's dock read
+                // through over the last row (round 12, library-sync-iphone).
+                .presentationBackground(CanvasLibrarySheet.ground)
         }
     }
 }
@@ -35,6 +38,8 @@ struct CanvasLibrarySheet: View {
     static let emptyLine = "Shapes you save to the library on your Mac show here."
     static let columns = 4
     static let spacing: CGFloat = 12
+    /// The sheet's ground: the app's sheets' own, opaque.
+    static let ground = Color(Palette.sheetGround)
 
     @State private var query = ""
     @State private var renaming: CanvasLibraryItem?

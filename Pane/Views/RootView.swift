@@ -340,7 +340,16 @@ struct RootView: View {
                     withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 }
             }, connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates, uncover: closeConnect,
-               close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
+               close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } },
+               boards: WhiteboardTemplate.allCases, makeBoard: { t in
+                // A new board where New Whiteboard makes one, named for the template, which goes
+                // in once its page is ready (one step Undo takes back, as from the empty board).
+                let into: Scope = target.map { .folder($0.id) } ?? (scope == .trash ? .all : (scope ?? .all))
+                let board = CanvasNote.make(in: into, context: context, named: t.title)
+                CanvasLanding.shared.request(board.id, template: t)
+                selection = [board.id]
+                withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
+            })
             // Esc is the library's own: its x on the gallery, Back on a template's page.
             .allowsHitTesting(!connectingOverTemplates)
             if connectingOverTemplates {

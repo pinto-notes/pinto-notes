@@ -422,6 +422,9 @@ enum CanvasCommand: Equatable, Sendable {
     case commentHere(CGPoint?)
     /// A comment's pin into view.
     case focusComment(String)
+    /// A version from the board's History (a scene, as JSON), back on the board in one step Undo
+    /// takes back (BoardHistoryModel.restore).
+    case restoreVersion(Data)
 
     var payload: [String: Any] {
         switch self {
@@ -446,6 +449,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .focusCard(let note): ["op": "focusCard", "note": note.uuidString]
         case .shared(let on, let viewOnly): ["op": "shared", "on": on, "viewOnly": viewOnly]
         case .remoteScene(let json): ["op": "remoteScene", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
+        case .restoreVersion(let json): ["op": "restoreVersion", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
         case .outline(let ids): ["op": "outline", "ids": ids]
         case .peers(let list): ["op": "peers", "peers": list.map(\.payload)]
         case .refusePictures(let ids): ["op": "refusePictures", "ids": ids]
@@ -538,6 +542,8 @@ final class CanvasController {
             connected = true
             // A board opened from "On boards": its card for that note, once the page can take it.
             if let note = focusing { focusing = nil; send(.focusCard(note)) }
+            // A board made from the templates gallery: its template, now the page can take it.
+            if let t = starting { starting = nil; insert(t) }
         }
         if next != state { state = next }
         if next.cardNotes != cardNotes {
@@ -582,12 +588,25 @@ final class CanvasController {
     /// An Undo button beside the notice, for what was done at once (a template deleted).
     var noticeUndo: (() -> Void)?
 
-    func confirm(_ text: String, for time: Duration = .seconds(1.8), undo: (() -> Void)? = nil) {
+    /// How long a confirmation stays, whole, before it fades: long enough to read a short line
+    /// twice (round 12, 24-note-card-restored: at 1.8 s "Note restored" was caught fading).
+    static let noticeTime: Duration = .seconds(2.5)
+    /// For the pictures: a confirmation stays until it's taken (as `highlightTime` does).
+    nonisolated(unsafe) static var noticeHold: Duration?
+    /// Which confirmation is up: a newer one (or the same words again) starts its own time, and an
+    /// older one's ending never takes it down early.
+    @ObservationIgnored private var noticeTurn = 0
+
+    func confirm(_ text: String, for time: Duration = CanvasController.noticeTime, undo: (() -> Void)? = nil) {
         notice = text
         noticeUndo = undo
+        noticeTurn += 1
+        let turn = noticeTurn
+        let shown = Self.noticeHold ?? time
         Task { @MainActor [weak self] in
-            try? await Task.sleep(for: time)
-            if self?.notice == text { self?.notice = nil; self?.noticeUndo = nil }
+            try? await Task.sleep(for: shown)
+            guard let self, self.noticeTurn == turn, self.notice == text else { return }
+            self.notice = nil; self.noticeUndo = nil
         }
     }
 
@@ -1138,6 +1157,13 @@ final class CanvasController {
 
     /// The card waiting for the page to be ready, to be selected and brought into view.
     @ObservationIgnored private(set) var focusing: UUID?
+    /// The template waiting for the page to be ready (a board made from the templates gallery).
+    @ObservationIgnored private(set) var starting: WhiteboardTemplate?
+
+    /// Starts the board from a template: at once when the page is ready, else as soon as it first reports.
+    func start(_ t: WhiteboardTemplate) {
+        if connected { insert(t) } else { starting = t }
+    }
 
     /// Selects `note`'s card and brings it into view: at once when the page is ready, else as
     /// soon as it first reports (a board just opened from "On boards").
@@ -1243,6 +1269,15 @@ final class CanvasController {
     /// dropped (a point of the page).
     func insert(_ item: CanvasLibraryItem, at point: CGPoint? = nil) {
         send(.libraryInsert(item, at: point))
+    }
+
+    /// A scene (a version from the board's History) drawn as the board draws it: a PNG on the
+    /// board's ground, in the look the app has now.
+    func picture(of scene: [String: Any], dark: Bool = false) async -> Data? {
+        let background = (scene["appState"] as? [String: Any])?["viewBackgroundColor"] as? String ?? "#ffffff"
+        guard let b64 = await call?("versionPicture", ["elements": scene["elements"] ?? [Any](), "files": scene["files"] ?? [String: Any](),
+                                                       "dark": dark, "background": background]) as? String else { return nil }
+        return Data(base64Encoded: b64)
     }
 
     /// An item drawn by the board as it would draw it: a PNG, light, on a clear background.
@@ -1801,8 +1836,15 @@ extension FocusedValues {
 /// Each is Excalidraw's short form, which the page fills out, so an AI can make the same.
 enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
     case flowchart, mindMap, retro, kanban, meeting
+    /// More templates, as FigJam has (round 12: "Journey map, SWOT, Timeline, Org chart, User
+    /// story map"), in their own row on the empty board.
+    case journeyMap, swot, timeline, orgChart, storyMap
 
     var id: String { rawValue }
+
+    /// The empty board's first row, and its "More templates" row under it.
+    static let first: [WhiteboardTemplate] = [.flowchart, .mindMap, .retro, .kanban, .meeting]
+    static let more: [WhiteboardTemplate] = [.journeyMap, .swot, .timeline, .orgChart, .storyMap]
 
     var title: String {
         switch self {
@@ -1811,6 +1853,30 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
         case .retro: "Retro"
         case .kanban: "Kanban"
         case .meeting: "Meeting"
+        case .journeyMap: "Journey map"
+        case .swot: "SWOT"
+        case .timeline: "Timeline"
+        case .orgChart: "Org chart"
+        case .storyMap: "User story map"
+        }
+    }
+
+    /// The name in a sentence ("Start from a journey map"): SWOT keeps its capitals.
+    var inSentence: String { self == .swot ? title : title.lowercased() }
+
+    /// What it's for, in a few words: the line under its card in the templates gallery.
+    var line: String {
+        switch self {
+        case .flowchart: "Steps, choices and arrows"
+        case .mindMap: "One idea, branching out"
+        case .retro: "What went well, what to try"
+        case .kanban: "To do, doing and done"
+        case .meeting: "Agenda, notes and actions"
+        case .journeyMap: "What people do and feel"
+        case .swot: "Where you stand, four ways"
+        case .timeline: "Steps and dates on one line"
+        case .orgChart: "Who\u{2019}s on the team, and where"
+        case .storyMap: "Stories by step and release"
         }
     }
 
@@ -1821,7 +1887,17 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
         case .retro: "hand.thumbsup"
         case .kanban: "rectangle.split.3x1"
         case .meeting: "person.2"
+        case .journeyMap: "point.topleft.down.to.point.bottomright.curvepath"
+        case .swot: "square.grid.2x2"
+        case .timeline: "calendar.day.timeline.left"
+        case .orgChart: "person.3.sequence"
+        case .storyMap: "rectangle.grid.3x2"
         }
+    }
+
+    /// Its how-to line, the grey line under its title on the board.
+    var hint: String {
+        (elements.first { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }?["text"] as? String) ?? ""
     }
 
     // Excalidraw's light palette; the canvas inverts it in dark mode.
@@ -1927,6 +2003,98 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
                 + T.section("notes", x: 360, y: 0, w: 340, h: 220, title: "Notes", fill: "#fff9db")
                 + T.section("decisions", x: 0, y: 240, w: 340, h: 200, title: "Decisions", fill: "#ebfbee")
                 + T.section("actions", x: 360, y: 240, w: 340, h: 200, title: "Action items", fill: "#f8f0fc", lines: ["Who does what, by when"])
+        case .journeyMap:
+            // The stages along the top, a row each for what people do, think and feel, and ideas.
+            // Feelings are a line of dots, high when it goes well, as journey maps draw them.
+            let stages = ["Discover", "Sign up", "First use", "Come back"]
+            let x = { (i: Int) in 130 + Double(i) * 158 }
+            var out = T.title("Journey map", hint: "Name the stages along the top. Under each, write what people do, think and feel.")
+            for (i, s) in stages.enumerated() { out.append(T.box("stage\(i)", x: x(i), y: 0, w: 146, h: 52, text: s, fill: T.blue, size: 18)) }
+            let rows: [(String, String, String)] = [("doing", "Doing", "#fff9db"), ("thinking", "Thinking", "#e7f5ff"), ("feeling", "Feeling", "#f8f0fc"), ("ideas", "Ideas", "#ebfbee")]
+            let rowY = { (r: Int) in 68 + Double(r) * 124 }
+            for (r, row) in rows.enumerated() { out += T.section(row.0, x: 0, y: rowY(r), w: 750, h: 112, title: row.1, fill: row.2) }
+            let cards: [(Int, Int, String, String)] = [(0, 0, "Reads a friend\u{2019}s post", T.yellow), (0, 1, "Makes an account", T.yellow),
+                                                       (1, 0, "Is this for me?", T.yellow), (1, 2, "Where do I start?", T.yellow),
+                                                       (3, 1, "Sign in with Apple", T.green), (3, 3, "A weekly email", T.green)]
+            for (r, i, words, fill) in cards {
+                out.append(T.box("\(rows[r].0)\(i)", x: x(i) + 6, y: rowY(r) + 18, w: 134, h: 76, text: words, fill: fill, size: 16))
+            }
+            // Curious, put off by the sign-up, pleased, then glad to be back.
+            let mood: [Double] = [44, 78, 12, 24]
+            // In Doubles, as every number a template writes is (the tile reads them so).
+            let dot = { (i: Int) -> (x: Double, y: Double) in (x(i) + 73, rowY(2) + mood[i] + 11) }
+            for i in stages.indices {
+                out.append(["type": "ellipse", "id": "mood\(i)", "x": dot(i).x - 11, "y": dot(i).y - 11, "width": 22.0, "height": 22.0,
+                            "strokeColor": T.ink, "backgroundColor": T.violet, "fillStyle": "solid"])
+            }
+            for i in stages.indices.dropLast() {
+                let a = dot(i), b = dot(i + 1)
+                out.append(T.arrow(from: "mood\(i)", to: "mood\(i + 1)", x: a.x + 11, y: a.y, dx: b.x - a.x - 22, dy: b.y - a.y, branch: true))
+            }
+            return out
+        case .swot:
+            // Strong colours, so it reads as SWOT at a glance and not as a meeting's four sections.
+            var out = T.title("SWOT", hint: "Add notes to each square. Select one and press S to add another under it.")
+            out.append(T.text("Helpful", x: 116, y: 0, size: 18, color: T.hint))
+            out.append(T.text("Harmful", x: 436, y: 0, size: 18, color: T.hint))
+            out.append(T.text("Inside", x: 0, y: 126, size: 18, color: T.hint))
+            out.append(T.text("Outside", x: 0, y: 356, size: 18, color: T.hint))
+            let squares: [(String, String, Double, Double, String, String)] = [
+                ("strengths", "Strengths", 100, 36, T.green, "Loyal first users"), ("weaknesses", "Weaknesses", 420, 36, T.red, "A small team"),
+                ("opportunities", "Opportunities", 100, 266, T.blue, "Schools want it"), ("threats", "Threats", 420, 266, T.yellow, "A free rival"),
+            ]
+            for (id, name, sx, sy, fill, note) in squares {
+                out += T.section(id, x: sx, y: sy, w: 300, h: 210, title: name, fill: fill)
+                out.append(T.box("\(id)-0", x: sx + 16, y: sy + 56, w: 150, h: 70, text: note, fill: "#ffffff", size: 16))
+            }
+            return out
+        case .timeline:
+            // Milestones on one line, their steps above and below in turn.
+            let steps = ["Kickoff\nWeek 1", "Research\nWeek 2", "Design\nWeek 4", "Beta\nWeek 6", "Launch\nWeek 8"]
+            let fills = [T.blue, T.yellow, T.blue, T.yellow, T.green]
+            let cx = { (i: Int) in 70 + Double(i) * 150 }
+            var out = T.title("Timeline", hint: "Double-click a step to change it. Select one and choose Duplicate to add the next.")
+            for i in steps.indices {
+                out.append(["type": "ellipse", "id": "dot\(i)", "x": cx(i) - 12, "y": 108.0, "width": 24.0, "height": 24.0,
+                            "strokeColor": T.ink, "backgroundColor": T.violet, "fillStyle": "solid"])
+                let above = i % 2 == 0
+                out.append(T.box("step\(i)", x: cx(i) - 70, y: above ? 0 : 176, w: 140, h: 64, text: steps[i], fill: fills[i], size: 16))
+                out.append(above ? T.arrow(from: "step\(i)", to: "dot\(i)", x: cx(i), y: 64, dx: 0, dy: 44, branch: true)
+                                 : T.arrow(from: "dot\(i)", to: "step\(i)", x: cx(i), y: 132, dx: 0, dy: 44, branch: true))
+            }
+            for i in steps.indices.dropLast() {
+                out.append(T.arrow(from: "dot\(i)", to: "dot\(i + 1)", x: cx(i) + 12, y: 120, dx: 126, dy: 0, branch: i < steps.count - 2))
+            }
+            return out
+        case .orgChart:
+            var out = T.title("Org chart", hint: "Double-click a box to write a name. Drag from its edge to add a line to someone new.")
+            out.append(T.box("lead", x: 280, y: 0, w: 200, h: 72, text: "Alex\nTeam lead", fill: T.yellow, size: 18))
+            let teams: [(String, String, String, String)] = [("design", "Sam\nDesign", "ana", "Ana\nDesigner"), ("eng", "Kim\nEngineering", "lee", "Lee\nDeveloper"),
+                                                             ("market", "Jo\nMarketing", "open", "Open role")]
+            for (i, t) in teams.enumerated() {
+                let left = Double(i) * 280, mid = left + 100
+                out.append(T.box(t.0, x: left, y: 150, w: 200, h: 72, text: t.1, fill: T.blue, size: 18))
+                var person = T.box(t.2, x: left + 10, y: 300, w: 180, h: 64, text: t.3, fill: t.2 == "open" ? "transparent" : T.green, size: 16)
+                if t.2 == "open" { person["strokeStyle"] = "dashed" }
+                out.append(person)
+                out.append(T.arrow(from: "lead", to: t.0, x: 380, y: 72, dx: mid - 380, dy: 78, branch: true))
+                out.append(T.arrow(from: t.0, to: t.2, x: mid, y: 222, dx: 0, dy: 78, branch: true))
+            }
+            return out
+        case .storyMap:
+            // What people do along the top; under each, the stories for it, a lane per release.
+            let steps = ["Find a recipe", "Plan the week", "Shop", "Cook"]
+            let x = { (i: Int) in 110 + Double(i) * 158 }
+            var out = T.title("User story map", hint: "Steps along the top, stories under them. Drag a story into its release.")
+            for (i, s) in steps.enumerated() { out.append(T.box("step\(i)", x: x(i), y: 0, w: 146, h: 56, text: s, fill: T.violet, size: 18)) }
+            out += T.section("first", x: 0, y: 72, w: 744, h: 188, title: "First", fill: T.lane)
+            out += T.section("next", x: 0, y: 276, w: 744, h: 104, title: "Next", fill: T.lane)
+            let stories: [(Int, Double, String)] = [(0, 88, "Search by name"), (0, 172, "Save a favourite"), (1, 88, "Pick five dinners"), (2, 88, "Make a list"),
+                                                     (3, 88, "Step by step"), (0, 292, "Filter by diet"), (1, 292, "Reuse last week"), (2, 292, "Order online"), (3, 292, "Timers")]
+            for (n, s) in stories.enumerated() {
+                out.append(T.box("story\(n)", x: x(s.0) + 3, y: s.1, w: 140, h: 72, text: s.2, fill: T.yellow, size: 16))
+            }
+            return out
         }
     }
 

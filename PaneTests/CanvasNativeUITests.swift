@@ -577,6 +577,41 @@ import UIKit
         #expect(abs((j.canvas.highlight?.rect.minX ?? 0) - (h.rect.minX + 200)) < 4, "moved by half the new width: \(String(describing: j.canvas.highlight?.rect)) from \(h.rect)")
     }
 
+    /// An AI's arrow in the short form, to a shape the board already has (`"end": { "id": "idea" }`,
+    /// as the README tells it), comes in joined to it both ways (round 13: Claude's arrow from a new
+    /// Inbox into the board's Idea came in loose: the engine joins only shapes written with it).
+    @Test func anAIsArrowJoinsAShapeAlreadyOnTheBoard() async throws {
+        let j = try await Joined(scene: Self.flowchart)
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("amber._flush(); 0")
+        try await Task.sleep(for: .milliseconds(300))
+        let stored = try #require(try await j.js("JSON.stringify(amber._canvas.scene().elements)") as? String)
+        var elements = try #require(try JSONSerialization.jsonObject(with: Data(stored.utf8)) as? [[String: Any]])
+        elements += [
+            ["type": "rectangle", "id": "inbox", "x": -5, "y": -170, "width": 180, "height": 76, "label": ["text": "Inbox"]],
+            ["type": "arrow", "id": "inbox-idea", "x": 85, "y": -92, "width": 0, "height": 110, "start": ["id": "inbox"], "end": ["id": "idea"]],
+            // Without an id of its own, from a shape on the board to another.
+            ["type": "arrow", "x": 650, "y": 132, "width": 0, "height": 126, "start": ["id": "fix"], "end": ["id": "publish"]],
+        ]
+        j.canvas.arrived(by: "Claude")
+        j.rig.sandbox.push(body: "Canvas", data: ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()])
+        let joins = """
+        (() => { const els = amber._canvas.api.getSceneElements(), by = (id) => els.find((e) => e.id === id);
+          const a = by('inbox-idea'), b = els.find((e) => e.type === 'arrow' && e.startBinding && e.startBinding.elementId === 'fix');
+          const has = (shape, arrow) => !!(by(shape) && arrow && (by(shape).boundElements || []).some((x) => x.id === arrow.id));
+          return JSON.stringify({ a: a ? [a.startBinding && a.startBinding.elementId, a.endBinding && a.endBinding.elementId, has('inbox', a), has('idea', a)] : null,
+                                  b: b ? [b.endBinding && b.endBinding.elementId, has('fix', b), has('publish', b)] : null }); })()
+        """
+        var said = ""
+        for _ in 0..<100 {
+            said = try await j.js(joins) as? String ?? ""
+            if said.contains("\"a\":[") && said.contains("\"b\":[") { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(said == #"{"a":["inbox","idea",true,true],"b":["publish",true,true]}"#, "joined both ways: \(said)")
+    }
+
     /// The person's own drawing stays in view: a paste beside it zooms out to show both, an AI's
     /// change shows the whole board when it fits, and each thing the AI changed gets its own
     /// outline, round the shape whose words it changed, with the name tag clear of it
@@ -1545,6 +1580,25 @@ import UIKit
         // Restored, the card opens its note again.
         j.canvas.openCard(Self.press.uuidString)
         #expect(library.opened == [Self.press])
+    }
+
+    /// A confirmation ("Note restored") stays whole long enough to read, about 2 s, and the same
+    /// words said again start their own time: an earlier one ending never takes the new one down
+    /// (round 12, 24-note-card-restored: caught almost faded, at 1.8 s).
+    @Test func aConfirmationStaysLongEnoughToRead() async throws {
+        let canvas = CanvasController()
+        #expect(CanvasController.noticeTime >= .seconds(2.2), "\(CanvasController.noticeTime)")
+        let start = ContinuousClock.now
+        canvas.confirm("Note restored")
+        try await Task.sleep(for: .seconds(1.2))
+        canvas.confirm("Note restored")
+        // 2.1 s after the first: the first's time is up, the second's isn't.
+        try await Task.sleep(until: start + .seconds(2.1))
+        #expect(canvas.notice == "Note restored", "still showing 2.1 s on")
+        try await Task.sleep(until: start + .seconds(3.2))
+        #expect(canvas.notice == "Note restored", "the second one's own time: 2 s after it was said")
+        try await Task.sleep(until: start + .seconds(4.2))
+        #expect(canvas.notice == nil, "gone after its time")
     }
 
     /// What the app says of a card's note: one in Recently Deleted can be restored (and the note's
@@ -3261,6 +3315,300 @@ import UIKit
         } }
     }
 
+    /// FigJam's other everyday boards (round 12): Journey map, SWOT, Timeline, Org chart and User
+    /// story map, each with its how-to line, its cards clear of each other with room for their
+    /// words, in their own "More templates" row on the empty board, under the first five.
+    @Test func moreTemplatesOnTheEmptyBoard() async throws {
+        typealias T = WhiteboardTemplate
+        #expect(T.first + T.more == T.allCases && T.more.count >= 4)
+        for t in T.more {
+            #expect(!t.hint.isEmpty && t.hint.count <= 90 && t.hint.hasSuffix("."), "\(t): a how-to line: \(t.hint)")
+            #expect(!t.line.isEmpty && !t.line.hasSuffix("."), "\(t): a line for the gallery")
+            // Every number is a Double, as the tile and the list's preview read them (the journey
+            // map's mood dots were CGFloat, and its tile drew them all in the corner).
+            for e in t.elements { for k in ["x", "y", "width", "height"] where e[k] != nil { #expect(e[k] is Double, "\(t): \(k) of \(e["id"] ?? e["type"] ?? "")") } }
+            // The gallery's line is whole on its card (SWOT's was cut, "in four squa…").
+            let font = NSFont.systemFont(ofSize: SetupTemplateCard.lineSize)
+            #expect((t.line as NSString).size(withAttributes: [.font: font]).width <= SetupTemplateCard.wordsWidth(TemplateLibraryView.cardWidth(row: TemplateLibraryView.size.width - 64, gap: TemplateLibraryView.gap)),
+                    "\(t): \(t.line)")
+            // Cards (shapes with words) never overlap one another; each holds its words.
+            let cards = t.elements.compactMap { e -> (String, CGRect, [String], Double)? in
+                guard let label = e["label"] as? [String: Any], let words = label["text"] as? String, let id = e["id"] as? String,
+                      let x = e["x"] as? Double, let y = e["y"] as? Double, let w = e["width"] as? Double, let h = e["height"] as? Double else { return nil }
+                return (id, CGRect(x: x, y: y, width: w, height: h), words.components(separatedBy: "\n"), label["fontSize"] as? Double ?? 20)
+            }
+            #expect(cards.count >= 4, "\(t): \(cards.count) cards")
+            for (i, a) in cards.enumerated() {
+                for b in cards.dropFirst(i + 1) { #expect(!a.1.intersects(b.1), "\(t): \(a.0) and \(b.0) overlap") }
+                // The hand-drawn font runs about 0.55 of its size a letter; the engine wraps longer words.
+                let longest = a.2.map(\.count).max() ?? 0
+                #expect(Double(longest) * a.3 * 0.55 <= a.1.width - 8 || a.2.count == 1 && Double(longest) * a.3 * 0.55 <= (a.1.width - 8) * 2,
+                        "\(t): \(a.0)'s words fit: \(a.2)")
+                #expect(Double(a.2.count) * a.3 * 1.25 <= a.1.height - 8, "\(t): \(a.0)'s lines fit its height")
+            }
+            // Its words never sit under a card: the headings and labels are clear of every card.
+            for e in t.elements where e["type"] as? String == "text" {
+                guard (e["customData"] as? [String: Any]) == nil, let x = e["x"] as? Double, let y = e["y"] as? Double,
+                      let words = e["text"] as? String, let size = e["fontSize"] as? Double else { continue }
+                let box = CGRect(x: x, y: y, width: Double(words.count) * size * 0.55, height: size * 1.25)
+                for c in cards { #expect(!box.intersects(c.1), "\(t): \"\(words)\" runs into \(c.0)") }
+            }
+        }
+        // On the empty board: the first five in a row, then "More templates" and the five more,
+        // their tiles in line with the first row's.
+        let ax = OffscreenAX(CanvasStart(canvas: CanvasController()), size: CGSize(width: 760, height: 560))
+        defer { ax.close() }
+        await ax.settle()
+        let more = try #require(ax.find("canvas.moreTemplates"), "\(ax.ids())")
+        #expect(more.text.contains(CanvasStart.moreTemplatesTitle), "\(more.text)")
+        let first = try T.first.map { try #require(ax.find("canvas.template.\($0.rawValue)"), "\($0)").frame }
+        let second = try T.more.map { try #require(ax.find("canvas.template.\($0.rawValue)"), "\($0)").frame }
+        for (a, b) in zip(first, second) {
+            #expect(abs(a.minX - b.minX) < 1 && abs(a.width - b.width) < 1, "in line: \(a) \(b)")
+            #expect(b.minY > a.maxY + 20, "under the first row, with its heading between: \(a) \(b)")
+        }
+        #expect(Set(second.map { Int($0.minY.rounded()) }).count == 1, "one row")
+        #expect(ax.find("canvas.import") != nil && ax.find("canvas.ask") != nil, "Import and Ask still under them")
+    }
+
+    /// The templates gallery has the whiteboards too, after the notes' under All and Work, found
+    /// by Search; a card makes a new board, named for the template, which goes in once its page is
+    /// ready, as from the empty board (round 12).
+    @Test func theTemplatesGalleryMakesABoardFromATemplate() async throws {
+        typealias L = TemplateLibraryView
+        typealias T = WhiteboardTemplate
+        #expect(L.boards(T.allCases, filter: "All", query: "") == T.allCases && L.boards(T.allCases, filter: "Work", query: "") == T.allCases)
+        #expect(L.boards(T.allCases, filter: "Apps", query: "").isEmpty && L.boards(T.allCases, filter: "Habits and health", query: "").isEmpty)
+        #expect(L.boards(T.allCases, filter: "All", query: "swot") == [.swot] && L.boards(T.allCases, filter: "All", query: "Journey") == [.journeyMap])
+        #expect(L.boards(T.allCases, filter: "All", query: "board") == T.allCases, "\"board\" finds them all")
+        #expect(L.boards(T.allCases, filter: "All", query: "zzz").isEmpty)
+        let root = try SettingsHomeTests.source("Pane/Views/RootView.swift")
+        #expect(root.contains("boards: WhiteboardTemplate.allCases, makeBoard:") && root.contains("CanvasLanding.shared.request(board.id, template: t)"))
+        // Searched for, its card is there; a press makes the board.
+        var made: T?
+        let ax = OffscreenAX(TemplateLibraryView(catalog: .shipped, ais: [.chatgpt], boards: T.allCases, makeBoard: { made = $0 }, query: "swot"), size: L.size)
+        defer { ax.close() }
+        await ax.settle()
+        let card = try #require(ax.find("templates.board.swot"), "\(ax.ids())")
+        #expect(card.text.contains("SWOT") && ax.find("templates.boards") != nil)
+        #expect(ax.find("templates.none") == nil, "not \"nothing found\"")
+        card.press()
+        #expect(made == .swot)
+        // The pictures: the gallery searched for "board", in both looks.
+        if let path = ProcessInfo.processInfo.environment["WHITEBOARD_SHOTS"] {
+            for dark in [false, true] {
+                let view = TemplateLibraryView(catalog: .shipped, ais: [.chatgpt], boards: T.allCases, query: "board", size: L.size)
+                    .environment(\.inSheet, true).frame(width: L.size.width, height: L.size.height).background(SetupCards.ground)
+                let shown = OffscreenAX(view, size: L.size, dark: dark)
+                defer { shown.close() }
+                await shown.settle(800)
+                let png = try #require(try MacEmptyDetailTests.picture(shown.window).representation(using: .png, properties: [:]))
+                try png.write(to: URL(fileURLWithPath: path).appending(path: "34-templates-gallery-boards-\(dark ? "dark" : "light").png"))
+            }
+        }
+        // The board takes it once: before its page is ready, it waits; then it goes in.
+        let board = UUID()
+        CanvasLanding.shared.request(board, template: .timeline)
+        #expect(CanvasLanding.shared.takeTemplate(UUID()) == nil)
+        #expect(CanvasLanding.shared.takeTemplate(board) == .timeline && CanvasLanding.shared.takeTemplate(board) == nil, "once")
+        let j = try await Joined()
+        defer { j.close() }
+        j.canvas.start(.timeline)
+        try await j.ready()
+        var steps = 0
+        for _ in 0..<100 {
+            steps = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.id === 'step0' || (e.type === 'rectangle' && e.backgroundColor === '#b2f2bb')).length") as? Int ?? 0
+            if !j.canvas.state.empty, steps > 0 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(!j.canvas.state.empty && j.canvas.starting == nil, "the timeline went in once the page was ready")
+        #expect(steps > 0)
+        #expect(j.canvas.canUndo, "one step Undo takes back")
+    }
+
+    /// Where sync is, for the board's line in a test.
+    @Observable final class SyncBox {
+        var reach: SyncEngine.Reach = .online
+        var syncedAt: Date?
+    }
+
+    struct SyncLineHost: View {
+        let box: SyncBox
+        var body: some View {
+            BoardSyncLine().environment(\.networkReach, box.reach).environment(\.syncedAt, box.syncedAt).frame(width: 360, height: 60)
+        }
+    }
+
+    /// The board says where sync is (round 12: offline, the board said nothing, and with its
+    /// columns folded away the sidebar's line wasn't in view): offline, the sidebar's words; back,
+    /// "Back online · syncing" until a sync after it got through; then "Synced" for a moment; then
+    /// nothing. BoardSyncPictureTests runs it against the app's sync.
+    @Test func theBoardSaysWhenItsOfflineAndWhenItsSyncedAgain() async throws {
+        typealias S = BoardSync
+        let back = Date.now
+        #expect(S.now(reach: .online, backAt: nil, syncedAt: nil) == nil, "nothing while all is well")
+        #expect(S.now(reach: .offline, backAt: nil, syncedAt: .now) == .away(.offline))
+        #expect(S.now(reach: .unreachable, backAt: back, syncedAt: nil) == .away(.unreachable))
+        #expect(S.now(reach: .online, backAt: back, syncedAt: nil) == .syncing)
+        #expect(S.now(reach: .online, backAt: back, syncedAt: back.addingTimeInterval(-5)) == .syncing, "a sync from before it was back doesn't count")
+        #expect(S.now(reach: .online, backAt: back, syncedAt: back.addingTimeInterval(1)) == .synced)
+        #expect(S.away(.offline).lines(device: "Mac").first == "Offline \u{00B7} saved on this Mac", "the sidebar's words")
+        #expect(S.away(.unreachable).lines(device: "iPhone").first == "Sync paused \u{00B7} saved on this iPhone")
+        #expect(S.away(.offline).symbol == OfflineCopy.symbol(.offline) && S.synced.lines() == ["Synced"] && S.syncing.lines().first == "Back online \u{00B7} syncing")
+        let controls = try SettingsHomeTests.source("Pane/Views/CanvasControls.swift")
+        #expect(controls.components(separatedBy: "BoardSyncLine()").count == 3, "on the Mac across from the zoom, on iPhone above the dock")
+        let app = try SettingsHomeTests.source("Pane/App/PaneApp.swift")
+        #expect(app.components(separatedBy: ".environment(\\.syncedAt, sync.syncedAt)").count == 4, "beside the reach, wherever the notes window is")
+        #if os(macOS)
+        let box = SyncBox()
+        let hold = BoardSyncLine.hold
+        BoardSyncLine.hold = .milliseconds(400)
+        defer { BoardSyncLine.hold = hold }
+        let ax = OffscreenAX(SyncLineHost(box: box), size: CGSize(width: 360, height: 60))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(ax.find("canvas.sync") == nil)
+        box.reach = .offline
+        await ax.settle()
+        #expect(ax.find("canvas.sync")?.text.contains("Offline \u{00B7} saved on this") == true, "\(ax.ids())")
+        box.reach = .online
+        await ax.settle()
+        #expect(ax.find("canvas.sync")?.text.contains("Back online") == true)
+        box.syncedAt = .now
+        await ax.settle(200)
+        #expect(ax.find("canvas.sync")?.text == "Synced")
+        try await Task.sleep(for: .milliseconds(600))
+        await ax.settle(200)
+        #expect(ax.find("canvas.sync") == nil, "then nothing")
+        // Offline again, then a sync from before: still away, never "Synced".
+        box.reach = .unreachable
+        await ax.settle()
+        #expect(ax.find("canvas.sync")?.text.contains("Sync paused") == true)
+        #endif
+    }
+
+    /// The board as it is now, as the page keeps it in its page data.
+    static func drawn(_ j: Joined) async throws -> [String: Any] {
+        let json = try #require(try await j.js("JSON.stringify({ type: 'excalidraw', version: 2, elements: amber._canvas.api.getSceneElementsIncludingDeleted(), files: amber._canvas.api.getFiles(), appState: {} })") as? String)
+        return try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+    }
+
+    /// What's drawn on the board now, by id.
+    static func shown(_ j: Joined) async throws -> Set<String> {
+        Set(try await j.js("amber._canvas.api.getSceneElements().map((e) => e.id)") as? [String] ?? [])
+    }
+
+    /// A board's History (round 12, both judges: "open History on a board, pick an earlier
+    /// version, the board shows it, Restore"): the versions the server keeps of its drawing, newest
+    /// first after the board as it is, each drawn as the board draws it; Restore puts one back as a
+    /// step Undo takes back, and the board says so.
+    @Test func aBoardsHistoryShowsAnEarlierVersionAndRestoresIt() async throws {
+        #expect(BoardVersion.author(nil) == .you(device: nil) && BoardVersion.author("iPhone") == .you(device: "iPhone") && BoardVersion.author("ChatGPT") == .ai("ChatGPT"))
+        // A board's History is its drawing's; a shared board's isn't offered here yet.
+        let detail = try SettingsHomeTests.source("Pane/Views/NoteDetailView.swift")
+        #expect(detail.contains("if isCanvas, collab == nil {") && detail.contains("BoardHistorySheet(model: BoardHistoryModel("))
+        #expect(try SettingsHomeTests.source("Pane/App/PaneApp.swift").contains("BoardHistoryModel.store = backend.client.map { SupabaseBoardHistory(client: $0) }"))
+
+        let j = try await Joined()
+        defer { j.close() }
+        try await j.ready()
+        @MainActor func put(_ t: WhiteboardTemplate) async throws -> [String: Any] {
+            _ = try await j.js("amber._canvas.api.updateScene({ elements: [] }); 1")
+            await j.until("cleared") { j.canvas.state.empty }
+            j.canvas.send(.insert(t, title: j.canvas.title))
+            await j.until("\(t) drawn") { !j.canvas.state.empty }
+            try await Task.sleep(for: .milliseconds(150))
+            return try await Self.drawn(j)
+        }
+        @MainActor func ids(_ scene: [String: Any]) -> Set<String> {
+            Set((scene["elements"] as? [[String: Any]] ?? []).filter { $0["isDeleted"] as? Bool != true }.compactMap { $0["id"] as? String })
+        }
+        let kanban = try await put(.kanban), retro = try await put(.retro), now = try await put(.flowchart)
+        #expect(ids(retro) != ids(now) && !ids(retro).isEmpty)
+        let board = UUID()
+        NotePageDataStore.shared.set(board, ["values": ["scene": now], "collections": [String: Any]()])
+        defer { NotePageDataStore.shared.set(board, nil) }
+        let byAI = BoardVersion(id: 41, madeAt: .now.addingTimeInterval(-50 * 60), author: .ai("ChatGPT"))
+        let onPhone = BoardVersion(id: 40, madeAt: .now.addingTimeInterval(-2 * 86_400), author: .you(device: "iPhone"))
+        let store = MemoryBoardHistory([(onPhone, ["values": ["scene": kanban]]), (byAI, ["values": ["scene": retro]]),
+                                        (BoardVersion(id: 39, madeAt: .now.addingTimeInterval(-3 * 86_400), author: .you(device: nil)), NotePageData.empty())])
+        let model = BoardHistoryModel(board: board, title: "Product launch", changedAt: .now, store: store, canvas: j.canvas)
+        await model.load()
+        #expect(model.phase == .loaded)
+        #expect(model.versions.map(\.id) == [BoardVersion.current, 41, 40, 39], "the board as it is, then newest first")
+        #expect(model.days.first?.title == HistoryGrouping.title(for: .now) && model.days.count >= 2)
+        // It opens on the newest earlier version, drawn.
+        #expect(model.selection == 41)
+        let picked = try #require(model.picture, "\(String(describing: model.previewFailed))")
+        #if os(macOS)
+        let image = try #require(NSImage(data: picked))
+        #expect(image.size.width > 200 && image.size.height > 100, "\(image.size)")
+        #endif
+        #expect(BoardHistoryModel.heading(byAI).hasPrefix("\(HistoryGrouping.title(for: byAI.madeAt)) at "))
+        #expect(BoardHistoryModel.heading(model.versions[0]) == "Current version")
+        await model.select(40)
+        #expect(model.picture != nil && model.picture != picked, "another version, another drawing")
+        await model.select(39)
+        #expect(model.emptyVersion && model.picture == nil, "kept before anything was drawn")
+        // The board as it is has nothing to restore.
+        await model.select(BoardVersion.current)
+        #expect(model.picture != nil)
+        #expect(await model.restore() == false)
+        #expect(try await Self.shown(j) == ids(now))
+
+        // Restore: the board shows the version, says so, and Undo takes it back.
+        await model.select(41)
+        #expect(await model.restore())
+        for _ in 0..<100 where try await Self.shown(j) != ids(retro) { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await Self.shown(j) == ids(retro), "the board is the version again")
+        #expect(j.canvas.notice == BoardHistoryModel.restoredLine && j.canvas.noticeUndo != nil)
+        #expect(j.canvas.canUndo)
+        let undo = try #require(j.canvas.noticeUndo)
+        undo()
+        for _ in 0..<100 where try await Self.shown(j) != ids(now) { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await Self.shown(j) == ids(now), "Undo puts the board back as it was")
+        #expect(j.canvas.notice == nil)
+        // Restored elements count as changes: each one's version is past the one it replaced, so
+        // the restore syncs and wins a merge as an edit does.
+        j.canvas.run(.redo)
+        for _ in 0..<100 where try await Self.shown(j) != ids(retro) { try await Task.sleep(for: .milliseconds(30)) }
+        let after = try await Self.drawn(j)
+        let before = Dictionary(((retro["elements"] as? [[String: Any]]) ?? []).map { ($0["id"] as! String, $0["version"] as? Int ?? 0) }, uniquingKeysWith: { a, _ in a })
+        for e in (after["elements"] as? [[String: Any]] ?? []) where ids(retro).contains(e["id"] as? String ?? "") {
+            #expect((e["version"] as? Int ?? 0) > before[e["id"] as! String] ?? 0, "\(e["id"] ?? "")")
+        }
+
+        #if os(macOS)
+        // The sheet: the versions by day, the picked one drawn, Restore at the top.
+        _ = try await put(.flowchart)
+        NotePageDataStore.shared.set(board, ["values": ["scene": try await Self.drawn(j)], "collections": [String: Any]()])
+        for dark in [false, true] {
+            let sheet = BoardHistoryModel(board: board, title: "Product launch", changedAt: .now.addingTimeInterval(-60), store: store, canvas: j.canvas)
+            let size = CGSize(width: 900, height: 600)
+            let ax = OffscreenAX(BoardHistorySheet(model: sheet).frame(width: size.width, height: size.height), size: size, dark: dark)
+            defer { ax.close() }
+            for _ in 0..<60 where ax.find("boardHistory.picture") == nil { await ax.settle(100) }
+            if let path = ProcessInfo.processInfo.environment["WHITEBOARD_SHOTS"] {
+                await ax.settle(400)
+                let png = try #require(try MacEmptyDetailTests.picture(ax.window).representation(using: .png, properties: [:]))
+                try png.write(to: URL(fileURLWithPath: path).appending(path: "35-board-history-\(dark ? "dark" : "light").png"))
+            }
+            #expect(sheet.dark == dark, "drawn in the window's look")
+            #expect(ax.find("boardHistory.row.current") != nil && ax.find("boardHistory.row.41") != nil && ax.find("boardHistory.row.40") != nil, "\(ax.ids())")
+            #expect(ax.find("boardHistory.heading")?.text.contains(BoardHistoryModel.heading(byAI)) == true, "\(ax.ids())")
+            #expect(ax.find("boardHistory.picture") != nil)
+            let restore = try #require(ax.find("boardHistory.restore"))
+            #expect(restore.enabled && restore.text.contains(BoardHistorySheet.restoreTitle))
+            if !dark {
+                restore.press()
+                for _ in 0..<100 where try await Self.shown(j) != ids(retro) { try await Task.sleep(for: .milliseconds(30)) }
+                #expect(try await Self.shown(j) == ids(retro), "Restore in the sheet puts the version on the board")
+                #expect(j.canvas.notice == BoardHistoryModel.restoredLine)
+            }
+        }
+        #endif
+    }
+
     /// The empty board shows your templates after the five built-in tiles, each with its drawing
     /// and name; a click puts it in. Rename and Delete (with Undo) from the right-click menu.
     @Test func yourTemplatesShowOnTheEmptyBoardAndCanBeRenamedAndDeleted() async throws {
@@ -3445,7 +3793,8 @@ import UIKit
                 }
                 for (i, t) in (dark ? [WhiteboardTemplate.flowchart] : WhiteboardTemplate.allCases).enumerated() {
                     try await insert(t)
-                    try await shot(String(format: "%02d-template-%@", 2 + i, t.rawValue), w, web)
+                    // The first five 02 to 06; the more templates after the rest (29 to 33).
+                    try await shot(String(format: "%02d-template-%@", i < 5 ? 2 + i : 29 + i - 5, t.rawValue), w, web)
                     if i == 0 { clicksReachTheBoard(w, web) }
                 }
                 try await insert(.flowchart)
@@ -3460,6 +3809,67 @@ import UIKit
                     try await shot("09-selected-arrow", w, web)
                     try await select("!e.containerId")
                     try await shot("10-selected-all", w, web)
+                }
+                // History (round 12, both judges): the board's History opened from the board, the
+                // newest earlier version picked and drawn; then the board after Restore, saying so.
+                do {
+                    @MainActor func scene() async throws -> [String: Any] {
+                        let json = try #require(try await web.evaluateJavaScript("JSON.stringify({ type: 'excalidraw', version: 2, elements: amber._canvas.api.getSceneElementsIncludingDeleted(), files: amber._canvas.api.getFiles(), appState: { viewBackgroundColor: amber._canvas.api.getAppState().viewBackgroundColor } })") as? String)
+                        return try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+                    }
+                    try await insert(.retro)
+                    let retro = try await scene()
+                    try await insert(.kanban)
+                    let kanban = try await scene()
+                    try await insert(.flowchart)
+                    NotePageDataStore.shared.set(note.id, ["values": ["scene": try await scene()], "collections": [String: Any]()])
+                    let store = MemoryBoardHistory([
+                        (BoardVersion(id: 41, madeAt: .now.addingTimeInterval(-40 * 60), author: .ai("ChatGPT")), ["values": ["scene": retro]]),
+                        (BoardVersion(id: 40, madeAt: .now.addingTimeInterval(-26 * 3600), author: .you(device: "iPhone")), ["values": ["scene": kanban]]),
+                        (BoardVersion(id: 39, madeAt: .now.addingTimeInterval(-50 * 3600), author: .you(device: "Mac")), ["values": ["scene": kanban]]),
+                    ])
+                    let kept = BoardHistoryModel.store
+                    BoardHistoryModel.store = store
+                    defer { BoardHistoryModel.store = kept }
+                    // A sheet attaches only to a window that's ordered in: far off the screen, as
+                    // OffscreenAX's are, and out again after.
+                    w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
+                    w.orderFrontRegardless()
+                    defer { w.orderOut(nil) }
+                    NotificationCenter.default.post(name: CollabScript.history, object: "open")
+                    var sheet: NSWindow?
+                    for _ in 0..<50 where sheet == nil { await MacWindowChromeTests.settle(w, 1); sheet = w.attachedSheet }
+                    let shown = try #require(sheet, "History opens over the board")
+                    shown.appearance = w.appearance
+                    await MacWindowChromeTests.settle(shown, 30)
+                    // The window with its sheet where it sits, as one picture.
+                    let base = try await capture(w, web)
+                    let top = try MacEmptyDetailTests.picture(shown)
+                    let ctx = try #require(NSGraphicsContext(bitmapImageRep: base))
+                    let at = CGRect(x: (shown.frame.minX - w.frame.minX) * 2, y: (shown.frame.minY - w.frame.minY) * 2, width: CGFloat(top.pixelsWide), height: CGFloat(top.pixelsHigh))
+                    ctx.cgContext.draw(try #require(top.cgImage), in: at)
+                    ctx.flushGraphics()
+                    try #require(base.representation(using: .png, properties: [:])).write(to: dir.appending(path: "36-board-history-open-\(dark ? "dark" : "light").png"))
+                    // Restore, as its button does (the note History's script line): the version on
+                    // the board, "Version restored" with Undo (held while the picture is taken), and
+                    // the sheet gone.
+                    CanvasController.noticeHold = .seconds(60)
+                    defer { CanvasController.noticeHold = nil }
+                    NotificationCenter.default.post(name: CollabScript.history, object: "restore")
+                    for _ in 0..<100 {
+                        let back = try? await web.evaluateJavaScript("amber._canvas.api.getSceneElements().some((e) => e.type === 'text' && e.text === 'Went well')") as? Bool
+                        if back == true, w.attachedSheet == nil { break }
+                        await MacWindowChromeTests.settle(w, 1)
+                    }
+                    #expect(w.attachedSheet == nil, "the history closes")
+                    #expect(canvas.notice == BoardHistoryModel.restoredLine)
+                    if !dark {
+                        await MacWindowChromeTests.settle(w, 6)
+                        try await shot("37-board-history-restored", w, web)
+                    }
+                    canvas.notice = nil
+                    canvas.noticeUndo = nil
+                    try await insert(.flowchart)
                 }
                 try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
                 // A screenshot pasted on: the window itself, as a picture.
@@ -3721,17 +4131,27 @@ import UIKit
                     for _ in 0..<50 where canvas.state.card == nil { await MacWindowChromeTests.settle(w, 1) }
                     await MacWindowChromeTests.settle(w, 5)
                     try await shot("24-note-card-restore-offered", w, web)
+                    // "Note restored" held while the picture is taken (rounds 8 and 12 caught it
+                    // gone, then fading: the picture takes longer than the line shows).
+                    CanvasController.noticeHold = .seconds(60)
+                    defer { CanvasController.noticeHold = nil }
                     canvas.restoreCard(pressNote.id.uuidString)
-                    // While "Note restored" shows (it fades after 1.8 s; round 8 caught it gone).
-                    canvas.notice = "Note restored"
                     for _ in 0..<100 {
                         let back = try? await web.evaluateJavaScript("(() => !amber._canvas.api.getSceneElements().some((e) => e.customData && e.customData.pintoCard === 'preview' && e.text === 'Note deleted'))()") as? Bool
                         if back == true { break }
                         await MacWindowChromeTests.settle(w, 2)
                     }
-                    canvas.notice = "Note restored"
+                    #expect(canvas.notice == "Note restored")
                     await MacWindowChromeTests.settle(w, 6)
-                    try await shot("24-note-card-restored", w, web)
+                    let restored = try await capture(w, web)
+                    try #require(restored.representation(using: .png, properties: [:])).write(to: dir.appending(path: "24-note-card-restored-light.png"))
+                    // Whole, not fading: its words are as dark as the toolbar's.
+                    let found = await MacEmptyDetailTests.waitForElement("canvas.notice", in: w)
+                    let toast = try #require(found ?? MacEmptyDetailTests.element("canvas.notice", in: w), "the notice shows")
+                    let at = w.convertFromScreen(try #require((toast.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue))
+                    #expect(Self.darkest(in: at, of: restored, window: w.frame.size) < 90, "\"Note restored\" at full strength in the picture")
+                    CanvasController.noticeHold = nil
+                    canvas.notice = nil
                 }
                 // A mind map grown with Tab (round 6: "Tab for a joined child branch").
                 try await js("amber._canvas.api.updateScene({ elements: [], appState: { selectedElementIds: {}, selectedGroupIds: {} }, captureUpdate: 'IMMEDIATELY' })")
@@ -3764,6 +4184,59 @@ import UIKit
                 }
             }
         }
+    }
+
+    /// Every name in the library's last row shows above its footer, with one group, three and a
+    /// long library that scrolls (round 12, library-sync-mac: "Import Library…" and "8 items" sat
+    /// over the Basic shapes names; the grid's height left out the gap under each heading).
+    @Test func theLibrarysLastNamesShowAboveItsFooter() async throws {
+        let box: [[String: Any]] = [["type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 60, "backgroundColor": "#a5d8ff", "fillStyle": "solid"]]
+        func library(saved: Int, files: Bool) -> CanvasLibrary {
+            let lib = CanvasLibrary(folder: nil)
+            if files {
+                _ = lib.importLibrary(Data(Self.basicShapesLibrary.utf8), source: "Basic shapes")
+                _ = lib.importLibrary(Data(Self.dataFlowLibrary.utf8), source: "Data flow")
+            }
+            for i in 0..<saved { _ = lib.add(elements: box, name: "Saved \(i)") }
+            return lib
+        }
+        for (lib, scrolls) in [(library(saved: 3, files: true), false), (library(saved: 2, files: false), false), (library(saved: 9, files: false), false), (library(saved: 11, files: true), true)] {
+            let grid = CanvasLibraryGrid(lib.items)
+            let search: CGFloat = CanvasLibraryGrid.showsSearch(lib.items.count) ? 34 : 0
+            let size = CGSize(width: CanvasLibraryPopover.width, height: CanvasLibraryPopover.gridHeight(grid) + 44 + search)
+            let ax = OffscreenAX(CanvasLibraryPopover(canvas: CanvasController(), library: lib).frame(width: size.width, height: size.height, alignment: .top), size: size)
+            defer { ax.close() }
+            await ax.settle(400)
+            let footer = try #require(ax.find("canvas.library.import"), "\(ax.ids())")
+            let items = ax.all("canvas.library.item")
+            #expect(!items.isEmpty)
+            let groups = grid.groups.map(\.title)
+            if scrolls {
+                // Too many to show: the grid stops at about four rows and scrolls.
+                let row = CanvasLibraryPopover.tile + CanvasLibraryPopover.label
+                #expect(CanvasLibraryPopover.gridHeight(grid) == 4.4 * (row + CanvasLibraryPopover.spacing) + CanvasLibraryPopover.padding, "a long library scrolls: \(groups)")
+            } else {
+                for item in items {
+                    #expect(item.frame.maxY <= footer.frame.minY - 4, "\(item.text) ends at \(item.frame.maxY), the footer starts at \(footer.frame.minY): \(groups)")
+                }
+            }
+        }
+    }
+
+    /// The darkest grey (0 to 255, by its brightest channel) in `rect` (the window's points, from
+    /// the bottom left) of a window's picture `rep` (from the top left), the window `size` points.
+    static func darkest(in rect: CGRect, of rep: NSBitmapImageRep, window size: CGSize) -> Int {
+        let scale = CGFloat(rep.pixelsWide) / size.width
+        let x0 = max(0, Int(rect.minX * scale)), x1 = min(rep.pixelsWide, Int(rect.maxX * scale))
+        let y0 = max(0, Int((size.height - rect.maxY) * scale)), y1 = min(rep.pixelsHigh, Int((size.height - rect.minY) * scale))
+        var low = 255
+        for y in stride(from: y0, to: y1, by: 1) {
+            for x in stride(from: x0, to: x1, by: 1) {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                low = min(low, Int(max(c.redComponent, c.greenComponent, c.blueComponent) * 255))
+            }
+        }
+        return low
     }
 
     /// The library popover's view drawn on its own at 2x, on a popover's plain card.
@@ -4534,6 +5007,46 @@ extension CanvasNativeUITests {
             }
             let left = CGFloat(lo) / shot.scale, right = width - CGFloat(hi) / shot.scale
             #expect(abs(left - right) < 12, "drawn in the middle: \(left) pt on the left, \(right) on the right")
+        }
+    }
+
+    /// A board whole at 1000 pt stays whole when the window narrows to 760 pt (about 52%), and
+    /// the one Tools button left shows a menu's chevron. Round 12, 15-narrow-760: it stayed at 76%,
+    /// cut off on both sides, because with 48 pt kept round it the board needed 44%, under the
+    /// 50% floor; and the Tools button was a grey arrow with no sign it opens a menu.
+    @Test func aNarrowerWindowKeepsTheWholeBoard() async throws {
+        let c = try AppSnapshotTests.container()
+        let note = CanvasNote.make(in: .all, context: c.mainContext)
+        note.body = "Product launch"
+        NotePageDataStore.shared.set(note.id, ["values": ["scene": CanvasTests.scene(WhiteboardTemplate.flowchart.elements(titled: "Product launch") + Self.approvalFlow)], "collections": [String: Any]()])
+        try c.mainContext.save()
+        try await AppSnapshotTests.withLastNote(c, "Product launch") {
+            let (w, web, _) = try await Self.boardWindow(c, note, size: CGSize(width: 1000, height: 700), dark: false)
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w, 10)
+            func whole(_ v: [String: Any]) -> Bool {
+                guard let d = v["drawing"] as? [Double], let width = v["width"] as? Double, let height = v["height"] as? Double else { return false }
+                return d[0] >= -1 && d[1] >= -1 && d[0] + d[2] <= width + 1 && d[1] + d[3] <= height + 1
+            }
+            var before = try await Self.settledView(w, web)
+            if !whole(before) {
+                _ = try await web.evaluateJavaScript("amber._canvasCommand({ op: 'action', name: 'zoomToFit' }); 1")
+                before = try await Self.settledView(w, web)
+            }
+            #expect(whole(before), "whole at 1000 pt: \(before)")
+            w.setContentSize(CGSize(width: 760, height: 700))
+            await MacWindowChromeTests.settle(w, 20)
+            let after = try await Self.settledView(w, web)
+            #expect((after["width"] as? Double ?? 999) < (before["width"] as? Double ?? 0) - 150, "the board's column narrowed: \(before) → \(after)")
+            #expect(whole(after), "still whole at 760 pt: \(after)")
+            let zoom = try #require(after["zoom"] as? Double)
+            #expect(zoom >= 0.5 - 1e-6 && zoom < (before["zoom"] as? Double ?? 1), "zoomed out, not under half: \(zoom)")
+            // The one Tools button: wider than a plain button by its chevron.
+            let shown = (w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }
+            let tools = try #require(shown.first { $0.label == "Tools" }?.view, "the Tools menu at 760 pt: \(shown.map(\.label))")
+            let comments = try #require(shown.first { $0.label == BoardCommentUI.title }?.view)
+            #expect(tools.frame.width >= comments.frame.width + 6, "a chevron beside the tool: \(tools.frame.width) against \(comments.frame.width)")
+            try await Self.expectWholeToolbar(w, "760 pt")
         }
     }
 

@@ -51,6 +51,8 @@ final class SyncEngine {
     /// What the last sync found (see `Reach`); `reach` adds what the network path says.
     private var lastReach = Reach.online
     var reach: Reach { path.isUp ? lastReach : .offline }
+    /// When the last sync got through, while that's the last thing sync did.
+    var syncedAt: Date? { if case .synced(let d) = status { d } else { nil } }
     /// True once a sync has completed since launch.
     private(set) var hasSynced = false
     /// The signed-in account's library has come down: a pull finished since this sign-in. Until

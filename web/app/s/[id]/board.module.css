@@ -61,12 +61,44 @@
   .me:hover { filter: brightness(1.08); }
   .link:hover { color: var(--ink); }
 }
-/* At phone width the board is for looking: the zoom goes, the tools scroll, the title narrows. */
+/* At phone width: the zoom goes (Zoom to Fit is in More Tools), the title narrows, and the tools
+   used most stay in the toolbar with the rest in More Tools, so nothing runs off the window. */
 @media (max-width: 600px) {
   .zoom { display: none; }
   .titleBox { max-width: 44vw; }
   .people { display: none; }
-  .tools { left: 12px; right: 12px; transform: none; max-width: none; }
+}
+.toolsWrap { display: contents; }
+.moreTools { width: 52px; grid-auto-flow: column; gap: 2px; }
+.chevron { opacity: 0.7; }
+.toolMenu { position: absolute; left: 50%; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 62px); transform: translateX(-50%); min-width: 220px; padding: 6px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 2px; z-index: 6; }
+.menuRow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; color: var(--ink); cursor: pointer; font-size: 14px; }
+.menuRow[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-ink); }
+.menuRow span { flex: 1; }
+.key { color: var(--muted); font: 12.5px/1 inherit; }
+.menuGap { height: 6px; margin: 0; border: 0; }
+.menuDanger { color: var(--danger); }
+
+/* ── The bar over a selection: solid, as a menu is (the app's CanvasSelectionBar) ── */
+.styleBar { position: absolute; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); z-index: 5; }
+.styleDock { left: 50%; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 64px); transform: translateX(-50%); }
+.chip { width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; display: grid; place-items: center; cursor: pointer; }
+.chip[aria-expanded="true"] { background: var(--fill); }
+.swatch { display: block; width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14); }
+.swatch[data-fill="none"] { background: linear-gradient(135deg, transparent 45%, var(--danger) 45% 55%, transparent 55%), var(--surface); }
+.swatch[data-fill="mixed"] { background: conic-gradient(#ffc9c9 0 25%, #ffec99 0 50%, #b2f2bb 0 75%, #a5d8ff 0); }
+.tray { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); min-width: 200px; padding: 10px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 8px; }
+.styleDock .tray { top: auto; bottom: calc(100% + 8px); }
+.trayHead { margin: 0; font-size: 12px; font-weight: 650; color: var(--muted); }
+.swatches { display: flex; gap: 4px; }
+.choices { display: flex; flex-wrap: wrap; gap: 4px; }
+.choice { min-height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--fill); cursor: pointer; font-size: 13.5px; white-space: nowrap; }
+.swatches .choice { width: 32px; padding: 0; border-radius: 50%; background: transparent; display: grid; place-items: center; }
+.choice[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.moreRows { display: grid; gap: 2px; min-width: 180px; }
+@media (hover: hover) {
+  .chip:hover, .choice:hover, .menuRow:hover { background: var(--hover); }
+  .menuRow[aria-checked="true"]:hover, .choice[aria-checked="true"]:hover { background: color-mix(in srgb, var(--accent-soft) 80%, var(--accent)); }
 }
 
 /* ── A thread, by its pin ── */

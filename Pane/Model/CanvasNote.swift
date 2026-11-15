@@ -574,4 +574,16 @@ final class CanvasLanding {
         pending = nil
         return p.note
     }
+
+    /// A board made from the templates gallery: the template it starts from, put in once its
+    /// page is ready, as a tile on the empty board puts it in (one step Undo takes back).
+    private var template: (board: UUID, template: WhiteboardTemplate)?
+
+    func request(_ board: UUID, template t: WhiteboardTemplate) { template = (board, t) }
+
+    func takeTemplate(_ id: UUID) -> WhiteboardTemplate? {
+        guard let t = template, t.board == id else { return nil }
+        template = nil
+        return t.template
+    }
 }

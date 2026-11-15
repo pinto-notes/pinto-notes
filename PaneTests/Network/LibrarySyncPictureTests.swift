@@ -155,6 +155,25 @@ extension NetworkFaults {
     #if os(iOS)
     nonisolated(unsafe) static var keptStores: [ModelContainer] = []
 
+    /// How far the colours in part of a picture (fractions of its width and height) stray from
+    /// one another: the widest range of any channel, 0 to 255.
+    static func spread(_ image: UIImage, x: ClosedRange<Double>, y: ClosedRange<Double>) -> Int? {
+        guard let cg = image.cgImage else { return nil }
+        let w = cg.width, h = cg.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var lo = [255, 255, 255], hi = [0, 0, 0]
+        for row in Int(y.lowerBound * Double(h))..<Int(y.upperBound * Double(h)) {
+            for col in Int(x.lowerBound * Double(w))..<Int(x.upperBound * Double(w)) {
+                let i = (row * w + col) * 4
+                for k in 0..<3 { lo[k] = min(lo[k], Int(px[i + k])); hi[k] = max(hi[k], Int(px[i + k])) }
+            }
+        }
+        return (0..<3).map { hi[$0] - lo[$0] }.max()
+    }
+
     @Test func theLibraryOnTheIPhoneAfterASync() async throws {
         guard let dir = Self.shotsFolder else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -184,7 +203,7 @@ extension NetworkFaults {
         _ = try await web.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.85 }); 1")
         let board = try #require(BoardPicture.board(note.id))
 
-        func shot(_ name: String) throws {
+        @discardableResult func shot(_ name: String) throws -> UIImage {
             let format = UIGraphicsImageRendererFormat()
             format.scale = 3
             let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
@@ -193,6 +212,7 @@ extension NetworkFaults {
             let url = dir.appending(path: "\(name).png")
             try #require(image.pngData()).write(to: url)
             print("CANVAS_SHOT \(url.path)")
+            return image
         }
         try await Task.sleep(for: .seconds(1))
         try shot("library-sync-iphone-dock")
@@ -205,7 +225,11 @@ extension NetworkFaults {
         for dark in [false, true] {
             window.overrideUserInterfaceStyle = dark ? .dark : .light
             try await Task.sleep(for: .seconds(1.5))
-            try shot("library-sync-iphone-\(dark ? "dark" : "light")")
+            let image = try shot("library-sync-iphone-\(dark ? "dark" : "light")")
+            // The sheet is solid: over the dock, in the last row's empty fourth column, it's one
+            // colour (round 12: the dock's pencil, Aa, eraser and colour well read through).
+            let spread = try #require(Self.spread(image, x: 0.74...0.88, y: 0.93...0.965))
+            #expect(spread < 10, "nothing reads through the sheet over the dock (\(dark ? "dark" : "light")): channels vary by \(spread)")
         }
         // A tap puts it on the board (CanvasLibrarySheet.add), and the sheet goes.
         let count = "amber._canvas.api.getSceneElements().length"

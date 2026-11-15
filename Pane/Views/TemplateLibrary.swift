@@ -326,6 +326,8 @@ enum TemplateLibraryWords {
     }
     /// Under Make's line with no AI connected: the way to get one (any of the four the dialog offers).
     static let connect = "Connect your AI to have it filled in for you."
+    /// The whiteboard templates' heading in the gallery, after the notes'.
+    static let boards = "Whiteboards"
 }
 
 /// Making a template from the library: your AIs to offer, and what Make does.
@@ -439,6 +441,10 @@ struct TemplateLibraryView: View {
     /// did nothing with it: Connect stayed up; a real key on the Air, 10 November 2026).
     var uncover: () -> Void = {}
     var close: () -> Void = {}
+    /// The whiteboard templates: cards after the notes' under All and Work, and found by Search.
+    /// A click makes a new board from one (round 12: FigJam's templates in the gallery too).
+    var boards: [WhiteboardTemplate] = []
+    var makeBoard: (WhiteboardTemplate) -> Void = { _ in }
     /// Captures: the kind picked and what's typed in Search.
     @State var filter = "All"
     @State var query = ""
@@ -662,6 +668,15 @@ struct TemplateLibraryView: View {
         shown.contains(open) ? shown : all
     }
 
+    /// The whiteboard templates the gallery shows: under All and Work, those whose name or line
+    /// has what's typed (or all of them for "board" and "whiteboard").
+    static func boards(_ all: [WhiteboardTemplate], filter: String, query: String) -> [WhiteboardTemplate] {
+        guard filter == "All" || filter == "Work" else { return [] }
+        let q = query.trimmingCharacters(in: .whitespaces)
+        if q.isEmpty || "whiteboard".localizedStandardContains(q) && q.count >= 3 { return all }
+        return all.filter { $0.title.localizedStandardContains(q) || $0.line.localizedStandardContains(q) }
+    }
+
     /// Whether the left and right arrows move through the covers: not while they'd move the
     /// cursor in what's typed in Search.
     static func arrowsMoveCovers(searching: Bool, query: String) -> Bool { !searching || query.isEmpty }
@@ -872,7 +887,7 @@ struct TemplateLibraryView: View {
         // they fade out (grid).
         VStack(spacing: 0) {
             header
-            if shown.isEmpty {
+            if shown.isEmpty, Self.boards(boards, filter: filter, query: query).isEmpty {
                 // Nothing matches: what was looked for, and the way back, where the covers were.
                 HStack(spacing: 12) {
                     Text(TemplateLibraryWords.none(query: query, filter: filter))
@@ -1000,6 +1015,7 @@ struct TemplateLibraryView: View {
             ScrollViewReader { scroller in
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: rhythm.gap) {
+                        Section {
                         ForEach(shown) { e in
                             // The art, and under it its name and a few words; the ring is the
                             // arrow keys', never a pick.
@@ -1010,6 +1026,24 @@ struct TemplateLibraryView: View {
                             }
                             // Where each card is in the grid, kept without drawing again.
                             .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(Self.space)) }) { [seen] in seen.cards[e.slug] = $0 }
+                        }
+                        }
+                        // The whiteboards after the notes, under their own heading.
+                        let shownBoards = Self.boards(self.boards, filter: filter, query: query)
+                        if !shownBoards.isEmpty {
+                            Section {
+                                ForEach(shownBoards) { t in
+                                    BoardTemplateCard(template: t, width: width, art: rhythm.art) { makeBoard(t) }
+                                }
+                            } header: {
+                                Text(TemplateLibraryWords.boards)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.ink)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.top, shown.isEmpty ? 0 : 14)
+                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityIdentifier("templates.boards")
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1748,6 +1782,55 @@ final class MenuAction: NSObject {
 /// window that one filled its pick with the accent under white words (white on amber, about 2:1,
 /// in the real app; grey in a window that isn't key, so the pictures showed another control;
 /// council, 10 November 2026). Every kind has a hover look; the arrow keys are the covers'.
+/// A whiteboard template's card in the gallery: its drawing small on a paper ground, as the empty
+/// board's tile draws it, and under it its name and what it's for, as the notes' cards have.
+struct BoardTemplateCard: View {
+    let template: WhiteboardTemplate
+    var width: CGFloat = SetupTemplateCard.size.width
+    var art: CGFloat = SetupTemplateCard.artHeight(SetupTemplateCard.size.width)
+    let action: () -> Void
+    @State private var hover = false
+    @Environment(\.colorScheme) private var scheme
+
+    /// The paper the drawing sits on: the board's own white, warmed a touch; a deep grey in the dark.
+    static func paper(dark: Bool) -> Color { dark ? Color(white: 0.12) : Color(rgb: 0xF7F5F0) }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let dark = scheme == .dark
+        return Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Self.paper(dark: dark)
+                    .frame(width: width, height: art)
+                    .overlay { CanvasTemplatePreview(template: template).padding(.horizontal, (width * 0.12).rounded()).padding(.vertical, (art * 0.14).rounded()) }
+                    .clipShape(shape)
+                    .brightness(SetupTemplateCard.quietBrightness(dark: dark, hover: hover))
+                    .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+                    .overlay(shape.strokeBorder((dark ? Color.white : Color.black).opacity(SetupTemplateCard.quietRing(dark: dark, hover: hover)), lineWidth: 1.5))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.title).font(.system(size: SetupTemplateCard.nameSize, weight: .semibold)).foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .frame(height: 18, alignment: .bottomLeading)
+                    Text(template.line).font(.system(size: SetupTemplateCard.lineSize)).foregroundStyle(Color.muted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(SetupTemplateCard.nameShrink)
+                        .truncationMode(.tail)
+                        .frame(height: 17, alignment: .leading)
+                }
+                .frame(width: SetupTemplateCard.wordsWidth(width), alignment: .leading)
+                .padding(.horizontal, 2)
+            }
+            .frame(width: width, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(CardPress())
+        .onHover { h in withAnimation(.smooth(duration: 0.15)) { hover = h } }
+        .help("New whiteboard from \(template.inSentence)")
+        .accessibilityLabel("\(template.title). Whiteboard. \(template.line)")
+        .accessibilityIdentifier("templates.board.\(template.rawValue)")
+    }
+}
+
 struct TemplateKinds: View {
     @Binding var filter: String
     @Environment(\.colorScheme) private var scheme
