@@ -174,7 +174,7 @@ extension SignOutRemoval {
             hasUnsynced: {
                 DebouncedSave.flushAll()
                 // The apps in notes go up on their own, and a failed push of theirs fails no sync.
-                return AccountLibrary.hasUnsynced(context) || !pages.unpushed.isEmpty || !pageData.dirty.isEmpty
+                return AccountLibrary.hasUnsynced(context) || !pages.unpushed.isEmpty || !pageData.dirty.isEmpty || (sync?.library?.contents.unsynced ?? 0) > 0
             },
             withdraw: { try await devices.withdraw(crypto) },
             refreshCopy: { try await crypto.refreshCopyState() },
@@ -353,7 +353,7 @@ extension SignOutFlow {
             showRecoveryKey: showRecoveryKey,
             unsynced: {
                 DebouncedSave.flushAll()
-                return AccountLibrary.unsyncedCount(context) + pages.unpushed.count + pageData.dirty.count
+                return AccountLibrary.unsyncedCount(context) + pages.unpushed.count + pageData.dirty.count + (sync?.library?.contents.unsynced ?? 0)
             },
             offline: { sync?.reach == .offline })
     }

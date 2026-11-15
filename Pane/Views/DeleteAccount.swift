@@ -126,6 +126,8 @@ extension ModelContext {
         NotePageStore.shared.forgetAll()
         NotePageDataStore.shared.forgetAll()
         NotePageNetLog.shared.forgetAll()
+        // The account's whiteboard library, synced with it (LibrarySync).
+        CanvasLibrary.shared.erase()
     }
 }
 
