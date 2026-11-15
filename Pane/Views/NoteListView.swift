@@ -1283,8 +1283,16 @@ struct NoteEntry: Identifiable, DatedListItem, Sendable {
         parentID = note.getValue(forKey: \.parentID)
     }
 
-    /// The note's model in `context`, if it's still there.
+    /// The note's model in `context`, if it's still there. A row can be drawn once more after its
+    /// note was deleted and saved, and `model(for:)` stops the app for an id the store no longer
+    /// has (NoteOpenClickTests, aNewNoteWithNoFoldersOpensInNotes): a note the context holds is
+    /// taken as it is, and one it doesn't is looked for before it's asked for.
     func note(in context: ModelContext) -> Note? {
+        if let n: Note = context.registeredModel(for: pid) { return n.modelContext != nil && !n.isDeleted ? n : nil }
+        let id = pid
+        var one = FetchDescriptor<Note>(predicate: #Predicate { $0.persistentModelID == id })
+        one.fetchLimit = 1
+        guard (try? context.fetchCount(one)) ?? 0 > 0 else { return nil }
         guard let n = context.model(for: pid) as? Note, n.modelContext != nil else { return nil }
         return n
     }

@@ -1765,7 +1765,7 @@ struct CanvasToolbarTools: View {
         if fit.showsFullScreen || room.viewOnly { last += 1 }
         if fit.showsAsk, room.asks { last += 1 }
         groups.append(last)
-        let right = CGFloat(groups.reduce(0, +)) * item + CGFloat(groups.count - 1) * groupGap + room.people + (fit == .narrowest ? chevron : 0)
+        let right = CGFloat(groups.reduce(0, +)) * item + CGFloat(groups.count - 1) * groupGap + room.people
         return left + right + edges + margin
     }
 
@@ -1881,10 +1881,15 @@ struct CanvasToolbarTools: View {
             Label {
                 Text("Tools")
             } icon: {
-                HStack(spacing: 2) {
-                    Image(systemName: current == .comment ? CanvasTool.selection.symbol : current.symbol)
-                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(.secondary)
-                }
+                // In the button's own padding, so the button stays as wide as the others and the
+                // bar still fits a 710 pt window (theBoardsToolbarNeverClips).
+                Image(systemName: current == .comment ? CanvasTool.selection.symbol : current.symbol)
+                    .offset(x: -Self.chevron / 2)
+                    .overlay(alignment: .trailing) {
+                        Image(systemName: "chevron.down").font(.system(size: 7, weight: .semibold)).foregroundStyle(.secondary)
+                            .fixedSize()
+                            .offset(x: Self.chevron / 2 + 1)
+                    }
             }
             .picked(current != .comment)
         }
@@ -1894,8 +1899,9 @@ struct CanvasToolbarTools: View {
         .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
     }
 
-    /// What the Tools button's chevron adds to its width.
-    static let chevron: CGFloat = 14
+    /// How far the Tools button's chevron stands out from its symbol (it adds nothing to the
+    /// button's width).
+    static let chevron: CGFloat = 8
 
     static func moreHelp(_ fit: Fit) -> String {
         let names = fit.inMore.map { $0.title.lowercased() } + ["pictures", "sticky notes", "note cards", "the library"] + (fit.showsFullScreen ? [] : ["full screen"])
