@@ -16,12 +16,13 @@ export type Export = { name: string; files: Record<string, string> };
 const README = `Your Pinto Notes data
 
 data.json holds everything our server keeps about your account that isn't encrypted: your
-profile, the list of your notes, folders, earlier versions and files (ids and dates only), AI
-connections, share links, locked-note settings, which notes have an app (dates and the errors
-your devices reported, not the apps themselves), the usage counts the app keeps, which
-onboarding emails we sent you, and your current sign-ins.
+profile, the list of your notes, folders, earlier versions, files and whiteboard library items
+(ids and dates only), AI connections, share links, locked-note settings, which notes have an app
+(dates and the errors your devices reported, not the apps themselves), the usage counts the app
+keeps, which onboarding emails we sent you, and your current sign-ins.
 
-Your notes, folder names, file names and files are encrypted on your devices, so the export of
+Your notes, folder names, file names, files and whiteboard library are encrypted on your
+devices, so the export of
 your notes is made there and they aren't in this file. To take your notes with you, open
 Pinto Notes and choose Settings > Account > Export Your Notes.
 
@@ -90,6 +91,9 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
   const app_load_failures = await sql<Row[]>`
     select note_id, message, device, at from public.app_load_failures where user_id = ${uid} order by at`;
   const api_keys = await sql<Row[]>`select id, updated_at from public.api_key_names where user_id = ${uid} order by updated_at`;
+  // The whiteboard library: each item by id and dates (its name and shapes are encrypted).
+  const library = await sql<Row[]>`
+    select id, created_at, server_updated_at as updated_at, deleted_at as removed_at from public.whiteboard_library where user_id = ${uid} order by created_at`;
   const sessions = await sql<Row[]>`
     select created_at, refreshed_at, user_agent, host(ip) as ip from auth.sessions where user_id = ${uid} order by created_at`;
 
@@ -105,6 +109,7 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
     ai_connections: connections,
     share_links: shares,
     apps: { apps, versions: app_versions, load_failures: app_load_failures, api_keys },
+    whiteboard_library: library,
     locked_notes: lock ?? null,
     usage: { totals: totals ?? null, setup: setup ?? null, ai_edits_per_day: ai_edits, tips, active_days: days.map((d) => d.day), devices, key_devices,
       key_copy: { protection: key_protection?.mode ?? null, chosen_at: key_protection?.chosen_at ?? null, kept: !!key_copy, stored_at: key_copy?.stored_at ?? null, last_opened_at: key_copy?.opened_at ?? null, events: key_copy_events },
