@@ -170,7 +170,7 @@ function Hero() {
     <section data-hero className={s.hero} aria-labelledby="s-h1">
       <div className={s.heroText}>
         <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
-        <p className={s.lede}>Write notes, draw on whiteboards and build apps. ChatGPT and Claude work in all three with you, and remember what you decided.</p>
+        <p className={s.lede}>Write notes, draw on whiteboards and build apps. ChatGPT and Claude work in all three with you, and can read what you decided.</p>
         <Cta />
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
