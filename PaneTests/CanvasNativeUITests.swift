@@ -5307,11 +5307,32 @@ extension CanvasNativeUITests {
             #expect(whole(after), "still whole at 760 pt: \(after)")
             let zoom = try #require(after["zoom"] as? Double)
             #expect(zoom >= 0.5 - 1e-6 && zoom < (before["zoom"] as? Double ?? 1), "zoomed out, not under half: \(zoom)")
-            // The one Tools button: wider than a plain button by its chevron.
+            // The one Tools button: a chevron beside the tool, drawn in the button's own padding, so
+            // the button is as wide as a plain one and the bar still fits 710 pt
+            // (theBoardsToolbarNeverClips). Its right part has ink; Share's, a plain button with a
+            // narrow symbol, has none.
             let shown = (w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }
             let tools = try #require(shown.first { $0.label == "Tools" }?.view, "the Tools menu at 760 pt: \(shown.map(\.label))")
             let comments = try #require(shown.first { $0.label == BoardCommentUI.title }?.view)
-            #expect(tools.frame.width >= comments.frame.width + 6, "a chevron beside the tool: \(tools.frame.width) against \(comments.frame.width)")
+            #expect(abs(tools.frame.width - comments.frame.width) <= 2, "as wide as a plain button: \(tools.frame.width) against \(comments.frame.width)")
+            let picture = try MacEmptyDetailTests.picture(w)
+            let height = try #require(w.contentView?.superview).bounds.height
+            @MainActor func rightInk(_ v: NSView) -> Int {
+                let f = v.convert(v.bounds, to: nil)
+                let y = Int((height - f.midY) * 2)
+                guard let ground = picture.colorAt(x: Int((f.minX + 4) * 2), y: y)?.usingColorSpace(.deviceRGB) else { return -1 }
+                var n = 0
+                for x in Int((f.minX + 27) * 2)..<Int((f.maxX - 2) * 2) {
+                    for y in Int((height - f.maxY + 8) * 2)..<Int((height - f.minY - 8) * 2) {
+                        guard let c = picture.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                        if abs(c.redComponent - ground.redComponent) + abs(c.greenComponent - ground.greenComponent) + abs(c.blueComponent - ground.blueComponent) > 0.3 { n += 1 }
+                    }
+                }
+                return n
+            }
+            let share = try #require(shown.first { $0.label == "Share" }?.view, "Share at 760 pt: \(shown.map(\.label))")
+            let chevron = rightInk(tools), plain = rightInk(share)
+            #expect(chevron >= 12 && plain <= 4, "a chevron beside the tool: \(chevron) inked pixels in the button's right part, \(plain) in a plain button's")
             try await Self.expectWholeToolbar(w, "760 pt")
         }
     }
