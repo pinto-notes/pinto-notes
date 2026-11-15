@@ -272,6 +272,7 @@
 		2A89E4E9E48F0A15297617DD /* OnboardingArtFilm.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04D4C7ECCFFFBE26FE0E55A /* OnboardingArtFilm.swift */; };
 		2ACC983B96D30D9DC440719A /* amber-base.css in Resources */ = {isa = PBXBuildFile; fileRef = 7C5A3BE24CB24DDD03944249 /* amber-base.css */; };
 		2AE7549782184B7FBB04A141 /* CollabDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E462452EB0E75152BD5846 /* CollabDemo.swift */; };
+		2B4B4DD1E7CE7B33BFD39A6E /* BoardWebLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EDCD0CCA6CBE041CD096D2C /* BoardWebLiveTests.swift */; };
 		2B55D6E03EAB0E2ED1472F4A /* tone.js in Resources */ = {isa = PBXBuildFile; fileRef = F97B6D61534B25944539B296 /* tone.js */; };
 		2B69CBFA3196047D9F11B805 /* NotePageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34BFC88418CBABA209D07247 /* NotePageView.swift */; };
 		2B79F93CCA1F36CE17BC3A81 /* ChecklistAccessibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1297F517F452FB8C62EF93C4 /* ChecklistAccessibilityTests.swift */; };
@@ -1827,6 +1828,7 @@
 		7E30239F17A47DADC020482B /* KeyGateCardSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyGateCardSnapshotTests.swift; sourceTree = "<group>"; };
 		7E309D28E80265DB79E8CAC3 /* LinkedLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkedLibraryTests.swift; sourceTree = "<group>"; };
 		7EC3B59C9BD747592E9D9EDE /* ChromeSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeSnapshots.swift; sourceTree = "<group>"; };
+		7EDCD0CCA6CBE041CD096D2C /* BoardWebLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardWebLiveTests.swift; sourceTree = "<group>"; };
 		7EE3FF188D09E62B4A68D47F /* WikiLinkEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiLinkEditorTests.swift; sourceTree = "<group>"; };
 		7EE83FEA708670187B731359 /* CellTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellTextTests.swift; sourceTree = "<group>"; };
 		7F99F9FABF79933DBD9B01F4 /* template-app-habit-tracker.project.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-habit-tracker.project.json"; sourceTree = "<group>"; };
@@ -3231,6 +3233,7 @@
 			isa = PBXGroup;
 			children = (
 				980A9220168DF88943B2C8AE /* BoardCommentsTests.swift */,
+				7EDCD0CCA6CBE041CD096D2C /* BoardWebLiveTests.swift */,
 				B7002D72E6A584279DD6FACF /* CollabKeysTests.swift */,
 				9C107AD7821265E04B828E68 /* CollabLiveTests.swift */,
 				17C1691F01EEFBB17B163761 /* CollabScriptTests.swift */,
@@ -4102,6 +4105,7 @@
 				1897EA9B25CAA89A5CC1A20D /* BoardCommentsCanvasTests.swift in Sources */,
 				58117AB8938BF46D0D8CC147 /* BoardCommentsTests.swift in Sources */,
 				D86C4831ABE28B16275F9095 /* BoardShareTests.swift in Sources */,
+				2B4B4DD1E7CE7B33BFD39A6E /* BoardWebLiveTests.swift in Sources */,
 				F3D8103CA4E31AB9BF87ECBD /* BulletLookTests.swift in Sources */,
 				EA70BEDD2F3F4EC520FF466C /* BundleRenameTests.swift in Sources */,
 				9916D8951F536A7EDD65146F /* CalloutShots.swift in Sources */,
