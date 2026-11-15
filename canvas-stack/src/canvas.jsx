@@ -1681,7 +1681,9 @@ function Canvas({ initial }) {
       const els = api.getSceneElements();
       const whole = els.length > 0 && (() => { const [x1, y1, x2, y2] = getCommonBounds(els);
         return (x1 + s.scrollX) * z >= 0 && (y1 + s.scrollY) * z >= 0 && (x2 + s.scrollX) * z <= was.w && (y2 + s.scrollY) * z <= was.h; })();
-      api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER });
+      // Taken at once: the next step reads it (round 11: a step that came before the engine had
+      // taken the last one's scroll lost it, and the drawing settled half that step off centre).
+      flushSync(() => api.updateScene({ appState: { scrollX: s.scrollX + dw / 2 / z, scrollY: s.scrollY + dh / 2 / z }, captureUpdate: CaptureUpdateAction.NEVER }));
       // A window resizes in several steps (narrower, wider again as columns settle): whether the
       // board was whole is read at the first, and holds until the steps stop.
       if (shrink.whole === null) shrink.whole = whole;

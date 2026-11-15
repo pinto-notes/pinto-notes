@@ -4297,6 +4297,15 @@ extension CanvasNativeUITests {
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 10)
             let before = try await Self.settledView(w, web)
+            // Where the view is as each resize step reaches the page, read straight after the
+            // page's own centring (observers are called in the order they were made). Each step
+            // is centred at once, so the next step builds on it (round 11: a step that came before
+            // the engine took the last one's scroll lost it; the drawing settled 4.5 pt off).
+            _ = try await web.evaluateJavaScript("""
+            (() => { const area = document.getElementById('canvas'); window.__steps = [];
+              new ResizeObserver(() => { const s = amber._canvas.api.getAppState(); window.__steps.push([area.clientWidth, area.clientHeight, s.scrollX, s.scrollY, s.zoom.value]); }).observe(area);
+              return 1; })()
+            """)
             let full = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
             let button = try #require(full ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
             _ = button.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
@@ -4309,6 +4318,14 @@ extension CanvasNativeUITests {
             }
             print("FULLSCREEN \(dark ? "dark" : "light") before \(before) early \(early)")
             let view = try await Self.settledView(w, web)
+            let steps = try #require(try JSONSerialization.jsonObject(with: Data((try await web.evaluateJavaScript("JSON.stringify(window.__steps)") as? String ?? "[]").utf8)) as? [[Double]])
+            let w0 = try #require(before["width"] as? Double), h0 = try #require(before["height"] as? Double)
+            let x0 = try #require(before["scrollX"] as? Double), y0 = try #require(before["scrollY"] as? Double)
+            #expect(steps.count >= 2, "the page saw the resize: \(steps)")
+            for st in steps where st[4] == 1 && (st[0] != w0 || st[1] != h0) {
+                #expect(abs(st[2] - (x0 + (st[0] - w0) / 2)) < 0.5 && abs(st[3] - (y0 + (st[1] - h0) / 2)) < 0.5,
+                        "centred at once for \(st[0]) by \(st[1]): \(steps), from \(before)")
+            }
             #expect(view["settled"] as? Bool == true, "the view settles: \(view)")
             let width = try #require(view["width"] as? Double), height = try #require(view["height"] as? Double)
             #expect(width > (before["width"] as? Double ?? 0) + 300, "the board is wider: \(before) → \(view)")
