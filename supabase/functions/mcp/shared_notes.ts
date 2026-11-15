@@ -16,9 +16,11 @@ import { importIdentity, open3, openNoteKey as openWrap, seal3 } from "../_share
 import { type Bytes, fromBase64, OpenError } from "../_shared/e2ee.ts";
 import { previewOf, titleOf } from "./notes.ts";
 import { type Call, checkSize, ToolError, type Tx } from "./tools.ts";
-import { elementIds, json as commentJSON, merge as mergeComments, resolveRaw, type Stored as Comment, withShown } from "./board_comments.ts";
+import {
+  elementIds, entryJSON, entryOf, fold, merge as mergeComments, resolveRaw, type Stored as Comment, withShown,
+} from "./board_comments.ts";
 
-export type Role = "owner" | "editor" | "viewer";
+export type Role = "owner" | "editor" | "commenter" | "viewer";
 /** A shared note this account is in, with its key opened. */
 export type Shared = {
   id: string; role: Role; epoch: number; title: string; preview?: string; ownerId: string;
@@ -145,14 +147,18 @@ export async function firstName(tx: Tx): Promise<string | null> {
   return p?.display_name?.trim().split(/\s+/)[0] || null;
 }
 
-/** A viewer's AI reads but doesn't write; the server refuses its changes too. */
+/** A viewer's AI reads but doesn't write; the server refuses its changes too. A commenter's AI
+ *  writes comments on a whiteboard and nothing else (writeBoard). */
 export function refuseViewer(s: Shared) {
   if (s.role === "viewer") throw new ToolError(`"${s.title}" was shared with this person as view only, so it can be read here but not changed. Ask its owner for Can edit.`);
 }
 
+const commentOnly = (s: Shared) => new ToolError(`"${s.title}" was shared with this person to comment on: comments can be added, the drawing can't be changed. Ask its owner for Can edit.`);
+
 /** Writes `text` into the shared note as one Automerge change from what was loaded, sealed with NK. */
 export async function writeDoc(tx: Tx, c: Call, s: Shared, at: Loaded, text: string): Promise<{ changed: boolean; update?: number }> {
   refuseViewer(s);
+  if (s.role === "commenter") throw commentOnly(s);
   checkSize(text);
   if (text === at.text) return { changed: false };
   if (typeof at.doc.body !== "string") throw notYet(s);
@@ -244,10 +250,11 @@ export async function boardElements(at: Loaded): Promise<Map<string, El>> {
   return out;
 }
 
-/** A shared board's comments (board_comments.ts), from every `comments` map in its document (two
- *  devices that made the map at once leave two), each one's values written at once resolved as
- *  every device resolves them. */
-export async function boardComments(at: Loaded): Promise<Comment[]> {
+/** The comments in a shared board's document, from every `comments` map in it (two devices that
+ *  made the map at once leave two), each one's values written at once resolved as every device
+ *  resolves them. Since Can comment (18 November 2026) comments travel in their own stream; these
+ *  are the ones from before, read as the first layer of the fold. */
+export async function legacyComments(at: Loaded): Promise<Comment[]> {
   const A = await loadAutomerge();
   // deno-lint-ignore no-explicit-any
   const all = A.getConflicts(at.doc as any, "comments");
@@ -271,9 +278,24 @@ export async function boardComments(at: Loaded): Promise<Comment[]> {
   return out;
 }
 
+/** A shared board's comments, as every device reads them (board_comments.ts, `fold`): the old map's,
+ *  then the comment stream's entries this key opens, in the server's order. An entry under an older
+ *  key is restated under the new one by the first owner's or editor's device that holds both. */
+export async function boardComments(tx: Tx, s: Shared, at: Loaded): Promise<Comment[]> {
+  const rows = await tx<{ author_id: string; role: string; epoch: number; ct: string }[]>`
+    select author_id, role, epoch, ct from public.note_comments where note_id = ${s.id}::uuid order by id`;
+  const entries = [];
+  for (const r of rows) {
+    if (Number(r.epoch) !== s.epoch) continue;
+    try { entries.push(entryOf(new TextDecoder().decode(await open3("c", r.ct, s.nk, s.id, r.author_id)), r.author_id, r.role)); } catch { /* one that doesn't open holds nothing */ }
+  }
+  return fold(await legacyComments(at), entries);
+}
+
 /** A shared whiteboard's data.json: its drawing as a board of the person's own keeps it (`values.scene`),
  *  and its open comments in `collections.comments`. */
-export async function boardData(at: Loaded) {
+/** `comments`: the board's, read with boardComments; left out, those in the document (from before Can comment). */
+export async function boardData(at: Loaded, comments?: Comment[]) {
   const byIndex = (a: El, b: El) => {
     const x = typeof a.index === "string" ? a.index : null, y = typeof b.index === "string" ? b.index : null;
     if (x !== null && y !== null && x !== y) return x < y ? -1 : 1;
@@ -285,7 +307,7 @@ export async function boardData(at: Loaded) {
   const st = at.doc.boardState ?? {};
   const appState: El = { viewBackgroundColor: scalar(st.viewBackgroundColor) ?? "#ffffff" };
   if (typeof st.gridModeEnabled === "boolean") appState.gridModeEnabled = st.gridModeEnabled;
-  return withShown({ values: { scene: { type: "excalidraw", version: 2, source: "https://pintonotes.com", elements, appState, files: {} } }, collections: {} as Record<string, unknown> }, await boardComments(at));
+  return withShown({ values: { scene: { type: "excalidraw", version: 2, source: "https://pintonotes.com", elements, appState, files: {} } }, collections: {} as Record<string, unknown> }, comments ?? await legacyComments(at));
 }
 
 /**
@@ -297,6 +319,10 @@ export async function boardData(at: Loaded) {
  * already on the board (its `fileId` is one of the board's) is an element like any other, so an AI
  * can move, resize or delete it; a new one is left out and counted: its bytes are sealed by the
  * device that puts it there (note_files), and data.json carries none.
+ *
+ * Its comments go in the board's comment stream (note_comments) as one entry by this person, apart
+ * from the drawing; a comment it adds keeps the ids of the elements this write changed (`changes`,
+ * for Show change). A commenter's AI may only comment: a write that changes the drawing is refused.
  */
 export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: unknown, readAt: Date = new Date()): Promise<{ changed: boolean; update?: number; pictures: number; refused: string[] }> {
   refuseViewer(s);
@@ -340,29 +366,47 @@ export async function writeBoard(tx: Tx, c: Call, s: Shared, at: Loaded, data: u
   const settings: [string, string | boolean][] = [];
   if (typeof appState.viewBackgroundColor === "string" && appState.viewBackgroundColor !== scalar(st.viewBackgroundColor)) settings.push(["viewBackgroundColor", appState.viewBackgroundColor]);
   if (typeof appState.gridModeEnabled === "boolean" && appState.gridModeEnabled !== st.gridModeEnabled) settings.push(["gridModeEnabled", appState.gridModeEnabled]);
+  // Can comment: comments only. Anything left as it was is fine (data.json read back unchanged).
+  if (s.role === "commenter" && (puts.length || settings.length)) throw commentOnly(s);
   // Comments (board_comments.ts): new ones and replies, attributed to this person's AI, and threads
   // it resolved. On a shape of the drawing as it is after this write.
   const ids = elementIds({ values: { scene: { elements: [...current.values()] } } });
-  for (const [id, json] of puts) { const e = JSON.parse(json) as El; if (e.isDeleted === true) ids.delete(id); else ids.add(id); }
+  const drew: string[] = [];
+  for (const [id, json] of puts) { const e = JSON.parse(json) as El; if (e.isDeleted === true) ids.delete(id); else { ids.add(id); drew.push(id); } }
   const first = await firstName(tx);
   const wanted = (data as { collections?: Record<string, unknown> })?.collections?.comments;
-  const { changed: comments, refused } = mergeComments(await boardComments(at), wanted, { id: c.ctx.userId, name: first ?? "Someone", ai: c.ctx.client }, ids, new Date(now));
+  const { changed: comments, refused } = mergeComments(await boardComments(tx, s, at), wanted, { id: c.ctx.userId, name: first ?? "Someone", ai: c.ctx.client }, ids, new Date(now), drew);
   if (!puts.length && !settings.length && !comments.length) return { changed: false, pictures, refused };
-  const A = await loadAutomerge();
-  const message = first ? `${first}'s ${c.ctx.client}` : c.ctx.client;
-  const next = A.change(at.doc, { message, time: Math.floor(now / 1000) }, (d) => {
-    // Scalar strings, as the devices write them (a plain string would be collaborative text).
-    for (const [id, json] of puts) d.board![id] = new A.ImmutableString(json);
-    if (settings.length) {
-      if (!d.boardState) d.boardState = {};
-      for (const [k, v] of settings) d.boardState[k] = typeof v === "string" ? new A.ImmutableString(v) : v;
+  let stored: { changed: boolean; update?: number } = { changed: false };
+  if (puts.length || settings.length) {
+    const A = await loadAutomerge();
+    const message = first ? `${first}'s ${c.ctx.client}` : c.ctx.client;
+    const next = A.change(at.doc, { message, time: Math.floor(now / 1000) }, (d) => {
+      // Scalar strings, as the devices write them (a plain string would be collaborative text).
+      for (const [id, json] of puts) d.board![id] = new A.ImmutableString(json);
+      if (settings.length) {
+        if (!d.boardState) d.boardState = {};
+        for (const [k, v] of settings) d.boardState[k] = typeof v === "string" ? new A.ImmutableString(v) : v;
+      }
+    });
+    stored = await commit(tx, c, s, at, next);
+  }
+  if (comments.length) {
+    // One entry, by this person; the server names the AI on it, as on a change.
+    const ct = await seal3("c", new TextEncoder().encode(entryJSON(comments)) as Bytes, s.nk, s.id, s.epoch, c.ctx.userId);
+    try {
+      await tx`insert into public.note_comments (note_id, epoch, ct) values (${s.id}::uuid, ${s.epoch}, ${ct})`;
+    } catch (e) {
+      const hint = (e as { hint?: string }).hint;
+      if (hint === "not_member") throw new ToolError(`This person isn't in "${s.title}" anymore, so it can't be commented on here.`);
+      if (hint === "read_only") throw new ToolError(`"${s.title}" is view only for this person now, so it can't be commented on here.`);
+      if (hint === "stale_epoch") throw new ToolError(`Someone was removed from "${s.title}" and it has a new key. Open it once in Pinto Notes, then try again.`);
+      if (hint === "comments_full") throw new ToolError(`"${s.title}" has no room for more comments.`);
+      throw e;
     }
-    if (comments.length) {
-      if (!d.comments) d.comments = {};
-      for (const cm of comments) d.comments[cm.id] = new A.ImmutableString(commentJSON(cm));
-    }
-  });
-  return { ...await commit(tx, c, s, at, next), pictures, refused };
+    stored = { ...stored, changed: true };
+  }
+  return { ...stored, pictures, refused };
 }
 
 /** Who changed a shared note lately, newest first: "Sara", "Sara's Claude". */

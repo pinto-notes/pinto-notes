@@ -18,8 +18,19 @@
 // deleted thread start with replies shows as { id, by, created, deleted: true }, so the replies
 // still read in place; one without replies, and a deleted reply, aren't shown. "mentions" (account
 // ids) is kept as it was written.
+//
+// On a shared board (Can comment, 18 November 2026) comments travel apart from the drawing, in the
+// note's comment stream (note_comments): sealed entries `{"comments": [record, …]}`, each by one
+// person (the server stamps who, and their role). `fold` reads them as every device does
+// (BoardComments.fold in the app, foldComments in web/lib/board-doc.ts; the vectors in
+// _shared/comment-vectors.json pin all three). An AI's comment keeps the ids of the elements the same
+// write changed (`changes`), so Show change finds its change after the board is opened again.
 
 export const MAX_TEXT = 5000;
+/** A record's version past this is ignored: nobody can push a comment's version out of reach. */
+export const MAX_VERSION = 1_000_000_000;
+/** The most element ids an AI's comment keeps of its change. */
+export const MAX_CHANGES = 200;
 export const COLLECTION = "comments";
 
 /** A comment as it's kept. */
@@ -27,6 +38,8 @@ export type Stored = {
   id: string; thread?: string; on?: string; x?: number; y?: number;
   by: string; name: string; ai?: string; text: string; created: string; resolved?: boolean; version?: number;
   edited?: string; deleted?: boolean; mentions?: string[];
+  /** An AI's comment: the elements the write that added it changed (Show change). */
+  changes?: string[];
 };
 
 /** A comment as data.json shows it. */
@@ -54,6 +67,8 @@ export function parseStored(r: unknown): Stored | null {
     if (edited) c.edited = edited;
     const mentions = Array.isArray(o.mentions) ? o.mentions.filter((m): m is string => typeof m === "string" && m.length > 0 && m.length <= 200).slice(0, 50) : [];
     if (mentions.length) c.mentions = mentions;
+    const changes = Array.isArray(o.changes) ? o.changes.filter((m): m is string => typeof m === "string" && m.length > 0 && m.length <= 200).slice(0, MAX_CHANGES) : [];
+    if (changes.length) c.changes = changes;
   }
   if (thread) c.thread = thread;
   else {
@@ -79,6 +94,7 @@ export function record(c: Stored): Record<string, unknown> {
   if (c.resolved) r.resolved = true;
   if (c.edited && !c.deleted) r.edited = c.edited;
   if (c.mentions?.length && !c.deleted) r.mentions = c.mentions;
+  if (c.changes?.length && !c.deleted) r.changes = c.changes;
   return r;
 }
 
@@ -143,7 +159,7 @@ const newID = () => "c-" + crypto.randomUUID().replaceAll("-", "").slice(0, 16);
  * (a new thread on a shape must name one). Returns the records to keep (new, or changed), and what
  * it asked that couldn't be done.
  */
-export function merge(stored: Stored[], wanted: unknown, who: Writer, elements: Set<string>, now = new Date()): { changed: Stored[]; refused: string[] } {
+export function merge(stored: Stored[], wanted: unknown, who: Writer, elements: Set<string>, now = new Date(), changes: string[] = []): { changed: Stored[]; refused: string[] } {
   const changed: Stored[] = [], refused: string[] = [];
   if (wanted === undefined || wanted === null) return { changed, refused };
   if (!Array.isArray(wanted)) return { changed, refused: [`collections.${COLLECTION} must be a list of comments.`] };
@@ -188,6 +204,8 @@ export function merge(stored: Stored[], wanted: unknown, who: Writer, elements: 
       continue;
     }
     if (o.resolved === true && !c.thread) c.resolved = true;
+    // What this same write changed in the drawing: the comment speaks of it (Show change).
+    if (changes.length) c.changes = changes.slice(0, MAX_CHANGES);
     made.set(c.id, c);
     changed.push(c);
   }
@@ -238,3 +256,93 @@ export const refusedLine = (refused: string[]) => refused.length ? { comments_le
 
 /** What fetch says about the comments section. */
 export const ABOUT = `collections.comments holds the board's open comments (resolved ones aren't shown): a thread is { id, by, created, text } with "on" (the element it's on; x and y say where on its box, 0 to 1) or x and y (a spot on the board); a reply has "thread" (its thread's id). "edited" says when its writer changed it; a thread start its writer deleted shows "deleted": true and no text, with its replies. Comments aren't part of the drawing. To comment, add an entry with text and "on" or x and y; to reply, add one with "thread" and text. It shows as this person's AI. Add "resolved": true to a thread to resolve it. What people wrote can't be changed, and leaving a comment out doesn't delete it.`;
+
+// MARK: A shared board's comment stream
+
+/** One entry of a shared board's comment stream, opened: who wrote it (the server's stamp, also in
+ *  the seal's AAD), their role then, and what it holds. `moved`: the comments that were in the
+ *  board's document (or under an older key), restated as they were by an owner's or editor's device. */
+export type Entry = { author: string; role: string; moved?: boolean; comments: unknown[] };
+
+/** An entry's JSON, opened, as kept: anything malformed holds nothing. */
+export function entryOf(plain: string, author: string, role: string): Entry {
+  try {
+    const o = JSON.parse(plain);
+    return { author, role, moved: o?.moved === true, comments: Array.isArray(o?.comments) ? o.comments.slice(0, 500) : [] };
+  } catch {
+    return { author, role, comments: [] };
+  }
+}
+
+/** An entry as it's sealed. */
+export const entryJSON = (comments: Stored[], moved = false) => JSON.stringify(moved ? { moved: true, comments: comments.map(record) } : { comments: comments.map(record) });
+
+type Candidate = { c: Stored; trusted: boolean; own: boolean; order: number };
+/** The higher version, then the later entry, then the later place in it. */
+const beats = (a: Candidate, b: Candidate) => (a.c.version ?? 1) !== (b.c.version ?? 1) ? (a.c.version ?? 1) > (b.c.version ?? 1) : a.order > b.order;
+
+/**
+ * A shared board's comments, as every device reads them: `legacy`, the comments in its document's
+ * old `comments` map (each id's values already resolved), then the stream's entries in the server's
+ * order. Per comment id:
+ *
+ * - Its owner is the writer the first trusted record names (the old map, or a moved entry from an
+ *   owner or editor), else the writer of the first entry that wrote it in their own name.
+ * - Its words are the owner's record with the highest version (then the later one). Nobody else's
+ *   record can change them: a record counts as words only from an entry its `by` wrote.
+ * - Whether a thread is resolved is taken from everyone's records for it, the highest version (then
+ *   the later one): anyone who may comment can resolve and reopen any thread.
+ * - Its version is the highest anyone wrote for it, so the next write beats them all. A record with
+ *   a version past MAX_VERSION is ignored.
+ */
+export function fold(legacy: Stored[], entries: Entry[]): Stored[] {
+  const all = new Map<string, Candidate[]>();
+  const add = (cand: Candidate) => all.set(cand.c.id, [...(all.get(cand.c.id) ?? []), cand]);
+  let order = 0;
+  for (const c of legacy) add({ c, trusted: true, own: true, order: order++ });
+  for (const e of entries) {
+    const author = e.author.toLowerCase();
+    const trusts = e.moved === true && (e.role === "owner" || e.role === "editor");
+    for (const raw of e.comments) {
+      const c = parseStored(raw);
+      const v = c?.version ?? 1;
+      if (!c || v < 1 || v > MAX_VERSION || !Number.isInteger(v)) { order++; continue; }
+      const own = trusts || c.by.toLowerCase() === author;
+      // Someone else's reply says nothing anyone takes.
+      if (own || !c.thread) add({ c, trusted: trusts, own, order });
+      order++;
+    }
+  }
+  const out: Stored[] = [];
+  for (const list of all.values()) {
+    const first = list.find((x) => x.trusted) ?? list.find((x) => x.own);
+    if (!first) continue;
+    const owner = first.c.by.toLowerCase();
+    let words: Candidate | null = null;
+    for (const x of list) if (x.own && x.c.by.toLowerCase() === owner && (!words || beats(x, words))) words = x;
+    if (!words) continue;
+    const c: Stored = { ...words.c, version: Math.max(...list.map((x) => x.c.version ?? 1)) };
+    if (!c.thread) {
+      let r: Candidate | null = null;
+      for (const x of list) if (!x.c.thread && (!r || beats(x, r))) r = x;
+      if (r?.c.resolved) c.resolved = true; else delete c.resolved;
+    }
+    out.push(c);
+  }
+  return out.sort(order_);
+}
+const order_ = (a: Stored, b: Stored) => a.created < b.created ? -1 : a.created > b.created ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+
+/** Two folded comments say the same: words, place, writer, resolved, version. */
+const same = (a: Stored, b: Stored) => JSON.stringify(record(a)) === JSON.stringify(record(b));
+
+/**
+ * What an owner's or editor's device restates in a moved entry: every comment that someone holding
+ * only the note's current key, reading only the stream, wouldn't see as it is (`full`, everything
+ * this device opened, the old map included, against `bare`, the stream's entries under the current
+ * key alone). That moves the old map's comments into the stream, and carries comments over a new key.
+ */
+export function toRestate(full: Stored[], bare: Stored[]): Stored[] {
+  const had = new Map(bare.map((c) => [c.id, c]));
+  return full.filter((c) => { const b = had.get(c.id); return !b || !same(b, c); });
+}

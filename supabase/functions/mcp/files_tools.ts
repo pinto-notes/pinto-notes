@@ -23,7 +23,7 @@ import {
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
-import { boardData, changesOf, firstName, forgetShared, isBoard, loadDoc, refuseViewer, type Shared, sharedNotes, writeBoard, writeDoc } from "./shared_notes.ts";
+import { boardComments, boardData, changesOf, firstName, forgetShared, isBoard, loadDoc, refuseViewer, type Shared, sharedNotes, writeBoard, writeDoc } from "./shared_notes.ts";
 import { ABOUT as COMMENTS_ABOUT, COLLECTION as COMMENTS, elementIds, isBoardData, keepIn, merge as mergeComments, refusedLine, storedIn, withShown } from "./board_comments.ts";
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
@@ -515,6 +515,7 @@ function unpresent(text: string, P: Paths, files: NoteFile[]): string {
 const sharedItem = (id: string) => `shared:${id}`;
 const sharedLine = (s: Shared) => s.role === "owner" ? "Shared by this person with others: edits merge with what they type."
   : s.role === "editor" ? "Shared with this person, who can edit it: edits merge with what others type."
+  : s.role === "commenter" ? "Shared with this person to comment on: comments can be added in data.json, the drawing can't be changed."
   : "Shared with this person as view only: it can be read here, not changed.";
 
 /** A shared note's text, from its document. */
@@ -545,7 +546,7 @@ async function mustHaveReadShared(tx: Tx, c: Call, s: Shared, path: string) {
 async function sharedBoard(tx: Tx, s: Shared, base: string) {
   const at = await loadDoc(tx, s);
   if (!isBoard(at)) throw new ToolError(`"${base}" is shared with other people, and only a whiteboard's data can be read or changed while it's shared.`);
-  return { at, data: await boardData(at) };
+  return { at, data: await boardData(at, await boardComments(tx, s, at)) };
 }
 
 /** When this session last read a shared board's data.json: what was drawn after that isn't removed
@@ -653,6 +654,13 @@ async function appProject(tx: Tx, c: Call, n: Note): Promise<Project> {
   return project;
 }
 
+/** The elements a write to a board's data.json changed and left on it (an AI's comment speaks of them: Show change). */
+function drawnIn(before: PageData, next: PageData): string[] {
+  const els = (d: PageData) => ((d.values as { scene?: { elements?: unknown[] } })?.scene?.elements ?? []).filter((e): e is Record<string, unknown> => !!e && typeof e === "object" && typeof (e as { id?: unknown }).id === "string");
+  const was = new Map(els(before).map((e) => [e.id as string, JSON.stringify(e)]));
+  return els(next).filter((e) => e.isDeleted !== true && was.get(e.id as string) !== JSON.stringify(e)).map((e) => e.id as string).slice(0, 200);
+}
+
 /** data.json as the AI sees it: the app's JSON, localStorage parsed; a whiteboard's comments shown
  *  readable, open threads only (board_comments.ts). */
 const dataText = (d: PageData) => JSON.stringify(d, null, 2);
@@ -672,7 +680,7 @@ async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData
     delete collections[COMMENTS];
     if (before.collections[COMMENTS]) collections[COMMENTS] = before.collections[COMMENTS];
     next = { ...next, collections };
-    const merged = mergeComments(storedIn(before), wanted, { id: c.ctx.userId, name: await firstName(tx) ?? "Someone", ai: c.ctx.client }, elementIds(next));
+    const merged = mergeComments(storedIn(before), wanted, { id: c.ctx.userId, name: await firstName(tx) ?? "Someone", ai: c.ctx.client }, elementIds(next), new Date(), drawnIn(before, next));
     next = keepIn(next, merged.changed);
     refused = merged.refused;
   }
@@ -788,7 +796,7 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
 const entryOut = (e: Entry, extra: Record<string, unknown> = {}) => e.kind === "folder"
   ? { path: e.path, type: "folder", ...extra }
   : e.kind === "file" ? fileOut(e.path, e.file)
-  : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.shared ? { shared: e.note.shared.role === "owner" ? "owner" : e.note.shared.role === "editor" ? "can edit" : "view only" } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
+  : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.shared ? { shared: e.note.shared.role === "owner" ? "owner" : e.note.shared.role === "editor" ? "can edit" : e.note.shared.role === "commenter" ? "can comment" : "view only" } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
 const updatedOf = (e: Entry) => e.kind === "note" ? +new Date(e.note.updated_at) : e.kind === "file" ? +new Date(e.file.updated_at) : 0;
 const newest = (a: Entry, b: Entry) => (a.kind === "folder" ? 0 : 1) - (b.kind === "folder" ? 0 : 1) || updatedOf(b) - updatedOf(a) || a.path.localeCompare(b.path);
 
@@ -1065,7 +1073,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const shown = numberedLines(text, a.offset, a.limit);
       await markRead(tx, c, dataItem(r.note.shared.id), await hash(c, text));
       return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
-        metadata: { path: `${r.base}/data.json`, lines: shown.lines, shared: sharedLine(r.note.shared).replace("type", "draw"), ...(r.note.shared.role === "viewer" ? { read_only: true } : {}),
+        metadata: { path: `${r.base}/data.json`, lines: shown.lines, shared: sharedLine(r.note.shared).replace("type", "draw"), ...(r.note.shared.role === "viewer" ? { read_only: true } : r.note.shared.role === "commenter" ? { comments_only: true } : {}),
           ...(shown.truncated ? { truncated: shown.truncated } : {}),
           about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Its pictures are image elements: move, resize or delete them like any element. Their bytes aren't in data.json, and an AI can't add a new picture. " + COMMENTS_ABOUT } };
     }

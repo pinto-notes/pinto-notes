@@ -1,0 +1,752 @@
+{
+ "about": "Shared whiteboard comment streams folded as every reader folds them (docs/Technical/collaboration-design.md, 'Can comment'). Checked by supabase/functions/mcp/board_comments.test.ts, web/lib/board-doc.test.ts and PaneTests/Collab/BoardCommentsTests.swift. `expect` lists each comment kept, in the order (created, id); `restate` lists the ids an owner's or editor's device restates.",
+ "fold": [
+  {
+   "name": "a thread and a reply",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-r1",
+       "thread": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "text": "Move Publish up",
+       "created": "2026-11-18T09:05:00Z",
+       "version": 1
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t1",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Ship it",
+     "version": 1,
+     "resolved": false,
+     "deleted": false
+    },
+    {
+     "id": "c-r1",
+     "by": "E0000000-0000-4000-8000-000000000003",
+     "text": "Move Publish up",
+     "version": 1,
+     "resolved": false,
+     "deleted": false,
+     "thread": "c-t1"
+    }
+   ]
+  },
+  {
+   "name": "words are only their writer's",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "text": "Hacked",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 5,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "As Emil",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 6,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t1",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Ship it",
+     "version": 6,
+     "resolved": false,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "anyone resolves and reopens; the words stay the writer's",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0,
+       "resolved": true
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it today",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 3,
+       "x": 1,
+       "y": 0,
+       "resolved": true,
+       "edited": "2026-11-18T10:00:00Z"
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it today",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 4,
+       "x": 1,
+       "y": 0,
+       "edited": "2026-11-18T10:00:00Z"
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t1",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Ship it today",
+     "version": 4,
+     "resolved": false,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "a writer deletes their own, nobody else's",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t2",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "text": "Typo",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t2",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0,
+       "deleted": true
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t3",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "text": "Keep me",
+       "created": "2026-11-18T09:01:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t3",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "created": "2026-11-18T09:01:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0,
+       "deleted": true
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t2",
+     "by": "E0000000-0000-4000-8000-000000000003",
+     "text": "",
+     "version": 2,
+     "resolved": false,
+     "deleted": true
+    },
+    {
+     "id": "c-t3",
+     "by": "E0000000-0000-4000-8000-000000000003",
+     "text": "Keep me",
+     "version": 2,
+     "resolved": false,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "the old map, and a move only an owner or editor can make",
+   "legacy": [
+    {
+     "id": "c-t4",
+     "by": "E0000000-0000-4000-8000-000000000002",
+     "name": "Sara",
+     "text": "From before",
+     "created": "2026-11-18T09:00:00Z",
+     "version": 1,
+     "x": 1,
+     "y": 0,
+     "resolved": true
+    }
+   ],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t4",
+       "by": "E0000000-0000-4000-8000-000000000002",
+       "name": "Sara",
+       "text": "From before",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0,
+       "resolved": true
+      }
+     ],
+     "epoch": 1,
+     "moved": true
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t5",
+       "by": "E0000000-0000-4000-8000-000000000002",
+       "name": "Sara",
+       "text": "Fake Sara",
+       "created": "2026-11-18T09:02:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1,
+     "moved": true
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t4",
+     "by": "E0000000-0000-4000-8000-000000000002",
+     "text": "From before",
+     "version": 1,
+     "resolved": true,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "a squatter can't take an old comment's id",
+   "legacy": [
+    {
+     "id": "c-t6",
+     "by": "E0000000-0000-4000-8000-000000000002",
+     "name": "Sara",
+     "text": "Original",
+     "created": "2026-11-18T09:00:00Z",
+     "version": 1,
+     "x": 1,
+     "y": 0
+    }
+   ],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t6",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "text": "Squat",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t6",
+     "by": "E0000000-0000-4000-8000-000000000002",
+     "text": "Original",
+     "version": 1,
+     "resolved": false,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "a version out of reach is ignored",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t7",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Steady",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t7",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Steady",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 2000000000,
+       "x": 1,
+       "y": 0,
+       "resolved": true
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t7",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Steady",
+     "version": 1,
+     "resolved": false,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "at the same version the later entry wins",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t8",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "A",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t8",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "B",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-t8",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "B",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0,
+       "resolved": true
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t8",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "B",
+     "version": 2,
+     "resolved": true,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "an editor's move keeps the writers it names",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000002",
+     "role": "editor",
+     "comments": [
+      {
+       "id": "c-t9",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Kept",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1,
+     "moved": true
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t9",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Kept",
+     "version": 1,
+     "resolved": false,
+     "deleted": false
+    }
+   ]
+  },
+  {
+   "name": "someone else's reply changes nothing",
+   "legacy": [],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Ship it",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      },
+      {
+       "id": "c-r2",
+       "thread": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Soon",
+       "created": "2026-11-18T09:05:00Z",
+       "version": 1
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-r2",
+       "thread": "c-t1",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Edited by Cleo",
+       "created": "2026-11-18T09:05:00Z",
+       "version": 3
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "expect": [
+    {
+     "id": "c-t1",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Ship it",
+     "version": 1,
+     "resolved": false,
+     "deleted": false
+    },
+    {
+     "id": "c-r2",
+     "by": "E0000000-0000-4000-8000-000000000001",
+     "text": "Soon",
+     "version": 1,
+     "resolved": false,
+     "deleted": false,
+     "thread": "c-t1"
+    }
+   ]
+  }
+ ],
+ "restate": [
+  {
+   "name": "the old map moves, and what's under an older key is restated under the current one",
+   "legacy": [
+    {
+     "id": "c-a",
+     "by": "E0000000-0000-4000-8000-000000000002",
+     "name": "Sara",
+     "text": "Old map",
+     "created": "2026-11-18T09:00:00Z",
+     "version": 1,
+     "x": 1,
+     "y": 0
+    }
+   ],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-b",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Before the new key",
+       "created": "2026-11-18T09:01:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-c",
+       "by": "E0000000-0000-4000-8000-000000000003",
+       "name": "Cleo",
+       "text": "After",
+       "created": "2026-11-18T09:02:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 2
+    },
+    {
+     "author": "e0000000-0000-4000-8000-000000000003",
+     "role": "commenter",
+     "comments": [
+      {
+       "id": "c-b",
+       "by": "E0000000-0000-4000-8000-000000000001",
+       "name": "Emil",
+       "text": "Before the new key",
+       "created": "2026-11-18T09:01:00Z",
+       "version": 2,
+       "x": 1,
+       "y": 0,
+       "resolved": true
+      }
+     ],
+     "epoch": 1
+    }
+   ],
+   "current": 2,
+   "expect": [
+    "c-a",
+    "c-b"
+   ]
+  },
+  {
+   "name": "nothing to restate once the stream under the current key says it all",
+   "legacy": [
+    {
+     "id": "c-a",
+     "by": "E0000000-0000-4000-8000-000000000002",
+     "name": "Sara",
+     "text": "Old map",
+     "created": "2026-11-18T09:00:00Z",
+     "version": 1,
+     "x": 1,
+     "y": 0
+    }
+   ],
+   "entries": [
+    {
+     "author": "e0000000-0000-4000-8000-000000000001",
+     "role": "owner",
+     "comments": [
+      {
+       "id": "c-a",
+       "by": "E0000000-0000-4000-8000-000000000002",
+       "name": "Sara",
+       "text": "Old map",
+       "created": "2026-11-18T09:00:00Z",
+       "version": 1,
+       "x": 1,
+       "y": 0
+      }
+     ],
+     "epoch": 1,
+     "moved": true
+    }
+   ],
+   "current": 1,
+   "expect": []
+  }
+ ]
+}

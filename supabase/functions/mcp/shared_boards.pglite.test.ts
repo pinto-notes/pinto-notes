@@ -10,6 +10,7 @@ import { account, app, note, toolContext } from "./sealed.ts";
 import { ToolError } from "./tools.ts";
 import { runFileTool } from "./files_tools.ts";
 import { loadAutomerge } from "./shared_notes.ts";
+import { entryOf, fold, resolveRaw, type Stored } from "./board_comments.ts";
 import { aesKey, type Bytes, newDataKey, seal, toBase64 } from "../_shared/e2ee.ts";
 import { bytes, identityContext, newIdentity, noteKeyContext, open3, seal3, sealNoteKey } from "../_shared/collab.ts";
 
@@ -69,10 +70,10 @@ class Device {
 
 const CANVAS = JSON.stringify({ amberApp: 1, files: { "/index.html": `<!doctype html>\n<meta name="pinto-canvas" content="1">\n<div id="canvas"></div>`, "/README.md": "# Whiteboard\n" } });
 
-/** Emil's whiteboard "Launch plan", shared: Sara can edit, Eve can view. Each has it in their notes
+/** Emil's whiteboard "Launch plan", shared: Sara can edit, Cleo can comment, Eve can view. Each has it in their notes
  *  as a board (a pointer with the canvas page, as their devices make it). */
 async function board(pg: PGlite) {
-  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), eve = await person(pg, "Eve");
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara"), eve = await person(pg, "Eve"), cleo = await person(pg, "Cleo");
   const id = await note(pg, emil.a, "Launch plan");
   await app(pg, emil.id, `insert into public.note_pages (note_id, page_ct) values ($1, $2)`, [id, await emil.a.vault.sealPage(id, CANVAS)]);
   const nk = newDataKey();
@@ -86,7 +87,7 @@ async function board(pg: PGlite) {
     d.boardState = { viewBackgroundColor: new A.ImmutableString("#ffffff") };
   });
   const pointers: Record<string, string> = {};
-  for (const [p, role] of [[sara, "editor"], [eve, "viewer"]] as const) {
+  for (const [p, role] of [[sara, "editor"], [eve, "viewer"], [cleo, "commenter"]] as const) {
     const wrap = await sealNoteKey(nk, emil.identity, p.identity.publicRaw, { note: id, epoch: 1, from: emil.id, to: p.id });
     await app(pg, emil.id, `select public.collab_invite($1, $2, $3, $4, 1)`, [id, p.id, role, wrap]);
     await app(pg, p.id, `select public.collab_accept($1, $2)`, [id, await selfWrap(p, nk, id, 1)]);
@@ -95,7 +96,7 @@ async function board(pg: PGlite) {
     await app(pg, p.id, `insert into public.note_pages (note_id, page_ct) values ($1, $2)`, [pointer, await p.a.vault.sealPage(pointer, CANVAS)]);
     pointers[p.name] = pointer;
   }
-  return { emil, sara, eve, id, nk, mac, pointers };
+  return { emil, sara, eve, cleo, id, nk, mac, pointers };
 }
 
 const DATA = "Shared with me/Launch plan.app/data.json";
@@ -207,20 +208,23 @@ Deno.test("a viewer's AI reads a shared whiteboard but doesn't change it, nor an
 
 const lines = (text: string) => JSON.parse(text.split("\n").map((l: string) => l.replace(/^\s*\d+\t/, "")).join("\n"));
 const comment = (o: Record<string, unknown>) => ({ version: 1, created: "2026-11-15T09:00:00Z", ...o });
-/** The comments in a device's copy, each as every device resolves it. */
-function commentsOf(d: Device): Record<string, Record<string, unknown>> {
-  const out: Record<string, Record<string, unknown>> = {};
+/** The board's comments as a device reads them (BoardComments.fold): those in its copy of the
+ *  document (from before Can comment), then the comment stream's entries, in order. */
+async function commentsOf(d: Device): Promise<Record<string, Stored>> {
+  const legacy: Stored[] = [];
   for (const id of Object.keys(d.doc.comments ?? {})) {
     // deno-lint-ignore no-explicit-any
     const all = A.getConflicts(d.doc.comments as any, id);
-    const vals = (all ? Object.values(all) : [d.doc.comments![id]]).map((v) => String((v as { val: string }).val ?? v)).sort();
-    const parsed = vals.map((v) => JSON.parse(v)).sort((x, y) => (y.version ?? 1) - (x.version ?? 1));
-    out[id] = parsed[0];
+    const c = resolveRaw((all ? Object.values(all) : [d.doc.comments![id]]).map((v) => String((v as { val: string }).val ?? v)));
+    if (c) legacy.push(c);
   }
-  return out;
+  const rows = await app(d.pg, d.p.id, `select author_id, role, ct from public.note_comments where note_id = $1 order by id`, [d.id]);
+  const entries = [];
+  for (const r of rows) entries.push(entryOf(new TextDecoder().decode(await open3("c", r.ct, d.nk, d.id, r.author_id)), r.author_id, r.role));
+  return Object.fromEntries(fold(legacy, entries).map((c) => [c.id, c]));
 }
 
-Deno.test("a member's AI sees a shared board's open comments and replies as its person's AI, in one sealed change", async () => {
+Deno.test("a member's AI sees a shared board's open comments and replies as its person's AI, in one sealed comment entry", async () => {
   const pg = await schemaDB();
   const { emil, sara, id, nk, mac } = await board(pg);
   // Emil comments on shape "a" on his Mac; an older thread was resolved, with a reply in it.
@@ -245,7 +249,7 @@ Deno.test("a member's AI sees a shared board's open comments and replies as its 
   assertEquals(out.comments_left_out.length, 1);
   assertStringIncludes(out.comments_left_out[0], "is Emil's: its text stays as written");
 
-  const all = (await mac.pull(), commentsOf(mac));
+  const all = (await mac.pull(), await commentsOf(mac));
   assertEquals(all["c-1"].text, "Make this one bigger?");
   assertEquals(Object.keys(all).length, 5, "nothing deleted: the resolved thread and its reply stay");
   const mine = Object.values(all).filter((c) => c.by === sara.id);
@@ -253,19 +257,21 @@ Deno.test("a member's AI sees a shared board's open comments and replies as its 
     ["Sara", "Claude", null, "b", "Who owns this step?"],
     ["Sara", "Claude", "c-1", null, "Done: it's twice as wide now."],
   ]);
-  assert(A.isImmutableString((mac.doc.comments as Record<string, unknown>)[String(mine[0].id)]), "kept as the devices keep them");
-  // One change, hers, named for her AI; sealed, so the server sees no comment.
-  const [u] = (await pg.query<{ author_id: string; client: string; ct: string }>(`select author_id, client, ct from public.note_updates where note_id = $1 order by id desc limit 1`, [id])).rows;
-  assertEquals([u.author_id, u.client], [sara.id, "Claude"]);
-  assert(!u.ct.includes("twice as wide"));
-  assertEquals(A.decodeChange(await open3("u", u.ct, nk, id, sara.id)).message, "Sara's Claude");
+  assertEquals(Object.keys(mac.doc.comments ?? {}).length, 3, "the drawing's document keeps only the comments from before");
+  // One entry in the comment stream, hers, named for her AI; sealed, so the server sees no comment.
+  // The drawing didn't change, so no change of the document.
+  const entries = (await pg.query<{ author_id: string; role: string; client: string; ct: string }>(`select author_id, role, client, ct from public.note_comments where note_id = $1 order by id`, [id])).rows;
+  assertEquals(entries.map((u) => [u.author_id, u.role, u.client]), [[sara.id, "editor", "Claude"]]);
+  assert(!entries[0].ct.includes("twice as wide"));
+  assertStringIncludes(new TextDecoder().decode(await open3("c", entries[0].ct, nk, id, sara.id)), "twice as wide");
+  assertEquals((await pg.query(`select 1 from public.note_updates where note_id = $1 and author_id = $2`, [id, sara.id])).rows.length, 0);
 
   // Resolving: an edit, on what it read (its own write counts as read).
   const again = await tool(pg, sara, "fetch", { id: DATA });
   assertEquals(lines(again.text).collections.comments.length, 3);
   const edit = await tool(pg, sara, "edit", { path: DATA, old_string: `"id": "c-1",`, new_string: `"id": "c-1", "resolved": true,` });
   assertEquals(edit.saved, DATA);
-  const after = (await mac.pull(), commentsOf(mac));
+  const after = (await mac.pull(), await commentsOf(mac));
   assertEquals([after["c-1"].resolved, after["c-1"].version], [true, 2]);
   assertEquals(lines((await tool(pg, sara, "fetch", { id: DATA })).text).collections.comments.map((c: { text: string }) => c.text), ["Who owns this step?"], "the resolved thread and its replies go from data.json");
 });
@@ -277,19 +283,19 @@ Deno.test("comments alone are a change: an AI replying on a shared board it does
   await tool(pg, sara, "fetch", { id: DATA });
   const out = await tool(pg, sara, "edit", { path: DATA, old_string: `"text": "Anyone?"`, new_string: `"text": "Anyone?"\n      }, {\n        "thread": "c-1", "text": "Here"` });
   assertEquals(out.saved, DATA);
-  const all = (await mac.pull(), commentsOf(mac));
+  const all = (await mac.pull(), await commentsOf(mac));
   assertEquals(Object.values(all).map((c) => c.text).sort(), ["Anyone?", "Here"]);
   assertEquals((await mac.pull(), mac.elements()).a.version, 1, "the drawing untouched");
 });
 
-Deno.test("a board shared before comments: the AI's first comment makes the comments map", async () => {
+Deno.test("a board shared before comments: the AI's first comment is the stream's first entry", async () => {
   const pg = await schemaDB();
   const { sara, mac } = await board(pg);
   const json = lines((await tool(pg, sara, "fetch", { id: DATA })).text);
   assertEquals(json.collections, {});
   json.collections.comments = [{ x: 10, y: 20, text: "First" }];
   await tool(pg, sara, "write", { path: DATA, content: JSON.stringify(json) });
-  assertEquals(Object.values((await mac.pull(), commentsOf(mac))).map((c) => [c.text, c.x, c.y]), [["First", 10, 20]]);
+  assertEquals(Object.values((await mac.pull(), await commentsOf(mac))).map((c) => [c.text, c.x, c.y]), [["First", 10, 20]]);
 });
 
 Deno.test("a viewer's AI reads a shared board's comments but doesn't comment", async () => {
@@ -300,7 +306,7 @@ Deno.test("a viewer's AI reads a shared board's comments but doesn't comment", a
   assertEquals(json.collections.comments.map((c: { text: string }) => c.text), ["Check the numbers"]);
   json.collections.comments.push({ thread: "c-1", text: "They look fine" });
   assertStringIncludes(await fails(tool(pg, eve, "write", { path: DATA, content: JSON.stringify(json) })), "view only");
-  assertEquals(Object.keys((await mac.pull(), commentsOf(mac))), ["c-1"]);
+  assertEquals(Object.keys((await mac.pull(), await commentsOf(mac))), ["c-1"]);
 });
 
 Deno.test("a board of the person's own: its AI reads open comments in data.json and replies, kept in its page data", async () => {
@@ -332,4 +338,71 @@ Deno.test("a board of the person's own: its AI reads open comments in data.json 
   const ai = kept.filter((c) => c.ai === "Claude");
   assertEquals(ai.map((c) => [c.by, c.name, c.thread ?? null, c.on ?? null]), [[emil.id, "Emil", "c-1", null], [emil.id, "Emil", null, "b"]]);
   assertEquals(kept.find((c) => c.id === "c-2")?.resolved, true);
+});
+
+Deno.test("a commenter's AI comments on a shared board, and its drawing is refused", async () => {
+  const pg = await schemaDB();
+  const { emil, cleo, id, mac } = await board(pg);
+  await mac.draw((d) => { d.comments = { "c-1": raw(comment({ id: "c-1", on: "a", x: 1, y: 0, by: emil.id, name: "Emil", text: "Bigger?" })) }; });
+  const list = await tool(pg, cleo, "list", { path: "Shared with me/" });
+  assertStringIncludes(JSON.stringify(list), "can comment");
+  const read = await tool(pg, cleo, "fetch", { id: DATA });
+  assertEquals(read.metadata.comments_only, true);
+  assertStringIncludes(read.metadata.shared, "comment on");
+  const json = lines(read.text);
+  // Moving a shape: refused, with nothing written.
+  const moved = structuredClone(json);
+  moved.values.scene.elements[0].x = 400;
+  moved.collections.comments.push({ thread: "c-1", text: "Moved it" });
+  assertStringIncludes(await fails(tool(pg, cleo, "write", { path: DATA, content: JSON.stringify(moved) })), "to comment on: comments can be added, the drawing can't be changed");
+  assertEquals((await pg.query(`select 1 from public.note_comments where note_id = $1`, [id])).rows.length, 0);
+  // A reply and a resolve, the drawing as it was: one entry, hers, stamped commenter.
+  json.collections.comments[0].resolved = true;
+  json.collections.comments.push({ thread: "c-1", text: "Yes, twice as wide" });
+  const out = await tool(pg, cleo, "write", { path: DATA, content: JSON.stringify(json) });
+  assertEquals(out.saved, DATA);
+  const rows = (await pg.query<{ author_id: string; role: string; client: string }>(`select author_id, role, client from public.note_comments where note_id = $1`, [id])).rows;
+  assertEquals(rows.map((r) => [r.author_id, r.role, r.client]), [[cleo.id, "commenter", "Claude"]]);
+  const all = (await mac.pull(), await commentsOf(mac));
+  assertEquals([all["c-1"].text, all["c-1"].resolved, all["c-1"].version], ["Bigger?", true, 2], "anyone resolves; Emil's words stay his");
+  const reply = Object.values(all).find((c) => c.thread === "c-1")!;
+  assertEquals([reply.by, reply.name, reply.ai, reply.text], [cleo.id, "Cleo", "Claude", "Yes, twice as wide"]);
+  assertEquals(mac.elements().a.x, 10, "the drawing untouched");
+  // Its note text is the drawing's too.
+  await tool(pg, cleo, "fetch", { id: "Shared with me/Launch plan.md" });
+  assertStringIncludes(await fails(tool(pg, cleo, "edit", { path: "Shared with me/Launch plan.md", old_string: "Launch plan", new_string: "Launch plans" })), "can't be changed");
+});
+
+Deno.test("an AI's comment keeps the elements its write changed, for Show change", async () => {
+  const pg = await schemaDB();
+  const { sara, mac } = await board(pg);
+  const json = lines((await tool(pg, sara, "fetch", { id: DATA })).text);
+  json.values.scene.elements[1].x = 320;
+  json.values.scene.elements.push(shape("arrow-1", { type: "arrow", x: 130, y: 30, index: "a2" }));
+  json.collections.comments = [{ on: "b", text: "Moved b right and linked it" }];
+  await tool(pg, sara, "write", { path: DATA, content: JSON.stringify(json) });
+  const [c] = Object.values((await mac.pull(), await commentsOf(mac)));
+  assertEquals([c.text, (c.changes ?? []).slice().sort()], ["Moved b right and linked it", ["arrow-1", "b"]]);
+  // A reply that changes nothing names nothing.
+  const again = lines((await tool(pg, sara, "fetch", { id: DATA })).text);
+  again.collections.comments.push({ thread: c.id, text: "Nothing else" });
+  await tool(pg, sara, "write", { path: DATA, content: JSON.stringify(again) });
+  const r = Object.values((await mac.pull(), await commentsOf(mac))).find((x) => x.thread === c.id)!;
+  assertEquals(r.changes, undefined);
+});
+
+Deno.test("on a board of the person's own, an AI's comment keeps the elements its write changed", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil");
+  const id = await note(pg, emil.a, "Roadmap");
+  const data = { values: { scene: { type: "excalidraw", version: 2, elements: [shape("a"), shape("b", { x: 200 })], appState: {}, files: {} } }, collections: {} };
+  await app(pg, emil.id, `insert into public.note_pages (note_id, page_ct, data_ct) values ($1, $2, $3)`, [id, await emil.a.vault.sealPage(id, CANVAS), await emil.a.vault.sealPageData(id, JSON.stringify(data))]);
+  const path = "Roadmap.app/data.json";
+  const json = lines((await tool(pg, emil, "fetch", { id: path })).text);
+  json.values.scene.elements[0].width = 240;
+  json.collections.comments = [{ on: "a", text: "Twice as wide" }];
+  await tool(pg, emil, "write", { path, content: JSON.stringify(json) });
+  const [row] = (await pg.query<{ data_ct: string }>(`select data_ct from public.note_pages where note_id = $1`, [id])).rows;
+  const kept = JSON.parse(await emil.a.vault.openPageData(id, row.data_ct)).collections.comments as Record<string, unknown>[];
+  assertEquals(kept.map((c) => [c.text, c.changes]), [["Twice as wide", ["a"]]]);
 });

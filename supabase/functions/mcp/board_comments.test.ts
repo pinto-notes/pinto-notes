@@ -130,3 +130,39 @@ Deno.test("edited, deleted and mentions (round 12): kept as written, shown as th
   assertStringIncludes(r.refused[0], "stays deleted");
   assertStringIncludes(r.refused[1], "deleted");
 });
+
+// MARK: A shared board's comment stream (Can comment)
+
+import { entryJSON, entryOf, fold, toRestate } from "./board_comments.ts";
+
+const vectors = JSON.parse(await Deno.readTextFile(new URL("../_shared/comment-vectors.json", import.meta.url)));
+type V = { name: string; legacy: Stored[]; entries: { author: string; role: string; moved?: boolean; comments: unknown[]; epoch: number }[] };
+const shown = (list: Stored[]) => list.map((c) => ({ id: c.id, by: c.by, text: c.text, version: c.version ?? 1, resolved: !!c.resolved, deleted: !!c.deleted, ...(c.thread ? { thread: c.thread } : {}) }));
+
+Deno.test("the comment stream folds as the vectors say (the app and the browser check the same ones)", () => {
+  for (const v of vectors.fold as (V & { expect: unknown[] })[]) {
+    assertEquals(shown(fold(v.legacy.map((r) => parseStored(r)!), v.entries)), v.expect, v.name);
+  }
+  for (const v of vectors.restate as (V & { current: number; expect: string[] })[]) {
+    const legacy = v.legacy.map((r) => parseStored(r)!);
+    const full = fold(legacy, v.entries), bare = fold([], v.entries.filter((e) => e.epoch === v.current));
+    assertEquals(toRestate(full, bare).map((c) => c.id), v.expect, v.name);
+  }
+});
+
+Deno.test("an entry, sealed as JSON and read back; anything malformed holds nothing", () => {
+  const c = thread("c-x", { by: me.id, changes: ["box", "arrow"] });
+  const e = entryOf(entryJSON([c]), me.id, "commenter");
+  assertEquals(fold([], [e]).map((x) => [x.id, x.text, x.changes]), [["c-x", "About c-x", ["box", "arrow"]]]);
+  assertEquals(entryOf(entryJSON([c], true), emil, "owner").moved, true);
+  assertEquals(entryOf("{not json", me.id, "commenter").comments, []);
+  assertEquals(entryOf(`{"comments": "nope"}`, me.id, "commenter").comments, []);
+});
+
+Deno.test("an AI's new comment keeps what the same write changed, for Show change", () => {
+  const { changed } = merge([thread("c-open")], [{ thread: "c-open", text: "Added the arrow from Inbox to Idea" }], me, new Set(["box"]), at, ["inbox", "arrow-1"]);
+  assertEquals(changed[0].changes, ["inbox", "arrow-1"]);
+  assertEquals(parseStored(JSON.parse(json(changed[0])))!.changes, ["inbox", "arrow-1"]);
+  // A write that changed nothing in the drawing: no change to show.
+  assertEquals(merge([thread("c-open")], [{ thread: "c-open", text: "Looks good" }], me, new Set(["box"]), at).changed[0].changes, undefined);
+});

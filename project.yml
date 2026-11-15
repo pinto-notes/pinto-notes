@@ -316,6 +316,8 @@ targets:
         buildPhase: resources
       - path: supabase/functions/_shared/collab-vectors.json
         buildPhase: resources
+      - path: supabase/functions/_shared/comment-vectors.json
+        buildPhase: resources
       - path: supabase/functions/_shared/keycopy-vectors.json
         buildPhase: resources
       - path: supabase/migrations/20260929230000_tip_events.sql

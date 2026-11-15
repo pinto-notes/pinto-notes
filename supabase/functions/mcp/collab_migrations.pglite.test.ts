@@ -18,6 +18,10 @@ const renamed = new Map<string, string>(
     .filter((e): e is [string, string] => !!e[1]),
 );
 
+/** Staging ran the renamed files again on 2026-11-04; what came after went in once, on both. */
+const lastRenamed = [...renamed.keys()].sort().at(-1)!;
+const upTo = all.filter((n) => n <= lastRenamed), later = all.filter((n) => n > lastRenamed);
+
 async function fresh(): Promise<PGlite> {
   const pg = new PGlite({ extensions: { pg_trgm } });
   await pg.exec(stubs);
@@ -72,19 +76,21 @@ Deno.test("staging (old names first, the release's later migrations, then the ne
 
   // Staging's order: each renamed file at its old place, then every file under its new name.
   const staging = await fresh();
-  const old = all.map((n) => ({ sort: renamed.get(n) ? `${renamed.get(n)}.sql` : n, file: n })).sort((a, b) => a.sort < b.sort ? -1 : 1);
+  const old = upTo.map((n) => ({ sort: renamed.get(n) ? `${renamed.get(n)}.sql` : n, file: n })).sort((a, b) => a.sort < b.sort ? -1 : 1);
   await run(staging, old.map((o) => o.file));
   await run(staging, [...renamed.keys()]);
+  await run(staging, later);
 
   assertEquals(await shape(staging), await shape(production));
 });
 
 Deno.test("running the collaboration migrations twice changes nothing", async () => {
   const pg = await fresh();
-  await run(pg, all);
+  await run(pg, upTo);
   const once = await shape(pg);
   await run(pg, [...renamed.keys()]);
   assertEquals(await shape(pg), once);
+  await run(pg, later);
   // One collab_unshare (with p_upto), one collab_open_link (with the note's head).
   const fns = await pg.query<{ sig: string }>(`select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as sig
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('collab_unshare', 'collab_open_link') order by 1`);
