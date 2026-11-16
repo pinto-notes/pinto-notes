@@ -667,36 +667,38 @@ struct CollaborateRows: View {
                 // Files or an app: not shared with people yet, and the popover says why up front.
                 line(why, problem: false)
             } else if share.isOwner {
-                HStack(spacing: 8) {
-                    Text("Join by Link").font(.system(size: 13))
-                    Spacer(minLength: 0)
-                    // A neutral menu: the system's took the accent, loud for a setting left at Off.
-                    Menu {
-                        Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                if !share.state.notSharedYet {
+                    HStack(spacing: 8) {
+                        Text("Join by Link").font(.system(size: 13))
+                        Spacer(minLength: 0)
+                        // A neutral menu: the system's took the accent, loud for a setting left at Off.
+                        Menu {
+                            Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                                ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                            }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text(share.state.access.rawValue).font(.system(size: 13))
+                                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
+                            }
+                            .foregroundStyle(Color.muted)
+                            // Borderless, as the people's pop-ups above it are.
+                            .padding(.horizontal, 6)
+                            .frame(height: 24)
+                            .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
+                            .padding(.trailing, -6)
                         }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(share.state.access.rawValue).font(.system(size: 13))
-                            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
-                        }
-                        .foregroundStyle(Color.muted)
-                        // Borderless, as the people's pop-ups above it are.
-                        .padding(.horizontal, 6)
-                        .frame(height: 24)
-                        .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
-                        .padding(.trailing, -6)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .modifier(HoverTracking(hovering: $accessHover))
+                        .fixedSize()
+                        .disabled(share.working != nil)
+                        .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
+                        .accessibilityIdentifier("share.access")
                     }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .modifier(HoverTracking(hovering: $accessHover))
-                    .fixedSize()
-                    .disabled(share.working != nil)
-                    .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
-                    .accessibilityIdentifier("share.access")
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }
                 else if share.done == .linkChanged { DoneLine(text: ShareController.Done.linkChanged.text).font(.system(size: 11)) }

@@ -20,6 +20,9 @@ struct ShareState: Equatable {
         case edit = "Can edit", view = "Can view", off = "Off"
         var id: String { rawValue }
     }
+    /// Nobody else is in the note and it has no link yet. Join by Link stays out of sight then: it
+    /// read "Off" right above a button that makes a link anyone can join (Emil, 16 November 2026).
+    var notSharedYet: Bool { access == .off && people.count <= 1 }
     struct Person: Identifiable, Equatable {
         let id: UUID
         var name: String
@@ -80,14 +83,16 @@ struct ShareForm: View {
                         .listRowBackground(Color.clear)
                 }
                 Section {
-                    Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                        ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
-                    } label: {
-                        Text("Join by Link")
+                    if !state.notSharedYet {
+                        Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                        } label: {
+                            Text("Join by Link")
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(share.working != nil)
+                        .accessibilityIdentifier("share.access")
                     }
-                    .pickerStyle(.menu)
-                    .disabled(share.working != nil)
-                    .accessibilityIdentifier("share.access")
                 } footer: {
                     footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state), done: share.done == .linkChanged)
                 }

@@ -277,7 +277,7 @@ enum ShareCopy {
 
     /// Under the link: what it does now, or, before the note is shared, what Invite People will do.
     static func link(_ state: ShareState) -> String {
-        state.access == .off && state.people.count <= 1 ? notSharedYet : link(state.access)
+        state.notSharedYet ? notSharedYet : link(state.access)
     }
 
     /// Collaborate's line, under the tabs as every way has one.
