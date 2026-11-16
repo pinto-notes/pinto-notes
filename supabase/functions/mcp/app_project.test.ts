@@ -1,7 +1,7 @@
 // The app-project format, path rules, edits, compile and import checks.
 //   cd supabase/functions/mcp && deno test -A app_project.test.ts
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "jsr:@std/assert@1";
-import { BARE_IMPORTS, binaryType, brokenImports, cleanPath, compile, editText, isBinaryBytes, MAX_BINARY_BYTES, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, packBytes, storedDeflate, unpackBytes, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
+import { BARE_IMPORTS, binaryType, brokenImports, cleanPath, compile, dynamicImportNotes, editText, isBinaryBytes, MAX_BINARY_BYTES, MAX_FILE_BYTES, MAX_PROJECT_BYTES, numbered, packBinary, packBytes, storedDeflate, unpackBytes, parseStored, projectProblems, resolveFrom, serialize, sourceProblems, STACK_NAMES, unpackBinary } from "./app_project.ts";
 
 Deno.test("a one-file app stays plain HTML; a project round-trips as JSON", () => {
   const html = "<!doctype html><p>hi</p>";
@@ -55,6 +55,23 @@ Deno.test("imports: missing files, unknown bare names, plain-http addresses and 
   assert(!r.includes("preact\""));
   assertStringIncludes(projectProblems({ ...p, files: { "/index.html": `<script type="importmap">{}</script>` } }).join(), "import map");
   assertStringIncludes(projectProblems({ ...p, files: { "/a.js": "" } }).join(), "/index.html");
+});
+
+Deno.test("an import() a page never reaches doesn't hold the app back (v86 calls import(\"node:fs/promises\") only under Node); a static import still does", () => {
+  const v86 = `"use strict";(function(){var n="undefined"!==typeof process;async function load(f){if(n){const fs=await import("node:fs/promises");return fs.readFile(f)}const r=await fetch(f);return r.arrayBuffer()}const h=n?import("node:crypto"):Promise.resolve(null);window.V86=function(){}})();`;
+  const p = { amberApp: 1 as const, compiled: {}, files: {
+    "/index.html": `<script src="libv86.js"></script><script src="main.js"></script>`,
+    "/libv86.js": v86,
+    "/main.js": `const lazy = () => import("./missing.js");`,
+  } };
+  assertEquals(brokenImports(p), []);
+  const notes = dynamicImportNotes(p).join("\n");
+  assertStringIncludes(notes, `/libv86.js calls import("node:fs/promises")`);
+  assertStringIncludes(notes, `/main.js calls import("./missing.js")`);
+  const fixed = { ...p, files: { ...p.files, "/main.js": `import fs from "node:fs";\nimport x from "./missing.js";` } };
+  const r = brokenImports(fixed).join("\n");
+  assertStringIncludes(r, `"node:fs"`);
+  assertStringIncludes(r, "imports ./missing.js, but there's no such file");
 });
 
 Deno.test("a .js file the page loads with a plain <script src> runs as written, not as a compiled module (Doom's loader)", async () => {

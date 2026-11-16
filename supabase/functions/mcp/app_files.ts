@@ -7,7 +7,7 @@
 import { sampleData, sampleNote } from "./app_sample.ts";
 import { flakyTests, render as renderApp, renderedFindings, testSummary } from "./app_check.ts";
 import {
-  type Binary, binarySize, brokenImports, cleanPath, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, parseStored, type Project, projectProblems, sourceProblems, styleWarnings,
+  type Binary, binarySize, brokenImports, cleanPath, dynamicImportNotes, compileMany, editText, isReact, isTest, linkProject, needsCompile, numbered, parseStored, type Project, projectProblems, sourceProblems, styleWarnings,
 } from "./app_project.ts";
 import { scaffold } from "./app_scaffold.ts";
 import { openProject, storeProject, supplier } from "./app_blobs.ts";
@@ -123,7 +123,7 @@ export async function saveProject(tx: Tx, c: Call, n: Note, unlinked: Project, c
   const problems = [...projectProblems(p), ...sourceProblems(p)];
   if (problems.length) throw new ToolError(`Not saved:\n- ${problems.join("\n- ")}`);
   const broken = brokenImports(p);
-  const warnings = styleWarnings(p);
+  const warnings = [...styleWarnings(p), ...dynamicImportNotes(p)];
   // Each binary file once, named by its hash; the project's text names them (app_blobs.ts). The
   // render service gets the same text and asks for the parts it doesn't have yet.
   const kept = await storeProject(tx, c, p);

@@ -318,12 +318,31 @@ async function tailwind(css: string, sources: string): Promise<string> {
   return r.css;
 }
 
-/** Static import specifiers in a module (import … from "x", import "x", import("x"), export … from "x"). */
-export function importsOf(code: string): string[] {
+/** Static import specifiers in a module (import … from "x", import "x", export … from "x"), and with
+ *  `dynamic`, the ones a call to import("x") names. */
+export function importsOf(code: string, dynamic = true): string[] {
   const out = new Set<string>();
   for (const m of code.matchAll(/(?:^|[;\n}])\s*(?:import|export)\s*(?:[\w*{}\s,$]+?\s*from\s*)?["']([^"']+)["']/g)) out.add(m[1]);
-  for (const m of code.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) out.add(m[1]);
+  if (dynamic) for (const m of code.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) out.add(m[1]);
   return [...out];
+}
+
+/** import("x") calls that name nothing the app has. Only a static import stops a page from loading;
+ *  an import() runs when the code reaches it, and code built for the browser and Node alike (v86,
+ *  Emscripten's loaders) has import("node:fs") on paths a page never takes (2026-11-16). So these
+ *  are notes for the AI, never a reason to hold a version back. */
+export function dynamicImportNotes(p: Project): string[] {
+  const out: string[] = [];
+  for (const [path, text] of Object.entries(p.files)) {
+    if (!/\.(m?js|jsx|tsx?)$/.test(path)) continue;
+    const fixed = new Set(importsOf(text, false));
+    for (const spec of importsOf(text)) {
+      if (fixed.has(spec) || /^https:\/\//.test(spec)) continue;
+      const missing = /^[./]|^@\//.test(spec) ? !resolveImport(p, path, spec) : !BARE_IMPORTS.includes(spec) && !spec.startsWith("@radix-ui/");
+      if (missing) out.push(`${path} calls import("${spec}"), which the app doesn't have: that call fails if the page reaches it.`);
+    }
+  }
+  return out.slice(0, 3);
 }
 
 /** Where a relative or absolute specifier points, from the importing file. */
@@ -341,7 +360,7 @@ export function brokenImports(p: Project): string[] {
   const out: string[] = [];
   for (const [path, text] of Object.entries(p.files)) {
     if (/\.(m?js|jsx|tsx?)$/.test(path)) {
-      for (const spec of importsOf(text)) {
+      for (const spec of importsOf(text, false)) {
         // An https module loads from the internet like on any web page (2026-11-14); plain http and
         // scheme-relative addresses don't load in the app.
         if (/^https:\/\//.test(spec)) continue;
