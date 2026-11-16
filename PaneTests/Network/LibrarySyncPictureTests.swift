@@ -109,6 +109,10 @@ extension NetworkFaults {
         let made = CanvasLibrary(folder: nil), synced = CanvasLibrary(folder: nil)
         _ = made.importLibrary(Self.basicShapes, source: "Basic shapes")
         _ = made.importLibrary(Self.dataFlow, source: "Data flow")
+        // A full library, as a team's grows: more than 12 items, so it has its search field and
+        // scrolls. Made on one device, the same on the Mac and the iPhone (round 14: the Mac's
+        // picture added Planning after its sync, so the iPhone's showed three groups to its four).
+        _ = made.importLibrary(Self.planning, source: "Planning")
         let j = try await CanvasNativeUITests.Joined(scene: CanvasNativeUITests.flowchart)
         defer { j.close() }
         try await j.ready()
@@ -136,7 +140,7 @@ extension NetworkFaults {
         await one.sync()
         await other.sync()
         #expect(synced.items.map(\.title) == made.items.map(\.title) && synced.items.map(\.source) == made.items.map(\.source))
-        #expect(CanvasLibraryGrid(synced.items).groups.map(\.title) == ["Saved", "Data flow", "Basic shapes"])
+        #expect(CanvasLibraryGrid(synced.items).groups.map(\.title) == ["Saved", "Planning", "Data flow", "Basic shapes"])
         #expect(made.items.prefix(3).map(\.title) == ["Leaf logo", "Publish", "Idea"], "each save took what was selected then")
         let picture = synced.items.first { $0.name == "Leaf logo" }
         #expect((picture?.files["leaf"] as? [String: Any])?["dataURL"] as? String == url, "the picture came with it")
@@ -144,14 +148,58 @@ extension NetworkFaults {
     }
 
     #if os(macOS)
+    /// An open library takes another device's additions, renames and removals as they sync, and
+    /// keeps its place: how far it's scrolled and the item picked (round 14, Sol #2: an open library
+    /// didn't change until it was opened again). Realtime brings the nudge (SyncEngine.start, the
+    /// library's table); here the pull it starts is the other engine's sync.
+    @Test func anOpenLibraryTakesAnotherDevicesChangesAndKeepsItsPlace() async throws {
+        let made = CanvasLibrary(folder: nil), here = CanvasLibrary(folder: nil)
+        _ = made.importLibrary(Self.basicShapes, source: "Basic shapes")
+        _ = made.importLibrary(Self.dataFlow, source: "Data flow")
+        _ = made.importLibrary(Self.planning, source: "Planning")
+        for i in 0..<4 { _ = made.add(elements: [Self.element(["type": "rectangle", "width": 100, "height": 60, "backgroundColor": "#a5d8ff"])], name: "Box \(i)") }
+        let (one, a) = try engine(made), (other, b) = try engine(here)
+        await one.sync()
+        await other.sync()
+        #expect(here.items.count == 15, "\(here.items.map(\.title))")
+        let lane = try #require(here.items.first { $0.title == "Lane" })
+        let size = CGSize(width: CanvasLibraryPopover.width, height: CanvasLibraryPopover.gridHeight(CanvasLibraryGrid(here.items)) + 44 + 34)
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: CanvasController(), library: here, startsOn: lane.id)
+            .frame(width: size.width, height: size.height, alignment: .top), size: size)
+        defer { ax.close() }
+        await ax.settle(500)
+        let v = try #require(ax.window.contentView)
+        let scroll = try #require(MacWindowChromeTests.find(NSScrollView.self, in: v))
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: 120))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        await ax.settle(200)
+        let at = scroll.contentView.bounds.origin
+        func picked() -> [String] {
+            ax.all("canvas.library.item").filter { (OffscreenAX.Element.value($0.ax, kAXSelectedAttribute) as? Bool) == true }.map(\.text)
+        }
+        #expect(picked().contains { $0.contains("Lane") }, "Lane is picked: \(picked())")
+        // Elsewhere: one added, one renamed, one removed, each synced up.
+        _ = made.add(elements: [Self.element(["type": "ellipse", "width": 90, "height": 90, "backgroundColor": "#ffec99"])], name: "Retro card")
+        made.rename(try #require(made.items.first { $0.title == "Process" }).id, to: "Step")
+        made.remove(try #require(made.items.first { $0.title == "Risk" }).id)
+        await one.sync()
+        await other.sync()
+        await ax.settle(400)
+        let titles = ax.all("canvas.library.item").map(\.text)
+        #expect(titles.contains { $0.contains("Retro card") }, "the new item shows: \(titles)")
+        #expect(titles.contains { $0.contains("Step") } && !titles.contains { $0.contains("Process") }, "the new name shows: \(titles)")
+        #expect(!titles.contains { $0.contains("Risk") }, "the removed item went: \(titles)")
+        #expect(scroll.contentView.bounds.origin == at, "where it was scrolled: \(at) → \(scroll.contentView.bounds.origin)")
+        #expect(picked().contains { $0.contains("Lane") }, "Lane is still picked: \(picked())")
+        _ = [a, b]
+    }
+
     @Test func theLibraryOnTheMacAfterASync() async throws {
         guard let dir = Self.shotsFolder else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let s = try await synced()
-        // A full library, as a team's grows: more than 12 items, so it has its search field and
-        // scrolls, with the footer in its own row under the last one (round 13: retake on this
-        // build, with 13 or more).
-        _ = s.synced.importLibrary(Self.planning, source: "Planning")
+        // More than 12: its search field, and it scrolls, with the footer in its own row under the
+        // last one (round 13).
         #expect(s.synced.items.count >= 13 && CanvasLibraryGrid.showsSearch(s.synced.items.count), "\(s.synced.items.count) items")
         // The board draws each item's picture, as the popover asks it to.
         let j = try await CanvasNativeUITests.Joined()
@@ -254,6 +302,52 @@ extension NetworkFaults {
             let spread = try #require(Self.spread(image, x: 0.74...0.88, y: 0.93...0.965))
             #expect(spread < 10, "nothing reads through the sheet over the dock (\(dark ? "dark" : "light")): channels vary by \(spread)")
         }
+        // Its end: the last row's names whole, above the sheet's foot (round 14: no picture showed it).
+        window.overrideUserInterfaceStyle = .light
+        func scrollView(_ v: UIView) -> UIScrollView? { (v as? UIScrollView).flatMap { $0.contentSize.height > $0.bounds.height ? $0 : nil } ?? v.subviews.lazy.compactMap(scrollView).first }
+        let sheetView = try #require(window.rootViewController?.presentedViewController?.view)
+        if let list = scrollView(sheetView) {
+            list.setContentOffset(CGPoint(x: 0, y: list.contentSize.height - list.bounds.height + list.adjustedContentInset.bottom), animated: false)
+        }
+        try await Task.sleep(for: .seconds(1))
+        try shot("library-sync-iphone-end-light")
+        // Open, it takes the Mac's changes as they sync (round 14, Sol #2): an item added there,
+        // one renamed, one removed; where it's scrolled stays.
+        let offset = scrollView(sheetView)?.contentOffset
+        _ = s.made.add(elements: [Self.element(["type": "ellipse", "width": 90, "height": 90, "backgroundColor": "#ffec99"])], name: "Retro card")
+        s.made.rename(try #require(s.made.items.first { $0.title == "Process" }).id, to: "Step")
+        s.made.remove(try #require(s.made.items.first { $0.title == "Risk" }).id)
+        for case let engine as SyncEngine in s.keep { await engine.sync() }
+        for _ in 0..<50 where !s.synced.items.contains(where: { $0.title == "Retro card" }) { try await Task.sleep(for: .milliseconds(100)) }
+        #expect(s.synced.items.contains { $0.title == "Retro card" } && s.synced.items.contains { $0.title == "Step" }, "\(s.synced.items.map(\.title))")
+        #expect(!s.synced.items.contains { $0.title == "Risk" || $0.title == "Process" })
+        for _ in 0..<50 where !s.synced.items.allSatisfy({ s.synced.thumbnails[$0.id] != nil }) { try await Task.sleep(for: .milliseconds(100)) }
+        try await Task.sleep(for: .seconds(1))
+        #expect(scrollView(sheetView)?.contentOffset == offset, "where it was scrolled")
+        try shot("library-sync-iphone-live-light")
+        // Scrolled so the first row sits under the search field: nothing of it shows through the
+        // field or the bar around it (round 15: a tile's picture and name read through the field).
+        let list = try #require(scrollView(sheetView))
+        list.setContentOffset(.zero, animated: false)
+        try await Task.sleep(for: .seconds(1))
+        let under = try shot("library-sync-iphone-under-field-light")
+        func field(_ v: UIView) -> UIView? { (v is UISearchTextField) ? v : v.subviews.lazy.compactMap(field).first }
+        let search = try #require(field(sheetView))
+        let box = search.convert(search.bounds, to: window)
+        let w = Double(window.bounds.width), h = Double(window.bounds.height)
+        // The field's right half (the placeholder is on its left), and the bar above it, left of the title.
+        let fieldX: ClosedRange<Double> = Double(box.minX + box.width * 0.55) / w...Double(box.maxX - 12) / w
+        let fieldY: ClosedRange<Double> = Double(box.minY + box.height * 0.25) / h...Double(box.maxY - box.height * 0.25) / h
+        let inField = try #require(Self.spread(under, x: fieldX, y: fieldY))
+        #expect(inField < 10, "nothing shows through the search field: channels vary by \(inField)")
+        let barX: ClosedRange<Double> = Double(box.minX + 24) / w...Double(box.minX + box.width * 0.3) / w
+        let barY: ClosedRange<Double> = Double(box.minY - 10) / h...Double(box.minY - 3) / h
+        let bar = try #require(Self.spread(under, x: barX, y: barY))
+        #expect(bar < 10, "nothing shows through the bar above the field: channels vary by \(bar)")
+        // Back to the top, with the new item first.
+        list.setContentOffset(CGPoint(x: 0, y: -list.adjustedContentInset.top), animated: false)
+        try await Task.sleep(for: .seconds(1))
+        try shot("library-sync-iphone-live-top-light")
         // A tap puts it on the board (CanvasLibrarySheet.add), and the sheet goes.
         let count = "amber._canvas.api.getSceneElements().length"
         let before = try await web.evaluateJavaScript(count) as? Int ?? 0

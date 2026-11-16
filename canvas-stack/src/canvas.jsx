@@ -147,7 +147,7 @@ const ACTIONS = {
 };
 const TOOLS = new Set(["selection", "hand", "rectangle", "diamond", "ellipse", "arrow", "line", "freedraw", "text", "eraser", "frame", "laser"]);
 /** What changes the drawing, refused on a board you can only view; and the actions that only look. */
-const EDITS = new Set(["style", "insert", "sticky", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards", "commentHere", "restoreVersion"]);
+const EDITS = new Set(["style", "insert", "sticky", "grow", "cropDone", "presentOrder", "libraryInsert", "template", "addCards", "image", "background", "cards", "commentHere", "restoreVersion"]);
 const LOOKS = new Set(["zoomIn", "zoomOut", "resetZoom", "zoomToFit"]);
 
 /** Keys that would open the engine's own dialogs and panels, which aren't shown here. */
@@ -560,6 +560,135 @@ export function branchInView(api, node, child) {
   flushSync(() => api.updateScene({ appState: { scrollX, scrollY, ...(nz !== z ? { zoom: { value: nz } } : {}) }, captureUpdate: CaptureUpdateAction.NEVER }));
 }
 
+// MARK: Templates that grow (round 15)
+
+/**
+ * The part of a template that has more of its kind, from what's selected (or being typed in): a
+ * Kanban or Retro column (the column, its heading or a card in it; customData.pintoColumn) or a
+ * Timeline step (its box or its dot; customData.pintoStep). { kind: "column" | "step", from }, or
+ * null. Add Column and Add Step (Tab, the selection bar, the right-click menu) grow from it.
+ */
+export function growsFrom(api) {
+  const s = api.getAppState();
+  const ids = Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]);
+  const els = api.getSceneElements();
+  let one = ids.length === 1 ? els.find((e) => e.id === ids[0]) : null;
+  const typing = s.editingTextElement;
+  if (typing && typing.containerId) one = els.find((e) => e.id === typing.containerId) || one;
+  if (!one || one.isDeleted || one.type === "arrow" || one.type === "line") return null;
+  if (marked(one, "pintoStep")) return { kind: "step", from: one };
+  if (marked(one, "pintoColumn")) return { kind: "column", from: one };
+  const [x1, y1, x2, y2] = getCommonBounds([one]);
+  const lane = els.find((e) => marked(e, "pintoColumn") && !e.isDeleted && x1 >= e.x - 1 && x2 <= e.x + e.width + 1 && y1 >= e.y - 1 && y2 <= e.y + e.height + 1);
+  return lane ? { kind: "column", from: lane } : null;
+}
+
+/** One step's change: these elements changed or new, in one step Undo takes back. */
+function commit(api, changed, selected) {
+  const byId = new Map(changed.map((e) => [e.id, e]));
+  const before = api.getSceneElementsIncludingDeleted();
+  const kept = before.map((e) => byId.get(e.id) || e);
+  const added = changed.filter((e) => !before.some((b) => b.id === e.id));
+  api.updateScene({ elements: [...kept, ...added], appState: { selectedElementIds: { [selected]: true }, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  api.setActiveTool({ type: "selection" });
+}
+const bump = (e, more = {}) => ({ ...e, ...more, version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31), updated: Date.now() });
+const boundTo = (e, ...ids) => bump(e, { boundElements: [...(e.boundElements || []), ...ids.map((id) => ({ id, type: "arrow" }))] });
+
+/**
+ * Add Column: a column like the last one of the row the selected one is in, the same gap to its
+ * right, with its heading ("New column") being typed over. No cards yet: S adds one. Returns the
+ * new column's id.
+ */
+export const NEW_COLUMN = "New column";
+export function addColumn(api, lane) {
+  const all = api.getSceneElements();
+  const row = all.filter((e) => marked(e, "pintoColumn") && Math.abs(e.y - lane.y) < 24).sort((a, b) => a.x - b.x);
+  const last = row[row.length - 1] || lane, prev = row.length > 1 ? row[row.length - 2] : null;
+  const x = last.x + (prev ? last.x - prev.x : last.width + 20);
+  // Its heading: the words at the column's top, as the template wrote them.
+  const head = all.find((e) => e.type === "text" && !e.containerId && e.x >= last.x && e.x < last.x + last.width && e.y >= last.y && e.y < last.y + 48);
+  const [col] = convertToExcalidrawElements([{
+    type: "rectangle", x, y: last.y, width: last.width, height: Math.min(...row.map((e) => e.height)), strokeColor: last.strokeColor,
+    backgroundColor: last.backgroundColor, fillStyle: last.fillStyle, strokeWidth: last.strokeWidth, roughness: last.roughness,
+    roundness: last.roundness, customData: { pintoColumn: true },
+  }], { regenerateIds: true });
+  const [title] = convertToExcalidrawElements([{
+    type: "text", x: x + (head ? head.x - last.x : 16), y: head ? head.y : last.y + 14, text: NEW_COLUMN,
+    fontSize: head ? head.fontSize : 20, fontFamily: head ? head.fontFamily : undefined, strokeColor: head ? head.strokeColor : "#2a1d10",
+  }], { regenerateIds: true });
+  const placed = [col, title].map((e) => (last.frameId ? { ...e, frameId: last.frameId } : e));
+  commit(api, placed, title.id);
+  branchInView(api, last, placed[0]);
+  // Typing over its heading at once: the engine selects the words as it starts.
+  if (engine && typeof engine.startTextEditing === "function") {
+    const t = api.getSceneElements().find((e) => e.id === title.id);
+    if (t) engine.startTextEditing({ sceneX: t.x + t.width / 2, sceneY: t.y + t.height / 2 });
+  }
+  return col.id;
+}
+
+/**
+ * Add Step: the timeline's next step at its end, the same distance on: a dot on the line, joined
+ * to the last by the line, and a box on the side the last one's isn't, joined to its dot, in the
+ * colour of the one before on that side; typed into at once. Returns the new box's id.
+ */
+export function addStep(api, part) {
+  const all = api.getSceneElements();
+  const kind = (e) => e.customData && e.customData.pintoStep;
+  const cx = (e) => e.x + e.width / 2;
+  const steps = all.filter((e) => kind(e) === "step");
+  const anyDot = kind(part) === "dot" ? part : all.filter((e) => kind(e) === "dot").sort((a, b) => Math.abs(cx(a) - cx(part)) - Math.abs(cx(b) - cx(part)))[0];
+  if (!anyDot) return null;
+  const dots = all.filter((e) => kind(e) === "dot" && Math.abs(e.y - anyDot.y) < 4).sort((a, b) => a.x - b.x);
+  const last = dots[dots.length - 1], prev = dots.length > 1 ? dots[dots.length - 2] : null;
+  const stepOf = (d) => d && steps.find((e) => Math.abs(cx(e) - cx(d)) < 4);
+  const lastStep = stepOf(last), sameSide = stepOf(prev) || lastStep;
+  if (!lastStep) return null;
+  const x = last.x + (prev ? last.x - prev.x : 150), mid = x + last.width / 2;
+  const lineY = last.y + last.height / 2;
+  const above = lastStep.y > lineY;
+  // On the other side from the last: where the one before it is, else its mirror across the line.
+  const y = sameSide !== lastStep ? sameSide.y : 2 * lineY - lastStep.y - lastStep.height;
+  const joins = (a, b) => all.find((e) => e.type === "arrow" && e.startBinding && e.endBinding
+    && ((e.startBinding.elementId === a.id && e.endBinding.elementId === b.id) || (e.startBinding.elementId === b.id && e.endBinding.elementId === a.id)));
+  const lineLike = (prev && joins(prev, last)) || null, stemLike = joins(lastStep, last) || lineLike;
+  const look = (a) => ({
+    strokeColor: a ? a.strokeColor : "#2a1d10", strokeWidth: a ? a.strokeWidth : 2, strokeStyle: a ? a.strokeStyle : "solid",
+    roughness: a ? a.roughness : 1, startArrowhead: a ? a.startArrowhead : null, endArrowhead: a ? a.endArrowhead : null,
+  });
+  const [dot] = convertToExcalidrawElements([{
+    type: last.type, x, y: last.y, width: last.width, height: last.height, strokeColor: last.strokeColor, backgroundColor: last.backgroundColor,
+    fillStyle: last.fillStyle, strokeWidth: last.strokeWidth, roughness: last.roughness, customData: { pintoStep: "dot" },
+  }], { regenerateIds: true });
+  const [box] = convertToExcalidrawElements([{
+    type: "rectangle", x: mid - lastStep.width / 2, y, width: lastStep.width, height: lastStep.height, strokeColor: lastStep.strokeColor,
+    backgroundColor: sameSide.backgroundColor, fillStyle: lastStep.fillStyle, strokeWidth: lastStep.strokeWidth, roughness: lastStep.roughness,
+    roundness: lastStep.roundness, customData: { pintoStep: "step" },
+  }], { regenerateIds: true });
+  const arrow = (a, b, sx, sy, ex, ey, like) => {
+    const [e] = convertToExcalidrawElements([{ type: "arrow", x: sx, y: sy, width: ex - sx, height: ey - sy, points: [[0, 0], [ex - sx, ey - sy]], ...look(like) }], { regenerateIds: true });
+    return { ...e, startBinding: { elementId: a.id, focus: 0, gap: 1 }, endBinding: { elementId: b.id, focus: 0, gap: 1 } };
+  };
+  // The line on from the last dot; the new box's stem, from the box above the line, else to it.
+  const line = arrow(last, dot, last.x + last.width + 1, lineY, x - 1, lineY, lineLike);
+  const stem = above ? arrow(box, dot, mid, y + box.height + 1, mid, last.y - 1, stemLike) : arrow(dot, box, mid, last.y + last.height + 1, mid, y - 1, stemLike);
+  const placed = [boundTo(dot, line.id, stem.id), boundTo(box, stem.id), line, stem].map((e) => (last.frameId ? { ...e, frameId: last.frameId } : e));
+  commit(api, [boundTo(last, line.id), ...placed], box.id);
+  const made = api.getSceneElements().find((e) => e.id === box.id);
+  branchInView(api, lastStep, made);
+  const words = all.find((e) => e.containerId === lastStep.id && e.type === "text");
+  typeInto(api, box.id, words ? { fontSize: words.fontSize, color: words.strokeColor, family: words.fontFamily } : null);
+  return box.id;
+}
+
+/** Add Column or Add Step, from the selection: the new part's id, or null when it has none. */
+export function grow(api) {
+  const g = growsFrom(api);
+  if (!g) return null;
+  return g.kind === "step" ? addStep(api, g.from) : addColumn(api, g.from);
+}
+
 /** The node a Tab grows from: one shape selected (a box, an ellipse or a diamond), or the shape
  *  whose words are being typed. */
 export function branchFrom(api) {
@@ -620,10 +749,11 @@ function wearLook(api, look) {
  * Joins to anything left behind are cut, so the item stands on its own wherever it goes. JSON
  * ({ elements, files }), or null with nothing selected.
  */
-export function libraryPiece(api) {
+export function libraryPiece(api, also = []) {
   const ids = api.getAppState().selectedElementIds || {};
   const all = api.getSceneElements();
-  const chosen = new Set(all.filter((e) => ids[e.id]).map((e) => e.id));
+  if (!all.some((e) => ids[e.id])) return null;
+  const chosen = new Set([...all.filter((e) => ids[e.id]).map((e) => e.id), ...also]);
   for (const e of all) if (e.containerId && chosen.has(e.containerId)) chosen.add(e.id);
   if (!chosen.size) return null;
   const elements = all.filter((e) => chosen.has(e.id)).map((e) => {
@@ -645,9 +775,15 @@ export function libraryPiece(api) {
 /**
  * The whole board as one of your templates (the More menu's Save as Template): every element
  * drawn, the how-to line and the title included, and the pictures its images show. JSON
- * ({ elements, files }), or null on an empty board.
+ * ({ elements, files }), or null on an empty board. `selection`: what's selected instead (the
+ * right-click menu's Save as Template, round 15), a selected frame with all that's in it.
  */
-export function boardPiece(api) {
+export function boardPiece(api, selection = false) {
+  if (selection) {
+    const ids = api.getAppState().selectedElementIds || {};
+    const frames = new Set(api.getSceneElements().filter((e) => ids[e.id] && isFrame(e)).map((e) => e.id));
+    return libraryPiece(api, api.getSceneElements().filter((e) => e.frameId && frames.has(e.frameId)).map((e) => e.id));
+  }
   const elements = api.getSceneElements().filter((e) => !e.isDeleted);
   if (!elements.length) return null;
   const own = api.getFiles() || {}, files = {};
@@ -956,11 +1092,11 @@ export function present(api, to, from, size) {
   const back = presenting ? presenting.back : { z: vz, cx: -v.scrollX + v.width / 2 / vz, cy: -v.scrollY + v.height / 2 / vz };
   const first = !presenting;
   // The frame's own name and outline go while presenting: the Present bar names it (round 6:
-  // the name showed twice).
+  // the name showed twice). What runs over its edge is cut there, as only the frame shows.
   const labels = presenting ? presenting.labels : v.frameRendering;
   presenting = { index, back, labels };
   if (first) {
-    api.updateScene({ appState: { selectedElementIds: {}, frameRendering: { ...(labels || {}), enabled: true, name: false, outline: false } }, captureUpdate: CaptureUpdateAction.NEVER });
+    api.updateScene({ appState: { selectedElementIds: {}, frameRendering: { ...(labels || {}), enabled: true, name: false, outline: false, clip: true } }, captureUpdate: CaptureUpdateAction.NEVER });
     // Laser on to start; after that the Present bar's toggle decides.
     api.setActiveTool({ type: "laser" });
   }
@@ -1053,6 +1189,8 @@ export function stateOf(api, app) {
     // frame or in one (Present from Here).
     frames: framesInOrder(api),
     inFrame: selected.some((e) => isFrame(e) || !!e.frameId),
+    // A template part that has more of its kind: Add Column, Add Step (round 15).
+    grows: (() => { const g = growsFrom(api); return g ? g.kind : null; })(),
     bounds,
     nearby,
     // Moving, resizing or drawing: the style bar stays out of the way.
@@ -1286,6 +1424,9 @@ function bridge(api) {
       case "sticky":
         addSticky(api);
         break;
+      case "grow":
+        if (!grow(api)) return false;
+        break;
       case "showLastChange":
         if (!(amber._showLastChange && amber._showLastChange())) return false;
         break;
@@ -1476,6 +1617,20 @@ function bridge(api) {
     // Tab: a mind map's next branch off the selected shape, as in FigJam (whiteboard council,
     // round 6). While typing in a shape, its words are kept first, then the branch grows from it.
     if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selecting()) {
+      // A Kanban or Retro column, or a Timeline step: the next of its kind (round 15).
+      const part = growsFrom(api);
+      if (part && (!typing || api.getAppState().editingTextElement)) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        const go = () => { if (part.kind === "step") addStep(api, part.from); else addColumn(api, part.from); };
+        if (api.getAppState().editingTextElement && e.target && e.target.tagName === "TEXTAREA") {
+          e.target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
+          const now = api.getSceneElements().find((x) => x.id === part.from.id);
+          if (now) { part.from = now; go(); }
+        } else {
+          go();
+        }
+        return;
+      }
       const node = branchFrom(api);
       const words = api.getAppState().editingTextElement;
       if (node && (!typing || words)) {
@@ -1539,6 +1694,14 @@ function bridge(api) {
 
 /** Pinto's ink for new strokes (the canvas is drawn light and inverted in dark mode). */
 const PINTO_DEFAULTS = { currentItemStrokeColor: "#2a1d10", currentItemFontFamily: 5 };
+
+/**
+ * Frames as the board draws them while you work: named and outlined, and a shape that runs over a
+ * frame's edge drawn whole, all of it (round 14, web-04 and web-09: a shape drawn from inside a frame
+ * out past its edge joined the frame and showed as a sliver inside an empty selection box). Only
+ * Present cuts at the frame's edge (present()), where the frame is all that shows.
+ */
+export const EDIT_FRAMES = { enabled: true, name: true, outline: true, clip: false };
 
 /**
  * In dark mode the drawing is drawn light and turned dark by a filter (invert, then hue-rotate
@@ -1882,7 +2045,11 @@ function Canvas({ initial }) {
         const near = all.filter((e) => !outlined.has(e.id) && !linear(e) && (!e.containerId || onLine(e))).map((e) => rect([e], s))
           .filter(shown).slice(0, 120);
         const lines = all.filter((e) => linear(e) && shown(rect([e], s))).slice(0, 120).map((e) => drawnLine(e, s));
-        return { x, y, width, height, boxes, near, lines: lines.flat(), view: s };
+        // Lines of words on their own, which the tag never shares a row with (round 15, 12-ai-drew:
+        // "ChatGPT" sat just past the end of the how-to line, four rounds running).
+        const rows = all.filter((e) => e.type === "text" && !e.containerId && !outlined.has(e.id)).map((e) => rect([e], s))
+          .filter(shown).slice(0, 40);
+        return { x, y, width, height, boxes, near, lines: lines.flat(), rows, view: s };
       };
       let r = where();
       const out = opts.move !== false && (r.x < 0 || r.y < 0 || r.x + r.width > r.view.width || r.y + r.height > r.view.height);
@@ -1922,7 +2089,7 @@ function Canvas({ initial }) {
       }
       // With the ids, so the app can show this change again later (Show Last AI Change, an AI's
       // reply in a thread: round 14), and whether it's a search's match.
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, view: [r.view.width, r.view.height], count: changed.length, ids: changed.filter((e) => !e.containerId).map((e) => e.id), ...(opts.find ? { find: true } : {}) } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, rows: r.rows, view: [r.view.width, r.view.height], count: changed.length, ids: changed.filter((e) => !e.containerId).map((e) => e.id), ...(opts.find ? { find: true } : {}) } }); } catch (_) {}
       // While it's shown (the app decides how long), the outline follows the view as you pan,
       // zoom or resize the window (whiteboard council, round 2, 15: it came loose after 8 s).
       outlined = { changed, until: Date.now() + 120000, where };
@@ -1932,7 +2099,7 @@ function Canvas({ initial }) {
       if (!outlined) return;
       if (Date.now() > outlined.until) { outlined = null; return; }
       const r = outlined.where();
-      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, view: [r.view.width, r.view.height], count: outlined.changed.length, follow: true } }); } catch (_) {}
+      try { window.webkit.messageHandlers.amberCanvas.postMessage({ remote: { x: r.x, y: r.y, width: r.width, height: r.height, boxes: r.boxes, near: r.near, lines: r.lines, rows: r.rows, view: [r.view.width, r.view.height], count: outlined.changed.length, follow: true } }); } catch (_) {}
     });
 
     // Text an AI wrote was measured before the hand-drawn font arrived: measured again once it has.
@@ -1998,7 +2165,7 @@ function Canvas({ initial }) {
     } });
     Object.defineProperty(amber, "_throughDarkFilter", { value: throughDarkFilter, configurable: true });
     // What the app asks the board and waits for: the selection as a library item, an item's picture.
-    const calls = { libraryPiece: () => libraryPiece(api), boardPiece: () => boardPiece(api), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), versionPicture: (a) => versionPicture(a && a.elements, a && a.files, a && a.dark, a && a.background), freeSpot: (a) => freeSpot(api, a.width, a.height) };
+    const calls = { libraryPiece: () => libraryPiece(api), boardPiece: (a) => boardPiece(api, !!(a && a.selection)), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), versionPicture: (a) => versionPicture(a && a.elements, a && a.files, a && a.dark, a && a.background), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}) }, configurable: true });
@@ -2016,7 +2183,7 @@ function Canvas({ initial }) {
   return (
     <Excalidraw
       excalidrawAPI={setRef}
-      initialData={{ elements: initial.elements, appState: { ...initial.appState, ...PINTO_DEFAULTS, theme }, files: initial.files, scrollToContent: true }}
+      initialData={{ elements: initial.elements, appState: { ...initial.appState, ...PINTO_DEFAULTS, frameRendering: EDIT_FRAMES, theme }, files: initial.files, scrollToContent: true }}
       theme={theme}
       aiEnabled={false}
       autoFocus

@@ -39,13 +39,24 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM HUP
 
-# Both addresses may sign up (the local stack lets in only listed ones). The app's person, Emil, is
-# made confirmed with a password; the browser's person signs up with the site's email code.
+# All three addresses may sign up (the local stack lets in only listed ones). The app's person, Emil, is
+# made confirmed with a password; the browser's person signs in with the site's email code and
+# names herself there. Both accounts have the ids Emil and Sara have in every picture the tests
+# take (PaneTests TestPeople), so each has one colour in all of them, as on every device (round 14:
+# Sara was purple in the Mac's pictures and teal in the browser's). Left over from a run that
+# stopped half way, they go first.
+emil_id=e0000000-0000-4000-8000-000000000001 sara_id=5a000000-0000-4000-8000-000000000002
+for id in $emil_id $sara_id; do curl -s -o /dev/null -X DELETE "$API_URL/auth/v1/admin/users/$id" "${admin[@]}"; done
+# The commenter, Cleo, signs up with the site's email code through the Can comment link (step 7).
 for email in $owner $browser $commenter; do
   curl -sf -X POST "$API_URL/rest/v1/signup_allowlist" "${admin[@]}" -H 'prefer: resolution=ignore-duplicates' -d "{\"email\":\"$email\"}" >/dev/null
 done
 ids+=("$(curl -sf -X POST "$API_URL/auth/v1/admin/users" "${admin[@]}" \
-  -d "{\"email\":\"$owner\",\"password\":\"$password\",\"email_confirm\":true,\"user_metadata\":{\"board_web_test\":true}}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')")
+  -d "{\"id\":\"$emil_id\",\"email\":\"$owner\",\"password\":\"$password\",\"email_confirm\":true,\"user_metadata\":{\"board_web_test\":true}}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')")
+# Hers has no name or keys yet: the site asks her name, and makes her keys as she joins.
+ids+=("$(curl -sf -X POST "$API_URL/auth/v1/admin/users" "${admin[@]}" \
+  -d "{\"id\":\"$sara_id\",\"email\":\"$browser\",\"email_confirm\":true,\"user_metadata\":{\"board_web_test\":true}}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')")
+[[ ${ids[1]} == $emil_id && ${ids[2]} == $sara_id ]] || { echo "The test accounts weren't made with their ids: $ids" >&2; exit 1; }
 # His name, as the app's sign-up sets it: the browser's person mentions him by it.
 curl -sf -X POST "$API_URL/rest/v1/profiles?on_conflict=user_id" "${admin[@]}" -H 'prefer: resolution=merge-duplicates' -d "{\"user_id\":\"${ids[1]}\",\"display_name\":\"Emil Wagman\"}" >/dev/null
 curl -sf -X POST "$API_URL/rest/v1/email_unsubscribes" "${admin[@]}" -H 'prefer: resolution=ignore-duplicates' -d "{\"user_id\":\"${ids[1]}\",\"source\":\"link\"}" >/dev/null

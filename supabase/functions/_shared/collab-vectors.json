@@ -33,5 +33,76 @@
     "board_change": "amb3u.3.+lVBipQj2SKbnPBzUmcAZGOVLGU7gFNJBcm6IMEMWapZKax8hIDAvUbh6FwLzIp0RAxGa6IkLW/XCEfhl3kRtUfh325a4YUgK2jVuZdGyOb6v2iJAH+/RyWcwHdj35uVKUEjCtLOtm3VnelojAAaIusuV6bDI8+/WKi4YcG54e899oIgHA4/x3cN4Eb5GR7ycfv/gSTTXUIL+GzKOALb8DCMY8sxfRX7Yt4lqCf78k6yQZG1Rlv1D9nQzap9eKboYwh5VGV6XRPxln9Q+eYS12/7+zrbf3+I6xN24V5S5tTSH++5W6ljGJjMEKDbdLGj30XEhJIIuiNmPSEhq8GC9jrNDaPQhYlWrmbrFypT3kESNBwQvID+5H4VByAfa/s7v+S1hDmCzRE39cu4lNdDewkgT0ThTU8Dvluv/UzauwjtWKnrvol21MBeQ0SdI3YvvsXii36yEgvbX7TlFLjHqbKj5ksVGUfJJJg5ld6QEQVl3bhhIsuZWeto7jaGDJANkKhzt2alM/5BOvOO9ophnR9g3vmE3ow3fRWygIqrEon15HAfzTEXBQwktone1IZJ0dPSSyupEBzsEWXnkpZWT2W8l3eMXzs+nMwx9kkRn9GaQJpVK1ET9HJy5fH5jN7kvSARYYW4LRp5jfsQGGSqr6pHENsukJlvfTAM1BvX07cXsqTE",
     "board_message": "u:1A2B3C4D-0000-4000-8000-000000000002",
     "presence": "amb3p.3.5RAgkRvFmk/39N+UhghS7H/KbHXOXZ9qcQVwHwnZSo2Zh0gIX5Ti84DXjGZXBrOVUsfZxM2yWqwiVEbmTFMLqgXR8ba+BfQGWcX5JEN1odw="
+  },
+  "people_colours": {
+    "about": "Each person's colour on a board, from its members (the owner first, then the others as they joined): CollabSession.slots(for:) in the app and slots() in web/lib/board-doc.ts give these. PaneTests/Collab/BoardFollowTests.swift and web/lib/board-colours.test.ts check them.",
+    "palette": [
+      "#2D6E36",
+      "#186B70",
+      "#2D639A",
+      "#5252C5",
+      "#8841AC",
+      "#A43777"
+    ],
+    "cases": [
+      {
+        "about": "Emil's board shared with Sara: the ids the tests' pictures and the browser test use",
+        "members": [
+          "E0000000-0000-4000-8000-000000000001",
+          "5A000000-0000-4000-8000-000000000002"
+        ],
+        "colours": [
+          "#186B70",
+          "#5252C5"
+        ]
+      },
+      {
+        "about": "The same, as the server writes ids (lower case)",
+        "members": [
+          "e0000000-0000-4000-8000-000000000001",
+          "5a000000-0000-4000-8000-000000000002"
+        ],
+        "colours": [
+          "#186B70",
+          "#5252C5"
+        ]
+      },
+      {
+        "about": "Three whose ids pick indigo and one pink: each takes the next free colour, in the order they joined",
+        "members": [
+          "C0110DE0-0000-4000-8000-000000000006",
+          "C0110DE0-0000-4000-8000-00000000000B",
+          "C0110DE0-0000-4000-8000-000000000015",
+          "C0110DE0-0000-4000-8000-000000000002"
+        ],
+        "colours": [
+          "#5252C5",
+          "#8841AC",
+          "#A43777",
+          "#2D6E36"
+        ]
+      },
+      {
+        "about": "Seven people: the seventh has the colour their id picks",
+        "members": [
+          "5E7E0000-0000-4000-8000-000000000001",
+          "5E7E0000-0000-4000-8000-000000000002",
+          "5E7E0000-0000-4000-8000-000000000003",
+          "5E7E0000-0000-4000-8000-000000000004",
+          "5E7E0000-0000-4000-8000-000000000005",
+          "5E7E0000-0000-4000-8000-000000000006",
+          "5E7E0000-0000-4000-8000-000000000007"
+        ],
+        "colours": [
+          "#8841AC",
+          "#A43777",
+          "#2D6E36",
+          "#186B70",
+          "#2D639A",
+          "#5252C5",
+          "#8841AC"
+        ]
+      }
+    ]
   }
 }

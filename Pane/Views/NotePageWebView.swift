@@ -91,6 +91,11 @@ final class NotePageWebView: WKWebView {
             }
             menu.addItem(.separator())
         }
+        // A Kanban or Retro column, a Timeline step: the next of its kind first (round 15).
+        if let grows = canvas?.state.grows, canvas?.viewOnly != true {
+            menu.addItem(CanvasMenuItem(title: grows.title) { [weak self] in self?.canvas?.send(.grow) })
+            menu.addItem(.separator())
+        }
         // Comment: on the selection, or on the spot you clicked (BoardComments).
         if let canvas, canvas.canComment {
             menu.addItem(CanvasMenuItem(title: BoardCommentUI.comment) { [weak self] in
@@ -108,6 +113,13 @@ final class NotePageWebView: WKWebView {
         }
         save.isEnabled = selected
         menu.addItem(save)
+        // Your own template: what's selected (a frame with all that's in it), else the whole board
+        // (round 15: Save as Template was only in the More menu).
+        if canvas?.viewOnly != true {
+            menu.addItem(CanvasMenuItem(title: NoteMoreMenu.saveTemplateTitle) { [weak self] in
+                self?.canvas?.askTemplateName(selected ? .selection : .board)
+            })
+        }
         menu.addItem(.separator())
         // A frame, or something in one: Present starts there (round 7).
         if canvas?.state.inFrame == true {

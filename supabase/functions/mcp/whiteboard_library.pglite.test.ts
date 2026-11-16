@@ -1,7 +1,8 @@
 // The whiteboard library in the database (20261117120000_whiteboard_library.sql): one row an item,
 // sealed with the account's key, readable and writable only by its owner; a removal that stays;
 // shapes that never change after they went up; renames that can say which version they read; the
-// account's room; and Start fresh taking the library with the old key.
+// account's room; Start fresh taking the library with the old key; and its changes reaching the
+// account's other devices over Realtime (20261118093000_whiteboard_library_realtime.sql).
 //   cd supabase/functions/mcp && deno test -A whiteboard_library.pglite.test.ts
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import type { PGlite } from "npm:@electric-sql/pglite@0.2.17";
@@ -144,4 +145,11 @@ Deno.test("start fresh takes the library with the old key; the devices send thei
   assertEquals(done, true);
   assertEquals((await pg.query(`select 1 from public.whiteboard_library where user_id = $1`, [a.id])).rows.length, 0);
   assertEquals((await rows(pg, b)).length, 1, "nobody else's");
+});
+
+Deno.test("a change to the library reaches the account's other devices at once: the table is in Realtime's publication, as notes are", async () => {
+  const pg = await schemaDB();
+  const published = (await pg.query<{ tablename: string }>(`select tablename from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public'`)).rows.map((r) => r.tablename);
+  assert(published.includes("whiteboard_library"), JSON.stringify(published));
+  assert(published.includes("notes"), "as notes are");
 });

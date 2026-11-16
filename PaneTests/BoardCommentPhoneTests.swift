@@ -195,7 +195,7 @@ import WebKit
 
     func share(_ phone: Phone) async throws -> Shared {
         let people = BoardPeople()
-        let (emilDevice, others, note) = try await people.share(CanvasTests.scene(Self.elements), people: ["Sara"], title: phone.note.title)
+        let (emilDevice, others, note) = try await people.share(CanvasTests.scene(Self.elements), people: ["Sara"], title: phone.note.title, accounts: TestPeople.accounts)
         let emil = try people.session(emilDevice, note), sara = try people.session(others[0], note)
         Self.keptStores += ([emilDevice] + others).map(\.container)
         BoardCollab.wire(emil, phone.canvas)

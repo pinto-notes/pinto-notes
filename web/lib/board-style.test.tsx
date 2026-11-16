@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { StyleBar, ToolBar, TOOLS } from "@/app/s/[id]/BoardControls";
+import { StyleBar, ToolBar, TOOLS, ZoomControl } from "@/app/s/[id]/BoardControls";
 import type { PageState } from "./board-host";
 import { barPlace, FILLS, offers, PHONE, showsBar, STROKES, toolsAt, WIDTHS } from "./board-style";
 
@@ -134,13 +134,16 @@ describe("the tools at phone width", () => {
     expect(more.querySelectorAll("svg").length).toBe(2);
     click(more);
     const items = [...h.querySelectorAll('[role="menu"][aria-label="More tools"] button')].map((b) => b.textContent);
-    expect(items).toEqual(["RectangleR", "DiamondD", "OvalO", "ArrowA", "LineL", "EraserE", "CommentC", "Zoom to Fit"]);
+    // Tools only: Zoom to Fit has its own button by the tools now (ZoomControl).
+    expect(items).toEqual(["RectangleR", "DiamondD", "OvalO", "ArrowA", "LineL", "EraserE", "CommentC"]);
     click([...h.querySelectorAll('[role="menu"] button')].find((b) => b.textContent === "ArrowA"));
     expect(sent.pop()).toEqual({ op: "tool", tool: "arrow" });
     expect(h.querySelector('[role="menu"]')).toBeNull();
-    click(more);
-    click([...h.querySelectorAll('[role="menu"] button')].find((b) => b.textContent === "Zoom to Fit"));
-    expect(sent.pop()).toEqual({ op: "action", name: "zoomToFit" });
+  });
+
+  it("show no keyboard letters on a touch screen", () => {
+    const css = readFileSync(join(process.cwd(), "app", "s", "[id]", "board.module.css"), "utf8");
+    expect(css).toMatch(/@media \(hover: none\) and \(pointer: coarse\) \{ \.key \{ display: none; \} \}/);
   });
 
   it("has every tool and no menu on a wide window", () => {
@@ -153,5 +156,44 @@ describe("the tools at phone width", () => {
     const css = readFileSync(join(process.cwd(), "app", "s", "[id]", "board.module.css"), "utf8");
     const phone = css.slice(css.indexOf("@media (max-width: 600px) {"), css.indexOf(".toolsWrap"));
     expect(phone).not.toMatch(/\.tools \{/);
+  });
+});
+
+// Round 14 (web-07, web-08): on a phone the board stayed cut off at the sides, and Zoom to Fit was
+// the last row of More Tools. It's one tap away now, on a phone and on a wide window.
+describe("Zoom to Fit", () => {
+  it("is a button of its own on a wide window, after − the percent +; the percent goes back to 100%", () => {
+    const sent: Record<string, unknown>[] = [];
+    const h = mount(<ZoomControl zoom={0.42} command={(c) => sent.push(c)} width={1280} overTools />);
+    const group = h.querySelector('[role="group"][aria-label="Zoom"]')!;
+    expect([...group.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Zoom out", "Zoom to 100%", "Zoom in", "Zoom to fit"]);
+    expect(byLabel(h, "Zoom to 100%")!.textContent).toBe("42%");
+    click(byLabel(h, "Zoom to fit"));
+    expect(sent.pop()).toEqual({ op: "action", name: "zoomToFit" });
+    click(byLabel(h, "Zoom to 100%"));
+    expect(sent.pop()).toEqual({ op: "action", name: "resetZoom" });
+    expect(group.className).not.toMatch(/zoomOverTools/);
+  });
+
+  it("is the only zoom control on a phone, a full-size button just above the tools", () => {
+    const sent: Record<string, unknown>[] = [];
+    const h = mount(<ZoomControl zoom={1} command={(c) => sent.push(c)} width={390} overTools />);
+    const group = h.querySelector('[role="group"][aria-label="Zoom"]')!;
+    expect([...group.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Zoom to fit"]);
+    expect(group.className).toMatch(/zoomOverTools/);
+    expect(byLabel(h, "Zoom to fit")!.className).toMatch(/fitPhone/);
+    click(byLabel(h, "Zoom to fit"));
+    expect(sent.pop()).toEqual({ op: "action", name: "zoomToFit" });
+    // Someone who can only look has no tools at the foot: it stays in the corner.
+    const v = mount(<ZoomControl zoom={1} command={() => {}} width={390} overTools={false} />);
+    expect(v.querySelector('[role="group"]')!.className).not.toMatch(/zoomOverTools/);
+  });
+
+  it("isn't hidden at phone width any more", () => {
+    const css = readFileSync(join(process.cwd(), "app", "s", "[id]", "board.module.css"), "utf8");
+    const phone = css.slice(css.indexOf("@media (max-width: 600px) {"), css.indexOf(".toolsWrap"));
+    expect(phone).not.toMatch(/\.zoom \{ display: none/);
+    // The phone's button stands above the tools (40 pt and the bar's padding), clear of them.
+    expect(css).toMatch(/\.zoomOverTools \{ bottom: calc\(max\(14px, env\(safe-area-inset-bottom\)\) \+ 64px\); \}/);
   });
 });

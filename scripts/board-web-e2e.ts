@@ -124,7 +124,7 @@ try {
     problems.push(`the board didn't open centred, at 100% or less: ${JSON.stringify(view)}`);
   await page.screenshot({ path: `${OUT}01-view-before-sign-in.png` });
 
-  // 2. Sign in to edit: an email code, and an account made with it; then a name.
+  // 2. Sign in to edit: an email code; then a name (her account has none yet).
   await page.getByRole("button", { name: "Sign in to edit" }).click();
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.screenshot({ path: `${OUT}02-sign-in.png` });
@@ -170,19 +170,35 @@ try {
   log("drew", drawn.id);
 
   // 4. The app's move, its pointer and its comment arrive; the reply goes back.
-  const mac = JSON.parse(await until("mac.json", 120, async () => (await exists("mac.json")) && await Deno.readTextFile(file("mac.json")))) as { comment: string };
+  const mac = JSON.parse(await until("mac.json", 120, async () => (await exists("mac.json")) && await Deno.readTextFile(file("mac.json")))) as { comment: string; colors: { emil: string; sara: string } };
   await until("the app's move", 30, async () => (await elements(page)).some((e) => e.id === "mac-1" && e.x === 260));
   const pointer = await until("the app's pointer on the board", 30, () => canvas(page).evaluate(() => {
     const p = [...document.querySelectorAll<HTMLElement>(".pinto-peer")].find((n) => n.style.display !== "none" && n.offsetParent !== null);
     return p ? (p.textContent ?? "").trim() || "shown" : null;
   }));
   log("the app's pointer:", pointer);
+  // Each person has the colour the app gives them, here too (round 14: Sara was purple on the Mac
+  // and teal in the browser): Emil's avatar, pointer and flag, and her own avatar.
+  const hex = (css: string) => { const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(css); return m ? "#" + m.slice(1, 4).map((n) => Number(n).toString(16).padStart(2, "0")).join("").toUpperCase() : css.toUpperCase(); };
+  const avatars = await page.locator("ul[data-people] > li button").evaluateAll((b) => b.map((n) => ({ me: (n.parentElement as HTMLElement).dataset.me !== undefined, bg: getComputedStyle(n).backgroundColor })));
+  const emilAvatar = avatars.find((a) => !a.me), saraAvatar = avatars.find((a) => a.me);
+  const flag = await canvas(page).evaluate(() => {
+    const p = [...document.querySelectorAll<HTMLElement>(".pinto-peer")].find((n) => n.style.display !== "none" && n.offsetParent !== null);
+    const f = p?.querySelector<HTMLElement>(".pinto-peer-flag");
+    return f ? getComputedStyle(f).backgroundColor : "";
+  });
+  const seen = { emilAvatar: hex(emilAvatar?.bg ?? ""), emilFlag: hex(flag), saraAvatar: hex(saraAvatar?.bg ?? "") };
+  log("colours:", JSON.stringify({ app: mac.colors, browser: seen }));
+  if (seen.emilAvatar !== mac.colors.emil || seen.emilFlag !== mac.colors.emil || seen.saraAvatar !== mac.colors.sara)
+    problems.push(`a person's colour differs from the app's: ${JSON.stringify({ app: mac.colors, browser: seen })}`);
   // Everyone in one group, you last, as the app's toolbar groups them (round 13, web-04).
   const group = await page.locator("ul[data-people] > li").evaluateAll((li) => li.map((n) => (n as HTMLElement).dataset.me !== undefined ? "me" : (n.textContent ?? "").trim()));
   if (group.length < 2 || group.at(-1) !== "me" || group.filter((x) => x === "me").length !== 1) problems.push(`the avatars aren't one group with you last: ${JSON.stringify(group)}`);
   await page.screenshot({ path: `${OUT}04-board-with-the-apps-pointer.png` });
   const pin = canvas(page).locator(`.pinto-pin[data-comment="${mac.comment}"]`);
   await pin.waitFor({ timeout: 30_000 });
+  const pinColour = hex(await pin.evaluate((n) => getComputedStyle(n).backgroundColor));
+  if (pinColour !== mac.colors.emil) problems.push(`Emil's comment pin isn't his colour: ${pinColour}, the app's ${mac.colors.emil}`);
   await pin.click();
   const thread = page.getByRole("dialog", { name: "Comment", exact: true });
   await thread.waitFor();
@@ -238,38 +254,82 @@ try {
   await page.getByRole("navigation", { name: "Tools" }).waitFor({ timeout: 10_000 });
   await write("presented.json", "{}");
 
-  // Phone width, for looking: the board, its title and Comments, nothing cut off.
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.keyboard.press("Escape");
-  await sleep(800);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  // On a phone: the link opened there, as a guest opens it, signed in (round 14, web-07: the
+  // board opened at 100% with both frames cut off at the sides). It opens whole, centred between
+  // the title and the tools; Zoom to Fit is one tap away above the tools.
+  const signedIn = await context.storageState();
+  await context.close();
+  const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, colorScheme: "light", storageState: signedIn });
+  const phonePage = await phoneContext.newPage();
+  current = phonePage;
+  phonePage.on("console", (m) => { said.push(`${m.type()}: ${m.text().slice(0, 300)}`); if (m.type() === "error") problems.push(`console: ${m.text()}`); });
+  phonePage.on("pageerror", (e) => problems.push(`page: ${e.message}`));
+  await phonePage.goto(url);
+  await phonePage.getByRole("navigation", { name: "Tools" }).waitFor({ timeout: 60_000 });
+  await until("the board on the phone", 30, async () => (await elements(phonePage)).some((e) => e.id === drawn.id));
+  await sleep(600);
+  const whole = async () => {
+    const v = await canvas(phonePage).evaluate(() => {
+      const api = (window as unknown as { amber: { _canvas: { api: { getAppState(): { zoom: { value: number }; scrollX: number; scrollY: number; frameRendering: { clip: boolean } }; getSceneElements(): { x: number; y: number; width: number; height: number }[] } } } }).amber._canvas.api;
+      const s = api.getAppState(), z = s.zoom.value, els = api.getSceneElements();
+      const c = document.querySelector("#canvas") as HTMLElement | null, W = c?.clientWidth ?? innerWidth, H = c?.clientHeight ?? innerHeight;
+      const x1 = Math.min(...els.map((e) => e.x)), y1 = Math.min(...els.map((e) => e.y));
+      const x2 = Math.max(...els.map((e) => e.x + e.width)), y2 = Math.max(...els.map((e) => e.y + e.height));
+      return { l: (x1 + s.scrollX) * z, r: (x2 + s.scrollX) * z, t: (y1 + s.scrollY) * z, b: (y2 + s.scrollY) * z, W, H, z, clip: s.frameRendering.clip };
+    });
+    return { v, ok: v.l >= 0 && v.t >= 0 && v.r <= v.W && v.b <= v.H };
+  };
+  const opened = await whole();
+  log("phone opening view:", JSON.stringify(opened.v));
+  if (!opened.ok) problems.push(`phone: the board didn't open whole: ${JSON.stringify(opened.v)}`);
+  // While you work a frame doesn't cut what runs over its edge (round 14, web-09: a sliver).
+  if (opened.v.clip !== false) problems.push("phone: frames cut the shapes that run over their edges");
+  const page2 = phonePage;
+  const overflow = await page2.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (overflow) problems.push("phone width: the page scrolls sideways");
-  await page.screenshot({ path: `${OUT}07-phone.png` });
+  const fit = page2.getByRole("button", { name: "Zoom to fit" });
+  if (!(await fit.isVisible())) problems.push("phone: Zoom to Fit isn't on the screen");
+  const fitBox = await fit.boundingBox(), toolsBox = await page2.getByRole("navigation", { name: "Tools" }).boundingBox();
+  if (fitBox && toolsBox && fitBox.y + fitBox.height > toolsBox.y) problems.push(`phone: Zoom to Fit isn't above the tools: ${JSON.stringify({ fitBox, toolsBox })}`);
+  await page2.screenshot({ path: `${OUT}07-phone.png` });
+  // Zoomed in on one corner, then Zoom to Fit: the whole board again.
+  await canvas(page2).evaluate(() => {
+    const api = (window as unknown as { amber: { _canvas: { api: { updateScene(s: unknown): void } } } }).amber._canvas.api;
+    api.updateScene({ appState: { zoom: { value: 1.5 }, scrollX: 0, scrollY: 0 } });
+  });
+  await sleep(300);
+  if ((await whole()).ok) problems.push("phone: zooming in didn't cut the board off, so Zoom to Fit isn't tested");
+  await fit.click();
+  await sleep(600);
+  if (!(await whole()).ok) problems.push(`phone: Zoom to Fit didn't bring the whole board back: ${JSON.stringify((await whole()).v)}`);
   // The toolbar fits the phone, whole: nothing scrolled or cut off (round 12), the rest in More Tools.
-  const tools = await page.getByRole("navigation", { name: "Tools" }).evaluate((n) => {
+  const tools = await page2.getByRole("navigation", { name: "Tools" }).evaluate((n) => {
     const r = n.getBoundingClientRect();
     return { left: r.left, right: r.right, scroll: n.scrollWidth - n.clientWidth, buttons: n.querySelectorAll("button").length };
   });
   if (tools.left < 0 || tools.right > 390 || tools.scroll > 0) problems.push(`phone width: the toolbar doesn't fit: ${JSON.stringify(tools)}`);
-  await page.getByRole("button", { name: "More tools" }).click();
-  await page.getByRole("menu", { name: "More tools" }).waitFor();
+  await page2.getByRole("button", { name: "More tools" }).click();
+  await page2.getByRole("menu", { name: "More tools" }).waitFor();
   // More Tools shows the shapes before one is picked, not two lines (round 13, web-08).
-  const shapes = await page.locator('button[aria-label="More tools"] > svg').first().evaluate((svg) => ({ circle: svg.querySelectorAll("circle").length, rect: svg.querySelectorAll("rect").length }));
+  const shapes = await page2.locator('button[aria-label="More tools"] > svg').first().evaluate((svg) => ({ circle: svg.querySelectorAll("circle").length, rect: svg.querySelectorAll("rect").length }));
   if (!shapes.circle || !shapes.rect) problems.push(`More Tools' icon isn't the shapes: ${JSON.stringify(shapes)}`);
-  await page.screenshot({ path: `${OUT}08-phone-more-tools.png` });
-  await page.getByRole("menuitemradio", { name: /Rectangle/ }).click();
+  // A touch screen has no keys: no letters beside the tools (round 14, web-08).
+  const letters = await page2.locator('[role="menu"][aria-label="More tools"] kbd').evaluateAll((k) => k.filter((n) => getComputedStyle(n).display !== "none").length);
+  if (letters) problems.push(`phone: More Tools shows ${letters} keyboard letters`);
+  await page2.screenshot({ path: `${OUT}08-phone-more-tools.png` });
+  await page2.getByRole("menuitemradio", { name: /Rectangle/ }).click();
   // The folded tool, once picked, shows on More Tools.
   // (The board says which tool it has a moment after the click.)
-  if (!(await page.getByRole("button", { name: "More tools", pressed: true }).waitFor({ timeout: 5000 }).then(() => true, () => false)))
+  if (!(await page2.getByRole("button", { name: "More tools", pressed: true }).waitFor({ timeout: 5000 }).then(() => true, () => false)))
     problems.push("phone width: More Tools doesn't show the picked tool");
   // A shape picked at phone width (with Select, as you pick one): its bar sits over the toolbar,
   // inside the window.
-  await page.getByRole("button", { name: "Select (V)" }).click();
-  await select(page, drawn.id);
-  const dock = await page.getByRole("toolbar", { name: "Selection" }).evaluate((n) => { const r = n.getBoundingClientRect(); return { left: r.left, right: r.right }; });
+  await page2.getByRole("button", { name: "Select (V)" }).click();
+  await select(page2, drawn.id);
+  const dock = await page2.getByRole("toolbar", { name: "Selection" }).evaluate((n) => { const r = n.getBoundingClientRect(); return { left: r.left, right: r.right }; });
   if (dock.left < 0 || dock.right > 390) problems.push(`phone width: the selection's bar doesn't fit: ${JSON.stringify(dock)}`);
-  await page.screenshot({ path: `${OUT}09-phone-selected.png` });
-  await context.close();
+  await page2.screenshot({ path: `${OUT}09-phone-selected.png` });
+  await phoneContext.close();
 
   // 7. Can comment: the app turned the link to Can comment. Cleo opens it in another browser,
   // signs in to comment, has no drawing tools (a key and a drag draw nothing), and comments on the

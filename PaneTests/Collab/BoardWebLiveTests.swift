@@ -15,7 +15,8 @@ import Testing
 /// 2. The browser opens the link (the board shows, read only), signs up with an email code, joins,
 ///    draws a rectangle and moves its pointer, and writes `browser.json` {user, element}.
 /// 3. The app has the rectangle and the browser's pointer. It moves its box, points at it, and
-///    comments on it mentioning the browser's person; `mac.json` {comment}.
+///    comments on it mentioning the browser's person; `mac.json` {comment, colors}: the colour the
+///    app gives each of them, which the browser's avatars, pointers and pins must have too.
 /// 4. The browser has the move, the app's pointer and the comment, and replies; `reply.json`.
 /// 5. The app has the reply, sealed and in its thread: `done.txt`.
 /// 6. The browser presents (its More menu, Present): `presenting.json`. The app sees "Sara is
@@ -86,6 +87,9 @@ struct BoardWebLiveTests {
         let peer = try #require(e.boardPeers.first { $0.id == user }, "the browser's pointer reached the app")
         #expect(peer.name == "Sara")
         #expect(peer.color == String(format: "#%06X", CollabSession.palette[e.paletteSlot(of: user)].light))
+        // The accounts are the pictures' Emil and Sara (scripts/board-web-e2e.sh), with their colours.
+        #expect(me == TestPeople.emil && user == TestPeople.sara, "\(me) \(user)")
+        #expect(e.boardColors(of: me).light == TestPeople.color(me).light && peer.color == TestPeople.color(user).light)
         let members = try await store.transport!.members(of: note.id)
         #expect(Set(members.map(\.user_id)) == [me, user], "the browser's account joined the board")
         let row = try #require(members.first { $0.user_id == user })
@@ -98,7 +102,7 @@ struct BoardWebLiveTests {
                                text: "@Sara does this read right?", created: BoardComments.stamp(), mentions: [user.uuidString])
         e.commentLocal([ask])
         await until(10) { e.unsent == 0 }
-        try write("mac.json", #"{"comment":"\#(ask.id)"}"#)
+        try write("mac.json", #"{"comment":"\#(ask.id)","colors":{"emil":"\#(e.boardColors(of: me).light)","sara":"\#(e.boardColors(of: user).light)"}}"#)
         // The pointer keeps beating while the browser looks.
         for _ in 0..<5 where !FileManager.default.fileExists(atPath: URL(fileURLWithPath: c.dir).appendingPathComponent("reply.json").path) {
             e.boardPresence(pointer: CGPoint(x: 302, y: 112), selection: ["mac-1"])

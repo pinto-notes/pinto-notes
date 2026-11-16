@@ -63,6 +63,7 @@ struct NoteDetailView: View {
     @State private var confirmingClearCanvas = false
     /// Save as Template…: its name, asked for (the board's name to start with).
     @State private var savingTemplate = false
+    @State private var templateFromSelection = false
     @State private var templateName = ""
 
     struct HostAsk: Identifiable {
@@ -1236,10 +1237,7 @@ struct NoteDetailView: View {
             .accessibilityIdentifier("canvas.export")
             #endif
         case .canvasSaveTemplate:
-            Button(NoteMoreMenu.saveTemplateTitle, systemImage: "square.on.square.dashed") {
-                templateName = canvasControls.title
-                savingTemplate = true
-            }
+            Button(NoteMoreMenu.saveTemplateTitle, systemImage: "square.on.square.dashed") { canvasControls.askTemplateName(.board) }
             .accessibilityIdentifier("canvas.saveTemplate")
         case .canvasClear:
             DestructiveMenuButton("Clear Whiteboard\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
@@ -1403,12 +1401,23 @@ struct NoteDetailView: View {
             .alert(NoteMoreMenu.saveTemplateQuestion, isPresented: $savingTemplate) {
                 TextField("Name", text: $templateName)
                 Button("Cancel", role: .cancel) {}
-                Button("Save") { let name = templateName; Task { await canvasControls.saveAsTemplate(named: name) } }
+                Button("Save") {
+                    let name = templateName, selection = templateFromSelection
+                    Task { await canvasControls.saveAsTemplate(named: name, selection: selection) }
+                }
                     #if os(macOS)
                     .keyboardShortcut(.defaultAction)
                     #endif
             } message: {
                 Text(NoteMoreMenu.saveTemplateMessage)
+            }
+            // Save as Template… from the More menu, the right-click menu or the selection bar.
+            .onChange(of: canvasControls.namingTemplate) { _, source in
+                guard let source else { return }
+                canvasControls.namingTemplate = nil
+                templateFromSelection = source == .selection
+                templateName = canvasControls.title
+                savingTemplate = true
             }
             .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
             .onChange(of: note.title, initial: true) { _, t in

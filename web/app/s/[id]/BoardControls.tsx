@@ -7,7 +7,7 @@
 // What each offers is lib/board-style.ts.
 import { useEffect, useRef, useState } from "react";
 import type { PageState } from "@/lib/board-host";
-import { ARROW_TYPES, ARROWHEADS, barPlace, FILLS, LINES, offers, STROKES, toolsAt, WIDTHS } from "@/lib/board-style";
+import { ARROW_TYPES, ARROWHEADS, barPlace, FILLS, LINES, offers, PHONE, STROKES, toolsAt, WIDTHS } from "@/lib/board-style";
 import s from "./board.module.css";
 
 export const TOOLS: { tool: string; label: string; key: string; icon: React.ReactNode }[] = [
@@ -77,8 +77,31 @@ export function CommentBar({ state, command }: { state: PageState; command: Comm
   );
 }
 
+/** Four corners pointing out: the whole board in view. */
+export const FIT_ICON = <path d="M4 8V4h4M14 4h4v4M18 14v4h-4M8 18H4v-4" />;
+
+/** The zoom, at the foot's left corner: Zoom to Fit always, one tap away (round 14, web-07 and
+ *  web-08: on a phone it was the last row of More Tools, and a board cut off at the sides stayed
+ *  so); on a wider window − the percent + before it, the percent back to 100%. On a phone with the
+ *  tools at the foot, it sits just above them. */
+export function ZoomControl({ zoom, command, width, overTools }: { zoom: number; command: Command; width: number; overTools: boolean }) {
+  const phone = width <= PHONE;
+  return (
+    <div className={phone && overTools ? `${s.zoom} ${s.zoomOverTools}` : s.zoom} role="group" aria-label="Zoom">
+      {!phone && (<>
+        <button className={s.zoomButton} aria-label="Zoom out" title="Zoom out" onClick={() => command({ op: "action", name: "zoomOut" })}>−</button>
+        <button className={s.zoomValue} aria-label="Zoom to 100%" title="Zoom to 100%" onClick={() => command({ op: "action", name: "resetZoom" })}>{Math.round(zoom * 100)}%</button>
+        <button className={s.zoomButton} aria-label="Zoom in" title="Zoom in" onClick={() => command({ op: "action", name: "zoomIn" })}>+</button>
+      </>)}
+      <button className={phone ? `${s.zoomButton} ${s.fitPhone}` : s.zoomButton} aria-label="Zoom to fit" title="Zoom to fit" onClick={() => command({ op: "action", name: "zoomToFit" })}>
+        <Icon size={phone ? 20 : 18}>{FIT_ICON}</Icon>
+      </button>
+    </div>
+  );
+}
+
 /** The tools at the foot: every one where they fit; at phone width the ones used most, the rest in
- *  More Tools (with Zoom to Fit, whose own control is hidden there). Undo and Redo always. */
+ *  More Tools. Undo and Redo always. */
 export function ToolBar({ state, command, width }: { state: PageState; command: Command; width: number }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -116,10 +139,6 @@ export function ToolBar({ state, command, width }: { state: PageState; command: 
               <Icon size={18}>{t.icon}</Icon><span>{t.label}</span><kbd className={s.key}>{t.key}</kbd>
             </button>
           ))}
-          <hr className={s.menuGap} />
-          <button role="menuitem" className={s.menuRow} onClick={() => { setOpen(false); command({ op: "action", name: "zoomToFit" }); }}>
-            <Icon size={18}><path d="M4 8V4h4M14 4h4v4M18 14v4h-4M8 18H4v-4" /></Icon><span>Zoom to Fit</span>
-          </button>
         </div>
       )}
     </div>
