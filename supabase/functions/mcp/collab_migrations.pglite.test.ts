@@ -18,6 +18,12 @@ const renamed = new Map<string, string>(
     .filter((e): e is [string, string] => !!e[1]),
 );
 
+/** Migrations written after the rename (newer than every renamed file). Staging ran the renamed
+ *  files again on 2026-11-04, before these existed, so they run after that second run. A later one
+ *  may replace a function a renamed file makes (20261116130000_collab_council_fixes). */
+const lastRenamed = [...renamed.keys()].sort().at(-1)!;
+const later = all.filter((n) => n > lastRenamed && !renamed.has(n));
+
 async function fresh(): Promise<PGlite> {
   const pg = new PGlite({ extensions: { pg_trgm } });
   await pg.exec(stubs);
@@ -72,18 +78,20 @@ Deno.test("staging (old names first, the release's later migrations, then the ne
 
   // Staging's order: each renamed file at its old place, then every file under its new name.
   const staging = await fresh();
-  const old = all.map((n) => ({ sort: renamed.get(n) ? `${renamed.get(n)}.sql` : n, file: n })).sort((a, b) => a.sort < b.sort ? -1 : 1);
+  const old = all.filter((n) => !later.includes(n)).map((n) => ({ sort: renamed.get(n) ? `${renamed.get(n)}.sql` : n, file: n })).sort((a, b) => a.sort < b.sort ? -1 : 1);
   await run(staging, old.map((o) => o.file));
   await run(staging, [...renamed.keys()]);
+  await run(staging, later);
 
   assertEquals(await shape(staging), await shape(production));
 });
 
 Deno.test("running the collaboration migrations twice changes nothing", async () => {
+  const once = await shape(await (async () => { const pg = await fresh(); await run(pg, all); return pg; })());
   const pg = await fresh();
-  await run(pg, all);
-  const once = await shape(pg);
+  await run(pg, all.filter((n) => !later.includes(n)));
   await run(pg, [...renamed.keys()]);
+  await run(pg, later);
   assertEquals(await shape(pg), once);
   // One collab_unshare (with p_upto), one collab_open_link (with the note's head).
   const fns = await pg.query<{ sig: string }>(`select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as sig
