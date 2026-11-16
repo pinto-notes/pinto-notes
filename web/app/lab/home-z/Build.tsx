@@ -8,28 +8,27 @@ import s from "./s.module.css";
 
 // Build apps, from the first word to the first tap. The note starts as Pinto's own New app page: you
 // describe the app ("Make me a habit tracker: writing before work, cooking at home") and press Make
-// it with ChatGPT. The page becomes the tracker, piece by piece, in the same paper, holding this week
+// it with ChatGPT. The request is already typed when the chapter arrives, on a Mac as on a phone (the
+// show starts at the press). The page becomes the tracker, piece by piece, in the same paper, holding this week
 // as it stands (writing Monday to Wednesday, cooking Tuesday and Wednesday). Then your cursor taps
 // today on writing, and its count goes from 3 of 5 to 4 of 5, the first screen's count. Cooking at
 // home sits under it, five nights a week (the decision in the dinners note). After that it's yours: tap any day,
 // add a habit, take one away. The tracker has one layout everywhere, the same as in Your AI: the days
-// named once along the top, each habit a row of seven. On a phone the request is already typed when
-// the chapter arrives (the show starts at the press).
+// named once along the top, each habit a row of seven.
 
 const ASK = "Make me a habit tracker: writing before work, cooking at home";
-const B = { type: [0.5, 2.1] as [number, number], press: 2.4, built: 2.75, name: 2.95, days: 3.15, add: 3.65, made: 3.95, youIn: [4.5, 5.4] as [number, number], tap: 5.5, youOut: [6.6, 7.1] as [number, number], end: 7.2 };
+const B = { press: 1.1, built: 1.45, name: 1.65, days: 1.85, add: 2.35, made: 2.65, youIn: [3.2, 4.1] as [number, number], tap: 4.2, youOut: [5.3, 5.8] as [number, number], end: 5.9 };
 
 /** A habit. `goal`: nights a week, counted as "n of goal" (and named as the goal until the first one). */
 type Habit = { name: string; days: boolean[]; goal?: number };
 const FIRST: Habit = { name: WRITE_HABIT, days: WRITE_BEFORE, goal: WRITE_GOAL };
 const SECOND: Habit = { name: COOK_HABIT, days: COOK_DAYS, goal: 5 };
-type Snap = { n: number; press: boolean; built: boolean; name: boolean; days: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
-const START: Snap = { n: 0, press: false, built: false, name: false, days: 0, add: false, made: false, tapped: false, down: false };
+type Snap = { press: boolean; built: boolean; name: boolean; days: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
+const START: Snap = { press: false, built: false, name: false, days: 0, add: false, made: false, tapped: false, down: false };
 const same = (a: Snap, b: Snap) => (Object.keys(a) as (keyof Snap)[]).every((k) => a[k] === b[k]);
 
 export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arrive: number) => void) => () => void }) {
   const card = useRef<HTMLDivElement>(null), you = useRef<HTMLSpanElement>(null);
-  const narrow = useRef<boolean | null>(null);
   const [snap, setSnap] = useState<Snap>(START);
   // Once you touch the app, it's yours: the show stops steering it.
   const [mine, setMine] = useState<Habit[] | null>(null);
@@ -39,9 +38,8 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
   useShow({
     name: "build", end: B.end, subscribe,
     apply: (t) => {
-      if (narrow.current === null && typeof matchMedia === "function") narrow.current = matchMedia("(max-width: 760px)").matches;
       const next: Snap = {
-        n: narrow.current ? ASK.length : Math.round(seg(t, ...B.type) * ASK.length), press: t >= B.press && t < B.press + 0.18, built: t >= B.built, name: t >= B.name,
+        press: t >= B.press && t < B.press + 0.18, built: t >= B.built, name: t >= B.name,
         days: t < B.days ? 0 : Math.min(7, 1 + Math.floor((t - B.days) / 0.06)), add: t >= B.add, made: t >= B.made, tapped: t >= B.tap, down: t >= B.tap && t < B.tap + 0.16,
       };
       setSnap((o) => (same(o, next) ? o : next));
@@ -78,11 +76,11 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
         <p className={s.makeSub}>Your AI builds it, as a new note.</p>
         <p className={s.makeLabel}>Describe your app</p>
         <p className={s.makeBox}>
-          <span>{ASK.slice(0, snap.n)}</span><span className={s.makeCaret} data-done={snap.n >= ASK.length || undefined} /><span className={s.askRest}>{ASK.slice(snap.n)}</span>
+          <span>{ASK}</span><span className={s.makeCaret} data-done />
         </p>
         <div className={s.makeRow}>
           <small>Opens ChatGPT with this typed in. The app appears here when it’s built.</small>
-          <span className={s.makeGo} data-press={snap.press || undefined} data-ready={snap.n >= ASK.length || undefined}><AIGlyph name="openai" size={15} color="currentColor" />Make it with ChatGPT</span>
+          <span className={s.makeGo} data-press={snap.press || undefined} data-ready><AIGlyph name="openai" size={15} color="currentColor" />Make it with ChatGPT</span>
         </div>
         <p className={s.makeTpl}>Or start from a template</p>
       </div>

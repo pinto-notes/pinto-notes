@@ -6,11 +6,13 @@ import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
 import s from "./s.module.css";
 
-// The things on study Z's page (round 15, option C), one person's week, several parts of one life. The
-// first screen is that week in one note: three dinners (the last added by ChatGPT), the Studio North
-// call and what was decided, and the writing habit, 4 of 5. Then each chapter shows one part at full
-// size: a recipe among a life's notes, a whiteboard (the job offer from Studio North, mapped: now or
-// March?), a small app (the habits they're building), and the dinners note ChatGPT plans next week in.
+// The things on study Z's page (round 16, option C after the round 11 council), one person's week,
+// several parts of one life. The first screen is that week in one note: three dinners (the last a
+// recipe ChatGPT just wrote into Recipes, asked for in a small ChatGPT request), the Studio North
+// question and what was decided, and the writing habit, 4 of 5. Then each chapter shows one part at
+// full size: a book note among a life's notes, a whiteboard (the job offer from Studio North, mapped:
+// now or March?), a small app (the habits they're building), and one request in ChatGPT that lands in
+// all three.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -27,21 +29,31 @@ export const Tick = ({ className = "" }: { className?: string }) => (
 /** The decision in the dinners note (Your AI). Same words everywhere. */
 export const DECIDED = "Cooking at home five nights a week.";
 
-/** The first screen's note: this week, today Thursday. Two dinners cooked, and tonight's, which
- *  ChatGPT added (a link to the recipe it wrote into Recipes); the call today and what was decided. */
+/** The first screen's note: this week, today Thursday. Two dinners cooked, and tonight's: the recipe
+ *  ChatGPT just wrote into Recipes when asked for a quick dinner (a link to it). Then the work
+ *  question and what was decided, and the habit. */
 export const WEEK_NOTE = {
   title: "This week",
   dinners: [["Tue", "Miso salmon"], ["Wed", "Lentil soup"]] as [string, string][],
   added: ["Thu", "Lemon chicken"] as [string, string],
-  call: "Studio North call, Thursday.",
+  addedIn: "New in Recipes:",
+  ask: "Add a quick dinner for Thursday.",
+  question: "Studio North: now or March?",
   decided: "Wait until March.",
 };
 
-/** The notes list in Notes: a whole life's notes, newest first, the recipe open. Title, then where it
- *  lives and its first words. */
+/** The book note Notes opens: two highlights, what to try, and what the reader decided. */
+export const BOOK = {
+  title: "Deep Work", author: "Cal Newport",
+  marks: ["Deep work is rare, and worth more every year.", "Focus is a skill. Train it."],
+  decided: "Write 30 min before work.",
+};
+
+/** The notes list in Notes: a whole life's notes, newest first, the book note open. Title, then where
+ *  it lives and its first words. */
 export const NOTES: { title: string; sub: string; on?: boolean }[] = [
-  { title: "Miso salmon", sub: "Recipes · 20 min", on: true },
-  { title: "Deep Work", sub: "Reading · Cal Newport" },
+  { title: "Deep Work", sub: "Reading · Cal Newport", on: true },
+  { title: "Miso salmon", sub: "Recipes · 20 min" },
   { title: "Studio North", sub: "Work · Wait until March" },
   { title: "Kyoto in April", sub: "Trips · 6 days" },
   { title: "Morning run", sub: "Health · 3 a week" },
@@ -93,25 +105,22 @@ export function Cursor({ x, y, name, color, scale = 1, above, left }: { x: numbe
   );
 }
 
-/** One life's folders, as Pinto's sidebar lists them. Recipes is open on the first screen. */
-export const FOLDERS = ["Recipes", "Work", "Reading", "Trips", "Health", "Studio North"];
-
 /** The folder glyph the notes list uses. */
 export const Folder = () => (
   <svg className={s.folderIcon} viewBox="0 0 20 16" aria-hidden="true"><path d="M1.5 3.2c0-.9.7-1.7 1.7-1.7h4l1.8 2h7.8c.9 0 1.7.8 1.7 1.7v7.6c0 .9-.8 1.7-1.7 1.7H3.2c-1 0-1.7-.8-1.7-1.7z" /></svg>
 );
 
-/* ───────────────────────── The note: your notes, one recipe open ───────────────────────── */
+/* ───────────────────────── The note: your notes, the book note open ───────────────────────── */
 
-const INGREDIENTS = ["2 salmon fillets", "2 tbsp white miso", "1 tbsp honey", "Rice and greens"];
-const TYPED = "A squeeze of lime";
-const STEPS = ["Mix the miso and honey with a splash of water.", "Brush it on. Grill for 8 min.", "Serve on rice, with the greens and lime."];
+/** What to try from the book, a checklist (the first done, the last typed as the chapter arrives). */
+const TRY = ["Phone in another room", "Schedule every minute"];
+const TYPED = "A shutdown ritual at 6";
 
-/** Your notes, as in Pinto: a whole life's notes on the left (a book, the job decision, a trip), the
- *  recipe open at writing size. The ingredients are a checklist that ticks; the last one is typed
- *  when the chapter arrives. */
+/** Your notes, as in Pinto: a whole life's notes on the left (a recipe, the job decision, a trip), the
+ *  book note open at writing size: two highlights, what to try as a checklist that ticks (its last line
+ *  typed when the chapter arrives), and what the reader decided. */
 export function Note({ live }: { live: boolean }) {
-  const [on, setOn] = useState([true, false, false, false, false]);
+  const [on, setOn] = useState([true, false, false]);
   const [n, setN] = useState(0);
   const started = useRef(false);
   useEffect(() => {
@@ -124,7 +133,7 @@ export function Note({ live }: { live: boolean }) {
     return () => clearTimeout(t);
   }, [live]);
   const flip = (i: number) => setOn((o) => o.map((v, k) => (k === i ? !v : v)));
-  const rows = [...INGREDIENTS, TYPED];
+  const rows = [...TRY, TYPED];
   return (
     <div className={s.sheet}>
       <nav className={s.folder} aria-label="Notes">
@@ -136,10 +145,12 @@ export function Note({ live }: { live: boolean }) {
         </ul>
       </nav>
       <div className={s.recipe}>
-        <p className={s.crumb}><svg viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 L2 8 L8 14" /></svg>Recipes</p>
-        <h3 className={s.sheetTitle}>Miso salmon</h3>
-        <p className={s.sheetMeta}><Folder />Recipes · 20 min · Serves 2</p>
-        <p className={s.sheetH}>Ingredients</p>
+        <p className={s.crumb}><svg viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 L2 8 L8 14" /></svg>Reading</p>
+        <h3 className={s.sheetTitle}>{BOOK.title}</h3>
+        <p className={s.sheetMeta}><Folder />Reading · {BOOK.author}</p>
+        <p className={s.sheetH}>Highlights</p>
+        <ul className={s.quotes}>{BOOK.marks.map((m) => <li key={m}>{m}</li>)}</ul>
+        <p className={s.sheetH}>To try</p>
         <ul className={s.rows}>
           {rows.map((text, i) => {
             const typing = i === rows.length - 1;
@@ -157,8 +168,7 @@ export function Note({ live }: { live: boolean }) {
             );
           })}
         </ul>
-        <p className={s.sheetH}>Steps</p>
-        <ol className={s.steps}>{STEPS.map((t) => <li key={t}>{t}</li>)}</ol>
+        <p className={s.bookDecided}><b>Decided:</b> {BOOK.decided}</p>
       </div>
     </div>
   );

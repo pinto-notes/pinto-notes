@@ -14,25 +14,31 @@ import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study Z, round 15 (2026-11-16): W with first-screen option C. S's binder carrying one person's week,
-// several parts of one life. The first screen is that person's table (the still life) with one note
-// on it, "This week": three dinners (the last added by ChatGPT), the Studio North call and what was
-// decided, and the writing habit, 4 of 5. That picture is HeroArt.tsx, one swappable piece. Each chapter shows another part of that life: Notes, your notes with a recipe
-// open (vermilion); Whiteboards, the job offer from Studio North mapped as a decision (deep green);
-// Apps, the habits they're building (kraft); Your AI, one request typed in ChatGPT that lands in all
-// three (ink). Scrolling lays each sheet over the last, whole, and when it lands its tab rises out of
-// it and stays docked under the header; as a sheet rises, the words and things on the one under it
-// move up ahead of its torn edge, so a tear never cuts through them. The tabs end at Your AI. Then the
-// page closes on the same table: "Pinto Notes is free.", the download, four plain lines, and the
-// Studio North note on a Mac and an iPhone, where ChatGPT's line arrives a moment after the page lands.
+// Study Z, round 16 (2026-11-16): option C after the round 11 council. S's binder carrying one
+// person's week, several parts of one life. The first screen is that person's table (the still life)
+// with one note on it, "This week": dinners, the Studio North question and what was decided, and the
+// writing habit, 4 of 5. Pinned to it, the ChatGPT request that just changed it ("Add a quick dinner
+// for Thursday."); on load, Thursday's line writes itself in as a new recipe in Recipes, marked, with
+// Undo. That picture is HeroArt.tsx, one swappable piece. Each chapter shows another part of that
+// life: Notes, your notes with a book note open (vermilion); Whiteboards, the job offer from Studio
+// North mapped as a decision (deep green); Apps, the habits they're building (kraft); Your AI, one
+// request typed in ChatGPT that lands in all three, in Pinto (ink). Scrolling lays each sheet over the
+// last, whole, and when it lands its tab rises out of it and stays docked under the header; as a sheet
+// rises, the words and things on the one under it move up ahead of its torn edge, so a tear never cuts
+// through them, and they clip hard under the sheet's own edge (no fade). The tabs end at Your AI. Then
+// a plain page, the proof: the study's two numbers, big. Then the page closes on the same table:
+// "Pinto Notes is free.", the download, four plain lines, and the Studio North note on a Mac and an
+// iPhone, where ChatGPT's line arrives a moment after the page lands.
 //
 // The sheets move by `position: sticky` alone (the browser scrolls them; no script moves them). The
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
 // dock. With Reduce Motion or `?t=`, everything shows its end state.
 
-type Tone = "write" | "draw" | "build" | "ai" | "cover";
-const ORDER: Tone[] = ["write", "draw", "build", "ai", "cover"];
-const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", cover: "" };
+type Tone = "write" | "draw" | "build" | "ai" | "proof" | "cover";
+const ORDER: Tone[] = ["write", "draw", "build", "ai", "proof", "cover"];
+const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", proof: "", cover: "" };
+/** The last two pages lie over the tabs: they dock under the header itself. */
+const OVER: Tone[] = ["proof", "cover"];
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
@@ -53,7 +59,7 @@ function calm() {
 }
 
 /** Where a tab scrolls to: docked, and for the drawing, most of the way through its stay. */
-const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, cover: 0 };
+const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, proof: 0, cover: 0 };
 /** A chapter's stay as a show's clock source (see show.ts). */
 const stayOf = (tone: Tone) => (fn: (dwell: number, arrive: number) => void) => listen(tone, fn);
 let jump: (tone: Tone) => void = () => {};
@@ -99,7 +105,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       const docked: boolean[] = [];
       for (let i = 0; i < chs.length; i++) {
         const nt = doc[i] - y;
-        const stick = ORDER[i] === "cover" ? hh : tt;
+        const stick = OVER.includes(ORDER[i]) ? hh : tt;
         const arrive = clamp((vh - nt) / Math.max(1, vh - stick));
         docked.push(nt <= stick + 0.5);
         const dwellLen = i + 1 < chs.length ? Math.max(1, mt[i + 1]) : vh * 0.4;
@@ -109,11 +115,12 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
       for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
       // As the next sheet rises, this one's words and things move up ahead of its torn edge (the gap
-      // never closes), so a tear never cuts through a line or a card.
+      // never closes), so a tear never cuts through a line or a card. The last two pages have straight
+      // edges: they simply slide over what's under them, which stays put (Your AI's chat stays in view).
       for (let i = 0; i + 1 < chs.length; i++) {
         const nt = doc[i + 1] - y;
         let lift = 0;
-        if (docked[i] && nt < vh) lift = Math.max(0, Math.round(tt + reach(i) - (nt - 18)));
+        if (docked[i] && nt < vh && !OVER.includes(ORDER[i + 1])) lift = Math.max(0, Math.round(tt + reach(i) - (nt - 18)));
         if (lift !== lifts[i]) { lifts[i] = lift; chs[i].style.setProperty("--lift", `${lift}px`); chs[i].toggleAttribute("data-lifted", lift > 0); }
       }
       // A chapter under a docked one is filed: its contents aren't painted, and its torn top edge
@@ -193,7 +200,7 @@ function Hero() {
     <section data-hero className={s.hero} aria-labelledby="s-h1">
       <div className={s.heroText}>
         <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
-        <p className={s.lede}>Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided.</p>
+        <p className={s.lede}>Simple notes, whiteboards and apps. Ask ChatGPT or Claude: they read what you decided, and every change lands in your notes, marked.</p>
         <Cta />
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
@@ -282,15 +289,41 @@ function Ai() {
     <Chapter tone="ai" label="s-ai-h">
       <AiShow
         subscribe={sub}
-        title={<h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />in all three.</h2>}
+        title={<h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />{" "}in all three.</h2>}
         foot={
           <div className={s.aFoot}>
             <p className={s.works}>Connect <span className={s.with}><AIGlyph name="openai" size={17} color="#fff1e2" />ChatGPT</span>, <span className={s.with}><AIGlyph name="claude" size={17} color="#d97757" />Claude</span>, Claude Code or Codex. Every chat starts knowing your notes.</p>
-            <p className={s.study}>In a new chat, Claude answered 18% of questions about past chats. With Pinto, 82.5%. <a href="/blog/ai-memory-with-notes">Read the study</a></p>
           </div>
         }
       />
     </Chapter>
+  );
+}
+
+/* ───────────────────────── The proof: the study, in two numbers ───────────────────────── */
+
+/** A plain page laid over the binder, its one break in rhythm: no colour, no tear, no tab, no serif
+ *  headline, no card. The study's two numbers, big, a plain line under each, and the link. */
+function Proof() {
+  return (
+    <section id="s-proof" data-ch="proof" className={s.proof} aria-labelledby="s-proof-h" style={{ zIndex: 8 }}>
+      <div data-body className={s.proofBody}>
+        <div className={s.proofIn}>
+          <h2 id="s-proof-h" className={s.vh}>The study: Claude on questions about past chats, with and without Pinto</h2>
+          <div className={s.nums}>
+            <div className={s.num} data-low>
+              <p className={s.big}>18%</p>
+              <p className={s.numSay}>of questions about past chats Claude answered in a new chat.</p>
+            </div>
+            <div className={s.num}>
+              <p className={s.big}>82.5%</p>
+              <p className={s.numSay}>with Pinto.</p>
+            </div>
+          </div>
+          <a className={s.proofLink} href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -327,6 +360,7 @@ export function Story({ className }: { className: string }) {
       <Draw />
       <Build />
       <Ai />
+      <Proof />
       <Cover />
       <div className={s.tail} aria-hidden="true" />
     </div>

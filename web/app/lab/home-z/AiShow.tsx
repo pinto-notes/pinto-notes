@@ -8,59 +8,63 @@ import { COOK_DAYS, COOK_HABIT, DECIDED, DINNERS, Flag, GPT, hand, nodeWords, QU
 import s from "./s.module.css";
 
 // The climax, staged: one request, typed in ChatGPT, that lands in three parts of one life in Pinto.
-// Where you ask is a small, plain chat: the ChatGPT mark and name, and your words in a bubble ("Plan my
-// week: dinners, and prep for the Studio North call."). Beside the heading, one line ties the two
-// places: "You ask in ChatGPT or Claude. The change lands in your notes." Under the chat, what it read:
-// "It reads what you decided: cook at home five nights, and wait until March." Under that, labelled
-// Pinto Notes with its mark, the three things it changes, each in place and each with its own "Added by
-// ChatGPT · Undo": next week's dinners, named, in the dinners note; two real questions for Ana on the
-// Studio North board (its arrow from "Talk again in March" draws itself, the way Claude's did in
-// Draw, then the box); and a prep habit in the habits app (Mon, Wed and Fri, 20 min). ChatGPT's
-// cursor reads the decisions, then makes each change in turn. Then your cursor presses Undo on the
-// app's change: that row leaves, and the rest holds. Redo brings it back. With Reduce Motion (or `?t`)
-// all three changes show, none undone: the end state. On a phone it does one thing at a time, with one
-// left edge for everything: the heading, the tie line, the chat, then one card, which steps note,
-// board, app (a slow crossfade, about 3 s each), each showing its one change with the mark and Undo.
-// The card's height is locked (each change's room is kept from the start), so it never jumps between
-// steps. Under it, a short caption names where the change is ("In your note"), with three small dots.
-// No cursors and no Undo performance there, and the card keeps stepping after the show.
-// Everything is a function of the show's time t (see show.ts), so stills are exact.
+// Where you ask is ChatGPT, in a small window of its own: its mark and name, and your words in a bubble
+// ("Prep for the Studio North call, and plan next week's dinners."). Beside the heading, one line ties
+// the two places: "You ask in ChatGPT or Claude. The change lands in your notes." Under the chat, what
+// it read: "It reads what you decided: wait until March, and cook at home five nights." The chat, that
+// line and where it lands share one left edge. Where it lands is one frame, labelled with Pinto's mark,
+// "In your notes", and a line runs to it from the chat once you send. In it, the three things it
+// changes, each in place, each with its own "Added by ChatGPT · Undo" and a caption under it ("On your
+// whiteboard", "In your note", "In your app"): first two real questions for Ana on the Studio North
+// board (its arrow from "Talk again in March" draws itself, the way Claude's did in Draw, then the
+// box); then next week's dinners, named, in the dinners note; then a prep habit in the habits app (Mon,
+// Wed and Fri, 20 min). ChatGPT's cursor reads the decisions, then makes each change in turn. Then
+// your cursor presses Undo on the app's change: that row leaves, and the rest holds. Redo brings it
+// back. With Reduce Motion (or `?t`) all three changes show, none undone: the end state. On a phone it
+// does one thing at a time, with one left edge for everything: the heading, the tie line, the chat,
+// then one card, which steps board, note, app (a slow crossfade, about 3 s each), each showing its one
+// change with the mark and Undo. The card's height is locked (each change's room is kept from the
+// start), so it never jumps between steps. Under it, a short caption names where the change is ("On
+// your whiteboard"), with three small dots. No cursors and no Undo performance there, and the card
+// keeps stepping after the show. The phone's block is short enough that the chat stays in view while
+// the card steps. Everything is a function of the show's time t (see show.ts), so stills are exact.
 
-const REQ = "Plan my week: dinners, and prep for the Studio North call.";
+const REQ = "Prep for the Studio North call, and plan next week's dinners.";
 
+/** The show's times. The three changes, in order: the board (0), the dinners note (1), the app (2). */
 type Plan = {
-  type: [number, number]; gptIn: number; f1: [number, number]; read: [number, number]; f2: [number, number];
-  land: [number, number, number]; rec: [number, number, number]; ride0: number; ride2: number; fill: number;
-  f3: [number, number]; draw: [number, number]; f4: [number, number]; gptOut: [number, number];
+  type: [number, number]; sent: number; gptIn: number; f1: [number, number]; read: [number, number]; f2: [number, number];
+  draw: [number, number]; land: [number, number, number]; rec: [number, number, number]; ride1: number; ride2: number;
+  f3: [number, number]; f4: [number, number]; gptOut: [number, number];
   youIn: [number, number]; press: number; undo: number; youOut: [number, number]; end: number;
   sw: [number, number];
 };
 const WIDE_PLAN: Plan = {
-  type: [0.5, 2.0], gptIn: 2.2, f1: [2.3, 3.05], read: [3.1, 3.85], f2: [3.9, 4.35],
-  land: [4.4, 7.15, 8.6], rec: [4.8, 7.45, 9.0], ride0: 0.5, ride2: 0.45, fill: 5.95,
-  f3: [5.05, 5.85], draw: [6.25, 7.1], f4: [7.7, 8.5], gptOut: [9.3, 9.7],
+  type: [0.5, 2.0], sent: 2.1, gptIn: 2.3, f1: [2.4, 3.1], read: [3.15, 3.8], f2: [3.85, 4.5],
+  draw: [4.6, 5.4], land: [5.45, 6.85, 8.45], rec: [5.75, 7.15, 8.85], ride1: 0.5, ride2: 0.45,
+  f3: [5.9, 6.75], f4: [7.55, 8.35], gptOut: [9.3, 9.7],
   youIn: [10.2, 10.9], press: 11.0, undo: 11.1, youOut: [12.6, 13.1], end: 13.2,
   sw: [99, 99],
 };
-// On a phone one card shows at a time: the recipe lands in the folder, then Friday fills in and its
-// arrow draws itself, then the app's new row opens. No cursors, and nothing is undone by the show.
+// On a phone one card shows at a time: the board's arrow draws itself and the questions land, then the
+// dinners open in the note, then the app's new row opens. No cursors, and nothing is undone by the show.
 const N = 99;
 const TALL_PLAN: Plan = {
-  type: [0.4, 1.9], gptIn: N, f1: [N, N], read: [1.9, 2.5], f2: [N, N],
-  land: [2.5, 7.1, 10.5], rec: [2.8, 7.4, 10.8], ride0: 0, ride2: 0, fill: 6.0,
-  f3: [N, N], draw: [6.3, 7.05], f4: [N, N], gptOut: [N, N],
+  type: [0.4, 1.9], sent: 2.0, gptIn: N, f1: [N, N], read: [1.9, 2.5], f2: [N, N],
+  draw: [2.5, 3.25], land: [3.3, 7.1, 10.5], rec: [3.6, 7.4, 10.8], ride1: 0, ride2: 0,
+  f3: [N, N], f4: [N, N], gptOut: [N, N],
   youIn: [N, N], press: N, undo: N, youOut: [N, N], end: 13.6,
   sw: [5.6, 9.9],
 };
 /** After the show, the phone's card keeps stepping, this often (ms). */
 const STEP = 3400;
-/** Where each change is, named under the phone's card. */
-const WHERE = ["In your note", "On your whiteboard", "In your app"];
+/** Where each change is, named under its card. */
+const WHERE = ["On your whiteboard", "In your note", "In your app"];
 
-type Snap = { n: number; read: boolean; fill: boolean; land: boolean[]; rec: boolean[]; undo: boolean; press: boolean; active: number };
-const same = (a: Snap, b: Snap) => a.n === b.n && a.read === b.read && a.fill === b.fill && a.undo === b.undo && a.press === b.press && a.active === b.active
+type Snap = { n: number; sent: boolean; read: boolean; land: boolean[]; rec: boolean[]; undo: boolean; press: boolean; active: number };
+const same = (a: Snap, b: Snap) => a.n === b.n && a.sent === b.sent && a.read === b.read && a.undo === b.undo && a.press === b.press && a.active === b.active
   && a.land.every((v, i) => v === b.land[i]) && a.rec.every((v, i) => v === b.rec[i]);
-const START: Snap = { n: 0, read: false, fill: false, land: [false, false, false], rec: [false, false, false], undo: false, press: false, active: 0 };
+const START: Snap = { n: 0, sent: false, read: false, land: [false, false, false], rec: [false, false, false], undo: false, press: false, active: 0 };
 
 function useNarrow() {
   const [narrow, setNarrow] = useState(false);
@@ -108,8 +112,8 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       const atEnd = frozenAt("ai") === Infinity;
       const next: Snap = {
         n: Math.round(seg(t, P.type[0], P.type[1]) * REQ.length),
-        read: t >= P.read[0] && t < P.land[0] + 1.4,
-        fill: t >= P.fill,
+        sent: t >= P.sent,
+        read: t >= P.read[0],
         land: P.land.map((a) => t >= a),
         rec: P.rec.map((a) => t >= a),
         undo: t >= P.undo && !atEnd,
@@ -120,12 +124,12 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       if (t >= P.end) setEnded(true);
       if (narrow) { place(gpt.current, null, 0); place(you.current, null, 0); return; }
 
-      // ChatGPT's cursor: from the request to the decision it remembered (read along it), then to each
-      // change in turn.
+      // ChatGPT's cursor: from the request to the decision it read (along it), then to each change in
+      // turn: it draws the board's arrow, then rides the dinners in, then the app's new row.
       const ask = at(B, q("ask"), 1, 0.62);
       const dec0 = at(B, q("decided"), 0, 0.86), dec1 = at(B, q("decided"), 1, 0.86);
-      const s0a = at(B, q("slot0"), 0, 0.72), s0b = at(B, q("slot0"), 1, 0.72);
-      const s2a = at(B, q("slot2"), 0, 0.72), s2b = at(B, q("slot2"), 1, 0.72);
+      const n0 = at(B, q("slot1"), 0, 0.72), n1 = at(B, q("slot1"), 1, 0.72);
+      const a0 = at(B, q("slot2"), 0, 0.72), a1 = at(B, q("slot2"), 1, 0.72);
       const p0 = along(B, path, 0), p1 = along(B, path, 1);
       let g: Pt | null = null, go = 1;
       if (t < P.gptIn) { g = ask; go = 0; }
@@ -134,18 +138,18 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       else if (t < P.read[0]) g = dec0;
       else if (t < P.read[1]) g = dec0 && dec1 && mix(dec0, dec1, mj(seg(t, ...P.read)));
       else if (t < P.f2[0]) g = dec1;
-      else if (t < P.f2[1]) g = dec1 && s0a && mix(dec1, s0a, mj(seg(t, ...P.f2)));
-      else if (t < P.land[0]) g = s0a;
-      else if (t < P.land[0] + P.ride0) g = s0a && s0b && mix(s0a, s0b, mj(seg(t, P.land[0], P.land[0] + P.ride0)));
-      else if (t < P.f3[0]) g = s0b;
-      else if (t < P.f3[1]) g = s0b && p0 && mix(s0b, p0, mj(seg(t, ...P.f3)));
+      else if (t < P.f2[1]) g = dec1 && p0 && mix(dec1, p0, mj(seg(t, ...P.f2)));
       else if (t < P.draw[0]) g = p0;
       else if (t < P.draw[1]) g = along(B, path, e);
-      else if (t < P.f4[0]) g = p1;
-      else if (t < P.f4[1]) g = p1 && s2a && mix(p1, s2a, mj(seg(t, ...P.f4)));
-      else if (t < P.land[2]) g = s2a;
-      else if (t < P.land[2] + P.ride2) g = s2a && s2b && mix(s2a, s2b, mj(seg(t, P.land[2], P.land[2] + P.ride2)));
-      else { const k = seg(t, ...P.gptOut); g = s2b && [s2b[0] + 18 * k, s2b[1] + 10 * k]; go = 1 - k; }
+      else if (t < P.f3[0]) g = p1;
+      else if (t < P.f3[1]) g = p1 && n0 && mix(p1, n0, mj(seg(t, ...P.f3)));
+      else if (t < P.land[1]) g = n0;
+      else if (t < P.land[1] + P.ride1) g = n0 && n1 && mix(n0, n1, mj(seg(t, P.land[1], P.land[1] + P.ride1)));
+      else if (t < P.f4[0]) g = n1;
+      else if (t < P.f4[1]) g = n1 && a0 && mix(n1, a0, mj(seg(t, ...P.f4)));
+      else if (t < P.land[2]) g = a0;
+      else if (t < P.land[2] + P.ride2) g = a0 && a1 && mix(a0, a1, mj(seg(t, P.land[2], P.land[2] + P.ride2)));
+      else { const k = seg(t, ...P.gptOut); g = a1 && [a1[0] + 18 * k, a1[1] + 10 * k]; go = 1 - k; }
       // Its name tag always stays on the page.
       if (g) g = [Math.min(g[0], B.width - 84), g[1]];
       place(gpt.current, g, go);
@@ -168,45 +172,48 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
   const flip = (i: number) => setUser((u) => u.map((v, k) => (k === i ? !undone(i) : v)));
   const active = pick ?? cycle ?? snap.active;
   const objs = [
-    <NoteObj key="n" />,
     <BoardObj key="b" tall={narrow} />,
+    <NoteObj key="n" />,
     <AppObj key="a" />,
   ];
   return (
     <div ref={root} className={s.aBody}>
       <div className={s.aTop}>
-        <div className={s.aLead}>
-          {title}
-          <p className={s.aTie}>You ask in ChatGPT or Claude. The change lands in your notes.</p>
-        </div>
-        <div className={s.askWrap}>
-          {/* Where you ask: a small, plain chat in ChatGPT. */}
-          <div className={s.chat}>
-            <p className={s.chatWho}><span className={s.askMark}><AIGlyph name="openai" size={15} color="#fff" /></span>ChatGPT</p>
-            <p className={s.ask} aria-label={`You, in ChatGPT: ${REQ}`}>
-              <span className={s.askText} aria-hidden="true">
-                {REQ.slice(0, snap.n)}<span data-at="ask" className={s.askCaret} data-done={snap.n >= REQ.length || undefined} />
-                <span className={s.askRest}>{REQ.slice(snap.n)}</span>
-              </span>
-            </p>
-          </div>
-          <p className={s.askSub}>It reads what you decided: <span data-at="decided" className={s.askNoCar} data-on={snap.read || snap.land[0] || undefined}>cook at home five nights</span>, and <span className={s.askNoCar} data-on={snap.land[1] || undefined}>wait until March</span>.</p>
-        </div>
+        {title}
+        <p className={s.aTie}>You ask in ChatGPT or Claude. The change lands in your notes.</p>
       </div>
-      {/* Where it lands: your notes, in Pinto. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <p className={s.aLands}><img src="/mark-256.png" alt="" width={22} height={22} />Pinto Notes</p>
+      <div className={s.aFlow}>
+        {/* Where you ask: ChatGPT, in a small window of its own. */}
+        <div className={s.chat}>
+          <p className={s.chatWho}><span className={s.askMark}><AIGlyph name="openai" size={15} color="#fff" /></span>ChatGPT</p>
+          <p className={s.ask} aria-label={`You, in ChatGPT: ${REQ}`}>
+            <span className={s.askText} aria-hidden="true">
+              {REQ.slice(0, snap.n)}<span data-at="ask" className={s.askCaret} data-done={snap.n >= REQ.length || undefined} data-sent={snap.sent || undefined} />
+              <span className={s.askRest}>{REQ.slice(snap.n)}</span>
+            </span>
+          </p>
+        </div>
+        <p className={s.askSub}>It reads what you decided: <span data-at="decided" className={s.askNoCar} data-on={snap.read || snap.land[0] || undefined}>wait until March</span>, and <span className={s.askNoCar} data-on={snap.land[1] || undefined}>cook at home five nights</span>.</p>
+        {/* Once you send, a line runs from the chat to your notes. */}
+        <i className={s.wire} data-on={snap.sent || undefined} aria-hidden="true" />
+      </div>
+      {/* Where it lands: your notes, in Pinto, one frame. */}
       <div ref={stage} className={s.aStage} style={{ "--headOn": 0 } as React.CSSProperties}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <p className={s.aLands}><img src="/mark-256.png" alt="Pinto Notes:" width={22} height={22} />In your notes</p>
         <ol className={s.aObjs}>
           {objs.map((o, i) => (
-            <li key={i} data-obj className={`${s.aObj} ${[s.aoNote, s.aoBoard, s.aoApp][i]}`} data-land={snap.land[i] || undefined} data-fill={(i === 1 && snap.fill) || undefined}
-              data-undone={(snap.land[i] && undone(i)) || undefined} data-current={i === active || undefined} aria-label={["Note: Weeknight dinners", "Whiteboard: Studio North", "App: Habits"][i]}>
-              <div className={s.aCard}>
-                {o}
-                <div className={`${s.aGrow} ${s.aRec}`} data-at={`undo${i}`} data-show={snap.rec[i] || undefined}>
-                  <div><Receipt undone={undone(i)} onFlip={() => flip(i)} live={snap.rec[i]} /></div>
+            <li key={i} data-obj className={`${s.aSlot} ${[s.aoBoard, s.aoNote, s.aoApp][i]}`} data-land={snap.land[i] || undefined}
+              data-undone={(snap.land[i] && undone(i)) || undefined} data-current={i === active || undefined} aria-label={["Whiteboard: Studio North", "Note: Weeknight dinners", "App: Habits"][i]}>
+              <div className={s.aObj}>
+                <div className={s.aCard}>
+                  {o}
+                  <div className={`${s.aGrow} ${s.aRec}`} data-at={`undo${i}`} data-show={snap.rec[i] || undefined}>
+                    <div><Receipt undone={undone(i)} onFlip={() => flip(i)} live={snap.rec[i]} /></div>
+                  </div>
                 </div>
               </div>
+              <p className={s.aWhere}>{WHERE[i]}</p>
             </li>
           ))}
         </ol>
@@ -217,7 +224,7 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <p key={active} className={s.markCap} aria-live="polite"><img src="/mark-256.png" alt="Pinto Notes: " width={18} height={18} />{WHERE[active]}</p>
         <div className={s.markDots} role="tablist" aria-label="What ChatGPT changed">
-          {["Note", "Whiteboard", "App"].map((n, i) => (
+          {["Whiteboard", "Note", "App"].map((n, i) => (
             <button key={n} type="button" role="tab" aria-selected={i === active} aria-label={WHERE[i]} onClick={() => setPick(i)}><i /></button>
           ))}
         </div>
@@ -238,7 +245,7 @@ function NoteObj() {
       <div className={`${s.aGrow} ${s.aNewRow}`}>
         <div>
           <div className={s.aAdd}>
-            <p className={s.aPlanH}><b data-at="slot0"><i className={s.sweep} />Next week</b></p>
+            <p className={s.aPlanH}><b data-at="slot1"><i className={s.sweep} />Next week</b></p>
             <ul className={s.aPlan}>{DINNERS.map(([d, n]) => <li key={d}><span>{d}</span>{n}</li>)}</ul>
           </div>
         </div>
