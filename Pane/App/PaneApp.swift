@@ -904,6 +904,8 @@ final class AppSession {
             welcomedAccount = nil
             shareAsk.attach(account: nil, service: nil)
             heardFrom.attach(account: nil, service: nil)
+            // The film's card, the film in hand and its movies go with the account.
+            notebookFilm.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
             AccountCrypto.shared.signedOut()
             CollabStore.detach()

@@ -35,6 +35,8 @@ struct NotebookFilmView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(macOS)
     @State private var saveFailed = false
+    /// The movie Share was waiting for couldn't be made.
+    @State private var makeFailed = false
     #endif
 
     /// Like a year in review: an intro, the film once full screen, then the film to share.
@@ -153,6 +155,16 @@ struct NotebookFilmView: View {
             guard shareWaiting, let movie else { return }
             shareWaiting = false
             openShare(movie)
+        }
+        // Share stops waiting and says so; Try Again makes it again.
+        .onChange(of: store.movieFailed) { _, failed in
+            guard failed, shareWaiting else { return }
+            shareWaiting = false
+            makeFailed = true
+        }
+        .alert(Self.makeFailedTitle, isPresented: $makeFailed) {
+            Button("Try Again") { pressShare() }
+            Button("Cancel", role: .cancel) {}
         }
         .accessibilityIdentifier("notebookFilm")
     }
@@ -875,6 +887,7 @@ struct NotebookFilmView: View {
 
     /// What sharing shares is the film, and the buttons say so.
     static let shareVideo = "Share video", saveVideo = "Save video\u{2026}"
+    static let makeFailedTitle = "Couldn\u{2019}t make the video"
 
     /// Pinto's ink, for words on a pale sky.
     static let ink = Color(red: 0.17, green: 0.12, blue: 0.11)

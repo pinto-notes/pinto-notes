@@ -32,6 +32,25 @@ enum FilmVideo {
         try await export.export(to: url, as: .mp4)
     }
 
+    /// Waits for the input to take more. A writer that has failed is never ready again (the disk
+    /// filled, or the iPhone app went to the background and lost the encoder), and closing the film
+    /// cancels the work: either ends the wait, and the movie isn't made.
+    private static func waitUntilReady(_ input: AVAssetWriterInput, _ writer: AVAssetWriter) throws {
+        try waitUntil({ input.isReadyForMoreMediaData }, writing: { writer.status == .writing }, error: { writer.error },
+                      cancel: { writer.cancelWriting() })
+    }
+
+    /// `ready` is asked until it's true. Throws the writer's error once it's no longer writing, and
+    /// `CancellationError` (after `cancel`) once the task is cancelled.
+    static func waitUntil(_ ready: () -> Bool, writing: () -> Bool, error: () -> Error?, cancel: () -> Void,
+                          pause: TimeInterval = 0.002) throws {
+        while !ready() {
+            if Task.isCancelled { cancel(); throw CancellationError() }
+            guard writing() else { throw Failure.writer(error()?.localizedDescription ?? "the writer stopped") }
+            Thread.sleep(forTimeInterval: pause)
+        }
+    }
+
     /// The film's sound as AAC, on its own.
     private static func sound(_ samples: [Float], to url: URL) throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .m4a)
@@ -53,7 +72,7 @@ enum FilmVideo {
         var at = 0
         while at < frames {
             if Task.isCancelled { writer.cancelWriting(); throw CancellationError() }
-            while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.002) }
+            try waitUntilReady(input, writer)
             let n = min(8_192, frames - at)
             var block: CMBlockBuffer?
             CMBlockBufferCreateWithMemoryBlock(allocator: nil, memoryBlock: nil, blockLength: n * 8, blockAllocator: nil, customBlockSource: nil,
@@ -114,7 +133,7 @@ enum FilmVideo {
                 writer.cancelWriting()
                 throw CancellationError()
             }
-            while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.002) }
+            try waitUntilReady(input, writer)
             guard let pool = adaptor.pixelBufferPool else { throw Failure.writer("no pool") }
             var buffer: CVPixelBuffer?
             CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer)
