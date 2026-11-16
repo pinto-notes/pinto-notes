@@ -2143,7 +2143,12 @@ import UIKit
             await j.until("nothing selected") { !j.canvas.state.hasSelection }
             // Its top \(y) points from the top of the view.
             _ = try await j.js("(() => { const api = amber._canvas.api, s = api.getAppState(), e = api.getSceneElements().find((e) => e.id === '\(id)'); api.updateScene({ appState: { scrollY: \(y) / s.zoom.value - e.y } }); return 1; })()")
-            #expect(abs(try await top(id) - y) < 0.5)
+            // The engine takes a scene update on its next turn: a read straight after can still see
+            // the view as it was (the app's next call came first once the page stopped telling it of
+            // every change, 16 November 2026).
+            var at = try await top(id)
+            for _ in 0..<50 where abs(at - y) >= 0.5 { try await Task.sleep(for: .milliseconds(10)); at = try await top(id) }
+            #expect(abs(at - y) < 0.5, "\(id)'s top \(y) from the top of the view: \(at)")
             _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(id)': true } } }); return 1; })()")
             await j.until("\(id) selected") { j.canvas.state.selection.count == 1 }
             try await Task.sleep(for: .milliseconds(200))
@@ -3581,6 +3586,8 @@ import UIKit
     /// dragging a shape redraws the note pane on every move.
     /// Before: two saves a stroke (the page merged its own save back in and saved again), each one
     /// sent back to the page a second time, and the note pane redrawn on every move of a drag.
+    /// Since 16 November 2026 the drawing goes as text (store.setJSON) and the reply doesn't carry it
+    /// back: the page hears nothing of its own save.
     @Test func strokesSaveOnceAndDontRedrawTheNotePane() async throws {
         let c = try Self.canvasLibrary()
         let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
@@ -3599,6 +3606,7 @@ import UIKit
             amber.__lag = \(CanvasTests.lagKit);
             window.__saves = 0; window.__heard = 0;
             const set = amber.store.set; amber.store.set = (k, v) => { __saves++; return set(k, v); };
+            const setJSON = amber.store.setJSON; amber.store.setJSON = (k, j) => { __saves++; return setJSON(k, j); };
             amber.onChange(() => { __heard++; });
             window.__heard = 0; 1
             """)
@@ -3614,7 +3622,7 @@ import UIKit
             let heard = try await web.evaluateJavaScript("__heard") as? Int ?? -1
             let strokeRenders = RenderProbe.values(in: c.mainContext)["NoteDetailView"] ?? 0
             #expect(saves == strokes, "one save a stroke: \(saves) for \(strokes)")
-            #expect(heard == strokes, "the page hears of each save once, by the store's reply, not again by a push: \(heard)")
+            #expect(heard == 0, "the page hears nothing of its own saves, neither the drawing back in the reply nor a push: \(heard)")
             #expect(strokeRenders <= 2, "\(strokes) strokes of 40 moves redraw the note pane at most twice (Undo turning on): \(strokeRenders)")
 
             // A drag of the selected box, as the page reports it: its bounds on every move. The bar over

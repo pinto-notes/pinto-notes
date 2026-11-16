@@ -180,9 +180,25 @@ enum NotePageLibraries {
         case 3 where parts[0] == "fonts" && parts[2].hasSuffix(".woff2") && !parts[2].contains(".."): name = parts[2]
         default: return nil
         }
-        guard let data = resource(name) else { return nil }
+        guard let data = canvasData(name) else { return nil }
         let type = name.hasSuffix(".js") ? "text/javascript" : name.hasSuffix(".css") ? "text/css" : "font/woff2"
         return (data, type)
+    }
+
+    /// The canvas's files, read once and kept (2 MB): a board's page asks for them on the main thread
+    /// as it opens, which then waited on the disk, a long wait while builds and tests fill it.
+    nonisolated(unsafe) private static var canvasRead: [String: Data] = [:]
+    private static let canvasLock = NSLock()
+    private static func canvasData(_ name: String) -> Data? {
+        if let d = canvasLock.withLock({ canvasRead[name] }) { return d }
+        guard let d = resource(name) else { return nil }
+        canvasLock.withLock { canvasRead[name] = d }
+        return d
+    }
+
+    /// Reads the canvas's script and styles ahead, off the main thread (with the spare page view).
+    static func readCanvasAhead() {
+        DispatchQueue.global(qos: .utility).async { for name in ["canvas.js", "canvas.css"] { _ = canvasData(name) } }
     }
 
     static func bundledData(_ name: String) -> Data? {

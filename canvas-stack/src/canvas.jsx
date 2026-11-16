@@ -82,11 +82,51 @@ export function fingerprint(scene) {
   return out;
 }
 
-/** Changes that are kept, not pans and zooms: cheap enough for every frame of a stroke. */
+/** Changes that are kept, not pans and zooms: cheap enough for every frame of a stroke. The
+ *  engine's scene changes its nonce with every change to an element; before the bridge has reached
+ *  the engine, every element's version is added up. */
 function changeKey(elements, appState, files) {
-  let v = 0;
-  for (const e of elements) v += e.version;
+  const nonce = sceneNonce();
+  let v = nonce;
+  if (nonce === null) { v = 0; for (const e of elements) v += e.version; }
   return `${elements.length}|${v}|${appState.viewBackgroundColor}|${appState.gridModeEnabled}|${files ? Object.keys(files).length : 0}`;
+}
+
+/** A press in the middle of something: drawing, moving, resizing, rotating or boxing elements. */
+const pressing = (s) => !!(s.selectedElementsAreBeingDragged || s.isResizing || s.isRotating || s.newElement || s.multiElement || s.selectionElement);
+
+/** The engine's scene's nonce (it changes with every change to an element), or null before the bridge has the engine. */
+function sceneNonce() {
+  const n = engine && engine.scene && typeof engine.scene.getSceneNonce === "function" ? engine.scene.getSceneNonce() : undefined;
+  return n === undefined ? null : n;
+}
+
+// Each element's JSON, kept until it changes (the engine changes its version and nonce on every
+// edit): a save after a stroke on a board of 2000 elements writes one element anew, not 2000. The
+// drawing goes to the app as text, which crosses whole, where objects were copied one by one into
+// the app and back (16 November 2026: 3 MB a save, tens of milliseconds on both sides).
+const elementText = new Map(), fileText = new Map();
+export function sceneText(scene) {
+  const seen = new Set();
+  const parts = scene.elements.map((e) => {
+    seen.add(e.id);
+    const c = elementText.get(e.id);
+    if (c && c.e === e && c.version === e.version && c.nonce === e.versionNonce && c.deleted === e.isDeleted) return c.text;
+    const text = JSON.stringify(e);
+    elementText.set(e.id, { e, version: e.version, nonce: e.versionNonce, deleted: e.isDeleted, text });
+    return text;
+  });
+  if (elementText.size > seen.size) for (const id of elementText.keys()) if (!seen.has(id)) elementText.delete(id);
+  const files = Object.entries(scene.files || {}).map(([id, f]) => {
+    const c = fileText.get(id);
+    if (c && c.f === f && c.url === f.dataURL && c.at === f.lastRetrieved) return c.text;
+    const text = JSON.stringify(id) + ":" + JSON.stringify(f);
+    fileText.set(id, { f, url: f.dataURL, at: f.lastRetrieved, text });
+    return text;
+  });
+  const { elements: _e, files: _f, ...rest } = scene;
+  const head = JSON.stringify(rest);
+  return head.slice(0, -1) + (head.length > 2 ? "," : "") + '"elements":[' + parts.join(",") + '],"files":{' + files.join(",") + "}}";
 }
 
 /** Three-way, by element id: base is what this page last saved (or received). */
@@ -1392,8 +1432,13 @@ function bridge(api) {
     const at = (b) => { const e = b && byId.get(b.elementId); return e ? [e.x, e.y, e.width, e.height].map(Math.round).join(":") : "-"; };
     return a.startBinding || a.endBinding ? `${a.id}|${at(a.startBinding)}|${at(a.endBinding)}` : null;
   };
+  let rememberedAt;
   const remember = () => {
     if (replaying) return;
+    // Nothing drawn has changed since the last time: the routes are as they were.
+    const nonce = sceneNonce();
+    if (nonce !== null && nonce === rememberedAt) return;
+    rememberedAt = nonce;
     const els = api.getSceneElements();
     const byId = new Map(els.map((e) => [e.id, e]));
     for (const a of els) {
@@ -1460,12 +1505,23 @@ function bridge(api) {
     putBack();
     setTimeout(() => { putBack(); replaying = false; remember(); }, 30);
   };
-  let last = null;
+  let last = null, lastState = null, busySent = false;
   const report = () => {
     const state = stateOf(api, app);
     const json = JSON.stringify(state);
+    busySent = false;
     if (json === last) return;
     last = json;
+    lastState = state;
+    try { window.webkit.messageHandlers.amberCanvas.postMessage(state); } catch (e) {}
+  };
+  // While a press draws, moves, resizes or boxes, or the view pans or zooms under a selection: the
+  // last state, busy (the app's bar over the selection stands aside), once.
+  const reportBusy = () => {
+    if (busySent || !lastState || lastState.busy) return;
+    busySent = true;
+    const state = { ...lastState, busy: true, nearby: [] };
+    last = JSON.stringify(state);
     try { window.webkit.messageHandlers.amberCanvas.postMessage(state); } catch (e) {}
   };
   const command = (c) => {
@@ -1688,9 +1744,39 @@ function bridge(api) {
     report();
     return true;
   };
-  // Coalesced to one report a frame (a timer: a page off screen gets no animation frames): a pan or a drag changes the state on every move.
-  let queued = false;
-  const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); dropEmptyGroups(); roomForHandle(); leaveComments(); report(); }, 16); } };
+  // The app hears of a change once it has settled, a frame later, not on every frame of it (a
+  // timer: a page off screen gets no animation frames). While a press draws, moves, resizes or boxes
+  // something, it hears only that the board is busy, once; the state is worked out over the whole
+  // drawing when that ends. While the view pans or zooms, the view alone waits the same way (busy,
+  // under a selection), and anything else (a tool, a selection, the next frame of a talk) is said at
+  // once. On a board of 2000 elements that was 2 ms of every frame, and the app redrew its controls
+  // for every message: drawing and dragging lagged (16 November 2026). A change to nothing the app
+  // shows (the pointer over a shape) is let go.
+  const shownOf = (s) => [sceneNonce() ?? NaN, s.selectedElementIds, s.selectedGroupIds, s.activeTool && s.activeTool.type, s.cursorButton, pressing(s),
+    s.editingTextElement, s.croppingElementId, s.viewModeEnabled, s.viewBackgroundColor, s.frameRendering, s.width, s.height,
+    s.currentItemStrokeColor, s.currentItemBackgroundColor, s.currentItemFillStyle,
+    s.currentItemStrokeWidth, s.currentItemStrokeStyle, s.currentItemOpacity, s.currentItemFontFamily, s.currentItemFontSize,
+    s.currentItemStartArrowhead, s.currentItemEndArrowhead, s.currentItemArrowType, comments && comments.commenting, presenting && presenting.index];
+  const viewOf = (s) => [s.zoom && s.zoom.value, s.scrollX, s.scrollY];
+  const same = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
+  let queued = false, shown = null, view = null, viewMoving = null;
+  const settle = () => { queued = false; remember(); dropEmptyGroups(); roomForHandle(); leaveComments(); report(); };
+  const soon = () => {
+    const s = api.getAppState();
+    const selected = Object.keys(s.selectedElementIds || {}).length > 0;
+    if (pressing(s)) { if (selected || s.newElement) reportBusy(); return; }
+    const now = shownOf(s), at = viewOf(s), moved = !same(at, view);
+    if (same(now, shown) && (!moved || viewMoving)) { if (moved && selected) reportBusy(); return; }
+    shown = now;
+    view = at;
+    if (!queued) { queued = true; setTimeout(settle, 16); }
+  };
+  // The view moving: settled 150 ms after it last moved.
+  const viewMoved = () => {
+    clearTimeout(viewMoving);
+    viewMoving = setTimeout(() => { viewMoving = null; soon(); }, 150);
+    soon();
+  };
   // Another tool picked on the board itself (a key the engine takes): the Comment tool goes down.
   // Not in view mode (Can comment), where the engine's only tool is the hand it pans with.
   const leaveComments = () => {
@@ -1735,7 +1821,7 @@ function bridge(api) {
     flushSync(() => api.updateScene({ appState: { scrollY: s.scrollY + dy / z }, captureUpdate: CaptureUpdateAction.NEVER }));
   };
   const off = api.onChange(soon);
-  const offScroll = api.onScrollChange(soon);
+  const offScroll = api.onScrollChange(viewMoved);
   const offHistory = app && app.history.onHistoryChangedEmitter.on(report);
   // The engine's own dialogs never open; the app's menus keep their keys (⌘K, ⌘F).
   const keys = (e) => {
@@ -1990,27 +2076,35 @@ function Canvas({ initial }) {
     // A few times a second while you draw, not once you stop: the others see it move.
     const sharedSoon = () => { if (shared && !shared.timer) shared.timer = setTimeout(sendShared, SHARED_DELAY); };
 
-    const save = () => {
+    const save = (now) => {
       if (shared) { sendShared(); return; }
       timer = null;
+      // Never in the middle of a stroke or a drag (a pencil stroke changes its points without the
+      // scene's nonce, so nothing put the save off while it was drawn): once it ends. Unless the
+      // board is going (flush): what's there is kept.
+      if (now !== true && pressing(api.getAppState())) { schedule(); return; }
       const scene = sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles());
       const print = fingerprint(scene);
       if (print === lastSent) return;
       lastSent = print;
       base = scene.elements;
       // Refused (over the size limit): said in the app, and tried again on the next change.
-      Promise.resolve(amber.store.set("scene", scene)).catch((e) => {
+      const kept = amber.store.setJSON ? amber.store.setJSON("scene", sceneText(scene)) : amber.store.set("scene", scene);
+      Promise.resolve(kept).then((r) => { if (r && r.ok === false) throw new Error(r.error || "the app refused it"); }).catch((e) => {
         lastSent = null;
         try { window.webkit.messageHandlers.amberCanvas.postMessage({ error: "Not saved: " + String((e && e.message) || e) }); } catch (_) {}
       });
     };
-    const flush = () => { if (shared) { if (shared.timer) sendShared(); return; } if (timer) { clearTimeout(timer); save(); } };
+    const flush = () => { if (shared) { if (shared.timer) sendShared(); return; } if (timer) { clearTimeout(timer); save(true); } };
     const schedule = () => { clearTimeout(timer); timer = setTimeout(save, SAVE_DELAY); };
 
+    let wasPressing = false;
     const off = api.onChange((elements, appState, files) => {
-      // Pans and zooms change nothing that's kept.
-      const v = changeKey(elements, appState, files);
-      if (v === lastVersion) return;
+      // Pans and zooms change nothing that's kept. A press that just ended is saved whatever the
+      // key says: the engine may finish a stroke without a change to the scene's nonce.
+      const v = changeKey(elements, appState, files), p = pressing(appState), ended = wasPressing && !p;
+      wasPressing = p;
+      if (v === lastVersion && !ended) return;
       if (shared) sharedSoon(); else if (lastVersion !== null) schedule();
       lastVersion = v;
     });
@@ -2418,18 +2512,42 @@ function Canvas({ initial }) {
   );
 }
 
+// Where an open's time goes, for the board benchmark (PaneBench): a mark costs microseconds.
+const mark = (name) => { try { performance.mark("amber:" + name); } catch (_) {} };
+
 function start() {
+  mark("start");
   const stored = (amber && amber.data && amber.data.values && amber.data.values.scene) || emptyScene();
   const normalized = normalize(stored.elements);
   // An AI's short note cards, drawn as cards and saved back (cards.js).
   const drawn = expandSeeds(normalized.elements);
   const elements = drawn.elements, converted = normalized.converted || drawn.changed;
   const restored = restore({ ...stored, elements }, null, null);
+  mark("restored");
   const initial = { stored, elements: restored.elements, appState: { viewBackgroundColor: restored.appState.viewBackgroundColor, gridModeEnabled: restored.appState.gridModeEnabled }, files: restored.files, converted };
   const el = document.getElementById("canvas");
   // Drawn before the page's load event: the app checks something showed.
-  flushSync(() => createRoot(el).render(<Canvas initial={initial} />));
+  const mount = () => { mark("mount"); flushSync(() => createRoot(el).render(<Canvas initial={initial} />)); mark("mounted"); };
+  if (!amber || !amber._standby) return mount();
+  // A page made ahead (NotePageSandbox.standBy) gets its board before it's on screen, at no size:
+  // the engine fits the drawing to the view as it starts, so it starts once the view has its size
+  // (or after half a second, as an ordinary page would at any size). The app hears of it after.
+  const until = Date.now() + 500;
+  let done = false;
+  const go = () => {
+    if (done || (!(innerWidth > 0 && innerHeight > 0) && Date.now() < until)) return;
+    done = true;
+    removeEventListener("resize", go);
+    try { mount(); } finally { amber._mounted(); }
+  };
+  addEventListener("resize", go);
+  const poll = () => { go(); if (!done) setTimeout(poll, 4); };
+  poll();
 }
 
 window.EXCALIDRAW_ASSET_PATH = "amber-lib:///canvas/";
-start();
+// A board's page made ahead of time waits for its board (amber._open); any other page starts now.
+if (amber && amber._standby && !amber._opened) {
+  amber._whenOpened = start;
+  try { window.webkit.messageHandlers.amberReady.postMessage({ standby: true }); } catch (_) {}
+} else start();
