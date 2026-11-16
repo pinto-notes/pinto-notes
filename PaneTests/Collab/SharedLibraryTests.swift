@@ -1924,4 +1924,23 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(theirs.body == "Notes\nPlan\n" + paste)
     }
 
+    /// collab-sol 2: Emil deletes his shared note for good while offline. The one try at stopping
+    /// sharing failed and nothing tried again, so the others kept reading and editing it. The next
+    /// look at memberships finds a note of his that's still shared but gone here, and stops it.
+    @Test func theOwnersDeleteForGoodOfflineStopsSharingOnceBackOnline() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Budget", on: emil)
+        server.add(member, to: note.id)
+        emil.library.install()
+        emil.transport.offline = true
+        emil.context.purge(note)
+        await waitUntil(1) { false }
+        #expect(note.deletedAt != nil)
+        #expect(server.role(note.id, member) == "editor", "offline: still shared")
+        emil.transport.offline = false
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(server.members[note.id] == nil, "nobody is in it anymore")
+        #expect(emil.transport.unshared[note.id] != nil)
+    }
+
 }

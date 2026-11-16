@@ -464,6 +464,12 @@ final class SharedLibrary {
                 session(for: note)
             }
         }
+        // Yours, still shared on the server but deleted for good here (or on another of your
+        // devices) while sharing couldn't be stopped: it stops now (collab-sol 2).
+        for row in rows where row.role == "owner" {
+            guard let note = context.note(row.note_id), note.deletedAt != nil, sessions[note.id] == nil else { continue }
+            await stopSharingDeleted(row.note_id)
+        }
         // Joined on another device, whose pointer hasn't reached this one yet. Your own notes
         // come with their own pointer (their id is the shared note's).
         for row in rows where row.role != "owner" && row.accepted_at != nil {
@@ -539,24 +545,32 @@ final class SharedLibrary {
         context.saveOrReport()
     }
 
-    /// Someone else's shared note you deleted for good: its document goes, and you leave it (as
-    /// in Apple Notes). Offline, the next look at your memberships leaves it (`reconcile`). Your own
-    /// note's document just goes; the others keep the note.
+    /// A shared note you deleted for good: its document goes. Someone else's you leave (as in Apple
+    /// Notes); yours stops being shared for everyone. Offline, the next look at your memberships
+    /// does it (`reconcile`).
     func deleted(_ note: Note) async {
         guard let shared = note.sharedNoteID else { return }
         forget(note)
         if shared == note.id {
             // Yours, deleted for good while still shared (sharing couldn't be stopped when it went
-            // to Recently Deleted): it stops now. The row is deleted, so the text isn't needed.
-            SharedNotes.unsharing.insert(note.id)
-            defer { SharedNotes.unsharing.remove(note.id) }
-            if let body = try? Wire.seal("", E2EE.body(note.id)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), note.id) {
-                // Its row is deleted for good, so no text is kept: no change can be lost.
-                try? await transport.unshare(note: shared, body: body, head: head, upto: .max)
-            }
+            // to Recently Deleted): it stops now. Offline, the next look at your memberships does it.
+            await stopSharingDeleted(shared)
             return
         }
         try? await transport.leave(note: shared)
+    }
+
+    /// Stops sharing your note that's deleted for good. The row is deleted, so the text isn't
+    /// needed, and no change can be lost.
+    private func stopSharingDeleted(_ shared: UUID) async {
+        SharedNotes.unsharing.insert(shared)
+        defer { SharedNotes.unsharing.remove(shared) }
+        guard let body = try? Wire.seal("", E2EE.body(shared)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), shared) else { return }
+        do {
+            try await transport.unshare(note: shared, body: body, head: head, upto: .max)
+        } catch {
+            log.error("stopping sharing a note deleted for good failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     nonisolated static func date(_ s: String?) -> Date? {
