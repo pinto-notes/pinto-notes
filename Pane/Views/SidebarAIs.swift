@@ -211,7 +211,7 @@ struct SidebarFoot: View {
 }
 #endif
 
-#if DEBUG
+#if DEBUG || QA
 /// Tests: where the foot and its pills were laid out (in the sidebar's own space), while
 /// `HoverProbe` is on. An offscreen window has no accessibility tree to read them from.
 @MainActor

@@ -60,7 +60,7 @@ enum Hover {
     }
     /// A hovered row's pill: the selection's, fainter. Plain, never vibrant (see `Palette.rowPill`).
     static var rowHover: AnyShapeStyle { AnyShapeStyle(Color(Palette.rowPillHover)) }
-    #if DEBUG
+    #if DEBUG || QA
     /// Captures only: the alternative look, a fill in the accent.
     nonisolated(unsafe) static var tintedSelection = false
     #endif
@@ -275,7 +275,7 @@ private struct HoverOverlay<S: InsettableShape>: ViewModifier {
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// Tests: sets a named row's hover the way the pointer does, and counts hover changes.
 @MainActor
 enum HoverProbe {

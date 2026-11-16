@@ -605,7 +605,7 @@ extension View {
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// The popup sheet that showed last, for tests: their windows never go on a screen there.
 @MainActor enum SheetProbe {
     static var last: String?

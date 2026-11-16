@@ -2603,7 +2603,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         operation.run()
     }
 
-    #if DEBUG
+    #if DEBUG || QA
     var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
     #endif
     private var cardLayoutQueued = false
