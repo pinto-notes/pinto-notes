@@ -14,11 +14,10 @@ import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study W, round 14 (2026-11-16): the lead. S's binder carrying one person's week, several parts of
-// one life. The first screen is that person's table (the still life) with two notes on it: the
-// dinners note (the decision to cook at home, and the line ChatGPT added because of it) leading, and a
-// book note (Deep Work, and the decision to write before work) beside it. That picture is HeroArt.tsx,
-// one swappable piece. Each chapter shows another part of that life: Notes, your notes with a recipe
+// Study Z, round 15 (2026-11-16): W with first-screen option C. S's binder carrying one person's week,
+// several parts of one life. The first screen is that person's table (the still life) with one note
+// on it, "This week": three dinners (the last added by ChatGPT), the Studio North call and what was
+// decided, and the writing habit, 4 of 5. That picture is HeroArt.tsx, one swappable piece. Each chapter shows another part of that life: Notes, your notes with a recipe
 // open (vermilion); Whiteboards, the job offer from Studio North mapped as a decision (deep green);
 // Apps, the habits they're building (kraft); Your AI, one request typed in ChatGPT that lands in all
 // three (ink). Scrolling lays each sheet over the last, whole, and when it lands its tab rises out of

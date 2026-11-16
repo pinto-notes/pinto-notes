@@ -3,14 +3,15 @@
 import { useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { at, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { COOK_HABIT, DAY_NAMES, Flag, Tick, TODAY, WEEK, WRITE_HABIT, YOU } from "./Things";
+import { COOK_DAYS, COOK_HABIT, DAY_NAMES, Flag, Tick, TODAY, WEEK, WRITE_BEFORE, WRITE_GOAL, WRITE_HABIT, YOU } from "./Things";
 import s from "./s.module.css";
 
 // Build apps, from the first word to the first tap. The note starts as Pinto's own New app page: you
 // describe the app ("Make me a habit tracker: writing before work, cooking at home") and press Make
-// it with ChatGPT. The page becomes the tracker, piece by piece, in the same paper. Then your cursor
-// taps today on writing, and its count goes from 0 to 1. Cooking at home sits under it, five nights a
-// week (the decision in the note), counted once a night is ticked. After that it's yours: tap any day,
+// it with ChatGPT. The page becomes the tracker, piece by piece, in the same paper, holding this week
+// as it stands (writing Monday to Wednesday, cooking Tuesday and Wednesday). Then your cursor taps
+// today on writing, and its count goes from 3 of 5 to 4 of 5, the first screen's count. Cooking at
+// home sits under it, five nights a week (the decision in the dinners note). After that it's yours: tap any day,
 // add a habit, take one away. The tracker has one layout everywhere, the same as in Your AI: the days
 // named once along the top, each habit a row of seven. On a phone the request is already typed when
 // the chapter arrives (the show starts at the press).
@@ -20,8 +21,8 @@ const B = { type: [0.5, 2.1] as [number, number], press: 2.4, built: 2.75, name:
 
 /** A habit. `goal`: nights a week, counted as "n of goal" (and named as the goal until the first one). */
 type Habit = { name: string; days: boolean[]; goal?: number };
-const FIRST: Habit = { name: WRITE_HABIT, days: WEEK.map(() => false) };
-const SECOND: Habit = { name: COOK_HABIT, days: WEEK.map(() => false), goal: 5 };
+const FIRST: Habit = { name: WRITE_HABIT, days: WRITE_BEFORE, goal: WRITE_GOAL };
+const SECOND: Habit = { name: COOK_HABIT, days: COOK_DAYS, goal: 5 };
 type Snap = { n: number; press: boolean; built: boolean; name: boolean; days: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
 const START: Snap = { n: 0, press: false, built: false, name: false, days: 0, add: false, made: false, tapped: false, down: false };
 const same = (a: Snap, b: Snap) => (Object.keys(a) as (keyof Snap)[]).every((k) => a[k] === b[k]);
@@ -57,7 +58,7 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
     },
   });
 
-  const habits: Habit[] = mine ?? [{ ...FIRST, days: FIRST.days.map((_, j) => j === TODAY && snap.tapped) }, SECOND];
+  const habits: Habit[] = mine ?? [{ ...FIRST, days: FIRST.days.map((v, j) => v || (j === TODAY && snap.tapped)) }, SECOND];
   const take = (f: (hs: Habit[]) => Habit[]) => setMine((m) => f(m ?? habits));
   const tap = (h: number, d: number) => take((hs) => hs.map((x, i) => (i === h ? { ...x, days: x.days.map((v, j) => (j === d ? !v : v)) } : x)));
   const add = (e: React.FormEvent) => {

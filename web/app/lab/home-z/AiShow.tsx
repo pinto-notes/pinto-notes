@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { curve, head, rng } from "./hand";
 import { along, at, frozenAt, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { COOK_HABIT, DECIDED, DINNERS, Flag, GPT, hand, nodeWords, QUESTIONS, Receipt, shape, Tick, TODAY, WEEK, WRITE_HABIT, YOU, type Arrow, type Node } from "./Things";
+import { COOK_DAYS, COOK_HABIT, DECIDED, DINNERS, Flag, GPT, hand, nodeWords, QUESTIONS, Receipt, shape, Tick, TODAY, WEEK, WRITE_BEFORE, WRITE_GOAL, WRITE_HABIT, YOU, type Arrow, type Node } from "./Things";
 import s from "./s.module.css";
 
 // The climax, staged: one request, typed in ChatGPT, that lands in three parts of one life in Pinto.
@@ -313,7 +313,8 @@ function BoardObj({ tall }: { tall: boolean }) {
   );
 }
 
-/** The habits app Build made: writing ticked today, cooking at home five nights a week, and the habit
+/** The habits app Build made, as this week stands: writing 4 of 5 (today ticked), cooking at home 2 of
+ *  5 (today still to come), and the habit
  *  ChatGPT adds for the call: prep on Monday, Wednesday and Friday, 20 minutes. */
 function AppObj() {
   return (
@@ -321,12 +322,12 @@ function AppObj() {
       <p className={s.aAppTop}><b>Habits</b><span>App</span></p>
       <div className={s.aDays} aria-hidden="true">{WEEK.map((d, i) => <small key={i} data-now={i === TODAY || undefined}>{d}</small>)}</div>
       <div className={s.aHabit}>
-        <p><span>{WRITE_HABIT}</span><small>1 day</small></p>
-        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={i === TODAY || undefined}><Tick /></i>)}</div>
+        <p><span>{WRITE_HABIT}</span><small>{WRITE_BEFORE.filter(Boolean).length + 1} of {WRITE_GOAL}</small></p>
+        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={WRITE_BEFORE[i] || i === TODAY || undefined}><Tick /></i>)}</div>
       </div>
       <div className={s.aHabit}>
-        <p><span>{COOK_HABIT}</span><small className={s.aZero}>5 a week</small></p>
-        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-now={i === TODAY || undefined}><Tick /></i>)}</div>
+        <p><span>{COOK_HABIT}</span><small>{COOK_DAYS.filter(Boolean).length} of 5</small></p>
+        <div className={s.aWeek}>{WEEK.map((d, i) => <i key={i} data-on={COOK_DAYS[i] || undefined} data-now={i === TODAY || undefined}><Tick /></i>)}</div>
       </div>
       <div className={`${s.aGrow} ${s.aNewRow}`}>
         <div>

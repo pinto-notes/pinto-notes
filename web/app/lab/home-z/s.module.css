@@ -539,7 +539,9 @@
 .macBar i:nth-child(2) { background: #febc2e; }
 .macBar i:nth-child(3) { background: #28c840; }
 .macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.86em; font-weight: 600; color: #8a7d70; pointer-events: none; }
-.mac .dvNote { padding: 1.3em 1.7em 1.5em; }
+/* The iPhone lies over the Mac's right side (from 24.2em of its 32em), so the note's lines wrap before it. */
+.mac .dvNote { padding: 1.3em calc(32em - 24.2em + 1.2em) 1.5em 1.7em; }
+.mac .dvDecided { text-wrap: balance; }
 .phone { position: absolute; left: 24.2em; top: 1.5em; width: 15em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #1d1611;
   box-shadow: 0 0 0 1.5px #4a3a2c, 0 2.6em 3.8em -1.6em rgba(40, 20, 0, 0.6); }
 .phoneScreen { height: 100%; container-type: inline-size; box-sizing: border-box; border-radius: 2em; background: #fffdf8; overflow: hidden; color: #1d1b19; }
@@ -617,9 +619,9 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .lede { margin-top: 12px; font-size: 16.5px; line-height: 1.38; }
   .ctas { margin-top: 14px; }
   .heroText .fine { display: none; }
-  /* The picture: the notes over the table, the whole dinners note and the top of the book note above
-     the fold (HeroArt lays them out). "Free" sits beside the download button. */
-  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 330px; margin-top: 16px; clip-path: none; overflow: hidden; }
+  /* The picture: the week's note over the table, all of it above the fold (HeroArt lays it out).
+     "Free" sits beside the download button. */
+  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 352px; margin-top: 16px; clip-path: none; overflow: hidden; }
   .free { display: inline; }
 
   /* One calm screen per chapter: the heading, a line or two, the thing, as one block in the middle of

@@ -539,7 +539,9 @@
 .macBar i:nth-child(2) { background: #febc2e; }
 .macBar i:nth-child(3) { background: #28c840; }
 .macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.86em; font-weight: 600; color: #8a7d70; pointer-events: none; }
-.mac .dvNote { padding: 1.3em 1.7em 1.5em; }
+/* The iPhone lies over the Mac's right side (from 24.2em of its 32em), so the note's lines wrap before it. */
+.mac .dvNote { padding: 1.3em calc(32em - 24.2em + 1.2em) 1.5em 1.7em; }
+.mac .dvDecided { text-wrap: balance; }
 .phone { position: absolute; left: 24.2em; top: 1.5em; width: 15em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #1d1611;
   box-shadow: 0 0 0 1.5px #4a3a2c, 0 2.6em 3.8em -1.6em rgba(40, 20, 0, 0.6); }
 .phoneScreen { height: 100%; container-type: inline-size; box-sizing: border-box; border-radius: 2em; background: #fffdf8; overflow: hidden; color: #1d1b19; }

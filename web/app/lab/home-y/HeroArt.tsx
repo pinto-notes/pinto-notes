@@ -2,26 +2,34 @@
 
 import { useRef, useState } from "react";
 import { at, mix, mj, place, seg, useShow, type Pt } from "./show";
-import { ADDED_IN, ADDED_RECIPE, BOOK, DECIDED, Flag, Folder, GPT, Receipt } from "./Things";
+import { DECIDED, Flag, Folder, GPT, Receipt } from "./Things";
 import s from "./s.module.css";
 import h from "./heroArt.module.css";
 
-// The first screen's picture, option A (round 14): a recipe note and a book note on one person's
-// table. This file and heroArt.module.css are the whole of it, so another option can replace both
-// without touching the rest of the page (Story.tsx places <HeroArt /> in the torn panel).
+// The first screen's picture, option B (round 15): open on the decision. This file and
+// heroArt.module.css are the whole of it, so another option can replace both without touching the
+// rest of the page (Story.tsx places <HeroArt /> in the torn panel).
 //
-// The etched still life is the picture: its objects frame an open middle, and the two notes lie in it,
-// never over an object. The dinners note leads (larger, in front, with the decision you write and the
-// line ChatGPT added because of it, marked, with Undo). The book note supports it (smaller, lower,
-// behind): two highlights from Deep Work and what the reader decided. Above them, small, a row of the
-// notebook's folders. On a phone: the folder chips, the dinners note, and the top of the book note
-// peeking from under it, all above the fold.
+// The etched still life is the picture: its objects frame an open middle, and the notes lie in it,
+// never over an object. The Studio North note leads (larger, in front): two short lines of thinking,
+// the decision you write, and the note ChatGPT added to Work because of it, marked, with Undo. The
+// dinners note supports it (smaller, behind, to the right): the decision to cook at home and one
+// recipe, so the everyday read stays on the first screen. Above them, small, a row of the notebook's
+// folders, Work open. On a phone: the folder chips, the Studio North note whole, and the top of the
+// dinners note peeking from under it, all above the fold.
+
+/** The decision, as you type it, in two parts: a wrap breaks between them, never inside the second. */
+const PARTS = ["Wait until March. ", "Finish the launch first."];
+const SAID = PARTS.join("");
+/** What you'd written above it: the deadline, and the cost of saying yes now. */
+const LINES = ["Ana needs an answer by Friday.", "Taking it now leaves the launch half done."];
+/** ChatGPT's line under it: where it put the new note, and the note (a link to it). */
+const ADDED_IN = "New in Work: ";
+const ADDED_NOTE = "Questions for Ana";
 
 const TYPE = [0.35, 1.75] as [number, number];
-/** The decision as the hero sets it: "five nights a week" kept together, so a wrap breaks before it. */
-const SAID = DECIDED.replace("five nights a week", "five nights a week");
 const ONE = { gptIn: 1.95, fly: [1.95, 2.5] as [number, number], land: 2.55, ride: [2.55, 3.05] as [number, number], rec: 3.2, gptOut: [3.9, 4.3] as [number, number], end: 4.4 };
-const FOLDERS = ["Recipes", "Reading", "Work", "Trips", "Health"];
+const FOLDERS = ["Work", "Recipes", "Reading", "Trips", "Health"];
 
 export function HeroArt() {
   const box = useRef<HTMLDivElement>(null), gpt = useRef<HTMLSpanElement>(null);
@@ -57,26 +65,36 @@ export function HeroArt() {
               <li key={name} data-on={i === 0 || undefined} aria-current={i === 0 ? "true" : undefined}><Folder />{name}</li>
             ))}
           </ul>
-          {/* The dinners note: the decision, and ChatGPT's line under it. */}
+          {/* The Studio North note: what you weighed, the decision, and ChatGPT's line under it. */}
           <div className={h.note} data-card>
-            <p className={h.date}>Today at 09:12</p>
-            <p className={h.title}>Weeknight dinners</p>
+            <p className={h.date}>Today at 08:40</p>
+            <p className={h.title}>Studio North: now or&nbsp;March?</p>
+            <ul className={h.lines}>{LINES.map((l) => <li key={l}>{l}</li>)}</ul>
             <p className={h.decided}>
-              <b>Decided:</b> <span>{SAID.slice(0, st.n)}</span>
-              {typing && <span className={h.caret} data-on={st.n > 0 || undefined} aria-hidden="true" />}
-              <span className={s.askRest} aria-hidden="true">{SAID.slice(st.n)}</span>
+              <b>Decided:</b>{" "}
+              {PARTS.map((part, i) => {
+                const from = PARTS.slice(0, i).join("").length, k = Math.min(part.length, Math.max(0, st.n - from));
+                const here = typing && (st.n < from + part.length || i === PARTS.length - 1) && st.n >= from;
+                return (
+                  <span key={part} className={i ? h.keep : undefined}>
+                    <span>{part.slice(0, k)}</span>
+                    {here && <span className={h.caret} data-on={st.n > 0 || undefined} aria-hidden="true" />}
+                    <span className={s.askRest} aria-hidden="true">{part.slice(k)}</span>
+                  </span>
+                );
+              })}
             </p>
             <p className={h.added} data-in={st.land || undefined} data-undone={undone || undefined}>
-              <span data-at="one"><b className={s.mark} />{ADDED_IN}<span className={s.noteLink}>{ADDED_RECIPE}</span></span>
+              <span data-at="one"><b className={s.mark} />{ADDED_IN}<span className={s.noteLink}>{ADDED_NOTE}</span></span>
             </p>
             <div className={h.rec} data-in={st.rec || undefined}><Receipt undone={undone} onFlip={() => setUndone((u) => !u)} live={st.rec} /></div>
           </div>
-          {/* The book note: two highlights, and the decision it led to. */}
-          <div className={h.book}>
-            <p className={h.crumb}><Folder />Reading</p>
-            <p className={h.bookTitle}>{BOOK.title}<span>{BOOK.author}</span></p>
-            <ul className={h.marks}>{BOOK.marks.map((m) => <li key={m}>{m}</li>)}</ul>
-            <p className={h.bookDecided}><b>Decided:</b> {BOOK.decided}</p>
+          {/* The dinners note, behind: the other decision of the week, and one recipe. */}
+          <div className={h.side}>
+            <p className={h.crumb}><Folder />Recipes</p>
+            <p className={h.sideTitle}>Weeknight dinners</p>
+            <p className={h.sideDecided}><b>Decided:</b> {DECIDED}</p>
+            <p className={h.sideRecipe}><span className={s.noteLink}>Lemon chicken</span>, 25 min</p>
           </div>
         </div>
         <span ref={gpt} className={s.cur} aria-hidden="true"><Flag name="ChatGPT" color={GPT} /></span>

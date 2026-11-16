@@ -6,11 +6,11 @@ import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
 import s from "./s.module.css";
 
-// The things on study W's page (round 14), one person's week, several parts of one life. A note in
-// Recipes (the decision to cook at home, and the recipe ChatGPT wrote into the folder because of it), a
-// book note (Deep Work, and the decision to write before work), a whiteboard (the job offer from Studio
-// North, mapped: now or March?), and a small app (the habits they're building). The first screen shows
-// the dinners note and the book note in their notebook; each chapter shows its one at full size.
+// The things on study Z's page (round 15, option C), one person's week, several parts of one life. The
+// first screen is that week in one note: three dinners (the last added by ChatGPT), the Studio North
+// call and what was decided, and the writing habit, 4 of 5. Then each chapter shows one part at full
+// size: a recipe among a life's notes, a whiteboard (the job offer from Studio North, mapped: now or
+// March?), a small app (the habits they're building), and the dinners note ChatGPT plans next week in.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -24,18 +24,17 @@ export const Tick = ({ className = "" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 12.4l3.6 3.6 7.4-7.6" /></svg>
 );
 
-/** The one decision on the page, and what ChatGPT did with it. Same words everywhere. */
+/** The decision in the dinners note (Your AI). Same words everywhere. */
 export const DECIDED = "Cooking at home five nights a week.";
-/** ChatGPT's line under it: where it put the recipe, and the recipe (a link to its note). */
-export const ADDED_IN = "New in Recipes: ";
-export const ADDED_RECIPE = "Lemon chicken, 25 min";
-export const ADDED = ADDED_IN + ADDED_RECIPE;
 
-/** The book note beside it on the first screen: two highlights, and what the reader decided. */
-export const BOOK = {
-  title: "Deep Work", author: "Cal Newport",
-  marks: ["Deep work is rare, and worth more every year.", "Focus is a skill. Train it."],
-  decided: "Write 30 min before work.",
+/** The first screen's note: this week, today Thursday. Two dinners cooked, and tonight's, which
+ *  ChatGPT added (a link to the recipe it wrote into Recipes); the call today and what was decided. */
+export const WEEK_NOTE = {
+  title: "This week",
+  dinners: [["Tue", "Miso salmon"], ["Wed", "Lentil soup"]] as [string, string][],
+  added: ["Thu", "Lemon chicken"] as [string, string],
+  call: "Studio North call, Thursday.",
+  decided: "Wait until March.",
 };
 
 /** The notes list in Notes: a whole life's notes, newest first, the recipe open. Title, then where it
@@ -317,12 +316,16 @@ export function BoardBig({ tall, bind }: { tall?: boolean; bind: (set: (k: numbe
 
 /* ───────────────────────── The app: the habits they're building ───────────────────────── */
 
-/** The week, Monday first. Friday is today. */
+/** The week, Monday first. Thursday is today (the Studio North call; Ana's answer is due Friday). */
 export const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
 export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-export const TODAY = 4;
-/** The habits in the app Build makes. Cooking at home starts on Monday, five nights a week: the
- *  decision in the note. Writing is ticked today, by you, in Build. */
+export const TODAY = 3;
+/** The habits in the app Build makes, as this week stands. Writing before work, five a week: Monday
+ *  to Wednesday done, and today ticked by you in Build, so 4 of 5 (the first screen's count). Cooking
+ *  at home, five nights a week (the decision in the dinners note): Tuesday and Wednesday so far. */
 export const WRITE_HABIT = "Write 30 min before work";
+export const WRITE_GOAL = 5;
+export const WRITE_BEFORE = [true, true, true, false, false, false, false];
 export const COOK_HABIT = "Cook at home";
 export const COOK_GOAL = "5 nights a week";
+export const COOK_DAYS = [false, true, true, false, false, false, false];
