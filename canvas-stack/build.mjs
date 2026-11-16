@@ -58,6 +58,10 @@ await esbuild.build({
   jsx: "automatic", legalComments: "none", logLevel: "warning",
   external: ["*.woff2"],
   define: { "process.env.NODE_ENV": '"production"', "import.meta.env": "{}" },
+  // The engine names a file's source after the page's address as it starts (EXPORT_SOURCE): in
+  // the app that was "amber-app://" (round 16, 19-shared-board.excalidraw). Set before it starts,
+  // so every .excalidraw file, embedded scene and copy says Pinto Notes, as a new board does.
+  banner: { js: 'window.EXCALIDRAW_EXPORT_SOURCE = "https://pintonotes.com";' },
   conditions: ["production"],
   plugins: [offline],
 });

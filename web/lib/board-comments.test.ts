@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { BoardComments, CHANGE_GONE, clean, DELETED_LINE, ON_BOARD, ON_SHAPE, RESOLVED_LINE, Seen } from "./board-comments";
 import type { Comment } from "./board-doc";
+import { aiGlyphURL } from "./ai-glyphs";
 
 const ME = "11111111-AAAA-4AAA-8AAA-111111111111", SARA = "22222222-BBBB-4BBB-8BBB-222222222222";
 
@@ -123,14 +124,16 @@ describe("whiteboard comments in the browser", () => {
     expect(c.comments[0]).toMatchObject({ resolved: false, version: 3 });
   });
 
-  it("pins are in each writer's colour, an AI's in graphite, with the writer's letter", () => {
+  it("pins are in each writer's colour, an AI's in graphite with its own mark, as in the app", () => {
     const { c } = make();
     c.darkOf = (col) => (col === "#48484A" ? "#D1D1D6" : undefined);
     c.show([theirs({ on: "shape-9" }), theirs({ id: "c-ai00000000000001", ai: "Claude", created: "2026-11-15T09:30:00Z" })]);
     expect(c.pins).toEqual([
       { id: theirs().id, on: "shape-9", x: 40, y: 80, color: "#B5445B", letter: "S", open: false },
-      { id: "c-ai00000000000001", x: 40, y: 80, color: "#48484A", dark: "#D1D1D6", letter: "C", open: false },
+      { id: "c-ai00000000000001", x: 40, y: 80, color: "#48484A", dark: "#D1D1D6", letter: "C", open: false, mark: aiGlyphURL("claude") },
     ]);
+    // The page draws a mark from an image's data URL only (comments.js).
+    expect(c.pins[1].mark?.startsWith("data:image/svg+xml,")).toBe(true);
     expect(c.byline(c.comments[1])).toBe("Sara's Claude");
     expect(c.command().shapes).toEqual(["shape-9"]);
   });

@@ -1179,10 +1179,22 @@ struct CanvasSelectionBar: View {
         bounds.intersects(CGRect(origin: .zero, size: area).insetBy(dx: 12, dy: 12))
     }
 
+    /// How far round the selection the page lists what's drawn (canvas.jsx NEARBY_REACH): the bar
+    /// looks for room no further out, where it would know nothing of what it covered.
+    static let reach: CGFloat = 260
+
     /// Its centre. Above the selection where it covers nothing drawn; else slid along above it,
-    /// then below, then beside it; with nowhere clear, where it covers least (whiteboard council,
-    /// round 2, 07: it sat on the arrow into the box and on the shape above). Always in the canvas.
-    static func position(bounds: CGRect, bar: CGSize, area: CGSize, nearby: [CanvasObstacle] = [], margin: CGFloat = 8) -> CGPoint {
+    /// then below, then beside it; else the nearest spot further out that covers nothing (round
+    /// 16, 43-timeline-1: Add Step sat on the Design step beside the one selected; 46-org-chart-1:
+    /// Add Report on Alex's corner and the line to Jo); with nowhere clear, where it covers least
+    /// (whiteboard council, round 2, 07: it sat on the arrow into the box and on the shape above).
+    /// Always in the canvas. A shape round the whole selection (a Kanban lane, a frame) counts by
+    /// its edge: the bar may lie over its empty middle.
+    static func position(bounds: CGRect, bar: CGSize, area: CGSize, nearby given: [CanvasObstacle] = [], margin: CGFloat = 8) -> CGPoint {
+        let nearby = given.flatMap { o -> [CanvasObstacle] in
+            guard case .box(let b) = o, b.contains(bounds) else { return [o] }
+            return [.line([CGPoint(x: b.minX, y: b.minY), CGPoint(x: b.maxX, y: b.minY), CGPoint(x: b.maxX, y: b.maxY), CGPoint(x: b.minX, y: b.maxY), CGPoint(x: b.minX, y: b.minY)])]
+        }
         func clamp(_ p: CGPoint) -> CGPoint {
             CGPoint(x: min(max(p.x, margin + bar.width / 2), max(area.width - margin - bar.width / 2, margin + bar.width / 2)),
                     y: min(max(p.y, margin + bar.height / 2), max(area.height - margin - bar.height / 2, margin + bar.height / 2)))
@@ -1213,6 +1225,7 @@ struct CanvasSelectionBar: View {
         spots += [CGPoint(x: bounds.minX - gap - bar.width / 2, y: bounds.midY), CGPoint(x: bounds.maxX + gap + bar.width / 2, y: bounds.midY)]
         let inside = spots.filter(fits)
         if let clear = inside.first(where: { c in !nearby.contains { $0.hits(rect(c)) } }) { return clear }
+        if let further = further(bounds: bounds, bar: bar, area: area, nearby: nearby, margin: margin) { return further }
         // Nowhere clear: the old place, above (below with no room above), kept in the canvas.
         let fallback = CGPoint(x: bounds.midX, y: above - bar.height / 2 < margin ? below : above)
         // Words count far more than lines and shapes: the bar sits on a line before a how-to line.
@@ -1220,6 +1233,41 @@ struct CanvasSelectionBar: View {
         let least = inside.min { cost($0) < cost($1) }
         if let least, cost(least) < cost(fallback) { return least }
         return clamp(fallback)
+    }
+
+    /// The nearest spot that covers nothing drawn, further out than right beside the selection
+    /// (above a how-to line, under the row below): on a grid 12 pt down and 16 pt across, kept in
+    /// the canvas and within `reach` of the selection, never on the selection or its rotate handle.
+    /// Above before below at the same distance. Nil when there's none.
+    private static func further(bounds: CGRect, bar: CGSize, area: CGSize, nearby: [CanvasObstacle], margin: CGFloat) -> CGPoint? {
+        let room = bounds.insetBy(dx: -reach, dy: -reach)
+            .intersection(CGRect(x: margin, y: margin, width: area.width - 2 * margin, height: area.height - 2 * margin))
+        guard room.width >= bar.width, room.height >= bar.height else { return nil }
+        // The selection, its handles and the rotate handle above it.
+        let own = CGRect(x: bounds.minX - 10, y: bounds.minY - gap, width: bounds.width + 20, height: bounds.height + gap + 10)
+        // Only what lies in reach can be in the way.
+        let inRoom = nearby.filter { $0.hits(room.insetBy(dx: -12, dy: -12)) }
+        var best: (at: CGPoint, distance: CGFloat)?
+        // The grid lines up with the spot right above the selection, centred on it.
+        func first(_ from: CGFloat, _ lowest: CGFloat, _ step: CGFloat) -> CGFloat { from - ((from - lowest) / step).rounded(.down) * step }
+        var y = first(bounds.minY - gap - bar.height / 2, room.minY + bar.height / 2, 12)
+        while y <= room.maxY - bar.height / 2 {
+            var x = first(bounds.midX, room.minX + bar.width / 2, 16)
+            while x <= room.maxX - bar.width / 2 {
+                let r = CGRect(x: x - bar.width / 2, y: y - bar.height / 2, width: bar.width, height: bar.height)
+                if !r.intersects(own) {
+                    let dx = max(0, r.minX - bounds.maxX, bounds.minX - r.maxX), dy = max(0, r.minY - bounds.maxY, bounds.minY - r.maxY)
+                    // Nearest first; then above before below, then the most nearly centred.
+                    let distance = (dx * dx + dy * dy).squareRoot() + (y > bounds.midY ? 1 : 0) + abs(x - bounds.midX) * 0.001
+                    if distance < best?.distance ?? .infinity, !inRoom.contains(where: { $0.hits(r.insetBy(dx: -10, dy: -10)) }) {
+                        best = (CGPoint(x: x, y: y), distance)
+                    }
+                }
+                x += 16
+            }
+            y += 12
+        }
+        return best?.at
     }
 
     var body: some View {

@@ -13,10 +13,12 @@
 import {
   type Comment, commentStamp, MAX_COMMENT, mentioned, newCommentID, nextVersion, type Person, type Thread, threads, AI_COLOR, initial,
 } from "./board-doc";
+import { aiGlyphFor, aiGlyphURL } from "./ai-glyphs";
 
 export type Place = { on?: string; x: number; y: number };
 
-export type Pin = { id: string; on?: string; x: number; y: number; color: string; dark?: string; letter: string; open: boolean };
+/** A pin as the page draws it; an AI's has its mark (a data URL of its glyph), not a letter. */
+export type Pin = { id: string; on?: string; x: number; y: number; color: string; dark?: string; letter: string; open: boolean; mark?: string };
 
 /** What's posted: trimmed, never empty, at most 5000 characters (CanvasBridge.clean). */
 export function clean(text: string): string | null {
@@ -170,6 +172,9 @@ export class BoardComments {
       if (t.first.on) p.on = t.first.on;
       const dark = this.darkOf(color);
       if (dark) p.dark = dark;
+      // An AI's pin shows its mark, as in the app (BoardComments.markPicture).
+      const glyph = aiGlyphFor(t.first.ai);
+      if (glyph) p.mark = aiGlyphURL(glyph);
       return p;
     });
   }

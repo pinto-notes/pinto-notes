@@ -115,6 +115,8 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
 /* On a touch screen a pin takes a tap 44 points square round it (the HIG's smallest target),
    though it's drawn at 24. */
 @media (pointer: coarse) { .pinto-pin::before { content: ""; position: absolute; left: -12px; top: -12px; width: 44px; height: 44px; } }
+/* Presenting: the pins go with the frames' names, so the frame shows alone; back on Done (canvas.jsx). */
+.pinto-presenting .pinto-comments { display: none; }
 /* The Comment tool's pointer, over the board. */
 .pinto-commenting .excalidraw canvas { cursor: var(--pinto-comment-cursor) !important; }
 
@@ -136,3 +138,6 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
 @media (pointer: coarse) { .pinto-vote-dot::before { content: ""; position: absolute; left: -15px; top: -15px; width: 44px; height: 44px; } }
 /* While voting, a shape under the pointer takes a vote. */
 .pinto-voting .excalidraw canvas { cursor: pointer !important; }
+/* While voting, the others' pointers, names and selections go: where someone points would say how
+   they vote (round 16, web-15). Their laser stays. They come back with the results (votes.js). */
+.pinto-voting .pinto-peer { display: none !important; }

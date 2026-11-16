@@ -98,6 +98,15 @@ async function covers(page: Page, card: Rect, own: string) {
   return all.filter((d) => overlaps(card, d.r)).map((d) => `${d.kind}${d.id === own ? " (the one it's on)" : ""} ${d.id}`);
 }
 
+/** How many comment pins show on the board. */
+const pinsShown = (page: Page) => canvas(page).locator(".pinto-pin:visible").count();
+
+/** The board's view: where it's scrolled and how far it's zoomed. */
+const viewOf = (page: Page) => canvas(page).evaluate(() => {
+  const s = (window as unknown as { amber: { _canvas: { api: { getAppState(): { zoom: { value: number }; scrollX: number; scrollY: number } } } } }).amber._canvas.api.getAppState();
+  return { z: Math.round(s.zoom.value * 1000) / 1000, x: Math.round(s.scrollX), y: Math.round(s.scrollY) };
+});
+
 /** Signs up with an email code in the board's sheet, then gives a name. */
 async function signUp(page: Page, address: string, name: string, button: string) {
   await page.getByRole("button", { name: button }).click();
@@ -274,6 +283,9 @@ try {
   await present.waitFor();
   if (!/2 frames/.test((await present.textContent()) ?? "")) problems.push(`Present doesn't say what it walks: ${await present.textContent()}`);
   await page.screenshot({ path: `${OUT}10-more-present.png` });
+  // Comment pins are on the board until it's presented (round 16: they showed over the talk).
+  const pinsBefore = await pinsShown(page);
+  if (!pinsBefore) problems.push("no comment pin on the board before presenting, so hiding them isn't tested");
   await present.click();
   const presentBar = page.getByRole("toolbar", { name: "Presenting" });
   await presentBar.waitFor({ timeout: 10_000 });
@@ -283,12 +295,15 @@ try {
   await write("presenting.json", "{}");
   await until("the app follows", 60, async () => /Emil is following/.test((await presentBar.textContent()) ?? ""));
   await sleep(600);
+  if (await pinsShown(page)) problems.push(`presenting: ${await pinsShown(page)} comment pins show over the talk`);
   await page.screenshot({ path: `${OUT}11-presenting-followed.png` });
   await page.keyboard.press("ArrowRight");
   await until("the second frame", 10, async () => /Plan/.test((await presentBar.textContent()) ?? "") && /2 of 2/.test((await presentBar.textContent()) ?? ""));
   await until("the app saw the second step", 60, () => exists("followed.txt"));
   await presentBar.getByRole("button", { name: "Done" }).click();
   await page.getByRole("navigation", { name: "Tools" }).waitFor({ timeout: 10_000 });
+  if (!(await until("the pins back after Done", 5, async () => (await pinsShown(page)) === pinsBefore).catch(() => false)))
+    problems.push(`after Done: ${await pinsShown(page)} comment pins, ${pinsBefore} before presenting`);
   await write("presented.json", "{}");
 
   // On a phone: the link opened there, as a guest opens it, signed in (round 14, web-07: the
@@ -317,6 +332,7 @@ try {
     return { v, ok: v.l >= 0 && v.t >= 0 && v.r <= v.W && v.b <= v.H };
   };
   const opened = await whole();
+  const openedView = await viewOf(phonePage);
   log("phone opening view:", JSON.stringify(opened.v));
   if (!opened.ok) problems.push(`phone: the board didn't open whole: ${JSON.stringify(opened.v)}`);
   // A frame holds what's in it, as in Excalidraw, so its edge is never drawn through a shape; a
@@ -340,6 +356,9 @@ try {
   await fit.click();
   await sleep(600);
   if (!(await whole()).ok) problems.push(`phone: Zoom to Fit didn't bring the whole board back: ${JSON.stringify((await whole()).v)}`);
+  // Zoom to Fit gives the view the board opened with, not a smaller one (round 16, web-07 to web-08).
+  const fitted = await viewOf(page2);
+  if (JSON.stringify(fitted) !== JSON.stringify(openedView)) problems.push(`phone: Zoom to Fit differs from the opening view: ${JSON.stringify({ fitted, openedView })}`);
   // The toolbar fits the phone, whole: nothing scrolled or cut off (round 12), the rest in More Tools.
   const tools = await page2.getByRole("navigation", { name: "Tools" }).evaluate((n) => {
     const r = n.getBoundingClientRect();
@@ -348,6 +367,10 @@ try {
   if (tools.left < 0 || tools.right > 390 || tools.scroll > 0) problems.push(`phone width: the toolbar doesn't fit: ${JSON.stringify(tools)}`);
   await page2.getByRole("button", { name: "More tools" }).click();
   await page2.getByRole("menu", { name: "More tools" }).waitFor();
+  await sleep(400);
+  // Opening More Tools leaves the board as it was (round 16: it shrank).
+  const withMenu = await viewOf(page2);
+  if (JSON.stringify(withMenu) !== JSON.stringify(fitted)) problems.push(`phone: opening More Tools changed the board's view: ${JSON.stringify({ withMenu, fitted })}`);
   // More Tools shows the shapes before one is picked, not two lines (round 13, web-08).
   const shapes = await page2.locator('button[aria-label="More tools"] > svg').first().evaluate((svg) => ({ circle: svg.querySelectorAll("circle").length, rect: svg.querySelectorAll("rect").length }));
   if (!shapes.circle || !shapes.rect) problems.push(`More Tools' icon isn't the shapes: ${JSON.stringify(shapes)}`);
@@ -460,6 +483,10 @@ try {
   await sleep(400);
   if (!(await mine.isVisible())) await canvas(cpage).locator(`.pinto-pin[data-comment="${ai.thread}"]`).click();
   await mine.getByText("I added a box on Plan").waitFor({ timeout: 30_000 });
+  // The AI's reply shows the AI's own mark, as in the app, not a grey letter (round 16).
+  const marks = await mine.locator("[data-ai-mark]").evaluateAll((n) => n.map((x) => ({ mark: (x as HTMLElement).dataset.aiMark, text: (x.textContent ?? "").trim(), svg: !!x.querySelector("svg path") })));
+  if (marks.length !== 1 || marks[0].mark !== "claude" || marks[0].text || !marks[0].svg) problems.push(`the AI's reply doesn't show Claude's mark: ${JSON.stringify(marks)}`);
+  await cpage.screenshot({ path: `${OUT}14a-ai-reply-thread.png` });
   const offAt = await onPage(cpage, "ai-1"), offFrame = (await cpage.locator("iframe").first().boundingBox())!;
   if (offAt.x < offFrame.x + offFrame.width) problems.push(`the AI's box wasn't moved out of view first: ${JSON.stringify({ offAt, offFrame })}`);
   await mine.locator("[data-show-change]").click();
@@ -504,6 +531,12 @@ try {
   await spage.locator("[data-team-voting]").waitFor({ timeout: 10_000 });
   await cpage.locator("[data-votes-left]").filter({ hasText: "3 votes left" }).waitFor({ timeout: 20_000 });
   if (!(await cpage.getByText("Sara started it").count())) problems.push("Cleo's bar doesn't say who started voting");
+  // While voting, nobody's pointer or selection shows on anyone's board (round 16): Sara's pointer
+  // is over Cleo's board, hidden until the results.
+  for (let i = 0; i < 6; i++) { await spage.mouse.move(640 + i * 12, 380 + i * 8); await sleep(150); }
+  await sleep(1500);
+  const peersShown = (p: Page) => canvas(p).evaluate(() => [...document.querySelectorAll<HTMLElement>(".pinto-peer-pointer, .pinto-peer-box")].filter((n) => n.offsetParent !== null).length);
+  if (await peersShown(cpage)) problems.push(`voting: ${await peersShown(cpage)} of other people's pointers and selections show on Cleo's board`);
   const cleoVote = await onPage(cpage, "mac-1");
   await cpage.mouse.click(cleoVote.x, cleoVote.y);
   await cpage.locator("[data-votes-left]").filter({ hasText: "2 votes left" }).waitFor({ timeout: 10_000 });
@@ -524,6 +557,16 @@ try {
   await cpage.locator("[data-team-results]").filter({ hasText: "Results: 4 votes" }).waitFor({ timeout: 20_000 });
   const totals = await canvas(cpage).locator(".pinto-vote-total:visible").evaluateAll((n) => n.map((x) => `${(x as HTMLElement).dataset.on}:${x.textContent}`).sort());
   if (JSON.stringify(totals) !== JSON.stringify([`${drawn.id}:2`, "mac-1:2"].sort())) problems.push(`the totals on Cleo's board: ${JSON.stringify(totals)}`);
+  // A total never sits on a comment pin (round 16, web-16).
+  const onPins = await canvas(cpage).evaluate(() => {
+    const r = (n: Element) => n.getBoundingClientRect();
+    const pins = [...document.querySelectorAll(".pinto-pin")].map(r).filter((b) => b.width > 0);
+    return [...document.querySelectorAll(".pinto-vote-total")].map(r).filter((t) => t.width > 0 && pins.some((p) => Math.min(t.right, p.right) - Math.max(t.left, p.left) > 0 && Math.min(t.bottom, p.bottom) - Math.max(t.top, p.top) > 0)).length;
+  });
+  if (onPins) problems.push(`results: ${onPins} vote totals sit on a comment pin`);
+  // The results are shown, so the pointers are back.
+  for (let i = 0; i < 6; i++) { await spage.mouse.move(700 - i * 12, 420 - i * 8); await sleep(150); }
+  if (!(await until("Sara's pointer back on Cleo's board", 15, () => peersShown(cpage)).catch(() => 0))) problems.push("results: other people's pointers don't come back");
   await cpage.screenshot({ path: `${OUT}18-voting-results.png` });
   await spage.locator("[data-team-bar]").getByRole("button", { name: "Done" }).click();
   await cpage.locator("[data-team-bar]").waitFor({ state: "detached", timeout: 20_000 });

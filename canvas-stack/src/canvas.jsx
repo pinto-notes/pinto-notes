@@ -1188,6 +1188,12 @@ export function viewSize(api) {
   const s = api.getAppState();
   return { width: s.width, height: s.height };
 }
+/** While presenting, the comment pins go, as the frames' names do: the audience sees the frame
+ *  alone (round 16, Opus #4). Back on Done (pinto.css, .pinto-presenting). */
+function presentingLook(on) {
+  const area = typeof document !== "undefined" ? document.getElementById("canvas") : null;
+  if (area) area.classList.toggle("pinto-presenting", on);
+}
 export function present(api, to, from, size) {
   const v = api.getAppState(), vz = (v.zoom && v.zoom.value) || 1;
   if (to === "stop") {
@@ -1196,6 +1202,7 @@ export function present(api, to, from, size) {
     // stayed zoomed into the last frame).
     const b = presenting.back, labels = presenting.labels;
     presenting = null;
+    presentingLook(false);
     api.setActiveTool({ type: "selection" });
     if (b) api.updateScene({ appState: { zoom: { value: b.z }, scrollX: -b.cx + v.width / 2 / b.z, scrollY: -b.cy + v.height / 2 / b.z, ...(labels ? { frameRendering: labels } : {}) }, captureUpdate: CaptureUpdateAction.NEVER });
     return;
@@ -1209,6 +1216,7 @@ export function present(api, to, from, size) {
   // the name showed twice). What runs over its edge is cut there, as only the frame shows.
   const labels = presenting ? presenting.labels : v.frameRendering;
   presenting = { index, back, labels };
+  presentingLook(true);
   if (first) {
     api.updateScene({ appState: { selectedElementIds: {}, frameRendering: { ...(labels || {}), enabled: true, name: false, outline: false, clip: true } }, captureUpdate: CaptureUpdateAction.NEVER });
     // Laser on to start; after that the Present bar's toggle decides.
@@ -1246,6 +1254,9 @@ export function findWords(api, query) {
   return all.filter((e) => e.id === first.id || e.containerId === first.id);
 }
 
+/** How far round the selection what's drawn is listed for its style bar (stateOf), in view points. */
+export const NEARBY_REACH = 260;
+
 export function stateOf(api, app) {
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
@@ -1261,15 +1272,29 @@ export function stateOf(api, app) {
     bounds = { x: Math.round(a.x), y: Math.round(a.y), width: Math.round(b.x - a.x), height: Math.round(b.y - a.y) };
   }
   // What's drawn near the selection, so the style bar can float where it covers none of it:
-  // shapes as boxes, arrows and lines as the points they run through (their boxes are mostly air).
+  // shapes as boxes, arrows and lines as the points they run through (their boxes are mostly air),
+  // a frame as its edge and its name (its middle is what's in it). Everything within NEARBY_REACH
+  // of the selection is listed: the bar looks for room no further out (CanvasSelectionBar.reach).
   const nearby = [];
   if (bounds) {
-    const reach = 260, z = (s.zoom && s.zoom.value) || 1;
+    const reach = NEARBY_REACH, z = (s.zoom && s.zoom.value) || 1;
     const view = (x, y) => { const p = sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, s); return [Math.round(p.x), Math.round(p.y)]; };
     const near = (x1, y1, x2, y2) => x2 >= bounds.x - reach && x1 <= bounds.x + bounds.width + reach && y2 >= bounds.y - reach && y1 <= bounds.y + bounds.height + reach;
     for (const e of api.getSceneElements()) {
-      if (nearby.length >= 80) break;
+      if (nearby.length >= 200) break;
       if (ids[e.id] || (e.containerId && ids[e.containerId])) continue;
+      if (isFrame(e)) {
+        const [x1, y1, x2, y2] = getCommonBounds([e]);
+        const p = view(x1, y1), q = view(x2, y2);
+        if (!near(p[0], p[1] - FRAME_NAME, q[0], q[1])) continue;
+        nearby.push({ line: [p[0], p[1], q[0], p[1], q[0], q[1], p[0], q[1], p[0], p[1]] });
+        // Its name, over its top left corner, as the engine draws it (14 pt, about 7 pt a letter).
+        if (s.frameRendering && s.frameRendering.name !== false) {
+          const name = frameName(e, 0);
+          nearby.push({ box: [p[0], p[1] - FRAME_NAME, Math.min(q[0] - p[0], Math.round(name.length * 7.5) + 8), FRAME_NAME], words: true });
+        }
+        continue;
+      }
       if ((e.type === "arrow" || e.type === "line" || e.type === "freedraw") && Array.isArray(e.points)) {
         const step = Math.max(1, Math.ceil(e.points.length / 24));
         const pts = e.points.filter((_, i) => i % step === 0 || i === e.points.length - 1).map(([px, py]) => view(e.x + px, e.y + py));
@@ -1497,6 +1522,8 @@ function bridge(api) {
       case "comments":
         if (!comments) return false;
         comments.set(c);
+        // The totals move off a pin that just arrived.
+        if (votes) votes.draw();
         return true;
       case "votes":
         if (!votes) return false;
@@ -1517,6 +1544,10 @@ function bridge(api) {
       }
       case "action":
         if (!ACTIONS[c.name]) return false;
+        // In a browser, Zoom to Fit is the board's first view: whole, centred between the title
+        // and the tools (round 16, web-07 to web-08: the engine's own fit left the board smaller
+        // and lower on a phone than it opened).
+        if (c.name === "zoomToFit" && amber.fitInsets && openingView(api, amber.fitInsets)) break;
         run(ACTIONS[c.name]);
         break;
       case "pan": {
@@ -1797,7 +1828,8 @@ function bridge(api) {
   // The comment pins and the Comment tool (comments.js).
   const post = (m) => { try { window.webkit.messageHandlers.amberCanvas.postMessage(m); } catch (_) {} };
   comments = commentsLayer(api, document.getElementById("canvas") || document.body, post, () => setTimeout(report, 0));
-  votes = votesLayer(api, document.getElementById("canvas") || document.body, post);
+  // A vote's total keeps clear of the comment pins (round 16, web-16).
+  votes = votesLayer(api, document.getElementById("canvas") || document.body, post, () => (comments ? comments.boxes() : []));
   window.addEventListener("keydown", keys, true);
   window.addEventListener("contextmenu", menu, true);
   window.addEventListener("dblclick", twice, true);
@@ -1807,6 +1839,7 @@ function bridge(api) {
   report();
   return { command, state: () => stateOf(api, app), stop: () => {
     presenting = null;
+    presentingLook(false);
     if (comments) { comments.stop(); comments = null; }
     if (votes) { votes.stop(); votes = null; }
     off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);

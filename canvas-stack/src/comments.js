@@ -8,6 +8,7 @@
 //   native popover the app shows by the pin, which the page tells where the pin is as it moves).
 // - The Comment tool (C): the next click on the board places a comment there, on the shape under
 //   it if there is one. Escape puts the tool down.
+// - While presenting, the pins are hidden (pinto.css, .pinto-presenting), and back on Done.
 // Comments are never elements: pictures, the share page and the .excalidraw file leave them out.
 import { getCommonBounds, sceneCoordsToViewportCoords, viewportCoordsToSceneCoords } from "@excalidraw/excalidraw";
 import { shade } from "./shared.js";
@@ -282,6 +283,21 @@ export function commentsLayer(api, host, post, changed = () => {}) {
       draw();
     },
     get pins() { return pins; },
+    /** Where each pin is drawn now, [x, y, w, h] in the layer's points: a vote's total keeps clear
+     *  of them (votes.js). None while presenting, when they're hidden (pinto.css). */
+    boxes() {
+      if (host.classList.contains("pinto-presenting")) return [];
+      const s = api.getAppState(), byId = new Map(api.getSceneElements().map((e) => [e.id, e]));
+      const list = draft ? [...pins.filter((p) => p.id !== "draft"), { ...draft, id: "draft" }] : pins;
+      const out = [];
+      for (const p of list) {
+        const point = pinPoint(p, byId);
+        if (!point) continue;
+        const v = sceneCoordsToViewportCoords({ sceneX: point.x, sceneY: point.y }, s);
+        out.push([v.x, v.y - PIN.size, PIN.size, PIN.size]);
+      }
+      return out;
+    },
     get commenting() { return commenting; },
     /** Comments go on the board while its drawing is view only (Can comment). */
     get inView() { return inView && can; },

@@ -746,6 +746,12 @@ import UIKit
         let file = try #require(await j.canvas.export(.excalidraw))
         let json = try #require(try JSONSerialization.jsonObject(with: file) as? [String: Any])
         #expect(json["type"] as? String == "excalidraw")
+        // Its source is Pinto Notes, as a new board's file says, never the page's own address
+        // (round 16: the share page's file said "amber-app://", the app's old name).
+        #expect(json["source"] as? String == "https://pintonotes.com", "\(json["source"] ?? "none")")
+        let pageFile = try #require(await j.canvas.export(.excalidraw, page: "Flowchart"))
+        let page = try #require(try JSONSerialization.jsonObject(with: pageFile) as? [String: Any])
+        #expect(page["source"] as? String == "https://pintonotes.com", "the share page's file: \(page["source"] ?? "none")")
         let all = (json["elements"] as? [[String: Any]])?.count ?? 0
         #expect(all >= 15, "every shape, arrow and label: \(all)")
         // Only the selection, when asked and something is selected.
@@ -4585,6 +4591,37 @@ import UIKit
                     try await shot(String(format: "%02d-template-%@", i < 5 ? 2 + i : 29 + i - 5, t.rawValue), w, web)
                     if i == 0 { clicksReachTheBoard(w, web) }
                 }
+                // The bar where it covers nothing drawn: no shape, line or words of the board's
+                // under it (round 16, 43-timeline-1: Add Step on Design; 46-org-chart-1: Add Report
+                // on Alex and the line to Jo). Measured on the bar as shown.
+                @MainActor func barCoversNothing(_ name: String) async {
+                    for _ in 0..<20 where MacEmptyDetailTests.element("canvas.selectionBar", in: w) == nil { await MacWindowChromeTests.settle(w, 1) }
+                    guard let e = MacEmptyDetailTests.element("canvas.selectionBar", in: w),
+                          let frame = (e.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue else { Issue.record("\(name): no selection bar"); return }
+                    let r = web.convert(w.convertFromScreen(frame), from: nil)
+                    let hit = canvas.state.nearby.filter { $0.hits(r) }
+                    #expect(hit.isEmpty, "\(name): the bar at \(r) covers \(hit)")
+                    if let b = canvas.state.bounds { #expect(!r.intersects(b), "\(name): the bar at \(r) is on the selection \(b)") }
+                }
+                @MainActor func barsOnTemplates(_ suffix: String) async throws {
+                    try await insert(.timeline)
+                    try await select("e.customData && e.customData.pintoStep === 'step' && e.x > 500")
+                    for _ in 0..<50 where canvas.state.grows != .step { await MacWindowChromeTests.settle(w, 1) }
+                    try await shot("43-timeline-1-add-step" + suffix, w, web)
+                    await barCoversNothing("43-timeline-1-add-step\(suffix)-\(dark ? "dark" : "light")")
+                    try await insert(.orgChart)
+                    try await select("e.id === (api.getSceneElements().find((x) => x.type === 'text' && x.text.startsWith('Jo')) || {}).containerId")
+                    for _ in 0..<50 where canvas.state.grows != .report { await MacWindowChromeTests.settle(w, 1) }
+                    try await shot("46-org-chart-1-add-report" + suffix, w, web)
+                    await barCoversNothing("46-org-chart-1-add-report\(suffix)-\(dark ? "dark" : "light")")
+                }
+                // Dark, and a narrow window (760 pt, as 15-narrow-760), light and dark.
+                if dark { try await barsOnTemplates("") }
+                w.setContentSize(CGSize(width: 760, height: 700))
+                await MacWindowChromeTests.settle(w, 20)
+                try await barsOnTemplates("-narrow-760")
+                w.setContentSize(CGSize(width: 1400, height: 900))
+                await MacWindowChromeTests.settle(w, 20)
                 // Templates that grow, and your own (round 15, Opus #5): a timeline gains a step
                 // with Tab, a kanban a column; a frame saved as a template and used on a new board.
                 if !dark {
@@ -4604,6 +4641,7 @@ import UIKit
                     for _ in 0..<50 where canvas.state.grows != .step { await MacWindowChromeTests.settle(w, 1) }
                     #expect(canvas.state.grows == .step)
                     try await shot("43-timeline-1-add-step", w, web)
+                    await barCoversNothing("43-timeline-1-add-step-light")
                     try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }))")
                     // The new step, selected and ready for typing (round 16).
                     for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
@@ -4638,6 +4676,7 @@ import UIKit
                     for _ in 0..<50 where canvas.state.grows != .report { await MacWindowChromeTests.settle(w, 1) }
                     #expect(canvas.state.grows == .report)
                     try await shot("46-org-chart-1-add-report", w, web)
+                    await barCoversNothing("46-org-chart-1-add-report-light")
                     try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }))")
                     for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
                     #expect(canvas.state.editing, "the new report is ready for a name")
@@ -4942,18 +4981,49 @@ import UIKit
                     ] })
                     """)
                     for _ in 0..<40 where canvas.state.empty { await MacWindowChromeTests.settle(w, 2) }
+                    // Two comments on the board: their pins show on it, none while presenting, and
+                    // they're back on Done (round 16, Opus #4).
+                    // Kept in the board's page data, as comments on a board of your own are.
+                    // Insert gives the shapes new ids: found by their words.
+                    let on = try await web.evaluateJavaScript("(() => { const els = amber._canvas.api.getSceneElements(); const by = (t) => els.find((e) => e.type === 'text' && (e.originalText || e.text) === t)?.containerId || ''; return [by('42% drop at step 4'), by('Open the app')]; })()") as? [String] ?? []
+                    #expect(on.count == 2 && on.allSatisfy { !$0.isEmpty }, "the shapes the comments are on: \(on)")
+                    var pinned = [
+                        BoardComment(id: "c-drop", on: on.first, by: "me", name: "Emil", text: "Which step is 4?", created: "2026-11-16T09:00:00Z"),
+                        BoardComment(id: "c-open", on: on.last, by: TestPeople.sara.uuidString.lowercased(), name: "Sara", text: "Straight into the app?", created: "2026-11-16T09:05:00Z"),
+                    ]
+                    // As the board takes them when its page data changes (NoteDetailView's onChange).
+                    @MainActor func keep(_ list: [BoardComment]) {
+                        BoardComments.keep(list, for: note.id)
+                        canvas.show(comments: BoardComments.stored(in: NotePageDataStore.shared.doc(note.id)))
+                    }
+                    keep(pinned)
+                    for _ in 0..<50 where canvas.pins.count < 2 { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.pins.count == 2, "the two threads")
+                    canvas.markSeen()
+                    @MainActor func pinsShown() async throws -> Int {
+                        try await web.evaluateJavaScript("[...document.querySelectorAll('.pinto-pin')].filter((n) => getComputedStyle(n).display !== 'none' && n.offsetParent !== null).length") as? Int ?? -1
+                    }
                     await MacWindowChromeTests.settle(w, 10)
+                    #expect(try await pinsShown() == 2, "the pins on the board")
                     try await shot("25-frames", w, web)
                     canvas.send(.present(.start))
                     for _ in 0..<40 where canvas.state.present == nil { await MacWindowChromeTests.settle(w, 2) }
                     await MacWindowChromeTests.settle(w, 20)
+                    #expect(try await pinsShown() == 0, "no pin while presenting")
                     try await shot("25-present-1", w, web)
                     canvas.send(.present(.next))
                     await MacWindowChromeTests.settle(w, 15)
+                    #expect(try await pinsShown() == 0, "nor on the next frame")
                     try await shot("25-present-2", w, web)
                     canvas.send(.present(.stop))
                     await MacWindowChromeTests.settle(w, 20)
+                    #expect(try await pinsShown() == 2, "back on Done")
                     try await shot("25-present-done", w, web)
+                    // Resolved, so the pictures after these have none.
+                    for i in pinned.indices { pinned[i].resolved = true; pinned[i].version += 1 }
+                    keep(pinned)
+                    for _ in 0..<50 where !canvas.pins.isEmpty { await MacWindowChromeTests.settle(w, 1) }
+                    canvas.markSeen()
                 }
                 // The library (whiteboard council, round 5): two Excalidraw libraries imported and
                 // two shapes saved from the board; the popover with them (drawn on its own, as a
@@ -5375,11 +5445,11 @@ import UIKit
     @Test func theSelectionBarCoversALineBeforeWords() {
         let bar = CGSize(width: 200, height: 40), area = CGSize(width: 800, height: 600)
         let box = CGRect(x: 300, y: 300, width: 100, height: 50)
-        // The how-to line right above, as wide as the board; lines everywhere else it could go.
+        // The how-to line right above, as wide as the board; lines everywhere else it could go,
+        // further out too (round 16: the bar looks further out before covering anything).
         let words = CanvasObstacle.words(CGRect(x: 0, y: 220, width: 800, height: 40))
-        let lines = [CanvasObstacle.line([CGPoint(x: 0, y: 380), CGPoint(x: 800, y: 380)]),
-                     CanvasObstacle.line([CGPoint(x: 0, y: 325), CGPoint(x: 800, y: 325)]),
-                     CanvasObstacle.line([CGPoint(x: 0, y: 395), CGPoint(x: 800, y: 395)])]
+        let lines = stride(from: CGFloat(10), through: 590, by: 30).filter { $0 < 200 || $0 > 280 }
+            .map { CanvasObstacle.line([CGPoint(x: 0, y: $0), CGPoint(x: 800, y: $0)]) }
         let at = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [words] + lines)
         let r = CGRect(x: at.x - 110, y: at.y - 30, width: 220, height: 60)
         #expect(!words.hits(r), "clear of the how-to line: \(at)")
@@ -5388,6 +5458,70 @@ import UIKit
         #expect(CanvasObstacle(["box": [1, 2, 3, 4], "words": true]) == .words(CGRect(x: 1, y: 2, width: 3, height: 4)))
         #expect(CanvasObstacle(["box": [1, 2, 3, 4]]) == .box(CGRect(x: 1, y: 2, width: 3, height: 4)))
         #expect(CanvasState.Grows(rawValue: "report")?.title == "Add Report")
+    }
+
+    /// Round 16, 43-timeline-1 and 46-org-chart-1: with every spot right beside the selection taken,
+    /// Add Step sat on the Design step and Add Report on Alex's corner and the line to Jo. Further
+    /// out there's room (above the how-to line, under the row below): the bar goes to the nearest
+    /// spot that covers nothing. A shape round the whole selection (a lane, a frame) counts by its
+    /// edge, so the bar may lie over its empty middle.
+    @Test func theSelectionBarGoesFurtherOutBeforeCoveringAnything() {
+        let bar = CGSize(width: 300, height: 44), area = CGSize(width: 900, height: 800)
+        let box = CGRect(x: 500, y: 360, width: 120, height: 60)
+        func covers(_ at: CGPoint) -> CGRect { CGRect(x: at.x - bar.width / 2, y: at.y - bar.height / 2, width: bar.width, height: bar.height) }
+        // Words right above, its neighbours on both sides, a line and dots right below, a row of
+        // steps under that; the canvas's edge close on the right.
+        let taken: [CanvasObstacle] = [
+            .words(CGRect(x: 80, y: 300, width: 600, height: 20)),
+            .box(CGRect(x: 300, y: 360, width: 120, height: 60)), .box(CGRect(x: 700, y: 360, width: 120, height: 60)),
+            .line([CGPoint(x: 100, y: 470), CGPoint(x: 820, y: 470)]),
+            .box(CGRect(x: 200, y: 500, width: 120, height: 60)), .box(CGRect(x: 450, y: 500, width: 120, height: 60)),
+        ]
+        let at = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: taken)
+        let r = covers(at)
+        #expect(!taken.contains { $0.hits(r) }, "covers nothing: \(at)")
+        #expect(!r.intersects(box), "not on the selection: \(at)")
+        #expect(r.maxY < 300, "above the how-to line, the nearest clear room: \(at)")
+        #expect(r.maxY > 300 - 40, "right above it, not far off: \(at)")
+        // A lane round the selection: inside it, by the selection, as before.
+        let lane = CanvasObstacle.box(CGRect(x: 380, y: 200, width: 360, height: 500))
+        let inLane = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [lane])
+        #expect(abs(inLane.y - (box.minY - CanvasSelectionBar.gap - bar.height / 2)) < 0.01 && abs(inLane.x - box.midX) < 0.01, "right above the selection, in its lane: \(inLane)")
+        // Nowhere clear within reach: where it covers least, as before.
+        let all = CanvasObstacle.box(CGRect(x: 0, y: 0, width: 900, height: 340))
+        let lower = CanvasObstacle.box(CGRect(x: 0, y: 440, width: 900, height: 360))
+        let sides = [CanvasObstacle.box(CGRect(x: 0, y: 340, width: 480, height: 100)), .box(CGRect(x: 640, y: 340, width: 260, height: 100))]
+        let least = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [all, lower] + sides)
+        #expect(area.width >= covers(least).maxX && covers(least).minX >= 0, "still in the canvas: \(least)")
+    }
+
+    /// The same on the real templates, as the page lists what's drawn: Timeline's last step and the
+    /// org chart's Jo selected, in a wide window, the pictures' board, a narrow one and dark. The
+    /// bar (as wide as the one with Add Step or Add Report) covers no shape, line or words.
+    @Test func theSelectionBarCoversNothingOnTheTimelineOrTheOrgChart() async throws {
+        let bar = CGSize(width: 340, height: 44)
+        for (size, dark) in [(CGSize(width: 1100, height: 760), false), (CGSize(width: 809, height: 848), true), (CGSize(width: 560, height: 700), false)] {
+            for (template, pick, grows) in [(WhiteboardTemplate.timeline, "e.customData && e.customData.pintoStep === 'step'", CanvasState.Grows.step),
+                                            (.orgChart, "e.id === (els.find((x) => x.type === 'text' && x.text.startsWith('Jo')) || {}).containerId", .report)] {
+                let j = try await Joined(scene: CanvasTests.scene([]), size: size, dark: dark)
+                defer { j.close() }
+                try await j.ready()
+                j.canvas.send(.insert(template, title: "Product launch"))
+                await j.until("\(template) is in") { !j.canvas.state.empty }
+                try await Task.sleep(for: .milliseconds(300))
+                // The rightmost of them: on the Timeline, Launch (Design is beside it, the hint above).
+                _ = try await j.js("(() => { const api = amber._canvas.api, els = api.getSceneElements(); const it = els.filter((e) => \(pick)).sort((a, b) => b.x - a.x)[0]; api.updateScene({ appState: { selectedElementIds: { [it.id]: true } } }); return 1; })()")
+                await j.until("the bar's state for \(template)") { j.canvas.state.grows == grows && j.canvas.state.bounds != nil && !j.canvas.state.nearby.isEmpty }
+                let bounds = try #require(j.canvas.state.bounds), nearby = j.canvas.state.nearby
+                #expect(nearby.contains { if case .words = $0 { true } else { false } }, "the how-to line is listed")
+                let at = CanvasSelectionBar.position(bounds: bounds, bar: bar, area: size, nearby: nearby)
+                let r = CGRect(x: at.x - bar.width / 2, y: at.y - bar.height / 2, width: bar.width, height: bar.height)
+                let hit = nearby.filter { $0.hits(r) }
+                #expect(hit.isEmpty, "\(template) at \(size)\(dark ? ", dark" : ""): the bar at \(r) covers \(hit) (selection \(bounds))")
+                #expect(!r.intersects(bounds), "\(template) at \(size): not on the selection")
+                #expect(r.minX >= 0 && r.maxX <= size.width && r.minY >= 0 && r.maxY <= size.height, "\(template) at \(size): in the canvas: \(r)")
+            }
+        }
     }
 
     @Test func swatchesShowAsTheCanvasDrawsThemInTheDark() {
@@ -5447,6 +5581,143 @@ extension CanvasNativeUITests {
         ["type": "rectangle", "id": "a", "x": 80, "y": 100, "width": 200, "height": 100],
         ["type": "rectangle", "id": "b", "x": 400, "y": 100, "width": 200, "height": 100],
     ]
+
+    // MARK: Voting, comments and presenting: the final polish (round 16)
+
+    /// Where the page draws something, in its points: [x, y, w, h] for each match that shows.
+    static func shown(_ j: Joined, _ selector: String) async throws -> [[Double]] {
+        let s = try await j.js("JSON.stringify([...document.querySelectorAll('\(selector)')].filter((n) => getComputedStyle(n).display !== 'none' && n.offsetParent !== null).map((n) => { const r = n.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }))") as? String ?? "[]"
+        return try JSONSerialization.jsonObject(with: Data(s.utf8)) as? [[Double]] ?? []
+    }
+
+    /// While voting, the others' pointers, names and selections are hidden: where Sara points would
+    /// say how she votes (round 16, web-15: her pointer sat on a candidate while Cleo voted). They
+    /// come back with the results.
+    @Test func othersPointersAndSelectionsHideWhileVoting() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.share(true)
+        let sara = BoardPeer(id: TestPeople.sara, name: "Sara", color: TestPeople.color(TestPeople.sara).light, pointer: CGPoint(x: 300, y: 260), selection: ["b"])
+        j.canvas.show(peers: [sara])
+        try await Task.sleep(for: .milliseconds(300))
+        let before = (try await Self.shown(j, ".pinto-peer-pointer").count, try await Self.shown(j, ".pinto-peer-box").count)
+        #expect(before == (1, 1), "Sara shows before voting: \(before)")
+        j.canvas.team.me = TestPeople.emil
+        j.canvas.team.startVoting(votes: 3)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try await Self.shown(j, ".pinto-peer-pointer").isEmpty, "her pointer is hidden while voting")
+        #expect(try await Self.shown(j, ".pinto-peer-box").isEmpty, "and her selection")
+        #expect(try await Self.shown(j, ".pinto-peer-flag").isEmpty, "and her name")
+        // She moves while voting: still hidden.
+        j.canvas.show(peers: [BoardPeer(id: TestPeople.sara, name: "Sara", color: sara.color, pointer: CGPoint(x: 120, y: 140), selection: ["a"])])
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await Self.shown(j, ".pinto-peer-pointer").isEmpty)
+        j.canvas.receive(["vote": ["on": "a"]])
+        j.canvas.team.endVoting()
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try await Self.shown(j, ".pinto-vote-total").count == 1, "the results show")
+        let after = (try await Self.shown(j, ".pinto-peer-pointer").count, try await Self.shown(j, ".pinto-peer-box").count)
+        #expect(after == (1, 1), "and Sara again, with them: \(after)")
+        j.canvas.team.clearVoting()
+    }
+
+    /// WCAG's contrast ratio of two "#rrggbb" or "rgb(r, g, b)" colours.
+    static func contrast(_ a: String, _ b: String) -> Double {
+        func rgb(_ s: String) -> (Double, Double, Double) {
+            if let c = CanvasStyle.rgb(s) { return c }
+            let n = s.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).compactMap(Double.init)
+            return n.count >= 3 ? (n[0] / 255, n[1] / 255, n[2] / 255) : (0, 0, 0)
+        }
+        func lum(_ c: (Double, Double, Double)) -> Double {
+            func lin(_ v: Double) -> Double { v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+            return 0.2126 * lin(c.0) + 0.7152 * lin(c.1) + 0.0722 * lin(c.2)
+        }
+        let x = lum(rgb(a)), y = lum(rgb(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    }
+
+    /// A vote's dot stands at least 3:1 against what it sits on, for every person's colour on every
+    /// sticky colour and the bare board, light and dark (round 16, 47-voting-1 dark: Emil's blue dot
+    /// on the navy sticky). A colour that already does stays the person's own.
+    @Test(arguments: [false, true]) func voteDotsStandOutOnTheirShape(dark: Bool) async throws {
+        let fills = ["#a5d8ff", "#b2f2bb", "#ffc9c9", "#ffec99", "#eebefa", "#d0bfff", "#e9ecef", "transparent"]
+        let shapes: [[String: Any]] = fills.enumerated().map { i, f in
+            ["type": "rectangle", "id": "s\(i)", "x": Double(i % 4) * 230, "y": Double(i / 4) * 160, "width": 200, "height": 120, "backgroundColor": f, "fillStyle": "solid"]
+        }
+        let j = try await Joined(scene: CanvasTests.scene(shapes), size: CGSize(width: 1100, height: 600), dark: dark)
+        defer { j.close() }
+        try await j.ready()
+        for (light, deep) in CollabSession.palette {
+            let color = CollabSession.hex(light), shade = CollabSession.hex(deep)
+            let dots = fills.indices.map { "{ on: 's\($0)', color: '\(color)', dark: '\(shade)' }" }.joined(separator: ", ")
+            _ = try await j.js("(() => { amber._canvasCommand({ op: 'votes', on: true, dots: [\(dots)], results: null }); return 1; })()")
+            try await Task.sleep(for: .milliseconds(120))
+            let s = try await j.js("JSON.stringify([...document.querySelectorAll('.pinto-vote-dot')].filter((n) => n.style.display !== 'none').map((n) => [n.dataset.on, getComputedStyle(n).backgroundColor]))") as? String ?? "[]"
+            let got = try #require(try JSONSerialization.jsonObject(with: Data(s.utf8)) as? [[String]])
+            #expect(got.count == fills.count, "a dot on every shape: \(got)")
+            for pair in got {
+                let i = try #require(Int(pair[0].dropFirst()))
+                let fill = fills[i] == "transparent" ? "#ffffff" : fills[i]
+                let ground = CanvasStyle.hex(try #require(CanvasStyle.shown(fill, dark: dark)), dark: false)
+                let ratio = Self.contrast(pair[1], ground)
+                #expect(ratio >= 3, "\(dark ? "dark" : "light"): \(color)'s dot \(pair[1]) on \(fills[i]) (shown \(ground)) is \(String(format: "%.2f", ratio)):1")
+                let own = dark ? shade : color
+                if Self.contrast(own, ground) >= 3 { #expect(Self.contrast(pair[1], own) < 1.01, "kept in the person's own colour where it already stands out: \(pair[1]) for \(own)") }
+            }
+        }
+        _ = try await j.js("(() => { amber._canvasCommand({ op: 'votes', on: false, dots: [], results: null }); return 1; })()")
+    }
+
+    /// A shape's total never sits on a comment pin (round 16, web-16: the "2" over Emil's pin at
+    /// the box's top right corner): it moves along the edge. Without a pin it keeps the corner.
+    @Test func aVoteTotalKeepsClearOfACommentPin() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.twoBoxes))
+        defer { j.close() }
+        try await j.ready()
+        // A pin at a's top right corner, as a comment placed on the selection sits; none on b.
+        _ = try await j.js("(() => { amber._canvasCommand({ op: 'comments', pins: [{ id: 'c1', on: 'a', x: 1, y: 0, color: '#186B70', letter: 'E' }], me: { color: '#2D639A', letter: 'S' }, open: null, can: true }); return 1; })()")
+        _ = try await j.js("(() => { amber._canvasCommand({ op: 'votes', on: false, dots: [], results: { a: 2, b: 12 } }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(300))
+        let pins = try await Self.shown(j, ".pinto-pin")
+        let totals = try await Self.json(j, "(() => Object.fromEntries([...document.querySelectorAll('.pinto-vote-total')].filter((n) => n.style.display !== 'none').map((n) => { const r = n.getBoundingClientRect(); return [n.dataset.on, [r.x, r.y, r.width, r.height]]; })))()")
+        let pin = try #require(pins.first), onA = try #require(totals["a"] as? [Double]), onB = try #require(totals["b"] as? [Double])
+        func rect(_ v: [Double]) -> CGRect { CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
+        #expect(!rect(onA).intersects(rect(pin)), "a's total \(onA) clear of the pin \(pin)")
+        // Still on a's edge: within its width, at its top or bottom.
+        let a = try await Self.json(j, "(() => { const s = amber._canvas.api.getAppState(), z = s.zoom.value; return { x: (80 + s.scrollX) * z + s.offsetLeft, y: (100 + s.scrollY) * z + s.offsetTop, w: 200 * z, h: 100 * z }; })()")
+        let ax = a["x"] as? Double ?? 0, ay = a["y"] as? Double ?? 0, aw = a["w"] as? Double ?? 0, ah = a["h"] as? Double ?? 0
+        #expect(onA[0] >= ax - 11 && onA[0] + onA[2] <= ax + aw + 11, "along a's edge: \(onA), a at \(a)")
+        #expect(abs(onA[1] - (ay - 10)) < 1.5 || abs(onA[1] + onA[3] - (ay + ah + 10)) < 1.5, "at its top or bottom: \(onA)")
+        // b has no pin: its corner, half off it.
+        let b = try await Self.json(j, "(() => { const s = amber._canvas.api.getAppState(), z = s.zoom.value; return { x: (600 + s.scrollX) * z + s.offsetLeft, y: (100 + s.scrollY) * z + s.offsetTop }; })()")
+        #expect(abs(onB[0] - ((b["x"] as? Double ?? 0) - 10)) < 1.5 && abs(onB[1] - ((b["y"] as? Double ?? 0) - 10)) < 1.5, "b's total at its corner: \(onB), \(b)")
+    }
+
+    /// While presenting, the comment pins are hidden, as the frames' names are; Done brings them
+    /// back (round 16, Opus #4).
+    @Test func commentPinsHideWhilePresenting() async throws {
+        let j = try await Joined(scene: Self.twoFrames)
+        defer { j.close() }
+        try await j.ready()
+        _ = try await j.js("(() => { amber._canvasCommand({ op: 'comments', pins: [{ id: 'c1', on: 'a', x: 1, y: 0, color: '#186B70', letter: 'E' }, { id: 'c2', on: 'b', x: 0.5, y: 0.5, color: '#5252C5', letter: 'S' }], me: { color: '#2D639A', letter: 'E' }, open: null, can: true }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        _ = try await j.js("(() => { amber._canvas.api.scrollToContent(undefined, { fitToContent: true, animate: false }); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await Self.shown(j, ".pinto-pin").count == 2, "both pins show on the board")
+        j.canvas.send(.present(.start))
+        await j.until("presenting") { j.canvas.state.present?.index == 0 }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await Self.shown(j, ".pinto-pin").isEmpty, "no pin while presenting, on its frame or another")
+        j.canvas.send(.present(.next))
+        await j.until("the second frame") { j.canvas.state.present?.index == 1 }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await Self.shown(j, ".pinto-pin").isEmpty, "nor on the next")
+        j.canvas.send(.present(.stop))
+        await j.until("done") { j.canvas.state.present == nil }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await Self.shown(j, ".pinto-pin").count == 2, "back on Done")
+    }
 
     /// The page's element `id` as it holds it (deleted ones too), or nil.
     static func element(_ j: Joined, _ id: String) async throws -> [String: Any]? {

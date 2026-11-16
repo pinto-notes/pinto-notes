@@ -10,6 +10,7 @@ import { BoardController } from "@/lib/board-controller";
 import type { Comment, Thread } from "@/lib/board-doc";
 import { complete, DELETED_TEXT, mentionQuery, mentionRanges, suggestions, when } from "@/lib/board-doc";
 import { codeDigits, CODE_LENGTH, looksLikeEmail } from "@/lib/board-auth";
+import { AIGlyph, aiGlyphFor } from "@/lib/ai-glyphs";
 import { followers as followersOf, followersLine, words } from "@/lib/board-follow";
 import type { Anchor, Outline, PageState } from "@/lib/board-host";
 import { CHANGE_GONE, SHOW_CHANGE } from "@/lib/board-comments";
@@ -409,8 +410,15 @@ function Toast({ ctl }: { ctl: BoardController }) {
 
 // MARK: Comments
 
-function Avatar({ ctl, c }: { ctl: BoardController; c: Comment }) {
-  return <span className={s.avatarSmall} style={{ background: ctl.comments.color(c) }} aria-hidden="true">{((c.ai ?? c.name).trim()[0] ?? "?").toUpperCase()}</span>;
+/** Who wrote a comment: their initial on their colour; an AI's own mark on graphite, white on it,
+ *  as the app shows it (BoardCommentAvatar), never a grey letter beside a person's (round 16). */
+export function Avatar({ ctl, c }: { ctl: BoardController; c: Comment }) {
+  const glyph = c.ai ? aiGlyphFor(c.ai) : null;
+  return (
+    <span className={s.avatarSmall} style={{ background: ctl.comments.color(c) }} aria-hidden="true" data-ai-mark={glyph ?? undefined}>
+      {glyph ? <AIGlyph name={glyph} size={14} color="#FFFFFF" /> : ((c.ai ?? c.name).trim()[0] ?? "?").toUpperCase()}
+    </span>
+  );
 }
 
 /** A comment's words, with each mention of someone on the board set apart. */
