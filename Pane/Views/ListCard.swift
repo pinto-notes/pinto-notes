@@ -1,23 +1,4 @@
-import Supabase
 import SwiftUI
-
-/// The type and spacing of a card at the top of the note list. Mac: 13 pt like the rows under
-/// it. iPhone: the list's own type sizes.
-enum ListCardMetrics {
-    #if os(macOS)
-    static let title = Font.system(size: 13, weight: .semibold)
-    static let line = Font.system(size: 12)
-    static let button = Font.system(size: 13)
-    static let padding: CGFloat = 12
-    static let gap: CGFloat = 10
-    #else
-    static let title = Font.headline
-    static let line = Font.subheadline
-    static let button = Font.body.weight(.semibold)
-    static let padding: CGFloat = 0
-    static let gap: CGFloat = 12
-    #endif
-}
 
 /// A green circle with a check that draws itself in, stroke by stroke.
 struct DrawnCheck: View {
@@ -46,25 +27,6 @@ struct DrawnCheck: View {
             p.addLine(to: CGPoint(x: r.maxX - r.width * 0.08, y: r.minY + r.height * 0.2))
             return p
         }
-    }
-}
-
-/// A card at the top of the note list (What's new). Mac: the native control surface inside the
-/// list's margins, lifted by a soft layered shadow (a tight contact shadow under a wide, faint
-/// one). iPhone: nothing here; the card sits in its own grouped section, which draws the surface,
-/// insets and radius.
-struct ListCardSurface: ViewModifier {
-    func body(content: Content) -> some View {
-        #if os(macOS)
-        content.background {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(0.06), radius: 0.5, y: 0.5)
-                .shadow(color: Color(Palette.warm(Palette.brown, Palette.brown, plain: (0x000000, 0x000000))).opacity(0.10), radius: 10, y: 4)
-        }
-        #else
-        content
-        #endif
     }
 }
 

@@ -64,7 +64,7 @@ import Testing
         #expect(try listed(.folder(work.id)) == ["Acme"])
         #expect(try listed(.all) == ["Acme", "Agenda", "Minutes"])
         #expect(try listed(.trash) == ["Old plan"], "and the deleted one is in Recently Deleted")
-        #expect(SidebarView.listedNotes(in: acmeFolder, context: ctx) == 1)
+        #expect(acmeFolder.liveNotes.count == 1)
         #expect(SidebarView.counts(in: ctx) == (live: 3, trashed: 1))
 
         // Done once: the next launch or sync changes nothing.

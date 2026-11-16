@@ -550,3 +550,119 @@ extension Note {
         set { AIEditStore.shared[id].previous = newValue }
     }
 }
+
+extension AIEdit {
+    /// The note screen's AI review and receipt lifetime. Delays deliver tokens back here;
+    /// an older delay can never replace or dismiss a newer change.
+    struct Presentation {
+        private var visible: Entry?
+        private var landing: Receipt?
+        private var held: Entry?
+        private var fieldFocused = false
+        var review: AIReview?
+        var result: Result?
+        var receipt: Receipt? { visible?.receipt }
+        var timeout: Timeout? { visible?.timeout }
+
+        enum Undo {
+            case page(NotePageStore.Page?), data(NotePageData.Doc?), reverted(NotePageStore.Page)
+        }
+        private struct Entry {
+            let receipt: Receipt
+            let undo: Undo?
+            let timeout: Timeout?
+
+            init(receipt: Receipt, undo: Undo? = nil, seconds: Double? = nil) {
+                var receipt = receipt
+                // The operation determines its label; callers never choose a second kind.
+                switch undo {
+                case .page(let previous): receipt.kind = previous == nil ? .pageMade : .pageChanged
+                case .data: receipt.kind = .dataEdit
+                case .reverted: receipt.kind = .reverted
+                case nil: break
+                }
+                self.receipt = receipt
+                self.undo = undo
+                timeout = seconds.map { Timeout(seconds: $0) }
+            }
+        }
+
+        struct Result: Identifiable {
+            let id = UUID()
+            let text: String
+            let undo: (() -> Void)?
+            init(_ text: String, undo: (() -> Void)? = nil) { self.text = text; self.undo = undo }
+        }
+        struct Timeout: Identifiable {
+            let id = UUID()
+            let seconds: Double
+        }
+
+        mutating func stage(_ incoming: Receipt) -> Receipt {
+            let next = incoming.continuing(landing ?? receipt)
+            landing = next
+            return next
+        }
+        @discardableResult mutating func land(_ expected: Receipt, on note: UUID) -> Bool {
+            guard landing == expected else { return false }
+            landing = nil
+            guard expected.noteID == note else { return false }
+            present(expected)
+            return true
+        }
+        mutating func present(_ next: Receipt?) { visible = next.map { Entry(receipt: $0) } }
+        /// Typing accepts a text change even before its delayed receipt has landed.
+        mutating func edited() -> Bool {
+            if landing?.staysUntilEdited == true { landing = nil }
+            guard receipt?.staysUntilEdited == true else { return false }
+            present(nil)
+            return true
+        }
+        mutating func expire(_ id: UUID) {
+            if timeout?.id == id { present(nil) }
+        }
+        mutating func showPage(_ next: Receipt, infoOpen: Bool, undo: Undo? = nil) {
+            guard !infoOpen else { return }
+            let entry = Entry(receipt: next, undo: undo, seconds: 10)
+            if fieldFocused { held = entry } else { held = nil; visible = entry }
+        }
+        mutating func pageArrived(_ next: Receipt, previous: NotePageStore.Page?) {
+            if !fieldFocused { visible = Entry(receipt: next, undo: .page(previous), seconds: 5.5) }
+        }
+        mutating func focus(_ focused: Bool, infoOpen: Bool, now: Date = .now) {
+            fieldFocused = focused
+            if focused { present(nil) }
+            else if let next = held {
+                held = nil
+                if now.timeIntervalSince(next.receipt.at) < 3 { showPage(next.receipt, infoOpen: infoOpen, undo: next.undo) }
+            }
+        }
+        mutating func dataChanged(_ before: NotePageData.Doc, receipt next: Receipt, infoOpen: Bool) {
+            var undo: Undo = .data(before)
+            if let prior = visible ?? held, prior.receipt.kind == .dataEdit,
+               next.at.timeIntervalSince(prior.receipt.at) < 10, case .data(let original)? = prior.undo, let original {
+                undo = .data(original)
+            }
+            showPage(next, infoOpen: infoOpen, undo: undo)
+        }
+        func undo(for expected: Receipt) -> Undo? {
+            guard receipt == expected else { return nil }
+            return visible?.undo
+        }
+        @discardableResult mutating func startReview(_ receipt: Receipt) -> Bool {
+            guard let next = AIReview(receipt) else { return false }
+            result = nil
+            review = next
+            return true
+        }
+        func canRetint(_ expected: AIReview, body: String) -> Bool {
+            review == expected && AIReview.lines(body) == expected.expected
+        }
+        mutating func finishReview() {
+            guard let review else { return }
+            result = Result(review.result)
+            self.review = nil
+            present(nil)
+        }
+    }
+}

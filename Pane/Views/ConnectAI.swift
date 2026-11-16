@@ -1669,8 +1669,6 @@ struct ConnectAISection: View {
     @Environment(\.settingsAsPage) private var asPage
     @Environment(\.connectStudy) private var study
     @State private var anyConnected = false
-    /// Settings on iPhone: a card per AI, as on the Mac, under one line (Emil, 7 November 2026).
-    var cards = false
 
     enum Guide: String, Identifiable, CaseIterable {
         case chatgpt, claude, grok, claudeCode, codex, other
@@ -1753,13 +1751,8 @@ struct ConnectAISection: View {
 }
 
 #if os(macOS)
-/// AI Connections' cards on the Mac (AIConnectionsPage has the page and its line on what is sent):
-/// one list (Emil, 3 November 2026: "simplify and cut things"). One row per AI there is (never Mistral): a connected one says when it was last used,
-/// with Disconnect…; the others say who makes them, with Connect…. Under the list, always in view,
-/// one line on what is sent and to which company (App Review 5.1.2 rejected 1.2 for hiding it).
-/// "Having trouble?" is in the Help menu (Help Connecting an AI…); Keys for apps was a small link, parked 6 November 2026,
-/// at the foot. Connect runs the setup card's flows: ChatGPT and Claude open the browser's connect
-/// page, Grok's and Another AI's guides open over the wait, Codex is added on this Mac.
+/// Runs connection setup above the Settings list. The surrounding AIConnectionsPage owns
+/// the rows; this view owns the waiting panel, guides and completion state.
 struct ConnectAIPage: View {
     typealias Guide = ConnectAISection.Guide
     let client: SupabaseClient
@@ -1771,15 +1764,6 @@ struct ConnectAIPage: View {
     var onConnected: () -> Void = {}
 
     enum Stage: Equatable { case choosing, waiting, connected }
-
-    /// A row of the list: an AI there is to connect (with its connection, once connected), or a
-    /// connection no AI in the list made (an app on this computer, Claude Code, an access token).
-    struct Row: Identifiable, CustomEquatable {
-        var guide: Guide?
-        var connection: Connection?
-        var id: String { connection.map { $0.id.uuidString } ?? guide?.rawValue ?? "" }
-        static func isEqual(_ a: Row, _ b: Row) -> Bool { a.guide == b.guide && a.connection?.id == b.connection?.id }
-    }
 
     @State private var ai: SetupCards.AI = .chatgpt
     /// The tile picked, once you've picked one.
@@ -1795,53 +1779,6 @@ struct ConnectAIPage: View {
     @Environment(ConnectGuideRoute.self) private var route: ConnectGuideRoute?
     @Environment(\.networkReach) private var reach
     @Environment(\.openURL) private var openURL
-
-    private var active: [Connection] { (preview ?? connections).filter { $0.revoked_at == nil } }
-
-    /// The list: every AI offered, in the setup card's order, each with its connections (a row
-    /// each, when there are two accounts), then connections no AI in the list made. Another AI
-    /// keeps its Connect… row: there can always be one more.
-    static func rows(offered: [Guide] = Guide.offered, connections: [Connection]) -> [Row] {
-        var out: [Row] = []
-        var used = Set<UUID>()
-        for g in offered {
-            let mine = g == .other ? [] : connections.filter { $0.title == g.title }
-            if mine.isEmpty { out.append(Row(guide: g)) }
-            for c in mine { out.append(Row(guide: g, connection: c)); used.insert(c.id) }
-        }
-        let rest = connections.filter { !used.contains($0.id) }.map { Row(connection: $0) }
-        // Another AI last, after the apps it would add.
-        if let other = out.firstIndex(where: { $0.guide == .other && $0.connection == nil }) {
-            let row = out.remove(at: other)
-            return out + rest + [row]
-        }
-        return out + rest
-    }
-
-    /// Ways in besides the browser's: Codex.
-    static func more(offered: [Guide] = Guide.offered) -> [Guide] { offered.filter { $0 == .codex } }
-
-    /// What it can do and which company the notes go to, in one line at the top, in view in every
-    /// stage (App Review rejected 1.2 for hiding the company). One line, not two: Emil, 7 November
-    /// 2026, the line under the cards read "like an explanation for toddlers".
-    static let sent = ConnectCopy.page
-
-    /// The line under a connected one: when it was last used. One the list names by its AI is that
-    /// AI already (its sign-in went to the AI's own address); the others say where access went too.
-    static func detail(_ row: Row) -> String {
-        guard let c = row.connection else { return row.guide.map(line) ?? "" }
-        guard row.guide != nil else { return ConnectChoices.detail(c) }
-        return c.last_used_at.map { "Used \($0.formatted(.relative(presentation: .named)))" } ?? "Not used yet"
-    }
-
-    /// The line under an AI that isn't connected: who makes it, or what it is.
-    static func line(_ g: Guide) -> String {
-        switch g {
-        case .chatgpt, .claude, .grok: "Made by \(ConnectTrust.makers[g.title] ?? g.title)"
-        case .other: "Cursor, VS Code or any app that can add a connector"
-        default: g.line
-        }
-    }
 
     /// Whether there is anything to show: an ask waiting, an error, the wait or the tick. While
     /// choosing there's nothing: the rows of the form around it are the list.
@@ -1891,34 +1828,6 @@ struct ConnectAIPage: View {
         route.help = HelpTopic(guide: nil)
     }
 
-    // A card per AI, two by two, each saying where it stands and doing its own thing: Connect…, or
-    // Manage with each account's Disconnect and Connect another (Emil, 7 November 2026: the lists
-    // under the tiles repeated them; of three ideas he picked this one).
-
-    /// The tile a connection belongs to: by the AI its sign-in went to (`mark`), else by its name.
-    /// Anything no brand tile names is Other's.
-    static func tile(of c: Connection) -> SetupCards.AI {
-        let name = c.mark ?? c.title
-        return SetupCards.brands.first { $0.guide.title == name } ?? .other
-    }
-
-    /// The connections a card stands for, newest first.
-    static func accounts(_ tile: SetupCards.AI, in connections: [Connection]) -> [Connection] {
-        connections.filter { Self.tile(of: $0) == tile }.sorted { $0.created_at > $1.created_at }
-    }
-    private func accounts(_ tile: SetupCards.AI) -> [Connection] { Self.accounts(tile, in: active) }
-
-
-    /// What a card's status line says (shared with iPhone's cards).
-    static func status(_ tile: SetupCards.AI, accounts mine: [Connection]) -> String {
-        ConnectCopy.cardStatus(other: tile == .other, accounts: mine)
-    }
-
-    /// A Disconnect item in Manage.
-    static func disconnectTitle(_ c: Connection, tile: SetupCards.AI, count: Int) -> String {
-        ConnectCopy.cardDisconnect(c, name: tile.name, other: tile == .other, count: count)
-    }
-
     /// The wait in a box of its own, where the list of AIs to add was.
     private func panel(@ViewBuilder _ inside: () -> some View) -> some View {
         inside()
@@ -1927,17 +1836,6 @@ struct ConnectAIPage: View {
             .frame(maxWidth: .infinity)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(SettingsInk.group))
             .transition(.opacity)
-    }
-
-    /// Connect… on a row: the setup card's flow for that AI.
-    private func connect(_ g: Guide) {
-        switch g {
-        case .chatgpt: begin(.chatgpt)
-        case .claude, .claudeCode: begin(.claude)
-        case .grok: begin(.grok)
-        case .codex: begin(.codex)
-        case .other: begin(.other)
-        }
     }
 
     /// What the run says when it is more than a wait: Codex being added, added, or a failure.

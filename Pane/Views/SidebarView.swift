@@ -420,12 +420,11 @@ struct SidebarView: View {
     @State private var drops = FolderDropState()
     /// A folder dragged over the "Folders" heading: dropped there it goes to the top level.
     @State private var headingOver = false
-    @State private var deletingFolder: Folder?
     /// Folders picked together with ⌘ or ⇧ (Mac), beside the one shown: Delete takes them all.
     @State private var picked: Set<UUID> = []
     /// The folder shown in place of All Notes while there's only one (see `Scope.settled`).
     @State private var standIn: UUID?
-    /// Several picked folders waiting on Delete's question.
+    /// Folders waiting on one deletion confirmation.
     @State private var deletingFolders: [Folder] = []
     @State private var showSettings = false
     /// The folder whose Move is open (iPhone): where it goes, picked in a sheet.
@@ -464,12 +463,6 @@ struct SidebarView: View {
         if folders > 1 { return true }
         let loose = #Predicate<Note> { (n: Note) -> Bool in n.folder == nil && n.deletedAt == nil && n.trashedAt == nil }
         return ((try? context.fetchCount(FetchDescriptor<Note>(predicate: loose))) ?? 0) > 0
-    }
-
-    /// A folder's notes as its list counts them. In a window the list's notes count them
-    /// (LibraryNotes.listedCount); this reads the folder's own notes.
-    static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        folder.liveNotes.count
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
@@ -936,7 +929,7 @@ struct SidebarView: View {
             if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { startRename(f) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .paneDeleteFolder)) { n in
-            if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { deleteFolder(f) }
+            if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { requestDelete([f]) }
         }
         .alert("No room for another folder", isPresented: $folderLimitReached) {
             Button("OK", role: .cancel) {}
@@ -952,25 +945,19 @@ struct SidebarView: View {
             FolderMoveSheet(folder: folder)
         }
         #endif
-        .confirmationDialog("Delete \u{201C}\(deletingFolder?.name ?? "")\u{201D}?", isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }), titleVisibility: .visible) {
-            Button("Delete Folder", role: .destructive) {
-                if let f = deletingFolder { performDelete(f) }
-                deletingFolder = nil
-            }
-        } message: {
-            Text(deletingFolder.map { f in
-                let c = Self.contents(of: f, files: { context.files(in: $0).count })
-                return Self.deleteMessage(subfolders: c.subfolders, notes: c.notes, files: c.files)
-            } ?? "")
-        }
-        .confirmationDialog(Self.deleteFoldersTitle(deletingFolders.count), isPresented: Binding(get: { !deletingFolders.isEmpty }, set: { if !$0 { deletingFolders = [] } }), titleVisibility: .visible) {
-            Button("Delete Folders", role: .destructive) {
-                deletingFolders.forEach(performDelete)
+        .confirmationDialog(deletingFolders.count == 1 ? "Delete \u{201C}\(deletingFolders[0].name)\u{201D}?" : "Delete \(deletingFolders.count) folders?",
+                            isPresented: Binding(get: { !deletingFolders.isEmpty }, set: { if !$0 { deletingFolders = [] } }), titleVisibility: .visible) {
+            Button(deletingFolders.count == 1 ? "Delete Folder" : "Delete Folders", role: .destructive) {
+                performDelete(deletingFolders)
                 deletingFolders = []
-                picked = []
             }
         } message: {
-            Text("Their notes and files move to Recently Deleted, where you can recover them for 30 days.")
+            if deletingFolders.count == 1, let folder = deletingFolders.first {
+                let c = Self.contents(of: folder, files: { context.files(in: $0).count })
+                Text(Self.deleteMessage(subfolders: c.subfolders, notes: c.notes, files: c.files))
+            } else {
+                Text("Their notes and files move to Recently Deleted, where you can recover them for 30 days.")
+            }
         }
         .alert(Self.nameAlertTitle(renaming: renaming != nil, inside: (newFolderParent ?? nil) != nil), isPresented: Binding(
             get: { renaming != nil || newFolderParent != nil },
@@ -1122,7 +1109,7 @@ struct SidebarView: View {
             nudge: { f, step in SidebarView.folderChange { context.nudge(f, by: step) } },
             delete: { f in
                 // A picked folder's Delete Folder takes every picked folder, as in Finder.
-                if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { deleteFolder(f) }
+                if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { requestDelete([f]) }
             })
     }
 
@@ -1341,9 +1328,6 @@ struct SidebarView: View {
         return "\(gone) \(whose) \(held.joined(separator: " and ")) \(moves) to Recently Deleted, where you can recover \(them) for 30 days."
     }
 
-    /// "Delete 3 folders?"
-    static func deleteFoldersTitle(_ count: Int) -> String { "Delete \(count) folders?" }
-
     /// What the sidebar list shows picked: the folder shown, and any picked beside it.
     static func selection(scope: Scope?, picked: Set<UUID>) -> Set<Scope> {
         Set(picked.map { Scope.folder($0) }).union(scope.map { [$0] } ?? [])
@@ -1368,33 +1352,31 @@ struct SidebarView: View {
     /// something, in one question.
     private func deletePicked() {
         let all = Self.selection(scope: scope, picked: picked).compactMap { s -> Folder? in
-            if case .folder(let id) = s, id != roots.first?.id, let f = context.folder(id), f.deletedAt == nil { return f }
+            if case .folder(let id) = s, let f = context.folder(id), f.deletedAt == nil { return f }
             return nil
         }
-        guard all.count > 1 else {
-            if let f = all.first { deleteFolder(f) }
-            return
-        }
+        requestDelete(all)
+    }
+
+    /// Notes stays; empty folders go immediately, otherwise one question covers the selection.
+    private func requestDelete(_ folders: [Folder]) {
+        let all = folders.filter { $0.id != roots.first?.id }
+        guard !all.isEmpty else { return }
         if all.allSatisfy({ $0.liveNotes.isEmpty && $0.liveChildren.isEmpty && context.files(in: $0.id).isEmpty }) {
-            all.forEach(performDelete)
-            picked = []
+            performDelete(all)
         } else {
             deletingFolders = all
         }
     }
 
-    /// Asks first when the folder holds notes, like Notes: they move to Recently Deleted.
-    private func deleteFolder(_ f: Folder) {
-        // Notes stays, as in Apple Notes (its menu has no Delete; this is for ⌫ and other ways in).
-        guard f.id != roots.first?.id else { return }
-        if f.liveNotes.isEmpty && f.liveChildren.isEmpty && context.files(in: f.id).isEmpty { performDelete(f) } else { deletingFolder = f }
-    }
-
-    private func performDelete(_ f: Folder) {
-        if scope == .folder(f.id) { scope = .all }
-        Usage.count(.folderDeleted)
-        AIUndoUsage.folderDeleted(f.id)
-        SidebarView.folderChange { context.trash(f) }
+    private func performDelete(_ folders: [Folder]) {
+        for folder in folders {
+            if scope == .folder(folder.id) { scope = .all }
+            Usage.count(.folderDeleted)
+            AIUndoUsage.folderDeleted(folder.id)
+            SidebarView.folderChange { context.trash(folder) }
+        }
+        if folders.count > 1 { picked = [] }
     }
 }
 
@@ -2007,7 +1989,7 @@ private struct FolderTree: View {
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         let selected = selection == .folder(folder.id) || picked.contains(folder.id)
-        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? SidebarView.listedNotes(in: folder, context: context)
+        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? folder.liveNotes.count
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 #if os(macOS)

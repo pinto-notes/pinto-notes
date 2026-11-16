@@ -52,17 +52,63 @@ def target_of(rel):
     return TARGETS.get(parts[1], "PaneTests") if len(parts) > 2 else "PaneTests"
 
 decl = re.compile(r"^\s*(?:@[\w.]+(?:\([^)]*\))?\s+)*(?:(?:public|private|fileprivate|final|internal|nonisolated)\s+)*(?:struct|class|enum|actor|protocol)\s+(\w+)", re.M)
+def code_only(text):
+    """Mask Swift comments/strings, including interpolation, retaining offsets and newlines."""
+    start = re.compile(r'//[^\n]*|/\*|(?P<hashes>\#*)(?P<quote>"""|")')
+    expression = re.compile(start.pattern + r"|[()]")
+
+    def skip(match):
+        end = match.end()
+        if match[0] == "/*":
+            depth = 1
+            for token in re.finditer(r"/\*|\*/", text[end:]):
+                depth += 1 if token[0] == "/*" else -1
+                if depth == 0:
+                    return end + token.end()
+        elif match[0].startswith("//"):
+            return end
+        else:
+            close = match["quote"] + match["hashes"]
+            escape = "\\" + match["hashes"]
+            tokens = re.compile(re.escape(escape) + r".|" + re.escape(close), re.S)
+            while token := tokens.search(text, end):
+                end = token.end()
+                if token[0] == close:
+                    return end
+                if token[0] == escape + "(":
+                    depth = 1
+                    while part := expression.search(text, end):
+                        end = part.end()
+                        if part[0] in ("(", ")"):
+                            depth += 1 if part[0] == "(" else -1
+                            if depth == 0:
+                                break
+                        else:
+                            end = skip(part)
+                    else:
+                        return len(text)
+        return len(text)
+
+    out, at = [], 0
+    while match := start.search(text, at):
+        out.append(text[at:match.start()])
+        end = skip(match)
+        out.append(re.sub(r"[^\n]", " ", text[match.start():end]))
+        at = end
+    return "".join(out) + text[at:]
+
 suites_in, text_of, inside = {}, {}, {}
 for f in glob.glob(os.path.join(root, "PaneTests/**/*.swift"), recursive=True):
     rel = os.path.relpath(f, root)
     text = open(f, errors="replace").read()
     text_of[rel] = text
+    code = code_only(text)
     # A suite: a type the last full run timed, or one named like a suite (a new one has no time yet).
-    suites_in[rel] = [n for n in decl.findall(text) if "@Test" in text and (n in times or re.search(r"(Tests?|Snapshots|Shots)$", n))]
+    suites_in[rel] = [n for n in decl.findall(code) if "@Test" in code and (n in times or re.search(r"(Tests?|Snapshots|Shots)$", n))]
     # A suite written inside "extension Outer { ... }" is Outer/Suite to xcodebuild; without the
     # outer name the argument matches nothing and the tests are silently not run.
     outer, depth = None, 0
-    for line in text.splitlines():
+    for line in code.splitlines():
         if depth == 0:
             m = re.match(r"extension\s+(\w+)", line)
             outer = m.group(1) if m else None

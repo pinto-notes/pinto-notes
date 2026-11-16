@@ -842,8 +842,6 @@ enum ConnectCopy {
     static func opensBrowser(_ g: Guide, onWeb: Bool) -> String {
         onWeb ? "\(g.title) opens your browser to sign in. Then choose Allow there." : "\(g.title) opens your browser to sign in. Then allow it here."
     }
-    static let pasteInCodexConfig = "Copied. Paste it at the end of ~/.codex/config.toml."
-    static func askIt(_ g: Guide) -> String { "Added. Ask \(g.title) about your notes." }
     static func adding(_ g: Guide) -> String { "Adding it to \(g.title)\u{2026}" }
     static func notOnThisMac(_ g: Guide) -> String { "\(g.title) isn\u{2019}t on this Mac yet." }
     static func refused(_ g: Guide) -> String { "\(g.title) didn\u{2019}t take it. Having trouble? has the command." }

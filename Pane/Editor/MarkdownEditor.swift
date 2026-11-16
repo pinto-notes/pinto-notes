@@ -53,6 +53,41 @@ struct MarkdownEditor: View {
     }
 }
 
+/// Owns outside text arrivals for both editors. Recent reports are echoes of debounced saves;
+/// document changes bypass that filter. A composition keeps the latest arrival until commit.
+struct EditorIncomingText {
+    private(set) var baseline = ""
+    private var reported: [Int] = []
+    private var composingArrival: String?
+
+    mutating func report(_ text: String) {
+        baseline = text
+        reported.append(text.hashValue)
+        if reported.count > 64 { reported.removeFirst(reported.count - 64) }
+    }
+
+    mutating func reset(to text: String) {
+        reported.removeAll()
+        report(text)
+    }
+
+    mutating func receive(_ text: String, composing: Bool, ignoresEchoes: Bool = false) -> String? {
+        guard text != baseline, !ignoresEchoes || !reported.contains(text.hashValue) else { return nil }
+        if composing { composingArrival = text; return nil }
+        reset(to: text)
+        return text
+    }
+
+    // Clear before unmarking: the platform may deliver a text-change callback synchronously.
+    mutating func cancelComposition() { composingArrival = nil }
+
+    mutating func finishComposition(_ text: String) -> String? {
+        guard let arrived = composingArrival else { return nil }
+        composingArrival = nil
+        return TextDiff.merge(base: baseline, mine: text, theirs: arrived)
+    }
+}
+
 /// Behaviour shared by the UIKit and AppKit text views.
 @MainActor
 final class EditorCore {
@@ -63,6 +98,7 @@ final class EditorCore {
     let foldDelegate = FoldingContentDelegate()
     var onChange: (String) -> Void = { _ in }
     var applyingEdit = false
+    var incoming = EditorIncomingText()
     /// Checklist lines ticked since the last sort. Each tick starts the wait again, so quick
     /// ticks settle once, together, and nothing moves under a pointer that's still ticking.
     private var pendingSort: DispatchWorkItem?
@@ -961,8 +997,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         linkTextAttributes = [:]
         typingAttributes = core.styler.typingAttributes
         self.text = text
-        lastReported = text
-        remember(text)
+        core.incoming.report(text)
         // Undo's floor: the note as it opened.
         noteStack?.removeAllActions(); typing = nil; typedText = self.text
         observeUndo()
@@ -1257,7 +1292,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         guard (note.object as AnyObject?) === noteStack else { return }
         // An undo or redo that changed the text without the text view saying so is saved like
         // typing (on the Mac it wasn't: persona council r7, bug 18).
-        if note.name != .NSUndoManagerDidCloseUndoGroup, text != lastReported, markedTextRange == nil { textDidChange() }
+        if note.name != .NSUndoManagerDidCloseUndoGroup, text != core.incoming.baseline, markedTextRange == nil { textDidChange() }
         reportUndo()
     }
 
@@ -1699,7 +1734,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private func textDidChange() {
         guard markedTextRange == nil else { return }
-        takeWhatArrivedWhileComposing()
+        if let merged = core.incoming.finishComposition(text) { replaceText(with: merged) }
         recordTyping()
         core.layoutDelegate.tint.typed(text)
         // Rows still sliding would cover the new text.
@@ -1707,23 +1742,12 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.restyle(textStorage, selection: editingSelection, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         recordOwnEdit()
-        lastReported = text
-        remember(text)
+        core.incoming.report(text)
         core.onChange(text)
         controller?.typingChanged(text: text, selection: editingSelection)
         // A shared note's stack closes no undo groups, so nothing else tells the bar: typing
         // left Undo missing until someone else's edit came in (persona council r7f).
         if controller?.ownUndo != nil { reportUndo() }
-    }
-
-    /// The last body we reported or received, to tell outside edits from our own.
-    var lastReported = ""
-    /// Hashes of recent texts we reported, not yet all written to the note.
-    private var reported: [Int] = []
-
-    private func remember(_ s: String) {
-        reported.append(s.hashValue)
-        if reported.count > 64 { reported.removeFirst(reported.count - 64) }
     }
 
     /// Redraws just the lines an AI changed while their tint swells and fades.
@@ -1811,34 +1835,25 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func syncExternal(_ new: String) {
-        guard new != lastReported else { return }
-        // The note still holds text we typed a moment ago (it's saved once typing
-        // pauses): that's not a change from elsewhere.
-        if reported.contains(new.hashValue) { return }
-        syncDocument(new)
+        if let accepted = core.incoming.receive(new, composing: markedTextRange != nil, ignoresEchoes: true) {
+            replaceText(with: accepted)
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func syncDocument(_ new: String) {
-        guard new != lastReported else { return }
-        // Mid-composition (an input method, dictation) the text can't change under it:
-        // the change is taken in when the composition ends (textDidChange).
-        if markedTextRange != nil { arrivedWhileComposing = new; return }
-        reported.removeAll()
-        lastReported = new
-        // Until what you type next is saved, the note still holds this: not a change again.
-        remember(new)
-        replaceText(with: new)
-        // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
-        core.layoutDelegate.tint.textArrived(new)
+        if let accepted = core.incoming.receive(new, composing: markedTextRange != nil) {
+            replaceText(with: accepted)
+            // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func takeRestored(_ new: String) {
         // Restoring is a choice: it wins over a composition, and over the text you typed before.
-        arrivedWhileComposing = nil
+        core.incoming.cancelComposition()
         if markedTextRange != nil { unmarkText() }
-        reported.removeAll()
-        lastReported = new
-        remember(new)
+        core.incoming.reset(to: new)
         replaceText(with: new)
         noteStack?.removeAllActions(); typing = nil; typedText = text
         clearTint()
@@ -1846,17 +1861,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         layoutIfNeeded()
         let bottom = max(-adjustedContentInset.top, contentSize.height + adjustedContentInset.bottom - bounds.height)
         if contentOffset.y > bottom { setContentOffset(CGPoint(x: contentOffset.x, y: bottom), animated: false) }
-    }
-
-    /// A change from elsewhere that arrived while you were composing.
-    private var arrivedWhileComposing: String?
-
-    /// The composition ended: put the change that arrived meanwhile under what you typed,
-    /// or, if you both changed the same lines, keep yours (the other is in version history).
-    private func takeWhatArrivedWhileComposing() {
-        guard let arrived = arrivedWhileComposing else { return }
-        arrivedWhileComposing = nil
-        if let merged = TextDiff.merge(base: lastReported, mine: text, theirs: arrived) { replaceText(with: merged) }
     }
 
     private func replaceText(with new: String) {
@@ -1956,8 +1960,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     /// Your edit, for undo, unless it's an undo itself.
     private func recordOwnEdit() {
-        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: lastReported, to: text) else { return }
-        own.record(e, in: lastReported)
+        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: core.incoming.baseline, to: text) else { return }
+        own.record(e, in: core.incoming.baseline)
     }
 
     /// Undo or Redo of your own last step, through the text system so it's saved and sent like typing.
@@ -2656,8 +2660,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         drawn = false
         foldedAt = nil
         string = text
-        lastReported = text
-        remember(text)
+        core.incoming.report(text)
         core.observe(textStorage!)
         observeChangeHighlight()
         core.watchDays { [weak self] in
@@ -2956,7 +2959,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     @objc private func undoneOrRedone(_ note: Notification) {
-        guard (note.object as AnyObject?) === undoManager, string != lastReported, !hasMarkedText() else { return }
+        guard (note.object as AnyObject?) === undoManager, string != core.incoming.baseline, !hasMarkedText() else { return }
         textDidChange(Notification(name: NSText.didChangeNotification, object: self))
     }
 
@@ -3289,7 +3292,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func textDidChange(_ notification: Notification) {
         guard !hasMarkedText() else { return }
-        takeWhatArrivedWhileComposing()
+        if let merged = core.incoming.finishComposition(string) { replaceText(with: merged) }
         core.layoutDelegate.tint.typed(string)
         showRoom = 0
         // Rows still sliding would cover the new text.
@@ -3297,21 +3300,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.restyle(textStorage!, selection: editingSelection, force: true)
         typingAttributes = core.typingAttributes(string, at: selectedRange().location)
         recordOwnEdit()
-        lastReported = string
-        remember(string)
+        core.incoming.report(string)
         core.onChange(string)
         controller?.typingChanged(text: string, selection: editingSelection)
         layoutWikiSuggestions()
-    }
-
-    /// The last body we reported or received, to tell outside edits from our own.
-    var lastReported = ""
-    /// Hashes of recent texts we reported, not yet all written to the note.
-    private var reported: [Int] = []
-
-    private func remember(_ s: String) {
-        reported.append(s.hashValue)
-        if reported.count > 64 { reported.removeFirst(reported.count - 64) }
     }
 
     /// Redraws just the lines an AI changed while their tint swells and fades.
@@ -3441,8 +3433,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Your edit, for undo, unless it's an undo itself.
     private func recordOwnEdit() {
-        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: lastReported, to: string) else { return }
-        own.record(e, in: lastReported)
+        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: core.incoming.baseline, to: string) else { return }
+        own.record(e, in: core.incoming.baseline)
     }
 
     /// Edit › Undo reaches the text view first: in a shared note it undoes your own last step.
@@ -3612,49 +3604,29 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     func syncExternal(_ new: String) {
-        guard new != lastReported else { return }
-        // The note still holds text we typed a moment ago (it's saved once typing
-        // pauses): that's not a change from elsewhere.
-        if reported.contains(new.hashValue) { return }
-        syncDocument(new)
+        if let accepted = core.incoming.receive(new, composing: hasMarkedText(), ignoresEchoes: true) {
+            replaceText(with: accepted)
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func syncDocument(_ new: String) {
-        guard new != lastReported else { return }
-        // Mid-composition (a dead key, an input method) the text can't change under it:
-        // the change is taken in when the composition ends (textDidChange).
-        if hasMarkedText() { arrivedWhileComposing = new; return }
-        reported.removeAll()
-        lastReported = new
-        // Until what you type next is saved, the note still holds this: not a change again.
-        remember(new)
-        replaceText(with: new)
-        // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
-        core.layoutDelegate.tint.textArrived(new)
+        if let accepted = core.incoming.receive(new, composing: hasMarkedText()) {
+            replaceText(with: accepted)
+            // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func takeRestored(_ new: String) {
         // Restoring is a choice: it wins over a composition, and over the text you typed before.
         // (The scroll view keeps the scroll inside a shorter text by itself.)
-        arrivedWhileComposing = nil
+        core.incoming.cancelComposition()
         if hasMarkedText() { unmarkText() }
-        reported.removeAll()
-        lastReported = new
-        remember(new)
+        core.incoming.reset(to: new)
         replaceText(with: new)
         undoManager?.removeAllActions()
         clearTint()
-    }
-
-    /// A change from elsewhere that arrived while you were composing.
-    private var arrivedWhileComposing: String?
-
-    /// The composition ended: put the change that arrived meanwhile under what you typed,
-    /// or, if you both changed the same lines, keep yours (the other is in version history).
-    private func takeWhatArrivedWhileComposing() {
-        guard let arrived = arrivedWhileComposing else { return }
-        arrivedWhileComposing = nil
-        if let merged = TextDiff.merge(base: lastReported, mine: string, theirs: arrived) { replaceText(with: merged) }
     }
 
     private func replaceText(with new: String) {

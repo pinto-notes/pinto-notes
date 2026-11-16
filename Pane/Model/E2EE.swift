@@ -889,7 +889,8 @@ final class AccountCrypto {
     private(set) var copiesOn = false
     /// The account's reset generation, as last seen.
     private var serverGeneration = 0
-    private var startingFresh = false
+    private var freshGeneration: Int?
+    private var startingFresh: Bool { freshGeneration == generation }
     private var key: StoredKey?
     private var server: AccountKeyServer?
     /// The server's copies of keys. Nil: this build or this run has none, and everything works
@@ -986,9 +987,12 @@ final class AccountCrypto {
     }
 
     /// Runs startup again (Try again, or after the account's key changed).
-    func restart() async {
+    func restart(asFresh: Bool = false) async {
         stop()
         drop()
+        let gen = generation
+        freshGeneration = asFresh ? gen : nil
+        defer { if freshGeneration == gen { freshGeneration = nil } }
         phase = .checking
         await run()
     }
@@ -1007,6 +1011,7 @@ final class AccountCrypto {
         var timedOut = false
         do {
             let state = try await Self.within(held ? quickCheck : fetchTimeout, sleep: sleep) { try await server.fetch() }
+            guard gen == generation else { return }
             remote = Self.remote(state)
             serverGeneration = state.generation
             note(state)
@@ -1018,10 +1023,11 @@ final class AccountCrypto {
         if case .key(let s) = remote { serverKey = s }
         await carryOut(KeyStartup.decide(user: account, synced: synced, pending: store.load(account: account, slot: .pending),
                                          local: local, server: remote, copy: serverCopy && copyServer != nil))
-        // The server was only slow: the check goes on now, not after the first retry interval.
-        if timedOut, phase == .ready, unverified { Task { await recheck() } }
         guard gen == generation else { return }
+        // The server was only slow: the check goes on now, not after the first retry interval.
+        if timedOut, phase == .ready, unverified { Task { guard gen == generation else { return }; await recheck() } }
         await settleCopy()
+        guard gen == generation else { return }
         if phase == .waiting || phase == .mismatch, protection != .strict {
             let offered = await copiesAvailable()
             if gen == generation { copiesOffered = offered }
@@ -1116,7 +1122,9 @@ final class AccountCrypto {
     /// what must never run on a remembered answer (Sign Out and Remove Notes).
     func refreshCopyState() async throws {
         guard let server else { throw KeyCopyError.offline }
+        let gen = generation
         let state = try await server.fetch()
+        guard gen == generation else { throw KeyError.notReady }
         guard state.key?.key_id == serverKey?.key_id else { protection = state.protection; serverCopy = false; return }
         note(state)
     }
@@ -1202,7 +1210,8 @@ final class AccountCrypto {
     private func copiesAvailable(now: Date = .now) async -> Bool {
         guard let copyServer else { return false }
         if let until = defaults.object(forKey: Self.copiesOffUntilKey) as? Date, until > now { return false }
-        guard let on = try? await copyServer.available() else { return false }
+        let gen = generation
+        guard let on = try? await copyServer.available(), gen == generation else { return false }
         copiesOn = on
         if on { defaults.removeObject(forKey: Self.copiesOffUntilKey) } else { defaults.set(now.addingTimeInterval(Self.copiesOffFor), forKey: Self.copiesOffUntilKey) }
         return on
@@ -1213,6 +1222,7 @@ final class AccountCrypto {
     /// gets its copy. An account from before is asked first, and nothing is stored until then.
     private func settleCopy() async {
         guard let account, copyServer != nil, phase == .ready, !unverified, let key else { return }
+        let gen = generation
         // Answered on another device since this one asked.
         if protection != nil { asksProtection = false }
         switch protection {
@@ -1220,16 +1230,16 @@ final class AccountCrypto {
             return
         case .standard:
             guard !serverCopy, await copiesAvailable() else { return }
-            await storeCopy(key, choose: false)
+            await storeCopy(key, choose: false, generation: gen)
         case nil:
             guard await copiesAvailable(), self.account == account, phase == .ready else { return }
-            if defaults.bool(forKey: Self.copyByDefaultKey(account)) { await storeCopy(key, choose: true) } else if !askLater { asksProtection = true }
+            if defaults.bool(forKey: Self.copyByDefaultKey(account)) { await storeCopy(key, choose: true, generation: gen) } else if !askLater { asksProtection = true }
         }
     }
 
-    @discardableResult private func storeCopy(_ k: StoredKey, choose: Bool) async -> KeyCopyError? {
+    @discardableResult private func storeCopy(_ k: StoredKey, choose: Bool, generation gen: Int) async -> KeyCopyError? {
+        guard gen == generation else { return nil }
         guard let account, let copyServer else { return .off }
-        let gen = generation
         do {
             try await copyServer.store(k, user: account, choose: choose, from: protection)
             guard gen == generation else { return nil }
@@ -1248,19 +1258,22 @@ final class AccountCrypto {
 
     /// The person chose: Pinto Notes keeps a copy, and signing in opens the notes on a new device.
     func keepCopy() async throws {
-        guard phase == .ready, !unverified, let key else { throw KeyCopyError.offline }
+        guard phase == .ready, !unverified, let key, let account else { throw KeyCopyError.offline }
+        let gen = generation
         defaults.removeObject(forKey: Self.copiesOffUntilKey)
-        if let e = await storeCopy(key, choose: true) { throw e }
+        if let e = await storeCopy(key, choose: true, generation: gen) { throw e }
         // Turned off here, by the person: this device has nothing to ask about later.
-        if let account { defaults.removeObject(forKey: Self.wasStrictKey(account)) }
+        guard gen == generation else { return }
+        defaults.removeObject(forKey: Self.wasStrictKey(account))
     }
 
     /// The person chose: the key stays on their devices only, and the server deletes its copy.
     /// `device`: this device, which doesn't count as another way back to the notes.
     func keepOnDevicesOnly(device: UUID) async throws {
         guard let account, let copyServer, phase == .ready else { throw KeyCopyError.offline }
+        let gen = generation
         try await copyServer.keepOnDevices(device: device)
-        guard account == self.account else { return }
+        guard gen == generation else { return }
         protection = .strict
         serverCopy = false
         asksProtection = false
@@ -1336,9 +1349,9 @@ final class AccountCrypto {
                 // that had a key before (it started fresh).
                 if g == 0, !startingFresh, protection == nil, await copiesAvailable() {
                     defaults.set(true, forKey: Self.copyByDefaultKey(account))
-                    _ = try? await Self.within(.seconds(6), sleep: sleep) { @MainActor in await self.storeCopy(k, choose: true) }
-                    guard gen == generation else { return }
+                    _ = try? await Self.within(.seconds(6), sleep: sleep) { @MainActor in await self.storeCopy(k, choose: true, generation: gen) }
                 }
+                guard gen == generation else { return }
                 open(k, verified: true, how: .made)
                 keyNotSaved = !kept && !pendingKept
             } else {
@@ -1432,6 +1445,7 @@ final class AccountCrypto {
             // Unlocked with the recovery key while the server couldn't be told: tell it now.
             if fetched.recovery_saved_at == nil, defaults.bool(forKey: Self.recoveryProvenKey(account)) {
                 try? await markRecoveryKeySaved()
+                guard gen == generation else { return }
             }
             if unverified {
                 unverified = false
@@ -1492,6 +1506,7 @@ final class AccountCrypto {
         let gen = generation
         var current = serverKey
         if let fetched = try? await server.fetch() {
+            guard gen == generation else { throw KeyError.notReady }
             current = fetched.key
             serverGeneration = fetched.generation
         }
@@ -1512,6 +1527,7 @@ final class AccountCrypto {
             defaults.set(true, forKey: Self.recoveryProvenKey(account))
             try? await markRecoveryKeySaved()
         }
+        guard gen == generation else { throw KeyError.notReady }
         await settleCopy()
     }
 
@@ -1520,8 +1536,10 @@ final class AccountCrypto {
     func startFresh(confirmation: String) async throws {
         guard confirmation.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == Self.startFreshPhrase else { throw KeyError.confirmation }
         guard let account, let server else { throw KeyError.notReady }
+        let gen = generation
         let current: ServerKey?
         do { current = try await server.fetch().key } catch { throw KeyError.offline }
+        guard gen == generation else { throw KeyError.notReady }
         if let current {
             let deleted: Bool
             do { deleted = try await server.startFresh(keyID: current.key_id) }
@@ -1539,16 +1557,17 @@ final class AccountCrypto {
                 await removeAccountFiles?(account)
             }
         }
+        guard gen == generation else { throw KeyError.notReady }
         serverKey = nil
-        startingFresh = true
-        defer { startingFresh = false }
-        await restart()
+        await restart(asFresh: true)
     }
 
     func markRecoveryKeySaved() async throws {
         guard let server else { throw KeyError.notReady }
+        let gen = generation
         let at: Date?
         do { at = try await server.markRecoveryKeySaved() } catch { throw KeyError.offline }
+        guard gen == generation else { throw KeyError.notReady }
         serverKey?.recovery_saved_at = at ?? .now
         if let account {
             defaults.removeObject(forKey: Self.recoveryChangedKey(account))
@@ -1732,7 +1751,7 @@ final class AccountCrypto {
                 // their other device, then seldom. In a task of its own: opening the notes ends
                 // this loop, and the request mustn't be cancelled with it.
                 let gap = looks < every * 30 ? every : every * 6
-                if looks % gap == 0, await Task(operation: { await self.pollCopy() }).value { return }
+                if looks % gap == 0, await Task(operation: { guard gen == self.generation else { return false }; return await self.pollCopy() }).value { return }
             }
         }
     }
@@ -1780,10 +1799,10 @@ final class AccountCrypto {
                 switch self.phase {
                 case .unreachable:
                     self.phase = .checking
-                    await Task { await self.run() }.value
+                    await Task { guard gen == self.generation else { return }; await self.run() }.value
                     return
                 case .ready where self.unverified:
-                    await Task { await self.recheck() }.value
+                    await Task { guard gen == self.generation else { return }; await self.recheck() }.value
                     if !self.unverified || gen != self.generation { return }
                 default:
                     return

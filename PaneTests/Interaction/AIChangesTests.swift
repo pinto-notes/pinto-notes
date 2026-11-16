@@ -43,8 +43,7 @@ extension AIChangesTests {
     /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
     /// changed the note, council 11-04), and the summary has room to say what the AI did.
     @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views/AIChangesView.swift"), encoding: .utf8)
         let bar = try #require(src.range(of: "private func actions(_ c: AIChange) -> some View").map { String(src[$0.lowerBound...].prefix(2200)) })
         let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
         let open = try #require(bar.range(of: "Button(\"Open Note\")"))
@@ -73,8 +72,7 @@ extension AIChangesTests {
         let filter = try #require(src.range(of: "struct AIChangesFilter").map { String(src[$0.lowerBound...].prefix(600)) })
         #expect(filter.contains(".tint(.primary)"))
         // The receipt says its whole line ("ChatGPT changed 3 li…" in round 5).
-        let marks = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/AIMarks.swift"), encoding: .utf8)
+        let marks = try String(contentsOf: TestFiles.url("Views/AIMarks.swift"), encoding: .utf8)
         let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary").map { String(marks[$0.lowerBound...].prefix(400)) })
         #expect(receipt.contains(".fixedSize(horizontal: true, vertical: false)"))
     }

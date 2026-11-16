@@ -259,13 +259,13 @@ extension SettingsHomeTests {
     @Test func helpsLinksAreRealAndCurrent() throws {
         let site: [(URL, String)] = [(HelpCopy.supportPage, "help"), (WhatsNew.changelogURL, "changelog"), (Legal.terms, "terms"),
                                      (Legal.privacy, "privacy"), (PrivacyCopy.learnMoreURL, "privacy-security")]
-        let web = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "web")
+        let bundle = TestFiles.bundle
         // A page folded into another stays a link that works: the site sends it on (/changelog
         // became the blog's announcements on 7 November 2026; What's New still links there).
-        let config = try String(contentsOf: web.appending(path: "next.config.ts"), encoding: .utf8)
+        let config = try Self.source("web/next.config.ts")
         for (url, page) in site {
             #expect(url.absoluteString == "https://pintonotes.com/\(page)")
-            let served = FileManager.default.fileExists(atPath: web.appending(path: "app/\(page)/page.tsx").path)
+            let served = bundle.url(forResource: "page", withExtension: "tsx", subdirectory: page) != nil
                 || config.contains("{ source: \"/\(page)\", destination: ")
             #expect(served, "the site has /\(page), or sends it on")
         }
@@ -487,24 +487,23 @@ extension SettingsHomeTests {
     /// A card per AI (Emil, 7 November 2026). A connected AI's card says Manage, not Connect, even
     /// when its sign-in calls itself something else: it's placed by where the sign-in went.
     @Test func connectIsACardPerAI() {
-        typealias P = ConnectAIPage
         func c(_ name: String, host: String?, days: Double = 0, used: Date? = nil) -> Connection {
             Connection(id: UUID(), name: name, kind: host == nil ? "token" : "oauth", created_at: .now.addingTimeInterval(-86400 * days), last_used_at: used, revoked_at: nil, redirect_host: host)
         }
         let gpt = c("OpenAI connector", host: "chatgpt.com"), gpt2 = c("ChatGPT", host: "chatgpt.com", days: 9)
         let claude = c("claude-ai", host: "claude.ai", used: .now), cursor = c("Cursor", host: "localhost"), codex = c("Codex", host: nil)
         let all = [gpt2, claude, gpt, cursor, codex]
-        #expect(P.tile(of: gpt) == .chatgpt, "a ChatGPT sign-in named otherwise is still ChatGPT's")
-        #expect(P.tile(of: claude) == .claude)
-        #expect(P.tile(of: cursor) == .other && P.tile(of: codex) == .other)
-        #expect(P.accounts(.chatgpt, in: all).map(\.id) == [gpt.id, gpt2.id], "newest first")
-        #expect(P.accounts(.grok, in: all).isEmpty)
-        #expect(P.status(.grok, accounts: []) == "Not connected")
-        #expect(P.status(.chatgpt, accounts: [gpt, gpt2]) == "2 accounts")
-        #expect(P.status(.claude, accounts: [claude]).hasPrefix("Used "))
-        #expect(P.status(.other, accounts: [codex, cursor]) == "2 apps")
-        #expect(P.disconnectTitle(claude, tile: .claude, count: 1) == "Disconnect Claude\u{2026}")
-        #expect(P.disconnectTitle(gpt2, tile: .chatgpt, count: 2).hasPrefix("Disconnect the account connected "))
+        #expect(AIList.brand(of: gpt) == .chatgpt, "a ChatGPT sign-in named otherwise is still ChatGPT's")
+        #expect(AIList.brand(of: claude) == .claude)
+        #expect(AIList.brand(of: cursor) == nil && AIList.brand(of: codex) == nil)
+        #expect(ConnectChoices.cardAccounts(.chatgpt, in: all).map(\.id) == [gpt.id, gpt2.id], "newest first")
+        #expect(ConnectChoices.cardAccounts(.grok, in: all).isEmpty)
+        #expect(ConnectCopy.cardStatus(other: false, accounts: []) == "Not connected")
+        #expect(ConnectCopy.cardStatus(other: false, accounts: [gpt, gpt2]) == "2 accounts")
+        #expect(ConnectCopy.cardStatus(other: false, accounts: [claude]).hasPrefix("Used "))
+        #expect(ConnectCopy.cardStatus(other: true, accounts: [codex, cursor]) == "2 apps")
+        #expect(ConnectCopy.cardDisconnect(claude, name: "Claude", other: false, count: 1) == "Disconnect Claude\u{2026}")
+        #expect(ConnectCopy.cardDisconnect(gpt2, name: "ChatGPT", other: false, count: 2).hasPrefix("Disconnect the account connected "))
         #expect(SetupCards.connectTiles == [.chatgpt, .claude, .grok, .other])
         // iPhone's cards (ConnectChoices) place the same connections the same way.
         #expect(ConnectChoices.cardGuides == [.chatgpt, .claude, .grok, .other])
@@ -539,7 +538,7 @@ extension SettingsHomeTests {
         }
         #expect(SetupCards.guidePage(.grok) == .grok && SetupCards.guidePage(.other) == .other)
         #expect(SetupCards.guidePage(.chatgpt) == nil && SetupCards.guidePage(.claude) == nil)
-        #expect(ConnectAIPage.more(offered: [.chatgpt, .claude, .grok, .codex, .other]) == [.codex], "Codex stays reachable")
+        #expect(AIList.line(.other, installed: false).contains("Codex"), "Codex stays reachable")
         #expect(ConnectCopy.why.hasSuffix(ConnectCopy.shared), "the line on what is shared is the same words everywhere")
     }
 
@@ -547,9 +546,9 @@ extension SettingsHomeTests {
     /// rejected 1.2 for hiding it); one row per AI there is, connected or not, and never Mistral.
     @Test func connectSaysWhatIsSentAndToWhom() async throws {
         // One line: what it does, and that the notes it opens go to the company that makes it.
-        #expect(ConnectAIPage.sent.contains("read and edit your notes") && ConnectAIPage.sent.contains("go to its maker"))
-        #expect(ConnectAIPage.sent.contains("OpenAI") && ConnectAIPage.sent.contains("Anthropic"))
-        for g in ConnectAISection.Guide.allCases { #expect(!ConnectAIPage.line(g).isEmpty && !ConnectAIPage.line(g).contains("\u{2014}")) }
+        #expect(ConnectCopy.page.contains("read and edit your notes") && ConnectCopy.page.contains("go to its maker"))
+        #expect(ConnectCopy.page.contains("OpenAI") && ConnectCopy.page.contains("Anthropic"))
+        for ai in AIList.choices(installed: []) { #expect(!AIList.line(ai, installed: false).isEmpty && !AIList.line(ai, installed: false).contains("\u{2014}")) }
         #expect(!ConnectAISection.Guide.allCases.contains { $0.title.localizedCaseInsensitiveContains("mistral") || $0.title.localizedCaseInsensitiveContains("le chat") }, "never Mistral")
         // On the page, said in words, not behind a disclosure; Having trouble? is in the Help menu.
         let view = SettingsView(backend: Backend(testClient: CaptureScreen.client, email: "sara@example.com"), sync: nil, connections: [])
@@ -561,24 +560,24 @@ extension SettingsHomeTests {
         #expect(ax.find("connect.trouble") == nil)
     }
 
-    /// One row per AI: a connected one in its place (each account its own row), the rest with
-    /// Connect…; connections no AI in the list made after them; Another AI last, always there.
-    @Test func connectIsOneRowPerAI() {
-        let all: [ConnectAISection.Guide] = [.chatgpt, .claude, .grok, .codex, .other]
-        func c(_ name: String, host: String? = nil) -> Connection {
-            Connection(id: UUID(), name: name, kind: host == nil ? "token" : "oauth", created_at: .now, last_used_at: .now.addingTimeInterval(-120), revoked_at: nil, redirect_host: host)
+    /// The live list keeps every connected account, including unbranded apps. Choices
+    /// remain available separately, ending with Other apps, even with no connections.
+    @Test func connectKeepsEveryAccountAndOffersOtherApps() {
+        func connection(_ name: String, host: String, secondsAgo: Double) -> Connection {
+            Connection(id: UUID(), name: name, kind: "oauth", created_at: .now,
+                       last_used_at: .now.addingTimeInterval(-secondsAgo), revoked_at: nil, redirect_host: host)
         }
-        let none = ConnectAIPage.rows(offered: all, connections: [])
-        #expect(none.map(\.guide) == all && none.allSatisfy { $0.connection == nil })
-        let gpt = c("ChatGPT", host: "chatgpt.com"), local = c("My tool", host: "localhost")
-        let rows = ConnectAIPage.rows(offered: all, connections: [gpt, local])
-        #expect(rows.map(\.guide) == [.chatgpt, .claude, .grok, .codex, nil, .other])
-        #expect(rows[0].connection?.id == gpt.id, "ChatGPT's row is its connection")
-        #expect(rows[4].connection?.id == local.id && rows.last?.connection == nil, "the app on this computer, then Another AI")
-        #expect(ConnectAIPage.detail(rows[0]) == "Used 2 minutes ago", "a connected one says when it was last used")
-        #expect(ConnectAIPage.detail(rows[4]).hasPrefix("localhost"), "one the list can't name says where access went")
-        let two = ConnectAIPage.rows(offered: all, connections: [gpt, c("ChatGPT", host: "chatgpt.com")])
-        #expect(two.filter { $0.guide == .chatgpt }.count == 2, "two accounts, two rows")
+        #expect(AIList.connected([]).isEmpty)
+        #expect(AIList.choices(installed: []).last == .other)
+        let gpt = connection("ChatGPT", host: "chatgpt.com", secondsAgo: 120)
+        let local = connection("My tool", host: "localhost", secondsAgo: 180)
+        let second = connection("ChatGPT", host: "chatgpt.com", secondsAgo: 240)
+        let rows = AIList.connected([second, local, gpt])
+        #expect(rows.map(\.id) == [gpt.id, local.id, second.id])
+        #expect(rows.map { AIList.name($0) } == ["ChatGPT", "An app on this computer", "ChatGPT"])
+        #expect(AIList.used(gpt) == "Used 2 minutes ago")
+        #expect(AIList.brand(of: local) == nil)
+        #expect(ConnectChoices.detail(local).hasPrefix("localhost"))
     }
 
     // MARK: Account (3 November 2026: one card)

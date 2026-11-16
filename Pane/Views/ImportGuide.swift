@@ -1256,16 +1256,6 @@ struct ImportNoticePage: View {
         line: "If your notes are in iCloud, open Apple Notes once and wait until you see them. Then come back and try again.",
         art: nil, primary: "Open Apple Notes", primarySymbol: "arrow.up.right", quiet: "Try Again")
 
-    static let phoneAppleNotes = ImportNoticePage(
-        title: "Easiest on your Mac",
-        line: "iPhone doesn't let apps read Apple Notes. On a Mac, Pinto Notes brings them all in with one click, and they're on this iPhone a moment later.",
-        art: .macHandoff, primary: "Send Me the Mac Link", primarySymbol: "square.and.arrow.up", quiet: "No Mac? Bring notes one at a time")
-
-    static let phoneAppleNotesOne = ImportNoticePage(
-        title: "One note at a time",
-        line: "In Apple Notes, open a note, tap Share, then Export as Markdown, and choose Save to Files. Then choose those files here.",
-        art: nil, primary: "Choose Files", primarySymbol: nil, quiet: "Back")
-
     static let phoneBear = ImportNoticePage(
         origin: .files(.bear),
         title: "Easiest on your Mac",

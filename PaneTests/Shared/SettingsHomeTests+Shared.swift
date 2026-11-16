@@ -10,7 +10,8 @@ import Carbon.HIToolbox
 /// (a test target can't see another's code). Its tests are in PaneTests/SettingsHomeTests.swift.
 @MainActor @Suite(.serialized) struct SettingsHomeTests {
     static func source(_ path: String) throws -> String {
-        try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appending(path: path), encoding: .utf8)
+        let resource = path.hasPrefix("Pane/") ? String(path.dropFirst(5)) : URL(fileURLWithPath: path).lastPathComponent
+        return try TestFiles.text(resource)
     }
 }
 #endif

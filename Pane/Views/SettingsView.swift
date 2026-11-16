@@ -338,7 +338,6 @@ struct SignOutButton: View {
     /// A button of its own at the end of Account (the Mac's, as System Settings has it), not a row.
     var compact = false
     @Environment(\.modelContext) private var context
-    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var flow: SignOutFlow?
 
     var body: some View {

@@ -171,20 +171,6 @@ extension CollabStore {
     }
 }
 
-/// "Share as template": a public page others can start from. Your notes and data stay out of it.
-struct TemplateShareSheet: View {
-    let note: Note
-    let store: CollabStore
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            TemplateForm(note: note, store: store)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-    }
-}
-
 /// Share as Template's content: in its own sheet, or pushed from Share. A preview of the page
 /// people will see, one line, one button. What the template's app needs is said on the
 /// template page itself, not here.

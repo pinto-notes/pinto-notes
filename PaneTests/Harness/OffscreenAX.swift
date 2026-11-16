@@ -28,6 +28,13 @@ import SwiftUI
         window.orderFrontRegardless()  // far off screen; accessibility lists ordered-in windows only
     }
 
+    /// Read an existing offscreen test window through the same accessibility interface.
+    init(window: NSWindow) {
+        self.window = window
+        window.setAccessibilityIdentifier(name)
+        window.orderFrontRegardless()
+    }
+
     func close() { window.orderOut(nil); window.close() }
 
     /// The element with this identifier once it's there, settling between looks (with other
@@ -81,8 +88,12 @@ import SwiftUI
     }
 
     func find(_ id: String) -> Element? {
+        find { Element.string($0.ax, "AXIdentifier") == id }
+    }
+
+    func find(where matches: (Element) -> Bool) -> Element? {
         func search(_ e: AXUIElement, _ depth: Int) -> AXUIElement? {
-            if Element.string(e, "AXIdentifier") == id { return e }
+            if matches(Element(ax: e)) { return e }
             guard depth < 40 else { return nil }
             for k in Element.children(e) { if let hit = search(k, depth + 1) { return hit } }
             return nil
