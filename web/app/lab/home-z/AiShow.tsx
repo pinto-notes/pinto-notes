@@ -13,8 +13,10 @@ import s from "./s.module.css";
 // in a small window of its own, your words in a bubble ("Plan next week's dinners, and prep for the
 // Studio North call."), and under it what it read: "It reads what you decided: cook at home five
 // nights, and take the job in March." A line runs from the chat down into where it lands: one frame
-// across the page, labelled with Pinto's mark, "In your notes", holding the three things it changes,
-// each in place, each marked "Added by ChatGPT", with a caption under it. First the owner's favourite
+// across the page, labelled with Pinto's mark and its name, "In Pinto Notes", holding the three things
+// it changes, each in place, each marked "Added by ChatGPT", with a caption under it. The three cards
+// are as tall as one another, each only as tall as what it holds, and their marks share one line at
+// their foot. First the owner's favourite
 // use: next week's dinners in the dinners note, and the recipe it filed into Recipes as it planned
 // ("New in Recipes: Shakshuka"). Then two questions for Ana on the Studio North board (its arrow from
 // "Talk again in March" draws itself, the way Claude's did in Draw, then the box). Then a prep habit
@@ -202,7 +204,7 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
       {/* Where it lands: your notes, in Pinto, one frame. */}
       <div ref={stage} className={s.aStage} style={{ "--headOn": 0 } as React.CSSProperties}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <p className={s.aLands}><img src="/mark-256.png" alt="Pinto Notes:" width={22} height={22} />In your notes</p>
+        <p className={s.aLands}><img src="/mark-256.png" alt="" width={22} height={22} />In Pinto Notes</p>
         <ol className={s.aObjs}>
           {objs.map((o, i) => (
             <li key={i} data-obj className={`${s.aSlot} ${[s.aoNote, s.aoBoard, s.aoApp][i]}`} data-land={snap.land[i] || undefined}
@@ -254,16 +256,17 @@ type Lay = { view: [number, number]; font: number; title: [number, number]; node
 // The decision map from Draw, closer in: the path they chose (Claude's orange "no" coming into it,
 // finish the launch, talk again in March), at a size you can read. ChatGPT draws an arrow from "Talk
 // again in March" to a box it adds: "Questions for Ana", with the two questions for the call.
+// Laid a little taller than wide, so the whiteboard card is as tall as the note's and the app's.
 const WIDE: Lay = {
-  view: [520, 250], font: 19, title: [6, 18],
+  view: [520, 270], font: 19, title: [6, 18],
   nodes: [
-    { kind: "box", c: [128, 88], w: 236, h: 64, label: ["Finish the launch,", "ship in February"] },
-    { kind: "ellipse", c: [398, 88], w: 200, h: 72, label: ["Talk again", "in March"] },
+    { kind: "box", c: [128, 98], w: 236, h: 64, label: ["Finish the launch,", "ship in February"] },
+    { kind: "ellipse", c: [398, 98], w: 200, h: 72, label: ["Talk again", "in March"] },
   ],
-  arrows: [{ a: [250, 88], c1: [262, 87], c2: [276, 89], b: [292, 88] }],
-  claude: { a: [128, 26], c1: [127, 36], c2: [129, 46], b: [128, 54], label: ["no", [108, 46]] },
-  gpt: { a: [398, 126], c1: [399, 136], c2: [398, 146], b: [396, 156] },
-  add: { x: 150, y: 160, w: 356, h: 86 },
+  arrows: [{ a: [250, 98], c1: [262, 97], c2: [276, 99], b: [292, 98] }],
+  claude: { a: [128, 32], c1: [127, 44], c2: [129, 54], b: [128, 64], label: ["no", [108, 54]] },
+  gpt: { a: [398, 136], c1: [399, 148], c2: [398, 160], b: [396, 172] },
+  add: { x: 150, y: 176, w: 356, h: 92 },
 };
 // The same, standing up, for a phone.
 const TALL: Lay = {

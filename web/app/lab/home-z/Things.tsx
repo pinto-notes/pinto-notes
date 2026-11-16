@@ -6,13 +6,14 @@ import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
 import s from "./s.module.css";
 
-// The things on study Z's page (round 17, option C after the round 12 council), one person's week,
-// several parts of one life. The first screen is that week in one note: two dinners (the second a
-// recipe ChatGPT just wrote into Recipes, asked for in a small ChatGPT request) and one plain decision
-// a stranger reads at once ("Decided: Take the new job in March."). Then each chapter shows one part
-// at full size: a book note open in Pinto's Mac window among a life's notes, a whiteboard (the job
-// offer from Studio North, mapped: now or March?), a small app (the habits they're building), and one
-// request in ChatGPT that lands in all three, the recipe it files into Recipes first.
+// The things on study Z's page (round 18, option C after the round 13 council), one person's week,
+// several parts of one life. The first screen is that week in one note, all dinner: what they decided
+// ("20-minute weeknight dinners"), Tuesday's dinner, and Thursday's, which ChatGPT just added when asked
+// for a dinner, keeping to the decision ("Lemon chicken · 20 min"). Then each chapter shows one part at
+// full size: a book note open in Pinto (a Mac window; on a phone, the iPhone app) among a life's notes
+// brought over from Apple Notes, a whiteboard (the job offer from Studio North, mapped: now or March?),
+// a small app (the habits they're building), and one request in ChatGPT that lands in all three, the
+// recipe it files into Recipes first.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -27,17 +28,17 @@ export const Tick = ({ className = "" }: { className?: string }) => (
 );
 
 /** The decision in the dinners note (Your AI). Same words everywhere. */
-export const DECIDED = "Cooking at home five nights a week.";
+export const DECIDED = "Cook at home five nights.";
 
-/** The first screen's note: this week, today Thursday. A dinner cooked, and tonight's: the recipe
- *  ChatGPT just wrote into Recipes when asked for a quick dinner. Then one decision, in words a
- *  stranger reads in a second (the Studio North offer, taken from March). */
+/** The first screen's note: this week. First what they decided, in words a stranger reads in a second
+ *  (the part ChatGPT keeps to is the middle piece, underlined as it reads it). Then a dinner, and the one
+ *  ChatGPT just added for Thursday when asked: twenty minutes, as decided. */
 export const WEEK_NOTE = {
   title: "This week",
+  decided: ["", "20-minute", " weeknight dinners."] as [string, string, string],
   dinner: ["Tue", "Miso salmon"] as [string, string],
-  added: ["Thu", "Lemon chicken"] as [string, string],
-  ask: "Add a quick dinner for Thursday.",
-  decided: "Take the new job in March.",
+  added: ["Thu", "Lemon chicken · 20 min"] as [string, string],
+  ask: "Add a dinner for Thursday.",
 };
 
 /** The book note Notes opens: two highlights, what to try, and what the reader decided. */
@@ -48,18 +49,22 @@ export const BOOK = {
 };
 
 /** The notes list in the Mac window (Notes): a whole life's notes, newest first, the book note open.
- *  As Pinto lists them: the title, when and the first words, then the folder. */
+ *  As Pinto lists them: the title, when and the first line (always longer than the column, so every
+ *  preview ends the same way, on one line with an ellipsis), then the folder. Five, then where they
+ *  came from. */
 export const NOTES: { title: string; when: string; first: string; folder: string; on?: boolean }[] = [
-  { title: "Deep Work", when: "9:12 AM", first: "Deep work is rare", folder: "Reading", on: true },
-  { title: "Miso salmon", when: "Yesterday", first: "20 min. Rice, greens", folder: "Recipes" },
-  { title: "Studio North", when: "Yesterday", first: "Decided: wait until", folder: "Work" },
-  { title: "Kyoto in April", when: "Monday", first: "Six days, two cities", folder: "Trips" },
-  { title: "Morning run", when: "Sunday", first: "Three a week", folder: "Health" },
-  { title: "Weeknight dinners", when: "Sunday", first: "Decided: cooking at", folder: "Recipes" },
+  { title: "Deep Work", when: "9:12 AM", first: "Deep work is rare, and worth more every year.", folder: "Reading", on: true },
+  { title: "Miso salmon", when: "Yesterday", first: "20 min. Rice, greens and a quick glaze.", folder: "Recipes" },
+  { title: "Studio North", when: "Yesterday", first: "Decided: wait until March. Finish the launch first.", folder: "Work" },
+  { title: "Kyoto in April", when: "Monday", first: "Six days, two cities. Book the ryokan.", folder: "Trips" },
+  { title: "Morning run", when: "Sunday", first: "Three a week, before work. Easy pace.", folder: "Health" },
 ];
+/** What the notes list says at its foot: these notes came over from Apple Notes (Pinto imports them). */
+export const IMPORTED = { from: "Imported from Apple Notes", count: "412 notes" };
 
-/** Next week's dinners, from your recipes: what ChatGPT writes into the dinners note (Your AI). One
- *  of them is new: ChatGPT wrote its recipe into the Recipes folder as it planned the week. */
+/** Next week's dinners, from your recipes: what ChatGPT writes into the dinners note (Your AI), five
+ *  nights, as decided. One of them is new: ChatGPT wrote its recipe into the Recipes folder as it
+ *  planned the week. */
 export const DINNERS: [string, string][] = [
   ["Mon", "Lemon chicken"],
   ["Tue", "Miso salmon"],
@@ -133,9 +138,11 @@ const Ico = {
 
 /** Your notes, as Pinto shows them on a Mac: one window with its traffic lights and toolbar, the notes
  *  list down the left (a whole life's notes: a recipe, the job decision, a trip; the book note
- *  selected) and the book note open at writing size: two highlights, what to try as a checklist that
- *  ticks (its last line typed when the chapter arrives), and what the reader decided. On a phone the
- *  window is narrow, as on a small Mac window: the list hides and the note fills it. */
+ *  selected), and at its foot where they came from ("Imported from Apple Notes · 412 notes"), and the
+ *  book note open at writing size: two highlights, what to try as a checklist that ticks (its last line
+ *  typed when the chapter arrives), and what the reader decided. On a phone it's the iPhone app: no
+ *  traffic lights, the "< Reading" back button and the more button, the note, and the import line at
+ *  the screen's foot. */
 export function Note({ live }: { live: boolean }) {
   const [on, setOn] = useState([true, false, false]);
   const [n, setN] = useState(0);
@@ -153,6 +160,11 @@ export function Note({ live }: { live: boolean }) {
   const rows = [...TRY, TYPED];
   return (
     <div className={s.sheet} role="group" aria-label="Pinto Notes on a Mac, with the Deep Work note open">
+      {/* On a phone: the iPhone app's own bar, the way back to the folder and the more button. */}
+      <div className={s.ipBar} aria-hidden="true">
+        <span className={s.ipBack}>{Ico.back}Reading</span>
+        <span className={s.ipMore}>{Ico.more}</span>
+      </div>
       <div className={s.mwBar} aria-hidden="true">
         <span className={s.mwLights}><i /><i /><i /></span>
         <span className={s.mwListBar}>
@@ -177,6 +189,7 @@ export function Note({ live }: { live: boolean }) {
             </li>
           ))}
         </ul>
+        <Imported />
       </nav>
       <div className={s.recipe}>
         <h3 className={s.sheetTitle}>{BOOK.title}</h3>
@@ -203,7 +216,19 @@ export function Note({ live }: { live: boolean }) {
         </ul>
         <p className={s.bookDecided}><b>Decided:</b> {BOOK.decided}</p>
       </div>
+      <Imported phone />
     </div>
+  );
+}
+
+/** Where these notes came from, said plainly: a quiet line at the foot of the notes list (on a phone,
+ *  at the foot of the screen). */
+function Imported({ phone }: { phone?: boolean }) {
+  return (
+    <p className={`${s.imported} ${phone ? s.importedPhone : s.importedMac}`}>
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 2.5v8M5.6 7.4 9 10.8l3.4-3.4" /><path d="M2.5 11v2.3c0 1.2.9 2.2 2.2 2.2h8.6c1.3 0 2.2-1 2.2-2.2V11" /></svg>
+      <span><b>{IMPORTED.from}</b><span className={s.importedDot}> · </span><span className={s.importedN}>{IMPORTED.count}</span></span>
+    </p>
   );
 }
 

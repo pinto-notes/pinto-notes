@@ -126,6 +126,11 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 /* ───────────────────────── A chapter: a torn divider page ───────────────────────── */
 .ch { position: sticky; top: var(--tt); height: var(--chH); min-height: 560px; box-sizing: border-box; color: var(--ink); }
 .ch[data-covered] .body { visibility: hidden; }
+/* The proof has no tab: it rises on over the tab strip and docks under the header, so the tabs end with
+   Your AI (the close does the same). Once it has docked, the sheets under it, tabs and all, are put
+   away, so only the page's cream shows through the gaps in its torn edge. */
+.ch.proof { top: var(--hh); height: calc(100svh - var(--hh)); }
+.ch[data-gone] { visibility: hidden; }
 /* --lift: how far the next sheet has pushed this one's contents up (set by the script). They clip hard
    just under this sheet's own torn edge, in its own colour: no fade, no wash, nothing ghosting under
    the tabs. */
@@ -223,7 +228,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .mwTools .mwIco svg { width: 17px; }
 .mwTools .mwIco:last-child svg { width: 15px; height: 5px; fill: currentColor; stroke: none; }
 /* The notes list, as Pinto lists them: the title, when and the first words, the folder. */
-.folder { grid-row: 2; padding: 10px 8px 12px; box-shadow: inset -1px 0 0 #ececec; }
+.folder { grid-row: 2; display: flex; flex-direction: column; padding: 10px 8px 12px; box-shadow: inset -1px 0 0 #ececec; }
 .folder ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
 .folder li { display: grid; gap: 1px; padding: 8px 12px 9px; border-radius: 10px; }
 .folder li b { font-size: 15px; font-weight: 700; line-height: 1.25; }
@@ -231,6 +236,15 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .folder li .mwIn { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #8e8e93; }
 .mwIn svg { width: 13px; height: 11px; }
 .folder li[data-on] { background: #ebebed; }
+/* Where these notes came from, at the foot of the list: a quiet status, as Pinto would say it. */
+.imported { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; line-height: 1.3; color: #8e8e93; }
+.imported svg { flex: none; width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.imported b { font-weight: 600; color: #6e6e73; }
+.importedMac { margin: auto 0 0; padding: 18px 6px 2px 10px; }
+.importedMac svg { width: 16px; height: 16px; }
+.importedMac > span { display: flex; flex-direction: column; }
+.importedMac .importedDot { display: none; }
+.importedPhone, .ipBar { display: none; }
 .recipe { grid-row: 2; min-width: 0; padding: clamp(18px, 2.6vh, 26px) clamp(28px, 3vw, 40px) clamp(20px, 3vh, 30px); }
 .crumb { display: none; }
 .sheetMeta { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 17px; font-weight: 500; color: #6e6e73; }
@@ -413,7 +427,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .aTop { grid-column: 1; grid-row: 1; align-self: end; }
 .aTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(50px, 4.6vw, 66px); line-height: 0.95; letter-spacing: -0.03em; }
 /* The line that ties where you ask to where it lands. */
-.aTie { margin: 14px 0 0; max-width: 21em; font-size: 18px; line-height: 1.4; font-weight: 550; color: var(--soft); text-wrap: pretty; }
+.aTie { margin: 14px 0 0; max-width: 21em; font-size: 18px; line-height: 1.4; font-weight: 400; color: var(--soft); text-wrap: pretty; }
 /* Where you ask: ChatGPT, in a small window of its own (its mark and name, your words in a bubble). */
 .aFlow { grid-column: 2; grid-row: 1; position: relative; display: grid; align-self: end; }
 .chat { grid-row: 1; grid-column: 1; box-sizing: border-box; padding: 12px 14px 14px; border-radius: 20px; background: #34251a; box-shadow: inset 0 0 0 1px rgba(255, 241, 226, 0.12), 0 14px 30px -20px rgba(0, 0, 0, 0.6); }
@@ -427,7 +441,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .askCaret[data-sent] { opacity: 0; animation: none !important; }
 /* What it read, under the chat: the two decisions take the green underline as they're read. It stops
    short of the line that runs down to your notes. */
-.askSub { grid-row: 2; grid-column: 1; margin: 12px 0 0; padding-right: 64px; font-size: 17px; line-height: 1.4; font-weight: 550; color: var(--soft); }
+.askSub { grid-row: 2; grid-column: 1; margin: 12px 0 0; padding-right: 64px; font-size: 17px; line-height: 1.4; font-weight: 400; color: var(--soft); }
 /* The underline is a background, so it follows the phrase when a phone wraps it onto two lines. */
 .askNoCar { color: var(--cream); font-weight: 700; padding-bottom: 3px; background: linear-gradient(#2fc79e, #2fc79e) 0 100% / 0% 2px no-repeat; }
 .askNoCar[data-on] { background-size: 100% 2px; }
@@ -453,13 +467,16 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .aObj { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; box-sizing: border-box; padding: 10px; border-radius: 20px; background: var(--fc);
   box-shadow: 0 12px 26px -18px rgba(0, 0, 0, 0.5); }
 .aoBoard { --fc: #1b4a35; flex: 1 1 0; }
-.aoBoard .aObj { padding: 14px 16px 12px; }
+/* Its mark sits as far from the frame's foot as the note's and the app's do (their card's padding). */
+.aoBoard .aObj { padding: 14px 16px clamp(22px, 2.8vh, 26px); }
 .aoNote { --fc: #c0401a; flex: 0 0 calc(27% - 6px); }
 .aoApp { --fc: #d2ab7c; flex: 0 0 calc(27% - 6px); }
 .aoApp .aObj { background: var(--kraftGrain), var(--fc); background-blend-mode: soft-light, normal; }
 .aWhere { margin: 9px 0 0 6px; font: 600 14.5px/1.2 var(--sans); color: var(--soft); }
-.aCard { position: relative; box-sizing: border-box; padding: clamp(14px, 2vh, 18px) 18px clamp(14px, 2vh, 18px); border-radius: 13px; background: #fffdf8; color: #1d1b19;
+.aCard { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; box-sizing: border-box; padding: clamp(14px, 2vh, 18px) 18px clamp(12px, 1.8vh, 16px); border-radius: 13px; background: #fffdf8; color: #1d1b19;
   box-shadow: 0 1px 0 rgba(60, 20, 0, 0.1), 0 6px 14px -10px rgba(40, 10, 0, 0.35); }
+/* The three marks ("Added by ChatGPT") sit on one line, at the cards' foot. */
+.aCard > .aRec { margin-top: auto; }
 .aoBoard .aCard { padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--cream); }
 /* A row that opens: its height goes from nothing to what it holds. */
 .aGrow { display: grid; grid-template-rows: 0fr; }
@@ -473,7 +490,8 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .aRec > * { opacity: 0; }
 .aRec[data-show] { grid-template-rows: 1fr; }
 .aRec[data-show] > * { opacity: 1; }
-.aRec .receipt { margin: 10px 0 2px; font-size: 14px; }
+.aRec .receipt { margin: 8px 0 0; font-size: 14px; }
+.aRec .receipt button { padding-top: 0.1em; padding-bottom: 0.1em; }
 .aoNote .aRec .receipt { margin-left: 0; }
 .aoBoard .aRec .receipt { margin: 8px 0 2px 4px; color: #8fe6c8; }
 .aoBoard .aRec .receipt b { color: rgba(143, 230, 200, 0.6); }
@@ -500,7 +518,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .aList b, .aListAdd b { font-weight: 600; }
 .aListAdd b { position: relative; z-index: 0; }
 .aList span, .aListAdd span { flex: none; font-size: 14px; font-weight: 500; color: #8a7d70; }
-.aDecided { margin: 6px 0 clamp(8px, 1.4vh, 12px); font-size: clamp(15px, 1.15vw, 16.5px); line-height: 1.35; color: #2b2622; }
+.aDecided { margin: 6px 0 clamp(8px, 1.4vh, 12px); font-size: 15px; line-height: 1.35; color: #2b2622; white-space: nowrap; }
 .aRead { position: relative; }
 .aRead::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; border-radius: 2px; background: #10a37f; transform: scaleX(0); transform-origin: 0 50%; opacity: 0.9; }
 .aRead[data-on]::after { transform: none; }
@@ -527,17 +545,17 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .aoBoard[data-undone] .aAddInk { opacity: 0; }
 .aApp { color: #1d1b19; }
 .aAppTop { margin: 0 0 2px; font-size: clamp(16px, 1.3vw, 18px); }
-.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 6px; }
 .aDays small { text-align: center; font-size: 13px; font-weight: 650; color: #6d6156; }
 .aDays small[data-now] { color: #c96d06; }
-.aHabit { padding-top: 8px; }
-.aDays + .aHabit { padding-top: 6px; }
+.aHabit { padding-top: 6px; }
+.aDays + .aHabit { padding-top: 4px; }
 .aHabit p { margin: 0 0 4px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
 .aHabit p > span { position: relative; z-index: 0; white-space: nowrap; }
 .aHabit small { font-size: 13.5px; font-weight: 600; color: #c96d06; white-space: nowrap; }
 .aHabit small.aZero { color: #8a7d70; }
 .aWeek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
-.aWeek i { justify-self: center; display: grid; place-items: center; width: min(100%, 26px); aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
+.aWeek i { justify-self: center; display: grid; place-items: center; width: min(100%, 24px); aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
 .aWeek svg { opacity: 0; }
 .aWeek [data-on] { background: #e8820f; }
 .aWeek [data-on] svg { opacity: 1; }
@@ -567,15 +585,19 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .proofIn { width: 100%; }
 .proofHead { display: block; }
 .proofTitle { margin: 0; max-width: 14em; font-family: var(--display); font-weight: 500; font-size: clamp(44px, 4vw, 58px); line-height: 1; letter-spacing: -0.03em; color: #24170d; text-wrap: balance; }
-.proofSay { margin: 16px 0 0; max-width: 34em; font-size: 19px; line-height: 1.4; font-weight: 550; color: #6b5641; text-wrap: pretty; }
+.proofSay { margin: 16px 0 0; max-width: 34em; font-size: 19px; line-height: 1.4; font-weight: 400; color: #5e4a36; text-wrap: pretty; }
+/* The measure, over the numbers' column (the same grid as a row, so it starts where the numbers do). */
+.barMeasure { display: grid; grid-template-columns: minmax(0, 1fr) 3.1em; column-gap: 0.32em; margin: clamp(26px, 5vh, 50px) 0 0; font-size: clamp(78px, 7.6vw, 112px); line-height: 1; }
+.barMeasure span { grid-column: 2; font: 600 16px/1.3 var(--sans); color: #6b5641; }
 /* Each row: who, over the bar; the number at the bar's right, in the sans, big. Every track is the
    same length, so the bars compare directly. */
-.bars { margin: clamp(30px, 6vh, 60px) 0 0; display: grid; gap: clamp(20px, 4vh, 40px); }
+.bars { margin: clamp(6px, 1.2vh, 12px) 0 0; display: grid; gap: clamp(20px, 4vh, 40px); }
 .barRow { display: grid; grid-template-columns: minmax(0, 1fr) 3.1em; grid-template-areas: "who num" "bar num"; align-items: end; column-gap: 0.32em; font-size: clamp(78px, 7.6vw, 112px); }
-.barWho { grid-area: who; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 12px; font: 500 17px/1.3 var(--sans); color: #7a6650; }
+.barWho { grid-area: who; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 0 0 12px; font: 400 17px/1.3 var(--sans); color: #8a7560; }
 .barWho b { font-size: 20px; font-weight: 650; color: #4a3826; }
 .barRow[data-pinto] .barWho b { color: #24170d; }
 .barNum { grid-area: num; align-self: end; margin: 0 0 -0.04em; font: 700 1em/0.8 var(--sans); letter-spacing: -0.05em; color: #a8927a; text-align: left; white-space: nowrap; }
+.barNumWhat { display: none; }
 .barRow[data-pinto] .barNum { color: #c4570f; }
 .barTrack { grid-area: bar; position: relative; margin: 0; height: 0.46em; border-radius: 0.12em; background: #f5e4cc; overflow: hidden; }
 .barTrack i { position: absolute; inset: 0; border-radius: inherit; background: #b9a58e; transform-origin: 0 50%; transform: scaleX(var(--v)); }
@@ -585,7 +607,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
   .barTrack i { transition: transform 1s cubic-bezier(0.3, 0.9, 0.3, 1); }
   .barRow[data-pinto] .barTrack i { transition-duration: 1.35s; transition-delay: 0.12s; }
 }
-.proofFoot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; margin: clamp(26px, 5vh, 50px) 0 0; font-size: 15.5px; font-weight: 550; color: #7a6650; }
+.proofFoot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; margin: clamp(26px, 5vh, 50px) 0 0; font-size: 15.5px; font-weight: 400; color: #8a7560; }
 .proofLink { display: inline-flex; align-items: baseline; gap: 8px; font-size: 18px; font-weight: 650; color: #b6450f;
   text-decoration: underline; text-decoration-color: rgba(182, 69, 15, 0.4); text-underline-offset: 4px; }
 .proofLink span { text-decoration: none; }
@@ -597,7 +619,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
    the same paper colour, and the Mac and iPhone are placed in the picture's own coordinates
    (1536 x 1024), so at every window size they lie on the same spot of the table: above the lemon and
    the knife, beside the board. */
-.cover { --sw: min(100cqw, 150cqh); position: sticky; top: var(--tt); height: var(--chH); min-height: 560px; overflow: hidden; container-type: size; color: #24170d; }
+.cover { --sw: min(100cqw, 150cqh); position: sticky; top: var(--hh); height: calc(100svh - var(--hh)); min-height: 560px; overflow: hidden; container-type: size; color: #24170d; }
 /* Its paper, torn along the top like every sheet above it (the same picture, the same short shadow). */
 .coverPaper { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 -1px 1px rgba(60, 30, 8, 0.13)) drop-shadow(0 -3px 7px rgba(60, 30, 8, 0.08)); }
 .coverSheet { position: absolute; inset: 0; overflow: hidden; background: #fcddb6;
@@ -729,14 +751,18 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .wTitle { font-size: 56px; margin-bottom: 12px; }
   .wTitle br { display: none; }
   .wHead .say { font-size: 18px; font-weight: 650; }
-  .sheet { width: 100%; max-width: none; margin-top: 18px; grid-template-columns: minmax(0, 1fr); border-radius: 13px; }
-  .mwBar { height: 40px; padding: 0 10px 0 13px; }
-  .mwLights { gap: 7px; margin-right: 10px; }
-  .mwLights i { width: 11px; height: 11px; }
-  .mwListBar, .folder { display: none; }
-  .mwNoteBar { gap: 10px; padding-left: 4px; box-shadow: none; }
-  .mwTools { gap: 12px; padding: 4px 11px; }
-  .recipe { padding: 14px 18px 16px; }
+  /* On a phone it's the iPhone app: its bar (the way back to Reading, the more button), the note, and
+     where the notes came from at the screen's foot. No traffic lights, no notes list. */
+  .sheet { width: 100%; max-width: none; margin-top: 18px; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; border-radius: 18px; }
+  .mwBar, .folder { display: none; }
+  .ipBar { grid-row: 1; display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 2px 14px 0 10px; color: #d9750f; }
+  .ipBack { display: flex; align-items: center; gap: 5px; font: 400 17px/1 var(--sans); }
+  .ipBack svg { width: 11px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+  .ipMore { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px currentColor; }
+  .ipMore svg { width: 13px; height: 4px; fill: currentColor; }
+  .recipe { padding: 2px 18px 6px; }
+  .importedPhone { grid-row: 3; display: flex; justify-content: center; padding: 12px 16px 14px; font-size: 13px; }
+  .importedPhone svg { width: 16px; height: 16px; }
   .crumb { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; font-size: 15px; font-weight: 500; color: #c96d06; }
   .crumb svg { width: 8px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .sheetMeta { font-size: 14.5px; margin-top: 4px; }
@@ -809,7 +835,7 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .aBody { display: block; padding-top: calc(var(--tearH) + 16px); padding-bottom: 12px; }
   .aTop { display: block; }
   .aTitle { font-size: 46px; line-height: 0.95; }
-  .aTie { margin-top: 8px; max-width: none; font-size: 15px; line-height: 1.35; }
+  .aTie { margin-top: 8px; max-width: none; font-size: 15px; line-height: 1.35; font-weight: 400; }
   .aFlow { display: block; margin-top: 12px; }
   .wire { display: none; }
   .chat { padding: 8px 9px 9px; border-radius: 18px; }
@@ -817,7 +843,7 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .askMark { width: 22px; height: 22px; }
   .askMark svg { width: 13px; height: 13px; }
   .ask { max-width: 94%; margin-top: 6px; padding: 8px 13px 9px; border-radius: 16px 16px 5px 16px; font-size: 15px; line-height: 1.3; }
-  .askSub { margin: 8px 0 0; padding: 0; font-size: 14px; line-height: 1.35; }
+  .askSub { margin: 8px 0 0; padding: 0; font-size: 14px; line-height: 1.35; font-weight: 400; }
   /* Note, Whiteboard, App: small labelled controls that show which change is in view, and switch it.
      Pinto's mark before them says where these are. */
   .seg { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
@@ -865,17 +891,20 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .proofBody { align-items: flex-start; padding: calc(var(--tearH) + 26px) var(--pad) 28px; }
   .proofHead { display: block; }
   .proofTitle { font-size: 36px; line-height: 1.02; }
-  .proofSay { margin-top: 12px; padding: 0; font-size: 16.5px; line-height: 1.38; }
-  .bars { margin-top: 26px; gap: 22px; }
-  .barRow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who num" "bar bar"; align-items: end; column-gap: 12px; font-size: 56px; }
-  /* Who and the number on one line; what Claude had under them, the page's width; then the bar. */
-  .barRow { grid-template-areas: "who num" "had had" "bar bar"; }
+  .proofSay { margin-top: 12px; padding: 0; font-size: 16.5px; line-height: 1.38; font-weight: 400; }
+  .barMeasure { display: none; }
+  .bars { margin-top: 24px; gap: 22px; }
+  /* Who, what Claude had (light, under it), then the number on its own line with the measure beside
+     it, then the bar. */
+  .barRow { grid-template-columns: minmax(0, 1fr); grid-template-areas: "who" "had" "num" "bar"; align-items: end; font-size: 54px; }
   .barWho { display: contents; }
-  .barWho b { grid-area: who; align-self: end; margin-bottom: 4px; font-size: 16.5px; }
-  .barWho span { grid-area: had; margin: 4px 0 10px; font-size: 14.5px; line-height: 1.35; }
-  .barNum { align-self: auto; margin: 0 0 -2px; text-align: right; }
+  .barWho b { grid-area: who; font-size: 16.5px; }
+  .barWho span { grid-area: had; margin: 2px 0 0; font-size: 14.5px; line-height: 1.35; text-wrap: balance; }
+  .barNum { display: flex; align-items: baseline; gap: 12px; margin: 10px 0 10px; text-align: left; }
+  .barNumWhat { display: inline; font: 400 15px/1.2 var(--sans); letter-spacing: 0; color: #7a6650; }
   .barTrack { height: 0.36em; border-radius: 0.14em; }
-  .proofFoot { display: grid; gap: 12px; margin-top: 26px; font-size: 14.5px; line-height: 1.4; }
+  .proofFoot { display: grid; gap: 12px; margin-top: 24px; font-size: 14.5px; line-height: 1.4; }
+  .proofFoot > span { text-wrap: balance; }
   .proofLink { font-size: 17px; justify-self: start; }
 
   :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas.ctas { align-items: flex-start; }
@@ -956,7 +985,12 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
    over its blank lower half, so the close is about one and a half screens with the footer. */
 @media (max-width: 760px) {
   .cover::after { display: none; }
-  .coverBody { padding: 56px var(--pad) 0; }
+  .fCtas .free { display: none; }
+  /* The page ends as it starts: a cropped strip of the first screen's table (the glasses and the herbs)
+     printed under the close's torn edge, fading into its paper above the headline. */
+  .coverSheet::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 200px; background: url(/lab/z/hero-table-v1.webp) 34% 14px / 640px auto no-repeat;
+    -webkit-mask: linear-gradient(#000 68%, transparent); mask: linear-gradient(#000 68%, transparent); }
+  .coverBody { padding: 168px var(--pad) 0; }
   .devices { width: 15em; height: 28.4em; max-width: none; margin: 30px auto 0; font-size: 15px; }
   .mac { display: none; }
   .phone { position: relative; left: auto; right: auto; top: auto; width: 15em; }

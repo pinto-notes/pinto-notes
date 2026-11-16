@@ -14,22 +14,25 @@ import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study Z, round 17 (2026-11-16): option C after the round 12 council. S's binder carrying one
+// Study Z, round 18 (2026-11-16): option C after the round 13 council. S's binder carrying one
 // person's week, several parts of one life. The first screen is that person's table (the still life)
-// with one note on it, "This week", three short lines: a dinner, the dinner ChatGPT added, and one
-// plain decision. Over it, the ChatGPT request that just changed it ("Add a quick dinner for
-// Thursday."); on load, Thursday's line writes itself in, marked "Added by ChatGPT". That picture is
-// HeroArt.tsx, one swappable piece. Each chapter shows another part of that life: Notes, a book note
-// open in Pinto's Mac window (vermilion); Whiteboards, the job offer from Studio North mapped as a
-// decision (deep green); Apps, the habits they're building (kraft); Your AI, one request typed in
-// ChatGPT that lands in all three, in Pinto (ink). Then the proof, a plain white sheet with no tab
-// (the page's one break in colour and in kind): what the study's two numbers show, a bar each, and in
-// one line each what Claude had. Then the close, on the same table: "Pinto Notes is free.", the
-// download, four plain lines, and the Studio North note on a Mac and an iPhone.
+// with one note on it, "This week", all dinner: what they decided ("20-minute weeknight dinners"),
+// Tuesday's dinner, and Thursday's, which ChatGPT just added. Over it, the ChatGPT request that changed
+// it ("Add a dinner for Thursday."); on load, the decision's "20-minute" takes ChatGPT's underline and
+// Thursday's line writes itself in, "Lemon chicken · 20 min", marked "Added by ChatGPT": the AI read
+// what you decided. That picture is HeroArt.tsx, one swappable piece. Each chapter shows another part
+// of that life: Notes, a book note open in Pinto (vermilion), the notes brought over from Apple Notes;
+// Whiteboards, the job offer from Studio North mapped as a decision (deep green); Apps, the habits
+// they're building (kraft); Your AI, one request typed in ChatGPT that lands in all three, in Pinto
+// Notes (ink). Then the proof, a plain white sheet with no tab (the page's one break in colour and in
+// kind): what the study's two numbers show, the measure beside them, a bar each, and in one light line
+// each what Claude had. Then the close, on the same table: "Pinto Notes is free.", the download, four
+// plain lines, and the Studio North note on a Mac and an iPhone.
 //
-// Every sheet, the proof and the close too, is torn along its top and laid over the last, and docks
-// under the tabs, so the tab strip stays to the end. When a sheet lands its tab rises out of it and
-// stays docked under the header; as a sheet rises, the words and things on the one under it move up
+// Every sheet, the proof and the close too, is torn along its top and laid over the last. The four
+// chapters dock under their tabs; the proof and the close, which have no tab, rise on over the tab
+// strip and dock under the header, so the tabs end with Your AI. When a sheet lands its tab rises out
+// of it and stays docked under the header; as a sheet rises, the words and things on the one under it move up
 // ahead of its torn edge, so a tear never cuts through them. Above that, a sheet's contents end where
 // its paper does: they're masked by the sheet's own torn edge, fading out just before it, so nothing
 // is ever cut by a straight line under the tabs. A heading and its line fade out whole before they
@@ -92,7 +95,10 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     const reduced = calm();
     /** Each chapter's words that fade before they reach its clip line (headlines and their lines). */
     const fades = chs.map((c) => [...c.querySelectorAll<HTMLElement>("[data-fade]")]);
-    let vh = 0, tt = 0, tear = 0, raf = 0;
+    let vh = 0, tt = 0, hh = 0, tear = 0, raf = 0;
+    /** Where a sheet docks: a chapter under its tab, the proof and the close (no tab) under the header,
+     *  over the tab strip, so the tabs end with Your AI. */
+    const topOf = (i: number) => (TAB[ORDER[i]] ? tt : hh);
     let doc: number[] = [], mt: number[] = [];
     const covered = chs.map(() => false);
     const lifts = chs.map(() => 0);
@@ -107,7 +113,9 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
 
     const measure = () => {
       vh = innerHeight; tt = probe.offsetHeight;
-      tear = parseFloat(getComputedStyle(el).getPropertyValue("--tearH")) || 0;
+      const cs = getComputedStyle(el);
+      tear = parseFloat(cs.getPropertyValue("--tearH")) || 0;
+      hh = parseFloat(cs.getPropertyValue("--hh")) || 0;
       // On a phone the next sheet waits just under a chapter's last line: its margin (the stay) is
       // taken back by the room left empty under the words. Wide windows keep the stylesheet's stays.
       const narrow = narrowNow();
@@ -126,12 +134,12 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       const y = scrollY;
       const docked: boolean[] = [];
       for (let i = 0; i < chs.length; i++) {
-        const nt = doc[i] - y;
-        const arrive = clamp((vh - nt) / Math.max(1, vh - tt));
-        docked.push(nt <= tt + 0.5);
+        const nt = doc[i] - y, top = topOf(i);
+        const arrive = clamp((vh - nt) / Math.max(1, vh - top));
+        docked.push(nt <= top + 0.5);
         // A stay is at least 35% of a screen of scroll, so a phone's snug chapter still plays its show.
         const dwellLen = i + 1 < chs.length ? Math.max(vh * 0.35, mt[i + 1]) : vh * 0.4;
-        const dwell = clamp((tt - nt) / dwellLen);
+        const dwell = clamp((top - nt) / dwellLen);
         listeners.get(ORDER[i])?.forEach((fn) => fn(dwell, arrive));
       }
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
@@ -142,13 +150,13 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       for (let i = 0; i + 1 < chs.length; i++) {
         const nt = doc[i + 1] - y;
         let lift = 0;
-        if (docked[i] && nt < vh) lift = Math.max(0, Math.round(tt + reach(i) - (nt - 18)));
+        if (docked[i] && nt < vh) lift = Math.max(0, Math.round(topOf(i) + reach(i) - (nt - 18)));
         if (lift !== lifts[i]) { lifts[i] = lift; chs[i].style.setProperty("--lift", `${lift}px`); chs[i].toggleAttribute("data-lifted", lift > 0); }
         // A headline is never sliced: as a chapter's heading and its line move up to its torn edge,
         // they fade out together, whole, before they reach it. (The cards fade out into the edge.)
         const heads = fades[i];
         if (!heads.length) continue;
-        const clipY = tt + tear;
+        const clipY = topOf(i) + tear;
         heads.forEach((h) => {
           if (!lift) { if (h.style.opacity) h.style.opacity = ""; return; }
           // Over the last FADE px before the clip line, or over all the room it had, if less (a phone's
@@ -163,8 +171,13 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       for (let i = 0; i < chs.length; i++) {
         const behind = i + 1 < chs.length && docked[i + 1];
         if (behind !== (chs[i].dataset.behind !== undefined)) chs[i].toggleAttribute("data-behind", behind);
-        const cov = behind && (doc[i + 1] - y) <= tt - 40;
+        const cov = behind && (doc[i + 1] - y) <= topOf(i + 1) - 40;
         if (cov !== covered[i]) { covered[i] = cov; chs[i].toggleAttribute("data-covered", cov); }
+        // Once a sheet with no tab has docked under the header, everything under it is put away, tabs
+        // and all, so only the page's own cream shows through the gaps in its torn edge.
+        let gone = false;
+        for (let j = i + 1; j < chs.length; j++) if (!TAB[ORDER[j]] && docked[j]) { gone = true; break; }
+        if (gone !== (chs[i].dataset.gone !== undefined)) chs[i].toggleAttribute("data-gone", gone);
       }
     };
     const ask = () => { if (!raf) raf = requestAnimationFrame(frame); };
@@ -356,19 +369,21 @@ function Ai() {
 
 /* ───────────────────────── The proof: the study, as a comparison ───────────────────────── */
 
-/** The study's result, and what each condition had (see /blog/ai-memory-with-notes: Claude Haiku 5.5,
- *  LoCoMo, 1,540 questions about months of past chats, asked in a new chat; with nothing else it got
- *  18% right; with Pinto Notes connected, where after each chat it had kept its own notes, 82.5%). */
+/** The study's result, and what each condition had (see /blog/ai-memory-with-notes: Claude Haiku 5.5
+ *  both times, LoCoMo, 1,540 questions about months of earlier chats, asked in a new chat; with nothing
+ *  else it answered 18% right; with Pinto Notes connected, where after each chat it had kept its own
+ *  notes, 82.5%). The measure, "questions answered correctly", is the study's "share right". */
 const STUDY = [
   { who: "Claude in a new chat", had: "It had only the new chat.", v: 18, shown: "18%" },
   { who: "Claude with Pinto", had: "It could also read the notes it kept in Pinto after each chat.", v: 82.5, shown: "82.5%" },
 ] as const;
 
-/** A plain white sheet with no tab, torn like the rest and laid under the tabs: the page's one break in
- *  colour and in kind (no card, no show). A heading that says what the numbers show, the two numbers
- *  as a comparison, a bar each, so the gap reads at a glance, each with one line on what Claude had;
- *  then what was asked and who ran it, and the link. The bars grow once as the page lands (with Reduce
- *  Motion they're already full). */
+/** A plain white sheet with no tab, torn like the rest, that rises over the tab strip: the page's one
+ *  break in colour and in kind (no card, no show). A heading that says what the numbers show, a line on
+ *  what was asked (both times a new chat, the same model), the two numbers as a comparison with the
+ *  measure beside them, a bar each, so the gap reads at a glance, each with one light line on what
+ *  Claude had; then who ran it, and the link. The bars grow once as the page lands (with Reduce Motion
+ *  they're already full). */
 function Proof() {
   const [on, setOn] = useState(false);
   useEffect(() => {
@@ -381,18 +396,21 @@ function Proof() {
         <div className={s.proofIn}>
           <div className={s.proofHead} data-fade>
             <h2 id="s-proof-h" className={s.proofTitle}>Claude got far more right when it could read the notes.</h2>
-            <p className={s.proofSay}>The same 1,540 questions about months of past chats, asked in a new chat.</p>
+            <p className={s.proofSay}>1,540 questions about months of earlier chats. Same model both times.</p>
           </div>
+          {/* The measure, over the numbers' column (on a phone, beside each number). Like the heading,
+              each row fades out whole before the next sheet's torn edge reaches it. */}
+          <p className={s.barMeasure} data-fade><span>Questions answered correctly</span></p>
           <dl className={s.bars} data-on={on || undefined}>
             {STUDY.map((r, i) => (
-              <div key={r.who} className={s.barRow} data-pinto={i === 1 || undefined}>
+              <div key={r.who} className={s.barRow} data-pinto={i === 1 || undefined} data-fade>
                 <dt className={s.barWho}><b>{r.who}</b><span>{r.had}</span></dt>
-                <dd className={s.barNum}>{r.shown}</dd>
+                <dd className={s.barNum}>{r.shown}<small className={s.barNumWhat}>answered correctly</small></dd>
                 <dd className={s.barTrack} aria-hidden="true"><i style={{ "--v": r.v / 100 } as React.CSSProperties} /></dd>
               </div>
             ))}
           </dl>
-          <p className={s.proofFoot}>
+          <p className={s.proofFoot} data-fade>
             <span>Claude Haiku 5.5 on the LoCoMo test. Run by the maker of Pinto Notes; the code and every answer are public.</span>
             <a className={s.proofLink} href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true">→</span></a>
           </p>
