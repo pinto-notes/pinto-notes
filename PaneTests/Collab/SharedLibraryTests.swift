@@ -1567,7 +1567,16 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(Set(found.map(\.hash)) == Set(doc.getHistory()))
         #expect(found.first.map { Set([$0.hash]) } == first)
         #expect(found.map(\.bytes).reduce(Data(), +) == blob)
-        #expect(CollabText.changes(in: doc.save()) == nil, "a saved document isn't changes")
+        #expect(CollabText.changes(in: doc.save())?.isEmpty == true, "a saved document holds no loose changes")
+        // A saved document before changes (a catch-up's snapshot in the stored tail): the changes after it.
+        let more = doc.heads()
+        try doc.spliceText(obj: body, start: 0, delete: 0, value: "Shopping\n")
+        doc.commitWith(message: nil)
+        let after = try doc.encodeChangesSince(heads: more)
+        let tail = try #require(CollabText.changes(in: doc.save() + after))
+        #expect(tail.map(\.bytes) == [after])
+        #expect(Set(tail.map(\.hash)) == doc.heads())
+        #expect(CollabText.changes(in: Data([0x85, 0x6F, 0x4A, 0x83, 0, 0, 0, 0, 0, 9])) == nil, "a chunk cut short doesn't parse")
     }
 
     /// collab-fixes-r7b: a snapshot is the saved document, which leaves out a change Automerge
@@ -1830,6 +1839,46 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(again.text == emilSession.text)
         #expect(again.text.hasPrefix("Team\n- Budget\n"))
         #expect(!again.holdsChangesBack)
+    }
+
+    /// collab-opus 4: a catch-up that takes a snapshot keeps the whole saved document in the stored
+    /// tail. A change held back after it was forgotten when the app opened again (the tail didn't
+    /// read as changes), so a snapshot could go up without what it builds on.
+    @Test func aChangeHeldBackAfterACaughtUpSnapshotIsStillHeldAfterARelaunch() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        await hers.catchUp().value
+        sara.transport.deaf = true
+        // A snapshot Sara's device catches up from.
+        type("- [ ] Apples\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        await emilSession.writeSnapshot()
+        await hers.catchUp().value
+        let record = try #require(mine.sharedDocument)
+        #expect(record.tail.count > 9 && record.tail[8] == 0, "the stored tail starts with a saved document")
+        // Then Milk, stored late, and Bread after it.
+        type("- [ ] Milk\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        let milk = try #require(server.updates(of: note.id).last)
+        server.inFlight.insert(milk.id)
+        type("- [ ] Bread\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        await hers.catchUp().value
+        #expect(hers.holdsChangesBack)
+
+        // The app opens again from what's stored (it was quit, not closed: nothing compacted).
+        let copy = SharedDocument(id: note.id, epoch: record.epoch, role: record.role, saved: record.saved, cursor: record.cursor)
+        copy.tail = record.tail
+        copy.tailChanges = record.tailChanges
+        copy.snapshotUpto = record.snapshotUpto
+        let again = try CollabSession.open(record: copy, keys: [1: nk], transport: sara.transport, me: member, name: "Sara")
+        #expect(again.holdsChangesBack, "Bread still waits for Milk")
+        let snapshots = server.snapshots(of: note.id).count
+        await again.requireSnapshot()
+        #expect(server.snapshots(of: note.id).count == snapshots, "no snapshot without Milk")
     }
 
 }

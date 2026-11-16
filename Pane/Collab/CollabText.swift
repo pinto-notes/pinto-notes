@@ -77,8 +77,9 @@ enum CollabText {
     /// Each change in a blob of them (what a device sends: one or more change chunks, one after
     /// another), with its bytes and its hash, so the ones Automerge holds back for a change they
     /// build on can be found and kept. A compressed chunk (Automerge deflates changes over 256
-    /// bytes) is hashed as the change it holds, as Automerge does; its checksum confirms it. Nil
-    /// for anything that isn't changes (a saved document), or bytes that don't parse.
+    /// bytes) is hashed as the change it holds, as Automerge does; its checksum confirms it. A
+    /// saved document among them (a catch-up keeps the snapshot it took in the stored tail) holds
+    /// no loose changes and is stepped over (collab-opus 4). Nil for bytes that don't parse.
     static func changes(in blob: Data) -> [(bytes: Data, hash: ChangeHash)]? {
         let b = [UInt8](blob)
         var out: [(bytes: Data, hash: ChangeHash)] = []
@@ -99,6 +100,9 @@ enum CollabText {
             guard end <= b.count else { return nil }
             let chunk: [UInt8]
             switch type {
+            case 0:
+                i = end
+                continue
             case 1:
                 chunk = Array(b[(i + 8)..<end])
             case 2:
