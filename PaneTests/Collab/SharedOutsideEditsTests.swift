@@ -63,6 +63,48 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(note.body == "Trip\n- [ ] Tickets")
     }
 
+    /// Renaming a note its links name: a shared note's links change in its document, so the other
+    /// person gets them and the next change doesn't put the old link back (1.4 council).
+    @Test func renamingANoteRetargetsItsLinksInASharedNoteForEveryone() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Plans\nSee [[Trip]] soon", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        _ = try #require(sara.library.session(for: mine))
+        let trip = sara.context.createNote(in: .all, body: "Trip\nTickets")
+        try sara.context.save()
+        WikiDirectory.invalidate()
+
+        trip.body = "Holiday\nTickets"
+        #expect(sara.context.retargetWikiLinks(to: trip, renamedFrom: "Trip", library: sara.library) == 1)
+        #expect(mine.body == "Plans\nSee [[Holiday]] soon")
+        await waitUntil { emilSession.text.contains("[[Holiday]]") }
+        #expect(emilSession.text == "Plans\nSee [[Holiday]] soon", "the other person gets it")
+
+        // Emil types after it: Sara's copy keeps the new link.
+        type("\nAnd more", in: emilSession)
+        await waitUntil { mine.body.contains("And more") }
+        #expect(mine.body == "Plans\nSee [[Holiday]] soon\nAnd more", "\(mine.body)")
+        WikiDirectory.invalidate()
+    }
+
+    @Test func renamingANoteLeavesTheLinksInASharedNoteYouCanOnlyView() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, _) = try await shared("Plans\nSee [[Trip]]", on: emil)
+        server.add(member, to: note.id, role: "viewer")
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "viewer")
+        _ = try #require(sara.library.session(for: mine))
+        let trip = sara.context.createNote(in: .all, body: "Trip\nTickets")
+        try sara.context.save()
+        WikiDirectory.invalidate()
+
+        trip.body = "Holiday\nTickets"
+        #expect(sara.context.retargetWikiLinks(to: trip, renamedFrom: "Trip", library: sara.library) == 0)
+        #expect(mine.body == "Plans\nSee [[Trip]]")
+        #expect(server.updates(of: note.id).isEmpty)
+        WikiDirectory.invalidate()
+    }
+
     @Test func anOrdinaryNoteIsWrittenAsBefore() throws {
         let sara = try device(member)
         let note = sara.context.createNote(in: .all, body: "Ideas")

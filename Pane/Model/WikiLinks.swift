@@ -767,9 +767,12 @@ extension ModelContext {
 
     /// After `note` was renamed from `oldTitle`, points the wiki links that led to it under its
     /// old title at its new one, as Obsidian does when a file is renamed. Returns how many notes
-    /// changed. Locked notes can't be read here and keep their links.
+    /// changed. Locked notes can't be read here and keep their links. A shared note's links change
+    /// in its document, as your edit, so the others get them and the next change doesn't put the
+    /// old ones back; one you can only view keeps its links.
     @discardableResult
-    func retargetWikiLinks(to note: Note, renamedFrom oldTitle: String) -> Int {
+    func retargetWikiLinks(to note: Note, renamedFrom oldTitle: String,
+                           library: SharedLibrary? = CollabStore.shared?.library) -> Int {
         let newTitle = note.title
         guard !oldTitle.isEmpty, !newTitle.isEmpty, WikiLinks.key(oldTitle) != WikiLinks.key(newTitle) else { return 0 }
         let before = WikiDirectory.index(self).with(title: oldTitle, for: note.id)
@@ -784,10 +787,29 @@ extension ModelContext {
             candidates = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.contains("[[") }))) ?? []
         }
         for other in candidates where other.id != note.id && other.deletedAt == nil && !other.isLocked && other.body.contains("[[") {
-            let from = folderPath(other.folder)
-            let updated = WikiLinks.retarget(other.body, to: newTitle) { link in
-                WikiLinks.key(link.name) == oldKey && before.resolve(link.target, from: from) == note.id
+            let from = folderPath(other.folder), target = note.id
+            let rewrite = { (body: String) in
+                WikiLinks.retarget(body, to: newTitle) { link in
+                    WikiLinks.key(link.name) == oldKey && before.resolve(link.target, from: from) == target
+                }
             }
+            if other.isShared {
+                switch NoteWrites.change(other, library: library, rewrite) {
+                case .changed: changed += 1
+                case .notReady:
+                    // Its document isn't open here yet: the links change once it is.
+                    guard let library else { break }
+                    Task { @MainActor [weak self] in
+                        guard await library.ensureDocument(other) != nil,
+                              NoteWrites.change(other, library: library, rewrite) == .changed else { return }
+                        try? self?.save()
+                        SyncSignal.changed()
+                    }
+                case .unchanged, .viewOnly: break
+                }
+                continue
+            }
+            let updated = rewrite(other.body)
             guard updated != other.body else { continue }
             other.body = updated
             other.dirty = true

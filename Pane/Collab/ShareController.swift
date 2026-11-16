@@ -105,6 +105,9 @@ final class ShareController {
     func shareLink() async {
         if let link = state.link, state.access != .off {
             sharing = link
+            // A link lasts 7 days from when it was last made: sharing it again renews it while the
+            // sheet opens, so one kept from last week still lets people in.
+            if isOwner { try? await backend.setAccess(state.access, for: note) }
             return
         }
         guard isOwner else { return }

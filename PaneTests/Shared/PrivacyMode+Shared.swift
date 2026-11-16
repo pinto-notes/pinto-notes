@@ -19,7 +19,9 @@ import Foundation
         let m = PrivacyMode.shared
         m.stopWatching()
         m.sharingChanged(false)
+        m.callChanged(false)
         m.setManual(false)
         m.whenShared = .ask
+        m.whenInCall = .ask
     }
 }

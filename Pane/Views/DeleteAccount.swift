@@ -109,8 +109,10 @@ extension Backend {
 }
 
 extension ModelContext {
-    /// Forgets every note, folder and file on this device (after the account is gone).
-    @MainActor func wipeLocalLibrary(files: URL? = nil) {
+    /// Forgets every note, folder and file on this device (after the account is gone), and the
+    /// notebook film made from them. `film`: a test's own folders; a test that hands in its own
+    /// `files` and no `film` leaves the app's film alone.
+    @MainActor func wipeLocalLibrary(files: URL? = nil, film: NotebookFilmStore.Places? = nil) {
         // One by one (a batch delete refuses rows that other rows still point at), and through
         // `erase` so it's SwiftData's delete, not Library's trash(folder) that moves to Recently Deleted.
         func erase<T: PersistentModel>(_ type: T.Type) {
@@ -125,6 +127,7 @@ extension ModelContext {
         AIEditStore.shared.forgetAll()
         NotePageStore.shared.forgetAll()
         NotePageDataStore.shared.forgetAll()
+        if let film = film ?? (files == nil ? NotebookFilmStore.Places() : nil) { NotebookFilmStore.forgetAll(film) }
     }
 }
 

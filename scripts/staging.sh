@@ -53,7 +53,10 @@ save() { (umask 077; print -r -- "$1" >> "$ENVF"); }
 # The Management API, with SUPABASE_ACCESS_TOKEN or the token `supabase login` keeps in the Keychain.
 token() {
   if [[ -n ${SUPABASE_ACCESS_TOKEN:-} ]]; then print -r -- "$SUPABASE_ACCESS_TOKEN"; return; fi
-  local t; t=$(security find-generic-password -s "Supabase CLI" -a access-token -w 2>/dev/null) || { echo "No Supabase token: supabase login" >&2; exit 1; }
+  # Newer CLIs keep it under the account "supabase", older ones under "access-token".
+  local t; t=$(security find-generic-password -s "Supabase CLI" -a supabase -w 2>/dev/null) ||
+    t=$(security find-generic-password -s "Supabase CLI" -a access-token -w 2>/dev/null) ||
+    { echo "No Supabase token: supabase login" >&2; exit 1; }
   t=${t#go-keyring-base64:}; [[ $t == sbp_* ]] || t=$(print -r -- "$t" | /usr/bin/base64 -D)
   print -r -- "$t"
 }

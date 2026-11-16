@@ -23,12 +23,15 @@ extension ShareControllerTests {
         #expect(share.working == nil && share.state.problem == nil)
     }
 
-    /// With a link on, Share Link hands it over at once: no second link, no server call.
+    /// With a link on, Share Link hands it over at once, with no second link, and makes the same
+    /// link again so it lasts another 7 days (council 11-16: a week-old link stopped working).
     @Test func shareLinkWithALinkOnSharesThatLink() async {
         let (share, backend) = Self.controller(Self.owner(link: .view))
+        let link = share.state.link
         await share.shareLink()
-        #expect(backend.calls.isEmpty)
-        #expect(share.sharing == share.state.link)
+        #expect(share.sharing == link)
+        #expect(backend.calls == ["access Can view"])
+        #expect(share.state.link == link)
     }
 
     /// People with the link: Can edit, Can view, Off. Off stops the link (nothing to share);

@@ -712,6 +712,9 @@ async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folde
   return { folder: (await findFolder(tx, c.v, dir, true)).id };
 }
 
+/** The app's "Shared with me" folder, which holds the notes other people shared: never a default place. */
+const isSharedWithMe = (f: { sort_index: number; name: string }) => f.sort_index < 0 && f.name === SHARED_DIR.slice(0, -1);
+
 /** Makes a note at a path; its first line is its name. */
 async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = false): Promise<{ path: string; id: string; checks: string[]; linked_from?: string }> {
   const P = await pathsOf(tx, c);
@@ -727,9 +730,10 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
   }
   // Every note is in a folder, as when the person makes one in the app: a note written at the
   // top goes in the first folder ("Notes"), like a file does (Emil, 12 November 2026: an AI's
-  // note with no folder was unclear).
+  // note with no folder was unclear). Not "Shared with me", which the app makes first in the list
+  // (sort_index -1) and skips the same way (ModelContext.isSharedWithMe).
   if (!parts.length) {
-    parts.push((await folders(tx, c.v)).find((f) => !f.parent_id)?.name ?? "Notes");
+    parts.push((await folders(tx, c.v)).find((f) => !f.parent_id && !isSharedWithMe(f))?.name ?? "Notes");
     if (P.at(parts.concat(name).join("/") + ".md")) throw new ToolError(`"${parts.concat(name).join("/")}.md" already exists. Read it, then change it with edit or write.`);
     if (lockedHere(parts.join("/") + "/")) throw new ToolError("A locked note already has this name. Pick another name, or ask the person to unlock it.");
   }

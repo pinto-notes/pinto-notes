@@ -18,6 +18,8 @@ struct MenuBarPanel: View {
     @State private var saved: String?
     @State private var savedToken = 0
     @FocusState private var fieldFocused: Bool
+    /// Privacy mode: the titles show while you point at the list or the arrows move through it.
+    @State private var reveal = ListTitleReveal()
 
     init(backend: Backend, sync: SyncEngine?, query: String = "") {
         self.backend = backend
@@ -70,6 +72,9 @@ struct MenuBarPanel: View {
                 .padding(6)
             }
             .scrollBounceBehavior(.basedOnSize)
+            // Privacy mode: the titles show while you point at the list or move through it with the arrows.
+            .environment(\.listTitleReveal, reveal)
+            .onHover { reveal.pointer($0) }
             .frame(maxHeight: 440)
             .fixedSize(horizontal: false, vertical: true)
             Divider()
@@ -89,8 +94,8 @@ struct MenuBarPanel: View {
                 .font(.system(size: 14))
                 .focused($fieldFocused)
                 .accessibilityIdentifier("menubar.field")
-                .onKeyPress(.downArrow) { move(1, count: rowCount(rows)); return .handled }
-                .onKeyPress(.upArrow) { move(-1, count: rowCount(rows)); return .handled }
+                .onKeyPress(.downArrow) { reveal.navigated(); move(1, count: rowCount(rows)); return .handled }
+                .onKeyPress(.upArrow) { reveal.navigated(); move(-1, count: rowCount(rows)); return .handled }
                 .onKeyPress(.escape) {
                     if typing { text = ""; return .handled }
                     close(); return .handled
@@ -217,6 +222,7 @@ struct MenuBarPanel: View {
                     Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.secondary)
                 }
                 Text(note.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    .privacyTitleBlur()
             }
             Text(note.preview.isEmpty ? "No additional text" : note.preview)
                 .font(.system(size: 12))
