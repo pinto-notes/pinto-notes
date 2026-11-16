@@ -78,8 +78,12 @@ import SwiftUI
     }
 
     func find(_ id: String) -> Element? {
+        find { Element.string($0.ax, "AXIdentifier") == id }
+    }
+
+    func find(where matches: (Element) -> Bool) -> Element? {
         func search(_ e: AXUIElement, _ depth: Int) -> AXUIElement? {
-            if Element.string(e, "AXIdentifier") == id { return e }
+            if matches(Element(ax: e)) { return e }
             guard depth < 40 else { return nil }
             for k in Element.children(e) { if let hit = search(k, depth + 1) { return hit } }
             return nil

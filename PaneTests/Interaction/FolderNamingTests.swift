@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import ApplicationServices
 import SwiftData
 import SwiftUI
 import Testing
@@ -10,6 +11,31 @@ import Testing
 /// name, Escape keeps the old one, an empty name keeps the old one. The names and the store are
 /// checked as values; the field's keys through its delegate; the field in an offscreen window.
 @MainActor @Suite(.serialized) struct FolderNamingTests {
+    /// A section's header merges into one heading, which hid New Folder from VoiceOver (round 18).
+    @Test func voiceOverReachesNewFolderInTheHeading() async throws {
+        let container = try FolderNamingTests.store()
+        let context = container.mainContext
+        context.createFolder(named: "Work")
+        let ax = OffscreenAX(window: FolderNamingTests.sidebar(container, scope: .constant(.all)))
+        defer { ax.close() }
+        await ax.settle()
+        let heading = try #require(ax.find { $0.role == "AXHeading" && $0.text.contains("Folders") })
+        var names: CFArray?
+        #expect(AXUIElementCopyActionNames(heading.ax, &names) == .success)
+        let actions = names as? [String] ?? []
+        let create = try #require(actions.first { action in
+            var description: CFString?
+            AXUIElementCopyActionDescription(heading.ax, action as CFString, &description)
+            return (description as String?) == "New Folder" || action == "New Folder"
+        })
+        #expect(context.allFolders().map(\.name) == ["Work"])
+        #expect(AXUIElementPerformAction(heading.ax, create as CFString) == .success)
+        for _ in 0..<20 where context.allFolders().count == 1 { await ax.settle(50) }
+        let created = try #require(context.allFolders().first { $0.name == "New Folder" })
+        #expect(created.parent == nil)
+        #expect(context.allFolders().count == 2)
+    }
+
     static func store() throws -> ModelContainer {
         try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     }

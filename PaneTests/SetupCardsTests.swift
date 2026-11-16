@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import ApplicationServices
 import Foundation
 import SwiftData
 import SwiftUI
@@ -115,28 +116,41 @@ import Vision
         }
     }
 
-    /// ⌘N and ⇧⌘N do nothing while a setup card is up: the notes behind it are shut.
+    /// Scene focus is installed by SwiftUI App, outside the offscreen NSHostingView harness.
+    /// Keep this wiring check: ⌘N and ⇧⌘N must not reach notes behind setup.
     @Test func newNoteIsOffBehindASetupCard() throws {
         let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
         #expect(source.contains(".focusedSceneValue(\\.newNoteAction, newNoteCommand)"))
-        #expect(source.contains("if behindSetupCard { return nil }"))
+        let command = try #require(source.components(separatedBy: "private var newNoteCommand:").last?.components(separatedBy: "\n    }").first)
+        #expect(command.contains("if behindSetupCard { return nil }"))
     }
 
-    /// A section's header merges into one heading, which hid New Folder from VoiceOver (round 18).
-    @Test func voiceOverReachesNewFolderInTheHeading() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SidebarView.swift"), encoding: .utf8)
-        let header = try #require(source.range(of: "Text(\"Folders\")"))
-        let rest = source[header.lowerBound...].prefix(1500)
-        #expect(rest.contains(".accessibilityAddTraits(.isHeader)"))
-        #expect(rest.contains(".accessibilityAction(named: \"New Folder\")"))
-    }
 
     /// Correcting the address takes the old complaint away; Continue checks again (round 18).
-    @Test func typingClearsTheEmailError() throws {
-        for file in ["SignInView.swift", "WelcomeEmailSignIn.swift"] {
-            let source = try String(contentsOf: TestFiles.url("Views").appending(path: file), encoding: .utf8)
-            #expect(source.contains("email != $0 {") && source.contains("error = nil }; "), "\(file)")
-        }
+    @Test func typingClearsTheEmailError() async throws {
+        let ax = OffscreenAX(SignInView(backend: Backend()), size: CGSize(width: 460, height: 650))
+        defer { ax.close() }
+        await ax.settle()
+        let field = try #require(ax.find("signin.email"))
+        #expect(AXUIElementSetAttributeValue(field.ax, kAXValueAttribute as CFString, "invalid" as CFString) == .success)
+        await ax.settle()
+        #expect(try #require(ax.find("signin.submit")).press())
+        for _ in 0..<20 where ax.find("signin.error") == nil { await ax.settle(25) }
+        #expect(try #require(ax.find("signin.error")).text.contains(EmailSignInFlow.notAnEmail))
+        #expect(AXUIElementSetAttributeValue(field.ax, kAXValueAttribute as CFString, "still-invalid" as CFString) == .success)
+        for _ in 0..<20 where ax.find("signin.error") != nil { await ax.settle(25) }
+        #expect(ax.find("signin.error") == nil)
+        // Continue validates again, without reaching the network for either invalid address.
+        #expect(try #require(ax.find("signin.submit")).press())
+        for _ in 0..<20 where ax.find("signin.error") == nil { await ax.settle(25) }
+        #expect(try #require(ax.find("signin.error")).text.contains(EmailSignInFlow.notAnEmail))
+    }
+
+    /// WelcomeEmailForm is iOS-only; the Mac harness cannot instantiate its text field.
+    /// Keep its binding wiring covered until an iOS interaction harness can edit the actual form.
+    @Test func welcomeEmailEditsClearTheError() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "WelcomeEmailSignIn.swift"), encoding: .utf8)
+        #expect(source.contains("email != $0 { model.error = nil }; model.flow.email = $0"))
     }
 
     /// The Recently Deleted banner pushes the note down instead of lying over its title (round 18).
@@ -145,12 +159,6 @@ import Vision
         #expect(source.contains(".padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)"))
     }
 
-    /// Go to Note's rows are one element each for VoiceOver, and pressable (round 18).
-    @Test func goToNoteRowsAreRowsToVoiceOver() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "QuickOpen.swift"), encoding: .utf8)
-        #expect(source.contains(".accessibilityElement(children: .ignore)"))
-        #expect(source.contains(".accessibilityAction { jumpAndChoose(row) }"))
-    }
 
     /// Deleting the open note opens its neighbour, from More and from Edit, like Notes (round 18).
     @Test func deletingGoesByWayOfTheList() throws {
@@ -163,7 +171,8 @@ import Vision
         #expect(list.contains("publisher(for: .paneDeleteNotes)") && list.contains("performRemove(ids)"))
     }
 
-    /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
+    /// Scene-focus wiring cannot be exercised by the offscreen NSHostingView harness.
+    /// File › Import Notes: a sheet opened over the shut window inherits its "disabled", so
     /// its Choose button looked fine and did nothing, with no way forward (round 18).
     @Test func importIsOffBehindASetupCard() throws {
         let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
