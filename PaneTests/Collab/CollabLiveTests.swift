@@ -52,7 +52,7 @@ struct CollabLiveTests {
         let published: [Collab.IdentityRow] = try await emil.client.from("identity_keys").select("public_key,private_wrap").execute().value
         #expect(published.first?.public_key == emil.store.identity?.publicBase64)
         let url = try #require(emil.store.linkURL(note))
-        #expect(await sara.store.join(url))
+        #expect(await sara.store.join(url).worked)
         let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.container.mainContext.pointer(forShared: note.id)?.id ?? UUID()))
         #expect(theirs.text == "Offsite plan\n\nAgenda\n")
         let members = try await emil.store.transport!.members(of: note.id)
@@ -104,7 +104,7 @@ struct CollabLiveTests {
         // Eve joins through the link (made again under the new key) and leaves: Emil's device
         // renews the key on its next look at his memberships.
         let link = try #require(emil.store.linkURL(note))
-        #expect(await eve.store.join(link))
+        #expect(await eve.store.join(link).worked)
         let hers = try #require(eve.container.mainContext.pointer(forShared: note.id))
         try await eve.store.leave(hers)
         let marked = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })

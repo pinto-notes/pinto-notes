@@ -46,8 +46,6 @@ final class CollabStore {
     var linkAccess: [UUID: ShareState.Access] = [:]
     /// You left a note: the library takes it out of your notes.
     @ObservationIgnored var onLeft: ((UUID) -> Void)?
-    /// Why the last link didn't open, shown to the person.
-    var joinProblem: String?
     /// Notes you left or were removed from (by the id of the note in your library): they're gone
     /// from your library.
     var removedFrom: Set<UUID> = []

@@ -33,7 +33,7 @@ import Testing
         emil.context.insert(note)
         try await emil.store.setAccess(.edit, for: note)
         let url = try #require(emil.store.linkURL(note))
-        #expect(await sara.store.join(url))
+        #expect(await sara.store.join(url).worked)
         // Both devices are on the note's channel.
         await server.eventually { server.channelCount(note.id) == 2 }
         return (emil, sara, note, (emilID, saraID))
@@ -48,11 +48,11 @@ import Testing
         let hers = try #require(sara.context.pointer(forShared: note.id)?.id)
         let joins = server.calls.filter { $0 == "join_link" }.count
         #expect(sara.store.openNote(forShared: note.id) == hers)
-        #expect(await sara.store.join(url))
+        #expect(await sara.store.join(url).worked)
         #expect(server.calls.filter { $0 == "join_link" }.count == joins)
         #expect(NoteOpener.shared.request == hers)
         // Its owner reopening their own link: the same, by the note's own id.
-        #expect(await emil.store.join(url))
+        #expect(await emil.store.join(url).worked)
         #expect(server.calls.filter { $0 == "join_link" }.count == joins)
         #expect(NoteOpener.shared.request == note.id)
     }
@@ -313,7 +313,7 @@ import Testing
         // The same link still lets someone join, under the new key.
         let jonasID = server.account("Jonas")
         let jonas = try device(jonasID, name: "Jonas")
-        #expect(await jonas.store.join(url))
+        #expect(await jonas.store.join(url).worked)
         let his = jonas.context.pointer(forShared: note.id)?.id ?? UUID()
         await server.eventually { jonas.store.session(for: his)?.text == mine.text }
         #expect(jonas.store.session(for: his)?.text == "Trip\n- after Sara left\n")
@@ -365,7 +365,7 @@ import Testing
         let note = Note(body: "Plan\n")
         emil.context.insert(note)
         try await emil.store.setAccess(.edit, for: note)
-        #expect(await sara.store.join(try #require(emil.store.linkURL(note))))
+        #expect(await sara.store.join(try #require(emil.store.linkURL(note))).worked)
         await server.eventually { server.channelCount(note.id) == 2 }
         try emil.context.save()
         // Emil quits; Sara leaves meanwhile; Emil's app starts again on the same library.
@@ -405,7 +405,7 @@ extension CollabTwoPeopleTests {
         container.mainContext.insert(note)
         try await store.setAccess(.edit, for: note)
         let url = try #require(store.linkURL(note))
-        #expect(await sara.store.join(url))
+        #expect(await sara.store.join(url).worked)
         await server.eventually { server.channelCount(note.id) == 2 }
         let mine = try #require(store.session(for: note.id))
         let theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))

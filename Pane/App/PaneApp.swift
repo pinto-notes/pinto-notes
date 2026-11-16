@@ -220,7 +220,7 @@ struct PaneApp: App {
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
-                    // A note's link opened in the app joins the note (after sign-in, if need be).
+                    // A note's link (handed over by ConnectCenter.receive): joining, its question, the line with Leave.
                     .joinLinkHandler()
                     // Privacy mode's cover, when your screen is shared.
                     .privacyCover()

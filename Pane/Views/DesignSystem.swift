@@ -781,8 +781,13 @@ struct Toast: View {
     enum Kind { case done, working, failed }
     let text: String
     var kind = Kind.done
+    /// Lines the text may wrap to before it's cut (one, unless the words need more on iPhone).
+    var lines = 1
     /// An Undo button after the text, for something that was done at once without asking.
     var undo: (() -> Void)? = nil
+    /// The button's words, when it undoes in other words (Leave, after joining a note).
+    var actionTitle = "Undo"
+    var actionID = "toast.undo"
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
@@ -794,21 +799,23 @@ struct Toast: View {
             }
             Text(text)
                 .foregroundStyle(Color.ink)
-                .lineLimit(1)
+                .lineLimit(lines)
+                .fixedSize(horizontal: false, vertical: lines > 1)
             if let undo {
                 Divider().frame(height: 14)
-                Button("Undo", action: undo)
+                Button(LocalizedStringKey(actionTitle), action: undo)
                     .buttonStyle(.hoverLink)
                     .foregroundStyle(Color.amberInk)
                     .contentShape(.rect)
                     #if os(iOS)
                     .frame(minHeight: 44)
                     #endif
-                    .accessibilityIdentifier("toast.undo")
+                    .accessibilityIdentifier(actionID)
             }
         }
         .font(.system(size: ButtonSize.compact.textSize, weight: .semibold))
         .padding(.horizontal, 16)
+        .padding(.vertical, lines > 1 ? 8 : 0)
         .frame(minHeight: 40)
         // Solid, so the note behind never shows through.
         .background(Color.card, in: shape)
