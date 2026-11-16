@@ -27,7 +27,7 @@ import Testing
 
     /// The pins the page was last sent.
     private static func pins(_ canvas: CanvasController) -> [BoardComments.Pin] {
-        for c in canvas.sent.reversed() { if case .comments(let pins, _, _, _, _, _) = c { return pins } }
+        for c in canvas.sent.reversed() { if case .comments(let pins, _, _, _, _, _, _) = c { return pins } }
         return []
     }
 
@@ -151,7 +151,7 @@ import Testing
         let e = try people.session(emil, note), s = try people.session(others[0], note)
         let mine = page(e, note: note.id), theirs = page(s, note: UUID())
         #expect(!theirs.canComment && theirs.viewOnly)
-        guard case .comments(_, _, _, _, let can, _)? = theirs.sent.last(where: { if case .comments = $0 { true } else { false } }) else {
+        guard case .comments(_, _, _, _, let can, _, _)? = theirs.sent.last(where: { if case .comments = $0 { true } else { false } }) else {
             Issue.record("the page wasn't told"); return
         }
         #expect(!can)

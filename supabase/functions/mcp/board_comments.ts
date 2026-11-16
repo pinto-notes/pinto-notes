@@ -173,7 +173,7 @@ export function merge(stored: Stored[], wanted: unknown, who: Writer, elements: 
     if (had) {
       // A thread resolved. What someone wrote stays as they wrote it.
       if (!had.thread && o.resolved === true && !had.resolved) {
-        const c = { ...had, resolved: true, version: (had.version ?? 1) + 1 };
+        const c = { ...had, resolved: true, version: Math.min((had.version ?? 1) + 1, MAX_VERSION) };
         changed.push(c);
         byId.set(c.id, c);
       } else if (typeof o.text === "string" && o.text !== had.text && !(had.deleted && !o.text)) {

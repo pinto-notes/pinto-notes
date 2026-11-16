@@ -69,10 +69,15 @@ final class CollabSession {
     /// The shared note (`shared_notes.id`): what's sealed and sent. Not always the id of the note
     /// in your library (SharedNotes.noteID).
     let noteID: UUID
-    /// Your role in the note, once the members have loaded: owner, editor or viewer.
+    /// Your role in the note, once the members have loaded: owner, editor, commenter or viewer.
     var myRole: String? { members.first { $0.id == me }?.role }
-    /// A viewer reads; the server refuses their changes, so the editor doesn't take any.
-    var isViewOnly: Bool { (myRole ?? role) == "viewer" }
+    /// A viewer reads; the server refuses their changes, so the editor doesn't take any. A
+    /// commenter (a whiteboard's Can comment) reads the drawing the same way, and writes comments.
+    var isViewOnly: Bool { (myRole ?? role) == "viewer" || isCommenter }
+    /// Can comment: comments on the board, and nothing of the drawing.
+    var isCommenter: Bool { (myRole ?? role) == "commenter" }
+    /// May write comments on this whiteboard: its owner, an editor or a commenter.
+    var canComment: Bool { isBoard && !isClosed && ["owner", "editor", "commenter"].contains(myRole ?? role) }
     /// Your role as this device last knew it (`SharedDocument.role`).
     private(set) var role: String
     /// Closed for good (you left the note, or were removed, or signed out), or its storage went
@@ -128,8 +133,27 @@ final class CollabSession {
     @ObservationIgnored var onBoardPeople: (([BoardPerson]) -> Void)?
     /// Someone's laser trail, the points it went through since their last beat (board coordinates).
     @ObservationIgnored var onBoardLaser: ((UUID, [CGPoint]) -> Void)?
-    /// The board's comments as the document holds them (BoardComments), each conflict resolved.
+    /// The board's comments (BoardComments.fold): the document's old map, the comment stream, and
+    /// yours still to send.
     @ObservationIgnored private(set) var boardComments: [BoardComment] = []
+    /// The comment stream (`note_comments`) as this device holds it, in order of id: kept with the
+    /// document (`SharedDocument.commentRows`), each entry opened once its key is here.
+    @ObservationIgnored private var commentEntries: [SharedDocument.Kept] = []
+    @ObservationIgnored private var commentIDs: Set<Int64> = []
+    /// The opened entries, read once each.
+    @ObservationIgnored private var commentParsed: [Int64: BoardComments.Entry] = [:]
+    /// The stream changed since it was last written into the document's record.
+    @ObservationIgnored private var commentsDirty = false
+    @ObservationIgnored private var sendingComments = false
+    @ObservationIgnored private var commentRetry: Task<Void, Never>?
+    @ObservationIgnored private var commentDelay: Duration = .seconds(2)
+    /// The stream was read from the server since the session started: what this device restates
+    /// is measured against it.
+    @ObservationIgnored private var commentsPulled = false
+    /// A comment the server had no room for (`comments_full`): the board says so.
+    @ObservationIgnored var onCommentsRefused: ((String) -> Void)?
+    /// A comment entry is at most this big sealed (note_comments.ct); a restatement is split to fit.
+    static let maxComment = 65_536
     /// Hands the board's comments to the open board whenever they change (someone else's, or yours).
     @ObservationIgnored var onBoardComments: (([BoardComment]) -> Void)?
     /// The document on this device (SwiftData): saved as it changes, so it opens offline and
@@ -258,8 +282,11 @@ final class CollabSession {
         try doc.spliceText(obj: body, start: 0, delete: 0, value: initial)
         if let scene {
             try CollabBoard.create(in: doc, scene: scene)
+            // The old comments map, empty: a test build from before Can comment writes its comments
+            // there, and two of them adding the first at once then write into the same one.
             _ = try doc.putObject(obj: .ROOT, key: BoardComments.key, ty: .Map)
-            try BoardComments.put(comments, in: doc)
+            // The board's comments go up in the stream, as the owner's (a move, so each keeps its writer).
+            if !comments.isEmpty { record.pendingComments = BoardComments.chunks(comments, moved: true) }
         }
         doc.commitWith(message: CollabHistory.stamp(me))
         record.saved = doc.save()
@@ -334,8 +361,10 @@ final class CollabSession {
         if let boardObj {
             boardEntries = CollabBoard.entries(in: doc, boardObj)
             boardSettings = CollabBoard.settings(in: doc)
-            boardComments = BoardComments.read(doc)
         }
+        commentEntries = record.keptComments
+        commentIDs = Set(commentEntries.map(\.id))
+        if boardObj != nil { boardComments = foldedComments() }
         isSent = record.outbox.isEmpty
         // Changes typed here before (offline, then the app quit) still wait.
         if !isSent { waitingSince = .now }
@@ -393,6 +422,8 @@ final class CollabSession {
         saveSoon()
         sendPresence()
         flush()
+        // Comment entries sealed under it that came before it did, and the comments carried over.
+        if isBoard { openComments(); flushComments() }
         // The board's pictures, sealed again under the new key by an editor who has both.
         if isBoard { syncPictures() }
     }
@@ -427,6 +458,7 @@ final class CollabSession {
         // Catch up on anything that landed while this device was away, and send what was typed meanwhile.
         catchUp()
         flush()
+        flushComments()
         // A board's pictures this device doesn't have yet, and what the server has of them.
         if isBoard { fetchPictures(); syncPictures() }
         // Presence is re-sent now and then, so someone who joins later sees you without waiting.
@@ -450,6 +482,8 @@ final class CollabSession {
     func disconnect() {
         pictureRetry?.cancel()
         pictureRetry = nil
+        commentRetry?.cancel()
+        commentRetry = nil
         presenceTask?.cancel()
         pointerTask?.cancel()
         pointerTask = nil
@@ -463,6 +497,7 @@ final class CollabSession {
         peers = [:]
         guard !isClosed else { return }
         compact()
+        keepComments()
         record.modelContext?.saveSoon()
     }
 
@@ -563,11 +598,17 @@ final class CollabSession {
         aiLanded()
         if let ai { aiArrived(ai.update, before: ai.before, board: ai.board) }
         scheduleSnapshot()
+        await pullComments()
     }
 
     private func receive(_ event: Collab.Event) {
         guard !isClosed else { return }
         switch event {
+        case .comment(let row):
+            guard takeComment(row) else { return }
+            CollabScript.trace("relay: comment entry \(row.id) \(row.author_id == me ? "yours" : "someone else's")")
+            commentsChanged()
+            saveSoon()
         case .update(let u):
             let before = text
             let boardBefore = boardEntries
@@ -955,39 +996,206 @@ final class CollabSession {
 
     @ObservationIgnored private var boardSettleTask: Task<Void, Never>?
 
-    // MARK: Comments
+    // MARK: Comments (the comment stream, Can comment)
 
-    /// The document's comments changed from outside: read again, and to the open board.
-    private func commentsChanged() {
-        guard isBoard else { return }
-        let now = BoardComments.read(doc)
-        guard now != boardComments else { return }
-        boardComments = now
-        onBoardComments?(now)
+    /// The board's comments as every device folds them: the document's old map, the stream's
+    /// entries this device opened, then yours still to send.
+    private func foldedComments() -> [BoardComment] {
+        BoardComments.fold(legacy: BoardComments.read(doc), entries: openedComments() + record.pendingComments.map {
+            BoardComments.entry($0, author: me.uuidString, role: myRole ?? role)
+        })
     }
 
-    /// Comments of yours (new ones, replies, a thread resolved or opened again) into the document,
-    /// as one change, and up as the drawing goes. A viewer's go nowhere (BoardComments).
-    func commentLocal(_ comments: [BoardComment]) {
-        guard !isClosed, isBoard, !comments.isEmpty, record.canEdit, !isViewOnly else { return }
-        let before = doc.heads()
-        let change: Data
+    /// The stream's opened entries, in order; `epoch`: only those under that key.
+    private func openedComments(epoch: Int? = nil) -> [BoardComments.Entry] {
+        commentEntries.compactMap { k in
+            guard epoch == nil || k.epoch == epoch else { return nil }
+            if let e = commentParsed[k.id] { return e }
+            guard let plain = k.plain else { return nil }
+            let e = BoardComments.entry(Data(plain.utf8), author: k.author.uuidString, role: k.role)
+            commentParsed[k.id] = e
+            return e
+        }
+    }
+
+    /// The comments changed (the document's old map, the stream, or yours): folded again, and to
+    /// the open board. An owner's or editor's device then moves what the stream doesn't hold yet.
+    private func commentsChanged() {
+        guard isBoard else { return }
+        let now = foldedComments()
+        if now != boardComments {
+            boardComments = now
+            onBoardComments?(now)
+        }
+        restateComments()
+    }
+
+    /// One entry from the server into the stream here (from a pull, the channel, or your own
+    /// send coming back), opened when its key is here. Returns whether it was new.
+    @discardableResult
+    private func takeComment(_ row: Collab.CommentRow, plain: Data? = nil) -> Bool {
+        guard row.note_id == noteID, !commentIDs.contains(row.id), !isClosed else { return false }
+        commentIDs.insert(row.id)
+        var k = SharedDocument.Kept(id: row.id, author: row.author_id, role: row.role, epoch: row.epoch, plain: nil, ct: row.ct, client: row.client)
+        let opened = plain ?? keys[row.epoch].flatMap { try? CollabCrypto.open(.comment, row.ct, nk: $0, note: noteID, extra: row.author_id.uuidString) }
+        if let opened {
+            k.plain = String(decoding: opened, as: UTF8.self)
+            k.ct = nil
+        } else {
+            log.error("a comment entry sealed with a key this device doesn't hold (epoch \(row.epoch))")
+        }
+        if let i = commentEntries.firstIndex(where: { $0.id > row.id }) { commentEntries.insert(k, at: i) } else { commentEntries.append(k) }
+        commentsDirty = true
+        return true
+    }
+
+    /// Entries kept sealed until a key that opens them came (a new key, taken after them).
+    private func openComments() {
+        var any = false
+        for i in commentEntries.indices where commentEntries[i].plain == nil {
+            let k = commentEntries[i]
+            guard let key = keys[k.epoch], let ct = k.ct,
+                  let opened = try? CollabCrypto.open(.comment, ct, nk: key, note: noteID, extra: k.author.uuidString) else { continue }
+            commentEntries[i].plain = String(decoding: opened, as: UTF8.self)
+            commentEntries[i].ct = nil
+            any = true
+        }
+        if any { commentsDirty = true; commentsChanged() }
+    }
+
+    /// The stream into the document's record, when it changed.
+    private func keepComments() {
+        guard commentsDirty, !isClosed else { return }
+        record.keptComments = commentEntries
+        commentsDirty = false
+    }
+
+    /// Every entry after this device's cursor. Ids follow commit order (the guard takes the note's
+    /// row first), so what's after the newest one pulled is all that's new.
+    private func pullComments() async {
+        guard !isClosed, isBoard else { return }
+        let rows: [Collab.CommentRow]
         do {
-            try BoardComments.put(comments, in: doc)
-            doc.commitWith(message: CollabHistory.stamp(me), timestamp: now())
-            change = try doc.encodeChangesSince(heads: before)
+            rows = try await transport.comments(note: noteID, after: record.commentCursor)
         } catch {
-            log.error("a comment didn't go in: \(String(describing: error), privacy: .public)")
             return
         }
-        guard !change.isEmpty else { return }
-        keep(change)
-        record.enqueue(change)
-        setSent(false)
-        typedHere = true
-        saveSoon()
-        flush()
+        guard !isClosed else { return }
+        var changed = false
+        for r in rows where takeComment(r) { changed = true }
+        if let last = rows.last { record.commentCursor = max(record.commentCursor, last.id) }
+        if !rows.isEmpty { CollabScript.trace("catch-up took \(rows.count) comment entr\(rows.count == 1 ? "y" : "ies")") }
+        commentsPulled = true
+        if changed { saveSoon() }
         commentsChanged()
+    }
+
+    /// Comments of yours (a new one, a reply, an edit, a delete, a thread resolved or opened
+    /// again): one entry in the board's comment stream, up as soon as it can go. Your words are
+    /// read only from entries of yours; a resolve counts from anyone who may comment. A viewer's
+    /// go nowhere.
+    func commentLocal(_ comments: [BoardComment]) {
+        guard !isClosed, isBoard, !comments.isEmpty, canComment else { return }
+        record.pendingComments.append(contentsOf: BoardComments.chunks(comments))
+        saveSoon()
+        commentsChanged()
+        flushComments()
+    }
+
+    /// Your comment entries waiting to go up.
+    var unsentComments: Int { isClosed ? 0 : record.pendingComments.count }
+
+    /// Sends your waiting comment entries, oldest first. Offline, they stay, saved, and go when the
+    /// server answers again.
+    private func flushComments() {
+        guard !isClosed, isBoard, !sendingComments, !record.pendingComments.isEmpty else { return }
+        guard canComment else {
+            // A viewer's (Can view now): refused by the server, so dropped.
+            record.pendingComments = []
+            commentsChanged()
+            return
+        }
+        sendingComments = true
+        Task { [weak self] in
+            guard let self else { return }
+            let outcome = await sendComments()
+            sendingComments = false
+            guard !isClosed else { return }
+            saveSoon()
+            switch outcome {
+            case .done:
+                commentDelay = .seconds(2)
+                if !record.pendingComments.isEmpty { flushComments() } else { restateComments() }
+            case .later:
+                guard commentRetry == nil else { return }
+                let delay = commentDelay
+                commentDelay = min(commentDelay * 2, .seconds(60))
+                commentRetry = Task { [weak self] in
+                    try? await Task.sleep(for: delay)
+                    guard let self, !Task.isCancelled else { return }
+                    commentRetry = nil
+                    flushComments()
+                }
+            case .stop:
+                break
+            }
+        }
+    }
+
+    private func sendComments() async -> SendOutcome {
+        while let entry = record.pendingComments.first {
+            guard let ct = try? CollabCrypto.seal(.comment, entry, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return .stop }
+            do {
+                let row = try await transport.send(comment: ct, note: noteID, epoch: epoch)
+                guard !isClosed else { return .stop }
+                if record.pendingComments.first == entry { record.pendingComments.removeFirst() }
+                takeComment(row, plain: entry)
+                commentsChanged()
+            } catch let failure as Collab.Failure {
+                switch failure {
+                case .staleEpoch:
+                    // Kept, and sent again sealed with the new key once the library has it.
+                    onKeyChanged?()
+                    return .stop
+                case .readOnly:
+                    setRole("viewer")
+                    record.pendingComments = []
+                    commentsChanged()
+                    return .stop
+                case .notMember:
+                    onRemoved?()
+                    return .stop
+                case .commentsFull:
+                    record.pendingComments.removeFirst()
+                    commentsChanged()
+                    onCommentsRefused?(failure.errorDescription ?? "")
+                default:
+                    log.error("sending a comment failed: \(String(describing: failure), privacy: .public)")
+                    return .later
+                }
+            } catch {
+                return .later
+            }
+        }
+        return .done
+    }
+
+    /// An owner's or editor's device puts into the stream, under the note's current key, every
+    /// comment that someone reading only the stream with that key wouldn't see as it is: the old
+    /// map's (the first time a board opens on this version, and whatever a build from before Can
+    /// comment writes there since), and those under an older key (after someone was removed, for
+    /// the people who hold only the new one). One "moved" entry; nothing when there's nothing new.
+    /// Only once the document and the stream are both read, and with nothing of yours waiting.
+    private func restateComments() {
+        guard !isClosed, isBoard, canWrite, pulled, commentsPulled, !missing, !sendingComments, record.pendingComments.isEmpty else { return }
+        let full = BoardComments.fold(legacy: BoardComments.read(doc), entries: openedComments())
+        let bare = BoardComments.fold(legacy: [], entries: openedComments(epoch: epoch))
+        let moved = BoardComments.toRestate(full: full, bare: bare)
+        guard !moved.isEmpty else { return }
+        CollabScript.trace("comments moved into the stream: \(moved.count)")
+        record.pendingComments = BoardComments.chunks(moved, moved: true)
+        saveSoon()
+        flushComments()
     }
 
     /// Someone's colour on this board ("#RRGGBB"), for their comments' pins: the one their pointer
@@ -1549,6 +1757,7 @@ final class CollabSession {
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(DebouncedSave.delay))
             guard let self, !Task.isCancelled, !isClosed else { return }
+            keepComments()
             record.modelContext?.saveSoon()
         }
     }

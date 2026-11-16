@@ -51,6 +51,7 @@ async function server(o: { role?: string; known?: boolean; board?: boolean; otp?
     head_ct: await seal3("h", new TextEncoder().encode(JSON.stringify({ title: "Launch plan" })) as Bytes, nk, NOTE, 1),
   };
   const calls: Call[] = [];
+  let commentID = 0;
   const reply = (r: Reply) => new Response(JSON.stringify(r.json), { status: r.status ?? 200, headers: { "content-type": "application/json" } });
   const f = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input), body = typeof init?.body === "string" ? init.body : "";
@@ -65,6 +66,13 @@ async function server(o: { role?: string; known?: boolean; board?: boolean; otp?
     if (path.startsWith("/rest/v1/note_snapshots")) return reply({ json: [] });
     if (path.startsWith("/rest/v1/note_updates")) return reply({ json: Number(/id=gt\.(\d+)/.exec(path)?.[1] ?? 0) < 1 ? [update] : [] });
     if (path === "/rest/v1/rpc/collab_members") return reply({ json: [] });
+    if (path === "/rest/v1/rpc/collab_link_comments") return reply({ json: { comments: [], more: false } });
+    if (path.startsWith("/rest/v1/note_comments") && init?.method === "POST") {
+      const r = JSON.parse(body);
+      const row = { id: ++commentID, author_id: "22222222-2222-4222-8222-222222222222", role: o.member ?? "viewer", epoch: r.epoch, ct: r.ct, client: null };
+      return reply({ status: 201, json: row });
+    }
+    if (path.startsWith("/rest/v1/note_comments")) return reply({ json: [] });
     return reply({ status: 404, json: { message: "not here" } });
   }) as typeof fetch;
   return { f, calls, lk };
@@ -203,6 +211,36 @@ describe("a whiteboard's link in the browser", () => {
     expect(c.comments.author).toEqual({ id: "22222222-2222-4222-8222-222222222222", name: "Sara" });
     expect(seen.some(([tools]) => tools)).toBe(true);
     expect(seen.filter(([tools, told]) => tools && !told)).toEqual([]);
+  });
+
+  it("a Comment link opens read only and offers Sign in to comment", async () => {
+    const c = controller((await server({ role: "commenter" })).f);
+    await c.open();
+    expect([c.phase, c.linkRole, c.canComment, c.offersSignIn]).toEqual(["board", "commenter", false, true]);
+    expect([c.signInLabel, c.accessLine]).toEqual(["Sign in to comment", "View only until you sign in"]);
+    expect(c.comments.canComment).toBe(false);
+  });
+
+  it("someone who can comment opens the board view only, with no tools; their comment goes to the comment stream, not the drawing", async () => {
+    const storage = new Memory();
+    storage.setItem("pinto.connect.session", JSON.stringify({ access_token: "at", refresh_token: "rt", user_id: "22222222-2222-4222-8222-222222222222", email: "sara@example.com" }));
+    const { f, calls } = await server({ role: "commenter", member: "commenter", name: "Sara Berg" });
+    const c = controller(f, { storage });
+    const sent: Record<string, unknown>[] = [];
+    c.attach((m) => sent.push(m));
+    c.fromCanvas({ load: "1" });
+    await c.open();
+    expect([c.role, c.canEdit, c.canComment, c.offersSignIn, c.accessLine]).toEqual(["commenter", false, true, false, "Can comment"]);
+    expect(c.comments.canComment).toBe(true);
+    // The canvas stays view only, and is told comments go on it there.
+    expect(sent.filter((m) => m.op === "shared").every((m) => m.viewOnly === true)).toBe(true);
+    expect(sent.filter((m) => m.op === "comments").at(-1)).toMatchObject({ can: true, inView: true });
+    c.comments.fromPage({ new: { on: "mac-1", x: 1, y: 0 } });
+    expect(c.comments.post("Can we move this?")).toBeTruthy();
+    await vi.waitFor(() => expect(calls.some((x) => x.url.includes("/rest/v1/note_comments") && x.body.includes("amb3c.1."))).toBe(true));
+    expect(calls.some((x) => x.url.includes("/rest/v1/note_updates") && x.body)).toBe(false);
+    expect(calls.map((x) => x.body).join("\n")).not.toContain("Can we move this?");
+    expect(c.comments.comments.map((x) => x.text)).toEqual(["Can we move this?"]);
   });
 
   it("cancelling the sign-in leaves the board as it was", async () => {

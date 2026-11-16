@@ -378,6 +378,56 @@ import WebKit
         #expect(try await Self.pins(j)["c-box"]?["shown"] as? Bool == true, "viewers read comments")
     }
 
+    /// Can comment: the drawing is view only, and the Comment tool still places a comment (from the
+    /// app, C, or the page's button); the drawing tools stay away, and the Comment button pressed
+    /// again puts it down. On a board with no comments yet, as a reviewer first opens it.
+    @Test func aCommenterCommentsOnAViewOnlyBoard() async throws {
+        let j = try await joined()
+        defer { j.close() }
+        j.canvas.share(true, viewOnly: true)
+        j.canvas.setCanComment(true)
+        for _ in 0..<100 where try await j.js("amber._canvas.api.getAppState().viewModeEnabled") as? Bool != true { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(j.canvas.commentsOnly)
+        // A page that loads afresh, as a reviewer first opens the board: it starts knowing nothing
+        // of Can comment, and the app tells it, though the board has no comments yet.
+        _ = try await j.js("amber._canvasCommand({ op: 'comments', pins: [], can: true }); 1")
+        j.canvas.receive(["load": "again"])
+        try await Task.sleep(for: .milliseconds(100))
+        // The browser's Comment button: on, then off again.
+        #expect(try await j.js("amber._canvasCommand({ op: 'tool', tool: 'comment' })") as? Bool != false)
+        await j.until("the Comment tool is picked on a view-only board") { j.canvas.state.tool == .comment }
+        #expect(try await j.js("amber._canvasCommand({ op: 'tool', tool: 'comment', on: false })") as? Bool != false)
+        await j.until("the button pressed again puts it down") { j.canvas.state.tool != .comment }
+        // A drawing tool does nothing here.
+        _ = try await j.js("amber._canvasCommand({ op: 'tool', tool: 'rectangle' }); 1")
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(try await j.js("amber._canvas.api.getAppState().activeTool.type") as? String != "rectangle")
+        // C, then a click on the box: a comment on it, nothing drawn.
+        _ = try await j.js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true })); 1")
+        await j.until("C picks it") { j.canvas.state.tool == .comment }
+        // The engine's tool on a view-only board is the hand (a drag pans it): the Comment tool
+        // stays through a pan (the browser's put it down at once).
+        _ = try await j.js("(() => { const a = amber._canvas.api; a.setActiveTool({ type: 'hand' }); a.updateScene({ appState: { scrollX: a.getAppState().scrollX + 1 } }); return 1; })()")
+        for _ in 0..<20 where try await j.js("amber._canvas.api.getAppState().activeTool.type") as? String != "hand" { try await Task.sleep(for: .milliseconds(30)) }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(j.canvas.state.tool == .comment, "a pan on a view-only board keeps the Comment tool")
+        let at = try await Self.viewport(j, 150, 145)
+        _ = try await j.js("""
+        (() => { const c = document.querySelector('canvas.excalidraw__canvas.interactive') || document.querySelectorAll('canvas')[1];
+          c.dispatchEvent(new PointerEvent('pointerdown', { clientX: \(at.x), clientY: \(at.y), bubbles: true, cancelable: true, button: 0, pointerType: 'mouse', isPrimary: true })); return 1; })()
+        """)
+        await j.until("a new comment, on the box") { j.canvas.draft != nil }
+        #expect(j.canvas.draft?.on == "box")
+        #expect(try await j.js("amber._canvas.api.getSceneElements().length") as? Int == 2, "nothing drawn")
+        let c = try #require(j.canvas.post("Can this be wider?"))
+        for _ in 0..<50 where try await Self.pins(j)[c.id] == nil { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await Self.pins(j)[c.id]?["shown"] as? Bool == true)
+        // Made a viewer: the tool goes.
+        j.canvas.setCanComment(false)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await j.js("amber._canvasCommand({ op: 'tool', tool: 'comment' })") as? Bool == false)
+    }
+
     /// Comments are not part of the drawing: the PNG, SVG and .excalidraw file leave them out, and
     /// the drawing the page keeps has none.
     @Test func picturesAndFilesLeaveCommentsOut() async throws {
@@ -617,7 +667,9 @@ import WebKit
             let answer = BoardComment(id: "c-ready-1", thread: "c-ready", by: "me", name: "Emil", text: "Yes. I'll add an arrow from the inbox.", created: ago(31))
             // An AI's reply in the thread: its own mark, in neutral colours (round 12).
             // It comes with its change (below), so it offers Show change (round 14).
-            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: Self.claudesReply, created: ago(0.2))
+            // Claude's reply keeps what its write changed (the box and the arrow), for Show change.
+            let aiReply = BoardComment(id: "c-ready-1b", thread: "c-ready", by: "me", name: "Emil", ai: "Claude", text: Self.claudesReply, created: ago(0.2),
+                                       changes: Self.claudesChange.compactMap { $0["id"] as? String })
             let ai = BoardComment(id: "c-publish", on: "fix", x: 1, y: 0, by: "me", name: "Emil", ai: "Claude", text: "Fix it has no owner yet. Sara reviewed the last three drafts: should it be her?", created: ago(12))
             let old = BoardComment(id: "c-old", on: "draft", x: 1, y: 0, by: "me", name: "Emil", text: "Split Draft in two?", created: ago(60 * 26), resolved: true, version: 2)
             NotePageDataStore.shared.set(note.id, BoardComments.keeping([ask, answer, aiReply, ai, old], in: ["values": ["scene": CanvasNativeUITests.flowchart], "collections": [String: Any]()]))
@@ -706,7 +758,7 @@ import WebKit
                 for _ in 0..<100 where canvas.commentAnchor == nil || canvas.commentAround.on == nil { await MacWindowChromeTests.settle(w, 1) }
                 await MacWindowChromeTests.settle(w, 6)
                 let thread = try await Self.popover(BoardThreadView(canvas: canvas, id: "c-ready"), dark: dark)
-                #expect(canvas.change(for: aiReply) != nil, "Claude's reply offers Show change")
+                #expect(canvas.changeLink(for: aiReply) != nil && canvas.changeLink(for: aiReply) != .gone, "Claude's reply offers Show change")
                 @MainActor func hang(_ popover: NSBitmapImageRep) throws -> (frame: CGRect, edge: Edge, anchor: CGRect) {
                     let anchor = try #require(canvas.commentAnchor)
                     let scale = popover.size.width > 0 ? CGFloat(popover.pixelsWide) / popover.size.width : 2
@@ -723,13 +775,15 @@ import WebKit
                 let hung = try hang(thread)
                 try write(try board(try Self.hung(thread, at: hung.frame, edge: hung.edge, anchor: hung.anchor, on: try await capture(), size: w.frame.size, dark: dark)), "comments-2-thread-open")
 
-                // Show change on Claude's reply: its change outlined again with its name, in view.
-                let mark = try #require(canvas.change(for: aiReply), "Claude's reply has its change")
+                // Show change on Claude's reply: all of its change outlined again, the arrow too
+                // (round 14, comments-4), with its name, in view.
+                guard case .show(let mark)? = canvas.changeLink(for: aiReply) else { Issue.record("Claude's reply has its change"); return }
+                #expect(Set(mark.ids) == ["inbox", "inbox-idea"])
                 _ = try await web.evaluateJavaScript("amber._canvas.api.updateScene({ appState: { scrollX: -1400, scrollY: 400 } }); 1")
                 canvas.closeThread()
                 canvas.show(mark)
                 for _ in 0..<100 where canvas.highlight?.by != "Claude" { await MacWindowChromeTests.settle(w, 1) }
-                #expect(canvas.highlight?.by == "Claude" && canvas.highlight?.boxes.count == 1, "outlined again: \(String(describing: canvas.highlight))")
+                #expect(canvas.highlight?.by == "Claude" && canvas.highlight?.boxes.count == 2, "the box and the arrow, outlined: \(String(describing: canvas.highlight))")
                 _ = try? await CanvasNativeUITests.settledView(w, web)
                 try write(try board(try await capture()), "comments-4-show-change")
                 canvas.highlight = nil

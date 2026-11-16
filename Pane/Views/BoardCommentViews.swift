@@ -195,8 +195,15 @@ struct BoardCommentRow: View {
                         .textSelection(.enabled)
                         .accessibilityIdentifier("comment.text")
                     // An AI's reply about its change: that change, outlined and brought into view
-                    // (round 13: "nothing in the thread links to the change").
-                    if let change = canvas.change(for: comment) {
+                    // (round 13: "nothing in the thread links to the change"), after reopening too;
+                    // when it's gone from the board, the thread says so (round 14).
+                    if canvas.changeLink(for: comment) == .gone {
+                        Text(CanvasController.changeGone)
+                            .font(BoardCommentUI.metaFont)
+                            .foregroundStyle(Color.muted)
+                            .padding(.top, 2)
+                            .accessibilityIdentifier("comment.changeGone")
+                    } else if case .show(let change)? = canvas.changeLink(for: comment) {
                         Button {
                             #if os(iOS)
                             canvas.closeThread()
@@ -489,7 +496,7 @@ struct BoardCommentsList: View {
             .padding(.horizontal, 14)
             .padding(.top, 12)
             .padding(.bottom, 4)
-            if canvas.canComment, !canvas.viewOnly {
+            if canvas.canComment {
                 Button { canvas.newComment() } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "plus.bubble")

@@ -3,14 +3,14 @@
 // Chromium, no window. The app's side is PaneTests/Collab/BoardWebLiveTests.swift; the two meet
 // through files in <dir> (that test says what each one writes).
 //
-//   deno run -A scripts/board-web-e2e.ts <site url> <dir> <email>
+//   deno run -A scripts/board-web-e2e.ts <site url> <dir> <email> <commenter's email>
 //   env: API_URL, MAILPIT_URL (from `supabase status -o env`)
 //
 // Pictures go to build/repro/board-web/.
 /// <reference lib="dom" />
 import { chromium, type Frame, type Page } from "npm:playwright-core@1.63.0";
 
-const [site, dir, email] = Deno.args;
+const [site, dir, email, commenterEmail] = Deno.args;
 const API = Deno.env.get("API_URL")!, MAIL = Deno.env.get("MAILPIT_URL")!;
 for (const u of [API, site, MAIL]) if (!/^http:\/\/127\.0\.0\.1:\d+\/?$/.test(u)) throw new Error(`not a local address: ${u}`);
 const OUT = new URL("../build/repro/board-web/", import.meta.url).pathname;
@@ -49,6 +49,31 @@ const elements = (page: Page) => canvas(page).evaluate(() => {
   const c = (window as unknown as { amber: { _canvas?: { api: { getSceneElements(): El[] } } } }).amber._canvas;
   return c ? c.api.getSceneElements().map((e) => ({ id: e.id, type: e.type, x: Math.round(e.x) })) : [];
 });
+
+/** Where an element's middle is on the page (the board is in a frame). */
+async function onPage(page: Page, id: string): Promise<{ x: number; y: number }> {
+  const box = (await page.locator('iframe').first().boundingBox())!;
+  const p = await canvas(page).evaluate((id) => {
+    const api = (window as unknown as { amber: { _canvas: { api: { getAppState(): { zoom: { value: number }; scrollX: number; scrollY: number; offsetLeft: number; offsetTop: number }; getSceneElements(): { id: string; x: number; y: number; width: number; height: number }[] } } } }).amber._canvas.api;
+    const s = api.getAppState(), z = s.zoom.value, e = api.getSceneElements().find((x) => x.id === id)!;
+    return { x: (e.x + e.width * 0.3 + s.scrollX) * z + s.offsetLeft, y: (e.y + e.height * 0.4 + s.scrollY) * z + s.offsetTop };
+  }, id);
+  return { x: box.x + p.x, y: box.y + p.y };
+}
+
+/** Signs up with an email code in the board's sheet, then gives a name. */
+async function signUp(page: Page, address: string, name: string, button: string) {
+  await page.getByRole("button", { name: button }).click();
+  await page.getByLabel("Email", { exact: true }).fill(address);
+  const asked = Date.now();
+  await page.getByRole("button", { name: "Send code" }).click();
+  await page.getByLabel("Code", { exact: true }).waitFor();
+  await page.getByLabel("Code", { exact: true }).fill(await codeFor(address, asked));
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).waitFor({ timeout: 20_000 });
+  await page.getByLabel("Name", { exact: true }).fill(name);
+  await page.getByRole("button", { name: "Continue" }).click();
+}
 
 /** Picks an element, as a click on it does. */
 async function select(page: Page, id: string) {
@@ -245,6 +270,65 @@ try {
   if (dock.left < 0 || dock.right > 390) problems.push(`phone width: the selection's bar doesn't fit: ${JSON.stringify(dock)}`);
   await page.screenshot({ path: `${OUT}09-phone-selected.png` });
   await context.close();
+
+  // 7. Can comment: the app turned the link to Can comment. Cleo opens it in another browser,
+  // signs in to comment, has no drawing tools (a key and a drag draw nothing), and comments on the
+  // app's box with the Comment button; she edits it from its ⋯ menu. The app has it live.
+  const linkC = (await until("comment-link.txt", 300, async () => (await exists("comment-link.txt")) && (await Deno.readTextFile(file("comment-link.txt"))).trim()));
+  const atC = new URL(linkC);
+  const second = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, colorScheme: "light" });
+  const cpage = await second.newPage();
+  current = cpage;
+  cpage.on("console", (m) => { said.push(`cleo ${m.type()}: ${m.text().slice(0, 300)}`); if (m.type() === "error") problems.push(`console (cleo): ${m.text()}`); });
+  cpage.on("pageerror", (e) => problems.push(`page (cleo): ${e.message}`));
+  await cpage.goto(`${site.replace(/\/$/, "")}${atC.pathname}${atC.hash}`);
+  await until("the board, for Cleo", 30, async () => (await elements(cpage)).some((e) => e.id === "mac-1"));
+  await cpage.getByRole("button", { name: "Sign in to comment" }).waitFor();
+  if (!(await cpage.getByText("View only until you sign in").count())) problems.push("a Comment link before signing in doesn't say view only");
+  await signUp(cpage, commenterEmail, "Cleo Lind", "Sign in to comment");
+  await cpage.locator("[data-comment-bar]").waitFor({ timeout: 60_000 });
+  await cpage.getByRole("status").filter({ hasText: "Can comment" }).first().waitFor({ timeout: 10_000 });
+  log("cleo joined, can comment");
+  if (await cpage.getByRole("button", { name: "Rectangle (R)" }).count()) problems.push("a commenter has the drawing tools");
+  if (await cpage.locator('header button[aria-label="More"]').count()) problems.push("a commenter has the board's More menu");
+  const had = (await elements(cpage)).length;
+  await cpage.mouse.click(900, 600);
+  await cpage.keyboard.press("r");
+  await cpage.mouse.move(880, 560); await cpage.mouse.down();
+  for (let i = 1; i <= 8; i++) await cpage.mouse.move(880 + i * 15, 560 + i * 8);
+  await cpage.mouse.up();
+  await sleep(1000);
+  if ((await elements(cpage)).length !== had) problems.push("a commenter drew on the board");
+  // The Comment button, then a click on the app's box.
+  await cpage.getByRole("button", { name: "Comment (C)" }).click();
+  await cpage.locator('[data-comment-bar] button[aria-pressed="true"]').waitFor({ timeout: 5000 });
+  const spot = await onPage(cpage, "mac-1");
+  await cpage.mouse.click(spot.x, spot.y);
+  const draft = cpage.getByRole("dialog", { name: "New Comment" });
+  await draft.waitFor({ timeout: 10_000 });
+  const first = "Can this box be bigger?";
+  await draft.getByLabel("Add a comment", { exact: true }).fill(first);
+  await cpage.screenshot({ path: `${OUT}12-commenter-commenting.png` });
+  await draft.getByLabel("Add a comment", { exact: true }).press("Enter");
+  const mine = cpage.getByRole("dialog", { name: "Comment", exact: true });
+  await mine.getByText(first).waitFor();
+  // Her own comment's Edit and Delete are in its ⋯ menu (round 14, web-06).
+  if (await mine.getByRole("button", { name: "Edit", exact: true }).count()) problems.push("Edit shows outside the ⋯ menu");
+  await mine.locator("[data-comment-more]").click();
+  await cpage.getByRole("menu", { name: "Comment" }).waitFor();
+  await cpage.screenshot({ path: `${OUT}13-comment-more-menu.png` });
+  await cpage.getByRole("menuitem", { name: "Edit" }).click();
+  const words = "Can this box be twice as wide?";
+  const field = mine.getByLabel("Comment", { exact: true });
+  await field.fill(words);
+  await mine.getByRole("button", { name: "Save" }).click();
+  await mine.getByText(words).waitFor();
+  await mine.getByText("Edited").waitFor();
+  const cleo = await cpage.evaluate(() => JSON.parse(localStorage.getItem("pinto.connect.session") ?? "{}").user_id as string);
+  await write("commenter.json", JSON.stringify({ user: cleo, text: words }));
+  log("cleo commented");
+  await until("commented.txt", 120, () => exists("commented.txt"));
+  await second.close();
 } catch (e) {
   // What the page had when it stopped: a picture, the canvas's state, and its last lines.
   log("failed:", (e as Error).message);

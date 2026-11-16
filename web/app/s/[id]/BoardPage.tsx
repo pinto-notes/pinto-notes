@@ -13,7 +13,7 @@ import { codeDigits, CODE_LENGTH, looksLikeEmail } from "@/lib/board-auth";
 import { followers as followersOf, followersLine, words } from "@/lib/board-follow";
 import type { PageState } from "@/lib/board-host";
 import { presentHint, presentKey, styleBarShows } from "@/lib/board-present";
-import { Icon, StyleBar, ToolBar, TOOLS, useWidth } from "./BoardControls";
+import { CommentBar, Icon, StyleBar, ToolBar, TOOLS, useDismiss, useWidth } from "./BoardControls";
 import NoteLink, { appLink } from "./NoteLink";
 import s from "./board.module.css";
 
@@ -82,7 +82,7 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
   const href = useMemo(() => appLink(id, typeof window === "undefined" ? "" : window.location.hash), [id]);
   // A tool or action from the toolbar, then the board has the keys again (as in the app: R, V, Delete).
   const command = useCallback((c: Record<string, unknown>) => { host?.command(c); focusBoard(); }, [host, focusBoard]);
-  const status = ctl.status === "offline" ? "Offline. Trying again" : ctl.canEdit ? null : ctl.linkRole === "editor" ? "View only until you sign in" : "Can view";
+  const status = ctl.status === "offline" ? "Offline. Trying again" : ctl.accessLine;
   const myColor = ctl.account && ctl.session ? ctl.session.colorOf(ctl.account.id) : "#2D639A";
   const anchor = host?.anchor ?? null;
   const comments = ctl.comments;
@@ -135,13 +135,14 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
             <Icon>{TOOLS[10].icon}</Icon>
             {comments.unseen && <i className={s.dot} aria-label="New comments" />}
           </button>
-          {ctl.offersSignIn && <button className={s.primarySmall} onClick={() => ctl.startSignIn()}>Sign in to edit</button>}
+          {ctl.offersSignIn && <button className={s.primarySmall} onClick={() => ctl.startSignIn()}>{ctl.signInLabel}</button>}
           {!ctl.offersSignIn && !ctl.account && href && <a className={s.secondarySmall} href={href}>Open in Pinto Notes</a>}
           {ctl.canEdit && <BoardMore open={more} setOpen={setMore} command={command} steps={state.frames?.length ?? 0} />}
         </div>
       </header>
 
       {ctl.canEdit && <ToolBar state={state} command={command} width={width} />}
+      {!ctl.canEdit && ctl.canComment && <CommentBar state={state} command={command} />}
       {/* Never over an open thread: the thread is what you're reading (round 13, web-06). */}
       {styleBarShows(state, ctl.canEdit, threadOpen) && <StyleBar state={state} command={command} width={width} height={height} />}
 
@@ -368,21 +369,35 @@ function Composer({ ctl, placeholder, initial = "", button, onSend, onCancel, au
 function OneComment({ ctl, c }: { ctl: BoardController; c: Comment }) {
   const [editing, setEditing] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => setMenu(false), []);
+  useDismiss(menu, closeMenu, wrap);
   const mine = ctl.comments.isMine(c) && !c.deleted && ctl.comments.canComment;
   return (
     <li className={s.comment} data-comment={c.id}>
       <Avatar ctl={ctl} c={c} />
       <div className={s.commentBody}>
-        <p className={s.byline}><b>{ctl.comments.byline(c)}</b> <span className={s.when}>{when(c)}{c.edited && !c.deleted ? " · Edited" : ""}</span></p>
+        <div className={s.commentHead}>
+          <p className={s.byline}><b>{ctl.comments.byline(c)}</b> <span className={s.when}>{when(c)}{c.edited && !c.deleted ? " · Edited" : ""}</span></p>
+          {/* Edit and Delete on your own comment, in a ⋯ menu, as the app has them (round 14, web-06). */}
+          {mine && !editing && !asking && (
+            <div ref={wrap} className={s.menuWrap}>
+              <button className={s.commentMore} aria-label="More" title="Edit or delete" aria-haspopup="menu" aria-expanded={menu} data-comment-more onClick={() => setMenu(!menu)}>
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.3" /><circle cx="8" cy="8" r="1.3" /><circle cx="12.5" cy="8" r="1.3" /></svg>
+              </button>
+              {menu && (
+                <div className={s.commentMenu} role="menu" aria-label="Comment">
+                  <button role="menuitem" className={s.menuItem} onClick={() => { setMenu(false); setEditing(true); }}>Edit</button>
+                  <button role="menuitem" className={`${s.menuItem} ${s.menuDanger}`} onClick={() => { setMenu(false); setAsking(true); }}>Delete…</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {editing
           ? <Composer ctl={ctl} placeholder="Comment" initial={c.text} button="Save" autoFocus onCancel={() => setEditing(false)} onSend={(t) => { ctl.comments.edit(c.id, t); setEditing(false); }} />
           : <Words ctl={ctl} c={c} />}
-        {mine && !editing && !asking && (
-          <p className={s.commentActions}>
-            <button className={s.link} onClick={() => setEditing(true)}>Edit</button>
-            <button className={s.link} onClick={() => setAsking(true)}>Delete…</button>
-          </p>
-        )}
         {asking && (
           <div className={s.ask} role="alertdialog" aria-label="Delete this comment?">
             <p>Delete this comment?</p>
@@ -488,7 +503,7 @@ function SignInSheet({ ctl, href }: { ctl: BoardController; href: string | null 
       <div className={s.sheet} role="dialog" aria-modal="true" aria-labelledby="sign-in-title">
         {st.step === "email" && (
           <form className={s.form} onSubmit={(e) => { e.preventDefault(); if (looksLikeEmail(email)) void ctl.sendCode(email); }}>
-            <h2 id="sign-in-title" className={s.cardTitle}>Sign in to edit</h2>
+            <h2 id="sign-in-title" className={s.cardTitle}>{ctl.signInLabel}</h2>
             <p className={s.lede}>We’ll email you a code. New to Pinto Notes? The same code makes your account.</p>
             <label className={s.label} htmlFor="board-email">Email</label>
             <input ref={field} id="board-email" className={s.field} type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!st.error} />

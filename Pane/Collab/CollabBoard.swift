@@ -343,12 +343,14 @@ extension CollabBoard {
         canvas.remote(scene: session.boardScene())
         canvas.show(peers: session.boardPeers)
         canvas.show(people: session.boardPeople)
-        // Comments (BoardComments): in the document, sealed as the drawing is; viewers read them.
+        // Comments (BoardComments): in the board's comment stream, sealed under its key; viewers read
+        // them, commenters (Can comment) write them and not the drawing.
         canvas.author = BoardComments.Author(id: session.me.uuidString, name: BoardComments.firstName(session.myName))
         canvas.colorOf = { [weak session] id in session?.boardColor(of: id) ?? BoardComments.color(for: id) }
         canvas.onComments = { [weak session] list in session?.commentLocal(list) }
         session.onBoardComments = { [weak canvas] list in canvas?.show(comments: list) }
-        canvas.setCanComment(session.canWrite)
+        session.onCommentsRefused = { [weak canvas] why in canvas?.confirm(why, for: .seconds(4)) }
+        canvas.setCanComment(session.canComment)
         mention(session, canvas)
         canvas.show(comments: session.boardComments)
     }
@@ -401,6 +403,7 @@ extension CollabBoard {
             session.onBoardPeers = nil
             session.onPicturesRefused = nil
             session.onBoardComments = nil
+            session.onCommentsRefused = nil
             session.onBoardPeople = nil
             session.onBoardLaser = nil
             session.boardPresence(pointer: nil, selection: [])
@@ -421,13 +424,13 @@ extension CollabBoard {
         canvas.share(false)
     }
 
-    /// While the board is open, a few times a second: whether you can still edit (your access
-    /// changed), and the others' flags fading and colours going grey when they go quiet.
+    /// While the board is open, a few times a second: whether you can still edit or comment (your
+    /// access changed), and the others' flags fading and colours going grey when they go quiet.
     static func tick(_ session: CollabSession, _ canvas: CanvasController) {
         canvas.share(true, viewOnly: !session.canWrite)
         canvas.show(peers: session.boardPeers)
         canvas.show(people: session.boardPeople)
-        canvas.setCanComment(session.canWrite)
+        canvas.setCanComment(session.canComment)
         mention(session, canvas)
     }
 }

@@ -6,11 +6,15 @@ import SwiftUI
 /// - the Comment tool on the dock: tap it, then tap a shape or a spot, and a comment is pinned
 ///   there (on the shape under it, so it moves with it). Tap the tool again to put it down;
 /// - while the tool is picked, a bar above the dock says so and opens the Comments list;
-/// - the list in a sheet: the same rows as the Mac's (who and when, what it says, "on Idea ·
-///   2 replies · last reply 2 min ago", Mentions you, Show resolved);
+/// - the list in a sheet: Show resolved and New Comment at its top, then the same rows as the
+///   Mac's (who and when, what it says, "on Idea · 2 replies · last reply 2 min ago", Mentions you);
+/// - a tap on a shape pins the comment to the shape's top right corner, where every pin on a
+///   shape sits (round 14);
 /// - a thread in a sheet over the lower half, its pin moved up above it, the board live round it;
 /// - someone who can only view the board gets a Comments button where the dock would be: they
-///   read comments and don't write them (BoardComments says why).
+///   read comments and don't write them (BoardComments says why);
+/// - someone who can comment (a Comment link) gets the Comment tool and the Comments button there:
+///   no drawing tools, and comments as everyone writes them.
 /// Every tap is 44 points square at least.
 
 /// The Comment tool on the dock, with the quiet dot when someone else wrote one you haven't seen.
@@ -55,27 +59,43 @@ struct CanvasPhoneComments: View {
     var body: some View {
         // A container that's there when it shows nothing, so the list's sheet always hangs here.
         VStack(spacing: 0) {
-            if canvas.viewOnly {
+            if canvas.viewOnly && !canvas.commentsOnly {
                 listButton(alone: true)
                     .padding(6)
                     .glassEffect(.regular, in: .capsule)
                     .padding(.bottom, CanvasDock.margin)
-            } else if canvas.state.tool == .comment {
-                HStack(spacing: 4) {
-                    Text(Self.hint)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .padding(.leading, 14)
-                        .accessibilityIdentifier("canvas.comment.hint")
-                    listButton(alone: false)
+            } else {
+                if canvas.state.tool == .comment {
+                    HStack(spacing: 4) {
+                        Text(Self.hint)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .padding(.leading, 14)
+                            .accessibilityIdentifier("canvas.comment.hint")
+                        listButton(alone: false)
+                    }
+                    .padding(.trailing, 4)
+                    .frame(minHeight: BoardCommentUI.target)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding(.bottom, 8)
+                    .transition(.opacity)
                 }
-                .padding(.trailing, 4)
-                .frame(minHeight: BoardCommentUI.target)
-                .glassEffect(.regular, in: .capsule)
-                .padding(.bottom, 8)
-                .transition(.opacity)
+                // Can comment: no drawing tools, so the dock is the Comment tool and the list.
+                if canvas.commentsOnly {
+                    HStack(spacing: 2) {
+                        CanvasCommentDockButton(canvas: canvas)
+                        listButton(alone: true)
+                    }
+                    .padding(6)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding(.bottom, CanvasDock.margin)
+                    // A container: its buttons keep their own names (the identifier alone would
+                    // be given to each of them).
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("canvas.commentDock")
+                }
             }
         }
         .sheet(isPresented: Bindable(canvas).showingComments, onDismiss: {
@@ -110,8 +130,8 @@ struct CanvasPhoneComments: View {
     }
 }
 
-/// Every thread on the board, in a sheet: the latest activity first, resolved ones with Show
-/// resolved. A tap opens the thread.
+/// Every thread on the board, in a sheet: Show resolved and New Comment at its top as on the Mac,
+/// then the latest activity first, resolved ones with Show resolved. A tap opens the thread.
 struct BoardCommentsSheet: View {
     let canvas: CanvasController
     let open: (String) -> Void
@@ -128,6 +148,27 @@ struct BoardCommentsSheet: View {
                             .frame(minHeight: BoardCommentUI.target)
                             .padding(.horizontal, 8)
                             .accessibilityIdentifier("comments.showResolved")
+                    }
+                    // New Comment, as at the top of the Mac's list (round 14, comments-iphone-4): the
+                    // list goes and the Comment tool is picked, so the next tap places it.
+                    if canvas.canComment {
+                        Button { canvas.newComment() } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "plus.bubble")
+                                    .font(.body.weight(.medium))
+                                    .frame(width: BoardCommentUI.avatar, height: BoardCommentUI.avatar)
+                                    .accessibilityHidden(true)
+                                Text(BoardCommentUI.new)
+                                    .font(.body.weight(.semibold))
+                                Spacer(minLength: 0)
+                            }
+                            .foregroundStyle(Color.amberInk)
+                            .padding(.horizontal, 8)
+                            .frame(minHeight: BoardCommentUI.target)
+                            .contentShape(.rect)
+                        }
+                        .buttonStyle(CanvasPressStyle())
+                        .accessibilityIdentifier("comments.new")
                     }
                     if shown.isEmpty {
                         Text(canvas.canComment ? CanvasPhoneComments.hint : BoardCommentUI.emptyViewer)

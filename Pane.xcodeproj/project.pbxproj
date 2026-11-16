@@ -58,6 +58,7 @@
 		06FEF690E383AEBBBF084B81 /* template-app-study-flashcards-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6511DF6067471C42808C09B2 /* template-app-study-flashcards-dark.jpg */; };
 		0707A8C29629281140A118CD /* BoardFollow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFC625C066FC467EE4BDB9DC /* BoardFollow.swift */; };
 		07940F11C490C89499D09FD5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978F8AC668B82A7AC132A11E /* Theme.swift */; };
+		0843AD593085B837C1BB65E9 /* comment-vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = 50EA8D2276E2F844578F4B4A /* comment-vectors.json */; };
 		084AB6033F32F9B47966A1E4 /* OfflineLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4327ACE6BF465D8E84D0D3EB /* OfflineLine.swift */; };
 		08773924130EF4A9F50D4F1C /* Recipes.enex in Resources */ = {isa = PBXBuildFile; fileRef = 351EB8D113A762C5B0DBCE7A /* Recipes.enex */; };
 		08774E6289009FB5998AB30B /* ConnectDetectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53EFEF0B8258BBDA96D05B51 /* ConnectDetectTests.swift */; };
@@ -1069,6 +1070,7 @@
 		C9D0E2AA403DB799EAD7F7FD /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D802554DDA691DB172FD65B2 /* SyncEngine.swift */; };
 		C9DEC0E1F33514A34761867B /* SharedNoteLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */; };
 		CA4EE1A5852FF02205756316 /* confetti.js in Resources */ = {isa = PBXBuildFile; fileRef = 96E8277205CE8467252CB1A6 /* confetti.js */; };
+		CA54D7B18EF5A1750E2635D1 /* BoardCommentStreamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 748DF6B12E1B8E8B489C105B /* BoardCommentStreamTests.swift */; };
 		CA6ADC8B0AAEAB67384A78D5 /* Excalifont-Regular-349fac6ca4700ffec595a7150a0d1e1d.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = 3648DB7A2090B74B55CB8C78 /* Excalifont-Regular-349fac6ca4700ffec595a7150a0d1e1d.woff2 */; };
 		CA6B40B36241BA6FF2FFBA51 /* ChecklistWidgetShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = D644521E566EE2551C79AFD8 /* ChecklistWidgetShots.swift */; };
 		CA6F11D57317997B7D23259A /* PerfBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E56EC524B81F167DEEFBA1 /* PerfBudget.swift */; };
@@ -1689,6 +1691,7 @@
 		508D7FDAAB7702C132913D85 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		50B29487F2C69F59BE439282 /* BoardShareTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardShareTests.swift; sourceTree = "<group>"; };
 		50D9729365D09DFD5585A159 /* SidebarCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarCardTests.swift; sourceTree = "<group>"; };
+		50EA8D2276E2F844578F4B4A /* comment-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "comment-vectors.json"; sourceTree = "<group>"; };
 		511426CD6526438E90CD7B2D /* FormerSubNotesSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormerSubNotesSnapshots.swift; sourceTree = "<group>"; };
 		51DEBC44D5A1BC7062CBFC1E /* template-cover-decision-log.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-decision-log.jpg"; sourceTree = "<group>"; };
 		51F46BEBBA374A2A5D8E4CCA /* ConnectOnMacTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectOnMacTests.swift; sourceTree = "<group>"; };
@@ -1812,6 +1815,7 @@
 		7445A08E777B5138830E17A8 /* DesignLookSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignLookSnapshots.swift; sourceTree = "<group>"; };
 		745FDDD97190E93FA0B01362 /* Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2 */ = {isa = PBXFileReference; path = "Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2"; sourceTree = "<group>"; };
 		746937C9DAE4700BDCEE8FCF /* LargeLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeLibraryTests.swift; sourceTree = "<group>"; };
+		748DF6B12E1B8E8B489C105B /* BoardCommentStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardCommentStreamTests.swift; sourceTree = "<group>"; };
 		74B99DE5320A61F5F5F0A9B8 /* NotePageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageData.swift; sourceTree = "<group>"; };
 		74C3858D7115D915A84DF1F9 /* MacEmptyDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacEmptyDetailTests.swift; sourceTree = "<group>"; };
 		7559785ED0F9B9C5C42FC3A9 /* CanvasLibrarySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasLibrarySheet.swift; sourceTree = "<group>"; };
@@ -2333,6 +2337,7 @@
 			isa = PBXGroup;
 			children = (
 				F77FBA56B6E0A15F61A3CD2C /* collab-vectors.json */,
+				50EA8D2276E2F844578F4B4A /* comment-vectors.json */,
 				D5DFD991B7F6D9071008215D /* e2ee-vectors.json */,
 				75759167CE7F0B24B4814F25 /* keycopy-vectors.json */,
 			);
@@ -3261,6 +3266,7 @@
 			isa = PBXGroup;
 			children = (
 				980A9220168DF88943B2C8AE /* BoardCommentsTests.swift */,
+				748DF6B12E1B8E8B489C105B /* BoardCommentStreamTests.swift */,
 				A0241B6D04377363349E5627 /* BoardFollowTests.swift */,
 				7EDCD0CCA6CBE041CD096D2C /* BoardWebLiveTests.swift */,
 				B7002D72E6A584279DD6FACF /* CollabKeysTests.swift */,
@@ -4047,6 +4053,7 @@
 				A69C708456FD48416A38AB25 /* amber-base.ts in Resources */,
 				86C1385AEB3FC6BCC79658D6 /* app-telemetry.md in Resources */,
 				265F009436F9A9BE366AF7A4 /* collab-vectors.json in Resources */,
+				0843AD593085B837C1BB65E9 /* comment-vectors.json in Resources */,
 				EB72815EF0591089238CFB26 /* e2ee-vectors.json in Resources */,
 				1D5B0977056D4132D593C18D /* folder_files.ts in Resources */,
 				1F3920D5C81239B5851606C5 /* habit-tracker.json in Resources */,
@@ -4132,6 +4139,7 @@
 				8A04A2FEC23E05427C180EE1 /* BlogSnapshots.swift in Sources */,
 				5B6C770F3E4A3786C55A0A51 /* BlurMotionTests.swift in Sources */,
 				20573B2A6DBA8C250D7FF1A2 /* BoardCommentPhoneTests.swift in Sources */,
+				CA54D7B18EF5A1750E2635D1 /* BoardCommentStreamTests.swift in Sources */,
 				1897EA9B25CAA89A5CC1A20D /* BoardCommentsCanvasTests.swift in Sources */,
 				58117AB8938BF46D0D8CC147 /* BoardCommentsTests.swift in Sources */,
 				294D82F20555FF87822A2063 /* BoardFollowTests.swift in Sources */,

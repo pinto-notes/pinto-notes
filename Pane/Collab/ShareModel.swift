@@ -32,7 +32,7 @@ extension CollabStore: ShareBackend {
     func access(_ note: Note) -> ShareState.Access { access(of: note.id) }
     func access(of note: UUID) -> ShareState.Access { linkAccess[note] ?? .off }
 
-    /// Can edit or Can view: the note becomes a shared note (its own key) if it isn't one yet, and
+    /// Can edit, Can comment (a whiteboard) or Can view: the note becomes a shared note (its own key) if it isn't one yet, and
     /// the link lets whoever opens it in Pinto Notes join with that role. Off: the link stops
     /// working at once; turning it on again makes a new one.
     func setAccess(_ access: ShareState.Access, for note: Note) async throws {
@@ -43,10 +43,10 @@ extension CollabStore: ShareBackend {
             links[note.id] = nil
             linkAccess[note.id] = nil
             linkVault?.remove(note.id)
-        case .view, .edit:
+        case .view, .edit, .comment:
             if sessions[note.id] == nil { try await share(note) }
             let link = links[note.id] ?? (SealedLink.randomID(bytes: 16), E2EE.randomBytes(16))
-            try await publishInviteLink(note.id, link: link, role: access == .edit ? "editor" : "viewer")
+            try await publishInviteLink(note.id, link: link, role: access.role)
             links[note.id] = link
             linkAccess[note.id] = access
             linkVault?.save(LinkVaultEntry(id: link.id, secret: link.secret, access: access.rawValue), for: note.id)
@@ -240,7 +240,8 @@ extension CollabStore: ShareBackend {
         let shared: UUID? = opened.note_id
         let inLibrary = (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
         let already = sessions.values.contains { $0.noteID == opened.note_id } || inLibrary
-        return JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already)
+        return JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor",
+                           canComment: opened.role == "commenter", alreadyIn: already)
     }
 
     func join(_ url: URL) async -> Bool {
@@ -340,7 +341,7 @@ extension CollabStore: ShareBackend {
             log.notice("renewed \(id, privacy: .public)'s key after someone left (epoch \(session.epoch, privacy: .public))")
             restoreLink(id)
             if let link = links[id], let access = linkAccess[id], access != .off {
-                try await publishInviteLink(id, link: link, role: access == .edit ? "editor" : "viewer")
+                try await publishInviteLink(id, link: link, role: access.role)
             }
         } catch Collab.Failure.staleEpoch {
             log.notice("\(id, privacy: .public)'s key was renewed by another of your devices")

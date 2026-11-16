@@ -6,12 +6,12 @@
 // - Writing: a new comment where the Comment tool placed it, a reply, an edit of your own (a higher
 //   version, stamped edited, its mentions read again), a delete of your own (no words kept; a thread
 //   start with replies stays as "Comment deleted"), resolve and open again. Each goes into the
-//   board's document through `onWrite`, as one change.
+//   board's comment stream through `onWrite`, as one entry.
 // - Mentions: "@Sara" names one of the board's other people; they get the dot until they open it.
 // - What you've seen, per board, in this browser: a comment from someone else you haven't seen
 //   shows the quiet dot on the Comments button.
 import {
-  type Comment, commentStamp, MAX_COMMENT, mentioned, newCommentID, type Person, type Thread, threads, AI_COLOR, initial,
+  type Comment, commentStamp, MAX_COMMENT, mentioned, newCommentID, nextVersion, type Person, type Thread, threads, AI_COLOR, initial,
 } from "./board-doc";
 
 export type Place = { on?: string; x: number; y: number };
@@ -54,8 +54,10 @@ export class BoardComments {
   author = { id: "", name: "You" };
   /** The board's other people you can mention, by first name. */
   mentionable: Person[] = [];
-  /** You can write comments here (an editor or the owner, signed in). */
+  /** You can write comments here (the owner, an editor or a commenter, signed in). */
   canComment = false;
+  /** The board is view only here (Can view, or Can comment): comments are placed in view mode. */
+  viewOnly = false;
   openThread: string | null = null;
   draft: Place | null = null;
   /** What each thread's shape is called ("Idea"), as the page says. */
@@ -176,6 +178,7 @@ export class BoardComments {
       open: this.openThread ?? (this.draft ? "draft" : null),
       draft: this.draft ? { x: this.draft.x, y: this.draft.y, ...(this.draft.on ? { on: this.draft.on } : {}) } : null,
       can: this.canComment,
+      inView: this.canComment && this.viewOnly,
       shapes: [...new Set(this.threads.flatMap((t) => (t.first.on ? [t.first.on] : [])))].sort(),
     };
   }
@@ -236,7 +239,7 @@ export class BoardComments {
   edit(id: string, text: string): Comment | null {
     const was = this.comments.find((c) => c.id === id), t = clean(text);
     if (!this.canComment || !was || !this.isMine(was) || was.deleted || !t || t === was.text) return null;
-    const c: Comment = { ...was, text: t, edited: commentStamp(this.now()), version: was.version + 1 };
+    const c: Comment = { ...was, text: t, edited: commentStamp(this.now()), version: nextVersion(was) };
     const m = mentioned(t, this.mentionable);
     if (m.length) c.mentions = m; else delete c.mentions;
     this.apply([c]);
@@ -247,7 +250,7 @@ export class BoardComments {
   delete(id: string) {
     const was = this.comments.find((c) => c.id === id);
     if (!this.canComment || !was || !this.isMine(was) || was.deleted) return;
-    const c: Comment = { ...was, deleted: true, text: "", version: was.version + 1 };
+    const c: Comment = { ...was, deleted: true, text: "", version: nextVersion(was) };
     delete c.edited;
     delete c.mentions;
     this.apply([c]);
@@ -255,7 +258,7 @@ export class BoardComments {
     this.onConfirm?.(DELETED_LINE, () => {
       const now = this.comments.find((x) => x.id === id);
       if (!now?.deleted) return;
-      const back: Comment = { ...now, deleted: false, text: was.text, version: now.version + 1 };
+      const back: Comment = { ...now, deleted: false, text: was.text, version: nextVersion(now) };
       if (was.edited) back.edited = was.edited;
       if (was.mentions?.length) back.mentions = was.mentions;
       this.apply([back]);
@@ -266,7 +269,7 @@ export class BoardComments {
   resolve(thread: string, resolved = true) {
     const first = this.comments.find((c) => c.id === thread && !c.thread);
     if (!this.canComment || !first || first.resolved === resolved) return;
-    this.apply([{ ...first, resolved, version: first.version + 1 }]);
+    this.apply([{ ...first, resolved, version: nextVersion(first) }]);
     if (resolved && this.openThread === thread) this.closeThread();
     this.onConfirm?.(resolved ? RESOLVED_LINE : REOPENED_LINE, () => this.resolve(thread, !resolved));
   }

@@ -2507,9 +2507,10 @@ struct NoteToolbarStage<Pane: View>: View {
                     .hidden(!showsItems || !showsWriting)
                     if let canvas = shown.canvas {
                         // A board shared with you to look at: its tools show, off, as a viewer's
-                        // formatting does in a note.
+                        // formatting does in a note. To comment on: no drawing tools at all, as in
+                        // FigJam; Comments (C picks the Comment tool) is what's there.
                         ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, fit: board.fit, fullScreen: fullScreen).disabled(!showsItems || canvas.viewOnly) }
-                            .hidden(!showsItems)
+                            .hidden(!showsItems || canvas.commentsOnly)
                         // Comments: viewers read them too, so it's never off for them.
                         ToolbarItem { CanvasCommentsButton(canvas: canvas).disabled(!showsItems || !canvas.connected) }
                             .hidden(!showsItems)

@@ -1191,8 +1191,10 @@ function bridge(api) {
   };
   const command = (c) => {
     if (!c || typeof c !== "object") return false;
-    // Can view (a shared board): nothing changes the drawing; looking round it does.
-    if (api.getAppState().viewModeEnabled && (EDITS.has(c.op) || (c.op === "action" && !LOOKS.has(c.name)))) return false;
+    // Can view (a shared board): nothing changes the drawing; looking round it does. Can comment:
+    // a comment still goes on it.
+    const commentInView = c.op === "commentHere" && comments && comments.inView;
+    if (api.getAppState().viewModeEnabled && !commentInView && (EDITS.has(c.op) || (c.op === "action" && !LOOKS.has(c.name)))) return false;
     switch (c.op) {
       case "shared":
         if (!sharedHooks.set) return false;
@@ -1203,7 +1205,7 @@ function bridge(api) {
         break;
       case "outline":
         if (!sharedHooks.outline || !Array.isArray(c.ids)) return false;
-        if (!sharedHooks.outline(c.ids, { move: c.move !== false })) return false;
+        if (!sharedHooks.outline(c.ids, { move: c.move !== false, all: c.all === true })) return false;
         break;
       case "find":
         if (!sharedHooks.find || typeof c.query !== "string" || !c.query.trim()) return false;
@@ -1226,12 +1228,16 @@ function bridge(api) {
       case "tool":
         if (c.tool === "comment") {
           if (!comments) return false;
-          if (api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
+          // `on: false`: put down (the Comment button pressed again, where it's the only tool).
+          if (c.on === false) { comments.tool(false); break; }
+          if (!api.getAppState().viewModeEnabled && api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
           if (!comments.tool(true)) return false;
           break;
         }
         if (!TOOLS.has(c.tool)) return false;
         if (comments) comments.tool(false);
+        // View only (Can comment puts the Comment tool down this way): the drawing's tools stay away.
+        if (api.getAppState().viewModeEnabled) break;
         api.setActiveTool({ type: c.tool });
         break;
       case "comments":
@@ -1394,7 +1400,12 @@ function bridge(api) {
   let queued = false;
   const soon = () => { if (!queued) { queued = true; setTimeout(() => { queued = false; remember(); dropEmptyGroups(); roomForHandle(); leaveComments(); report(); }, 16); } };
   // Another tool picked on the board itself (a key the engine takes): the Comment tool goes down.
-  const leaveComments = () => { if (comments && comments.commenting && api.getAppState().activeTool.type !== "selection") comments.tool(false); };
+  // Not in view mode (Can comment), where the engine's only tool is the hand it pans with.
+  const leaveComments = () => {
+    if (!comments || !comments.commenting) return;
+    const s = api.getAppState();
+    if (s.activeTool.type !== "selection" && !s.viewModeEnabled) comments.tool(false);
+  };
   // A group kept selected with none of its elements selected (cards put on the board are
   // selected as a group; a selection cleared by element only left the group): the engine drew
   // its empty selection box at the drawing's origin, a small dark corner bracket by whatever was
@@ -1442,7 +1453,9 @@ function bridge(api) {
       if (to) { e.preventDefault(); e.stopImmediatePropagation(); present(api, to); setTimeout(report, 30); return; }
     }
     if (blockedKey(e)) { e.stopImmediatePropagation(); return; }
-    if (api.getAppState().viewModeEnabled) return;
+    // Can view: no keys of the drawing. Can comment: C (and Escape) still pick the Comment tool.
+    const viewing = api.getAppState().viewModeEnabled;
+    if (viewing && !(comments && comments.inView)) return;
     // S: a sticky note, as in FigJam (the engine's S opens a panel that isn't shown here).
     const typing = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.isContentEditable);
     // C: the Comment tool, as in FigJam; Escape (or C again) puts it down.
@@ -1452,13 +1465,14 @@ function bridge(api) {
         e.preventDefault(); e.stopImmediatePropagation();
         if (k === "escape" || comments.commenting) comments.tool(false);
         else {
-          if (api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
+          if (!viewing && api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
           comments.tool(true);
         }
         report();
         return;
       }
     }
+    if (viewing) return;
     // Tab: a mind map's next branch off the selected shape, as in FigJam (whiteboard council,
     // round 6). While typing in a shape, its words are kept first, then the branch grows from it.
     if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selecting()) {
@@ -1839,9 +1853,10 @@ function Canvas({ initial }) {
       // box in a box when someone drew whole frames).
       const pieces = changed.filter((e) => !(e.containerId && ids.has(e.containerId)) && !(e.frameId && ids.has(e.frameId)));
       // Arrows between outlined shapes go without: a dashed box on each was noise (round 4 check);
-      // arrows alone are outlined.
+      // arrows alone are outlined. `all` (Show change on an AI's comment, which names exactly what
+      // its write changed): the arrows too (round 14, comments-4).
       const linear = (e) => e.type === "arrow" || e.type === "line";
-      const tops = pieces.some((e) => !linear(e)) ? pieces.filter((e) => !linear(e)) : pieces;
+      const tops = opts.all || !pieces.some((e) => !linear(e)) ? pieces : pieces.filter((e) => !linear(e));
       const rect = (els, s) => {
         const [x1, y1, x2, y2] = getCommonBounds(els);
         const a = sceneCoordsToViewportCoords({ sceneX: x1, sceneY: y1 }, s), b = sceneCoordsToViewportCoords({ sceneX: x2, sceneY: y2 }, s);

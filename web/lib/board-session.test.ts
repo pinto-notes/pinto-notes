@@ -8,15 +8,15 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { loadAutomerge } from "./automerge";
 import { open3, pictureBytes, seal3 } from "./collab";
 import type { Bytes } from "./e2ee";
-import { type Automerge, type Comment, ordered, PALETTE, slots, STALE } from "./board-doc";
-import { BoardSession, type Clock, type Live, type LiveEvents, type Member, type Snapshot, type Transport, type Update } from "./board-session";
+import { type Automerge, type Comment, commentJSON, entryOf, foldComments, ordered, PALETTE, put, slots, STALE } from "./board-doc";
+import { BoardSession, type Clock, type CommentRow, type Live, type LiveEvents, type Member, type Snapshot, type Transport, type Update } from "./board-session";
 
 const wasm = () => readFileSync(createRequire(import.meta.url).resolve("@automerge/automerge/automerge.wasm"));
 let A: Automerge;
 beforeAll(async () => { A = await loadAutomerge(wasm()); });
 
 const NOTE = "6f1c1b0e-2a7d-4c55-9a43-1d2e3f405162";
-const EMIL = "11111111-1111-4111-8111-111111111111", SARA = "22222222-2222-4222-8222-222222222222";
+const EMIL = "11111111-1111-4111-8111-111111111111", SARA = "22222222-2222-4222-8222-222222222222", CLEO = "33333333-3333-4333-8333-333333333333";
 const nk = crypto.getRandomValues(new Uint8Array(32)) as Bytes;
 
 /** A clock the test moves. */
@@ -51,11 +51,21 @@ class Server {
   snapshots: Snapshot[] = [];
   files = new Map<string, { epoch: number; ct: string }>();
   epoch = 1;
-  members: Member[] = [{ user_id: EMIL, role: "owner", display_name: "Emil Wagman" }, { user_id: SARA, role: "editor", display_name: "Sara Berg" }];
+  members: Member[] = [
+    { user_id: EMIL, role: "owner", display_name: "Emil Wagman" }, { user_id: SARA, role: "editor", display_name: "Sara Berg" },
+    { user_id: CLEO, role: "commenter", display_name: "Cleo Lind" },
+  ];
+  /** The comment stream (note_comments): stamped with the writer and their role, as the guard does. */
+  comments: CommentRow[] = [];
   private live: { user: string; on: LiveEvents }[] = [];
   private id = 0;
+  private commentID = 0;
   relay = true;
   failNextSend = false;
+  failNextComment = false;
+  /** The stream's room left (16 MB on the real server). */
+  commentRoom = Infinity;
+  roleOf = (u: string) => this.members.find((m) => m.user_id === u)?.role ?? null;
 
   transport(me: string | null, opts: { write?: boolean; live?: boolean } = {}): Transport {
     const t: Transport = {
@@ -65,7 +75,23 @@ class Server {
         return { snapshot: snap, updates: this.updates.filter((u) => u.id > from).map(({ note: _, ...u }) => u) };
       },
       file: async (id) => this.files.get(id) ?? null,
+      comments: async (after) => this.comments.filter((c) => c.id > after),
     };
+    if (me) {
+      t.sendComment = async (ct, epoch) => {
+        if (this.failNextComment) { this.failNextComment = false; throw new Error("offline"); }
+        const role = this.roleOf(me);
+        if (!role) throw Object.assign(new Error("You’re not in this note."), { hint: "not_member" });
+        if (role === "viewer") throw Object.assign(new Error("You can view this whiteboard but not comment on it."), { hint: "read_only" });
+        if (epoch !== this.epoch) throw Object.assign(new Error("The note’s key changed. Open it again."), { hint: "stale_epoch" });
+        if (ct.length > this.commentRoom) throw Object.assign(new Error("This whiteboard has no room for more comments."), { hint: "comments_full" });
+        this.commentRoom -= ct.length;
+        const row: CommentRow = { id: ++this.commentID, author_id: me, role, epoch, ct, client: null };
+        this.comments.push(row);
+        if (this.relay) for (const l of this.live) setTimeout(() => l.on.comment?.({ ...row }), 0);
+        return { ...row };
+      };
+    }
     if (me && opts.write !== false) {
       t.send = async (ct, epoch) => {
         if (this.failNextSend) { this.failNextSend = false; throw new Error("offline"); }
@@ -101,9 +127,10 @@ class Server {
 
   /** The owner shared the board from the app as the app does it: the whole document as a snapshot
    *  up to 0, and no changes after it (CollabStore.share). */
-  async shareAsSnapshot(elements: Record<string, unknown>[]) {
+  async shareAsSnapshot(elements: Record<string, unknown>[], comments: Comment[] = []) {
     const doc = A.change(A.init<Record<string, unknown>>(), { message: `u:${EMIL.toUpperCase()}` }, (d) => {
-      d.body = "Launch plan"; d.board = Object.fromEntries(elements.map((e) => [e.id as string, JSON.stringify(e)])); d.boardState = {}; d.comments = {};
+      d.body = "Launch plan"; d.board = Object.fromEntries(elements.map((e) => [e.id as string, JSON.stringify(e)])); d.boardState = {};
+      d.comments = Object.fromEntries(comments.map((c) => [c.id, new A.ImmutableString(commentJSON(c))]));
     });
     this.snapshots.push({ ct: await seal3("s", A.save(doc) as Bytes, nk, NOTE, 1, "0"), upto: 0, epoch: 1 });
   }
@@ -121,7 +148,12 @@ const box = (id: string, over: Record<string, unknown> = {}) => ({
 });
 
 async function open(server: Server, me: string | null, clock: TestClock, o: { write?: boolean; live?: boolean; name?: string } = {}) {
-  const s = new BoardSession({ A, note: NOTE, epoch: 1, nk, transport: server.transport(me, o), me, name: o.name ?? "Someone", canWrite: o.write !== false && !!me, clock });
+  const role = me ? server.roleOf(me) : null;
+  const write = o.write !== false && !!me && (role === "owner" || role === "editor");
+  const s = new BoardSession({
+    A, note: NOTE, epoch: 1, nk, transport: server.transport(me, { ...o, write }), me, name: o.name ?? "Someone", canWrite: write,
+    role, canComment: role === "owner" || role === "editor" || role === "commenter", clock,
+  });
   const seen = { scenes: 0, peers: [] as ReturnType<BoardSession["boardPeers"]>, comments: [] as Comment[], refused: [] as [string[], string][], ai: [] as [string, string[]][] };
   s.onScene = () => { seen.scenes++; };
   s.onPeers = (p) => { seen.peers = p; };
@@ -332,14 +364,26 @@ describe("a shared board in the browser", () => {
     emil.s.close(); sara.s.close();
   });
 
-  it("comments travel as changes, and a viewer reads them", async () => {
+  const note = (id: string, by: string, name: string, text: string, over: Partial<Comment> = {}): Comment =>
+    ({ id, on: "a", x: 1, y: 0, by: by.toUpperCase(), name, text, created: "2026-11-17T09:12:00Z", resolved: false, version: 1, ...over });
+  /** The stream as someone holding only `key` reads it: the server's rows, opened and folded. */
+  const streamAs = async (server: Server, key: Bytes, epoch: number) => {
+    const entries = [];
+    for (const r of server.comments.filter((c) => c.epoch === epoch)) {
+      entries.push(entryOf(new TextDecoder().decode(await open3("c", r.ct, key, NOTE, r.author_id)), r.author_id, r.role));
+    }
+    return foldComments([], entries);
+  };
+
+  it("comments go in their own sealed stream, live, never in the drawing's changes; a viewer reads them", async () => {
     const server = new Server(), clock = new TestClock();
     await server.share();
     const emil = await open(server, EMIL, clock);
     const sara = await open(server, SARA, clock);
     const viewer = await open(server, null, clock);
-    const c: Comment = { id: "c-0000000000000001", on: "a", x: 1, y: 0, by: SARA, name: "Sara", text: "Kan vi flytta den här?", created: "2026-11-17T09:12:00Z", resolved: false, version: 1 };
+    const c = note("c-0000000000000001", SARA, "Sara", "Kan vi flytta den här?");
     sara.s.commentLocal([c]);
+    expect(sara.seen.comments.map((x) => x.text)).toEqual(["Kan vi flytta den här?"]);
     await settle();
     expect(emil.seen.comments.map((x) => x.text)).toEqual(["Kan vi flytta den här?"]);
     emil.s.commentLocal([{ ...c, resolved: true, version: 2 }]);
@@ -347,10 +391,131 @@ describe("a shared board in the browser", () => {
     await clock.advance(2000);
     expect(sara.seen.comments[0].resolved).toBe(true);
     expect(viewer.seen.comments[0].resolved).toBe(true);
+    // Two entries, each stamped with its writer and sealed: the server sees none of the words.
+    expect(server.updates.length).toBe(1);
+    expect(server.comments.map((r) => [r.author_id, r.role, r.ct.startsWith("amb3c.1.")])).toEqual([[SARA, "editor", true], [EMIL, "owner", true]]);
+    expect(server.comments.some((r) => r.ct.includes("flytta"))).toBe(false);
     // A viewer writes no comment.
     viewer.s.commentLocal([{ ...c, id: "c-0000000000000002" }]);
-    expect(server.updates.length).toBe(3);
+    await settle();
+    expect(server.comments.length).toBe(2);
     for (const p of [emil, sara, viewer]) p.s.close();
+  });
+
+  it("someone who can comment comments and replies, live, but draws nothing; their resolve counts, their edit of another's words doesn't", async () => {
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock);
+    const cleo = await open(server, CLEO, clock);
+    expect([cleo.s.canWrite, cleo.s.canComment]).toEqual([false, true]);
+    await cleo.s.local([box("a")]);
+    await settle();
+    expect(server.updates.length).toBe(1);
+    expect(emil.s.board.size).toBe(0);
+    const t = note("c-0000000000000001", EMIL, "Emil", "Ship it");
+    emil.s.commentLocal([t]);
+    await settle();
+    cleo.s.commentLocal([note("c-0000000000000002", CLEO, "Cleo", "Move Publish up", { thread: t.id, on: undefined })]);
+    await settle();
+    expect(emil.seen.comments.map((x) => [x.name, x.text])).toEqual([["Emil", "Ship it"], ["Cleo", "Move Publish up"]]);
+    // Cleo resolves the thread: it counts. Cleo writes Emil's words over: they stay Emil's.
+    cleo.s.commentLocal([{ ...t, resolved: true, version: 2 }]);
+    cleo.s.commentLocal([{ ...t, resolved: true, text: "Don't ship it", version: 3 }]);
+    await settle();
+    expect(emil.seen.comments[0].text).toBe("Ship it");
+    expect(emil.seen.comments[0].resolved).toBe(true);
+    expect(cleo.seen.comments[0].text).toBe("Ship it");
+    expect(server.comments.map((r) => r.role)).toEqual(["owner", "commenter", "commenter", "commenter"]);
+    emil.s.close(); cleo.s.close();
+  });
+
+  it("the comments in the document's old map move into the stream once, by the owner's page, with nothing lost", async () => {
+    const server = new Server(), clock = new TestClock();
+    const old = [note("c-0000000000000001", EMIL, "Emil", "Ship it"), note("c-0000000000000002", SARA, "Sara", "Not yet", { thread: "c-0000000000000001", on: undefined })];
+    await server.shareAsSnapshot([box("a")], old);
+    // Someone who can only comment sees them before they move (the old map is read too), and moves nothing.
+    const cleo = await open(server, CLEO, clock);
+    expect(cleo.seen.comments.map((c) => c.text)).toEqual(["Ship it", "Not yet"]);
+    expect(server.comments.length).toBe(0);
+    const emil = await open(server, EMIL, clock);
+    await settle();
+    expect(server.comments.map((r) => [r.author_id, r.role])).toEqual([[EMIL, "owner"]]);
+    expect(entryOf(new TextDecoder().decode(await open3("c", server.comments[0].ct, nk, NOTE, EMIL)), EMIL, "owner").moved).toBe(true);
+    expect((await streamAs(server, nk, 1)).map((c) => [c.by, c.text])).toEqual([[EMIL.toUpperCase(), "Ship it"], [SARA.toUpperCase(), "Not yet"]]);
+    // Opened again, and by an editor: nothing more to move.
+    const sara = await open(server, SARA, clock);
+    const again = await open(server, EMIL, clock);
+    await settle();
+    expect(server.comments.length).toBe(1);
+    expect(sara.seen.comments.map((c) => c.text)).toEqual(["Ship it", "Not yet"]);
+    for (const p of [cleo, emil, sara, again]) p.s.close();
+  });
+
+  it("a build from before Can comment writes in the old map: an editor's page moves it, and everyone sees it", async () => {
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock);
+    const cleo = await open(server, CLEO, clock);
+    // Sara's older build: the comment goes in the document, as before.
+    const sara = await open(server, SARA, clock);
+    const out = put(A, sara.s.doc, { comments: [note("c-0000000000000009", SARA, "Sara", "From the old app")] }, SARA, new Date());
+    sara.s.doc = out.doc;
+    (sara.s as unknown as { pending: Uint8Array[] }).pending.push(out.bytes!);
+    await sara.s.flush();
+    await settle();
+    await clock.advance(2000);
+    expect(cleo.seen.comments.map((c) => c.text)).toEqual(["From the old app"]);
+    expect((await streamAs(server, nk, 1)).map((c) => c.text)).toEqual(["From the old app"]);
+    for (const p of [emil, cleo, sara]) p.s.close();
+  });
+
+  it("after the key changes, an editor's page restates the comments under the new key, for those who hold only it", async () => {
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock);
+    const cleo = await open(server, CLEO, clock);
+    cleo.s.commentLocal([note("c-0000000000000001", CLEO, "Cleo", "Before the new key")]);
+    await settle();
+    expect(server.comments.length).toBe(1);
+    const nk2 = crypto.getRandomValues(new Uint8Array(32)) as Bytes;
+    server.epoch = 2;
+    emil.s.rekey(nk2, 2);
+    await settle();
+    await clock.advance(2000);
+    const fresh = await streamAs(server, nk2, 2);
+    expect(fresh.map((c) => [c.by, c.text])).toEqual([[CLEO.toUpperCase(), "Before the new key"]]);
+    expect(server.comments.filter((r) => r.epoch === 2).map((r) => r.author_id)).toEqual([EMIL]);
+    emil.s.close(); cleo.s.close();
+  });
+
+  it("a comment that didn't go up waits and goes again; one the board has no room for is dropped and said", async () => {
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock);
+    const cleo = await open(server, CLEO, clock);
+    const refused: string[] = [];
+    cleo.s.onCommentsRefused = (why) => refused.push(why);
+    server.failNextComment = true;
+    cleo.s.commentLocal([note("c-0000000000000001", CLEO, "Cleo", "Offline for a moment")]);
+    await settle();
+    expect([cleo.s.unsentComments, server.comments.length]).toEqual([1, 0]);
+    expect(cleo.seen.comments.map((c) => c.text)).toEqual(["Offline for a moment"]);
+    await clock.advance(2100);
+    expect([cleo.s.unsentComments, server.comments.length]).toEqual([0, 1]);
+    expect(emil.seen.comments.map((c) => c.text)).toEqual(["Offline for a moment"]);
+    server.commentRoom = 10;
+    cleo.s.commentLocal([note("c-0000000000000002", CLEO, "Cleo", "No room")]);
+    await settle();
+    expect(refused).toEqual(["This whiteboard has no room for more comments."]);
+    expect([cleo.s.unsentComments, server.comments.length]).toEqual([0, 1]);
+    expect(cleo.seen.comments.map((c) => c.text)).toEqual(["Offline for a moment"]);
+    // Made Can view: the server refuses, and the page stops offering to comment.
+    server.members = server.members.map((m) => (m.user_id === CLEO ? { ...m, role: "viewer" } : m));
+    server.commentRoom = Infinity;
+    cleo.s.commentLocal([note("c-0000000000000003", CLEO, "Cleo", "Now a viewer")]);
+    await settle();
+    expect([cleo.s.canComment, cleo.s.unsentComments, server.comments.length]).toEqual([false, 0, 1]);
+    emil.s.close(); cleo.s.close();
   });
 
   it("after 200 changes and 5 quiet seconds a snapshot goes up, and someone opening later reads it and what came after", async () => {

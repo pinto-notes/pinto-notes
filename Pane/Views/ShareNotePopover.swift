@@ -679,7 +679,7 @@ struct CollaborateRows: View {
                     // A neutral menu: the system's took the accent, loud for a setting left at Off.
                     Menu {
                         Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                            ForEach(ShareState.Access.choices(board: share.board())) { Text($0.rawValue).tag($0) }
                         }
                         .pickerStyle(.inline)
                         .labelsHidden()

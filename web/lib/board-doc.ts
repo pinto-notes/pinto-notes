@@ -9,7 +9,9 @@
 //   then the lower `versionNonce`, then the lower JSON.
 // - `boardState`: the scene's `viewBackgroundColor` and `gridModeEnabled`.
 // - `comments`: each comment's id → its record as JSON with sorted keys. Two devices that made the
-//   map at once leave two maps: both are read.
+//   map at once leave two maps: both are read. Since Can comment (18 November 2026) a board's
+//   comments travel in their own stream (note_comments, `foldComments`); this map is read as its
+//   first layer, and an owner's or editor's device moves it into the stream (`toRestate`).
 // Each change's message is "u:<account id>" (CollabHistory.stamp), so the app's history says who.
 import type * as AM from "@automerge/automerge/slim";
 
@@ -172,7 +174,14 @@ export type Comment = {
   deleted?: boolean;
   /** The people it mentions, by account id. */
   mentions?: string[];
+  /** An AI's comment: the elements the write that added it changed (Show change). */
+  changes?: string[];
 };
+
+/** The highest version a record may have; above it, it's ignored, and a write never goes past it. */
+export const MAX_VERSION = 1_000_000_000;
+/** The version a change of `c` takes: past everyone's, never past MAX_VERSION (a tie goes to the later write). */
+export const nextVersion = (c: Comment) => Math.min(c.version + 1, MAX_VERSION);
 
 /** A record as kept, checked (BoardComment.init?): anything malformed is left out. */
 export function parseComment(r: unknown): Comment | null {
@@ -199,6 +208,8 @@ export function parseComment(r: unknown): Comment | null {
     if (edited) c.edited = edited;
     const m = Array.isArray(o.mentions) ? o.mentions.filter((x): x is string => typeof x === "string" && x.length > 0 && [...x].length <= 200).slice(0, 50) : [];
     if (m.length) c.mentions = m;
+    const ch = Array.isArray(o.changes) ? o.changes.filter((x): x is string => typeof x === "string" && x.length > 0 && [...x].length <= 200).slice(0, 200) : [];
+    if (ch.length) c.changes = ch;
   }
   return c;
 }
@@ -213,9 +224,104 @@ export function commentRecord(c: Comment): El {
   if (c.resolved) r.resolved = true;
   if (c.edited && !c.deleted) r.edited = c.edited;
   if (c.mentions?.length && !c.deleted) r.mentions = c.mentions;
+  if (c.changes?.length && !c.deleted) r.changes = c.changes;
   return r;
 }
 export const commentJSON = (c: Comment) => encode(commentRecord(c));
+
+// MARK: The comment stream (BoardComments.fold, board_comments.ts fold)
+
+/** One entry of a shared board's comment stream, opened: its author and their role (the server's
+ *  stamps), and the records it holds. `moved`: comments restated by an owner's or editor's device. */
+export type CommentEntry = { author: string; role: string; moved?: boolean; comments: unknown[] };
+
+/** An entry's JSON, opened: anything malformed holds nothing. */
+export function entryOf(plain: string, author: string, role: string): CommentEntry {
+  try {
+    const o = JSON.parse(plain);
+    return { author, role, moved: o?.moved === true, comments: Array.isArray(o?.comments) ? o.comments.slice(0, 500) : [] };
+  } catch {
+    return { author, role, comments: [] };
+  }
+}
+
+/** An entry as it's sealed. */
+export const entryJSON = (comments: Comment[], moved = false) =>
+  encode(moved ? { moved: true, comments: comments.map(commentRecord) } : { comments: comments.map(commentRecord) });
+
+type Candidate = { c: Comment; trusted: boolean; own: boolean; order: number };
+const wins = (a: Candidate, b: Candidate) => a.c.version !== b.c.version ? a.c.version > b.c.version : a.order > b.order;
+const versionOf = (raw: unknown): number | null => {
+  const v = raw && typeof raw === "object" ? (raw as El).version : undefined;
+  if (typeof v !== "number") return 1;
+  return Number.isInteger(v) && v >= 1 && v <= MAX_VERSION ? v : null;
+};
+
+/**
+ * A shared board's comments, as every device reads them: `legacy`, the document's old map
+ * (readComments), then the stream's entries in the server's order. Per comment id: its owner is the
+ * writer the first trusted record names (the old map, or a moved entry from an owner or editor),
+ * else the writer of the first entry that wrote it in their own name; its words are the owner's
+ * record with the highest version (then the later one); whether a thread is resolved comes from
+ * everyone's records for it the same way; its version is the highest anyone wrote. Pinned to the
+ * app's and the MCP server's by supabase/functions/_shared/comment-vectors.json.
+ */
+export function foldComments(legacy: Comment[], entries: CommentEntry[]): Comment[] {
+  const all = new Map<string, Candidate[]>();
+  const add = (x: Candidate) => all.set(x.c.id, [...(all.get(x.c.id) ?? []), x]);
+  let order = 0;
+  for (const c of legacy) add({ c, trusted: true, own: true, order: order++ });
+  for (const e of entries) {
+    const author = e.author.toLowerCase();
+    const trusts = e.moved === true && (e.role === "owner" || e.role === "editor");
+    for (const raw of e.comments) {
+      const v = versionOf(raw), c = v === null ? null : parseComment(raw);
+      if (!c || v === null) { order++; continue; }
+      c.version = v;
+      const own = trusts || c.by.toLowerCase() === author;
+      if (own || !c.thread) add({ c, trusted: trusts, own, order });
+      order++;
+    }
+  }
+  const out: Comment[] = [];
+  for (const list of all.values()) {
+    const first = list.find((x) => x.trusted) ?? list.find((x) => x.own);
+    if (!first) continue;
+    const owner = first.c.by.toLowerCase();
+    let words: Candidate | null = null;
+    for (const x of list) if (x.own && x.c.by.toLowerCase() === owner && (!words || wins(x, words))) words = x;
+    if (!words) continue;
+    const c: Comment = { ...words.c, version: Math.max(...list.map((x) => x.c.version)) };
+    if (!c.thread) {
+      let r: Candidate | null = null;
+      for (const x of list) if (!x.c.thread && (!r || wins(x, r))) r = x;
+      c.resolved = r?.c.resolved === true;
+    }
+    out.push(c);
+  }
+  return out.sort(commentOrder);
+}
+
+/** What an owner's or editor's device restates in a moved entry: what someone reading only the
+ *  stream under the current key (`bare`) wouldn't see as everything it opened shows it (`full`). */
+export function toRestate(full: Comment[], bare: Comment[]): Comment[] {
+  const had = new Map(bare.map((c) => [c.id, commentJSON(c)]));
+  return full.filter((c) => had.get(c.id) !== commentJSON(c));
+}
+
+/** Entries of at most about 45 KB of JSON each: sealed, each stays under the server's 64 KB. */
+export function commentEntries(comments: Comment[], moved = false): string[] {
+  const out: string[] = [];
+  let part: Comment[] = [], size = 0;
+  for (const c of comments) {
+    const n = commentJSON(c).length + 1;
+    if (part.length && (size + n > 45_000 || part.length >= 400)) { out.push(entryJSON(part, moved)); part = []; size = 0; }
+    part.push(c);
+    size += n;
+  }
+  if (part.length) out.push(entryJSON(part, moved));
+  return out;
+}
 
 /** The winner among values written for one comment at once: the higher version, then the lower JSON. */
 export function resolveComment(raws: string[]): Comment | null {

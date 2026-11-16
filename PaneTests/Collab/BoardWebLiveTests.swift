@@ -21,6 +21,10 @@ import Testing
 /// 6. The browser presents (its More menu, Present): `presenting.json`. The app sees "Sara is
 ///    presenting · Launch · 1 of 2" and follows; the browser's bar says "Emil is following" and
 ///    steps on; the app sees the second step: `followed.txt`. Done: `presented.json`.
+/// 7. The app turns the link to Can comment: `comment-link.txt`. A second browser person signs in
+///    through it, has no drawing tools, comments on the box and edits it from its ⋯ menu:
+///    `commenter.json` {user, text}. The app has it live, from the comment stream, stamped
+///    commenter, and no change of the drawing from her: `commented.txt`.
 @MainActor
 @Suite(.enabled(if: BoardWebLive.config != nil), .serialized)
 struct BoardWebLiveTests {
@@ -138,6 +142,40 @@ struct BoardWebLiveTests {
         await until(30) { hers() == nil }
         #expect(hers() == nil, "Done reached the app")
         e.boardFollow(nil)
+
+        // 7. Can comment, on the same link: Cleo signs in through it in a browser and comments.
+        try await store.setAccess(.comment, for: note)
+        #expect(store.access(note) == .comment)
+        try write("comment-link.txt", try #require(store.linkURL(note)).absoluteString)
+        let saidC = try #require(await file("commenter.json", within: 300), "the commenter never said she commented")
+        let commenter = try #require(try JSONSerialization.jsonObject(with: saidC) as? [String: String])
+        let cleo = try #require(commenter["user"].flatMap(UUID.init(uuidString:))), words = try #require(commenter["text"])
+        // Live: well inside the 20 seconds between pulls.
+        await until(10) { e.boardComments.contains { $0.by.uppercased() == cleo.uuidString && $0.text == words } }
+        let hers = try #require(e.boardComments.first { $0.by.uppercased() == cleo.uuidString }, "her comment reached the app live: \(e.boardComments.map(\.text))")
+        #expect(hers.name == "Cleo" && hers.on == "mac-1" && hers.text == words && hers.edited != nil)
+        let cleoRow = try #require(try await store.transport!.members(of: note.id).first { $0.user_id == cleo }, "she joined")
+        #expect(cleoRow.role == "commenter")
+        let entries: [Collab.CommentRow] = try await client.from("note_comments").select("id,note_id,author_id,role,epoch,ct,client")
+            .eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(entries.contains { $0.author_id == cleo && $0.role == "commenter" }, "her entries, stamped commenter")
+        #expect(entries.allSatisfy { !$0.ct.contains("twice") && !$0.ct.contains("Cleo") }, "sealed")
+        let changes: [Collab.Update] = try await client.from("note_updates").select("id,note_id,author_id,epoch,ct,client")
+            .eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(!changes.contains { $0.author_id == cleo }, "nothing of the drawing from her")
+        #if os(macOS)
+        // Her comment as the app shows it, from what arrived live: the Mac's thread, next to the
+        // browser's pictures (build/repro/board-web/14-mac-sees-the-commenter.png).
+        let macBoard = CanvasController()
+        macBoard.author = BoardComments.Author(id: me.uuidString, name: "Emil")
+        macBoard.seenStore = BoardComments.Seen(defaults: TestDefaults())
+        macBoard.show(comments: e.boardComments)
+        let picture = try await BoardCommentsCanvasTests.popover(BoardThreadView(canvas: macBoard, id: hers.id), dark: false)
+        let out = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "build/repro/board-web/14-mac-sees-the-commenter.png")
+        try #require(picture.representation(using: .png, properties: [:])).write(to: out)
+        #endif
+        try write("commented.txt", "ok")
     }
 }
 

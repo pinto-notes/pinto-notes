@@ -86,6 +86,14 @@ protocol CollabTransport: AnyObject {
     /// Which pictures the server has for the note, and the key each is sealed under.
     func files(of note: UUID) async throws -> [Collab.FileRow]
 
+    // MARK: A shared whiteboard's comments (note_comments, 20261118100000_collab_board_comment_role.sql)
+
+    /// The comment stream's entries after `after`, in order of id (they follow commit order).
+    func comments(note: UUID, after: Int64) async throws -> [Collab.CommentRow]
+    /// One entry, sealed under the note key (`amb3c`). Refused with `.readOnly` for a viewer,
+    /// `.staleEpoch` for an old key and `.commentsFull` past the board's room.
+    func send(comment ct: String, note: UUID, epoch: Int) async throws -> Collab.CommentRow
+
     // MARK: Live
 
     /// Joins the note's channel (members only). Events arrive on the main actor until `close()`.
@@ -167,6 +175,18 @@ enum Collab {
         let epoch: Int
     }
 
+    /// One entry of a shared whiteboard's comment stream, sealed (`amb3c`, AAD with its author),
+    /// stamped by the server with its writer, their role then, and the AI that wrote it.
+    struct CommentRow: Codable, Sendable, Equatable {
+        let id: Int64
+        let note_id: UUID
+        let author_id: UUID
+        let role: String
+        let epoch: Int
+        let ct: String
+        var client: String? = nil
+    }
+
     struct Pull: Decodable, Sendable {
         let snapshot: Snapshot?
         let updates: [Update]
@@ -192,6 +212,8 @@ enum Collab {
     enum Event: Sendable {
         /// A change someone (you included, from another device) stored.
         case update(Update)
+        /// A comment entry someone stored on a shared whiteboard.
+        case comment(CommentRow)
         /// Someone's sealed presence (`amb3p`).
         case presence(user: UUID, ct: String)
         /// Someone closed the note on their last device, or lost their connection.
@@ -229,6 +251,8 @@ enum Collab {
         case tooLongToShare
         /// The whiteboard has no room for this picture (`files_full`).
         case picturesFull
+        /// The whiteboard has no room for more comments (`comments_full`).
+        case commentsFull
         case server(String)
 
         var errorDescription: String? {
@@ -242,6 +266,7 @@ enum Collab {
             case .notMember: "You're not in this note anymore."
             case .tooLongToShare: "This note is too long to share. Split it into smaller notes."
             case .picturesFull: "This whiteboard has no room for more pictures."
+            case .commentsFull: "This whiteboard has no room for more comments."
             case .server(let m): m
             }
         }
@@ -255,6 +280,7 @@ enum Collab {
             case "wraps_incomplete": .wrapsIncomplete
             case "not_member": .notMember
             case "files_full": .picturesFull
+            case "comments_full": .commentsFull
             default: .server(message)
             }
         }

@@ -48,6 +48,7 @@ export class BoardHost {
 
   constructor(private readonly send: (command: Message) => void, public session: BoardSession, readonly comments: BoardComments, viewOnly: boolean) {
     this.viewOnly = viewOnly;
+    comments.viewOnly = viewOnly;
     this.follow = new BoardFollow((c) => { if (this.loaded) this.send(c); });
     this.wire(session);
     comments.onChange = () => this.sendComments();
@@ -82,7 +83,8 @@ export class BoardHost {
   setViewOnly(view: boolean) {
     if (view === this.viewOnly) return;
     this.viewOnly = view;
-    if (this.loaded) this.send({ op: "shared", on: true, viewOnly: view });
+    this.comments.viewOnly = view;
+    if (this.loaded) { this.send({ op: "shared", on: true, viewOnly: view }); this.sendComments(); }
   }
 
   /** The document's drawing, with only the pictures the page doesn't have yet. */

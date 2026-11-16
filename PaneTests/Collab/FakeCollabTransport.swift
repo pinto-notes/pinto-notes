@@ -15,6 +15,8 @@ final class FakeCollabServer {
 
     private(set) var updates: [Collab.Update] = []
     private(set) var snapshots: [Collab.Snapshot] = []
+    /// Shared whiteboards' comment streams (note_comments), in order of id.
+    private(set) var comments: [Collab.CommentRow] = []
     private var nextID: Int64 = 1
     var epochs: [UUID: Int] = [:]
     var members: [UUID: [UUID: Member]] = [:]
@@ -57,6 +59,19 @@ final class FakeCollabServer {
         nextID += 1
         updates.append(row)
         for c in channels where c.note == note && c.open { c.deliver(.update(row)) }
+        return row
+    }
+
+    /// An entry of a board's comment stream, as the guard takes it: from someone who may comment,
+    /// under the note's key, stamped with them and their role.
+    func insertComment(note: UUID, author: UUID, epoch: Int, ct: String) throws -> Collab.CommentRow {
+        guard let role = role(note, author) else { throw Collab.Failure.notMember }
+        guard role != "viewer" else { throw Collab.Failure.readOnly }
+        guard epoch == epochs[note] else { throw Collab.Failure.staleEpoch }
+        let row = Collab.CommentRow(id: nextID, note_id: note, author_id: author, role: role, epoch: epoch, ct: ct, client: aiWriting[author])
+        nextID += 1
+        comments.append(row)
+        for c in channels where c.note == note && c.open { c.deliver(.comment(row)) }
         return row
     }
 
@@ -253,6 +268,17 @@ final class FakeCollabTransport: CollabTransport {
     func send(update ct: String, note: UUID, epoch: Int) async throws -> Collab.Update {
         try call("send update")
         return try server.insertUpdate(note: note, author: me, epoch: epoch, ct: ct)
+    }
+
+    func comments(note: UUID, after: Int64) async throws -> [Collab.CommentRow] {
+        try call("comments")
+        guard server.role(note, me) != nil else { return [] }
+        return server.comments.filter { $0.note_id == note && $0.id > after }
+    }
+
+    func send(comment ct: String, note: UUID, epoch: Int) async throws -> Collab.CommentRow {
+        try call("send comment")
+        return try server.insertComment(note: note, author: me, epoch: epoch, ct: ct)
     }
 
     func send(snapshot ct: String, note: UUID, upto: Int64, epoch: Int) async throws {

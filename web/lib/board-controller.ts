@@ -3,11 +3,13 @@
 //
 // 1. The link: its secret (in the address's fragment, never sent) gives the answer the server
 //    checks and the key the board's note key (NK) is sealed under (collab.ts linkKeys). The server
-//    hands back the sealed NK, the note, its role (Can edit or Can view) and the board's title,
+//    hands back the sealed NK, the note, its role (Can edit, Can comment or Can view) and the board's title,
 //    sealed; all of it opens here.
 // 2. The board, live: its document from the server, opened with NK. Someone who isn't signed in
 //    (or can only view) reads it through the link and follows it every 2 seconds.
-// 3. Sign in to edit (an Edit link): an email code, with an account made for a new email. Then
+// 3. Sign in to edit or to comment (an Edit or a Comment link): an email code, with an account made
+//    for a new email. Someone who can comment sees the board as a viewer does, with no drawing
+//    tools, and writes only comments (their own stream on the server, board-session.ts). Then
 //    joining, as the app joins (board-keys.ts): the account's key, its sharing key, NK sealed to it,
 //    collab_join_link. From then on the board is read and written as a member, on the note's live
 //    channel, with pointers both ways.
@@ -113,8 +115,25 @@ export class BoardController {
   private pageLoad: Record<string, unknown> | null = null;
 
   get canEdit() { return this.role === "owner" || this.role === "editor"; }
-  /** Whether "Sign in to edit" is offered: an Edit link, and you aren't editing yet. */
-  get offersSignIn() { return this.linkRole === "editor" && !this.canEdit && this.phase === "board"; }
+  /** You can comment: Can comment, or you can edit. */
+  get canComment() { return this.canEdit || this.role === "commenter"; }
+  /** Whether "Sign in to edit" (an Edit link) or "Sign in to comment" (a Comment link) is offered:
+   *  you can't do what the link gives yet. */
+  get offersSignIn() {
+    if (this.phase !== "board") return false;
+    if (this.linkRole === "editor") return !this.canEdit;
+    return this.linkRole === "commenter" && !this.canComment;
+  }
+  /** "Sign in to edit" or "Sign in to comment", as the link gives. */
+  get signInLabel() { return this.linkRole === "commenter" ? "Sign in to comment" : "Sign in to edit"; }
+  /** What you can do here, under the title; null for someone who can edit. */
+  get accessLine(): string | null {
+    if (this.canEdit) return null;
+    if (this.canComment) return "Can comment";
+    return this.linkRole === "editor" || this.linkRole === "commenter" ? "View only until you sign in" : "Can view";
+  }
+  /** What you can now do, said when you join. */
+  private get joinedLine() { return this.canEdit ? "You can edit this board" : this.canComment ? "You can comment on this board" : "You joined this board"; }
 
   // MARK: Opening
 
@@ -151,12 +170,15 @@ export class BoardController {
   }
 
   private async startViewer() {
-    const session = this.newSession(linkTransport(new Rest(this.cfg.supabaseURL, this.cfg.anonKey, null, () => {}, this.f), this.link!.id, this.link!.answer), null, "Someone", false);
+    const session = this.newSession(linkTransport(new Rest(this.cfg.supabaseURL, this.cfg.anonKey, null, () => {}, this.f), this.link!.id, this.link!.answer), null, "Someone", null);
     await this.begin(session);
   }
 
-  private newSession(transport: ConstructorParameters<typeof BoardSession>[0]["transport"], me: string | null, name: string, canWrite: boolean) {
-    return new BoardSession({ A: this.A!, note: this.note, epoch: this.epoch, nk: this.nk!, transport, me, name, canWrite });
+  private newSession(transport: ConstructorParameters<typeof BoardSession>[0]["transport"], me: string | null, name: string, role: string | null) {
+    const canWrite = role === "owner" || role === "editor";
+    const session = new BoardSession({ A: this.A!, note: this.note, epoch: this.epoch, nk: this.nk!, transport, me, name, canWrite, role, canComment: canWrite || role === "commenter" });
+    session.onCommentsRefused = (why) => this.say(why);
+    return session;
   }
 
   private async begin(session: BoardSession) {
@@ -202,9 +224,13 @@ export class BoardController {
     if (mine && this.role && mine.role !== this.role) {
       // The owner changed what you can do: Can view now, or Can edit again.
       this.role = mine.role;
-      this.comments.setCanComment(this.canEdit);
+      this.comments.setCanComment(this.canComment);
       this.host?.setViewOnly(!this.canEdit);
-      if (this.session) this.session.canWrite = this.canEdit;
+      if (this.session) {
+        this.session.canWrite = this.canEdit;
+        this.session.canComment = this.canComment;
+        this.session.role = mine.role;
+      }
     }
     this.changed();
   }
@@ -242,9 +268,8 @@ export class BoardController {
   private async becomeMember(role: string) {
     const me = this.account!;
     me.name = me.name ?? await this.rest.name().catch(() => null);
-    const canEdit = role === "owner" || role === "editor";
     const transport = memberTransport(this.rest, this.note, realtimeFor(this.cfg.supabaseURL, this.cfg.anonKey));
-    const session = this.newSession(transport, me.id, me.name ?? "Someone", canEdit);
+    const session = this.newSession(transport, me.id, me.name ?? "Someone", role);
     this.comments.author = { id: me.id.toUpperCase(), name: firstName(me.name) };
     this.comments.colorOf = (u) => session.colorOf(u);
     this.comments.darkOf = (c) => darkOf(c);
@@ -252,7 +277,7 @@ export class BoardController {
     // Only now, with the canvas told it can draw: the tools show, and a tool picked then stays picked
     // (the canvas sets the selection tool when it leaves view mode).
     this.role = role;
-    this.comments.setCanComment(this.canEdit);
+    this.comments.setCanComment(this.canComment);
     this.changed();
     void session.refreshMembers();
   }
@@ -330,7 +355,7 @@ export class BoardController {
     this.signIn = { step: "joining", email: me.email, busy: true, error: null };
     this.changed();
     // In it already (another device joined): no keys needed here to start.
-    if (await this.tryMember()) { this.signIn = null; this.say("You can edit this board"); return; }
+    if (await this.tryMember()) { this.signIn = null; this.say(this.joinedLine); return; }
     const token = this.rest.accessToken;
     if (!token) { this.signIn = { step: "email", email: me.email, busy: false, error: null }; this.changed(); return; }
     const nk = this.nk, note = this.note, epoch = this.epoch, link = this.link;
@@ -351,7 +376,7 @@ export class BoardController {
     await this.becomeMember(this.linkRole);
     this.session?.announceMembers();
     this.signIn = null;
-    this.say(this.canEdit ? "You can edit this board" : "You joined this board");
+    this.say(this.joinedLine);
   }
 
   async signOut(): Promise<void> {

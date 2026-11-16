@@ -234,16 +234,17 @@ import WebKit
         let list = try #require(await phone.appears("canvas.comments"))
         #expect(list.accessibilityFrame.height >= 44 - 0.5, "the Comments button is 44 points tall: \(list.accessibilityFrame)")
 
-        // A tap a quarter of the way into Draft: the comment goes on Draft, there.
+        // A tap a quarter of the way into Draft: the comment goes on Draft, its pin at the corner
+        // where placed pins sit (top right), not under the finger (round 14, comments-iphone-2).
         try await phone.tap(45, 222.5)
         await phone.until("a new comment, on Draft") { phone.canvas.draft != nil }
-        #expect(phone.canvas.draft == BoardComments.Place(on: "draft", x: 0.25, y: 0.25))
+        #expect(phone.canvas.draft == BoardComments.Place(on: "draft", x: 1, y: 0))
         await phone.until("the tool is put down") { phone.canvas.state.tool == .selection }
         // The composer, in a sheet; the pin moved up above it.
         #expect(await phone.appears("comment.composer") != nil, "\(phone.ids())")
         #expect(phone.canvas.sent.contains(.focusComment("draft", above: BoardCommentUI.sheetRoom)))
         try await Task.sleep(for: .milliseconds(500))
-        let pin = try await phone.onScreen(45, 222.5)
+        let pin = try await phone.onScreen(180, 200)
         #expect(pin.y <= phone.window.bounds.height * BoardCommentUI.sheetRoom + 1, "the pin is above the sheet: \(pin.y) of \(phone.window.bounds.height)")
 
         // Posted (the field's own send): its thread in the sheet, and Sara has it.
@@ -341,6 +342,8 @@ import WebKit
         let said = rows.first?.element.accessibilityLabel ?? ""
         #expect(said.contains("Emil") && said.contains("Shorter?") && said.contains("on Draft") && said.contains("1 reply"), "\(said)")
         #expect(phone.find("comments.showResolved") != nil)
+        // New Comment at the list's top, as on the Mac (round 14, comments-iphone-4).
+        #expect(phone.find("comments.new")?.accessibilityLabel == BoardCommentUI.new, "\(phone.ids())")
         phone.canvas.showResolved = true
         for _ in 0..<50 where phone.elements().filter({ $0.id == "comments.row" }).count < 2 { try await Task.sleep(for: .milliseconds(40)) }
         rows = phone.elements().filter { $0.id == "comments.row" }
@@ -352,6 +355,41 @@ import WebKit
         #expect(phone.press("comments.row"), "\(phone.ids())")
         await phone.until("the thread opens") { phone.canvas.openThread == open.id && !phone.canvas.showingComments }
         #expect(await phone.appears("comment.thread") != nil, "\(phone.ids())")
+        phone.canvas.closeThread()
+        for _ in 0..<50 where phone.window.rootViewController?.presentedViewController != nil { try await Task.sleep(for: .milliseconds(40)) }
+
+        // New Comment: the list goes and the Comment tool is picked, so the next tap places it.
+        phone.canvas.showingComments = true
+        #expect(await phone.appears("comments.new") != nil, "\(phone.ids())")
+        #expect(phone.press("comments.new"))
+        await phone.until("the Comment tool is picked, the list gone") { phone.canvas.state.tool == .comment && !phone.canvas.showingComments }
+    }
+
+    /// Someone with a Comment link: no drawing tools, so the dock is the Comment tool and the
+    /// list. A tap with the tool pins her comment, and Emil's Mac has it.
+    @Test func aCommenterHasTheCommentToolAndTheListOnly() async throws {
+        let phone = try await Phone()
+        defer { phone.close() }
+        let people = BoardPeople()
+        let (emilDevice, others, note) = try await people.share(CanvasTests.scene(Self.elements), access: .comment, people: ["Cleo"], title: phone.note.title)
+        Self.keptStores += ([emilDevice] + others).map(\.container)
+        let cleo = try people.session(others[0], note), emil = try people.session(emilDevice, note)
+        BoardCollab.wire(cleo, phone.canvas)
+        defer { BoardCollab.unwire(cleo, phone.canvas) }
+        await people.server.eventually { phone.canvas.shared && phone.canvas.commentsOnly }
+        #expect(await phone.appears("canvas.commentDock") != nil, "\(phone.ids())")
+        let tools = Set(phone.ids().filter { $0.hasPrefix("canvas.tool.") })
+        #expect(tools == ["canvas.tool.comment"], "only Comment: \(tools)")
+        #expect(phone.find("canvas.comments") != nil)
+
+        #expect(phone.press("canvas.tool.comment"))
+        await phone.until("the Comment tool is picked") { phone.canvas.state.tool == .comment }
+        try await phone.tap(45, 222.5)
+        await phone.until("a new comment, on Draft") { phone.canvas.draft != nil }
+        #expect(phone.canvas.draft == BoardComments.Place(on: "draft", x: 1, y: 0))
+        let posted = try #require(phone.canvas.post("Shorter?"))
+        await people.server.eventually { emil.boardComments.contains { $0.id == posted.id } }
+        #expect(emil.boardComments.first { $0.id == posted.id }?.text == "Shorter?")
     }
 
     // MARK: Pictures
@@ -409,10 +447,18 @@ import WebKit
             phone.canvas.closeThread()
             for _ in 0..<50 where phone.window.rootViewController?.presentedViewController != nil { try await Task.sleep(for: .milliseconds(40)) }
             try await fit()
-            // 4. The list.
+            // 4. The list, with a resolved thread: Show resolved and New Comment at its top, as on
+            // the Mac (round 14, comments-iphone-4).
+            phone.canvas.receive(["comment": ["new": ["on": "draft", "x": 1, "y": 0]]])
+            let done = try #require(phone.canvas.post("Shorter, please"))
+            phone.canvas.resolve(done.id)
+            phone.canvas.closeThread()
+            for _ in 0..<50 where phone.window.rootViewController?.presentedViewController != nil { try await Task.sleep(for: .milliseconds(40)) }
             phone.canvas.showingComments = true
             for _ in 0..<50 where phone.window.rootViewController?.presentedViewController == nil { try await Task.sleep(for: .milliseconds(40)) }
             #expect(phone.window.rootViewController?.presentedViewController != nil, "the list's sheet is up")
+            _ = await phone.appears("comments.new")
+            #expect(phone.find("comments.new") != nil && phone.find("comments.showResolved") != nil, "\(phone.ids())")
             try await phone.picture("comments-iphone-4-list", in: dir)
             phone.canvas.showingComments = false
             for _ in 0..<50 where phone.window.rootViewController?.presentedViewController != nil { try await Task.sleep(for: .milliseconds(40)) }

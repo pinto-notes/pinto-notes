@@ -51,7 +51,7 @@ export function useWidth(): number {
 }
 
 /** A menu that closes on Escape or a click anywhere else. */
-function useDismiss(open: boolean, close: () => void, inside: React.RefObject<HTMLElement | null>) {
+export function useDismiss(open: boolean, close: () => void, inside: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
@@ -60,6 +60,21 @@ function useDismiss(open: boolean, close: () => void, inside: React.RefObject<HT
     window.addEventListener("pointerdown", down, true);
     return () => { window.removeEventListener("keydown", key); window.removeEventListener("pointerdown", down, true); };
   }, [open, close, inside]);
+}
+
+/** Can comment: the Comment tool alone at the foot, where an editor's tools are (as FigJam gives a
+ *  commenter). C picks it too, and Escape puts it down. */
+export function CommentBar({ state, command }: { state: PageState; command: Command }) {
+  const t = TOOLS.find((x) => x.tool === "comment")!;
+  const on = state.tool === "comment";
+  return (
+    <nav className={s.tools} aria-label="Tools" data-comment-bar>
+      <button className={s.tool} aria-label={`${t.label} (${t.key})`} title={`${t.label} (${t.key})`} aria-pressed={on}
+        onClick={() => command({ op: "tool", tool: "comment", on: !on })}>
+        <Icon>{t.icon}</Icon>
+      </button>
+    </nav>
+  );
 }
 
 /** The tools at the foot: every one where they fit; at phone width the ones used most, the rest in

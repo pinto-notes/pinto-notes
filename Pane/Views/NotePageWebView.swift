@@ -92,7 +92,7 @@ final class NotePageWebView: WKWebView {
             menu.addItem(.separator())
         }
         // Comment: on the selection, or on the spot you clicked (BoardComments).
-        if let canvas, canvas.canComment, !canvas.viewOnly {
+        if let canvas, canvas.canComment {
             menu.addItem(CanvasMenuItem(title: BoardCommentUI.comment) { [weak self] in
                 self?.canvas?.comment(at: selected ? nil : point)
             })

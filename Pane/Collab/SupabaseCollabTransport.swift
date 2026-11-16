@@ -9,7 +9,7 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 /// row-level security decides what each person may read and write, and a Realtime private channel
 /// `note:<id>` per open note, which only members can join (the policies on `realtime.messages`).
 ///
-/// On the channel: new changes arrive as inserts into `note_updates` (Postgres changes, checked
+/// On the channel: new changes (and a whiteboard's comment entries, `note_comments`) arrive as inserts into `note_updates` (Postgres changes, checked
 /// against the same row-level security), presence goes as a broadcast (`presence`, sealed), and
 /// Realtime's own presence tracks which devices are here, so leaving is seen even when a device
 /// drops without saying so.
@@ -260,6 +260,32 @@ final class SupabaseCollabTransport: CollabTransport {
         }
     }
 
+    // MARK: A shared whiteboard's comments
+
+    func comments(note: UUID, after: Int64) async throws -> [Collab.CommentRow] {
+        try await call("comments") {
+            var from = after
+            var out: [Collab.CommentRow] = []
+            while true {
+                let rows: [Collab.CommentRow] = try await client.from("note_comments").select("id,note_id,author_id,role,epoch,ct,client")
+                    .eq("note_id", value: Self.id(note)).gt("id", value: Int(from)).order("id").limit(Self.page)
+                    .execute().value
+                out += rows
+                guard rows.count == Self.page, let last = rows.last else { break }
+                from = last.id
+            }
+            return out
+        }
+    }
+
+    func send(comment ct: String, note: UUID, epoch: Int) async throws -> Collab.CommentRow {
+        struct Row: Encodable { let note_id: String; let epoch: Int; let ct: String }
+        return try await call("send comment") {
+            try await client.from("note_comments").insert(Row(note_id: Self.id(note), epoch: epoch, ct: ct), returning: .representation)
+                .select("id,note_id,author_id,role,epoch,ct,client").single().execute().value
+        }
+    }
+
     // MARK: Live
 
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel {
@@ -271,6 +297,8 @@ final class SupabaseCollabTransport: CollabTransport {
         }
         let live = SupabaseCollabChannel(channel: channel, client: client, me: me)
         let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "note_updates", filter: .eq("note_id", value: Self.id(note)))
+        // A whiteboard's comment entries, the same way (a note has none, so nothing comes).
+        let comments = channel.postgresChange(InsertAction.self, schema: "public", table: "note_comments", filter: .eq("note_id", value: Self.id(note)))
         let presence = channel.broadcastStream(event: "presence")
         let membersChanged = channel.broadcastStream(event: "members")
         let devices = channel.presenceChange()
@@ -300,6 +328,15 @@ final class SupabaseCollabTransport: CollabTransport {
                         continue
                     }
                     onEvent(.update(u))
+                }
+            },
+            Task { @MainActor in
+                for await insert in comments {
+                    guard let c = try? insert.decodeRecord(as: Collab.CommentRow.self, decoder: JSONDecoder()) else {
+                        log.error("a comment from the channel didn't decode")
+                        continue
+                    }
+                    onEvent(.comment(c))
                 }
             },
             Task { @MainActor in

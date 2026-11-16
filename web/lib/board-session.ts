@@ -14,18 +14,26 @@
 // - Presence (a member): your pointer and selection, sealed (`amb3p`), at most ten times a second
 //   while they move and every 2 seconds; the others' come back the same way and are drawn in each
 //   person's colour, grey once nothing is heard from them for 6 seconds.
-// - Comments: read from the document; yours go in as changes, like the drawing.
+// - Comments: their own sealed stream (`amb3c`, note_comments; collaboration-design.md section 8),
+//   so someone who can only comment can still write them. Every entry after the page's cursor is
+//   pulled with the document, and a member's arrive live. The comments shown are the document's
+//   old map and the stream, folded as the app folds them (board-doc.ts foldComments). Yours wait in
+//   order and go up as entries; an owner's or editor's page moves into the stream what isn't there
+//   yet (the old map, or comments under an older key).
 import type { Bytes } from "./e2ee";
 import { open3, pictureBytes, pictureOf, seal3 } from "./collab";
 import { type BoardPerson, MOST_LASER_POINTS, type Presenting, pointsOf, presentingOf, type View, viewOf } from "./board-follow";
 import {
   type Automerge, type BoardDoc, changedIDs, type Comment, darkOf, type El, type Entry, entries, fileIdOf, firstName, inUse, isBoard, ordered,
-  PALETTE, paletteIndex, type Picture, put, readComments, scene, type Settings, settingsOf, slots, STALE, winners,
+  commentEntries, type CommentEntry, entryOf, foldComments, PALETTE, paletteIndex, type Picture, put, readComments, scene, type Settings, settingsOf,
+  slots, STALE, toRestate, winners,
 } from "./board-doc";
 
 export type Update = { id: number; author_id: string; epoch: number; ct: string; client?: string | null };
 export type Snapshot = { upto: number; epoch: number; ct: string };
 export type Pull = { snapshot: Snapshot | null; updates: Update[] };
+/** One entry of the comment stream, as the server keeps it: its writer and their role are its stamps. */
+export type CommentRow = { id: number; author_id: string; role: string; epoch: number; ct: string; client?: string | null };
 export type Member = { user_id: string; role: string; display_name: string | null; public_key?: string | null; accepted?: boolean };
 
 /** What the page's session needs from the server. A viewer who isn't signed in has only the first two. */
@@ -38,12 +46,18 @@ export interface Transport {
   snapshot?(ct: string, upto: number, epoch: number): Promise<void>;
   putFile?(id: string, epoch: number, ct: string): Promise<void>;
   members?(): Promise<Member[]>;
+  /** The comment stream's entries after `after`, oldest first. */
+  comments?(after: number): Promise<CommentRow[]>;
+  /** One entry of yours into the comment stream (a member who may comment). */
+  sendComment?(ct: string, epoch: number): Promise<CommentRow>;
   /** The note's live channel, or null when it can't join (not a member). */
   live?(events: LiveEvents): Promise<Live | null>;
 }
 
 export type LiveEvents = {
   update(u: Update): void;
+  /** An entry of the comment stream, as it's stored. */
+  comment?(row: CommentRow): void;
   presence(user: string, ct: string): void;
   leave(user: string): void;
   members(): void;
@@ -84,6 +98,10 @@ export type SessionOptions = {
   name: string;
   /** You can change the board (an editor or the owner, signed in). */
   canWrite: boolean;
+  /** Your role on the board, a member's: your entries waiting to go are folded as the server will stamp them. */
+  role?: string | null;
+  /** You can comment (Can comment, or you can edit). Without it, as `canWrite`. */
+  canComment?: boolean;
   clock?: Clock;
 };
 
@@ -100,6 +118,11 @@ export const POINTER_EVERY = 100;
 export const REWIND = 64;
 export const TOO_BIG = "This picture doesn’t fit: a whiteboard’s pictures can be 4 MB in all";
 export const NOT_THERE = "This picture didn’t reach the board. Try adding it again.";
+export const COMMENTS_FULL = "This whiteboard has no room for more comments.";
+/** An entry sealed can be 64 KB: the server's limit. */
+export const MAX_COMMENT_ENTRY = 65_536;
+
+type Kept = { id: number; author: string; role: string; epoch: number; ct: string; entry: CommentEntry | null };
 
 export class BoardSession {
   readonly A: Automerge;
@@ -111,6 +134,8 @@ export class BoardSession {
   readonly me: string | null;
   name: string;
   canWrite: boolean;
+  canComment: boolean;
+  role: string | null;
   private clock: Clock;
 
   doc: BoardDoc;
@@ -128,6 +153,20 @@ export class BoardSession {
   members: Member[] = [];
   private peers = new Map<string, Peer>();
   status: Status = "loading";
+
+  /** The comment stream as this page has it, in the server's order (opened when its key is here). */
+  private stream: Kept[] = [];
+  private streamIDs = new Set<number>();
+  /** The newest entry a pull of the stream has had. */
+  commentCursor = 0;
+  private commentsPulled = false;
+  /** Your comment entries (JSON), not yet stored, oldest first. */
+  private pendingComments: string[] = [];
+  private sendingComments: Promise<void> | null = null;
+  private commentRetry: (() => void) | null = null;
+  private commentDelay = 2000;
+  /** One of your comments couldn't go (the board is full of them): why. */
+  onCommentsRefused: ((why: string) => void) | null = null;
 
   /** Changes made here, not yet stored by the server, oldest first. */
   private pending: Uint8Array[] = [];
@@ -178,6 +217,8 @@ export class BoardSession {
     this.me = o.me?.toLowerCase() ?? null;
     this.name = o.name;
     this.canWrite = o.canWrite && !!o.me && !!o.transport.send;
+    this.canComment = (o.canComment ?? o.canWrite) && !!o.me && !!o.transport.sendComment;
+    this.role = o.role ?? (this.canWrite ? "editor" : this.canComment ? "commenter" : null);
     this.clock = o.clock ?? realClock;
     this.doc = this.A.init();
   }
@@ -193,7 +234,9 @@ export class BoardSession {
     this.keys.set(epoch, nk);
     if (epoch >= this.epoch) { this.nk = nk; this.epoch = epoch; }
     if (this.status === "keyChanged") this.setStatus("live");
+    void this.openStream();
     void this.flush();
+    void this.flushComments();
     void this.catchUp();
   }
 
@@ -207,10 +250,11 @@ export class BoardSession {
     if (this.transport.live && this.me) {
       this.live = await this.transport.live({
         update: (u) => this.receive(u),
+        comment: (row) => void this.receiveComment(row),
         presence: (user, ct) => void this.presenceIn(user, ct),
         leave: (user) => { if (this.peers.delete(user.toLowerCase())) { this.sendPeers(); this.onPeople?.(this.boardPeople()); } void this.refreshMembers(); },
         members: () => void this.refreshMembers(),
-        relaying: () => { this.relayed = true; void this.catchUp(); void this.flush(); },
+        relaying: () => { this.relayed = true; void this.catchUp(); void this.flush(); void this.flushComments(); },
         notRelaying: () => { this.relayed = false; },
       }).catch(() => null);
       if (this.closed) { this.live?.close(); return; }
@@ -239,6 +283,7 @@ export class BoardSession {
     this.snapshotTimer?.();
     this.pointerTimer?.();
     this.flagTimer?.();
+    this.commentRetry?.();
     this.live?.close();
     this.live = null;
   }
@@ -321,6 +366,7 @@ export class BoardSession {
     this.setStatus("live");
     if (changed) this.changed(beforeBoard, beforeComments, ai);
     this.scheduleSnapshot();
+    await this.pullComments();
   }
 
   /** One change into the document. Returns whether it was new here. */
@@ -373,11 +419,160 @@ export class BoardSession {
       void this.fetchPictures();
       if (ai && moved.length) this.onAI?.(ai.by, moved);
     }
-    const comments = readComments(this.A, this.doc);
-    if (JSON.stringify(comments) !== JSON.stringify(beforeComments)) {
+    this.commentsChanged(beforeComments);
+  }
+
+  // MARK: The comment stream
+
+  /** The board's comments as every device folds them: the document's old map, the stream's
+   *  entries this page opened, then yours still to send. */
+  private foldedComments(): Comment[] {
+    const mine = this.pendingComments.map((j) => entryOf(j, this.me ?? "", this.role ?? "commenter"));
+    return foldComments(readComments(this.A, this.doc), [...this.opened(), ...mine]);
+  }
+
+  /** The stream's opened entries, in order; `epoch`: only those under that key. */
+  private opened(epoch?: number): CommentEntry[] {
+    return this.stream.filter((k) => k.entry && (epoch === undefined || k.epoch === epoch)).map((k) => k.entry!);
+  }
+
+  /** The comments changed (the old map, the stream, or yours): folded again, and to the page when
+   *  they differ. An owner's or editor's page then moves what the stream doesn't hold yet. */
+  private commentsChanged(before = this.comments) {
+    const comments = this.foldedComments();
+    if (JSON.stringify(comments) !== JSON.stringify(before)) {
       this.comments = comments;
       this.onComments?.(comments);
     }
+    this.restateComments();
+  }
+
+  /** One entry into the stream here (from a pull, the channel, or your own send coming back),
+   *  opened when its key is here. Returns whether it was new. */
+  private async takeComment(row: CommentRow, plain?: string): Promise<boolean> {
+    if (this.streamIDs.has(row.id) || this.closed) return false;
+    this.streamIDs.add(row.id);
+    const author = row.author_id.toLowerCase();
+    const k: Kept = { id: row.id, author, role: row.role, epoch: row.epoch, ct: row.ct, entry: null };
+    const i = this.stream.findIndex((x) => x.id > row.id);
+    if (i < 0) this.stream.push(k); else this.stream.splice(i, 0, k);
+    if (plain !== undefined) { k.entry = entryOf(plain, author, row.role); return true; }
+    await this.openEntry(k);
+    return true;
+  }
+
+  private async openEntry(k: Kept): Promise<boolean> {
+    const key = this.keys.get(k.epoch);
+    if (!key || k.entry) return false;
+    try {
+      k.entry = entryOf(new TextDecoder().decode(await open3("c", k.ct, key, this.note, k.author)), k.author, k.role);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Entries kept sealed until a key that opens them came. */
+  private async openStream() {
+    let any = false;
+    for (const k of this.stream) if (!k.entry && await this.openEntry(k)) any = true;
+    if (any) this.commentsChanged();
+  }
+
+  /** Every entry after the cursor (ids follow commit order: the server takes the note's row first). */
+  private async pullComments() {
+    if (!this.transport.comments || this.closed) return;
+    let rows: CommentRow[];
+    try { rows = await this.transport.comments(this.commentCursor); } catch { return; }
+    if (this.closed) return;
+    // One under a newer key than this page has: someone was removed, and it opens once the new key is here.
+    for (const r of rows) {
+      if (r.epoch > this.epoch && !this.keys.has(r.epoch)) this.keyChanged();
+      await this.takeComment(r);
+    }
+    if (rows.length) this.commentCursor = Math.max(this.commentCursor, rows[rows.length - 1].id);
+    this.commentsPulled = true;
+    this.commentsChanged();
+  }
+
+  /** An entry the channel relayed. The cursor stays: only pulls move it, so none is skipped. */
+  async receiveComment(row: CommentRow) {
+    if (this.closed) return;
+    if (await this.takeComment(row)) this.commentsChanged();
+  }
+
+  /**
+   * Comments of yours (a new one, a reply, an edit, a delete, a thread resolved or opened again):
+   * one entry in the board's comment stream, up as soon as it can go. Your words are read only
+   * from entries of yours; a resolve counts from anyone who may comment. A viewer's go nowhere.
+   */
+  commentLocal(list: Comment[]) {
+    if (!this.canComment || !this.me || !list.length || this.closed) return;
+    this.pendingComments.push(...commentEntries(list));
+    this.commentsChanged();
+    void this.flushComments();
+  }
+
+  /** Your comment entries waiting to go up. */
+  get unsentComments() { return this.pendingComments.length; }
+
+  /** Sends your waiting entries, oldest first. Offline, they stay and go again (2 s, then longer). */
+  flushComments(): Promise<void> {
+    if (this.sendingComments) return this.sendingComments;
+    if (!this.pendingComments.length || this.closed) return Promise.resolve();
+    if (!this.canComment || !this.transport.sendComment || !this.me) { this.pendingComments = []; this.commentsChanged(); return Promise.resolve(); }
+    const me = this.me, send = this.transport.sendComment;
+    const run = (async () => {
+      while (this.pendingComments.length && !this.closed) {
+        const entry = this.pendingComments[0];
+        try {
+          const ct = await seal3("c", new TextEncoder().encode(entry) as Bytes, this.nk, this.note, this.epoch, me);
+          if (ct.length > MAX_COMMENT_ENTRY) { this.pendingComments.shift(); this.onCommentsRefused?.(COMMENTS_FULL); continue; }
+          const row = await send(ct, this.epoch);
+          if (this.pendingComments[0] === entry) this.pendingComments.shift();
+          await this.takeComment({ ...row, id: Number(row.id), author_id: String(row.author_id) }, entry);
+          this.commentDelay = 2000;
+        } catch (e) {
+          // The server's words, and its hint (board-rest.ts RestError).
+          const m = `${(e as Error)?.message ?? ""} ${(e as { hint?: unknown })?.hint ?? ""}`;
+          if (/stale_epoch|key changed/.test(m)) { this.keyChanged(); return; }
+          if (/not_member|not in this note/.test(m)) { this.pendingComments = []; this.setStatus("removed"); return; }
+          if (/read_only|but not comment|view this note but not change it/.test(m)) {
+            this.canComment = false; this.canWrite = false; this.pendingComments = []; return;
+          }
+          if (/comments_full|no room for more comments/.test(m)) { this.pendingComments.shift(); this.onCommentsRefused?.(COMMENTS_FULL); continue; }
+          const wait = this.commentDelay;
+          this.commentDelay = Math.min(this.commentDelay * 2, 60_000);
+          this.commentRetry?.();
+          this.commentRetry = this.clock.after(wait, () => { this.commentRetry = null; void this.flushComments(); });
+          return;
+        }
+      }
+    })().finally(() => {
+      if (this.sendingComments === run) this.sendingComments = null;
+      if (!this.closed) this.commentsChanged();
+    });
+    this.sendingComments = run;
+    return run;
+  }
+
+  /**
+   * An owner's or editor's page puts into the stream, under the note's current key, every comment
+   * that someone reading only the stream with that key wouldn't see as it is: the old map's, and
+   * those under an older key (after someone was removed). One "moved" entry, nothing when there's
+   * nothing new; only once the document and the stream are both read, with nothing of yours waiting.
+   */
+  private restateComments() {
+    if (this.closed || !this.canWrite || !this.canComment || !this.commentsPulled || !this.isBoard) return;
+    if (this.A.getMissingDeps(this.doc, []).length) return;
+    if (this.sendingComments || this.pendingComments.length || this.status === "keyChanged") return;
+    if (this.stream.some((k) => !k.entry && this.keys.has(k.epoch))) return;
+    const full = foldComments(readComments(this.A, this.doc), this.opened());
+    const bare = foldComments([], this.opened(this.epoch));
+    const moved = toRestate(full, bare);
+    if (!moved.length) return;
+    this.pendingComments = commentEntries(moved, true);
+    void this.flushComments();
   }
 
   /** The whole scene, with the pictures this page has. */
@@ -473,18 +668,6 @@ export class BoardSession {
     }
     this.board = entries(this.A, this.doc, this.board);
     this.settings = settingsOf(this.doc);
-    void this.flush();
-  }
-
-  /** Comments of yours (new ones, replies, a thread resolved or opened again) into the document, as one change. */
-  commentLocal(list: Comment[]) {
-    if (!this.canWrite || !this.me || !list.length || this.closed) return;
-    const out = put(this.A, this.doc, { comments: list }, this.me, new Date(this.clock.now()));
-    if (!out.bytes) return;
-    this.doc = out.doc;
-    this.pending.push(out.bytes);
-    this.comments = readComments(this.A, this.doc);
-    this.onComments?.(this.comments);
     void this.flush();
   }
 

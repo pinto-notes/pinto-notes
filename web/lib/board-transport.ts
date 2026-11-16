@@ -1,15 +1,19 @@
 // The two ways the whiteboard page reaches a board's document (board-session.ts):
-// - with its link, not signed in: read only, proven by the link's answer (collab_link_pull, collab_link_file);
+// - with its link, not signed in: read only, proven by the link's answer (collab_link_pull,
+//   collab_link_file, collab_link_comments);
 // - as a member: the tables and the note's Realtime channel, as the app's transport does
-//   (Pane/Collab/SupabaseCollabTransport.swift): changes relayed as they're stored, sealed presence
+//   (Pane/Collab/SupabaseCollabTransport.swift): changes and comment entries relayed as they're stored, sealed presence
 //   broadcast on `note:<id>`, each browser tab its own presence entry.
 import { RealtimeClient } from "@supabase/realtime-js";
 import type { Rest } from "./board-rest";
-import type { Live, LiveEvents, Member, Pull, Transport, Update } from "./board-session";
+import type { CommentRow, Live, LiveEvents, Member, Pull, Transport, Update } from "./board-session";
 
 const num = (v: unknown) => Number(v);
 const update = (r: { id: unknown; author_id: unknown; epoch: unknown; ct: unknown; client?: unknown }): Update =>
   ({ id: num(r.id), author_id: String(r.author_id), epoch: num(r.epoch), ct: String(r.ct), client: typeof r.client === "string" ? r.client : null });
+
+const commentRow = (r: { id: unknown; author_id: unknown; role: unknown; epoch: unknown; ct: unknown; client?: unknown }): CommentRow =>
+  ({ id: num(r.id), author_id: String(r.author_id), role: String(r.role), epoch: num(r.epoch), ct: String(r.ct), client: typeof r.client === "string" ? r.client : null });
 
 type LinkPull = { snapshot: { upto: number; epoch: number; ct: string } | null; updates: Update[]; more: boolean };
 
@@ -31,6 +35,17 @@ export function linkTransport(rest: Rest, link: string, answer: string): Transpo
     async file(id) {
       const rows = await rest.rpc<{ file_id: string; epoch: number; ct: string }[]>("collab_link_file", { p_link: link, p_answer: answer, p_file: id });
       return rows?.[0] ? { epoch: num(rows[0].epoch), ct: rows[0].ct } : null;
+    },
+    async comments(after) {
+      const out: CommentRow[] = [];
+      let from = after;
+      for (let page = 0; page < 1000; page++) {
+        const r = await rest.rpc<{ comments: CommentRow[]; more: boolean }>("collab_link_comments", { p_link: link, p_answer: answer, p_after: from });
+        out.push(...(r.comments ?? []).map(commentRow));
+        if (!r.more || !r.comments?.length) break;
+        from = out[out.length - 1].id;
+      }
+      return out;
     },
   };
 }
@@ -74,6 +89,21 @@ export function memberTransport(rest: Rest, note: string, realtime: (() => Realt
     async members() {
       return await rest.rpc<Member[]>("collab_members", { p_note: id });
     },
+    async comments(after) {
+      const out: CommentRow[] = [];
+      let from = after;
+      for (;;) {
+        const rows = await rest.get<CommentRow[]>(`note_comments?select=id,author_id,role,epoch,ct,client&note_id=eq.${id}&id=gt.${from}&order=id&limit=${PAGE}`);
+        out.push(...rows.map(commentRow));
+        if (rows.length < PAGE) break;
+        from = out[out.length - 1].id;
+      }
+      return out;
+    },
+    async sendComment(ct, epoch) {
+      const row = await rest.insert<CommentRow>("note_comments", { note_id: id, epoch, ct }, "id,author_id,role,epoch,ct,client");
+      return commentRow(row!);
+    },
     live: realtime ? (events) => join(realtime(), rest, id, events) : undefined,
   };
 }
@@ -89,6 +119,9 @@ async function join(client: RealtimeClient, rest: Rest, note: string, on: LiveEv
   const here = new Map<string, string>();
   channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "note_updates", filter: `note_id=eq.${note}` }, (m: { new?: Record<string, unknown> }) => {
     if (m.new && m.new.ct) on.update(update(m.new as Parameters<typeof update>[0]));
+  });
+  channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "note_comments", filter: `note_id=eq.${note}` }, (m: { new?: Record<string, unknown> }) => {
+    if (m.new && m.new.ct) on.comment?.(commentRow(m.new as Parameters<typeof commentRow>[0]));
   });
   channel.on("broadcast", { event: "presence" }, (m: { payload?: { user?: unknown; ct?: unknown } }) => {
     const p = m.payload;

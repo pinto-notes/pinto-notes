@@ -17,7 +17,7 @@ final class SharedDocument {
     var note: Note?
     /// The note key's generation this device last opened.
     var epoch: Int
-    /// "owner", "editor" or "viewer".
+    /// "owner", "editor", "commenter" (a whiteboard's Can comment) or "viewer".
     var role: String
     /// The document as of the last compaction (Automerge `save()`).
     @Attribute(.externalStorage) var saved: Data
@@ -41,6 +41,15 @@ final class SharedDocument {
     var pointerOnServer: Bool = true
     /// The note keys this device has had, each sealed under your data key (`setKey`).
     var keyBoxes: Data = Data()
+    /// A shared whiteboard's comment stream as this device has read it (`note_comments`), in order
+    /// of id, as JSON (`Kept`): each entry opened, as the document is kept opened here, or still
+    /// sealed while this device doesn't hold its key.
+    @Attribute(.externalStorage) var commentRows: Data = Data()
+    /// The newest entry of the comment stream this device holds: catching up asks for those after it.
+    var commentCursor: Int64 = 0
+    /// Your comment entries the server hasn't stored yet, oldest first, each its JSON
+    /// (BoardComments.entryJSON): sealed with the note key when it goes up.
+    @Attribute(.externalStorage) var commentOutbox: Data = Data()
 
     init(id: UUID, epoch: Int, role: String, saved: Data, cursor: Int64 = 0) {
         self.id = id
@@ -56,6 +65,33 @@ final class SharedDocument {
     }
 
     var canEdit: Bool { role == "owner" || role == "editor" }
+    /// May write comments on a whiteboard: an owner, an editor or a commenter.
+    var canComment: Bool { canEdit || role == "commenter" }
+
+    /// One entry of the comment stream as this device keeps it: who wrote it and their role then
+    /// (the server's stamps), the key it's under, and what it holds (`plain`, the entry's JSON), or
+    /// the sealed entry (`ct`) until a key that opens it is here.
+    struct Kept: Codable, Equatable, Sendable {
+        let id: Int64
+        let author: UUID
+        let role: String
+        let epoch: Int
+        var plain: String?
+        var ct: String?
+        var client: String?
+    }
+
+    /// The comment stream's entries as stored here.
+    var keptComments: [Kept] {
+        get { commentRows.isEmpty ? [] : (try? JSONDecoder().decode([Kept].self, from: commentRows)) ?? [] }
+        set { commentRows = (try? JSONEncoder().encode(newValue)) ?? Data() }
+    }
+
+    /// Your comment entries still to send.
+    var pendingComments: [Data] {
+        get { Self.frames(commentOutbox) }
+        set { commentOutbox = Self.frame(newValue) }
+    }
 
     /// The document's text as stored here, read without opening a session (no key needed: the
     /// stored document isn't sealed on the device). Nil when there's none or it doesn't read.
@@ -78,13 +114,21 @@ final class SharedDocument {
         return CollabBoard.scene(elements: CollabBoard.ordered(CollabBoard.entries(in: doc, board)), settings: CollabBoard.settings(in: doc))
     }
 
-    /// A shared whiteboard's comments as this device last saved them (BoardComments), with no network.
-    func storedComments() -> [BoardComment] {
-        guard !saved.isEmpty else { return [] }
-        let doc = CollabText.Document(textEncoding: .utf16)
-        guard (try? CollabText.absorb(saved, into: doc)) != nil else { return [] }
-        if !tail.isEmpty { try? doc.applyEncodedChanges(encoded: tail) }
-        return BoardComments.read(doc)
+    /// A shared whiteboard's comments as this device last saved them, with no network: the old
+    /// map in its document (from before Can comment), then the comment stream's entries and yours
+    /// still to send (`me`), folded as every device folds them (BoardComments.fold).
+    func storedComments(me: UUID) -> [BoardComment] {
+        var legacy: [BoardComment] = []
+        if !saved.isEmpty {
+            let doc = CollabText.Document(textEncoding: .utf16)
+            if (try? CollabText.absorb(saved, into: doc)) != nil {
+                if !tail.isEmpty { try? doc.applyEncodedChanges(encoded: tail) }
+                legacy = BoardComments.read(doc)
+            }
+        }
+        let entries = keptComments.compactMap { k in k.plain.map { BoardComments.entry(Data($0.utf8), author: k.author.uuidString, role: k.role) } }
+            + pendingComments.map { BoardComments.entry($0, author: me.uuidString, role: role) }
+        return BoardComments.fold(legacy: legacy, entries: entries)
     }
 
     /// The changes waiting to go up.

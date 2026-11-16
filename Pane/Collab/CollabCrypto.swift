@@ -91,7 +91,7 @@ enum CollabCrypto {
 
     // MARK: Boxes under the note key
 
-    enum Kind: String, Sendable { case update = "u", snapshot = "s", presence = "p", head = "h", file = "f" }
+    enum Kind: String, Sendable { case update = "u", snapshot = "s", presence = "p", head = "h", file = "f", comment = "c" }
 
     /// A picture's file id is the board's own (Excalidraw's fileId, which can mix cases): kept as it is.
     private static func aad(_ kind: Kind, note: UUID, epoch: Int, extra: String?) -> Data {

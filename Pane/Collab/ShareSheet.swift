@@ -10,15 +10,22 @@ import AppKit
 ///   Tapping someone shows their safety code (Verify).
 /// - Share Link hands the link to the system share sheet (iPhone) or share menu (Mac), which
 ///   already have Copy. The link itself is never shown.
-/// - "People with the link: Can edit / Can view / Off". Off stops the link at once; turning it
-///   on again makes a new one, which is also the way to retire a link that went too far.
+/// - "People with the link: Can edit / Can view / Off" (a whiteboard also has Can comment, as
+///   FigJam does). Off stops the link at once; turning it on again makes a new one, which is also
+///   the way to retire a link that went too far.
 /// - Someone else's note: Leave Note instead of the link.
 ///
 /// No email invites in v1: people who sign in with Apple often hide their address.
 struct ShareState: Equatable {
     enum Access: String, CaseIterable, Identifiable {
-        case edit = "Can edit", view = "Can view", off = "Off"
+        case edit = "Can edit", comment = "Can comment", view = "Can view", off = "Off"
         var id: String { rawValue }
+
+        /// What a link can let people do: Can comment only on a whiteboard (a note has no comments).
+        static func choices(board: Bool) -> [Access] { board ? allCases : [.edit, .view, .off] }
+
+        /// The role a link with it gives (`note_invite_links.role`).
+        var role: String { self == .edit ? "editor" : self == .comment ? "commenter" : "viewer" }
     }
     struct Person: Identifiable, Equatable {
         let id: UUID
@@ -39,7 +46,7 @@ struct ShareState: Equatable {
     var people: [Person] = []
     var problem: String?
 
-    /// Your role in the note: owner, editor or viewer. A note nobody shares yet is yours.
+    /// Your role in the note: owner, editor, commenter or viewer. A note nobody shares yet is yours.
     var myRole: String { people.first(where: \.isMe)?.role ?? "owner" }
 }
 
@@ -83,7 +90,7 @@ struct ShareForm: View {
                 }
                 Section {
                     Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                        ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(ShareState.Access.choices(board: share.board())) { Text($0.rawValue).tag($0) }
                     } label: {
                         Text("Join by Link")
                     }

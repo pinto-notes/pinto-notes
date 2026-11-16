@@ -312,7 +312,8 @@ import UIKit
         j.canvas.highlight = nil
         _ = try await j.js("amber._canvas.api.updateScene({ appState: { scrollX: -3000, scrollY: 0 } }); 1")
         j.canvas.show(mark)
-        #expect(j.canvas.sent.contains(.outline(mark.ids)))
+        // Everything it changed, arrows and lines included (round 14, comments-4).
+        #expect(j.canvas.sent.contains(.outline(mark.ids, all: true)))
         await j.until("outlined again") { j.canvas.highlight?.by == "Claude" }
         let inView = try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, b = api.getSceneElements().find((e) => e.id === 'ai-box');
@@ -5839,9 +5840,10 @@ extension CanvasNativeUITests {
             return n
         }
         var drawn = (0, 0)
-        for _ in 0..<100 {
+        // Until both have finished drawing it (under load one can be counted mid-draw or mid-zoom).
+        for _ in 0..<200 {
             drawn = (try await sun(left), try await sun(right))
-            if drawn.0 > 100 && drawn.1 > 100 { break }
+            if drawn.0 > 100 && drawn.1 > 100 && abs(drawn.0 - drawn.1) < max(drawn.0, drawn.1) / 5 { break }
             try await Task.sleep(for: .milliseconds(50))
         }
         #expect(drawn.0 > 100 && drawn.1 > 100, "the photo is drawn on both boards: \(drawn)")

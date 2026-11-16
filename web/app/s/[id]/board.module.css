@@ -63,6 +63,7 @@
   .secondarySmall:hover, .secondaryWide:hover { background: var(--hover); }
   .me:hover { filter: brightness(1.08); }
   .link:hover { color: var(--ink); }
+  .commentMore:hover { background: var(--hover); color: var(--ink); }
 }
 /* At phone width: the zoom goes (Zoom to Fit is in More Tools), the title narrows, and the tools
    used most stay in the toolbar with the rest in More Tools, so nothing runs off the window. */
@@ -123,7 +124,13 @@
 .words { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .deleted { margin: 0; color: var(--muted); font-style: italic; }
 .mention { font-weight: 650; color: var(--accent-ink); }
-.commentActions { margin: 2px 0 0; display: flex; gap: 12px; }
+.commentHead { display: flex; align-items: flex-start; gap: 6px; }
+.commentHead .byline { flex: 1; min-width: 0; }
+.commentMore { width: 24px; height: 20px; margin: -1px -4px 0 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); fill: currentColor; display: grid; place-items: center; cursor: pointer; opacity: 0.55; }
+.comment:hover .commentMore, .commentMore:focus-visible, .commentMore[aria-expanded="true"] { opacity: 1; }
+.commentMenu { position: absolute; right: 0; top: 24px; min-width: 150px; padding: 5px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 2px; z-index: 6; }
+.menuDanger { color: var(--danger); }
+@media (hover: none) { .commentMore { width: 44px; height: 44px; margin: -12px -12px -12px 0; opacity: 1; } }
 .link { padding: 0; border: 0; background: none; color: var(--muted); font-size: 13px; cursor: pointer; }
 .ask { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--fill); }
 .ask p { margin: 0 auto 0 0; font-size: 13.5px; font-weight: 600; }

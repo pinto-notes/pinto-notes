@@ -600,7 +600,7 @@ final class SharedLibrary {
             // note's own copy can be behind when it wasn't open).
             if let text = sessions[note.id]?.text ?? note.sharedDocument?.storedText() { note.body = text }
             let scene = sessions[note.id].flatMap { $0.isBoard ? $0.boardScene() : nil } ?? note.sharedDocument?.storedScene()
-            let comments = sessions[note.id].map(\.boardComments) ?? note.sharedDocument?.storedComments() ?? []
+            let comments = sessions[note.id].map(\.boardComments) ?? note.sharedDocument?.storedComments(me: me) ?? []
             forget(note)
             if let scene { Self.keepBoard(scene, comments: comments, for: note.id) }
             note.sharedNoteID = nil

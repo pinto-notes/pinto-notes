@@ -409,7 +409,9 @@ enum CanvasCommand: Equatable, Sendable {
     case remoteScene(Data)
     /// What an AI just changed on a shared board, outlined with its name (`arrived(by:)`).
     /// `move: false`: outlined where it is, the view left alone (a person's change, round 14).
-    case outline([String], move: Bool = true)
+    /// `all`: every one of them outlined, arrows and lines between shapes too (Show change on an
+    /// AI's comment names exactly what its write changed).
+    case outline([String], move: Bool = true, all: Bool = false)
     /// Opened from a search: the first shape whose words hold it, brought into view and outlined.
     case find(String)
     /// The others on a shared board: each one's pointer, name and selection.
@@ -420,7 +422,8 @@ enum CanvasCommand: Equatable, Sendable {
     /// The board's comment pins (BoardComments), your own pin's look (for a new comment), the
     /// thread that's open ("draft" for one being written), where a new one goes, and whether you
     /// can comment.
-    case comments([BoardComments.Pin], me: BoardComments.Pin, open: String?, draft: BoardComments.Place?, canComment: Bool, shapes: [String] = [])
+    /// `inView`: comments go on the board while its drawing is view only (Can comment).
+    case comments([BoardComments.Pin], me: BoardComments.Pin, open: String?, draft: BoardComments.Place?, canComment: Bool, shapes: [String] = [], inView: Bool = false)
     /// A new comment on the selection, or at a point of the page (a right-click on nothing).
     case commentHere(CGPoint?)
     /// A comment's pin into view: `above`, kept in that top part of the view (iPhone, over its sheet).
@@ -457,12 +460,12 @@ enum CanvasCommand: Equatable, Sendable {
         case .shared(let on, let viewOnly): ["op": "shared", "on": on, "viewOnly": viewOnly]
         case .remoteScene(let json): ["op": "remoteScene", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
         case .restoreVersion(let json): ["op": "restoreVersion", "scene": (try? JSONSerialization.jsonObject(with: json)) ?? [String: Any]()]
-        case .outline(let ids, let move): ["op": "outline", "ids": ids, "move": move]
+        case .outline(let ids, let move, let all): ["op": "outline", "ids": ids, "move": move, "all": all]
         case .find(let query): ["op": "find", "query": query]
         case .peers(let list): ["op": "peers", "peers": list.map(\.payload)]
         case .refusePictures(let ids): ["op": "refusePictures", "ids": ids]
-        case .comments(let pins, let me, let open, let draft, let can, let shapes):
-            ["op": "comments", "pins": pins.map(\.payload), "me": me.payload, "open": open ?? NSNull(), "can": can, "shapes": shapes,
+        case .comments(let pins, let me, let open, let draft, let can, let shapes, let inView):
+            ["op": "comments", "pins": pins.map(\.payload), "me": me.payload, "open": open ?? NSNull(), "can": can, "shapes": shapes, "inView": inView,
              "draft": draft.map { d -> Any in ["x": d.x, "y": d.y].merging(d.on.map { ["on": $0] } ?? [:]) { a, _ in a } } ?? NSNull()]
         case .commentHere(let at): ["op": "commentHere"].merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
         case .focusComment(let id, let above): ["op": "focusComment", "id": id].merging(above.map { ["above": $0] } ?? [:]) { a, _ in a }
@@ -529,6 +532,7 @@ final class CanvasController {
         if let names = m["commentShapes"] as? [String: Any] {
             let next = names.compactMapValues { $0 as? String }
             if next != commentShapes { commentShapes = next }
+            shapesReported = true
             return
         }
         if let p = m["presence"] as? [String: Any] {
@@ -783,11 +787,34 @@ final class CanvasController {
         send(.showLastChange)
     }
 
-    /// One AI change outlined again, named, and brought into view (Show change on an AI's reply).
+    /// One AI change outlined again, named, and brought into view (Show change on an AI's reply):
+    /// all of it, arrows included.
     func show(_ change: AIChangeMark) {
         arrived(by: change.by)
-        send(.outline(change.ids))
+        send(.outline(change.ids, all: true))
     }
+
+    /// What an AI's comment links to: its change to show, or that the change is gone.
+    enum ChangeLink: Equatable {
+        case show(AIChangeMark)
+        /// Every element its write changed is off the board now.
+        case gone
+    }
+
+    /// An AI's comment and its change: the elements its write changed, kept with it (`changes`),
+    /// those still on the board; when there are none any more, `gone`. A comment from before
+    /// `changes` finds its change among those this board saw since it opened (`change(for:)`).
+    /// Nil for a person's comment, or when there's nothing to show.
+    func changeLink(for comment: BoardComment) -> ChangeLink? {
+        guard comment.ai != nil, !comment.deleted else { return nil }
+        guard !comment.changes.isEmpty else { return change(for: comment).map(ChangeLink.show) }
+        // Before the page has said which are there, all of them: Show change outlines what is.
+        let here = shapesReported ? comment.changes.filter { commentShapes[$0] != nil } : comment.changes
+        guard !here.isEmpty else { return .gone }
+        return .show(AIChangeMark(by: byline(comment), at: comment.date ?? .now, ids: here))
+    }
+
+    static let changeGone = "That change is no longer on the board"
 
     /// The change an AI's comment speaks of: that AI's change to this board made closest before it
     /// (up to ten minutes), else just after it (a minute: it wrote first, then drew). Nil for a
@@ -807,6 +834,8 @@ final class CanvasController {
     private(set) var shared = false
     /// You can only look (Can view): no tools, no style controls, the engine in its view mode.
     private(set) var viewOnly = false
+    /// Can comment: the drawing is view only and comments go on it; the toolbar has no drawing tools.
+    var commentsOnly: Bool { viewOnly && canComment }
     /// The elements the page changed and the board's settings, for the shared document (set by
     /// the note's view).
     @ObservationIgnored var onBoardDelta: (([[String: Any]], [String: Any]) -> Void)?
@@ -834,6 +863,8 @@ final class CanvasController {
         if !on { stopFollowing(); if !people.isEmpty { people = [] } }
         if !on { pageFiles = [] }
         sendShared()
+        // Can comment: comments go on the board in the engine's view mode too.
+        if canComment { sendPins() }
     }
 
     private func sendShared() {
@@ -952,8 +983,8 @@ final class CanvasController {
     private(set) var comments: [BoardComment] = []
     /// The threads, oldest first.
     var threads: [BoardThread] { BoardComments.threads(comments) }
-    /// You can add comments here: on your own board, and on a shared one you can edit. A viewer
-    /// reads them (BoardComments says why).
+    /// You can add comments here: on your own board, and on a shared one you can edit or comment
+    /// on (Can comment: the drawing stays view only, `viewOnly`). A viewer reads them.
     private(set) var canComment = true
     /// You, as your comments say: your account's id and first name (set by the wiring).
     @ObservationIgnored var author = BoardComments.Author(id: "me", name: "You")
@@ -968,6 +999,8 @@ final class CanvasController {
     /// What each comment's shape is called ("Idea", "Rectangle"), by element id, as the page says:
     /// the list names where a thread is.
     private(set) var commentShapes: [String: String] = [:]
+    /// The page has said which of the shapes asked about are on the board (`commentShapes`).
+    private(set) var shapesReported = false
     /// What you've seen, per board, on this device.
     @ObservationIgnored var seenStore = BoardComments.Seen()
     @ObservationIgnored private var seen: (board: UUID, ids: Set<String>)?
@@ -1106,17 +1139,22 @@ final class CanvasController {
         }
     }
 
-    /// The shapes the threads are on, for the page to name (commentShapes).
-    var commentedShapes: [String] { Array(Set(threads.compactMap(\.first.on))).sorted() }
+    /// The shapes the threads are on, and what AIs' comments changed, for the page to name
+    /// (commentShapes): a name says it's on the board.
+    var commentedShapes: [String] {
+        Array(Set(threads.compactMap(\.first.on) + comments.filter { $0.ai != nil && !$0.deleted }.flatMap(\.changes))).sorted()
+    }
 
     /// Sends the pins when they changed (and again for a page that just loaded).
     func sendPins() {
         let me = BoardComments.Pin(id: "me", x: 0, y: 0, color: colorOf(author.id),
                                    letter: String(author.name.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() } ?? "?"))
-        let c = CanvasCommand.comments(pins, me: me, open: openThread ?? (draft == nil ? nil : "draft"), draft: draft, canComment: canComment, shapes: commentedShapes)
+        let c = CanvasCommand.comments(pins, me: me, open: openThread ?? (draft == nil ? nil : "draft"), draft: draft, canComment: canComment, shapes: commentedShapes,
+                                       inView: canComment && viewOnly)
         guard c != lastPins else { return }
-        // Nothing to say to a page that has never had a comment.
-        if lastPins == nil, comments.isEmpty, draft == nil, canComment { lastPins = c; return }
+        // Nothing to say to a page that has never had a comment and takes them as it starts (it
+        // starts with comments allowed, and not on a view-only board: Can comment has to say so).
+        if lastPins == nil, comments.isEmpty, draft == nil, canComment, !viewOnly { lastPins = c; return }
         lastPins = c
         send(c)
     }
@@ -1240,7 +1278,7 @@ final class CanvasController {
         c.text = t
         c.edited = BoardComments.stamp(now())
         c.mentions = BoardComments.mentioned(in: t, people: mentionable)
-        c.version += 1
+        c.version = BoardComments.next(c)
         editingComment = nil
         apply([c])
         return c
@@ -1256,7 +1294,7 @@ final class CanvasController {
         c.text = ""
         c.edited = nil
         c.mentions = []
-        c.version += 1
+        c.version = BoardComments.next(c)
         if editingComment == id { editingComment = nil }
         apply([c])
         if !c.isReply, openThread == id, !threads.contains(where: { $0.id == id }) { closeThread() }
@@ -1266,7 +1304,7 @@ final class CanvasController {
             back.text = kept.text
             back.edited = kept.edited
             back.mentions = kept.mentions
-            back.version += 1
+            back.version = BoardComments.next(back)
             self.apply([back])
         })
     }
@@ -1275,7 +1313,7 @@ final class CanvasController {
     func resolve(_ thread: String, _ resolved: Bool = true) {
         guard canComment, var first = comments.first(where: { $0.id == thread && !$0.isReply }), first.resolved != resolved else { return }
         first.resolved = resolved
-        first.version += 1
+        first.version = BoardComments.next(first)
         apply([first])
         if resolved, openThread == thread { closeThread() }
         confirm(resolved ? Self.resolvedLine : Self.reopenedLine, for: .seconds(4), undo: { [weak self] in self?.resolve(thread, !resolved) })

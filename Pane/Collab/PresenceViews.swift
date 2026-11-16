@@ -263,8 +263,9 @@ struct PresenceStack: View {
     private var label: some View {
             HStack(spacing: 6) {
                 // Can view: said once, beside the people, so a tap that types nothing isn't a mystery.
+                // Can comment: what you can do instead.
                 if session.isViewOnly {
-                    Text("View Only")
+                    Text(session.isCommenter ? "Comment Only" : "View Only")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("collab.viewOnly")
@@ -287,7 +288,7 @@ struct PresenceStack: View {
                 TimelineView(.periodic(from: .now, by: 0.5)) { t in
                     PresenceAvatars(people: here.map { p in
                         .init(id: p.id, name: p.name, photo: CollabStore.shared?.photos[p.id], typing: p.isTyping,
-                              canEdit: session.members.first { $0.id == p.id }?.role != "viewer", stale: p.isStale(at: t.date),
+                              canEdit: ["owner", "editor"].contains(session.members.first { $0.id == p.id }?.role ?? "editor"), stale: p.isStale(at: t.date),
                               color: session.color(of: p.id))
                     }, option: Self.badges)
                 }
@@ -298,7 +299,7 @@ struct PresenceStack: View {
     static let badges = BadgeOption.current
 
     private var accessibilityText: String {
-        let viewOnly = session.isViewOnly ? "View only. " : ""
+        let viewOnly = session.isCommenter ? "Comment only. " : session.isViewOnly ? "View only. " : ""
         let sync = SharedSyncLine.at(.now, session: session).map { "\($0.text). " } ?? ""
         guard !here.isEmpty else { return viewOnly + sync + "People" }
         return viewOnly + sync + "In this note: " + here.map { $0.isStale() ? "\($0.name) (not connected)" : $0.name }.joined(separator: ", ")

@@ -2,11 +2,12 @@
 # A whiteboard edited at once in the app and in a browser, on the LOCAL stack only (never staging or
 # production): the app's own code (PaneTests/Collab/BoardWebLiveTests.swift) and headless Chromium on
 # the site's /s/<id> page (scripts/board-web-e2e.ts) edit one board, see each other's pointers and
-# comment, and converge.
+# comment, and converge. Then the link turns Can comment, and a second person signs in through it in
+# the browser, can't draw, and comments; the app has it live.
 #
 #   scripts/board-web-e2e.sh        needs `supabase start`; serves the key function and the site itself
 #
-# What it starts (the key function, the site) it stops again, by PID. Both accounts are deleted after.
+# What it starts (the key function, the site) it stops again, by PID. All three accounts are deleted after.
 # Pictures: build/repro/board-web/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,7 +19,7 @@ export API_URL MAILPIT_URL
 run=$(uuidgen | tr 'A-Z' 'a-z' | cut -c1-8)
 work=$(mktemp -d "${TMPDIR:-/tmp}/board-web-e2e.XXXXXX")
 chmod 700 "$work"
-owner="board-web-$run-emil@example.com" browser="board-web-$run-sara@example.com"
+owner="board-web-$run-emil@example.com" browser="board-web-$run-sara@example.com" commenter="board-web-$run-cleo@example.com"
 password=$(uuidgen)$(uuidgen)
 admin=(-H "authorization: Bearer $SERVICE_ROLE_KEY" -H "apikey: $SERVICE_ROLE_KEY" -H 'content-type: application/json')
 pids=() ids=() served=0
@@ -29,9 +30,9 @@ cleanup() {
   for pid in $pids; do for i in {1..50}; do kill -0 $pid 2>/dev/null || break; sleep 0.2; done; kill -0 $pid 2>/dev/null && kill $pid; done
   # The serve's container, which it can leave running when it's stopped.
   [[ -n ${edge:-} && $served == 1 ]] && docker rm -f $edge >/dev/null 2>&1
-  # The browser's account was made by its sign-in: found by its address.
+  # The browser's accounts were made by their sign-in: found by their addresses.
   local found
-  found=$(curl -sf "$API_URL/auth/v1/admin/users?per_page=1000" "${admin[@]}" | python3 -c 'import json,sys; print("\n".join(u["id"] for u in json.load(sys.stdin)["users"] if u.get("email") == sys.argv[1]))' "$browser")
+  found=$(curl -sf "$API_URL/auth/v1/admin/users?per_page=1000" "${admin[@]}" | python3 -c 'import json,sys; print("\n".join(u["id"] for u in json.load(sys.stdin)["users"] if u.get("email") in sys.argv[1:]))' "$browser" "$commenter")
   for id in $ids ${(f)found}; do [[ -n $id ]] && curl -sf -X DELETE "$API_URL/auth/v1/admin/users/$id" "${admin[@]}" >/dev/null; done
   curl -sf -X DELETE "$API_URL/rest/v1/signup_allowlist?email=like.board-web-$run-*" "${admin[@]}" >/dev/null
   rm -rf "$work"
@@ -40,7 +41,7 @@ trap cleanup EXIT INT TERM HUP
 
 # Both addresses may sign up (the local stack lets in only listed ones). The app's person, Emil, is
 # made confirmed with a password; the browser's person signs up with the site's email code.
-for email in $owner $browser; do
+for email in $owner $browser $commenter; do
   curl -sf -X POST "$API_URL/rest/v1/signup_allowlist" "${admin[@]}" -H 'prefer: resolution=ignore-duplicates' -d "{\"email\":\"$email\"}" >/dev/null
 done
 ids+=("$(curl -sf -X POST "$API_URL/auth/v1/admin/users" "${admin[@]}" \
@@ -78,7 +79,7 @@ done
 curl -sf -o /dev/null "$site/board/canvas.html" || { echo "The site didn't start" >&2; tail -20 "$work/site.log"; exit 1; }
 
 # The browser and the app, at once.
-deno run -A scripts/board-web-e2e.ts "$site" "$work" "$browser" > "$work/browser.log" 2>&1 &
+deno run -A scripts/board-web-e2e.ts "$site" "$work" "$browser" "$commenter" > "$work/browser.log" 2>&1 &
 web=$!
 pids+=($web)
 set +e

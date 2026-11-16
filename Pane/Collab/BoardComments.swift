@@ -17,7 +17,8 @@ import UIKit
 ///       "x": 1, "y": 0, "by": "<account id>", "name": "Sara", "ai": "Claude" (an AI wrote it),
 ///       "text": "…", "created": "2026-11-15T09:12:00Z", "resolved": true (a thread), "version": 1,
 ///       "edited": "2026-11-15T09:20:00Z" (its writer changed it), "mentions": ["<account id>"],
-///       "deleted": true (its writer deleted it: no text) }
+///       "deleted": true (its writer deleted it: no text),
+///       "changes": ["<element id>"] (an AI's comment: what the write that added it changed) }
 ///
 /// Its writer can change or delete it (round 12): a change keeps its id with the new text and a
 /// higher version; a deletion keeps only who and when, with no text. A deleted thread start that
@@ -30,16 +31,14 @@ import UIKit
 /// Where they're kept:
 /// - A board of your own: its page data, `collections.comments` (NotePageData), synced and sealed
 ///   like the drawing. Records merge by id, so a reply on each of two devices both land.
-/// - A shared board: its Automerge document, root map `comments`, each comment's JSON under its id
-///   as a scalar string, as `board` keeps elements. Sealed with the note key like every change.
-///   Two people commenting at once write different keys and both land; two changes of one
-///   comment (resolved on one device, opened again on another) leave both values, and every
-///   device keeps the same one: the higher `version`, then the lower JSON.
+/// - A shared board: its comment stream (Can comment, 18 November 2026; `note_comments`), apart
+///   from the drawing so the server can let a commenter write comments and nothing else. Each write
+///   is one sealed entry (`amb3c`) of the records it changes; every device folds the entries the
+///   same way (`fold`). Before that, comments were in the board's Automerge document, root map
+///   `comments`, each comment's JSON under its id as a scalar string: that map is still read, as
+///   the fold's first layer, and an owner's or editor's device moves it into the stream (`toRestate`).
 ///
-/// A viewer reads comments but doesn't write them: the server can't see inside a sealed change, so
-/// a viewer allowed to send comments could send drawing too. Keeping the rule "a viewer sends
-/// nothing" is what keeps Can view honest (FigJam lets viewers comment; parked until comments can
-/// travel apart from the drawing).
+/// A viewer reads comments but doesn't write them; a commenter writes comments and not the drawing.
 struct BoardComment: Equatable, Identifiable, Sendable {
     var id: String
     /// The thread this replies to; nil for a thread's first comment.
@@ -65,6 +64,8 @@ struct BoardComment: Equatable, Identifiable, Sendable {
     var deleted = false
     /// The people it mentions (@Sara), by account id: each gets the dot until they open it.
     var mentions: [String] = []
+    /// An AI's comment: the elements the write that added it changed (Show change, after reopening too).
+    var changes: [String] = []
 
     var isReply: Bool { thread != nil }
     var date: Date? { BoardComments.date(created) }
@@ -79,6 +80,7 @@ struct BoardComment: Equatable, Identifiable, Sendable {
         if resolved { r["resolved"] = true }
         if let edited, !deleted { r["edited"] = edited }
         if !mentions.isEmpty, !deleted { r["mentions"] = mentions }
+        if !changes.isEmpty, !deleted { r["changes"] = changes }
         return r
     }
 
@@ -89,10 +91,11 @@ struct BoardComment: Equatable, Identifiable, Sendable {
     }
 
     init(id: String, thread: String? = nil, on: String? = nil, x: Double = 1, y: Double = 0, by: String, name: String, ai: String? = nil,
-         text: String, created: String, resolved: Bool = false, version: Int = 1, edited: String? = nil, deleted: Bool = false, mentions: [String] = []) {
+         text: String, created: String, resolved: Bool = false, version: Int = 1, edited: String? = nil, deleted: Bool = false, mentions: [String] = [],
+         changes: [String] = []) {
         self.id = id; self.thread = thread; self.on = on; self.x = x; self.y = y; self.by = by; self.name = name; self.ai = ai
         self.text = text; self.created = created; self.resolved = resolved; self.version = version
-        self.edited = edited; self.deleted = deleted; self.mentions = mentions
+        self.edited = edited; self.deleted = deleted; self.mentions = mentions; self.changes = changes
     }
 
     /// A record as kept, checked: anything malformed is left out rather than shown half.
@@ -115,6 +118,7 @@ struct BoardComment: Equatable, Identifiable, Sendable {
         self.created = created
         edited = deleted ? nil : string("edited", max: 64)
         mentions = deleted ? [] : Array(((r["mentions"] as? [Any]) ?? []).compactMap { ($0 as? String).flatMap { $0.isEmpty || $0.count > 200 ? nil : $0 } }.prefix(50))
+        changes = deleted ? [] : Array(((r["changes"] as? [Any]) ?? []).compactMap { ($0 as? String).flatMap { $0.isEmpty || $0.count > 200 ? nil : $0 } }.prefix(BoardComments.maxChanges))
         thread = string("thread", max: 200)
         on = thread == nil ? string("on", max: 200) : nil
         name = string("name", max: 200) ?? "Someone"
@@ -152,6 +156,14 @@ enum BoardComments {
     static let collection = "comments"
     /// The longest comment taken (characters).
     static let maxText = 5000
+    /// The highest version a record may have; one above is ignored, and a write never goes past it
+    /// (`next`), so nobody can put a comment out of its writer's reach.
+    static let maxVersion = 1_000_000_000
+    /// The most elements an AI's comment names (`changes`).
+    static let maxChanges = 200
+
+    /// The version a change of `c` takes: past everyone's, never past `maxVersion` (a tie goes to the later write).
+    static func next(_ c: BoardComment) -> Int { min(c.version + 1, maxVersion) }
     /// An AI's pin and avatar: neutral graphite, never the accent (round 12: Claude's orange read
     /// as the app's own colour, and as a person called C). Its mark on it in white; on a dark board
     /// the pin is a light grey (`aiDark`) with the mark in black.
@@ -344,6 +356,135 @@ enum BoardComments {
         let map: CollabText.ObjId
         if case .Object(let id, .Map)? = try doc.get(obj: .ROOT, key: key) { map = id } else { map = try doc.putObject(obj: .ROOT, key: key, ty: .Map) }
         for c in comments { try doc.put(obj: map, key: c.id, value: .String(c.json)) }
+    }
+
+    // MARK: A shared board's comment stream
+
+    /// One entry of the stream, opened: who wrote it (the server's stamp, also in the seal's AAD),
+    /// their role then, and the records it holds. `moved`: the comments that were in the document,
+    /// or under an older key, restated as they were by an owner's or editor's device.
+    struct Entry {
+        var author: String
+        var role: String
+        var moved = false
+        var comments: [Any]
+    }
+
+    /// An entry's JSON, opened: anything malformed holds nothing.
+    static func entry(_ plain: Data, author: String, role: String) -> Entry {
+        guard let o = (try? JSONSerialization.jsonObject(with: plain)) as? [String: Any] else { return Entry(author: author, role: role, comments: []) }
+        return Entry(author: author, role: role, moved: (o["moved"] as? Bool) == true, comments: Array(((o["comments"] as? [Any]) ?? []).prefix(500)))
+    }
+
+    /// An entry as it's sealed: `{"comments": [record, …]}`, `"moved": true` for a restatement.
+    static func entryJSON(_ comments: [BoardComment], moved: Bool = false) -> Data {
+        var o: [String: Any] = ["comments": comments.map(\.record)]
+        if moved { o["moved"] = true }
+        return (try? JSONSerialization.data(withJSONObject: o, options: [.sortedKeys])) ?? Data()
+    }
+
+    /// Entries holding `comments`, each small enough to go up sealed (CollabSession.maxComment).
+    static func chunks(_ comments: [BoardComment], moved: Bool = false) -> [Data] {
+        var out: [Data] = [], part: [BoardComment] = [], size = 0
+        for c in comments {
+            let n = c.json.utf8.count + 1
+            if !part.isEmpty, size + n > chunkBytes || part.count >= 400 {
+                out.append(entryJSON(part, moved: moved))
+                part = []
+                size = 0
+            }
+            part.append(c)
+            size += n
+        }
+        if !part.isEmpty { out.append(entryJSON(part, moved: moved)) }
+        return out
+    }
+
+    /// An entry's JSON at most this big: sealed (base64, nonce and tag), it stays under 64 KB.
+    static let chunkBytes = 45_000
+
+    private struct Candidate {
+        var c: BoardComment
+        var trusted: Bool
+        var own: Bool
+        var order: Int
+        /// The higher version, then the later entry, then the later place in it.
+        func beats(_ b: Candidate) -> Bool { c.version != b.c.version ? c.version > b.c.version : order > b.order }
+    }
+
+    /// A record's version as written, when it's one a fold takes: a whole number from 1 to `maxVersion`.
+    private static func version(of raw: Any) -> Int? {
+        guard let r = raw as? [String: Any] else { return nil }
+        guard let v = r["version"] else { return 1 }
+        guard let n = v as? NSNumber else { return 1 }
+        let d = n.doubleValue
+        guard d.isFinite, d == d.rounded(), d >= 1, d <= Double(maxVersion) else { return nil }
+        return Int(d)
+    }
+
+    /// A shared board's comments, as every device reads them: `legacy`, the comments in the
+    /// document's old `comments` map (each id's values resolved), then the stream's entries in the
+    /// server's order. Per comment id:
+    ///
+    /// - Its owner is the writer the first trusted record names (the old map, or a moved entry from
+    ///   an owner or editor), else the writer of the first entry that wrote it in their own name.
+    /// - Its words are the owner's record with the highest version (then the later one): a record
+    ///   counts as words only from an entry its `by` wrote, so nobody else's can change them.
+    /// - Whether a thread is resolved comes from everyone's records for it, the highest version
+    ///   (then the later one): anyone who may comment resolves and reopens any thread.
+    /// - Its version is the highest anyone wrote, so the next write beats them all.
+    ///
+    /// The same rules as web/lib/board-doc.ts (`foldComments`) and the MCP server's
+    /// board_comments.ts (`fold`), pinned by supabase/functions/_shared/comment-vectors.json.
+    static func fold(legacy: [BoardComment], entries: [Entry]) -> [BoardComment] {
+        var all: [String: [Candidate]] = [:]
+        var ids: [String] = []
+        var order = 0
+        func add(_ x: Candidate) {
+            if all[x.c.id] == nil { ids.append(x.c.id) }
+            all[x.c.id, default: []].append(x)
+        }
+        for c in legacy { add(Candidate(c: c, trusted: true, own: true, order: order)); order += 1 }
+        for e in entries {
+            let author = e.author.lowercased()
+            let trusts = e.moved && (e.role == "owner" || e.role == "editor")
+            for raw in e.comments {
+                defer { order += 1 }
+                guard let v = version(of: raw), var c = (raw as? [String: Any]).flatMap(BoardComment.init) else { continue }
+                c.version = v
+                let own = trusts || c.by.lowercased() == author
+                // Someone else's reply says nothing anyone takes.
+                if own || !c.isReply { add(Candidate(c: c, trusted: trusts, own: own, order: order)) }
+            }
+        }
+        var out: [BoardComment] = []
+        for id in ids {
+            let list = all[id] ?? []
+            guard let first = list.first(where: \.trusted) ?? list.first(where: \.own) else { continue }
+            let owner = first.c.by.lowercased()
+            var words: Candidate?
+            for x in list where x.own && x.c.by.lowercased() == owner { if words.map({ x.beats($0) }) ?? true { words = x } }
+            guard let words else { continue }
+            var c = words.c
+            c.version = list.map(\.c.version).max() ?? c.version
+            if !c.isReply {
+                var r: Candidate?
+                for x in list where !x.c.isReply { if r.map({ x.beats($0) }) ?? true { r = x } }
+                c.resolved = r?.c.resolved == true
+            }
+            out.append(c)
+        }
+        return out.sorted { ($0.created, $0.id) < ($1.created, $1.id) }
+    }
+
+    /// What an owner's or editor's device restates in a moved entry: every comment that someone
+    /// holding only the note's current key, reading only the stream, wouldn't see as it is (`full`,
+    /// everything this device opened, the old map included, against `bare`, the stream's entries
+    /// under the current key alone). That moves the old map's comments into the stream, and carries
+    /// comments over a new key.
+    static func toRestate(full: [BoardComment], bare: [BoardComment]) -> [BoardComment] {
+        let had = Dictionary(bare.map { ($0.id, $0.json) }, uniquingKeysWith: { a, _ in a })
+        return full.filter { had[$0.id] != $0.json }
     }
 
     // MARK: A board of your own's page data

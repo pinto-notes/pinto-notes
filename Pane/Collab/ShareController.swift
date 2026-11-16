@@ -270,6 +270,7 @@ enum ShareCopy {
     static func link(_ access: ShareState.Access) -> String {
         switch access {
         case .edit: "Anyone with the link can join and edit in Pinto Notes."
+        case .comment: "Anyone with the link can join and comment in Pinto Notes."
         case .view: "Anyone with the link can join and read in Pinto Notes."
         case .off: "Only people you invite can open this note."
         }
@@ -286,7 +287,7 @@ enum ShareCopy {
     static let notSharedYet = "Invite People makes a link anyone can join with and edit, in Pinto Notes."
 
     static func role(_ role: String) -> String {
-        role == "owner" ? "Owner" : role == "editor" ? "Can edit" : "Can view"
+        role == "owner" ? "Owner" : role == "editor" ? "Can edit" : role == "commenter" ? "Can comment" : "Can view"
     }
 
     static func first(_ name: String) -> String { name.split(separator: " ").first.map(String.init) ?? name }

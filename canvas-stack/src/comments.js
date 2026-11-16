@@ -73,6 +73,14 @@ export function shapeAt(elements, x, y) {
   return null;
 }
 
+/** A new comment's place for how it was placed: a finger's tap on a shape pins it to the shape's
+ *  top right corner, where the pins placed on a selection sit (round 14, comments-iphone-2: the new
+ *  pin sat on Draft's top left, under the finger, and the others top right). A pointer's click keeps
+ *  its spot, as in FigJam. */
+export function placeFor(where, pointerType) {
+  return where && where.on && pointerType === "touch" ? { on: where.on, x: 1, y: 0 } : where;
+}
+
 /** Where a new comment at a point of the board goes: on the shape there, as a fraction of its box,
  *  or on the spot. */
 export function placeAt(elements, x, y) {
@@ -134,6 +142,9 @@ export function commentsLayer(api, host, post, changed = () => {}) {
   host.appendChild(layer);
   const nodes = new Map();
   let pins = [], me = { color: "#2D639A", dark: "#3677B9", letter: "" }, open = null, draft = null, can = true, commenting = false, sent = "";
+  // Can comment on a shared board: the drawing is in view mode, and comments still go on it.
+  let inView = false;
+  const allowed = () => can && (inView || !api.getAppState().viewModeEnabled);
   // The shapes the app wants named (its threads'), and the names last told.
   let asked = [], named = "";
 
@@ -213,7 +224,7 @@ export function commentsLayer(api, host, post, changed = () => {}) {
 
   const setCommenting = (on) => {
     const was = commenting;
-    commenting = !!on && can && !api.getAppState().viewModeEnabled;
+    commenting = !!on && allowed();
     host.classList.toggle("pinto-commenting", commenting);
     if (commenting) host.style.setProperty("--pinto-comment-cursor", CURSOR);
     if (was !== commenting) changed();
@@ -237,7 +248,7 @@ export function commentsLayer(api, host, post, changed = () => {}) {
     e.preventDefault();
     e.stopImmediatePropagation();
     const p = viewportCoordsToSceneCoords({ clientX: e.clientX, clientY: e.clientY }, api.getAppState());
-    place(placeAt(api.getSceneElements(), p.x, p.y));
+    place(placeFor(placeAt(api.getSceneElements(), p.x, p.y), e.pointerType));
   };
   window.addEventListener("pointerdown", press, true);
 
@@ -245,7 +256,7 @@ export function commentsLayer(api, host, post, changed = () => {}) {
   const offScroll = api.onScrollChange(() => { if (nodes.size || pins.length || draft) draw(); });
 
   return {
-    /** The app's pins: `{ pins, me, open, draft, can }`. */
+    /** The app's pins: `{ pins, me, open, draft, can, inView }` (`inView`: comments while the drawing is view only). */
     set(c) {
       pins = Array.isArray(c.pins) ? c.pins.filter((p) => p && typeof p.id === "string" && typeof p.color === "string") : [];
       if (c.me && typeof c.me.color === "string") me = { color: c.me.color, dark: typeof c.me.dark === "string" ? c.me.dark : undefined, letter: String(c.me.letter || "") };
@@ -254,17 +265,20 @@ export function commentsLayer(api, host, post, changed = () => {}) {
       if (open !== was) sent = "";
       draft = c.draft && typeof c.draft === "object" && Number.isFinite(c.draft.x) ? c.draft : null;
       can = c.can !== false;
+      inView = c.inView === true;
       asked = Array.isArray(c.shapes) ? c.shapes.filter((x) => typeof x === "string").slice(0, 500) : [];
       if (!can) setCommenting(false);
       draw();
     },
     get pins() { return pins; },
     get commenting() { return commenting; },
+    /** Comments go on the board while its drawing is view only (Can comment). */
+    get inView() { return inView && can; },
     /** The Comment tool, on or off. False when you can't comment here. */
     tool(on) { setCommenting(on); return commenting === !!on; },
     /** A comment on the selection, or at a point of the page (`x`, `y`). */
     here(x, y) {
-      if (!can || api.getAppState().viewModeEnabled) return false;
+      if (!allowed()) return false;
       let where = null;
       if (Number.isFinite(x) && Number.isFinite(y)) {
         const p = viewportCoordsToSceneCoords({ clientX: x, clientY: y }, api.getAppState());
