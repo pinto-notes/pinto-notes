@@ -10,8 +10,9 @@
    go under 12 px. */
 
 .pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; background: #f7dfba; }
-.box { position: absolute; inset: 0; --S: max(100cqw, 100cqh); --u: min(calc(100cqw / 530), calc(var(--S) * 0.53 / 380)); }
-.group { position: absolute; left: 50%; top: calc((100cqh - var(--S)) / 2 + var(--S) * 0.235); width: calc(380 * var(--u)); translate: -50% 0; font-size: calc(16 * var(--u)); }
+/* Round 19: the group is 15% larger than round 18's, so the note reads before the still life. */
+.box { position: absolute; inset: 0; --S: max(100cqw, 100cqh); --u: min(calc(100cqw / 461), calc(var(--S) * 0.61 / 380)); }
+.group { position: absolute; left: 50%; top: calc((100cqh - var(--S)) / 2 + var(--S) * 0.215); width: calc(380 * var(--u)); translate: -50% 0; font-size: calc(16 * var(--u)); }
 
 /* What you asked in ChatGPT: a small chat line, the ChatGPT mark and name, then your words in a grey
    bubble. It sits over the note's top right corner, out of the title's way. */
@@ -29,12 +30,14 @@
   background: #fffdf8; color: #1d1b19; font-size: calc(17.5 * var(--u)); line-height: 1.4;
   box-shadow: 0 1px 0 rgba(90, 60, 20, 0.1), 0 1.6em 2.8em -1.5em rgba(70, 45, 10, 0.32), 0 0 0 1px rgba(60, 40, 10, 0.05); }
 .title { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
-/* What you decided, first, in plain words. The words ChatGPT keeps to take its green underline as it
-   reads them (a background, so it can't move a letter). */
+/* What you decided, first, in plain words. The words ChatGPT keeps to ("20-minute") and the words of
+   its new line that keep to them ("20 min") wear one teal tint, the same in both places, so the link
+   reads in a still frame. The tint is a background, so it can't move a letter. */
 .decided { margin: 0.5em 0 0; white-space: nowrap; }
 .decided b { font-weight: 650; }
-.read { padding-bottom: 0.08em; background: linear-gradient(#10a37f, #10a37f) 0 100% / 0% 0.11em no-repeat; }
-.decided[data-read] .read { background-size: 100% 0.11em; }
+.read, .keep { border-radius: 0.3em; padding: 0.02em 0.22em 0.06em; margin: 0 0.02em; color: #075e48; font-weight: 650;
+  background: linear-gradient(rgba(16, 163, 127, 0.22), rgba(16, 163, 127, 0.22)) 0 0 / 0% 100% no-repeat; }
+.decided[data-read] .read, .added[data-settled] .keep { background-size: 100% 100%; }
 .lines { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.28em; }
 .lines li { display: flex; align-items: baseline; white-space: nowrap; }
 .day { flex: none; width: 2.6em; font-weight: 600; color: #8a7d70; font-size: 0.94em; }
@@ -46,9 +49,6 @@
 .wipe { display: inline-flex; clip-path: inset(-0.4em 100% -0.4em 0); }
 .added[data-in] .wipe { clip-path: inset(-0.4em -0.6em -0.4em -0.6em); }
 .addedText { position: relative; z-index: 0; font-weight: 600; }
-.mark { position: absolute; z-index: -1; inset: -0.1em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.32); transform: scaleX(0); transform-origin: 0 50%; }
-.added[data-in] .mark { transform: none; }
-.added[data-settled] .mark { background: rgba(16, 163, 127, 0.17); }
 .by { display: inline-flex; align-items: center; gap: 0.38em; font-size: max(12px, 0.76em); font-weight: 650; color: #0b7a5e; opacity: 0; translate: -0.3em 0; }
 .added[data-by] .by { opacity: 1; translate: none; }
 .byMark { flex: none; display: grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: #10a37f; }
@@ -56,8 +56,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .ask { transition: opacity 0.35s ease-out, translate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); }
-  .read { transition: background-size 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
-  .mark { transition: transform 0.62s cubic-bezier(0.55, 0, 0.3, 1), background-color 0.7s ease-out; }
+  .read, .keep { transition: background-size 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
   .wipe { transition: clip-path 0.9s 0.05s cubic-bezier(0.55, 0, 0.3, 1); }
   .by { transition: opacity 0.3s ease-out, translate 0.4s cubic-bezier(0.2, 0.9, 0.3, 1); }
 }

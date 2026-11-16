@@ -10,7 +10,7 @@ import { AiShow } from "./AiShow";
 import { BuildShow } from "./Build";
 import { FreeLines, SyncMoment } from "./Close";
 import { HeroArt } from "./HeroArt";
-import { BoardBig, Note } from "./Things";
+import { BoardBig, CanvasChrome, Note, NotePhone } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
@@ -50,6 +50,12 @@ const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: 
  *  is as long as what's on it. Your AI keeps its stay (it fills the screen, and its cards step). */
 const SNUG: Tone[] = ["write", "draw", "build", "proof"];
 const AIR = 34;
+/** On a Mac, Notes is as long as what's on it too (round 19): the whiteboard's sheet waits this far
+ *  under the Mac window and its iPhone, so no stretch of empty red follows them. */
+const SNUG_WIDE: Tone[] = ["write"];
+const AIR_WIDE = 44;
+/** The gap between the tabs, which are as wide as their labels (round 19), on a Mac and on a phone. */
+const TAB_GAP = 8, TAB_GAP_NARROW = 6;
 const narrowNow = () => typeof matchMedia === "function" && matchMedia("(max-width: 760px)").matches;
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
@@ -121,8 +127,16 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       const narrow = narrowNow();
       chs.forEach((c, i) => {
         const next = chs[i + 1]; if (!next) return;
-        const want = narrow && SNUG.includes(ORDER[i]) ? `${-Math.max(0, Math.round(c.offsetHeight - reach(i) - AIR))}px` : "";
+        const snug = narrow ? SNUG.includes(ORDER[i]) : SNUG_WIDE.includes(ORDER[i]);
+        const want = snug ? `${-Math.max(0, Math.round(c.offsetHeight - reach(i) - (narrow ? AIR : AIR_WIDE)))}px` : "";
         if (next.style.marginTop !== want) next.style.marginTop = want;
+      });
+      // The tabs are as wide as their labels, side by side from the page's left edge.
+      let l = 0;
+      chs.forEach((c) => {
+        const tab = c.querySelector<HTMLElement>("[data-tab]"); if (!tab) return;
+        c.style.setProperty("--l", `${l}px`);
+        l += tab.offsetWidth + (narrow ? TAB_GAP_NARROW : TAB_GAP);
       });
       let end = hero.getBoundingClientRect().bottom + scrollY;
       doc = []; mt = [];
@@ -144,6 +158,10 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       }
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
       for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
+      // The chapter you're in (the front one docked under its tab) raises its tab; the others sit lower.
+      let front = -1;
+      for (let i = 0; i < chs.length; i++) if (docked[i]) front = TAB[ORDER[i]] ? i : -1;
+      for (let i = 0; i < chs.length; i++) if ((i === front) !== (chs[i].dataset.front !== undefined)) chs[i].toggleAttribute("data-front", i === front);
       // As the next sheet rises, this one's words and things move up ahead of its torn edge (the gap
       // never closes), so a tear never cuts through a line or a card: every chapter has finished, all
       // of it in view, before the next sheet reaches it.
@@ -229,13 +247,10 @@ const Say = ({ long, short }: { long: string; short: string }) => (
 const Cta = () => (
   <div className={`${x.ctas} ${s.ctas}`}>
     <Download note={false} />
-    <span className={s.ctaRow}>
-      <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
-        Get it for iPhone
-      </a>
-      <span className={s.free}>Free</span>
-    </span>
+    <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
+      Get it for iPhone
+    </a>
     <a className={x.offMac} href="/download">Download for Mac</a>
     <p className={`${x.fine} ${x.offApple}`} data-off-apple>
       Pinto Notes is for iPhone and Mac.{" "}
@@ -251,10 +266,12 @@ function Hero() {
         <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
         <p className={s.lede}>Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided.</p>
         <Cta />
+        {/* On a phone, the price in a short line under the buttons (the line below is the Mac's). */}
+        <p className={s.freeLine}>Free on iPhone and Mac.</p>
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
       {/* The picture: swap HeroArt (and its heroArt.module.css) for another first screen. */}
-      <div className={s.art}><HeroArt /></div>
+      <div className={s.art}><div className={s.artTop}><HeroArt /></div></div>
     </section>
   );
 }
@@ -283,7 +300,11 @@ function Write() {
             <h2 id="s-write-h" className={s.wTitle}>Write <br />notes.</h2>
             <Say long="They feel like Apple Notes, on Mac and iPhone, and you can bring yours over." short="Like Apple Notes, on Mac and iPhone. Bring yours over." />
           </div>
-          <Note live={live} />
+          {/* The note on a Mac, and the same note on an iPhone laid over the window's corner. */}
+          <div className={s.wDevices}>
+            <Note live={live} />
+            <NotePhone />
+          </div>
         </div>
       </div>
     </Chapter>
@@ -321,8 +342,14 @@ function Draw() {
           <Say long="Map out a decision beside your notes. Your AI can read the board and draw on it with you." short="Map out a decision. Your AI can read it, and draw on it with you." />
         </div>
         <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
-          <span className={s.wideOnly}><BoardBig bind={bind} /></span>
-          <span className={s.tallOnly}><BoardBig tall bind={bind} /></span>
+          {/* The board in Pinto's canvas: a thin frame, the drawing, the dock of tools at its foot. */}
+          <div className={s.canvas}>
+            <div className={s.canvasArea}>
+              <span className={s.wideOnly}><BoardBig bind={bind} /></span>
+              <span className={s.tallOnly}><BoardBig tall bind={bind} /></span>
+            </div>
+            <CanvasChrome />
+          </div>
         </div>
       </div>
     </Chapter>
@@ -380,8 +407,8 @@ const STUDY = [
 
 /** A plain white sheet with no tab, torn like the rest, that rises over the tab strip: the page's one
  *  break in colour and in kind (no card, no show). A heading that says what the numbers show, a line on
- *  what was asked (both times a new chat, the same model), the two numbers as a comparison with the
- *  measure beside them, a bar each, so the gap reads at a glance, each with one light line on what
+ *  what was asked (both times a new chat, the same model), the measure, then the two results as bars,
+ *  each number at the end of its bar, so the gap reads at a glance, each with one light line on what
  *  Claude had; then who ran it, and the link. The bars grow once as the page lands (with Reduce Motion
  *  they're already full). */
 function Proof() {
@@ -398,15 +425,18 @@ function Proof() {
             <h2 id="s-proof-h" className={s.proofTitle}>Claude got far more right when it could read the notes.</h2>
             <p className={s.proofSay}>1,540 questions about months of earlier chats. Same model both times.</p>
           </div>
-          {/* The measure, over the numbers' column (on a phone, beside each number). Like the heading,
-              each row fades out whole before the next sheet's torn edge reaches it. */}
-          <p className={s.barMeasure} data-fade><span>Questions answered correctly</span></p>
+          {/* The measure, once, over the bars. Each number sits at the end of its bar (round 19), so the
+              heading leads and the numbers don't repeat the bars. Like the heading, each row fades out
+              whole before the next sheet's torn edge reaches it. */}
+          <p className={s.barMeasure} data-fade>Questions answered correctly</p>
           <dl className={s.bars} data-on={on || undefined}>
             {STUDY.map((r, i) => (
               <div key={r.who} className={s.barRow} data-pinto={i === 1 || undefined} data-fade>
                 <dt className={s.barWho}><b>{r.who}</b><span>{r.had}</span></dt>
-                <dd className={s.barNum}>{r.shown}<small className={s.barNumWhat}>answered correctly</small></dd>
-                <dd className={s.barTrack} aria-hidden="true"><i style={{ "--v": r.v / 100 } as React.CSSProperties} /></dd>
+                <dd className={s.barLine} style={{ "--v": r.v / 100 } as React.CSSProperties}>
+                  <i className={s.barFill} aria-hidden="true" />
+                  <span className={s.barNum}>{r.shown}</span>
+                </dd>
               </div>
             ))}
           </dl>

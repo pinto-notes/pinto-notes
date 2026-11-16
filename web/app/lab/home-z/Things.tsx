@@ -13,7 +13,8 @@ import s from "./s.module.css";
 // full size: a book note open in Pinto (a Mac window; on a phone, the iPhone app) among a life's notes
 // brought over from Apple Notes, a whiteboard (the job offer from Studio North, mapped: now or March?),
 // a small app (the habits they're building), and one request in ChatGPT that lands in all three, the
-// recipe it files into Recipes first.
+// recipe it files into Recipes first. Round 19: the request is two clauses, each paired by one tint with
+// what it changed (the dinners with the note and the app, the call with the whiteboard).
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -31,13 +32,14 @@ export const Tick = ({ className = "" }: { className?: string }) => (
 export const DECIDED = "Cook at home five nights.";
 
 /** The first screen's note: this week. First what they decided, in words a stranger reads in a second
- *  (the part ChatGPT keeps to is the middle piece, underlined as it reads it). Then a dinner, and the one
- *  ChatGPT just added for Thursday when asked: twenty minutes, as decided. */
+ *  (the part ChatGPT keeps to is the middle piece). Then a dinner, and the one ChatGPT just added for
+ *  Thursday when asked: twenty minutes, as decided. The decision's "20-minute" and the new line's
+ *  "20 min" wear the same tint, so the link reads in a still frame. */
 export const WEEK_NOTE = {
   title: "This week",
   decided: ["", "20-minute", " weeknight dinners."] as [string, string, string],
   dinner: ["Tue", "Miso salmon"] as [string, string],
-  added: ["Thu", "Lemon chicken · 20 min"] as [string, string],
+  added: ["Thu", "Lemon chicken · ", "20 min"] as [string, string, string],
   ask: "Add a dinner for Thursday.",
 };
 
@@ -221,6 +223,31 @@ export function Note({ live }: { live: boolean }) {
   );
 }
 
+/** The same note on an iPhone (on a Mac only, laid over the window's corner: "on Mac and iPhone"). The
+ *  iPhone app's bar, the way back to Reading, then the note as it syncs: the title, the first
+ *  highlight, what to try, what was decided. Decoration; the window is the one you read. */
+export function NotePhone() {
+  return (
+    <div className={s.wPhone} role="img" aria-label="The same note, Deep Work, in Pinto Notes on an iPhone">
+      <div className={s.wPhoneScreen}>
+        <p className={s.phoneStatus}><b>9:41</b><span className={s.island} /><span className={s.phoneIcons}><i /><i /><i /></span></p>
+        <p className={s.phoneNav}><svg viewBox="0 0 10 16"><path d="M8 2 L2 8 L8 14" /></svg>Reading</p>
+        <div className={s.wpNote}>
+          <p className={s.wpTitle}>{BOOK.title}</p>
+          <p className={s.wpBy}>By {BOOK.author}</p>
+          <p className={s.wpQuote}>{BOOK.marks[0]}</p>
+          <ul className={s.wpRows}>
+            <li data-on><i><Tick /></i><span>{TRY[0]}</span></li>
+            <li><i /><span>{TRY[1]}</span></li>
+            <li><i /><span>{TYPED}</span></li>
+          </ul>
+          <p className={s.wpDecided}><b>Decided:</b> {BOOK.decided}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Where these notes came from, said plainly: a quiet line at the foot of the notes list (on a phone,
  *  at the foot of the screen). */
 function Imported({ phone }: { phone?: boolean }) {
@@ -382,6 +409,46 @@ export function BoardBig({ tall, bind }: { tall?: boolean; bind: (set: (k: numbe
   );
 }
 
+/* ───────────────────────── The whiteboard's own controls ───────────────────────── */
+
+/** The tools, drawn plain after their symbols in Pinto's canvas (CanvasTool: cursorarrow, hand.raised,
+ *  pencil, rectangle, circle, diamond, arrow.up.right, textformat, eraser; undo and redo first). */
+const TOOL: Record<string, React.ReactNode> = {
+  undo: <svg viewBox="0 0 20 20"><path d="M7.5 4.5 3.8 8.2l3.7 3.7" /><path d="M4.2 8.2h7.6a4.4 4.4 0 0 1 0 8.8H9.5" /></svg>,
+  redo: <svg viewBox="0 0 20 20"><path d="m12.5 4.5 3.7 3.7-3.7 3.7" /><path d="M15.8 8.2H8.2a4.4 4.4 0 0 0 0 8.8h2.3" /></svg>,
+  select: <svg viewBox="0 0 20 20"><path d="M5 3.2v12.6l3.4-3.3 2.4 5 2.2-1-2.3-5h4.6z" strokeLinejoin="round" /></svg>,
+  hand: <svg viewBox="0 0 20 20"><path d="M7.2 10.4V4.6a1.2 1.2 0 0 1 2.4 0v4.8M9.6 9.2V3.4a1.2 1.2 0 0 1 2.4 0v5.8M12 9.2V4.6a1.2 1.2 0 0 1 2.4 0v6.6c0 3.3-2.1 5.6-5 5.6-2 0-3.2-.9-4.3-2.6L3.4 11.4a1.2 1.2 0 0 1 2-1.3l1.8 2.3" /></svg>,
+  pencil: <svg viewBox="0 0 20 20"><path d="M13.6 3.6a1.9 1.9 0 0 1 2.7 2.7L7 15.6l-3.6 1 1-3.6z" /><path d="m12.2 5 2.8 2.8" /></svg>,
+  rect: <svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="10" rx="1.6" /></svg>,
+  ellipse: <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.6" /></svg>,
+  diamond: <svg viewBox="0 0 20 20"><path d="M10 2.8 17.2 10 10 17.2 2.8 10z" /></svg>,
+  shapes: <svg viewBox="0 0 20 20"><rect x="2.6" y="2.6" width="9.4" height="9.4" rx="1.4" /><circle cx="12.6" cy="12.6" r="4.8" /></svg>,
+  arrow: <svg viewBox="0 0 20 20"><path d="M4.6 15.4 15 5M8.4 4.8H15.2v6.8" /></svg>,
+  text: <svg viewBox="0 0 20 20"><path d="M2.6 15.6 6.4 5h.8l3.8 10.6M3.9 12.2h5.8M17.4 10.4v5.2M17.4 12.2c0-1.2-.9-1.9-2.1-1.9s-2.2.8-2.2 2.2.9 2.3 2.2 2.3 2.1-.7 2.1-1.9" /></svg>,
+  eraser: <svg viewBox="0 0 20 20"><path d="m8.2 16.4-4-4a1.6 1.6 0 0 1 0-2.3l6.6-6.6a1.6 1.6 0 0 1 2.3 0l3.6 3.6a1.6 1.6 0 0 1 0 2.3l-6.6 7zM6.6 8.4l5 5M8.2 16.4h8" /></svg>,
+};
+/** Which tools the dock shows: on a Mac, Undo and Redo, a gap, then the tools; on a phone, the tools,
+ *  the shapes in one button. Select is the tool in hand. */
+const DOCK: [string, "mac" | "phone" | "both"][] = [
+  ["undo", "mac"], ["redo", "mac"], ["gap", "mac"], ["select", "both"], ["hand", "mac"], ["pencil", "both"], ["rect", "mac"], ["ellipse", "mac"],
+  ["diamond", "mac"], ["shapes", "phone"], ["arrow", "both"], ["text", "both"], ["eraser", "both"],
+];
+
+/** Pinto's whiteboard controls, as the app lays them: one floating dock centred at the foot, and the
+ *  zoom, quiet, at the bottom right (on a Mac). Decoration: the board isn't a working canvas here. */
+export function CanvasChrome() {
+  return (
+    <>
+      <span className={s.dock} aria-hidden="true">
+        {DOCK.map(([k, on]) => k === "gap"
+          ? <i key={k} className={s.dockGap} data-on-device={on} />
+          : <i key={k} data-tool={k} data-on-device={on} data-picked={k === "select" || undefined}>{TOOL[k]}</i>)}
+      </span>
+      <span className={s.zoom} aria-hidden="true">100%</span>
+    </>
+  );
+}
+
 /* ───────────────────────── The app: the habits they're building ───────────────────────── */
 
 /** The week, Monday first. Thursday is today (the Studio North call; Ana's answer is due Friday). */
@@ -397,3 +464,7 @@ export const WRITE_BEFORE = [true, true, true, false, false, false, false];
 export const COOK_HABIT = "Cook at home";
 export const COOK_GOAL = "5 nights a week";
 export const COOK_DAYS = [false, true, true, false, false, false, false];
+/** Next week's dinner nights, as ChatGPT planned them (Your AI): the five nights in DINNERS (Mon, Tue,
+ *  Wed, Thu and Sun), marked on "Cook at home" in the habits app, so the note and the app show the
+ *  same decision. */
+export const COOK_NEXT = [true, true, true, true, false, false, true];
