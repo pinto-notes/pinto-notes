@@ -80,3 +80,15 @@ www.anthropic.com             # the AI tracker's links
 blogs.microsoft.com           # the AI tracker's links
 newsroom.spotify.com          # the AI tracker's links
 blog.google                   # the AI tracker's links
+grok.com                      # Connect to Grok: opened in the browser; its OAuth redirect is matched, never called
+www.notion.so                 # Import from Notion: a link the guide opens
+dev.evernote.com              # blog links (best AI notes app, best notes app for Mac)
+get.mem.ai
+docs.mem.ai
+reflect.app
+community.obsidian.md
+www.granola.ai
+otter.ai
+www.craft.do
+getupnote.com
+www.goodnotes.com

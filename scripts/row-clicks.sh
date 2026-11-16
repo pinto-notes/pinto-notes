@@ -36,7 +36,9 @@ on 'rm -rf ~/row-clicks && mkdir -p ~/row-clicks'
 if [[ $host == local ]]; then cp "$tmp/app.zip" scripts/release-gate/RowClicks.swift ~/row-clicks/
 else scp -q "$tmp/app.zip" scripts/release-gate/RowClicks.swift "${host}:row-clicks/"; fi
 remote=(ssh "$host" zsh -s --); [[ $host == local ]] && remote=(zsh -s --)
-"${remote[@]}" "$name" "$exe" "$budget" "$median" <<'REMOTE'
+# ssh joins its arguments into one command line: quote them, or "Amber Notes Beta.app" arrives as three words.
+args=("$name" "$exe" "$budget" "$median"); [[ $host == local ]] || args=(${(q)args})
+"${remote[@]}" "${args[@]}" <<'REMOTE'
 set -u
 cd ~/row-clicks
 ditto -x -k app.zip . && rm app.zip
