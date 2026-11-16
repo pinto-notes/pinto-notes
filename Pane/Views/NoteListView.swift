@@ -820,7 +820,7 @@ struct NoteListView: View {
     #endif
 
     /// One date's notes (and files), collapsible, under its heading.
-    private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item, Item.ID?) -> Row) -> some View {
+    private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item, Item.ID?) -> Row) -> some View where Item.ID == UUID {
         Section(isExpanded: Binding(
             get: { !collapsed.contains(section.0) },
             set: { open in withAnimation(.snappy(duration: 0.22)) { if open { collapsed.remove(section.0) } else { collapsed.insert(section.0) } } }
@@ -854,12 +854,10 @@ struct NoteListView: View {
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
                     // A hairline under it, the rows' cards' width, as in Notes (Emil, 12 November 2026).
+                    // Like a row's, it leaves the first row's selection or hover uncut (Emil, 16 November).
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay(alignment: .bottom) {
-                        RowHairline()
-                            .padding(.leading, NoteListView.headingLineLeading)
-                            .padding(.trailing, NoteListView.headingLineTrailing)
-                            .offset(y: NoteListView.headingLineDrop)
+                        if let first = section.1.first?.id, !filled(first) { HeadingLine(first: first) }
                     }
                 #endif
             }
@@ -2250,6 +2248,20 @@ struct Neighbours<Item: Identifiable>: RandomAccessCollection {
 
     func set(_ id: UUID, _ over: Bool) {
         if over { if row != id { row = id } } else if row == id { row = nil }
+    }
+}
+
+/// A date heading's hairline: the rows' cards' width, gone while the row under it is hovered.
+struct HeadingLine: View {
+    let first: UUID
+
+    var body: some View {
+        if RowLineHover.shared.row != first {
+            RowHairline()
+                .padding(.leading, NoteListView.headingLineLeading)
+                .padding(.trailing, NoteListView.headingLineTrailing)
+                .offset(y: NoteListView.headingLineDrop)
+        }
     }
 }
 

@@ -149,6 +149,23 @@ import Testing
         let s = Self.sections(first)
         #expect(!first.line(under: s[0][0]), "none under the selected first row")
         #expect(first.line(under: s[0][1]), "the row under it keeps its line")
+        // Nor under its heading, right above it (Emil, 16 November 2026); the other heading keeps its own.
+        let headings = first.rows.indices.filter { first.rows[$0].heading }
+        try #require(headings.count == 2)
+        #expect(!first.line(under: headings[0]), "none under the heading over the selected row")
+        #expect(first.line(under: headings[1]), "the other heading keeps its line")
+    }
+
+    /// Hovering a section's first row takes the line off its heading too.
+    @Test func noHeadingLineOverTheHoveredFirstRow() async throws {
+        HoverProbe.enabled = true
+        defer { HoverProbe.enabled = false; HoverProbe.reset() }
+        let (c, folder, _) = try Self.container()
+        let d = try await Self.draw(c, folder, hover: "Weekend plans")
+        let headings = d.rows.indices.filter { d.rows[$0].heading }
+        try #require(headings.count == 2)
+        #expect(!d.line(under: headings[0]), "none under the heading over the hovered row")
+        #expect(d.line(under: headings[1]), "the other heading keeps its line")
     }
 
     /// The hover's fill isn't cut by a line either, above or below it.
