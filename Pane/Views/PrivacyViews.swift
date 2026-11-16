@@ -31,6 +31,28 @@ extension View {
     func previewBlur(revealsOnHover: Bool = true) -> some View {
         modifier(PrivacyPreviewBlur(revealsOnHover: revealsOnHover))
     }
+
+    /// A note's title anywhere notes are listed (the list, the gallery, Go to Note, the menu bar,
+    /// a folder's cards): on the Mac, blurred while privacy mode is on, unless it's the open note's
+    /// or the list it's in shows its titles (ListTitleReveal). The iPhone's titles never are.
+    func privacyTitleBlur(open: Bool = false) -> some View {
+        modifier(PrivacyTitleBlur(open: open))
+    }
+}
+
+/// `privacyTitleBlur()`.
+struct PrivacyTitleBlur: ViewModifier {
+    var open = false
+    @State private var mode = PrivacyMode.shared
+    @Environment(\.listTitleReveal) private var reveal
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let blurred = ListTitleReveal.blurs(privacyOn: mode.isOn, open: open, revealed: reveal?.shown ?? false)
+        content
+            .blur(radius: blurred ? PreviewBlur.radius : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: blurred)
+    }
 }
 
 /// `previewBlur()`: PreviewBlur, on while privacy mode is.
@@ -159,6 +181,13 @@ struct PrivacyModeSection: View {
             Toggle(PrivacyWords.name, isOn: Binding(get: { mode.isOn }, set: { mode.setManual($0) }))
                 .settingsSwitch()
                 .accessibilityIdentifier("settings.privacyMode")
+            #if os(macOS)
+            // The Mac hears calls too (CallDetection), and each keeps its own answer.
+            Picker(PrivacyWords.whenInCallTitle, selection: Binding(get: { mode.whenInCall }, set: { mode.whenInCall = $0 })) {
+                ForEach(PrivacyMode.WhenShared.allCases) { Text($0.title).tag($0) }
+            }
+            .accessibilityIdentifier("settings.privacyWhenInCall")
+            #endif
             Picker(Self.pickerTitle, selection: Binding(get: { mode.whenShared }, set: { mode.whenShared = $0 })) {
                 ForEach(PrivacyMode.WhenShared.allCases) { Text($0.title).tag($0) }
             }
@@ -168,14 +197,8 @@ struct PrivacyModeSection: View {
         }
     }
 
-    /// The Mac hears calls too (CallDetection); the iPhone only knows about sharing.
-    static var pickerTitle: String {
-        #if os(macOS)
-        PrivacyWords.whenSharedTitleMac
-        #else
-        PrivacyWords.whenSharedTitle
-        #endif
-    }
+    /// When sharing starts, on both (the Mac's calls have their own, above it).
+    static var pickerTitle: String { PrivacyWords.whenSharedTitle }
 
     static var footer: String {
         #if os(macOS)

@@ -1,6 +1,7 @@
 import AppIntents
 import Foundation
 import SwiftUI
+import WidgetKit
 
 // Ways into Pinto Notes from outside it (2026-11-04), shared by the app and the widget extension
 // (PaneWidgets): the links the widget opens, the words both say, and New Note, which Control
@@ -35,8 +36,8 @@ enum PrivacyWords {
     static let settingsFooterPhone = "Blurs the previews under each title in the note list. Titles and the note you have open still show."
     static let whenSharedTitle = "When your screen is shared"
     static let whenSharedFooter = "Privacy mode turns on while your screen is shared or recorded, and off again when it stops."
-    /// The Mac's: it hears calls too (CallDetection).
-    static let whenSharedTitleMac = "In calls and when sharing your screen"
+    /// The Mac's: it hears calls too (CallDetection), and asks about them on their own.
+    static let whenInCallTitle = "During a call"
     static let whenSharedFooterMac = "Privacy mode turns on during a call or while your screen is shared or recorded, and off again when it ends."
     static let coverTitle = "Your screen is being shared"
     static let coverTitleCall = "You\u{2019}re in a call"
@@ -130,10 +131,18 @@ struct SetPrivacyModeIntent: SetValueIntent {
         p.manual = value
         p.hidden = value
         ChecklistShelf.savePrivacy(p)
+        // The widget redraws now. Its timeline never asks again on its own, and the app's own
+        // redraw (PrivacyMode.publish) finds the file already written and skips it.
+        Self.redrawWidget()
         #if !WIDGET_EXTENSION
         PrivacyMode.shared.setManual(value)
         #endif
         return .result()
+    }
+
+    /// Redraws the checklist widget. Tests count the calls.
+    @MainActor static var redrawWidget: () -> Void = {
+        WidgetCenter.shared.reloadTimelines(ofKind: ChecklistWidgetContent.kind)
     }
 }
 

@@ -177,6 +177,25 @@ final class Heard<T>: @unchecked Sendable {
         #expect(cpu < 0.02, "under 20 ms of CPU a look (1% of a core at one look every 2 s)")
     }
 
+    /// The Mac App Store build is sandboxed, and libproc lists nothing there: sharing was never
+    /// seen (the 1.4 review). The running apps are looked at instead; the direct download keeps libproc.
+    @Test func theSandboxedBuildLooksAtTheRunningApps() throws {
+        struct Fixed: ProcessLister { let all: Set<String>; func names() -> Set<String> { all } }
+        let sandboxed = ShareLister(processes: Fixed(all: []), apps: Fixed(all: ["finder", "cpthost"]))
+        #expect(sandboxed.names() == ["finder", "cpthost"])
+        var h = ShareHeuristic()
+        #expect(h.active(running: sandboxed.names(), now: .now) == ["Zoom"], "Zoom's sharing is seen")
+        let direct = ShareLister(processes: Fixed(all: ["launchd", "screensharingd"]), apps: Fixed(all: ["finder"]))
+        #expect(direct.names() == ["launchd", "screensharingd"], "libproc, when it lists something")
+        // Zoom's sharing host and the system's capture tool, named as libproc names them.
+        let zoom = URL(fileURLWithPath: "/Applications/zoom.us.app/Contents/Frameworks/CptHost.app/Contents/MacOS/CptHost")
+        let capture = URL(fileURLWithPath: "/System/Library/CoreServices/screencaptureui.app/Contents/MacOS/screencaptureui")
+        #expect(WorkspaceLister.names([zoom, capture, nil]) == ["cpthost", "screencaptureui"])
+        #expect(try SettingsHomeTests.source("Pane/Model/ScreenShareDetection.swift").contains("init(lister: ProcessLister = ShareLister()"), "the app's detector uses it")
+        // This (unsandboxed) host's apps include itself.
+        #expect(!WorkspaceLister().names().isEmpty)
+    }
+
     @Test func theDetectorTellsTheMainThreadOnlyWhenTheAnswerChanges() async {
         final class Names: ProcessLister, @unchecked Sendable {
             let lock = NSLock()
