@@ -180,8 +180,20 @@ extension NetworkFaults {
             await MacWindowChromeTests.settle(w, 5)
             #expect(engine.reach == .offline)
             _ = try await web.evaluateJavaScript(Self.note(Self.offlineOnMac, y: Self.macNote.y, fill: Self.macNote.fill))
-            for _ in 0..<100 where !NotePageDataStore.shared.dirty.contains(board.id) { await MacWindowChromeTests.settle(w, 1) }
-            #expect(NotePageDataStore.shared.dirty.contains(board.id), "saved on this Mac")
+            // Saved once the store has the note and the page has nothing more to save (half a second
+            // with no change; the page saves 300 ms after a change). A save is read and kept off the
+            // main thread, a moment after the page sends it, and the board can be waiting to go up
+            // already (its save after the iPhone's note came in): waiting for that alone, the sync
+            // below could go before the note was kept (16 November 2026).
+            let kept = { String(decoding: NotePageDataStore.shared.peek(board.id) ?? Data(), as: UTF8.self).contains(Self.offlineOnMac) }
+            var was: Data?
+            for _ in 0..<60 {
+                let now = NotePageDataStore.shared.peek(board.id)
+                if NotePageDataStore.shared.dirty.contains(board.id), kept(), now == was { break }
+                was = now
+                await MacWindowChromeTests.settle(w, 5)
+            }
+            #expect(NotePageDataStore.shared.dirty.contains(board.id) && kept(), "saved on this Mac")
             // The whole board in view for the pictures (adding it zoomed to the new note).
             _ = try await web.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false }); 1")
             await engine.sync()

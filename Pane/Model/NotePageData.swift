@@ -15,6 +15,8 @@ enum NotePageData {
     static let maxBytes = 4 * 1024 * 1024
 
     static func empty() -> Doc { ["values": Doc(), "collections": Doc()] }
+    /// `empty()` as `encode` gives it: what a page is given for a note with no data yet.
+    static let emptyData = encode(empty())
 
     static func encode(_ doc: Doc) -> Data {
         (try? JSONSerialization.data(withJSONObject: doc, options: [.sortedKeys, .fragmentsAllowed])) ?? Data("{}".utf8)
@@ -76,6 +78,11 @@ enum NotePageData {
             }
             switch op {
             case "store.set": self = .set(key: try string("key"), value: m["value"] is NSNull ? nil : m["value"])
+            // The value as JSON text (a board's drawing): one string across the bridge, not a tree
+            // the web view copies object by object.
+            case "store.setJSON":
+                guard let json = m["json"] as? String, let value = try? JSONSerialization.jsonObject(with: Data(json.utf8), options: [.fragmentsAllowed]) else { throw NotePage.OpError("json must be JSON text.") }
+                self = .set(key: try string("key"), value: value is NSNull ? nil : value)
             case "store.patch": self = .patch(try object("patch"))
             case "collection.add": self = .add(collection: try string("name"), fields: try object("fields"))
             case "collection.update": self = .update(collection: try string("name"), id: try string("id"), patch: try object("patch"))
@@ -254,13 +261,23 @@ final class NotePageDataStore {
     /// redrawn on every stroke.
     private(set) var listRevision = 0
     @ObservationIgnored private var listPending: Task<Void, Never>?
+    /// The notes changed since the list was last told.
+    @ObservationIgnored private var listChanged: Set<UUID> = []
     static var listDelay: Duration = .milliseconds(800)
-    private func changedForList() {
+    private func changedForList(_ id: UUID) {
+        listChanged.insert(id)
         guard listPending == nil else { return }
         listPending = Task { @MainActor [weak self] in
             try? await Task.sleep(for: Self.listDelay)
-            self?.listPending = nil
-            self?.listRevision += 1
+            guard let self else { return }
+            let ids = self.listChanged
+            self.listChanged = []
+            // The boards' sketches worked out off the main thread first: their rows then only read them.
+            await CanvasSketch.prime(ids, in: self)
+            self.listPending = nil
+            self.listRevision += 1
+            // Changed while those were worked out: told in a moment, too.
+            if let next = self.listChanged.first { self.listChanged.remove(next); self.changedForList(next) }
         }
     }
 
@@ -285,7 +302,7 @@ final class NotePageDataStore {
         if let data, let doc { decoded[id] = (data, doc) } else { decoded[id] = nil }
         dirty.insert(id)
         save()
-        changedForList()
+        changedForList(id)
         SyncSignal.changed()
     }
 
@@ -309,7 +326,62 @@ final class NotePageDataStore {
         }
         synced[id] = server
         save()
-        changedForList()
+        changedForList(id)
+    }
+
+    /// Taking the server's copy (`take`), worked out off the main thread: the merge and the
+    /// comparisons go over the whole drawing several times, 100 ms and more on the main thread for a
+    /// board of 500 elements, after every push of it and every change that came down (16 November
+    /// 2026). `prepareTake` works it out from the data as it is now; `take(_:)` keeps it.
+    struct Taking: Sendable {
+        let id: UUID, server: Data?
+        /// What it was worked out from.
+        let before: Data?, base: Data?, wasDirty: Bool
+        /// What it leaves: the data, whether nothing of this device's is left to push, and whether
+        /// the data changed (for the receipts).
+        let after: Data?, clean: Bool, changed: Bool
+    }
+
+    func prepareTake(_ id: UUID, server: Data?) async -> Taking {
+        let before = docs[id], base = synced[id], wasDirty = dirty.contains(id)
+        return await Task.detached(priority: .utility) {
+            Self.taking(id, server: server, before: before, base: base, dirty: wasDirty)
+        }.value
+    }
+
+    /// `take`'s work, on its own: what the data becomes, from the bytes alone.
+    nonisolated static func taking(_ id: UUID, server: Data?, before: Data?, base: Data?, dirty: Bool) -> Taking {
+        let theirs = NotePageData.decode(server)
+        var after: Data?, clean = false
+        if dirty {
+            let merged = NotePageData.merge(base: NotePageData.decode(base), mine: NotePageData.decode(before), theirs: theirs)
+            after = NotePageData.encode(merged)
+            clean = NotePageData.same(merged, theirs)
+        } else {
+            after = server.map { NotePageData.encode(NotePageData.decode($0)) }
+        }
+        let changed = !NotePageData.same(NotePageData.decode(before), NotePageData.decode(after))
+        return Taking(id: id, server: server, before: before, base: base, wasDirty: dirty, after: after, clean: clean, changed: changed)
+    }
+
+    /// Keeps what `prepareTake` worked out. Changed here in the meantime (a stroke saved): the
+    /// server's copy is taken again, on what's here now.
+    func take(_ t: Taking, by: String? = nil, device: String? = nil) {
+        let id = t.id
+        guard docs[id] == t.before, synced[id] == t.base, dirty.contains(id) == t.wasDirty else {
+            take(id, server: t.server, by: by, device: device)
+            return
+        }
+        if let by, t.changed {
+            arrivals[id] = Arrival(by: by, at: .now, before: t.before)
+        } else if by == nil, let device, t.before != nil, t.changed {
+            fromDevices[id] = DeviceArrival(device: device, at: .now)
+        }
+        docs[id] = t.after
+        if t.wasDirty, t.clean { dirty.remove(id) }
+        synced[id] = t.server
+        save()
+        changedForList(id)
     }
 
     /// A shared board's drawing from its shared document (CollabBoard), kept here for the list's
@@ -326,7 +398,7 @@ final class NotePageDataStore {
         docs[id] = data
         decoded[id] = nil
         save()
-        changedForList()
+        changedForList(id)
     }
 
     /// A board's data with `scene` as its drawing.
@@ -372,4 +444,99 @@ final class NotePageDataStore {
 
     /// Waits for the file to be written (tests; the app on quit).
     nonisolated func waitForSave() { writer.sync {} }
+}
+
+/// A page value set from its JSON text (a board's drawing, from canvas.jsx): the text read and the
+/// note's data encoded again off the main thread, at utility priority, in the order they came. A
+/// board of 2000 elements is 3 MB: as objects through the bridge, then checked and encoded on the
+/// main thread, each save took the app 40 ms and more, and the page as long again for the whole
+/// drawing coming back in the reply (16 November 2026). Quitting puts in any still on their way.
+///
+/// A save is made on the data the page had (`base`), and what reached the store since (another
+/// device's change taken, an AI's edit) is merged in by key, record and element, as sync merges:
+/// set on what was there, a change that came down while a save was on its way was lost, on the
+/// board and then on the server.
+@MainActor enum NotePageDataWrites {
+    private struct Done: @unchecked Sendable { let seq: Int; let base: Data?; let doc: NotePageData.Doc; let data: Data }
+    private struct Input: @unchecked Sendable { let base: Data?; let doc: NotePageData.Doc?; let json: String }
+    nonisolated private static let queue = DispatchQueue(label: "pinto.note-page-data.encode", qos: .utility)
+    nonisolated private static let lock = NSLock()
+    nonisolated(unsafe) private static var done: [UUID: Done] = [:]
+    private static var seq = 0
+    private static var applied: [UUID: Int] = [:]
+    /// A save being merged off the main thread, for `finish`.
+    private static var merging: [UUID: Done] = [:]
+
+    /// Sets `key` to what `json` holds, on `base`: the data the page had when it saved (the store's
+    /// when not given). Returns the data before, for Undo, and the page's own: its data as the page
+    /// has it after this save. When the store's is different (merged with a change from elsewhere),
+    /// the page is told (NotePageView pushes what isn't its own).
+    static func set(_ key: String, json: String, note id: UUID, base given: Data? = nil, store: NotePageDataStore = .shared) async throws -> (before: NotePageData.Doc, own: Data) {
+        seq += 1
+        let mine = seq, before = store.doc(id), base = given ?? store.docs[id]
+        // On the store's document when the page had that one (decoded already); otherwise decoded there.
+        let input = Input(base: base, doc: same(base, store.docs[id]) ? before : nil, json: json)
+        let own: Data = try await withCheckedThrowingContinuation { k in
+            queue.async {
+                do {
+                    guard let value = try? JSONSerialization.jsonObject(with: Data(input.json.utf8), options: [.fragmentsAllowed]) else {
+                        throw NotePage.OpError("Only JSON values (text, numbers, true and false, lists and objects) can be kept.")
+                    }
+                    let onto = input.doc ?? NotePageData.decode(input.base)
+                    let (doc, data, _) = try NotePageData.applyEncoded(.set(key: key, value: value is NSNull ? nil : value), to: onto)
+                    lock.withLock { done[id] = Done(seq: mine, base: input.base, doc: doc, data: data) }
+                    k.resume(returning: data)
+                } catch { k.resume(throwing: error) }
+            }
+        }
+        return (before, await put(id, store) ?? own)
+    }
+
+    /// The newest result for a note into the store, once; returns the page's own data it came from.
+    /// The store changed since the page had its data: merged with that off the main thread (a few
+    /// times at most while it keeps changing; then here).
+    private static func put(_ id: UUID, _ store: NotePageDataStore) async -> Data? {
+        guard var d = next(id) else { return nil }
+        let own = d.data
+        var tries = 0
+        while !same(store.docs[id], d.base), tries < 3 {
+            tries += 1
+            let made = d, theirs = store.docs[id]
+            merging[id] = made
+            d = await withCheckedContinuation { k in queue.async { k.resume(returning: merged(made, theirs)) } }
+            if merging[id]?.seq == made.seq { merging[id] = nil }
+            // A newer save went in meanwhile: it's the page's newer drawing, and was merged itself.
+            guard applied[id] == d.seq else { return nil }
+        }
+        keep(d, id, in: store)
+        return own
+    }
+
+    private static func next(_ id: UUID) -> Done? {
+        guard let d = lock.withLock({ done.removeValue(forKey: id) }), d.seq > applied[id, default: 0] else { return nil }
+        applied[id] = d.seq
+        return d
+    }
+
+    private static func keep(_ d: Done, _ id: UUID, in store: NotePageDataStore) {
+        let d = same(store.docs[id], d.base) ? d : merged(d, store.docs[id])
+        store.set(id, d.doc, encoded: d.data)
+    }
+
+    /// A save merged with what the store has now (`theirs`), which is then its base.
+    nonisolated private static func merged(_ d: Done, _ theirs: Data?) -> Done {
+        let doc = NotePageData.merge(base: NotePageData.decode(d.base), mine: d.doc, theirs: NotePageData.decode(theirs))
+        return Done(seq: d.seq, base: theirs, doc: doc, data: NotePageData.encode(doc))
+    }
+
+    /// The same data; none is the empty document (what a page is given for a note without any).
+    nonisolated private static func same(_ a: Data?, _ b: Data?) -> Bool { (a ?? NotePageData.emptyData) == (b ?? NotePageData.emptyData) }
+
+    /// Waits for the saves on their way and puts them in (on quit).
+    static func finish(_ store: NotePageDataStore = .shared) {
+        queue.sync {}
+        for (id, d) in merging where applied[id] == d.seq { keep(d, id, in: store) }
+        merging = [:]
+        for id in lock.withLock({ Array(done.keys) }) { if let d = next(id) { keep(d, id, in: store) } }
+    }
 }

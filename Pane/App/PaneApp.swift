@@ -1413,6 +1413,7 @@ struct AppGate: View {
             DebouncedSave.flushAll()
             try? context.save()
             // The apps' data is written off the main thread: the last write lands before quitting.
+            NotePageDataWrites.finish()
             NotePageDataStore.shared.waitForSave()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in

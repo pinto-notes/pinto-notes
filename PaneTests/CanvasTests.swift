@@ -414,6 +414,42 @@ import AppKit
         #expect(shown == CanvasSketch.make(try #require(store.peek(id))), "the same as the row works out itself")
     }
 
+    /// A board's save is made on the drawing the page had: a change that came down meanwhile (the
+    /// iPhone's shape, while the Mac's stroke was on its way) is merged in, and the page is told, as
+    /// what the store has is no longer the page's own. Set on what was there, the change was lost,
+    /// on the board and then on the server (16 November 2026).
+    @Test func aChangeThatCameDownWhileABoardSavedIsMergedIn() async throws {
+        let a = Self.el("a", version: 1), b = Self.el("b", version: 1), c = Self.el("c", version: 1)
+        func data(_ e: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(e)], "collections": [String: Any]()] }
+        func json(_ e: [[String: Any]]) throws -> String { String(decoding: try JSONSerialization.data(withJSONObject: Self.scene(e)), as: UTF8.self) }
+        func drawn(_ store: NotePageDataStore, _ id: UUID) -> [String] { Self.ids((store.doc(id)["values"] as? [String: Any])?["scene"]).keys.sorted() }
+
+        // Came down before the save reached the app: the page saves on what it had.
+        let store = NotePageDataStore(file: nil), id = UUID()
+        store.set(id, data([a]))
+        let had = try #require(store.docs[id])
+        store.take(id, server: NotePageData.encode(data([a, c])))
+        let saved = try await NotePageDataWrites.set("scene", json: try json([a, b]), note: id, base: had, store: store)
+        #expect(drawn(store, id) == ["a", "b", "c"], "the iPhone's shape and the Mac's stroke")
+        #expect(saved.own != store.docs[id], "the page is told: it has only its own")
+        #expect(Self.ids((NotePageData.decode(saved.own)["values"] as? [String: Any])?["scene"]).keys.sorted() == ["a", "b"])
+
+        // Came down while the save was on its way.
+        let other = NotePageDataStore(file: nil), id2 = UUID(), ab = try json([a, b])
+        other.set(id2, data([a]))
+        let saving = Task { try await NotePageDataWrites.set("scene", json: ab, note: id2, store: other).own }
+        await Task.yield()
+        other.take(id2, server: NotePageData.encode(data([a, c])))
+        let own2 = try await saving.value
+        #expect(drawn(other, id2) == ["a", "b", "c"])
+        #expect(own2 != other.docs[id2])
+
+        // Nothing came down: the store has the page's own, and nothing goes back to it.
+        let again = try await NotePageDataWrites.set("scene", json: try json([a, b, c, Self.el("d", version: 1)]), note: id, base: store.docs[id], store: store)
+        #expect(drawn(store, id) == ["a", "b", "c", "d"])
+        #expect(again.own == store.docs[id])
+    }
+
     static func ids(_ scene: Any?) -> [String: Int] {
         Dictionary(((scene as? [String: Any])?["elements"] as? [[String: Any]] ?? []).map { ($0["id"] as! String, $0["x"] as? Int ?? 0) }, uniquingKeysWith: { a, _ in a })
     }
