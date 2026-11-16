@@ -41,6 +41,11 @@ final class SharedDocument {
     var pointerOnServer: Bool = true
     /// The note keys this device has had, each sealed under your data key (`setKey`).
     var keyBoxes: Data = Data()
+    /// This device owes the server a snapshot (`CollabSession.needsSnapshot`): a change too big to
+    /// send on its own is only here until one carries it, or the note has a new key that devices
+    /// starting out need one under. Kept so the app quitting first doesn't drop it; the note isn't
+    /// synced until it's paid, and the membership check opens the note to pay it.
+    var owesSnapshot: Bool = false
 
     init(id: UUID, epoch: Int, role: String, saved: Data, cursor: Int64 = 0) {
         self.id = id
