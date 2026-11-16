@@ -157,9 +157,11 @@ final class CollabSession {
     @ObservationIgnored private(set) var relayRefused: String?
     /// The last pull reached the server: everything stored up to `lastSeen` is in the document.
     @ObservationIgnored private var pulled = false
-    /// Everything the server has is in the document as of the last pull, and every change opened:
-    /// its text can stand for the note (stopping sharing writes it back as the owner's own).
-    var isUpToDate: Bool { pulled && !missing && !isClosed }
+    /// Everything the server has is in the document as of the last pull, every change opened, and
+    /// none waits for one it builds on: its text can stand for the note (stopping sharing writes it
+    /// back as the owner's own, and the server then drops every change). A held-back change isn't in
+    /// the text yet (collab-sol 3, collab-opus 1).
+    var isUpToDate: Bool { pulled && !missing && heldBack.isEmpty && !isClosed }
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private var retryDelay: Duration = .seconds(2)
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?

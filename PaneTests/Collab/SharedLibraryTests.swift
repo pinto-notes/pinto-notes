@@ -1730,3 +1730,40 @@ extension NetworkFaults.SharedLibraryTests {
     var steps: [String] = []
     var release: CheckedContinuation<Void, Never>?
 }
+
+/// The 1.4 review council (collab-sol, collab-opus): collaboration ships switched on for the first
+/// time in 1.4, and each of these lost shared text, or left it unsent while saying it was synced.
+extension NetworkFaults.SharedLibraryTests {
+    /// collab-sol 3, collab-opus 1: Sara types Bread right after Milk, and Milk's change is stored
+    /// late. Emil's Mac holds Bread back until Milk arrives. Stopping sharing then wrote Emil's note
+    /// without either, and the server deleted the shared note with both. It waits for Milk now.
+    @Test func stoppingSharingWaitsForAChangeHeldBack() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        emil.transport.deaf = true
+        type("- [ ] Milk\n", in: hers)
+        await waitUntil { hers.unsent == 0 }
+        let milk = try #require(server.updates(of: note.id).last)
+        server.inFlight.insert(milk.id)
+        type("- [ ] Bread\n", in: hers)
+        await waitUntil { hers.unsent == 0 }
+        await emilSession.catchUp().value
+        #expect(emilSession.holdsChangesBack, "Bread waits for Milk")
+        #expect(!emilSession.isUpToDate)
+
+        await #expect(throws: SharedLibrary.Problem.notUpToDate) { try await emil.library.unshare(note) }
+        #expect(server.role(note.id, member) == "editor", "still shared: nothing of Sara's went")
+        #expect(note.isShared)
+
+        // Milk lands: sharing stops with both in Emil's note.
+        server.inFlight.remove(milk.id)
+        try await emil.library.unshare(note)
+        #expect(!note.isShared && note.body == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
+        let sent = try #require(emil.transport.unshared[note.id])
+        #expect(Wire.sealer?.open(sent, context: E2EE.body(note.id)) == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
+    }
+
+}
