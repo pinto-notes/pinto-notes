@@ -309,3 +309,16 @@ Deno.test("a new note written at the top goes in the first folder, as in the app
   // A path with a folder keeps it.
   assertEquals((await tool(pg2, b, "write", { path: "Work/Plan.md", content: "Plan" })).created, "Work/Plan.md");
 });
+
+Deno.test("a new note with no folder never goes in Shared with me, which the app puts first", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  await folder(pg, a, "Notes");
+  // The app makes it with sort_index -1 the first time someone shares a note with you.
+  const shared = crypto.randomUUID();
+  await pg.query(`insert into public.folders (id, user_id, name_ct, parent_id, sort_index) values ($1, $2, $3, null, -1)`,
+    [shared, a.id, await a.vault.sealFolder(shared, "Shared with me")]);
+  assertEquals((await tool(pg, a, "create", { path: "Ideas.md", content: "Ideas\n\nOne." })).created, "Notes/Ideas.md");
+  const packing = await tool(pg, a, "write", { path: "Packing.md", content: "Packing" });
+  assertEquals(packing.written ?? packing.created, "Notes/Packing.md");
+});
