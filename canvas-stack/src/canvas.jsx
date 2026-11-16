@@ -1604,7 +1604,11 @@ function bridge(api) {
         // and the tools (round 16, web-07 to web-08: the engine's own fit left the board smaller
         // and lower on a phone than it opened).
         if (c.name === "zoomToFit" && amber.fitInsets && openingView(api, amber.fitInsets)) break;
-        run(ACTIONS[c.name]);
+        // A zoom from the menus is one step, not a pinch: applied now, so the report after this
+        // switch carries it. Left to the engine's next render, it waited for the view to settle
+        // (150 ms, and seconds on a test page whose timers were held: 16 November 2026).
+        if (LOOKS.has(c.name)) flushSync(() => run(ACTIONS[c.name]));
+        else run(ACTIONS[c.name]);
         break;
       case "pan": {
         const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
@@ -1749,7 +1753,7 @@ function bridge(api) {
   // something, it hears only that the board is busy, once; the state is worked out over the whole
   // drawing when that ends. While the view pans or zooms, the view alone waits the same way (busy,
   // under a selection), and anything else (a tool, a selection, the next frame of a talk) is said at
-  // once. On a board of 2000 elements that was 2 ms of every frame, and the app redrew its controls
+  // once, as is a zoom from the menus (`command`). On a board of 2000 elements that was 2 ms of every frame, and the app redrew its controls
   // for every message: drawing and dragging lagged (16 November 2026). A change to nothing the app
   // shows (the pointer over a shape) is let go.
   const shownOf = (s) => [sceneNonce() ?? NaN, s.selectedElementIds, s.selectedGroupIds, s.activeTool && s.activeTool.type, s.cursorButton, pressing(s),

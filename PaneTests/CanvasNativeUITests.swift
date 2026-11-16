@@ -589,6 +589,21 @@ import UIKit
         #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true).joined().contains(.canvasClear))
     }
 
+    /// A zoom from the menus is one step: the app has the new zoom by the time the command
+    /// returns, not once a moving view would have settled (16 November 2026: the view's 150 ms
+    /// settle, on a test page whose timers were held, missed the 3 s wait for Actual Size above).
+    @Test func aZoomFromTheMenusReachesTheAppAtOnce() async throws {
+        let j = try await Joined(scene: CanvasTests.scene(Self.box))
+        defer { j.close() }
+        try await j.ready()
+        for action in [CanvasCommand.Action.zoomIn, .resetZoom, .zoomOut] {
+            let before = j.canvas.state.zoom
+            _ = try await j.web.callAsyncJavaScript("return window.amber._canvasCommand(c)", arguments: ["c": CanvasCommand.action(action).payload], contentWorld: .page)
+            #expect(j.canvas.state.zoom != before, "\(action): the app has the new zoom with the command, at \(j.canvas.state.zoom)")
+        }
+        #expect(abs(j.canvas.state.zoom - 0.9) < 0.001, "Zoom Out from Actual Size: \(j.canvas.state.zoom)")
+    }
+
     // MARK: None of the engine's UI
 
     /// What of the engine's own UI can be seen: its buttons, panels, inputs and hint lines.
