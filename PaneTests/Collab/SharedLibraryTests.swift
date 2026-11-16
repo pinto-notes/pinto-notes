@@ -1766,4 +1766,70 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(Wire.sealer?.open(sent, context: E2EE.body(note.id)) == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
     }
 
+    /// collab-sol 5: Emil removes Jonas and types under the new key; Sara's device gets his change
+    /// before it has that key. The change was marked as taken and never tried again, so it never
+    /// showed for Sara, and her device could no longer snapshot. It goes in once the key arrives.
+    @Test func aChangeUnderANewKeyThatArrivesFirstGoesInOnceTheKeyDoes() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Team\n", on: emil)
+        server.add(member, to: note.id)
+        let jonas = UUID()
+        server.add(jonas, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        server.remove(jonas, from: note.id)
+        emilSession.reseal(nk: nk, epoch: 2)
+        type("- Budget\n", in: emilSession)
+        await waitUntil { emilSession.isSent }
+        await hers.catchUp().value
+        #expect(hers.text == "Team\n", "sealed with a key Sara's device doesn't have yet")
+        #expect(!hers.isUpToDate)
+
+        // The look at memberships brings the new key.
+        await sara.library.reconcile(try await sara.transport.memberships())
+        await waitUntil { hers.text == "Team\n- Budget\n" }
+        #expect(hers.epoch == 2)
+        #expect(hers.text == "Team\n- Budget\n")
+        await hers.catchUp().value
+        #expect(hers.isUpToDate)
+        // Nothing left that didn't open: a snapshot goes up under the new key.
+        await hers.requireSnapshot()
+        #expect(server.snapshots(of: note.id).contains { $0.epoch == 2 })
+        #expect(!hers.owesSnapshot)
+    }
+
+    /// collab-sol 5, after a relaunch: changes that didn't open aren't read past, so the app quitting
+    /// before the key arrives doesn't lose them, however many came after (catching up asks again for
+    /// only the last 64).
+    @Test func changesThatDidntOpenAreAskedForAgainAfterARelaunch() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Team\n", on: emil)
+        server.add(member, to: note.id)
+        let jonas = UUID()
+        server.add(jonas, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        server.remove(jonas, from: note.id)
+        emilSession.reseal(nk: nk, epoch: 2)
+        type("- Budget\n", in: emilSession)
+        await waitUntil { emilSession.isSent }
+        for i in 0..<(Int(CollabSession.rewind) + 6) {
+            type("\(i % 10)", in: emilSession)
+            await waitUntil { emilSession.isSent }
+        }
+        await hers.catchUp().value
+        #expect(hers.text == "Team\n")
+
+        // Sara's app quits before her device has the new key, and opens again.
+        sara.library.closeAll()
+        let library = reopened(sara)
+        let again = try #require(library.session(for: mine))
+        await again.catchUp().value
+        await library.reconcile(try await sara.transport.memberships())
+        await waitUntil { again.text == emilSession.text }
+        #expect(again.text == emilSession.text)
+        #expect(again.text.hasPrefix("Team\n- Budget\n"))
+        #expect(!again.holdsChangesBack)
+    }
+
 }
