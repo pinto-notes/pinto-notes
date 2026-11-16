@@ -24,6 +24,14 @@ import Testing
         #expect(NoteBreadcrumbs.showsTitle(controller), "text scrolled past its title, as before")
     }
 
+    /// The iPhone has no path beside a list button and its back button shows no folder name, so its
+    /// bar carries the path (Work › Doom) while a note shows its app; text notes and the iPad don't.
+    @Test func theIPhoneBarCarriesThePathWhileAnAppShows() {
+        #expect(NoteBreadcrumbs.inPhoneBar(showingApp: true, compact: true), "an app on the iPhone: Work › Doom")
+        #expect(!NoteBreadcrumbs.inPhoneBar(showingApp: false, compact: true), "text: its big title says it")
+        #expect(!NoteBreadcrumbs.inPhoneBar(showingApp: true, compact: false), "the iPad shows the path beside the list button")
+    }
+
     /// The real note pane, offscreen: opening a note that shows its app tells the bar, and the path
     /// then reads Work, Doom; the next note, plain text, takes the title away again.
     @Test func openingAnAppNoteNamesItInTheBar() async throws {

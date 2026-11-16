@@ -11,6 +11,10 @@ struct NoteDetailView: View {
     @Environment(SyncEngine.self) private var sync: SyncEngine?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dismiss) private var dismiss
+    #endif
     @State private var confirmingPurge = false
     /// Typing, clicking or tapping into a note in Recently Deleted: Notes' "can't be edited" prompt.
     @State private var askingRecover = false
@@ -1279,6 +1283,10 @@ struct NoteDetailView: View {
             }
             #else
             .toolbar { toolbar }
+            // The iPhone's bar names a note showing its app too (Work › Doom), as on the Mac.
+            .onChange(of: showingPage, initial: true) { _, shown in
+                if controller.showingApp != shown { controller.showingApp = shown }
+            }
             #endif
     }
 
@@ -1531,6 +1539,13 @@ struct NoteDetailView: View {
             ToolbarItem(placement: .principal) {
                 AIReceipt(receipt: receipt, compact: true) { undo(receipt) }
                     .transition(.opacity)
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else if NoteBreadcrumbs.inPhoneBar(showingApp: showingPage, compact: sizeClass == .compact) {
+            // An app has no big title and iOS's back button shows no folder name, so the bar
+            // says where you are, as the Mac's does: Work › Doom. A folder goes back to the list.
+            ToolbarItem(placement: .principal) {
+                NoteBreadcrumbs(note: note, controller: controller) { _ in dismiss() }
             }
             .sharedBackgroundVisibility(.hidden)
         }
@@ -2394,6 +2409,10 @@ struct NoteBreadcrumbs: View {
         // toolbar's overflow in a narrow window (persona council r7).
         return folders.suffix(2).map { (.folder($0.id), $0.name) }
     }
+
+    /// The iPhone's bar shows the path while a note shows its app; the iPad's columns have their
+    /// own path beside the list button, and a text note's big title says where you are.
+    static func inPhoneBar(showingApp: Bool, compact: Bool) -> Bool { showingApp && compact }
 
     /// The note's title joins the path once its big title has scrolled away, and all the time
     /// while the note shows its app (an app has no big title of its own).
