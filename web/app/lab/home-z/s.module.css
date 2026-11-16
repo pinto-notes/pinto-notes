@@ -209,8 +209,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .ch.draw { margin-top: 55vh; }
 .ch.build { margin-top: 85vh; }
 .ch.ai { margin-top: 80vh; }
-.proof { margin-top: 110vh; }
-.cover { margin-top: 72vh; }
+.cover { margin-top: 110vh; }
 
 /* ── Write notes: a big note that fills the chapter ── */
 .wBody, .dBody, .bBody, .aBody { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; padding: var(--airT) var(--pad) var(--airB); }
@@ -701,7 +700,6 @@ body:has(.stack) :global(.site-header) { height: 72px; }
   padding: max(clamp(28px, 6cqh, 64px), 150px) var(--pad) clamp(24px, 5cqh, 56px); }
 .coverText { width: min(560px, 41cqw); }
 .fTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.2cqw, 13cqh, 96px); line-height: 0.86; letter-spacing: -0.045em; }
-.fTitle em { font-style: italic; color: #b6450f; }
 .fCtas .ctas { margin-top: clamp(20px, 3.6cqh, 32px); }
 .fReq { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: #7a6650; }
 /* Four lines in pencil, written on the page itself (no card, no tilt, no filter: crisp). */
@@ -763,10 +761,12 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 /* The page ends on the closed notebook, so the site's town is left out here (ROUND7: no village). The
    footer links sit on a strip of the forest green, torn along the top like every sheet above it. */
 body:has(.stack) :global(.fs) { display: none; }
-body:has(.stack) :global(.site-footer) { margin-top: 0; }
+/* The footer is its own stacking context (its view transition), so it's the one raised over the cover:
+   its torn edge lies on the close's picture, with no strip of page between them. */
+body:has(.stack) :global(.site-footer) { position: relative; z-index: 12; margin-top: 0; }
 /* The footer's GitHub link, without the star count. */
 body:has(.stack) :global(.site-ground .site-stars) { display: none; }
-body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutter) 22px; background: #1f3b2e;
+body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--gutter) 22px; background: #1f3b2e;
   -webkit-mask: url(/lab/z/edge-v1.webp) 0 0 / 1300px 36px repeat-x, linear-gradient(#000, #000) 0 34px / 100% 100% no-repeat;
   mask: url(/lab/z/edge-v1.webp) 0 0 / 1300px 36px repeat-x, linear-gradient(#000, #000) 0 34px / 100% 100% no-repeat; }
 
@@ -781,8 +781,7 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .ch.draw { margin-top: 48vh; }
   .ch.build { margin-top: 58vh; }
   .ch.ai { margin-top: 62vh; }
-  .proof { margin-top: 80vh; min-height: 0; }
-  .cover { margin-top: 50vh; }
+  .cover { margin-top: 80vh; }
   .tail { height: 0; }
   .say { font-size: 17px; line-height: 1.38; }
   .long { display: none; }
@@ -1055,23 +1054,12 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .art { left: calc(var(--pad) + min(560px, 44vw) + 40px); }
 }
 
-/* Phones: the close is the free page and the iPhone, the product itself, once, where ChatGPT's line
-   arrives as it comes into view. No Mac, and no still life (the page doesn't end on glasses and a
-   book). Round 19: a short strip of the table leads in, and the whole iPhone shows, above the
-   footer's torn edge, never cut by it. */
+/* Phones (round 21): the close is the free page and its four facts, then the table's corner (the
+   lemon, the pen, the book and its glasses) printed at the foot, running under the footer's torn edge. */
 @media (max-width: 760px) {
-  .cover::after { display: none; }
-  /* The page ends as it starts: a cropped strip of the first screen's table (the glasses and the herbs)
-     printed under the close's torn edge, fading into its paper above the headline. */
-  .coverSheet::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 118px; background: url(/lab/z/hero-table-v1.webp) 34% 0 / 560px auto no-repeat;
-    -webkit-mask: linear-gradient(#000 55%, transparent); mask: linear-gradient(#000 55%, transparent); }
-  .coverBody { padding: 104px var(--pad) 70px; }
-  .devices { width: 14em; height: auto; max-width: none; margin: 28px auto 0; font-size: 15px; }
-  .mac { display: none; }
-  .phone { position: relative; left: auto; right: auto; top: auto; width: 14em; }
-  /* The footer is its own stacking context (its view transition), so it's the one raised over the cover. */
-  body:has(.stack) :global(.site-footer) { position: relative; z-index: 12; }
-  body:has(.stack) :global(.site-ground) { margin-top: -34px; }
+  .cover::after { height: 330px; background-size: 620px auto;
+    -webkit-mask: linear-gradient(transparent 0 40px, #000 150px); mask: linear-gradient(transparent 0 40px, #000 150px); }
+  .coverBody { padding: 96px var(--pad) 250px; }
 }
 @media (max-width: 760px) {
   /* The note shows its first line and its link to the board again: the chapter is one full page. */

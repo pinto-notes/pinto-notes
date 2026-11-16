@@ -8,10 +8,14 @@ import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { AiShow } from "./AiShow";
 import { BuildShow } from "./Build";
-import { FreeLines, SyncMoment } from "./Close";
+import { Facts } from "./Close";
 import { HeroArt } from "./HeroArt";
 import { BoardBig, CanvasChrome, Note, NotePhone } from "./Things";
 import { underline } from "./hand";
+import { WbArt } from "./Wb";
+import { AiAlt } from "./AiAlt";
+import { HeroWin } from "./HeroWin";
+import hw from "./heroWin.module.css";
 import s from "./s.module.css";
 
 // Study Z, round 18 (2026-11-16): option C after the round 13 council. S's binder carrying one
@@ -24,13 +28,11 @@ import s from "./s.module.css";
 // of that life: Notes, a book note open in Pinto (vermilion), the notes brought over from Apple Notes;
 // Whiteboards, the job offer from Studio North mapped as a decision (deep green); Apps, the habits
 // they're building (kraft); Your AI, one request typed in ChatGPT that lands in all three, in Pinto
-// Notes (ink). Then the proof, a plain white sheet with no tab (the page's one break in colour and in
-// kind): what the study's two numbers show, the measure beside them, a bar each, and in one light line
-// each what Claude had. Then the close, on the same table: "Pinto Notes is free.", the download, four
-// plain lines, and the Studio North note on a Mac and an iPhone.
+// Notes (ink). Then the close, on the same table (round 21: the stats sheet is gone, and the study is
+// one line in Your AI and one fact here): "Pinto Notes is free.", the download, and four true facts.
 //
-// Every sheet, the proof and the close too, is torn along its top and laid over the last. The four
-// chapters dock under their tabs; the proof and the close, which have no tab, rise on over the tab
+// Every sheet, the close too, is torn along its top and laid over the last. The four
+// chapters dock under their tabs; the close, which has no tab, rises on over the tab
 // strip and dock under the header, so the tabs end with Your AI. When a sheet lands its tab rises out
 // of it and stays docked under the header; as a sheet rises, the words and things on the one under it move up
 // ahead of its torn edge, so a tear never cuts through them. Above that, a sheet's contents end where
@@ -43,12 +45,12 @@ import s from "./s.module.css";
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
 // dock. With Reduce Motion or `?t=`, everything shows its end state.
 
-type Tone = "write" | "draw" | "build" | "ai" | "proof" | "cover";
-const ORDER: Tone[] = ["write", "draw", "build", "ai", "proof", "cover"];
-const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", proof: "", cover: "" };
+type Tone = "write" | "draw" | "build" | "ai" | "cover";
+const ORDER: Tone[] = ["write", "draw", "build", "ai", "cover"];
+const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", cover: "" };
 /** On a phone, the chapters whose next sheet waits just under their last line (+ AIR px), so a chapter
  *  is as long as what's on it. Your AI keeps its stay (it fills the screen, and its cards step). */
-const SNUG: Tone[] = ["write", "draw", "build", "proof"];
+const SNUG: Tone[] = ["write", "draw", "build"];
 const AIR = 34;
 /** On a Mac, Notes is as long as what's on it too (round 19): the whiteboard's sheet waits this far
  *  under the Mac window and its iPhone, so no stretch of empty red follows them. */
@@ -79,7 +81,7 @@ function calm() {
 }
 
 /** Where a tab scrolls to: docked, and for the drawing, most of the way through its stay. */
-const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, proof: 0, cover: 0 };
+const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, cover: 0 };
 /** A chapter's stay as a show's clock source (see show.ts). */
 const stayOf = (tone: Tone) => (fn: (dwell: number, arrive: number) => void) => listen(tone, fn);
 let jump: (tone: Tone) => void = () => {};
@@ -102,7 +104,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     /** Each chapter's words that fade before they reach its clip line (headlines and their lines). */
     const fades = chs.map((c) => [...c.querySelectorAll<HTMLElement>("[data-fade]")]);
     let vh = 0, tt = 0, hh = 0, tear = 0, raf = 0;
-    /** Where a sheet docks: a chapter under its tab, the proof and the close (no tab) under the header,
+    /** Where a sheet docks: a chapter under its tab, the close (no tab) under the header,
      *  over the tab strip, so the tabs end with Your AI. */
     const topOf = (i: number) => (TAB[ORDER[i]] ? tt : hh);
     let doc: number[] = [], mt: number[] = [];
@@ -259,11 +261,16 @@ const Cta = () => (
   </div>
 );
 
-function Hero() {
+function Hero({ v = "0" }: { v?: Variant }) {
+  // Round 21: a, b and c set the words upright in ink (b's full stop in Pinto orange); a and b lay
+  // the chapters' kind of picture in the panel (HeroWin), c keeps today's.
+  const win = v === "a" || v === "b";
   return (
     <section data-hero className={s.hero} aria-labelledby="s-h1">
       <div className={s.heroText}>
-        <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
+        {v === "0"
+          ? <h1 id="s-h1" className={s.h1}>The notebook for <span className={s.h1You}>you and <span className={s.h1Ai}>your AI.<Underline /></span></span></h1>
+          : <h1 id="s-h1" className={`${s.h1} ${hw.h1Up}`}>The notebook for you and your AI<span className={v === "b" ? hw.stop : undefined}>.</span></h1>}
         <p className={s.lede}>Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided.</p>
         <Cta />
         {/* On a phone, the price in a short line under the buttons (the line below is the Mac's). */}
@@ -271,7 +278,7 @@ function Hero() {
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
       {/* The picture: swap HeroArt (and its heroArt.module.css) for another first screen. */}
-      <div className={s.art}><div className={s.artTop}><HeroArt /></div></div>
+      <div className={`${s.art} ${win ? hw.art : ""}`}><div className={s.artTop}>{win ? <HeroWin /> : <HeroArt />}</div></div>
     </section>
   );
 }
@@ -313,7 +320,9 @@ function Write() {
 
 /* ───────────────────────── Draw on whiteboards ───────────────────────── */
 
-function Draw() {
+export type Variant = "0" | "a" | "b" | "c";
+
+function Draw({ wb = "0" }: { wb?: Variant }) {
   // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives. On a Mac, Claude
   // draws it as you scroll through the chapter's stay. On a phone the chapter is only as long as the
   // board, so it draws on a clock once the board docks (2.4 s), or sooner if you scroll on.
@@ -341,7 +350,7 @@ function Draw() {
           <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
           <Say long="Map out a decision beside your notes. Your AI can read the board and draw on it with you." short="Map out a decision. Your AI can read it, and draw on it with you." />
         </div>
-        <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
+        {wb !== "0" ? <WbArt v={wb} bind={bind} /> : <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
           {/* The board in Pinto's canvas: a thin frame, the drawing, the dock of tools at its foot. */}
           <div className={s.canvas}>
             <div className={s.canvasArea}>
@@ -350,7 +359,7 @@ function Draw() {
             </div>
             <CanvasChrome />
           </div>
-        </div>
+        </div>}
       </div>
     </Chapter>
   );
@@ -377,8 +386,13 @@ function Build() {
 
 /* ───────────────────────── Your AI ───────────────────────── */
 
-function Ai() {
+function Ai({ v = "0" }: { v?: Variant }) {
   const sub = useCallback(stayOf("ai"), []);
+  if (v !== "0") return (
+    <Chapter tone="ai" label="s-ai-h">
+      <AiAlt v={v} title={<h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />{" "}in all three.</h2>} />
+    </Chapter>
+  );
   return (
     <Chapter tone="ai" label="s-ai-h">
       <AiShow
@@ -394,66 +408,9 @@ function Ai() {
   );
 }
 
-/* ───────────────────────── The proof: the study, as a comparison ───────────────────────── */
-
-/** The study's result, and what each condition had (see /blog/ai-memory-with-notes: Claude Haiku 5.5
- *  both times, LoCoMo, 1,540 questions about months of earlier chats, asked in a new chat; with nothing
- *  else it answered 18% right; with Pinto Notes connected, where after each chat it had kept its own
- *  notes, 82.5%). The measure, "questions answered correctly", is the study's "share right". */
-const STUDY = [
-  { who: "Claude in a new chat", had: "It had only the new chat.", v: 18, shown: "18%" },
-  { who: "Claude with Pinto", had: "It could also read the notes it kept in Pinto after each chat.", v: 82.5, shown: "82.5%" },
-] as const;
-
-/** A plain white sheet with no tab, torn like the rest, that rises over the tab strip: the page's one
- *  break in colour and in kind (no card, no show). A heading that says what the numbers show, a line on
- *  what was asked (both times a new chat, the same model), the measure, then the two results as bars,
- *  each number at the end of its bar, so the gap reads at a glance, each with one light line on what
- *  Claude had; then who ran it, and the link. The bars grow once as the page lands (with Reduce Motion
- *  they're already full). */
-function Proof() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    if (still() || calm()) { setOn(true); return; }
-    return listen("proof", (_d, p) => { if (p >= 0.6) setOn(true); });
-  }, []);
-  return (
-    <Chapter tone="proof" label="s-proof-h">
-      <div className={s.proofBody}>
-        <div className={s.proofIn}>
-          <div className={s.proofHead} data-fade>
-            <h2 id="s-proof-h" className={s.proofTitle}>Claude got far more right when it could read the notes.</h2>
-            <p className={s.proofSay}>1,540 questions about months of earlier chats. Same model both times.</p>
-          </div>
-          {/* The measure, once, over the bars. Each number sits at the end of its bar (round 19), so the
-              heading leads and the numbers don't repeat the bars. Like the heading, each row fades out
-              whole before the next sheet's torn edge reaches it. */}
-          <p className={s.barMeasure} data-fade>Questions answered correctly</p>
-          <dl className={s.bars} data-on={on || undefined}>
-            {STUDY.map((r, i) => (
-              <div key={r.who} className={s.barRow} data-pinto={i === 1 || undefined} data-fade>
-                <dt className={s.barWho}><b>{r.who}</b><span>{r.had}</span></dt>
-                <dd className={s.barLine} style={{ "--v": r.v / 100 } as React.CSSProperties}>
-                  <i className={s.barFill} aria-hidden="true" />
-                  <span className={s.barNum}>{r.shown}</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className={s.proofFoot} data-fade>
-            <span>Claude Haiku 5.5 on the LoCoMo test. Run by the maker of Pinto Notes; the code and every answer are public.</span>
-            <a className={s.proofLink} href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true">→</span></a>
-          </p>
-        </div>
-      </div>
-    </Chapter>
-  );
-}
-
 /* ───────────────────────── The cover: the notebook closes ───────────────────────── */
 
 function Cover() {
-  const sub = useCallback(stayOf("cover"), []);
   return (
     <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={{ zIndex: 9 }}>
       {/* The close's paper, torn along its top like every sheet above it, with the still life on it. */}
@@ -465,29 +422,27 @@ function Cover() {
       </div>
       <div data-body className={s.coverBody}>
         <div className={s.coverText}>
-          <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is <em>free.</em></h2>
+          <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is free.</h2>
           <div className={s.fCtas}><Cta /></div>
           <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
-          <FreeLines />
+          <Facts />
         </div>
-        <SyncMoment subscribe={sub} />
       </div>
     </section>
   );
 }
 
-export function Story({ className }: { className: string }) {
+export function Story({ className, wb = "0", ai = "0", hero = "0" }: { className: string; wb?: Variant; ai?: Variant; hero?: Variant }) {
   const root = useRef<HTMLDivElement>(null);
   useBinder(root);
   return (
     <div ref={root} className={`${s.stack} ${className}`}>
       <span data-probe className={s.probe} aria-hidden="true" />
-      <Hero />
+      <Hero v={hero} />
       <Write />
-      <Draw />
+      <Draw wb={wb} />
       <Build />
-      <Ai />
-      <Proof />
+      <Ai v={ai} />
       <Cover />
       <div className={s.tail} aria-hidden="true" />
     </div>

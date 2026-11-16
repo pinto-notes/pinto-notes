@@ -120,13 +120,14 @@ export function AiShow({ subscribe, title, foot }: { subscribe: (fn: (dwell: num
   // On a phone, once the show has played, the card keeps stepping (never with Reduce Motion or in a
   // still, and not once you've picked one yourself).
   useEffect(() => {
-    if (!narrow || !ended || pick !== null || frozenAt("ai") !== null) return;
+    if (!narrow || !ended || pick !== null || frozenAt("aiShow") !== null) return;
     const id = setInterval(() => setCycle((c) => ((c ?? 2) + 1) % 3), STEP);
     return () => clearInterval(id);
   }, [narrow, ended, pick]);
 
   useShow({
-    name: "ai", end: P.end, subscribe,
+    // Frozen for stills with `?aiShow=<s>` (`?ai=` picks the chapter's variant).
+    name: "aiShow", end: P.end, subscribe,
     apply: (t) => {
       const st = stage.current; if (!st) return;
       // The arrow ChatGPT draws into the whiteboard, as far as it has got.
