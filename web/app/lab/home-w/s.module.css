@@ -72,14 +72,12 @@
 .ctas a, .ctas :global(a) { white-space: nowrap; }
 .fine { margin: 14px 0 0; font-size: 14.5px; font-weight: 600; color: #7a6650; }
 
-/* The collage, and the note on it (sharp HTML). Sizes inside are in design pixels of a 680 x 760
-   board (--u), so the composition holds at any window size. The collage clips your forearm at its
-   top, right and bottom edges, so the arm always runs out of the picture. */
+/* The picture's torn panel. What lies in it (the picture and the notes) is HeroArt.tsx with its own
+   heroArt.module.css, so the first screen's content can be swapped without touching the rest. */
 .art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(620px, 43vw) + 44px); container-type: size; clip-path: inset(0 0 0 -60vw); }
-.collage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; background: #fce0bb; }
 /* The panel is torn along its left and bottom edges like the sheets below (the top runs under the
    header, the right off the page). The two torn-away strips are subtracted from the panel, so the
-   corner tears where they meet. Your hand is printed on the panel, so it tears with it. */
+   corner tears where they meet. */
 @media (min-width: 761px) {
   .art {
     -webkit-mask: linear-gradient(#000, #000), url(/lab/w/tear-left-v1.webp) 0 0 / 24px 840px repeat-y, url(/lab/w/tear-bottom-v1.webp) 0 100% / 920px 26px repeat-x;
@@ -88,67 +86,18 @@
     mask-composite: subtract, add;
   }
 }
-.objs { position: absolute; inset: 0; --u: min(calc(100cqh / 760), calc(100cqw / 680)); font-size: calc(16 * var(--u)); }
-
-/* Your note in its notebook: the folders of a whole life in a slim list beside it (the note laid over
-   its edge), the note with the decision and ChatGPT's line under it, and lower down, the recipe
-   ChatGPT wrote into Recipes. Sizes in --u (a 680 x 760 board). */
-.oneBox { position: absolute; inset: 0; }
-.oneFolders { position: absolute; z-index: 1; left: calc(22 * var(--u)); top: calc(132 * var(--u)); width: calc(184 * var(--u)); box-sizing: border-box;
-  padding: 0.85em 1.4em 0.7em 0.55em; border-radius: 0.8em; background: rgba(250, 244, 234, 0.94); color: #3a3128; font-size: calc(16 * var(--u));
-  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.1), 0 1.4em 2.6em -1.4em rgba(70, 45, 10, 0.35), 0 0 0 1px rgba(60, 40, 10, 0.05); }
-.oneFoldersH { margin: 0 0 0.35em; padding: 0 0.55em; font-size: 0.78em; font-weight: 700; letter-spacing: 0.02em; color: #9a8b7a; }
-.oneFolders ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.1em; }
-.oneFolders li { display: flex; align-items: center; gap: 0.5em; padding: 0.42em 0.55em; border-radius: 0.55em; font-weight: 550; line-height: 1.2; white-space: nowrap; }
-.oneFolders li svg { width: 1.1em; height: 0.9em; color: #b58a5a; }
-.oneFolders li span { flex: 1; min-width: 0; }
-.oneFolders li[data-on] { background: #f3dcb9; color: #1d1b19; font-weight: 700; }
-.oneFolders li[data-on] svg { color: #c96d06; }
-.oneNote { position: absolute; z-index: 2; left: calc(190 * var(--u)); top: calc(70 * var(--u)); width: calc(446 * var(--u)); box-sizing: border-box;
-  padding: 1.1em 1.3em 1em; border-radius: 0.85em; background: #fffdf8; color: #1d1b19; font-size: calc(21 * var(--u));
-  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.12), 0 2.2em 3.6em -1.6em rgba(70, 45, 10, 0.42), 0 0 0 1px rgba(60, 40, 10, 0.05); }
-.hNoteDate { margin: 0; font-size: 0.72em; font-weight: 500; color: #9a8f84; }
-.oneTitle { margin: 0.15em 0 0; font-size: 1.55em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.12; }
-.decided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.4; color: #2b2622; }
-.decided b, .oneDecided b { font-weight: 700; }
-.hRows { margin: 0.5em 0 0; padding: 0; list-style: none; display: grid; gap: 0.4em; }
-.hRows li { display: flex; align-items: center; gap: 0.6em; font-size: 1em; font-weight: 500; line-height: 1.3; }
+/* The highlight under a line ChatGPT added. */
+.mark { position: absolute; z-index: -1; inset: -0.12em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.18); }
+.folderIcon { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 .hRows i, .dvRows i { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%; box-shadow: inset 0 0 0 0.11em #cbbdae; }
 .hRows li[data-on], .dvRows li[data-on] { color: #9a8b7a; text-decoration: line-through; text-decoration-color: #b3a493; }
 .hRows li[data-on] i, .dvRows li[data-on] i { background: #e8820f; box-shadow: none; }
 .hRows svg, .dvRows svg, .box svg, .day svg, .aWeek svg, .aNote svg { width: 72%; height: 72%; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-.hAdded span, .dvAdded span { position: relative; z-index: 0; }
-.mark { position: absolute; z-index: -1; inset: -0.12em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.18); }
-.hAdded[data-undone], .dvAdded[data-undone] { opacity: 0.35; text-decoration: line-through; }
-.hAdded[data-undone] .mark { opacity: 0; }
-.oneDecided { margin: 0.6em 0 0; font-size: 1em; line-height: 1.4; color: #2b2622; }
-.oneCaret { display: inline-block; width: 2px; height: 1.1em; margin: 0 -1px 0 1px; vertical-align: -0.2em; background: #e8820f; }
-.oneCaret:not([data-on]) { opacity: 0; }
-.oneNote .hAdded { margin: 0.5em 0 0; font-size: 1em; font-weight: 500; line-height: 1.3; white-space: nowrap; opacity: 0; translate: 0 8px; }
-.oneNote .hAdded[data-in] { opacity: 1; translate: none; }
-.oneNote .hAdded .mark { transform: scaleX(0); transform-origin: 0 50%; }
-.oneNote .hAdded[data-in] .mark { transform: none; }
-.oneNote .hAdded[data-in][data-undone] { opacity: 0.35; }
-.oneRec { opacity: 0; translate: 0 6px; }
-.oneRec[data-in] { opacity: 1; translate: none; }
-.oneNote .receipt { margin-left: 0; }
-/* The recipe it wrote: a note of its own, in your Recipes folder, laid beside yours. */
-.oneRecipe { position: absolute; z-index: 3; left: calc(232 * var(--u)); top: calc(472 * var(--u)); width: calc(380 * var(--u)); box-sizing: border-box;
-  padding: 0.95em 1.2em 0.9em; border-radius: 0.8em; background: #fffdf8; color: #1d1b19; font-size: calc(20 * var(--u));
-  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.12), 0 2em 3.2em -1.6em rgba(70, 45, 10, 0.42), 0 0 0 1px rgba(60, 40, 10, 0.05);
-  opacity: 0; translate: -1.2em -1.6em; }
-.oneRecipe[data-in] { opacity: 1; translate: none; }
-.oneCrumb { display: flex; align-items: center; gap: 0.4em; margin: 0; font-size: 0.78em; font-weight: 650; color: #8a7d70; }
-.oneCrumb svg { width: 1.15em; height: 0.92em; }
-.oneRecipeTitle { margin: 0.25em 0 0; font-size: 1.45em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
-.oneMeta { margin: 0.2em 0 0; font-size: 0.86em; font-weight: 500; color: #8a7d70; }
-.oneRecipe .hRows { margin-top: 0.6em; gap: 0.35em; }
-.oneBy { display: flex; align-items: center; gap: 0.45em; margin: 0.75em 0 0; font-size: 0.8em; font-weight: 600; color: #0b7a5e; }
-.oneBy .receiptMark { width: 1.4em; height: 1.4em; }
-.folderIcon { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-@media (prefers-reduced-motion: no-preference) {
-  .oneRecipe { transition: opacity 0.4s ease-out, translate 0.6s cubic-bezier(0.2, 0.9, 0.3, 1); }
-}
+.dvAdded span { position: relative; z-index: 0; }
+.dvAdded[data-undone] { opacity: 0.35; text-decoration: line-through; }
+/* "Free", beside the phone's download button (the desktop says it in the line under the buttons). */
+.ctaRow { display: inline-flex; align-items: center; gap: 14px; }
+.free { display: none; font-size: 16px; font-weight: 700; color: #7a6650; }
 
 /* "Added by ChatGPT · Undo": a line of its own, under what it marks. */
 .receipt { display: flex; align-items: center; gap: 0.45em; margin: 0.55em 0 0 1.9em; font-size: 0.86em; font-weight: 600; color: #0b7a5e; white-space: nowrap; }
@@ -160,11 +109,6 @@
 .receipt button:focus-visible { outline: 2px solid #10a37f; outline-offset: 1px; }
 @media (prefers-reduced-motion: no-preference) { .receipt button { transition: background-color 0.15s, transform 0.1s; } .receipt button:active { transform: scale(0.95); } }
 .receipt[data-undone] { color: #8a7d70; }
-@media (prefers-reduced-motion: no-preference) {
-  .oneRec { transition: opacity 0.25s ease-out, translate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  .oneNote .hAdded { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  .oneNote .hAdded .mark { transition: transform 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
-}
 
 /* A cursor with a name, as HTML: never smaller than 12px. */
 .flag { display: inline-flex; align-items: flex-start; pointer-events: none; font-size: max(12.5px, 0.8em); transform-origin: 0 0; }
@@ -176,7 +120,13 @@
 /* ───────────────────────── A chapter: a torn divider page ───────────────────────── */
 .ch { position: sticky; top: var(--tt); height: var(--chH); min-height: 560px; box-sizing: border-box; color: var(--ink); }
 .ch[data-covered] .body { visibility: hidden; }
-.body { position: absolute; inset: 0; z-index: 2; overflow: hidden; }
+/* --lift: how far the next sheet has pushed this one's contents up (set by the script), clipped where
+   this sheet's own torn edge ends, so they leave under the tabs, never through a tear. */
+.body { position: absolute; inset: 0; z-index: 2; overflow: hidden; clip-path: inset(calc(var(--tearH) - 8px) 0 0 0); }
+.body > * { translate: 0 calc(-1 * var(--lift, 0px)); }
+/* While lifted, the contents fade out over the last stretch before the tabs, so a heading going under
+   reads as scrolling away, never as cut. */
+.ch[data-lifted] .body { -webkit-mask: linear-gradient(transparent calc(var(--tearH) - 8px), #000 calc(var(--tearH) + 44px)); mask: linear-gradient(transparent calc(var(--tearH) - 8px), #000 calc(var(--tearH) + 44px)); }
 .short { display: none; }
 .say { margin: 0; max-width: 22em; font-size: 20px; line-height: 1.42; font-weight: 500; color: var(--soft); text-wrap: pretty; }
 
@@ -243,8 +193,7 @@
   padding: clamp(14px, 2vh, 18px) clamp(30px, 3.4vw, 48px) clamp(22px, 3.6vh, 34px) clamp(14px, 1.4vw, 18px); color: #1d1b19; }
 /* The Recipes folder, as the notes list shows it: a quiet panel down the sheet's left side. */
 .folder { padding: 14px 8px 10px; border-radius: 14px; background: #f6f0e7; }
-.folderName { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 0 8px; font-size: 15px; font-weight: 700; color: #6d6156; }
-.folderName svg { width: 18px; height: 15px; color: #c96d06; }
+.folderName { margin: 0 0 8px; padding: 0 10px; font-size: 15px; font-weight: 700; color: #6d6156; }
 .folder ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
 .folder li { display: grid; padding: 8px 10px; border-radius: 10px; }
 .folder li b { font-size: 15.5px; font-weight: 650; line-height: 1.25; }
@@ -252,7 +201,8 @@
 .folder li[data-on] { background: #f3dcb9; }
 .recipe { min-width: 0; padding-top: clamp(10px, 1.8vh, 20px); }
 .crumb { display: none; }
-.sheetMeta { margin: 6px 0 0; font-size: 16px; font-weight: 500; color: #8a7d70; }
+.sheetMeta { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 16px; font-weight: 500; color: #8a7d70; }
+.sheetMeta svg { width: 17px; height: 14px; color: #c96d06; }
 .sheetH { margin: clamp(12px, 2.2vh, 20px) 0 2px; font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8a7d70; }
 .steps { margin: 4px 0 0; padding: 0 0 0 1.3em; display: grid; gap: 4px; font-size: clamp(16px, min(1.25vw, 2.1vh), 18px); line-height: 1.4; color: #2b2622; }
 .steps li::marker { color: #b3a493; font-weight: 600; }
@@ -304,16 +254,17 @@
 /* The whiteboard ink. */
 .chalk path, .chalkGpt path { fill: none; stroke: var(--cream); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 /* The path not taken: dashed, quieter. */
-.chalkFaint path { stroke-dasharray: 9 9; opacity: 0.5; }
-.chalkTextFaint { opacity: 0.55; }
+.chalkFaint path { stroke-dasharray: 9 9; opacity: 0.68; }
+.chalkTextFaint { opacity: 0.8; }
 .claudeNote { fill: #e8977a; stroke: none; }
 .chalkText { fill: var(--cream); }
-.chalkNote { fill: rgba(255, 241, 226, 0.72); }
+.chalkNote { fill: rgba(255, 241, 226, 0.86); }
+.chalkGptText { fill: #a6f2d6; }
 .chalkGpt path { stroke: #7fe0c0; }
 .chalkClaude path { fill: none; stroke: #e08a6a; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
 .chalkClaudeSm path { fill: none; stroke: #e08a6a; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 .cursorName { fill: #fff; font: 700 12.5px/1 var(--sans); }
-.boardTitle { fill: rgba(255, 241, 226, 0.6); }
+.boardTitle { fill: rgba(255, 241, 226, 0.86); }
 
 /* ── Build apps: from the request to the first tap ── */
 .bIn { grid-template-columns: minmax(0, 700px) minmax(0, 1fr); column-gap: clamp(40px, 5vw, 88px); }
@@ -349,7 +300,11 @@
 .make:not([data-built]) .makeApp { visibility: hidden; }
 .appName { margin: 0; font-size: 30px; font-weight: 750; letter-spacing: -0.02em; }
 .appName span { font-size: 13px; }
-.habits { margin: clamp(10px, 2vh, 18px) 0 0; padding: 0; list-style: none; display: grid; gap: clamp(8px, 1.8vh, 14px); }
+/* The days, named once along the top, over the columns of every habit (the same in Your AI). */
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin: clamp(12px, 2.2vh, 20px) 0 0; }
+.days small { text-align: center; font-size: 14px; font-weight: 650; color: #6d6156; }
+.days small[data-now] { color: #c96d06; }
+.habits { margin: 2px 0 0; padding: 0; list-style: none; display: grid; gap: clamp(6px, 1.4vh, 12px); }
 .habitRow { padding: 14px 0 0; }
 .habitRow + .habitRow { box-shadow: 0 -1px 0 #f0e8de; }
 .habitHead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
@@ -364,14 +319,11 @@
 .dayCell { position: relative; display: grid; }
 .day { display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
 .day:disabled { cursor: default; }
-.day small { font-size: 14px; font-weight: 650; color: #8a7d70; }
-.dayName { display: none; }
 .day i { position: relative; display: grid; place-items: center; width: 100%; max-width: 66px; aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
 .day i::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #e8820f; transform: scale(0); }
 .day svg { position: relative; opacity: 0; }
 .day[data-on] i::before { transform: none; }
 .day[data-on] svg { opacity: 1; }
-.day[data-now] small { color: #c96d06; }
 .day[data-now]:not([data-on]) i { background: #fff; box-shadow: inset 0 0 0 3px #e8820f; }
 .day:disabled i { background: #f6f2ec; }
 .day[data-down] i { transform: scale(0.9); }
@@ -387,12 +339,12 @@
 @media (hover: hover) { .addRow button:not(:disabled):hover { background: #3a2716; } }
 .made { display: flex; align-items: center; gap: 0.45em; margin: 16px 0 0; font-size: 15.5px; font-weight: 600; color: #0b7a5e; }
 /* The app builds itself: each piece drops in, the days pop in order. */
-.makeApp :is(.appName, .habitHead, .addRow, .made):not([data-in]) { opacity: 0; translate: 0 -12px; }
+.makeApp :is(.appName, .days, .habitHead, .addRow, .made):not([data-in]) { opacity: 0; translate: 0 -12px; }
 .makeApp .dayCell:not([data-in]) { opacity: 0; scale: 0.4; }
 @media (prefers-reduced-motion: no-preference) {
   .makeAsk { transition: opacity 0.26s ease-out, translate 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.26s, visibility 0s 0.3s; }
   .makeGo { transition: background-color 0.25s, color 0.25s, transform 0.1s; }
-  .makeApp :is(.appName, .habitHead, .addRow, .made) { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .makeApp :is(.appName, .days, .habitHead, .addRow, .made) { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .makeApp .dayCell { transition: opacity 0.2s ease-out, scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .day i::before { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .day svg { transition: opacity 0.2s 0.1s; }
@@ -420,20 +372,29 @@
 /* The AI's block starts at the air line and never moves while the cards grow (the changes open rows). */
 .aBody { padding-bottom: max(4svh, 24px); }
 .aTop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--gap); align-items: end; }
-.aTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(52px, 5vw, 78px); line-height: 0.92; letter-spacing: -0.03em; }
+.aLead { align-self: end; }
+.aTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(50px, 4.5vw, 66px); line-height: 0.92; letter-spacing: -0.03em; }
+/* The line that ties where you ask to where it lands. */
+.aTie { margin: clamp(10px, 1.4vh, 16px) 0 0; max-width: 15em; font-size: 18px; line-height: 1.4; font-weight: 550; color: var(--soft); text-wrap: pretty; }
 .askWrap { grid-column: 2 / 4; padding-left: clamp(0px, 3vw, 48px); }
-.ask { margin: 0; font-family: var(--display); font-style: italic; font-weight: 450; font-size: clamp(28px, 2.7vw, 40px); line-height: 1.12; letter-spacing: -0.015em; text-indent: -48px; padding-left: 48px; text-wrap: balance; }
-.askMark { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-right: 14px; border-radius: 50%; background: #10a37f; vertical-align: 2px; text-indent: 0; }
-.askText { text-indent: 0; }
-.askCaret { display: inline-block; width: 2px; height: 0.92em; margin: 0 1px 0 1px; vertical-align: -0.1em; background: #7fe0c0; text-indent: 0; }
-/* What it remembered, under the request: "no car" takes the same green underline as the decision
-   it reads in the note. */
-.askSub { margin: 10px 0 0 48px; font-size: 18px; font-weight: 550; color: var(--soft); }
+/* Where you ask: a small, plain chat. The ChatGPT mark and name, then your words in a bubble. */
+.chat { box-sizing: border-box; padding: 14px 16px 16px; border-radius: 22px; background: rgba(255, 241, 226, 0.06); box-shadow: inset 0 0 0 1px rgba(255, 241, 226, 0.12); }
+.chatWho { display: flex; align-items: center; gap: 8px; margin: 0; font: 650 15px/1 var(--sans); color: var(--cream); }
+.askMark { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #10a37f; }
+.ask { width: fit-content; max-width: 86%; margin: 10px 0 0 auto; padding: 11px 18px 12px; border-radius: 20px 20px 6px 20px; background: rgba(255, 241, 226, 0.14);
+  font: 500 clamp(19px, 1.55vw, 22px)/1.32 var(--sans); letter-spacing: -0.005em; color: var(--cream); text-wrap: pretty; }
+.askText { display: inline; }
+.askCaret { display: inline-block; width: 2px; height: 1.05em; margin: 0 1px; vertical-align: -0.15em; background: #7fe0c0; }
+/* What it read, under the chat: the two decisions take the green underline as they're read. */
+.askSub { margin: 12px 0 0 4px; font-size: 17px; line-height: 1.4; font-weight: 550; color: var(--soft); }
 /* The underline is a background, so it follows the phrase when a phone wraps it onto two lines. */
 .askNoCar { color: var(--cream); font-weight: 700; padding-bottom: 3px; background: linear-gradient(#2fc79e, #2fc79e) 0 100% / 0% 2px no-repeat; }
 .askNoCar[data-on] { background-size: 100% 2px; }
 @media (prefers-reduced-motion: no-preference) { .askNoCar { transition: background-size 0.6s cubic-bezier(0.6, 0, 0.3, 1); } }
-.aStage { position: relative; flex: none; margin-top: clamp(22px, 4.4vh, 44px); display: flex; flex-direction: column; justify-content: flex-start; }
+/* Where it lands: Pinto Notes, named with its mark over the three things. */
+.aLands { display: flex; align-items: center; gap: 9px; margin: clamp(14px, 1.8vh, 22px) 0 0; font: 650 15px/1 var(--sans); color: var(--cream); }
+.aLands img { width: 22px; height: 22px; border-radius: 6px; }
+.aStage { position: relative; flex: none; margin-top: 10px; display: flex; flex-direction: column; justify-content: flex-start; }
 /* Three frames in the chapters' own colours, of one height, so their bottoms always line up. Each
    card inside is as tall as what it holds: a change opens its row in place, and an Undo closes it. */
 .aObjs { margin: 0; padding: 0; list-style: none; display: flex; align-items: stretch; gap: var(--gap); }
@@ -467,8 +428,16 @@
 .markers { display: none; }
 
 .aNote { color: #1d1b19; }
-.aNoteTitle { display: flex; align-items: center; gap: 8px; margin: 0; font-size: clamp(18px, 1.55vw, 22px); font-weight: 750; letter-spacing: -0.015em; }
-.aNote .aNoteTitle svg { width: 1.05em; height: 0.85em; stroke: #c96d06; stroke-width: 1.6; }
+.aNoteTitle { margin: 0; font-size: clamp(18px, 1.5vw, 21px); font-weight: 750; letter-spacing: -0.015em; line-height: 1.2; }
+/* What ChatGPT added, as one marked block: a soft green field with its rule down the left. */
+.aAdd { margin-top: 8px; padding: 7px 10px 8px 12px; border-radius: 8px; background: rgba(16, 163, 127, 0.09); box-shadow: inset 3px 0 0 #10a37f; }
+.aPlanH { margin: 0 0 3px; font-size: 13.5px; font-weight: 700; color: #0b7a5e; }
+.aPlanH b, .aPrepName span { position: relative; z-index: 0; }
+.aPlan { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+.aPlan li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); font-size: 15px; font-weight: 550; line-height: 1.34; }
+.aPlan li span { font-weight: 650; color: #7d7064; }
+.aPrepName { margin: 0; font-size: clamp(15px, 1.12vw, 16px); font-weight: 650; }
+.aPrepWhen { margin: 2px 0 0; font-size: 14.5px; line-height: 1.35; color: #2b2622; }
 .aList { margin: clamp(6px, 1.2vh, 10px) 0 0; padding: 0; list-style: none; display: grid; gap: clamp(2px, 0.6vh, 5px); }
 .aList li, .aListAdd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: clamp(3px, 0.9vh, 8px) 0; font-size: clamp(15px, 1.15vw, 16.5px); line-height: 1.3; }
 .aListAdd { margin: clamp(2px, 0.6vh, 5px) 0 0; }
@@ -499,21 +468,20 @@
 .aoBoard[data-land] .aBox { opacity: 1; }
 .aoBoard[data-land] .aBox .chalkGpt path { stroke-dashoffset: 0; }
 .aoBoard[data-land] .aBox rect, .aoBoard[data-land] .aBox text { opacity: 1; }
-.aoBoard[data-undone] .aAdd { opacity: 0; }
+.aoBoard[data-undone] .aAddInk { opacity: 0; }
 .aApp { color: #1d1b19; }
 .aAppTop { margin: 0 0 2px; font-size: clamp(16px, 1.3vw, 18px); }
-.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: clamp(8px, 1.4vh, 12px); }
-.aDays small { text-align: center; font-size: 12px; font-weight: 650; color: #8a7d70; }
+.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+.aDays small { text-align: center; font-size: 13px; font-weight: 650; color: #6d6156; }
 .aDays small[data-now] { color: #c96d06; }
-.aHabit { padding-top: clamp(8px, 1.5vh, 12px); }
+.aHabit { padding-top: 8px; }
 .aDays + .aHabit { padding-top: 6px; }
-.aHabit p { margin: 0 0 6px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
+.aHabit p { margin: 0 0 4px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
 .aHabit p > span { position: relative; z-index: 0; white-space: nowrap; }
 .aHabit small { font-size: 13.5px; font-weight: 600; color: #c96d06; white-space: nowrap; }
-.aNewRow .aHabit small { color: #0d8a6b; }
 .aHabit small.aZero { color: #8a7d70; }
 .aWeek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
-.aWeek i { display: grid; place-items: center; aspect-ratio: 1; max-height: 34px; border-radius: 50%; background: #f1ece5; }
+.aWeek i { justify-self: center; display: grid; place-items: center; width: min(100%, 26px); aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
 .aWeek svg { opacity: 0; }
 .aWeek [data-on] { background: #e8820f; }
 .aWeek [data-on] svg { opacity: 1; }
@@ -530,7 +498,7 @@
   .aRead::after { transition: transform 0.6s cubic-bezier(0.6, 0, 0.3, 1); }
   .aBox, .aBox rect, .aBox text { transition: opacity 0.35s 0.15s ease-out; }
   .aBox .chalkGpt path { transition: stroke-dashoffset 0.45s cubic-bezier(0.6, 0, 0.3, 1); }
-  .aAdd { transition: opacity 0.3s ease-out; }
+  .aAddInk { transition: opacity 0.3s ease-out; }
 }
 .aFoot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px 40px; margin-top: clamp(12px, 2.4vh, 22px); }
 .works { margin: 0; max-width: 34em; font-size: 18px; line-height: 1.4; color: var(--ink); }
@@ -556,12 +524,14 @@
 .fCtas .ctas { margin-top: clamp(20px, 3.6cqh, 32px); }
 .fReq { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: #7a6650; }
 /* Four lines in pencil, written on the page itself (no card, no tilt, no filter: crisp). */
-.claims { margin: clamp(22px, 4.4cqh, 40px) 0 0; padding: 0; list-style: none; font-size: clamp(18px, 1.5cqw, 22px); line-height: 1.6; color: #2a2620; }
+.claims { margin: clamp(22px, 4.4cqh, 40px) 0 0; padding: 0; list-style: none; font-size: 17px; line-height: 1.6; font-weight: 500; color: #4a3826; }
 .claims a { color: #b6450f; text-decoration: underline; text-decoration-color: rgba(182, 69, 15, 0.45); text-underline-offset: 4px; }
 @media (hover: hover) { .claims a:hover { text-decoration-color: currentColor; } }
 
 /* The Mac and the iPhone. Every size is in em, so the pair scales as one. */
-.devices { position: absolute; left: calc(100cqw - var(--sw) * 0.6); top: max(170px, calc(100cqh - var(--sw) / 1.5 + var(--sw) * 0.14)); width: 39em; height: 30em; font-size: calc(var(--sw) * 0.01); }
+/* Laid low enough that, when the footer lifts the cover at the page's end, the Mac stays well clear of
+   the header. */
+.devices { position: absolute; left: calc(100cqw - var(--sw) * 0.6); top: max(230px, calc(100cqh - var(--sw) / 1.5 + var(--sw) * 0.19)); width: 39em; height: 30em; font-size: calc(var(--sw) * 0.0108); }
 .mac { position: absolute; left: 0; top: 0; width: 32em; box-sizing: border-box; border-radius: 0.85em; background: #fffdf8; overflow: hidden; color: #1d1b19;
   box-shadow: 0 0 0 1px rgba(60, 35, 10, 0.14), 0 2.4em 4.4em -1.8em rgba(60, 30, 5, 0.5); }
 .macBar { position: relative; display: flex; gap: 0.55em; height: 2.4em; align-items: center; padding: 0 1em; background: #f5efe6; box-shadow: 0 1px 0 #ebe2d4; }
@@ -570,7 +540,7 @@
 .macBar i:nth-child(3) { background: #28c840; }
 .macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.86em; font-weight: 600; color: #8a7d70; pointer-events: none; }
 .mac .dvNote { padding: 1.3em 1.7em 1.5em; }
-.phone { position: absolute; left: 24.8em; top: 1.5em; width: 14em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #1d1611;
+.phone { position: absolute; left: 24.2em; top: 1.5em; width: 15em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #1d1611;
   box-shadow: 0 0 0 1.5px #4a3a2c, 0 2.6em 3.8em -1.6em rgba(40, 20, 0, 0.6); }
 .phoneScreen { height: 100%; container-type: inline-size; box-sizing: border-box; border-radius: 2em; background: #fffdf8; overflow: hidden; color: #1d1b19; }
 .phoneStatus { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0.85em 1.25em 0 1.5em; font-size: 0.8em; }
@@ -579,7 +549,7 @@
 .phoneIcons i { width: 0.3em; height: 0.6em; border-radius: 0.1em; background: #1d1b19; }
 .phoneNav { display: flex; align-items: center; gap: 0.3em; margin: 0.9em 0 0; padding: 0 0.9em; font-size: 0.9em; color: #d9750f; font-weight: 500; }
 .phoneNav svg { width: 0.55em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.phone .dvNote { padding: 0.5em 1em 0; font-size: 0.98em; }
+.phone .dvNote { padding: 0.5em 1em 0; font-size: 1.06em; }
 .nw { white-space: nowrap; }
 .dvDate { margin: 0 0 0.3em; font-size: 0.8em; font-weight: 500; color: #9a8b7a; }
 .dvTitle { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
@@ -619,11 +589,12 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
 @media (max-width: 760px) {
   .stack { --hh: 72px; --tabH: 30px; --gap: 8px; --pad: var(--gutter); --tearH: 30px; --tearW: 900px; --airT: calc(var(--tearH) + 40px); }
   .ch { min-height: 600px; }
-  /* A longer stay per chapter, so the next one doesn't rise while this one is being read. */
-  .ch.draw { margin-top: 70vh; }
-  .ch.build { margin-top: 90vh; }
-  .ch.ai { margin-top: 85vh; }
-  .cover { margin-top: 130vh; }
+  /* Shorter stays than the desktop's: each chapter is one calm screen, read in a breath, and the next
+     rises sooner. Your AI stays longest, for its three changes. */
+  .ch.draw { margin-top: 48vh; }
+  .ch.build { margin-top: 58vh; }
+  .ch.ai { margin-top: 62vh; }
+  .cover { margin-top: 96vh; }
   .tail { height: 0; }
   .say { font-size: 17px; line-height: 1.38; }
   .long { display: none; }
@@ -646,25 +617,15 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .lede { margin-top: 12px; font-size: 16.5px; line-height: 1.38; }
   .ctas { margin-top: 14px; }
   .heroText .fine { display: none; }
-  /* The note and its folders: one row of folder chips over the card, and the whole card above the
-     fold. The recipe card is left out here (the note's own line names it). */
+  /* The picture: the notes over the table, the whole dinners note and the top of the book note above
+     the fold (HeroArt lays them out). "Free" sits beside the download button. */
   .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 330px; margin-top: 16px; clip-path: none; overflow: hidden; }
-  .collage { border-radius: 0; object-position: 50% 50%; }
-  .objs { --u: calc(100cqw / 390); }
-  .oneFolders { left: 0; right: 0; top: 14px; width: auto; padding: 0 12px; border-radius: 0; background: none; box-shadow: none; font-size: 13.5px;
-    -webkit-mask: linear-gradient(90deg, #000 calc(100% - 44px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 44px), transparent); }
-  .oneFoldersH { display: none; }
-  .oneFolders ul { display: flex; gap: 6px; }
-  .oneFolders li { flex: none; gap: 6px; padding: 7px 11px 7px 9px; border-radius: 999px; background: rgba(255, 253, 248, 0.9); box-shadow: 0 0 0 1px rgba(60, 40, 10, 0.08); }
-  .oneFolders li[data-on] { background: #f3dcb9; box-shadow: 0 0 0 1px rgba(150, 90, 20, 0.18); }
-  .oneNote { left: calc(12 * var(--u)); top: 58px; width: calc(366 * var(--u)); font-size: min(15.5px, calc(15 * var(--u))); padding: 14px 16px 12px; border-radius: 16px; }
-  .oneDecided { white-space: nowrap; }
-  .oneRecipe { display: none; }
+  .free { display: inline; }
 
-  /* One calm screen per chapter: the heading, a line or two, the thing, with air above and below.
-     Every heading starts at the same height under the tabs; what's left over is below the thing. */
-  .wBody, .dBody, .bBody, .aBody { padding: var(--airT) var(--pad) 28px; }
-  .wIn, .bIn { margin: 0 0 auto; }
+  /* One calm screen per chapter: the heading, a line or two, the thing, as one block in the middle of
+     the sheet (a touch high), with air above and below. */
+  .wBody, .dBody, .bBody, .aBody { justify-content: safe center; padding: var(--airT) var(--pad) 44px; }
+  .wIn, .bIn { margin: 0; }
   .wIn { display: flex; flex-direction: column; }
   .wTitle { font-size: 60px; margin-bottom: 16px; }
   .wTitle br { display: none; }
@@ -722,30 +683,33 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .habitStreak b { font-size: 17px; }
   .addRow input, .addRow button { height: 46px; font-size: 16px; }
   .made { font-size: 14.5px; }
-  /* The week as a list of days, the way a tracker reads on an iPhone: the three around today
-     (Thursday to Saturday), so the app fits the screen with its words at reading size. */
-  .dayCell:nth-child(-n+3), .dayCell:nth-child(n+7) { display: none; }
-  .week { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .day { grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: 10px; width: 100%; padding: 4px 0; text-align: left; }
-  .dayCell + .dayCell .day { box-shadow: 0 -1px 0 #f3ece3; }
-  .day small { font-size: 13px; }
-  .dayName { display: block; font-size: 16px; font-weight: 550; color: #1d1b19; }
-  .day:disabled .dayName { color: #b3a596; }
-  .day i { width: 32px; max-width: none; }
-  .day[data-now] .dayName { font-weight: 700; }
+  /* The same tracker as on a Mac: the days named once, each habit a row of seven. */
+  .days, .week { gap: 6px; }
+  .days { margin-top: 12px; }
+  .days small { font-size: 13px; }
+  .habitRow { padding-top: 10px; }
+  .habitHead { margin-bottom: 6px; }
+  .day i { max-width: 42px; }
 
 
-  /* Your AI does one thing at a time: the heading, the request in one line, one card. */
+  /* Your AI does one thing at a time, on one left edge: the heading and the tie line, the chat, then
+     one card. */
+  .aBody { padding-top: calc(var(--tearH) + 24px); padding-bottom: 20px; }
   .aTop { display: block; }
-  .aTitle { font-size: 42px; }
+  .aTitle { font-size: 34px; }
+  .aTie { margin-top: 8px; max-width: none; font-size: 14.5px; line-height: 1.35; }
   .askWrap { padding: 0; margin-top: 12px; }
-  .ask { font-size: 19px; line-height: 1.22; text-indent: -34px; padding: 0 0 0 34px; }
-  .askMark { width: 26px; height: 26px; margin-right: 8px; vertical-align: -5px; }
-  .askMark svg { width: 15px; height: 15px; }
-  .askSub { margin: 8px 0 0 34px; font-size: 15.5px; line-height: 1.35; }
+  .chat { padding: 8px 9px 9px; border-radius: 18px; }
+  .chatWho { gap: 7px; font-size: 13.5px; }
+  .askMark { width: 22px; height: 22px; }
+  .askMark svg { width: 13px; height: 13px; }
+  .ask { max-width: 92%; margin-top: 6px; padding: 8px 13px 9px; border-radius: 16px 16px 5px 16px; font-size: 15.5px; line-height: 1.3; }
+  .askSub { margin: 8px 0 0; font-size: 14.5px; line-height: 1.35; }
+  /* Where it lands is named under the card, with Pinto's mark ("In your note"). */
+  .aLands { display: none; }
   .aFoot { display: none; }
   /* One column as wide as the page (the desktop's flex-start would shrink the track to its content). */
-  .aStage { margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: normal; }
+  .aStage { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: normal; }
   .aObjs { display: grid; grid-template-columns: minmax(0, 1fr); }
   /* The three cards share one place and one height, and each change's room (its new row and its
      receipt) is kept from the start, so the card never jumps or clips between steps. */
@@ -763,18 +727,20 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .aRows { gap: 8px; }
   .aRows li, .aDecided, .aHabit p, .aRowAdd { font-size: 16px; }
   .aRowAdd { margin-top: 8px; }
-  .aoApp .aCard { padding: 20px 18px 16px; }
-  .aAppTop { font-size: 20px; }
-  .aDays { margin-top: 10px; }
+  .aoApp .aCard { padding: 14px 16px 12px; }
+  .aAppTop { font-size: 19px; }
+  .aDays { margin-top: 8px; }
   .aDays small { font-size: 13px; }
-  .aHabit { padding-top: 12px; }
-  .aDays + .aHabit { padding-top: 6px; }
-  .aHabit p { margin-bottom: 7px; font-size: 16.5px; }
+  .aHabit { padding-top: 8px; }
+  .aDays + .aHabit { padding-top: 4px; }
+  .aHabit p { margin-bottom: 5px; font-size: 16px; }
+  .aPlan li { font-size: 15.5px; }
   .aWeek { gap: 7px; }
-  .aWeek i { max-height: 32px; }
+  .aWeek i { width: min(100%, 28px); }
   /* Under the card: where the change is, in words, with three small dots under it. */
   .markers { display: grid; justify-items: center; margin-top: 8px; }
-  .markCap { margin: 0; font-size: 16px; font-weight: 650; line-height: 1.3; color: var(--cream); }
+  .markCap { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 15.5px; font-weight: 650; line-height: 1.3; color: var(--cream); }
+  .markCap img { width: 18px; height: 18px; border-radius: 5px; }
   .markDots { display: flex; justify-content: center; margin-top: 2px; }
   .markers button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
   .markers i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 241, 226, 0.3); }
@@ -834,7 +800,7 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .aDays { margin-top: 6px; }
   .aHabit { padding-top: 6px; }
   .aHabit p { margin-bottom: 4px; }
-  .aWeek i { max-height: 26px; }
+  .aWeek i { width: min(100%, 22px); }
   .aStage { margin-top: 18px; }
   .aRows { gap: 4px; }
   .aDecided { margin: 4px 0 8px; }
@@ -862,9 +828,4 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
 @media (max-width: 760px) {
   /* The note shows its first line and its link to the board again: the chapter is one full page. */
   .sheetMore, .sheetAside { display: block; }
-}
-@media (max-width: 760px) {
-  .habitRow[data-wide], .aHabit[data-wide] { display: none; }
-  /* With the wide-only habit hidden, the one habit shown can't be removed. */
-  .habits:has(> .habitRow:nth-child(2)[data-wide]:last-child) .habitX { display: none; }
 }

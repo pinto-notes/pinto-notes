@@ -1,0 +1,82 @@
+/* The first screen's picture, option A (round 14): the still life, and a recipe note and a book note
+   lying in its open middle. Everything here belongs to HeroArt.tsx; the torn panel around it is the
+   page's (.art in s.module.css).
+
+   The picture is square (1254 px) and laid like object-fit: cover, centred, so its side is S, the
+   larger of the panel's width and height. Its open middle runs from 20% to 70% of S down the picture.
+   The notes are one group, centred on that middle at 45% of S, sized in --u (a 600 x 340 design
+   board), so at any window size they lie on the empty paper and never over an object. */
+
+.pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; background: #f7dfba; }
+.box { position: absolute; inset: 0; --S: max(100cqw, 100cqh); --u: min(calc(100cqw / 660), calc(var(--S) * 0.48 / 340)); }
+.group { position: absolute; left: 50%; top: calc((100cqh - var(--S)) / 2 + var(--S) * 0.45); width: calc(600 * var(--u)); height: calc(340 * var(--u)); translate: -50% -50%; font-size: calc(16 * var(--u)); }
+
+/* The notebook's folders: one quiet row of chips over the notes. */
+.folders { position: absolute; left: 0; top: 0; margin: 0; padding: 0; list-style: none; display: flex; gap: 0.4em; font-size: calc(13.5 * var(--u)); }
+.folders li { display: flex; align-items: center; gap: 0.4em; padding: 0.38em 0.8em 0.38em 0.6em; border-radius: 999px; background: rgba(255, 252, 245, 0.82); color: #5a4c3e; font-weight: 600; line-height: 1.2; white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(90, 60, 20, 0.08); }
+.folders li svg { width: 1.1em; height: 0.9em; color: #b58a5a; }
+.folders li[data-on] { background: #f3dcb9; color: #1d1b19; font-weight: 700; box-shadow: 0 0 0 1px rgba(150, 90, 20, 0.2); }
+.folders li[data-on] svg { color: #c96d06; }
+
+/* The dinners note leads: in front, the larger type, the deeper shadow. */
+.note { position: absolute; z-index: 2; left: 0; top: calc(44 * var(--u)); width: calc(346 * var(--u)); box-sizing: border-box; padding: 1.05em 1.2em 0.95em; border-radius: 0.8em;
+  background: #fffdf8; color: #1d1b19; font-size: calc(17 * var(--u));
+  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.12), 0 2.2em 3.4em -1.5em rgba(70, 45, 10, 0.45), 0 0 0 1px rgba(60, 40, 10, 0.05); }
+.date { margin: 0; font-size: 0.74em; font-weight: 500; color: #9a8f84; }
+.title { margin: 0.15em 0 0; font-size: 1.62em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
+.decided { margin: 0.55em 0 0; line-height: 1.38; color: #2b2622; }
+.decided b { font-weight: 700; }
+.caret { display: inline-block; width: 2px; height: 1.1em; margin: 0 -1px 0 1px; vertical-align: -0.2em; background: #e8820f; }
+.caret:not([data-on]) { opacity: 0; }
+.added { margin: 0.5em 0 0; font-size: 0.97em; font-weight: 500; line-height: 1.3; white-space: nowrap; opacity: 0; translate: 0 8px; }
+.added > span { position: relative; z-index: 0; }
+.added[data-in] { opacity: 1; translate: none; }
+.added :global(b) { transform: scaleX(0); transform-origin: 0 50%; }
+.added[data-in] :global(b) { transform: none; }
+.added[data-in][data-undone] { opacity: 0.35; text-decoration: line-through; }
+.added[data-undone] :global(b) { opacity: 0; }
+.rec { opacity: 0; translate: 0 6px; }
+.rec[data-in] { opacity: 1; translate: none; }
+.rec :global(p) { margin-left: 0; font-size: 0.84em; }
+
+/* The book note supports: smaller, lower, behind, on a slightly warmer paper. Its left edge runs
+   under the dinners note, so its words start clear of it. */
+.book { position: absolute; z-index: 1; right: 0; top: calc(122 * var(--u)); width: calc(276 * var(--u)); box-sizing: border-box; padding: 0.95em 1.15em 1em 2em; border-radius: 0.8em;
+  background: #fbf5ea; color: #1d1b19; font-size: calc(15 * var(--u));
+  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.1), 0 1.6em 2.6em -1.4em rgba(70, 45, 10, 0.35), 0 0 0 1px rgba(60, 40, 10, 0.05); }
+.crumb { display: flex; align-items: center; gap: 0.4em; margin: 0; font-size: 0.8em; font-weight: 650; color: #8a7d70; }
+.crumb svg { width: 1.1em; height: 0.9em; color: #b58a5a; }
+.bookTitle { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.45em; margin: 0.2em 0 0; font-size: 1.36em; font-weight: 750; letter-spacing: -0.015em; line-height: 1.15; }
+.bookTitle span { font-size: 0.66em; font-weight: 550; letter-spacing: 0; color: #7d7064; }
+/* Highlights, as the reader marked them: a short orange rule beside each. */
+.marks { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.45em; }
+.marks li { padding-left: 0.7em; box-shadow: inset 2.5px 0 0 #e8820f; line-height: 1.35; color: #3a342e; text-wrap: pretty; }
+.bookDecided { margin: 0.65em 0 0; line-height: 1.35; color: #2b2622; text-wrap: pretty; }
+.bookDecided b { font-weight: 700; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .rec { transition: opacity 0.25s ease-out, translate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .added { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .added :global(b) { transition: transform 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
+}
+
+/* Phones: the folder chips in one row, the dinners note under them, and the top of the book note
+   peeking out below it, all above the fold. */
+@media (max-width: 760px) {
+  .box { --u: 1; }
+  /* One column: the chips, the dinners note, and the book note tucked under it, its title and first
+     highlight showing (the sheet below covers the rest). */
+  .group { left: 12px; right: 12px; top: 12px; bottom: auto; width: auto; height: auto; translate: none; display: flex; flex-direction: column; font-size: 16px; }
+  .folders { position: relative; overflow: hidden; font-size: 13.5px;
+    -webkit-mask: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask: linear-gradient(90deg, #000 calc(100% - 36px), transparent); }
+  .folders li { flex: none; padding: 7px 11px 7px 9px; }
+  .note { position: relative; top: auto; width: auto; margin: 10px 30px 0 0; font-size: 15.5px; padding: 13px 15px 11px; border-radius: 15px; }
+  .date { display: none; }
+  .title { margin-top: 0; font-size: 1.42em; }
+  .decided { margin-top: 0.4em; }
+  .book { position: relative; top: auto; right: auto; width: auto; margin: -16px 0 0 26px; padding: 26px 15px 14px 16px; border-radius: 15px; font-size: 14.5px; }
+  .crumb { display: none; }
+  .bookTitle { margin-top: 0; font-size: 1.2em; }
+  .marks { margin-top: 0.45em; }
+}

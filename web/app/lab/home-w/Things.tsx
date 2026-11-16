@@ -6,11 +6,11 @@ import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
 import s from "./s.module.css";
 
-// The three things on study W's page (round 13), one person's week, three parts of one life. A note
-// in Recipes (the decision to cook at home, and the recipe ChatGPT wrote into the folder because of
-// it), a whiteboard (the job offer from Studio North, mapped: now or March?), and a small app (the
-// habits they're building: writing before work, cooking at home). The first screen shows the note in
-// its notebook, the folders of a whole life beside it; each chapter shows its one at full size.
+// The things on study W's page (round 14), one person's week, several parts of one life. A note in
+// Recipes (the decision to cook at home, and the recipe ChatGPT wrote into the folder because of it), a
+// book note (Deep Work, and the decision to write before work), a whiteboard (the job offer from Studio
+// North, mapped: now or March?), and a small app (the habits they're building). The first screen shows
+// the dinners note and the book note in their notebook; each chapter shows its one at full size.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -31,16 +31,33 @@ export const ADDED_IN = "New in Recipes: ";
 export const ADDED_RECIPE = "Lemon chicken, 25 min";
 export const ADDED = ADDED_IN + ADDED_RECIPE;
 
-/** The Recipes folder, as the notes list shows it: title, then how long it takes. */
-export const RECIPES: [string, string][] = [
-  ["Lemon chicken", "25 min"],
-  ["Lentil soup", "30 min"],
-  ["Pasta with greens", "20 min"],
-  ["Chickpea curry", "35 min"],
-  ["Shakshuka", "25 min"],
+/** The book note beside it on the first screen: two highlights, and what the reader decided. */
+export const BOOK = {
+  title: "Deep Work", author: "Cal Newport",
+  marks: ["Deep work is rare, and worth more every year.", "Focus is a skill. Train it."],
+  decided: "Write 30 min before work.",
+};
+
+/** The notes list in Notes: a whole life's notes, newest first, the recipe open. Title, then where it
+ *  lives and its first words. */
+export const NOTES: { title: string; sub: string; on?: boolean }[] = [
+  { title: "Miso salmon", sub: "Recipes · 20 min", on: true },
+  { title: "Deep Work", sub: "Reading · Cal Newport" },
+  { title: "Studio North", sub: "Work · Wait until March" },
+  { title: "Kyoto in April", sub: "Trips · 6 days" },
+  { title: "Morning run", sub: "Health · 3 a week" },
 ];
-/** The recipe ChatGPT writes into Recipes when it plans next week (Your AI). */
-export const NEW_RECIPE: [string, string] = ["Miso salmon", "20 min"];
+
+/** Next week's dinners, from your recipes: what ChatGPT writes into the dinners note (Your AI). */
+export const DINNERS: [string, string][] = [
+  ["Mon", "Lemon chicken"],
+  ["Tue", "Miso salmon"],
+  ["Wed", "Lentil soup"],
+  ["Thu", "Dal"],
+  ["Sun", "Shakshuka"],
+];
+/** The two questions ChatGPT adds to the board for the call. */
+export const QUESTIONS = ["Can the start move to March?", "What's the first project?"];
 
 /** "Added by ChatGPT · Undo", in the note's own flow (never over the words it marks). Undo works. */
 export function Receipt({ undone, onFlip, live = true }: { undone: boolean; onFlip: () => void; live?: boolean }) {
@@ -85,14 +102,15 @@ export const Folder = () => (
   <svg className={s.folderIcon} viewBox="0 0 20 16" aria-hidden="true"><path d="M1.5 3.2c0-.9.7-1.7 1.7-1.7h4l1.8 2h7.8c.9 0 1.7.8 1.7 1.7v7.6c0 .9-.8 1.7-1.7 1.7H3.2c-1 0-1.7-.8-1.7-1.7z" /></svg>
 );
 
-/* ───────────────────────── The note: the Recipes folder, one recipe open ───────────────────────── */
+/* ───────────────────────── The note: your notes, one recipe open ───────────────────────── */
 
-const INGREDIENTS = ["4 chicken thighs", "1 lemon, zest and juice", "3 garlic cloves", "Olive oil, salt"];
-const TYPED = "A few sprigs of thyme";
-const STEPS = ["Mash the zest, garlic and oil. Rub it in.", "Fry skin side down for 12 min, then turn.", "Squeeze over the lemon. Rest 5 min."];
+const INGREDIENTS = ["2 salmon fillets", "2 tbsp white miso", "1 tbsp honey", "Rice and greens"];
+const TYPED = "A squeeze of lime";
+const STEPS = ["Mix the miso and honey with a splash of water.", "Brush it on. Grill for 8 min.", "Serve on rice, with the greens and lime."];
 
-/** Recipes, as in Pinto: the folder's notes on the left, Lemon chicken open at writing size. The
- *  ingredients are a checklist that ticks; the last one is typed when the chapter arrives. */
+/** Your notes, as in Pinto: a whole life's notes on the left (a book, the job decision, a trip), the
+ *  recipe open at writing size. The ingredients are a checklist that ticks; the last one is typed
+ *  when the chapter arrives. */
 export function Note({ live }: { live: boolean }) {
   const [on, setOn] = useState([true, false, false, false, false]);
   const [n, setN] = useState(0);
@@ -110,18 +128,18 @@ export function Note({ live }: { live: boolean }) {
   const rows = [...INGREDIENTS, TYPED];
   return (
     <div className={s.sheet}>
-      <nav className={s.folder} aria-label="Recipes">
-        <p className={s.folderName}><Folder />Recipes</p>
+      <nav className={s.folder} aria-label="Notes">
+        <p className={s.folderName}>Notes</p>
         <ul>
-          {RECIPES.map(([name, time], i) => (
-            <li key={name} data-on={i === 0 || undefined}><b>{name}</b><span>{time}</span></li>
+          {NOTES.map((n) => (
+            <li key={n.title} data-on={n.on || undefined}><b>{n.title}</b><span>{n.sub}</span></li>
           ))}
         </ul>
       </nav>
       <div className={s.recipe}>
         <p className={s.crumb}><svg viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 L2 8 L8 14" /></svg>Recipes</p>
-        <h3 className={s.sheetTitle}>Lemon chicken</h3>
-        <p className={s.sheetMeta}>25 min · Serves 2</p>
+        <h3 className={s.sheetTitle}>Miso salmon</h3>
+        <p className={s.sheetMeta}><Folder />Recipes · 20 min · Serves 2</p>
         <p className={s.sheetH}>Ingredients</p>
         <ul className={s.rows}>
           {rows.map((text, i) => {
@@ -183,7 +201,7 @@ export const WIDE: Board = {
 // The same map for a phone, compact: the offer and the question side by side, the dashed "yes" under
 // the question, then the path they chose, stepping down. Claude draws the "no".
 export const TALL: Board = {
-  view: [358, 344], font: 17, rest: [-40, -30],
+  view: [358, 344], font: 17, rest: [0, 0],
   nodes: [
     { kind: "ellipse", c: [72, 42], w: 138, h: 74, label: ["Studio North", "offer"] },
     { kind: "diamond", c: [262, 42], w: 180, h: 84, label: ["Take it now?"] },

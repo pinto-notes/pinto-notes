@@ -9,21 +9,23 @@ import x from "../../_home/hero.module.css";
 import { AiShow } from "./AiShow";
 import { BuildShow } from "./Build";
 import { FreeLines, SyncMoment } from "./Close";
-import { HeroOne } from "./HeroOne";
+import { HeroArt } from "./HeroArt";
 import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study W, round 13 (2026-11-15): the lead. S's binder carrying one person's week, three parts of one
-// life. The first screen is your note in its notebook, on your table: the folders of a whole life
-// beside it (Recipes open), the decision to cook at home, the line ChatGPT added because of it, and
-// the recipe it wrote into Recipes. Each chapter shows another part of that life: Notes, the Recipes
-// folder (vermilion); Whiteboards, the job offer from Studio North mapped as a decision (deep green);
-// Apps, the habits they're building (kraft); Your AI, one request that touches all three (ink).
-// Scrolling lays each sheet over the last, whole, and when it lands its tab rises out of it and stays
-// docked under the header. The tabs end at Your AI. Then the page closes on the same table, in one
-// scene: "Pinto Notes is free.", the download, four lines in pencil, and the note on a Mac and an
-// iPhone, where ChatGPT's line arrives a moment after the page lands.
+// Study W, round 14 (2026-11-16): the lead. S's binder carrying one person's week, several parts of
+// one life. The first screen is that person's table (the still life) with two notes on it: the
+// dinners note (the decision to cook at home, and the line ChatGPT added because of it) leading, and a
+// book note (Deep Work, and the decision to write before work) beside it. That picture is HeroArt.tsx,
+// one swappable piece. Each chapter shows another part of that life: Notes, your notes with a recipe
+// open (vermilion); Whiteboards, the job offer from Studio North mapped as a decision (deep green);
+// Apps, the habits they're building (kraft); Your AI, one request typed in ChatGPT that lands in all
+// three (ink). Scrolling lays each sheet over the last, whole, and when it lands its tab rises out of
+// it and stays docked under the header; as a sheet rises, the words and things on the one under it
+// move up ahead of its torn edge, so a tear never cuts through them. The tabs end at Your AI. Then the
+// page closes on the same table: "Pinto Notes is free.", the download, four plain lines, and the
+// Studio North note on a Mac and an iPhone, where ChatGPT's line arrives a moment after the page lands.
 //
 // The sheets move by `position: sticky` alone (the browser scrolls them; no script moves them). The
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
@@ -75,6 +77,15 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     let vh = 0, tt = 0, hh = 0, raf = 0;
     let doc: number[] = [], mt: number[] = [];
     const covered = chs.map(() => false);
+    const lifts = chs.map(() => 0);
+    /** How far down the sheet its words and things reach (from its top, without any lift). */
+    const reach = (i: number) => {
+      const c = chs[i], top = c.getBoundingClientRect().top;
+      const kids = c.querySelectorAll<HTMLElement>("[data-body] > * > *");
+      let b = 0;
+      kids.forEach((k) => { const r = k.getBoundingClientRect(); if (r.height > 0 && getComputedStyle(k).display !== "none") b = Math.max(b, r.bottom); });
+      return b - top + lifts[i];
+    };
 
     const measure = () => {
       vh = innerHeight; tt = probe.offsetHeight; hh = probeHh.offsetHeight;
@@ -98,6 +109,14 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       }
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
       for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
+      // As the next sheet rises, this one's words and things move up ahead of its torn edge (the gap
+      // never closes), so a tear never cuts through a line or a card.
+      for (let i = 0; i + 1 < chs.length; i++) {
+        const nt = doc[i + 1] - y;
+        let lift = 0;
+        if (docked[i] && nt < vh) lift = Math.max(0, Math.round(tt + reach(i) - (nt - 18)));
+        if (lift !== lifts[i]) { lifts[i] = lift; chs[i].style.setProperty("--lift", `${lift}px`); chs[i].toggleAttribute("data-lifted", lift > 0); }
+      }
       // A chapter under a docked one is filed: its contents aren't painted, and its torn top edge
       // goes, so only the front sheet's edge crosses the tabs behind it (each tab stays whole).
       for (let i = 0; i < chs.length; i++) {
@@ -155,10 +174,13 @@ const Say = ({ long, short }: { long: string; short: string }) => (
 const Cta = () => (
   <div className={`${x.ctas} ${s.ctas}`}>
     <Download note={false} />
-    <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
-      Get it for iPhone
-    </a>
+    <span className={s.ctaRow}>
+      <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
+        Get it for iPhone
+      </a>
+      <span className={s.free}>Free</span>
+    </span>
     <a className={x.offMac} href="/download">Download for Mac</a>
     <p className={`${x.fine} ${x.offApple}`} data-off-apple>
       Pinto Notes is for iPhone and Mac.{" "}
@@ -176,11 +198,8 @@ function Hero() {
         <Cta />
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
-      <div className={s.art}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={s.collage} src="/lab/w/still-life-v1.webp" alt="" width="1122" height="1402" fetchPriority="high" />
-        <div className={s.objs}><HeroOne /></div>
-      </div>
+      {/* The picture: swap HeroArt (and its heroArt.module.css) for another first screen. */}
+      <div className={s.art}><HeroArt /></div>
     </section>
   );
 }
@@ -207,7 +226,7 @@ function Write() {
         <div className={s.wIn}>
           <div className={s.wHead}>
             <h2 id="s-write-h" className={s.wTitle}>Write <br />notes.</h2>
-            <Say long="They feel like Apple Notes, on Mac and iPhone. Bring yours over from Apple Notes." short="Like Apple Notes, on Mac and iPhone. Bring yours over." />
+            <Say long="They feel like Apple Notes, on Mac and iPhone, and you can bring yours over." short="Like Apple Notes, on Mac and iPhone. Bring yours over." />
           </div>
           <Note live={live} />
         </div>

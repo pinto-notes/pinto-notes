@@ -9,20 +9,19 @@ import s from "./s.module.css";
 // Build apps, from the first word to the first tap. The note starts as Pinto's own New app page: you
 // describe the app ("Make me a habit tracker: writing before work, cooking at home") and press Make
 // it with ChatGPT. The page becomes the tracker, piece by piece, in the same paper. Then your cursor
-// taps today on writing, and its count goes from 0 to 1. Cooking at home sits under it on wide
-// screens, five nights a week (the decision in the note), counted once a night is ticked. After that
-// it's yours: tap any day, add a habit, take one away. On a phone the request is already typed when
-// the chapter arrives (the show starts at the press), and the week is a short list of the days around
-// today, the way a tracker reads on an iPhone.
+// taps today on writing, and its count goes from 0 to 1. Cooking at home sits under it, five nights a
+// week (the decision in the note), counted once a night is ticked. After that it's yours: tap any day,
+// add a habit, take one away. The tracker has one layout everywhere, the same as in Your AI: the days
+// named once along the top, each habit a row of seven. On a phone the request is already typed when
+// the chapter arrives (the show starts at the press).
 
 const ASK = "Make me a habit tracker: writing before work, cooking at home";
 const B = { type: [0.5, 2.1] as [number, number], press: 2.4, built: 2.75, name: 2.95, days: 3.15, add: 3.65, made: 3.95, youIn: [4.5, 5.4] as [number, number], tap: 5.5, youOut: [6.6, 7.1] as [number, number], end: 7.2 };
 
-/** A habit. `wide`: shown on wide screens only (a phone shows the one habit, at reading size).
- *  `goal`: nights a week, counted as "n of goal" (and named as the goal until the first one). */
-type Habit = { name: string; days: boolean[]; wide?: boolean; goal?: number };
+/** A habit. `goal`: nights a week, counted as "n of goal" (and named as the goal until the first one). */
+type Habit = { name: string; days: boolean[]; goal?: number };
 const FIRST: Habit = { name: WRITE_HABIT, days: WEEK.map(() => false) };
-const SECOND: Habit = { name: COOK_HABIT, days: WEEK.map(() => false), wide: true, goal: 5 };
+const SECOND: Habit = { name: COOK_HABIT, days: WEEK.map(() => false), goal: 5 };
 type Snap = { n: number; press: boolean; built: boolean; name: boolean; days: number; add: boolean; made: boolean; tapped: boolean; down: boolean };
 const START: Snap = { n: 0, press: false, built: false, name: false, days: 0, add: false, made: false, tapped: false, down: false };
 const same = (a: Snap, b: Snap) => (Object.keys(a) as (keyof Snap)[]).every((k) => a[k] === b[k]);
@@ -89,23 +88,24 @@ export function BuildShow({ subscribe }: { subscribe: (fn: (dwell: number, arriv
       {/* The app it made. */}
       <div className={s.makeApp} aria-hidden={!built || undefined}>
         <p className={s.appName} data-in={snap.built || mine ? true : undefined}>Habits<span>App</span></p>
+        <div className={s.days} data-in={snap.name || mine ? true : undefined} aria-hidden="true">{WEEK.map((d, j) => <small key={j} data-now={j === TODAY || undefined}>{d}</small>)}</div>
         <ul className={s.habits}>
           {habits.map((h, i) => {
             const n = h.days.filter(Boolean).length;
             return (
-              <li key={h.name + i} className={s.habitRow} data-wide={h.wide || undefined}>
+              <li key={h.name + i} className={s.habitRow}>
                 <div className={s.habitHead} data-in={snap.name || mine ? true : undefined}>
                   <p className={s.habitName}>{h.name}</p>
                   <p className={s.habitStreak} aria-live="polite">{h.goal ? (n ? <><b key={n}>{n}</b> of {h.goal}</> : <>{h.goal} a week</>) : <><b key={n}>{n}</b> {n === 1 ? "day" : "days"}</>}</p>
                   {habits.length > 1 && <button type="button" className={s.habitX} onClick={() => remove(i)} aria-label={`Remove ${h.name}`} tabIndex={built ? 0 : -1}>×</button>}
                 </div>
                 <div className={s.week}>
-                  {WEEK.map((d, j) => (
+                  {WEEK.map((_d, j) => (
                     <span key={j} className={s.dayCell} data-in={j < snap.days || mine ? true : undefined} style={{ "--j": j } as React.CSSProperties}>
                       <button type="button" className={s.day} data-on={h.days[j] || undefined} data-now={j === TODAY || undefined} data-today={(i === 0 && j === TODAY) || undefined}
                         data-down={(i === 0 && j === TODAY && snap.down) || undefined} disabled={j > TODAY} tabIndex={built ? 0 : -1}
                         onClick={() => tap(i, j)} aria-pressed={h.days[j]} aria-label={`${h.name}, ${DAY_NAMES[j]}`}>
-                        <small>{d}</small><span className={s.dayName}>{DAY_NAMES[j]}</span><i><Tick /></i>
+                        <i><Tick /></i>
                       </button>
                     </span>
                   ))}
