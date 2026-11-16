@@ -278,6 +278,30 @@ import UIKit
         }
     }
 
+    /// Nor does it sit on a row of words beside it, however far it keeps: next to the end of the
+    /// how-to line it read as the line's last word (round 15, 12-ai-drew: 8 pt past "…to add an
+    /// arrow.", four rounds running). It goes beside its shape instead, still 8 pt from everything.
+    @Test func theAIsTagNeverSharesARowWithWords() {
+        // As in 12-ai-drew: the AI's group on the right, the how-to line ending just left of it,
+        // a little above its top.
+        let shape = CGRect(x: 845, y: 276, width: 180, height: 70)
+        let line = CGRect(x: 240, y: 222, width: 594, height: 22)
+        let h = CanvasController.Highlight(rect: shape, by: "ChatGPT", count: 1, boxes: [shape], near: [line], rows: [line], view: CGSize(width: 1100, height: 800))
+        let outlines = CanvasAIHighlight(highlight: h).outlines
+        let spot = CanvasAIHighlight.tag(for: h, outlines: outlines)
+        let tag = CGRect(origin: spot, size: CGSize(width: CanvasAIHighlight.tagWidth("ChatGPT"), height: CanvasAIHighlight.tagHeight))
+        let inked = line.insetBy(dx: -CanvasAIHighlight.inkReach, dy: -CanvasAIHighlight.inkReach)
+        #expect(!(tag.minY < inked.maxY && inked.minY < tag.maxY), "not on the line's row: \(tag) by \(inked)")
+        #expect(CanvasAIHighlight.gap(tag, to: [inked], lines: []) >= CanvasAIHighlight.clearance, "8 pt clear: \(tag)")
+        let top = outlines[0]
+        #expect(!tag.intersects(top) && tag.insetBy(dx: -12, dy: -12).intersects(top), "by its outline: \(tag) at \(top)")
+        // Without the line there, it stays above its shape at its left end, as before.
+        let alone = CanvasAIHighlight.tag(for: CanvasController.Highlight(rect: shape, by: "ChatGPT", count: 1, boxes: [shape], view: CGSize(width: 1100, height: 800)), outlines: outlines)
+        #expect(alone == CGPoint(x: top.minX, y: top.minY - 4 - CanvasAIHighlight.tagHeight), "\(alone)")
+        // A line of words far off to the left is no row of the tag's.
+        #expect(!CanvasAIHighlight.sharesRow(CGRect(x: 845, y: 230, width: 90, height: 22), with: [CGRect(x: 40, y: 222, width: 300, height: 22)]))
+    }
+
     /// An AI's reply in a comment thread that comes with a change offers Show change: it outlines
     /// that change with the AI's name and brings it into view, as Show Last AI Change does (round
     /// 14). A person's reply, another AI's, or one from long before offers nothing.
@@ -326,7 +350,7 @@ import UIKit
     /// The follower's banner names the frame and the step: "Emil is presenting · Launch · 2 of 4"
     /// (round 14), the step alone for an unnamed frame, nothing more for one step.
     @Test func theFollowBannerNamesTheFrameAndStep() {
-        let emil = BoardPerson(id: UUID(), name: "Emil", color: "#3B5BDB", dark: "#91A7FF", presenting: BoardPresenting(frame: "f2", i: 1, n: 4))
+        let emil = BoardPerson(id: TestPeople.emil, name: "Emil", color: TestPeople.color(TestPeople.emil).light, dark: TestPeople.color(TestPeople.emil).dark, presenting: BoardPresenting(frame: "f2", i: 1, n: 4))
         let names = ["f2": "Launch"]
         #expect(BoardFollow.Banner.presenting(emil).words { names[$0] } == "Emil is presenting \u{00B7} Launch \u{00B7} 2 of 4")
         #expect(BoardFollow.Banner.following(emil).words { names[$0] } == "Following Emil \u{00B7} Launch \u{00B7} 2 of 4")
@@ -659,7 +683,7 @@ import UIKit
         let menu = try #require(shown.first)
         let titles: [String] = menu.items.map(\.title).filter { !$0.isEmpty }
         // Comment first: on the spot clicked, as nothing is selected (BoardCommentsCanvasTests).
-        let expected: [String] = ["Comment", "Duplicate", "Delete", "Save to Library", "Bring to Front", "Bring Forward", "Send Backward", "Send to Back", "Select All", "Zoom to Fit"]
+        let expected: [String] = ["Comment", "Duplicate", "Delete", "Save to Library", NoteMoreMenu.saveTemplateTitle, "Bring to Front", "Bring Forward", "Send Backward", "Send to Back", "Select All", "Zoom to Fit"]
         #expect(titles == expected)
         #expect(menu.items.first { $0.title == "Delete" }?.isEnabled == false, "nothing selected: nothing to delete")
         // Select All from it reaches the page.
@@ -1255,6 +1279,8 @@ import UIKit
         ]))
         defer { j.close() }
         try await j.ready()
+        // While you work, a frame doesn't cut what runs over its edge: drawn whole (round 14, web-04).
+        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == false, "frames don't cut shapes while you work")
         let frameInView = { (id: String) in """
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === '\(id)');
           const x1 = (f.x + s.scrollX) * z, y1 = (f.y + s.scrollY) * z, x2 = (f.x + f.width + s.scrollX) * z, y2 = (f.y + f.height + s.scrollY) * z;
@@ -1274,7 +1300,8 @@ import UIKit
         try await Task.sleep(for: .milliseconds(700))
         #expect(try await j.js(frameInView("f2")) as? Bool == true, "the second frame fills the view")
         // The frame's name and outline are hidden while presenting: the bar names it (round 6).
-        #expect(try await j.js("(() => { const r = amber._canvas.api.getAppState().frameRendering; return !r.name && !r.outline; })()") as? Bool == true)
+        // What runs over its edge is cut there: only the frame shows.
+        #expect(try await j.js("(() => { const r = amber._canvas.api.getAppState().frameRendering; return !r.name && !r.outline && r.clip; })()") as? Bool == true)
         // The window grows (Full Screen hides the columns): the step fits again (round 6, 25-present-1).
         let size0 = j.web.frame.size
         j.rig.window.setContentSize(CGSize(width: size0.width + 500, height: size0.height + 200))
@@ -1304,6 +1331,7 @@ import UIKit
         let after = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.zoom.value, s.scrollX, s.scrollY].join(','); })()") as? String
         #expect(after == before, "the view as it was before presenting: \(before) → \(after ?? "")")
         #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.name") as? Bool == true, "frame names back after")
+        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == false, "and shapes whole again")
         // No frames: one step, the whole board.
         _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'frame').map((e) => ({ ...e, frameId: null })) }); return 0; })()")
         j.canvas.send(.present(.start))
@@ -3629,6 +3657,195 @@ import UIKit
         #expect(!saved.contains("excalidrawlib"), "nothing of it in the board's file")
     }
 
+    /// Right-click a frame, Save as Template…: it asks for a name, and keeps the frame with all
+    /// that's in it, nothing else (round 15: Save as Template was only in the More menu). With
+    /// nothing selected the menu's Save as Template… keeps the whole board, as the More menu's does.
+    @Test func aFrameIsSavedAsATemplateFromTheRightClickMenu() async throws {
+        let templates = WhiteboardTemplates(folder: nil)
+        func box(_ id: String, x: Double) -> [String: Any] {
+            ["type": "rectangle", "id": id, "x": x, "y": 60, "width": 120, "height": 70, "strokeColor": "#2a1d10", "backgroundColor": "#ffec99"]
+        }
+        let j = try await Joined(scene: CanvasTests.scene([box("in1", x: 30), box("in2", x: 220), box("out", x: 900),
+                                                           ["type": "frame", "id": "f1", "children": ["in1", "in2"], "name": "Launch"]]))
+        defer { j.close() }
+        try await j.ready()
+        let web = try #require(j.web as? NotePageWebView)
+        // Nothing selected: the whole board.
+        let whole = try #require(web.canvasMenu().items.first { $0.title == NoteMoreMenu.saveTemplateTitle }, "in the right-click menu")
+        #expect(whole.isEnabled)
+        web.canvasMenu().performActionForItem(at: web.canvasMenu().items.firstIndex { $0.title == NoteMoreMenu.saveTemplateTitle }!)
+        #expect(j.canvas.namingTemplate == .board, "asks for the name, for the whole board")
+        j.canvas.namingTemplate = nil
+        // The frame selected: it and what's in it.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { f1: true } } }); return 1; })()")
+        await j.until("the frame selected") { j.canvas.state.inFrame }
+        let menu = web.canvasMenu()
+        menu.performActionForItem(at: try #require(menu.items.firstIndex { $0.title == NoteMoreMenu.saveTemplateTitle }))
+        #expect(j.canvas.namingTemplate == .selection, "asks for the name, for what's selected")
+        let item = try #require(await j.canvas.saveAsTemplate(named: "Launch frame", selection: true, templates))
+        #expect(Set(item.elements.compactMap { $0["id"] as? String }) == ["f1", "in1", "in2"], "the frame and all in it: \(item.elements.compactMap { $0["id"] as? String })")
+        #expect(item.name == "Launch frame" && j.canvas.notice == CanvasController.templateSavedTitle)
+        #expect(item.elements.allSatisfy { e in (e["frameId"] as? String).map { $0 == "f1" } ?? true }, "still in their frame")
+        // Nothing selected and asked for the selection: it says so.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        await j.until("nothing selected") { j.canvas.state.selection.isEmpty }
+        #expect(await j.canvas.saveAsTemplate(named: "None", selection: true, templates) == nil)
+        #expect(j.canvas.notice == "Select something to save it as a template")
+        // The selection bar's More has it too.
+        let source = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/CanvasControls.swift"), encoding: .utf8)
+        #expect(source.contains("canvas.askTemplateName(.selection)"))
+    }
+
+    // MARK: Templates that grow (round 15)
+
+    /// A timeline's line is plain, its last stretch too: an arrowhead there ran into the last dot
+    /// (rounds 13 and 14, 31-template-timeline). Its dots and steps are marked, so Add Step can
+    /// make the next; its how-to line says Tab.
+    @Test func theTimelinesLineEndsAtItsLastDotWithoutAHead() {
+        let els = WhiteboardTemplate.timeline.elements
+        let line = els.filter { e in e["type"] as? String == "arrow" && ((e["start"] as? [String: Any])?["id"] as? String)?.hasPrefix("dot") == true
+            && ((e["end"] as? [String: Any])?["id"] as? String)?.hasPrefix("dot") == true }
+        #expect(line.count == 4)
+        #expect(line.allSatisfy { $0["endArrowhead"] is NSNull && $0["startArrowhead"] is NSNull }, "no heads on the line")
+        #expect(els.filter { ($0["customData"] as? [String: Any])?["pintoStep"] as? String == "dot" }.count == 5)
+        #expect(els.filter { ($0["customData"] as? [String: Any])?["pintoStep"] as? String == "step" }.count == 5)
+        #expect(WhiteboardTemplate.timeline.hint.contains("press Tab"), "\(WhiteboardTemplate.timeline.hint)")
+        for t in [WhiteboardTemplate.kanban, .retro] {
+            #expect(t.elements.filter { ($0["customData"] as? [String: Any])?["pintoColumn"] as? Bool == true }.count == 3, "\(t)")
+            #expect(t.hint.contains("Tab to add a column"), "\(t.hint)")
+        }
+    }
+
+    /// Add Step: a step selected on a timeline, Tab (or Add Step on its bar, or in the right-click
+    /// menu) adds the next one at its end: a dot the same distance on, joined to the last by the
+    /// line, and a box on the other side from the last one, in the colour of the one before it
+    /// there, joined to its dot, typed into at once. One Undo takes it back (round 15, Opus #5:
+    /// "FigJam users add a step to a timeline with one key or one plus button").
+    @Test func tabAddsATimelinesNextStep() async throws {
+        let j = try await Joined(size: CGSize(width: 1100, height: 760))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.insert(.timeline, title: "Launch"))
+        await j.until("the timeline is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        func all() async throws -> [[String: Any]] {
+            let json = try await j.js("JSON.stringify(amber._canvas.api.getSceneElements())") as? String ?? "[]"
+            return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]] ?? []
+        }
+        func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+        func part(_ e: [String: Any]) -> String? { (e["customData"] as? [String: Any])?["pintoStep"] as? String }
+        var els = try await all()
+        let dots = els.filter { part($0) == "dot" }.sorted { num($0, "x") < num($1, "x") }
+        let steps = els.filter { part($0) == "step" }.sorted { num($0, "x") < num($1, "x") }
+        #expect(dots.count == 5 && steps.count == 5)
+        // The second step (Research) selected: the bar offers Add Step.
+        let research = try #require(steps[1]["id"] as? String)
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(research)': true } } }); return 1; })()")
+        await j.until("Add Step offered") { j.canvas.state.grows == .step }
+        let web = try #require(j.web as? NotePageWebView)
+        #expect(web.canvasMenu().items.first?.title == "Add Step", "first in the right-click menu")
+        let before = els.count
+        _ = try await j.js("(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("typing in the new step") { j.canvas.state.editing }
+        els = try await all()
+        let newDots = els.filter { part($0) == "dot" }.sorted { num($0, "x") < num($1, "x") }
+        let newSteps = els.filter { part($0) == "step" }.sorted { num($0, "x") < num($1, "x") }
+        #expect(newDots.count == 6 && newSteps.count == 6, "\(newDots.count) dots, \(newSteps.count) steps")
+        let dot = try #require(newDots.last), step = try #require(newSteps.last)
+        let spacing = num(dots[4], "x") - num(dots[3], "x")
+        #expect(abs(num(dot, "x") - num(dots[4], "x") - spacing) < 0.5 && abs(num(dot, "y") - num(dots[4], "y")) < 0.5, "a dot the same distance on")
+        // Launch is above the line: the new step goes below, where Beta is, in Beta's colour.
+        #expect(abs(num(step, "y") - num(steps[3], "y")) < 0.5, "on the other side, level with the one before there")
+        #expect(step["backgroundColor"] as? String == steps[3]["backgroundColor"] as? String, "in its colour")
+        #expect(abs((num(step, "x") + num(step, "width") / 2) - (num(dot, "x") + num(dot, "width") / 2)) < 0.5, "over its dot")
+        let lastID = try #require(dots[4]["id"] as? String), dotID = try #require(dot["id"] as? String), stepID = try #require(step["id"] as? String)
+        func joined(_ a: String, _ b: String) -> [String: Any]? {
+            els.first { e in e["type"] as? String == "arrow" && Set([(e["startBinding"] as? [String: Any])?["elementId"] as? String, (e["endBinding"] as? [String: Any])?["elementId"] as? String]) == Set([a, b]) }
+        }
+        let line = try #require(joined(lastID, dotID), "the line runs on to the new dot")
+        #expect(line["endArrowhead"] is NSNull, "plain, as the rest of the line")
+        #expect(joined(dotID, stepID) != nil, "the step joined to its dot")
+        #expect(els.count >= before + 4, "a dot, a step, two lines (and its words)")
+        let typing = try await j.js("(() => { const t = amber._canvas.api.getAppState().editingTextElement; return t ? t.containerId : null; })()") as? String
+        #expect(typing == stepID, "typed into at once")
+        // Typed in and done; then one Undo takes the step back, line and all.
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = 'Review\\nWeek 10'; t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); } return 1; })()")
+        await j.until("typing done") { !j.canvas.state.editing }
+        // Add Step from the bar this time, on the new step.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(stepID)': true } } }); return 1; })()")
+        await j.until("Add Step offered on it") { j.canvas.state.grows == .step }
+        j.canvas.send(.grow)
+        await j.until("a seventh") { j.canvas.state.editing }
+        els = try await all()
+        #expect(els.filter { part($0) == "dot" }.count == 7)
+        let seventh = try #require(els.filter { part($0) == "step" }.max { num($0, "x") < num($1, "x") })
+        #expect(abs(num(seventh, "y") - num(steps[4], "y")) < 0.5, "above again, where Launch is")
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("typing done again") { !j.canvas.state.editing }
+        // (Typing ending is a step of the engine's own, as after a double-click.)
+        for _ in 0..<3 {
+            j.canvas.run(.undo)
+            try await Task.sleep(for: .milliseconds(300))
+            els = try await all()
+            if els.filter({ part($0) == "dot" }).count < 7 { break }
+        }
+        #expect(els.filter { part($0) == "dot" }.count == 6 && els.filter { part($0) == "step" }.count == 6, "Undo takes the seventh back, its dot and line with it")
+        #expect(!els.contains { e in e["type"] as? String == "arrow" && (e["endBinding"] as? [String: Any])?["elementId"] as? String == (seventh["id"] as? String) }, "and its stem")
+        // Nothing of a timeline selected: nothing to add.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        await j.until("nothing selected") { j.canvas.state.grows == nil }
+    }
+
+    /// Add Column: a card or a column of a Kanban or Retro board selected, Tab (or Add Column) adds
+    /// a column like the last, the same gap to its right, its heading "New column" selected for
+    /// typing over. S still adds a card under a card.
+    @Test func tabAddsAKanbanColumn() async throws {
+        let j = try await Joined(size: CGSize(width: 1100, height: 760))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.insert(.kanban, title: "Sprint"))
+        await j.until("the kanban is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        func all() async throws -> [[String: Any]] {
+            let json = try await j.js("JSON.stringify(amber._canvas.api.getSceneElements())") as? String ?? "[]"
+            return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]] ?? []
+        }
+        func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+        func lane(_ e: [String: Any]) -> Bool { (e["customData"] as? [String: Any])?["pintoColumn"] as? Bool == true }
+        var els = try await all()
+        let lanes = els.filter(lane).sorted { num($0, "x") < num($1, "x") }
+        #expect(lanes.count == 3)
+        // A card in Doing selected.
+        let card = try #require(els.first { e in e["type"] as? String == "rectangle" && !lane(e) && num(e, "x") > num(lanes[1], "x") && num(e, "x") < num(lanes[2], "x") })
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(card["id"] as! String)': true } } }); return 1; })()")
+        await j.until("Add Column offered") { j.canvas.state.grows == .column }
+        _ = try await j.js("(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("typing its heading") { j.canvas.state.editing }
+        els = try await all()
+        let now = els.filter(lane).sorted { num($0, "x") < num($1, "x") }
+        #expect(now.count == 4)
+        let added = try #require(now.last)
+        #expect(abs(num(added, "x") - num(lanes[2], "x") - (num(lanes[2], "x") - num(lanes[1], "x"))) < 0.5, "the same gap on")
+        #expect(num(added, "y") == num(lanes[2], "y") && num(added, "width") == num(lanes[2], "width") && num(added, "height") == num(lanes[2], "height"))
+        #expect(added["backgroundColor"] as? String == lanes[2]["backgroundColor"] as? String)
+        let heading = try await j.js("(() => { const t = amber._canvas.api.getAppState().editingTextElement; return t ? t.text : null; })()") as? String
+        #expect(heading == "New column", "its heading, being typed in: \(heading ?? "nil")")
+        let selected = try await j.js("(() => { const t = document.activeElement; return t && t.tagName === 'TEXTAREA' ? t.selectionEnd - t.selectionStart : -1; })()") as? Int
+        #expect(selected == "New column".count, "all of it selected, so typing replaces it")
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = 'Review'; t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); } return 1; })()")
+        await j.until("typed") { !j.canvas.state.editing }
+        let words = try await j.js("(() => amber._canvas.api.getSceneElements().some((e) => e.type === 'text' && e.text === 'Review'))()") as? Bool
+        #expect(words == true, "the new column is called Review")
+        // A column itself selected: Add Column there too, first in the right-click menu.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(lanes[0]["id"] as! String)': true } } }); return 1; })()")
+        await j.until("Add Column offered on a column") { j.canvas.state.grows == .column }
+        let web = try #require(j.web as? NotePageWebView)
+        #expect(web.canvasMenu().items.first?.title == "Add Column")
+        // The title selected: nothing to add.
+        _ = try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.customData && e.customData.pintoTitle); api.updateScene({ appState: { selectedElementIds: { [t.id]: true } } }); return 1; })()")
+        await j.until("nothing to add on the title") { j.canvas.state.grows == nil && !j.canvas.state.selection.isEmpty }
+    }
+
     /// One of your templates comes in on an empty board as a built-in one does: everything it
     /// kept, its joins and picture, nothing selected, as one step Undo takes back. Its title line
     /// says the board's own name; a board still called Whiteboard takes the template's.
@@ -4219,6 +4436,67 @@ import UIKit
                     try await shot(String(format: "%02d-template-%@", i < 5 ? 2 + i : 29 + i - 5, t.rawValue), w, web)
                     if i == 0 { clicksReachTheBoard(w, web) }
                 }
+                // Templates that grow, and your own (round 15, Opus #5): a timeline gains a step
+                // with Tab, a kanban a column; a frame saved as a template and used on a new board.
+                if !dark {
+                    @MainActor func typeAndFinish(_ words: String) async throws {
+                        for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                        try await js("const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); }")
+                        for _ in 0..<100 where canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                    }
+                    try await insert(.timeline)
+                    try await select("e.customData && e.customData.pintoStep === 'step' && e.x > 500")
+                    for _ in 0..<50 where canvas.state.grows != .step { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.state.grows == .step)
+                    try await shot("43-timeline-1-add-step", w, web)
+                    try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }))")
+                    try await typeAndFinish("Review\nWeek 10")
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("43-timeline-2-step-added", w, web)
+
+                    try await insert(.kanban)
+                    try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")
+                    for _ in 0..<50 where canvas.state.grows != .column { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.state.grows == .column)
+                    try await shot("44-kanban-1-add-column", w, web)
+                    canvas.send(.grow)
+                    try await typeAndFinish("Review")
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("44-kanban-2-column-added", w, web)
+
+                    // A board's frame, selected; saved as a template (the right-click menu's Save as
+                    // Template…, named "Launch checklist"); on a new board, under Your templates; used.
+                    let mine = WhiteboardTemplates.shared
+                    let kept = mine.items
+                    defer { for t in mine.items where !kept.contains(where: { $0.id == t.id }) { mine.remove(t.id) } }
+                    try await insert(.flowchart)
+                    try await js("""
+                    const api = amber._canvas.api, els = api.getSceneElements();
+                    const body = els.filter((e) => !(e.customData && (e.customData.pintoTitle || e.customData.pintoHint)));
+                    const [x1, y1, x2, y2] = [Math.min(...body.map((e) => e.x)), Math.min(...body.map((e) => e.y)), Math.max(...body.map((e) => e.x + e.width)), Math.max(...body.map((e) => e.y + e.height))];
+                    const frame = { type: 'frame', id: 'launch-frame', x: x1 - 40, y: y1 - 40, width: x2 - x1 + 80, height: y2 - y1 + 80, name: 'Launch checklist' };
+                    // The frame is the board: the template's title and how-to line go.
+                    amber._canvasCommand({ op: 'restoreVersion', scene: { elements: [frame, ...body.map((e) => ({ ...e, frameId: 'launch-frame' }))] } });
+                    """)
+                    try await select("e.id === 'launch-frame'")
+                    #expect(web.canvasMenu().items.contains { $0.title == NoteMoreMenu.saveTemplateTitle })
+                    try await shot("45-save-template-1-frame-selected", w, web)
+                    let saved = try #require(await canvas.saveAsTemplate(named: "Launch checklist", selection: true, mine))
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                    await MacWindowChromeTests.settle(w, 6)
+                    try await shot("45-save-template-2-saved", w, web)
+                    canvas.notice = nil
+                    try await js("amber._canvas.api.updateScene({ elements: [] })")
+                    for _ in 0..<100 where !canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 15)
+                    try await shot("45-save-template-3-your-templates", w, web)
+                    canvas.insertTemplate(saved)
+                    for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("45-save-template-4-used", w, web)
+                }
                 try await insert(.flowchart)
                 try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")
                 try await shot("07-selected-box", w, web)
@@ -4326,6 +4604,13 @@ import UIKit
                 defer { CanvasController.highlightTime = 4 }
                 NotePageDataStore.shared.take(note.id, server: server, by: "ChatGPT")
                 for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+                // Its tag isn't on the how-to line's row (round 15).
+                if let h = canvas.highlight {
+                    let spot = CanvasAIHighlight.tag(for: h, outlines: CanvasAIHighlight(highlight: h).outlines)
+                    let tag = CGRect(origin: spot, size: CGSize(width: CanvasAIHighlight.tagWidth(h.by), height: CanvasAIHighlight.tagHeight))
+                    #expect(!h.rows.isEmpty, "the board's lines of words are known")
+                    #expect(!CanvasAIHighlight.sharesRow(tag, with: h.rows), "the tag is on no row of words: \(tag) in \(h.rows)")
+                }
                 try await shot("12-ai-drew", w, web)
                 let fullScreen = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
                 let e = try #require(fullScreen ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
@@ -4643,6 +4928,51 @@ import UIKit
                 }
             }
         }
+    }
+
+    /// A long library scrolled so a row of tiles runs up to the search field: the grid is cut a gap
+    /// below the field and fades in, so no tile shows under or against it (round 14,
+    /// library-sync-mac-end: Lane and Risk scrolled up under the field and touched its edge).
+    @Test func theLibrarysTilesStayClearOfItsSearchField() async throws {
+        let lib = CanvasLibrary(folder: nil)
+        _ = lib.importLibrary(Data(Self.basicShapesLibrary.utf8), source: "Basic shapes")
+        _ = lib.importLibrary(Data(Self.dataFlowLibrary.utf8), source: "Data flow")
+        let box: [[String: Any]] = [["type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 60, "backgroundColor": "#a5d8ff", "fillStyle": "solid"]]
+        for i in 0..<11 { _ = lib.add(elements: box, name: "Saved \(i)") }
+        #expect(CanvasLibraryGrid.showsSearch(lib.items.count))
+        let grid = CanvasLibraryGrid(lib.items)
+        let size = CGSize(width: CanvasLibraryPopover.width, height: CanvasLibraryPopover.gridHeight(grid) + 44 + 34)
+        let ax = OffscreenAX(CanvasLibraryPopover(canvas: CanvasController(), library: lib)
+            .frame(width: size.width, height: size.height, alignment: .top)
+            .background(Color.white), size: size)
+        defer { ax.close() }
+        await ax.settle(500)
+        let field = try #require(ax.find("canvas.library.search"), "\(ax.ids())")
+        let v = try #require(ax.window.contentView)
+        let scroll = try #require(MacWindowChromeTests.find(NSScrollView.self, in: v))
+        // The first row's tiles start under the heading (padding, heading, gap); scrolled so they
+        // start 20 points above the grid's top, their middles at its top.
+        let first = CanvasLibraryPopover.padding + CanvasLibraryPopover.heading + CanvasLibraryPopover.spacing
+        let doc = try #require(scroll.documentView)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: doc.isFlipped ? first + 20 : doc.frame.height - scroll.contentView.bounds.height - first - 20))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        await ax.settle(200)
+        let rep = try #require(v.bitmapImageRepForCachingDisplay(in: v.bounds))
+        v.cacheDisplay(in: v.bounds, to: rep)
+        // From the field's foot down: the gap is the popover's white; lower down, the tiles show.
+        let top = scroll.convert(scroll.bounds, to: nil).maxY // The grid's top, from the bottom left.
+        let tiles = CGRect(x: CanvasLibraryPopover.padding + 4, y: 0, width: CanvasLibraryPopover.tile - 8, height: 1)
+        let below = Self.darkest(in: tiles.offsetBy(dx: 0, dy: top - 30).union(tiles.offsetBy(dx: 0, dy: top - 22)), of: rep, window: size)
+        // The field's foot, from the window's top (its frame is the screen's, from the top left).
+        let screen = NSScreen.screens.first?.frame.height ?? 0
+        let foot = field.frame.maxY - (screen - ax.window.frame.maxY)
+        #expect(foot <= size.height - top + 1, "the grid starts under the field: \(foot) \(size.height - top)")
+        // From a point under the field's edge to the end of the gap.
+        let band = tiles.offsetBy(dx: 0, dy: top - CanvasLibraryPopover.searchGap + 0.5).union(tiles.offsetBy(dx: 0, dy: size.height - foot - 2))
+        let gap = Self.darkest(in: band, of: rep, window: size)
+        if let dir = ProcessInfo.processInfo.environment["LIBRARY_GAP_SHOT"] { try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appending(path: "library-gap.png")) }
+        #expect(gap >= 253, "nothing of the tiles in the gap under the search field: \(gap)")
+        #expect(below <= 248, "the tiles do show lower down (the test sees them): \(below)")
     }
 
     /// The darkest grey (0 to 255, by its brightest channel) in `rect` (the window's points, from
@@ -4991,7 +5321,7 @@ extension CanvasNativeUITests {
         defer { j.close() }
         try await j.ready()
         j.canvas.share(true)
-        let sara = BoardPeer(id: UUID(), name: "Sara", color: "#4F6B87", pointer: CGPoint(x: 300, y: 260), selection: ["b"])
+        let sara = BoardPeer(id: TestPeople.sara, name: "Sara", color: TestPeople.color(TestPeople.sara).light, pointer: CGPoint(x: 300, y: 260), selection: ["b"])
         j.canvas.show(peers: [sara])
         await j.until("Sara is drawn") { true }
         try await Task.sleep(for: .milliseconds(300))
@@ -5012,8 +5342,9 @@ extension CanvasNativeUITests {
         func near(_ a: String, _ b: String) -> Bool { abs((r[a] as? Double ?? -1e9) - (r[b] as? Double ?? 1e9)) < 1.5 }
         #expect(near("px", "wantX") && near("py", "wantY"), "the pointer is where Sara's is on the board: \(r)")
         #expect(near("bx", "wantBX") && near("bw", "wantBW"), "her selection is outlined: \(r)")
-        #expect(r["flag"] as? String == "Sara" && r["flagBg"] as? String == "rgb(79, 107, 135)" && r["flagOpacity"] as? Double == 1 && r["flagHeight"] as? Double == 16)
-        #expect(r["fill"] as? String == "#4F6B87" && r["boxColor"] as? String == "rgb(79, 107, 135)")
+        // Her indigo (TestPeople), as on every device.
+        #expect(r["flag"] as? String == "Sara" && r["flagBg"] as? String == "rgb(82, 82, 197)" && r["flagOpacity"] as? Double == 1 && r["flagHeight"] as? Double == 16)
+        #expect(r["fill"] as? String == "#5252C5" && r["boxColor"] as? String == "rgb(82, 82, 197)")
         #expect(r["layer"] as? String == "none" && r["hitLayer"] as? Bool == false, "a click there reaches the board")
 
         // You zoom and scroll: she stays on the same spot of the board.
@@ -5138,7 +5469,7 @@ extension CanvasNativeUITests {
         j.canvas.share(true)
         var told: [UUID?] = []
         j.canvas.onFollow = { told.append($0) }
-        var sara = BoardPerson(id: UUID(), name: "Sara", color: "#B5445B", dark: "#E07A8F", presenting: BoardPresenting(frame: "f2", i: 1, n: 2))
+        var sara = BoardPerson(id: TestPeople.sara, name: "Sara", color: TestPeople.color(TestPeople.sara).light, dark: TestPeople.color(TestPeople.sara).dark, presenting: BoardPresenting(frame: "f2", i: 1, n: 2))
         j.canvas.show(people: [sara])
         #expect(j.canvas.followBanner == .presenting(sara))
         j.canvas.follow(sara.id)
@@ -5273,7 +5604,7 @@ extension CanvasNativeUITests {
         if let dir { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
         // The same two accounts in light and dark, so each is in the same colour in both pictures
         // (round 10: Emil was slate blue in one and mauve in the other, two runs with new accounts).
-        let accounts = ["Emil": UUID(uuidString: "E0000000-0000-4000-8000-000000000001")!, "Sara": UUID(uuidString: "5A000000-0000-4000-8000-000000000002")!]
+        let accounts = TestPeople.accounts
         for dark in [false, true] {
             let people = BoardPeople()
             // The drawing as a board saves it: every element with an id (an arrow's too).
@@ -5359,7 +5690,7 @@ extension CanvasNativeUITests {
         guard let path = ProcessInfo.processInfo.environment["BOARD_COLLAB_SHOTS"] else { return }
         let dir = URL(fileURLWithPath: path)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let accounts = ["Emil": UUID(uuidString: "E0000000-0000-4000-8000-000000000001")!, "Sara": UUID(uuidString: "5A000000-0000-4000-8000-000000000002")!]
+        let accounts = TestPeople.accounts
         let frames = """
         amber._canvasCommand({ op: 'insert', elements: [
           { type: 'text', id: 'p1', x: 40, y: 40, text: 'Sign-up takes 6 steps', fontSize: 28 },

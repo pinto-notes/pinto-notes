@@ -232,6 +232,14 @@ struct CanvasState: Equatable, Sendable {
     var frames: [Frame] = []
     /// What's selected is a frame or in one: Present from Here starts there.
     var inFrame = false
+    /// What's selected is a part of a template that has more of its kind: a Kanban or Retro
+    /// column (Add Column) or a Timeline step (Add Step) (round 15).
+    var grows: Grows?
+    enum Grows: String, Equatable, Sendable {
+        case column, step
+        var title: String { self == .column ? "Add Column" : "Add Step" }
+        var symbol: String { self == .column ? "rectangle.split.3x1" : "calendar.day.timeline.left" }
+    }
     /// The selected elements' types ("rectangle", "text", …).
     var selection: [String] = []
     /// Where the selection is in the page, in points from its top left (nil: nothing selected).
@@ -291,6 +299,7 @@ struct CanvasState: Equatable, Sendable {
         selection = (m["selection"] as? [String]) ?? []
         frames = ((m["frames"] as? [[String: Any]]) ?? []).compactMap { f in (f["id"] as? String).map { Frame(id: $0, name: f["name"] as? String ?? "") } }
         inFrame = (m["inFrame"] as? Bool) ?? false
+        grows = (m["grows"] as? String).flatMap(Grows.init(rawValue:))
         editing = (m["editing"] as? Bool) ?? false
         cropping = (m["cropping"] as? Bool) ?? false
         busy = (m["busy"] as? Bool) ?? false
@@ -379,6 +388,9 @@ enum CanvasCommand: Equatable, Sendable {
     case image(CanvasImage, at: CGPoint?)
     /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
     case sticky
+    /// Add Column or Add Step: the next of the selected template part's kind (CanvasState.grows),
+    /// typed into at once, as Tab does.
+    case grow
     /// Ends cropping a picture, keeping the crop.
     case cropDone
     /// The last change an AI made, outlined again and brought into view.
@@ -447,6 +459,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .background(let c): ["op": "background", "color": c]
         case .insert(let t, let title): ["op": "insert", "elements": t.elements(titled: title)]
         case .sticky: ["op": "sticky"]
+        case .grow: ["op": "grow"]
         case .cropDone: ["op": "cropDone"]
         case .showLastChange: ["op": "showLastChange"]
         case .present(let to): ["op": "present", "to": to.rawValue]
@@ -646,6 +659,9 @@ final class CanvasController {
         var near: [CGRect] = []
         /// …and arrows and lines, as they're drawn (round 10, 16: an arrow's box is a hairline).
         var lines: [Line] = []
+        /// Lines of words on their own (a title, a how-to line): the tag never shares a row with
+        /// one (round 15).
+        var rows: [CGRect] = []
         /// The board's size, for the tag to stay in it.
         var view: CGSize? = nil
 
@@ -726,7 +742,7 @@ final class CanvasController {
             let v = b.compactMap { ($0 as? Double) ?? ($0 as? Int).map(Double.init) }
             return v.count == 4 ? CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) : nil
         } }
-        let boxes = rects("boxes"), near = rects("near")
+        let boxes = rects("boxes"), near = rects("near"), rows = rects("rows")
         let double = { (v: Any) in (v as? Double) ?? (v as? Int).map(Double.init) }
         let lines = ((r["lines"] as? [[String: Any]]) ?? []).compactMap { l -> Highlight.Line? in
             let v = ((l["p"] as? [Any]) ?? []).compactMap(double)
@@ -742,6 +758,7 @@ final class CanvasController {
                 h.boxes = boxes
                 h.near = near
                 h.lines = lines
+                h.rows = rows
                 h.view = view
                 highlight = h
             }
@@ -752,7 +769,7 @@ final class CanvasController {
         guard (r["find"] as? Bool == true) == (e.kind == .found) else { return }
         expecting = nil
         let h = Highlight(rect: CGRect(x: num("x"), y: num("y"), width: num("width"), height: num("height")), by: e.by, count: Int(num("count")),
-                          kind: e.kind, boxes: boxes, near: near, lines: lines, view: view)
+                          kind: e.kind, boxes: boxes, near: near, lines: lines, rows: rows, view: view)
         highlight = h
         if e.kind == .ai {
             lastChangeBy = e.by
@@ -1432,15 +1449,23 @@ final class CanvasController {
     static let templateSavedTitle = "Saved as template"
     static let templateDeletedTitle = "Template deleted"
 
-    /// The whole board kept as one of your templates (the More menu's Save as Template…): its
-    /// elements, the how-to line among them, and its pictures. Nil on an empty board, and it says so.
+    /// Save as Template… asking for its name (NoteDetailView asks): the whole board (the More
+    /// menu), or what's selected (the right-click menu and the selection bar's More; round 15: a
+    /// frame takes what's in it).
+    enum TemplateSource: Equatable { case board, selection }
+    var namingTemplate: TemplateSource?
+    func askTemplateName(_ source: TemplateSource) { namingTemplate = source }
+
+    /// The whole board kept as one of your templates (the More menu's Save as Template…), or what's
+    /// selected (`selection`): its elements, the how-to line among them, and its pictures. Nil on
+    /// an empty board or with nothing selected, and it says so.
     @discardableResult
-    func saveAsTemplate(named name: String, _ templates: WhiteboardTemplates = .shared) async -> CanvasLibraryItem? {
-        guard let json = await call?("boardPiece", [:]) as? String,
+    func saveAsTemplate(named name: String, selection: Bool = false, _ templates: WhiteboardTemplates = .shared) async -> CanvasLibraryItem? {
+        guard let json = await call?("boardPiece", selection ? ["selection": true] : [:]) as? String,
               let piece = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
               let item = templates.add(name: name.isEmpty ? title : name, elements: piece["elements"] as? [[String: Any]] ?? [],
                                        files: piece["files"] as? [String: Any] ?? [:]) else {
-            confirm("Draw something to save it as a template")
+            confirm(selection ? "Select something to save it as a template" : "Draw something to save it as a template")
             return nil
         }
         confirm(Self.templateSavedTitle)
@@ -2135,8 +2160,9 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
     }
     /// A lane with its heading on top and cards under it.
     private static func column(_ id: String, x: Double, title: String, fill: String, cards: [String], width: Double = 220, height: Double = 380) -> [[String: Any]] {
+        // Marked, so Add Column (Tab) makes the next one like it (round 15).
         var out: [[String: Any]] = [["type": "rectangle", "id": id, "x": x, "y": 0, "width": width, "height": height, "strokeColor": laneEdge,
-                                     "backgroundColor": lane, "fillStyle": "solid", "roundness": ["type": 3]],
+                                     "backgroundColor": lane, "fillStyle": "solid", "roundness": ["type": 3], "customData": ["pintoColumn": true]],
                                     text(title, x: x + 16, y: 14, size: 20)]
         for (i, c) in cards.enumerated() {
             out.append(box("\(id)-\(i)", x: x + 14, y: 56 + Double(i) * 92, w: width - 28, h: 76, text: c, fill: fill, size: 16))
@@ -2193,12 +2219,12 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             out.append(T.arrow(from: "idea2", to: "sub0", x: -280, y: 186, dx: 0, dy: 60, branch: true))
             return out
         case .retro:
-            return T.title("Retro", hint: "Double-click a card to write. Select a card and press S to add a note under it.")
+            return T.title("Retro", hint: "Double-click to write. Select a card and press S to add a note, or Tab to add a column.")
                 + T.column("well", x: 0, title: "Went well", fill: T.green, cards: ["Shipped on time"])
                 + T.column("better", x: 240, title: "Could be better", fill: T.red, cards: ["Too many meetings"])
                 + T.column("try", x: 480, title: "Try next", fill: T.blue, cards: ["Demo every Friday"])
         case .kanban:
-            return T.title("Kanban", hint: "Drag cards between columns. Select a card and press S to add one under it.")
+            return T.title("Kanban", hint: "Select a card and press S to add one under it, or Tab to add a column.")
                 + T.column("todo", x: 0, title: "To do", fill: T.yellow, cards: ["Write the brief \u{00B7} Sam", "Book the venue \u{00B7} Alex"])
                 + T.column("doing", x: 240, title: "Doing", fill: T.blue, cards: ["Draft the post \u{00B7} you"])
                 + T.column("done", x: 480, title: "Done", fill: T.green, cards: ["Pick a date \u{00B7} team"])
@@ -2258,17 +2284,21 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             let steps = ["Kickoff\nWeek 1", "Research\nWeek 2", "Design\nWeek 4", "Beta\nWeek 6", "Launch\nWeek 8"]
             let fills = [T.blue, T.yellow, T.blue, T.yellow, T.green]
             let cx = { (i: Int) in 70 + Double(i) * 150 }
-            var out = T.title("Timeline", hint: "Double-click a step to change it. Select one and choose Duplicate to add the next.")
+            var out = T.title("Timeline", hint: "Double-click a step to change it. Select one and press Tab to add a step at the end.")
+            // Marked, so Add Step (Tab) makes the next one like them (round 15).
             for i in steps.indices {
                 out.append(["type": "ellipse", "id": "dot\(i)", "x": cx(i) - 12, "y": 108.0, "width": 24.0, "height": 24.0,
-                            "strokeColor": T.ink, "backgroundColor": T.violet, "fillStyle": "solid"])
+                            "strokeColor": T.ink, "backgroundColor": T.violet, "fillStyle": "solid", "customData": ["pintoStep": "dot"]])
                 let above = i % 2 == 0
-                out.append(T.box("step\(i)", x: cx(i) - 70, y: above ? 0 : 176, w: 140, h: 64, text: steps[i], fill: fills[i], size: 16))
+                out.append(T.box("step\(i)", x: cx(i) - 70, y: above ? 0 : 176, w: 140, h: 64, text: steps[i], fill: fills[i], size: 16)
+                    .merging(["customData": ["pintoStep": "step"]]) { a, _ in a })
                 out.append(above ? T.arrow(from: "step\(i)", to: "dot\(i)", x: cx(i), y: 64, dx: 0, dy: 44, branch: true)
                                  : T.arrow(from: "dot\(i)", to: "step\(i)", x: cx(i), y: 132, dx: 0, dy: 44, branch: true))
             }
+            // A plain line between the dots: an arrowhead on the last one ran into the last dot
+            // (rounds 13 and 14, 31), and the line grows with each step added.
             for i in steps.indices.dropLast() {
-                out.append(T.arrow(from: "dot\(i)", to: "dot\(i + 1)", x: cx(i) + 12, y: 120, dx: 126, dy: 0, branch: i < steps.count - 2))
+                out.append(T.arrow(from: "dot\(i)", to: "dot\(i + 1)", x: cx(i) + 12, y: 120, dx: 126, dy: 0, branch: true))
             }
             return out
         case .orgChart:

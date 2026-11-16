@@ -13,7 +13,7 @@ import { codeDigits, CODE_LENGTH, looksLikeEmail } from "@/lib/board-auth";
 import { followers as followersOf, followersLine, words } from "@/lib/board-follow";
 import type { PageState } from "@/lib/board-host";
 import { presentHint, presentKey, styleBarShows } from "@/lib/board-present";
-import { Icon, StyleBar, ToolBar, TOOLS, useWidth } from "./BoardControls";
+import { FIT_ICON, Icon, StyleBar, ToolBar, TOOLS, useWidth, ZoomControl } from "./BoardControls";
 import NoteLink, { appLink } from "./NoteLink";
 import s from "./board.module.css";
 
@@ -145,11 +145,7 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
       {/* Never over an open thread: the thread is what you're reading (round 13, web-06). */}
       {styleBarShows(state, ctl.canEdit, threadOpen) && <StyleBar state={state} command={command} width={width} height={height} />}
 
-      <div className={s.zoom}>
-        <button className={s.zoomButton} aria-label="Zoom out" onClick={() => command({ op: "action", name: "zoomOut" })}>−</button>
-        <button className={s.zoomValue} aria-label="Zoom to fit" title="Zoom to fit" onClick={() => command({ op: "action", name: "zoomToFit" })}>{Math.round((state.zoom ?? 1) * 100)}%</button>
-        <button className={s.zoomButton} aria-label="Zoom in" onClick={() => command({ op: "action", name: "zoomIn" })}>+</button>
-      </div>
+      <ZoomControl zoom={state.zoom ?? 1} command={command} width={width} overTools={ctl.canEdit} />
 
       {host && <FollowBanner ctl={ctl} />}
       {threadOpen && <ThreadCard ctl={ctl} anchor={anchor} />}
@@ -184,7 +180,7 @@ function BoardMore({ open, setOpen, command, steps }: { open: boolean; setOpen: 
             <span className={s.menuHint}>{presentHint(steps)}</span>
           </button>
           <button className={s.menuItem} role="menuitem" onClick={() => { setOpen(false); command({ op: "action", name: "zoomToFit" }); }}>
-            <Icon size={18}><path d="M4 8V4h4M14 4h4v4M18 14v4h-4M8 18H4v-4" /></Icon><span>Zoom to Fit</span>
+            <Icon size={18}>{FIT_ICON}</Icon><span>Zoom to Fit</span>
           </button>
         </div>
       )}

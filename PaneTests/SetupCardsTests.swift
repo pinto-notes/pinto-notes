@@ -591,7 +591,13 @@ import Vision
     /// last row the sheet's margin, so its names and lines end clear of the foot.
     @Test func theHeaderSaysWhatTheseAreAndThreeRowsShow() throws {
         typealias L = TemplateLibraryView
-        #expect(TemplateLibraryWords.subtitle == "Notes and small apps your AI can fill in and keep up to date.")
+        #expect(TemplateLibraryWords.subtitle == "Notes, small apps and whiteboards your AI can fill in and keep up to date.")
+        #expect(TemplateLibraryWords.subtitle.contains("whiteboards"), "it names what the gallery has (round 15)")
+        #if os(macOS)
+        // On one line on the smallest sheet too.
+        let line = (TemplateLibraryWords.subtitle as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 13)]).width
+        #expect(line <= 720 - 2 * L.marginSmall, "\(line) pt")
+        #endif
         let src = try library
         #expect(src.components(separatedBy: ".frame(height: Self.controls)").count == 3, "the gallery's row and a page's row are one height")
         #expect(src.components(separatedBy: ".padding(.top, Self.margin(for: size))").count == 3, "and both start a margin under the sheet's top")

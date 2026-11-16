@@ -197,7 +197,8 @@ enum TemplateLibraryWords {
     /// Under the sheet's name: what these are, and what an "App" is (council, 10 November 2026:
     /// without it the gallery is coloured pictures and a word). "Can": your AI fills one in when
     /// you ask it to, not by itself ("fills in and keeps up to date" read as a standing service).
-    static let subtitle = "Notes and small apps your AI can fill in and keep up to date."
+    /// Whiteboards too, which the gallery has (round 15: it named only notes and apps).
+    static let subtitle = "Notes, small apps and whiteboards your AI can fill in and keep up to date."
     /// Back, from a template's page: the button says "Templates"; VoiceOver hears where it goes.
     static let back = "Back to Templates"
     /// On the stage: what you see is filled in; Make adds an empty one that your AI fills.

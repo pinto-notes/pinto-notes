@@ -405,6 +405,9 @@ final class SyncEngine {
         let files = ch.postgresChange(AnyAction.self, schema: "public", table: "attachments")
         // Note apps (prototype): an app or its data changed elsewhere (an AI's update_page_data).
         let pages = ch.postgresChange(AnyAction.self, schema: "public", table: "note_pages")
+        // The whiteboard library: another device added, renamed or removed an item. Pulled at once,
+        // so an open library (the Mac's popover, the iPhone's sheet) shows it as it happens.
+        let libraryChanges = library == nil ? [] : [ch.postgresChange(AnyAction.self, schema: "public", table: CanvasLibraryWire.table)]
         let joins = ch.statusChange
         try? await ch.subscribeWithError()
         channel = ch
@@ -413,7 +416,7 @@ final class SyncEngine {
         realtimeTasks.append(Task { [weak self] in
             for await action in notes { self?.realtimeDelivered(); await self?.received(action) }
         })
-        for stream in [folders, files, pages] {
+        for stream in [folders, files, pages] + libraryChanges {
             realtimeTasks.append(Task { [weak self] in
                 for await _ in stream { self?.realtimeDelivered(); self?.schedule(after: 0.25) }
             })

@@ -73,12 +73,24 @@ extension NetworkFaults {
         try await StubSupabase.client().from("note_pages").update(["data_ct": box, "client": client]).eq("note_id", value: board).execute()
     }
 
+    /// The note each device draws while it's offline, the same words on both sides' pictures: the
+    /// Mac's (39, 40) is what arrives on the iPhone (41-2), the iPhone's (41-3, 41-4) what arrives
+    /// on the Mac (40-sync-3) (round 14: no picture showed an offline edit reaching the other device).
+    static let offlineOnMac = "Drawn offline on the Mac", offlineOnIPhone = "Drawn offline on the iPhone"
+    /// Where the Mac draws its offline note, and in what colour.
+    static let macNote = (y: 380, fill: "#a5d8ff"), phoneNote = (y: 530, fill: "#b2f2bb")
+
+    /// A note at the board's right, as `insert` puts one: words on a rounded box.
+    static func note(_ words: String, y: Int, fill: String) -> String {
+        "amber._canvasCommand({ op: 'insert', elements: [{ type: 'rectangle', x: 880, y: \(y), width: 210, height: 100, backgroundColor: '\(fill)', fillStyle: 'solid', roundness: { type: 3 }, label: { text: '\(words)' } }] }); 1"
+    }
+
     /// The board on another device, given what's there now, with a note added there.
-    static func drawnElsewhere(_ now: [String: Any], adding words: String, y: Int) async throws -> [String: Any] {
+    static func drawnElsewhere(_ now: [String: Any], adding words: String, y: Int, fill: String = "#ffec99") async throws -> [String: Any] {
         let other = try await CanvasNativeUITests.Joined(scene: now)
         defer { other.close() }
         try await other.ready()
-        _ = try await other.js("amber._canvasCommand({ op: 'insert', elements: [{ type: 'rectangle', x: 880, y: \(y), width: 210, height: 100, backgroundColor: '#ffec99', fillStyle: 'solid', roundness: { type: 3 }, label: { text: '\(words)' } }] }); 1")
+        _ = try await other.js(note(words, y: y, fill: fill))
         for _ in 0..<100 where !(await Self.says(other.web, words)) { try await Task.sleep(for: .milliseconds(30)) }
         #expect(await Self.says(other.web, words))
         return try await Self.scene(other.web)
@@ -167,7 +179,7 @@ extension NetworkFaults {
             path.force(down: true)
             await MacWindowChromeTests.settle(w, 5)
             #expect(engine.reach == .offline)
-            _ = try await web.evaluateJavaScript("amber._canvasCommand({ op: 'insert', elements: [{ type: 'rectangle', x: 880, y: 380, width: 210, height: 100, backgroundColor: '#a5d8ff', fillStyle: 'solid', roundness: { type: 3 }, label: { text: 'Drawn offline' } }] }); 1")
+            _ = try await web.evaluateJavaScript(Self.note(Self.offlineOnMac, y: Self.macNote.y, fill: Self.macNote.fill))
             for _ in 0..<100 where !NotePageDataStore.shared.dirty.contains(board.id) { await MacWindowChromeTests.settle(w, 1) }
             #expect(NotePageDataStore.shared.dirty.contains(board.id), "saved on this Mac")
             // The whole board in view for the pictures (adding it zoomed to the new note).
@@ -192,6 +204,24 @@ extension NetworkFaults {
             #expect(engine.syncedAt != nil)
             await MacWindowChromeTests.settle(w, 5)
             try await shot("40-back-online-synced")
+
+            // The iPhone drew a note while it was offline (41-sync-iphone-3); back online it went
+            // up (41-sync-iphone-4) and comes down here, outlined in grey with "iPhone", next to
+            // what this Mac drew offline. Nothing of either is lost.
+            CanvasController.highlightTime = 60; CanvasController.arrivalTime = 60
+            try await Self.sendFromOtherDevice(board.id, scene: try await Self.drawnElsewhere(try await Self.scene(web), adding: Self.offlineOnIPhone, y: Self.phoneNote.y, fill: Self.phoneNote.fill), client: "iPhone")
+            await engine.sync()
+            for _ in 0..<100 where !(await Self.says(web, Self.offlineOnIPhone)) { await MacWindowChromeTests.settle(w, 1) }
+            let arrived = await Self.says(web, Self.offlineOnIPhone)
+            #expect(arrived, "the iPhone's offline note is on the open board")
+            let mine = await Self.says(web, Self.offlineOnMac), added = await Self.says(web, "Added on iPhone"), ready = await Self.says(web, "Ready?")
+            #expect(mine && added && ready, "and everything else stays")
+            for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
+            #expect(canvas.highlight?.kind == .device && canvas.highlight?.by == "iPhone" && canvas.highlight?.boxes.count == 1, "\(String(describing: canvas.highlight))")
+            _ = try await web.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.8, animate: false }); 1")
+            try await shot("40-sync-3-iphone-offline-note-arrived")
+            canvas.highlight = nil
+            (CanvasController.highlightTime, CanvasController.arrivalTime) = times
         }
     }
     #endif
@@ -279,15 +309,16 @@ extension NetworkFaults {
         try await fit()
         try await shot("41-sync-iphone-1-board")
 
-        // On the Mac, a note is added: it comes down to the open board here, outlined in grey
-        // with "Mac" for a moment (round 13, 41-sync-iphone-2). Held for the picture.
+        // On the Mac, a note was drawn offline (39, 40); back online it went up and comes down to
+        // the open board here, outlined in grey with "Mac" for a moment (round 13, 41-sync-iphone-2).
+        // Held for the picture.
         let times = (CanvasController.highlightTime, CanvasController.arrivalTime)
         CanvasController.highlightTime = 60; CanvasController.arrivalTime = 60
         defer { (CanvasController.highlightTime, CanvasController.arrivalTime) = times }
-        try await Self.sendFromOtherDevice(board.id, scene: try await Self.drawnElsewhere(try await Self.scene(web), adding: "Added on the Mac", y: 230), client: "Mac")
+        try await Self.sendFromOtherDevice(board.id, scene: try await Self.drawnElsewhere(try await Self.scene(web), adding: Self.offlineOnMac, y: Self.macNote.y, fill: Self.macNote.fill), client: "Mac")
         await engine.sync()
-        for _ in 0..<150 where !(await Self.says(web, "Added on the Mac")) { try await Task.sleep(for: .milliseconds(50)) }
-        #expect(await Self.says(web, "Added on the Mac"), "the Mac's note is on the open board")
+        for _ in 0..<150 where !(await Self.says(web, Self.offlineOnMac)) { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(await Self.says(web, Self.offlineOnMac), "the Mac's offline note is on the open board")
         #expect(await Self.says(web, "Ready?"))
         let canvas = try #require(BoardPicture.board(board.id))
         for _ in 0..<100 where canvas.highlight == nil { try await Task.sleep(for: .milliseconds(50)) }
@@ -299,10 +330,18 @@ extension NetworkFaults {
         canvas.highlight = nil
         (CanvasController.highlightTime, CanvasController.arrivalTime) = times
 
-        // Offline: said above the dock; back: Synced once the next sync is through.
+        // Offline: said above the dock, and a note drawn now is kept here (round 14: 41-3 and 41-4
+        // showed nothing drawn in between); back: it goes up, and Synced once the sync is through.
+        // On the Mac it arrives outlined with "iPhone" (40-sync-3).
         path.force(down: true)
         try await Task.sleep(for: .milliseconds(300))
         #expect(engine.reach == .offline)
+        _ = try await web.evaluateJavaScript(Self.note(Self.offlineOnIPhone, y: Self.phoneNote.y, fill: Self.phoneNote.fill))
+        for _ in 0..<100 where !NotePageDataStore.shared.dirty.contains(board.id) { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(NotePageDataStore.shared.dirty.contains(board.id), "saved on this iPhone")
+        await engine.sync()
+        #expect(Self.onServer(board.id)?.contains(Self.offlineOnIPhone) == false, "nothing goes up offline")
+        try await fit()
         try await shot("41-sync-iphone-3-offline")
         let hold = BoardSyncLine.hold
         BoardSyncLine.hold = .seconds(60)
@@ -311,6 +350,9 @@ extension NetworkFaults {
         try await Task.sleep(for: .milliseconds(300))
         await engine.sync()
         #expect(engine.syncedAt != nil)
+        #expect(!NotePageDataStore.shared.dirty.contains(board.id), "it went up")
+        let server = try #require(Self.onServer(board.id))
+        #expect(server.contains(Self.offlineOnIPhone) && server.contains(Self.offlineOnMac) && server.contains("Ready?"), "the server has the whole board")
         try await shot("41-sync-iphone-4-synced")
     }
     #endif

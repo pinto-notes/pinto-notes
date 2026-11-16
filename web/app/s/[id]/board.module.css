@@ -54,7 +54,7 @@
 .tool:disabled { color: var(--muted); opacity: 0.45; cursor: default; }
 .gap { flex: none; width: 10px; }
 .zoom { position: absolute; left: 12px; bottom: max(14px, env(safe-area-inset-bottom)); display: flex; align-items: center; padding: 4px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
-.zoomButton, .zoomValue { height: 32px; min-width: 32px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 17px; }
+.zoomButton, .zoomValue { height: 32px; min-width: 32px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 17px; display: grid; place-items: center; }
 .zoomValue { min-width: 54px; font-size: 13px; font-variant-numeric: tabular-nums; }
 @media (hover: hover) {
   .iconButton:hover, .tool:hover:not(:disabled), .zoomButton:hover, .zoomValue:hover, .menuItem:hover, .row:hover, .suggestItem:hover, .quiet:hover, .close:hover { background: var(--hover); }
@@ -64,10 +64,12 @@
   .me:hover { filter: brightness(1.08); }
   .link:hover { color: var(--ink); }
 }
-/* At phone width: the zoom goes (Zoom to Fit is in More Tools), the title narrows, and the tools
-   used most stay in the toolbar with the rest in More Tools, so nothing runs off the window. */
+/* At phone width: the zoom is Zoom to Fit alone (ZoomControl), above the tools; the title narrows,
+   and the tools used most stay in the toolbar with the rest in More Tools, so nothing runs off the
+   window. */
+.zoomOverTools { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 64px); }
+.fitPhone { width: 40px; height: 40px; display: grid; place-items: center; }
 @media (max-width: 600px) {
-  .zoom { display: none; }
   .titleBox { max-width: 44vw; }
   /* Only you stay (your account's menu); the others' avatars go. */
   .people li:not([data-me]) { display: none; }
@@ -80,6 +82,8 @@
 .menuRow[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-ink); }
 .menuRow span { flex: 1; }
 .key { color: var(--muted); font: 12.5px/1 inherit; }
+/* A touch screen has no keys to press: no letters beside the tools (round 14, web-08). */
+@media (hover: none) and (pointer: coarse) { .key { display: none; } }
 .menuGap { height: 6px; margin: 0; border: 0; }
 .menuDanger { color: var(--danger); }
 

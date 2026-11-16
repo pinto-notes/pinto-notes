@@ -19,7 +19,7 @@ import WebKit
         ["type": "rectangle", "id": "box", "x": 100, "y": 120, "width": 200, "height": 100],
         ["type": "rectangle", "id": "other", "x": 420, "y": 300, "width": 160, "height": 80],
     ]
-    static let sara = "5A7A0000-0000-4000-8000-000000000001"
+    static let sara = TestPeople.sara.uuidString
 
     /// A pin on the page: where it is (viewport), shown or not, its colour and letter.
     static let pinJS = """

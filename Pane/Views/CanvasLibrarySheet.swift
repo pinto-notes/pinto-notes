@@ -89,7 +89,12 @@ struct CanvasLibrarySheet: View {
             .padding(32)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if searching {
+            // The bar under the field is the sheet's own ground, solid: tiles scrolled up go behind
+            // it, never through the field (round 15: a tile's picture and name read through it).
             grid.searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
+                .toolbarBackground(Self.ground, for: .navigationBar)
+                .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+                .scrollEdgeEffectHidden(true, for: .top)
         } else {
             grid
         }

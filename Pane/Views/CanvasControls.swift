@@ -507,8 +507,20 @@ struct CanvasAIHighlight: View {
 
     /// Where the tag goes for this highlight, clear of everything drawn.
     static func tag(for h: CanvasController.Highlight, outlines: [CGRect]) -> CGPoint {
-        tag(over: outlines, avoiding: h.near.map { $0.insetBy(dx: -inkReach, dy: -inkReach) }, lines: h.lines, in: h.view,
+        tag(over: outlines, avoiding: h.near.map { $0.insetBy(dx: -inkReach, dy: -inkReach) }, lines: h.lines,
+            rows: h.rows.map { $0.insetBy(dx: -inkReach, dy: -inkReach) }, in: h.view,
             width: tagWidth(h.by, mark: h.kind == .ai || h.kind == .device))
+    }
+
+    /// How far along a line of words the tag counts as on its row: closer than this beside it, it
+    /// reads as the line's last word (round 15, 12-ai-drew: 8 pt past "…to add an arrow.").
+    static let rowReach: CGFloat = 120
+
+    /// Whether a tag here would sit on a row of words: beside one of them, overlapping its height.
+    static func sharesRow(_ r: CGRect, with rows: [CGRect]) -> Bool {
+        rows.contains { w in
+            r.minY < w.maxY && w.minY < r.maxY && max(w.minX - r.maxX, r.minX - w.maxX) < rowReach
+        }
     }
 
     /// Where the name tag's top-left corner goes: above the topmost outline, 4 pt off it (round 3,
@@ -516,8 +528,9 @@ struct CanvasAIHighlight: View {
     /// line, arrow and arrowhead (rounds 4, 7, 8 and 10, 16). The first clear spot of: above at
     /// its left end, then slid along above it (over it a while it fits its width, then staying over
     /// it by 24 pt), beside it at its top, slid down its side, then below it; in the view. With no
-    /// clear spot, the roomiest one.
-    static func tag(over outlines: [CGRect], avoiding near: [CGRect] = [], lines: [Line] = [], in view: CGSize? = nil, width: CGFloat = 96) -> CGPoint {
+    /// clear spot, the roomiest one. Never on a row of words (`rows`, also in `near`) when there's
+    /// a clear spot that isn't (round 15).
+    static func tag(over outlines: [CGRect], avoiding near: [CGRect] = [], lines: [Line] = [], rows: [CGRect] = [], in view: CGSize? = nil, width: CGFloat = 96) -> CGPoint {
         guard let top = outlines.min(by: { ($0.minY, $0.minX) < ($1.minY, $1.minX) }) else { return .zero }
         let h = tagHeight, keep = min(24, width / 2)
         let above = top.minY - 4 - h, below = top.maxY + 4
@@ -538,7 +551,9 @@ struct CanvasAIHighlight: View {
         }.sorted { $0.cost < $1.cost }
         let others = outlines.filter { $0 != top } + near
         let rect = { (p: CGPoint) in CGRect(x: p.x, y: p.y, width: width, height: h) }
-        if let clear = inView.first(where: { gap(rect($0.p), to: others, lines: lines) >= clearance }) { return clear.p }
+        let clear = inView.filter { gap(rect($0.p), to: others, lines: lines) >= clearance }
+        if let off = clear.first(where: { !sharesRow(rect($0.p), with: rows) }) { return off.p }
+        if let clear = clear.first { return clear.p }
         let roomiest = inView.max { gap(rect($0.p), to: others, lines: lines) < gap(rect($1.p), to: others, lines: lines) }
         return roomiest?.p ?? CGPoint(x: max(4, top.minX), y: above >= 4 ? above : below)
     }
@@ -1249,6 +1264,10 @@ struct CanvasSelectionBar: View {
                     #endif
                     .accessibilityIdentifier("canvas.bar.openNote")
                 }
+                // A Kanban or Retro column, a Timeline step: the next of its kind (round 15; Tab too).
+                if let grows = state.grows {
+                    textButton(grows.title, symbol: grows.symbol, id: "canvas.bar.grow") { canvas.send(.grow) }
+                }
                 if state.showsStroke || state.showsText {
                     chip(.stroke) {
                         Circle().fill(CanvasStyle.shown(state.strokeColor, dark: dark) ?? .primary).frame(width: 18, height: 18)
@@ -1490,6 +1509,9 @@ struct CanvasMoreItems: View {
         // Kept for any board, in the toolbar's Library (CanvasLibraryPopover).
         Button(CanvasLibraryPopover.saveTitle, systemImage: CanvasLibraryPopover.symbol) { Task { await canvas.saveSelectionToLibrary() } }
             .accessibilityIdentifier("canvas.saveToLibrary")
+        // What's selected as one of your templates (a frame with all that's in it; round 15).
+        Button(NoteMoreMenu.saveTemplateTitle, systemImage: "square.on.square.dashed") { canvas.askTemplateName(.selection) }
+            .accessibilityIdentifier("canvas.bar.saveTemplate")
         Divider()
         #endif
         if state.inFrame {
@@ -2080,6 +2102,8 @@ struct CanvasToolbarTools: View {
 struct CanvasLibraryPopover: View {
     let canvas: CanvasController
     var library: CanvasLibrary = .shared
+    /// The item the arrow keys start on (its id), for tests; none otherwise.
+    var startsOn: String?
 
     static let title = "Library"
     static let symbol = "books.vertical"
@@ -2100,6 +2124,15 @@ struct CanvasLibraryPopover: View {
     static let padding: CGFloat = 12
     static let heading: CGFloat = 22
     static var width: CGFloat { CGFloat(columns) * tile + CGFloat(columns - 1) * spacing + 2 * padding }
+    /// Under the search field: nothing of the grid for `searchGap` points, then it fades in over 10.
+    static let searchGap: CGFloat = 4
+    static var searchFade: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: searchGap)
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 10)
+            Color.black
+        }
+    }
     /// The groups' height, up to about four rows, so a longer library shows it scrolls. As the
     /// grid lays them out: each group's heading, the gap under it, its rows; a gap between groups
     /// (round 12, library-sync-mac: the gap under each heading wasn't counted, and the footer
@@ -2181,6 +2214,10 @@ struct CanvasLibraryPopover: View {
                     .onChange(of: picked) { _, id in if let id { withAnimation(.snappy(duration: 0.15)) { scroll.scrollTo(id) } } }
                 }
                 .frame(height: Self.gridHeight(grid))
+                // The grid stays under the search field: cut at its own top, with a clear gap and
+                // a short fade below the field (round 14, library-sync-mac-end: tiles scrolled up
+                // under the field and touched its edge).
+                .mask { if searching { Self.searchFade } else { Rectangle() } }
                 HStack {
                     importButton
                     Spacer(minLength: 8)
@@ -2209,7 +2246,7 @@ struct CanvasLibraryPopover: View {
             return key(press.key, grid)
         }
         .onChange(of: query) { picked = nil }
-        .onAppear { focus = searching ? .search : .grid }
+        .onAppear { focus = searching ? .search : .grid; if picked == nil { picked = startsOn } }
         .onDisappear { canvas.renamingLibraryItem = nil }
         // Pictures for what has none yet (an imported library), drawn by the board.
         .task(id: library.items.map(\.id)) { await canvas.drawThumbnails(library) }
