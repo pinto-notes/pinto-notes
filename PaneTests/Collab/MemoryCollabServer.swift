@@ -170,6 +170,14 @@ final class MemoryCollabServer {
         return epoch
     }
 
+    /// collab_set_role: the owner, for someone else in the note, to editor or viewer only.
+    func setRole(_ caller: UUID, note: UUID, user: UUID, role r: String) throws {
+        guard role(note, caller) == "owner" else { throw Collab.Failure.notOwner }
+        guard ["editor", "viewer"].contains(r), user != caller else { throw Collab.Failure.server("bad request") }
+        guard let current = role(note, user), current != "owner" else { throw Collab.Failure.notMember }
+        members[note]?[user]?.role = r
+    }
+
     func updateHead(_ user: UUID, note: UUID, head: String) throws {
         guard ["owner", "editor"].contains(role(note, user) ?? "") else { throw Collab.Failure.readOnly }
         notes[note]?.head = head
@@ -364,6 +372,7 @@ final class MemoryCollabTransport: CollabTransport {
         try server.check("remove")
         return try server.remove(me, note: note, user: user, epoch: epoch, wraps: wraps)
     }
+    func setRole(note: UUID, user: UUID, role: String) async throws { try server.check("set_role"); try server.setRole(me, note: note, user: user, role: role) }
     func updateHead(note: UUID, head: String) async throws { try server.check("head"); try server.updateHead(me, note: note, head: head) }
     func createLink(id: String, note: UUID, role: String, epoch: Int, answerHash: String, keyWrap: String) async throws {
         try server.check("create_link")

@@ -97,6 +97,12 @@ final class SupabaseCollabTransport: CollabTransport {
         }
     }
 
+    func setRole(note: UUID, user: UUID, role: String) async throws {
+        try await call("set role") {
+            try await client.rpc("collab_set_role", params: ["p_note": Self.id(note), "p_user": Self.id(user), "p_role": role]).execute()
+        }
+    }
+
     /// `collab_remove`'s arguments. `p_user` goes as an explicit null when no one is removed (a new
     /// key after someone left): left out, PostgREST looks for a three-argument function, finds none,
     /// and the key was never renewed.

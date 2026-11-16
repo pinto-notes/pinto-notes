@@ -35,6 +35,9 @@ protocol CollabTransport: AnyObject {
     /// remaining member's wrap must be in `wraps`, the owner's included. Returns the new epoch.
     @discardableResult
     func remove(note: UUID, user: UUID?, epoch: Int, wraps: [Collab.Wrap]) async throws -> Int
+    /// What someone else in the note can do from now on, `editor` or `viewer` (owner only;
+    /// `collab_set_role`, 20261118110000_collab_set_role.sql). No new key: only the role changes.
+    func setRole(note: UUID, user: UUID, role: String) async throws
     /// You leave someone else's note (refused for the owner). The owner's next device gives the
     /// note a new key without you (`remove` with `user` nil).
     func leave(note: UUID) async throws
