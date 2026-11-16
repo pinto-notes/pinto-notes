@@ -123,7 +123,7 @@ export function StudioNote() {
 /** The recipe ChatGPT wrote into Recipes, open, with the app's receipt at its foot. */
 export function ShakshukaNote() {
   return (
-    <PintoNote folder="Recipes" title="Shakshuka" label="Pinto Notes on a Mac, the new Shakshuka note in Recipes, its lines marked as written by ChatGPT. At its foot: ChatGPT wrote this note, Undo, See all changes.">
+    <PintoNote folder="Recipes" title="Shakshuka" label="Pinto Notes on a Mac, the new Shakshuka note in Recipes, marked as written by ChatGPT. At its foot: ChatGPT wrote this note, Undo, See all changes.">
       <h3 className={a.nTitle}>Shakshuka</h3>
       <div className={a.wrote}>
         <p className={a.meta}><span>Serves 2 · 25 min</span></p>
@@ -136,7 +136,7 @@ export function ShakshukaNote() {
       </div>
       <p className={a.receipt} aria-hidden="true">
         <AIGlyph name="openai" size={14} color="#1d1b19" />
-        <span>ChatGPT wrote this note</span><i /><b>Undo</b><i /><b>See all changes</b>
+        <span>ChatGPT wrote this note</span><i /><b>Undo</b><i className={a.wide} /><b className={a.wide}>See all changes</b>
       </p>
     </PintoNote>
   );
@@ -144,12 +144,12 @@ export function ShakshukaNote() {
 
 /** The chapter's picture, per variant. */
 export function AiAlt({ v, title }: { v: "a" | "b" | "c"; title: React.ReactNode }) {
-  const tie = v === "a" ? "Ask ChatGPT or Claude. It answers from what you decided in your notes." : v === "b" ? "Ask ChatGPT or Claude. It writes into your notes." : "Ask ChatGPT or Claude. It answers from your notes, and writes into them.";
+  const tie = v === "a" ? "Ask ChatGPT or Claude. It answers from what you decided in your notes." : v === "b" ? "Ask ChatGPT or Claude to save something. It writes it into your notes, in the folder you name." : "Ask ChatGPT or Claude. It answers from your notes, and writes into them.";
   return (
     <div className={a.body} data-v={v}>
-      <div className={a.head} data-fade>
+      <div className={a.head}>
         {title}
-        <p className={a.tie}>{tie}</p>
+        <p className={a.tie} data-fade>{tie}</p>
       </div>
       <div className={a.stage} data-fade="pic">
         {v === "c" ? (

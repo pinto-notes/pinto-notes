@@ -71,7 +71,7 @@
 .pIco svg[viewBox="0 0 20 6"] { width: 15px; height: 5px; }
 .dim { opacity: 0.45; }
 .crumb { min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; white-space: nowrap; }
-.crumb span { color: #8e8e93; }
+.crumb span { color: #6e6e73; }
 .crumb svg { width: 6px; height: 10px; fill: none; stroke: #b0b0b5; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .crumb b { font-weight: 600; color: #1d1b19; }
 .pTools { margin-left: auto; display: flex; align-items: center; gap: 13px; padding: 5px 12px; border-radius: 99px; background: #f6f6f7; color: #3a3a3c; }
@@ -82,14 +82,16 @@
 .read mark { padding: 2px 4px; margin: 0 -4px; border-radius: 4px; background: #ffe58f; color: inherit; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 .read b { font-weight: 700; }
 /* What ChatGPT wrote, marked as the app marks an AI's lines (Pane/Editor/DecoratedLayoutFragment.swift):
-   a marker run behind the words, 24% of the accent over the page, and a 2 pt tick in the accent 8 pt
-   left of the text. */
+   a marker run behind the words and a 2 pt tick 8 pt left of the text. Round 24: one attribution, the
+   receipt, and the lines marked lightly: the tint as the app draws it at 45% of its strength, as it
+   fades (24% x 0.45 of the accent over the page; the tick 45% of the way from the page to the accent).
+   At full strength every line of a note the AI wrote read as selected text (council r18). */
 .wrote { position: relative; }
-.wrote::before { content: ""; position: absolute; left: -10px; top: 3px; bottom: 14px; width: 2px; border-radius: 1px; background: #d96a06; }
-.wrote span { padding: 0.06em 0.25em; margin: 0 -0.25em; border-radius: 0.25em; background: #f6dbc3; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.wrote::before { content: ""; position: absolute; left: -10px; top: 3px; bottom: 14px; width: 2px; border-radius: 1px; background: #eebc8f; }
+.wrote span { padding: 0.06em 0.25em; margin: 0 -0.25em; border-radius: 0.25em; background: #fbefe4; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 .wrote ul { margin: 0 0 10px; padding-left: 1.2em; }
 .wrote li::marker { color: #b3a493; }
-.meta { color: #8a7d70; font-size: 15px; }
+.meta { color: #6b5f55; font-size: 15px; }
 .pinto:has(.receipt) .pNote { padding-bottom: 66px; }
 .receipt { position: absolute; left: 50%; bottom: 14px; translate: -50% 0; display: flex; align-items: center; gap: 9px; margin: 0; padding: 7px 14px; border-radius: 99px; white-space: nowrap;
   background: #fcedd8; box-shadow: 0 0 0 1px #f5dbb3, 0 6px 16px -8px rgba(120, 60, 0, 0.3); font: 600 13.5px/1.1 var(--sans); color: #a85700; }
@@ -121,8 +123,10 @@
   .pNote { padding: 10px 16px 14px; font-size: 15px; line-height: 1.45; }
   .pNote p { margin-bottom: 7px; }
   .nTitle { font-size: 22px; margin-bottom: 6px; }
-  .pinto:has(.receipt) .pNote { padding-bottom: 52px; }
-  .receipt { font-size: 12.5px; padding: 6px 12px; bottom: 10px; gap: 7px; }
+  .pinto:has(.receipt) .pNote { padding-bottom: 66px; }
+  /* The receipt fits the card: the mark, who wrote it, and Undo (See all changes is left to the Mac). */
+  .receipt { font-size: 13px; padding: 7px 13px; bottom: 12px; gap: 8px; }
+  .receipt .wide { display: none; }
   .wrote > p:last-child { display: none; }
   .wrote ul { margin-bottom: 0; }
   .body[data-v="c"] .then { margin: 12px 0 10px; font-size: 15.5px; }

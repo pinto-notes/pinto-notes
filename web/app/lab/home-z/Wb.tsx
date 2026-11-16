@@ -8,8 +8,10 @@ import w from "./wb.module.css";
 
 // Round 21 (2026-11-16): the whiteboard chapter's variants, `?wb=a|b|c` (0, the chalk board, is
 // Story.tsx's own). The Studio North decision drawn as the real board draws it: Excalidraw's hand
-// strokes in Pinto's ink (#2a1d10, #ebddd1 in dark), the palette's pastel fills (blue, yellow, green;
-// in dark mode the same fills as the board's dark filter shows them), the handwriting, the zoom label.
+// strokes in Pinto's ink (#2a1d10, #ebddd1 in dark), the palette's pastel fills (round 24: two of the
+// board's fills, CanvasStyle.fills, the warm ones that sit with the page's rust, kraft and forest: Yellow
+// for the question and Pink for the path chosen; the offer plain; in dark mode the same fills as the
+// board's dark filter shows them), the handwriting, the zoom label.
 // Claude's change, the "no" arrow, shows the way the app shows an AI's change: a dashed outline in the
 // accent with Claude's name tag beside it, and the receipt at the board's foot, "Claude added 1 arrow ·
 // Undo" (CanvasNote.change: an arrow is counted, never named). All of it from the app's own captures
@@ -40,11 +42,11 @@ const WIDE: Board = {
   title: [LABEL, [6, 42], 40],
   note: [["Ana needs an", "answer by Friday"], [40, 430], 23],
   nodes: [
-    { kind: "ellipse", c: [158, 190], w: 290, h: 124, label: ["Studio North", "offer"], fill: "blue" },
+    { kind: "ellipse", c: [158, 190], w: 290, h: 124, label: ["Studio North", "offer"], fill: null },
     { kind: "diamond", c: [520, 190], w: 290, h: 180, label: ["Take it now?"], fill: "yellow" },
     { kind: "box", c: [960, 190], w: 390, h: 120, label: ["Start in January,", "launch half done"], fill: null, dashed: true },
-    { kind: "box", c: [520, 450], w: 390, h: 120, label: ["Finish the launch,", "ship in February"], fill: "green" },
-    { kind: "ellipse", c: [960, 450], w: 330, h: 130, label: ["Talk again", "in March"], fill: "green" },
+    { kind: "box", c: [520, 450], w: 390, h: 120, label: ["Finish the launch,", "ship in February"], fill: "pink" },
+    { kind: "ellipse", c: [960, 450], w: 330, h: 130, label: ["Talk again", "in March"], fill: "pink" },
   ],
   arrows: [
     { a: [305, 190], c1: [328, 187], c2: [350, 192], b: [372, 190] },
@@ -58,21 +60,21 @@ const WIDE: Board = {
 /** The same map, compact (a phone's crop of the window): the offer and the question side by side, the
  *  dashed "yes" under the question, then the path chosen stepping down. */
 const TALL: Board = {
-  view: [358, 340], font: 17,
+  view: [358, 412], font: 17,
   nodes: [
-    { kind: "ellipse", c: [72, 46], w: 138, h: 74, label: ["Studio North", "offer"], fill: "blue" },
-    { kind: "diamond", c: [262, 46], w: 180, h: 84, label: ["Take it now?"], fill: "yellow" },
-    { kind: "box", c: [92, 166], w: 176, h: 62, label: ["Start in January,", "launch half done"], fill: null, dashed: true, size: 15.5 },
-    { kind: "box", c: [266, 184], w: 176, h: 62, label: ["Finish the launch,", "ship in February"], fill: "green", size: 15.5 },
-    { kind: "ellipse", c: [118, 296], w: 176, h: 70, label: ["Talk again", "in March"], fill: "green" },
+    { kind: "ellipse", c: [74, 48], w: 140, h: 76, label: ["Studio North", "offer"], fill: null },
+    { kind: "diamond", c: [262, 48], w: 180, h: 88, label: ["Take it now?"], fill: "yellow" },
+    { kind: "box", c: [92, 164], w: 164, h: 60, label: ["Start in January,", "launch half done"], fill: null, dashed: true, size: 15.5 },
+    { kind: "box", c: [266, 266], w: 168, h: 62, label: ["Finish the launch,", "ship in February"], fill: "pink", size: 15.5 },
+    { kind: "ellipse", c: [112, 364], w: 176, h: 72, label: ["Talk again", "in March"], fill: "pink" },
   ],
   arrows: [
-    { a: [143, 46], c1: [152, 45], c2: [161, 47], b: [169, 46] },
-    { a: [214, 72], c1: [196, 88], c2: [172, 110], b: [150, 133], label: ["yes", [184, 102]], dashed: true },
-    { a: [262, 216], c1: [262, 262], c2: [248, 296], b: [210, 297] },
+    { a: [144, 48], c1: [152, 47], c2: [161, 49], b: [170, 48] },
+    { a: [214, 72], c1: [196, 90], c2: [172, 110], b: [150, 131], label: ["yes", [188, 98]], dashed: true },
+    { a: [264, 299], c1: [264, 334], c2: [248, 362], b: [206, 364] },
   ],
-  claude: { a: [262, 90], c1: [261, 108], c2: [263, 132], b: [262, 151], label: ["no", [262, 121]] },
-  tag: { at: [276, 92], side: "right" },
+  claude: { a: [262, 96], c1: [261, 150], c2: [263, 196], b: [262, 231], label: ["no", [262, 164]] },
+  tag: { at: [276, 104], side: "right" },
 };
 
 /** On an iPhone's screen, upright: the offer, the question, then both answers under it (the dashed
@@ -81,11 +83,11 @@ const UPRIGHT: Board = {
   view: [300, 470], font: 18,
   title: [LABEL, [8, 20], 15],
   nodes: [
-    { kind: "ellipse", c: [150, 70], w: 196, h: 62, label: ["Studio North", "offer"], fill: "blue" },
+    { kind: "ellipse", c: [150, 70], w: 196, h: 62, label: ["Studio North", "offer"], fill: null },
     { kind: "diamond", c: [150, 172], w: 204, h: 96, label: ["Take it now?"], fill: "yellow" },
     { kind: "box", c: [226, 300], w: 140, h: 60, label: ["Start in January,", "launch half done"], fill: null, dashed: true, size: 14.5 },
-    { kind: "box", c: [76, 300], w: 146, h: 60, label: ["Finish the launch,", "ship in February"], fill: "green", size: 14.5 },
-    { kind: "ellipse", c: [150, 424], w: 184, h: 68, label: ["Talk again", "in March"], fill: "green" },
+    { kind: "box", c: [76, 300], w: 146, h: 60, label: ["Finish the launch,", "ship in February"], fill: "pink", size: 14.5 },
+    { kind: "ellipse", c: [150, 424], w: 184, h: 68, label: ["Talk again", "in March"], fill: "pink" },
   ],
   arrows: [
     { a: [150, 102], c1: [151, 110], c2: [149, 116], b: [150, 123] },
@@ -229,11 +231,11 @@ function Sketch({ dark }: { dark?: boolean }) {
   return (
     <svg className={w.sketch} viewBox="0 0 40 40" aria-hidden="true">
       <g stroke={ink} strokeWidth="0.9" strokeLinecap="round">
-        <ellipse cx="9" cy="15" rx="5.5" ry="3.6" fill={f.blue} />
+        <ellipse cx="9" cy="15" rx="5.5" ry="3.6" fill="none" />
         <path d="M20 10.5l5.5 4.5-5.5 4.5-5.5-4.5z" fill={f.yellow} />
         <rect x="27.5" y="12.2" width="9.5" height="5.6" rx="1.2" fill="none" strokeDasharray="1.6 1.4" />
-        <rect x="14.5" y="24" width="11" height="5.6" rx="1.2" fill={f.green} />
-        <ellipse cx="32" cy="27" rx="5" ry="3.4" fill={f.green} />
+        <rect x="14.5" y="24" width="11" height="5.6" rx="1.2" fill={f.pink} />
+        <ellipse cx="32" cy="27" rx="5" ry="3.4" fill={f.pink} />
         <path d="M14.5 15h-0.2M20 19.5v4.4M25.5 27h1.6" fill="none" />
       </g>
     </svg>

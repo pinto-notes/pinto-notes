@@ -32,16 +32,20 @@ const STUDY = [
   { who: "With Pinto Notes connected", v: 82.5, shown: "82.5%", pinto: true },
 ] as const;
 
-/** The study, once: what was measured, the two results as bars to scale, and the link. */
+/** The study, once, in its own column (round 24): why notes help a later chat, in one plain line (the
+ *  study's own framing: every new chat starts blank; with Pinto connected, the AI could look up the notes
+ *  it wrote after each chat), what was measured, the two results as large numbers over bars to scale,
+ *  and the source with the link. */
 export function Study() {
   return (
     <figure className={c.study}>
+      <p className={c.why}>Every new chat with Claude starts blank. With Pinto Notes connected, it can read the notes it saved after earlier chats.</p>
       <figcaption className={c.studyHead}>Questions about months of past chats, answered right</figcaption>
       <dl className={c.bars}>
         {STUDY.map((r) => (
-          <div key={r.who} className={c.row} data-pinto={"pinto" in r || undefined}>
+          <div key={r.who} className={c.row} data-pinto={"pinto" in r || undefined} style={{ "--v": r.v / 100 } as React.CSSProperties}>
             <dt>{r.who}</dt>
-            <dd style={{ "--v": r.v / 100 } as React.CSSProperties}><i aria-hidden="true" /><b>{r.shown}</b></dd>
+            <dd><b>{r.shown}</b><i aria-hidden="true" /></dd>
           </div>
         ))}
       </dl>

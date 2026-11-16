@@ -7,7 +7,7 @@ import { mailLink, sendLink } from "@/lib/platform";
 import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { AiShow } from "./AiShow";
-import { HabitsNote } from "./Habits";
+import { HabitsNote, NewAppSheet } from "./Habits";
 import { CollabPicture } from "./Collab";
 import { Study, Trust } from "./Close";
 import { HeroArt } from "./HeroArt";
@@ -67,10 +67,14 @@ const narrowNow = () => typeof matchMedia === "function" && matchMedia("(max-wid
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 /** How far (px) above its clip line a headline starts to fade; it's gone by the time it gets there. */
 const FADE = 64;
-/** A product picture (round 23) tucks TUCK px under its clip line (the tear's own depth: it goes under
- *  the paper, as a sheet would), then fades over PIC of its height: quick, so it's never seen cut, nor
- *  faint, for long. */
-const TUCK = 40, PIC = 0.12;
+/** A product picture slides on under the torn edge above it, as a page in the binder would, cut along
+ *  the tear (never a straight line), and stays whole and solid until only SHOW_FROM of it is left in
+ *  view; it fades out by SHOW_TO. Round 24: round 23 faded it once 12% had gone under, so for most of a
+ *  hand-off the sheet was empty (desk-06, phone-04, phone-06); now there's always something on it until
+ *  the next sheet has nearly covered it. */
+const SHOW_FROM = 0.36, SHOW_TO = 0.12;
+/** How far under its torn edge a heading with little room above it goes while it fades. */
+const TUCK_HEAD = 56;
 
 /** Who wants to know how far each chapter is through its stay (0 as it docks, 1 as the next one rises). */
 type Listener = (dwell: number, arrive: number) => void;
@@ -182,19 +186,27 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
         if (docked[i] && nt < vh) lift = Math.max(0, Math.round(topOf(i) + reach(i) - (nt - 18)));
         if (lift !== lifts[i]) { lifts[i] = lift; chs[i].style.setProperty("--lift", `${lift}px`); chs[i].toggleAttribute("data-lifted", lift > 0); }
         // A headline is never sliced: as a chapter's heading and its line move up to its torn edge,
-        // they fade out together, whole, before they reach it. A product picture (`data-fade="pic"`,
-        // round 23) is too tall to fade over that whole run without leaving its sheet bare long before
-        // the next one arrives: it tucks a little under the tear, then fades, gone once a sliver is under.
+        // each fades out, whole, as it reaches it (round 24: each on its own, so a heading that goes
+        // doesn't take its line, still well clear of the edge, with it). A product picture
+        // (`data-fade="pic"`) goes on under the tear instead, and fades once most of it has gone.
         const heads = fades[i];
         if (!heads.length) continue;
         const clipY = topOf(i) + tear;
         heads.forEach((h) => {
           if (!lift) { if (h.style.opacity) h.style.opacity = ""; return; }
-          // Over the last FADE px before the clip line, or over all the room it had, if less (a phone's
-          // heading sits just under the tear), so it starts fading from full as the lift begins.
-          const r = h.getBoundingClientRect(), gap = r.top - clipY - 4;
-          const pic = h.dataset.fade === "pic", len = pic ? r.height * PIC : FADE, shift = pic ? TUCK + len : 0;
-          const o = clamp((gap + shift) / Math.max(1, Math.min(len, gap + lift + shift))).toFixed(3);
+          const r = h.getBoundingClientRect();
+          let o: string;
+          if (h.dataset.fade === "pic") {
+            const left = (r.bottom - clipY) / Math.max(1, r.height);
+            o = clamp((left - SHOW_TO) / (SHOW_FROM - SHOW_TO)).toFixed(3);
+          } else {
+            // Over the last FADE px before the clip line. A phone's heading sits just under the tear,
+            // with less room than that: it starts fading from full as the lift begins and goes on
+            // under the tear's band by up to TUCK_HEAD px as it fades, so it doesn't vanish in the
+            // first few pixels of the hand-off.
+            const gap = r.top - clipY - 4, room = gap + lift;
+            o = clamp(room >= FADE ? gap / FADE : (gap + TUCK_HEAD) / Math.max(1, room + TUCK_HEAD)).toFixed(3);
+          }
           if (h.style.opacity !== o) h.style.opacity = o;
         });
       }
@@ -253,7 +265,7 @@ function Chapter({ tone, label, className = "", children }: { tone: Tone; label:
 
 /** A chapter's line: the full sentence on wide screens, a shorter one on a phone (both true). */
 const Say = ({ long, short }: { long: string; short: string }) => (
-  <p className={s.say}><span className={s.long}>{long}</span><span className={s.short}>{short}</span></p>
+  <p className={s.say} data-fade><span className={s.long}>{long}</span><span className={s.short}>{short}</span></p>
 );
 
 /* ───────────────────────── The first screen ───────────────────────── */
@@ -315,9 +327,9 @@ function Write() {
     <Chapter tone="write" label="s-write-h">
       <div className={s.wBody}>
         <div className={s.wIn}>
-          <div className={s.wHead} data-fade>
-            <h2 id="s-write-h" className={s.wTitle}>Write <br />notes.</h2>
-            <Say long="They feel like Apple Notes, on Mac and iPhone, and you can bring yours over." short="Like Apple Notes, on Mac and iPhone. Bring yours over." />
+          <div className={s.wHead}>
+            <h2 id="s-write-h" className={s.wTitle} data-fade>Write <br />notes.</h2>
+            <Say long="Keep what you read and what you decide. It feels like Apple Notes, on Mac and iPhone, and yours come over." short="Keep what you read and what you decide. Like Apple Notes, and yours come over." />
           </div>
           {/* The note on a Mac, and the same note on an iPhone laid over the window's corner. */}
           <div className={s.wDevices} data-fade="pic">
@@ -360,9 +372,9 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
   return (
     <Chapter tone="draw" label="s-draw-h">
       <div className={s.dBody}>
-        <div className={s.dHead} data-fade>
-          <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
-          <Say long="Map out a decision beside your notes. Your AI can read the board and draw on it with you." short="Map out a decision. Your AI can read it, and draw on it with you." />
+        <div className={s.dHead}>
+          <h2 id="s-draw-h" className={s.dTitle} data-fade>Draw on whiteboards.</h2>
+          <Say long="Think a decision through on a board beside your notes. Your AI can read it and draw on it with you." short="Think a decision through. Your AI can read the board and draw on it with you." />
         </div>
         {wb === "d" ? <div className={s.dBoard} data-fade="pic" role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. Claude has just added the no arrow, outlined and named, to finishing the launch and shipping in February, then talking again in March."><WbCanvas bind={bind} /></div>
           : wb !== "0" ? <WbArt v={wb} bind={bind} /> : <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
@@ -384,14 +396,19 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
 
 function Build() {
   // Round 23: the habit app inside its note (Habits.tsx), so "a note can be a small app" is visible.
+  // Round 24: and how it was made, under the line that says so: Pinto's New App sheet with the habit
+  // tracker described (NewAppSheet), the app it became beside it, the larger of the two.
   return (
     <Chapter tone="build" label="s-build-h">
       <div className={s.bBody}>
         <div className={s.bIn}>
           <div className={s.bApp} data-fade="pic"><HabitsNote /></div>
-          <div className={s.bHead} data-fade>
-            <h2 id="s-build-h" className={s.bTitle}>Build <br />apps.</h2>
-            <Say long="A note can be a small app. Pick a template, or describe one and your AI makes it." short="A note can be a small app. Describe one, and your AI makes it." />
+          <div className={s.bSide}>
+            <div className={s.bHead}>
+              <h2 id="s-build-h" className={s.bTitle} data-fade>Build <br />apps.</h2>
+              <Say long="A note can be a small app, like one for the habits you're building. Describe it, and your AI builds it." short="A note can be a small app. Describe one, and your AI builds it." />
+            </div>
+            <div className={s.bAsk} data-fade="pic"><NewAppSheet /></div>
           </div>
         </div>
       </div>
@@ -405,14 +422,14 @@ function Ai({ v = "0" }: { v?: Variant }) {
   const sub = useCallback(stayOf("ai"), []);
   if (v !== "0") return (
     <Chapter tone="ai" label="s-ai-h">
-      <AiAlt v={v} title={<h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />{" "}in all three.</h2>} />
+      <AiAlt v={v} title={<h2 id="s-ai-h" className={s.aTitle} data-fade>Your AI,<br />{" "}in all three.</h2>} />
     </Chapter>
   );
   return (
     <Chapter tone="ai" label="s-ai-h">
       <AiShow
         subscribe={sub}
-        title={<h2 id="s-ai-h" className={s.aTitle}>Your AI,<br />{" "}in all three.</h2>}
+        title={<h2 id="s-ai-h" className={s.aTitle} data-fade>Your AI,<br />{" "}in all three.</h2>}
         foot={
           <div className={s.aFoot}>
             <p className={s.works}>Connect <span className={s.with}><AIGlyph name="openai" size={17} color="#fff1e2" />ChatGPT</span>, <span className={s.with}><AIGlyph name="claude" size={17} color="#d97757" />Claude</span>, Claude Code or Codex. Every chat starts knowing your notes.</p>
@@ -431,8 +448,8 @@ function Share() {
   return (
     <Chapter tone="share" label="s-share-h">
       <div className={s.dBody}>
-        <div className={s.dHead} data-fade>
-          <h2 id="s-share-h" className={s.dTitle}>Share with people.</h2>
+        <div className={s.dHead}>
+          <h2 id="s-share-h" className={s.dTitle} data-fade>Share with people.</h2>
           <Say long="Share a note and write in it together. Each of you can bring your own AI." short="Write in a note together, each with your own AI." />
         </div>
         <div className={s.shareFig} data-fade="pic"><CollabPicture /></div>
@@ -462,8 +479,9 @@ function Cover() {
           <div className={s.fCtas}><Cta /></div>
           <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
           <Trust />
-          <Study />
         </div>
+        {/* Round 24: the study in its own column, its own quiet area, outweighing the desk beside it. */}
+        <div className={s.coverStudy}><Study /></div>
       </div>
     </section>
   );

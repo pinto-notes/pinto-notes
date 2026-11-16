@@ -91,3 +91,29 @@ export function HabitsNote() {
     </div>
   );
 }
+
+/** The Habit tracker example's words, as New App puts them in the box (MakeAnApp.examples). */
+const IDEA = "a habit tracker with today's habits to tick, streaks, and a week at a glance";
+const EXAMPLES = ["Habit tracker", "Trip plan", "Workout log"];
+
+/** Round 24: how the Habits app was made. Pinto's New App sheet on a Mac (Pane/Views/MakeAnApp.swift,
+ *  MakeAppSheet with ChatGPT connected): "New App", "Your AI builds it, as a new note.", the box
+ *  ("What should it do?") with the Habit tracker example's words in it, the three examples, "Make it with
+ *  ChatGPT", and "Or start from a template". The sheet's ground, its field and hairline, the examples'
+ *  soft amber capsules and the amber button are the app's (Palette.swift: sheetGround, field,
+ *  fieldHairline, amberSoft; the accent). Laid out as the app lays it, at the page's scale. */
+export function NewAppSheet() {
+  return (
+    <div className={h.ask} role="group" aria-label={`Pinto Notes on a Mac: New App. Your AI builds it, as a new note. Described: ${IDEA}. Make it with ChatGPT.`}>
+      <span className={h.askX} aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M2 2l6 6M8 2 2 8" /></svg></span>
+      <div aria-hidden="true">
+        <p className={h.askTitle}>New App</p>
+        <p className={h.askLine}>Your AI builds it, as a new note.</p>
+        <p className={h.askField}>{IDEA}</p>
+        <p className={h.askChips}>{EXAMPLES.map((e) => <span key={e}>{e}</span>)}</p>
+        <p className={h.askGo}>Make it with ChatGPT</p>
+        <p className={h.askTpl}>Or start from a template</p>
+      </div>
+    </div>
+  );
+}

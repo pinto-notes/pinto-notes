@@ -72,3 +72,33 @@
   .name b { font-size: 15px; }
   .streak { font-size: 13px; }
 }
+
+/* Round 24: New App (Habits.tsx, NewAppSheet), from Pane/Views/MakeAnApp.swift on a Mac: a 420 pt sheet
+   on the warm sheet ground #f9f7f4, 24 pt in, 16 pt between its parts: the title (20 bold), its line (13,
+   muted), the box (white, a hairline of 30% brown, 10 pt corners, 12 x 10 in), the examples (amberSoft
+   #fff1dc capsules with the line colour's edge, 24 tall), the wide amber button (34 tall) and the link to
+   the templates (12, muted, centred). The close button at the top right. Here at about 1.1x, so its
+   words read at the page's smallest size. */
+.ask { position: relative; box-sizing: border-box; width: 100%; max-width: 440px; padding: 22px 24px 18px; border-radius: var(--frameR, 14px); background: #f9f7f4; color: #262626; font-family: var(--sans);
+  box-shadow: var(--frameShadow); }
+.ask p { margin: 0; }
+.askX { position: absolute; top: 22px; right: 22px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #ebe7e2; color: #6e6a66; }
+.askX svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.askTitle { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+.askLine { margin-top: 6px !important; font-size: 15px; line-height: 1.35; color: #5f5b57; }
+.askField { margin-top: 18px !important; padding: 11px 13px; border-radius: 11px; background: #fff; box-shadow: inset 0 0 0 1px #dcc9bb; font-size: 15px; line-height: 1.4; color: #262626; }
+.askChips { margin-top: 9px !important; display: flex; flex-wrap: wrap; gap: 7px; }
+.askChips span { display: inline-flex; align-items: center; height: 27px; padding: 0 11px; border-radius: 99px; background: #fff1dc; box-shadow: inset 0 0 0 1px #ecdcc6; font-size: 13.5px; color: #262626; white-space: nowrap; }
+.askGo { margin-top: 18px !important; display: flex; align-items: center; justify-content: center; height: 38px; border-radius: 10px; background: #d96a06; color: #fff; font-size: 15px; font-weight: 600; }
+.askTpl { margin-top: 12px !important; text-align: center; font-size: 13.5px; color: #5f5b57; }
+
+@media (max-width: 760px) {
+  /* On an iPhone the sheet is the same few parts; here the title, its line, the box and the button. */
+  .ask { max-width: none; padding: 18px 18px 18px; border-radius: 12px; }
+  .askX { top: 16px; right: 16px; width: 26px; height: 26px; }
+  .askTitle { font-size: 20px; }
+  .askLine { font-size: 14px; }
+  .askField { margin-top: 14px !important; font-size: 15px; padding: 10px 12px; }
+  .askChips, .askTpl { display: none; }
+  .askGo { margin-top: 14px !important; height: 44px; border-radius: 12px; font-size: 16px; }
+}

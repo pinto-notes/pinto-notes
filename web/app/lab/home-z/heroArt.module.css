@@ -11,14 +11,18 @@
 /* Round 23: the paper-b desk is the picture (art.ts); the group sits in its open middle the same way. */
 
 .pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; background: #f7dfba; }
-/* Round 19: the group is 15% larger than round 18's, so the note reads before the still life. */
-.box { position: absolute; inset: 0; --S: max(100cqw, 100cqh); --u: min(calc(100cqw / 461), calc(var(--S) * 0.61 / 380)); }
-.group { position: absolute; left: 50%; top: calc((100cqh - var(--S)) / 2 + var(--S) * 0.215); width: calc(380 * var(--u)); translate: -50% 0; font-size: calc(16 * var(--u)); }
+/* Round 24: the note is the subject. The group is about a third larger than round 23's (the card about
+   560 px wide on a 1440 window, its lines about 25 px), centred in the panel a touch above the middle,
+   and the desk is laid 14% larger, so its props sit at the panel's edges and frame the note. It is sized
+   by the panel's width, its height and the picture's side, whichever is tightest, so it always fits. */
+.box { position: absolute; inset: 0; --S: max(100cqw, 100cqh); --u: min(calc(100cqw / 448), calc(100cqh / 290), calc(var(--S) * 0.8 / 380)); }
+.group { position: absolute; left: 50%; top: 47%; width: calc(380 * var(--u)); translate: -50% -50%; font-size: calc(16 * var(--u)); }
+@media (min-width: 761px) { .pic { scale: 1.14; } }
 
 /* What you asked in ChatGPT: a small chat line, the ChatGPT mark and name, then your words in a grey
    bubble. It sits over the note's top right corner, out of the title's way. */
 .ask { position: relative; z-index: 2; display: flex; align-items: center; gap: 0.5em; width: fit-content; max-width: 100%; box-sizing: border-box;
-  margin: 0 calc(-12 * var(--u)) calc(-9 * var(--u)) auto; padding: 0.36em 0.4em 0.36em 0.5em; border-radius: 1.1em; background: #fffdf8; font-size: max(12.5px, calc(13.5 * var(--u)));
+  margin: 0 calc(-6 * var(--u)) calc(-9 * var(--u)) auto; padding: 0.36em 0.4em 0.36em 0.5em; border-radius: 1.1em; background: #fffdf8; font-size: max(12.5px, calc(13.5 * var(--u)));
   box-shadow: 0 0 0 1px rgba(60, 40, 10, 0.07), 0 0.7em 1.6em -0.7em rgba(70, 45, 10, 0.35); opacity: 0; translate: 0 0.5em; }
 .ask[data-in] { opacity: 1; translate: none; }
 /* ChatGPT's mark in ink, as everywhere on the page (round 23: one colour for an AI's change, amber,

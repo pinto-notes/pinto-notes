@@ -6,24 +6,28 @@
 @media (hover: hover) { .trust a:hover { text-decoration-color: currentColor; } }
 .trust a:focus-visible, .studyFoot a:focus-visible { outline: 3px solid #ee8a14; outline-offset: 3px; border-radius: 4px; }
 
-/* The study: a line that says what was measured, two bars to scale with their numbers, and the source. */
-.study { margin: 32px 0 0; max-width: 440px; }
-.studyHead { font-size: 15px; line-height: 1.4; font-weight: 600; color: #24170d; }
-.bars { margin: 12px 0 0; display: grid; gap: 8px; }
-.row { display: grid; grid-template-columns: 13.5em minmax(0, 1fr); align-items: center; gap: 16px; font-size: 15px; line-height: 1.3; }
-.row dt { color: #6b5640; font-weight: 500; }
-.row dd { margin: 0; display: flex; align-items: center; gap: 8px; }
-.row i { flex: none; width: calc(var(--v) * (100% - 3.6em)); height: 8px; border-radius: 4px; background: #c9b294; }
-.row b { font-weight: 650; color: #6b5640; font-variant-numeric: tabular-nums; }
+/* The study (round 24): its own column, beside the download, not under it. A plain line of why, what was
+   measured, then each result as a large number in the display serif with its label and a bar to scale
+   under the label; the source and the link last. Pinto's row in ink, the new chat's in pencil brown. */
+.study { margin: 0; max-width: 444px; }
+.why { margin: 0; font-size: 19px; line-height: 1.42; font-weight: 500; color: #3a2a1a; text-wrap: pretty; }
+.studyHead { margin-top: 24px; font-size: 15px; line-height: 1.4; font-weight: 650; color: #24170d; text-wrap: balance; }
+.bars { margin: 16px 0 0; display: grid; gap: 16px; }
+.row { display: grid; grid-template-columns: var(--numW, 196px) minmax(0, 1fr); grid-template-areas: "num who" "num bar"; column-gap: 16px; align-items: end; font-size: 15px; line-height: 1.3; }
+.row dt { grid-area: who; color: #5c4a36; font-weight: 500; }
+.row dd { display: contents; }
+.row b { grid-area: num; align-self: end; font: 500 64px/0.86 var(--display); letter-spacing: -0.035em; color: #6b5640; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.row i { grid-area: bar; display: block; width: calc(var(--v) * 100%); height: 8px; margin: 8px 0 6px; border-radius: 4px; background: #c9b294; }
 .row[data-pinto] dt, .row[data-pinto] b { color: #24170d; }
 .row[data-pinto] i { background: #24170d; }
-.studyFoot { margin: 12px 0 0; font-size: 15px; line-height: 1.4; color: #7a6650; }
+.studyFoot { margin: 16px 0 0; font-size: 15px; line-height: 1.4; color: #5c4a36; }
 .studyFoot a { color: #24170d; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(36, 23, 13, 0.35); text-underline-offset: 3px; white-space: nowrap; }
 @media (hover: hover) { .studyFoot a:hover { text-decoration-color: currentColor; } }
 
 @media (max-width: 760px) {
   .trust { gap: 8px; margin-top: 24px; }
-  .study { margin-top: 32px; max-width: none; }
-  .row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .row + .row { margin-top: 4px; }
+  .study { max-width: none; }
+  .why { font-size: 17px; }
+  .row { --numW: 138px; column-gap: 14px; }
+  .row b { font-size: 52px; }
 }
