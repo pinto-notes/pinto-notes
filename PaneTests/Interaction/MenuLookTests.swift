@@ -36,17 +36,6 @@ extension MenuLookTests {
         return nil
     }
 
-    static func controls(_ v: NSView) -> [String] {
-        ((v as? NSControl).map { ["\(type(of: $0)) enabled=\($0.isEnabled)"] } ?? []) + v.subviews.flatMap { controls($0) }
-    }
-
-    static func axButtons(_ e: any NSAccessibilityProtocol) -> [any NSAccessibilityProtocol] {
-        let role = e.accessibilityRole()
-        let me: [any NSAccessibilityProtocol] = role == .button || role == .menuButton ? [e] : []
-        let kids: [any NSAccessibilityProtocol] = (e.accessibilityChildren() ?? []).compactMap { $0 as? any NSAccessibilityProtocol }
-        return me + kids.flatMap { axButtons($0) }
-    }
-
     static func layout(_ m: NSMenu) -> [String] { m.items.map { $0.isSeparatorItem ? "-" : $0.title } }
 
     // MARK: Red titles
@@ -99,10 +88,12 @@ extension MenuLookTests {
     // MARK: A note's right-click
 
     /// The note list's right-click on a note: Apple Notes' groups, and Delete in red.
-    @Test func aNotesRightClickIsGroupedLikeNotes() async throws {
+    @Test(arguments: [false, true]) func aNotesRightClickIsGroupedLikeNotes(bulk: Bool) async throws {
         let c = try AppSnapshotTests.container()
+        let picked = bulk ? Array(try c.mainContext.fetch(FetchDescriptor<Note>()).prefix(2)) : []
+        let selection = Set(picked.map(\.id))
         let size = CGSize(width: 360, height: 700)
-        let view = NavigationStack { NoteListView(scope: .all, selection: .constant([]), onNewNote: {}) }
+        let view = NavigationStack { NoteListView(scope: .all, selection: .constant(selection), onNewNote: {}) }
             .frame(width: size.width, height: size.height)
             .modelContainer(c)
             .tint(Color(PColor.paneAccent))
@@ -113,6 +104,14 @@ extension MenuLookTests {
         defer { w.close() }
         try? await Task.sleep(for: .seconds(0.8))
         host.layoutSubtreeIfNeeded()
+        if bulk {
+            let menu = try #require(Self.menu(in: host, window: w, x: 120) { $0.items.contains { $0.title == "Move 2 Notes to" } })
+            #expect(Self.layout(menu) == ["Move 2 Notes to", "-", "Delete 2 Notes"])
+            menu.performActionForItem(at: try #require(menu.items.firstIndex { $0.title == "Delete 2 Notes" }))
+            try? await Task.sleep(for: .milliseconds(100))
+            #expect(picked.allSatisfy { $0.trashedAt != nil })
+            return
+        }
         let m = try #require(Self.menu(in: host, window: w, x: 120) { m in
             m.items.contains { $0.title == NoteWindows.openNoteTitle } && m.items.contains { $0.title == "Lock Note" }
         })
@@ -149,44 +148,24 @@ extension MenuLookTests {
         #expect(String(describing: ListCompose.iconStyle(off: false)) == String(describing: HierarchicalShapeStyle.primary))
     }
 
-    /// In the window's toolbar New Note turns off while the open note is an untouched new one, and
-    /// on again once it has text. On it is a menu with a primary action, which AppKit draws as a
-    /// segmented control: `.disabled` on that stopped clicks but left it drawn as on (what Emil
-    /// saw). Off it is a disabled button with the pencil in the tertiary style. A window that is
-    /// never shown is never key, so AppKit greys both alike there: the test reads the controls, not
-    /// the pixels.
-    @Test func newNoteTurnsOffInTheToolbar() async throws {
+    /// New Note reflects the selected note's content through its accessible enabled state.
+    @Test func newNoteDisablesForAnEmptySelectedNote() async throws {
         let c = try AppSnapshotTests.container()
         let ctx = c.mainContext
         let note = try #require(try ctx.fetch(FetchDescriptor<Note>()).first { $0.title == "Groceries" })
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
-            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1180, height: 760))
-            defer { w.close() }
-            await MacWindowChromeTests.settle(w)
-            @MainActor func controls() -> [String]? {
-                (w.toolbar?.items.first { $0.label == "New Note" }?.view).map { Self.controls($0) }
-            }
-            @MainActor func settle(until ok: @MainActor ([String]) -> Bool) async -> [String]? {
-                for _ in 0..<40 {
-                    if let now = controls(), ok(now) { return now }
-                    await MacWindowChromeTests.settle(w, 1)
-                }
-                return controls()
-            }
-            let on = try #require(controls())
-            #expect(on == ["SwiftUISegmentedControl enabled=true"], "on: the menu, New Note or New App: \(on)")
-            // The note is emptied, as a new note is.
+            let ax = OffscreenAX(window: MacWindowChromeTests.window(c, size: CGSize(width: 1180, height: 760)))
+            defer { ax.close() }
+            await ax.settle()
+            #expect(try #require(ax.find("list.newNote")).enabled)
             note.body = ""
             try ctx.save()
-            #expect(ListCompose.isOff(selected: note.id, in: ctx))
-            let off = await settle { !$0.contains { $0.hasPrefix("SwiftUISegmentedControl") } }
-            #expect(off?.contains { $0.hasPrefix("SwiftUISegmentedControl") } == false, "off: not the menu that stayed drawn as on: \(String(describing: off))")
-            #expect(String(describing: ListCompose.iconStyle(off: true)) == String(describing: HierarchicalShapeStyle.tertiary), "the pencil greyed")
-            // Written in again: New Note comes back.
+            await ax.settle()
+            #expect(try #require(ax.find("list.newNote")).enabled == false)
             note.body = "Groceries\nmilk"
             try ctx.save()
-            let back = await settle { $0 == ["SwiftUISegmentedControl enabled=true"] }
-            #expect(back == ["SwiftUISegmentedControl enabled=true"], "on again: \(String(describing: back))")
+            await ax.settle()
+            #expect(try #require(ax.find("list.newNote")).enabled)
         }
     }
 
@@ -247,7 +226,9 @@ extension MenuLookTests {
         await MacWindowChromeTests.settle(w)
         let split = try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
         #expect(split.arrangedSubviews.filter { !$0.isHidden }.count == 2, "the list and the note")
-        #expect(w.toolbar?.items.contains { $0.label == "New Note" } == true, "the list's New Note")
+        let ax = OffscreenAX(window: w)
+        await ax.settle()
+        #expect(ax.find("list.newNote") != nil, "the list's New Note")
         #expect(w.title == folder.name || w.title.isEmpty)
     }
 

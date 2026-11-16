@@ -1,4 +1,3 @@
-import Supabase
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -175,66 +174,6 @@ enum ConnectFunnel {
 enum ConnectHandoff {
     static let activityType = "dev.emilwagman.pane.connect"
     static let key = "ai"
-}
-
-// MARK: Watching for the sign-in
-
-/// Says when the new connection exists: at once when it's approved on this device or the server
-/// says an AI connected (`ConnectCenter.connectionNews`), and by asking the server every two
-/// seconds, so approving on the Mac also finishes the guide on iPhone.
-@MainActor
-@Observable
-final class ConnectWatch {
-    /// The name an approval on this device carries for this guide: the AI, or nil for an app
-    /// Pinto Notes can't vouch for (one on this computer).
-    let approvedAs: String?
-    let since = Date.now.addingTimeInterval(-5)
-    private(set) var connected: Connection?
-    private(set) var approvedHere = false
-    private let find: ([Connection], Date) -> Connection?
-    /// Approvals here and news of new connections; tests give their own.
-    @ObservationIgnored var center = ConnectCenter.shared
-
-    convenience init(ai: String) {
-        self.init(approvedAs: ai) { ConnectCompletion.newConnection($0, ai: ai, since: $1) }
-    }
-
-    init(approvedAs: String?, find: @escaping ([Connection], Date) -> Connection?) {
-        self.approvedAs = approvedAs
-        self.find = find
-    }
-
-    var isConnected: Bool { connected != nil || approvedHere }
-
-    func run(client: SupabaseClient) async {
-        while !Task.isCancelled, connected == nil {
-            let seen = center.connectionNews
-            if let a = center.approved, a.ai == approvedAs, a.at >= since { approvedHere = true }
-            if let rows: [Connection] = try? await client.from("mcp_tokens").select().order("created_at", ascending: false).limit(20).execute().value {
-                connected = find(rows, since)
-            }
-            await center.news(after: seen, within: approvedHere ? .seconds(1) : ConnectCenter.look)
-        }
-    }
-
-    #if DEBUG
-    /// Captures: pretend it just worked.
-    func pretendConnected() { approvedHere = true }
-    #endif
-}
-
-/// One numbered step of a guide.
-struct ConnectStep: View {
-    let number: Int
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(number)").font(.callout.weight(.semibold)).monospacedDigit().foregroundStyle(.tint).frame(width: 16)
-            Text(text)
-        }
-        .accessibilityElement(children: .combine)
-    }
 }
 
 enum ConnectClipboard {

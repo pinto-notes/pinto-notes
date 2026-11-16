@@ -30,7 +30,8 @@ struct NoteDetailView: View {
     /// Whether this note can be asked about, kept by `NoteAskableWatcher`. Asked here it read the
     /// note's text, which worked out the whole pane and its toolbar again on every key.
     @State private var askable = true
-    @State private var undoFailed: String?
+    @State private var errorNotice = ErrorNotice()
+    private var undoFailed: String? { errorNotice.text }
     /// The app asks to reach a host: shown as a question, answered once per host.
     @State private var hostAsk: HostAsk?
     /// The app needs an API key that isn't set up: the card that offers to add it.
@@ -142,6 +143,17 @@ struct NoteDetailView: View {
             .modifier(PhotoAttach(isPresented: $pickingPhotos) { urls in controller.insertFiles(context.addAttachments(urls)) })
             #endif
             .onAppear(perform: wireController)
+            .task(id: errorNotice.id) {
+                let shown = errorNotice
+                guard shown.text != nil else { return }
+                do {
+                    try await Task.sleep(for: .seconds(shown.seconds))
+                    while shown.holdForCapture && ChangeTint.holdForCapture {
+                        try await Task.sleep(for: .seconds(0.1))
+                    }
+                    withAnimation(.smooth(duration: 0.25)) { errorNotice.expire(shown.id) }
+                } catch { /* A newer notice or a disappearing view cancels expiry. */ }
+            }
             .onDisappear {
                 saver.flush()
                 followRename()
@@ -310,7 +322,7 @@ struct NoteDetailView: View {
             // say who, and offer Undo back to before.
             .onChange(of: NotePageDataStore.shared.arrivals[note.id]) { _, a in
                 guard let a, showingPage else { return }
-                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit), undo: .data(NotePageData.decode(a.before)))
+                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0), undo: .data(NotePageData.decode(a.before)))
             }
             // Captures: `-lockCapture setup` or `confirm` (see Capture).
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
@@ -721,11 +733,7 @@ struct NoteDetailView: View {
     /// and the marking stays.
     private func refusedAsViewOnly() -> Bool {
         guard collab?.isViewOnly == true else { return false }
-        Task { @MainActor in
-            withAnimation(.smooth(duration: 0.25)) { undoFailed = NoteWrites.viewOnlyMessage }
-            try? await Task.sleep(for: .seconds(4))
-            withAnimation(.smooth(duration: 0.25)) { undoFailed = nil }
-        }
+        notice(NoteWrites.viewOnlyMessage, seconds: 4, holdForCapture: false)
         return true
     }
 
@@ -767,9 +775,7 @@ struct NoteDetailView: View {
                 try await AIEdit.undo(r, on: note)
             } catch {
                 // Couldn't reach the server: say so where the receipt was.
-                withAnimation(.smooth(duration: 0.25)) { undoFailed = (error as? LocalizedError)?.errorDescription ?? "Couldn't undo. Try again." }
-                try? await Task.sleep(for: .seconds(4))
-                withAnimation(.smooth(duration: 0.25)) { undoFailed = nil }
+                notice((error as? LocalizedError)?.errorDescription ?? "Couldn't undo. Try again.", seconds: 4, holdForCapture: false)
             }
         }
     }
@@ -943,7 +949,7 @@ struct NoteDetailView: View {
     /// The app's data is the app's content now: a change gets "Changed · Undo" like any edit. A run
     /// of changes (typing, a game, a batch) is one receipt, and Undo goes back to before the run.
     private func dataChanged(before: NotePageData.Doc) {
-        let r = AIEdit.Receipt(noteID: note.id, by: AIGlyph.page, at: .now, previous: note.body, lines: 0, kind: .dataEdit)
+        let r = AIEdit.Receipt(noteID: note.id, by: AIGlyph.page, at: .now, previous: note.body, lines: 0)
         withAnimation(.spring(duration: 0.45, bounce: 0.25)) { ai.dataChanged(before, receipt: r, infoOpen: showAppInfo) }
     }
 
@@ -1035,7 +1041,7 @@ struct NoteDetailView: View {
         if now != nil { NotePageActions.importIfNeeded(note) }
         guard let now, now.isNewVersion(after: before), now.by != AIGlyph.page, now.by != FirstOpen.templateWriter else { return }
         withAnimation(.smooth(duration: 0.3)) { mode = .page }
-        let r = AIEdit.Receipt(noteID: note.id, by: now.by, at: now.at, previous: note.body, lines: 0, kind: before == nil ? .pageMade : .pageChanged)
+        let r = AIEdit.Receipt(noteID: note.id, by: now.by, at: now.at, previous: note.body, lines: 0)
         withAnimation(.spring(duration: 0.45, bounce: 0.25)) { ai.pageArrived(r, previous: before) }
     }
 
@@ -1140,19 +1146,27 @@ struct NoteDetailView: View {
             // The last working version runs, with the app's data as it is now. Undo runs the broken
             // one again, if you want to see it.
             shownPage = good
-            showPageReceipt(AIEdit.Receipt(noteID: note.id, by: page.by, at: .now, previous: note.body, lines: 0, kind: .reverted), undo: .reverted(page))
+            showPageReceipt(AIEdit.Receipt(noteID: note.id, by: page.by, at: .now, previous: note.body, lines: 0), undo: .reverted(page))
         } else {
             withAnimation(.smooth(duration: 0.25)) { mode = .text }
             notice("This app didn't open, and there's no earlier version that works.")
         }
     }
 
-    private func notice(_ text: String) {
-        withAnimation(.smooth(duration: 0.25)) { undoFailed = text }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5 * ChangeTint.slowMotion))
-            while ChangeTint.holdForCapture, undoFailed == text { try? await Task.sleep(for: .seconds(0.1)) }
-            if undoFailed == text { withAnimation(.smooth(duration: 0.25)) { undoFailed = nil } }
+    struct ErrorNotice {
+        let id = UUID()
+        private(set) var text: String?
+        var seconds: Double = 0
+        var holdForCapture = false
+
+        mutating func expire(_ expected: UUID) {
+            if id == expected { text = nil }
+        }
+    }
+
+    private func notice(_ text: String, seconds: Double = 5 * ChangeTint.slowMotion, holdForCapture: Bool = true) {
+        withAnimation(.smooth(duration: 0.25)) {
+            errorNotice = ErrorNotice(text: text, seconds: seconds, holdForCapture: holdForCapture)
         }
     }
 

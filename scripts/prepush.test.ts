@@ -45,3 +45,46 @@ Deno.test("a touched test file's suites are named in their own target", async ()
   const [line] = await suitesOf("PaneTests/Interaction/ChecklistInteractionTests.swift");
   assertEquals(line.split("\t")[1].split(" ")[0], "PaneInteractionTests/ChecklistInteractionTests");
 });
+
+Deno.test("source text and comments cannot nest later suites or invent tests", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/scripts/ci`, { recursive: true });
+    await Deno.mkdir(`${root}/PaneTests`);
+    await Deno.copyFile(new URL("./ci/select-tests.py", import.meta.url), `${root}/scripts/ci/select-tests.py`);
+    await Deno.writeTextFile(`${root}/PaneTests/Fixture.swift`, [
+      "extension ExistingTests {",
+      "    // An unmatched brace in a comment: {",
+      "    /* Nested comments: /* { */ { */",
+      '    let source = "private var body: some View {"',
+      '    let raw = #"a quote \\" and a brace {"#',
+      String.raw`    let interpolated = "prefix \(f("}")) suffix"`,
+      String.raw`    let nested = "prefix \(f("nested \(g("}"))")) suffix"`,
+      String.raw`    let rawInterpolation = #"prefix \#(f("}")) suffix"#`,
+      String.raw`    let commented = "prefix \(f(/* ) } */ "}")) suffix"`,
+      '    let multiline = """',
+      "@Suite struct FakeTests { @Test func fake() {}",
+      '"""',
+      "    @Test func real() {}",
+      "}",
+      "@Suite struct LaterTests { @Test func real() {} }",
+      "extension Container {",
+      "    @Suite struct NestedTests { @Test func real() {} }",
+      "}",
+    ].join("\n"));
+    const out = await new Deno.Command("python3", {
+      args: [`${root}/scripts/ci/select-tests.py`, "--suites-of", "PaneTests/Fixture.swift"],
+    }).output();
+    assertEquals(out.code, 0);
+    assertEquals(new TextDecoder().decode(out.stdout).trim().split("\t")[1].split(" ").sort(),
+      ["PaneTests/Container/NestedTests", "PaneTests/ExistingTests", "PaneTests/LaterTests"]);
+  } finally { await Deno.remove(root, { recursive: true }); }
+});
+
+Deno.test("Settings extension and later suites all have runnable paths", async () => {
+  const [line] = await suitesOf("PaneTests/SettingsHomeTests.swift");
+  assertEquals(line.split("\t")[1].split(" ").sort(), [
+    "PaneTests/AccountPagesTests", "PaneTests/GeneralSettingsTests",
+    "PaneTests/SettingsHomeTests", "PaneTests/SettingsPageRowTests",
+  ]);
+});

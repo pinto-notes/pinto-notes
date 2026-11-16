@@ -46,11 +46,12 @@ extension KeyCopyTests {
         #expect(try KeyCopyBox.open(again, with: receiver, direction: .down, user: user, keyID: v.id) == key)
     }
 
-    @Test(arguments: [false, true])
-    func availabilityFromAnOldAccountCannotStoreItsKeyInTheNewOne(available: Bool) async throws {
+    @Test(arguments: [false, true], [false, true])
+    func availabilityFromAnOldAccountCannotStoreItsKeyInTheNewOne(available: Bool, creating: Bool) async throws {
         let (crypto, keychain, _) = try accountFromBefore()
         defer { crypto.signedOut() }
-        server.protection = .standard
+        if creating { server.row = nil; keychain.synced[user] = nil }
+        server.protection = creating ? nil : .standard
         server.off = !available
         let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
         defer { entered.continuation.finish(); release.continuation.finish() }
@@ -68,8 +69,69 @@ extension KeyCopyTests {
         release.continuation.yield(())
         await old.value
         #expect(next.stores.isEmpty && crypto.protection == .strict)
+        #expect(crypto.keyToHandOver == nextKey, "a stale creation cannot open its key in another account")
         #expect(!crypto.copiesOn)
         #expect(defaults.object(forKey: AccountCrypto.copiesOffUntilKey) == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func supersededProtectionChoiceCannotChangeCurrentPreferences(strict: Bool) async throws {
+        let (crypto, keychain, key) = try accountFromBefore()
+        defer { crypto.signedOut() }
+        server.protection = .strict
+        server.anotherWayBack = true
+        await attach(crypto)
+        let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        server.afterChoice = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        let old = Task {
+            if strict { try await crypto.keepOnDevicesOnly(device: UUID()) }
+            else { try await crypto.keepCopy() }
+        }
+        for await _ in entered.stream { break }
+        // A same-account restart also invalidates a previous protection choice.
+        let nextUser = strict ? user : UUID(), next = Server()
+        next.row = try key.serverRow(user: nextUser)
+        next.protection = strict ? .standard : .strict
+        next.copy = strict ? key : nil
+        keychain.synced[nextUser] = key
+        crypto.signedOut()
+        defaults.set(true, forKey: AccountCrypto.wasStrictKey(nextUser))
+        await crypto.attach(account: nextUser, server: next, copies: next)
+        let protection = crypto.protection, copy = crypto.serverCopy
+        release.continuation.yield(())
+        try await old.value
+        #expect(crypto.protection == protection && crypto.serverCopy == copy)
+        #expect(defaults.bool(forKey: AccountCrypto.wasStrictKey(nextUser)))
+    }
+
+    @Test func staleRecoveryConfirmationCannotVerifyANewAccountsOfflineKey() async throws {
+        let (crypto, keychain, _) = try accountFromBefore()
+        defer { crypto.signedOut() }
+        server.protection = .strict
+        await attach(crypto)
+        defaults.set(true, forKey: AccountCrypto.recoveryProvenKey(user))
+        let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        server.afterChoice = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        let old = Task { await crypto.recheck() }
+        for await _ in entered.stream { break }
+        let nextUser = UUID(), next = Server()
+        keychain.synced[nextUser] = StoredKey.generate()
+        next.offline = true
+        crypto.signedOut()
+        #expect(crypto.openHeld(account: nextUser))
+        await crypto.attach(account: nextUser, server: next, copies: next)
+        #expect(crypto.unverified)
+        release.continuation.yield(())
+        await old.value
+        #expect(crypto.unverified, "the old account's confirmation cannot stop this account's verification")
     }
 
     // MARK: The decision

@@ -17,6 +17,7 @@ import Testing
         var copy: StoredKey?
         /// KEY_COPY isn't on.
         var off = false
+        var afterChoice: (@Sendable () async -> Void)?
         var beforeAvailable: (@Sendable () async -> Void)?
         var offline = false
         /// The function can't be reached, while the rest of the server can.
@@ -56,6 +57,7 @@ import Testing
         func markRecoveryKeySaved() async throws -> Date? {
             row?.recovery_saved_at = Date(timeIntervalSince1970: 1000)
             anotherWayBack = true
+            await afterChoice?()
             return row?.recovery_saved_at
         }
 
@@ -86,6 +88,7 @@ import Testing
             guard AccountCrypto.isAccountsKey(key, row, user: user) else { throw KeyCopyError.wrongKey }
             copy = key
             protection = .standard
+            await afterChoice?()
         }
 
         func fetch(user: UUID, keyID: String) async throws -> StoredKey {
@@ -104,6 +107,7 @@ import Testing
             guard anotherWayBack else { throw KeyCopyError.needsRecoveryKey }
             protection = .strict
             copy = nil
+            await afterChoice?()
         }
     }
 

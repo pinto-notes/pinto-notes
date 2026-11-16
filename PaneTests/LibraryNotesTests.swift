@@ -118,7 +118,7 @@ extension LibraryNotesTests {
         ctx.move(a, to: home)
         try? await Task.sleep(for: .milliseconds(100))
         for f in [work, home] {
-            #expect(library.listedCount(inFolder: f.id, context: ctx) == SidebarView.listedNotes(in: f, context: ctx), "the same as the folder's own notes say")
+            #expect(library.listedCount(inFolder: f.id, context: ctx) == f.liveNotes.count, "the same as the folder's own notes say")
         }
         #expect(library.listedCount(inFolder: home.id, context: ctx) == 2)
         #expect(heard.on, "Home's row hears of the note that came")

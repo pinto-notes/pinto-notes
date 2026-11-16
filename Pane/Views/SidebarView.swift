@@ -449,12 +449,6 @@ struct SidebarView: View {
         return ((try? context.fetchCount(FetchDescriptor<Note>(predicate: loose))) ?? 0) > 0
     }
 
-    /// A folder's notes as its list counts them. In a window the list's notes count them
-    /// (LibraryNotes.listedCount); this reads the folder's own notes.
-    static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        folder.liveNotes.count
-    }
-
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
         _ = fileChanges
         return Self.fileCounts(in: context)
@@ -1971,7 +1965,7 @@ private struct FolderTree: View {
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         let selected = selection == .folder(folder.id) || picked.contains(folder.id)
-        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? SidebarView.listedNotes(in: folder, context: context)
+        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? folder.liveNotes.count
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 #if os(macOS)

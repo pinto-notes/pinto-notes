@@ -43,8 +43,7 @@ extension AIChangesTests {
     /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
     /// changed the note, council 11-04), and the summary has room to say what the AI did.
     @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views/AIChangesView.swift"), encoding: .utf8)
         let bar = try #require(src.range(of: "private func actions(_ c: AIChange) -> some View").map { String(src[$0.lowerBound...].prefix(2200)) })
         let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
         let open = try #require(bar.range(of: "Button(\"Open Note\")"))
@@ -73,8 +72,7 @@ extension AIChangesTests {
         let filter = try #require(src.range(of: "struct AIChangesFilter").map { String(src[$0.lowerBound...].prefix(600)) })
         #expect(filter.contains(".tint(.primary)"))
         // The receipt says its whole line ("ChatGPT changed 3 li…" in round 5).
-        let marks = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/AIMarks.swift"), encoding: .utf8)
+        let marks = try String(contentsOf: TestFiles.url("Views/AIMarks.swift"), encoding: .utf8)
         let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary)").map { String(marks[$0.lowerBound...].prefix(400)) })
         #expect(receipt.contains(".fixedSize(horizontal: true, vertical: false)"))
     }
@@ -143,6 +141,34 @@ extension AIChangesTests {
         await h.caret(after: "late lunch")
         await h.type("!")
         #expect(!h.view.isTinted, "typing makes it yours")
+    }
+
+    /// Typing while the receipt is queued accepts the edit before any receipt or tint appears.
+    @Test(arguments: [false, true])
+    func typingBeforeTheReceiptLandsKeepsItDismissed(typing: Bool) async throws {
+        let c = try Self.container(), note = Self.aiEdited(c)
+        let controller = EditorController()
+        let speed = ChangeTint.slowMotion
+        ChangeTint.slowMotion = 10
+        defer { ChangeTint.slowMotion = speed }
+        let ax = OffscreenAX(NavigationStack {
+            NoteDetailView(note: note, controller: controller, onNewNote: {})
+        }.modelContainer(c), size: CGSize(width: 700, height: 800))
+        defer { ax.close() }
+        let readyBy = ContinuousClock.now + .seconds(3)
+        while (controller.target == nil || AIEdit.isUnseen(note)), ContinuousClock.now < readyBy { await ax.settle(20) }
+        let editor = try #require(controller.target as? PaneTextView)
+        try #require(!AIEdit.isUnseen(note), "the note screen has queued its unseen AI edit")
+        try #require(ax.find("receipt.review") == nil && !controller.isTinted, "typing must precede the delayed landing")
+        if typing {
+            editor.insertText("!", replacementRange: NSRange(location: (editor.string as NSString).length, length: 0))
+        }
+        // The negative case must outlast the pending landing, not merely check before it runs.
+        try await Task.sleep(for: .seconds(1.7))
+        await ax.settle(100)
+        #expect((ax.find("receipt.review") != nil) == !typing)
+        #expect(controller.isTinted == !typing)
+        if typing { #expect(note.body.hasSuffix("!"), "the real editor's change reached the note") }
     }
 
     /// The note as the app shows it: opened with an AI's edit waiting, the tint is there and stays;

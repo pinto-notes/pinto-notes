@@ -346,6 +346,25 @@ targets:
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
         buildPhase: resources
+      # Help link and email contracts read the website sources from the test bundle.
+      - path: web/lib/site.ts
+        buildPhase: resources
+      - path: web/content/privacy-policy.md
+        buildPhase: resources
+      - path: web/next.config.ts
+        buildPhase: resources
+      - path: web/app/help
+        type: folder
+        buildPhase: resources
+      - path: web/app/privacy
+        type: folder
+        buildPhase: resources
+      - path: web/app/privacy-security
+        type: folder
+        buildPhase: resources
+      - path: web/app/terms
+        type: folder
+        buildPhase: resources
       - path: scripts/template-catalog.py
         buildPhase: resources
       - path: scripts/page-render/render.ts

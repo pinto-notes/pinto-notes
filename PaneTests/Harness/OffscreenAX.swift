@@ -28,6 +28,13 @@ import SwiftUI
         window.orderFrontRegardless()  // far off screen; accessibility lists ordered-in windows only
     }
 
+    /// Read an existing offscreen test window through the same accessibility interface.
+    init(window: NSWindow) {
+        self.window = window
+        window.setAccessibilityIdentifier(name)
+        window.orderFrontRegardless()
+    }
+
     func close() { window.orderOut(nil); window.close() }
 
     func settle(_ ms: Int = 400) async {

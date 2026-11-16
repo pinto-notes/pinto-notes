@@ -17,6 +17,19 @@ import SwiftUI
                        previousVersion: version, lines: AIReview.lineCount(previous: from, after: to))
     }
 
+    @Test(arguments: ["First error", "Same error"])
+    func earlierExpiryCannotDismissReplacementNotice(_ previousText: String) {
+        var notice = NoteDetailView.ErrorNotice(text: previousText, seconds: 4)
+        let earlier = notice.id
+        notice = NoteDetailView.ErrorNotice(text: "Same error", seconds: 5, holdForCapture: true)
+        notice.expire(earlier)
+        #expect(notice.text == "Same error")
+        #expect(notice.seconds == 5)
+        #expect(notice.holdForCapture)
+        notice.expire(notice.id)
+        #expect(notice.text == nil)
+    }
+
     @Test func replacingAnUndoNoticeDropsItsActionAndChangesItsIdentity() {
         var undos = 0
         var result = AIEdit.Presentation.Result("Moved", undo: { undos += 1 })
@@ -72,9 +85,9 @@ import SwiftUI
     @Test func replacingAReceiptInvalidatesItsTimeoutAndUndoPayload() throws {
         var screen = AIEdit.Presentation()
         let one = r("A", "B"), two = r("B", "C", in: 1)
-        screen.present(one, seconds: 10, undo: .data(["count": 1]))
+        screen.showPage(one, infoOpen: false, undo: .data(["count": 1]))
         let timeout = try #require(screen.timeout)
-        screen.present(two, seconds: 5.5)
+        screen.showPage(two, infoOpen: false)
         #expect(screen.undo(for: two) == nil)
         screen.expire(timeout.id)
         #expect(screen.receipt == two)
@@ -82,10 +95,24 @@ import SwiftUI
         #expect(screen.receipt == nil)
     }
 
+    @Test func undoOperationsDetermineTheirReceiptKind() throws {
+        let page = NotePageStore.Page(html: "old", by: "Claude", at: .now)
+        let cases: [(AIEdit.Presentation.Undo, AIEdit.Receipt.Kind)] = [
+            (.page(nil), .pageMade), (.page(page), .pageChanged), (.data(nil), .dataEdit), (.reverted(page), .reverted)
+        ]
+        for (undo, kind) in cases {
+            var screen = AIEdit.Presentation()
+            screen.showPage(r("A", "B"), infoOpen: false, undo: undo)
+            let shown = try #require(screen.receipt)
+            #expect(shown.kind == kind && screen.undo(for: shown) != nil)
+        }
+    }
+
     @Test(arguments: [2.0, 3.0])
     func typingDefersOnlyRecentPageReceipts(gap: Double) {
         var screen = AIEdit.Presentation()
-        let next = r("A", "B")
+        var next = r("A", "B")
+        next.kind = .dataEdit
         screen.focus(true, infoOpen: false)
         screen.showPage(next, infoOpen: false, undo: .data(["count": 1]))
         #expect(screen.receipt == nil)

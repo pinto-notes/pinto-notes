@@ -1129,10 +1129,6 @@ struct TableGridView: View {
     /// An empty column keeps its lines at rest too, or it vanishes into its neighbour.
     private var showsColumnLines: Bool { GridLook.columnLinesAtRest || isEditing || draft.hasEmptyColumn }
 
-    private var border: Color {
-        DesignLook.isCandidate ? Color.muted.opacity(contrast == .increased ? 0.9 : 0.4) : Color.secondary.opacity(contrast == .increased ? 0.9 : 0.45)
-    }
-
     private func cellBinding(_ r: Int, _ c: Int) -> Binding<String> {
         Binding(
             get: { r < draft.rows.count && c < draft.rows[r].count ? draft.rows[r][c] : "" },

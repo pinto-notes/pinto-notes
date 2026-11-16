@@ -80,8 +80,6 @@ extension PColor {
     /// Links and tags as text: the accent's ink shade, dark enough for small text on white (4.5:1;
     /// the bright accent was 3.5:1, council round 1, 11-04). Fills and marks keep `paneAccent`.
     static var paneLinkText: PColor { Palette.amberInk }
-    /// A link to a note that doesn't exist yet.
-    static var paneAccentFaded: PColor { Palette.amberFaded }
     /// The note's page, for colours mixed over it by hand.
     static var panePage: PColor { Palette.page }
 }
@@ -222,9 +220,6 @@ enum TextSize {
         let v = CGFloat(stored)
         return steps.first { $0 >= v } ?? steps.last!
     }
-    static var canGrow: Bool { body < steps.last! }
-    static var canShrink: Bool { body > steps.first! }
-    static var isStandard: Bool { body == standard }
 
     /// The next step up or down from `size`, or `size` at either end.
     static func step(from size: CGFloat, bigger: Bool) -> CGFloat {

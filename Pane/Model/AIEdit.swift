@@ -393,6 +393,20 @@ extension AIEdit {
             let receipt: Receipt
             let undo: Undo?
             let timeout: Timeout?
+
+            init(receipt: Receipt, undo: Undo? = nil, seconds: Double? = nil) {
+                var receipt = receipt
+                // The operation determines its label; callers never choose a second kind.
+                switch undo {
+                case .page(let previous): receipt.kind = previous == nil ? .pageMade : .pageChanged
+                case .data: receipt.kind = .dataEdit
+                case .reverted: receipt.kind = .reverted
+                case nil: break
+                }
+                self.receipt = receipt
+                self.undo = undo
+                timeout = seconds.map { Timeout(seconds: $0) }
+            }
         }
 
         struct Result: Identifiable {
@@ -418,9 +432,7 @@ extension AIEdit {
             present(expected)
             return true
         }
-        mutating func present(_ next: Receipt?, seconds: Double? = nil, undo: Undo? = nil) {
-            visible = next.map { Entry(receipt: $0, undo: undo, timeout: seconds.map { Timeout(seconds: $0) }) }
-        }
+        mutating func present(_ next: Receipt?) { visible = next.map { Entry(receipt: $0) } }
         /// Typing accepts a text change even before its delayed receipt has landed.
         mutating func edited() -> Bool {
             if landing?.staysUntilEdited == true { landing = nil }
@@ -433,11 +445,11 @@ extension AIEdit {
         }
         mutating func showPage(_ next: Receipt, infoOpen: Bool, undo: Undo? = nil) {
             guard !infoOpen else { return }
-            let entry = Entry(receipt: next, undo: undo, timeout: Timeout(seconds: 10))
+            let entry = Entry(receipt: next, undo: undo, seconds: 10)
             if fieldFocused { held = entry } else { held = nil; visible = entry }
         }
         mutating func pageArrived(_ next: Receipt, previous: NotePageStore.Page?) {
-            if !fieldFocused { present(next, seconds: 5.5, undo: .page(previous)) }
+            if !fieldFocused { visible = Entry(receipt: next, undo: .page(previous), seconds: 5.5) }
         }
         mutating func focus(_ focused: Bool, infoOpen: Bool, now: Date = .now) {
             fieldFocused = focused
