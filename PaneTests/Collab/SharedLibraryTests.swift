@@ -1943,4 +1943,53 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(emil.transport.unshared[note.id] != nil)
     }
 
+    /// collab-opus 6: Sara types on her phone offline, then leaves the note on her Mac. When the
+    /// phone is back, the note goes, and what she typed there went with it unsaid: a note you left
+    /// says nothing. When it takes text that never went up, Keep a Copy is offered.
+    @Test func leavingOnAnotherDeviceOffersWhatYouTypedHereThatDidntGoUp() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Book club", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member), mac = try device(member)
+        let said = SaidRemovals()
+        phone.library.onLostAccess = { said.all.append($0) }
+        let onPhone = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onMac = try await mac.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(phone.library.session(for: onPhone))
+        phone.transport.offline = true
+        type("\n- Dune", in: session)
+        try await mac.library.leave(onMac)
+        phone.transport.offline = false
+        await phone.library.reconcile(try await phone.transport.memberships())
+        await phone.library.told()
+        #expect(onPhone.deletedAt != nil)
+        let removal = try #require(said.all.first)
+        #expect(said.all.count == 1)
+        #expect(removal.reason == .left)
+        #expect(removal.copy == "Book club\n- Dune")
+        #expect(removal.message == "You left this note on another device. You can keep a copy of it as it is on this \(InstallID.kind).")
+    }
+
+    /// The same, when the Mac's leave reaches the phone by sync first (its pointer, marked as yours),
+    /// with the phone still offline.
+    @Test func leavingOnAnotherDeviceBySyncOffersWhatYouTypedHereThatDidntGoUp() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Book club", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member)
+        let said = SaidRemovals()
+        phone.library.onLostAccess = { said.all.append($0) }
+        phone.library.install()
+        let onPhone = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(phone.library.session(for: onPhone))
+        phone.transport.offline = true
+        type("\n- Dune", in: session)
+        onPhone.deletedAt = .now
+        onPhone.trashedAt = onPhone.deletedAt
+        SharedNotes.pointerArrived?(onPhone)
+        await phone.library.told()
+        let removal = try #require(said.all.first)
+        #expect(removal.copy == "Book club\n- Dune")
+        #expect(removal.message.hasPrefix("You left this note on another device."))
+    }
 }

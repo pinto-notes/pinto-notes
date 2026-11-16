@@ -101,7 +101,13 @@ final class SharedLibrary {
             // Deleted on another of your devices (you left there), or by the owner stopping sharing.
             // Only the owner's stopping is news: your own leaving comes marked as yours (removeLocally).
             if note.deletedAt != nil {
-                let removal = note.trashedAt == nil && note.sharedNoteID != note.id ? self.lostAccess(note) : nil
+                var removal = note.sharedNoteID != note.id ? self.lostAccess(note) : nil
+                if note.trashedAt != nil {
+                    // You left on another device (marked as yours): said only when that takes text
+                    // typed here that never went up, to offer a copy of it (collab-opus 6).
+                    removal = removal.flatMap { $0.unsent && $0.copy != nil ? $0 : nil }
+                    removal?.reason = .left
+                }
                 let shared = note.sharedNoteID
                 self.forget(note)
                 if let removal, let shared { self.tell(removal, shared: shared) }
@@ -642,7 +648,9 @@ final class SharedLibrary {
             var removal = removal
             let ended = try? await transport.accessEnded(note: shared)
             if let ended {
-                if ended.reason == .left { return }
+                // Your own leave says nothing, unless it takes text typed here that never went up
+                // (you left on another device): then a copy is offered (collab-opus 6).
+                if ended.reason == .left, removal.copy == nil || !removal.unsent { return }
                 removal.reason = ended.reason
                 removal.by = ended.by_name.flatMap(SharedRemoval.firstName) ?? removal.owner
             }
@@ -668,13 +676,14 @@ final class SharedLibrary {
         let session = sessions[note.id]
         guard session != nil || note.sharedDocument != nil else { return nil }
         let text = session?.text ?? note.sharedDocument?.storedText() ?? ""
-        let typed = session.map { $0.typedHere || !$0.isSent } ?? note.sharedDocument.map { !$0.outbox.isEmpty || $0.owesSnapshot } ?? false
+        let unsent = session.map { !$0.isSent } ?? note.sharedDocument.map { !$0.outbox.isEmpty || $0.owesSnapshot } ?? false
+        let typed = unsent || session?.typedHere == true
         let blank = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         // The copy goes where the note was, unless that was Shared with me (it's not shared).
         let sharedWithMe = dataKey().map { SharedNotes.sharedWithMeID(dataKey: $0) }
         return SharedRemoval(id: note.id, title: blank ? "" : NoteText.title(of: text), owner: session?.ownerFirstName,
                              copy: typed && !blank ? text : nil, folder: note.folder.flatMap { $0.id == sharedWithMe ? nil : $0.id },
-                             sharedWithMe: sharedWithMe)
+                             sharedWithMe: sharedWithMe, unsent: unsent)
     }
 
     /// Start fresh: the server deleted the account's shared notes and memberships with its keys.
@@ -744,9 +753,11 @@ struct SharedRemoval: Identifiable, Equatable {
     let folder: UUID?
     /// Your Shared with me folder, which the copy never goes in (it isn't shared).
     var sharedWithMe: UUID? = nil
+    /// Some of your text here never reached the server (offline, or a snapshot still owed).
+    var unsent = false
 
-    /// Why, as the server recorded it (removed or unshared; a note you left is never said). Nil
-    /// when it couldn't be asked.
+    /// Why, as the server recorded it (removed or unshared; a note you left is said only when it
+    /// took text typed here that never went up). Nil when it couldn't be asked.
     var reason: Collab.AccessEnded.Reason? = nil
     /// Who did it, by first name (the server's word, else `owner`).
     var by: String? = nil
@@ -761,7 +772,8 @@ struct SharedRemoval: Identifiable, Equatable {
         switch reason {
         case .removed?: why = "\(who ?? "Its owner") removed you from this note."
         case .unshared?: why = "\(who ?? "Its owner") stopped sharing this note."
-        case .left?, nil: why = "Ask \(who ?? "its owner") to share it with you again if you still need it."
+        case .left?: why = "You left this note on another device."
+        case nil: why = "Ask \(who ?? "its owner") to share it with you again if you still need it."
         }
         guard copy != nil else { return why }
         return why + " You can keep a copy of it as it is on this \(InstallID.kind)."
