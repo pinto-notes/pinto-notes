@@ -1266,6 +1266,7 @@
 		C9572D314EADC3E996CC97B5 /* template-cover-decision-log-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E227D4E0BA952496055EA3C1 /* template-cover-decision-log-large.jpg */; };
 		C9804415D4899CF83B36D83D /* NoteHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */; };
 		C9880B10F8914D32C315F269 /* DailyNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDE9BAF7491846BB39F864F /* DailyNotesTests.swift */; };
+		C98A43BCB766391E54535C24 /* AppSwipeStaysInNoteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C369F5E11163328EEDC156AF /* AppSwipeStaysInNoteUITests.swift */; };
 		C9BDAD3B42BDD95C25EC016F /* template-cover-bug-triage-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 41A72E715909FD4C53C28C90 /* template-cover-bug-triage-large.jpg */; };
 		C9D0E2AA403DB799EAD7F7FD /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D802554DDA691DB172FD65B2 /* SyncEngine.swift */; };
 		CA4EE1A5852FF02205756316 /* confetti.js in Resources */ = {isa = PBXBuildFile; fileRef = 96E8277205CE8467252CB1A6 /* confetti.js */; };
@@ -2364,6 +2365,7 @@
 		C1C50C228D538B5E390EF49D /* TableGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableGrid.swift; sourceTree = "<group>"; };
 		C2CF2B6E9416FE61C538C398 /* WideLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WideLayoutTests.swift; sourceTree = "<group>"; };
 		C308D8DE9AE82DAC8800C0A6 /* ConnectBrowserSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectBrowserSnapshots.swift; sourceTree = "<group>"; };
+		C369F5E11163328EEDC156AF /* AppSwipeStaysInNoteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSwipeStaysInNoteUITests.swift; sourceTree = "<group>"; };
 		C3E45D9F4A1C01EDA2629F7A /* ListOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListOrder.swift; sourceTree = "<group>"; };
 		C4062FD14B718469523C476F /* NoteCoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCoverTests.swift; sourceTree = "<group>"; };
 		C48FDD0CD9435FF308CB4B27 /* guide-obsidian-reveal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "guide-obsidian-reveal.png"; sourceTree = "<group>"; };
@@ -3863,6 +3865,7 @@
 			children = (
 				8CDAB47A5DF18E6B8B2E26C1 /* AccessibilityUITests.swift */,
 				2914F169F1D2661AA5B086B1 /* AddDeviceUITests.swift */,
+				C369F5E11163328EEDC156AF /* AppSwipeStaysInNoteUITests.swift */,
 				6D471635BF1AC9AF5430C420 /* BestAppsUITests.swift */,
 				12C0667A3D4E9B69B7502D0B /* CodeBoxesUITests.swift */,
 				FFEE9EC2B9105EAE247A65C8 /* ComposeFromFoldersUITests.swift */,
@@ -5535,6 +5538,7 @@
 			files = (
 				30BB1BF0D6B3D1C37961E9DD /* AccessibilityUITests.swift in Sources */,
 				3F01A7892D474563CBF3DEC6 /* AddDeviceUITests.swift in Sources */,
+				C98A43BCB766391E54535C24 /* AppSwipeStaysInNoteUITests.swift in Sources */,
 				85FAAE6CDA8C3444C01768DA /* BestAppsUITests.swift in Sources */,
 				A1D720E76BFBEA6667E566FB /* CodeBoxesUITests.swift in Sources */,
 				45A54F95009096AE8F8C1A51 /* ComposeFromFoldersUITests.swift in Sources */,

@@ -599,6 +599,15 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 final class NotePageWebView: WKWebView {
     var onAppFolder: ((URL) -> Bool)?
 
+    #if os(iOS)
+    private let dragsStayInApp = DragsStayInApp()
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if dragsStayInApp.view == nil { addGestureRecognizer(dragsStayInApp) }
+    }
+    #endif
+
     #if os(macOS)
     private func appFolder(_ info: NSDraggingInfo) -> URL? {
         guard onAppFolder != nil else { return nil }
@@ -1066,6 +1075,33 @@ enum NotePageTheme {
         return css + "@layer amber-tokens { :root { " + names.map { "--pinto-\($0): var(--amber-\($0));" }.joined(separator: " ") + " } }\n"
     }()
 }
+
+#if os(iOS)
+/// iOS 26 goes back on a swipe right from anywhere on the screen. A drag that starts in a note's app
+/// is the app's (a game's pad, a slider, a drawing), so the swipe back waits for this one, which takes
+/// every drag in the app and never keeps a touch from the page. The swipe from the screen's left edge
+/// is a gesture of its own and still goes back.
+private final class DragsStayInApp: UIPanGestureRecognizer, UIGestureRecognizerDelegate {
+    init() {
+        super.init(target: nil, action: nil)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+        delegate = self
+    }
+
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+
+    override func shouldBeRequiredToFail(by other: UIGestureRecognizer) -> Bool {
+        var next: UIResponder? = view
+        while let r = next {
+            if let nav = r as? UINavigationController { return other === nav.interactiveContentPopGestureRecognizer }
+            next = r.next
+        }
+        return false
+    }
+}
+#endif
 
 #if os(iOS)
 private struct WebViewHost: UIViewRepresentable {
