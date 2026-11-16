@@ -820,6 +820,9 @@ final class ConnectCenter: NSObject {
     }
     #endif
 
+    /// Where a note's link goes: JoinCenter in the app, a stand-in in tests.
+    @ObservationIgnored var joinLink: @MainActor (URL) -> Void = { @MainActor url in JoinCenter.shared.open(url) }
+
     var askIDs: [UUID] { Array(asks.keys) }
 
     /// A browser asked this account's devices. Opens the sheet, or queues it behind the one showing.
@@ -942,6 +945,15 @@ final class ConnectCenter: NSObject {
     /// A request by link on this device. It shows now, or next when a sheet is showing: it never
     /// replaces what the person is looking at.
     func receive(_ url: URL, from sender: URL? = nil) {
+        // A note's link: joins, or asks first for one by the app's own scheme (JoinCenter). Here,
+        // because on the Mac the URL event comes to this center's own handler, not to onOpenURL.
+        if JoinCenter.isNoteLink(url) {
+            joinLink(url)
+            #if os(macOS)
+            activate()
+            #endif
+            return
+        }
         // The Home Screen widget's links: a note, or a new note.
         if NoteOpener.shared.receive(url) { return }
         // Places the onboarding emails link to (Settings › Connect an AI, import, version history).
@@ -1014,7 +1026,8 @@ struct ConnectHandler: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onOpenURL { center.receive($0) }
-            // The site's universal link, https://ambernotes.app/open/connect?request=<id>.
+            // The site's universal links: https://pintonotes.com/open/connect?request=<id>, and a
+            // note's link, /s/<id>#<secret>, which joins at once (a person tapped it).
             .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                 if let url = activity.webpageURL { center.receive(url) }
             }

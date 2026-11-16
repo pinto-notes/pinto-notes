@@ -214,6 +214,31 @@ extension CollabStore: ShareBackend {
         return (id, secret)
     }
 
+    /// What a link leads to, before joining: the note's title and who shared it, opened with the
+    /// link's own key. Asked only for a link by the app's own scheme (JoinCenter.asksFirst).
+    func preview(_ url: URL) async -> Result<JoinPreview, JoinFailure> {
+        guard let transport, let (id, secret) = Self.parseLink(url) else { return .failure(JoinFailure(JoinCopy.failed)) }
+        let lk = Self.linkKeys(secret, link: id)
+        let found: Collab.OpenedLink?
+        do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
+        catch { return .failure(JoinFailure(Self.joinFailure(error))) }
+        guard let opened = found else { return .failure(JoinFailure("This link was turned off or changed. Ask for a new one.")) }
+        let title = opened.head_ct.flatMap { ct -> String? in
+            guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
+                  let raw = Data(base64Encoded: text), raw.count == 32,
+                  let head = try? CollabCrypto.open(.head, ct, nk: SymmetricKey(data: raw), note: opened.note_id) else { return nil }
+            return (try? JSONDecoder().decode(NoteHead.self, from: head))?.title
+        }
+        let already = openNote(forShared: opened.note_id) != nil || isInLibrary(shared: opened.note_id)
+        return .success(JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already))
+    }
+
+    /// Your note for this shared note is in your notes (not deleted), open here or not.
+    private func isInLibrary(shared id: UUID) -> Bool {
+        let shared: UUID? = id
+        return (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
+    }
+
     /// A link opened in the app: joins the note with the link's role (Can edit or Can view) and
     /// opens it. A note you're in already just opens. A link that was turned off or changed says so.
     @discardableResult
@@ -233,8 +258,7 @@ extension CollabStore: ShareBackend {
             return .opened
         }
         // In your notes but not open here yet: joined again below (harmless), and it just opens.
-        let shared: UUID? = opened.note_id
-        let wasIn = (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
+        let wasIn = isInLibrary(shared: opened.note_id)
         do {
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32 else { throw CollabCrypto.Failure.wrongKey }

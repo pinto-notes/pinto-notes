@@ -109,8 +109,26 @@ import Testing
         #expect(note.deletedAt == nil && note.sharedNoteID != nil)
     }
 
-    /// A request that dies on a reused connection (NSURLError -1005) is sent once more: opening
-    /// the link and joining both go through, and Sara is in the note.
+    /// Before joining by the app's own scheme, a link says which note and who shared it, and
+    /// reading it joins no one.
+    @Test func aLinkPreviewsWithoutJoining() async throws {
+        let emilID = server.account("Emil"), saraID = server.account("Sara")
+        let emil = try device(emilID, name: "Emil"), sara = try device(saraID, name: "Sara")
+        let note = Note(body: "Team offsite\n\nAgenda\n")
+        emil.context.insert(note)
+        try await emil.store.setAccess(.edit, for: note)
+        let link = try #require(emil.store.linkURL(note))
+        let preview = try await sara.store.preview(link).get()
+        #expect(preview.title == "Team offsite" && preview.owner == "Emil" && preview.canEdit && !preview.alreadyIn)
+        #expect(try await server.transport(for: emilID).members(of: note.id).count == 1)
+        // After joining, the same link says she's in; the owner's own link is a note they're in.
+        #expect(await sara.store.join(link).worked)
+        #expect(try await sara.store.preview(link).get().alreadyIn)
+        #expect(try await emil.store.preview(link).get().alreadyIn)
+    }
+
+    /// A request that dies on a reused connection (NSURLError -1005) is sent once more: the
+    /// preview and the join both go through, and Sara is in the note.
     @Test func aDroppedRequestIsSentOnceMore() async throws {
         let emilID = server.account("Emil"), saraID = server.account("Sara")
         let emil = try device(emilID, name: "Emil"), sara = try device(saraID, name: "Sara")
@@ -118,6 +136,8 @@ import Testing
         emil.context.insert(note)
         try await emil.store.setAccess(.edit, for: note)
         let link = try #require(emil.store.linkURL(note))
+        server.dropOnce = ["open_link"]
+        #expect(try await sara.store.preview(link).get().title == "Team offsite")
         server.dropOnce = ["open_link", "join_link"]
         #expect(await sara.store.join(link).worked)
         #expect(try await server.transport(for: emilID).members(of: note.id).contains { $0.user_id == saraID })
@@ -133,6 +153,7 @@ import Testing
         let link = try #require(emil.store.linkURL(note))
         server.offline = true
         #expect(await sara.store.join(link) == .failed("This link didn’t open. Ask for a new one."))
+        #expect(await sara.store.preview(link) == .failure(JoinFailure("This link didn’t open. Ask for a new one.")))
         server.offline = false
         // A dropped connection twice over: the connection is named.
         #expect(CollabStore.joinFailure(URLError(.networkConnectionLost)).contains("couldn't be reached"))
