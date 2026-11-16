@@ -2182,8 +2182,8 @@ enum RowMetrics {
     static let spacing: CGFloat = 3
     /// The title's start past the list's own 16 pt: 26 pt in from the row's edge, 16 inside the
     /// selected card. Apple Notes has 34; on the card that read as padded (Emil, 2 November 2026).
-    /// The room in front of the title holds the row's status: a lock, the unread dot, shared or a
-    /// pin (NoteRowStatus).
+    /// The room in front of the title holds the row's status: a lock, the unread dot or a pin
+    /// (NoteRowStatus).
     static let leading: CGFloat = 10
     /// Room above and below a row's lines: less when it has a third line, its folder.
     static func top(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
@@ -2449,8 +2449,10 @@ struct NoteRow: View {
         let large = typeSize.isAccessibilitySize
         let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: RowMetrics.detailGap))
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
-        // The room before the title: a lock, the unseen AI dot, shared or a pin, one at a time.
+        // The room before the title: a lock, the unseen AI dot or a pin, one at a time.
         let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
+        // Shared with people: a mark after the title (NoteRowSharedMark).
+        let sharedMark = NoteRowStatus.showsShared(note)
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         let found = self.found
@@ -2467,6 +2469,9 @@ struct NoteRow: View {
                         // Privacy mode on the Mac: blurred until you point at the list (ListTitleReveal).
                         .blur(radius: titleBlurred ? PreviewBlur.radius : 0)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: titleBlurred)
+                    if sharedMark {
+                        NoteRowSharedMark()
+                    }
                     if app {
                         AppMarkView(size: RowMetrics.markSize)
                             .accessibilityIdentifier("note.app")
@@ -2581,9 +2586,9 @@ struct NoteRow: View {
         .padding(.bottom, RowMetrics.bottom(folderLine: folderLine) + RowMetrics.calmAir)
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
-        // Shared once, whether with people (its mark, even while the AI dot has its place) or by a
-        // link (the link by the date).
-        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || (note.isShared && note.trashedAt == nil) ? "Shared" : nil, note.isLocked ? "Locked" : nil,
+        // Shared once, whether with people (its mark after the title) or by a link (the link by
+        // the date).
+        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || sharedMark ? "Shared" : nil, note.isLocked ? "Locked" : nil,
                              ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
     }
