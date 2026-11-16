@@ -13,6 +13,11 @@ import UIKit
 // names only (libproc), which needs no permission and shows no dialog. What it looks for is in
 // `ShareSignals.mac`. A meeting in a browser (Google Meet) can't be told apart from browsing by
 // its processes; the microphone tells it (CallDetection).
+//
+// The Mac App Store build runs in the App Sandbox, which doesn't let libproc list processes (it
+// answers none). There it looks at the running apps instead (NSWorkspace): Zoom's CptHost.app and
+// the system's screencaptureui.app are apps, so they show. A daemon doesn't: Screen Sharing's
+// screensharingd, and `screencapture -v` run from Terminal, can't be seen from the sandbox.
 
 /// One app or system service that runs while the screen is shared.
 struct ShareSignal: Sendable, Equatable {
@@ -72,6 +77,7 @@ protocol ProcessLister: Sendable {
 }
 
 #if os(macOS)
+import AppKit
 import Darwin
 
 /// libproc: every process's short name, no permission needed. About a millisecond for 700
@@ -94,6 +100,30 @@ struct LibProcLister: ProcessLister {
     }
 }
 
+/// The running apps, by their executables' names: what the sandbox lets an app see. Daemons and
+/// command-line tools aren't among them.
+struct WorkspaceLister: ProcessLister {
+    func names() -> Set<String> { Self.names(NSWorkspace.shared.runningApplications.map(\.executableURL)) }
+
+    /// `…/zoom.us.app/Contents/Frameworks/CptHost.app/Contents/MacOS/CptHost` is "cpthost", as
+    /// libproc names it.
+    static func names(_ executables: [URL?]) -> Set<String> {
+        Set(executables.compactMap { $0?.lastPathComponent.lowercased() }.filter { !$0.isEmpty })
+    }
+}
+
+/// libproc, and the running apps when libproc lists nothing (the App Sandbox: the Mac App Store
+/// build). The direct download sees every process.
+struct ShareLister: ProcessLister {
+    var processes: ProcessLister = LibProcLister()
+    var apps: ProcessLister = WorkspaceLister()
+
+    func names() -> Set<String> {
+        let all = processes.names()
+        return all.isEmpty ? apps.names() : all
+    }
+}
+
 /// The Mac's detector: looks every 2 seconds (a timer with a second of leeway, so the system
 /// can fold its wake-ups into others), on a utility queue, and tells the main thread only when
 /// the answer changes.
@@ -101,7 +131,7 @@ final class ProcessShareDetector: ScreenShareDetector {
     static let interval: TimeInterval = 2
     private let poller: SharePoller
 
-    init(lister: ProcessLister = LibProcLister(), signals: [ShareSignal] = ShareSignals.mac) {
+    init(lister: ProcessLister = ShareLister(), signals: [ShareSignal] = ShareSignals.mac) {
         poller = SharePoller(lister: lister, signals: signals)
     }
 

@@ -450,6 +450,115 @@ import AVFoundation
         #expect(source.reads == 2, "a day later it looks again")
     }
 
+    // MARK: Another account
+
+    /// Answers the server's questions a moment late, so a sign-out can come in between.
+    final class SlowSource: FilmSource.Service, @unchecked Sendable {
+        let rows: [FilmSource.Row]
+        init(_ rows: [FilmSource.Row]) { self.rows = rows }
+        func rows(notes: [UUID]) async throws -> [FilmSource.Row] { try await Task.sleep(for: .milliseconds(300)); return rows }
+        func seen() async throws -> Bool { try await Task.sleep(for: .milliseconds(300)); return false }
+        func markSeen() async throws {}
+    }
+
+    static func gone(_ url: URL, within seconds: Double = 10) async throws -> Bool {
+        let end = Date.now.addingTimeInterval(seconds)
+        while FileManager.default.fileExists(atPath: url.path), Date.now < end { try await Task.sleep(for: .milliseconds(50)) }
+        return !FileManager.default.fileExists(atPath: url.path)
+    }
+
+    @Test func anotherAccountGetsNothingOfTheLastOnesFilm() async throws {
+        // The council's 1.4 review: A's card, film and movies stayed in the app's one store after
+        // A signed out and B signed in, and B could open A's film, folder names and all.
+        let (c, source) = try Self.library(days: 35)
+        let d = TestDefaults(), a = UUID(), b = UUID(), folder = Self.tempFolder(), movies = Self.tempFolder()
+        ShareAsk.lastKeystroke = .distantPast
+        await Self.store(d, account: a, source: source, folder: folder).prepare(context: c.mainContext)
+
+        let s = NotebookFilmStore(defaults: d, arguments: [], folder: folder, moviesFolder: movies)
+        s.attach(account: a, service: source)
+        s.atLaunch(otherPrompt: false)
+        #expect(s.offered && s.script != nil && s.input != nil)
+        let keyForA = s.key(s.look, s.folderNames)
+        s.open()
+        #expect(s.visible)
+        // A's movie is being made when A signs out.
+        s.makeMovies()
+        let aMovies = movies.appendingPathComponent(a.uuidString.lowercased())
+        s.attach(account: nil, service: nil)
+        #expect(!s.offered && !s.visible && !s.cardShown && !s.asked)
+        #expect(s.script == nil && s.input == nil && s.offerLine == nil && s.movie == nil)
+
+        s.attach(account: b, service: FakeSource())
+        s.atLaunch(otherPrompt: false)
+        #expect(!s.offered && s.script == nil, "nothing was got ready for B")
+        #expect(s.key(s.look, s.folderNames) != keyForA, "movies are the account's")
+        // The movie A was making stops, and nothing of it is left.
+        #expect(try await Self.gone(aMovies))
+        #expect(s.movie == nil)
+    }
+
+    @Test func aFilmGotReadyAsTheAccountSignsOutIsNotKept() async throws {
+        let (c, fast) = try Self.library(days: 35)
+        let d = TestDefaults(), a = UUID(), b = UUID(), folder = Self.tempFolder()
+        let s = NotebookFilmStore(defaults: d, arguments: [], folder: folder, moviesFolder: Self.tempFolder())
+        s.attach(account: a, service: SlowSource(fast.rows))
+        let reading = Task { await s.prepare(context: c.mainContext) }
+        try await Task.sleep(for: .milliseconds(100))
+        s.attach(account: nil, service: nil)
+        s.attach(account: b, service: FakeSource())
+        await reading.value
+        #expect(!FileManager.default.fileExists(atPath: folder.appendingPathComponent("ready-\(a.uuidString.lowercased()).json").path))
+        #expect(!FileManager.default.fileExists(atPath: s.preparedURL.path), "nor under B's name")
+    }
+
+    @Test func removingTheNotesFromThisDeviceRemovesTheirFilm() throws {
+        // Sign Out and Remove Notes, Delete Account: the film got ready, the one kept for Help and
+        // the movies used to stay, with folder names, note ids and dates in them.
+        let container = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let root = Self.tempFolder(), account = UUID().uuidString.lowercased()
+        let places = NotebookFilmStore.Places(folder: root.appendingPathComponent("NotebookFilm"), movies: root.appendingPathComponent("tmp/NotebookFilm"))
+        let fm = FileManager.default
+        try fm.createDirectory(at: places.folder, withIntermediateDirectories: true)
+        let ready = places.folder.appendingPathComponent("ready-\(account).json"), kept = places.folder.appendingPathComponent("shown-\(account).json")
+        try Data("{}".utf8).write(to: ready)
+        try Data("{}".utf8).write(to: kept)
+        let movie = places.movies.appendingPathComponent("\(account)/\(UUID().uuidString)/Pinto Notes.mp4")
+        try fm.createDirectory(at: movie.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("mp4".utf8).write(to: movie)
+        // (Where 1.4's first builds made them.)
+        let older = root.appendingPathComponent("tmp/NotebookFilm-\(UUID().uuidString)")
+        try fm.createDirectory(at: older, withIntermediateDirectories: true)
+        let files = root.appendingPathComponent("Files")
+        try fm.createDirectory(at: files, withIntermediateDirectories: true)
+
+        container.mainContext.wipeLocalLibrary(files: files, film: places)
+        for url in [ready, kept, movie, older] { #expect(!fm.fileExists(atPath: url.path), "\(url.lastPathComponent)") }
+        #expect(!NotebookFilmStore.canRewatch(UUID(uuidString: account), in: places.folder))
+    }
+
+    // MARK: Making the movie
+
+    final class Flag: @unchecked Sendable { var on = false }
+
+    @Test func aWriterThatFailedEndsTheWaitWithItsError() {
+        // A failed writer is never ready again: this waited forever, and Share with it.
+        #expect(throws: FilmVideo.Failure.self) {
+            try FilmVideo.waitUntil({ false }, writing: { false }, error: { URLError(.cannotWriteToFile) }, cancel: {})
+        }
+    }
+
+    @Test func closingTheFilmEndsTheWait() async {
+        let cancelled = Flag()
+        let wait = Task.detached {
+            try FilmVideo.waitUntil({ false }, writing: { true }, error: { nil }, cancel: { cancelled.on = true })
+        }
+        try? await Task.sleep(for: .milliseconds(50))
+        wait.cancel()
+        await #expect(throws: CancellationError.self) { try await wait.value }
+        #expect(cancelled.on, "the writer is cancelled")
+    }
+
     @Test func theOpeningIsGoneBeforeTheFirstDayBegins() {
         // It opens on the finished notebook, which draws back and is gone: the two never show at once.
         let script = FilmScript(FilmDemo.notebook(days: 35, now: Self.now), calendar: Self.cal)

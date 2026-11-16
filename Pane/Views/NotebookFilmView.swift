@@ -36,6 +36,8 @@ struct NotebookFilmView: View {
     #if os(macOS)
     @State private var saveFailed = false
     #endif
+    /// The movie Share was waiting for couldn't be made.
+    @State private var makeFailed = false
 
     /// Like a year in review: an intro, the film once full screen, then the film to share.
     enum Phase { case intro, watching, share }
@@ -154,6 +156,7 @@ struct NotebookFilmView: View {
             shareWaiting = false
             openShare(movie)
         }
+        .modifier(MovieFailure(failed: store.movieFailed, waiting: $shareWaiting, asking: $makeFailed, again: pressShare))
         .accessibilityIdentifier("notebookFilm")
     }
 
@@ -875,6 +878,28 @@ struct NotebookFilmView: View {
 
     /// What sharing shares is the film, and the buttons say so.
     static let shareVideo = "Share video", saveVideo = "Save video\u{2026}"
+    static let makeFailedTitle = "Couldn\u{2019}t make the video"
+
+    /// Share stops waiting when the movie can't be made, and says so; Try Again makes it again.
+    private struct MovieFailure: ViewModifier {
+        let failed: Bool
+        @Binding var waiting: Bool
+        @Binding var asking: Bool
+        let again: () -> Void
+
+        func body(content: Content) -> some View {
+            content
+                .onChange(of: failed) { _, failed in
+                    guard failed, waiting else { return }
+                    waiting = false
+                    asking = true
+                }
+                .alert(NotebookFilmView.makeFailedTitle, isPresented: $asking) {
+                    Button("Try Again", action: again)
+                    Button("Cancel", role: .cancel) {}
+                }
+        }
+    }
 
     /// Pinto's ink, for words on a pale sky.
     static let ink = Color(red: 0.17, green: 0.12, blue: 0.11)

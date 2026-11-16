@@ -12,7 +12,8 @@ import WidgetKit
 // you point at the list (ListTitleReveal); the open note's title always shows. It
 // turns itself on when your screen is shared, or on the Mac when you're in a call
 // (CallDetection), after asking (the cover, PrivacyCover), and off again when both have stopped;
-// turned on by hand, it stays on until you turn it off. One remembered answer covers both.
+// turned on by hand, it stays on until you turn it off. Sharing that starts during a call asks
+// again, since it shows more than the call did, and calls and sharing each remember their own answer.
 
 /// Says whether the screen is being shared or recorded right now. The iPhone asks the system
 /// (SceneCaptureDetector); the Mac has no way to ask, so it looks for the apps that share
@@ -56,6 +57,7 @@ final class PrivacyMode {
 
     static let manualKey = "privacyMode.manual"
     static let whenSharedKey = "privacyMode.whenShared"
+    static let whenInCallKey = "privacyMode.whenInCall"
 
     private let store: UserDefaults
     private(set) var source: Source?
@@ -69,14 +71,22 @@ final class PrivacyMode {
     var coverTitle: String { sharing || !inCall ? PrivacyWords.coverTitle : PrivacyWords.coverTitleCall }
     /// The frosted notice over the window, asking.
     private(set) var asking = false
-    /// "Show previews" was chosen for this sharing session or call: not asked again until both
-    /// stop.
-    private var declined = false
+    /// "Show previews" was chosen for this sharing session: not asked again until it stops.
+    private var declinedSharing = false
+    /// ...or for this call: not asked again until it ends. Sharing that starts during it still asks.
+    private var declinedCall = false
     private var detector: ScreenShareDetector?
     private var callDetector: ScreenShareDetector?
 
+    /// What happens when sharing starts, even during a call.
     var whenShared: WhenShared {
         didSet { store.set(whenShared.rawValue, forKey: Self.whenSharedKey) }
+    }
+
+    /// What happens when a call starts (the Mac's). Its own answer: "Show previews" for a call
+    /// isn't an answer for sharing your screen.
+    var whenInCall: WhenShared {
+        didSet { store.set(whenInCall.rawValue, forKey: Self.whenInCallKey) }
     }
 
     /// Previews are blurred: in the list, the sidebar's cards, search, the menu bar and the widget.
@@ -89,6 +99,7 @@ final class PrivacyMode {
     init(store: UserDefaults) {
         self.store = store
         whenShared = store.string(forKey: Self.whenSharedKey).flatMap(WhenShared.init(rawValue:)) ?? .ask
+        whenInCall = store.string(forKey: Self.whenInCallKey).flatMap(WhenShared.init(rawValue:)) ?? .ask
         if store.bool(forKey: Self.manualKey) { source = .manual }
     }
 
@@ -107,10 +118,12 @@ final class PrivacyMode {
         }
     }
 
-    /// Off now. While the screen is still shared it isn't asked again: you just said show them.
+    /// Off now. While the screen is still shared, or the call goes on, it isn't asked again: you
+    /// just said show them.
     private func turnOff() {
         update {
-            if occasion { declined = true }
+            if sharing { declinedSharing = true }
+            if inCall { declinedCall = true }
             asking = false
             source = nil
         }
@@ -118,16 +131,22 @@ final class PrivacyMode {
 
     // MARK: The cover
 
-    /// Hide notes or Show notes on the cover; with Remember this, the next share does the same
-    /// without asking (Settings › Privacy changes it back).
+    /// Hide notes or Show notes on the cover; with Remember this, the next share (or call, for
+    /// the call's question) does the same without asking (Settings › Privacy changes it back).
     func answer(hide: Bool, remember: Bool) {
-        if remember { whenShared = hide ? .hide : .nothing }
+        // What it asked about: sharing, whenever the screen is shared (its title says so).
+        let aboutSharing = sharing || !inCall
+        if remember {
+            if aboutSharing { whenShared = hide ? .hide : .nothing } else { whenInCall = hide ? .hide : .nothing }
+        }
         update {
             asking = false
             if hide {
                 if source == nil { source = .automatic }
+            } else if aboutSharing {
+                declinedSharing = true
             } else {
-                declined = true
+                declinedCall = true
             }
         }
     }
@@ -155,41 +174,53 @@ final class PrivacyMode {
         callDetector = nil
     }
 
+    /// Sharing started or stopped. Starting is its own occasion, even during a call: it shows
+    /// more than the call does, so it asks again (the 1.4 review: "Show previews" for the call
+    /// left the screen share unasked).
     func sharingChanged(_ on: Bool) {
         guard on != sharing else { return }
-        let was = occasion
         sharing = on
-        occasionChanged(from: was)
-    }
-
-    func callChanged(_ on: Bool) {
-        guard on != inCall else { return }
-        let was = occasion
-        inCall = on
-        occasionChanged(from: was)
-    }
-
-    /// Sharing or a call began (from none) or both ended. One already going doesn't ask again.
-    private func occasionChanged(from was: Bool) {
-        let on = occasion
-        guard on != was else { return }
         update {
             if on {
-                declined = false
-                guard source == nil else { return }
-                switch whenShared {
-                case .ask: asking = true
-                case .hide: source = .automatic
-                case .nothing: break
-                }
+                begin(whenShared, declined: declinedSharing)
             } else {
-                // Sharing and the call stopped: what they turned on goes off, what you turned on
-                // stays.
-                asking = false
-                declined = false
-                if source == .automatic { source = nil }
+                declinedSharing = false
+                endIfOver()
             }
         }
+    }
+
+    /// A call began or ended. One that begins while the screen is shared doesn't ask: what you
+    /// said for the sharing covers it, since a call shows less.
+    func callChanged(_ on: Bool) {
+        guard on != inCall else { return }
+        inCall = on
+        update {
+            if on {
+                guard !sharing else { return }
+                begin(whenInCall, declined: declinedCall)
+            } else {
+                declinedCall = false
+                endIfOver()
+            }
+        }
+    }
+
+    private func begin(_ when: WhenShared, declined: Bool) {
+        guard source == nil, !declined else { return }
+        switch when {
+        case .ask: asking = true
+        case .hide: source = .automatic
+        case .nothing: break
+        }
+    }
+
+    /// Sharing and the call have both stopped: what they turned on goes off, what you turned on
+    /// stays.
+    private func endIfOver() {
+        guard !occasion else { return }
+        asking = false
+        if source == .automatic { source = nil }
     }
 
     private func update(_ change: () -> Void) {

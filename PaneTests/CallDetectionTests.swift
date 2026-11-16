@@ -149,29 +149,69 @@ final class FakeMic: MicSource, @unchecked Sendable {
         #expect(!mode.isOn)
     }
 
-    @Test func sharingDuringACallDoesntAskAgain() {
+    /// The 1.4 review: "Show previews" for the call left a share later in it unasked, and
+    /// everything was shown to the meeting. Sharing asks again, with its own title.
+    @Test func sharingDuringACallAsksAgain() {
         let (mode, share, call) = Self.mode()
         call.say(true)
         mode.answer(hide: false, remember: false)
         #expect(!mode.isOn)
         share.say(true)
-        #expect(!mode.asking, "you already said show them, for this call")
-        call.say(false); share.say(false)
+        #expect(mode.asking && mode.isOn, "sharing shows more than the call: it asks")
+        #expect(mode.coverTitle == "Your screen is being shared")
+        mode.answer(hide: false, remember: false)
+        #expect(!mode.isOn && !mode.asking)
+        // The share stops and the call goes on: nothing asks. A second share in the call asks again.
+        share.say(false)
+        #expect(!mode.asking)
+        share.say(true)
+        #expect(mode.asking, "a new share is its own occasion")
+        mode.answer(hide: true, remember: false)
+        share.say(false)
+        #expect(mode.isOn, "on until the call ends too")
+        call.say(false)
+        #expect(!mode.isOn)
         call.say(true)
         #expect(mode.asking, "the next call asks again")
     }
 
-    @Test func oneRememberedChoiceCoversCallsAndSharing() {
+    /// A call that starts while the screen is shared doesn't ask: what you said for the share
+    /// covers it.
+    @Test func aCallDuringASharingDoesntAsk() {
         let (mode, share, call) = Self.mode()
-        call.say(true)
-        mode.answer(hide: true, remember: true)
-        call.say(false)
         share.say(true)
-        #expect(mode.isOn && !mode.asking, "remembered from the call")
-        share.say(false)
-        mode.whenShared = .nothing
+        mode.answer(hide: false, remember: false)
         call.say(true)
-        #expect(!mode.isOn && !mode.asking)
+        #expect(!mode.asking && !mode.isOn)
+    }
+
+    /// Calls and sharing each remember their own answer.
+    @Test func callsAndSharingRememberTheirOwnAnswers() {
+        let store = MemoryDefaults()
+        let mode = PrivacyMode(store: store)
+        let share = FakeShareDetector(), call = FakeShareDetector()
+        mode.watch(share)
+        mode.watchCalls(call)
+        call.say(true)
+        mode.answer(hide: false, remember: true)
+        #expect(mode.whenInCall == .nothing && mode.whenShared == .ask, "the call's answer is the call's")
+        share.say(true)
+        #expect(mode.asking, "Show previews, remembered for calls, isn't an answer for sharing")
+        mode.answer(hide: true, remember: true)
+        #expect(mode.whenShared == .hide && mode.whenInCall == .nothing)
+        share.say(false); call.say(false)
+        #expect(!mode.isOn)
+        // Kept for the next launch, each on its own.
+        let next = PrivacyMode(store: store)
+        #expect(next.whenInCall == .nothing && next.whenShared == .hide)
+        call.say(true)
+        #expect(!mode.isOn && !mode.asking, "a call shows the notes, as remembered")
+        share.say(true)
+        #expect(mode.isOn && !mode.asking && mode.source == .automatic, "sharing blurs them at once, as remembered")
+        share.say(false)
+        #expect(mode.isOn, "still in the call")
+        call.say(false)
+        #expect(!mode.isOn)
     }
 
     @Test func turnedOnByHandItStaysOnAfterTheCall() {
@@ -200,12 +240,12 @@ final class FakeMic: MicSource, @unchecked Sendable {
 
     @Test func theCallCopy() {
         #expect(PrivacyWords.coverTitleCall == "You\u{2019}re in a call")
-        #expect(PrivacyWords.whenSharedTitleMac == "In calls and when sharing your screen")
-        for w in [PrivacyWords.coverTitleCall, PrivacyWords.whenSharedTitleMac, PrivacyWords.whenSharedFooterMac, PrivacyModeSection.footer] {
+        #expect(PrivacyWords.whenInCallTitle == "During a call")
+        for w in [PrivacyWords.coverTitleCall, PrivacyWords.whenInCallTitle, PrivacyWords.whenSharedFooterMac, PrivacyModeSection.footer] {
             #expect(!w.contains("\u{2014}"), "no em dash: \(w)")
         }
         #if os(macOS)
-        #expect(PrivacyModeSection.pickerTitle == PrivacyWords.whenSharedTitleMac)
+        #expect(PrivacyModeSection.pickerTitle == PrivacyWords.whenSharedTitle)
         #expect(PrivacyModeSection.footer.contains("Calls count in Teams, Zoom, FaceTime, Slack"))
         #else
         #expect(PrivacyModeSection.pickerTitle == PrivacyWords.whenSharedTitle, "the iPhone doesn't hear calls")

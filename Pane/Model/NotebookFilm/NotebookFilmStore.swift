@@ -54,14 +54,19 @@ final class NotebookFilmStore {
     /// Share almost never waits and trying a look doesn't either.
     var movie: URL? { movies[movieKey] }
     /// How far the chosen movie is, 0...1, while it's being made.
-    var making: Double? { movie == nil ? progress[movieKey] ?? 0 : nil }
+    var making: Double? { movie == nil && !movieFailed ? progress[movieKey] ?? 0 : nil }
+    /// The chosen movie couldn't be made (the writer failed: the disk filled, the app went to the
+    /// background): Share stops waiting and says so, and asking again tries again.
+    var movieFailed: Bool { failed.contains(movieKey) }
     private(set) var movies: [String: URL] = [:]
     private var progress: [String: Double] = [:]
+    private var failed: Set<String> = []
     @ObservationIgnored private var maker: Task<Void, Never>?
     @ObservationIgnored private var makingKey: String?
 
-    private var movieKey: String { Self.key(look, folderNames) }
-    private static func key(_ look: FilmLook, _ folderNames: Bool) -> String { "\(look.rawValue)-\(folderNames)" }
+    private var movieKey: String { key(look, folderNames) }
+    /// A movie is the account's: one made for another account is never handed out.
+    func key(_ look: FilmLook, _ folderNames: Bool) -> String { "\(account?.uuidString.lowercased() ?? "device")-\(look.rawValue)-\(folderNames)" }
 
     @ObservationIgnored private var account: UUID?
     @ObservationIgnored private var service: FilmSource.Service?
@@ -75,18 +80,41 @@ final class NotebookFilmStore {
     /// The launch's arguments (captures), or a test's.
     @ObservationIgnored let arguments: [String]
     @ObservationIgnored let folder: URL
+    /// Where its movies are made, one folder per account.
+    @ObservationIgnored let moviesFolder: URL
 
     init(defaults: UserDefaults = .standard, launched: Date = .now, arguments: [String] = ProcessInfo.processInfo.arguments,
-         folder: URL = NotebookFilmStore.defaultFolder) {
+         folder: URL = NotebookFilmStore.defaultFolder, moviesFolder: URL = NotebookFilmStore.defaultMoviesFolder) {
         self.defaults = defaults
         self.launched = launched
         self.folder = folder
+        self.moviesFolder = moviesFolder
         self.arguments = arguments
         forced = arguments.contains("-forceNotebookFilm")
     }
 
-    static var defaultFolder: URL {
+    nonisolated static var defaultFolder: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("NotebookFilm", isDirectory: true)
+    }
+    nonisolated static var defaultMoviesFolder: URL { FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm", isDirectory: true) }
+
+    /// The app's own folders, or a test's.
+    struct Places: Sendable {
+        var folder = NotebookFilmStore.defaultFolder
+        var movies = NotebookFilmStore.defaultMoviesFolder
+    }
+
+    /// The device's copy of the notes is removed (Sign Out and Remove Notes, Delete Account, another
+    /// account signing in): every account's film goes with it, the one got ready, the one kept for
+    /// Help, and the movies. (The store itself lets go of them when the account signs out: `attach`.)
+    static func forgetAll(_ places: Places = Places()) {
+        try? FileManager.default.removeItem(at: places.folder)
+        try? FileManager.default.removeItem(at: places.movies)
+        // Before 1.4's fix the movies were made straight in the temporary folder.
+        let temp = places.movies.deletingLastPathComponent()
+        for name in (try? FileManager.default.contentsOfDirectory(atPath: temp.path)) ?? [] where name.hasPrefix("NotebookFilm-") {
+            try? FileManager.default.removeItem(at: temp.appendingPathComponent(name))
+        }
     }
 
     static func shownKey(_ account: UUID?) -> String { "notebookFilm.shown.\(account?.uuidString.lowercased() ?? "device")" }
@@ -119,10 +147,34 @@ final class NotebookFilmStore {
         return FilmStats(input).months
     }
 
+    /// Signed in, or signed out (nil). Another account (or none) gets nothing of the last one's:
+    /// its card, the film in hand and its movies go, and a movie being made stops.
     func attach(account: UUID?, service: FilmSource.Service?) {
-        if account != self.account { launchChecked = false; prepareChecked = false }
+        if account != self.account { forgetAccount() }
         self.account = account
         self.service = service
+    }
+
+    private func forgetAccount() {
+        launchChecked = false
+        prepareChecked = false
+        stopMaking()
+        try? FileManager.default.removeItem(at: moviesFolder(account))
+        movies = [:]
+        progress = [:]
+        failed = []
+        // (The dev film of a made-up month stays up.)
+        guard !forced else { return }
+        offered = false
+        opened = false
+        rewatching = false
+        visible = false
+        script = nil
+        input = nil
+    }
+
+    private func moviesFolder(_ account: UUID?) -> URL {
+        moviesFolder.appendingPathComponent(account?.uuidString.lowercased() ?? "device", isDirectory: true)
     }
 
     /// As the app opens: offers the film an earlier launch got ready, as a card, or nothing.
@@ -234,7 +286,11 @@ final class NotebookFilmStore {
         if !ready { defaults.set(now, forKey: Self.checkedKey(account)) }
         // Shown on another of the account's devices: not offered here. A card that's up goes
         // (not a film you've opened), and the film got ready here is kept for Help.
-        if (try? await service.seen()) == true {
+        let asked = account
+        let seen = (try? await service.seen()) == true
+        // Signed out, or someone else signed in, while the server was asked: nothing of it is kept.
+        guard account == asked else { return }
+        if seen {
             defaults.set(true, forKey: Self.shownKey(account))
             defaults.set(true, forKey: Self.toldKey(account))
             if offered && !visible { offered = false; script = nil; input = nil }
@@ -243,7 +299,7 @@ final class NotebookFilmStore {
         }
         guard !visible, !ready else { return }
         let ids = ((try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []).map(\.id)
-        guard let rows = try? await service.rows(notes: ids) else { return }
+        guard let rows = try? await service.rows(notes: ids), account == asked else { return }
         let input = FilmSource.notes(context, edits: FilmSource.edits(rows), now: now)
         guard FilmEligibility.isReady(input), let data = try? JSONEncoder().encode(input) else { return }
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -303,16 +359,19 @@ final class NotebookFilmStore {
         maker?.cancel()
         let folderNames = folderNames
         let order = galaxy ? [look] : [look] + FilmLook.offered.filter { $0 != look }
-        let jobs = order.map { (Self.key($0, folderNames), labels(look: $0, folderNames: folderNames)) }
+        let jobs = order.map { (key($0, folderNames), labels(look: $0, folderNames: folderNames)) }
             .filter { movies[$0.0] == nil }
         guard !jobs.isEmpty else { maker = nil; return }
+        // Asking again after a movie failed tries it again.
+        for (key, _) in jobs { failed.remove(key) }
+        let owner = account, root = moviesFolder(account)
         maker = Task { [weak self] in
             for (k, (key, labels)) in jobs.enumerated() {
                 guard !Task.isCancelled else { return }
                 // The one you're looking at is made at once; the others after it, in the background.
                 let priority: TaskPriority = k == 0 && key == self?.movieKey ? .userInitiated : .utility
                 self?.makingKey = key
-                let dir = FileManager.default.temporaryDirectory.appendingPathComponent("NotebookFilm-\(UUID().uuidString)", isDirectory: true)
+                let dir = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
                 let url = dir.appendingPathComponent(await MainActor.run { self?.fileName } ?? "Pinto Notes \u{2013} your first month.mp4")
                 let work = Task.detached(priority: priority) { () async -> Bool in
                     do {
@@ -325,13 +384,15 @@ final class NotebookFilmStore {
                         try FileManager.default.moveItem(at: making, to: url)
                         return true
                     } catch {
+                        // Nothing half made is left behind.
+                        try? FileManager.default.removeItem(at: dir)
                         return false
                     }
                 }
                 let ok = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
-                guard !Task.isCancelled, let self else { return }
+                guard !Task.isCancelled, let self, account == owner else { try? FileManager.default.removeItem(at: dir); return }
                 progress[key] = nil
-                if ok { movies[key] = url }
+                if ok { movies[key] = url } else { failed.insert(key) }
             }
             self?.maker = nil
             self?.makingKey = nil

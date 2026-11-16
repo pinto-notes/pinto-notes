@@ -48,6 +48,10 @@ struct FolderGallery: View {
                     }
                     .opacity(ready ? 1 : 0)
                     .animation(.easeOut(duration: 0.15), value: ready)
+                    #if os(macOS)
+                    // Privacy mode: the cards' titles show while you point at the gallery, as the list's do.
+                    .modifier(RevealsTitles())
+                    #endif
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -124,6 +128,8 @@ struct GalleryCard: View {
                     }
                 }
                 .clipShape(.rect(cornerRadius: 12, style: .continuous))
+                // Privacy mode: the photo and the note's first lines blur as a preview does.
+                .previewBlur()
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(Color.ink.opacity(0.08), lineWidth: 0.5)
@@ -136,11 +142,13 @@ struct GalleryCard: View {
                     Text(note.isLocked ? "Locked note" : note.title)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
+                        .privacyTitleBlur()
                 }
                 Text(note.isLocked ? " " : note.preview)
                     .font(.system(size: 12))
                     .foregroundStyle(Color.muted)
                     .lineLimit(1)
+                    .previewBlur()
             }
             .padding(.horizontal, 2)
         }

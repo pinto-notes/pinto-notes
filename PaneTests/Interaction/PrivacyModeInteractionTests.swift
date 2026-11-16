@@ -232,6 +232,122 @@ import Testing
         #expect(!PrivacyMode.shared.isOn)
     }
 
+    /// The Control Centre switch redraws the checklist widget itself: run in the widget extension,
+    /// nothing else did, and the widget kept showing a note's lines sharp (the 1.4 review).
+    @Test func theControlCentreSwitchRedrawsTheWidget() async throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "privacy-control-\(UUID().uuidString)")
+        ChecklistShelf.rootOverride = dir
+        let saved = SetPrivacyModeIntent.redrawWidget
+        var redraws = 0
+        SetPrivacyModeIntent.redrawWidget = { redraws += 1 }
+        defer {
+            SetPrivacyModeIntent.redrawWidget = saved
+            ChecklistShelf.rootOverride = nil
+            try? FileManager.default.removeItem(at: dir)
+            PrivacyModeInteractionReset.reset()
+        }
+        var on = SetPrivacyModeIntent()
+        on.value = true
+        _ = try await on.perform()
+        #expect(ChecklistShelf.privacy() == .init(hidden: true, manual: true))
+        #expect(redraws == 1)
+        // The same again (the app wrote it first): it still redraws.
+        _ = try await on.perform()
+        #expect(redraws == 2)
+        var off = SetPrivacyModeIntent()
+        off.value = false
+        _ = try await off.perform()
+        #expect(redraws == 3)
+    }
+
+    /// The darkest pixel of a part of a drawn picture, `rect` in points from the top left.
+    static func darkest(_ rep: NSBitmapImageRep, points rect: CGRect, width: CGFloat) -> CGFloat {
+        let s = CGFloat(rep.pixelsWide) / width
+        return darkest(rep, in: CGRect(x: rect.minX * s, y: rect.minY * s, width: rect.width * s, height: rect.height * s))
+    }
+
+    /// The gallery's cards kept their titles, previews, pictures and first lines sharp in privacy
+    /// mode (the 1.4 review). They blur as the list's do: the title until you point at the gallery.
+    @Test func theGalleryBlursItsCards() throws {
+        Self.reset()
+        defer { Self.reset() }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let note = c.mainContext.createNote(in: .all, body: "Salary talk\nAsk for the raise on Monday\nBring last year's numbers\nAnd the offer from the other place")
+        try c.mainContext.save()
+        let width: CGFloat = 240, face = width * 3 / 4
+        func drawn(reveal: ListTitleReveal? = nil) throws -> (face: CGFloat, title: CGFloat, preview: CGFloat) {
+            let r = ImageRenderer(content: GalleryCard(note: note).environment(\.listTitleReveal, reveal).modelContainer(c)
+                .frame(width: width).background(Color.white).environment(\.colorScheme, .light))
+            r.scale = 2
+            let rep = NSBitmapImageRep(cgImage: try #require(r.cgImage))
+            let height = CGFloat(rep.pixelsHigh) / 2, words = height - face - 9
+            return (Self.darkest(rep, points: CGRect(x: 0, y: 0, width: width, height: face), width: width),
+                    Self.darkest(rep, points: CGRect(x: 0, y: face + 9, width: width, height: words / 2), width: width),
+                    Self.darkest(rep, points: CGRect(x: 0, y: face + 9 + words / 2, width: width, height: words / 2), width: width))
+        }
+        let off = try drawn()
+        PrivacyMode.shared.setManual(true)
+        let on = try drawn()
+        let over = ListTitleReveal()
+        over.pointer(true)
+        let pointed = try drawn(reveal: over)
+        print("privacy-gallery: face \(off.face) then \(on.face); title \(off.title) then \(on.title), pointed \(pointed.title); preview \(off.preview) then \(on.preview)")
+        #expect(on.face > off.face + 0.2, "the note's first lines on its face blur: \(off.face) then \(on.face)")
+        #expect(on.title > off.title + 0.25, "the title blurs: \(off.title) then \(on.title)")
+        #expect(on.preview > off.preview + 0.15, "the preview blurs: \(off.preview) then \(on.preview)")
+        #expect(pointed.title < 0.35, "pointing at the gallery shows the titles: \(pointed.title)")
+        #expect(pointed.face > off.face + 0.2, "and not the faces")
+        // The photo is in the same place as the face, under the same blur.
+        let source = try SettingsHomeTests.source("Pane/Views/FolderGallery.swift")
+        #expect(source.contains("GalleryFace(note: note)\n                    }\n                }\n                .clipShape(.rect(cornerRadius: 12, style: .continuous))\n                // Privacy mode: the photo and the note's first lines blur as a preview does.\n                .previewBlur()"))
+        #expect(source.contains(".modifier(RevealsTitles())"))
+    }
+
+    /// Go to Note showed the recent notes' first words and the lines that hold what you typed,
+    /// sharp, in privacy mode (the 1.4 review). They blur, and so do the titles until you point
+    /// at the list or move through it with the arrows.
+    @Test func goToNoteBlursPreviewsMatchingLinesAndTitles() async throws {
+        Self.reset()
+        defer { Self.reset() }
+        let note = QuickOpen.NoteItem(id: UUID(), title: "Salary talk", folder: nil, date: .now, locked: false,
+                                      preview: QuickOpen.previewLine(locked: false, preview: "Ask for the raise on Monday and bring the numbers"))
+        let hit = QuickOpen.TextHit(id: UUID(), title: "Salary talk", folder: nil, date: .now,
+                                    snippet: .init(before: "Ask for the ", match: "raise", after: " on Monday and bring the numbers"))
+        let m = QuickOpenPanel.Metrics.self, w = m.width
+        // One row at a time, as the list draws it: a drawing of the whole panel leaves out its
+        // scroll view (as an image) or SwiftUI's blur (from a window).
+        func drawn(_ row: QuickOpen.Row, query: String = "") throws -> NSBitmapImageRep {
+            let panel = QuickOpenPanel(notes: [], commands: [], choose: { _ in }, close: {}, initialQuery: query)
+            let r = ImageRenderer(content: panel.rowView(row, on: false, column: nil).frame(width: w).background(Color.white).environment(\.colorScheme, .light))
+            r.scale = 2
+            return NSBitmapImageRep(cgImage: try #require(r.cgImage))
+        }
+        func recent() async throws -> (title: CGFloat, preview: CGFloat) {
+            let rep = try drawn(.note(note))
+            return (Self.darkest(rep, points: CGRect(x: 40, y: 0, width: 60, height: m.row), width: w),
+                    Self.darkest(rep, points: CGRect(x: 150, y: 0, width: 250, height: m.row), width: w))
+        }
+        func found() async throws -> CGFloat {
+            let rep = try drawn(.text(hit), query: "raise")
+            return Self.darkest(rep, points: CGRect(x: 40, y: m.textRow / 2, width: 350, height: m.textRow / 2), width: w)
+        }
+        let off = try await recent(), offLine = try await found()
+        PrivacyMode.shared.setManual(true)
+        let on = try await recent(), onLine = try await found()
+        print("privacy-goto: title \(off.title) then \(on.title); preview \(off.preview) then \(on.preview); matching line \(offLine) then \(onLine)")
+        #expect(off.title < 0.35 && off.preview < 0.75 && offLine < 0.75, "off: all drawn")
+        #expect(on.title > off.title + 0.25, "the title blurs: \(off.title) then \(on.title)")
+        #expect(on.preview > off.preview + 0.15, "the first words blur: \(off.preview) then \(on.preview)")
+        #expect(onLine > offLine + 0.15, "the line that holds the text blurs: \(offLine) then \(onLine)")
+        // The titles show while you point at the list or the arrows move through it.
+        let source = try SettingsHomeTests.source("Pane/Views/QuickOpen.swift")
+        #expect(source.contains(".environment(\\.listTitleReveal, reveal)\n            .onHover { reveal.pointer($0) }"))
+        #expect(source.components(separatedBy: "reveal.navigated()").count == 3, "both arrows")
+        // The menu bar's titles too.
+        let menu = try SettingsHomeTests.source("Pane/Views/MenuBarPanel.swift")
+        #expect(menu.contains(".lineLimit(1)\n                    .privacyTitleBlur()") && menu.contains(".onHover { reveal.pointer($0) }"))
+    }
+
     /// Settings › Privacy has privacy mode and what happens when your screen is shared.
     @Test func settingsPrivacyHasIt() throws {
         #expect(try SettingsHomeTests.source("Pane/Views/PrivacySecurity.swift").contains("PrivacyModeSection()"))
