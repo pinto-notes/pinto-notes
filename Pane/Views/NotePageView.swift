@@ -632,6 +632,64 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo) async -> Bool { false }
 }
 
+// MARK: A board's switch from its picture
+
+/// Emil, 16 November 2026: switching from a note to a board showed its picture, then a blank frame
+/// or two, then the board somewhere else than its picture. The page says it's ready two frames
+/// after it loads, before the board's engine has loaded and drawn its scene; and a board opened
+/// centred while its picture showed it where you had left it.
+extension NotePageSandbox {
+    /// Each board's view as you left it, for this run of the app: it opens there again, so it takes
+    /// over from its picture (taken as you left it) without moving. A board opened for the first
+    /// time since launch opens as it always has.
+    static var boardViews: [UUID: [String: Double]] = [:]
+
+    /// Remembers where the board's view is, as you leave it. Called before `disconnect()`: a
+    /// board's page lives on half a second after it for its last strokes.
+    func keepBoardView(_ id: UUID) {
+        webView.callAsyncJavaScript("""
+            if (!(window.amber && amber._canvasView)) return null;
+            const v = amber._canvasView();
+            return { width: v.width, height: v.height, scrollX: v.scrollX, scrollY: v.scrollY, zoom: v.zoom };
+            """, arguments: [:], in: nil, in: .page) { result in
+            guard case .success(let got) = result, let m = got as? [String: Any] else { return }
+            let view = m.compactMapValues { ($0 as? NSNumber)?.doubleValue }
+            if view.count == 5, view["width", default: 0] > 0, view["zoom", default: 0] > 0 { Self.boardViews[id] = view }
+        }
+    }
+
+    /// Returns once the board has loaded its scene, put it at the view you left it at, and drawn
+    /// it: its picture stays until then. At most `limit`, so a board always shows.
+    func boardPainted(_ id: UUID, limit: Duration = .milliseconds(400)) async {
+        let view: Any = Self.boardViews[id] ?? NSNull()
+        let once = Once()
+        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+            let finish = { @MainActor in if !once.done { once.done = true; c.resume() } }
+            webView.callAsyncJavaScript("""
+                const t0 = performance.now(), frame = () => new Promise((r) => requestAnimationFrame(r));
+                const board = () => (window.amber && amber._canvas ? amber._canvas.api : null);
+                while ((!board() || board().getAppState().isLoading) && performance.now() - t0 < 1000) await new Promise((r) => setTimeout(r, 16));
+                const api = board();
+                if (api && view && amber._canvasView) {
+                  // At your zoom, its middle where it was (the window may have changed size since).
+                  const now = amber._canvasView(), z = view.zoom;
+                  api.updateScene({ appState: { zoom: { value: z }, scrollX: view.scrollX + (now.width - view.width) / 2 / z, scrollY: view.scrollY + (now.height - view.height) / 2 / z } });
+                }
+                if (document.fonts) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 200))]);
+                await frame();
+                await frame();
+                return true;
+                """, arguments: ["view": view], in: nil, in: .page) { _ in finish() }
+            Task { @MainActor in
+                try? await Task.sleep(for: limit)
+                finish()
+            }
+        }
+    }
+
+    @MainActor private final class Once { var done = false }
+}
+
 /// A note's page on screen. Rebuilt when the page changes; the note's text goes in as it changes.
 /// While the page loads, the picture of it from last time shows in its place.
 struct NotePageView: View {
@@ -712,7 +770,17 @@ struct NotePageView: View {
                     guard let s else { return }
                     s.onReady = {}
                     NotePageTiming.shown(noteID, "interactive")
-                    withAnimation(.easeOut(duration: 0.15)) { ready = true }
+                    // A board takes over from its picture at once, when it has drawn its scene at
+                    // the view you left it at: the picture is the board as you left it, so the swap
+                    // doesn't show (Emil, 16 November 2026: the switch from a note faded in a blank
+                    // board). An app still fades in over its picture.
+                    if canvas != nil {
+                        Task { @MainActor [weak s] in
+                            await s?.boardPainted(noteID)
+                            guard let s, sandbox === s else { return }
+                            ready = true
+                        }
+                    } else { withAnimation(.easeOut(duration: 0.15)) { ready = true } }
                     onReady()
                     NotePageLive.register(s.webView, noteID)
                     // The picture for next time, once the page has settled.
@@ -765,6 +833,12 @@ struct NotePageView: View {
             if let canvas { BoardPicture.closed(canvas, note: noteID) }
             snapshotTask?.cancel()
             snapshotTask = nil
+            // A board's picture as you leave it, for the next time it opens: the one from its first
+            // open showed an empty page while the board loaded.
+            if canvas != nil, ready, preview == nil, let sandbox {
+                NotePageSnapshots.shared.take(sandbox.webView, noteID, html: current, dark: scheme == .dark, variant: snapshotVariant, again: true)
+                sandbox.keepBoardView(noteID)
+            }
             sandbox?.disconnect()
             sandbox = nil
             ready = false
@@ -981,9 +1055,11 @@ final class NotePageSnapshots {
     /// Takes the page's picture, unless this very page has one. The PNG is made and written off the
     /// main thread: on it, every open of an app note made a full-size PNG 400 ms after the page was
     /// ready, in the middle of the next click (2026-11-02).
-    func take(_ web: WKWebView, _ id: UUID, html: String, dark: Bool, variant: String = "full") {
+    /// `again`: taken even though there's one, as a board's is when you leave it (its page never
+    /// changes, its drawing does).
+    func take(_ web: WKWebView, _ id: UUID, html: String, dark: Bool, variant: String = "full", again: Bool = false) {
         let k = key(id, html, dark, variant)
-        guard !has(id, html: html, dark: dark, variant: variant) else { return }
+        guard again ? !taking.contains(k) : !has(id, html: html, dark: dark, variant: variant) else { return }
         taken += 1
         taking.insert(k)
         let config = WKSnapshotConfiguration()

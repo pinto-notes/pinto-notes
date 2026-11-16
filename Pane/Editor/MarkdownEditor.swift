@@ -2447,6 +2447,11 @@ private struct PlatformEditor: NSViewRepresentable {
         // Recently Deleted and Can view: shown, selectable to copy, never changed.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
         view.setFoot(foot)
+        // Kept alive under a note's page or board, but hidden there: faded out only, its I-beam
+        // cursor rects stayed live over the board and fought the board's cursor, which flickered
+        // as the mouse moved (Emil, 16 November 2026).
+        let hidden = context.environment.editorUnderPage
+        if scroll.isHidden != hidden { scroll.isHidden = hidden }
     }
 }
 

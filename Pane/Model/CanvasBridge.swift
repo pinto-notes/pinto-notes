@@ -39,6 +39,10 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// One set, drawn alike (Emil, 16 November 2026: the pencil and the rectangle looked weak):
+    /// outlines of one weight and about one size. The pencil is a drawing tip, as Notes' markup and
+    /// Freeform draw it (a bare `pencil` is Rename everywhere else); text is a text box, apart
+    /// from Aa, which is a note's Format.
     var symbol: String {
         switch self {
         case .selection: "cursorarrow"
@@ -48,8 +52,8 @@ enum CanvasTool: String, CaseIterable, Identifiable, Sendable {
         case .ellipse: "circle"
         case .arrow: "arrow.up.right"
         case .line: "line.diagonal"
-        case .freedraw: "pencil"
-        case .text: "textformat"
+        case .freedraw: "pencil.tip"
+        case .text: "character.textbox"
         case .eraser: "eraser"
         case .frame: "rectangle.dashed"
         case .laser: "cursorarrow.rays"
@@ -88,6 +92,9 @@ extension CanvasTool {
     static let dock: [CanvasTool] = [.selection, .hand, .freedraw, .rectangle, .ellipse, .diamond, .arrow, .text, .eraser]
     /// The shapes, one button on iPhone.
     static let shapes: [CanvasTool] = [.rectangle, .ellipse, .diamond, .line]
+    /// The Shapes button's glyph, whichever shape it draws: shapes, as Freeform's (a lone rectangle
+    /// or circle read as an empty button; Emil, 16 November 2026).
+    static let shapesSymbol = "square.on.circle"
 }
 
 /// The canvas's background, from the ••• menu (light colours: the canvas inverts them in dark mode).
@@ -288,6 +295,8 @@ struct CanvasState: Equatable, Sendable {
     var canRedo = false
     /// Nothing drawn yet (CanvasStart offers the templates). False until the page says so.
     var empty = false
+    /// Something's drawn and none of it is in view: Back to content shows (CanvasBackToContent).
+    var lost = false
     /// One note card selected (canvas-stack/src/cards.js): its note, as the card names it.
     var card: Card?
     /// How many note cards are selected, and whether the selection is nothing but cards: a card
@@ -342,6 +351,7 @@ struct CanvasState: Equatable, Sendable {
         canUndo = (m["canUndo"] as? Bool) ?? false
         canRedo = (m["canRedo"] as? Bool) ?? false
         empty = (m["empty"] as? Bool) ?? false
+        lost = (m["lost"] as? Bool) ?? false
         if let c = m["card"] as? [String: Any], let note = c["note"] as? String { card = Card(note: note, title: (c["title"] as? String) ?? "") }
         selectedCards = (m["selectedCards"] as? NSNumber)?.intValue ?? 0
         onlyCards = (m["onlyCards"] as? Bool) ?? false

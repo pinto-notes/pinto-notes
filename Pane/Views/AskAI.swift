@@ -474,7 +474,7 @@ struct AskAINoteButton: View {
 
     var body: some View {
         if targets.count == 1, let t = targets.first {
-            Button { ask(t) } label: { label(AskAI.title(t, .note(.init(title: ""))), ai: t.ai) }
+            Button { ask(t) } label: { label(AskAI.title(t, .note(.init(title: ""))), ai: t.ai).toolbarCell() }
                 .help(AskAI.title(t, .note(.init(title: ""))))
                 .accessibilityIdentifier("editor.ask")
         } else if targets.count > 1 {
@@ -483,7 +483,7 @@ struct AskAINoteButton: View {
                     Button(AskAI.submenuItem(t)) { ask(t) }.accessibilityIdentifier("editor.ask.\(t.ai)")
                 }
             } label: {
-                Label(AskAI.submenuTitle(.note(.init(title: ""))), systemImage: "sparkles")
+                Label(AskAI.submenuTitle(.note(.init(title: ""))), systemImage: "sparkles").toolbarCell()
             }
             #if os(macOS)
             .menuIndicator(.hidden)

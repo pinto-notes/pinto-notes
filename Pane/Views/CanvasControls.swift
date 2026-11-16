@@ -14,15 +14,33 @@ struct CanvasOverlay: View {
     var targets: [AskAI.Target] = []
     var subject: AskAI.Subject?
 
+    /// The style panel's frame on the board, while it shows.
+    @State private var stylePanel: CGRect?
+    private static let space = "canvas.overlay"
+
     var body: some View {
         ZStack {
             if canvas.connected {
+                #if os(macOS)
+                // The style of what's selected or drawn next, at the top left. Only its card takes a
+                // click: the rest of the board stays the board's.
+                if CanvasStyleSidebar.shows(canvas.state, viewOnly: canvas.viewOnly) {
+                    CanvasStyleSidebar(canvas: canvas)
+                        .tint(Color(PColor.paneAccent))
+                        // Where it is, for the selection bar to keep off it.
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { stylePanel = $0 }
+                        .onDisappear { stylePanel = nil }
+                        .padding(CanvasStyleSidebar.inset)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .transition(.opacity)
+                }
+                #endif
                 // Measured over the whole page, as the page measures the selection: on iPhone the
                 // canvas runs under the bars, and inside the safe area the bar came out a band too
                 // low, under the shape (the iPhone pictures, 13 November 2026).
                 GeometryReader { geo in
                     if canvas.state.present == nil, canvas.state.showsSelectionBar, let bounds = canvas.state.bounds, CanvasSelectionBar.inView(bounds, area: geo.size) {
-                        CanvasSelectionBar(canvas: canvas, bounds: bounds, area: geo.size)
+                        CanvasSelectionBar(canvas: canvas, bounds: bounds, area: geo.size, avoiding: stylePanel)
                     }
                     if let h = canvas.highlight {
                         CanvasAIHighlight(highlight: h)
@@ -61,12 +79,21 @@ struct CanvasOverlay: View {
                             Toast(text: notice, undo: canvas.noticeUndo)
                                 .transition(.opacity)
                                 .accessibilityIdentifier("canvas.notice")
+                        } else if canvas.state.lost {
+                            CanvasBackToContent(canvas: canvas)
+                                .transition(.opacity)
                         }
                     }
                     .animation(.smooth(duration: 0.2), value: canvas.notice)
+                    .animation(.easeOut(duration: 0.15), value: canvas.state.lost)
                     .padding(.trailing, 16)
                     .padding(.bottom, CanvasDock.margin)
                     #else
+                    if canvas.state.lost {
+                        CanvasBackToContent(canvas: canvas)
+                            .padding(.bottom, 8)
+                            .transition(.opacity)
+                    }
                     // Offline, back and synced, above the dock (round 12).
                     BoardSyncLine()
                         .padding(.bottom, 8)
@@ -97,6 +124,8 @@ struct CanvasOverlay: View {
                 CanvasTeamBar(canvas: canvas)
             }
         }
+        // The selection bar's space too: it measures the board from the same corner.
+        .coordinateSpace(.named(Self.space))
         .animation(.easeOut(duration: 0.2), value: canvas.state.present == nil)
         // Presenting takes the window (Full Screen), and gives it back after.
         .onChange(of: canvas.state.present == nil) { _, stopped in
@@ -1025,7 +1054,7 @@ struct CanvasDock: View {
             Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
         } label: {
             CanvasWell(selected: CanvasTool.shapes.contains(canvas.state.tool), well: well) {
-                Image(systemName: current == .rectangle ? "square.on.circle" : current.symbol)
+                Image(systemName: CanvasTool.shapesSymbol)
             }
         } primaryAction: {
             canvas.pick(current)
@@ -1150,6 +1179,9 @@ struct CanvasSelectionBar: View {
     let canvas: CanvasController
     let bounds: CGRect
     let area: CGSize
+    /// The style panel, kept clear as words on the board are (Emil's pictures, 16 November 2026:
+    /// the bar for a box near the panel lay over its Opacity row).
+    var avoiding: CGRect? = nil
     @State private var tray: Tray? = CanvasSelectionBar.startTray
     @State private var size = CGSize(width: 240, height: 44)
 
@@ -1328,7 +1360,7 @@ struct CanvasSelectionBar: View {
                     .accessibilityIdentifier("canvas.bar.stroke")
                 }
                 if state.showsFill {
-                    chip(.fill) { fillSwatch(state.mixedFill ? "mixed" : state.backgroundColor, dark: dark, size: 18) }
+                    chip(.fill) { Self.fillSwatch(state.mixedFill ? "mixed" : state.backgroundColor, dark: dark, size: 18) }
                         .accessibilityLabel("Fill")
                         .accessibilityIdentifier("canvas.bar.fill")
                 }
@@ -1382,7 +1414,7 @@ struct CanvasSelectionBar: View {
         }
         .fixedSize()
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
-        .position(Self.position(bounds: bounds, bar: size, area: area, nearby: canvas.state.nearby))
+        .position(Self.position(bounds: bounds, bar: size, area: area, nearby: canvas.state.nearby + (avoiding.map { [.words($0)] } ?? [])))
         .animation(.easeOut(duration: 0.15), value: tray)
         .onChange(of: canvas.state.selection) { _, _ in tray = nil }
         .accessibilityElement(children: .contain)
@@ -1462,7 +1494,7 @@ struct CanvasSelectionBar: View {
         return HStack(spacing: 6) {
             ForEach(swatches) { s in
                 Button { canvas.set(key, .text(s.hex)) } label: {
-                    fillSwatch(s.hex, dark: dark, size: 22)
+                    Self.fillSwatch(s.hex, dark: dark, size: 22)
                         .padding(3)
                         .overlay(Circle().strokeBorder(Color.ink, lineWidth: current.lowercased() == s.hex ? 2 : 0))
                 }
@@ -1480,8 +1512,9 @@ struct CanvasSelectionBar: View {
         .accessibilityIdentifier("canvas.tray")
     }
 
+    /// A colour as a swatch: none crossed out, different fills half and half (the style panel too).
     @ViewBuilder
-    private func fillSwatch(_ hex: String, dark: Bool, size: CGFloat) -> some View {
+    static func fillSwatch(_ hex: String, dark: Bool, size: CGFloat) -> some View {
         if hex == "mixed" {
             // Different fills: half and half, as a mixed state.
             RoundedRectangle(cornerRadius: size * 0.28).fill(LinearGradient(colors: [.secondary.opacity(0.55), .secondary.opacity(0.55), Color.card, Color.card], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -1771,6 +1804,7 @@ private extension View {
     }
 }
 
+
 struct CanvasToolbarTools: View {
     let canvas: CanvasController
     /// How much of the board's toolbar its column has room for (Fit).
@@ -1913,7 +1947,7 @@ struct CanvasToolbarTools: View {
     /// The board's name as the title field draws it (CanvasTitleField): its words and padding.
     static func titleWidth(_ name: String) -> CGFloat {
         let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        return ceil((name.isEmpty ? CanvasNote.title : name).size(withAttributes: [.font: font]).width) + 12
+        return ceil((name.isEmpty ? CanvasNote.title : name).size(withAttributes: [.font: font]).width) + 2 * CanvasTitleField.inset
     }
 
     /// Where the board's items can start: beside the window's buttons, the sidebar's and the
@@ -1944,7 +1978,7 @@ struct CanvasToolbarTools: View {
                     // Image is in the Shapes menu (and pictures paste and drop): its toolbar room went
                     // to the library, so the note list keeps its title (round 6, "All Notes…").
                     Button { canvas.showingLibrary.toggle() } label: {
-                        Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary)
+                        Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary).toolbarCell()
                     }
                     .help(CanvasLibraryPopover.help)
                     .accessibilityIdentifier("canvas.tool.library")
@@ -1954,7 +1988,10 @@ struct CanvasToolbarTools: View {
                 }
             }
         }
-        .disabled(!canvas.connected)
+        // Not dimmed while the page starts: off and then on, the tools flashed grey every time a
+        // board opened (Emil, 16 November 2026: the switch from a note was janky). A click before
+        // the page answers does nothing.
+        .allowsHitTesting(canvas.connected)
     }
 
     /// What a narrow bar keeps in More Tools besides its tools: pictures, sticky notes, the
@@ -1981,7 +2018,7 @@ struct CanvasToolbarTools: View {
             }
             moreItems()
         } label: {
-            Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked)
+            Label("More Tools", systemImage: picked ? current.symbol : "chevron.down.circle").picked(picked).toolbarCell()
         }
         .menuIndicator(.hidden)
         .help(Self.moreHelp(fit))
@@ -2021,6 +2058,7 @@ struct CanvasToolbarTools: View {
                     }
             }
             .picked(current != .comment)
+            .toolbarCell()
         }
         .menuIndicator(.hidden)
         .help("Tools: select, draw, shapes, arrows, text and more")
@@ -2041,7 +2079,7 @@ struct CanvasToolbarTools: View {
         Button { canvas.pick(t) } label: {
             // Only the picked tool is tinted; the rest keep the toolbar's own style, so they dim
             // with the window like its other buttons (round 2: forced black, the others looked off).
-            Label(t.title, systemImage: t.symbol).picked(t == current)
+            Label(t.title, systemImage: t.symbol).picked(t == current).toolbarCell()
         }
         .help(t.help)
         .accessibilityAddTraits(t == current ? .isSelected : [])
@@ -2067,7 +2105,7 @@ struct CanvasToolbarTools: View {
             Button(CanvasMenu.noteCard, systemImage: "doc.text") { canvas.choosingNote = true }
                 .accessibilityIdentifier("canvas.tool.noteCard")
         } label: {
-            Label("Shapes", systemImage: shown.symbol).picked(picked)
+            Label("Shapes", systemImage: CanvasTool.shapesSymbol).picked(picked)
         } primaryAction: {
             canvas.pick(shown)
         }
@@ -2539,13 +2577,16 @@ struct CanvasTitleField: View {
     var maxWidth: CGFloat = 280
     @State private var text = ""
     @FocusState private var focused: Bool
+    /// The name's inset after the folder's chevron: a note's title's, so a board's location reads
+    /// exactly as a note's (folder, chevron, name).
+    static let inset = ButtonSize.compact.padding * 0.75
 
     var body: some View {
         // Sized to what's typed, from a hidden copy of it.
         Text(text.isEmpty ? CanvasNote.title : text)
             .font(.system(size: 13, weight: .semibold))
             .lineLimit(1)
-            .padding(.horizontal, 6)
+            .padding(.horizontal, Self.inset)
             .hidden()
             .frame(minWidth: 60, maxWidth: maxWidth)
             .overlay {
@@ -2553,17 +2594,18 @@ struct CanvasTitleField: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 13, weight: .semibold))
                     // Its own text clear while the name is only shown: the label below draws it.
-                    .foregroundStyle(labelled ? AnyShapeStyle(Color.clear) : AnyShapeStyle(.primary))
-                    .padding(.horizontal, 6)
+                    .foregroundStyle(labelled ? AnyShapeStyle(Color.clear) : AnyShapeStyle(Color.ink))
+                    .padding(.horizontal, Self.inset)
                     .overlay(alignment: .leading) {
                         // A name cut short ends in "…" (round 12: the field clipped it mid-letter,
                         // "Product laun", in a narrow window). Clicks go to the field under it.
                         if labelled {
                             Text(text)
                                 .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.ink)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
-                                .padding(.horizontal, 6)
+                                .padding(.horizontal, Self.inset)
                                 .allowsHitTesting(false)
                                 .accessibilityHidden(true)
                         }

@@ -119,6 +119,8 @@ body { font-family: var(--amber-font); -webkit-user-select: none; user-select: n
 .pinto-presenting .pinto-comments { display: none; }
 /* The Comment tool's pointer, over the board. */
 .pinto-commenting .excalidraw canvas { cursor: var(--pinto-comment-cursor) !important; }
+/* Draw's pointer: a pen, its tip where the line starts (canvas.jsx). */
+.pinto-drawing .excalidraw canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3.5 20.5l1.2-4.6L15.9 4.7a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.1 19.3z' fill='white' stroke='%231d1d1f' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M14 6.6l3.4 3.4' stroke='%231d1d1f' stroke-width='1.5'/%3E%3Cpath d='M3.2 20.8l.9-3.3 2.4 2.4z' fill='%231d1d1f'/%3E%3C/svg%3E") 3 21, crosshair !important; }
 
 /* Voting (votes.js): your dots in your colour, edged white, along a shape's top edge; the totals
    in a small dark badge at its corner once voting ended. The layer takes no click; your dots take

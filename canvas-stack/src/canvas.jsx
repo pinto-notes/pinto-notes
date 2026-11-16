@@ -1361,6 +1361,9 @@ export function stateOf(api, app) {
     background: s.viewBackgroundColor,
     // Nothing drawn yet: the app offers its templates (CanvasStart).
     empty: api.getSceneElements().length === 0,
+    // Something's drawn but none of it is in view: the app offers Back to content, as the
+    // engine's own "Scroll back to content" (hidden in pinto.css) does.
+    lost: !!s.scrolledOutside,
     // One note card selected: the app offers to open its note (cards.js). Only cards: the bar
     // has nothing to style, and lines them up as cards, not as their parts.
     card: selectedCard(selected),
@@ -2308,6 +2311,9 @@ function Canvas({ initial }) {
       outlined = { changed, until: Date.now() + 120000, where };
     };
     let outlined = null;
+    // Draw shows a pen where it draws, as FigJam's marker does; the engine's own cursors stay for
+    // the rest (crosshair for shapes, grab for the hand, its eraser).
+    const pen = api.onChange((_, s) => { host.classList.toggle("pinto-drawing", !!(s.activeTool && s.activeTool.type === "freedraw") && !s.viewModeEnabled); });
     const follow = api.onChange(() => {
       if (!outlined) return;
       if (Date.now() > outlined.until) { outlined = null; return; }
@@ -2383,7 +2389,7 @@ function Canvas({ initial }) {
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
     Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}), votes: () => (votes ? votes.state : null) }, configurable: true });
     return () => {
-      follow(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); offViewMoved(); unlisten(); removeEventListener("pagehide", flush);
+      follow(); pen(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); offViewMoved(); unlisten(); removeEventListener("pagehide", flush);
       window.removeEventListener("wheel", wheel, { capture: true }); window.removeEventListener("pointerdown", press, true); window.removeEventListener("keydown", key, true); window.removeEventListener("pointerup", released, true);
       document.removeEventListener("visibilitychange", hidden); host.removeEventListener("pointerleave", left); flush();
       if (shared) shared.layer.stop();

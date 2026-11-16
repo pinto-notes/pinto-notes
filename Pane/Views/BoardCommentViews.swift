@@ -647,6 +647,7 @@ struct CanvasCommentsButton: View {
                             .accessibilityIdentifier("canvas.comments.dot")
                     }
                 }
+                .toolbarCell()
         }
         #if os(macOS)
         .help(canvas.unseen ? "Comments (new)" : BoardCommentUI.help)

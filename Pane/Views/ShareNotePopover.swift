@@ -558,7 +558,7 @@ struct ShareButton: View {
     var pictureRequest: (() -> NotePicture.Request?)?
 
     var body: some View {
-        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up") }
+        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
             .help("Share")
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 SharePopoverLive(note: note, store: store, people: people, picture: picture, pictureRequest: pictureRequest) { showing = false }

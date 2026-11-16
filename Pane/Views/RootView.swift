@@ -973,6 +973,7 @@ struct RootView: View {
                     noNote
                 }
             }
+            .focusedSceneValue(\.fullScreenAction, note == nil ? nil : fullScreen)
             // A focused canvas, or a note typing folded the columns from: the note list slides in
             // over it from the window's left edge.
             .overlay(alignment: .leading) {
@@ -1630,6 +1631,7 @@ struct PaneCommands: Commands {
     @FocusedValue(\.sidebarVisibility) private var sidebarVisibility
     @FocusedValue(\.sidebarStep) private var sidebarStep
     @FocusedValue(\.canvasController) private var canvas
+    @FocusedValue(\.fullScreenAction) private var fullScreen
     /// Read so the View menu's text size items enable and disable as the size changes.
     @AppStorage(TextSize.key) private var textSize: Double = 0
 
@@ -1695,6 +1697,10 @@ struct PaneCommands: Commands {
             Button(SidebarToggle.title(sidebarVisibility?.wrappedValue)) { sidebarStep?() }
             .keyboardShortcut("s", modifiers: [.command, .control])
             .disabled(sidebarStep == nil)
+            // The open note alone in the window, as its toolbar button does (any note, app or board).
+            Button(fullScreen?.title ?? "Full Screen") { fullScreen?.run() }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(fullScreen == nil)
             Divider()
             // As in Notes. The shortcuts are Xcode's Fold All and Unfold All.
             Button("Collapse All Sections") { editor?.collapseAllSections() }
@@ -2026,7 +2032,17 @@ private struct SidebarVisibilityKey: FocusedValueKey {
     typealias Value = Binding<NavigationSplitViewVisibility>
 }
 
+private struct FullScreenActionKey: FocusedValueKey {
+    typealias Value = FullScreenAction
+}
+
 extension FocusedValues {
+    /// The open note's Full Screen, for the View menu (⇧⌘F): any note, app or board.
+    var fullScreenAction: FullScreenAction? {
+        get { self[FullScreenActionKey.self] }
+        set { self[FullScreenActionKey.self] = newValue }
+    }
+
     var sidebarVisibility: Binding<NavigationSplitViewVisibility>? {
         get { self[SidebarVisibilityKey.self] }
         set { self[SidebarVisibilityKey.self] = newValue }
