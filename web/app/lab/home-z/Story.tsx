@@ -410,7 +410,7 @@ function Build() {
           <div className={s.bSide}>
             <div className={s.bHead}>
               <h2 id="s-build-h" className={s.bTitle} data-fade>Build apps.</h2>
-              <Say long="A note can be a small app. Describe it in New App, and ChatGPT or Claude builds it as a new note." short="A note can be a small app. Describe it, and ChatGPT or Claude builds it." />
+              <Say long="A note can be a small app. Describe one, and New App hands it to ChatGPT or Claude, who build it as a new note." short="A note can be a small app. Describe it, and ChatGPT or Claude builds it." />
             </div>
             <div className={s.bAsk} data-fade="pic"><AskChatGpt /></div>
           </div>
