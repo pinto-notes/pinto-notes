@@ -6,13 +6,13 @@
 import { pageProblems } from "./page.ts";
 import { pageWarnings } from "./page_lint.ts";
 import { libraryReport } from "./libraries.ts";
-import { brokenImports, parseStored, projectProblems, sourceProblems, styleWarnings } from "./app_project.ts";
+import { brokenImports, dynamicImportNotes, parseStored, projectProblems, sourceProblems, styleWarnings } from "./app_project.ts";
 
 /** Findings that need only the HTML: the server's refusals and warnings. */
 export function staticReport(html: string, body: string): { errors: string[]; warnings: string[] } {
   const p = parseStored(html);
   if (Object.keys(p.files).length > 1 || Object.keys(p.compiled).length) {
-    return { errors: [...projectProblems(p), ...sourceProblems(p), ...brokenImports(p)], warnings: styleWarnings(p) };
+    return { errors: [...projectProblems(p), ...sourceProblems(p), ...brokenImports(p)], warnings: [...styleWarnings(p), ...dynamicImportNotes(p)] };
   }
   return { errors: pageProblems(html), warnings: [...pageWarnings(html, body), ...libraryReport(html)] };
 }
