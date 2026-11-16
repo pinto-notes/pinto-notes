@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { useShow } from "./show";
 import { WEEK_NOTE as N } from "./Things";
+import { useArt } from "./art";
 import h from "./heroArt.module.css";
 
 // The first screen's picture, option C (round 19): one weekly note on one person's table, and the
@@ -21,7 +22,8 @@ import h from "./heroArt.module.css";
 // (it read it); then Thursday's line writes itself in, its "20 min" takes the same tint, and "Added by
 // ChatGPT" follows. About two and a half seconds, no loop, and nothing else moves. With Reduce Motion,
 // `?t` or `?one=<s>`, it shows that time's state (the end, for the first two). On a phone: the request
-// and the whole note, above the fold.
+// and the whole note, above the fold. Round 22: `?art=paper-a|paper-b` lays a cut-paper table under it
+// instead of the etching (art.ts), with the same open middle, so the note lies where it did.
 
 /** The moment's times (s): the request, the decision read (its tint), the line written in, its "20 min"
  *  tinted to match (`settle`), then "Added by ChatGPT". */
@@ -41,10 +43,11 @@ export function HeroArt() {
     },
   });
   const [lead, key, rest] = N.decided;
+  const art = useArt();
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className={h.pic} src="/lab/z/hero-table-v1.webp" alt="" width="1254" height="1254" fetchPriority="high" />
+      <img className={h.pic} src={art.hero} alt="" width={art.heroSide} height={art.heroSide} fetchPriority="high" />
       <div className={h.box}>
         <div className={h.group}>
           {/* What you asked, in ChatGPT: small, labelled, pinned to the note it changes. */}

@@ -1000,7 +1000,7 @@ body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--
   .cover { position: relative; top: auto; height: auto; min-height: 0; container-type: normal; }
   .coverArt { display: none; }
   .cover::after { content: ""; position: absolute; right: 0; bottom: 0; width: 100%; height: 640px; pointer-events: none;
-    background: url(/lab/z/close-life-v1.webp) right bottom / 960px auto no-repeat;
+    background: var(--s-close-art, url(/lab/z/close-life-v1.webp)) right bottom / 960px auto no-repeat;
     -webkit-mask: linear-gradient(transparent 0 100px, #000 240px); mask: linear-gradient(transparent 0 100px, #000 240px); }
   .coverBody { z-index: 1; display: block; height: auto; padding: 96px var(--pad) 300px; }
   .coverText { width: auto; max-width: 560px; }

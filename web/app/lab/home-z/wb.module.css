@@ -172,3 +172,54 @@
   .fitTall { position: absolute; left: 10px; top: 14px; width: min(340px, calc(100vw - 52px)); }
   .fitTall .ink path { stroke-width: 1.9px; }
 }
+
+/* ── d (part 5): variant 0's frame (same place, size and 22px corners) holding the real board. The
+   toolbar is the app's, from an active window (council-wb r16): white capsules 36px tall, icons on a
+   35.5px pitch in #262626, Select in #a85700, 8px between capsules, 8px from the top and right of the
+   window. The zoom: 12px, #6a6a6a, at the bottom right. ── */
+.dCanvas { --accent: #d96a06; position: relative; min-height: 0; border-radius: 22px; background: #fff; color: #262626; container-type: size; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(10, 30, 20, 0.28), 0 2px 4px rgba(0, 20, 10, 0.14), 0 34px 64px -30px rgba(0, 15, 8, 0.7); }
+.dTools { position: absolute; z-index: 1; top: 12px; right: 12px; display: flex; gap: 8px; }
+.dTools[data-set="narrow"] { display: none; }
+.cap { display: flex; align-items: center; height: 36px; padding: 0 2px; border-radius: 99px; background: #fff;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 1px 5px rgba(0, 0, 0, 0.07); }
+.cap .ico { width: 35.5px; height: 36px; }
+/* Each icon at the real glyph's size (final/46, measured at 1x): Select 10 wide, Hand 13.5, Pencil 13.5,
+   the shapes 19.5, Arrow 12.5, Text 19.5, Eraser 17, Library 20.5, Comments 18, Full Screen 16, the AI
+   16, Share 14.5, More 15; none taller than 18.5. */
+.cap .ico svg { width: 22px; height: 22px; stroke-width: 1.3; }
+.cap .ico[data-k="select"] svg:first-child { width: 21px; height: 21px; }
+.cap .ico[data-k="hand"] svg { width: 24px; height: 24px; stroke-width: 1.2; }
+.cap .ico[data-k="pencil"] svg { width: 19px; height: 19px; }
+.cap .ico[data-k="rect"] svg { width: 20px; height: 14.5px; stroke-width: 1.5; }
+.cap .ico[data-k="arrow"] svg { width: 23px; height: 23px; stroke-width: 1.25; }
+.cap .ico[data-k="eraser"] svg { width: 25px; height: 25px; stroke-width: 1.15; }
+.cap .ico[data-k="library"] svg { width: 25px; height: 23px; stroke-width: 1.2; }
+.cap .ico[data-k="comment"] svg { width: 23px; height: 23px; stroke-width: 1.25; }
+.cap .ico[data-k="full"] svg { width: 23px; height: 23px; stroke-width: 1.3; }
+.cap .ico[data-k="share"] svg { width: 21px; height: 23px; stroke-width: 1.3; }
+.cap .ico[data-k="more"] svg { width: 17.5px; height: 5.3px; }
+.cap .ico > svg[width] { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+.cap .ico[data-picked] { color: #a85700; }
+.aa { font: 400 19px/1 var(--sans); letter-spacing: -0.01em; }
+.cap .ico svg.chev { width: 9px; height: 6px; margin-left: 3px; color: #8e8e93; stroke-width: 1.6; }
+.dTools[data-set="narrow"] .cap:first-child .ico { display: flex; align-items: center; justify-content: center; width: 50px; }
+/* The board as large as the frame allows, a little under centre: its title clears the toolbar, and the
+   board's own empty foot takes the zoom. */
+.dFit { position: absolute; left: 50%; top: calc(50% + 14px); translate: -50% -50%; width: min(calc(100cqw - 72px), calc((100cqh - 40px) * 2.1428)); }
+.dTall { display: none; }
+.dZoom { position: absolute; right: 24px; bottom: 18px; font: 500 12px/1 var(--sans); font-variant-numeric: tabular-nums; color: #6a6a6a; }
+
+@media (max-width: 760px) {
+  .dCanvas { container-type: normal; border-radius: 18px; padding: 54px 12px 30px; }
+  .dTools { top: 10px; right: 10px; gap: 6px; }
+  .dTools[data-set="mac"] { display: none; }
+  .dTools[data-set="narrow"] { display: flex; }
+  .cap { height: 34px; }
+  .cap .ico { width: 34px; height: 34px; }
+  .dFit { position: static; translate: none; width: 100%; }
+  .dWide { display: none; }
+  .dTall { display: block; }
+  .dTall .ink path { stroke-width: 1.9px; }
+  .dZoom { right: 16px; bottom: 12px; font-size: 11px; }
+}

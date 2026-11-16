@@ -10,9 +10,10 @@ import { AiShow } from "./AiShow";
 import { BuildShow } from "./Build";
 import { Facts } from "./Close";
 import { HeroArt } from "./HeroArt";
+import { useArt } from "./art";
 import { BoardBig, CanvasChrome, Note, NotePhone } from "./Things";
 import { underline } from "./hand";
-import { WbArt } from "./Wb";
+import { WbArt, WbCanvas } from "./Wb";
 import { AiAlt } from "./AiAlt";
 import { HeroWin } from "./HeroWin";
 import hw from "./heroWin.module.css";
@@ -321,8 +322,10 @@ function Write() {
 /* ───────────────────────── Draw on whiteboards ───────────────────────── */
 
 export type Variant = "0" | "a" | "b" | "c";
+/** The whiteboard chapter has one more: d, variant 0's frame holding the real board (part 5). */
+export type WbVariant = Variant | "d";
 
-function Draw({ wb = "0" }: { wb?: Variant }) {
+function Draw({ wb = "0" }: { wb?: WbVariant }) {
   // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives. On a Mac, Claude
   // draws it as you scroll through the chapter's stay. On a phone the chapter is only as long as the
   // board, so it draws on a clock once the board docks (2.4 s), or sooner if you scroll on.
@@ -350,7 +353,8 @@ function Draw({ wb = "0" }: { wb?: Variant }) {
           <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
           <Say long="Map out a decision beside your notes. Your AI can read the board and draw on it with you." short="Map out a decision. Your AI can read it, and draw on it with you." />
         </div>
-        {wb !== "0" ? <WbArt v={wb} bind={bind} /> : <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
+        {wb === "d" ? <div className={s.dBoard} role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. Claude has just added the no arrow, outlined and named, to finishing the launch and shipping in February, then talking again in March."><WbCanvas bind={bind} /></div>
+          : wb !== "0" ? <WbArt v={wb} bind={bind} /> : <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
           {/* The board in Pinto's canvas: a thin frame, the drawing, the dock of tools at its foot. */}
           <div className={s.canvas}>
             <div className={s.canvasArea}>
@@ -411,13 +415,16 @@ function Ai({ v = "0" }: { v?: Variant }) {
 /* ───────────────────────── The cover: the notebook closes ───────────────────────── */
 
 function Cover() {
+  // Round 22: `?art=` picks the picture (art.ts); a phone lays the same file as the cover's ::after.
+  const art = useArt();
+  const vars = { zIndex: 9, "--s-close-art": `url(${art.close})` } as React.CSSProperties;
   return (
-    <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={{ zIndex: 9 }}>
+    <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={vars}>
       {/* The close's paper, torn along its top like every sheet above it, with the still life on it. */}
       <div className={s.coverPaper} aria-hidden="true">
         <div className={s.coverSheet}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={s.coverArt} src="/lab/z/close-life-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
+          <img className={s.coverArt} src={art.close} alt="" width={art.closeW} height={art.closeH} loading="lazy" />
         </div>
       </div>
       <div data-body className={s.coverBody}>
@@ -432,7 +439,7 @@ function Cover() {
   );
 }
 
-export function Story({ className, wb = "0", ai = "0", hero = "0" }: { className: string; wb?: Variant; ai?: Variant; hero?: Variant }) {
+export function Story({ className, wb = "0", ai = "0", hero = "0" }: { className: string; wb?: WbVariant; ai?: Variant; hero?: Variant }) {
   const root = useRef<HTMLDivElement>(null);
   useBinder(root);
   return (

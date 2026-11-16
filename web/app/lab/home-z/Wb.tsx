@@ -376,3 +376,61 @@ export function WbArt({ v, bind }: { v: "a" | "b" | "c"; bind: (set: (k: number)
     </div>
   );
 }
+
+/* ───────────────────────── d: the original frame, holding the real board ───────────────────────── */
+
+/** The board's toolbar as the app draws it in an active window (council-wb r16, real-one-box-selected,
+ *  with Comments and Ask AI from final/46): three glass capsules at the top right, Select, Hand and
+ *  Pencil; the shapes; then Arrow, Text, Eraser, Library, Comments, Full Screen, Ask AI (the connected
+ *  AI's mark), Share and More. In a narrow window the app keeps Select (a menu), Comments, Share and
+ *  More (final/46, narrow-760), so the phone shows that. */
+const AA = <span className={w.aa}>Aa</span>;
+/** The two the window draws differently from the list's set: the pencil (a slim pencil with its tip)
+ *  and the shapes button (a wide rounded rectangle). */
+const PENCIL = <svg viewBox="0 0 20 20" className={w.filled}><path d="M15.3 3.1a1 1 0 0 1 1.4 0l.2.2a1 1 0 0 1 0 1.4L6.6 15l-1.6-1.6z" /><path d="m4.6 13.8 1.6 1.6-2.6.9z" /></svg>;
+const RECT = <svg viewBox="0 0 22 16"><rect x="1.4" y="1.4" width="19.2" height="13.2" rx="2.8" /></svg>;
+type Tool = [key: string, icon: React.ReactNode];
+const TOOLBAR: { mac: Tool[][]; narrow: Tool[][] } = {
+  mac: [
+    [["select", I.select], ["hand", I.hand], ["pencil", PENCIL]],
+    [["rect", RECT]],
+    [["arrow", I.arrow], ["text", AA], ["eraser", I.eraser], ["library", I.library], ["comment", I.comment], ["full", I.full], ["ai", <AIGlyph key="ai" name="claude" size={17} />], ["share", I.share], ["more", I.more]],
+  ],
+  narrow: [
+    [["select", <>{I.select}<svg className={w.chev} viewBox="0 0 10 6"><path d="M1.2 1.2 5 4.8l3.8-3.6" /></svg></>]],
+    [["comment", I.comment], ["share", I.share], ["more", I.more]],
+  ],
+};
+
+function Toolbar({ set }: { set: "mac" | "narrow" }) {
+  return (
+    <span className={w.dTools} data-set={set} aria-hidden="true">
+      {TOOLBAR[set].map((group, g) => (
+        <span key={g} className={w.cap}>
+          {group.map(([k, icon]) => <span key={k} className={w.ico} data-k={k} data-picked={k === "select" || undefined}>{icon}</span>)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** d (round 21, part 5): variant 0's frame, same place and size, holding the board as the app draws
+ *  it: the white canvas, the pastel fills and dark hand strokes, the handwriting, the app's toolbar at
+ *  the top right where the window puts it, and the zoom at the bottom right. Claude's "no" lands as the
+ *  app marks an AI's change: a dashed outline in the accent with its name tag (council-wb r16,
+ *  12-ai-drew). No window, no notes list, no iPhone, no receipt. */
+export function WbCanvas({ bind }: { bind: (set: (k: number) => void) => () => void }) {
+  const [on, setOn] = useState(false);
+  useEffect(() => bind((k) => setOn(k > 0.3)), [bind]);
+  return (
+    <div className={w.dCanvas}>
+      <Toolbar set="mac" />
+      <Toolbar set="narrow" />
+      <div className={w.dFit}>
+        <div className={w.dWide}><WbBoard board="wide" on={on} /></div>
+        <div className={w.dTall}><WbBoard board="tall" on={on} /></div>
+      </div>
+      <span className={w.dZoom} aria-hidden="true">100%</span>
+    </div>
+  );
+}

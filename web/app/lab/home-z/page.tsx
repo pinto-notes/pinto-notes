@@ -11,10 +11,11 @@ export const metadata: Metadata = {
 // its card from the first screen and leaving its tab docked under the header. See Story.tsx.
 const display = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], axes: ["opsz"], variable: "--s-display", display: "swap" });
 
-/** Round 21's variants: `?wb=a|b|c` (the whiteboard chapter), `?ai=a|b|c` (Your AI), `?hero=a|b|c`
+/** Round 21's variants: `?wb=a|b|c|d` (the whiteboard chapter), `?ai=a|b|c` (Your AI), `?hero=a|b|c`
  *  (the first screen). Each defaults to 0, round 19 as it was. */
 const pick = (v: string | string[] | undefined) => (v === "a" || v === "b" || v === "c" ? v : "0");
+const pickWb = (v: string | string[] | undefined) => (v === "d" ? v : pick(v));
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const q = await searchParams;
-  return <Story className={display.variable} wb={pick(q.wb)} ai={pick(q.ai)} hero={pick(q.hero)} />;
+  return <Story className={display.variable} wb={pickWb(q.wb)} ai={pick(q.ai)} hero={pick(q.hero)} />;
 }
