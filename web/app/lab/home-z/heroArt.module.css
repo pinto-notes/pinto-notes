@@ -1,0 +1,77 @@
+/* The first screen's picture, option C (round 18): the still life, and one weekly note lying in its
+   open middle, with the ChatGPT request that just changed it over its corner. Everything here belongs
+   to HeroArt.tsx; the torn panel around it is the page's (.art in s.module.css).
+
+   The picture is square (1254 px) and laid like object-fit: cover, centred, so its side is S, the
+   larger of the panel's width and height. Its open middle runs from about 20% to 70% of S down the
+   picture (under the glasses and the herbs, over the pen). The request and the note are one group,
+   centred in that open middle with air all round, sized in --u (a 380-wide design board, given 53% of
+   S), so at any window size they lie on the paper, centred across the panel. The smallest words never
+   go under 12 px. */
+
+.pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; background: #f7dfba; }
+/* Round 19: the group is 15% larger than round 18's, so the note reads before the still life. */
+.box { position: absolute; inset: 0; --S: max(100cqw, 100cqh); --u: min(calc(100cqw / 461), calc(var(--S) * 0.61 / 380)); }
+.group { position: absolute; left: 50%; top: calc((100cqh - var(--S)) / 2 + var(--S) * 0.215); width: calc(380 * var(--u)); translate: -50% 0; font-size: calc(16 * var(--u)); }
+
+/* What you asked in ChatGPT: a small chat line, the ChatGPT mark and name, then your words in a grey
+   bubble. It sits over the note's top right corner, out of the title's way. */
+.ask { position: relative; z-index: 2; display: flex; align-items: center; gap: 0.5em; width: fit-content; max-width: 100%; box-sizing: border-box;
+  margin: 0 calc(-12 * var(--u)) calc(-9 * var(--u)) auto; padding: 0.36em 0.4em 0.36em 0.5em; border-radius: 1.1em; background: #fffdf8; font-size: max(12.5px, calc(13.5 * var(--u)));
+  box-shadow: 0 0 0 1px rgba(60, 40, 10, 0.07), 0 0.7em 1.6em -0.7em rgba(70, 45, 10, 0.35); opacity: 0; translate: 0 0.5em; }
+.ask[data-in] { opacity: 1; translate: none; }
+.askWho { display: inline-flex; align-items: center; gap: 0.36em; font-size: 0.9em; font-weight: 700; color: #0b7a5e; white-space: nowrap; }
+.askMark { flex: none; display: grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 50%; background: #10a37f; }
+.askMark svg { width: 0.9em; height: 0.9em; }
+.askText { padding: 0.32em 0.8em 0.36em; border-radius: 0.95em; background: #efe9e1; color: #1d1b19; font-weight: 500; line-height: 1.25; white-space: nowrap; }
+
+/* The note: the one thing to look at. A title, what you decided, and two dinners, with room in it. */
+.note { position: relative; z-index: 1; box-sizing: border-box; padding: 1.3em 1.45em 1.3em; border-radius: 0.85em;
+  background: #fffdf8; color: #1d1b19; font-size: calc(17.5 * var(--u)); line-height: 1.4;
+  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.1), 0 1.6em 2.8em -1.5em rgba(70, 45, 10, 0.32), 0 0 0 1px rgba(60, 40, 10, 0.05); }
+.title { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
+/* What you decided, first, in plain words. The words ChatGPT keeps to ("20-minute") and the words of
+   its new line that keep to them ("20 min") wear one teal tint, the same in both places, so the link
+   reads in a still frame. The tint is a background, so it can't move a letter. */
+.decided { margin: 0.5em 0 0; white-space: nowrap; }
+.decided b { font-weight: 650; }
+.read, .keep { border-radius: 0.3em; padding: 0.02em 0.22em 0.06em; margin: 0 0.02em; color: #075e48; font-weight: 650;
+  background: linear-gradient(rgba(16, 163, 127, 0.22), rgba(16, 163, 127, 0.22)) 0 0 / 0% 100% no-repeat; }
+.decided[data-read] .read, .added[data-settled] .keep { background-size: 100% 100%; }
+.lines { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.28em; }
+.lines li { display: flex; align-items: baseline; white-space: nowrap; }
+.day { flex: none; width: 2.6em; font-weight: 600; color: #8a7d70; font-size: 0.94em; }
+
+/* ChatGPT's dinner: its room is held from the start (nothing moves when it lands). It writes itself in
+   under the green mark, left to right; "Added by ChatGPT" follows on its own line under it, as every
+   mark on the page does; then the mark settles to the soft tint the app leaves. */
+.addedCol { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em; }
+.wipe { display: inline-flex; clip-path: inset(-0.4em 100% -0.4em 0); }
+.added[data-in] .wipe { clip-path: inset(-0.4em -0.6em -0.4em -0.6em); }
+.addedText { position: relative; z-index: 0; font-weight: 600; }
+.by { display: inline-flex; align-items: center; gap: 0.38em; font-size: max(12px, 0.76em); font-weight: 650; color: #0b7a5e; opacity: 0; translate: -0.3em 0; }
+.added[data-by] .by { opacity: 1; translate: none; }
+.byMark { flex: none; display: grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: #10a37f; }
+.byMark svg { width: 0.85em; height: 0.85em; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ask { transition: opacity 0.35s ease-out, translate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .read, .keep { transition: background-size 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
+  .wipe { transition: clip-path 0.9s 0.05s cubic-bezier(0.55, 0, 0.3, 1); }
+  .by { transition: opacity 0.3s ease-out, translate 0.4s cubic-bezier(0.2, 0.9, 0.3, 1); }
+}
+
+/* Phones: the request and the whole note, centred on the picture under the first screen's words, above
+   the fold. The group is in the flow here, and the picture fills the room the first screen leaves. */
+@media (max-width: 760px) {
+  .pic { -webkit-mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat;
+    mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat; object-position: 50% 30%; }
+  .box { position: relative; inset: auto; --u: 1; flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; }
+  .group { position: relative; left: auto; top: auto; width: auto; translate: none; margin: 0 22px; padding: 30px 0 4px; font-size: 16px; }
+  /* The request stays 22 px in from the screen's edge (the note's own edge). */
+  .ask { margin: 0 0 -8px auto; font-size: 13px; }
+  .note { font-size: 16px; line-height: 1.38; padding: 15px 18px 15px; border-radius: 16px; }
+  .title { font-size: 1.45em; }
+  .decided { margin-top: 0.45em; }
+  .lines { margin-top: 0.5em; }
+}
