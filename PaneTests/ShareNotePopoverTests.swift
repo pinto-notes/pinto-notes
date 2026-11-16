@@ -64,6 +64,37 @@ import Testing
         #expect(source.contains(".amberProminent(.compact, wide: true)"), "Share Link isn't oversized")
     }
 
+    /// Join by Link shows once the note is shared, not before: alone with no link, Collaborate is
+    /// the line about what Invite People does and the button (Emil, 16 November 2026).
+    @Test func joinByLinkWaitsUntilTheNoteIsShared() async throws {
+        func access(_ state: ShareState) async -> (row: Bool, invite: Bool, said: [String]) {
+            let share = await CollabShareSnapshots.controller(state)
+            let ax = OffscreenAX(ShareNotePopover(title: "Team offsite", text: "Team offsite", store: ShareLinkStore(state: ShareLinkState(phase: .notShared)),
+                                                  linkAvailable: true, share: share, startingWay: .people, close: {}), size: CGSize(width: 320, height: 520))
+            defer { ax.close() }
+            await ax.settle()
+            let said = ax.texts()
+            return (said.contains("Join by Link"), said.contains("Invite People\u{2026}"), said)
+        }
+        let alone = await access(ShareState(people: [.init(id: CollabShareSnapshots.me, name: "Emil Wagman", isMe: true, role: "owner")]))
+        #expect(!alone.row && alone.invite, "not shared yet: Invite People, no Join by Link: \(alone.said)")
+        let shared = await access(CollabShareSnapshots.owner(.edit))
+        #expect(shared.row && shared.invite, "shared: Join by Link to change or turn off the link: \(shared.said)")
+    }
+
+    /// The people button: only once someone else is in the note or has joined it, or there's
+    /// something to say; a note you just shared has Share alone (Emil, 16 November 2026).
+    @Test func thePeopleButtonWaitsForSomeoneElse() throws {
+        #expect(!PresenceStack.shows(here: false, othersJoined: false, viewOnly: false, syncWords: false), "just shared: no lone people button")
+        #expect(PresenceStack.shows(here: true, othersJoined: false, viewOnly: false, syncWords: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: true, viewOnly: false, syncWords: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: true, syncWords: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: false, syncWords: true))
+        // In the Mac bar, its own section: spaced from the writing tools and from Share.
+        let source = try String(contentsOf: TestFiles.url("Views/NoteDetailView.swift"), encoding: .utf8)
+        #expect(source.contains("ToolbarSpacer(.fixed).hidden(!showsItems)\n                        ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)\n                        ToolbarSpacer(.fixed).hidden(!showsItems)"))
+    }
+
     /// The popover is narrower (Emil, 8 November 2026: "I dont like how wide this whole thing is"),
     /// and the four ways still fit in it at their full names.
     @Test func theFourWaysFitTheNarrowerPopover() async throws {

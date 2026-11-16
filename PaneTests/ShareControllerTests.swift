@@ -152,6 +152,11 @@ extension ShareControllerTests {
         // Before the note is shared, the line says what Share Link will do, not that a link is off.
         #expect(ShareCopy.link(ShareState(people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")])) == ShareCopy.notSharedYet)
         #expect(ShareCopy.link(Self.owner(link: .off)) == ShareCopy.link(.off))
+        // Join by Link shows only once the note is shared: alone with no link, it's out of sight
+        // (Emil, 16 November 2026: "Off" above a button that makes a link read as a contradiction).
+        #expect(ShareState(people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")]).notSharedYet)
+        #expect(!Self.owner(link: .off).notSharedYet, "someone else is in the note")
+        #expect(!ShareState(link: URL(string: "https://pintonotes.com/s/x"), access: .edit, people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")]).notSharedYet, "a link is on")
         #expect(ShareCopy.removeMessage(Self.owner().people[1]).hasPrefix("Sara can't open this note anymore."))
     }
 

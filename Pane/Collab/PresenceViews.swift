@@ -233,13 +233,17 @@ struct PresenceStack: View {
     /// something to say (View Only, the sync words on the Mac). A note you've only just shared
     /// had a lone "people" button beside Share that opened the same popover (Emil, 16 November 2026).
     @MainActor static func shows(_ session: CollabSession, now: Date = .now) -> Bool {
-        if !session.peers.isEmpty || session.isViewOnly { return true }
-        if session.members.contains(where: { $0.id != session.me }) { return true }
         #if os(macOS)
-        return SharedSyncLine.ticking(session, now: now)
+        let syncWords = SharedSyncLine.ticking(session, now: now)
         #else
-        return false
+        let syncWords = false
         #endif
+        return shows(here: !session.peers.isEmpty, othersJoined: session.members.contains { $0.id != session.me },
+                     viewOnly: session.isViewOnly, syncWords: syncWords)
+    }
+
+    static func shows(here: Bool, othersJoined: Bool, viewOnly: Bool, syncWords: Bool) -> Bool {
+        here || othersJoined || viewOnly || syncWords
     }
 
     var body: some View {
