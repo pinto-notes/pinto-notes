@@ -14,22 +14,27 @@ import { BoardBig, Note } from "./Things";
 import { underline } from "./hand";
 import s from "./s.module.css";
 
-// Study Z, round 16b (2026-11-16): option C after the round 11 council. S's binder carrying one
+// Study Z, round 17 (2026-11-16): option C after the round 12 council. S's binder carrying one
 // person's week, several parts of one life. The first screen is that person's table (the still life)
-// with one note on it, "This week", four short lines: a dinner, the dinner ChatGPT added, the Studio
-// North decision, the writing habit. Over it, the ChatGPT request that just changed it ("Add a quick
-// dinner for Thursday."); on load, Thursday's line writes itself in, marked "Added by ChatGPT". That
-// picture is HeroArt.tsx, one swappable piece. Each chapter shows another part of that life: Notes,
-// your notes with a book note open (vermilion); Whiteboards, the job offer from Studio North mapped as
-// a decision (deep green); Apps, the habits they're building (kraft); Your AI, one request typed in
-// ChatGPT that lands in all three, in Pinto (ink). Scrolling lays each sheet over the last, whole, and
-// when it lands its tab rises out of it and stays docked under the header; as a sheet rises, the words
-// and things on the one under it move up ahead of its torn edge, so a tear never cuts through them,
-// and they clip hard under the sheet's own edge (no wash); a heading and its line fade out whole
-// before they reach that edge, so a headline is never sliced. The tabs end at Your AI. Then a plain
-// page, the proof: "Your AI, with your notes.", the study's two numbers as two bars. Then the page
-// closes on the same table: "Pinto Notes is free.", the download, four plain lines, and the Studio
-// North note on a Mac and an iPhone, where ChatGPT's line arrives a moment after the page lands.
+// with one note on it, "This week", three short lines: a dinner, the dinner ChatGPT added, and one
+// plain decision. Over it, the ChatGPT request that just changed it ("Add a quick dinner for
+// Thursday."); on load, Thursday's line writes itself in, marked "Added by ChatGPT". That picture is
+// HeroArt.tsx, one swappable piece. Each chapter shows another part of that life: Notes, a book note
+// open in Pinto's Mac window (vermilion); Whiteboards, the job offer from Studio North mapped as a
+// decision (deep green); Apps, the habits they're building (kraft); Your AI, one request typed in
+// ChatGPT that lands in all three, in Pinto (ink). Then the proof, a plain white sheet with no tab
+// (the page's one break in colour and in kind): what the study's two numbers show, a bar each, and in
+// one line each what Claude had. Then the close, on the same table: "Pinto Notes is free.", the
+// download, four plain lines, and the Studio North note on a Mac and an iPhone.
+//
+// Every sheet, the proof and the close too, is torn along its top and laid over the last, and docks
+// under the tabs, so the tab strip stays to the end. When a sheet lands its tab rises out of it and
+// stays docked under the header; as a sheet rises, the words and things on the one under it move up
+// ahead of its torn edge, so a tear never cuts through them. Above that, a sheet's contents end where
+// its paper does: they're masked by the sheet's own torn edge, fading out just before it, so nothing
+// is ever cut by a straight line under the tabs. A heading and its line fade out whole before they
+// reach that edge. On a phone each chapter is as long as what's on it: the next sheet waits just
+// under the last line, not a screen below.
 //
 // The sheets move by `position: sticky` alone (the browser scrolls them; no script moves them). The
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
@@ -38,8 +43,11 @@ import s from "./s.module.css";
 type Tone = "write" | "draw" | "build" | "ai" | "proof" | "cover";
 const ORDER: Tone[] = ["write", "draw", "build", "ai", "proof", "cover"];
 const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", proof: "", cover: "" };
-/** The last two pages lie over the tabs: they dock under the header itself. */
-const OVER: Tone[] = ["proof", "cover"];
+/** On a phone, the chapters whose next sheet waits just under their last line (+ AIR px), so a chapter
+ *  is as long as what's on it. Your AI keeps its stay (it fills the screen, and its cards step). */
+const SNUG: Tone[] = ["write", "draw", "build", "proof"];
+const AIR = 34;
+const narrowNow = () => typeof matchMedia === "function" && matchMedia("(max-width: 760px)").matches;
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 /** How far (px) above its clip line a headline starts to fade; it's gone by the time it gets there. */
@@ -80,11 +88,11 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     el.dataset.live = "";
     const chs = ORDER.map((t) => el.querySelector<HTMLElement>(`[data-ch="${t}"]`)!);
     const hero = el.querySelector<HTMLElement>("[data-hero]")!;
-    const probe = el.querySelector<HTMLElement>("[data-probe]")!, probeHh = el.querySelector<HTMLElement>("[data-probe-hh]")!;
+    const probe = el.querySelector<HTMLElement>("[data-probe]")!;
     const reduced = calm();
     /** Each chapter's words that fade before they reach its clip line (headlines and their lines). */
     const fades = chs.map((c) => [...c.querySelectorAll<HTMLElement>("[data-fade]")]);
-    let vh = 0, tt = 0, hh = 0, tear = 0, raf = 0;
+    let vh = 0, tt = 0, tear = 0, raf = 0;
     let doc: number[] = [], mt: number[] = [];
     const covered = chs.map(() => false);
     const lifts = chs.map(() => 0);
@@ -98,8 +106,16 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     };
 
     const measure = () => {
-      vh = innerHeight; tt = probe.offsetHeight; hh = probeHh.offsetHeight;
+      vh = innerHeight; tt = probe.offsetHeight;
       tear = parseFloat(getComputedStyle(el).getPropertyValue("--tearH")) || 0;
+      // On a phone the next sheet waits just under a chapter's last line: its margin (the stay) is
+      // taken back by the room left empty under the words. Wide windows keep the stylesheet's stays.
+      const narrow = narrowNow();
+      chs.forEach((c, i) => {
+        const next = chs[i + 1]; if (!next) return;
+        const want = narrow && SNUG.includes(ORDER[i]) ? `${-Math.max(0, Math.round(c.offsetHeight - reach(i) - AIR))}px` : "";
+        if (next.style.marginTop !== want) next.style.marginTop = want;
+      });
       let end = hero.getBoundingClientRect().bottom + scrollY;
       doc = []; mt = [];
       chs.forEach((c, i) => { const m = parseFloat(getComputedStyle(c).marginTop) || 0; mt.push(m); doc.push(end + m); end = doc[i] + c.offsetHeight; });
@@ -111,31 +127,28 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       const docked: boolean[] = [];
       for (let i = 0; i < chs.length; i++) {
         const nt = doc[i] - y;
-        const stick = OVER.includes(ORDER[i]) ? hh : tt;
-        const arrive = clamp((vh - nt) / Math.max(1, vh - stick));
-        docked.push(nt <= stick + 0.5);
-        const dwellLen = i + 1 < chs.length ? Math.max(1, mt[i + 1]) : vh * 0.4;
-        const dwell = clamp((stick - nt) / dwellLen);
+        const arrive = clamp((vh - nt) / Math.max(1, vh - tt));
+        docked.push(nt <= tt + 0.5);
+        // A stay is at least 35% of a screen of scroll, so a phone's snug chapter still plays its show.
+        const dwellLen = i + 1 < chs.length ? Math.max(vh * 0.35, mt[i + 1]) : vh * 0.4;
+        const dwell = clamp((tt - nt) / dwellLen);
         listeners.get(ORDER[i])?.forEach((fn) => fn(dwell, arrive));
       }
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
       for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
       // As the next sheet rises, this one's words and things move up ahead of its torn edge (the gap
-      // never closes), so a tear never cuts through a line or a card. The proof's page has a straight
-      // edge and slides over Your AI, which stays put (its chat stays in view); the close lifts the
-      // proof's words the same way the sheets do.
+      // never closes), so a tear never cuts through a line or a card: every chapter has finished, all
+      // of it in view, before the next sheet reaches it.
       for (let i = 0; i + 1 < chs.length; i++) {
         const nt = doc[i + 1] - y;
-        const stick = OVER.includes(ORDER[i]) ? hh : tt;
         let lift = 0;
-        if (docked[i] && nt < vh && (!OVER.includes(ORDER[i + 1]) || ORDER[i] === "proof")) lift = Math.max(0, Math.round(stick + reach(i) - (nt - 18)));
+        if (docked[i] && nt < vh) lift = Math.max(0, Math.round(tt + reach(i) - (nt - 18)));
         if (lift !== lifts[i]) { lifts[i] = lift; chs[i].style.setProperty("--lift", `${lift}px`); chs[i].toggleAttribute("data-lifted", lift > 0); }
-        // A headline is never sliced: as a chapter's heading and its line move up to where the page
-        // clips them (just under its torn edge, or under the header for the proof), they fade out
-        // together, whole, before they reach it. The cards still clip hard at the edge.
+        // A headline is never sliced: as a chapter's heading and its line move up to its torn edge,
+        // they fade out together, whole, before they reach it. (The cards fade out into the edge.)
         const heads = fades[i];
         if (!heads.length) continue;
-        const clipY = stick + (OVER.includes(ORDER[i]) ? 0 : tear);
+        const clipY = tt + tear;
         heads.forEach((h) => {
           if (!lift) { if (h.style.opacity) h.style.opacity = ""; return; }
           // Over the last FADE px before the clip line, or over all the room it had, if less (a phone's
@@ -158,7 +171,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     const resize = () => { measure(); frame(); };
     jump = (tone) => {
       const i = ORDER.indexOf(tone);
-      const stay = i + 1 < chs.length ? mt[i + 1] * STAY[tone] : 0;
+      const stay = i + 1 < chs.length ? Math.max(0, mt[i + 1]) * STAY[tone] : 0;
       scrollTo({ top: Math.max(0, doc[i] - tt + stay + 1), behavior: reduced ? "auto" : "smooth" });
     };
     measure(); frame();
@@ -170,6 +183,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     return () => {
       removeEventListener("scroll", ask); removeEventListener("resize", resize); ro.disconnect(); cancelAnimationFrame(raf);
       if (header) for (const k of Object.keys(HEADER)) header.style.removeProperty(k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+      chs.forEach((c) => { c.style.marginTop = ""; });
       delete el.dataset.live; jump = () => {};
     };
   }, [root]);
@@ -266,8 +280,26 @@ function Write() {
 /* ───────────────────────── Draw on whiteboards ───────────────────────── */
 
 function Draw() {
-  // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives.
-  const bind = useCallback((set: (k: number) => void) => listen("draw", (d, p) => set(still() || (calm() && p >= 1) ? 1 : d)), []);
+  // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives. On a Mac, Claude
+  // draws it as you scroll through the chapter's stay. On a phone the chapter is only as long as the
+  // board, so it draws on a clock once the board docks (2.4 s), or sooner if you scroll on.
+  const bind = useCallback((set: (k: number) => void) => {
+    let d0 = 0, t0 = 0, raf = 0, k = 0;
+    const show = (v: number) => { if (v !== k) { k = v; set(v); } };
+    const tick = (now: number) => {
+      if (!t0) t0 = now;
+      const tk = Math.min(1, (now - t0) / 2400);
+      show(Math.max(tk, d0));
+      raf = tk < 1 ? requestAnimationFrame(tick) : 0;
+    };
+    const off = listen("draw", (d, p) => {
+      if (still() || (calm() && p >= 1)) { show(1); return; }
+      d0 = d;
+      if (narrowNow() && p >= 0.995 && !t0 && !raf) raf = requestAnimationFrame(tick);
+      if (!raf) show(Math.max(d, t0 ? 1 : 0));
+    });
+    return () => { off(); cancelAnimationFrame(raf); };
+  }, []);
   return (
     <Chapter tone="draw" label="s-draw-h">
       <div className={s.dBody}>
@@ -324,16 +356,19 @@ function Ai() {
 
 /* ───────────────────────── The proof: the study, as a comparison ───────────────────────── */
 
-/** The study's result. Claude Haiku 5.5 on LoCoMo, 1,540 questions (see /blog/ai-memory-with-notes):
- *  in a new chat it answered 18% right; in a new chat with Pinto Notes connected, 82.5%. */
+/** The study's result, and what each condition had (see /blog/ai-memory-with-notes: Claude Haiku 5.5,
+ *  LoCoMo, 1,540 questions about months of past chats, asked in a new chat; with nothing else it got
+ *  18% right; with Pinto Notes connected, where after each chat it had kept its own notes, 82.5%). */
 const STUDY = [
-  { who: "Claude in a new chat", v: 18, shown: "18%" },
-  { who: "Claude with Pinto", v: 82.5, shown: "82.5%" },
+  { who: "Claude in a new chat", had: "It had only the new chat.", v: 18, shown: "18%" },
+  { who: "Claude with Pinto", had: "It could also read the notes it kept in Pinto after each chat.", v: 82.5, shown: "82.5%" },
 ] as const;
 
-/** A plain page laid over the binder, its one break in rhythm: no colour, no tear, no tab, no card. A
- *  short heading, then the study's two numbers as a comparison, a bar each, so the gap reads at a
- *  glance; the bars grow once as the page lands (with Reduce Motion they're already full). */
+/** A plain white sheet with no tab, torn like the rest and laid under the tabs: the page's one break in
+ *  colour and in kind (no card, no show). A heading that says what the numbers show, the two numbers
+ *  as a comparison, a bar each, so the gap reads at a glance, each with one line on what Claude had;
+ *  then what was asked and who ran it, and the link. The bars grow once as the page lands (with Reduce
+ *  Motion they're already full). */
 function Proof() {
   const [on, setOn] = useState(false);
   useEffect(() => {
@@ -341,29 +376,29 @@ function Proof() {
     return listen("proof", (_d, p) => { if (p >= 0.6) setOn(true); });
   }, []);
   return (
-    <section id="s-proof" data-ch="proof" className={s.proof} aria-labelledby="s-proof-h" style={{ zIndex: 8 }}>
-      <div data-body className={s.proofBody}>
+    <Chapter tone="proof" label="s-proof-h">
+      <div className={s.proofBody}>
         <div className={s.proofIn}>
           <div className={s.proofHead} data-fade>
-            <h2 id="s-proof-h" className={s.proofTitle}>Your AI, with your notes.</h2>
-            <p className={s.proofSay}>Questions about months of past chats that Claude answered right.</p>
+            <h2 id="s-proof-h" className={s.proofTitle}>Claude got far more right when it could read the notes.</h2>
+            <p className={s.proofSay}>The same 1,540 questions about months of past chats, asked in a new chat.</p>
           </div>
           <dl className={s.bars} data-on={on || undefined}>
             {STUDY.map((r, i) => (
-              <div key={r.who} className={s.barRow} data-pinto={i === 1 || undefined} data-fade>
-                <dt className={s.barWho}>{r.who}</dt>
+              <div key={r.who} className={s.barRow} data-pinto={i === 1 || undefined}>
+                <dt className={s.barWho}><b>{r.who}</b><span>{r.had}</span></dt>
                 <dd className={s.barNum}>{r.shown}</dd>
                 <dd className={s.barTrack} aria-hidden="true"><i style={{ "--v": r.v / 100 } as React.CSSProperties} /></dd>
               </div>
             ))}
           </dl>
-          <p className={s.proofFoot} data-fade>
-            <span>Claude Haiku 5.5 on the LoCoMo test, 1,540 questions.</span>
+          <p className={s.proofFoot}>
+            <span>Claude Haiku 5.5 on the LoCoMo test. Run by the maker of Pinto Notes; the code and every answer are public.</span>
             <a className={s.proofLink} href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true">→</span></a>
           </p>
         </div>
       </div>
-    </section>
+    </Chapter>
   );
 }
 
@@ -373,8 +408,13 @@ function Cover() {
   const sub = useCallback(stayOf("cover"), []);
   return (
     <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={{ zIndex: 9 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className={s.coverArt} src="/lab/z/close-life-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
+      {/* The close's paper, torn along its top like every sheet above it, with the still life on it. */}
+      <div className={s.coverPaper} aria-hidden="true">
+        <div className={s.coverSheet}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={s.coverArt} src="/lab/z/close-life-v1.webp" alt="" width="1536" height="1024" loading="lazy" />
+        </div>
+      </div>
       <div data-body className={s.coverBody}>
         <div className={s.coverText}>
           <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is <em>free.</em></h2>
@@ -394,7 +434,6 @@ export function Story({ className }: { className: string }) {
   return (
     <div ref={root} className={`${s.stack} ${className}`}>
       <span data-probe className={s.probe} aria-hidden="true" />
-      <span data-probe-hh className={s.probeHh} aria-hidden="true" />
       <Hero />
       <Write />
       <Draw />

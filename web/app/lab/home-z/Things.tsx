@@ -6,13 +6,13 @@ import { AIGlyph } from "@/lib/ai-glyphs";
 import { box, curve, ellipse, head, line, rng } from "./hand";
 import s from "./s.module.css";
 
-// The things on study Z's page (round 16, option C after the round 11 council), one person's week,
-// several parts of one life. The first screen is that week in one note: three dinners (the last a
-// recipe ChatGPT just wrote into Recipes, asked for in a small ChatGPT request), the Studio North
-// question and what was decided, and the writing habit, 4 of 5. Then each chapter shows one part at
-// full size: a book note among a life's notes, a whiteboard (the job offer from Studio North, mapped:
-// now or March?), a small app (the habits they're building), and one request in ChatGPT that lands in
-// all three.
+// The things on study Z's page (round 17, option C after the round 12 council), one person's week,
+// several parts of one life. The first screen is that week in one note: two dinners (the second a
+// recipe ChatGPT just wrote into Recipes, asked for in a small ChatGPT request) and one plain decision
+// a stranger reads at once ("Decided: Take the new job in March."). Then each chapter shows one part
+// at full size: a book note open in Pinto's Mac window among a life's notes, a whiteboard (the job
+// offer from Studio North, mapped: now or March?), a small app (the habits they're building), and one
+// request in ChatGPT that lands in all three, the recipe it files into Recipes first.
 
 export const hand = localFont({ src: "./Excalifont-Regular.woff2", display: "block" });
 
@@ -29,15 +29,15 @@ export const Tick = ({ className = "" }: { className?: string }) => (
 /** The decision in the dinners note (Your AI). Same words everywhere. */
 export const DECIDED = "Cooking at home five nights a week.";
 
-/** The first screen's note: this week, today Thursday. Two dinners cooked, and tonight's: the recipe
- *  ChatGPT just wrote into Recipes when asked for a quick dinner (a link to it). Then the work
- *  question and what was decided, and the habit. */
+/** The first screen's note: this week, today Thursday. A dinner cooked, and tonight's: the recipe
+ *  ChatGPT just wrote into Recipes when asked for a quick dinner. Then one decision, in words a
+ *  stranger reads in a second (the Studio North offer, taken from March). */
 export const WEEK_NOTE = {
   title: "This week",
   dinner: ["Tue", "Miso salmon"] as [string, string],
   added: ["Thu", "Lemon chicken"] as [string, string],
   ask: "Add a quick dinner for Thursday.",
-  work: ["Studio North:", "wait until March."] as [string, string],
+  decided: "Take the new job in March.",
 };
 
 /** The book note Notes opens: two highlights, what to try, and what the reader decided. */
@@ -47,24 +47,28 @@ export const BOOK = {
   decided: "Write 30 min before work.",
 };
 
-/** The notes list in Notes: a whole life's notes, newest first, the book note open. Title, then where
- *  it lives and its first words. */
-export const NOTES: { title: string; sub: string; on?: boolean }[] = [
-  { title: "Deep Work", sub: "Reading · Cal Newport", on: true },
-  { title: "Miso salmon", sub: "Recipes · 20 min" },
-  { title: "Studio North", sub: "Work · Wait until March" },
-  { title: "Kyoto in April", sub: "Trips · 6 days" },
-  { title: "Morning run", sub: "Health · 3 a week" },
+/** The notes list in the Mac window (Notes): a whole life's notes, newest first, the book note open.
+ *  As Pinto lists them: the title, when and the first words, then the folder. */
+export const NOTES: { title: string; when: string; first: string; folder: string; on?: boolean }[] = [
+  { title: "Deep Work", when: "9:12 AM", first: "Deep work is rare", folder: "Reading", on: true },
+  { title: "Miso salmon", when: "Yesterday", first: "20 min. Rice, greens", folder: "Recipes" },
+  { title: "Studio North", when: "Yesterday", first: "Decided: wait until", folder: "Work" },
+  { title: "Kyoto in April", when: "Monday", first: "Six days, two cities", folder: "Trips" },
+  { title: "Morning run", when: "Sunday", first: "Three a week", folder: "Health" },
+  { title: "Weeknight dinners", when: "Sunday", first: "Decided: cooking at", folder: "Recipes" },
 ];
 
-/** Next week's dinners, from your recipes: what ChatGPT writes into the dinners note (Your AI). */
+/** Next week's dinners, from your recipes: what ChatGPT writes into the dinners note (Your AI). One
+ *  of them is new: ChatGPT wrote its recipe into the Recipes folder as it planned the week. */
 export const DINNERS: [string, string][] = [
   ["Mon", "Lemon chicken"],
   ["Tue", "Miso salmon"],
-  ["Wed", "Lentil soup"],
+  ["Wed", "Shakshuka"],
   ["Thu", "Dal"],
-  ["Sun", "Shakshuka"],
+  ["Sun", "Lentil soup"],
 ];
+/** The recipe ChatGPT filed into Recipes while it planned the week. */
+export const NEW_RECIPE = { name: "Shakshuka" };
 /** The two questions ChatGPT adds to the board for the call. */
 export const QUESTIONS = ["Can the start move to March?", "What's the first project?"];
 
@@ -116,9 +120,22 @@ export const Folder = () => (
 const TRY = ["Phone in another room", "Schedule every minute"];
 const TYPED = "A shutdown ritual at 6";
 
-/** Your notes, as in Pinto: a whole life's notes on the left (a recipe, the job decision, a trip), the
- *  book note open at writing size: two highlights, what to try as a checklist that ticks (its last line
- *  typed when the chapter arrives), and what the reader decided. */
+/** Pinto's own window chrome, drawn plain: the icons in its toolbar (the sidebar, search, back and
+ *  forward, the format menu, a checklist). Decoration only; the window isn't a working app. */
+const Ico = {
+  side: <svg viewBox="0 0 20 16"><rect x="1.5" y="1.5" width="17" height="13" rx="3" /><path d="M7.5 1.5v13" /></svg>,
+  search: <svg viewBox="0 0 18 18"><circle cx="7.6" cy="7.6" r="5.6" /><path d="M11.8 11.8 16 16" /></svg>,
+  back: <svg viewBox="0 0 10 16"><path d="M7.5 2 1.8 8l5.7 6" /></svg>,
+  fwd: <svg viewBox="0 0 10 16"><path d="M2.5 2l5.7 6-5.7 6" /></svg>,
+  check: <svg viewBox="0 0 20 16"><circle cx="3.5" cy="4" r="2.2" /><path d="M8.5 4h10M8.5 12h10" /><circle cx="3.5" cy="12" r="2.2" /></svg>,
+  more: <svg viewBox="0 0 20 6"><circle cx="3" cy="3" r="1.6" /><circle cx="10" cy="3" r="1.6" /><circle cx="17" cy="3" r="1.6" /></svg>,
+};
+
+/** Your notes, as Pinto shows them on a Mac: one window with its traffic lights and toolbar, the notes
+ *  list down the left (a whole life's notes: a recipe, the job decision, a trip; the book note
+ *  selected) and the book note open at writing size: two highlights, what to try as a checklist that
+ *  ticks (its last line typed when the chapter arrives), and what the reader decided. On a phone the
+ *  window is narrow, as on a small Mac window: the list hides and the note fills it. */
 export function Note({ live }: { live: boolean }) {
   const [on, setOn] = useState([true, false, false]);
   const [n, setN] = useState(0);
@@ -135,19 +152,35 @@ export function Note({ live }: { live: boolean }) {
   const flip = (i: number) => setOn((o) => o.map((v, k) => (k === i ? !v : v)));
   const rows = [...TRY, TYPED];
   return (
-    <div className={s.sheet}>
+    <div className={s.sheet} role="group" aria-label="Pinto Notes on a Mac, with the Deep Work note open">
+      <div className={s.mwBar} aria-hidden="true">
+        <span className={s.mwLights}><i /><i /><i /></span>
+        <span className={s.mwListBar}>
+          <span className={s.mwIco}>{Ico.side}</span>
+          <span className={s.mwIco}>{Ico.search}</span>
+          <span className={s.mwPill}>All Notes</span>
+        </span>
+        <span className={s.mwNoteBar}>
+          <span className={s.mwIco}>{Ico.back}</span>
+          <span className={`${s.mwIco} ${s.mwDim}`}>{Ico.fwd}</span>
+          <span className={s.mwCrumb}>Reading</span>
+          <span className={s.mwTools}><b>Aa</b><span className={s.mwIco}>{Ico.check}</span><span className={s.mwIco}>{Ico.more}</span></span>
+        </span>
+      </div>
       <nav className={s.folder} aria-label="Notes">
-        <p className={s.folderName}>Notes</p>
         <ul>
-          {NOTES.map((n) => (
-            <li key={n.title} data-on={n.on || undefined}><b>{n.title}</b><span>{n.sub}</span></li>
+          {NOTES.map((x) => (
+            <li key={x.title} data-on={x.on || undefined}>
+              <b>{x.title}</b>
+              <span className={s.mwWhen}>{x.when} · {x.first}</span>
+              <span className={s.mwIn}><Folder />{x.folder}</span>
+            </li>
           ))}
         </ul>
       </nav>
       <div className={s.recipe}>
-        <p className={s.crumb}><svg viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 L2 8 L8 14" /></svg>Reading</p>
         <h3 className={s.sheetTitle}>{BOOK.title}</h3>
-        <p className={s.sheetMeta}><Folder />Reading · {BOOK.author}</p>
+        <p className={s.sheetMeta}>By {BOOK.author}</p>
         <p className={s.sheetH}>Highlights</p>
         <ul className={s.quotes}>{BOOK.marks.map((m) => <li key={m}>{m}</li>)}</ul>
         <p className={s.sheetH}>To try</p>
@@ -223,7 +256,7 @@ export const TALL: Board = {
     { a: [264, 86], c1: [264, 96], c2: [267, 106], b: [267, 116], label: ["yes", [292, 106]], faint: true },
     { a: [150, 264], c1: [152, 290], c2: [160, 300], b: [171, 300] },
   ],
-  last: { a: [208, 62], c1: [190, 100], c2: [160, 150], b: [152, 198], label: ["no", [150, 112]] },
+  last: { a: [208, 62], c1: [190, 100], c2: [160, 150], b: [152, 198], label: ["no", [168, 114]] },
 };
 
 function diamond(r: () => number, c: Pt, w: number, h: number, over = 3) {

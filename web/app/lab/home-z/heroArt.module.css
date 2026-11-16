@@ -24,14 +24,14 @@
 .askMark svg { width: 0.9em; height: 0.9em; }
 .askText { padding: 0.32em 0.8em 0.36em; border-radius: 0.95em; background: #efe9e1; color: #1d1b19; font-weight: 500; line-height: 1.25; white-space: nowrap; }
 
-/* The note: the one thing to look at. A title and four short lines, with room in it. */
+/* The note: the one thing to look at. A title and three short lines, with room in it. */
 .note { position: relative; z-index: 1; box-sizing: border-box; padding: 1.3em 1.45em 1.35em; border-radius: 0.85em;
   background: #fffdf8; color: #1d1b19; font-size: calc(17.5 * var(--u)); line-height: 1.4;
   box-shadow: 0 1px 0 rgba(90, 60, 20, 0.1), 0 1.6em 2.8em -1.5em rgba(70, 45, 10, 0.32), 0 0 0 1px rgba(60, 40, 10, 0.05); }
 .title { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
 .lines { margin: 0.7em 0 0; padding: 0; list-style: none; display: grid; gap: 0.28em; }
 .lines li { display: flex; align-items: center; white-space: nowrap; }
-/* A little more room between the dinners and the rest of the week. */
+/* A little more room between the dinners and the decision. */
 .lines .gap { margin-top: 0.42em; }
 .lines b { margin-right: 0.3em; font-weight: 650; }
 .day { flex: none; width: 2.6em; font-weight: 600; color: #8a7d70; font-size: 0.94em; }
@@ -41,7 +41,7 @@
    soft tint the app leaves. */
 .wipe { display: inline-flex; align-items: center; gap: 0.75em; clip-path: inset(-0.4em 100% -0.4em 0); }
 .added[data-in] .wipe { clip-path: inset(-0.4em -0.4em -0.4em 0); }
-.addedText { position: relative; z-index: 0; font-weight: 500; }
+.addedText { position: relative; z-index: 0; font-weight: 600; }
 .mark { position: absolute; z-index: -1; inset: -0.1em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.32); transform: scaleX(0); transform-origin: 0 50%; }
 .added[data-in] .mark { transform: none; }
 .added[data-settled] .mark { background: rgba(16, 163, 127, 0.17); }
@@ -62,7 +62,8 @@
     mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat; object-position: 50% 30%; }
   .box { position: relative; inset: auto; --u: 1; flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; }
   .group { position: relative; left: auto; top: auto; width: auto; translate: none; margin: 0 22px; padding: 30px 0 4px; font-size: 16px; }
-  .ask { margin: 0 -8px -8px auto; font-size: 13px; }
+  /* The request stays 22 px in from the screen's edge (the note's own edge). */
+  .ask { margin: 0 0 -8px auto; font-size: 13px; }
   .note { font-size: 16px; line-height: 1.38; padding: 15px 18px 16px; border-radius: 16px; }
   .title { font-size: 1.45em; }
   .lines { margin-top: 0.6em; }
