@@ -1721,7 +1721,7 @@ async function appPiece(tx: Tx, c: Call, n: Note, file: string, bytes: Uint8Arra
   }
   // The clean-up leaves what an upload names (pane_app_blobs_gc), for a day.
   const names = [...new Set(pieces.flatMap((p) => p.parts.map((x) => x.hash)))];
-  await tx`insert into public.note_app_uploads (note_id, path_tag, size, pieces, blobs) values (${n.id}, ${tag}, ${size}, ${JSON.stringify(pieces)}::jsonb, ${names}::text[])
+  await tx`insert into public.note_app_uploads (note_id, path_tag, size, pieces, blobs) values (${n.id}, ${tag}, ${size}, ${JSON.stringify(pieces)}::text::jsonb, ${names}::text[])
     on conflict (user_id, note_id, path_tag) do update set size = excluded.size, pieces = excluded.pieces, blobs = excluded.blobs, updated_at = now()`;
   return { received: pieces.reduce((s, p) => s + p.parts[0].size, 0), missing, size };
 }
