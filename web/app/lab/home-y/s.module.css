@@ -1,0 +1,831 @@
+/* Study W, round 13: the lead. S's ring binder with S's print inks back (vermilion, deep green, kraft
+   with orange halftone, ink), the etched still lifes, and the product objects as the pictures. The
+   story is one person's week, three parts of one life: the Recipes folder, the Studio North decision,
+   the habits they're building. The first screen is the note in its notebook (the folders of a whole
+   life beside it) on their table. Each chapter below is a full-bleed divider with a torn top edge,
+   laid over the last by `position: sticky`; when it lands, its tab rises out of it and stays under the
+   header. One bold moment per chapter: its colour and its big object. The tabs end at Your AI. Then
+   the page closes on the same table, in one scene with the download and the note on a Mac and an
+   iPhone.
+
+   Type: Newsreader 500 for headings (italic for the words that matter), the system sans for
+   sentences and for the things themselves, Excalifont for the whiteboard and for handwriting.
+   Colours: cream page, vermilion for notes, deep green for whiteboards, kraft for apps, ink for the
+   AI, the table's paper to close. Orange is the one accent. ChatGPT is always its green, Claude
+   always its orange, you are ink. Art: /lab/y/*.webp, one file per picture, so a picture can be
+   swapped without touching code. */
+
+.stack {
+  --display: var(--s-display), "Iowan Old Style", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --cream: #fff1e2;
+  --page: #fff4e6;
+  --hh: 84px;
+  --tabH: 46px;
+  --tt: calc(var(--hh) + var(--tabH));
+  --tearH: 54px;
+  --tearW: 1900px;
+  --gap: 16px;
+  --pad: max(var(--gutter), calc((100% - 1240px) / 2 + var(--gutter)));
+  --chH: calc(100svh - var(--tt));
+  /* A chapter's contents are one block: at least 12% of the screen below the tabs, and centred in
+     the whole screen (a touch above the middle) when they're short enough. The block's auto margins
+     centre it between these paddings; when it's taller than the room, it starts at the top one. */
+  --airT: max(12svh, calc(var(--tearH) + 24px));
+  --airB: calc(var(--airT) + var(--tt) + 6svh);
+  --kraftGrain: url(/lab/y/grain-v1.webp) 0 0 / 320px 320px;
+  position: relative; margin-top: calc(-1 * var(--hh)); color: #2a1d10; background: var(--page);
+}
+.tail { height: 30vh; }
+.probe { position: absolute; top: 0; left: 0; width: 1px; height: var(--tt); visibility: hidden; pointer-events: none; }
+.probeHh { position: absolute; top: 0; left: 0; width: 1px; height: var(--hh); visibility: hidden; pointer-events: none; }
+.with { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; vertical-align: -2px; }
+.wideOnly { display: contents; }
+.tallOnly { display: none; }
+
+/* ── Chapter colours ── */
+/* Cream on the vermilion is 4.7:1 (AA), and its line is set a size up and semibold besides. */
+.write { --c: #c0401a; --dot: #8a2a0b; --ink: var(--cream); --soft: var(--cream); }
+.draw { --c: #1b4a35; --dot: #0c2c1e; --ink: var(--cream); --soft: rgba(236, 246, 238, 0.86); }
+/* Apps: kraft stock (its fibre is a grain tile in soft light), with orange halftone at its edge. */
+.build { --c: #d2ab7c; --dot: #e2601a; --ink: #24170d; --soft: #45301a; }
+.build .sheetBg, .build .tab { background: var(--kraftGrain), var(--c); background-blend-mode: soft-light, normal; }
+.ai { --c: #26190f; --dot: #7a3414; --ink: var(--cream); --soft: rgba(255, 236, 214, 0.82); }
+
+/* ───────────────────────── The first screen ───────────────────────── */
+.hero { position: relative; z-index: 1; height: calc(100svh - 26px); min-height: 640px; box-sizing: border-box; padding-top: var(--hh); display: flex; flex-direction: column; }
+/* The words sit in the middle of the first screen, a touch above it, never against the header. */
+.heroText { position: relative; z-index: 3; box-sizing: content-box; width: min(620px, 43vw); margin: auto 0; padding: max(5svh, 40px) 0 max(8svh, 48px) var(--pad); }
+.h1 { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.9vw, 11vh, 100px); line-height: 0.94; letter-spacing: -0.04em; color: #24170d; }
+.h1You { font-style: italic; letter-spacing: -0.035em; color: #b6450f; }
+.h1Ai { position: relative; display: inline-block; white-space: nowrap; }
+/* The hand-drawn orange stroke under "your AI", drawn once on arrival. */
+.uline { position: absolute; left: 0.04em; bottom: -0.06em; width: calc(100% - 0.26em); height: 0.16em; overflow: visible; pointer-events: none; }
+.uline path { fill: none; stroke: #d9781a; stroke-width: 5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.uline path + path { stroke-width: 3; opacity: 0.7; }
+@media (prefers-reduced-motion: no-preference) {
+  .underWipe { animation: wipe 0.9s 0.35s cubic-bezier(0.6, 0, 0.3, 1) both; }
+  @keyframes wipe { from { transform: translateX(-564px); } to { transform: none; } }
+}
+.lede { margin: clamp(16px, 3vh, 28px) 0 0; max-width: 26em; font-size: 20px; line-height: 1.42; color: #4a3826; text-wrap: pretty; }
+.ctas { margin: clamp(18px, 3.4vh, 30px) 0 0; flex-wrap: nowrap; }
+.ctas a, .ctas :global(a) { white-space: nowrap; }
+.fine { margin: 14px 0 0; font-size: 14.5px; font-weight: 600; color: #7a6650; }
+
+/* The picture's torn panel. What lies in it (the picture and the notes) is HeroArt.tsx with its own
+   heroArt.module.css, so the first screen's content can be swapped without touching the rest. */
+.art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(620px, 43vw) + 44px); container-type: size; clip-path: inset(0 0 0 -60vw); }
+/* The panel is torn along its left and bottom edges like the sheets below (the top runs under the
+   header, the right off the page). The two torn-away strips are subtracted from the panel, so the
+   corner tears where they meet. */
+@media (min-width: 761px) {
+  .art {
+    -webkit-mask: linear-gradient(#000, #000), url(/lab/y/tear-left-v1.webp) 0 0 / 24px 840px repeat-y, url(/lab/y/tear-bottom-v1.webp) 0 100% / 920px 26px repeat-x;
+    -webkit-mask-composite: source-out, source-over;
+    mask: linear-gradient(#000, #000), url(/lab/y/tear-left-v1.webp) 0 0 / 24px 840px repeat-y, url(/lab/y/tear-bottom-v1.webp) 0 100% / 920px 26px repeat-x;
+    mask-composite: subtract, add;
+  }
+}
+/* The highlight under a line ChatGPT added. */
+.mark { position: absolute; z-index: -1; inset: -0.12em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.18); }
+.folderIcon { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.hRows i, .dvRows i { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%; box-shadow: inset 0 0 0 0.11em #cbbdae; }
+.hRows li[data-on], .dvRows li[data-on] { color: #9a8b7a; text-decoration: line-through; text-decoration-color: #b3a493; }
+.hRows li[data-on] i, .dvRows li[data-on] i { background: #e8820f; box-shadow: none; }
+.hRows svg, .dvRows svg, .box svg, .day svg, .aWeek svg, .aNote svg { width: 72%; height: 72%; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.dvAdded span { position: relative; z-index: 0; }
+.dvAdded[data-undone] { opacity: 0.35; text-decoration: line-through; }
+/* "Free", beside the phone's download button (the desktop says it in the line under the buttons). */
+.ctaRow { display: inline-flex; align-items: center; gap: 14px; }
+.free { display: none; font-size: 16px; font-weight: 700; color: #7a6650; }
+
+/* "Added by ChatGPT · Undo": a line of its own, under what it marks. */
+.receipt { display: flex; align-items: center; gap: 0.45em; margin: 0.55em 0 0 1.9em; font-size: 0.86em; font-weight: 600; color: #0b7a5e; white-space: nowrap; }
+.receipt b { font-weight: 600; color: #8fb8aa; }
+.receiptMark { flex: none; display: grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: #10a37f; }
+.receiptMark svg { width: 0.85em; height: 0.85em; }
+.receipt button { margin: 0; padding: 0.2em 0.5em; border: 0; border-radius: 0.5em; background: none; color: #1d1b19; font: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: rgba(29, 27, 25, 0.3); text-underline-offset: 0.18em; cursor: pointer; }
+@media (hover: hover) { .receipt button:hover { background: rgba(16, 163, 127, 0.12); text-decoration-color: currentColor; } }
+.receipt button:focus-visible { outline: 2px solid #10a37f; outline-offset: 1px; }
+@media (prefers-reduced-motion: no-preference) { .receipt button { transition: background-color 0.15s, transform 0.1s; } .receipt button:active { transform: scale(0.95); } }
+.receipt[data-undone] { color: #8a7d70; }
+
+/* A cursor with a name, as HTML: never smaller than 12px. */
+.flag { display: inline-flex; align-items: flex-start; pointer-events: none; font-size: max(12.5px, 0.8em); transform-origin: 0 0; }
+.flag svg { width: 1.05em; height: 1.45em; fill: var(--fc); stroke: #fff; stroke-width: 1.4; stroke-linejoin: round; }
+.flag span { margin: 1.05em 0 0 -0.1em; padding: 0.22em 0.55em; border-radius: 0.55em; background: var(--fc); color: #fff; font: 700 1em/1.15 var(--sans); white-space: nowrap; }
+.appName, .aAppTop { display: flex; align-items: center; gap: 0.5em; }
+.appName span, .aAppTop span { padding: 0.15em 0.55em; border-radius: 0.45em; background: #f7e6cf; color: #94480c; font-size: 0.75rem; font-weight: 700; }
+
+/* ───────────────────────── A chapter: a torn divider page ───────────────────────── */
+.ch { position: sticky; top: var(--tt); height: var(--chH); min-height: 560px; box-sizing: border-box; color: var(--ink); }
+.ch[data-covered] .body { visibility: hidden; }
+/* --lift: how far the next sheet has pushed this one's contents up (set by the script), clipped where
+   this sheet's own torn edge ends, so they leave under the tabs, never through a tear. */
+.body { position: absolute; inset: 0; z-index: 2; overflow: hidden; clip-path: inset(calc(var(--tearH) - 8px) 0 0 0); }
+.body > * { translate: 0 calc(-1 * var(--lift, 0px)); }
+/* While lifted, the contents fade out over the last stretch before the tabs, so a heading going under
+   reads as scrolling away, never as cut. */
+.ch[data-lifted] .body { -webkit-mask: linear-gradient(transparent calc(var(--tearH) - 8px), #000 calc(var(--tearH) + 44px)); mask: linear-gradient(transparent calc(var(--tearH) - 8px), #000 calc(var(--tearH) + 44px)); }
+.short { display: none; }
+.say { margin: 0; max-width: 22em; font-size: 20px; line-height: 1.42; font-weight: 500; color: var(--soft); text-wrap: pretty; }
+
+/* The page: its colour, torn along the top (the tear is one picture, used as a mask), with a short
+   soft shadow where it lies on what's under it. Only the first sheet, which lies on the cream page,
+   shows the paper's white core along its tear; a sheet laid over the tabs has none, so no white line
+   ever crosses a tab and each tab behind stays whole. */
+.paper { position: absolute; inset: 0; z-index: 0; pointer-events: none; filter: drop-shadow(0 -1px 1.5px rgba(60, 30, 8, 0.18)) drop-shadow(0 -5px 10px rgba(60, 30, 8, 0.14)); }
+.paper i { position: absolute; inset: 0; }
+.sheetBg, .rim {
+  -webkit-mask: url(/lab/y/edge-v1.webp) 0 0 / var(--tearW) var(--tearH) repeat-x, linear-gradient(#000, #000) 0 calc(var(--tearH) - 2px) / 100% 100% no-repeat;
+  mask: url(/lab/y/edge-v1.webp) 0 0 / var(--tearW) var(--tearH) repeat-x, linear-gradient(#000, #000) 0 calc(var(--tearH) - 2px) / 100% 100% no-repeat;
+}
+.sheetBg { background-color: var(--c); }
+.rim { background: #fff6ea; translate: 0 -3px; -webkit-mask-position: 7px 0, 0 calc(var(--tearH) - 2px); mask-position: 7px 0, 0 calc(var(--tearH) - 2px); }
+/* A sheet with another docked over it loses its torn band (it sits behind the front sheet's solid
+   paper), so only the front sheet's edge ever crosses the tabs behind it, and each tab stays whole. */
+.ch[data-behind] .rim, .ch:not(.write) .rim { visibility: hidden; }
+.ch[data-behind] .sheetBg { top: calc(var(--tearH) - 2px); -webkit-mask: none; mask: none; }
+/* Halftone in the chapter's own ink, printed into one corner of the page like a riso gradient: strong
+   in the corner, gone well before the words. */
+.paper .dots { top: calc(var(--tearH) + 6px); background-image: radial-gradient(circle, var(--dot) 0 1.7px, transparent 2.2px); background-size: 8px 8px; opacity: 0.7;
+  -webkit-mask: radial-gradient(38% 46% at 100% 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); mask: radial-gradient(38% 46% at 100% 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); }
+.write .dots, .draw .dots { -webkit-mask: radial-gradient(34% 40% at 0 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); mask: radial-gradient(34% 40% at 0 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); }
+.ai .dots { opacity: 0.55; -webkit-mask: radial-gradient(40% 50% at 100% 0, #000 0, rgba(0, 0, 0, 0.4) 40%, transparent 100%); mask: radial-gradient(40% 50% at 100% 0, #000 0, rgba(0, 0, 0, 0.4) 40%, transparent 100%); }
+
+/* The tab: docked in its own slot under the header, a quarter of the column each, in the sheet's own
+   colour. It runs from the tab row down past the whole tear into the solid sheet, so the tab and its
+   sheet are one piece of paper: no torn edge, rim or fleck shows under it, and no seam. It rises out
+   of its page only once the page has docked, so a tab never crosses the page underneath. */
+.stack { --tabY: calc(-1 * var(--tabH) + 4px); --tabHt: calc(var(--tearH) - var(--tabY) + 2px); }
+.tab { position: absolute; z-index: 3; top: var(--tabY); height: var(--tabHt); box-sizing: border-box;
+  left: calc(var(--pad) + var(--slot) * ((100% - 2 * var(--pad) + 10px) / 4)); width: calc((100% - 2 * var(--pad) - 30px) / 4);
+  display: flex; align-items: flex-start; padding: 11px 18px 0; border-radius: 14px 14px 0 0; background: var(--c); color: var(--ink);
+  text-decoration: none; font-family: var(--display); font-size: 19px; font-weight: 500; letter-spacing: -0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stack[data-live] .ch:not([data-docked]) .tab { translate: 0 var(--tabHt); clip-path: inset(0 0 var(--tabHt) 0); }
+.tab:focus-visible { outline: 3px solid #ee8a14; outline-offset: 2px; }
+@media (hover: hover) { .tab:hover { filter: brightness(1.08) saturate(1.05); } }
+@media (prefers-reduced-motion: no-preference) {
+  .tab { transition: translate 0.42s cubic-bezier(0.3, 1.35, 0.6, 1), clip-path 0.42s cubic-bezier(0.3, 1.35, 0.6, 1), filter 0.15s ease-out; }
+  .stack[data-live] .ch:not([data-docked]) .tab { transition-duration: 0.26s; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+}
+
+/* Once Notes has docked, the strip beside the tabs is plain page, so nothing of the first screen shows
+   there. It sits under Notes' own paper (same layer, earlier in the page), so the sheet's shadow falls
+   on it softly instead of stopping at a line. */
+.write::before { content: ""; position: absolute; z-index: 0; left: 0; right: 0; top: calc(-1 * var(--tabH)); height: calc(var(--tabH) + var(--tearH)); background: var(--page); opacity: 0; pointer-events: none; }
+.stack[data-live] .write[data-docked]::before { opacity: 1; }
+
+/* How long each one stays before the next is laid over it (a show plays in that stay). */
+.ch.draw { margin-top: 55vh; }
+.ch.build { margin-top: 85vh; }
+.ch.ai { margin-top: 80vh; }
+.cover { margin-top: 110vh; }
+
+/* ── Write notes: a big note that fills the chapter ── */
+.wBody, .dBody, .bBody, .aBody { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; padding: var(--airT) var(--pad) var(--airB); }
+.wIn, .bIn { margin: auto 0; display: grid; align-items: center; }
+.wIn { grid-template-columns: minmax(0, 390px) minmax(0, 1fr); column-gap: clamp(36px, 4.6vw, 72px); }
+.wTitle { margin: 0 0 24px; font-family: var(--display); font-weight: 500; font-size: min(10.4vw, 17vh, 150px); line-height: 0.84; letter-spacing: -0.045em; }
+.wHead .say { font-size: 22px; font-weight: 600; }
+/* The note's paper is tilted, its words aren't: the frame turns, the live text stays on the pixel grid. */
+.sheet { position: relative; isolation: isolate; box-sizing: border-box; max-width: 800px; display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr); column-gap: clamp(24px, 3vw, 44px);
+  padding: clamp(14px, 2vh, 18px) clamp(30px, 3.4vw, 48px) clamp(22px, 3.6vh, 34px) clamp(14px, 1.4vw, 18px); color: #1d1b19; }
+/* The Recipes folder, as the notes list shows it: a quiet panel down the sheet's left side. */
+.folder { padding: 14px 8px 10px; border-radius: 14px; background: #f6f0e7; }
+.folderName { margin: 0 0 8px; padding: 0 10px; font-size: 15px; font-weight: 700; color: #6d6156; }
+.folder ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.folder li { display: grid; padding: 8px 10px; border-radius: 10px; }
+.folder li b { font-size: 15.5px; font-weight: 650; line-height: 1.25; }
+.folder li span { font-size: 13.5px; color: #8a7d70; line-height: 1.3; }
+.folder li[data-on] { background: #f3dcb9; }
+.recipe { min-width: 0; padding-top: clamp(10px, 1.8vh, 20px); }
+.crumb { display: none; }
+.sheetMeta { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 16px; font-weight: 500; color: #8a7d70; }
+.sheetMeta svg { width: 17px; height: 14px; color: #c96d06; }
+.sheetH { margin: clamp(12px, 2.2vh, 20px) 0 2px; font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #8a7d70; }
+.steps { margin: 4px 0 0; padding: 0 0 0 1.3em; display: grid; gap: 4px; font-size: clamp(16px, min(1.25vw, 2.1vh), 18px); line-height: 1.4; color: #2b2622; }
+.steps li::marker { color: #b3a493; font-weight: 600; }
+.sheet::before { content: ""; position: absolute; z-index: -1; inset: 0; border-radius: 22px; background: #fffdf8;
+  box-shadow: 0 2px 0 rgba(70, 50, 20, 0.1), 0 40px 80px -36px rgba(50, 35, 10, 0.45); }
+.sheetDate { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: #a0958a; }
+.sheetTitle { margin: 0; font-family: var(--sans); font-size: clamp(28px, min(2.8vw, 4.6vh), 40px); font-weight: 750; letter-spacing: -0.025em; line-height: 1.1; }
+.sheetText { margin: clamp(8px, 1.4vh, 14px) 0 0; max-width: 32em; font-size: clamp(17px, min(1.5vw, 2.5vh), 21px); line-height: 1.45; color: #3a342e; }
+.sheetDecided { margin-top: clamp(8px, 1.8vh, 16px); font-size: clamp(17px, min(1.5vw, 2.5vh), 21px); }
+.noteLink { color: #c4570f; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(196, 87, 15, 0.35); text-underline-offset: 3px; }
+@media (hover: hover) { .noteLink:hover { text-decoration-color: currentColor; } }
+.sheetSplit { display: grid; grid-template-columns: minmax(0, 1fr) min(14vw, 22vh, 200px); column-gap: clamp(20px, 3vw, 44px); align-items: center; margin-top: clamp(8px, 1.8vh, 18px); }
+.photo { margin: 4px 0 0; rotate: 2.5deg; }
+.photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 10px; box-shadow: 0 14px 30px -14px rgba(60, 20, 0, 0.5); background: #eadbc6; }
+.rows { margin: 0; padding: 0; list-style: none; display: grid; gap: clamp(0px, 0.5vh, 6px); }
+.rows li { display: flex; align-items: center; gap: 14px; min-height: clamp(36px, 4.6vh, 44px); }
+.row { flex: none; display: grid; place-items: center; width: clamp(36px, 4.6vh, 44px); height: clamp(36px, 4.6vh, 44px); margin: 0 -8px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+.row:focus-visible { outline: 3px solid #ee8a14; outline-offset: 0; }
+.box { position: relative; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 2.2px #cbbdae; }
+.box::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #e8820f; transform: scale(0.4); opacity: 0; }
+.box svg { position: relative; transform: scale(0.5); opacity: 0; }
+.row[data-on] .box::before, .row[data-on] .box svg { transform: none; opacity: 1; }
+@media (hover: hover) { .row:hover .box { box-shadow: inset 0 0 0 2.5px #e8820f; } }
+.rowText { position: relative; font-size: clamp(17px, min(1.45vw, 2.5vh), 21px); font-weight: 500; line-height: 1.3; cursor: pointer; }
+.row[data-on] + .rowText { color: #a0958a; }
+.strike { position: absolute; left: -2px; right: -2px; top: 54%; height: 2px; border-radius: 2px; background: #a0958a; transform: scaleX(0); transform-origin: 0 50%; }
+.strike[data-on] { transform: none; }
+.caret { display: inline-block; width: 2px; height: 1.15em; margin-left: 1px; vertical-align: -0.2em; background: #e8820f; }
+.rows li[data-empty] .rowText::after { content: ""; display: inline-block; width: 2px; height: 1.15em; vertical-align: -0.2em; background: #e8820f; }
+.rows + .sheetText, .sheetSplit + .sheetText { margin-top: clamp(10px, 2.2vh, 24px); }
+@media (prefers-reduced-motion: no-preference) {
+  .box::before { transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s; }
+  .box svg { transition: transform 0.4s 0.06s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s 0.06s; }
+  .rowText { transition: color 0.3s 0.1s; }
+  .strike { transition: transform 0.4s 0.1s cubic-bezier(0.6, 0, 0.3, 1); }
+  .rows li[data-empty] .rowText::after { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+}
+
+/* ── Draw on whiteboards: one full-width drawing, your hand and Claude's cursor on it ── */
+/* The whiteboard fills the room left under its heading, so the block is the whole page less the air. */
+.dBody { display: grid; grid-template-rows: auto minmax(0, 1fr); padding-bottom: max(6svh, 32px); }
+.dHead { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px 56px; }
+.dTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(56px, 5.6vw, 84px); line-height: 0.95; letter-spacing: -0.03em; white-space: nowrap; }
+.dHead .say { max-width: 19em; padding-bottom: 6px; }
+.dBoard { position: relative; min-height: 0; margin-top: clamp(14px, 2.6vh, 28px); display: grid; }
+.board { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+.dBoard .chalk path { stroke-width: 3.2; }
+/* The whiteboard ink. */
+.chalk path, .chalkGpt path { fill: none; stroke: var(--cream); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+/* The path not taken: dashed, quieter. */
+.chalkFaint path { stroke-dasharray: 9 9; opacity: 0.68; }
+.chalkTextFaint { opacity: 0.8; }
+.claudeNote { fill: #e8977a; stroke: none; }
+.chalkText { fill: var(--cream); }
+.chalkNote { fill: rgba(255, 241, 226, 0.86); }
+.chalkGptText { fill: #a6f2d6; }
+.chalkGpt path { stroke: #7fe0c0; }
+.chalkClaude path { fill: none; stroke: #e08a6a; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.chalkClaudeSm path { fill: none; stroke: #e08a6a; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.cursorName { fill: #fff; font: 700 12.5px/1 var(--sans); }
+.boardTitle { fill: rgba(255, 241, 226, 0.86); }
+
+/* ── Build apps: from the request to the first tap ── */
+.bIn { grid-template-columns: minmax(0, 700px) minmax(0, 1fr); column-gap: clamp(40px, 5vw, 88px); }
+.bApp { position: relative; }
+.bTitle { margin: 0 0 24px; font-family: var(--display); font-weight: 500; font-size: min(9vw, 15vh, 136px); line-height: 0.86; letter-spacing: -0.045em; }
+.bHead .say { max-width: 18em; }
+/* The app is the focal point: its block is centred in the whole sheet, with as much air under it as above. */
+.bBody { padding-bottom: var(--airT); }
+
+/* One sheet of paper: Pinto's New app page first, the app it becomes after. Both share one place,
+   so the sheet never changes size. */
+.make { position: relative; display: grid; box-sizing: border-box; padding: clamp(26px, 4vh, 38px) clamp(28px, 2.8vw, 40px) clamp(24px, 3.6vh, 34px); border-radius: 30px; background: #fffdf8; color: #1d1b19;
+  box-shadow: 0 2px 0 rgba(90, 50, 10, 0.14), 0 40px 80px -30px rgba(80, 40, 5, 0.55); }
+.makeAsk, .makeApp { grid-area: 1 / 1; min-width: 0; }
+/* The New app page as in Pinto: the words, a box of up to four lines, the button, and the way to a
+   template. It sits in the middle of the sheet, which is as tall as the app it becomes. */
+.makeAsk { display: flex; flex-direction: column; justify-content: center; }
+.makeTpl { margin: 18px 0 0; text-align: center; font-size: 15px; font-weight: 550; color: #8a7d70; }
+.make[data-built] .makeAsk { opacity: 0; translate: 0 -12px; filter: blur(2px); visibility: hidden; pointer-events: none; }
+.makeH { margin: 0; font-size: 30px; font-weight: 750; letter-spacing: -0.02em; }
+.makeSub { margin: 6px 0 0; font-size: 17px; line-height: 1.35; color: #6d6156; }
+.makeLabel { margin: clamp(16px, 2.8vh, 26px) 0 10px; font-size: 15.5px; font-weight: 650; color: #6d6156; }
+.makeBox { flex: none; margin: 0; min-height: 4.2em; padding: 16px 18px; border-radius: 16px; box-shadow: inset 0 0 0 1.5px #ddd2c5; font-size: 23px; line-height: 1.38; color: #1d1b19; }
+.makeCaret { display: inline-block; width: 2px; height: 1.12em; margin-left: 1px; vertical-align: -0.2em; background: #e8820f; }
+.askRest { color: transparent; }
+.makeRow { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 22px; }
+.makeRow small { font-size: 14.5px; line-height: 1.35; color: #8a7d70; max-width: 19em; }
+.makeGo { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 52px; padding: 0 20px; border-radius: 16px; background: #ebe3d8; color: #a0948a; font-size: 17px; font-weight: 700; white-space: nowrap; }
+.makeGo[data-ready] { background: #24170d; color: #fff4e6; }
+.makeGo[data-press] { transform: scale(0.95); }
+.makeApp { display: flex; flex-direction: column; }
+/* The tracker: the habits, each with its week of days to tick. */
+.make:not([data-built]) .makeApp { visibility: hidden; }
+.appName { margin: 0; font-size: 30px; font-weight: 750; letter-spacing: -0.02em; }
+.appName span { font-size: 13px; }
+/* The days, named once along the top, over the columns of every habit (the same in Your AI). */
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin: clamp(12px, 2.2vh, 20px) 0 0; }
+.days small { text-align: center; font-size: 14px; font-weight: 650; color: #6d6156; }
+.days small[data-now] { color: #c96d06; }
+.habits { margin: 2px 0 0; padding: 0; list-style: none; display: grid; gap: clamp(6px, 1.4vh, 12px); }
+.habitRow { padding: 14px 0 0; }
+.habitRow + .habitRow { box-shadow: 0 -1px 0 #f0e8de; }
+.habitHead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.habitName { margin: 0; flex: 1; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.habitStreak { margin: 0; font-size: 17px; font-weight: 600; color: #8a7d70; white-space: nowrap; }
+.habitStreak b { display: inline-block; color: #c96d06; font-size: 20px; }
+.habitX { width: 28px; height: 28px; margin: -6px -6px 0 0; padding: 0; border: 0; border-radius: 8px; background: none; color: #b3a596; font: 400 22px/1 var(--sans); cursor: pointer; opacity: 0; }
+.habitRow:hover .habitX, .habitX:focus-visible { opacity: 1; }
+@media (hover: hover) { .habitX:hover { background: #f4efe8; color: #6d6156; } }
+@media (hover: none) { .habitX { opacity: 0.6; } }
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
+.dayCell { position: relative; display: grid; }
+.day { display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.day:disabled { cursor: default; }
+.day i { position: relative; display: grid; place-items: center; width: 100%; max-width: 66px; aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
+.day i::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #e8820f; transform: scale(0); }
+.day svg { position: relative; opacity: 0; }
+.day[data-on] i::before { transform: none; }
+.day[data-on] svg { opacity: 1; }
+.day[data-now]:not([data-on]) i { background: #fff; box-shadow: inset 0 0 0 3px #e8820f; }
+.day:disabled i { background: #f6f2ec; }
+.day[data-down] i { transform: scale(0.9); }
+.day:focus-visible { outline: none; }
+.day:focus-visible i { outline: 3px solid #b4530f; outline-offset: 2px; }
+@media (hover: hover) { .day:not(:disabled):not([data-on]):hover i { background: #fbe3c4; } }
+.addRow { display: flex; gap: 10px; margin-top: clamp(14px, 2.6vh, 24px); }
+.addRow input { flex: 1; min-width: 0; height: 52px; padding: 0 18px; border: 0; border-radius: 16px; background: #f4efe8; color: #1d1b19; font: 500 17px var(--sans); }
+.addRow input::placeholder { color: #9a8e82; }
+.addRow input:focus { outline: 2px solid #b4530f; outline-offset: 0; background: #fff; }
+.addRow button { height: 52px; padding: 0 22px; border: 0; border-radius: 16px; background: #24170d; color: #fff4e6; font: 700 17px var(--sans); cursor: pointer; }
+.addRow button:disabled { background: #e6ddd2; color: #9a8e82; cursor: default; }
+@media (hover: hover) { .addRow button:not(:disabled):hover { background: #3a2716; } }
+.made { display: flex; align-items: center; gap: 0.45em; margin: 16px 0 0; font-size: 15.5px; font-weight: 600; color: #0b7a5e; }
+/* The app builds itself: each piece drops in, the days pop in order. */
+.makeApp :is(.appName, .days, .habitHead, .addRow, .made):not([data-in]) { opacity: 0; translate: 0 -12px; }
+.makeApp .dayCell:not([data-in]) { opacity: 0; scale: 0.4; }
+@media (prefers-reduced-motion: no-preference) {
+  .makeAsk { transition: opacity 0.26s ease-out, translate 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.26s, visibility 0s 0.3s; }
+  .makeGo { transition: background-color 0.25s, color 0.25s, transform 0.1s; }
+  .makeApp :is(.appName, .days, .habitHead, .addRow, .made) { transition: opacity 0.3s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .makeApp .dayCell { transition: opacity 0.2s ease-out, scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .day i::before { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .day svg { transition: opacity 0.2s 0.1s; }
+  .day:not(:disabled):active i { transform: scale(0.94); }
+  .day i { transition: transform 0.1s ease-out, background-color 0.15s; }
+  .habitStreak b { animation: bump 0.36s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes bump { from { transform: translateY(6px); opacity: 0.2; } }
+  .day[data-now]:not([data-on]) i { animation: due 1.8s ease-in-out infinite; }
+  @keyframes due { 50% { box-shadow: inset 0 0 0 3px rgba(232, 130, 15, 0.45); } }
+  .addRow button { transition: background-color 0.15s, transform 0.1s; }
+  .addRow button:not(:disabled):active { transform: scale(0.96); }
+  .makeCaret:not([data-done]) { animation: none; }
+  .makeCaret[data-done], .askCaret[data-done] { animation: blink 1s steps(1) infinite; }
+}
+
+/* The named cursors that act in the shows (ChatGPT's and yours). Placed by script at their tip. */
+.cur { position: absolute; z-index: 6; left: 0; top: 0; opacity: 0; pointer-events: none; will-change: transform, opacity; }
+.cur .flag { font-size: 13px; }
+.cur[data-press] .flag { transform: scale(0.84); }
+.curYou .flag svg { stroke: #fff1e2; stroke-width: 1.6; }
+.curYou .flag span { box-shadow: 0 0 0 1.5px #fff1e2; }
+@media (prefers-reduced-motion: no-preference) { .cur .flag { transition: transform 0.12s ease-out; } }
+
+/* ── Your AI, in all three: one request, three changes made in place, one undone ── */
+/* The AI's block starts at the air line and never moves while the cards grow (the changes open rows). */
+.aBody { padding-bottom: max(4svh, 24px); }
+.aTop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--gap); align-items: end; }
+.aLead { align-self: end; }
+.aTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(50px, 4.5vw, 66px); line-height: 0.92; letter-spacing: -0.03em; }
+/* The line that ties where you ask to where it lands. */
+.aTie { margin: clamp(10px, 1.4vh, 16px) 0 0; max-width: 15em; font-size: 18px; line-height: 1.4; font-weight: 550; color: var(--soft); text-wrap: pretty; }
+.askWrap { grid-column: 2 / 4; padding-left: clamp(0px, 3vw, 48px); }
+/* Where you ask: a small, plain chat. The ChatGPT mark and name, then your words in a bubble. */
+.chat { box-sizing: border-box; padding: 14px 16px 16px; border-radius: 22px; background: rgba(255, 241, 226, 0.06); box-shadow: inset 0 0 0 1px rgba(255, 241, 226, 0.12); }
+.chatWho { display: flex; align-items: center; gap: 8px; margin: 0; font: 650 15px/1 var(--sans); color: var(--cream); }
+.askMark { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #10a37f; }
+.ask { width: fit-content; max-width: 86%; margin: 10px 0 0 auto; padding: 11px 18px 12px; border-radius: 20px 20px 6px 20px; background: rgba(255, 241, 226, 0.14);
+  font: 500 clamp(19px, 1.55vw, 22px)/1.32 var(--sans); letter-spacing: -0.005em; color: var(--cream); text-wrap: pretty; }
+.askText { display: inline; }
+.askCaret { display: inline-block; width: 2px; height: 1.05em; margin: 0 1px; vertical-align: -0.15em; background: #7fe0c0; }
+/* What it read, under the chat: the two decisions take the green underline as they're read. */
+.askSub { margin: 12px 0 0 4px; font-size: 17px; line-height: 1.4; font-weight: 550; color: var(--soft); }
+/* The underline is a background, so it follows the phrase when a phone wraps it onto two lines. */
+.askNoCar { color: var(--cream); font-weight: 700; padding-bottom: 3px; background: linear-gradient(#2fc79e, #2fc79e) 0 100% / 0% 2px no-repeat; }
+.askNoCar[data-on] { background-size: 100% 2px; }
+@media (prefers-reduced-motion: no-preference) { .askNoCar { transition: background-size 0.6s cubic-bezier(0.6, 0, 0.3, 1); } }
+/* Where it lands: Pinto Notes, named with its mark over the three things. */
+.aLands { display: flex; align-items: center; gap: 9px; margin: clamp(14px, 1.8vh, 22px) 0 0; font: 650 15px/1 var(--sans); color: var(--cream); }
+.aLands img { width: 22px; height: 22px; border-radius: 6px; }
+.aStage { position: relative; flex: none; margin-top: 10px; display: flex; flex-direction: column; justify-content: flex-start; }
+/* Three frames in the chapters' own colours, of one height, so their bottoms always line up. Each
+   card inside is as tall as what it holds: a change opens its row in place, and an Undo closes it. */
+.aObjs { margin: 0; padding: 0; list-style: none; display: flex; align-items: stretch; gap: var(--gap); }
+.aObj { position: relative; min-width: 0; display: flex; flex-direction: column; box-sizing: border-box; padding: 10px; border-radius: 22px; background: var(--fc);
+  box-shadow: 0 22px 40px -18px rgba(0, 0, 0, 0.55); }
+.aoNote { --fc: #c0401a; flex: 0 0 calc(28% - 6px); }
+.aoBoard { --fc: #1b4a35; flex: 1 1 0; padding: 14px 16px 12px; }
+.aoApp { --fc: #d2ab7c; flex: 0 0 calc(27% - 6px); }
+.aObj.aoApp { background: var(--kraftGrain), var(--fc); background-blend-mode: soft-light, normal; }
+.aCard { position: relative; box-sizing: border-box; padding: clamp(14px, 2vh, 18px) 18px clamp(14px, 2vh, 18px); border-radius: 14px; background: #fffdf8; color: #1d1b19;
+  box-shadow: 0 1px 0 rgba(60, 20, 0, 0.12), 0 10px 20px -12px rgba(40, 10, 0, 0.45); }
+.aoBoard .aCard { padding: 0; border-radius: 0; background: none; box-shadow: none; color: var(--cream); }
+/* A row that opens: its height goes from nothing to what it holds. */
+.aGrow { display: grid; grid-template-rows: 0fr; }
+.aGrow > * { min-height: 0; overflow: hidden; padding: 0 6px; margin: 0 -6px; }
+.aNewRow > * { opacity: 0; translate: 0 8px; }
+.aObj[data-land]:not([data-undone]) .aNewRow { grid-template-rows: 1fr; }
+.aObj[data-land]:not([data-undone]) .aNewRow > * { opacity: 1; translate: none; }
+.aObj[data-land][data-undone] .aNewRow > * { translate: 14px 0; }
+.sweep { position: absolute; z-index: -1; left: -4px; right: -4px; top: -1px; bottom: -1px; border-radius: 6px; background: rgba(16, 163, 127, 0.22); transform: scaleX(0); transform-origin: 0 50%; }
+.aObj[data-land] .sweep { transform: none; }
+.aRec > * { opacity: 0; }
+.aRec[data-show] { grid-template-rows: 1fr; }
+.aRec[data-show] > * { opacity: 1; }
+.aRec .receipt { margin: 10px 0 2px; font-size: 14px; }
+.aoNote .aRec .receipt { margin-left: 0; }
+.aoBoard .aRec .receipt { margin: 8px 0 2px 4px; color: #8fe6c8; }
+.aoBoard .aRec .receipt b { color: rgba(143, 230, 200, 0.6); }
+.aoBoard .aRec .receipt button { color: var(--cream); text-decoration-color: rgba(255, 241, 226, 0.4); }
+.aoBoard .aRec .receipt[data-undone] { color: rgba(255, 241, 226, 0.6); }
+.markers { display: none; }
+
+.aNote { color: #1d1b19; }
+.aNoteTitle { margin: 0; font-size: clamp(18px, 1.5vw, 21px); font-weight: 750; letter-spacing: -0.015em; line-height: 1.2; }
+/* What ChatGPT added, as one marked block: a soft green field with its rule down the left. */
+.aAdd { margin-top: 8px; padding: 7px 10px 8px 12px; border-radius: 8px; background: rgba(16, 163, 127, 0.09); box-shadow: inset 3px 0 0 #10a37f; }
+.aPlanH { margin: 0 0 3px; font-size: 13.5px; font-weight: 700; color: #0b7a5e; }
+.aPlanH b, .aPrepName span { position: relative; z-index: 0; }
+.aPlan { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+.aPlan li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); font-size: 15px; font-weight: 550; line-height: 1.34; }
+.aPlan li span { font-weight: 650; color: #7d7064; }
+.aPrepName { margin: 0; font-size: clamp(15px, 1.12vw, 16px); font-weight: 650; }
+.aPrepWhen { margin: 2px 0 0; font-size: 14.5px; line-height: 1.35; color: #2b2622; }
+.aList { margin: clamp(6px, 1.2vh, 10px) 0 0; padding: 0; list-style: none; display: grid; gap: clamp(2px, 0.6vh, 5px); }
+.aList li, .aListAdd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: clamp(3px, 0.9vh, 8px) 0; font-size: clamp(15px, 1.15vw, 16.5px); line-height: 1.3; }
+.aListAdd { margin: clamp(2px, 0.6vh, 5px) 0 0; }
+.aList b, .aListAdd b { font-weight: 600; }
+.aListAdd b { position: relative; z-index: 0; }
+.aList span, .aListAdd span { flex: none; font-size: 14px; font-weight: 500; color: #8a7d70; }
+.aDecided { margin: 6px 0 clamp(8px, 1.4vh, 12px); font-size: clamp(15px, 1.15vw, 16.5px); line-height: 1.35; color: #2b2622; }
+.aRead { position: relative; }
+.aRead::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; border-radius: 2px; background: #10a37f; transform: scaleX(0); transform-origin: 0 50%; opacity: 0.9; }
+.aRead[data-on]::after { transform: none; }
+.aRows { margin: 0; padding: 0; list-style: none; display: grid; gap: clamp(6px, 1.1vh, 9px); }
+.aRows li { display: flex; align-items: center; gap: 10px; font-size: clamp(15px, 1.15vw, 16.5px); font-weight: 500; line-height: 1.3; }
+.aRows li > span { position: relative; z-index: 0; }
+.aRows i { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cbbdae; }
+.aRows li[data-done] { color: #9a8b7a; text-decoration: line-through; }
+.aRows li[data-done] i { background: #e8820f; box-shadow: none; }
+.aRowAdd { display: flex; align-items: center; gap: 10px; margin: clamp(6px, 1.1vh, 9px) 0 0; padding: 1px 0; font-size: clamp(15px, 1.15vw, 16.5px); font-weight: 500; line-height: 1.3; }
+.aRowAdd > span { position: relative; z-index: 0; }
+.aRowAdd i { flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #cbbdae; }
+.aBoardWrap { display: block; }
+.aBoard { display: block; width: 100%; height: auto; overflow: visible; }
+.aBoard .chalk path { stroke-width: 2.4; }
+.aBoard .chalkGpt path { stroke-width: 2.8; }
+.aHead { opacity: var(--headOn, 0); }
+.aBox { opacity: 0; }
+.aBox .chalkGpt path { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.aBox rect, .aBox text { opacity: 0; }
+.aoBoard[data-land] .aBox { opacity: 1; }
+.aoBoard[data-land] .aBox .chalkGpt path { stroke-dashoffset: 0; }
+.aoBoard[data-land] .aBox rect, .aoBoard[data-land] .aBox text { opacity: 1; }
+.aoBoard[data-undone] .aAddInk { opacity: 0; }
+.aApp { color: #1d1b19; }
+.aAppTop { margin: 0 0 2px; font-size: clamp(16px, 1.3vw, 18px); }
+.aDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+.aDays small { text-align: center; font-size: 13px; font-weight: 650; color: #6d6156; }
+.aDays small[data-now] { color: #c96d06; }
+.aHabit { padding-top: 8px; }
+.aDays + .aHabit { padding-top: 6px; }
+.aHabit p { margin: 0 0 4px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; font-size: clamp(15px, 1.15vw, 16px); font-weight: 650; }
+.aHabit p > span { position: relative; z-index: 0; white-space: nowrap; }
+.aHabit small { font-size: 13.5px; font-weight: 600; color: #c96d06; white-space: nowrap; }
+.aHabit small.aZero { color: #8a7d70; }
+.aWeek { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.aWeek i { justify-self: center; display: grid; place-items: center; width: min(100%, 26px); aspect-ratio: 1; border-radius: 50%; background: #f1ece5; }
+.aWeek svg { opacity: 0; }
+.aWeek [data-on] { background: #e8820f; }
+.aWeek [data-on] svg { opacity: 1; }
+.aWeek [data-now]:not([data-on]) { background: transparent; box-shadow: inset 0 0 0 2px #e8820f; }
+/* Next week, planned: five nights waiting, in ChatGPT's green. */
+.aWeek [data-plan] { background: transparent; box-shadow: inset 0 0 0 2px rgba(16, 163, 127, 0.5); }
+@media (prefers-reduced-motion: no-preference) {
+  .aGrow { transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .aNewRow > * { transition: opacity 0.3s 0.08s ease-out, translate 0.42s 0.08s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .aObj[data-land][data-undone] .aNewRow { transition: grid-template-rows 0.35s 0.12s cubic-bezier(0.4, 0, 0.2, 1); }
+  .aObj[data-land][data-undone] .aNewRow > * { transition: opacity 0.2s ease-out, translate 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
+  .aRec > * { transition: opacity 0.25s 0.12s ease-out; }
+  .sweep { transition: transform 0.5s 0.08s cubic-bezier(0.6, 0, 0.3, 1); }
+  .aRead::after { transition: transform 0.6s cubic-bezier(0.6, 0, 0.3, 1); }
+  .aBox, .aBox rect, .aBox text { transition: opacity 0.35s 0.15s ease-out; }
+  .aBox .chalkGpt path { transition: stroke-dashoffset 0.45s cubic-bezier(0.6, 0, 0.3, 1); }
+  .aAddInk { transition: opacity 0.3s ease-out; }
+}
+.aFoot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px 40px; margin-top: clamp(12px, 2.4vh, 22px); }
+.works { margin: 0; max-width: 34em; font-size: 18px; line-height: 1.4; color: var(--ink); }
+.study { margin: 0; max-width: 30em; font-size: 16px; line-height: 1.45; color: rgba(255, 241, 226, 0.84); }
+.study a { color: #f5ad33; font-weight: 650; text-decoration: underline; text-decoration-color: rgba(245, 173, 51, 0.45); text-underline-offset: 3px; white-space: nowrap; }
+@media (hover: hover) { .study a:hover { text-decoration-color: currentColor; } }
+
+/* ── The close: the page lands on the kitchen table, in one scene ──
+   The still life is laid like object-fit: contain, pinned to the bottom right (--sw is its width), on
+   the same paper colour, and the Mac and iPhone are placed in the picture's own coordinates
+   (1536 x 1024), so at every window size they lie on the same spot of the table: above the lemon and
+   the knife, beside the board. */
+.cover { --sw: min(100cqw, 150cqh); position: sticky; top: var(--hh); height: calc(100svh - var(--hh)); min-height: 560px; overflow: hidden; container-type: size;
+  color: #24170d; background: #fcddb6; box-shadow: 0 -10px 24px -8px rgba(50, 35, 10, 0.24); }
+.coverArt { position: absolute; right: 0; bottom: 0; width: var(--sw); height: auto; pointer-events: none;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 10%); mask: linear-gradient(90deg, transparent, #000 10%); }
+/* At the page's end the footer lifts the cover by its own height, so the text centres below that. */
+.coverBody { position: relative; box-sizing: border-box; height: 100%; display: flex; align-items: center;
+  padding: max(clamp(28px, 6cqh, 64px), 150px) var(--pad) clamp(24px, 5cqh, 56px); }
+.coverText { width: min(560px, 41cqw); }
+.fTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.2cqw, 13cqh, 96px); line-height: 0.86; letter-spacing: -0.045em; }
+.fTitle em { font-style: italic; color: #b6450f; }
+.fCtas .ctas { margin-top: clamp(20px, 3.6cqh, 32px); }
+.fReq { margin: 12px 0 0; font-size: 15px; font-weight: 600; color: #7a6650; }
+/* Four lines in pencil, written on the page itself (no card, no tilt, no filter: crisp). */
+.claims { margin: clamp(22px, 4.4cqh, 40px) 0 0; padding: 0; list-style: none; font-size: 17px; line-height: 1.6; font-weight: 500; color: #4a3826; }
+.claims a { color: #b6450f; text-decoration: underline; text-decoration-color: rgba(182, 69, 15, 0.45); text-underline-offset: 4px; }
+@media (hover: hover) { .claims a:hover { text-decoration-color: currentColor; } }
+
+/* The Mac and the iPhone. Every size is in em, so the pair scales as one. */
+/* Laid low enough that, when the footer lifts the cover at the page's end, the Mac stays well clear of
+   the header. */
+.devices { position: absolute; left: calc(100cqw - var(--sw) * 0.6); top: max(230px, calc(100cqh - var(--sw) / 1.5 + var(--sw) * 0.19)); width: 39em; height: 30em; font-size: calc(var(--sw) * 0.0108); }
+.mac { position: absolute; left: 0; top: 0; width: 32em; box-sizing: border-box; border-radius: 0.85em; background: #fffdf8; overflow: hidden; color: #1d1b19;
+  box-shadow: 0 0 0 1px rgba(60, 35, 10, 0.14), 0 2.4em 4.4em -1.8em rgba(60, 30, 5, 0.5); }
+.macBar { position: relative; display: flex; gap: 0.55em; height: 2.4em; align-items: center; padding: 0 1em; background: #f5efe6; box-shadow: 0 1px 0 #ebe2d4; }
+.macBar i { width: 0.8em; height: 0.8em; border-radius: 50%; background: #ff5f57; }
+.macBar i:nth-child(2) { background: #febc2e; }
+.macBar i:nth-child(3) { background: #28c840; }
+.macBar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.86em; font-weight: 600; color: #8a7d70; pointer-events: none; }
+.mac .dvNote { padding: 1.3em 1.7em 1.5em; }
+.phone { position: absolute; left: 24.2em; top: 1.5em; width: 15em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.5em; background: #1d1611;
+  box-shadow: 0 0 0 1.5px #4a3a2c, 0 2.6em 3.8em -1.6em rgba(40, 20, 0, 0.6); }
+.phoneScreen { height: 100%; container-type: inline-size; box-sizing: border-box; border-radius: 2em; background: #fffdf8; overflow: hidden; color: #1d1b19; }
+.phoneStatus { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0.85em 1.25em 0 1.5em; font-size: 0.8em; }
+.island { position: absolute; left: 50%; top: 0.55em; width: 32%; height: 1.4em; translate: -50% 0; border-radius: 0.8em; background: #1d1611; }
+.phoneIcons { display: flex; gap: 0.2em; }
+.phoneIcons i { width: 0.3em; height: 0.6em; border-radius: 0.1em; background: #1d1b19; }
+.phoneNav { display: flex; align-items: center; gap: 0.3em; margin: 0.9em 0 0; padding: 0 0.9em; font-size: 0.9em; color: #d9750f; font-weight: 500; }
+.phoneNav svg { width: 0.55em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.phone .dvNote { padding: 0.5em 1em 0; font-size: 1.06em; }
+.nw { white-space: nowrap; }
+.dvDate { margin: 0 0 0.3em; font-size: 0.8em; font-weight: 500; color: #9a8b7a; }
+.dvTitle { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
+.dvDecided { margin: 0.6em 0 0; line-height: 1.4; }
+.dvDecided b { font-weight: 700; }
+.dvRows { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.45em; }
+.dvRows li { display: flex; align-items: center; gap: 0.6em; line-height: 1.3; }
+.phone .dvRows li { align-items: flex-start; }
+.dvAdded { margin: 0.55em 0 0; line-height: 1.3; }
+.dvAdded span { padding: 0.08em 0.3em; margin: -0.08em -0.3em; border-radius: 0.35em; background: rgba(16, 163, 127, 0.18); }
+.dvAdded u { color: #c4570f; font-weight: 600; text-decoration-color: rgba(196, 87, 15, 0.35); text-underline-offset: 0.15em; }
+.dvRec .receipt { font-size: 0.86em; margin-left: 0; }
+/* On the iPhone the receipt is one line: the mark, who, and Undo (the dot goes). */
+.phone .dvRec .receipt { margin-left: 0; gap: 0.3em; font-size: 0.8em; }
+.phone .receipt button { margin-left: auto; padding: 0.2em 0.1em 0.2em 0.3em; }
+.phone .dvNote { padding-top: 0.8em; }
+.phone .dvDecided, .phone .dvRows { margin-top: 0.75em; }
+.phone .dvRows { gap: 0.6em; }
+/* A narrow iPhone keeps the receipt on one line: who added it, and Undo. */
+@container (max-width: 172px) { .phone .rcBy { display: none; } }
+.phone .receipt b { display: none; }
+.phone .dvAdded:not([data-in]), .phone .dvRec:not([data-in]) { opacity: 0; translate: 0 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .phone .dvAdded, .phone .dvRec { transition: opacity 0.3s ease-out, translate 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .phone .dvRec { transition-delay: 0.25s; }
+}
+
+/* The page ends on the closed notebook, so the site's town is left out here (ROUND7: no village). The
+   footer links sit on a strip of the forest green, torn along the top like every sheet above it. */
+body:has(.stack) :global(.fs) { display: none; }
+body:has(.stack) :global(.site-footer) { margin-top: 0; }
+body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutter) 22px; background: #1f3b2e;
+  -webkit-mask: url(/lab/y/edge-v1.webp) 0 0 / 1300px 36px repeat-x, linear-gradient(#000, #000) 0 34px / 100% 100% no-repeat;
+  mask: url(/lab/y/edge-v1.webp) 0 0 / 1300px 36px repeat-x, linear-gradient(#000, #000) 0 34px / 100% 100% no-repeat; }
+
+/* ───────────────────────── Phones ───────────────────────── */
+@media (max-width: 760px) {
+  .stack { --hh: 72px; --tabH: 30px; --gap: 8px; --pad: var(--gutter); --tearH: 30px; --tearW: 900px; --airT: calc(var(--tearH) + 40px); }
+  .ch { min-height: 600px; }
+  /* Shorter stays than the desktop's: each chapter is one calm screen, read in a breath, and the next
+     rises sooner. Your AI stays longest, for its three changes. */
+  .ch.draw { margin-top: 48vh; }
+  .ch.build { margin-top: 58vh; }
+  .ch.ai { margin-top: 62vh; }
+  .cover { margin-top: 96vh; }
+  .tail { height: 0; }
+  .say { font-size: 17px; line-height: 1.38; }
+  .long { display: none; }
+  .short { display: inline; }
+
+  /* Tabs: short words, sized to them. */
+  .stack { --tabY: calc(-1 * var(--tabH) + 2px); }
+  .tab { left: calc(var(--pad) + var(--l)); width: var(--w); padding: 6px 0 0; justify-content: center; border-radius: 9px 9px 0 0; font: 650 12.5px/1 var(--sans); letter-spacing: 0; }
+  .write { --l: 0px; --w: 64px; }
+  .draw { --l: 70px; --w: 100px; }
+  .build { --l: 176px; --w: 56px; }
+  .ai { --l: 238px; --w: 72px; }
+
+  /* The first sheet is laid straight onto the picture's foot: no cream band between them. */
+  .hero { height: auto; min-height: 0; padding-bottom: 0; }
+  .ch.write { margin-top: calc(-1 * var(--tearH)); }
+  .hero { display: block; }
+  .heroText { width: auto; margin: 0; padding: 40px var(--pad) 0; }
+  .h1 { font-size: min(13.6vw, 7.2svh); line-height: 0.95; }
+  .lede { margin-top: 12px; font-size: 16.5px; line-height: 1.38; }
+  .ctas { margin-top: 14px; }
+  .heroText .fine { display: none; }
+  /* The picture: the notes over the table, the whole dinners note and the top of the book note above
+     the fold (HeroArt lays them out). "Free" sits beside the download button. */
+  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: 330px; margin-top: 16px; clip-path: none; overflow: hidden; }
+  .free { display: inline; }
+
+  /* One calm screen per chapter: the heading, a line or two, the thing, as one block in the middle of
+     the sheet (a touch high), with air above and below. */
+  .wBody, .dBody, .bBody, .aBody { justify-content: safe center; padding: var(--airT) var(--pad) 44px; }
+  .wIn, .bIn { margin: 0; }
+  .wIn { display: flex; flex-direction: column; }
+  .wTitle { font-size: 60px; margin-bottom: 16px; }
+  .wTitle br { display: none; }
+  .wHead .say { font-size: 18px; font-weight: 650; }
+  .sheet { display: block; width: 100%; max-width: none; margin-top: 20px; padding: 16px 20px 16px; }
+  .sheet::before { border-radius: 20px; }
+  .folder { display: none; }
+  .recipe { padding-top: 0; }
+  .crumb { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; font-size: 15px; font-weight: 500; color: #c96d06; }
+  .crumb svg { width: 8px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .sheetMeta { font-size: 14.5px; margin-top: 4px; }
+  .sheetH { margin-top: 12px; font-size: 12.5px; }
+  .steps { font-size: 15.5px; gap: 2px; }
+  .sheetDate { font-size: 12.5px; }
+  .sheetTitle { font-size: 26px; }
+  .sheetText, .sheetDecided { font-size: 16px; margin-top: 8px; }
+  .sheetAside { display: none; }
+  .sheetSplit { grid-template-columns: minmax(0, 1fr); margin-top: 6px; }
+  .photo { display: none; }
+  .rows { gap: 0; }
+  .rows li { gap: 10px; min-height: 44px; }
+  .box { width: 26px; height: 26px; }
+  .rowText { font-size: 17px; }
+
+  /* The compact board: as wide as the page, as tall as its four rows. */
+  .dBody { display: flex; flex-direction: column; }
+  .dHead { display: block; }
+  .dTitle { font-size: 46px; white-space: normal; }
+  .dHead .say { margin-top: 14px; padding: 0; }
+  .dBoard { flex: none; width: 100%; aspect-ratio: 358 / 344; margin-top: 26px; }
+  .wideOnly { display: none; }
+  .tallOnly { display: contents; }
+  .dBoard .chalk path { stroke-width: 2.6; }
+  .chalkClaude path { stroke-width: 3.6; }
+
+
+  .bIn { display: flex; flex-direction: column-reverse; align-items: stretch; gap: 20px; }
+  .bTitle { font-size: 60px; margin-bottom: 10px; }
+  .bTitle br { display: none; }
+  .bApp { width: 100%; }
+  .make { padding: 18px 16px 16px; border-radius: 22px; }
+  .makeH, .appName { font-size: 21px; }
+  .makeSub { font-size: 15.5px; margin-top: 4px; }
+  /* The request is already typed, in a box as tall as its words; the button sits at the card's foot. */
+  .makeBox { flex: none; min-height: 0; font-size: 19px; padding: 12px 14px; }
+  .makeRow { flex-direction: column; align-items: stretch; gap: 10px; margin-top: 16px; }
+  .makeTpl { margin-top: 14px; font-size: 14.5px; }
+  /* The days are there as soon as the app is: no empty sheet while it builds. */
+  .makeApp .dayCell:not([data-in]) { opacity: 1; translate: none; scale: 1; }
+  .makeRow small { max-width: none; }
+  .makeGo { justify-content: center; }
+  .habits { align-content: start; }
+  .habitName { font-size: 17px; }
+  .habitStreak { font-size: 15px; }
+  .habitStreak b { font-size: 17px; }
+  .addRow input, .addRow button { height: 46px; font-size: 16px; }
+  .made { font-size: 14.5px; }
+  /* The same tracker as on a Mac: the days named once, each habit a row of seven. */
+  .days, .week { gap: 6px; }
+  .days { margin-top: 12px; }
+  .days small { font-size: 13px; }
+  .habitRow { padding-top: 10px; }
+  .habitHead { margin-bottom: 6px; }
+  .day i { max-width: 42px; }
+
+
+  /* Your AI does one thing at a time, on one left edge: the heading and the tie line, the chat, then
+     one card. */
+  .aBody { padding-top: calc(var(--tearH) + 24px); padding-bottom: 20px; }
+  .aTop { display: block; }
+  .aTitle { font-size: 34px; }
+  .aTie { margin-top: 8px; max-width: none; font-size: 14.5px; line-height: 1.35; }
+  .askWrap { padding: 0; margin-top: 12px; }
+  .chat { padding: 8px 9px 9px; border-radius: 18px; }
+  .chatWho { gap: 7px; font-size: 13.5px; }
+  .askMark { width: 22px; height: 22px; }
+  .askMark svg { width: 13px; height: 13px; }
+  .ask { max-width: 92%; margin-top: 6px; padding: 8px 13px 9px; border-radius: 16px 16px 5px 16px; font-size: 15.5px; line-height: 1.3; }
+  .askSub { margin: 8px 0 0; font-size: 14.5px; line-height: 1.35; }
+  /* Where it lands is named under the card, with Pinto's mark ("In your note"). */
+  .aLands { display: none; }
+  .aFoot { display: none; }
+  /* One column as wide as the page (the desktop's flex-start would shrink the track to its content). */
+  .aStage { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: normal; }
+  .aObjs { display: grid; grid-template-columns: minmax(0, 1fr); }
+  /* The three cards share one place and one height, and each change's room (its new row and its
+     receipt) is kept from the start, so the card never jumps or clips between steps. */
+  .aObj { grid-area: 1 / 1; align-self: stretch; padding: 12px; border-radius: 22px; opacity: 0; visibility: hidden; }
+  .aCard { flex: 1 1 auto; }
+  .aGrow { grid-template-rows: 1fr; }
+  .aoBoard { padding: 14px 12px 10px; }
+  .aoBoard .aCard, .aoNote .aCard, .aoApp .aCard { display: flex; flex-direction: column; justify-content: center; }
+  .aList { gap: 4px; }
+  .aList li, .aListAdd { font-size: 16.5px; padding: 4px 0; }
+  .aList span, .aListAdd span { font-size: 14.5px; }
+  .aObj[data-current] { opacity: 1; visibility: visible; }
+  .aCard { padding: 16px 16px 14px; }
+  .aNoteTitle { font-size: 20px; }
+  .aRows { gap: 8px; }
+  .aRows li, .aDecided, .aHabit p, .aRowAdd { font-size: 16px; }
+  .aRowAdd { margin-top: 8px; }
+  .aoApp .aCard { padding: 14px 16px 12px; }
+  .aAppTop { font-size: 19px; }
+  .aDays { margin-top: 8px; }
+  .aDays small { font-size: 13px; }
+  .aHabit { padding-top: 8px; }
+  .aDays + .aHabit { padding-top: 4px; }
+  .aHabit p { margin-bottom: 5px; font-size: 16px; }
+  .aPlan li { font-size: 15.5px; }
+  .aWeek { gap: 7px; }
+  .aWeek i { width: min(100%, 28px); }
+  /* Under the card: where the change is, in words, with three small dots under it. */
+  .markers { display: grid; justify-items: center; margin-top: 8px; }
+  .markCap { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 15.5px; font-weight: 650; line-height: 1.3; color: var(--cream); }
+  .markCap img { width: 18px; height: 18px; border-radius: 5px; }
+  .markDots { display: flex; justify-content: center; margin-top: 2px; }
+  .markers button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+  .markers i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 241, 226, 0.3); }
+  .markers button[aria-selected="true"] i { background: #fff1e2; }
+  .markers button:focus-visible { outline: 2px solid #7fe0c0; outline-offset: -2px; }
+
+  :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas.ctas { align-items: flex-start; }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  /* The card leaves, then the next comes in: never two cards' words over each other. */
+  .aObj { transition: opacity 0.3s ease-in, visibility 0s 0.3s; }
+  .aObj[data-current] { transition: opacity 0.5s 0.28s ease-out, visibility 0s 0.28s; }
+  .markers i { transition: background-color 0.3s; }
+  .markCap { animation: capIn 0.5s 0.28s ease-out both; }
+  @keyframes capIn { from { opacity: 0; translate: 0 4px; } }
+}
+
+/* Phones, and windows taller than wide: the cover scrolls like a page. The rings and the plain cover
+   are the picture at the top; its tear and pencil are laid again at the bottom (the same file), under
+   the Mac and the iPhone, with the pencil left showing below them. */
+@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+  .cover { position: relative; top: auto; height: auto; min-height: 0; container-type: normal; }
+  .coverArt { display: none; }
+  .cover::after { content: ""; position: absolute; right: 0; bottom: 0; width: 100%; height: 640px; pointer-events: none;
+    background: url(/lab/y/close-life-v1.webp) right bottom / 960px auto no-repeat;
+    -webkit-mask: linear-gradient(transparent 0 100px, #000 240px); mask: linear-gradient(transparent 0 100px, #000 240px); }
+  .coverBody { z-index: 1; display: block; height: auto; padding: 96px var(--pad) 300px; }
+  .coverText { width: auto; max-width: 560px; }
+  .fTitle { font-size: min(16.2vw, 84px); }
+  .claims { font-size: 17px; line-height: 1.55; }
+  .claims li + li { margin-top: 6px; }
+  .devices { position: relative; left: auto; top: auto; width: 100%; max-width: 520px; height: 34.4em; margin-top: 30px; font-size: 11.5px; }
+  .mac { width: 100%; }
+  .mac .dvNote { padding: 1.1em calc(14em + 0.6em) 1.3em 1.3em; }
+  .phone { left: auto; right: 0; top: 3.4em; width: 14em; }
+}
+
+/* Laptop heights: the note drops its chatty first line, so the block has air under it too. */
+@media (max-height: 960px) { .sheetMore { display: none; } }
+
+/* Short windows (a 13-inch laptop at 1280 x 720): the same blocks, tighter, so each still fits under
+   its 12% of air with room below. */
+@media (min-width: 761px) and (max-height: 800px) {
+  .sheetAside { display: none; }
+  /* The app keeps both habits, with smaller days, so it fits under its air. */
+  .make { padding-top: 22px; padding-bottom: 20px; }
+  .habits { margin-top: 6px; gap: 6px; }
+  .habitRow { padding-top: 8px; }
+  .habitHead { margin-bottom: 6px; }
+  .day i { max-width: 50px; }
+  .addRow { margin-top: 12px; }
+  .addRow input, .addRow button { height: 46px; }
+  .made { margin-top: 12px; }
+  .aTitle { font-size: min(5vw, 56px); }
+  .ask { font-size: 30px; }
+  .aList li, .aListAdd { padding: 3px 0; }
+  .aDays { margin-top: 6px; }
+  .aHabit { padding-top: 6px; }
+  .aHabit p { margin-bottom: 4px; }
+  .aWeek i { width: min(100%, 22px); }
+  .aStage { margin-top: 18px; }
+  .aRows { gap: 4px; }
+  .aDecided { margin: 4px 0 8px; }
+  .study { display: none; }
+  .works { max-width: none; }
+  .aFoot { margin-top: 12px; }
+}
+
+/* Tablets and narrow windows: the desktop binder, smaller. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .tab { font-size: 16px; padding: 11px 12px 0; }
+  .wBody { grid-template-columns: minmax(0, 260px) minmax(0, 1fr); column-gap: 32px; }
+  .bBody { grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); }
+  .heroText { width: min(560px, 44vw); }
+  .art { left: calc(var(--pad) + min(560px, 44vw) + 40px); }
+}
+
+/* Phones: the close is the free page alone. The note isn't shown again (the first screen and the
+   chapters already did), and the pencil-and-tear picture under it is about half a screen. */
+@media (max-width: 760px) {
+  .devices { display: none; }
+  .coverBody { padding-bottom: 290px; }
+  .cover::after { height: 470px; -webkit-mask: linear-gradient(transparent 0 150px, #000 270px); mask: linear-gradient(transparent 0 150px, #000 270px); }
+}
+@media (max-width: 760px) {
+  /* The note shows its first line and its link to the board again: the chapter is one full page. */
+  .sheetMore, .sheetAside { display: block; }
+}
