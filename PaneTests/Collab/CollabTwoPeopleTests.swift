@@ -466,3 +466,192 @@ extension CollabTwoPeopleTests {
         #expect(later.first?["name"] as? String == "Sara" && later.first?["grey"] as? Bool == true)
     }
 }
+
+/// Emil, 16 Nov, two people in a shared note: the other person's caret moved before their text did.
+/// Their presence comes straight over the channel, their change by the server, a moment later; a
+/// delete at the end of the note (or of a selection) put their caret where it would be after the
+/// delete while the character was still there. Each caret now carries its sender's document heads
+/// and waits for them here.
+extension CollabTwoPeopleTests {
+    private func sessions(_ emil: Device, _ sara: Device, _ note: Note) throws -> (mine: CollabSession, theirs: CollabSession) {
+        (try #require(emil.store.session(for: note.id)), try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID())))
+    }
+
+    /// Sara's edit goes up and is stored, but not relayed: her presence reaches Emil, her change doesn't yet.
+    private func editWithoutRelay(_ theirs: CollabSession, _ text: String, caret: Int, note: Note) async {
+        server.dropRelays = true
+        let stored = (server.updates[note.id] ?? []).count
+        theirs.local(text, selection: NSRange(location: caret, length: 0))
+        await server.eventually { (server.updates[note.id] ?? []).count == stored + 1 }
+        await server.settle()
+        server.dropRelays = false
+    }
+
+    @Test func theirCaretWaitsForTheirDeleteToArrive() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello!")
+        let (mine, theirs) = try sessions(emil, sara, note)
+        theirs.selectionChanged(NSRange(location: 6, length: 0))
+        await server.eventually { mine.peers[ids.1]?.selection == NSRange(location: 6, length: 0) }
+        var shown: [(text: String, caret: NSRange?)] = []
+        mine.onCarets = { [unowned mine] carets in shown.append((mine.text, carets.first?.range)) }
+
+        await editWithoutRelay(theirs, "Hello", caret: 5, note: note)
+        // Her presence is here (she's typing), her change isn't: her caret stays after the "!".
+        #expect(mine.text == "Hello!")
+        #expect(mine.peers[ids.1]?.isTyping == true)
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 6, length: 0))
+
+        await mine.catchUp().value
+        #expect(mine.text == "Hello")
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 5, length: 0))
+        #expect(mine.peers[ids.1]?.waiting.isEmpty == true)
+        // Never handed to the editor ahead of the text.
+        #expect(!shown.contains { $0.text == "Hello!" && $0.caret == NSRange(location: 5, length: 0) })
+    }
+
+    @Test func theirCaretWaitsForASelectionTheyDeleted() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello world!")
+        let (mine, theirs) = try sessions(emil, sara, note)
+        theirs.selectionChanged(NSRange(location: 6, length: 5))
+        await server.eventually { mine.peers[ids.1]?.selection == NSRange(location: 6, length: 5) }
+
+        await editWithoutRelay(theirs, "Hello !", caret: 6, note: note)
+        // Her caret would sit after "world", on the "!", until the word goes.
+        #expect(mine.text == "Hello world!")
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 6, length: 5))
+
+        await mine.catchUp().value
+        #expect(mine.text == "Hello !")
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 6, length: 0))
+    }
+
+    @Test func theirCaretWaitsForWhatTheyTyped() async throws {
+        let (emil, sara, note, ids) = try await shared("Helo")
+        let (mine, theirs) = try sessions(emil, sara, note)
+        theirs.selectionChanged(NSRange(location: 3, length: 0))
+        await server.eventually { mine.peers[ids.1]?.selection == NSRange(location: 3, length: 0) }
+
+        await editWithoutRelay(theirs, "Hello", caret: 4, note: note)
+        #expect(mine.text == "Helo")
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 3, length: 0))
+        #expect(mine.peers[ids.1]?.waiting.isEmpty == false)
+
+        await mine.catchUp().value
+        #expect(mine.text == "Hello")
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 4, length: 0))
+    }
+
+    /// Their text may never come (a change the server refused): after a while the caret shows where
+    /// it resolves, as it did before carets waited.
+    @Test func aCaretWhoseTextNeverComesIsShownAfterAWhile() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello!")
+        let (mine, theirs) = try sessions(emil, sara, note)
+        mine.caretWaitsAtMost = 0
+        theirs.selectionChanged(NSRange(location: 6, length: 0))
+        await server.eventually { mine.peers[ids.1]?.selection == NSRange(location: 6, length: 0) }
+        await editWithoutRelay(theirs, "Hello", caret: 5, note: note)
+        #expect(mine.text == "Hello!")
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 5, length: 0))
+    }
+
+    /// Presence as a 1.4 app from before heads sends it.
+    private struct OlderPresence: Codable {
+        var name: String
+        var caret: CollabText.Anchor?
+        var end: CollabText.Anchor?
+        var typing: Bool?
+    }
+
+    @Test func aCaretFromAnOlderAppIsShownAtOnce() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello there\n")
+        let (mine, theirs) = try sessions(emil, sara, note)
+        // Once they've seen each other (each answers someone new with its presence).
+        await server.eventually { mine.peers[ids.1] != nil && theirs.peers[ids.0] != nil }
+        await server.settle()
+        let nk = try #require(emil.store.keys[note.id]?.nk)
+        let old = OlderPresence(name: "Sara", caret: theirs.anchor(at: 5), end: nil, typing: false)
+        let ct = try CollabCrypto.seal(.presence, try JSONEncoder().encode(old), nk: nk, note: note.id, epoch: theirs.epoch, extra: ids.1.uuidString)
+        server.presence(from: MemoryChannel(server: server, note: note.id, user: ids.1, onEvent: { _ in }), ct: ct)
+        await server.eventually { mine.peers[ids.1]?.selection == NSRange(location: 5, length: 0) }
+        #expect(mine.peers[ids.1]?.selection == NSRange(location: 5, length: 0))
+        #expect(mine.peers[ids.1]?.waiting.isEmpty == true)
+    }
+
+    /// An older app reads presence with heads as it always did: it ignores the field.
+    @Test func anOlderAppReadsPresenceWithHeads() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello there\n")
+        let (_, theirs) = try sessions(emil, sara, note)
+        var heard: [String] = []
+        _ = try server.join(ids.0, note: note.id) { event in if case .presence(ids.1, let ct) = event { heard.append(ct) } }
+        theirs.selectionChanged(NSRange(location: 5, length: 0))
+        await server.eventually { !heard.isEmpty }
+        let nk = try #require(emil.store.keys[note.id]?.nk)
+        let data = try CollabCrypto.open(.presence, try #require(heard.last), nk: nk, note: note.id, extra: ids.1.uuidString)
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect((json["heads"] as? String).flatMap { Data(base64Encoded: $0) }?.count == 32)
+        let read = try JSONDecoder().decode(OlderPresence.self, from: data)
+        #expect(read.name == "Sara")
+        #expect(read.caret == theirs.anchor(at: 5))
+    }
+}
+
+/// Emil, 16 Nov: his typing reached the other Mac quickly, but it took a while before it showed him
+/// in the note. You're shown from the moment the note opens, while you type, and while you only read.
+extension CollabTwoPeopleTests {
+    @Test func openingTheNoteShowsYouWithoutACaret() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello\n")
+        let mine = try #require(emil.store.session(for: note.id))
+        let theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        // Neither has clicked into the text.
+        await server.eventually { mine.peers[ids.1] != nil && theirs.peers[ids.0] != nil }
+        #expect(mine.peers[ids.1]?.name == "Sara")
+        #expect(mine.peers[ids.1]?.selection == nil)
+        #expect(mine.remoteCarets.isEmpty)
+        #expect(theirs.peers[ids.0]?.name == "Emil")
+    }
+
+    @Test func steadyTypingShowsTheyreTypingBeforeAnyPause() async throws {
+        let (emil, sara, note, ids) = try await shared("List\n")
+        let mine = try #require(emil.store.session(for: note.id))
+        let theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        await server.eventually { mine.peers[ids.1] != nil }
+        // Each keystroke sends her presence with it (selectionChanged waits for a pause).
+        var text = "List\n"
+        for c in "milk" {
+            text.append(c)
+            theirs.local(text, selection: nil)
+            await server.eventually { mine.text == text && mine.peers[ids.1]?.selection?.location == text.utf16.count }
+            #expect(mine.peers[ids.1]?.isTyping == true)
+            #expect(mine.peers[ids.1]?.selection == NSRange(location: text.utf16.count, length: 0))
+        }
+    }
+
+    @Test func someoneOnlyReadingStaysInTheNote() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello\n")
+        defer { withExtendedLifetime(sara) {} }
+        let mine = try #require(emil.store.session(for: note.id))
+        await server.eventually { mine.peers[ids.1] != nil }
+        let first = try #require(mine.peers[ids.1]?.heardAt)
+        // Nothing done on either device: the beat says they're here.
+        for _ in 0..<60 where (mine.peers[ids.1]?.heardAt ?? first) == first { try await Task.sleep(for: .milliseconds(100)) }
+        let peer = try #require(mine.peers[ids.1])
+        #expect(peer.heardAt > first)
+        #expect(!peer.isStale())
+    }
+
+    /// Back on the channel after a drop, you're sent at once, not on the next beat.
+    @Test func rejoiningTheChannelSendsYourPresence() async throws {
+        let (emil, sara, note, ids) = try await shared("Hello\n")
+        defer { withExtendedLifetime((emil, sara)) {} }
+        var heard = 0
+        _ = try server.join(ids.0, note: note.id) { event in if case .presence(ids.1, _) = event { heard += 1 } }
+        // Just after a beat: the next is two seconds away.
+        for _ in 0..<60 where heard == 0 { try await Task.sleep(for: .milliseconds(50)) }
+        let beats = heard
+        #expect(beats > 0)
+        server.rejoin(note.id)
+        await server.settle()
+        await server.settle()
+        #expect(heard > beats)
+    }
+}
