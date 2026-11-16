@@ -17,6 +17,19 @@ import SwiftUI
                        previousVersion: version, lines: AIReview.lineCount(previous: from, after: to))
     }
 
+    @Test func replacingAnUndoNoticeDropsItsActionAndChangesItsIdentity() {
+        var undos = 0
+        var result = AIEdit.Presentation.Result("Moved", undo: { undos += 1 })
+        result.undo?()
+        #expect(undos == 1)
+        let previous = result.id
+        result = AIEdit.Presentation.Result("Moved")
+        #expect(result.id != previous)
+        #expect(result.undo == nil)
+        result.undo?()
+        #expect(undos == 1)
+    }
+
     /// Three edits in a row say 3 changes, and Undo goes back to before the first.
     @Test func editsInARowAreOneChange() {
         let one = r("A\nB\nC", "A2\nB\nC", version: 7)
@@ -26,13 +39,124 @@ import SwiftUI
         #expect(three.previous == "A\nB\nC" && three.previousVersion == 7)
     }
 
-    /// Typing between them, another AI, or a long gap keep them apart.
-    /// Edits that land before the first is on screen still add up: the note chains from the one on
-    /// its way (round 18: three edits in one sync said "changed 1 line").
-    @Test func editsLandingTogetherChainFromTheOneOnItsWay() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "NoteDetailView.swift"), encoding: .utf8)
-        #expect(source.contains("seen.continuing(landingReceipt ?? receipt)"))
-        #expect(source.contains("guard landingReceipt == r else { return }"))
+    @Test func editsLandingTogetherChainFromTheOneOnItsWay() {
+        var screen = AIEdit.Presentation()
+        let one = screen.stage(r("A\nB", "A2\nB", version: 7))
+        let two = screen.stage(r("A2\nB", "A2\nB2", in: 5, version: 8))
+        let staleLanded = screen.land(one, on: id)
+        #expect(!staleLanded)
+        #expect(screen.receipt == nil)
+        let latestLanded = screen.land(two, on: id)
+        #expect(latestLanded)
+        #expect(screen.receipt?.previous == "A\nB")
+        #expect(screen.receipt?.previousVersion == 7)
+        #expect(screen.receipt?.lines == 2)
+        let pending = screen.stage(r("A2\nB2", "A3\nB2", in: 9))
+        let otherNoteLanded = screen.land(pending, on: UUID())
+        #expect(!otherNoteLanded)
+        #expect(screen.receipt == two)
+    }
+
+    @Test(arguments: [false, true])
+    func typingBeforeAnArrivalPreventsItsReceiptFromReturning(pageVisible: Bool) {
+        var screen = AIEdit.Presentation()
+        var page = r("", "A")
+        page.kind = .pageMade
+        if pageVisible { screen.pageArrived(page, previous: nil) }
+        let pending = screen.stage(r("A", "B"))
+        _ = screen.edited()
+        let landed = screen.land(pending, on: id)
+        #expect(!landed && screen.receipt == (pageVisible ? page : nil))
+    }
+
+    @Test func replacingAReceiptInvalidatesItsTimeoutAndUndoPayload() throws {
+        var screen = AIEdit.Presentation()
+        let one = r("A", "B"), two = r("B", "C", in: 1)
+        screen.present(one, seconds: 10, undo: .data(["count": 1]))
+        let timeout = try #require(screen.timeout)
+        screen.present(two, seconds: 5.5)
+        #expect(screen.undo(for: two) == nil)
+        screen.expire(timeout.id)
+        #expect(screen.receipt == two)
+        screen.expire(try #require(screen.timeout).id)
+        #expect(screen.receipt == nil)
+    }
+
+    @Test(arguments: [2.0, 3.0])
+    func typingDefersOnlyRecentPageReceipts(gap: Double) {
+        var screen = AIEdit.Presentation()
+        let next = r("A", "B")
+        screen.focus(true, infoOpen: false)
+        screen.showPage(next, infoOpen: false, undo: .data(["count": 1]))
+        #expect(screen.receipt == nil)
+        screen.focus(false, infoOpen: false, now: next.at.addingTimeInterval(gap))
+        #expect((screen.receipt != nil) == (gap < 3))
+        if gap < 3 {
+            guard case .data(let data)? = screen.undo(for: next) else { Issue.record("Held receipt lost Undo"); return }
+            #expect(data?["count"] as? Int == 1)
+        }
+        screen.focus(true, infoOpen: false)
+        screen.focus(false, infoOpen: false, now: next.at)
+        #expect(screen.receipt == nil, "A consumed or expired receipt cannot reappear")
+    }
+
+    @Test func suppressedPagesDoNotReplaceTheVisibleReceiptOrReturnAfterFocus() {
+        var screen = AIEdit.Presentation()
+        let one = r("A", "B"), two = r("B", "C", in: 1)
+        screen.present(one)
+        screen.showPage(two, infoOpen: true)
+        #expect(screen.receipt == one && screen.timeout == nil)
+        screen.focus(true, infoOpen: false)
+        screen.pageArrived(two, previous: nil)
+        screen.focus(false, infoOpen: false, now: two.at)
+        #expect(screen.receipt == nil)
+        let pending = screen.stage(two)
+        screen = AIEdit.Presentation()
+        let resetLanded = screen.land(pending, on: id)
+        #expect(!resetLanded, "Opening another note invalidates old arrivals")
+    }
+
+    @Test func reviewCanCoexistWithIncomingEditsAndFinishesTogether() {
+        var screen = AIEdit.Presentation()
+        let one = r("A", "B")
+        screen.present(one)
+        let started = screen.startReview(one)
+        #expect(started)
+        let two = screen.stage(r("B", "C", in: 1))
+        let latestLanded = screen.land(two, on: id)
+        #expect(latestLanded)
+        #expect(screen.review != nil)
+        screen.finishReview()
+        #expect(screen.review == nil && screen.receipt == nil)
+        #expect(screen.result != nil)
+    }
+
+    @Test func delayedRetintRequiresTheSameReviewAndUnchangedText() throws {
+        var screen = AIEdit.Presentation()
+        let started = screen.startReview(r("A", "B"))
+        #expect(started)
+        let first = try #require(screen.review)
+        #expect(screen.canRetint(first, body: "B"))
+        #expect(!screen.canRetint(first, body: "B typed"))
+        let replaced = screen.startReview(r("X", "B"))
+        #expect(replaced)
+        #expect(!screen.canRetint(first, body: "B"))
+        screen.finishReview()
+        #expect(!screen.canRetint(first, body: "B"))
+    }
+
+    @Test func dataEditsKeepTheFirstUndoPointUntilTheRunEnds() {
+        var screen = AIEdit.Presentation()
+        func data(_ seconds: Double) -> AIEdit.Receipt {
+            AIEdit.Receipt(noteID: id, by: AIGlyph.page, at: Date(timeIntervalSinceReferenceDate: seconds), previous: "", lines: 0, kind: .dataEdit)
+        }
+        screen.dataChanged(["count": 1], receipt: data(0), infoOpen: false)
+        screen.dataChanged(["count": 2], receipt: data(5), infoOpen: false)
+        guard case .data(let first)? = screen.undo(for: data(5)) else { Issue.record("Missing data Undo"); return }
+        #expect(first?["count"] as? Int == 1)
+        screen.dataChanged(["count": 3], receipt: data(15), infoOpen: false)
+        guard case .data(let latest)? = screen.undo(for: data(15)) else { Issue.record("Missing new data Undo"); return }
+        #expect(latest?["count"] as? Int == 3)
     }
 
     @Test func otherChangesStaySeparate() {
@@ -309,8 +433,7 @@ extension AIEditTests {
         #expect(CardPress.scale(pressed: true, reduceMotion: false) < 1)
         #expect(CardPress.scale(pressed: true, reduceMotion: true) == 1)
         #expect(CardPress.scale(pressed: false, reduceMotion: false) == 1)
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/SignInView.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views").appending(path: "SignInView.swift"), encoding: .utf8)
         #expect(!src.contains(".animation(.snappy(duration: 0.2), value: error)"), "no unconditional animation on the error")
         #expect(src.contains(".animation(reduceMotion ? nil : .snappy(duration: 0.2), value: error)"))
     }

@@ -234,6 +234,16 @@ import Testing
         let sheet = try #require(w.attachedSheet, "the confirmation shows")
         let buttons = Self.buttons(in: sheet.contentView).map(\.title)
         #expect(buttons.contains("Delete Folder"), "\(buttons)")
+        let cancel = try #require(Self.buttons(in: sheet.contentView).first { $0.title == "Cancel" })
+        cancel.performClick(nil)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(work.deletedAt == nil && w.attachedSheet == nil, "cancelling keeps the folder")
+        NotificationCenter.default.post(name: .paneDeleteFolder, object: work.id)
+        try? await Task.sleep(for: .milliseconds(400))
+        let confirmed = try #require(w.attachedSheet.flatMap { Self.buttons(in: $0.contentView).first { $0.title == "Delete Folder" } })
+        confirmed.performClick(nil)
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(work.deletedAt != nil && work.liveNotes.isEmpty, "a later confirmation deletes only the requested folder")
     }
 
     /// ⌘ picks folders beside the one shown, and Delete takes them all with one question, never

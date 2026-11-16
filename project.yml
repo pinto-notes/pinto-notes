@@ -346,6 +346,12 @@ targets:
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
         buildPhase: resources
+      - path: scripts/template-catalog.py
+        buildPhase: resources
+      - path: scripts/page-render/render.ts
+        buildPhase: resources
+      - path: scripts/template-stage-pictures.ts
+        buildPhase: resources
       # The Mac download's Info.plist, for its update settings (UpdaterTests).
       - path: Pane/Resources/Info-Direct.plist
         buildPhase: resources
@@ -416,6 +422,9 @@ targets:
   PaneHIGTests:
     templates: [PaneTestBundle]
     sources:
+      - path: Pane/Views
+        type: folder
+        buildPhase: resources
       - PaneTests/HIG
       - PaneTests/Harness
       - PaneTests/Shared

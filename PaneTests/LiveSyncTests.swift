@@ -82,38 +82,47 @@ import Testing
 
     // MARK: Never overwrite what you're editing
 
-    private func row(_ n: Note, body: String? = nil, version: Int64) -> NoteDTO {
-        var r = NoteDTO(n)
-        if let body { r.body = body }
-        r.version = version
-        return r
+    /// Dirty edits win; clean notes accept only a newer server version.
+    @Test(arguments: [
+        ("mine, typed just now", "theirs", Int64(4), Int64(5), true, false),
+        ("hello", "hello", 7, 7, false, false),
+        ("newer", "older", 9, 8, false, false),
+        ("hello", "hello from my phone", 3, 4, false, true),
+    ])
+    func incomingRowsRespectLocalEditsAndVersion(scenario: (String, String, Int64, Int64, Bool, Bool)) {
+        let (body, incoming, version, incomingVersion, dirty, accepted) = scenario
+        let note = Note(body: body)
+        note.serverVersion = version
+        note.dirty = dirty
+        var row = NoteDTO(note)
+        row.body = incoming
+        row.version = incomingVersion
+        #expect(SyncEngine.takes(row, over: note) == accepted)
     }
+}
 
-    @Test func unsentLocalEditsWin() {
-        let n = Note(body: "mine, typed just now")
-        n.serverVersion = 4
-        n.dirty = true
-        #expect(!SyncEngine.takes(row(n, body: "theirs", version: 5), over: n))
+/// Requests received during a run must retain both pull work and foreground visibility.
+@MainActor @Suite struct SyncRequestTests {
+    @Test func coalescingPreservesRequestedWorkRegardlessOfOrder() {
+        let requests: [SyncEngine.Request] = [.push, .poll, .full]
+        for a in requests {
+            #expect(a.merging(a) == a)
+            for b in requests where a != b {
+                #expect(a.merging(b) == .full)
+            }
+        }
+        #expect(!SyncEngine.Request.push.pulling)
+        #expect(SyncEngine.Request.poll.pulling && SyncEngine.Request.full.pulling)
     }
+}
 
-    @Test func ourOwnPushComingBackIsIgnored() {
-        let n = Note(body: "hello")
-        n.serverVersion = 7
-        n.dirty = false  // synced: nothing of ours is waiting
-        #expect(!SyncEngine.takes(row(n, version: 7), over: n))
-    }
-
-    @Test func outOfOrderEventsAreIgnored() {
-        let n = Note(body: "newer")
-        n.serverVersion = 9
-        n.dirty = false  // synced: nothing of ours is waiting
-        #expect(!SyncEngine.takes(row(n, body: "older", version: 8), over: n))
-    }
-
-    @Test func anotherDevicesEditIsTaken() {
-        let n = Note(body: "hello")
-        n.serverVersion = 3
-        n.dirty = false  // synced: nothing of ours is waiting
-        #expect(SyncEngine.takes(row(n, body: "hello from my phone", version: 4), over: n))
+@MainActor @Suite struct SharingConflictTests {
+    @Test(arguments: [false, true], [false, true])
+    func sharingTransitionsTakePrecedenceOverEditTime(pointerUploaded: Bool, serverNewer: Bool) {
+        typealias Decision = SyncEngine.SharingConflict
+        #expect(Decision.decide(localShared: false, serverShared: false, pointerUploaded: pointerUploaded, serverNewer: serverNewer) == .mergeText)
+        #expect(Decision.decide(localShared: false, serverShared: true, pointerUploaded: pointerUploaded, serverNewer: serverNewer) == .joined)
+        #expect(Decision.decide(localShared: true, serverShared: false, pointerUploaded: pointerUploaded, serverNewer: serverNewer) == (pointerUploaded ? .unshared : .shareLocal))
+        #expect(Decision.decide(localShared: true, serverShared: true, pointerUploaded: pointerUploaded, serverNewer: serverNewer) == (serverNewer ? .takeServer : .writeLocal))
     }
 }

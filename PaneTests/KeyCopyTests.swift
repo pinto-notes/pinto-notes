@@ -46,6 +46,32 @@ extension KeyCopyTests {
         #expect(try KeyCopyBox.open(again, with: receiver, direction: .down, user: user, keyID: v.id) == key)
     }
 
+    @Test(arguments: [false, true])
+    func availabilityFromAnOldAccountCannotStoreItsKeyInTheNewOne(available: Bool) async throws {
+        let (crypto, keychain, _) = try accountFromBefore()
+        defer { crypto.signedOut() }
+        server.protection = .standard
+        server.off = !available
+        let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        server.beforeAvailable = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        let old = Task { await attach(crypto) }
+        for await _ in entered.stream { break }
+        let nextUser = UUID(), next = Server(), nextKey = StoredKey.generate()
+        next.row = try nextKey.serverRow(user: nextUser)
+        next.protection = .strict
+        keychain.synced[nextUser] = nextKey
+        await crypto.attach(account: nextUser, server: next, copies: next)
+        release.continuation.yield(())
+        await old.value
+        #expect(next.stores.isEmpty && crypto.protection == .strict)
+        #expect(!crypto.copiesOn)
+        #expect(defaults.object(forKey: AccountCrypto.copiesOffUntilKey) == nil)
+    }
+
     // MARK: The decision
 
     @Test func withACopyADeviceWithoutTheKeyFetchesIt() throws {

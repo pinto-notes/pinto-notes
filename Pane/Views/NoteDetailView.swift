@@ -24,32 +24,13 @@ struct NoteDetailView: View {
     @State private var pickingPhotos = false
     @State private var linkingNote = false
     @State private var choosingAttachment = false
-    /// "ChatGPT changed 5 lines · Undo", while an AI's edit that just landed is on show.
-    @State private var receipt: AIEdit.Receipt?
-    /// An AI's edit on its way to `receipt`.
-    @State private var landingReceipt: AIEdit.Receipt?
-    /// Reviewing the AI's edit part by part, in place of the receipt (AIReviewCard).
-    @State private var review: AIReview?
+    @State private var ai = AIEdit.Presentation()
     /// Ask an AI about this note: the AI picked in the toolbar or the ••• menu, while its popover shows.
     @State private var asking: AskAI.Target?
-    /// "Kept 2, undid 1", for a moment after a review.
-    @State private var reviewResult: String?
     /// Whether this note can be asked about, kept by `NoteAskableWatcher`. Asked here it read the
     /// note's text, which worked out the whole pane and its toolbar again on every key.
     @State private var askable = true
-    /// The Undo on that line, when what it reports can be taken back.
-    @State private var reviewResultUndo: (() -> Void)?
-    /// The version that didn't open, for Undo on "Reverted to the last working version".
-    @State private var revertedFrom: NotePageStore.Page?
-    /// A text field in the note's app has focus: no receipt is drawn over it.
-    @State private var pageFieldFocused = false
-    /// A receipt waiting for the field to let go.
-    @State private var heldReceipt: AIEdit.Receipt?
     @State private var undoFailed: String?
-    /// For Undo of a page an AI made: the page before it (nil: none).
-    @State private var undoPage: NotePageStore.Page?
-    /// For Undo of a change to the app's own data: the data before it.
-    @State private var undoData: NotePageData.Doc?
     /// The app asks to reach a host: shown as a question, answered once per host.
     @State private var hostAsk: HostAsk?
     /// The app needs an API key that isn't set up: the card that offers to add it.
@@ -216,18 +197,17 @@ struct NoteDetailView: View {
             .onChange(of: controller.clashAnswer) { _, answer in
                 guard let answer else { return }
                 controller.clashAnswer = nil
-                withAnimation(.smooth(duration: 0.2)) { reviewResult = "\(collab?.onlyOtherName ?? "Someone") \(answer)" }
+                withAnimation(.smooth(duration: 0.2)) { ai.result = AIEdit.Presentation.Result("\(collab?.onlyOtherName ?? "Someone") \(answer)") }
             }
             .onReceive(NotificationCenter.default.publisher(for: .paneNotesMoved)) { n in
                 if let said = n.object as? String {
                     withAnimation(.smooth(duration: 0.2)) {
-                        reviewResult = said
-                        reviewResultUndo = n.userInfo?["undo"] as? () -> Void
+                        ai.result = AIEdit.Presentation.Result(said, undo: n.userInfo?["undo"] as? () -> Void)
                     }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .paneVersionRestored)) { n in
-                if (n.object as? UUID) == note.id { withAnimation(.smooth(duration: 0.2)) { reviewResult = VersionHistoryModel.restoredLine } }
+                if (n.object as? UUID) == note.id { withAnimation(.smooth(duration: 0.2)) { ai.result = AIEdit.Presentation.Result(VersionHistoryModel.restoredLine) } }
             }
             #if os(iOS)
             .safeAreaInset(edge: .bottom, spacing: 0) { if !showingPage { phoneTips } }
@@ -330,8 +310,7 @@ struct NoteDetailView: View {
             // say who, and offer Undo back to before.
             .onChange(of: NotePageDataStore.shared.arrivals[note.id]) { _, a in
                 guard let a, showingPage else { return }
-                undoData = NotePageData.decode(a.before)
-                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit))
+                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit), undo: .data(NotePageData.decode(a.before)))
             }
             // Captures: `-lockCapture setup` or `confirm` (see Capture).
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
@@ -343,14 +322,14 @@ struct NoteDetailView: View {
             }
             // Captures: the "landed" moment is over.
             .onReceive(NotificationCenter.default.publisher(for: Capture.clearAIMarks)) { _ in
-                withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
+                withAnimation(.easeIn(duration: 0.2)) { ai.present(nil) }
                 controller.clearTint()
             }
             // A version was restored (from the history, or Undo of an AI's edit): the editor
             // shows it at once, with nothing to undo back into, and an AI's marking goes.
             .onReceive(NotificationCenter.default.publisher(for: NoteHistory.restored)) { n in
                 guard n.object as? UUID == note.id, collab == nil, let text = vault.text(of: note) else { return }
-                withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
+                withAnimation(.easeIn(duration: 0.2)) { ai.present(nil) }
                 controller.takeRestored(text)
             }
             .task(id: note.id) {
@@ -360,6 +339,15 @@ struct NoteDetailView: View {
                     try? await Task.sleep(for: .seconds(0.2))
                     controller.showFound(r)
                 }
+            }
+            .task(id: ai.timeout?.id) {
+                guard let timeout = ai.timeout else { return }
+                try? await Task.sleep(for: .seconds(timeout.seconds * ChangeTint.slowMotion))
+                while !Task.isCancelled, ChangeTint.holdForCapture {
+                    try? await Task.sleep(for: .seconds(0.1))
+                }
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeIn(duration: 0.2)) { ai.expire(timeout.id) }
             }
             .onChange(of: showHistory) { _, open in if open { FeatureUse.mark(.versionHistory) } }
     }
@@ -377,21 +365,21 @@ struct NoteDetailView: View {
             }
             #endif
             .background {
-                if let receipt {
+                if let receipt = ai.receipt {
                     ReceiptUndoneWatcher(note: note, receipt: receipt) {
                         // Your own Undo in the review says its own line when the review ends,
                         // which has already taken the receipt when this comes.
-                        guard review == nil, self.receipt != nil else { return }
-                        withAnimation(.easeOut(duration: 0.2)) { self.receipt = nil; reviewResult = receipt.undoneLine(by: collab?.onlyOtherName) }
+                        guard ai.review == nil, ai.receipt != nil else { return }
+                        withAnimation(.easeOut(duration: 0.2)) { ai.present(nil); ai.result = AIEdit.Presentation.Result(receipt.undoneLine(by: collab?.onlyOtherName)) }
                         controller.clearTint()
                     } partlyUndone: { left in
                         // Someone else undid part of it: the tint and the count follow what's left.
-                        guard review == nil, self.receipt != nil else { return }
-                        self.receipt = left
-                        reviewResult = left.partlyUndoneLine(by: collab?.onlyOtherName)
+                        guard ai.review == nil, ai.receipt != nil else { return }
+                        ai.present(left)
+                        ai.result = AIEdit.Presentation.Result(left.partlyUndoneLine(by: collab?.onlyOtherName))
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(0.15))
-                            if self.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
+                            if ai.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
                         }
                     }
                 }
@@ -413,14 +401,14 @@ struct NoteDetailView: View {
                 case "undoAll": reviewUndoAll()
                 // The next undecided part's Keep and Undo, as the review's buttons do.
                 case "keepNext":
-                    guard var rv = review, let part = rv.parts.first(where: { $0.decision == nil }) else { return }
+                    guard var rv = ai.review, let part = rv.parts.first(where: { $0.decision == nil }) else { return }
                     rv.keep(part.id)
-                    review = rv
+                    ai.review = rv
                     if rv.isFinished { finishReview() }
                 case "undoNext":
-                    if let part = review?.parts.first(where: { $0.decision == nil }) { reviewUndo(part.id) }
+                    if let part = ai.review?.parts.first(where: { $0.decision == nil }) { reviewUndo(part.id) }
                 default:
-                    if let receipt { startReview(receipt) }
+                    if let receipt = ai.receipt { startReview(receipt) }
                 }
             }
             #if os(iOS)
@@ -428,12 +416,12 @@ struct NoteDetailView: View {
             .sheet(isPresented: $showPeople) { if let store = CollabStore.shared { ShareSheet(note: note, backend: store) } }
             // Review an AI's edit part by part: a sheet on the phone, half height first, so the
             // note shows above it and scrolls to each part (the Mac has the card).
-            .sheet(isPresented: Binding(get: { review != nil }, set: { if !$0 { finishReview() } })) {
-                AIReviewSheet(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
+            .sheet(isPresented: Binding(get: { ai.review != nil }, set: { if !$0 { finishReview() } })) {
+                AIReviewSheet(review: Binding(get: { ai.review ?? AIReview(by: "", previous: "", after: "") }, set: { ai.review = $0 }),
                               undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
-                              reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
+                              reveal: { id in if let at = ai.review?.location(of: id, in: note.body) { controller.reveal(at) } })
                     // One change needs less than half the screen; the note stays in view above it.
-                    .presentationDetents(review?.parts.count == 1 ? [.fraction(0.36), .large] : [.medium, .large])
+                    .presentationDetents(ai.review?.parts.count == 1 ? [.fraction(0.36), .large] : [.medium, .large])
                     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
             #endif
@@ -589,10 +577,10 @@ struct NoteDetailView: View {
 
     @ViewBuilder
     private var aiReceipt: some View {
-        if review != nil, !NoteAIUndo.reviewsInSheet {
-            AIReviewCard(review: Binding(get: { review ?? AIReview(by: "", previous: "", after: "") }, set: { review = $0 }),
+        if ai.review != nil, !NoteAIUndo.reviewsInSheet {
+            AIReviewCard(review: Binding(get: { ai.review ?? AIReview(by: "", previous: "", after: "") }, set: { ai.review = $0 }),
                          undo: reviewUndo, undoAll: reviewUndoAll, done: finishReview,
-                         reveal: { id in if let at = review?.location(of: id, in: note.body) { controller.reveal(at) } })
+                         reveal: { id in if let at = ai.review?.location(of: id, in: note.body) { controller.reveal(at) } })
                 #if os(macOS)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
@@ -600,7 +588,7 @@ struct NoteDetailView: View {
                 .padding(.bottom, 64)
                 #endif
                 .transition(AIReceipt.transition(reduceMotion: reduceMotion))
-        } else if let receipt {
+        } else if let receipt = ai.receipt {
             #if os(iOS)
             // Over a note's app it sits in the navigation bar instead (see toolbar): an app's own
             // tab bar, sheets and the keyboard live at the bottom, its title at the top. An AI's
@@ -637,25 +625,21 @@ struct NoteDetailView: View {
     /// "Kept 2, undid 1" where the review was, for a few seconds.
     @ViewBuilder
     private var reviewDone: some View {
-        if let text = reviewResult {
-            Toast(text: text, undo: reviewResultUndo.map { undo in
+        if let result = ai.result {
+            Toast(text: result.text, undo: result.undo.map { undo in
                 {
                     undo()
-                    withAnimation(.smooth(duration: 0.2)) {
-                        reviewResultUndo = nil
-                        reviewResult = "Undone"
-                    }
+                    withAnimation(.smooth(duration: 0.2)) { ai.result = AIEdit.Presentation.Result("Undone") }
                 }
             })
                 .padding(.bottom, 20)
                 .transition(AIReceipt.transition(reduceMotion: reduceMotion))
                 .accessibilityIdentifier("review.result")
-                .task(id: text) {
-                    AccessibilityNotification.Announcement(text).post()
-                    try? await Task.sleep(for: .seconds(reviewResultUndo == nil ? 3 : 6))
-                    // Cancelled means the line changed: the new one has its own time.
+                .task(id: result.id) {
+                    AccessibilityNotification.Announcement(result.text).post()
+                    try? await Task.sleep(for: .seconds(result.undo == nil ? 3 : 6))
                     guard !Task.isCancelled else { return }
-                    withAnimation(.easeIn(duration: 0.2)) { reviewResult = nil; reviewResultUndo = nil }
+                    withAnimation(.easeIn(duration: 0.2)) { ai.result = nil }
                 }
         }
     }
@@ -663,29 +647,28 @@ struct NoteDetailView: View {
     // MARK: Reviewing an AI's edit
 
     private func startReview(_ r: AIEdit.Receipt) {
-        guard let rv = AIReview(r) else { return }
-        reviewResult = nil
+        let started = withAnimation(.spring(duration: 0.35, bounce: 0.15)) { ai.startReview(r) }
+        guard started else { return }
         #if os(iOS)
         // The review is a half-height sheet: with the keyboard up it hid all but the top of Keep.
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         #endif
-        withAnimation(.spring(duration: 0.35, bounce: 0.15)) { review = rv }
     }
 
     /// Undoes one part in the note: only that part goes back; your typing stays. A part you've
     /// changed since is refused, and the card says why.
     private func reviewUndo(_ id: Int) {
-        guard var rv = review, !refusedAsViewOnly() else { return }
+        guard var rv = ai.review, !refusedAsViewOnly() else { return }
         let changed = rv.undo(id, on: note)
-        review = rv
+        ai.review = rv
         if changed { retint(rv) }
         if rv.isFinished { finishReview() }
     }
 
     private func reviewUndoAll() {
-        guard var rv = review, !refusedAsViewOnly() else { return }
+        guard var rv = ai.review, !refusedAsViewOnly() else { return }
         let refused = rv.undoAll(on: note)
-        review = rv
+        ai.review = rv
         if refused == 0 { finishReview() } else { retint(rv) }
     }
 
@@ -695,18 +678,14 @@ struct NoteDetailView: View {
         guard AIReview.lines(note.body) == rv.expected else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(0.15))
-            if review != nil { controller.tintChanges(from: rv.previous, untilCleared: true) }
+            if ai.canRetint(rv, body: note.body) { controller.tintChanges(from: rv.previous, untilCleared: true) }
         }
     }
 
     /// Done, Esc, or the last part decided: what's left is kept, and the count shows for a moment.
     private func finishReview() {
-        guard let rv = review else { return }
-        withAnimation(.smooth(duration: 0.25)) {
-            review = nil
-            receipt = nil
-            reviewResult = rv.result
-        }
+        guard ai.review != nil else { return }
+        withAnimation(.smooth(duration: 0.25)) { ai.finishReview() }
         controller.clearTint()
     }
 
@@ -717,28 +696,25 @@ struct NoteDetailView: View {
         guard let seen = AIEdit.markSeen(note) else { return }
         // The earlier one may not be on screen yet: a sync lands an AI's edits a moment apart, inside
         // the wait below (round 18: three edits said "changed 1 line" and marked one).
-        let r = seen.continuing(landingReceipt ?? receipt)
-        landingReceipt = r
+        let r = ai.stage(seen)
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion
         Task { @MainActor in
             // Let the editor take the new text first.
             try? await Task.sleep(for: .seconds(0.15 * slow))
-            guard landingReceipt == r else { return } // a later edit took it over
-            landingReceipt = nil
-            guard note.id == r.noteID else { return }
+            guard !Task.isCancelled else { return }
+            let landed = withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { ai.land(r, on: note.id) }
+            guard landed else { return }
             controller.tintChanges(from: r.previous, untilCleared: r.staysUntilEdited)
-            withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
             PaneTips.aiEditLanded()
         }
     }
 
     /// You started typing: what the AI changed is yours now, so its marking goes, quietly.
     private func editedSinceAIEdit() {
-        guard let r = receipt, r.staysUntilEdited else { return }
-        withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
-        controller.clearTint()
+        let cleared = withAnimation(.easeOut(duration: 0.2)) { ai.edited() }
+        if cleared { controller.clearTint() }
     }
 
     /// A shared note you can only view keeps an AI's change: Undo says so, where the receipt is,
@@ -757,34 +733,33 @@ struct NoteDetailView: View {
     static func seesAllChanges(_ r: AIEdit.Receipt) -> Bool { AIChangesCenter.shared.store != nil && r.person == nil }
 
     private func undo(_ r: AIEdit.Receipt) {
+        guard ai.receipt == r else { return }
         if r.kind == .edit, refusedAsViewOnly() { return }
+        let payload = ai.undo(for: r)
         withAnimation(.smooth(duration: 0.25)) {
-            receipt = nil
+            ai.present(nil)
             // Press, then done (round 21: the text changed back with no word).
-            if r.kind == .edit { reviewResult = "Undone" }
+            if r.kind == .edit { ai.result = AIEdit.Presentation.Result("Undone") }
         }
         if r.staysUntilEdited { controller.clearTint() }
-        if r.kind == .pageMade || r.kind == .pageChanged {
-            // The note's text never changed: the page goes back to what it was (the new one is kept).
-            if undoPage != nil { restorePreviousPage() } else {
+        switch payload {
+        case .page(let previous):
+            if previous != nil { restorePreviousPage() } else {
                 NotePageStore.shared.setHere(note.id, nil)
                 shownPage = nil
                 mode = .text
             }
             return
-        }
-        if r.kind == .reverted {
-            if let page = revertedFrom { NotePageStore.shared.force(note.id, page); shownPage = page }
-            revertedFrom = nil
+        case .reverted(let page):
+            NotePageStore.shared.force(note.id, page)
+            shownPage = page
             return
+        case .data(let data):
+            if let data { NotePageDataStore.shared.set(note.id, data) }
+            return
+        case nil: break
         }
         if r.kind == .pageEdit { pageTint = nil }
-        if r.kind == .dataEdit {
-            // Back to the data before this run of changes; the note's text is untouched.
-            if let undoData { NotePageDataStore.shared.set(note.id, undoData) }
-            undoData = nil
-            return
-        }
         // The editor takes the old text as an outside change, which also clears the tint.
         let note = self.note
         Task { @MainActor in
@@ -852,12 +827,8 @@ struct NoteDetailView: View {
                     NotePageView(noteID: note.id, html: page.html, text: vault.text(of: note) ?? "", onUpdate: applyPageEdit, onFailure: pageFailed, onData: pageData,
                                  files: { [context] id in NotePageActions.file(id, note: note, context: context) },
                                  onFocus: { focused in
-                                     pageFieldFocused = focused
-                                     // Typing in the app: a receipt steps out of the way (Undo stays in Edit and ⌘Z).
-                                     if focused, receipt != nil { withAnimation(.easeIn(duration: 0.15)) { receipt = nil } }
-                                     if !focused, let held = heldReceipt {
-                                         heldReceipt = nil
-                                         if held.at.timeIntervalSinceNow > -3 { showPageReceipt(held) }
+                                     withAnimation(focused ? .easeIn(duration: 0.15) : .spring(duration: 0.45, bounce: 0.25)) {
+                                         ai.focus(focused, infoOpen: showAppInfo)
                                      }
                                  },
                                  insetBottom: pageInsetBottom)
@@ -927,7 +898,7 @@ struct NoteDetailView: View {
     /// bottom toolbar).
     private var pageInsetBottom: CGFloat {
         #if os(macOS)
-        receipt != nil && showingPage ? AIReceipt.height + 20 + 8 : 0
+        ai.receipt != nil && showingPage ? AIReceipt.height + 20 + 8 : 0
         #else
         0
         #endif
@@ -950,17 +921,8 @@ struct NoteDetailView: View {
 
     /// Never over a field you're typing in, or under a sheet. A change made while a field has
     /// focus (a button pressed as the field lets go) shows once the focus has gone, if that's soon.
-    private func showPageReceipt(_ r: AIEdit.Receipt) {
-        guard !showAppInfo else { return }
-        guard !pageFieldFocused else { heldReceipt = r; return }
-        heldReceipt = nil
-        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { receipt = r }
-        Task { @MainActor in
-            // Longer than an AI's: you may switch to Text to see the change before you undo it.
-            try? await Task.sleep(for: .seconds(10 * ChangeTint.slowMotion))
-            while ChangeTint.holdForCapture, receipt == r { try? await Task.sleep(for: .seconds(0.1)) }
-            if receipt == r { withAnimation(.easeIn(duration: 0.2)) { receipt = nil } }
-        }
+    private func showPageReceipt(_ r: AIEdit.Receipt, undo: AIEdit.Presentation.Undo? = nil) {
+        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { ai.showPage(r, infoOpen: showAppInfo, undo: undo) }
     }
 
     /// The app's own data and files (amber.store, amber.files). Data changes are kept next to the
@@ -981,13 +943,8 @@ struct NoteDetailView: View {
     /// The app's data is the app's content now: a change gets "Changed · Undo" like any edit. A run
     /// of changes (typing, a game, a batch) is one receipt, and Undo goes back to before the run.
     private func dataChanged(before: NotePageData.Doc) {
-        if let r = receipt ?? heldReceipt, r.kind == .dataEdit, r.at.timeIntervalSinceNow > -10, undoData != nil {
-            // Same run: the Undo point stays where the run began.
-        } else {
-            undoData = before
-        }
         let r = AIEdit.Receipt(noteID: note.id, by: AIGlyph.page, at: .now, previous: note.body, lines: 0, kind: .dataEdit)
-        showPageReceipt(r)
+        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { ai.dataChanged(before, receipt: r, infoOpen: showAppInfo) }
     }
 
     private func askHost(_ host: String) async -> Bool { await askHost(host, link: nil) }
@@ -1055,8 +1012,7 @@ struct NoteDetailView: View {
         titleAtOpen = note.body.isEmpty || note.isLocked ? nil : note.title
         refreshLinks()
         links.findMentions(note, context: context)
-        receipt = nil
-        review = nil
+        ai = AIEdit.Presentation()
         shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
         // A note with an app is the app: what its text held goes into the app's data once.
         if shownPage != nil { NotePageActions.importIfNeeded(note) }
@@ -1080,14 +1036,7 @@ struct NoteDetailView: View {
         guard let now, now.isNewVersion(after: before), now.by != AIGlyph.page, now.by != FirstOpen.templateWriter else { return }
         withAnimation(.smooth(duration: 0.3)) { mode = .page }
         let r = AIEdit.Receipt(noteID: note.id, by: now.by, at: now.at, previous: note.body, lines: 0, kind: before == nil ? .pageMade : .pageChanged)
-        undoPage = before
-        guard !pageFieldFocused else { return }
-        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { receipt = r }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5.5 * ChangeTint.slowMotion))
-            while ChangeTint.holdForCapture, receipt == r { try? await Task.sleep(for: .seconds(0.1)) }
-            if receipt == r { withAnimation(.easeIn(duration: 0.2)) { receipt = nil } }
-        }
+        withAnimation(.spring(duration: 0.45, bounce: 0.25)) { ai.pageArrived(r, previous: before) }
     }
 
     /// One item of the More menu (`NoteMoreMenu` decides which, and their order).
@@ -1185,14 +1134,13 @@ struct NoteDetailView: View {
         let store = NotePageStore.shared
         store.markBroken(note.id, page)
         // The new page's receipt goes: the revert says what happened instead.
-        withAnimation(.smooth(duration: 0.2)) { receipt = nil }
+        withAnimation(.smooth(duration: 0.2)) { ai.present(nil) }
         sync?.reportLoadFailure(note: note.id, message: reasons.first ?? "It didn't open.")
         if let good = store.live(note.id), good != page {
             // The last working version runs, with the app's data as it is now. Undo runs the broken
             // one again, if you want to see it.
             shownPage = good
-            revertedFrom = page
-            showPageReceipt(AIEdit.Receipt(noteID: note.id, by: page.by, at: .now, previous: note.body, lines: 0, kind: .reverted))
+            showPageReceipt(AIEdit.Receipt(noteID: note.id, by: page.by, at: .now, previous: note.body, lines: 0, kind: .reverted), undo: .reverted(page))
         } else {
             withAnimation(.smooth(duration: 0.25)) { mode = .text }
             notice("This app didn't open, and there's no earlier version that works.")
@@ -1337,7 +1285,7 @@ struct NoteDetailView: View {
         // Recently Deleted is read-only: nothing typed or ticked there is kept.
         guard !trashed else { return }
         Usage.edited(note.id)
-        if receipt != nil { editedSinceAIEdit() }
+        editedSinceAIEdit()
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
             if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }
@@ -1558,7 +1506,7 @@ struct NoteDetailView: View {
         // No bar at the foot while you read (Emil, 29 October 2026): the writing tools come up
         // with the keyboard, above it (FormatBar).
         // No new note in here: that's the list's + (Emil, 29 October 2026).
-        if showingPage, let receipt {
+        if showingPage, let receipt = ai.receipt {
             ToolbarItem(placement: .principal) {
                 AIReceipt(receipt: receipt, compact: true) { undo(receipt) }
                     .transition(.opacity)
@@ -1569,7 +1517,7 @@ struct NoteDetailView: View {
         // comes once you change the note and goes when there's nothing left since it opened.
         // Before you've changed anything it undoes an AI's edit, whose lines are tinted.
         // None on a locked note's page: nothing there to undo (the persona council saw it stay after Lock Now).
-        if readable, let undoButton = NoteAIUndo.button(canUndo: controller.canUndo, canRedo: controller.canRedo, receipt: receipt,
+        if readable, let undoButton = NoteAIUndo.button(canUndo: controller.canUndo, canRedo: controller.canRedo, receipt: ai.receipt,
                                               showingPage: showingPage, trashed: trashed) {
             ToolbarItem(placement: .primaryAction) { barUndo(undoButton) }
             ToolbarSpacer(.fixed, placement: .primaryAction)

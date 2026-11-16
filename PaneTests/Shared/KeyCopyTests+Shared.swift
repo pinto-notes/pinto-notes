@@ -17,6 +17,7 @@ import Testing
         var copy: StoredKey?
         /// KEY_COPY isn't on.
         var off = false
+        var beforeAvailable: (@Sendable () async -> Void)?
         var offline = false
         /// The function can't be reached, while the rest of the server can.
         var functionDown = false
@@ -67,6 +68,7 @@ import Testing
         }
 
         func available() async throws -> Bool {
+            await beforeAvailable?()
             asked += 1
             if offline || functionDown { throw KeyCopyError.offline }
             return !off

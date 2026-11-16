@@ -889,7 +889,8 @@ final class AccountCrypto {
     private(set) var copiesOn = false
     /// The account's reset generation, as last seen.
     private var serverGeneration = 0
-    private var startingFresh = false
+    private var freshGeneration: Int?
+    private var startingFresh: Bool { freshGeneration == generation }
     private var key: StoredKey?
     private var server: AccountKeyServer?
     /// The server's copies of keys. Nil: this build or this run has none, and everything works
@@ -986,9 +987,12 @@ final class AccountCrypto {
     }
 
     /// Runs startup again (Try again, or after the account's key changed).
-    func restart() async {
+    func restart(asFresh: Bool = false) async {
         stop()
         drop()
+        let gen = generation
+        freshGeneration = asFresh ? gen : nil
+        defer { if freshGeneration == gen { freshGeneration = nil } }
         phase = .checking
         await run()
     }
@@ -1007,6 +1011,7 @@ final class AccountCrypto {
         var timedOut = false
         do {
             let state = try await Self.within(held ? quickCheck : fetchTimeout, sleep: sleep) { try await server.fetch() }
+            guard gen == generation else { return }
             remote = Self.remote(state)
             serverGeneration = state.generation
             note(state)
@@ -1116,7 +1121,9 @@ final class AccountCrypto {
     /// what must never run on a remembered answer (Sign Out and Remove Notes).
     func refreshCopyState() async throws {
         guard let server else { throw KeyCopyError.offline }
+        let gen = generation
         let state = try await server.fetch()
+        guard gen == generation else { throw KeyError.notReady }
         guard state.key?.key_id == serverKey?.key_id else { protection = state.protection; serverCopy = false; return }
         note(state)
     }
@@ -1202,7 +1209,8 @@ final class AccountCrypto {
     private func copiesAvailable(now: Date = .now) async -> Bool {
         guard let copyServer else { return false }
         if let until = defaults.object(forKey: Self.copiesOffUntilKey) as? Date, until > now { return false }
-        guard let on = try? await copyServer.available() else { return false }
+        let gen = generation
+        guard let on = try? await copyServer.available(), gen == generation else { return false }
         copiesOn = on
         if on { defaults.removeObject(forKey: Self.copiesOffUntilKey) } else { defaults.set(now.addingTimeInterval(Self.copiesOffFor), forKey: Self.copiesOffUntilKey) }
         return on
@@ -1492,6 +1500,7 @@ final class AccountCrypto {
         let gen = generation
         var current = serverKey
         if let fetched = try? await server.fetch() {
+            guard gen == generation else { throw KeyError.notReady }
             current = fetched.key
             serverGeneration = fetched.generation
         }
@@ -1520,8 +1529,10 @@ final class AccountCrypto {
     func startFresh(confirmation: String) async throws {
         guard confirmation.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == Self.startFreshPhrase else { throw KeyError.confirmation }
         guard let account, let server else { throw KeyError.notReady }
+        let gen = generation
         let current: ServerKey?
         do { current = try await server.fetch().key } catch { throw KeyError.offline }
+        guard gen == generation else { throw KeyError.notReady }
         if let current {
             let deleted: Bool
             do { deleted = try await server.startFresh(keyID: current.key_id) }
@@ -1539,16 +1550,17 @@ final class AccountCrypto {
                 await removeAccountFiles?(account)
             }
         }
+        guard gen == generation else { throw KeyError.notReady }
         serverKey = nil
-        startingFresh = true
-        defer { startingFresh = false }
-        await restart()
+        await restart(asFresh: true)
     }
 
     func markRecoveryKeySaved() async throws {
         guard let server else { throw KeyError.notReady }
+        let gen = generation
         let at: Date?
         do { at = try await server.markRecoveryKeySaved() } catch { throw KeyError.offline }
+        guard gen == generation else { throw KeyError.notReady }
         serverKey?.recovery_saved_at = at ?? .now
         if let account {
             defaults.removeObject(forKey: Self.recoveryChangedKey(account))
