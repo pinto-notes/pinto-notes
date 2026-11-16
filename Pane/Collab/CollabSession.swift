@@ -331,9 +331,13 @@ final class CollabSession {
         waitingSince = now
     }
 
-    /// Your role changed (the server said so).
+    /// Your role changed (the server said so: your memberships, the members list, or a change
+    /// refused as read-only). People in the note says so too, at once: the view-only check reads
+    /// your row there first (`isViewOnly`), so a stale row there kept a demoted editor typing.
     func setRole(_ r: String) {
-        guard !isClosed, r != role else { return }
+        guard !isClosed else { return }
+        if let i = members.firstIndex(where: { $0.id == me }), members[i].role != r { members[i].role = r }
+        guard r != role else { return }
         role = r
         record.role = r
         saveSoon()
@@ -467,6 +471,9 @@ final class CollabSession {
         onMembers?(rows)
         members = rows.map { Member(id: $0.user_id, name: $0.display_name ?? "Someone", role: $0.role,
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
+        // The owner changed what you can do: the note's record follows, so a note made editable
+        // again takes your typing (`record.canEdit`), and one made view only stops taking it.
+        if let mine = myRole, mine != role { setRole(mine) }
     }
 
     /// Takes in every change the server has after this device's cursor (and the snapshot, when
@@ -589,6 +596,8 @@ final class CollabSession {
         case .membersChanged:
             CollabScript.trace("who's in the note changed: checking memberships")
             onMembersChanged?()
+            // Someone's role may have changed (yours too): People and the view-only check follow now.
+            Task { await refreshMembers() }
         case .notRelaying(let why):
             // Said again each time Realtime tries (every 5 to 10 seconds): told once, until it changes.
             if relayRefused != why {

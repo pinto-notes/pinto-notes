@@ -240,6 +240,47 @@ import Testing
         #expect(sara.store.session(for: hers) == nil)
     }
 
+    /// Emil makes Sara a viewer: her open note turns view only at once, with no reopening and no
+    /// half-minute check, and what she types isn't taken. Made an editor again, she types and Emil
+    /// sees it (Emil, 16 November 2026: roles change after joining, as in Google Docs).
+    @Test func aRoleChangeReachesThePersonAtOnce() async throws {
+        let (emil, sara, note, ids) = try await shared("Plan\n")
+        let mine = try #require(emil.store.session(for: note.id))
+        let theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))
+        await server.eventually { theirs.myRole == "editor" && mine.members.count == 2 }
+        #expect(theirs.canWrite && !theirs.isViewOnly)
+
+        try await emil.store.setRole(.viewer, of: ids.1, in: note)
+        #expect(server.role(note.id, ids.1) == "viewer")
+        #expect(mine.members.first { $0.id == ids.1 }?.role == "viewer", "Emil's People says so at once")
+        #expect(emil.store.shareState(for: note).people.first { $0.id == ids.1 }?.role == "viewer")
+        await server.eventually { theirs.isViewOnly && !theirs.record.canEdit }
+        #expect(theirs.isViewOnly && !theirs.canWrite, "her note is view only without reopening")
+        #expect(theirs.record.role == "viewer", "and stays so after a relaunch")
+        theirs.local("Plan\n- from a viewer\n", selection: nil)
+        await server.settle()
+        #expect(!(server.updates[note.id] ?? []).contains { $0.author_id == ids.1 })
+        #expect(!mine.text.contains("from a viewer"))
+
+        try await emil.store.setRole(.editor, of: ids.1, in: note)
+        await server.eventually { theirs.canWrite }
+        #expect(theirs.canWrite && theirs.record.role == "editor", "she can type again")
+        theirs.local(theirs.text + "- booked\n", selection: nil)
+        await server.eventually { mine.text.contains("- booked") }
+        #expect(mine.text.contains("- booked"))
+    }
+
+    /// Only the owner changes roles: Sara can't make herself, or Emil, anything.
+    @Test func onlyTheOwnerChangesRolesOnTheServer() async throws {
+        // Emil's device is kept to the end: his note goes with its container.
+        let (emil, sara, note, ids) = try await shared("Plan\n")
+        let hers = try #require(sara.context.pointer(forShared: note.id))
+        await #expect(throws: Collab.Failure.notOwner) { try await sara.store.setRole(.viewer, of: ids.0, in: hers) }
+        await #expect(throws: Collab.Failure.notOwner) { try await sara.store.setRole(.editor, of: ids.1, in: hers) }
+        #expect(server.role(note.id, ids.0) == "owner" && server.role(note.id, ids.1) == "editor")
+        withExtendedLifetime(emil) {}
+    }
+
     @Test func presenceReachesTheOtherPersonAndLeavingIsSeen() async throws {
         let (emil, sara, note, ids) = try await shared("Hello\n")
         let mine = try #require(emil.store.session(for: note.id)), theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)?.id ?? UUID()))

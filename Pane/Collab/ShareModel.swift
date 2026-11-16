@@ -74,6 +74,18 @@ extension CollabStore: ShareBackend {
         }
     }
 
+    /// Can edit or Can view for someone in your note, from now on. No new key: they keep reading
+    /// it either way, and the server refuses a viewer's changes. Everyone on the note's channel is
+    /// told at once, as after a removal, so their note turns view only (or editable) without
+    /// reopening it; a device that misses it has the half-minute check.
+    func setRole(_ role: ShareState.Role, of user: UUID, in note: Note) async throws {
+        guard let transport else { throw Collab.Failure.notSignedIn }
+        let session = sessions[note.id]
+        try await transport.setRole(note: session?.noteID ?? note.sharedNoteID ?? note.id, user: user, role: role.rawValue)
+        session?.announceMembersChanged()
+        await session?.refreshMembers()
+    }
+
     /// You leave someone else's note. The server takes you out of it; the owner's next device
     /// gives the note a new key without you.
     /// The note goes from your library on all your devices, as in Apple Notes (SharedLibrary.leave).

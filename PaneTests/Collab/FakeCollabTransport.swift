@@ -204,6 +204,7 @@ final class FakeCollabTransport: CollabTransport {
 
     func accept(note: UUID, selfWrap: String) async throws { try call("accept") }
     func remove(note: UUID, user: UUID?, epoch: Int, wraps: [Collab.Wrap]) async throws -> Int { try call("remove"); return epoch }
+    func setRole(note: UUID, user: UUID, role: String) async throws { try call("setRole") }
     func updateHead(note: UUID, head: String) async throws { try call("updateHead") }
     func createLink(id: String, note: UUID, role: String, epoch: Int, answerHash: String, keyWrap: String) async throws { try call("createLink") }
     func stopLink(note: UUID) async throws { try call("stopLink") }
