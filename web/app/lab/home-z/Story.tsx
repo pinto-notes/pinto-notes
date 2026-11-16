@@ -7,8 +7,9 @@ import { mailLink, sendLink } from "@/lib/platform";
 import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { AiShow } from "./AiShow";
-import { BuildShow } from "./Build";
-import { Facts } from "./Close";
+import { HabitsNote } from "./Habits";
+import { CollabPicture } from "./Collab";
+import { Study, Trust } from "./Close";
 import { HeroArt } from "./HeroArt";
 import { useArt } from "./art";
 import { BoardBig, CanvasChrome, Note, NotePhone } from "./Things";
@@ -46,12 +47,14 @@ import s from "./s.module.css";
 // script measures how far each one is through its stay; the chapters' shows (show.ts) start when they
 // dock. With Reduce Motion or `?t=`, everything shows its end state.
 
-type Tone = "write" | "draw" | "build" | "ai" | "cover";
-const ORDER: Tone[] = ["write", "draw", "build", "ai", "cover"];
-const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", cover: "" };
+type Tone = "write" | "draw" | "build" | "ai" | "share" | "cover";
+/** Every chapter the page can have, in order. Sharing is there only with `?collab=1` (round 23); the
+ *  binder works with the chapters on the page (`ord` in useBinder). */
+const ORDER: Tone[] = ["write", "draw", "build", "ai", "share", "cover"];
+const TAB: Record<Tone, string> = { write: "Notes", draw: "Whiteboards", build: "Apps", ai: "Your AI", share: "Sharing", cover: "" };
 /** On a phone, the chapters whose next sheet waits just under their last line (+ AIR px), so a chapter
  *  is as long as what's on it. Your AI keeps its stay (it fills the screen, and its cards step). */
-const SNUG: Tone[] = ["write", "draw", "build"];
+const SNUG: Tone[] = ["write", "draw", "build", "share"];
 const AIR = 34;
 /** On a Mac, Notes is as long as what's on it too (round 19): the whiteboard's sheet waits this far
  *  under the Mac window and its iPhone, so no stretch of empty red follows them. */
@@ -64,6 +67,10 @@ const narrowNow = () => typeof matchMedia === "function" && matchMedia("(max-wid
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 /** How far (px) above its clip line a headline starts to fade; it's gone by the time it gets there. */
 const FADE = 64;
+/** A product picture (round 23) tucks TUCK px under its clip line (the tear's own depth: it goes under
+ *  the paper, as a sheet would), then fades over PIC of its height: quick, so it's never seen cut, nor
+ *  faint, for long. */
+const TUCK = 40, PIC = 0.12;
 
 /** Who wants to know how far each chapter is through its stay (0 as it docks, 1 as the next one rises). */
 type Listener = (dwell: number, arrive: number) => void;
@@ -82,7 +89,7 @@ function calm() {
 }
 
 /** Where a tab scrolls to: docked, and for the drawing, most of the way through its stay. */
-const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, cover: 0 };
+const STAY: Record<Tone, number> = { write: 0.2, draw: 0.85, build: 0.02, ai: 0.02, share: 0.02, cover: 0 };
 /** A chapter's stay as a show's clock source (see show.ts). */
 const stayOf = (tone: Tone) => (fn: (dwell: number, arrive: number) => void) => listen(tone, fn);
 let jump: (tone: Tone) => void = () => {};
@@ -98,7 +105,8 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     const HEADER = { backgroundColor: "#fff4e6", boxShadow: "none", backdropFilter: "none", webkitBackdropFilter: "none" } as const;
     if (header) Object.assign(header.style, HEADER);
     el.dataset.live = "";
-    const chs = ORDER.map((t) => el.querySelector<HTMLElement>(`[data-ch="${t}"]`)!);
+    const ord = ORDER.filter((t) => el.querySelector(`[data-ch="${t}"]`));
+    const chs = ord.map((t) => el.querySelector<HTMLElement>(`[data-ch="${t}"]`)!);
     const hero = el.querySelector<HTMLElement>("[data-hero]")!;
     const probe = el.querySelector<HTMLElement>("[data-probe]")!;
     const reduced = calm();
@@ -107,7 +115,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     let vh = 0, tt = 0, hh = 0, tear = 0, raf = 0;
     /** Where a sheet docks: a chapter under its tab, the close (no tab) under the header,
      *  over the tab strip, so the tabs end with Your AI. */
-    const topOf = (i: number) => (TAB[ORDER[i]] ? tt : hh);
+    const topOf = (i: number) => (TAB[ord[i]] ? tt : hh);
     let doc: number[] = [], mt: number[] = [];
     const covered = chs.map(() => false);
     const lifts = chs.map(() => 0);
@@ -130,7 +138,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
       const narrow = narrowNow();
       chs.forEach((c, i) => {
         const next = chs[i + 1]; if (!next) return;
-        const snug = narrow ? SNUG.includes(ORDER[i]) : SNUG_WIDE.includes(ORDER[i]);
+        const snug = narrow ? SNUG.includes(ord[i]) : SNUG_WIDE.includes(ord[i]);
         const want = snug ? `${-Math.max(0, Math.round(c.offsetHeight - reach(i) - (narrow ? AIR : AIR_WIDE)))}px` : "";
         if (next.style.marginTop !== want) next.style.marginTop = want;
       });
@@ -157,13 +165,13 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
         // A stay is at least 35% of a screen of scroll, so a phone's snug chapter still plays its show.
         const dwellLen = i + 1 < chs.length ? Math.max(vh * 0.35, mt[i + 1]) : vh * 0.4;
         const dwell = clamp((top - nt) / dwellLen);
-        listeners.get(ORDER[i])?.forEach((fn) => fn(dwell, arrive));
+        listeners.get(ord[i])?.forEach((fn) => fn(dwell, arrive));
       }
       // A docked chapter's tab rises out of its page (CSS), so a tab never crosses the page under it.
       for (let i = 0; i < chs.length; i++) if (docked[i] !== (chs[i].dataset.docked !== undefined)) chs[i].toggleAttribute("data-docked", docked[i]);
       // The chapter you're in (the front one docked under its tab) raises its tab; the others sit lower.
       let front = -1;
-      for (let i = 0; i < chs.length; i++) if (docked[i]) front = TAB[ORDER[i]] ? i : -1;
+      for (let i = 0; i < chs.length; i++) if (docked[i]) front = TAB[ord[i]] ? i : -1;
       for (let i = 0; i < chs.length; i++) if ((i === front) !== (chs[i].dataset.front !== undefined)) chs[i].toggleAttribute("data-front", i === front);
       // As the next sheet rises, this one's words and things move up ahead of its torn edge (the gap
       // never closes), so a tear never cuts through a line or a card: every chapter has finished, all
@@ -174,7 +182,9 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
         if (docked[i] && nt < vh) lift = Math.max(0, Math.round(topOf(i) + reach(i) - (nt - 18)));
         if (lift !== lifts[i]) { lifts[i] = lift; chs[i].style.setProperty("--lift", `${lift}px`); chs[i].toggleAttribute("data-lifted", lift > 0); }
         // A headline is never sliced: as a chapter's heading and its line move up to its torn edge,
-        // they fade out together, whole, before they reach it. (The cards fade out into the edge.)
+        // they fade out together, whole, before they reach it. A product picture (`data-fade="pic"`,
+        // round 23) is too tall to fade over that whole run without leaving its sheet bare long before
+        // the next one arrives: it tucks a little under the tear, then fades, gone once a sliver is under.
         const heads = fades[i];
         if (!heads.length) continue;
         const clipY = topOf(i) + tear;
@@ -182,8 +192,9 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
           if (!lift) { if (h.style.opacity) h.style.opacity = ""; return; }
           // Over the last FADE px before the clip line, or over all the room it had, if less (a phone's
           // heading sits just under the tear), so it starts fading from full as the lift begins.
-          const top = h.getBoundingClientRect().top, gap = top - clipY - 4;
-          const o = clamp(gap / Math.max(1, Math.min(FADE, gap + lift))).toFixed(3);
+          const r = h.getBoundingClientRect(), gap = r.top - clipY - 4;
+          const pic = h.dataset.fade === "pic", len = pic ? r.height * PIC : FADE, shift = pic ? TUCK + len : 0;
+          const o = clamp((gap + shift) / Math.max(1, Math.min(len, gap + lift + shift))).toFixed(3);
           if (h.style.opacity !== o) h.style.opacity = o;
         });
       }
@@ -197,14 +208,14 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
         // Once a sheet with no tab has docked under the header, everything under it is put away, tabs
         // and all, so only the page's own cream shows through the gaps in its torn edge.
         let gone = false;
-        for (let j = i + 1; j < chs.length; j++) if (!TAB[ORDER[j]] && docked[j]) { gone = true; break; }
+        for (let j = i + 1; j < chs.length; j++) if (!TAB[ord[j]] && docked[j]) { gone = true; break; }
         if (gone !== (chs[i].dataset.gone !== undefined)) chs[i].toggleAttribute("data-gone", gone);
       }
     };
     const ask = () => { if (!raf) raf = requestAnimationFrame(frame); };
     const resize = () => { measure(); frame(); };
     jump = (tone) => {
-      const i = ORDER.indexOf(tone);
+      const i = ord.indexOf(tone);
       const stay = i + 1 < chs.length ? Math.max(0, mt[i + 1]) * STAY[tone] : 0;
       scrollTo({ top: Math.max(0, doc[i] - tt + stay + 1), behavior: reduced ? "auto" : "smooth" });
     };
@@ -309,7 +320,7 @@ function Write() {
             <Say long="They feel like Apple Notes, on Mac and iPhone, and you can bring yours over." short="Like Apple Notes, on Mac and iPhone. Bring yours over." />
           </div>
           {/* The note on a Mac, and the same note on an iPhone laid over the window's corner. */}
-          <div className={s.wDevices}>
+          <div className={s.wDevices} data-fade="pic">
             <Note live={live} />
             <NotePhone />
           </div>
@@ -353,7 +364,7 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
           <h2 id="s-draw-h" className={s.dTitle}>Draw on whiteboards.</h2>
           <Say long="Map out a decision beside your notes. Your AI can read the board and draw on it with you." short="Map out a decision. Your AI can read it, and draw on it with you." />
         </div>
-        {wb === "d" ? <div className={s.dBoard} role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. Claude has just added the no arrow, outlined and named, to finishing the launch and shipping in February, then talking again in March."><WbCanvas bind={bind} /></div>
+        {wb === "d" ? <div className={s.dBoard} data-fade="pic" role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. Claude has just added the no arrow, outlined and named, to finishing the launch and shipping in February, then talking again in March."><WbCanvas bind={bind} /></div>
           : wb !== "0" ? <WbArt v={wb} bind={bind} /> : <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
           {/* The board in Pinto's canvas: a thin frame, the drawing, the dock of tools at its foot. */}
           <div className={s.canvas}>
@@ -372,12 +383,12 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
 /* ───────────────────────── Build apps ───────────────────────── */
 
 function Build() {
-  const sub = useCallback(stayOf("build"), []);
+  // Round 23: the habit app inside its note (Habits.tsx), so "a note can be a small app" is visible.
   return (
     <Chapter tone="build" label="s-build-h">
       <div className={s.bBody}>
         <div className={s.bIn}>
-          <div className={s.bApp}><BuildShow subscribe={sub} /></div>
+          <div className={s.bApp} data-fade="pic"><HabitsNote /></div>
           <div className={s.bHead} data-fade>
             <h2 id="s-build-h" className={s.bTitle}>Build <br />apps.</h2>
             <Say long="A note can be a small app. Pick a template, or describe one and your AI makes it." short="A note can be a small app. Describe one, and your AI makes it." />
@@ -412,6 +423,24 @@ function Ai({ v = "0" }: { v?: Variant }) {
   );
 }
 
+/* ───────────────────────── Share with people (`?collab=1`) ───────────────────────── */
+
+function Share() {
+  // Round 23: behind `?collab=1` only, as collaboration ships in 1.4. The whiteboard chapter's layout:
+  // the heading and its line, then one picture (Collab.tsx), only what the app shows.
+  return (
+    <Chapter tone="share" label="s-share-h">
+      <div className={s.dBody}>
+        <div className={s.dHead} data-fade>
+          <h2 id="s-share-h" className={s.dTitle}>Share with people.</h2>
+          <Say long="Share a note and write in it together. Each of you can bring your own AI." short="Write in a note together, each with your own AI." />
+        </div>
+        <div className={s.shareFig} data-fade="pic"><CollabPicture /></div>
+      </div>
+    </Chapter>
+  );
+}
+
 /* ───────────────────────── The cover: the notebook closes ───────────────────────── */
 
 function Cover() {
@@ -432,24 +461,26 @@ function Cover() {
           <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is free.</h2>
           <div className={s.fCtas}><Cta /></div>
           <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
-          <Facts />
+          <Trust />
+          <Study />
         </div>
       </div>
     </section>
   );
 }
 
-export function Story({ className, wb = "0", ai = "0", hero = "0" }: { className: string; wb?: WbVariant; ai?: Variant; hero?: Variant }) {
+export function Story({ className, wb = "d", ai = "b", hero = "c", collab = false }: { className: string; wb?: WbVariant; ai?: Variant; hero?: Variant; collab?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
   useBinder(root);
   return (
-    <div ref={root} className={`${s.stack} ${className}`}>
+    <div ref={root} className={`${s.stack} ${className}`} data-five={collab || undefined}>
       <span data-probe className={s.probe} aria-hidden="true" />
       <Hero v={hero} />
       <Write />
       <Draw wb={wb} />
       <Build />
       <Ai v={ai} />
+      {collab && <Share />}
       <Cover />
       <div className={s.tail} aria-hidden="true" />
     </div>

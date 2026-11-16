@@ -8,8 +8,11 @@ import a from "./ai.module.css";
 //   a: it reads. ChatGPT is asked "Should I take the Studio North offer now?" and answers from the
 //      Studio North note; the note, in Pinto, with the line it read highlighted.
 //   b: it writes. "Save this shakshuka recipe to my Recipes folder." and the note it wrote, open in
-//      Pinto with the app's own receipt, "ChatGPT wrote this note · Undo · Review" (AIEdit.swift: the
-//      list's "Written by ChatGPT" shows until the note is opened; once it is, the receipt does).
+//      Pinto with the app's own receipt, "ChatGPT wrote this note · Undo · See all changes" (AIEdit.swift:
+//      the list's "Written by ChatGPT" shows until the note is opened; once it is, the receipt does; a
+//      note the AI wrote has no Review, so its last link is See all changes, AIMarks.swift). Round 23:
+//      the page's default, and its one Undo. The chat and the note stand side by side, top-aligned and
+//      the same height, so the eye goes from the request straight across to the note it made.
 //   c: a's question and answer, one line, then b's result.
 // ChatGPT is drawn from the demo video (web/public/demo/pinto-notes-chatgpt.mp4): its dark window, the
 // rail, Share, your words in a grey bubble on the right, "Worked for 9s", the answer naming the note
@@ -120,7 +123,7 @@ export function StudioNote() {
 /** The recipe ChatGPT wrote into Recipes, open, with the app's receipt at its foot. */
 export function ShakshukaNote() {
   return (
-    <PintoNote folder="Recipes" title="Shakshuka" label="Pinto Notes on a Mac, the new Shakshuka note in Recipes. At its foot: ChatGPT wrote this note, Undo, Review.">
+    <PintoNote folder="Recipes" title="Shakshuka" label="Pinto Notes on a Mac, the new Shakshuka note in Recipes, its lines marked as written by ChatGPT. At its foot: ChatGPT wrote this note, Undo, See all changes.">
       <h3 className={a.nTitle}>Shakshuka</h3>
       <div className={a.wrote}>
         <p className={a.meta}><span>Serves 2 · 25 min</span></p>
@@ -133,7 +136,7 @@ export function ShakshukaNote() {
       </div>
       <p className={a.receipt} aria-hidden="true">
         <AIGlyph name="openai" size={14} color="#1d1b19" />
-        <span>ChatGPT wrote this note</span><i /><b>Undo</b><i /><b>Review</b>
+        <span>ChatGPT wrote this note</span><i /><b>Undo</b><i /><b>See all changes</b>
       </p>
     </PintoNote>
   );
@@ -148,7 +151,7 @@ export function AiAlt({ v, title }: { v: "a" | "b" | "c"; title: React.ReactNode
         {title}
         <p className={a.tie}>{tie}</p>
       </div>
-      <div className={a.stage}>
+      <div className={a.stage} data-fade="pic">
         {v === "c" ? (
           <>
             <div className={a.one}><Gpt turns={[READ]} /></div>
@@ -163,9 +166,9 @@ export function AiAlt({ v, title }: { v: "a" | "b" | "c"; title: React.ReactNode
         )}
       </div>
       {v !== "b" && (
-        <p className={a.stat}>In a new chat, Claude answered 82.5% of questions about past chats correctly with Pinto Notes connected, against 18% without. <a href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true"> →</span></a></p>
+        <p className={a.stat} data-fade>In a new chat, Claude answered 82.5% of questions about past chats correctly with Pinto Notes connected, against 18% without. <a href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true"> →</span></a></p>
       )}
-      {v === "b" && <p className={a.foot}>Works with <span className={a.with}><AIGlyph name="openai" size={16} color="#fff1e2" />ChatGPT</span>, <span className={a.with}><AIGlyph name="claude" size={16} color="#d97757" />Claude</span>, Claude Code and Codex.</p>}
+      {v === "b" && <p className={a.foot} data-fade>Works with <span className={a.with}><AIGlyph name="openai" size={16} color="#fff1e2" />ChatGPT</span>, <span className={a.with}><AIGlyph name="claude" size={16} color="#d97757" />Claude</span>, Claude Code and Codex.</p>}
     </div>
   );
 }

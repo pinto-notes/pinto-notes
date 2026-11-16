@@ -35,6 +35,10 @@
   --airT: max(12svh, calc(var(--tearH) + 24px));
   --airB: calc(var(--airT) + var(--tt) + 6svh);
   --kraftGrain: url(/lab/z/grain-v1.webp) 0 0 / 320px 320px;
+  /* Round 23: one frame for every product picture (the Mac windows, the board, the hero's note): the
+     same corners, a hairline, and one soft shadow, smaller than before. */
+  --frameR: 14px;
+  --frameShadow: 0 0 0 1px rgba(30, 15, 5, 0.16), 0 1px 3px rgba(30, 15, 5, 0.1), 0 20px 40px -24px rgba(30, 12, 2, 0.45);
   position: relative; margin-top: calc(-1 * var(--hh)); color: #2a1d10; background: var(--page);
 }
 .tail { height: 30vh; }
@@ -54,6 +58,8 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 /* Apps: kraft stock (its fibre is a grain tile in soft light), with orange halftone at its edge. */
 .build { --c: #d2ab7c; --dot: #e2601a; --ink: #24170d; --soft: #45301a; }
 .build .sheetBg, .build .tab { background: var(--kraftGrain), var(--c); background-blend-mode: soft-light, normal; }
+/* Sharing (round 23, `?collab=1` only): deep blue, a colour no other chapter uses. */
+.share { --c: #1d3461; --dot: #0d1c3a; --ink: var(--cream); --soft: rgba(232, 238, 250, 0.86); }
 .ai { --c: #26190f; --dot: #7a3414; --ink: var(--cream); --soft: rgba(255, 236, 214, 0.82);
   /* Your AI's two tints (round 19): the request's two clauses, each worn by what it changed. Dinners
      (orange): the note and the app. The Studio North call (green): the whiteboard. */
@@ -63,7 +69,8 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .proof .dots { display: none; }
 
 /* ───────────────────────── The first screen ───────────────────────── */
-.hero { position: relative; z-index: 1; height: calc(100svh - 26px); min-height: 640px; box-sizing: border-box; padding-top: var(--hh); display: flex; flex-direction: column; }
+/* Round 23: 64 px shorter, so the Notes sheet's torn edge and its colour show above the fold. */
+.hero { position: relative; z-index: 1; height: calc(100svh - 90px); min-height: 600px; box-sizing: border-box; padding-top: var(--hh); display: flex; flex-direction: column; }
 /* The words sit in the middle of the first screen, a touch above it, never against the header. */
 .heroText { position: relative; z-index: 3; box-sizing: content-box; width: min(620px, 43vw); margin: auto 0; padding: max(5svh, 40px) 0 max(8svh, 48px) var(--pad); }
 .h1 { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.9vw, 11vh, 100px); line-height: 0.94; letter-spacing: -0.04em; color: #24170d; }
@@ -174,6 +181,8 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .paper .dots { top: calc(var(--tearH) + 6px); background-image: radial-gradient(circle, var(--dot) 0 1.5px, transparent 2px); background-size: 8px 8px; opacity: 0.42;
   -webkit-mask: radial-gradient(38% 46% at 100% 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); mask: radial-gradient(38% 46% at 100% 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); }
 .write .dots, .draw .dots { -webkit-mask: radial-gradient(34% 40% at 0 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); mask: radial-gradient(34% 40% at 0 100%, #000 0, rgba(0, 0, 0, 0.45) 40%, transparent 100%); }
+/* Round 23: no halftone corners (they repeated on every sheet); the paper and the product carry it. */
+.paper .dots { display: none; }
 .ai .dots { opacity: 0.32; -webkit-mask: radial-gradient(40% 50% at 100% 0, #000 0, rgba(0, 0, 0, 0.4) 40%, transparent 100%); mask: radial-gradient(40% 50% at 100% 0, #000 0, rgba(0, 0, 0, 0.4) 40%, transparent 100%); }
 
 /* The tab: docked under the header, in the sheet's own colour, as wide as its label (round 19: one
@@ -209,6 +218,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .ch.draw { margin-top: 55vh; }
 .ch.build { margin-top: 85vh; }
 .ch.ai { margin-top: 80vh; }
+.ch.share { margin-top: 80vh; }
 .cover { margin-top: 110vh; }
 
 /* ── Write notes: a big note that fills the chapter ── */
@@ -222,8 +232,8 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 /* Pinto on a Mac, as one light window (from the app's two-column layout): the traffic lights and the
    toolbar across the top, the notes list down the left, the note open beside it. */
 .sheet { position: relative; box-sizing: border-box; max-width: 820px; display: grid; grid-template-columns: minmax(0, 228px) minmax(0, 1fr); grid-template-rows: auto 1fr;
-  border-radius: 14px; background: #fff; color: #1d1b19; overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(60, 25, 5, 0.22), 0 2px 4px rgba(60, 20, 0, 0.12), 0 34px 64px -30px rgba(50, 12, 0, 0.6); }
+  border-radius: var(--frameR); background: #fff; color: #1d1b19; overflow: hidden;
+  box-shadow: var(--frameShadow); }
 .mwBar { grid-column: 1 / -1; display: flex; align-items: center; height: 46px; padding: 0 12px 0 16px; box-shadow: inset 0 -1px 0 #ececec; color: #8e8e93; }
 .mwLights { flex: none; display: flex; gap: 8px; margin-right: 16px; }
 .mwLights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
@@ -333,6 +343,8 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .dHead { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px 56px; }
 .dTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(56px, 5.6vw, 84px); line-height: 0.95; letter-spacing: -0.03em; white-space: nowrap; }
 .dHead .say { max-width: 19em; padding-bottom: 6px; }
+/* Sharing's picture (round 23): the same gap under the heading as the board's. */
+.shareFig { margin-top: clamp(16px, 2.6vh, 32px); }
 .dBoard { position: relative; min-height: 0; margin-top: clamp(14px, 2.6vh, 28px); display: grid; }
 .board { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
 /* The board sits in Pinto's canvas (round 19): a thin frame, the drawing as large as the frame allows,
@@ -781,6 +793,7 @@ body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--
   .ch.draw { margin-top: 48vh; }
   .ch.build { margin-top: 58vh; }
   .ch.ai { margin-top: 62vh; }
+  .ch.share { margin-top: 62vh; }
   .cover { margin-top: 80vh; }
   .tail { height: 0; }
   .say { font-size: 17px; line-height: 1.38; }
@@ -790,6 +803,8 @@ body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--
   /* Tabs: the same label style, smaller, sized to the words. */
   .stack { --tabY: calc(-1 * var(--tabH) + 2px); --tabDrop: 4px; }
   .tab { padding: 6px 12px 0; border-radius: 8px 8px 0 0; font-size: 12.5px; line-height: 1; letter-spacing: 0; }
+  /* Five tabs (`?collab=1`) fit a 390 pt phone with a little less room around each label. */
+  .stack[data-five] .tab { padding-inline: 9px; }
 
   /* The first sheet is laid straight onto the picture's foot: no cream band between them. The first
      screen is the hero, to the bottom: the picture takes the room left under the note, so only the
@@ -858,6 +873,7 @@ body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--
   .dHead { display: block; }
   .dTitle { font-size: 46px; white-space: normal; }
   .dHead .say { margin-top: 14px; padding: 0; }
+  .shareFig { margin-top: 24px; }
   .dBoard { flex: none; width: 100%; margin-top: 18px; }
   .canvas { padding: 10px 10px 8px; border-radius: 18px; }
   .canvasArea { flex: none; aspect-ratio: 358 / 344; }

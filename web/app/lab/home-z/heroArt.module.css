@@ -8,6 +8,7 @@
    centred in that open middle with air all round, sized in --u (a 380-wide design board, given 53% of
    S), so at any window size they lie on the paper, centred across the panel. The smallest words never
    go under 12 px. */
+/* Round 23: the paper-b desk is the picture (art.ts); the group sits in its open middle the same way. */
 
 .pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; background: #f7dfba; }
 /* Round 19: the group is 15% larger than round 18's, so the note reads before the still life. */
@@ -20,44 +21,43 @@
   margin: 0 calc(-12 * var(--u)) calc(-9 * var(--u)) auto; padding: 0.36em 0.4em 0.36em 0.5em; border-radius: 1.1em; background: #fffdf8; font-size: max(12.5px, calc(13.5 * var(--u)));
   box-shadow: 0 0 0 1px rgba(60, 40, 10, 0.07), 0 0.7em 1.6em -0.7em rgba(70, 45, 10, 0.35); opacity: 0; translate: 0 0.5em; }
 .ask[data-in] { opacity: 1; translate: none; }
-.askWho { display: inline-flex; align-items: center; gap: 0.36em; font-size: 0.9em; font-weight: 700; color: #0b7a5e; white-space: nowrap; }
-.askMark { flex: none; display: grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 50%; background: #10a37f; }
+/* ChatGPT's mark in ink, as everywhere on the page (round 23: one colour for an AI's change, amber,
+   so nothing else about the AI is green). */
+.askWho { display: inline-flex; align-items: center; gap: 0.36em; font-size: 0.9em; font-weight: 700; color: #1d1b19; white-space: nowrap; }
+.askMark { flex: none; display: grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 50%; background: #1d1b19; }
 .askMark svg { width: 0.9em; height: 0.9em; }
 .askText { padding: 0.32em 0.8em 0.36em; border-radius: 0.95em; background: #efe9e1; color: #1d1b19; font-weight: 500; line-height: 1.25; white-space: nowrap; }
 
 /* The note: the one thing to look at. A title, what you decided, and two dinners, with room in it. */
-.note { position: relative; z-index: 1; box-sizing: border-box; padding: 1.3em 1.45em 1.3em; border-radius: 0.85em;
-  background: #fffdf8; color: #1d1b19; font-size: calc(17.5 * var(--u)); line-height: 1.4;
-  box-shadow: 0 1px 0 rgba(90, 60, 20, 0.1), 0 1.6em 2.8em -1.5em rgba(70, 45, 10, 0.32), 0 0 0 1px rgba(60, 40, 10, 0.05); }
+.note { position: relative; z-index: 1; box-sizing: border-box; padding: 1.3em 1.45em 1.3em; border-radius: var(--frameR, 14px);
+  background: #fff; color: #1d1b19; font-size: calc(17.5 * var(--u)); line-height: 1.4;
+  box-shadow: var(--frameShadow); }
 .title { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
-/* What you decided, first, in plain words. The words ChatGPT keeps to ("20-minute") and the words of
-   its new line that keep to them ("20 min") wear one teal tint, the same in both places, so the link
-   reads in a still frame. The tint is a background, so it can't move a letter. */
+/* What you decided, then the dinners, as a note in Pinto writes them: a bold "Decided:", a bulleted list. */
 .decided { margin: 0.5em 0 0; white-space: nowrap; }
 .decided b { font-weight: 650; }
-.read, .keep { border-radius: 0.3em; padding: 0.02em 0.22em 0.06em; margin: 0 0.02em; color: #075e48; font-weight: 650;
-  background: linear-gradient(rgba(16, 163, 127, 0.22), rgba(16, 163, 127, 0.22)) 0 0 / 0% 100% no-repeat; }
-.decided[data-read] .read, .added[data-settled] .keep { background-size: 100% 100%; }
-.lines { margin: 0.6em 0 0; padding: 0; list-style: none; display: grid; gap: 0.28em; }
-.lines li { display: flex; align-items: baseline; white-space: nowrap; }
-.day { flex: none; width: 2.6em; font-weight: 600; color: #8a7d70; font-size: 0.94em; }
+.lines { margin: 0.55em 0 0; padding: 0 0 0 1.15em; display: grid; gap: 0.3em; }
+.lines li { position: relative; white-space: nowrap; }
+.lines li::marker { color: #b3a493; }
 
-/* ChatGPT's dinner: its room is held from the start (nothing moves when it lands). It writes itself in
-   under the green mark, left to right; "Added by ChatGPT" follows on its own line under it, as every
-   mark on the page does; then the mark settles to the soft tint the app leaves. */
-.addedCol { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em; }
-.wipe { display: inline-flex; clip-path: inset(-0.4em 100% -0.4em 0); }
+/* ChatGPT's dinner, marked as the app marks an AI's lines (Pane/Editor/DecoratedLayoutFragment.swift):
+   a marker run behind the words, 24% of the amber accent (#d96a06) over the page, radius 5 pt, starting a
+   little before the words; and a 2 pt tick in the accent, 8 pt left of the text column (here, of the
+   bullet). Its room is held from the start, so nothing moves when it lands: it writes itself in, left
+   to right, with its mark; then "Edited by ChatGPT" follows under the list, in the app's amber ink. */
+.wipe { display: inline-flex; clip-path: inset(-0.4em 100% -0.4em -0.4em); }
 .added[data-in] .wipe { clip-path: inset(-0.4em -0.6em -0.4em -0.6em); }
-.addedText { position: relative; z-index: 0; font-weight: 600; }
-.by { display: inline-flex; align-items: center; gap: 0.38em; font-size: max(12px, 0.76em); font-weight: 650; color: #0b7a5e; opacity: 0; translate: -0.3em 0; }
-.added[data-by] .by { opacity: 1; translate: none; }
-.byMark { flex: none; display: grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: #10a37f; }
-.byMark svg { width: 0.85em; height: 0.85em; }
+.run { padding: 0.04em 0.26em 0.08em; margin: 0 -0.26em; border-radius: 0.3em; background: #f6dabe; font-weight: 500; }
+.tick { position: absolute; left: calc(-1.15em - 10px); top: 0.12em; bottom: 0.12em; width: 2px; border-radius: 1px; background: #d96a06; opacity: 0; }
+.added[data-in] .tick { opacity: 1; }
+.by { display: flex; align-items: center; gap: 0.4em; margin: 0.75em 0 0; font-size: max(12.5px, 0.8em); font-weight: 600; color: #a85700; opacity: 0; translate: 0 0.25em; }
+.by[data-in] { opacity: 1; translate: none; }
+.by svg { flex: none; width: 1.05em; height: 1.05em; }
 
 @media (prefers-reduced-motion: no-preference) {
   .ask { transition: opacity 0.35s ease-out, translate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); }
-  .read, .keep { transition: background-size 0.5s cubic-bezier(0.6, 0, 0.3, 1); }
   .wipe { transition: clip-path 0.9s 0.05s cubic-bezier(0.55, 0, 0.3, 1); }
+  .tick { transition: opacity 0.25s ease-out; }
   .by { transition: opacity 0.3s ease-out, translate 0.4s cubic-bezier(0.2, 0.9, 0.3, 1); }
 }
 
@@ -70,7 +70,7 @@
   .group { position: relative; left: auto; top: auto; width: auto; translate: none; margin: 0 22px; padding: 30px 0 4px; font-size: 16px; }
   /* The request stays 22 px in from the screen's edge (the note's own edge). */
   .ask { margin: 0 0 -8px auto; font-size: 13px; }
-  .note { font-size: 16px; line-height: 1.38; padding: 15px 18px 15px; border-radius: 16px; }
+  .note { font-size: 16px; line-height: 1.38; padding: 16px 18px 16px; border-radius: 12px; }
   .title { font-size: 1.45em; }
   .decided { margin-top: 0.45em; }
   .lines { margin-top: 0.5em; }

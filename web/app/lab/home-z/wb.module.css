@@ -177,8 +177,8 @@
    toolbar is the app's, from an active window (council-wb r16): white capsules 36px tall, icons on a
    35.5px pitch in #262626, Select in #a85700, 8px between capsules, 8px from the top and right of the
    window. The zoom: 12px, #6a6a6a, at the bottom right. ── */
-.dCanvas { --accent: #d96a06; position: relative; min-height: 0; border-radius: 22px; background: #fff; color: #262626; container-type: size; overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(10, 30, 20, 0.28), 0 2px 4px rgba(0, 20, 10, 0.14), 0 34px 64px -30px rgba(0, 15, 8, 0.7); }
+.dCanvas { --accent: #d96a06; position: relative; min-height: 0; border-radius: var(--frameR, 14px); background: #fff; color: #262626; container-type: size; overflow: hidden;
+  box-shadow: var(--frameShadow); }
 .dTools { position: absolute; z-index: 1; top: 12px; right: 12px; display: flex; gap: 8px; }
 .dTools[data-set="narrow"] { display: none; }
 .cap { display: flex; align-items: center; height: 36px; padding: 0 2px; border-radius: 99px; background: #fff;
@@ -211,7 +211,7 @@
 .dZoom { position: absolute; right: 24px; bottom: 18px; font: 500 12px/1 var(--sans); font-variant-numeric: tabular-nums; color: #6a6a6a; }
 
 @media (max-width: 760px) {
-  .dCanvas { container-type: normal; border-radius: 18px; padding: 54px 12px 30px; }
+  .dCanvas { container-type: normal; border-radius: 12px; padding: 54px 12px 30px; }
   .dTools { top: 10px; right: 10px; gap: 6px; }
   .dTools[data-set="mac"] { display: none; }
   .dTools[data-set="narrow"] { display: flex; }

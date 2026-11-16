@@ -8,37 +8,34 @@ import { useArt } from "./art";
 import h from "./heroArt.module.css";
 
 // The first screen's picture, option C (round 19): one weekly note on one person's table, and the
-// mechanism in one moment: the AI reads what you decided, and what it adds keeps to it. This file and
+// mechanism in one moment: you ask ChatGPT, and what it adds keeps to what you decided. This file and
 // heroArt.module.css are the whole of it, so another option can replace both without touching the rest
 // of the page (Story.tsx places <HeroArt /> in the torn panel).
 //
-// One idea, all dinner. The etched still life is the picture: its objects frame an open middle, and the
-// note lies in it, with air around it, large enough that the product reads before the still life. The
-// note is "This week": what you decided ("Decided: 20-minute weeknight dinners."), Tuesday's dinner, and
-// Thursday's, which ChatGPT just added ("Lemon chicken · 20 min", "Added by ChatGPT" under it). The
-// decision's "20-minute" and the new line's "20 min" wear the same teal tint, so the link reads without
-// motion. Over the note's corner, small and labelled, is what you asked in ChatGPT: "Add a dinner for
-// Thursday." The moment, once, on load: the request appears; the decision's "20-minute" takes the tint
-// (it read it); then Thursday's line writes itself in, its "20 min" takes the same tint, and "Added by
-// ChatGPT" follows. About two and a half seconds, no loop, and nothing else moves. With Reduce Motion,
-// `?t` or `?one=<s>`, it shows that time's state (the end, for the first two). On a phone: the request
-// and the whole note, above the fold. Round 22: `?art=paper-a|paper-b` lays a cut-paper table under it
-// instead of the etching (art.ts), with the same open middle, so the note lies where it did.
+// The note is "This week", as Pinto shows a note: the title, "**Decided:** 20-minute weeknight
+// dinners.", and a list of dinners. Over its corner, small and labelled, what you asked in ChatGPT:
+// "Add a dinner for Thursday." On load, once: the request appears; Thursday's line writes itself in,
+// "Thu: Lemon chicken · 20 min", marked the way the app marks an AI's lines (round 23): a marker run
+// behind the words, 24% of the amber accent over the page, and a 2 pt amber tick 8 pt left of the text
+// (Pane/Editor/DecoratedLayoutFragment.swift); then "Edited by ChatGPT" in the app's amber ink, the
+// words the app gives a note an AI changed (AIEdit.listLine). No Undo here: the page shows it once, in
+// Your AI. About two and a half seconds, no loop. With Reduce Motion, `?t` or `?one=<s>`, it shows that
+// time's state (the end, for the first two). On a phone: the request and the whole note, above the fold.
+// Round 22: `?art=` picks the table under it (art.ts); paper-b is the default since round 23.
 
-/** The moment's times (s): the request, the decision read (its tint), the line written in, its "20 min"
- *  tinted to match (`settle`), then "Added by ChatGPT". */
-const ONE = { ask: 0.3, read: 0.8, land: 1.3, settle: 2.15, by: 2.4, end: 2.9 };
+/** The moment's times (s): the request, the line written in with its mark, then "Edited by ChatGPT". */
+const ONE = { ask: 0.3, land: 1.0, by: 2.1, end: 2.6 };
 
-type St = { ask: boolean; read: boolean; land: boolean; by: boolean; settle: boolean };
-const START: St = { ask: false, read: false, land: false, by: false, settle: false };
-const same = (a: St, b: St) => a.ask === b.ask && a.read === b.read && a.land === b.land && a.by === b.by && a.settle === b.settle;
+type St = { ask: boolean; land: boolean; by: boolean };
+const START: St = { ask: false, land: false, by: false };
+const same = (a: St, b: St) => a.ask === b.ask && a.land === b.land && a.by === b.by;
 
 export function HeroArt() {
   const [st, setSt] = useState<St>(START);
   useShow({
     name: "one", end: ONE.end,
     apply: (t) => {
-      const next: St = { ask: t >= ONE.ask, read: t >= ONE.read, land: t >= ONE.land, by: t >= ONE.by, settle: t >= ONE.settle };
+      const next: St = { ask: t >= ONE.ask, land: t >= ONE.land, by: t >= ONE.by };
       setSt((o) => (same(o, next) ? o : next));
     },
   });
@@ -55,21 +52,19 @@ export function HeroArt() {
             <span className={h.askWho} aria-hidden="true"><span className={h.askMark}><AIGlyph name="openai" size={12} color="#fff" /></span>ChatGPT</span>
             <span className={h.askText} aria-hidden="true">{N.ask}</span>
           </div>
-          {/* The week's note: what you decided, then the dinners. ChatGPT's is the one marked, and it
-              keeps to the decision: 20 minutes. */}
+          {/* The week's note, as Pinto shows it: what you decided, then the dinners. ChatGPT's line is
+              marked as the app marks an AI's lines, and keeps to the decision: 20 minutes. */}
           <div className={h.note} data-card>
             <p className={h.title}>{N.title}</p>
-            <p className={h.decided} data-read={st.read || undefined}><b>Decided:</b> {lead}<span className={h.read}>{key}</span>{rest}</p>
+            <p className={h.decided}><b>Decided:</b> {lead}{key}{rest}</p>
             <ul className={h.lines}>
-              <li><span className={h.day}>{N.dinner[0]}</span>{N.dinner[1]}</li>
-              <li className={h.added} data-in={st.land || undefined} data-by={st.by || undefined} data-settled={st.settle || undefined}>
-                <span className={h.day}>{N.added[0]}</span>
-                <span className={h.addedCol}>
-                  <span className={h.wipe}><span className={h.addedText}>{N.added[1]}<span className={h.keep}>{N.added[2]}</span></span></span>
-                  <span className={h.by}><span className={h.byMark}><AIGlyph name="openai" size={10} color="#fff" /></span>Added by ChatGPT</span>
-                </span>
+              <li>{N.dinner[0]}: {N.dinner[1]}</li>
+              <li className={h.added} data-in={st.land || undefined}>
+                <i className={h.tick} aria-hidden="true" />
+                <span className={h.wipe}><span className={h.run}>{N.added[0]}: {N.added[1]}{N.added[2]}</span></span>
               </li>
             </ul>
+            <p className={h.by} data-in={st.by || undefined}><AIGlyph name="openai" size={13} color="#1d1b19" />Edited by ChatGPT</p>
           </div>
         </div>
       </div>

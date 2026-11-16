@@ -11,11 +11,20 @@ export const metadata: Metadata = {
 // its card from the first screen and leaving its tab docked under the header. See Story.tsx.
 const display = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], axes: ["opsz"], variable: "--s-display", display: "swap" });
 
-/** Round 21's variants: `?wb=a|b|c|d` (the whiteboard chapter), `?ai=a|b|c` (Your AI), `?hero=a|b|c`
- *  (the first screen). Each defaults to 0, round 19 as it was. */
-const pick = (v: string | string[] | undefined) => (v === "a" || v === "b" || v === "c" ? v : "0");
-const pickWb = (v: string | string[] | undefined) => (v === "d" ? v : pick(v));
+/** Round 23: the picks are the page with no query string: hero c (with the paper-b art, art.ts),
+ *  whiteboard d, Your AI b. The older variants stay reachable: `?hero=0|a|b`, `?wb=0|a|b|c`,
+ *  `?ai=0|a|c`, `?art=0|paper-a`. `?collab=1` adds the sharing chapter (collaboration ships in 1.4). */
+const pick = <T extends string>(v: string | string[] | undefined, ok: readonly T[], fallback: T): T =>
+  typeof v === "string" && (ok as readonly string[]).includes(v) ? (v as T) : fallback;
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const q = await searchParams;
-  return <Story className={display.variable} wb={pickWb(q.wb)} ai={pick(q.ai)} hero={pick(q.hero)} />;
+  return (
+    <Story
+      className={display.variable}
+      hero={pick(q.hero, ["0", "a", "b", "c"] as const, "c")}
+      wb={pick(q.wb, ["0", "a", "b", "c", "d"] as const, "d")}
+      ai={pick(q.ai, ["0", "a", "b", "c"] as const, "b")}
+      collab={q.collab === "1"}
+    />
+  );
 }

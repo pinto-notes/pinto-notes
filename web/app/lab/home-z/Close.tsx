@@ -1,39 +1,51 @@
-import { AIGlyph } from "@/lib/ai-glyphs";
 import c from "./close.module.css";
 
-// Round 21: the close is one short sheet on the table (the stats sheet is gone). "Pinto Notes is free.",
-// the download, what it needs, and four true facts, each a few words beside a small glyph:
-// - Apple Notes come over: the Mac reads them straight from Notes (Pane/Views/ImportSources.swift).
-// - Mac and iPhone: the two apps, synced (deployment targets macOS 26 and iOS 26).
-// - ChatGPT and Claude: they connect to Pinto Notes and read and write your notes.
-// - The study (/blog/ai-memory-with-notes): in a new chat, Claude answered 18% of questions about
-//   months of past chats right; with Pinto Notes connected, 82.5%. The glyph's two bars are those two
-//   numbers to scale.
+// Round 23: the close is one short sheet on the desk. "Pinto Notes is free.", the download, what it
+// needs, then what a careful person checks before installing, in round 19's short lines, and the study
+// once on the page, as a small labelled comparison. Each line is checked:
+// - Syncs Mac and iPhone, works offline: web/app/help/questions.ts ("Does it work offline?": your
+//   notes are on your device too; edits sync when you're back online).
+// - Encrypted, stored in the EU: /privacy-security (encrypted on your device before they're uploaded;
+//   stored at Supabase in Frankfurt, Germany).
+// - Brings over your Apple Notes: the Mac reads them straight from Notes (Pane/Views/ImportSources.swift).
+// - Open source: /privacy-security ("The apps, the server and this website are open source").
+// - The study (/blog/ai-memory-with-notes): Claude Haiku 5.5 on LoCoMo, 1,540 questions about months of
+//   earlier chats, asked in a new chat: 18% right with nothing else, 82.5% with Pinto Notes connected.
+//   The bars are those two numbers to scale.
 
-const Glyph = {
-  apple: <svg viewBox="0 0 18 18"><path d="M9 2.5v8M5.6 7.4 9 10.8l3.4-3.4" /><path d="M2.5 11v2.3c0 1.2.9 2.2 2.2 2.2h8.6c1.3 0 2.2-1 2.2-2.2V11" /></svg>,
-  devices: (
-    <svg viewBox="0 0 24 18">
-      <rect x="1.8" y="2.5" width="14.4" height="9.6" rx="1.4" /><path d="M.8 14.6h16.6" />
-      <rect className={c.cut} x="15.6" y="5.6" width="7.2" height="11.6" rx="1.7" /><path d="M18.4 15h1.6" />
-    </svg>
-  ),
-  study: (
-    <svg viewBox="0 0 20 20" className={c.bars}>
-      <rect className={c.barLo} x="3" y={18 - 17 * 0.18} width="6" height={17 * 0.18} rx="1" />
-      <rect className={c.barHi} x="11" y={18 - 17 * 0.825} width="6" height={17 * 0.825} rx="1" />
-    </svg>
-  ),
-};
+const GITHUB = "https://github.com/pinto-notes/pinto-notes";
 
-/** Four true facts in a row, each a few words beside its glyph. */
-export function Facts() {
+/** The four lines a careful person checks, in plain words. */
+export function Trust() {
   return (
-    <ul className={c.facts}>
-      <li><span className={c.tile}>{Glyph.apple}</span><span>Bring your Apple Notes over</span></li>
-      <li><span className={c.tile}>{Glyph.devices}</span><span>On Mac and iPhone, in sync</span></li>
-      <li><span className={`${c.tile} ${c.marks}`}><AIGlyph name="openai" size={16} color="#24170d" /><AIGlyph name="claude" size={16} color="#d97757" /></span><span>Works with ChatGPT and Claude</span></li>
-      <li><span className={c.tile}>{Glyph.study}</span><a href="/blog/ai-memory-with-notes">The study: 82.5% right with Pinto, 18% without</a></li>
+    <ul className={c.trust}>
+      <li>Syncs your Mac and iPhone. Works offline.</li>
+      <li>Encrypted, and stored in the EU.</li>
+      <li>Brings over your Apple Notes.</li>
+      <li>Open source. <a href={GITHUB} target="_blank" rel="noopener noreferrer">Check the code</a></li>
     </ul>
+  );
+}
+
+const STUDY = [
+  { who: "Claude in a new chat", v: 18, shown: "18%" },
+  { who: "With Pinto Notes connected", v: 82.5, shown: "82.5%", pinto: true },
+] as const;
+
+/** The study, once: what was measured, the two results as bars to scale, and the link. */
+export function Study() {
+  return (
+    <figure className={c.study}>
+      <figcaption className={c.studyHead}>Questions about months of past chats, answered right</figcaption>
+      <dl className={c.bars}>
+        {STUDY.map((r) => (
+          <div key={r.who} className={c.row} data-pinto={"pinto" in r || undefined}>
+            <dt>{r.who}</dt>
+            <dd style={{ "--v": r.v / 100 } as React.CSSProperties}><i aria-hidden="true" /><b>{r.shown}</b></dd>
+          </div>
+        ))}
+      </dl>
+      <p className={c.studyFoot}>Claude Haiku 5.5, 1,540 questions. <a href="/blog/ai-memory-with-notes">Read the study</a></p>
+    </figure>
   );
 }
