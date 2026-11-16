@@ -1881,4 +1881,47 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(server.snapshots(of: note.id).count == snapshots, "no snapshot without Milk")
     }
 
+    /// Text that doesn't compress, so its sealed change is bigger than the server takes.
+    static func paste(_ count: Int) -> String {
+        var bytes = [UInt8](repeating: 0, count: count)
+        for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+        return Data(bytes).base64EncodedString()
+    }
+
+    /// collab-sol 6, collab-opus 5: a paste too big to go up as one change is carried by a snapshot.
+    /// That was owed only in memory, and the note said it was synced: quit before the snapshot went
+    /// up, and the paste never reached anyone. The debt is stored, the note says it isn't synced,
+    /// and the snapshot goes once the app opens again.
+    @Test func aPasteTooBigToSendIsUnsentUntilASnapshotCarriesItAfterARelaunchToo() async throws {
+        CollabSession.snapshotQuiet = 0.05
+        let emil = try device(owner)
+        let (note, session) = try await shared("Notes\n", on: emil)
+        // A change first, so the snapshot has a point of its own (the server keeps one per point and key).
+        type("Plan\n", in: session)
+        await waitUntil { session.isSent }
+        emil.transport.offline = true
+        let paste = Self.paste(300_000)
+        type(paste, in: session)
+        await waitUntil { session.unsent == 0 }
+        #expect(session.unsent == 0, "too big to go up as a change")
+        #expect(session.owesSnapshot)
+        #expect(!session.isSent, "not synced until a snapshot carries it")
+
+        // The app quits before the snapshot goes, and opens again online.
+        emil.library.closeAll()
+        try emil.context.save()
+        let again = try device(owner, container: emil.container)
+        let stored = try #require(again.context.note(note.id))
+        #expect(stored.sharedDocument?.owesSnapshot == true)
+        // The next look at memberships opens it, to send what it owes.
+        await again.library.reconcile(try await again.transport.memberships())
+        let reopened = try #require(again.library.sessions[note.id])
+        await waitUntil { reopened.isSent }
+        #expect(reopened.isSent && !reopened.owesSnapshot)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let theirs = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        #expect(theirs.body == "Notes\nPlan\n" + paste)
+    }
+
 }

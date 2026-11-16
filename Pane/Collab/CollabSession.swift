@@ -171,8 +171,14 @@ final class CollabSession {
     static var snapshotRetryAfter: Duration = .seconds(20)
     /// When a change from someone else last arrived: a snapshot waits for a quiet moment.
     @ObservationIgnored private var lastArrival = Date.distantPast
-    /// A change too big to send on its own is in the document only: the next snapshot carries it.
-    @ObservationIgnored private var needsSnapshot = false
+    /// A snapshot is owed: a change too big to send on its own is in the document only (the next
+    /// snapshot carries it), or the note has a new key that devices starting out need one under.
+    /// Stored with the document (`SharedDocument.owesSnapshot`), so it's paid after a relaunch too,
+    /// and until it is the note isn't synced (collab-sol 6, collab-opus 5).
+    private var needsSnapshot: Bool {
+        get { !isClosed && record.owesSnapshot }
+        set { if !isClosed { record.owesSnapshot = newValue } }
+    }
     /// Changes from the server that didn't open here, by id: sealed with a key this device doesn't
     /// hold yet (someone was removed, and the membership check hasn't brought the new key), or
     /// that didn't apply. Tried again when a key arrives (`reseal`), and asked for again by every
@@ -292,10 +298,14 @@ final class CollabSession {
         self.me = me
         nameSource = name
         text = (try? doc.text(obj: body)) ?? ""
-        isSent = record.outbox.isEmpty
+        isSent = record.outbox.isEmpty && !record.owesSnapshot
         // Changes typed here before (offline, then the app quit) still wait.
         if !isSent { waitingSince = .now }
     }
+
+    /// Nothing of yours waits: no change to send, and no snapshot owed (one carries a change too big
+    /// to send on its own).
+    private var allSent: Bool { record.outbox.isEmpty && !record.owesSnapshot }
 
     /// Every change to `isSent`, so a wait is timed from its start to the moment it ends.
     private func setSent(_ sent: Bool) {
@@ -841,11 +851,13 @@ final class CollabSession {
     /// Sends the changes waiting to go up, oldest first, one at a time. Offline (or any failure
     /// that may pass), they stay, saved, and go when the server answers again.
     func flush() {
-        guard !isClosed, !sending, !record.outbox.isEmpty else { setSent(record.outbox.isEmpty); return }
+        guard !isClosed else { return }
+        guard !sending, !record.outbox.isEmpty else { setSent(allSent); return }
         guard record.canEdit else {
             // A viewer's edits are refused by the server: they stay on this device only until
             // the document is opened again.
             record.pending = []
+            needsSnapshot = false
             setSent(true)
             return
         }
@@ -855,7 +867,7 @@ final class CollabSession {
             let outcome = await sendPending()
             sending = false
             guard !isClosed else { return }
-            setSent(record.pending.isEmpty)
+            setSent(allSent)
             saveSoon()
             switch outcome {
             case .done:
@@ -906,6 +918,7 @@ final class CollabSession {
                 case .readOnly:
                     setRole("viewer")
                     record.pending = []
+                    needsSnapshot = false
                     return .stop
                 case .notMember:
                     onRemoved?()
@@ -1021,6 +1034,7 @@ final class CollabSession {
             record.snapshotUpto = max(record.snapshotUpto, upto)
             record.sinceSnapshot = 0
             needsSnapshot = false
+            setSent(allSent)
             compact()
             saveSoon()
         } catch {
@@ -1032,18 +1046,21 @@ final class CollabSession {
     /// The note has a new key: a snapshot under it is needed now, because devices that start out
     /// (and people who join) have only the new key. Written at once, and tried again until it's in.
     func requireSnapshot() async {
+        guard !isClosed, record.canEdit else { return }
         needsSnapshot = true
+        setSent(false)
+        saveSoon()
         await writeSnapshot()
     }
 
     /// A needed snapshot that didn't go up goes again a little later, until one does.
     private func retrySnapshotLater() {
-        guard needsSnapshot, !isClosed, snapshotRetry == nil else { return }
+        guard !isClosed, needsSnapshot, snapshotRetry == nil else { return }
         snapshotRetry = Task { [weak self] in
             try? await Task.sleep(for: Self.snapshotRetryAfter)
             guard let self, !Task.isCancelled else { return }
             snapshotRetry = nil
-            guard needsSnapshot, !isClosed else { return }
+            guard !isClosed, needsSnapshot else { return }
             await writeSnapshot()
         }
     }

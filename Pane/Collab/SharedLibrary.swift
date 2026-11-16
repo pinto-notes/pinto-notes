@@ -458,6 +458,10 @@ final class SharedLibrary {
                 if row.epoch > session.epoch { await refreshKey(session, row: row) }
             } else if note.sharedDocument == nil {
                 await ensureDocument(note)
+            } else if note.sharedDocument?.owesSnapshot == true {
+                // A snapshot owed from before the app last quit (a paste too big to send, a new
+                // key): the note opens here to send it.
+                session(for: note)
             }
         }
         // Joined on another device, whose pointer hasn't reached this one yet. Your own notes
@@ -650,7 +654,7 @@ final class SharedLibrary {
         let session = sessions[note.id]
         guard session != nil || note.sharedDocument != nil else { return nil }
         let text = session?.text ?? note.sharedDocument?.storedText() ?? ""
-        let typed = session.map { $0.typedHere || !$0.isSent } ?? !(note.sharedDocument?.outbox.isEmpty ?? true)
+        let typed = session.map { $0.typedHere || !$0.isSent } ?? note.sharedDocument.map { !$0.outbox.isEmpty || $0.owesSnapshot } ?? false
         let blank = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         // The copy goes where the note was, unless that was Shared with me (it's not shared).
         let sharedWithMe = dataKey().map { SharedNotes.sharedWithMeID(dataKey: $0) }
