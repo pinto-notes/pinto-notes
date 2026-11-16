@@ -92,7 +92,10 @@ class Query {
       if (v instanceof Query) {
         text += v.build(params);
       } else {
-        params.push(v);
+        // As postgres.js sends it: a parameter cast to json or jsonb is typed so by the server, and
+        // postgres.js then JSON-encodes the value, so a string arrives as a JSON string, not as the
+        // JSON it holds. Bind the text with ::text::jsonb (2026-11-16).
+        params.push(typeof v === "string" && /^::jsonb?\b/.test(this.strings[i + 1]) ? JSON.stringify(v) : v);
         text += `$${params.length}`;
       }
       text += this.strings[i + 1];
