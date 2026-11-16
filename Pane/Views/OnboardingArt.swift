@@ -21,7 +21,7 @@ enum OnboardingArt {
 
     static let key = "onboardingArtSet"
 
-    #if DEBUG
+    #if DEBUG || QA
     /// Tests: a set to use, ahead of everything else.
     nonisolated(unsafe) static var forced: Set?
     #endif

@@ -377,8 +377,8 @@ final class NewCanvas {
 /// What a board holds, for its row in the list (whiteboard council, round 1: the row said "No
 /// additional text" over a whole flowchart): its words for the preview and search, and its shapes
 /// for a small picture. Worked out from the scene's bytes, once per change.
-struct CanvasSketch: Equatable {
-    struct Shape: Equatable {
+struct CanvasSketch: Equatable, Sendable {
+    struct Shape: Equatable, Sendable {
         var kind: String
         var frame: CGRect
         var fill: String?
@@ -501,10 +501,86 @@ struct CanvasSketch: Equatable {
     @MainActor static func of(_ id: UUID, in store: NotePageDataStore = .shared) -> CanvasSketch? {
         guard let data = store.peek(id) else { return nil }
         if let c = cache[id], c.data == data { return c.sketch }
-        let scene = (NotePageData.decode(data)["values"] as? [String: Any])?["scene"] as? [String: Any]
-        let sketch = CanvasSketch(elements: scene?["elements"] as? [[String: Any]] ?? [])
+        let sketch = make(data)
         cache[id] = (data, sketch)
         return sketch
+    }
+
+    /// For the board's row: the sketch as it was last worked out while a newer one is on its way.
+    /// A change's sketch is worked out off the main thread (`prime`) before the list is told
+    /// (NotePageDataStore.listRevision); a row redrawn in between (its note's date moved with the
+    /// save) decoded the whole drawing on the main thread, 20 ms at 500 elements, right after each
+    /// stroke (16 November 2026).
+    @MainActor static func shown(_ id: UUID, in store: NotePageDataStore = .shared) -> CanvasSketch? {
+        guard store.peek(id) != nil else { return nil }
+        if let c = cache[id] { return c.sketch }
+        return of(id, in: store)
+    }
+
+    nonisolated static func make(_ data: Data) -> CanvasSketch { row(elements(of: data)) }
+
+    /// The elements of a board's saved scene.
+    nonisolated static func elements(of data: Data) -> [[String: Any]] {
+        let scene = (NotePageData.decode(data)["values"] as? [String: Any])?["scene"] as? [String: Any]
+        return scene?["elements"] as? [[String: Any]] ?? []
+    }
+
+    /// A row's sketch of these elements: what `of`, `shown` and `prime` keep alike.
+    nonisolated static func row(_ elements: [[String: Any]]) -> CanvasSketch { CanvasSketch(elements: elements).forRow() }
+
+    /// As much as a row's picture can show (32 to 42 points): each line's points no closer than
+    /// 1/160 of the drawing, and the largest 600 shapes and 300 words when there are more, in their
+    /// own order. The row drew every point of every stroke on the main thread each time it was
+    /// redrawn, 27 ms for a board of 500 elements a moment after each stroke (16 November 2026).
+    nonisolated func forRow() -> CanvasSketch {
+        let all = shapes + words
+        guard let first = all.first?.frame.standardized else { return self }
+        let box = all.dropFirst().reduce(first) { $0.union($1.frame.standardized) }
+        let unit = max(box.width, box.height) / 160
+        func largest(_ list: [Shape], _ most: Int) -> [Shape] {
+            guard list.count > most else { return list }
+            let sizes = list.map { max(abs($0.frame.width), abs($0.frame.height)) }
+            let cut = sizes.sorted(by: >)[most - 1]
+            // All larger than the cut, and as many the cut's size as there's room for, first ones first.
+            var ties = most - sizes.filter { $0 > cut }.count
+            return zip(list, sizes).compactMap { s, size in
+                if size > cut { return s }
+                if size == cut, ties > 0 { ties -= 1; return s }
+                return nil
+            }
+        }
+        var out = self
+        out.shapes = largest(shapes, 600).map { s in
+            guard s.points.count > 2, unit > 0 else { return s }
+            var t = s, last = s.points[0]
+            t.points = [last]
+            for p in s.points.dropFirst().dropLast() where (p.x - last.x) * (p.x - last.x) + (p.y - last.y) * (p.y - last.y) >= unit * unit {
+                t.points.append(p)
+                last = p
+            }
+            t.points.append(s.points[s.points.count - 1])
+            return t
+        }
+        out.words = largest(words, 300)
+        return out
+    }
+
+    /// Works out the sketches, and the notes their cards name (CanvasBoards), of what changed in
+    /// `store`, off the main thread, at utility priority, and keeps them.
+    @MainActor static func prime(_ ids: Set<UUID>, in store: NotePageDataStore) async {
+        struct Made: Sendable { var id: UUID; var data: Data; var sketch: CanvasSketch; var notes: Set<UUID> }
+        let work: [(UUID, Data)] = ids.compactMap { id in store.peek(id).flatMap { cache[id]?.data == $0 ? nil : (id, $0) } }
+        guard !work.isEmpty else { return }
+        let made = await Task.detached(priority: .utility) {
+            work.map { id, data in
+                let all = Self.elements(of: data)
+                return Made(id: id, data: data, sketch: Self.row(all), notes: CanvasBoards.notes(in: all))
+            }
+        }.value
+        for m in made where store.peek(m.id) == m.data {
+            cache[m.id] = (m.data, m.sketch)
+            CanvasBoards.keep(m.id, data: m.data, notes: m.notes)
+        }
     }
 }
 
@@ -534,6 +610,9 @@ enum CanvasBoards {
     }
 
     @MainActor private static var cache: [UUID: (data: Data, notes: Set<UUID>)] = [:]
+
+    /// Worked out off the main thread (CanvasSketch.prime).
+    @MainActor static func keep(_ id: UUID, data: Data, notes: Set<UUID>) { cache[id] = (data, notes) }
 
     /// The notes board `id`'s cards name, from the data store's bytes (read without watching them).
     @MainActor static func notes(onBoard id: UUID, in store: NotePageDataStore = .shared) -> Set<UUID> {

@@ -605,7 +605,7 @@ extension View {
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// The popup sheet that showed last, for tests: their windows never go on a screen there.
 @MainActor enum SheetProbe {
     static var last: String?
@@ -1413,6 +1413,7 @@ struct AppGate: View {
             DebouncedSave.flushAll()
             try? context.save()
             // The apps' data is written off the main thread: the last write lands before quitting.
+            NotePageDataWrites.finish()
             NotePageDataStore.shared.waitForSave()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in

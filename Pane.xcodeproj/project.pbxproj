@@ -700,6 +700,7 @@
 		815A3505A0A85B6330FB1B7E /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508D7FDAAB7702C132913D85 /* SignInView.swift */; };
 		815B2825F87ACCB4644BFDEB /* RichTextToMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99375A4ACF211AEE18EC4EC3 /* RichTextToMarkdown.swift */; };
 		815B83219C254D349B2E3277 /* Funnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F23D900BF7C689A4C8F231E /* Funnel.swift */; };
+		81A4573372DDB5F28BB19502 /* BoardPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC3647038DC37B8ED044A91 /* BoardPerfTests.swift */; };
 		81B6CB6F3479E2A99C3DB3B5 /* Editor in Resources */ = {isa = PBXBuildFile; fileRef = E339C4DD7B2824D0502A49D2 /* Editor */; };
 		822A6CD7825FE5883B7E88DA /* WikiTour.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1C6C37772BD09519991249 /* WikiTour.swift */; };
 		8242FE13D66FAD9749727483 /* NoteExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C274796E62FCADF3B9FB8B0 /* NoteExport.swift */; };
@@ -831,6 +832,7 @@
 		971E0B66ECC639C876852BB2 /* BoardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F29E63179AE4C64CCD89B58 /* BoardHistoryView.swift */; };
 		976C1F32ADB32D8A0146615A /* ConnectWebGuideTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A71ADD7448F96F3FFDB188 /* ConnectWebGuideTests.swift */; };
 		97BCA485122DB4D867E5EC96 /* AddDeviceSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C1097F11A537E7117D38F /* AddDeviceSnapshots.swift */; };
+		97CD01E69646471CEB769F40 /* BoardStrokeTrafficTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C6FE1B5AB122304F96CB398 /* BoardStrokeTrafficTests.swift */; };
 		97D4197989F86B76C4FD2480 /* FormatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 861593B83F34E79512C05D62 /* FormatPanel.swift */; };
 		97EDA879D7694FBEE56F05A1 /* CollabCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06388D3FCFEAEAE87C8C2620 /* CollabCryptoTests.swift */; };
 		981FDF11DD9335C98988D0A0 /* PhoneAccountButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CF6606F1D134E0CC1E52660 /* PhoneAccountButtonTests.swift */; };
@@ -1363,6 +1365,13 @@
 			remoteGlobalIDString = F2514B1ECAEBBA2BE82086C3;
 			remoteInfo = PaneWidgets;
 		};
+		968AC8BCBF1757176BFB7417 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9360ED4B9FC334BF5DE24761 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F1276C3008ED333F0323240D;
+			remoteInfo = Pane;
+		};
 		E3271F4C13F5CFACFCEB5038 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9360ED4B9FC334BF5DE24761 /* Project object */;
@@ -1795,6 +1804,7 @@
 		6BBAD3D7E5ED5CA9C34129EE /* MacImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacImportTests.swift; sourceTree = "<group>"; };
 		6BD1216B6D4DCB8FA429A9E9 /* FolderFilesMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderFilesMacShots.swift; sourceTree = "<group>"; };
 		6C62958182589C86FCC928F1 /* ThemeShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeShots.swift; sourceTree = "<group>"; };
+		6C6FE1B5AB122304F96CB398 /* BoardStrokeTrafficTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardStrokeTrafficTests.swift; sourceTree = "<group>"; };
 		6CC6AF5D341F3FEA530EC8ED /* TypedBlocksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedBlocksTests.swift; sourceTree = "<group>"; };
 		6CDCC8AFDF6EDF69C609FDEA /* world.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = world.js; sourceTree = "<group>"; };
 		6D471635BF1AC9AF5430C420 /* BestAppsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestAppsUITests.swift; sourceTree = "<group>"; };
@@ -2245,6 +2255,7 @@
 		EE3F0850899A60224D97F6FE /* CalloutShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalloutShots.swift; sourceTree = "<group>"; };
 		EE72D528EBDE663B26CDC39D /* E2EE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EE.swift; sourceTree = "<group>"; };
 		EE9F6E9ED01525D56D3BDF0F /* SlashMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashMenu.swift; sourceTree = "<group>"; };
+		EEC3647038DC37B8ED044A91 /* BoardPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardPerfTests.swift; sourceTree = "<group>"; };
 		EEF0851FCB14FCFAF85EB6EC /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
 		EF2965D35A72773FAC7DC0F7 /* MacRenderAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacRenderAuditTests.swift; sourceTree = "<group>"; };
 		EFCF2559532191C12C06E031 /* ImportSheetSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSheetSnapshots.swift; sourceTree = "<group>"; };
@@ -2273,6 +2284,7 @@
 		F66C9398AFFB4C2850E7BD3E /* NoteOpenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteOpenTests.swift; sourceTree = "<group>"; };
 		F684404E8B5479D1DF1DFEFD /* ColumnsLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnsLayout.swift; sourceTree = "<group>"; };
 		F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneFolderTapTests.swift; sourceTree = "<group>"; };
+		F72BD9E57D4AB5AB16236475 /* PaneBench.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PaneBench.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F7306680E0E335C07172C36F /* ChecklistLookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistLookTests.swift; sourceTree = "<group>"; };
 		F743BED91F9AD58A3BFA6CCB /* LinkPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPolicy.swift; sourceTree = "<group>"; };
 		F760CF7B8C66F8A3AD1A896E /* router.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = router.js; sourceTree = "<group>"; };
@@ -2393,6 +2405,7 @@
 			isa = PBXGroup;
 			children = (
 				DD3E85445C5520F24FAA2DD1 /* Pane.app */,
+				F72BD9E57D4AB5AB16236475 /* PaneBench.xctest */,
 				529388344853209DFB22B984 /* PaneDirect.app */,
 				E8FEA213572C6D1C3F514576 /* PaneShare.appex */,
 				2E2167FA347940753904964C /* PaneTests.xctest */,
@@ -3007,6 +3020,7 @@
 				BC07EB6083A68EC538F40B48 /* BoardCommentPhoneTests.swift */,
 				8CF13B6573F80C4353C9657A /* BoardCommentsCanvasTests.swift */,
 				038FC3C4C2FB1904FBC6D2F4 /* BoardEmilFixesTests.swift */,
+				6C6FE1B5AB122304F96CB398 /* BoardStrokeTrafficTests.swift */,
 				0B2965B65AD833118261881C /* BundleRenameTests.swift */,
 				1D8FCB6149FD618F2DDC1846 /* CalloutsTests.swift */,
 				DE07A3567904E1EFD71A1CA0 /* CanvasLibrarySyncTests.swift */,
@@ -3238,6 +3252,14 @@
 			path = PaneWidgets;
 			sourceTree = "<group>";
 		};
+		A69EAF68CF1985FD18370370 /* PaneBench */ = {
+			isa = PBXGroup;
+			children = (
+				EEC3647038DC37B8ED044A91 /* BoardPerfTests.swift */,
+			);
+			path = PaneBench;
+			sourceTree = "<group>";
+		};
 		AF489D245E2E747C33A5983F /* Editor */ = {
 			isa = PBXGroup;
 			children = (
@@ -3393,6 +3415,7 @@
 				C6A87803A3345450A01A5B9F /* docs */,
 				9E534066AD2DB55A1D218FC3 /* Packages */,
 				A20EF371F10FDC5EC099E538 /* Pane */,
+				A69EAF68CF1985FD18370370 /* PaneBench */,
 				4C92237E953FE5587E3ED9EF /* PaneShare */,
 				8FE159B9DD6C403A6275906B /* PaneTests */,
 				F7DB3EBBA50292E2665B6046 /* PaneUITests */,
@@ -3573,6 +3596,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		274294E0AC68AC2D51BF5B5E /* PaneBench */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CDA5D65A6983178E6E45AA94 /* Build configuration list for PBXNativeTarget "PaneBench" */;
+			buildPhases = (
+				97C1ECB7BBCE7C733B5ADE0C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9665E251A093FD8191B42795 /* PBXTargetDependency */,
+			);
+			name = PaneBench;
+			packageProductDependencies = (
+			);
+			productName = PaneBench;
+			productReference = F72BD9E57D4AB5AB16236475 /* PaneBench.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		95A1FF79FF4D61A93B7A37C6 /* PaneTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 51027EBCA971B310A0D0E40A /* Build configuration list for PBXNativeTarget "PaneTests" */;
@@ -3706,6 +3747,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					274294E0AC68AC2D51BF5B5E = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
 					95A1FF79FF4D61A93B7A37C6 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
@@ -3759,6 +3804,7 @@
 				9CA0415C39386C7C25D6E63C /* PaneShare */,
 				F2514B1ECAEBBA2BE82086C3 /* PaneWidgets */,
 				95A1FF79FF4D61A93B7A37C6 /* PaneTests */,
+				274294E0AC68AC2D51BF5B5E /* PaneBench */,
 				BC7E18DA4F36717AE7E68E54 /* PaneUITests */,
 			);
 		};
@@ -4163,6 +4209,7 @@
 				2D7AD7FD456FC1AF68C3FFA2 /* BoardEmilFixesTests.swift in Sources */,
 				294D82F20555FF87822A2063 /* BoardFollowTests.swift in Sources */,
 				D86C4831ABE28B16275F9095 /* BoardShareTests.swift in Sources */,
+				97CD01E69646471CEB769F40 /* BoardStrokeTrafficTests.swift in Sources */,
 				B0F9B97CB09331CD8D403B4C /* BoardSyncPictureTests.swift in Sources */,
 				D227A75A1CFE66178A1E1BAD /* BoardTeamTests.swift in Sources */,
 				2B4B4DD1E7CE7B33BFD39A6E /* BoardWebLiveTests.swift in Sources */,
@@ -4840,6 +4887,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		97C1ECB7BBCE7C733B5ADE0C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81A4573372DDB5F28BB19502 /* BoardPerfTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F46352C92ADFA33A8B2D8357 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -5214,6 +5269,11 @@
 			target = 9CA0415C39386C7C25D6E63C /* PaneShare */;
 			targetProxy = E3271F4C13F5CFACFCEB5038 /* PBXContainerItemProxy */;
 		};
+		9665E251A093FD8191B42795 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F1276C3008ED333F0323240D /* Pane */;
+			targetProxy = 968AC8BCBF1757176BFB7417 /* PBXContainerItemProxy */;
+		};
 		DFBBBFB48003D6425A7BF559 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			platformFilter = ios;
@@ -5289,6 +5349,8 @@
 				);
 				PANE_MAC_ENTITLEMENTS = "Pane-mac-direct.entitlements";
 				PANE_PRODUCT_NAME = "Pinto Notes";
+				PANE_TEAM_CONDITION_NO = "";
+				PANE_TEAM_CONDITION_YES = TEAM_BUILD;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PANE_BUNDLE_ID)";
 				PRODUCT_MODULE_NAME = Pane;
 				PRODUCT_NAME = "$(PANE_PRODUCT_NAME)";
@@ -5421,6 +5483,28 @@
 			};
 			name = Release;
 		};
+		452D33524063CA4392BF6707 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.emilwagman.PaneBench;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pane.app/Pane";
+				"TEST_HOST[sdk=macosx*]" = "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane";
+			};
+			name = Release;
+		};
 		49F76BACB9D794617AB5FC34 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 52D997E7DDEDD95A01EC24BA /* Backend.xcconfig */;
@@ -5440,6 +5524,8 @@
 				);
 				PANE_MAC_ENTITLEMENTS = "Pane-mac.entitlements";
 				PANE_PRODUCT_NAME = Pane;
+				PANE_TEAM_CONDITION_NO = "";
+				PANE_TEAM_CONDITION_YES = TEAM_BUILD;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PANE_BUNDLE_ID)";
 				PRODUCT_MODULE_NAME = Pane;
 				PRODUCT_NAME = "$(PANE_PRODUCT_NAME)";
@@ -5448,7 +5534,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) COLLAB_AUTOMERGE";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) COLLAB_AUTOMERGE $(PANE_TEAM_CONDITION_$(PANE_TEAM_BUILD))";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -5497,6 +5583,28 @@
 			};
 			name = Release;
 		};
+		9308A70A4D10E5346E7C3289 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.emilwagman.PaneBench;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Pane.app/Pane";
+				"TEST_HOST[sdk=macosx*]" = "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane";
+			};
+			name = Debug;
+		};
 		C35D72893FFD1217CAECD3AE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 52D997E7DDEDD95A01EC24BA /* Backend.xcconfig */;
@@ -5517,6 +5625,8 @@
 				);
 				PANE_MAC_ENTITLEMENTS = "Pane-mac-direct.entitlements";
 				PANE_PRODUCT_NAME = "Pinto Notes";
+				PANE_TEAM_CONDITION_NO = "";
+				PANE_TEAM_CONDITION_YES = TEAM_BUILD;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PANE_BUNDLE_ID)";
 				PRODUCT_MODULE_NAME = Pane;
 				PRODUCT_NAME = "$(PANE_PRODUCT_NAME)";
@@ -5635,6 +5745,8 @@
 				);
 				PANE_MAC_ENTITLEMENTS = "Pane-mac.entitlements";
 				PANE_PRODUCT_NAME = Pane;
+				PANE_TEAM_CONDITION_NO = "";
+				PANE_TEAM_CONDITION_YES = TEAM_BUILD;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PANE_BUNDLE_ID)";
 				PRODUCT_MODULE_NAME = Pane;
 				PRODUCT_NAME = "$(PANE_PRODUCT_NAME)";
@@ -5643,7 +5755,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) COLLAB_AUTOMERGE";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) COLLAB_AUTOMERGE $(PANE_TEAM_CONDITION_$(PANE_TEAM_BUILD))";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -5701,6 +5813,15 @@
 			buildConfigurations = (
 				88A62E6BC101E54144FE107A /* Debug */,
 				034EE5D7CD4F231A8CC7B1CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CDA5D65A6983178E6E45AA94 /* Build configuration list for PBXNativeTarget "PaneBench" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9308A70A4D10E5346E7C3289 /* Debug */,
+				452D33524063CA4392BF6707 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

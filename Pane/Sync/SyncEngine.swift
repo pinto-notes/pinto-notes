@@ -283,7 +283,7 @@ final class SyncEngine {
             try ensure(sealer, gen)
             await pushPages(client, sealer: sealer)
             try ensure(sealer, gen)
-            await pushPageData(client, sealer: sealer)
+            await pushPageData(client, sealer: sealer, gen: gen)
             try ensure(sealer, gen)
             await pushAPIKeyNames(client, sealer: sealer, gen: gen)
             try ensure(sealer, gen)
@@ -1438,7 +1438,7 @@ final class SyncEngine {
     /// with this device's changes (NotePageData.merge), and the write only lands if nothing else
     /// wrote in between; otherwise it merges again on the next run. A backend without the column
     /// leaves the data here, unchanged.
-    private func pushPageData(_ client: SupabaseClient, sealer: Sealer) async {
+    private func pushPageData(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
         struct Row: Decodable { var data_ct: String?; var server_updated_at: Date?; var client: String? }
         struct Upsert: Encodable { var note_id: UUID; var data_ct: String }
         let store = NotePageDataStore.shared
@@ -1449,13 +1449,16 @@ final class SyncEngine {
             if context.note(id)?.isShared == true { store.clean(id); continue }
             do {
                 let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at,client").eq("note_id", value: id).execute().value
-                let server = rows.first?.data_ct.flatMap { sealer.open($0, context: E2EE.pageData(id)) }.map { Data($0.utf8) }
+                // Opened, merged and sealed off the main thread: a board's drawing is megabytes.
+                let server = await Self.openPageData(rows.first?.data_ct, sealer, id)
                 if rows.first?.data_ct != nil, server == nil { continue }   // sealed with another key: leave it
                 // Merged in before this device's own goes up: another device's change is marked as
                 // it would be when pulled (round 14, 38-sync-2).
-                store.take(id, server: server, device: Self.device(rows.first?.client))
-                guard store.dirty.contains(id), let doc = store.docs[id], let json = String(data: doc, encoding: .utf8),
-                      let box = sealer.seal(json, context: E2EE.pageData(id)) else { continue }
+                let taking = await store.prepareTake(id, server: server)
+                if outlived(sealer, gen) { return }
+                store.take(taking, device: Self.device(rows.first?.client))
+                guard store.dirty.contains(id), let doc = store.docs[id], let box = await Self.sealPageData(doc, sealer, id) else { continue }
+                if outlived(sealer, gen) { return }
                 if let stamp = rows.first?.server_updated_at {
                     let unchanged = Self.stampWindow(stamp)
                     let done: [Row] = try await client.from("note_pages").update(["data_ct": box]).eq("note_id", value: id)
@@ -1471,6 +1474,17 @@ final class SyncEngine {
                 log.error("page data push failed: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    /// An app's data as the server keeps it, opened off the main thread (nil for none, or another key's).
+    nonisolated static func openPageData(_ box: String?, _ sealer: Sealer, _ id: UUID) async -> Data? {
+        guard let box else { return nil }
+        return await Task.detached(priority: .utility) { sealer.open(box, context: E2EE.pageData(id)).map { Data($0.utf8) } }.value
+    }
+
+    /// An app's data sealed for the server, off the main thread.
+    nonisolated static func sealPageData(_ doc: Data, _ sealer: Sealer, _ id: UUID) async -> String? {
+        await Task.detached(priority: .utility) { String(data: doc, encoding: .utf8).flatMap { sealer.seal($0, context: E2EE.pageData(id)) } }.value
     }
 
     /// The names of the API keys set up here (never their values), so an AI can say which key an
@@ -1649,8 +1663,11 @@ final class SyncEngine {
                 // A shared board's drawing comes from its shared document (CollabBoard): what this
                 // row held from before it was shared isn't taken over it.
                 if self.context.note(r.note_id)?.isShared == true {
-                } else if let box = r.data_ct, let json = Wire.sealer?.open(box, context: E2EE.pageData(r.note_id)) {
-                    NotePageDataStore.shared.take(r.note_id, server: Data(json.utf8), by: Self.writer(r.client), device: Self.device(r.client))
+                } else if let box = r.data_ct, let open = Wire.sealer, let server = await Self.openPageData(box, open, r.note_id) {
+                    // Opened and merged off the main thread (NotePageDataStore.prepareTake).
+                    let taking = await NotePageDataStore.shared.prepareTake(r.note_id, server: server)
+                    try ensure(sealer, gen)
+                    NotePageDataStore.shared.take(taking, by: Self.writer(r.client), device: Self.device(r.client))
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))
                 }

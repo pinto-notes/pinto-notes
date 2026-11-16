@@ -2259,7 +2259,7 @@ struct NoteRow: View {
     /// (whiteboard council, round 2: a row still said "No additional text" over a whole flowchart).
     @MainActor static func sketch(_ id: UUID, in store: NotePageDataStore = .shared) -> CanvasSketch? {
         _ = store.listRevision
-        return CanvasSketch.of(id, in: store)
+        return CanvasSketch.shown(id, in: store)
     }
 
     /// The note's first picture, when it's on this device: one on the server only shows once the

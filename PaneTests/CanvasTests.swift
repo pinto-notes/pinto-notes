@@ -374,6 +374,82 @@ import AppKit
         ["type": "excalidraw", "version": 2, "elements": elements, "appState": [String: Any](), "files": [String: Any]()]
     }
 
+    /// A board's row draws as much as a picture its size can show: a big board's strokes keep a
+    /// point every 1/160 of the drawing, and its largest 600 shapes, in their order. The row drew
+    /// every point of every stroke on the main thread each time it was redrawn (after each save).
+    @Test func aBoardsRowPictureKeepsWhatItsSizeCanShow() throws {
+        var elements: [[String: Any]] = (0..<2000).map { i in
+            ["type": "rectangle", "id": "r\(i)", "x": (i % 50) * 30, "y": (i / 50) * 30, "width": i == 7 ? 400 : 20, "height": 20]
+        }
+        let stroke = (0..<1000).map { i in [Double(i) * 0.5, sin(Double(i) / 20) * 40] }
+        elements.append(["type": "freedraw", "id": "f", "x": 0, "y": 0, "width": 500, "height": 80, "points": stroke])
+        elements.append(["type": "text", "id": "t", "x": 0, "y": -40, "width": 100, "height": 20, "text": "Plan"])
+        let full = CanvasSketch(elements: elements), row = full.forRow()
+        #expect(full.shapes.count == 2001)
+        #expect(row.shapes.count == 600)
+        #expect(row.shapes.contains { $0.frame.width == 400 }, "the largest are kept")
+        let line = try #require(row.shapes.first { $0.kind == "freedraw" }, "the long stroke too, though it came last")
+        let all = try #require(full.shapes.first { $0.kind == "freedraw" })
+        #expect(line.points.count > 20 && line.points.count < 200, "\(line.points.count) of \(all.points.count) points")
+        #expect(line.points.first == all.points.first && line.points.last == all.points.last, "from its start to its end")
+        #expect(row.shapes.map(\.frame.origin) == full.shapes.filter { s in row.shapes.contains { $0.frame == s.frame } }.map(\.frame.origin), "in drawing order")
+        #expect(row.texts == full.texts && row.preview == full.preview, "the words for the line and search stay whole")
+        let small = CanvasSketch(elements: Array(elements.prefix(10)))
+        #expect(small.forRow() == small, "a small board is drawn as it is")
+    }
+
+    /// The sketch a save works out off the main thread for the board's row is the same thinned one
+    /// the row would work out itself: the row drew every point of every stroke after each save,
+    /// as the sketch made after a save was the whole drawing (16 November 2026).
+    @Test func theRowPictureMadeAfterASaveIsTheThinnedOne() async throws {
+        let store = NotePageDataStore(file: nil), id = UUID()
+        let elements: [[String: Any]] = (0..<2000).map { i in
+            ["type": "rectangle", "id": "r\(i)", "x": (i % 50) * 30, "y": (i / 50) * 30, "width": 20, "height": 20]
+        }
+        let doc: [String: Any] = ["values": ["scene": Self.scene(elements)], "collections": [String: Any]()]
+        store.set(id, doc)
+        await CanvasSketch.prime([id], in: store)
+        let shown = try #require(CanvasSketch.shown(id, in: store))
+        #expect(shown.shapes.count == 600)
+        #expect(shown == CanvasSketch.make(try #require(store.peek(id))), "the same as the row works out itself")
+    }
+
+    /// A board's save is made on the drawing the page had: a change that came down meanwhile (the
+    /// iPhone's shape, while the Mac's stroke was on its way) is merged in, and the page is told, as
+    /// what the store has is no longer the page's own. Set on what was there, the change was lost,
+    /// on the board and then on the server (16 November 2026).
+    @Test func aChangeThatCameDownWhileABoardSavedIsMergedIn() async throws {
+        let a = Self.el("a", version: 1), b = Self.el("b", version: 1), c = Self.el("c", version: 1)
+        func data(_ e: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(e)], "collections": [String: Any]()] }
+        func json(_ e: [[String: Any]]) throws -> String { String(decoding: try JSONSerialization.data(withJSONObject: Self.scene(e)), as: UTF8.self) }
+        func drawn(_ store: NotePageDataStore, _ id: UUID) -> [String] { Self.ids((store.doc(id)["values"] as? [String: Any])?["scene"]).keys.sorted() }
+
+        // Came down before the save reached the app: the page saves on what it had.
+        let store = NotePageDataStore(file: nil), id = UUID()
+        store.set(id, data([a]))
+        let had = try #require(store.docs[id])
+        store.take(id, server: NotePageData.encode(data([a, c])))
+        let saved = try await NotePageDataWrites.set("scene", json: try json([a, b]), note: id, base: had, store: store)
+        #expect(drawn(store, id) == ["a", "b", "c"], "the iPhone's shape and the Mac's stroke")
+        #expect(saved.own != store.docs[id], "the page is told: it has only its own")
+        #expect(Self.ids((NotePageData.decode(saved.own)["values"] as? [String: Any])?["scene"]).keys.sorted() == ["a", "b"])
+
+        // Came down while the save was on its way.
+        let other = NotePageDataStore(file: nil), id2 = UUID(), ab = try json([a, b])
+        other.set(id2, data([a]))
+        let saving = Task { try await NotePageDataWrites.set("scene", json: ab, note: id2, store: other).own }
+        await Task.yield()
+        other.take(id2, server: NotePageData.encode(data([a, c])))
+        let own2 = try await saving.value
+        #expect(drawn(other, id2) == ["a", "b", "c"])
+        #expect(own2 != other.docs[id2])
+
+        // Nothing came down: the store has the page's own, and nothing goes back to it.
+        let again = try await NotePageDataWrites.set("scene", json: try json([a, b, c, Self.el("d", version: 1)]), note: id, base: store.docs[id], store: store)
+        #expect(drawn(store, id) == ["a", "b", "c", "d"])
+        #expect(again.own == store.docs[id])
+    }
+
     static func ids(_ scene: Any?) -> [String: Int] {
         Dictionary(((scene as? [String: Any])?["elements"] as? [[String: Any]] ?? []).map { ($0["id"] as! String, $0["x"] as? Int ?? 0) }, uniquingKeysWith: { a, _ in a })
     }

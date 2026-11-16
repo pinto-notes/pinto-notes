@@ -61,6 +61,17 @@
                ReferencedContainer = "container:Pane.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "274294E0AC68AC2D51BF5B5E"
+               BuildableName = "PaneBench.xctest"
+               BlueprintName = "PaneBench"
+               ReferencedContainer = "container:Pane.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

@@ -156,7 +156,12 @@ targets:
         PRODUCT_NAME: $(PANE_PRODUCT_NAME)
         PRODUCT_MODULE_NAME: Pane
         # COLLAB_AUTOMERGE: shared notes' text CRDT (Pane/Collab/CollabText.swift).
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE
+        # TEAM_BUILD: every build but the ones people get (PANE_TEAM_BUILD, Config/Backend.xcconfig).
+        # What the App Store mustn't see (WebKit's own settings, NotePageSandbox.drawAtDisplayRate)
+        # is in team builds and the direct download only.
+        PANE_TEAM_CONDITION_YES: TEAM_BUILD
+        PANE_TEAM_CONDITION_NO: ""
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) COLLAB_AUTOMERGE $(PANE_TEAM_CONDITION_$(PANE_TEAM_BUILD))
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -384,6 +389,18 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
+  # The board benchmark (scripts/board-perf.sh): its own target, so a change to it builds in
+  # seconds next to the app's thousands of tests. Runs only when scripts/board-perf.sh asks.
+  PaneBench:
+    type: bundle.unit-test
+    supportedDestinations: [macOS]
+    sources: [PaneBench]
+    dependencies:
+      - target: Pane
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
   PaneUITests:
     type: bundle.ui-testing
     supportedDestinations: [iOS, macOS]
@@ -408,4 +425,13 @@ schemes:
       targets:
         Pane: all
     test:
-      targets: [PaneTests, PaneUITests]
+      targets: [PaneTests, PaneUITests, PaneBench]
+  # The board benchmark alone (scripts/board-perf.sh): the app and PaneBench, not the thousands of tests.
+  PaneBench:
+    build:
+      targets:
+        Pane: all
+        PaneBench: [test]
+    test:
+      config: Release
+      targets: [PaneBench]

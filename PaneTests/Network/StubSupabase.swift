@@ -310,10 +310,15 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
                         return (413, Data(#"{"code":"PT413","message":"Your whiteboard library is full.","hint":"library_full"}"#.utf8))
                     }
                 }
+                // A row that's there already is found by the upsert's on_conflict column (its id when
+                // not given), as PostgREST finds it. Found by id alone, a board's row (note_pages has
+                // none) was taken over by any other note's upsert: the first row without one.
+                let conflict = query.first { $0.name == "on_conflict" }?.value ?? "id"
+                let key = { (r: [String: Any]) in (r[conflict] as? String)?.lowercased() }
                 var out: [[String: Any]] = []
                 for var r in incoming {
                     r["id"] = (r["id"] as? String)?.lowercased()
-                    if let i = list.firstIndex(where: { $0["id"] as? String == r["id"] as? String }) {
+                    if let k = key(r), let i = list.firstIndex(where: { key($0) == k }) {
                         if !mine(list[i]) {
                             return (403, Data(#"{"code":"42501","message":"new row violates row-level security policy"}"#.utf8))
                         }
@@ -327,6 +332,10 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
                     } else {
                         r["version"] = 0
                         if let owner = _account { r["_owner"] = owner }
+                        // As the table's defaults fill them (note_pages: created_at, updated_at now()).
+                        if name == "note_pages" {
+                            for k in ["created_at", "updated_at"] where r[k] == nil || r[k] is NSNull { r[k] = stamp(.now) }
+                        }
                         settle(name, old: nil, &r)
                         bump(&r)
                         list.append(r)

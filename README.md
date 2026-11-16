@@ -180,9 +180,10 @@ deno test --allow-all supabase/functions/mcp/notes.test.ts
 scripts/mcp-e2e.sh                                   # MCP end-to-end, against the local stack
 scripts/share-e2e.sh                                 # share links end-to-end, against the local stack
 (cd web && pnpm install && pnpm test && pnpm build)  # the site
+scripts/board-perf.sh                                # whiteboard speed against plain Excalidraw, idle and loaded, about 35 minutes
 ```
 
-The interaction tests drive the real editor in an offscreen window, so they never move your mouse or take focus.
+The interaction tests drive the real editor in an offscreen window, so they never move your mouse or take focus. So does the whiteboard benchmark: `scripts/board-perf.sh --check` says whether a number got more than 20% worse than `scripts/board-perf/baseline.json`. Timing never gates CI or a push.
 
 </details>
 

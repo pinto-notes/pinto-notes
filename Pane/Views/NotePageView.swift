@@ -44,13 +44,56 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     private static var spare: NotePageSandbox?
 
     /// Compiles the rules and starts a spare sandbox. Called at launch and whenever the spare is taken.
+    /// On the Mac the spare is a board's page, its engine loaded, waiting for a board (standBy).
     static func prewarm() {
+        NotePageLibraries.readCanvasAhead()
         Task { @MainActor in
             guard spare == nil, let rules = try? await prepare(), spare == nil else { return }
             let s = NotePageSandbox(rules: rules)
+            #if os(macOS)
+            s.standBy()
+            #else
             s.expected.append("about:blank")
-            s.webView.loadHTMLString("<!doctype html><title></title>", baseURL: nil)
+            s.show("<!doctype html><title></title>", baseURL: nil)
+            #endif
             spare = s
+        }
+    }
+
+    /// A board's page with no board yet: the next board opened here is handed to it (`open`), so it
+    /// waits for no page to start and no engine to load. A board's open on the Mac spent half its
+    /// time on those, 100 ms and more, and seconds with the Mac busy (16 November 2026). Any other
+    /// page, and a board that can't be handed over, loads over it as into any spare.
+    private var standby = false
+    /// The engine has loaded and waits (the page said so: `{ standby: true }`).
+    private var standbyReady = false
+
+    /// The spare is a board's page whose engine waits for a board (for tests).
+    static var standingBy: Bool { spare.map { $0.standby && $0.standbyReady } ?? false }
+
+    private func standBy() {
+        let html = CanvasNote.index
+        let ucc = webView.configuration.userContentController
+        ucc.removeAllUserScripts()
+        standby = true
+        app.project = NotePageProject(files: ["/index.html": html])
+        libraries.allowed = Set(NotePageLibraries.declared(in: html).compactMap { if case .npm(let r) = $0 { r } else { nil } })
+        ucc.addUserScript(WKUserScript(source: Self.bootstrap(data: [:], storeJSON: "{}", standby: true), injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
+        expected.append(NotePageProject.base.absoluteString)
+        #if DEBUG || QA
+        Self.forTests?(webView)
+        #endif
+        show(Self.sandboxed(html), baseURL: NotePageProject.base)
+    }
+
+    /// Hands the waiting board's page its note and data, as the store keeps them: the page reads them
+    /// with JSON.parse, from a string made straight from the stored bytes.
+    private func open(note: [String: Any], encoded: Data) {
+        let json = (try? JSONSerialization.data(withJSONObject: note)).flatMap { NSString(data: $0, encoding: NSUTF8StringEncoding) } ?? "{}"
+        let data: NSString = NSString(data: encoded, encoding: NSUTF8StringEncoding) ?? "{}"
+        webView.callAsyncJavaScript("performance.mark('amber:open'); const d = JSON.parse(data); performance.mark('amber:parsed'); amber._open(JSON.parse(note), d)", arguments: ["note": json, "data": data], in: nil, in: .page) { [weak self] r in
+            guard case .failure(let error) = r, let self else { return }
+            self.onFailure([error.localizedDescription])
         }
     }
 
@@ -59,17 +102,32 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// in the open of the app note that took the spare, or of the note clicked next (2026-11-02).
     static let respareDelay: Duration = .seconds(2)
 
+    /// On the Mac, how long after the page that took the spare has drawn, or after navigation,
+    /// the next spare starts: boards are opened one after another there, and one opened a second
+    /// after another waited up to 250 ms for its web content process to start, half its open
+    /// (16 November 2026). Once that page is up, before the next click.
+    static let respareAfterShown: Duration = .milliseconds(300)
+
     private(set) static var respareTask: Task<Void, Never>?
 
-    /// A spare starts only once navigation has been quiet for two seconds. Separate delayed
-    /// tasks from earlier app opens otherwise launched WebKit during a later Back/Forward step.
-    private static func scheduleSpare() {
+    /// A spare starts only once navigation has been quiet for a while (two seconds on iPhone).
+    /// Separate delayed tasks from earlier app opens otherwise launched WebKit during a later
+    /// Back/Forward step.
+    private static func scheduleSpare(after delay: Duration = respareDelay) {
         respareTask?.cancel()
         respareTask = Task { @MainActor in
-            do { try await Task.sleep(for: respareDelay) } catch { return }
+            do { try await Task.sleep(for: delay) } catch { return }
             respareTask = nil
             prewarm()
         }
+    }
+
+    /// The page that took the spare has drawn: on the Mac, the next spare starts a moment later.
+    static func pageShown() {
+        #if os(macOS)
+        guard spare == nil, respareTask != nil else { return }
+        scheduleSpare(after: respareAfterShown)
+        #endif
     }
 
     /// At launch on iPhone: the rules compile now (off the main thread, in WebKit), and the spare
@@ -81,7 +139,11 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     }
 
     static func navigationOccurred() {
+        #if os(macOS)
+        if respareTask != nil { scheduleSpare(after: .milliseconds(600)) }
+        #else
         if respareTask != nil { scheduleSpare() }
+        #endif
     }
 
     /// The spare sandbox if there is one, else a new one; another spare starts after navigation rests.
@@ -101,6 +163,29 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         return list
     }
 
+    /// WebKit draws a page at most 60 times a second unless told otherwise, on a 120 Hz ProMotion
+    /// screen too: a stroke on a board lagged a frame behind the pen where Chrome kept up (16 November
+    /// 2026). As fast as the display, as Chrome and Excalidraw there do. Only where WebKit's own
+    /// settings may be used: team builds and the direct download, never the App Store's.
+    static func drawAtDisplayRate(_ preferences: WKPreferences) {
+        #if os(macOS) && (TEAM_BUILD || DIRECT)
+        let features = NSSelectorFromString("_features"), set = NSSelectorFromString("_setEnabled:forFeature:")
+        guard WKPreferences.responds(to: features), preferences.responds(to: set),
+              let all = WKPreferences.perform(features)?.takeUnretainedValue() as? [NSObject],
+              let near60 = all.first(where: { ($0.value(forKey: "key") as? String) == "PreferPageRenderingUpdatesNear60FPSEnabled" }),
+              let imp = class_getMethodImplementation(WKPreferences.self, set) else { return }
+        typealias Set = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
+        unsafeBitCast(imp, to: Set.self)(preferences, set, false, near60)
+        #endif
+    }
+
+    #if DEBUG || QA
+    /// Every page's web view as it's made and as each page starts loading in it, for tests: the
+    /// board benchmark (BoardPerfTests) turns off its occlusion checks, so a board in a window off
+    /// every screen still draws its frames, and adds its scripts.
+    static var forTests: (@MainActor (WKWebView) -> Void)?
+    #endif
+
     init(rules: WKContentRuleList) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
@@ -119,12 +204,16 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         config.allowsInlineMediaPlayback = false
         #endif
         #if os(macOS)
+        Self.drawAtDisplayRate(config.preferences)
         webView = NotePageWebView(frame: .zero, configuration: config)
         #else
         webView = WKWebView(frame: .zero, configuration: config)
         #endif
         super.init()
         scheme.owner = self
+        #if DEBUG || QA
+        Self.forTests?(webView)
+        #endif
         // Through a weak proxy: the content controller keeps its handlers alive, and the sandbox
         // must go when its view does.
         let proxy = WeakHandler(self)
@@ -196,25 +285,53 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// page, so the view's push of the same data is skipped (on a canvas of 500 strokes it sent a
     /// megabyte back after every stroke).
     var wrote: Data?
+    /// The note's data as the page has it, as the store keeps it: what it was given (at open, in a
+    /// push it has run) or what its own last change left. Its saves are made on this, so a change
+    /// that reached the store meanwhile (from another device, an AI) is merged in, not overwritten.
+    var known: Data?
+    /// The page's saves so far (store.setJSON): only the newest says what the page has.
+    var saves = 0
 
-    func load(html stored: String, body: String, data: NotePageData.Doc = NotePageData.empty(), restore: String? = nil) {
-        let ucc = webView.configuration.userContentController
-        ucc.removeAllUserScripts()
+    /// `encoded`: the data as the store keeps it (NotePageData.encode), when the caller has it: given
+    /// to the page as it is. A board's drawing was decoded and encoded again on the main thread at
+    /// every open, 20 ms and more at 500 elements (16 November 2026).
+    func load(html stored: String, body: String, data: NotePageData.Doc = NotePageData.empty(), encoded: Data? = nil, restore: String? = nil) {
         // One file or a project; one that can't be shown (over the limits, uncompiled) shows nothing,
         // which reports it as failed, so the version before comes back.
         let project = NotePageProject.parse(stored) ?? NotePageProject(files: ["/index.html": ""])
-        app.project = project
         let html = project.index
+        known = encoded
+        // A board, full size, into the board's page waiting here: handed over, nothing loaded.
+        if standby {
+            let ready = standbyReady
+            standby = false
+            standbyReady = false
+            if ready, html == CanvasNote.index, restore == nil, !isWidget, let encoded {
+                app.project = project
+                isCanvas = true
+                #if DEBUG || QA
+                Self.forTests?(webView)
+                #endif
+                open(note: NotePage.data(of: body), encoded: encoded)
+                return
+            }
+        }
+        let ucc = webView.configuration.userContentController
+        ucc.removeAllUserScripts()
+        app.project = project
         isCanvas = CanvasNote.isCanvas(html)
         #if os(iOS)
         // A canvas pans and zooms itself: the web view never scrolls under a finger or the Pencil.
         if isCanvas { webView.scrollView.isScrollEnabled = false; webView.scrollView.bounces = false }
         #endif
         libraries.allowed = Set(NotePageLibraries.declared(in: html).compactMap { if case .npm(let r) = $0 { r } else { nil } })
-        ucc.addUserScript(WKUserScript(source: Self.bootstrap(data: NotePage.data(of: body), store: data, restore: restore, widget: isWidget),
+        ucc.addUserScript(WKUserScript(source: Self.bootstrap(data: NotePage.data(of: body), store: data, encoded: encoded, restore: restore, widget: isWidget),
                                        injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
         expected.append(NotePageProject.base.absoluteString)
-        webView.loadHTMLString(Self.sandboxed(html), baseURL: NotePageProject.base)
+        #if DEBUG || QA
+        Self.forTests?(webView)
+        #endif
+        show(Self.sandboxed(html), baseURL: NotePageProject.base)
     }
 
     /// The note changed (the page's own edit, typing elsewhere, sync, Undo): the page re-renders.
@@ -247,8 +364,12 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         return r is NSNull ? nil : r
     }
 
-    func push(body: String, data: NotePageData.Doc? = nil) {
-        webView.callAsyncJavaScript("window.amber && window.amber._receive(note, data)", arguments: ["note": NotePage.data(of: body), "data": data ?? NSNull()], in: nil, in: .page) { _ in }
+    /// `encoded`: `data` as the store keeps it. Once the page has run the push, it's what the page
+    /// has (`known`): a save it sent before that was made on what it had then.
+    func push(body: String, data: NotePageData.Doc? = nil, encoded: Data? = nil) {
+        webView.callAsyncJavaScript("window.amber && window.amber._receive(note, data)", arguments: ["note": NotePage.data(of: body), "data": data ?? NSNull()], in: nil, in: .page) { [weak self] _ in
+            if let encoded { self?.known = encoded }
+        }
     }
 
     static func sandboxed(_ html: String) -> String {
@@ -292,13 +413,31 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
 
     """
 
-    static func bootstrap(data: [String: Any], store: NotePageData.Doc = NotePageData.empty(), restore: String? = nil, widget: Bool = false) -> String {
+    /// With the data as the store keeps it (`encoded`), put in as those bytes: the script is made as
+    /// one string from bytes, which WebKit takes as it is. As a Swift string, a board's drawing was
+    /// measured and copied again on its way in, 6 ms of the main thread at 500 shapes (16 November
+    /// 2026). Bytes that aren't text give way to `store`, as before.
+    static func bootstrap(data: [String: Any], store: NotePageData.Doc, encoded: Data?, restore: String?, widget: Bool) -> String {
+        let hole = "/*amber-store*/{}"
+        guard let encoded else { return bootstrap(data: data, store: store, restore: restore, widget: widget) }
+        let text = bootstrap(data: data, storeJSON: hole, restore: restore, widget: widget)
+        guard let r = text.range(of: hole) else { return bootstrap(data: data, store: store, restore: restore, widget: widget) }
+        var bytes = Data(text[..<r.lowerBound].utf8)
+        bytes.append(encoded)
+        bytes.append(contentsOf: text[r.upperBound...].utf8)
+        guard let made = NSString(data: bytes, encoding: NSUTF8StringEncoding) else { return bootstrap(data: data, store: store, restore: restore, widget: widget) }
+        return made as String
+    }
+
+    /// `standby`: a board's page made ahead, with no note and no data yet; `amber._open` hands it
+    /// both and starts its board (NotePageSandbox.standBy).
+    static func bootstrap(data: [String: Any], store: NotePageData.Doc = NotePageData.empty(), storeJSON given: String? = nil, restore: String? = nil, widget: Bool = false, standby: Bool = false) -> String {
         let libGlobals = (try? JSONSerialization.data(withJSONObject: Dictionary(NotePageLibraries.bundled.map { ($0.name, $0.global) }, uniquingKeysWith: { a, _ in a })))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         let libRequires = (try? JSONSerialization.data(withJSONObject: Dictionary(NotePageLibraries.bundled.map { ($0.name, $0.requires ?? []) }, uniquingKeysWith: { a, _ in a })))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         let json = (try? JSONSerialization.data(withJSONObject: data)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        let storeJSON = String(data: NotePageData.encode(store), encoding: .utf8) ?? "{}"
+        let storeJSON = given ?? String(data: NotePageData.encode(store), encoding: .utf8) ?? "{}"
         return (muted ? mute : "") + """
         (() => {
           const listeners = [];
@@ -306,6 +445,8 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           const errors = [];
           const failed = (e) => errors.push(String((e && e.message) || e));
           const gone = (what) => () => Promise.resolve({ ok: false, error: what + " available in apps yet." });
+          // The page's own data: its values and collections, as NotePageData.decode keeps them.
+          const normal = (d) => { const o = (x) => (x && typeof x === "object" && !Array.isArray(x) ? x : {}); d = o(d); return { values: o(d.values), collections: o(d.collections) }; };
           const amber = {
             note: \(json),
             update(op) {
@@ -320,12 +461,16 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               try { fn(amber.note, amber.data); } catch (e) { failed(e); console.error(e); }
               return () => { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); };
             },
-            // The page's own data: never in the note's text.
-            data: \(storeJSON),
+            // The page's own data: never in the note's text. Its values and collections, as
+            // NotePageData.decode keeps them (the store's bytes come as they are).
+            data: normal(\(storeJSON)),
             setData(patch) { return ask({ op: "store.patch", patch }); },
             store: {
               get: (key) => Promise.resolve(amber.data.values[key]),
               set: (key, value) => ask({ op: "store.set", key, value: value === undefined ? null : value }),
+              // A value as its JSON text: big ones (a board's drawing) cross whole, and are read off
+              // the app's main thread; the reply doesn't carry the data back.
+              setJSON: (key, json) => post({ op: "store.setJSON", key, json: String(json) }),
               collection(name) {
                 const list = () => (amber.data.collections[name] || []).slice();
                 return {
@@ -551,10 +696,28 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
             const empty = !b || ![...b.querySelectorAll("*")].some((el) => el.tagName !== "SCRIPT" && el.tagName !== "STYLE" && el.getClientRects().length && (el.textContent.trim() || ["SVG", "IMG", "CANVAS", "INPUT", "BUTTON"].includes(el.tagName.toUpperCase())));
             try { window.webkit.messageHandlers.amberReady.postMessage({ errors: errors.slice(0, 5), empty }); } catch (e) {}
           };
-          addEventListener("load", () => {
+          const drawn = () => {
             requestAnimationFrame(() => requestAnimationFrame(tell));
             setTimeout(tell, 1000);
-          });
+          };
+          if (\(standby ? "true" : "false")) {
+            // A board's page made ahead: its engine loads now with no board, and the app hands it
+            // one later (NotePageSandbox.open). The board says when it has drawn (_mounted); a board
+            // that never does is told of all the same.
+            amber._standby = true;
+            Object.defineProperty(amber, "_mounted", { value: drawn });
+            Object.defineProperty(amber, "_open", { value(note, data) {
+              if (amber._opened) return;
+              amber._opened = true;
+              amber._receive(note, normal(data));
+              const start = amber._whenOpened;
+              amber._whenOpened = null;
+              try { if (start) start(); else drawn(); } catch (e) { failed(e); console.error(e); drawn(); }
+              setTimeout(tell, 2000);
+            } });
+          } else {
+            addEventListener("load", drawn);
+          }
         })();
         """
     }
@@ -595,6 +758,7 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
         guard message.name == "amberReady" else { return }
         let m = message.body as? [String: Any]
         if let focus = m?["focus"] as? Bool { onFocus(focus); return }
+        if m?["standby"] as? Bool == true { standbyReady = standby; return }
         let errors = (m?["errors"] as? [String]) ?? []
         if (m?["empty"] as? Bool) == true || !errors.isEmpty {
             onFailure(errors.isEmpty ? ["The page drew nothing."] : errors)
@@ -610,17 +774,28 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
     /// its blank document was still loading spent the flag on that, and the app's own document was
     /// then refused as a navigation, so the note stayed blank.
     fileprivate var expected: [String] = []
+    /// The last document asked for. Once it's in, nothing more is expected: the app's document is
+    /// the last one a sandbox shows. A board's page made ahead has the app's address too, so an app
+    /// loaded over it while it was still loading is a second document at that address, not the same.
+    private var latest: WKNavigation?
+
+    private func show(_ html: String, baseURL: URL?) {
+        latest = webView.loadHTMLString(html, baseURL: baseURL)
+    }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
         // Only the documents the app itself loaded here. Links, forms, reloads and redirects stay put.
         let url = action.request.url?.absoluteString ?? ""
         if action.targetFrame?.isMainFrame == true, let i = expected.firstIndex(of: url) {
-            // The app's document is the last one a sandbox shows: nothing is expected after it.
-            if url == NotePageProject.base.absoluteString { expected.removeAll() } else { expected.remove(at: i) }
+            expected.remove(at: i)
             return .allow
         }
         blocked.append("navigation \(url)")
         return .cancel
+    }
+
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        if navigation === latest { expected.removeAll() }
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for action: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
@@ -729,13 +904,20 @@ struct NotePageView: View {
     @State private var pending: String?
     /// What was typed and where it was scrolled, for the version swapped in.
     @State private var carry: String?
+    /// The page's room on screen: its web view starts at this size (see the task below).
+    @State private var area: CGSize = .zero
     @Environment(\.colorScheme) private var scheme
 
     private var current: String { shown ?? html }
 
     var body: some View {
         ZStack(alignment: .top) {
-            if !ready, let shot = NotePageSnapshots.shared.image(noteID, html: current, dark: scheme == .dark, variant: snapshotVariant) {
+            // The room the page has, whatever shows in it meanwhile: its web view fills it.
+            Color.clear
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { area = $0 }
+                .accessibilityHidden(true)
+                .allowsHitTesting(false)
+            if !ready, let shot = NotePageSnapshots.shared.opening(noteID, html: current, dark: scheme == .dark, variant: snapshotVariant) {
                 snapshot(shot)
                     .onAppear { NotePageTiming.shown(noteID, "snapshot") }
             }
@@ -783,6 +965,7 @@ struct NotePageView: View {
                     } else { withAnimation(.easeOut(duration: 0.15)) { ready = true } }
                     onReady()
                     NotePageLive.register(s.webView, noteID)
+                    NotePageSandbox.pageShown()
                     // The picture for next time, once the page has settled.
                     snapshotTask?.cancel()
                     if preview == nil {
@@ -796,8 +979,25 @@ struct NotePageView: View {
                 s.onFailure = onFailure
                 s.onFocus = onFocus
                 s.onData = { [weak s, noteID] m in
-                    let reply = try await onData(m)
-                    s?.wrote = NotePageDataStore.shared.docs[noteID]
+                    var m = m, save = 0
+                    // A save of the page's data is made on what the page has (and only the app says what that is).
+                    if var d = m as? [String: Any], d["op"] as? String == "store.setJSON", let s {
+                        d["_base"] = nil
+                        if let known = s.known { d["_base"] = known }
+                        s.saves += 1
+                        save = s.saves
+                        m = d
+                    }
+                    var reply = try await onData(m)
+                    if let own = reply.removeValue(forKey: "_own") as? Data {
+                        // What the page has now, unless a newer save of its own is on its way. When the
+                        // store's is different (merged with a change from elsewhere), it's pushed below.
+                        if let s, save == s.saves { s.wrote = own; s.known = own }
+                    } else if reply["data"] != nil {
+                        // The reply took the data to the page.
+                        s?.wrote = NotePageDataStore.shared.docs[noteID]
+                        s?.known = s?.wrote
+                    }
                     return reply
                 }
                 if let canvas {
@@ -813,7 +1013,18 @@ struct NotePageView: View {
                     BoardPicture.opened(canvas, note: noteID)
                 }
                 s.files = files
-                s.load(html: html, body: text, data: preview ?? NotePageDataStore.shared.doc(noteID), restore: restore)
+                #if os(macOS)
+                // At the size it will have on screen, before it's there: the page lays itself out
+                // and a board mounts at once, alongside the app's own layout. A board's page waited
+                // for that layout, 100 ms of a board's open on the Mac, to start (16 November 2026).
+                if s.webView.frame.size == .zero, area.width > 0, area.height > 0 { s.webView.frame = CGRect(origin: .zero, size: area) }
+                #endif
+                if let preview {
+                    s.load(html: html, body: text, data: preview, restore: restore)
+                } else {
+                    // The bytes the store keeps, as they are: nothing decoded or encoded on the way.
+                    s.load(html: html, body: text, encoded: NotePageDataStore.shared.docs[noteID] ?? NotePageData.emptyData, restore: restore)
+                }
                 sandbox?.disconnect()
                 sandbox = s
                 // An app that hasn't drawn after 8 seconds didn't open (a module that never loads, an
@@ -843,14 +1054,16 @@ struct NotePageView: View {
             sandbox = nil
             ready = false
         }
-        .onChange(of: text) { _, now in sandbox?.push(body: now, data: preview ?? NotePageDataStore.shared.doc(noteID)) }
+        .onChange(of: text) { _, now in
+            sandbox?.push(body: now, data: preview ?? NotePageDataStore.shared.doc(noteID), encoded: preview == nil ? NotePageDataStore.shared.docs[noteID] ?? NotePageData.emptyData : nil)
+        }
         .onChange(of: insetBottom) { _, now in sandbox?.setInsets(bottom: now) }
         .onChange(of: zoom) { _, now in sandbox?.webView.pageZoom = now }
         .onChange(of: ready) { _, now in if now, insetBottom > 0 { sandbox?.setInsets(bottom: insetBottom) } }
         .onChange(of: NotePageDataStore.shared.docs[noteID]) { _, now in
             // A shared board's drawing comes from its document, as changes (BoardCollab).
             guard preview == nil, canvas?.shared != true, let sandbox, now != sandbox.wrote else { return }
-            sandbox.push(body: text, data: NotePageDataStore.shared.doc(noteID))
+            sandbox.push(body: text, data: NotePageDataStore.shared.doc(noteID), encoded: now ?? NotePageData.emptyData)
         }
     }
 
@@ -1039,6 +1252,40 @@ final class NotePageSnapshots {
         }
         images[k] = i
         return i
+    }
+
+    /// Pictures read from disk off the main thread for `opening`; it moves as each arrives.
+    @MainActor @Observable final class Arrivals { var count = 0 }
+    private let arrivals = Arrivals()
+    private var reading: Set<String> = []
+
+    /// The picture shown while a note's page opens: from memory, or read and decoded off the main
+    /// thread, the view shown again once it's in. Read on the main thread, a board's picture (a
+    /// megabyte or two of PNG) waited on the disk, and was decoded as it was drawn, in the middle of
+    /// opening the board.
+    func opening(_ id: UUID, html: String, dark: Bool, variant: String = "full") -> PImage? {
+        let k = key(id, html, dark, variant)
+        _ = arrivals.count
+        if let i = images[k] { return i }
+        if !reading.contains(k) {
+            reading.insert(k)
+            let file = dir.appending(path: k + ".png")
+            Task.detached(priority: .userInitiated) {
+                guard let source = CGImageSourceCreateWithURL(file as CFURL, nil),
+                      let cg = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else { return }
+                nonisolated(unsafe) let decoded = cg
+                await MainActor.run {
+                    #if os(iOS)
+                    let image = UIImage(cgImage: decoded, scale: 2, orientation: .up)
+                    #else
+                    let image = NSImage(cgImage: decoded, size: CGSize(width: CGFloat(decoded.width) / 2, height: CGFloat(decoded.height) / 2))
+                    #endif
+                    if self.images[k] == nil { self.images[k] = image }
+                    self.arrivals.count += 1
+                }
+            }
+        }
+        return latest["\(id.uuidString)-\(dark)-\(variant)"]
     }
 
     /// Pictures taken (for tests).
@@ -1251,6 +1498,9 @@ enum NotePageActions {
     /// A text note that has just become an app: what it held goes into the app's data once
     /// (values.imported: its tables by heading, checklists and text), for the app to start from.
     static func importIfNeeded(_ note: Note) {
+        // A board doesn't start from the note's text, and reading its drawing to look took 20 ms of
+        // the main thread at 500 shapes, on every open after it changed (16 November 2026).
+        guard !CanvasNote.isCanvas(NotePageStore.shared[note.id]?.html) else { return }
         let store = NotePageDataStore.shared
         var doc = store.doc(note.id)
         var values = doc["values"] as? NotePageData.Doc ?? [:]
@@ -1332,6 +1582,16 @@ enum NotePageActions {
             guard let bytes = try? Data(contentsOf: FileStore.url(for: a.id, filename: a.filename)) else { throw NotePage.OpError("That file isn't on this device yet.") }
             guard bytes.count <= 20 * 1024 * 1024 else { throw NotePage.OpError("That file is too big to show in the app (20 MB at most).") }
             return (["dataURL": "data:\(a.type.preferredMIMEType ?? "application/octet-stream");base64,\(bytes.base64EncodedString())", "name": a.filename], nil)
+        case "store.setJSON":
+            // A board's drawing as text (canvas.jsx): read and encoded off the main thread, on the
+            // data the page had (`_base`, from NotePageView). The reply is small: the page has the
+            // drawing already. `_own`, its data as it has it, is for NotePageView, never the page.
+            guard let key = m["key"] as? String, !key.isEmpty, key.count <= 200, let json = m["json"] as? String else { throw NotePage.OpError("Send { key, json }.") }
+            guard json.utf8.count <= NotePageData.maxBytes else {
+                throw NotePage.OpError(String(format: "This app's data would be %.1f MB; the limit is 4 MB. Keep photos and recordings as files.", Double(json.utf8.count) / 1_048_576))
+            }
+            let (before, own) = try await NotePageDataWrites.set(key, json: json, note: note.id, base: m["_base"] as? Data)
+            return (["_own": own], before)
         default:
             let store = NotePageDataStore.shared
             let before = store.doc(note.id)
