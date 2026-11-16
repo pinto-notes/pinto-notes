@@ -15,7 +15,6 @@ import s from "./s.module.css";
 const SN = { title: "Studio North", decided: "Wait until March. Finish the launch first.", added: "Ask Ana: can the start move to March?" };
 
 function Lines({ arrived }: { arrived: boolean }) {
-  const [undone, setUndone] = useState(false);
   return (
     <div className={s.dvNote}>
       <p className={s.dvDate}>Today at 09:12</p>
@@ -25,8 +24,8 @@ function Lines({ arrived }: { arrived: boolean }) {
         <li><i />Answer Ana by Friday</li>
       </ul>
       <p className={s.dvDecided}><b>Decided:</b> {SN.decided}</p>
-      <p className={s.dvAdded} data-in={arrived || undefined} data-undone={undone || undefined}><span>{SN.added}</span></p>
-      <div className={s.dvRec} data-in={arrived || undefined}><Receipt undone={undone} onFlip={() => setUndone((u) => !u)} live={arrived} /></div>
+      <p className={s.dvAdded} data-in={arrived || undefined}><span>{SN.added}</span></p>
+      <div className={s.dvRec} data-in={arrived || undefined}><Receipt live={arrived} /></div>
     </div>
   );
 }

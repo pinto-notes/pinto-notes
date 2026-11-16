@@ -34,12 +34,10 @@ export const DECIDED = "Cooking at home five nights a week.";
  *  question and what was decided, and the habit. */
 export const WEEK_NOTE = {
   title: "This week",
-  dinners: [["Tue", "Miso salmon"], ["Wed", "Lentil soup"]] as [string, string][],
+  dinner: ["Tue", "Miso salmon"] as [string, string],
   added: ["Thu", "Lemon chicken"] as [string, string],
-  addedIn: "New in Recipes:",
   ask: "Add a quick dinner for Thursday.",
-  question: "Studio North: now or March?",
-  decided: "Wait until March.",
+  work: ["Studio North:", "wait until March."] as [string, string],
 };
 
 /** The book note Notes opens: two highlights, what to try, and what the reader decided. */
@@ -70,13 +68,15 @@ export const DINNERS: [string, string][] = [
 /** The two questions ChatGPT adds to the board for the call. */
 export const QUESTIONS = ["Can the start move to March?", "What's the first project?"];
 
-/** "Added by ChatGPT · Undo", in the note's own flow (never over the words it marks). Undo works. */
-export function Receipt({ undone, onFlip, live = true }: { undone: boolean; onFlip: () => void; live?: boolean }) {
+/** "Added by ChatGPT": ChatGPT's mark and the words, in the note's own flow (never over the words it
+ *  marks). Undo shows on one card on the whole page only (the app's, in Your AI), and it works. */
+export function Receipt({ undone = false, onFlip, live = true }: { undone?: boolean; onFlip?: () => void; live?: boolean }) {
   return (
     <p className={s.receipt} data-undone={undone || undefined}>
-      {undone
+      {undone && onFlip
         ? <><span>Undone</span><button type="button" onClick={onFlip} tabIndex={live ? 0 : -1}>Redo</button></>
-        : <><span className={s.receiptMark}><AIGlyph name="openai" size={11} color="#fff" /></span><span><span className={s.rcBy}>Added by </span>ChatGPT</span><b aria-hidden="true">·</b><button type="button" onClick={onFlip} tabIndex={live ? 0 : -1}>Undo</button></>}
+        : <><span className={s.receiptMark}><AIGlyph name="openai" size={11} color="#fff" /></span><span><span className={s.rcBy}>Added by </span>ChatGPT</span>
+          {onFlip && <><b aria-hidden="true">·</b><button type="button" onClick={onFlip} tabIndex={live ? 0 : -1}>Undo</button></>}</>}
     </p>
   );
 }

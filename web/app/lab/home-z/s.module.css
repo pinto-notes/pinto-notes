@@ -99,7 +99,6 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .hRows li[data-on] i, .dvRows li[data-on] i { background: #e8820f; box-shadow: none; }
 .hRows svg, .dvRows svg, .box svg, .day svg, .aWeek svg, .aNote svg { width: 72%; height: 72%; fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
 .dvAdded span { position: relative; z-index: 0; }
-.dvAdded[data-undone] { opacity: 0.35; text-decoration: line-through; }
 /* "Free", beside the phone's download button (the desktop says it in the line under the buttons). */
 .ctaRow { display: inline-flex; align-items: center; gap: 14px; }
 .free { display: none; font-size: 16px; font-weight: 700; color: #7a6650; }
@@ -448,7 +447,6 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .aoBoard .aRec .receipt { margin: 8px 0 2px 4px; color: #8fe6c8; }
 .aoBoard .aRec .receipt b { color: rgba(143, 230, 200, 0.6); }
 .aoBoard .aRec .receipt button { color: var(--cream); text-decoration-color: rgba(255, 241, 226, 0.4); }
-.aoBoard .aRec .receipt[data-undone] { color: rgba(255, 241, 226, 0.6); }
 .markers { display: none; }
 
 .aNote { color: #1d1b19; }
@@ -528,19 +526,35 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 .works { margin: 0; font-size: 17px; line-height: 1.4; color: var(--soft); }
 
 /* ── The proof: a plain page laid over the binder, the page's one break in rhythm ──
-   No colour, no tear, no tab, no serif headline, no card: the study's two numbers in the sans, big,
-   a plain line under each, and the link. It docks under the header itself, over the tabs. */
+   No colour, no tear, no tab, no card: a short heading, then the study's two numbers as a comparison,
+   each with its bar on one shared track length, so the gap reads at a glance; the source and the link
+   under them. It docks under the header itself, over the tabs. The block is centred in the page. */
 .proof { position: sticky; top: var(--hh); height: calc(100svh - var(--hh)); min-height: 520px; box-sizing: border-box; overflow: hidden;
   color: #24170d; background: var(--page); box-shadow: 0 -8px 22px -10px rgba(50, 35, 10, 0.2); }
-.proofBody { position: relative; height: 100%; box-sizing: border-box; display: flex; align-items: center; padding: 48px var(--pad) 64px; }
+.proofBody { position: relative; height: 100%; box-sizing: border-box; display: flex; align-items: center; padding: 40px var(--pad) 56px; }
 .proofBody > * { translate: 0 calc(-1 * var(--lift, 0px)); }
 .proofIn { width: 100%; }
-.nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px clamp(32px, 6vw, 96px); }
-.num { margin: 0; }
-.big { margin: 0; font: 700 clamp(104px, 13.5vw, 196px)/0.86 var(--sans); letter-spacing: -0.05em; color: #c4570f; }
-.num[data-low] .big { color: #9c8670; }
-.numSay { margin: clamp(14px, 2.4vh, 22px) 0 0; max-width: 19em; font-size: clamp(19px, 1.6vw, 23px); line-height: 1.35; font-weight: 550; color: #4a3826; text-wrap: pretty; }
-.proofLink { display: inline-flex; align-items: baseline; gap: 8px; margin-top: clamp(30px, 6vh, 64px); font-size: 18px; font-weight: 650; color: #b6450f;
+.proofHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 40px; }
+.proofTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(46px, 4.4vw, 64px); line-height: 0.98; letter-spacing: -0.03em; color: #24170d; }
+.proofSay { margin: 0; max-width: 24em; font-size: 19px; line-height: 1.4; font-weight: 550; color: #6b5641; text-wrap: pretty; }
+/* Each row: who, over the bar; the number at the bar's right, in the sans, big. Every track is the
+   same length, so the bars compare directly. */
+.bars { margin: clamp(36px, 7vh, 72px) 0 0; display: grid; gap: clamp(22px, 4.4vh, 44px); }
+.barRow { display: grid; grid-template-columns: minmax(0, 1fr) 3.1em; grid-template-areas: "who num" "bar num"; align-items: end; column-gap: 0.32em; font-size: clamp(78px, 7.6vw, 112px); }
+.barWho { grid-area: who; margin: 0 0 14px; font: 650 20px/1.2 var(--sans); color: #4a3826; }
+.barRow[data-pinto] .barWho { color: #24170d; }
+.barNum { grid-area: num; align-self: end; margin: 0 0 -0.04em; font: 700 1em/0.8 var(--sans); letter-spacing: -0.05em; color: #a8927a; text-align: left; white-space: nowrap; }
+.barRow[data-pinto] .barNum { color: #c4570f; }
+.barTrack { grid-area: bar; position: relative; margin: 0; height: 0.46em; border-radius: 0.12em; background: #f5e4cc; overflow: hidden; }
+.barTrack i { position: absolute; inset: 0; border-radius: inherit; background: #b9a58e; transform-origin: 0 50%; transform: scaleX(var(--v)); }
+.barRow[data-pinto] .barTrack i { background: #d0601a; }
+.bars:not([data-on]) .barTrack i { transform: scaleX(0); }
+@media (prefers-reduced-motion: no-preference) {
+  .barTrack i { transition: transform 1s cubic-bezier(0.3, 0.9, 0.3, 1); }
+  .barRow[data-pinto] .barTrack i { transition-duration: 1.35s; transition-delay: 0.12s; }
+}
+.proofFoot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 28px; margin: clamp(30px, 6vh, 60px) 0 0; font-size: 15.5px; font-weight: 550; color: #8a7560; }
+.proofLink { display: inline-flex; align-items: baseline; gap: 8px; font-size: 18px; font-weight: 650; color: #b6450f;
   text-decoration: underline; text-decoration-color: rgba(182, 69, 15, 0.4); text-underline-offset: 4px; }
 .proofLink span { text-decoration: none; }
 @media (hover: hover) { .proofLink:hover { text-decoration-color: currentColor; } }
@@ -654,10 +668,13 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .build { --l: 176px; --w: 56px; }
   .ai { --l: 238px; --w: 72px; }
 
-  /* The first sheet is laid straight onto the picture's foot: no cream band between them. */
-  .hero { height: auto; min-height: 0; padding-bottom: 0; }
+  /* The first sheet is laid straight onto the picture's foot: no cream band between them. The first
+     screen is the hero, to the bottom: the picture takes the room left under the note, so only the
+     red sheet's torn edge shows at the foot of the screen (on a short phone the hero just runs on). */
+  .hero { height: auto; min-height: calc(100svh - 2px); padding-bottom: 0; }
   .ch.write { margin-top: calc(-1 * var(--tearH)); }
-  .hero { display: block; }
+  .hero { display: flex; flex-direction: column; }
+  .heroText { flex: none; }
   .heroText { width: auto; margin: 0; padding: 22px var(--pad) 0; }
   .h1 { font-size: min(12.6vw, 6.4svh); line-height: 0.95; }
   .lede { margin-top: 10px; font-size: 16px; line-height: 1.36; }
@@ -665,7 +682,7 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .heroText .fine { display: none; }
   /* The picture: the week's note over the table, all of it above the fold (HeroArt lays it out, in
      the flow; the picture fills what it takes). "Free" sits beside the download button. */
-  .art { position: relative; top: auto; bottom: auto; left: auto; right: auto; height: auto; margin-top: 14px; padding-bottom: calc(var(--tearH) + 14px); container-type: normal; clip-path: none; overflow: hidden; }
+  .art { position: relative; display: flex; flex-direction: column; flex: 1 0 auto; top: auto; bottom: auto; left: auto; right: auto; height: auto; margin-top: 14px; padding-bottom: calc(var(--tearH) + 14px); container-type: normal; clip-path: none; overflow: hidden; }
   .free { display: inline; }
 
   /* One calm screen per chapter: the heading, a line or two, the thing, as one block from just under
@@ -802,12 +819,19 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .markers button[aria-selected="true"] i { background: #fff1e2; }
   .markers button:focus-visible { outline: 2px solid #7fe0c0; outline-offset: -2px; }
 
-  /* The proof: the two numbers stacked, the line under each. */
-  .proofBody { align-items: flex-start; padding: 64px var(--pad) 40px; }
-  .nums { grid-template-columns: minmax(0, 1fr); gap: 34px; }
-  .big { font-size: 104px; }
-  .numSay { margin-top: 10px; font-size: 19px; }
-  .proofLink { margin-top: 34px; font-size: 17px; }
+  /* The proof, one calm screen: the heading and its line, then each row as who and the number on one
+     line with the bar under them, full width; the source and the link at the foot. */
+  .proofBody { padding: 28px var(--pad) 36px; }
+  .proofHead { display: block; }
+  .proofTitle { font-size: 40px; line-height: 1; }
+  .proofSay { margin-top: 12px; font-size: 17px; line-height: 1.38; }
+  .bars { margin-top: 40px; gap: 30px; }
+  .barRow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who num" "bar bar"; align-items: end; column-gap: 12px; font-size: 64px; }
+  .barWho { margin: 0 0 0.35em; font-size: 16px; line-height: 1.25; }
+  .barNum { align-self: auto; margin: 0 0 12px; text-align: right; }
+  .barTrack { height: 0.42em; border-radius: 0.14em; }
+  .proofFoot { display: grid; gap: 14px; margin-top: 36px; font-size: 14.5px; line-height: 1.4; }
+  .proofLink { font-size: 17px; justify-self: start; }
 
   :global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .ctas.ctas { align-items: flex-start; }
 }
@@ -880,14 +904,19 @@ body:has(.stack) :global(.site-ground) { margin-top: 0; padding: 42px var(--gutt
   .art { left: calc(var(--pad) + min(560px, 44vw) + 40px); }
 }
 
-/* Phones: the close is the free page and the iPhone, the product itself, where ChatGPT's line arrives
-   as it comes into view. No Mac, and no still life (the page doesn't end on glasses and a book). */
+/* Phones: the close is the free page and the iPhone, the product itself, once, where ChatGPT's line
+   arrives as it comes into view. No Mac, and no still life (the page doesn't end on glasses and a
+   book). The iPhone shows its note and goes on under the footer: the green sheet's torn edge is laid
+   over its blank lower half, so the close is about one and a half screens with the footer. */
 @media (max-width: 760px) {
   .cover::after { display: none; }
-  .coverBody { padding-bottom: 56px; }
-  .devices { width: 15em; height: auto; max-width: none; margin: 34px auto 0; font-size: 15px; }
+  .coverBody { padding: 56px var(--pad) 0; }
+  .devices { width: 15em; height: 28.4em; max-width: none; margin: 30px auto 0; font-size: 15px; }
   .mac { display: none; }
   .phone { position: relative; left: auto; right: auto; top: auto; width: 15em; }
+  /* The footer is its own stacking context (its view transition), so it's the one raised over the cover. */
+  body:has(.stack) :global(.site-footer) { position: relative; z-index: 12; }
+  body:has(.stack) :global(.site-ground) { margin-top: -34px; }
 }
 @media (max-width: 760px) {
   /* The note shows its first line and its link to the board again: the chapter is one full page. */
