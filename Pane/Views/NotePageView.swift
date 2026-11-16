@@ -739,6 +739,7 @@ struct NotePageView: View {
                     canvas.call = { [weak s] name, args in await s?.canvasCall(name, args) }
                     #if os(macOS)
                     (s.webView as? NotePageWebView)?.canvas = canvas
+                    canvas.focusPage = { [weak s] in if let w = s?.webView, w.window?.firstResponder !== w { w.window?.makeFirstResponder(w) } }
                     #endif
                     // A shared board's web page shows its picture, made from here while it's open.
                     BoardPicture.opened(canvas, note: noteID)

@@ -188,10 +188,17 @@ enum CanvasStyle {
 enum CanvasObstacle: Equatable, Sendable {
     case box(CGRect)
     case line([CGPoint])
+    /// Words of their own on the board (a how-to line, a heading): covered last (round 15,
+    /// 43-timeline-1: Add Step sat on the Timeline's how-to line).
+    case words(CGRect)
 
     init?(_ m: [String: Any]) {
         func nums(_ k: String) -> [CGFloat]? { (m[k] as? [Any])?.compactMap { ($0 as? NSNumber).map { CGFloat($0.doubleValue) } } }
-        if let b = nums("box"), b.count == 4 { self = .box(CGRect(x: b[0], y: b[1], width: b[2], height: b[3])); return }
+        if let b = nums("box"), b.count == 4 {
+            let r = CGRect(x: b[0], y: b[1], width: b[2], height: b[3])
+            self = m["words"] as? Bool == true ? .words(r) : .box(r)
+            return
+        }
         if let l = nums("line"), l.count >= 4 { self = .line(stride(from: 0, to: l.count - 1, by: 2).map { CGPoint(x: l[$0], y: l[$0 + 1]) }); return }
         return nil
     }
@@ -199,13 +206,16 @@ enum CanvasObstacle: Equatable, Sendable {
     /// Whether it runs through `r`.
     func hits(_ r: CGRect) -> Bool {
         switch self {
-        case .box(let b): return b.intersects(r)
+        case .box(let b), .words(let b): return b.intersects(r)
         case .line(let pts):
             if pts.contains(where: r.contains) { return true }
             for (a, b) in zip(pts, pts.dropFirst()) where Self.segment(a, b, crosses: r) { return true }
             return false
         }
     }
+
+    /// How much covering it costs: words you'd read far more than any number of lines and shapes.
+    var weight: Int { if case .words = self { 1000 } else { 1 } }
 
     private static func segment(_ a: CGPoint, _ b: CGPoint, crosses r: CGRect) -> Bool {
         guard CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)).intersects(r.insetBy(dx: -0.5, dy: -0.5)) else { return false }
@@ -233,12 +243,17 @@ struct CanvasState: Equatable, Sendable {
     /// What's selected is a frame or in one: Present from Here starts there.
     var inFrame = false
     /// What's selected is a part of a template that has more of its kind: a Kanban or Retro
-    /// column (Add Column) or a Timeline step (Add Step) (round 15).
+    /// column (Add Column), a Timeline step (Add Step) (round 15) or a person on an org chart
+    /// (Add Report, round 16).
     var grows: Grows?
     enum Grows: String, Equatable, Sendable {
-        case column, step
-        var title: String { self == .column ? "Add Column" : "Add Step" }
-        var symbol: String { self == .column ? "rectangle.split.3x1" : "calendar.day.timeline.left" }
+        case column, step, report
+        var title: String {
+            switch self { case .column: "Add Column"; case .step: "Add Step"; case .report: "Add Report" }
+        }
+        var symbol: String {
+            switch self { case .column: "rectangle.split.3x1"; case .step: "calendar.day.timeline.left"; case .report: "person.badge.plus" }
+        }
     }
     /// The selected elements' types ("rectangle", "text", …).
     var selection: [String] = []
@@ -447,6 +462,8 @@ enum CanvasCommand: Equatable, Sendable {
     /// A version from the board's History (a scene, as JSON), back on the board in one step Undo
     /// takes back (BoardHistoryModel.restore).
     case restoreVersion(Data)
+    /// Voting's dots and totals on the board (BoardTeam).
+    case votes(CanvasVotes)
 
     var payload: [String: Any] {
         switch self {
@@ -484,6 +501,7 @@ enum CanvasCommand: Equatable, Sendable {
         case .focusComment(let id, let above): ["op": "focusComment", "id": id].merging(above.map { ["above": $0] } ?? [:]) { a, _ in a }
         case .follow(let target): target?.payload ?? ["op": "follow", "off": true]
         case .laser(let id, let points): ["op": "laser", "id": id.uuidString, "points": points.map { [Double($0.x), Double($0.y)] }]
+        case .votes(let v): v.payload
         case .addCards(let cards, let at):
             ["op": "addCards", "notes": cards.map(\.payload)]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
@@ -491,6 +509,22 @@ enum CanvasCommand: Equatable, Sendable {
             ["op": "image", "dataURL": i.dataURL, "mimeType": i.mimeType, "width": i.width, "height": i.height]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
         }
+    }
+}
+
+/// What voting shows on the board (BoardTeam): while `on`, a click on a shape or a sticky votes
+/// for it and one on your dot takes it back; your dots in your colour; the totals once it ended.
+struct CanvasVotes: Equatable, Sendable {
+    var on = false
+    var dots: [Dot] = []
+    var results: [String: Int]?
+    struct Dot: Equatable, Sendable {
+        var on: String
+        var color: String
+        var dark: String
+    }
+    var payload: [String: Any] {
+        ["op": "votes", "on": on, "dots": dots.map { ["on": $0.on, "color": $0.color, "dark": $0.dark] }, "results": results ?? NSNull()]
     }
 }
 
@@ -507,8 +541,39 @@ final class CanvasController {
     @ObservationIgnored private(set) var sent: [CanvasCommand] = []
     /// Delivers a command to the page (set by the page view while it shows).
     @ObservationIgnored var deliver: ((CanvasCommand) -> Void)?
+    /// Gives the board the keyboard (set by the page view on the Mac): Add Step, Add Column and
+    /// Add Report from the selection bar or the menu start typing in the new part, and the keys go
+    /// to it, not to the button (round 16: "a new step or column is selected and ready for typing").
+    @ObservationIgnored var focusPage: () -> Void = {}
+
+    /// Voting and a timer for a team session (BoardTeam): yours on a board of your own; on a
+    /// shared one, joined to its presence (BoardCollab.wire).
+    let team = BoardTeamModel()
+    /// Someone's colour for their dots (nil: you), light and dark.
+    /// On a board of your own, the blue (CollabSession.palette's third).
+    @ObservationIgnored var teamColors: (UUID?) -> (light: String, dark: String) = { _ in ("#2D639A", "#3677B9") }
+    @ObservationIgnored private var lastVotes: CanvasVotes?
+
+    init() {
+        team.pageChanged = { [weak self] in self?.sendVotes() }
+    }
+
+    /// What voting shows on the page now.
+    var votes: CanvasVotes {
+        let c = teamColors(team.me)
+        return CanvasVotes(on: team.votingOpen && team.canVote, dots: team.votingOpen ? team.myDots.map { .init(on: $0, color: c.light, dark: c.dark) } : [],
+                           results: team.voting?.results)
+    }
+
+    func sendVotes() {
+        let v = votes
+        guard v != lastVotes else { return }
+        lastVotes = v
+        send(.votes(v))
+    }
 
     func send(_ command: CanvasCommand) {
+        if case .grow = command { focusPage() }
         // Can view: no picture goes on the board (the page refuses it too), and it says why.
         if shared, viewOnly, case .image = command { confirm(CollabBoard.Pictures.viewOnly, for: .seconds(3)); return }
         // The last hundred or so: a shared board sends its drawing and the others' pointers often.
@@ -541,6 +606,14 @@ final class CanvasController {
             return
         }
         if let c = m["comment"] as? [String: Any] { commentMessage(c); return }
+        // Voting: a click on a shape, or on one of your dots.
+        if let v = m["vote"] as? [String: Any] {
+            if let on = v["on"] as? String {
+                if team.votesLeft == 0, team.votingOpen { confirm(BoardTeam.votesLeft(0), for: .seconds(2)) }
+                team.vote(on: on)
+            } else if let off = v["off"] as? String { team.unvote(on: off) }
+            return
+        }
         if let at = m["commentAt"] { commentMoved(at); return }
         if let names = m["commentShapes"] as? [String: Any] {
             let next = names.compactMapValues { $0 as? String }
@@ -563,9 +636,11 @@ final class CanvasController {
             pageFiles = []
             if shared { sendShared() }
             onLoad?()
-            // Its comments, again.
+            // Its comments, again, and voting's dots.
             lastPins = nil
             sendPins()
+            lastVotes = nil
+            if team.running || team.myDots.count > 0 { sendVotes() }
             // And whose view it follows.
             lastFollowTarget = nil
             if let p = followed { applyFollow(p) }
@@ -2340,16 +2415,19 @@ enum WhiteboardTemplate: String, CaseIterable, Identifiable, Sendable {
             }
             return out
         case .orgChart:
-            var out = T.title("Org chart", hint: "Double-click a box to write a name. Drag from its edge to add a line to someone new.")
-            out.append(T.box("lead", x: 280, y: 0, w: 200, h: 72, text: "Alex\nTeam lead", fill: T.yellow, size: 18))
+            // Each person marked, so Add Report (Tab) puts someone under them, joined, the chart's
+            // layout kept (round 16: "org charts grow").
+            let person = ["customData": ["pintoPerson": true]]
+            var out = T.title("Org chart", hint: "Double-click a box to write a name. Select someone and press Tab to add a report.")
+            out.append(T.box("lead", x: 280, y: 0, w: 200, h: 72, text: "Alex\nTeam lead", fill: T.yellow, size: 18).merging(person) { a, _ in a })
             let teams: [(String, String, String, String)] = [("design", "Sam\nDesign", "ana", "Ana\nDesigner"), ("eng", "Kim\nEngineering", "lee", "Lee\nDeveloper"),
                                                              ("market", "Jo\nMarketing", "open", "Open role")]
             for (i, t) in teams.enumerated() {
                 let left = Double(i) * 280, mid = left + 100
-                out.append(T.box(t.0, x: left, y: 150, w: 200, h: 72, text: t.1, fill: T.blue, size: 18))
-                var person = T.box(t.2, x: left + 10, y: 300, w: 180, h: 64, text: t.3, fill: t.2 == "open" ? "transparent" : T.green, size: 16)
-                if t.2 == "open" { person["strokeStyle"] = "dashed" }
-                out.append(person)
+                out.append(T.box(t.0, x: left, y: 150, w: 200, h: 72, text: t.1, fill: T.blue, size: 18).merging(person) { a, _ in a })
+                var report = T.box(t.2, x: left + 10, y: 300, w: 180, h: 64, text: t.3, fill: t.2 == "open" ? "transparent" : T.green, size: 16).merging(person) { a, _ in a }
+                if t.2 == "open" { report["strokeStyle"] = "dashed" }
+                out.append(report)
                 out.append(T.arrow(from: "lead", to: t.0, x: 380, y: 72, dx: mid - 380, dy: 78, branch: true))
                 out.append(T.arrow(from: t.0, to: t.2, x: mid, y: 222, dx: 0, dy: 78, branch: true))
             }

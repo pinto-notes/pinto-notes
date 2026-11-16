@@ -109,7 +109,9 @@ Deno.test("the engine's fonts load from the site", async () => {
 // out past its right edge, as scripts/board-web-e2e.sh draws them.
 const frame = (id: string, name: string, x: number) => ({ ...box, id, type: "frame", name, x, y: 0, width: 520, height: 320, index: id === "launch" ? "a1" : "a2" });
 const yellow = { ...box, id: "guest", x: 470, y: 180, width: 160, height: 90, backgroundColor: "#ffec99", fillStyle: "solid", frameId: "launch", index: "a3", seed: 9 };
-const launchPlan = [{ ...box, frameId: "launch" }, frame("launch", "Launch", 0), frame("plan", "Plan", 700), yellow];
+// In the engine's order: what's in a frame just below the frame, so the frame's line is drawn
+// after it (the cause of round 15's line through the yellow shape, web-04).
+const launchPlan = [{ ...box, frameId: "launch" }, { ...yellow, index: "a0V" }, frame("launch", "Launch", 0), frame("plan", "Plan", 700)];
 
 type View = { zoom: { value: number }; scrollX: number; scrollY: number; frameRendering: { clip: boolean; name: boolean; outline: boolean } };
 const api = (page: Page) => page.frames().find((x) => x.url().includes("canvas.html"))!;
@@ -142,25 +144,111 @@ Deno.test("a board opened on a phone shows whole, between the title and the tool
   }, { viewport: { width: 390, height: 844 }, elements: launchPlan });
 });
 
-Deno.test("a shape run out past its frame's edge shows whole while you work, and Present cuts it there (round 14, web-04)", async () => {
+Deno.test("a frame cuts what's in it at its edge, and Present shows only the frame (round 16; round 14, web-04)", async () => {
   await withBoard(async (page) => {
+    // As in Excalidraw: the frame holds its shapes, so its edge is never drawn through one (round
+    // 15: the frame's line ran through the yellow shape).
     const v = await view(page);
-    assertEquals(v.frames.clip, false);
-    // Inside the frame and outside it, the yellow shape is drawn.
+    assertEquals(v.frames.clip, true);
     assert(isYellow(await inkAt(page, 500, 225)), `inside: ${await inkAt(page, 500, 225)}`);
-    assert(isYellow(await inkAt(page, 600, 225)), `outside the frame's edge: ${await inkAt(page, 600, 225)}`);
-    // Present: only the frame shows, cut at its edge, with no name or outline; Done brings it all back.
+    assert(!isYellow(await inkAt(page, 600, 225)), `cut at the frame's edge: ${await inkAt(page, 600, 225)}`);
     const cmd = (c: unknown) => page.evaluate((c) => (window as unknown as { cmd(c: unknown): void }).cmd(c), c);
     await cmd({ op: "present", to: "start" });
     await page.waitForTimeout(300);
     const p = await view(page);
     assertEquals([p.frames.clip, p.frames.name, p.frames.outline], [true, false, false]);
     assert(isYellow(await inkAt(page, 500, 225)), "presenting: the part inside the frame shows");
-    assert(!isYellow(await inkAt(page, 600, 225)), "presenting: the part past the frame's edge is cut");
     await cmd({ op: "present", to: "stop" });
     await page.waitForTimeout(300);
     const after = await view(page);
-    assertEquals([after.frames.clip, after.frames.name, after.frames.outline], [false, true, true]);
-    assert(isYellow(await inkAt(page, 600, 225)), "after Done: drawn whole again");
+    assertEquals([after.frames.clip, after.frames.name, after.frames.outline], [true, true, true]);
+  }, { elements: launchPlan });
+});
+
+/** Scene to window points in the board's frame (it fills the page). */
+const onScreen = (page: Page, x: number, y: number) => api(page).evaluate(([x, y]) => {
+  const s = (window as unknown as { amber: { _canvas: { api: { getAppState(): View } } } }).amber._canvas.api.getAppState();
+  return [(x + s.scrollX) * s.zoom.value, (y + s.scrollY) * s.zoom.value];
+}, [x, y]);
+const frameOf = (page: Page, id: string) => api(page).evaluate((id) =>
+  (window as unknown as { amber: { _canvas: { api: { getSceneElements(): { id: string; frameId: string | null }[] } } } }).amber._canvas.api.getSceneElements().find((e) => e.id === id)?.frameId ?? null, id);
+
+Deno.test("a shape dragged mostly out of its frame leaves it and shows whole, over the frame's edge (round 16)", async () => {
+  await withBoard(async (page) => {
+    // The cause (round 15): kept in the frame and drawn uncut, the shape had the frame's edge
+    // drawn over it, since the engine draws a frame's line above what's in it.
+    const clip = (on: boolean) => api(page).evaluate((on) => {
+      const a = (window as unknown as { amber: { _canvas: { api: { getAppState(): View; updateScene(u: unknown): void } } } }).amber._canvas.api;
+      a.updateScene({ appState: { frameRendering: { ...a.getAppState().frameRendering, clip: on } } });
+    }, on);
+    await clip(false);
+    await page.waitForTimeout(200);
+    assert(!isYellow(await inkAt(page, 520, 225)), `uncut in its frame, the frame's line crosses it: ${await inkAt(page, 520, 225)}`);
+    await clip(true);
+    await page.waitForTimeout(200);
+    // The yellow shape, two thirds out: dragged a little further right with the mouse.
+    const [x0, y0] = await onScreen(page, 500, 225);
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(x0 + i * 3, y0);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    assertEquals(await frameOf(page, "guest"), null, "out of the frame");
+    // Whole: past the edge, and on the edge itself, where the frame's line would cross it.
+    const s = await view(page);
+    const dx = 24 / s.z;
+    assert(isYellow(await inkAt(page, 600 + dx, 225)), `past the edge: ${await inkAt(page, 600 + dx, 225)}`);
+    assert(isYellow(await inkAt(page, 520, 225)), `on the frame's edge, over its line: ${await inkAt(page, 520, 225)}`);
+    assertEquals(await frameOf(page, "mac-1"), "launch", "the box well inside stays in");
+  }, { elements: launchPlan });
+});
+
+Deno.test("voting: a click on a shape votes for it, your dots show on it, one on your dot takes it back, and the totals show (round 16)", async () => {
+  await withBoard(async (page) => {
+    const cmd = (c: unknown) => page.evaluate((c) => (window as unknown as { cmd(c: unknown): void }).cmd(c), c);
+    const got = () => page.evaluate(() => (window as unknown as { got: { vote?: { on?: string; off?: string } }[] }).got.filter((m) => m.vote).map((m) => m.vote));
+    const selected = () => api(page).evaluate(() => Object.keys((window as unknown as { amber: { _canvas: { api: { getAppState(): { selectedElementIds: Record<string, boolean> } } } } }).amber._canvas.api.getAppState().selectedElementIds));
+    // Not voting: a click selects, as always.
+    let [x, y] = await onScreen(page, 500, 225);
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(200);
+    assertEquals(await got(), []);
+    assertEquals(await selected(), ["guest"]);
+    await api(page).evaluate(() => (window as unknown as { amber: { _canvas: { api: { updateScene(u: unknown): void } } } }).amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }));
+    await cmd({ op: "votes", on: true, dots: [], results: null });
+    await page.waitForTimeout(100);
+    [x, y] = await onScreen(page, 500, 225);
+    await page.mouse.click(x, y);
+    await page.waitForTimeout(200);
+    assertEquals(await got(), [{ on: "guest" }], "a vote for the shape under the click");
+    // Two dots of yours on it, in your colour, at its top right corner.
+    await cmd({ op: "votes", on: true, dots: [{ on: "guest", color: "#5252C5", dark: "#6868CD" }, { on: "guest", color: "#5252C5", dark: "#6868CD" }], results: null });
+    await page.waitForTimeout(150);
+    const dots = await api(page).evaluate(() => [...document.querySelectorAll(".pinto-vote-dot")].filter((n) => (n as HTMLElement).style.display !== "none").map((n) => { const r = n.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, bg: getComputedStyle(n).backgroundColor }; }));
+    assertEquals(dots.length, 2);
+    const [rx, ry] = await onScreen(page, 470 + 160, 180);
+    assert(dots.every((d) => d.x < rx && d.x > rx - 60 && d.y > ry && d.y < ry + 30), `at the top right corner: ${JSON.stringify(dots)} vs ${rx},${ry}`);
+    assert(dots.every((d) => d.bg === "rgb(82, 82, 197)"), JSON.stringify(dots));
+    // A click on your dot takes it back.
+    await page.mouse.click(dots[0].x + 7, dots[0].y + 7);
+    await page.waitForTimeout(150);
+    assertEquals((await got()).at(-1), { off: "guest" });
+    assertEquals(await selected(), [], "nothing selected by voting");
+    // Ended: the totals, no dots; clicks select again.
+    await cmd({ op: "votes", on: false, dots: [], results: { guest: 4 } });
+    await page.waitForTimeout(150);
+    const totals = await api(page).evaluate(() => [...document.querySelectorAll(".pinto-vote-total")].filter((n) => (n as HTMLElement).style.display !== "none").map((n) => n.textContent));
+    assertEquals(totals, ["4"]);
+    // Every total looks the same, never in the colour of a dot drawn there before (round 16: one
+    // total came out in Cleo's violet).
+    await cmd({ op: "votes", on: false, dots: [], results: { guest: 4, "mac-1": 2 } });
+    await page.waitForTimeout(150);
+    const looks = await api(page).evaluate(() => [...document.querySelectorAll(".pinto-vote-total")].filter((n) => (n as HTMLElement).style.display !== "none").map((n) => getComputedStyle(n).backgroundColor));
+    assertEquals(looks.length, 2);
+    assert(looks.every((b) => b === looks[0]) && looks[0] !== "rgb(82, 82, 197)", `the totals' colours: ${JSON.stringify(looks)}`);
+    assertEquals(await api(page).evaluate(() => [...document.querySelectorAll(".pinto-vote-dot")].filter((n) => (n as HTMLElement).style.display !== "none").length), 0);
+    // Not part of the drawing.
+    const kept = await api(page).evaluate(() => JSON.stringify((window as unknown as { amber: { _canvas: { scene(): unknown } } }).amber._canvas.scene()));
+    assert(!kept.includes("pinto-vote") && !kept.includes("results"));
   }, { elements: launchPlan });
 });

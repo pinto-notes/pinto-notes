@@ -48,6 +48,20 @@ struct ShareState: Equatable {
 
     /// Your role in the note: owner, editor, commenter or viewer. A note nobody shares yet is yours.
     var myRole: String { people.first(where: \.isMe)?.role ?? "owner" }
+
+    /// The people, each with their colour in this note: the session's when it has said, else the
+    /// one the member list gives, by the board's own rule (CollabSession.slots: the owner, then the
+    /// others as listed). So a person has one colour in Share, on the board and in a browser
+    /// (round 15, comment-role-1: Cleo was plum here and blue on the board).
+    var colored: [Person] {
+        let order = people.filter { $0.role == "owner" }.map(\.id) + people.filter { $0.role != "owner" }.map(\.id)
+        let slots = CollabSession.slots(for: order)
+        return people.map { p in
+            var p = p
+            if p.colorSlot == nil { p.colorSlot = slots[p.id] }
+            return p
+        }
+    }
 }
 
 /// The sheet's content on iPhone: People, then Share Link and what the link lets people do, or
@@ -63,7 +77,7 @@ struct ShareForm: View {
     var body: some View {
         Form {
             Section {
-                ForEach(state.people) { p in
+                ForEach(state.colored) { p in
                     Group {
                         if p.isMe || p.safetyCode == nil { PersonRow(person: p, removing: share.working == .remove(p.id)) }
                         else { NavigationLink(value: p.id) { PersonRow(person: p, removing: share.working == .remove(p.id)) } }
@@ -98,7 +112,7 @@ struct ShareForm: View {
                     .disabled(share.working != nil)
                     .accessibilityIdentifier("share.access")
                 } footer: {
-                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state), done: share.done == .linkChanged)
+                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state, board: share.board()), done: share.done == .linkChanged)
                 }
             } else {
                 Section {
@@ -123,7 +137,7 @@ struct ShareForm: View {
         #endif
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: done).buttonStyle(.quiet) } }
         .navigationDestination(for: UUID.self) { id in
-            if let p = state.people.first(where: { $0.id == id }) {
+            if let p = state.colored.first(where: { $0.id == id }) {
                 PersonDetail(person: p, canRemove: share.isOwner, justVerified: share.done == .verified(p.id),
                              verify: { share.verify(p) }, done: done, remove: { share.askRemove(p) })
             }

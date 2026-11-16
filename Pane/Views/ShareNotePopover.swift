@@ -621,7 +621,7 @@ struct CollaborateRows: View {
             } else if share.confirmingLeave {
                 confirm(ShareCopy.leaveTitle(share.note.title), ShareCopy.leaveMessage, action: "Leave", id: "share.confirmLeave",
                         cancel: { share.confirmingLeave = false }) { Task { await share.confirmLeave() } }
-            } else if case .verify(let id) = shown, let p = share.state.people.first(where: { $0.id == id }) {
+            } else if case .verify(let id) = shown, let p = share.state.colored.first(where: { $0.id == id }) {
                 verify(p)
             } else {
                 people
@@ -634,7 +634,7 @@ struct CollaborateRows: View {
     @ViewBuilder private var people: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(share.state.people) { p in
+                ForEach(share.state.colored) { p in
                     let opens = !p.isMe && p.safetyCode != nil
                     let row = HStack(spacing: 5) {
                         PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
@@ -706,7 +706,7 @@ struct CollaborateRows: View {
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }
                 else if share.done == .linkChanged { DoneLine(text: ShareController.Done.linkChanged.text).font(.system(size: 11)) }
-                else { line(ShareCopy.link(share.state), problem: false) }
+                else { line(ShareCopy.link(share.state, board: share.board()), problem: false) }
                 Button { Task { await share.shareLink() } } label: {
                     if case .shared = share.done { Label(share.done?.text ?? "", systemImage: "checkmark") }
                     else { Label("Invite People…", systemImage: "person.badge.plus") }

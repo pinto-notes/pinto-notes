@@ -93,6 +93,8 @@ struct CanvasOverlay: View {
                 }
                 // Someone presenting on a shared board, or whom you follow (BoardFollow).
                 CanvasFollowBanner(canvas: canvas)
+                // Voting and the timer of a team session (BoardTeam).
+                CanvasTeamBar(canvas: canvas)
             }
         }
         .animation(.easeOut(duration: 0.2), value: canvas.state.present == nil)
@@ -1213,8 +1215,10 @@ struct CanvasSelectionBar: View {
         if let clear = inside.first(where: { c in !nearby.contains { $0.hits(rect(c)) } }) { return clear }
         // Nowhere clear: the old place, above (below with no room above), kept in the canvas.
         let fallback = CGPoint(x: bounds.midX, y: above - bar.height / 2 < margin ? below : above)
-        let least = inside.min { a, b in nearby.filter { $0.hits(rect(a)) }.count < nearby.filter { $0.hits(rect(b)) }.count }
-        if let least, nearby.filter({ $0.hits(rect(least)) }).count < nearby.filter({ $0.hits(rect(fallback)) }).count { return least }
+        // Words count far more than lines and shapes: the bar sits on a line before a how-to line.
+        func cost(_ c: CGPoint) -> Int { nearby.filter { $0.hits(rect(c)) }.reduce(0) { $0 + $1.weight } }
+        let least = inside.min { cost($0) < cost($1) }
+        if let least, cost(least) < cost(fallback) { return least }
         return clamp(fallback)
     }
 

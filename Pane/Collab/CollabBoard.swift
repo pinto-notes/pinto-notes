@@ -353,6 +353,26 @@ extension CollabBoard {
         canvas.setCanComment(session.canComment)
         mention(session, canvas)
         canvas.show(comments: session.boardComments)
+        // Voting and a timer (BoardTeam): the session you run and your dots go out with your
+        // presence; everyone else's come back with theirs.
+        canvas.team.me = session.me
+        team(session, canvas)
+        canvas.teamColors = { [weak session] id in
+            guard let session else { return ("#2D639A", "#3677B9") }
+            return session.boardColors(of: id ?? session.me)
+        }
+        session.boardTeamNow = { [weak canvas] in (canvas?.team.session, canvas?.team.dots) }
+        session.onBoardTeam = { [weak canvas] user, name, team, dots in canvas?.team.heard(user, name: name, session: team, dots: dots) }
+        session.onBoardLeft = { [weak canvas] user in canvas?.team.left(user) }
+        canvas.team.published = { [weak session] in session?.boardTeamChanged() }
+        canvas.sendVotes()
+    }
+
+    /// Who may run voting or a timer (whoever can edit) and who may vote (whoever can edit or comment).
+    private static func team(_ session: CollabSession, _ canvas: CanvasController) {
+        if canvas.team.canHost != session.canWrite { canvas.team.canHost = session.canWrite }
+        let vote = session.canWrite || session.canComment
+        if canvas.team.canVote != vote { canvas.team.canVote = vote }
     }
 
     /// The name a change from elsewhere is marked with ("Sara", "Sara and Ola", or your other
@@ -388,7 +408,7 @@ extension CollabBoard {
     static func wirePrivate(_ note: UUID, _ canvas: CanvasController, canComment: Bool = true, store: NotePageDataStore = .shared) {
         guard !canvas.shared else { return }
         canvas.author = BoardComments.me()
-        canvas.colorOf = { BoardComments.color(for: $0) }
+        canvas.colorOf = { [weak canvas] id in BoardComments.color(of: id, among: canvas?.comments ?? [], me: canvas?.author.id ?? "me") }
         canvas.onComments = { [weak store] list in if let store { BoardComments.keep(list, for: note, in: store) } }
         canvas.setCanComment(canComment)
         canvas.show(comments: BoardComments.stored(in: store.doc(note)))
@@ -409,7 +429,16 @@ extension CollabBoard {
             session.boardPresence(pointer: nil, selection: [])
             session.boardLook(BoardLook())
             session.boardFollow(nil)
+            session.boardTeamNow = nil
+            session.onBoardTeam = nil
+            session.onBoardLeft = nil
         }
+        canvas.team.published = {}
+        canvas.team.reset()
+        canvas.team.me = nil
+        canvas.team.canHost = true
+        canvas.team.canVote = true
+        canvas.teamColors = { _ in ("#2D639A", "#3677B9") }
         canvas.onBoardLook = nil
         canvas.onFollow = nil
         canvas.stopFollowing()
@@ -432,5 +461,6 @@ extension CollabBoard {
         canvas.show(people: session.boardPeople)
         canvas.setCanComment(session.canComment)
         mention(session, canvas)
+        team(session, canvas)
     }
 }

@@ -9,6 +9,7 @@ import { loadAutomerge } from "./automerge";
 import { open3, pictureBytes, seal3 } from "./collab";
 import type { Bytes } from "./e2ee";
 import { type Automerge, type Comment, commentJSON, entryOf, foldComments, ordered, PALETTE, put, slots, STALE } from "./board-doc";
+import { TeamModel } from "./board-team";
 import { BoardSession, type Clock, type CommentRow, type Live, type LiveEvents, type Member, type Snapshot, type Transport, type Update } from "./board-session";
 
 const wasm = () => readFileSync(createRequire(import.meta.url).resolve("@automerge/automerge/automerge.wasm"));
@@ -322,6 +323,61 @@ describe("a shared board in the browser", () => {
     await clock.advance(120);
     expect([people[0].presenting, people[0].view]).toEqual([null, null]);
     emil.s.close(); sara.s.close();
+  });
+
+  it("voting and a timer cross between two people as the app sends them, and stay out of the drawing (round 16)", async () => {
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock, { name: "Emil Wagman" });
+    const sara = await open(server, SARA, clock, { name: "Sara Berg" });
+    // Wired as BoardHost wires them.
+    const join = (x: typeof emil, me: string) => {
+      const t = new TeamModel(clock);
+      t.me = me; t.canHost = true; t.canVote = true;
+      let rang = 0;
+      t.onChime = () => { rang++; };
+      x.s.teamNow = () => ({ session: t.session(), dots: t.dots() });
+      x.s.onTeam = (user, name, team, dots) => t.heard(user, name, team, dots);
+      x.s.onLeft = (user) => t.left(user);
+      t.onPublish = () => x.s.teamChanged();
+      return { t, rang: () => rang };
+    };
+    const e = join(emil, EMIL), h = join(sara, SARA);
+    e.t.startVoting(3);
+    await clock.advance(150);
+    expect(h.t.voting?.votes).toBe(3);
+    expect(h.t.hostName).toBe("Emil");
+    expect(h.t.canStart).toBe(false);
+    h.t.vote("a"); h.t.vote("a");
+    e.t.vote("b");
+    await clock.advance(150);
+    expect(e.t.votesIn).toBe(3);
+    // She sees only her own dots; he his.
+    expect(h.t.command("#5252C5", "#6868CD").dots.map((d) => d.on)).toEqual(["a", "a"]);
+    e.t.endVoting();
+    await clock.advance(150);
+    expect(h.t.voting?.results).toEqual({ a: 2, b: 1 });
+    expect(JSON.stringify(emil.s.scene())).not.toContain(e.t.voting!.id);
+    e.t.clearVoting();
+    await clock.advance(150);
+    expect(h.t.running).toBe(false);
+    // A minute's timer: both count down from it and chime once at its end.
+    e.t.startTimer(60);
+    await clock.advance(150);
+    expect(Math.round(h.t.timeLeft())).toBe(60);
+    await clock.advance(30_000);
+    expect(Math.round(h.t.timeLeft())).toBe(30);
+    await clock.advance(30_500);
+    expect([e.t.finished, h.t.finished, e.rang(), h.rang()]).toEqual([true, true, 1, 1]);
+    // Emil goes: his session ends for her.
+    e.t.stopTimer();
+    e.t.startVoting();
+    await clock.advance(150);
+    expect(h.t.voting).not.toBeNull();
+    emil.s.close();
+    await clock.advance(150);
+    expect(h.t.running).toBe(false);
+    sara.s.close();
   });
 
   it("someone silent for 6 seconds is drawn grey", async () => {

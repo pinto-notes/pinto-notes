@@ -20,6 +20,7 @@
 //   old map and the stream, folded as the app folds them (board-doc.ts foldComments). Yours wait in
 //   order and go up as entries; an owner's or editor's page moves into the stream what isn't there
 //   yet (the old map, or comments under an older key).
+import { dotsOf, sessionOf, type Dots, type TeamSession } from "./board-team";
 import type { Bytes } from "./e2ee";
 import { open3, pictureBytes, pictureOf, seal3 } from "./collab";
 import { type BoardPerson, MOST_LASER_POINTS, type Presenting, pointsOf, presentingOf, type View, viewOf } from "./board-follow";
@@ -252,7 +253,7 @@ export class BoardSession {
         update: (u) => this.receive(u),
         comment: (row) => void this.receiveComment(row),
         presence: (user, ct) => void this.presenceIn(user, ct),
-        leave: (user) => { if (this.peers.delete(user.toLowerCase())) { this.sendPeers(); this.onPeople?.(this.boardPeople()); } void this.refreshMembers(); },
+        leave: (user) => { if (this.peers.delete(user.toLowerCase())) { this.sendPeers(); this.onPeople?.(this.boardPeople()); } this.onLeft?.(user.toLowerCase()); void this.refreshMembers(); },
         members: () => void this.refreshMembers(),
         relaying: () => { this.relayed = true; void this.catchUp(); void this.flush(); void this.flushComments(); },
         notRelaying: () => { this.relayed = false; },
@@ -766,6 +767,13 @@ export class BoardSession {
     this.presenceSoon();
   }
 
+  /** Voting and a timer (board-team.ts): what your presence carries, read as each beat goes out;
+   *  `teamChanged` sends one soon. Someone's beat with theirs, and someone gone. */
+  teamNow: (() => { session: TeamSession | null; dots: Dots | null }) | null = null;
+  onTeam: ((user: string, name: string, session: TeamSession | null, dots: Dots | null) => void) | null = null;
+  onLeft: ((user: string) => void) | null = null;
+  teamChanged() { if (this.live) this.presenceSoon(); }
+
   /** Whose view you follow (null: nobody), told to the others. */
   follow(id: string | null) {
     const next = id ? id.toLowerCase() : null;
@@ -791,6 +799,10 @@ export class BoardSession {
     // The laser's points go once: the next beat carries the next ones.
     if (this.myLaserOn || this.myLaser.length) p.laser = this.myLaser.splice(0);
     if (this.myFollow) p.follow = this.myFollow;
+    // Voting and a timer (board-team.ts): the session you run and your dots in this round.
+    const team = this.teamNow?.();
+    if (team?.session) p.team = team.session;
+    if (team?.dots) p.dots = team.dots;
     const live = this.live;
     void seal3("p", new TextEncoder().encode(JSON.stringify(p)) as Bytes, this.nk, this.note, this.epoch, this.me).then((ct) => live.presence(ct)).catch(() => {});
   }
@@ -798,7 +810,7 @@ export class BoardSession {
   private async presenceIn(user: string, ct: string) {
     const id = user.toLowerCase();
     if (id === this.me) return;
-    let p: { name?: unknown; pointer?: unknown; sel?: unknown; present?: unknown; view?: unknown; laser?: unknown; follow?: unknown };
+    let p: { name?: unknown; pointer?: unknown; sel?: unknown; present?: unknown; view?: unknown; laser?: unknown; follow?: unknown; team?: unknown; dots?: unknown };
     try { p = JSON.parse(new TextDecoder().decode(await open3("p", ct, this.nk, this.note, id))); } catch { return; }
     const now = this.clock.now();
     const had = this.peers.get(id);
@@ -813,6 +825,7 @@ export class BoardSession {
     if (looked) this.onPeople?.(this.boardPeople());
     const trail = pointsOf(p.laser);
     if (trail.length) this.onLaser?.(id, trail);
+    this.onTeam?.(id, typeof p.name === "string" ? p.name : "Someone", sessionOf(p.team), dotsOf(p.dots));
     // The name flag goes 3 seconds after the last move: drawn again then, not at the next beat.
     if (moved) { this.flagTimer?.(); this.flagTimer = this.clock.after(FLAG_FOR + 20, () => { this.flagTimer = null; this.sendPeers(); }); }
     if (!had) { void this.refreshMembers(); this.sendPresence(); }

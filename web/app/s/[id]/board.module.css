@@ -208,3 +208,26 @@
 .presentFollowers { padding: 0 6px; font-size: 12px; color: var(--muted); }
 .presentDone { height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-weight: 600; font-size: 14px; cursor: pointer; }
 @media (hover: hover) { .presentDone:hover { background: var(--hover); } }
+
+/* ── An AI's change, outlined (Show change, or as it lands): dashed in the accent, its name above ── */
+.outline { position: absolute; inset: 0; pointer-events: none; z-index: 3; animation: outlineIn 0.2s ease-out; }
+.outlineBox { position: absolute; border: 2px dashed var(--accent); border-radius: 8px; }
+.outlineTag { position: absolute; padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 650; white-space: nowrap; }
+@keyframes outlineIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .outline { animation: none; } }
+.showChange { justify-self: start; display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; padding: 2px 0; border: 0; background: transparent; color: var(--accent-ink) !important; font-size: 13px !important; font-weight: 600; cursor: pointer; }
+@media (hover: hover) { .showChange:hover { text-decoration: underline; } }
+.changeGone { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+
+/* Voting and the timer (TeamBar): one calm pill at the top of the board, as in the app. */
+.team { position: absolute; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 58px); transform: translateX(-50%); display: flex; align-items: center; gap: 16px; min-height: 36px; padding: 3px 6px 3px 14px; border-radius: 999px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-size: 14px; white-space: nowrap; z-index: 5; }
+.teamLow { top: calc(max(12px, env(safe-area-inset-top)) + 106px); }
+.teamPart { display: inline-flex; align-items: center; gap: 8px; }
+.teamPart b { font-weight: 650; font-variant-numeric: tabular-nums; }
+.teamMuted { color: var(--muted); font-variant-numeric: tabular-nums; }
+.teamDot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+.teamClock { min-width: 3.2em; }
+.teamButton { min-height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--fill); color: var(--ink); font-weight: 600; font-size: 13px; cursor: pointer; }
+.teamButton:hover { background: var(--hover); }
+.menuField { margin: 2px 6px 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--fill); color: var(--ink); font-size: 15px; }
+.menuItem:disabled { color: var(--muted); cursor: default; }

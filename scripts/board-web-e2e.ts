@@ -61,6 +61,43 @@ async function onPage(page: Page, id: string): Promise<{ x: number; y: number }>
   return { x: box.x + p.x, y: box.y + p.y };
 }
 
+/** The whole drawing's box on the board's frame, and whether it all shows. */
+async function wholeIn(page: Page) {
+  const v = await canvas(page).evaluate(() => {
+    const api = (window as unknown as { amber: { _canvas: { api: { getAppState(): { zoom: { value: number }; scrollX: number; scrollY: number }; getSceneElements(): { x: number; y: number; width: number; height: number }[] } } } }).amber._canvas.api;
+    const s = api.getAppState(), z = s.zoom.value, els = api.getSceneElements();
+    const c = document.querySelector("#canvas") as HTMLElement | null, W = c?.clientWidth ?? innerWidth, H = c?.clientHeight ?? innerHeight;
+    const x1 = Math.min(...els.map((e) => e.x)), y1 = Math.min(...els.map((e) => e.y));
+    const x2 = Math.max(...els.map((e) => e.x + e.width)), y2 = Math.max(...els.map((e) => e.y + e.height));
+    return { l: (x1 + s.scrollX) * z, r: (x2 + s.scrollX) * z, t: (y1 + s.scrollY) * z, b: (y2 + s.scrollY) * z, W, H, z };
+  });
+  return { v, ok: v.l >= 0 && v.t >= 0 && v.r <= v.W && v.b <= v.H };
+}
+
+type Rect = { x: number; y: number; width: number; height: number };
+const overlaps = (a: Rect, b: Rect) => Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 1 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > 1;
+
+/** On the page: the boxes of the board's shapes (not frames or their words in shapes) and its pins. */
+async function drawnOnPage(page: Page): Promise<{ id: string; kind: string; r: Rect }[]> {
+  const box = (await page.locator('iframe').first().boundingBox())!;
+  const got = await canvas(page).evaluate(() => {
+    type E = { id: string; type: string; x: number; y: number; width: number; height: number; containerId?: string | null; isDeleted?: boolean; customData?: Record<string, unknown> };
+    const api = (window as unknown as { amber: { _canvas: { api: { getAppState(): { zoom: { value: number }; scrollX: number; scrollY: number }; getSceneElements(): E[] } } } }).amber._canvas.api;
+    const s = api.getAppState(), z = s.zoom.value;
+    const shapes = api.getSceneElements().filter((e) => !e.isDeleted && e.type !== "frame" && !e.containerId && !(e.customData && (e.customData.pintoHint || e.customData.pintoTitle)))
+      .map((e) => ({ id: e.id, kind: e.type, r: { x: (e.x + s.scrollX) * z, y: (e.y + s.scrollY) * z, width: e.width * z, height: e.height * z } }));
+    const pins = [...document.querySelectorAll(".pinto-pin")].map((n, i) => { const r = n.getBoundingClientRect(); return { id: `pin${i}`, kind: "pin", r: { x: r.x, y: r.y, width: r.width, height: r.height } }; });
+    return [...shapes, ...pins];
+  });
+  return got.map((g) => ({ ...g, r: { ...g.r, x: g.r.x + box.x, y: g.r.y + box.y } }));
+}
+
+/** What a comment's box covers: the shape it's on, the shapes near it, the pins (round 15, comment-role-2, web-05, web-06). */
+async function covers(page: Page, card: Rect, own: string) {
+  const all = await drawnOnPage(page);
+  return all.filter((d) => overlaps(card, d.r)).map((d) => `${d.kind}${d.id === own ? " (the one it's on)" : ""} ${d.id}`);
+}
+
 /** Signs up with an email code in the board's sheet, then gives a name. */
 async function signUp(page: Page, address: string, name: string, button: string) {
   await page.getByRole("button", { name: button }).click();
@@ -282,8 +319,9 @@ try {
   const opened = await whole();
   log("phone opening view:", JSON.stringify(opened.v));
   if (!opened.ok) problems.push(`phone: the board didn't open whole: ${JSON.stringify(opened.v)}`);
-  // While you work a frame doesn't cut what runs over its edge (round 14, web-09: a sliver).
-  if (opened.v.clip !== false) problems.push("phone: frames cut the shapes that run over their edges");
+  // A frame holds what's in it, as in Excalidraw, so its edge is never drawn through a shape; a
+  // shape run mostly out of a frame leaves it (round 16; round 15: the edge crossed the yellow shape).
+  if (opened.v.clip !== true) problems.push("phone: frames don't hold what's in them, so their edges run through shapes");
   const page2 = phonePage;
   const overflow = await page2.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (overflow) problems.push("phone width: the page scrolls sideways");
@@ -349,6 +387,10 @@ try {
   await cpage.locator("[data-comment-bar]").waitFor({ timeout: 60_000 });
   await cpage.getByRole("status").filter({ hasText: "Can comment" }).first().waitFor({ timeout: 10_000 });
   log("cleo joined, can comment");
+  // Her board opens fitted, as an editor's does (round 15, comment-role-2: at 100%, Plan cut off).
+  await sleep(600);
+  const cv = await wholeIn(cpage);
+  if (!cv.ok) problems.push(`the commenter's board didn't open whole: ${JSON.stringify(cv.v)}`);
   if (await cpage.getByRole("button", { name: "Rectangle (R)" }).count()) problems.push("a commenter has the drawing tools");
   if (await cpage.locator('header button[aria-label="More"]').count()) problems.push("a commenter has the board's More menu");
   const had = (await elements(cpage)).length;
@@ -359,6 +401,10 @@ try {
   await cpage.mouse.up();
   await sleep(1000);
   if ((await elements(cpage)).length !== had) problems.push("a commenter drew on the board");
+  // Her drag moved the view, as it does on a board you can't draw on: Zoom to Fit brings it all back.
+  await cpage.getByRole("button", { name: "Zoom to fit" }).click();
+  await sleep(600);
+  if (!(await wholeIn(cpage)).ok) problems.push(`Zoom to Fit didn't bring the commenter's board back: ${JSON.stringify((await wholeIn(cpage)).v)}`);
   // The Comment button, then a click on the app's box.
   await cpage.getByRole("button", { name: "Comment (C)" }).click();
   await cpage.locator('[data-comment-bar] button[aria-pressed="true"]').waitFor({ timeout: 5000 });
@@ -368,10 +414,17 @@ try {
   await draft.waitFor({ timeout: 10_000 });
   const first = "Can this box be bigger?";
   await draft.getByLabel("Add a comment", { exact: true }).fill(first);
+  // Beside the box, clear of it, of what's drawn near it and of the pins, as the app places it.
+  await sleep(300);
+  const under = await covers(cpage, (await draft.boundingBox())!, "mac-1");
+  if (under.length) problems.push(`the new comment's box covers ${under.join(", ")}`);
   await cpage.screenshot({ path: `${OUT}12-commenter-commenting.png` });
   await draft.getByLabel("Add a comment", { exact: true }).press("Enter");
   const mine = cpage.getByRole("dialog", { name: "Comment", exact: true });
   await mine.getByText(first).waitFor();
+  await sleep(300);
+  const underThread = await covers(cpage, (await mine.boundingBox())!, "mac-1");
+  if (underThread.length) problems.push(`her comment's thread covers ${underThread.join(", ")}`);
   // Her own comment's Edit and Delete are in its ⋯ menu (round 14, web-06).
   if (await mine.getByRole("button", { name: "Edit", exact: true }).count()) problems.push("Edit shows outside the ⋯ menu");
   await mine.locator("[data-comment-more]").click();
@@ -385,9 +438,108 @@ try {
   await mine.getByText(words).waitFor();
   await mine.getByText("Edited").waitFor();
   const cleo = await cpage.evaluate(() => JSON.parse(localStorage.getItem("pinto.connect.session") ?? "{}").user_id as string);
+  // TestPeople.cleo's id, so she's violet here as in the app's pictures.
+  if (cleo !== "c1e00000-0000-4000-8000-000000000002") problems.push(`Cleo signed in as ${cleo}, not the test's account`);
   await write("commenter.json", JSON.stringify({ user: cleo, text: words }));
   log("cleo commented");
   await until("commented.txt", 120, () => exists("commented.txt"));
+
+  // 8. Show change on an AI's reply, in her browser (round 16, as the app's): the app's AI replied
+  // to her comment naming a box it added; Show change outlines it with the AI's name and brings it
+  // into view. Once the box is gone, her thread says the change is no longer on the board.
+  const ai = JSON.parse(await until("ai.json", 120, async () => (await exists("ai.json")) && await Deno.readTextFile(file("ai.json")))) as { thread: string; reply: string };
+  await until("the AI's box", 30, async () => (await elements(cpage)).some((e) => e.id === "ai-1"));
+  // The view moved on so the AI's box is just off the right edge (her pin still shows), so Show
+  // change has to bring it back.
+  await canvas(cpage).evaluate(() => {
+    const api = (window as unknown as { amber: { _canvas: { api: { updateScene(u: unknown): void; getAppState(): { scrollX: number; zoom: { value: number } }; getSceneElements(): { id: string; x: number }[] } } } }).amber._canvas.api;
+    const s = api.getAppState(), z = s.zoom.value, box = api.getSceneElements().find((e) => e.id === "ai-1")!;
+    const W = (document.querySelector("#canvas") as HTMLElement | null)?.clientWidth ?? innerWidth;
+    api.updateScene({ appState: { scrollX: W / z - box.x + 40 } });
+  });
+  await sleep(400);
+  if (!(await mine.isVisible())) await canvas(cpage).locator(`.pinto-pin[data-comment="${ai.thread}"]`).click();
+  await mine.getByText("I added a box on Plan").waitFor({ timeout: 30_000 });
+  const offAt = await onPage(cpage, "ai-1"), offFrame = (await cpage.locator("iframe").first().boundingBox())!;
+  if (offAt.x < offFrame.x + offFrame.width) problems.push(`the AI's box wasn't moved out of view first: ${JSON.stringify({ offAt, offFrame })}`);
+  await mine.locator("[data-show-change]").click();
+  const outline = cpage.locator("[data-outline]");
+  await outline.waitFor({ timeout: 10_000 });
+  const tag = (await outline.locator("b").textContent())?.trim() ?? "";
+  if (!/Claude$/.test(tag)) problems.push(`Show change doesn't name the AI: ${tag}`);
+  await sleep(800);
+  const aiAt = await onPage(cpage, "ai-1");
+  const frameBox = (await cpage.locator("iframe").first().boundingBox())!;
+  if (aiAt.x < frameBox.x || aiAt.x > frameBox.x + frameBox.width || aiAt.y < frameBox.y || aiAt.y > frameBox.y + frameBox.height)
+    problems.push(`Show change didn't bring the change into view: ${JSON.stringify({ aiAt, frameBox })}`);
+  await cpage.screenshot({ path: `${OUT}14-commenter-show-change.png` });
+  await write("shown.json", "{}");
+  await until("the AI's box gone", 60, async () => !(await elements(cpage)).some((e) => e.id === "ai-1"));
+  await sleep(4500);
+  await canvas(cpage).locator(`.pinto-pin[data-comment="${ai.thread}"]`).click();
+  const again = cpage.getByRole("dialog", { name: "Comment", exact: true });
+  await again.locator("[data-change-gone]").waitFor({ timeout: 10_000 });
+  if (await again.locator("[data-show-change]").count()) problems.push("Show change still offered for a change that's gone");
+  await cpage.screenshot({ path: `${OUT}15-commenter-change-gone.png` });
+  await write("gone-seen.json", "{}");
+  await again.getByRole("button", { name: "Close" }).click();
+  await again.waitFor({ state: "detached", timeout: 5000 });
+  log("show change: outlined, in view, gone");
+
+  // 9. Voting and a timer between two browsers (round 16): Sara, who edits, starts voting with
+  // three votes each; Cleo, who comments, sees it and votes for the app's box; Sara votes and sees
+  // how many are in; she ends it and both see the totals; then her timer counts down on Cleo's board.
+  const third = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, colorScheme: "light", storageState: signedIn });
+  const spage = await third.newPage();
+  current = spage;
+  spage.on("console", (m) => { said.push(`sara ${m.type()}: ${m.text().slice(0, 300)}`); if (m.type() === "error") problems.push(`console (sara): ${m.text()}`); });
+  spage.on("pageerror", (e) => problems.push(`page (sara): ${e.message}`));
+  await spage.goto(url);
+  await spage.getByRole("navigation", { name: "Tools" }).waitFor({ timeout: 60_000 });
+  await until("the board, for Sara", 30, async () => (await elements(spage)).some((e) => e.id === drawn.id));
+  await sleep(800);
+  await spage.locator('header button[aria-label="More"]').click();
+  await spage.locator("[data-start-voting]").click();
+  await spage.locator('[data-votes="3"]').click();
+  await spage.locator("[data-team-voting]").waitFor({ timeout: 10_000 });
+  await cpage.locator("[data-votes-left]").filter({ hasText: "3 votes left" }).waitFor({ timeout: 20_000 });
+  if (!(await cpage.getByText("Sara started it").count())) problems.push("Cleo's bar doesn't say who started voting");
+  const cleoVote = await onPage(cpage, "mac-1");
+  await cpage.mouse.click(cleoVote.x, cleoVote.y);
+  await cpage.locator("[data-votes-left]").filter({ hasText: "2 votes left" }).waitFor({ timeout: 10_000 });
+  if ((await canvas(cpage).locator(".pinto-vote-dot:visible").count()) !== 1) problems.push("Cleo's vote has no dot on her board");
+  if (await cpage.getByRole("dialog", { name: "New Comment" }).count()) problems.push("a vote started a comment");
+  for (const id of [drawn.id, drawn.id, "mac-1"]) {
+    const at = await onPage(spage, id);
+    await spage.mouse.click(at.x, at.y);
+    await sleep(250);
+  }
+  await spage.locator("[data-votes-left]").filter({ hasText: "No votes left" }).waitFor({ timeout: 10_000 });
+  await spage.locator("[data-votes-in]").filter({ hasText: "4 votes in" }).waitFor({ timeout: 20_000 });
+  const selectedNow = await canvas(spage).evaluate(() => Object.keys((window as unknown as { amber: { _canvas: { api: { getAppState(): { selectedElementIds: Record<string, boolean> } } } } }).amber._canvas.api.getAppState().selectedElementIds));
+  if (selectedNow.length) problems.push(`a vote selected ${selectedNow.join(", ")}`);
+  await spage.screenshot({ path: `${OUT}16-voting-placing.png` });
+  await cpage.screenshot({ path: `${OUT}17-commenter-voting.png` });
+  await spage.locator("[data-team-bar]").getByRole("button", { name: "End voting" }).click();
+  await cpage.locator("[data-team-results]").filter({ hasText: "Results: 4 votes" }).waitFor({ timeout: 20_000 });
+  const totals = await canvas(cpage).locator(".pinto-vote-total:visible").evaluateAll((n) => n.map((x) => `${(x as HTMLElement).dataset.on}:${x.textContent}`).sort());
+  if (JSON.stringify(totals) !== JSON.stringify([`${drawn.id}:2`, "mac-1:2"].sort())) problems.push(`the totals on Cleo's board: ${JSON.stringify(totals)}`);
+  await cpage.screenshot({ path: `${OUT}18-voting-results.png` });
+  await spage.locator("[data-team-bar]").getByRole("button", { name: "Done" }).click();
+  await cpage.locator("[data-team-bar]").waitFor({ state: "detached", timeout: 20_000 });
+  await spage.locator('header button[aria-label="More"]').click();
+  await spage.locator("[data-timer]").click();
+  await spage.locator('[data-minutes="1"]').click();
+  const clockC = cpage.locator('[data-team-timer="running"]');
+  await clockC.waitFor({ timeout: 20_000 });
+  await sleep(1200);
+  const shown = (await clockC.textContent())?.trim() ?? "";
+  if (!/^(1:00|0:5\d)$/.test(shown)) problems.push(`Cleo's timer shows ${shown}`);
+  await cpage.screenshot({ path: `${OUT}19-commenter-timer.png` });
+  await spage.locator("[data-team-bar]").getByRole("button", { name: "Stop" }).click();
+  await cpage.locator("[data-team-bar]").waitFor({ state: "detached", timeout: 20_000 });
+  log("voting and timer: live between the two browsers");
+  await third.close();
   await second.close();
 } catch (e) {
   // What the page had when it stopped: a picture, the canvas's state, and its last lines.

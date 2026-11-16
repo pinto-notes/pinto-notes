@@ -5,14 +5,17 @@
 // address and the board is lib/board-controller.ts; the drawing board itself is the app's canvas in
 // a frame from this site (public/board/canvas.html, lib/board-host.ts). A link to a note that isn't
 // a whiteboard (or a broken one) opens as before: Pinto Notes, or how to get it (NoteLink).
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BoardController } from "@/lib/board-controller";
 import type { Comment, Thread } from "@/lib/board-doc";
 import { complete, DELETED_TEXT, mentionQuery, mentionRanges, suggestions, when } from "@/lib/board-doc";
 import { codeDigits, CODE_LENGTH, looksLikeEmail } from "@/lib/board-auth";
 import { followers as followersOf, followersLine, words } from "@/lib/board-follow";
-import type { PageState } from "@/lib/board-host";
+import type { Anchor, Outline, PageState } from "@/lib/board-host";
+import { CHANGE_GONE, SHOW_CHANGE } from "@/lib/board-comments";
+import { placeThread, threadArea } from "@/lib/board-placement";
 import { presentHint, presentKey, styleBarShows } from "@/lib/board-present";
+import { CLEAR_VOTES, clock, DONE, END_VOTING, hostedBy, minutes, minutesFrom, MOST_MINUTES, resultsLine, START_VOTING, STOP_TIMER, TIMER, TIMER_MINUTES, TIMES_UP, type TeamModel, VOTE_CHOICES, VOTING, votesEach, votesIn, votesLeft } from "@/lib/board-team";
 import { CommentBar, FIT_ICON, Icon, StyleBar, ToolBar, TOOLS, useDismiss, useWidth, ZoomControl } from "./BoardControls";
 import NoteLink, { appLink } from "./NoteLink";
 import s from "./board.module.css";
@@ -137,7 +140,7 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
           </button>
           {ctl.offersSignIn && <button className={s.primarySmall} onClick={() => ctl.startSignIn()}>{ctl.signInLabel}</button>}
           {!ctl.offersSignIn && !ctl.account && href && <a className={s.secondarySmall} href={href}>Open in Pinto Notes</a>}
-          {ctl.canEdit && <BoardMore open={more} setOpen={setMore} command={command} steps={state.frames?.length ?? 0} />}
+          {ctl.canEdit && <BoardMore open={more} setOpen={setMore} command={command} steps={state.frames?.length ?? 0} team={host?.team ?? null} changed={() => ctl.onChange?.()} />}
         </div>
       </header>
 
@@ -149,6 +152,8 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
       <ZoomControl zoom={state.zoom ?? 1} command={command} width={width} overTools={ctl.canEdit} />
 
       {host && <FollowBanner ctl={ctl} />}
+      {host?.team.running && <TeamBar team={host.team} color={myColor} below={!!host.follow.banner} changed={() => ctl.onChange?.()} />}
+      {host?.outline && <ChangeOutline outline={host.outline} />}
       {threadOpen && <ThreadCard ctl={ctl} anchor={anchor} />}
       {list && <CommentList ctl={ctl} onClose={() => setList(false)} />}
       {ctl.signIn && <SignInSheet ctl={ctl} href={href} />}
@@ -157,9 +162,16 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
   );
 }
 
-/** The board's More menu (people who can edit): Present, and Zoom to Fit. */
-function BoardMore({ open, setOpen, command, steps }: { open: boolean; setOpen: (v: boolean) => void; command: (c: Record<string, unknown>) => void; steps: number }) {
+/** The board's More menu (people who can edit): Present, voting and a timer, and Zoom to Fit. */
+function BoardMore({ open, setOpen, command, steps, team, changed }: {
+  open: boolean; setOpen: (v: boolean) => void; command: (c: Record<string, unknown>) => void; steps: number; team: TeamModel | null; changed: () => void;
+}) {
   const wrap = useRef<HTMLDivElement>(null);
+  // Start voting and Timer choose in the menu itself: how many votes, how long.
+  const [page, setPage] = useState<"main" | "vote" | "timer" | "custom">("main");
+  const [typed, setTyped] = useState("5");
+  useEffect(() => { if (!open) setPage("main"); }, [open]);
+  const act = (f: () => void) => { setOpen(false); f(); changed(); };
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -173,23 +185,113 @@ function BoardMore({ open, setOpen, command, steps }: { open: boolean; setOpen: 
       <button className={s.iconButton} aria-label="More" title="More" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Icon><path d="M5 11h.01M11 11h.01M17 11h.01" strokeWidth="2.6" /></Icon>
       </button>
-      {open && (
+      {open && page === "main" && (
         <div className={s.menu} role="menu" aria-label="More">
           <button className={s.menuItem} role="menuitem" data-present onClick={() => { setOpen(false); startPresenting(command); }}>
             <Icon size={18}><path d="M3.5 4.5h15v10h-15zM11 14.5v3M7.5 17.5h7" /><path d="M9.5 7.5v4l3.5-2z" fill="currentColor" /></Icon>
             <span>{PRESENT}</span>
             <span className={s.menuHint}>{presentHint(steps)}</span>
           </button>
+          {team && <VoteItem team={team} act={act} more={() => setPage("vote")} />}
+          {team && <TimerItem team={team} act={act} more={() => setPage("timer")} />}
           <button className={s.menuItem} role="menuitem" onClick={() => { setOpen(false); command({ op: "action", name: "zoomToFit" }); }}>
             <Icon size={18}>{FIT_ICON}</Icon><span>Zoom to Fit</span>
           </button>
         </div>
+      )}
+      {open && team && page === "vote" && (
+        <div className={s.menu} role="menu" aria-label={START_VOTING}>
+          <p className={s.menuLine}>{START_VOTING}</p>
+          {VOTE_CHOICES.map((n) => (
+            <button key={n} className={s.menuItem} role="menuitem" data-votes={n} onClick={() => act(() => team.startVoting(n))}>{votesEach(n)}</button>
+          ))}
+        </div>
+      )}
+      {open && team && page === "timer" && (
+        <div className={s.menu} role="menu" aria-label={TIMER}>
+          <p className={s.menuLine}>{TIMER}</p>
+          {TIMER_MINUTES.map((n) => (
+            <button key={n} className={s.menuItem} role="menuitem" data-minutes={n} onClick={() => act(() => team.startTimer(n * 60))}>{minutes(n)}</button>
+          ))}
+          <button className={s.menuItem} role="menuitem" onClick={() => setPage("custom")}>Custom…</button>
+        </div>
+      )}
+      {open && team && page === "custom" && (
+        <form className={s.menu} aria-label={TIMER} onSubmit={(e) => { e.preventDefault(); const n = minutesFrom(typed); if (n) act(() => team.startTimer(n * 60)); }}>
+          <label className={s.menuLine} htmlFor="timer-minutes">Minutes, up to {MOST_MINUTES}</label>
+          <input id="timer-minutes" className={s.menuField} inputMode="numeric" autoFocus value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Minutes" />
+          <button className={s.primarySmall} type="submit" disabled={!minutesFrom(typed)}>Start</button>
+        </form>
       )}
     </div>
   );
 }
 
 export const PRESENT = "Present";
+
+/** Voting in the More menu: Start voting (how many votes each), End voting while it's on, Clear
+ *  votes once the totals are out; off while someone else runs a session. */
+function VoteItem({ team, act, more }: { team: TeamModel; act: (f: () => void) => void; more: () => void }) {
+  const icon = <Icon size={18}><path d="M7 10v8M3.5 10H7v8H3.5zM7 10l3.5-6.5c1.2 0 2 .9 2 2V9h4.6c1 0 1.8 1 1.6 2l-1.2 5.6c-.2.9-1 1.4-1.8 1.4H7" /></Icon>;
+  if (team.hosting && team.voting?.results) return <button className={s.menuItem} role="menuitem" onClick={() => act(() => team.clearVoting())}>{icon}<span>{CLEAR_VOTES}</span></button>;
+  if (team.hosting && team.votingOpen) return <button className={s.menuItem} role="menuitem" onClick={() => act(() => team.endVoting())}>{icon}<span>{END_VOTING}</span></button>;
+  return (
+    <button className={s.menuItem} role="menuitem" data-start-voting disabled={!team.canStart || !!team.voting} onClick={more}>
+      {icon}<span>{START_VOTING}</span><span className={s.menuHint}>›</span>
+    </button>
+  );
+}
+
+/** The timer in the More menu: Timer (how long), Stop timer while it runs, Done once it's up. */
+function TimerItem({ team, act, more }: { team: TeamModel; act: (f: () => void) => void; more: () => void }) {
+  const icon = <Icon size={18}><path d="M11 6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM11 9.5V13l2.2 1.4M9 2.5h4" /></Icon>;
+  if (team.hosting && team.timer) return <button className={s.menuItem} role="menuitem" onClick={() => act(() => team.stopTimer())}>{icon}<span>{team.finished ? DONE : STOP_TIMER}</span></button>;
+  return (
+    <button className={s.menuItem} role="menuitem" data-timer disabled={!team.canStart || !!team.timer} onClick={more}>
+      {icon}<span>{TIMER}</span><span className={s.menuHint}>›</span>
+    </button>
+  );
+}
+
+/**
+ * Voting and the timer while either is on, at the top of the board as in the app (CanvasTeamBar):
+ * your votes left (the host also sees how many are in, and ends it), the totals once it ended, the
+ * timer counting down to "Time's up".
+ */
+function TeamBar({ team, color, below, changed }: { team: TeamModel; color: string; below: boolean; changed: () => void }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!team.timer || team.finished) return;
+    const t = setInterval(() => tick((n) => n + 1), 250);
+    return () => clearInterval(t);
+  }, [team.timer, team.finished]);
+  const v = team.voting;
+  const act = (f: () => void) => { f(); changed(); };
+  return (
+    <div className={`${s.team} ${below ? s.teamLow : ""}`} role="status" aria-label="Team session" data-team-bar>
+      {v && v.results && (
+        <span className={s.teamPart} data-team-results>
+          <b>{resultsLine(team.resultsTotal)}</b>
+          {team.hosting && <button className={s.teamButton} onClick={() => act(() => team.clearVoting())}>{DONE}</button>}
+        </span>
+      )}
+      {v && !v.results && (
+        <span className={s.teamPart} data-team-voting>
+          <i className={s.teamDot} style={{ background: color }} aria-hidden="true" />
+          <b data-votes-left>{team.canVote ? votesLeft(team.votesLeft) : VOTING}</b>
+          {team.hosting ? <span className={s.teamMuted} data-votes-in>{votesIn(team.votesIn)}</span> : team.hostName && <span className={s.teamMuted}>{hostedBy(team.hostName)}</span>}
+          {team.hosting && <button className={s.teamButton} onClick={() => act(() => team.endVoting())}>{END_VOTING}</button>}
+        </span>
+      )}
+      {team.timer && (
+        <span className={s.teamPart} data-team-timer={team.finished ? "done" : "running"}>
+          <b className={s.teamClock}>{team.finished ? TIMES_UP : clock(team.timeLeft())}</b>
+          {team.hosting && <button className={s.teamButton} onClick={() => act(() => team.stopTimer())}>{team.finished ? DONE : "Stop"}</button>}
+        </span>
+      )}
+    </div>
+  );
+}
 
 
 /** Present, as the app starts it: the whole window (Full Screen where the browser allows it), the
@@ -394,6 +496,7 @@ function OneComment({ ctl, c }: { ctl: BoardController; c: Comment }) {
         {editing
           ? <Composer ctl={ctl} placeholder="Comment" initial={c.text} button="Save" autoFocus onCancel={() => setEditing(false)} onSend={(t) => { ctl.comments.edit(c.id, t); setEditing(false); }} />
           : <Words ctl={ctl} c={c} />}
+        <ChangeLink ctl={ctl} c={c} />
         {asking && (
           <div className={s.ask} role="alertdialog" aria-label="Delete this comment?">
             <p>Delete this comment?</p>
@@ -406,16 +509,56 @@ function OneComment({ ctl, c }: { ctl: BoardController; c: Comment }) {
   );
 }
 
-function ThreadCard({ ctl, anchor }: { ctl: BoardController; anchor: { x: number; y: number; width: number; height: number } | null }) {
+/** An AI's change, outlined (CanvasAIHighlight in the app): a dashed box round each thing it
+ *  changed, and its name above the topmost. Takes no clicks. */
+function ChangeOutline({ outline }: { outline: Outline }) {
+  const top = outline.boxes.reduce((a, b) => (b[1] < a[1] ? b : a));
+  const pad = 6;
+  return (
+    <div className={s.outline} aria-hidden="true" data-outline={outline.boxes.length}>
+      {outline.boxes.map(([x, y, w, h], i) => (
+        <i key={i} className={s.outlineBox} style={{ left: x - pad, top: y - pad, width: w + 2 * pad, height: h + 2 * pad }} />
+      ))}
+      <b className={s.outlineTag} style={{ left: top[0] - pad, top: Math.max(4, top[1] - pad - 30) }}>{outline.by}</b>
+    </div>
+  );
+}
+
+/** An AI's reply about its change: Show change outlines all of it, arrows too, and brings it into
+ *  view, as in the app; when it's gone from the board, the reply says so. */
+function ChangeLink({ ctl, c }: { ctl: BoardController; c: Comment }) {
+  const link = ctl.comments.changeLink(c);
+  if (!link) return null;
+  if (link === "gone") return <p className={s.changeGone} data-change-gone>{CHANGE_GONE}</p>;
+  return (
+    <button className={s.showChange} data-show-change title={`Outline what ${link.by} changed, and bring it into view`}
+      onClick={() => { ctl.comments.closeThread(); ctl.host?.showChange(link.by, link.ids, true); }}>
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" strokeWidth="1.4" /><circle cx="7" cy="7" r="1.6" fill="currentColor" /><path d="M7 0.5v2.2M7 11.3v2.2M0.5 7h2.2M11.3 7h2.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+      {SHOW_CHANGE}
+    </button>
+  );
+}
+
+function ThreadCard({ ctl, anchor }: { ctl: BoardController; anchor: Anchor | null }) {
   const comments = ctl.comments;
   const thread = comments.threads.find((t) => t.first.id === comments.openThread) ?? null;
   const card = useRef<HTMLDivElement>(null);
-  // Next to the pin, inside the window; at phone width, a sheet at the bottom.
+  // Its height as drawn, for placing it: a first guess until it's measured.
+  const [height, setHeight] = useState(180);
+  useLayoutEffect(() => {
+    const h = card.current?.offsetHeight;
+    if (h && Math.abs(h - height) > 2) setHeight(h);
+  });
+  // Beside its pin, clear of the shape and what's near it, as the app places its thread
+  // (board-placement.ts); at phone width, a sheet at the bottom.
   const style: React.CSSProperties = {};
+  let side = "";
   if (anchor && typeof window !== "undefined" && window.innerWidth > 600) {
-    const w = 340, left = anchor.x + anchor.width + 12 + w > window.innerWidth - 12 ? anchor.x - w - 12 : anchor.x + anchor.width + 12;
-    style.left = Math.max(12, left);
-    style.top = Math.min(Math.max(72, anchor.y - 8), window.innerHeight - 260);
+    const at = placeThread({ x: anchor.x, y: anchor.y, width: anchor.width, height: anchor.height }, { on: anchor.on, near: anchor.near },
+      { width: 340, height }, threadArea(window.innerWidth, window.innerHeight));
+    style.left = at.x;
+    style.top = at.y;
+    side = at.side;
   }
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") comments.closeThread(); };
@@ -423,7 +566,7 @@ function ThreadCard({ ctl, anchor }: { ctl: BoardController; anchor: { x: number
     return () => window.removeEventListener("keydown", key);
   }, [comments]);
   return (
-    <div ref={card} className={s.thread} style={style} role="dialog" aria-label={thread ? "Comment" : "New Comment"} data-anchored={!!anchor}>
+    <div ref={card} className={s.thread} style={style} role="dialog" aria-label={thread ? "Comment" : "New Comment"} data-anchored={!!anchor} data-side={side || undefined}>
       <div className={s.threadHead}>
         <p className={s.threadPlace}>{thread ? comments.place(thread) : "New Comment"}</p>
         {thread && comments.canComment && (

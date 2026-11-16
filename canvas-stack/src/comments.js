@@ -18,7 +18,7 @@ import { shade } from "./shared.js";
  * the comment is on, and `near`, the boxes of what else is drawn within reach (arrows and lines as
  * boxes; at most 60).
  */
-export function around(pin, byId, s, v) {
+export function around(pin, byId, s, v, pins = []) {
   const view = (x, y) => sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, s);
   const box = (e) => { const [x1, y1, x2, y2] = getCommonBounds([e]); const a = view(x1, y1), b = view(x2, y2); return [Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), Math.round(b.y - a.y)]; };
   const shape = pin.on ? byId.get(pin.on) : null;
@@ -27,11 +27,16 @@ export function around(pin, byId, s, v) {
   const reach = 420, near = [];
   for (const e of byId.values()) {
     if (near.length >= 60) break;
-    if (e.isDeleted || (shape && e.id === shape.id) || (e.containerId && byId.get(e.containerId))) continue;
+    // A frame holds what's drawn: a thread may lie over its empty middle (round 15, comment-role-2:
+    // with the frame counted, no side was ever clear and the thread sat on the sticky beside it).
+    if (e.isDeleted || (shape && e.id === shape.id) || (e.containerId && byId.get(e.containerId)) || e.type === "frame" || e.type === "magicframe") continue;
     const b = box(e);
     if (b[0] + b[2] < v.x - reach || b[0] > v.x + reach || b[1] + b[3] < v.y - reach || b[1] > v.y + reach) continue;
     near.push(b);
   }
+  // The other pins, and their writers' names on them, are kept clear of too (round 15,
+  // comment-role-2: the new comment's box covered Emil's pin).
+  for (const p of pins) if (near.length < 80) near.push(p);
   out.near = near;
   return out;
 }
@@ -175,7 +180,8 @@ export function commentsLayer(api, host, post, changed = () => {}) {
     const byId = new Map(api.getSceneElements().map((e) => [e.id, e]));
     const list = draft ? [...pins.filter((p) => p.id !== "draft"), { ...draft, id: "draft", color: me.color, dark: me.dark, letter: me.letter, open: true }] : pins;
     const seen = new Set();
-    let at = null;
+    let at = null, openPin = null;
+    const others = [];
     for (const p of list) {
       seen.add(p.id);
       const b = node(p.id);
@@ -202,7 +208,12 @@ export function commentsLayer(api, host, post, changed = () => {}) {
         b.classList.remove("ai");
       }
       b.classList.toggle("open", p.id === open);
-      if (p.id === open) at = { id: p.id, x: v.x, y: v.y - PIN.size, width: PIN.size, height: PIN.size, ...around(p, byId, s, v) };
+      if (p.id === open) openPin = { p, v };
+      else others.push([Math.round(v.x), Math.round(v.y - PIN.size), PIN.size, PIN.size]);
+    }
+    if (openPin) {
+      const { p, v } = openPin;
+      at = { id: p.id, x: v.x, y: v.y - PIN.size, width: PIN.size, height: PIN.size, ...around(p, byId, s, v, others) };
     }
     for (const [id, b] of nodes) if (!seen.has(id)) { b.remove(); nodes.delete(id); }
     name(byId);

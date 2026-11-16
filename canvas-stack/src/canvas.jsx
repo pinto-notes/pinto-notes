@@ -26,6 +26,7 @@ import "./pinto.css";
 import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refreshCards, selectedCard } from "./cards.js";
 import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp, fitTo, followTo, viewOf } from "./shared.js";
 import { commentsLayer } from "./comments.js";
+import { votesLayer } from "./votes.js";
 
 const amber = window.amber;
 const SAVE_DELAY = 300;
@@ -372,6 +373,8 @@ export const HANDLE_ROOM = 40;
 let engine = null;
 /** The board's comment pins and the Comment tool (comments.js), once the bridge has made them. */
 let comments = null;
+/** Voting's dots and totals (votes.js). */
+let votes = null;
 
 /**
  * A sticky note (whiteboard council, round 2: retro and kanban boards with no sticky tool): a
@@ -578,6 +581,7 @@ export function growsFrom(api) {
   if (!one || one.isDeleted || one.type === "arrow" || one.type === "line") return null;
   if (marked(one, "pintoStep")) return { kind: "step", from: one };
   if (marked(one, "pintoColumn")) return { kind: "column", from: one };
+  if (isPerson(one, els)) return { kind: "report", from: one };
   const [x1, y1, x2, y2] = getCommonBounds([one]);
   const lane = els.find((e) => marked(e, "pintoColumn") && !e.isDeleted && x1 >= e.x - 1 && x2 <= e.x + e.width + 1 && y1 >= e.y - 1 && y2 <= e.y + e.height + 1);
   return lane ? { kind: "column", from: lane } : null;
@@ -686,7 +690,117 @@ export function addStep(api, part) {
 export function grow(api) {
   const g = growsFrom(api);
   if (!g) return null;
-  return g.kind === "step" ? addStep(api, g.from) : addColumn(api, g.from);
+  return g.kind === "step" ? addStep(api, g.from) : g.kind === "report" ? addReport(api, g.from) : addColumn(api, g.from);
+}
+
+/**
+ * A person on an org chart: a box the template marked (customData.pintoPerson), or, on a chart made
+ * before the mark (its how-to line says it's an org chart), a box joined by a line to a box above
+ * or below it.
+ */
+const ORG_HINT = "Double-click a box to write a name.";
+export function isPerson(e, all) {
+  if (!e || e.isDeleted || e.type !== "rectangle" || e.containerId) return false;
+  if (marked(e, "pintoPerson")) return true;
+  if (marked(e, "pintoColumn") || marked(e, "pintoStep") || marked(e, "pintoSticky") || marked(e, "pintoNote")) return false;
+  if (!all.some((t) => marked(t, "pintoHint") && String(t.text || "").startsWith(ORG_HINT))) return false;
+  return joinedBoxes(e, all).some((o) => o.y >= e.y + e.height - 1 || o.y + o.height <= e.y + 1);
+}
+
+/** The boxes joined to `e` by a line or an arrow, with the line. */
+function joinedBoxes(e, all, withLine = false) {
+  const byId = new Map(all.map((x) => [x.id, x]));
+  const out = [];
+  for (const a of all) {
+    if (a.isDeleted || (a.type !== "arrow" && a.type !== "line") || !a.startBinding || !a.endBinding) continue;
+    const other = a.startBinding.elementId === e.id ? a.endBinding.elementId : a.endBinding.elementId === e.id ? a.startBinding.elementId : null;
+    const o = other && byId.get(other);
+    if (o && !o.isDeleted) out.push(withLine ? { box: o, line: a } : o);
+  }
+  return out;
+}
+
+/**
+ * Add Report (round 16; FACTS: "Not built yet: org charts that grow"): a person on an org chart
+ * gets a report under them, joined by a line as their other reports are, like those in size and
+ * colour, beside the last of them (under the person when they have none). What's to the right
+ * that's in the way moves right just as far as it must, with its lines, so the chart keeps its
+ * layout; nothing above the person moves. Typed into at once; one step Undo takes back. Returns the
+ * new box's id.
+ */
+export const REPORT = { below: 78, gap: 24, room: 40 };
+export function addReport(api, person) {
+  const all = api.getSceneElements();
+  const byId = new Map(all.map((e) => [e.id, e]));
+  const below = (o) => o.y >= person.y + person.height - 1;
+  const reports = joinedBoxes(person, all, true).filter((j) => below(j.box)).sort((a, b) => a.box.x - b.box.x);
+  const last = reports.length ? reports[reports.length - 1].box : null;
+  const like = last || person;
+  const w = like.width, h = like.height;
+  const gap = reports.length >= 2 ? Math.max(REPORT.gap, reports[1].box.x - (reports[0].box.x + reports[0].box.width)) : REPORT.gap;
+  let x = last ? last.x + last.width + gap : person.x + person.width / 2 - w / 2;
+  let y = last ? last.y : person.y + person.height + REPORT.below;
+  // The colour of the row it joins: its sisters', else whoever else is on that row, else the
+  // person's. An open role (dashed, unfilled) is a placeholder, not a colour to copy.
+  const filled = (e) => e.strokeStyle !== "dashed";
+  const rowMate = reports.map((r) => r.box).reverse().find(filled) || all.find((e) => filled(e) && isPerson(e, all) && e.id !== person.id && Math.abs(e.y - y) < 6);
+  const fill = (rowMate || person).backgroundColor;
+  const lineLike = (reports[reports.length - 1] || {}).line || joinedBoxes(person, all, true).map((j) => j.line)[0] || null;
+
+  // The person's own line upwards: nothing on it moves (their manager, and theirs).
+  const above = new Set();
+  for (let at = person, i = 0; at && i < 50; i++) {
+    const up = joinedBoxes(at, all).find((o) => o.y + o.height <= at.y + 1 && !above.has(o.id));
+    if (!up) break;
+    above.add(up.id);
+    at = up;
+  }
+  // Something where the new box goes: what's to its right (and level with the person or lower)
+  // moves right, far enough to leave the gap.
+  const box = (e) => getCommonBounds([e]);
+  const free = (e) => !e.isDeleted && !e.containerId && e.type !== "arrow" && e.type !== "line" && !marked(e, "pintoTitle") && !marked(e, "pintoHint") && !isFrame(e);
+  const hits = (e, xx) => { const [x1, y1, x2, y2] = box(e); return xx < x2 + gap && xx + w > x1 - gap && y < y2 + 8 && y + h > y1 - 8; };
+  const movable = (e) => free(e) && e.id !== person.id && !above.has(e.id) && box(e)[3] > person.y && box(e)[0] + (box(e)[2] - box(e)[0]) / 2 > x + w / 2;
+  let dx = 0;
+  const blocking = all.filter((e) => free(e) && e.id !== person.id && hits(e, x));
+  if (blocking.length && blocking.every(movable)) dx = Math.max(...blocking.map((e) => x + w + REPORT.room - box(e)[0]));
+  else if (blocking.length) {
+    // Something that doesn't move is there (to the left, or above): further down until it's clear.
+    for (let i = 0; i < 40 && all.some((e) => free(e) && e.id !== person.id && hits(e, x)); i++) y += (h + REPORT.gap) / 2;
+  }
+  const moved = new Set(dx > 0 ? all.filter(movable).map((e) => e.id) : []);
+  for (const e of all) if (e.containerId && moved.has(e.containerId)) moved.add(e.id);
+  const changed = [];
+  for (const e of all) {
+    if (moved.has(e.id)) { changed.push(bump(e, { x: e.x + dx })); continue; }
+    if ((e.type === "arrow" || e.type === "line") && dx > 0 && e.startBinding && e.endBinding) {
+      const a = moved.has(e.startBinding.elementId), b = moved.has(e.endBinding.elementId);
+      if (a && b) changed.push(bump(e, { x: e.x + dx }));
+      else if (b) changed.push(bump(e, { points: e.points.map((p, i) => (i === e.points.length - 1 ? [p[0] + dx, p[1]] : p)), width: e.width + dx }));
+      else if (a) changed.push(bump(e, { x: e.x + dx, points: e.points.map((p, i) => (i === 0 ? p : [p[0] - dx, p[1]])) }));
+    }
+  }
+  const [made] = convertToExcalidrawElements([{
+    type: "rectangle", x, y, width: w, height: h, strokeColor: like.strokeColor, backgroundColor: fill, fillStyle: (rowMate || person).fillStyle,
+    strokeWidth: like.strokeWidth, roughness: like.roughness, roundness: like.roundness, customData: { pintoPerson: true },
+  }], { regenerateIds: true });
+  // From the middle of the person's foot to the middle of the new box's top, as the chart's lines run.
+  const sx = person.x + person.width / 2, sy = person.y + person.height + 4, ex = x + w / 2, ey = y - 4;
+  const [line] = convertToExcalidrawElements([{
+    type: "arrow", x: sx, y: sy, width: ex - sx, height: ey - sy, points: [[0, 0], [ex - sx, ey - sy]],
+    strokeColor: lineLike ? lineLike.strokeColor : person.strokeColor, strokeWidth: lineLike ? lineLike.strokeWidth : person.strokeWidth,
+    strokeStyle: lineLike ? lineLike.strokeStyle : "solid", roughness: lineLike ? lineLike.roughness : person.roughness,
+    startArrowhead: lineLike ? lineLike.startArrowhead : null, endArrowhead: lineLike ? lineLike.endArrowhead : null,
+  }], { regenerateIds: true });
+  const joined = { ...line, startBinding: { elementId: person.id, focus: 0, gap: 4 }, endBinding: { elementId: made.id, focus: 0, gap: 4 } };
+  const inFrame = (e) => (person.frameId ? { ...e, frameId: person.frameId } : e);
+  const owner = changed.find((e) => e.id === person.id) || byId.get(person.id);
+  commit(api, [...changed.filter((e) => e.id !== person.id), boundTo(owner, joined.id), inFrame(boundTo(made, joined.id)), inFrame(joined)], made.id);
+  const placed = api.getSceneElements().find((e) => e.id === made.id);
+  branchInView(api, person, placed);
+  const words = all.find((e) => e.containerId === like.id && e.type === "text");
+  typeInto(api, made.id, words ? { fontSize: words.fontSize, color: words.strokeColor, family: words.fontFamily } : null);
+  return made.id;
 }
 
 /** The node a Tab grows from: one shape selected (a box, an ellipse or a diamond), or the shape
@@ -1164,7 +1278,9 @@ export function stateOf(api, app) {
       } else {
         const [x1, y1, x2, y2] = getCommonBounds([e]);
         const p = view(x1, y1), q = view(x2, y2);
-        if (near(p[0], p[1], q[0], q[1])) nearby.push({ box: [p[0], p[1], Math.round((x2 - x1) * z), Math.round((y2 - y1) * z)] });
+        // Words of their own (a how-to line, a heading) are marked: the bar covers a line or a dot
+        // before it covers words you'd read (round 15, 43-timeline-1: Add Step sat on the how-to line).
+        if (near(p[0], p[1], q[0], q[1])) nearby.push({ box: [p[0], p[1], Math.round((x2 - x1) * z), Math.round((y2 - y1) * z)], ...(e.type === "text" && !e.containerId ? { words: true } : {}) });
       }
     }
   }
@@ -1381,6 +1497,10 @@ function bridge(api) {
       case "comments":
         if (!comments) return false;
         comments.set(c);
+        return true;
+      case "votes":
+        if (!votes) return false;
+        votes.set(c);
         return true;
       case "commentHere":
         if (!comments || !comments.here(c.x, c.y)) return false;
@@ -1621,7 +1741,7 @@ function bridge(api) {
       const part = growsFrom(api);
       if (part && (!typing || api.getAppState().editingTextElement)) {
         e.preventDefault(); e.stopImmediatePropagation();
-        const go = () => { if (part.kind === "step") addStep(api, part.from); else addColumn(api, part.from); };
+        const go = () => { if (part.kind === "step") addStep(api, part.from); else if (part.kind === "report") addReport(api, part.from); else addColumn(api, part.from); };
         if (api.getAppState().editingTextElement && e.target && e.target.tagName === "TEXTAREA") {
           e.target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
           const now = api.getSceneElements().find((x) => x.id === part.from.id);
@@ -1677,6 +1797,7 @@ function bridge(api) {
   // The comment pins and the Comment tool (comments.js).
   const post = (m) => { try { window.webkit.messageHandlers.amberCanvas.postMessage(m); } catch (_) {} };
   comments = commentsLayer(api, document.getElementById("canvas") || document.body, post, () => setTimeout(report, 0));
+  votes = votesLayer(api, document.getElementById("canvas") || document.body, post);
   window.addEventListener("keydown", keys, true);
   window.addEventListener("contextmenu", menu, true);
   window.addEventListener("dblclick", twice, true);
@@ -1687,6 +1808,7 @@ function bridge(api) {
   return { command, state: () => stateOf(api, app), stop: () => {
     presenting = null;
     if (comments) { comments.stop(); comments = null; }
+    if (votes) { votes.stop(); votes = null; }
     off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);
     window.removeEventListener("dblclick", twice, true); window.removeEventListener("pointerdown", commandClick, true); window.removeEventListener("touchstart", tap, true);
   } };
@@ -1696,12 +1818,61 @@ function bridge(api) {
 const PINTO_DEFAULTS = { currentItemStrokeColor: "#2a1d10", currentItemFontFamily: 5 };
 
 /**
- * Frames as the board draws them while you work: named and outlined, and a shape that runs over a
- * frame's edge drawn whole, all of it (round 14, web-04 and web-09: a shape drawn from inside a frame
- * out past its edge joined the frame and showed as a sliver inside an empty selection box). Only
- * Present cuts at the frame's edge (present()), where the frame is all that shows.
+ * Frames as Excalidraw draws them: named, outlined, and cutting what's in them at their edge. The
+ * engine keeps a frame's shapes just under the frame and draws the frame's edge over them, so with
+ * the cut off (round 15) a shape run out past the edge showed whole with the frame's line drawn
+ * through it (round 15, web-04, web-07, web-10, comment-role-2). A shape mostly outside its frame
+ * leaves it instead (leaveFrames): drawn whole, above the frame's line.
  */
-export const EDIT_FRAMES = { enabled: true, name: true, outline: true, clip: false };
+export const EDIT_FRAMES = { enabled: true, name: true, outline: true, clip: true };
+
+/**
+ * What you drew or moved that lies mostly outside the frame it's in leaves the frame, as one
+ * dragged wholly out of it does in Excalidraw, and goes just above the frame, so the frame neither
+ * cuts it nor draws its edge through it (round 14, web-04: a shape drawn from inside a frame out
+ * past its edge showed as a sliver; round 15: whole, with the frame's line through it). At least
+ * half inside, it stays in the frame, cut at the edge as Excalidraw cuts it. One the engine took out
+ * of its frame as the drag ended stays where the frame kept it, under the frame's line: it goes
+ * above the frames whose edge it crosses too. (A shape bigger than the frame, a backdrop, stays
+ * under it.) Grouped shapes are left to the engine, which moves a group in and out of a frame
+ * whole. Returns the ids that left a frame or went above one.
+ */
+export function leaveFrames(api, ids) {
+  const all = api.getSceneElementsIncludingDeleted();
+  const byId = new Map(all.map((e) => [e.id, e]));
+  const index = new Map(all.map((e, i) => [e.id, i]));
+  const frames = all.filter((f) => isFrame(f) && !f.isDeleted);
+  const area = (b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+  const within = (b, f) => Math.max(0, Math.min(b[2], f.x + f.width) - Math.max(b[0], f.x)) * Math.max(0, Math.min(b[3], f.y + f.height) - Math.max(b[1], f.y));
+  const moving = new Map(); // id → { leaves, above: the frame it goes just over }
+  for (const id of ids) {
+    const e = byId.get(id);
+    if (!e || e.isDeleted || isFrame(e) || e.containerId || (e.groupIds && e.groupIds.length)) continue;
+    const b = getCommonBounds([e]), size = Math.max(1, area(b));
+    const own = e.frameId ? byId.get(e.frameId) : null;
+    if (own && !own.isDeleted) {
+      if (within(b, own) * 2 >= size) continue;
+      moving.set(e.id, { leaves: true, above: own });
+      continue;
+    }
+    if (e.frameId) continue;
+    // Out of any frame, under a frame whose edge it crosses (part in, part out, smaller than it).
+    const under = frames.filter((f) => index.get(f.id) > index.get(e.id) && within(b, f) > 0 && within(b, f) < size && size < f.width * f.height);
+    if (under.length) moving.set(e.id, { leaves: false, above: under.reduce((a, f) => (index.get(f.id) > index.get(a.id) ? f : a)) });
+  }
+  if (!moving.size) return [];
+  const going = new Set(moving.keys());
+  // The words in a shape go with it.
+  for (const e of all) if (e.containerId && going.has(e.containerId)) going.add(e.id);
+  const tops = new Set([...moving.values()].map((m) => m.above.id));
+  const rest = all.filter((e) => !going.has(e.id));
+  // Just above the last of the frames they go over (the engine keeps a frame above what's in it).
+  let at = -1;
+  rest.forEach((e, i) => { if (tops.has(e.id)) at = i; });
+  const moved = all.filter((e) => going.has(e.id)).map((e) => bump(e, e.frameId ? { frameId: null } : {}));
+  api.updateScene({ elements: [...rest.slice(0, at + 1), ...moved, ...rest.slice(at + 1)], captureUpdate: CaptureUpdateAction.NEVER });
+  return [...moving.keys()];
+}
 
 /**
  * In dark mode the drawing is drawn light and turned dark by a filter (invert, then hue-rotate
@@ -1902,6 +2073,15 @@ function Canvas({ initial }) {
     window.addEventListener("wheel", wheel, { capture: true, passive: true });
     window.addEventListener("pointerdown", press, true);
     window.addEventListener("keydown", key, true);
+    // A shape drawn or moved mostly out of its frame leaves it, once the engine has settled what's
+    // in which frame at the end of the press (leaveFrames).
+    const released = () => setTimeout(() => {
+      const s = api.getAppState();
+      if (s.viewModeEnabled || s.newElement || s.selectedElementsAreBeingDragged) return;
+      const ids = Object.keys(s.selectedElementIds || {}).filter((k) => s.selectedElementIds[k]);
+      if (ids.length) leaveFrames(api, ids);
+    }, 0);
+    window.addEventListener("pointerup", released, true);
     sharedHooks.follow = (c) => {
       if (!shared) return false;
       if (c.off) { followingNow = null; followed.at = null; return true; }
@@ -2168,10 +2348,10 @@ function Canvas({ initial }) {
     const calls = { libraryPiece: () => libraryPiece(api), boardPiece: (a) => boardPiece(api, !!(a && a.selection)), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), versionPicture: (a) => versionPicture(a && a.elements, a && a.files, a && a.dark, a && a.background), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
-    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}) }, configurable: true });
+    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}), votes: () => (votes ? votes.state : null) }, configurable: true });
     return () => {
       follow(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); offViewMoved(); unlisten(); removeEventListener("pagehide", flush);
-      window.removeEventListener("wheel", wheel, { capture: true }); window.removeEventListener("pointerdown", press, true); window.removeEventListener("keydown", key, true);
+      window.removeEventListener("wheel", wheel, { capture: true }); window.removeEventListener("pointerdown", press, true); window.removeEventListener("keydown", key, true); window.removeEventListener("pointerup", released, true);
       document.removeEventListener("visibilitychange", hidden); host.removeEventListener("pointerleave", left); flush();
       if (shared) shared.layer.stop();
       for (const k of Object.keys(sharedHooks)) sharedHooks[k] = null;

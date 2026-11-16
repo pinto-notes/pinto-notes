@@ -2,7 +2,7 @@
 // (PaneTests/Interaction/BoardCommentsTests and CanvasCommentTests): writing, editing, deleting,
 // resolving, mentions, what's unseen, and the pins the page draws.
 import { describe, expect, it } from "vitest";
-import { BoardComments, clean, DELETED_LINE, ON_BOARD, ON_SHAPE, RESOLVED_LINE, Seen } from "./board-comments";
+import { BoardComments, CHANGE_GONE, clean, DELETED_LINE, ON_BOARD, ON_SHAPE, RESOLVED_LINE, Seen } from "./board-comments";
 import type { Comment } from "./board-doc";
 
 const ME = "11111111-AAAA-4AAA-8AAA-111111111111", SARA = "22222222-BBBB-4BBB-8BBB-222222222222";
@@ -189,5 +189,28 @@ describe("whiteboard comments in the browser", () => {
   it("the comments command names you by your letter and colour", () => {
     const { c } = make();
     expect(c.command().me).toMatchObject({ id: "me", color: "#2D639A", letter: "E" });
+  });
+
+  // Round 15 (FACTS: "Not built yet: Show change in the browser"): an AI's reply keeps what its
+  // write changed; the browser offers Show change for what's still on the board, as the app does.
+  it("an AI's reply links to its change while it's on the board, and says when it's gone", () => {
+    const { c } = make();
+    const ai = theirs({ id: "c-ai00000000000001", thread: "c-sara0000000000001", ai: "Claude", by: SARA, name: "Sara", changes: ["inbox", "inbox-idea"] });
+    c.show([theirs({ on: "idea" }), ai, theirs({ id: "c-sara0000000000002", thread: "c-sara0000000000001" })]);
+    // The page is asked to name what it changed, with the shapes the threads are on.
+    expect(c.command().shapes).toEqual(["idea", "inbox", "inbox-idea"]);
+    // Before the page says, all of it.
+    expect(c.changeLink(ai)).toEqual({ by: "Sara's Claude", ids: ["inbox", "inbox-idea"] });
+    c.shapes = { idea: "Idea", inbox: "Inbox", "inbox-idea": "Arrow" };
+    c.shapesReported = true;
+    expect(c.changeLink(ai)).toEqual({ by: "Sara's Claude", ids: ["inbox", "inbox-idea"] });
+    // The arrow deleted: the box alone. Both deleted: gone.
+    c.shapes = { idea: "Idea", inbox: "Inbox" };
+    expect(c.changeLink(ai)).toEqual({ by: "Sara's Claude", ids: ["inbox"] });
+    c.shapes = { idea: "Idea" };
+    expect(c.changeLink(ai)).toBe("gone");
+    expect(CHANGE_GONE).toBe("That change is no longer on the board");
+    // A person's comment links to nothing.
+    expect(c.changeLink(theirs())).toBeNull();
   });
 });

@@ -63,6 +63,9 @@ struct NoteDetailView: View {
     @State private var confirmingClearCanvas = false
     /// Save as Template…: its name, asked for (the board's name to start with).
     @State private var savingTemplate = false
+    /// Timer › Custom…: how many minutes.
+    @State private var askingTimer = false
+    @State private var timerMinutes = "5"
     @State private var templateFromSelection = false
     @State private var templateName = ""
 
@@ -1209,6 +1212,43 @@ struct NoteDetailView: View {
         case .canvasLaser:
             Button(CanvasTool.laser.help, systemImage: CanvasTool.laser.symbol) { canvasControls.pick(.laser) }
                 .accessibilityIdentifier("canvas.laser")
+        case .canvasVote:
+            let team = canvasControls.team
+            if team.voting?.results != nil, team.hosting {
+                Button(BoardTeam.clearVotes, systemImage: "xmark.circle") { team.clearVoting() }
+                    .accessibilityIdentifier("canvas.team.clearVotes")
+            } else if team.votingOpen, team.hosting {
+                Button(BoardTeam.endVoting, systemImage: "checkmark.circle") { team.endVoting() }
+                    .accessibilityIdentifier("canvas.team.endVoting")
+            } else {
+                Menu(BoardTeam.startVoting, systemImage: "hand.thumbsup") {
+                    ForEach(BoardTeam.voteChoices, id: \.self) { n in
+                        Button(BoardTeam.votesEach(n)) { team.startVoting(votes: n) }
+                            .accessibilityIdentifier("canvas.team.votes.\(n)")
+                        if n == BoardTeam.defaultVotes { Divider() }
+                    }
+                }
+                .disabled(!team.canStart || team.voting != nil)
+                .accessibilityIdentifier("canvas.team.startVoting")
+            }
+        case .canvasTimer:
+            let team = canvasControls.team
+            if team.timer != nil, team.hosting {
+                Button(team.finished ? BoardTeam.done : BoardTeam.stopTimer, systemImage: "timer") { team.stopTimer() }
+                    .accessibilityIdentifier("canvas.team.stopTimer")
+            } else {
+                Menu(BoardTeam.timerMenu, systemImage: "timer") {
+                    ForEach(BoardTeam.timerMinutes, id: \.self) { n in
+                        Button(BoardTeam.minutes(n)) { team.startTimer(seconds: Double(n * 60)) }
+                            .accessibilityIdentifier("canvas.team.timer.\(n)")
+                    }
+                    Divider()
+                    Button(BoardTeam.customTimer) { timerMinutes = "5"; askingTimer = true }
+                        .accessibilityIdentifier("canvas.team.timer.custom")
+                }
+                .disabled(!team.canStart || team.timer != nil)
+                .accessibilityIdentifier("canvas.team.timer")
+            }
         case .canvasLastAIChange:
             Button(CanvasController.showLastChangeTitle(canvasControls.lastChangeBy), systemImage: "sparkles") { canvasControls.showLastChange() }
                 .disabled(canvasControls.lastChangeBy == nil)
@@ -1410,6 +1450,18 @@ struct NoteDetailView: View {
                     #endif
             } message: {
                 Text(NoteMoreMenu.saveTemplateMessage)
+            }
+            .alert(BoardTeam.customQuestion, isPresented: $askingTimer) {
+                TextField("Minutes", text: $timerMinutes)
+                Button("Cancel", role: .cancel) {}
+                Button("Start") {
+                    if let n = BoardTeam.minutes(from: timerMinutes) { canvasControls.team.startTimer(seconds: Double(n * 60)) }
+                }
+                    #if os(macOS)
+                    .keyboardShortcut(.defaultAction)
+                    #endif
+            } message: {
+                Text(BoardTeam.customMessage)
             }
             // Save as Template… from the More menu, the right-click menu or the selection bar.
             .onChange(of: canvasControls.namingTemplate) { _, source in
@@ -1986,6 +2038,8 @@ enum NoteMoreMenu {
         case canvasSaveTemplate
         /// Present (its frames one by one) and the laser pointer.
         case canvasPresent, canvasLaser
+        /// A team session's voting and timer (BoardTeam).
+        case canvasVote, canvasTimer
         /// The last AI change, outlined again.
         case canvasLastAIChange
     }
@@ -2021,7 +2075,7 @@ enum NoteMoreMenu {
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
         // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
-        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear]] : []
+        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser, .canvasVote, .canvasTimer], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear]] : []
         return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }

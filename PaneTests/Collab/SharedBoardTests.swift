@@ -66,7 +66,9 @@ import AppKit
 enum TestPeople {
     static let emil = UUID(uuidString: "E0000000-0000-4000-8000-000000000001")!
     static let sara = UUID(uuidString: "5A000000-0000-4000-8000-000000000002")!
-    static let accounts = ["Emil": emil, "Sara": sara]
+    /// Can comment, in the pictures and the browser test (scripts/board-web-e2e.ts): violet.
+    static let cleo = UUID(uuidString: "C1E00000-0000-4000-8000-000000000002")!
+    static let accounts = ["Emil": emil, "Sara": sara, "Cleo": cleo]
 
     /// Someone's colour on Emil's board shared with Sara, light and dark ("#RRGGBB").
     @MainActor static func color(_ id: UUID) -> (light: String, dark: String) {

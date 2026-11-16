@@ -297,6 +297,25 @@ enum BoardComments {
         String((c.ai ?? c.name).trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() } ?? "?")
     }
 
+    /// A writer's colour on a board of your own, which has no member list: the board's own rule
+    /// (CollabSession.slots), with you first and the others in the order they first wrote, as they
+    /// joined when it was shared. So a person has the colour here that they have on the board you
+    /// share with them, and on every other surface (round 15: Sara was violet in one picture and
+    /// indigo in another of the same board).
+    static func color(of id: String, among comments: [BoardComment], me: String) -> String {
+        let zero = UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+        func account(_ s: String) -> UUID { UUID(uuidString: s == "me" ? me : s) ?? zero }
+        var order = [account(me)]
+        let people = comments.filter { $0.ai == nil }.enumerated().sorted { a, b in
+            let x = a.element.date ?? .distantFuture, y = b.element.date ?? .distantFuture
+            return x == y ? a.offset < b.offset : x < y
+        }
+        for (_, c) in people where !order.contains(account(c.by)) { order.append(account(c.by)) }
+        let who = account(id)
+        let slot = CollabSession.slots(for: order)[who] ?? Int(CollabSession.paletteIndex(for: who))
+        return String(format: "#%06X", CollabSession.palette[slot].light)
+    }
+
     /// The colour an account id takes when no board says otherwise (CollabSession.color(for:)).
     static func color(for id: String) -> String {
         let rgb = CollabSession.palette[Int(CollabSession.paletteIndex(for: UUID(uuidString: id) ?? UUID(uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))))]

@@ -664,11 +664,12 @@ final class CollabSession {
                 if wasLooking != BoardFollow.Look(presenting: peer.presenting, view: peer.view, following: peer.following) || !wasHere { onBoardPeople?(boardPeople) }
                 let trail = BoardFollow.points(p.laser)
                 if !trail.isEmpty { onBoardLaser?(user, trail) }
+                onBoardTeam?(user, p.name, p.team?.checked, p.dots?.checked)
             }
             if !wasHere { Task { await refreshMembers() }; sendPresence() }
         case .leave(let user):
             peers[user] = nil
-            if isBoard { onBoardPeers?(boardPeers); onBoardPeople?(boardPeople) }
+            if isBoard { onBoardPeers?(boardPeers); onBoardPeople?(boardPeople); onBoardLeft?(user) }
             // They may have left the note itself (Leave), not just closed it: People follows now,
             // not on the next poll.
             Task { await refreshMembers() }
@@ -1236,6 +1237,16 @@ final class CollabSession {
         myLaserOn = look.laser != nil
         myLaser.append(contentsOf: trail)
         if myLaser.count > BoardFollow.mostLaserPoints { myLaser.removeFirst(myLaser.count - BoardFollow.mostLaserPoints) }
+        boardPresenceSoon()
+    }
+
+    /// Voting and a timer (BoardTeam): what your presence carries, read as each beat goes out;
+    /// `boardTeamChanged` sends one soon. Someone's beat with theirs, and someone gone.
+    @ObservationIgnored var boardTeamNow: (() -> (session: BoardTeam.Session?, dots: BoardTeam.Dots?))?
+    @ObservationIgnored var onBoardTeam: ((UUID, String, BoardTeam.Session?, BoardTeam.Dots?) -> Void)?
+    @ObservationIgnored var onBoardLeft: ((UUID) -> Void)?
+    func boardTeamChanged() {
+        guard isBoard else { return }
         boardPresenceSoon()
     }
 
@@ -1843,6 +1854,9 @@ final class CollabSession {
         var view: [Double]?
         var laser: [[Double]]?
         var follow: String?
+        /// On a whiteboard (BoardTeam): the voting and timer you run, and your dots in this round.
+        var team: BoardTeam.Session?
+        var dots: BoardTeam.Dots?
     }
 
     /// The anchor for a UTF-16 offset in this document's text.
@@ -1880,6 +1894,7 @@ final class CollabSession {
             p.laser = myLaserOn || !myLaser.isEmpty ? myLaser.map { [Double($0.x), Double($0.y)] } : nil
             myLaser = []
             p.follow = myFollow?.uuidString
+            if let now = boardTeamNow?() { p.team = now.session; p.dots = now.dots }
         }
         guard let data = try? JSONEncoder().encode(p),
               let ct = try? CollabCrypto.seal(.presence, data, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return }
@@ -1910,7 +1925,7 @@ final class CollabSession {
     /// someone before them has it, and then the next one free. So a person keeps the same colour
     /// on every device, and in most notes the one they have everywhere. Past six people, the
     /// colour their id picks.
-    static func slots(for members: [UUID]) -> [UUID: Int] {
+    nonisolated static func slots(for members: [UUID]) -> [UUID: Int] {
         var slots: [UUID: Int] = [:], taken = Set<Int>()
         for id in members where slots[id] == nil && taken.count < palette.count {
             let own = Int(paletteIndex(for: id))

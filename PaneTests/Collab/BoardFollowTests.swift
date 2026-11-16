@@ -24,14 +24,15 @@ import Testing
     /// One colour per person on every device (round 14: Sara was purple on the Mac and teal in the
     /// browser). The app gives each person the colour the shared vectors list for their board's
     /// members (collab-vectors.json, people_colours), as the browser does (web/lib/board-colours.test.ts),
-    /// and the people in the tests' pictures have theirs: Emil teal, Sara indigo.
+    /// and the people in the tests' pictures have theirs: Emil teal, Sara indigo, Cleo violet (round 16:
+    /// one colour per person on every surface).
     @Test func everyoneHasTheColourTheBrowserGivesThem() throws {
         let url = try #require(Bundle(for: BoardPeople.self).url(forResource: "collab-vectors", withExtension: "json"))
         let v = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let colours = try #require(v["people_colours"] as? [String: Any])
         #expect(colours["palette"] as? [String] == CollabSession.palette.map { CollabSession.hex($0.light) })
         let cases = try #require(colours["cases"] as? [[String: Any]])
-        #expect(cases.count == 4)
+        #expect(cases.count == 5)
         for c in cases {
             let ids = try #require(c["members"] as? [String]).compactMap(UUID.init(uuidString:))
             let slots = CollabSession.slots(for: ids)
@@ -39,6 +40,9 @@ import Testing
             #expect(got == c["colours"] as? [String], "\(c["about"] ?? "")")
         }
         #expect(TestPeople.color(TestPeople.emil).light == "#186B70" && TestPeople.color(TestPeople.sara).light == "#5252C5")
+        let three = CollabSession.slots(for: [TestPeople.emil, TestPeople.sara, TestPeople.cleo])
+        let cleo = try #require(three[TestPeople.cleo])
+        #expect(CollabSession.hex(CollabSession.palette[cleo].light) == "#8841AC")
         // On a board of his own, Emil's comments take the colour his id picks: the same teal.
         #expect(BoardComments.color(for: TestPeople.emil.uuidString) == "#186B70" && BoardComments.color(for: TestPeople.sara.uuidString) == "#5252C5")
     }

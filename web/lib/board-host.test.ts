@@ -1,9 +1,9 @@
 // The whiteboard page's side of the canvas, as the app's canvas controller does it
 // (PaneTests/Interaction/CanvasSharedTests): what goes to the page when it loads, pictures sent once,
 // what the page says going into the session, and comments' pins.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { BoardComments, Seen } from "./board-comments";
-import { BoardHost } from "./board-host";
+import { BoardHost, OUTLINE_FOR } from "./board-host";
 import type { BoardSession, Scene } from "./board-session";
 import type { BoardPerson } from "./board-follow";
 
@@ -145,7 +145,7 @@ describe("the whiteboard page and its canvas", () => {
     expect(comments.openThread).toBe(c.id);
     host.message({ commentAt: { id: "someone-else", x: 1, y: 1 } });
     host.message({ commentAt: { id: c.id, x: 100, y: 200, width: 24, height: 24 } });
-    expect(anchors).toEqual([{ id: c.id, x: 100, y: 200, width: 24, height: 24 }]);
+    expect(anchors).toEqual([{ id: c.id, x: 100, y: 200, width: 24, height: 24, on: null, near: [] }]);
     comments.closeThread();
     expect(anchors.at(-1)).toBeNull();
   });
@@ -172,7 +172,41 @@ describe("the whiteboard page and its canvas", () => {
     sent.length = 0;
     s.onRefused!(["f9"], "That picture is too big");
     s.onAI!("Sara's Claude", ["a"]);
-    expect(sent).toEqual([{ op: "refusePictures", ids: ["f9"] }, { op: "outline", ids: ["a"] }]);
+    expect(sent).toEqual([{ op: "refusePictures", ids: ["f9"] }, { op: "outline", ids: ["a"], all: false }]);
     expect(notices).toEqual(["That picture is too big", "Sara's Claude changed the board"]);
+  });
+
+  // Round 15: the browser drew no outline at all (the page's `remote` message was dropped). Show
+  // change, and an AI's change as it lands, are outlined with the AI's name, follow the view, and go.
+  it("outlines a change by name: a box for each thing, kept up as the view moves, gone after a while", () => {
+    vi.useFakeTimers();
+    try {
+      const { host, sent } = make();
+      host.message({ load: "1" });
+      sent.length = 0;
+      const seen: unknown[] = [];
+      host.onOutline = (o) => seen.push(o);
+      host.showChange("Claude", ["inbox", "inbox-idea"]);
+      expect(sent).toEqual([{ op: "outline", ids: ["inbox", "inbox-idea"], all: true }]);
+      host.message({ remote: { x: 10, y: 20, width: 100, height: 200, boxes: [[10, 20, 100, 60], [55, 80, 2, 140]], ids: ["inbox", "inbox-idea"] } });
+      expect(host.outline).toMatchObject({ by: "Claude", boxes: [[10, 20, 100, 60], [55, 80, 2, 140]] });
+      host.message({ remote: { follow: true, boxes: [[30, 20, 100, 60], [75, 80, 2, 140]] } });
+      expect(host.outline?.boxes[0]).toEqual([30, 20, 100, 60]);
+      vi.advanceTimersByTime(OUTLINE_FOR + 10);
+      expect(host.outline).toBeNull();
+      expect(seen.at(-1)).toBeNull();
+      // A search's match isn't an AI's change.
+      host.message({ remote: { boxes: [[1, 2, 3, 4]], find: true } });
+      expect(host.outline).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("keeps what's round the open pin, for the thread to open clear of it", () => {
+    const { host, comments } = make();
+    host.message({ load: "1" });
+    comments.show([{ id: "c1", x: 1, y: 0, on: "a", by: "U2", name: "Sara", text: "Hi", created: "2026-11-15T09:00:00Z", resolved: false, version: 1 }]);
+    comments.openThread = "c1";
+    host.message({ commentAt: { id: "c1", x: 40, y: 50, width: 24, height: 24, on: [30, 60, 200, 100], near: [[300, 60, 80, 80], ["x"]] } });
+    expect(host.anchor).toEqual({ id: "c1", x: 40, y: 50, width: 24, height: 24, on: [30, 60, 200, 100], near: [[300, 60, 80, 80]] });
   });
 });

@@ -584,8 +584,8 @@ import UIKit
         // The ••• menu has the canvas's items, first.
         let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, dev: false, canvas: true)
         #expect(groups.first(where: { $0.contains(.canvasClear) }) == [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear])
-        let present = groups.firstIndex(of: [.canvasPresent, .canvasLaser]), drawing = groups.firstIndex { $0.contains(.canvasClear) }
-        #expect(present != nil && drawing != nil && present! + 1 == drawing!, "Present and the laser pointer, then the drawing's items: \(groups)")
+        let present = groups.firstIndex(of: [.canvasPresent, .canvasLaser, .canvasVote, .canvasTimer]), drawing = groups.firstIndex { $0.contains(.canvasClear) }
+        #expect(present != nil && drawing != nil && present! + 1 == drawing!, "Present, the laser pointer, voting and the timer, then the drawing's items: \(groups)")
         #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true).joined().contains(.canvasClear))
     }
 
@@ -1268,6 +1268,49 @@ import UIKit
         #expect(v.count == 4 && v[0] == 0 && abs(v[1] - 120) <= 2 && abs(v[2] - 160) <= 2 && v[3] == 0, "straight down, straight across: \(ends)")
     }
 
+    /// Round 15: a frame's edge was drawn through a shape that ran over it. As in Excalidraw, a
+    /// frame cuts what's in it at its edge; a shape dragged mostly out of a frame leaves it and is
+    /// drawn above the frame's line, whole; one still mostly inside stays in and is cut.
+    @Test func aShapeDraggedMostlyOutOfAFrameLeavesItAndIsDrawnAboveItsEdge() async throws {
+        let j = try await Joined(scene: CanvasTests.scene([
+            ["type": "rectangle", "id": "in", "x": 40, "y": 40, "width": 120, "height": 80],
+            ["type": "rectangle", "id": "out", "x": 380, "y": 100, "width": 160, "height": 80, "backgroundColor": "#ffec99", "fillStyle": "solid"],
+            ["type": "rectangle", "id": "edge", "x": 300, "y": 220, "width": 160, "height": 80],
+            ["type": "frame", "id": "f", "x": 10, "y": 10, "width": 410, "height": 310, "children": ["in", "out", "edge"], "name": "Launch"],
+        ]))
+        defer { j.close() }
+        try await j.ready()
+        func member(_ id: String) async throws -> String? {
+            try await j.js("(() => { const e = amber._canvas.api.getSceneElements().find((e) => e.id === '\(id)'); return e.frameId || ''; })()") as? String
+        }
+        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == true)
+        let out0 = try await member("out"), edge0 = try await member("edge")
+        #expect(out0 == "f" && edge0 == "f", "in the frame as written")
+        // "out" (a quarter inside) and "edge" (three quarters inside) selected, as after a drag (the
+        // engine applies a selection on its next render, so wait for it); then the press ends.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { out: true, edge: true } } }); return 1; })()")
+        let picked = "Object.keys(amber._canvas.api.getAppState().selectedElementIds).sort().join(',')"
+        for _ in 0..<20 where try await j.js(picked) as? String != "edge,out" { try await Task.sleep(for: .milliseconds(50)) }
+        _ = try await j.js("(() => { window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return 1; })()")
+        var left = try await member("out")
+        for _ in 0..<20 where left != "" {
+            try await Task.sleep(for: .milliseconds(50))
+            left = try await member("out")
+        }
+        #expect(left == "", "mostly outside: it left the frame")
+        #expect(try await member("edge") == "f", "mostly inside: still in, cut at the edge")
+        #expect(try await member("in") == "f")
+        let order = try await j.js("amber._canvas.api.getSceneElements().map((e) => e.id).join(',')") as? String ?? ""
+        let ids = order.split(separator: ",").map(String.init)
+        #expect((ids.firstIndex(of: "out") ?? -1) > (ids.firstIndex(of: "f") ?? 99), "drawn after the frame, so its line is under the shape: \(order)")
+        // Nothing selected and a press ends: nothing moves.
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
+        for _ in 0..<20 where try await j.js(picked) as? String != "" { try await Task.sleep(for: .milliseconds(50)) }
+        _ = try await j.js("(() => { window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return 1; })()")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(try await member("edge") == "f")
+    }
+
     /// Present walks the board's frames one by one, each filling the view, with the laser pointer
     /// picked; next, previous and Escape from the keyboard; with no frames, the whole board
     /// (whiteboard council, rounds 4 and 5: frames, presenting, a laser pointer).
@@ -1280,8 +1323,9 @@ import UIKit
         ]))
         defer { j.close() }
         try await j.ready()
-        // While you work, a frame doesn't cut what runs over its edge: drawn whole (round 14, web-04).
-        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == false, "frames don't cut shapes while you work")
+        // A frame holds what's in it as Excalidraw's does, cut at its edge, so its line never runs
+        // through a shape (round 16; round 14's whole shapes had the frame's edge drawn over them).
+        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == true, "frames hold what's in them")
         let frameInView = { (id: String) in """
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value, f = api.getSceneElements().find((e) => e.id === '\(id)');
           const x1 = (f.x + s.scrollX) * z, y1 = (f.y + s.scrollY) * z, x2 = (f.x + f.width + s.scrollX) * z, y2 = (f.y + f.height + s.scrollY) * z;
@@ -1332,7 +1376,7 @@ import UIKit
         let after = try await j.js("(() => { const s = amber._canvas.api.getAppState(); return [s.zoom.value, s.scrollX, s.scrollY].join(','); })()") as? String
         #expect(after == before, "the view as it was before presenting: \(before) → \(after ?? "")")
         #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.name") as? Bool == true, "frame names back after")
-        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == false, "and shapes whole again")
+        #expect(try await j.js("amber._canvas.api.getAppState().frameRendering.clip") as? Bool == true, "and they hold what's in them again")
         // No frames: one step, the whole board.
         _ = try await j.js("(() => { const api = amber._canvas.api; api.updateScene({ elements: api.getSceneElements().filter((e) => e.type !== 'frame').map((e) => ({ ...e, frameId: null })) }); return 0; })()")
         j.canvas.send(.present(.start))
@@ -3739,6 +3783,16 @@ import UIKit
         let dots = els.filter { part($0) == "dot" }.sorted { num($0, "x") < num($1, "x") }
         let steps = els.filter { part($0) == "step" }.sorted { num($0, "x") < num($1, "x") }
         #expect(dots.count == 5 && steps.count == 5)
+        // A step above the line selected: the bar has its how-to line above and its stem, dot and
+        // line below. It covers the line before the words (round 15, 43-timeline-1).
+        let third = try #require(steps[2]["id"] as? String)
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(third)': true } } }); return 1; })()")
+        await j.until("the third step's bounds") { j.canvas.state.grows == .step && j.canvas.state.bounds != nil && j.canvas.state.nearby.contains { if case .words = $0 { true } else { false } } }
+        let bounds = try #require(j.canvas.state.bounds)
+        let bar = CGSize(width: 320, height: 44)
+        let at = CanvasSelectionBar.position(bounds: bounds, bar: bar, area: CGSize(width: 1100, height: 760), nearby: j.canvas.state.nearby)
+        let covers = CGRect(x: at.x - bar.width / 2, y: at.y - bar.height / 2, width: bar.width, height: bar.height)
+        #expect(!j.canvas.state.nearby.contains { if case .words = $0 { $0.hits(covers) } else { false } }, "the bar clear of the how-to line: \(at), \(bounds)")
         // The second step (Research) selected: the bar offers Add Step.
         let research = try #require(steps[1]["id"] as? String)
         _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(research)': true } } }); return 1; })()")
@@ -3842,6 +3896,100 @@ import UIKit
         await j.until("Add Column offered on a column") { j.canvas.state.grows == .column }
         let web = try #require(j.web as? NotePageWebView)
         #expect(web.canvasMenu().items.first?.title == "Add Column")
+        // The title selected: nothing to add.
+        _ = try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.customData && e.customData.pintoTitle); api.updateScene({ appState: { selectedElementIds: { [t.id]: true } } }); return 1; })()")
+        await j.until("nothing to add on the title") { j.canvas.state.grows == nil && !j.canvas.state.selection.isEmpty }
+    }
+
+    /// Add Report (round 16: "org charts grow"): a person on an org chart selected, Tab (or Add
+    /// Report) puts a report under them, beside their other reports, joined by a line like the
+    /// others, the chart's layout kept (what's to the right moves right with its lines; their
+    /// manager stays put), typed into at once; one Undo takes it back.
+    @Test func tabAddsAReportOnAnOrgChart() async throws {
+        let j = try await Joined(size: CGSize(width: 1100, height: 760))
+        defer { j.close() }
+        try await j.ready()
+        j.canvas.send(.insert(.orgChart, title: "Team"))
+        await j.until("the chart is in") { !j.canvas.state.empty }
+        try await Task.sleep(for: .milliseconds(300))
+        func all() async throws -> [[String: Any]] {
+            let json = try await j.js("JSON.stringify(amber._canvas.api.getSceneElements())") as? String ?? "[]"
+            return try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]] ?? []
+        }
+        func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? (e[k] as? Int).map(Double.init) ?? 0 }
+        func person(_ e: [String: Any]) -> Bool { (e["customData"] as? [String: Any])?["pintoPerson"] as? Bool == true }
+        func words(_ box: [String: Any], in els: [[String: Any]]) -> String {
+            (els.first { $0["containerId"] as? String == box["id"] as? String }?["text"] as? String) ?? ""
+        }
+        func joined(_ a: String, _ b: String, in els: [[String: Any]]) -> [String: Any]? {
+            els.first { e in e["type"] as? String == "arrow" && (e["startBinding"] as? [String: Any])?["elementId"] as? String == a && (e["endBinding"] as? [String: Any])?["elementId"] as? String == b }
+        }
+        var els = try await all()
+        let people = els.filter(person)
+        #expect(people.count == 7, "Alex, three leads, three reports: \(people.count)")
+        let sam = try #require(people.first { words($0, in: els).hasPrefix("Sam") })
+        let ana = try #require(people.first { words($0, in: els).hasPrefix("Ana") })
+        let kim = try #require(people.first { words($0, in: els).hasPrefix("Kim") })
+        let lee = try #require(people.first { words($0, in: els).hasPrefix("Lee") })
+        let alex = try #require(people.first { words($0, in: els).hasPrefix("Alex") })
+        let hint = try #require(els.first { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }?["text"] as? String)
+        #expect(hint.contains("press Tab to add a report"), "the how-to line says how: \(hint)")
+        // Sam selected: the bar and the menu offer Add Report.
+        let samID = try #require(sam["id"] as? String)
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(samID)': true } } }); return 1; })()")
+        await j.until("Add Report offered") { j.canvas.state.grows == .report }
+        let web = try #require(j.web as? NotePageWebView)
+        #expect(web.canvasMenu().items.first?.title == "Add Report", "first in the right-click menu")
+        _ = try await j.js("(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("typing in the new report") { j.canvas.state.editing }
+        els = try await all()
+        #expect(els.filter(person).count == 8)
+        let new = try #require(els.filter(person).first { p in !people.contains { $0["id"] as? String == p["id"] as? String } })
+        let newID = try #require(new["id"] as? String)
+        #expect(abs(num(new, "y") - num(ana, "y")) < 0.5, "on Ana's row")
+        #expect(num(new, "x") >= num(ana, "x") + num(ana, "width") + 20, "beside Ana, to her right")
+        #expect(num(new, "width") == num(ana, "width") && num(new, "height") == num(ana, "height") && new["backgroundColor"] as? String == ana["backgroundColor"] as? String, "like Ana")
+        #expect(joined(samID, newID, in: els) != nil, "joined to Sam by a line")
+        let typing = try await j.js("(() => { const t = amber._canvas.api.getAppState().editingTextElement; return t ? t.containerId : null; })()") as? String
+        #expect(typing == newID, "typed into at once")
+        // Kim's team moved right just enough, its lines with it; Alex didn't move.
+        func now(_ e: [String: Any]) -> [String: Any]? { els.first { $0["id"] as? String == e["id"] as? String } }
+        let kim2 = try #require(now(kim)), lee2 = try #require(now(lee)), alex2 = try #require(now(alex))
+        let dx = num(kim2, "x") - num(kim, "x")
+        #expect(dx > 0 && abs(num(lee2, "x") - num(lee, "x") - dx) < 0.5, "Kim and Lee moved right together (\(dx))")
+        #expect(num(lee2, "x") >= num(new, "x") + num(new, "width") + 20, "clear of the new report")
+        #expect(num(alex2, "x") == num(alex, "x") && num(alex2, "y") == num(alex, "y"), "Alex stays put")
+        let kimLee = try #require(joined(kim["id"] as! String, lee["id"] as! String, in: els))
+        #expect(abs(num(kimLee, "x") - (num(kim2, "x") + num(kim2, "width") / 2)) < 2, "Kim's line to Lee moved with them")
+        let toKim = try #require(joined(alex["id"] as! String, kim["id"] as! String, in: els))
+        let pts = try #require(toKim["points"] as? [[Double]])
+        #expect(abs(num(toKim, "x") + (pts.last?[0] ?? 0) - (num(kim2, "x") + num(kim2, "width") / 2)) < 2, "Alex's line still reaches Kim")
+        #expect(abs(num(toKim, "x") - num(alex, "x") - num(alex, "width") / 2) < 2, "and still starts at Alex")
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = 'Mo\\nDesigner'; t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); } return 1; })()")
+        await j.until("typed") { !j.canvas.state.editing }
+        els = try await all()
+        #expect(els.contains { $0["text"] as? String == "Mo\nDesigner" && $0["containerId"] as? String == newID }, "the new report is Mo")
+        // A report with no reports: Add Report from the bar puts one under them.
+        let anaID = try #require(ana["id"] as? String)
+        _ = try await j.js("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: { '\(anaID)': true } } }); return 1; })()")
+        await j.until("Add Report on Ana") { j.canvas.state.grows == .report }
+        j.canvas.send(.grow)
+        await j.until("typing under Ana") { j.canvas.state.editing }
+        els = try await all()
+        let under = try #require(els.filter(person).first { p in num(p, "y") > num(ana, "y") + num(ana, "height") })
+        #expect(abs((num(under, "x") + num(under, "width") / 2) - (num(ana, "x") + num(ana, "width") / 2)) < 0.5, "under Ana, centred")
+        #expect(joined(anaID, under["id"] as! String, in: els) != nil)
+        _ = try await j.js("(() => { const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); return 1; })()")
+        await j.until("typing done") { !j.canvas.state.editing }
+        // One Undo (past the engine's own step for typing ending) takes it back, line and all.
+        for _ in 0..<3 {
+            j.canvas.run(.undo)
+            try await Task.sleep(for: .milliseconds(300))
+            els = try await all()
+            if els.filter(person).count < 9 { break }
+        }
+        #expect(els.filter(person).count == 8, "Undo takes the report under Ana back")
+        #expect(!els.contains { e in e["type"] as? String == "arrow" && (e["endBinding"] as? [String: Any])?["elementId"] as? String == under["id"] as? String }, "and its line")
         // The title selected: nothing to add.
         _ = try await j.js("(() => { const api = amber._canvas.api, t = api.getSceneElements().find((e) => e.customData && e.customData.pintoTitle); api.updateScene({ appState: { selectedElementIds: { [t.id]: true } } }); return 1; })()")
         await j.until("nothing to add on the title") { j.canvas.state.grows == nil && !j.canvas.state.selection.isEmpty }
@@ -4440,6 +4588,12 @@ import UIKit
                 // Templates that grow, and your own (round 15, Opus #5): a timeline gains a step
                 // with Tab, a kanban a column; a frame saved as a template and used on a new board.
                 if !dark {
+                    // The first letters typed straight into the new step (the snapshot doesn't draw
+                    // the caret, so the picture shows the typing).
+                    @MainActor func typeSome(_ words: String) async throws {
+                        try await js("const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); }")
+                        await MacWindowChromeTests.settle(w, 6)
+                    }
                     @MainActor func typeAndFinish(_ words: String) async throws {
                         for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
                         try await js("const t = document.activeElement; if (t && t.tagName === 'TEXTAREA') { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })); }")
@@ -4451,10 +4605,15 @@ import UIKit
                     #expect(canvas.state.grows == .step)
                     try await shot("43-timeline-1-add-step", w, web)
                     try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }))")
+                    // The new step, selected and ready for typing (round 16).
+                    for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.state.editing, "the new step is ready for typing")
+                    try await typeSome("Rev")
+                    try await shot("43-timeline-2-new-step-typing", w, web)
                     try await typeAndFinish("Review\nWeek 10")
                     try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
                     await MacWindowChromeTests.settle(w, 10)
-                    try await shot("43-timeline-2-step-added", w, web)
+                    try await shot("43-timeline-3-step-added", w, web)
 
                     try await insert(.kanban)
                     try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")
@@ -4462,10 +4621,32 @@ import UIKit
                     #expect(canvas.state.grows == .column)
                     try await shot("44-kanban-1-add-column", w, web)
                     canvas.send(.grow)
+                    for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.state.editing, "the new column is ready for typing")
+                    try await typeSome("Rev")
+                    try await shot("44-kanban-2-new-column-typing", w, web)
                     try await typeAndFinish("Review")
                     try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
                     await MacWindowChromeTests.settle(w, 10)
-                    try await shot("44-kanban-2-column-added", w, web)
+                    try await shot("44-kanban-3-column-added", w, web)
+
+                    // An org chart grows (round 16): Jo selected shows Add Report; Tab puts a report
+                    // under Jo, joined, beside Open role, ready for a name; the chart's layout kept.
+                    try await insert(.orgChart)
+                    // Jo, by name: an inserted template's shapes get ids of their own.
+                    try await select("e.id === (api.getSceneElements().find((x) => x.type === 'text' && x.text.startsWith('Jo')) || {}).containerId")
+                    for _ in 0..<50 where canvas.state.grows != .report { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.state.grows == .report)
+                    try await shot("46-org-chart-1-add-report", w, web)
+                    try await js("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true }))")
+                    for _ in 0..<100 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.state.editing, "the new report is ready for a name")
+                    try await typeSome("Mi")
+                    try await shot("46-org-chart-2-new-report-typing", w, web)
+                    try await typeAndFinish("Mia\nWriter")
+                    try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("46-org-chart-3-report-added", w, web)
 
                     // A board's frame, selected; saved as a template (the right-click menu's Save as
                     // Template…, named "Launch checklist"); on a new board, under Your templates; used.
@@ -4497,6 +4678,44 @@ import UIKit
                     for _ in 0..<100 where canvas.state.empty { await MacWindowChromeTests.settle(w, 1) }
                     await MacWindowChromeTests.settle(w, 10)
                     try await shot("45-save-template-4-used", w, web)
+                }
+                // Voting and a timer (round 16): Emil runs voting on the retro board; his dots on
+                // the cards he picked, in his colour, "1 vote left" and how many are in; End Voting
+                // shows the totals. Then a five-minute timer, and one that has run out.
+                do {
+                    let chimed = BoardTeam.chime
+                    BoardTeam.chime = {}
+                    defer { BoardTeam.chime = chimed; canvas.team.reset() }
+                    try await insert(.retro)
+                    @MainActor func card(_ words: String) async throws -> String {
+                        try #require(try await web.evaluateJavaScript("(() => { const t = amber._canvas.api.getSceneElements().find((e) => e.type === 'text' && e.text === \(String(reflecting: words))); return t ? t.containerId : null; })()") as? String)
+                    }
+                    let demo = try await card("Demo every Friday"), shipped = try await card("Shipped on time"), meetings = try await card("Too many meetings")
+                    canvas.team.me = TestPeople.emil
+                    canvas.team.startVoting(votes: 3)
+                    canvas.receive(["vote": ["on": demo]])
+                    canvas.receive(["vote": ["on": shipped]])
+                    let id = try #require(canvas.team.voting?.id)
+                    canvas.team.heard(TestPeople.sara, name: "Sara", session: nil, dots: .init(id: id, on: [demo, demo, meetings]))
+                    canvas.team.heard(TestPeople.cleo, name: "Cleo", session: nil, dots: .init(id: id, on: [demo, shipped, meetings]))
+                    #expect(canvas.team.votesIn == 8 && canvas.team.votesLeft == 1)
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("47-voting-1-placing-votes", w, web)
+                    canvas.team.endVoting()
+                    #expect(canvas.team.voting?.results == [demo: 4, shipped: 2, meetings: 2])
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("47-voting-2-results", w, web)
+                    canvas.team.clearVoting()
+                    canvas.team.startTimer(seconds: 300)
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("48-timer-1-running", w, web)
+                    canvas.team.stopTimer()
+                    canvas.team.startTimer(seconds: 0.3)
+                    for _ in 0..<100 where !canvas.team.finished { await MacWindowChromeTests.settle(w, 1) }
+                    #expect(canvas.team.finished)
+                    await MacWindowChromeTests.settle(w, 10)
+                    try await shot("48-timer-2-finished", w, web)
+                    canvas.team.stopTimer()
                 }
                 try await insert(.flowchart)
                 try await select("e.type === 'rectangle' && e.backgroundColor === '#a5d8ff'")
@@ -5149,6 +5368,26 @@ import UIKit
         #expect(state.showsSelectionBar)
         state.busy = true
         #expect(!state.showsSelectionBar, "hidden while a handle is dragged")
+    }
+
+    /// Round 15, 43-timeline-1: with no spot clear, Add Step sat on the Timeline's how-to line.
+    /// Words weigh more than any number of lines and shapes: the bar covers a line instead.
+    @Test func theSelectionBarCoversALineBeforeWords() {
+        let bar = CGSize(width: 200, height: 40), area = CGSize(width: 800, height: 600)
+        let box = CGRect(x: 300, y: 300, width: 100, height: 50)
+        // The how-to line right above, as wide as the board; lines everywhere else it could go.
+        let words = CanvasObstacle.words(CGRect(x: 0, y: 220, width: 800, height: 40))
+        let lines = [CanvasObstacle.line([CGPoint(x: 0, y: 380), CGPoint(x: 800, y: 380)]),
+                     CanvasObstacle.line([CGPoint(x: 0, y: 325), CGPoint(x: 800, y: 325)]),
+                     CanvasObstacle.line([CGPoint(x: 0, y: 395), CGPoint(x: 800, y: 395)])]
+        let at = CanvasSelectionBar.position(bounds: box, bar: bar, area: area, nearby: [words] + lines)
+        let r = CGRect(x: at.x - 110, y: at.y - 30, width: 220, height: 60)
+        #expect(!words.hits(r), "clear of the how-to line: \(at)")
+        #expect(lines.contains { $0.hits(r) }, "nowhere clear, so it covers a line: \(at)")
+        // The page marks words of their own.
+        #expect(CanvasObstacle(["box": [1, 2, 3, 4], "words": true]) == .words(CGRect(x: 1, y: 2, width: 3, height: 4)))
+        #expect(CanvasObstacle(["box": [1, 2, 3, 4]]) == .box(CGRect(x: 1, y: 2, width: 3, height: 4)))
+        #expect(CanvasState.Grows(rawValue: "report")?.title == "Add Report")
     }
 
     @Test func swatchesShowAsTheCanvasDrawsThemInTheDark() {

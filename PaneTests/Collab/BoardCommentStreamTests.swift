@@ -110,6 +110,54 @@ private final class CommentVectorsToken {}
         #expect(ShareCopy.link(.comment).lowercased().contains("comment"))
     }
 
+    /// Round 16: a whiteboard's link opens in a browser too, and its lines say so; a note's don't
+    /// change (round 15, comment-role-1: "join and comment in Pinto Notes" hid the browser).
+    @Test func aWhiteboardsLinkLinesSayABrowserOrPintoNotes() {
+        #expect(ShareCopy.link(.comment, board: true) == "Anyone with the link can sign in and comment in a browser or Pinto Notes.")
+        #expect(ShareCopy.link(.edit, board: true) == "Anyone with the link can sign in and edit in a browser or Pinto Notes.")
+        #expect(ShareCopy.link(.view, board: true) == "Anyone with the link can view it in a browser or Pinto Notes.")
+        #expect(ShareCopy.link(.off, board: true) == "Only people you invite can open this whiteboard.")
+        #expect(ShareCopy.link(.edit) == "Anyone with the link can join and edit in Pinto Notes.")
+        #expect(ShareCopy.link(.view) == "Anyone with the link can join and read in Pinto Notes.")
+        #expect(ShareCopy.link(.off) == "Only people you invite can open this note.")
+        // Before it's shared, Invite People's line for a board says the browser too.
+        var state = ShareState()
+        #expect(ShareCopy.link(state, board: true) == ShareCopy.notSharedYetBoard && ShareCopy.notSharedYetBoard.contains("browser"))
+        #expect(ShareCopy.link(state) == ShareCopy.notSharedYet)
+        state.access = .comment
+        state.people = [.init(id: TestPeople.emil, name: "Emil", isMe: true, role: "owner"), .init(id: TestPeople.cleo, name: "Cleo", role: "commenter")]
+        #expect(ShareCopy.link(state, board: true) == ShareCopy.link(.comment, board: true))
+    }
+
+    /// Round 16: one colour per person on every surface. Cleo was plum in the Share sheet and blue
+    /// on the board; Sara violet in one picture and indigo in another. The sheet, a shared board's
+    /// pointers and pins, and a board's pins before it's shared all take slots(for:), the owner
+    /// first, then the others as they joined.
+    @Test func everyoneHasOneColourInTheSheetOnTheBoardAndOnItsPins() {
+        let order = [TestPeople.emil, TestPeople.sara, TestPeople.cleo]
+        let slots = CollabSession.slots(for: order)
+        let hex = { (id: UUID) in CollabSession.hex(CollabSession.palette[slots[id]!].light) }
+        #expect(order.map(hex) == ["#186B70", "#5252C5", "#8841AC"], "teal, indigo, violet (collab-vectors.json)")
+        // The Share sheet, from a list with no colours yet (Sara looking: her first, then the owner).
+        var state = ShareState()
+        state.people = [.init(id: TestPeople.sara, name: "Sara", isMe: true, role: "editor"), .init(id: TestPeople.emil, name: "Emil", role: "owner"),
+                        .init(id: TestPeople.cleo, name: "Cleo", role: "commenter")]
+        #expect(state.colored.map(\.id) == state.people.map(\.id), "in the sheet's order")
+        #expect(state.colored.map { $0.colorSlot } == [slots[TestPeople.sara], slots[TestPeople.emil], slots[TestPeople.cleo]])
+        // A colour the server's members gave is kept.
+        state.people[2].colorSlot = 1
+        #expect(state.colored[2].colorSlot == 1)
+        // The board's pins before it's shared: you, then who commented, in the order they did.
+        let comments = [
+            BoardComment(id: "c1", by: TestPeople.sara.uuidString, name: "Sara", text: "Here", created: "2026-11-16T09:00:00Z"),
+            BoardComment(id: "c2", by: TestPeople.cleo.uuidString, name: "Cleo", text: "And here", created: "2026-11-16T09:01:00Z"),
+        ]
+        for id in order {
+            #expect(BoardComments.color(of: id.uuidString, among: comments, me: TestPeople.emil.uuidString) == hex(id), "\(id)")
+        }
+        #expect(BoardComments.color(of: "me", among: comments, me: TestPeople.emil.uuidString) == hex(TestPeople.emil))
+    }
+
     // MARK: Someone who can comment
 
     /// Cleo has a Comment link: her board is view only, with comments placed in view mode. Her
@@ -331,7 +379,8 @@ private final class CommentVectorsToken {}
     @Test func canCommentPictures() async throws {
         guard let dir = AppSnapshotTests.dir else { return }
         // A commenter's comment, live on Emil's board.
-        let (emil, others, note) = try await people.share(BoardCommentsTests.scene, access: .comment, people: ["Cleo"])
+        // The pictures' people, so Cleo has one colour in the sheet, on the board and on her pins (round 16).
+        let (emil, others, note) = try await people.share(BoardCommentsTests.scene, access: .comment, people: ["Cleo"], accounts: TestPeople.accounts)
         let e = try people.session(emil, note), c = try people.session(others[0], note)
         let mine = CanvasController()
         mine.noteID = note.id
@@ -351,19 +400,22 @@ private final class CommentVectorsToken {}
 
         let share = ShareController(note: Note(body: "Launch plan"), backend: SampleShare(ShareState(
             link: URL(string: "https://pintonotes.com/s/sEbHaDgYXLDfpSMmrziRgA#gIfSqgKHVsQcWBm2RTA0aw"), access: .comment, people: [
-                .init(id: CollabGallery.emil, name: "Emil Wagman", isMe: true, role: "owner"),
-                .init(id: CollabGallery.sara, name: "Cleo Lind", role: "commenter", safetyCode: "4821 0937 5512"),
+                .init(id: TestPeople.emil, name: "Emil Wagman", isMe: true, role: "owner"),
+                .init(id: TestPeople.cleo, name: "Cleo Lind", role: "commenter", safetyCode: "4821 0937 5512"),
             ])), board: { true })
+        // Her colour in the sheet is her colour on the board.
+        let slot = try #require(share.state.colored.first { $0.id == TestPeople.cleo }?.colorSlot)
+        #expect(CollabSession.hex(CollabSession.palette[slot].light) == e.boardColors(of: TestPeople.cleo).light)
         let store = ShareLinkStore(state: ShareLinkState(phase: .notShared))
         for dark in [false, true] {
             let mode = dark ? "dark" : "light"
             let popover = ShareNotePopover(title: "Launch plan", text: "Launch plan", store: store, linkAvailable: true, share: share, startingWay: .people,
                                            pictureRequest: { nil }, close: {}).tint(Color(PColor.paneAccent))
-            try await AppSnapshotTests.render(popover, name: "r15-share-can-comment-\(mode)", dark: dark)
+            try await AppSnapshotTests.render(popover, name: "comment-role-1-share-can-comment-\(mode)", dark: dark)
             let thread = try await BoardCommentsCanvasTests.popover(BoardThreadView(canvas: mine, id: ask.id), dark: dark)
-            try #require(thread.representation(using: .png, properties: [:])).write(to: dir.appending(path: "r15-mac-commenters-reply-\(mode).png"))
+            try #require(thread.representation(using: .png, properties: [:])).write(to: dir.appending(path: "comment-role-3-mac-commenters-reply-\(mode).png"))
             let list = try await BoardCommentsCanvasTests.popover(BoardCommentsList(canvas: mine), dark: dark)
-            try #require(list.representation(using: .png, properties: [:])).write(to: dir.appending(path: "r15-mac-comments-list-\(mode).png"))
+            try #require(list.representation(using: .png, properties: [:])).write(to: dir.appending(path: "comment-role-3b-mac-comments-list-\(mode).png"))
         }
     }
 }

@@ -68,6 +68,19 @@
         ]
       },
       {
+        "about": "Emil's board with Sara and Cleo (who can comment): the ids the pictures and the browser test use, the same colour on the board, its pins and the Share sheet",
+        "members": [
+          "E0000000-0000-4000-8000-000000000001",
+          "5A000000-0000-4000-8000-000000000002",
+          "C1E00000-0000-4000-8000-000000000002"
+        ],
+        "colours": [
+          "#186B70",
+          "#5252C5",
+          "#8841AC"
+        ]
+      },
+      {
         "about": "Three whose ids pick indigo and one pink: each takes the next free colour, in the order they joined",
         "members": [
           "C0110DE0-0000-4000-8000-000000000006",
@@ -102,6 +115,113 @@
           "#5252C5",
           "#8841AC"
         ]
+      }
+    ]
+  },
+  "team_presence": {
+    "about": "Voting and a timer on a shared board (round 16): what the host's presence carries (team) and each voter's (dots), as the app (Pane/Collab/BoardTeam.swift) and the browser (web/lib/board-team.ts) write and read them. PaneTests/Collab/BoardTeamTests.swift and web/lib/board-team.test.ts check them.",
+    "presence": {
+      "name": "Emil Wagman",
+      "pointer": [
+        10,
+        20
+      ],
+      "team": {
+        "voting": {
+          "id": "v-1a2b3c4d",
+          "votes": 3
+        },
+        "timer": {
+          "id": "t-5e6f7a8b",
+          "total": 300,
+          "left": 287.5
+        }
+      },
+      "dots": {
+        "id": "v-1a2b3c4d",
+        "on": [
+          "box-1",
+          "box-1",
+          "sticky-2"
+        ]
+      }
+    },
+    "ended": {
+      "voting": {
+        "id": "v-1a2b3c4d",
+        "votes": 3,
+        "results": {
+          "box-1": 4,
+          "sticky-2": 1
+        }
+      },
+      "timer": null
+    },
+    "tally": {
+      "dots": [
+        [
+          "box-1",
+          "box-1",
+          "sticky-2"
+        ],
+        [
+          "box-1",
+          "box-1"
+        ]
+      ],
+      "totals": {
+        "box-1": 4,
+        "sticky-2": 1
+      }
+    },
+    "clock": [
+      [
+        287.5,
+        "4:48"
+      ],
+      [
+        0,
+        "0:00"
+      ],
+      [
+        0.2,
+        "0:01"
+      ],
+      [
+        59.9,
+        "1:00"
+      ],
+      [
+        600,
+        "10:00"
+      ]
+    ],
+    "malformed": [
+      {
+        "voting": {
+          "id": "",
+          "votes": 3
+        }
+      },
+      {
+        "voting": {
+          "id": "v-1",
+          "votes": 0
+        }
+      },
+      {
+        "timer": {
+          "id": "t-1",
+          "total": -5,
+          "left": 1
+        }
+      },
+      {
+        "timer": {
+          "id": "t-1",
+          "total": 99999,
+          "left": 1
+        }
       }
     ]
   }

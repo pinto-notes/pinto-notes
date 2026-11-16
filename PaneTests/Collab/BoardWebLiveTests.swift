@@ -180,6 +180,22 @@ struct BoardWebLiveTests {
         try #require(picture.representation(using: .png, properties: [:])).write(to: out)
         #endif
         try write("commented.txt", "ok")
+
+        // 8. An AI's reply to her comment, naming what it changed (a box it added on Plan): in her
+        // browser, Show change outlines it and brings it into view; once the box is gone, her
+        // thread says the change is no longer on the board, as the app's does (round 16).
+        let added = Board.shape("ai-1", x: 820, y: 140, index: "a3").merging(["frameId": "plan", "backgroundColor": "#b2f2bb"]) { _, b in b }
+        e.boardLocal([added])
+        let aiReply = BoardComment(id: BoardComments.newID(), thread: hers.id, by: me.uuidString, name: "Emil", ai: "Claude",
+                                   text: "I added a box on Plan for the wider layout.", created: BoardComments.stamp(), changes: ["ai-1"])
+        e.commentLocal([aiReply])
+        await until(10) { e.unsent == 0 }
+        try write("ai.json", #"{"thread":"\#(hers.id)","reply":"\#(aiReply.id)"}"#)
+        _ = try #require(await file("shown.json", within: 180), "the browser never showed the change")
+        e.boardLocal([added.merging(["isDeleted": true, "version": 2, "versionNonce": 11]) { _, b in b }])
+        await until(10) { e.unsent == 0 }
+        try write("ai-gone.txt", "ok")
+        _ = try #require(await file("gone-seen.json", within: 120), "the browser never said the change had gone")
     }
 }
 

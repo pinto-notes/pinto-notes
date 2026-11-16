@@ -29,6 +29,9 @@ export const DELETED_LINE = "Comment deleted";
 export const REOPENED_LINE = "Comment opened again";
 export const ON_BOARD = "on the board";
 export const ON_SHAPE = "on a shape";
+export const SHOW_CHANGE = "Show change";
+/** What an AI's reply says when what it changed is gone (CanvasController.changeGone). */
+export const CHANGE_GONE = "That change is no longer on the board";
 
 /** What you've seen on each board, kept in this browser (BoardComments.Seen). */
 export class Seen {
@@ -62,6 +65,8 @@ export class BoardComments {
   draft: Place | null = null;
   /** What each thread's shape is called ("Idea"), as the page says. */
   shapes: Record<string, string> = {};
+  /** The page has said which of the shapes asked about are on the board (`shapes`). */
+  shapesReported = false;
   unseen = false;
   /** Each writer's colour on this board. */
   colorOf: (user: string) => string = () => "#2D639A";
@@ -169,6 +174,18 @@ export class BoardComments {
     });
   }
 
+  /**
+   * What an AI's comment links to (CanvasController.changeLink): the things its write changed that
+   * are still on the board, to outline and bring into view (Show change), or `gone` when none are.
+   * Null for a person's comment, or one that names no change.
+   */
+  changeLink(c: Comment): { by: string; ids: string[] } | "gone" | null {
+    if (!c.ai || c.deleted || !c.changes?.length) return null;
+    // Before the page has said which are there, all of them: Show change outlines what is.
+    const here = this.shapesReported ? c.changes.filter((id) => this.shapes[id] !== undefined) : c.changes;
+    return here.length ? { by: this.byline(c), ids: here } : "gone";
+  }
+
   /** The `comments` command for the page (CanvasCommand.comments). */
   command() {
     const color = this.colorOf(this.author.id);
@@ -179,7 +196,9 @@ export class BoardComments {
       draft: this.draft ? { x: this.draft.x, y: this.draft.y, ...(this.draft.on ? { on: this.draft.on } : {}) } : null,
       can: this.canComment,
       inView: this.canComment && this.viewOnly,
-      shapes: [...new Set(this.threads.flatMap((t) => (t.first.on ? [t.first.on] : [])))].sort(),
+      // The shapes threads are on, and what AIs' comments changed: a name back says it's on the board.
+      shapes: [...new Set([...this.threads.flatMap((t) => (t.first.on ? [t.first.on] : [])),
+        ...this.comments.filter((c) => c.ai && !c.deleted).flatMap((c) => c.changes ?? [])])].sort(),
     };
   }
 

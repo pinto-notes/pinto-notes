@@ -12,6 +12,10 @@
 import type { BoardComments } from "./board-comments";
 import { BoardFollow, pointsOf, presentingOf, viewOf } from "./board-follow";
 import type { BoardPeer, BoardSession, Scene } from "./board-session";
+import { chime, TeamModel, votesLeft } from "./board-team";
+
+/** The votes command when nothing is on: a page that has just loaded shows this already. */
+const NO_VOTES = JSON.stringify({ op: "votes", on: false, dots: [], results: null });
 
 /** What the page says about itself (canvas.jsx stateOf); only what the page here reads. */
 export type PageState = {
@@ -22,7 +26,19 @@ export type PageState = {
   present?: { index: number; count: number; name: string; frame: [number, number, number, number] | null } | null;
 };
 
-export type Anchor = { id: string; x: number; y: number; width: number; height: number };
+export type Box = [number, number, number, number];
+/** Where the open thread's pin is, with the shape it's on and what's drawn near it (comments.js
+ *  around), for the thread to open clear of them (board-placement.ts). */
+export type Anchor = { id: string; x: number; y: number; width: number; height: number; on?: Box | null; near?: Box[] };
+
+/** A change outlined on the board (an AI's, or Show change on its reply): a dashed box round each
+ *  thing it changed and its name over them, as the app outlines one (CanvasAIHighlight). */
+export type Outline = { by: string; boxes: Box[]; key: number };
+
+/** How long an outline shows (the app's CanvasController.highlightTime). */
+export const OUTLINE_FOR = 4000;
+
+const boxOf = (v: unknown): Box | null => Array.isArray(v) && v.length === 4 && v.every((n) => typeof n === "number" && Number.isFinite(n)) ? [v[0], v[1], v[2], v[3]] : null;
 
 type Message = Record<string, unknown>;
 
@@ -34,6 +50,11 @@ export class BoardHost {
   state: PageState = {};
   /** Where the open thread's pin is in the frame (the popover's anchor), as the page says. */
   anchor: Anchor | null = null;
+  /** The change outlined now, if any (it goes after OUTLINE_FOR). */
+  outline: Outline | null = null;
+  onOutline: ((o: Outline | null) => void) | null = null;
+  private outlineBy: string | null = null;
+  private outlineTimer: ReturnType<typeof setTimeout> | null = null;
 
   onState: ((s: PageState) => void) | null = null;
   onAnchor: ((a: Anchor | null) => void) | null = null;
@@ -45,13 +66,41 @@ export class BoardHost {
   private people = "";
   /** Following someone (board-follow.ts): the banner, Follow from an avatar. */
   readonly follow: BoardFollow;
+  /** Voting and a timer (board-team.ts). */
+  readonly team: TeamModel;
+  /** The team bar draws again (voting, the totals, the timer). */
+  onTeam: (() => void) | null = null;
+  /** What the page was last told about votes; a new page has none, so nothing goes while nothing is on. */
+  private lastVotes = NO_VOTES;
 
   constructor(private readonly send: (command: Message) => void, public session: BoardSession, readonly comments: BoardComments, viewOnly: boolean) {
     this.viewOnly = viewOnly;
     comments.viewOnly = viewOnly;
     this.follow = new BoardFollow((c) => { if (this.loaded) this.send(c); });
+    this.team = new TeamModel();
+    this.team.onPage = () => { this.sendVotes(); this.onTeam?.(); };
+    this.team.onChime = () => chime();
     this.wire(session);
     comments.onChange = () => this.sendComments();
+  }
+
+  /** Your dots, the totals and whether a click votes, to the page when they changed. */
+  sendVotes() {
+    if (!this.loaded) return;
+    const me = this.team.me;
+    const color = me && this.team.myDots.length ? this.session.colorOf(me) : "#2D639A";
+    const c = this.team.command(color, this.team.myDots.length ? this.session.darkOf(color) : undefined);
+    const j = JSON.stringify(c);
+    if (j === this.lastVotes) return;
+    this.lastVotes = j;
+    this.send(c);
+  }
+
+  /** Who may run voting and a timer (whoever can edit) and who may vote (edit or comment). */
+  teamRoles() {
+    this.team.me = this.session.me;
+    this.team.canHost = !this.viewOnly && !!this.session.me;
+    this.team.canVote = !!this.session.me && (!this.viewOnly || this.comments.canComment);
   }
 
   /** Another session for the same board (you joined, or signed out): the page keeps its drawing and
@@ -70,11 +119,16 @@ export class BoardHost {
     session.onPeers = (peers) => this.peers(peers);
     session.onComments = (list) => this.comments.show(list);
     session.onRefused = (ids, why) => { this.send({ op: "refusePictures", ids }); this.onNotice?.(why); };
-    session.onAI = (by, ids) => { this.send({ op: "outline", ids }); this.onNotice?.(`${by} changed the board`); };
+    session.onAI = (by, ids) => { this.showChange(by, ids, false); this.onNotice?.(`${by} changed the board`); };
     session.onPeople = (people) => this.follow.show(people);
     session.onLaser = (id, points) => { if (this.loaded) this.send({ op: "laser", id, points }); };
     this.follow.onFollow = (id) => session.follow(id);
     this.comments.onWrite = (changed) => session.commentLocal(changed);
+    session.teamNow = () => ({ session: this.team.session(), dots: this.team.dots() });
+    session.onTeam = (user, name, team, dots) => this.team.heard(user, name, team, dots);
+    session.onLeft = (user) => this.team.left(user);
+    this.team.onPublish = () => session.teamChanged();
+    this.teamRoles();
   }
 
   get loaded() { return this.load !== null; }
@@ -84,7 +138,9 @@ export class BoardHost {
     if (view === this.viewOnly) return;
     this.viewOnly = view;
     this.comments.viewOnly = view;
-    if (this.loaded) { this.send({ op: "shared", on: true, viewOnly: view }); this.sendComments(); }
+    this.teamRoles();
+    if (this.loaded) { this.send({ op: "shared", on: true, viewOnly: view }); this.sendComments(); this.sendVotes(); }
+    this.onTeam?.();
   }
 
   /** The document's drawing, with only the pictures the page doesn't have yet. */
@@ -111,9 +167,37 @@ export class BoardHost {
     if (!this.comments.openThread && !this.comments.draft && this.anchor) { this.anchor = null; this.onAnchor?.(null); }
   }
 
+  /**
+   * A change outlined and brought into view, named: an AI's as it lands, or Show change on its
+   * reply (`all`: arrows too, as the app's Show change has them). The page moves the view and says
+   * where each thing is (its `remote` message), and keeps saying as the view moves.
+   */
+  showChange(by: string, ids: string[], all = true) {
+    if (!this.loaded || !ids.length) return;
+    this.outlineBy = by;
+    this.send({ op: "outline", ids, all });
+  }
+
+  private outlined(r: Record<string, unknown>) {
+    const boxes = (Array.isArray(r.boxes) ? r.boxes : []).map(boxOf).filter((b): b is Box => !!b);
+    if (r.follow === true) {
+      if (!this.outline || !boxes.length) return;
+      this.outline = { ...this.outline, boxes };
+      this.onOutline?.(this.outline);
+      return;
+    }
+    if (!this.outlineBy || !boxes.length || r.find === true) return;
+    this.outline = { by: this.outlineBy, boxes, key: (this.outline?.key ?? 0) + 1 };
+    this.onOutline?.(this.outline);
+    if (this.outlineTimer) clearTimeout(this.outlineTimer);
+    const key = this.outline.key;
+    this.outlineTimer = setTimeout(() => { if (this.outline?.key === key) { this.outline = null; this.onOutline?.(null); } }, OUTLINE_FOR);
+  }
+
   /** The page's messages (window.webkit.messageHandlers.amberCanvas in the app). */
   message(m: Message) {
     if (!m || typeof m !== "object") return;
+    if (m.remote && typeof m.remote === "object") { this.outlined(m.remote as Record<string, unknown>); return; }
     if (m.board && typeof m.board === "object") {
       const b = m.board as { elements?: unknown; settings?: unknown; files?: unknown };
       const files = b.files && typeof b.files === "object" ? b.files as Record<string, { id?: unknown; dataURL?: unknown; mimeType?: unknown }> : {};
@@ -135,16 +219,25 @@ export class BoardHost {
       const a = m.commentAt as Partial<Anchor>;
       const want = this.comments.openThread ?? (this.comments.draft ? "draft" : null);
       if (a.id !== want) return;
-      const next = typeof a.x === "number" && typeof a.y === "number" ? { id: a.id as string, x: a.x, y: a.y, width: a.width ?? 24, height: a.height ?? 24 } : null;
+      const near = Array.isArray(a.near) ? a.near.map(boxOf).filter((b): b is Box => !!b).slice(0, 80) : [];
+      const next = typeof a.x === "number" && typeof a.y === "number" ? { id: a.id as string, x: a.x, y: a.y, width: a.width ?? 24, height: a.height ?? 24, on: boxOf(a.on), near } : null;
       if (JSON.stringify(next) !== JSON.stringify(this.anchor)) { this.anchor = next; this.onAnchor?.(next); }
+      return;
+    }
+    // Voting: a click on a shape, or on one of your dots.
+    if (m.vote && typeof m.vote === "object") {
+      const v = m.vote as { on?: unknown; off?: unknown };
+      if (typeof v.on === "string") { if (!this.team.vote(v.on) && this.team.votingOpen && this.team.votesLeft === 0) this.onNotice?.(votesLeft(0)); }
+      else if (typeof v.off === "string") this.team.unvote(v.off);
       return;
     }
     if (m.commentShapes && typeof m.commentShapes === "object") {
       this.comments.shapes = Object.fromEntries(Object.entries(m.commentShapes as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === "string"));
+      this.comments.shapesReported = true;
       this.comments.onChange?.();
       return;
     }
-    if ("remote" in m || "open" in m || "error" in m || "commentHere" in m) return;
+    if ("open" in m || "error" in m || "commentHere" in m) return;
     // Otherwise the page's state.
     const s = m as PageState;
     if (typeof s.load === "string" && s.load !== this.load) {
@@ -156,6 +249,9 @@ export class BoardHost {
       this.peers(this.session.boardPeers());
       this.sendComments(true);
       this.follow.reload();
+      this.teamRoles();
+      this.lastVotes = NO_VOTES;
+      this.sendVotes();
     }
     this.state = s;
     this.onState?.(s);

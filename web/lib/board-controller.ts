@@ -206,6 +206,8 @@ export class BoardController {
     this.host.onNotice = (line) => this.say(line);
     this.host.onState = () => this.changed();
     this.host.onAnchor = () => this.changed();
+    this.host.onOutline = () => this.changed();
+    this.host.onTeam = () => this.changed();
     this.host.onPeople = () => this.changed();
     this.host.follow.onChange = () => this.changed();
     this.comments.show(session.comments);
@@ -231,6 +233,7 @@ export class BoardController {
         this.session.canComment = this.canComment;
         this.session.role = mine.role;
       }
+      this.host?.teamRoles();
     }
     this.changed();
   }
@@ -278,6 +281,8 @@ export class BoardController {
     // (the canvas sets the selection tool when it leaves view mode).
     this.role = role;
     this.comments.setCanComment(this.canComment);
+    this.host?.teamRoles();
+    this.host?.sendVotes();
     this.changed();
     void session.refreshMembers();
   }
