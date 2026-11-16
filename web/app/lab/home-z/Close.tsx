@@ -10,7 +10,8 @@ import c from "./close.module.css";
 // - Brings over your Apple Notes: the Mac reads them straight from Notes (Pane/Views/ImportSources.swift).
 // - Open source: /privacy-security ("The apps, the server and this website are open source").
 // - The study (/blog/ai-memory-with-notes): Claude Haiku 5.5 on LoCoMo, 1,540 questions about months of
-//   earlier chats, asked in a new chat: 18% right with nothing else, 82.5% with Pinto Notes connected.
+//   earlier chats, asked in a new chat: 18% right with nothing else, 82.5% with Pinto Notes connected
+//   (memory there: the notes the AI wrote after each chat and could look up in the next one).
 //   The bars are those two numbers to scale.
 
 const GITHUB = "https://github.com/pinto-notes/pinto-notes";
@@ -28,19 +29,17 @@ export function Trust() {
 }
 
 const STUDY = [
-  { who: "Claude in a new chat", v: 18, shown: "18%" },
+  { who: "Answered right in a new chat", v: 18, shown: "18%" },
   { who: "With Pinto Notes connected", v: 82.5, shown: "82.5%", pinto: true },
 ] as const;
 
-/** The study, once, in its own column (round 24): why notes help a later chat, in one plain line (the
- *  study's own framing: every new chat starts blank; with Pinto connected, the AI could look up the notes
- *  it wrote after each chat), what was measured, the two results as large numbers over bars to scale,
- *  and the source with the link. */
+/** The study, once, before the invitation (round 25: compact, and scoped to its conditions, as the
+ *  study states them): which model, how many questions, about what, asked where; then the two results,
+ *  both numbers in ink, the bars to scale carrying the difference; the benchmark and the link. */
 export function Study() {
   return (
     <figure className={c.study}>
-      <p className={c.why}>Every new chat with Claude starts blank. With Pinto Notes connected, it can read the notes it saved after earlier chats.</p>
-      <figcaption className={c.studyHead}>Questions about months of past chats, answered right</figcaption>
+      <figcaption className={c.why}>In our test, Claude Haiku 5.5 answered 1,540 questions about months of earlier chats, each in a new chat. With Pinto Notes connected, it could read the notes it saved after each chat.</figcaption>
       <dl className={c.bars}>
         {STUDY.map((r) => (
           <div key={r.who} className={c.row} data-pinto={"pinto" in r || undefined} style={{ "--v": r.v / 100 } as React.CSSProperties}>
@@ -49,7 +48,7 @@ export function Study() {
           </div>
         ))}
       </dl>
-      <p className={c.studyFoot}>Claude Haiku 5.5, 1,540 questions. <a href="/blog/ai-memory-with-notes">Read the study</a></p>
+      <p className={c.studyFoot}>LoCoMo benchmark. <a href="/blog/ai-memory-with-notes">Read the study</a></p>
     </figure>
   );
 }

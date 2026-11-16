@@ -97,6 +97,11 @@ const P = {
 function PintoNote({ folder, title, children, label }: { folder: string; title: string; children: React.ReactNode; label: string }) {
   return (
     <div className={a.pinto} role="group" aria-label={label}>
+      {/* Round 25: on a phone, the iPhone app's bar (back to the folder, More), as the Notes chapter's. */}
+      <div className={a.ipBar} aria-hidden="true">
+        <span className={a.ipBack}><svg viewBox="0 0 11 19"><path d="M9 2 2 9.5 9 17" /></svg>{folder}</span>
+        <span className={a.ipMore}><svg viewBox="0 0 13 4"><circle cx="2" cy="2" r="1.5" /><circle cx="6.5" cy="2" r="1.5" /><circle cx="11" cy="2" r="1.5" /></svg></span>
+      </div>
       <div className={a.pBar} aria-hidden="true">
         <span className={a.pLights}><i /><i /><i /></span>
         <span className={a.pIco}>{P.back}</span><span className={`${a.pIco} ${a.dim}`}>{P.fwd}</span>
@@ -123,7 +128,7 @@ export function StudioNote() {
 /** The recipe ChatGPT wrote into Recipes, open, with the app's receipt at its foot. */
 export function ShakshukaNote() {
   return (
-    <PintoNote folder="Recipes" title="Shakshuka" label="Pinto Notes on a Mac, the new Shakshuka note in Recipes, marked as written by ChatGPT. At its foot: ChatGPT wrote this note, Undo, See all changes.">
+    <PintoNote folder="Recipes" title="Shakshuka" label="Pinto Notes, the new Shakshuka note in Recipes, marked as written by ChatGPT. At its foot: ChatGPT wrote this note, Undo, See all changes.">
       <h3 className={a.nTitle}>Shakshuka</h3>
       <div className={a.wrote}>
         <p className={a.meta}><span>Serves 2 · 25 min</span></p>

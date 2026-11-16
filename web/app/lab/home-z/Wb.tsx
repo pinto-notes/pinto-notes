@@ -29,7 +29,7 @@ type Node = { kind: "ellipse" | "box" | "diamond"; c: Pt; w: number; h: number; 
 type Arrow = { a: Pt; c1: Pt; c2: Pt; b: Pt; label?: [string, Pt]; dashed?: boolean };
 /** A board: its view, its words' size, its shapes and arrows, Claude's arrow, and where Claude's
  *  name tag sits (`tag`: its anchor in board units, and which side of it the tag grows to). */
-type Board = { view: [number, number]; font: number; title?: [string, Pt, number]; note?: [string[], Pt, number]; nodes: Node[]; arrows: Arrow[]; claude: Arrow; tag: { at: Pt; side: "left" | "right" } };
+type Board = { view: [number, number]; font: number; title?: [string, Pt, number]; note?: [string[], Pt, number]; nodes: Node[]; arrows: Arrow[]; claude: Arrow; ai: number[]; aiArrows: number[] };
 
 const LABEL = "Studio North: now or March?";
 /** The board's name in the list and the toolbar. */
@@ -40,21 +40,21 @@ export const BOARD_NAME = "Now or March?";
 const WIDE: Board = {
   view: [1200, 560], font: 28,
   title: [LABEL, [6, 42], 40],
-  note: [["Ana needs an", "answer by Friday"], [40, 430], 23],
+  note: [["Ana needs an", "answer by Friday"], [40, 482], 23],
   nodes: [
     { kind: "ellipse", c: [158, 190], w: 290, h: 124, label: ["Studio North", "offer"], fill: null },
     { kind: "diamond", c: [520, 190], w: 290, h: 180, label: ["Take it now?"], fill: "yellow" },
-    { kind: "box", c: [960, 190], w: 390, h: 120, label: ["Start in January,", "launch half done"], fill: null, dashed: true },
+    { kind: "box", c: [960, 190], w: 390, h: 120, label: ["Start in January,", "launch half done"], fill: null },
     { kind: "box", c: [520, 450], w: 390, h: 120, label: ["Finish the launch,", "ship in February"], fill: "pink" },
     { kind: "ellipse", c: [960, 450], w: 330, h: 130, label: ["Talk again", "in March"], fill: "pink" },
   ],
   arrows: [
     { a: [305, 190], c1: [328, 187], c2: [350, 192], b: [372, 190] },
-    { a: [668, 190], c1: [700, 187], c2: [730, 192], b: [762, 190], label: ["yes", [712, 190]], dashed: true },
+    { a: [668, 190], c1: [700, 187], c2: [730, 192], b: [762, 190], label: ["yes", [712, 190]] },
     { a: [718, 450], c1: [744, 447], c2: [768, 452], b: [792, 450] },
   ],
   claude: { a: [520, 284], c1: [517, 316], c2: [523, 352], b: [520, 386], label: ["no", [520, 333]] },
-  tag: { at: [496, 282], side: "left" },
+  ai: [3, 4], aiArrows: [2],
 };
 
 /** The same map, compact (a phone's crop of the window): the offer and the question side by side, the
@@ -64,17 +64,17 @@ const TALL: Board = {
   nodes: [
     { kind: "ellipse", c: [74, 48], w: 140, h: 76, label: ["Studio North", "offer"], fill: null },
     { kind: "diamond", c: [262, 48], w: 180, h: 88, label: ["Take it now?"], fill: "yellow" },
-    { kind: "box", c: [92, 164], w: 164, h: 60, label: ["Start in January,", "launch half done"], fill: null, dashed: true, size: 15.5 },
+    { kind: "box", c: [92, 164], w: 164, h: 60, label: ["Start in January,", "launch half done"], fill: null, size: 15.5 },
     { kind: "box", c: [266, 266], w: 168, h: 62, label: ["Finish the launch,", "ship in February"], fill: "pink", size: 15.5 },
     { kind: "ellipse", c: [112, 364], w: 176, h: 72, label: ["Talk again", "in March"], fill: "pink" },
   ],
   arrows: [
     { a: [144, 48], c1: [152, 47], c2: [161, 49], b: [170, 48] },
-    { a: [214, 72], c1: [196, 90], c2: [172, 110], b: [150, 131], label: ["yes", [188, 98]], dashed: true },
+    { a: [214, 72], c1: [196, 90], c2: [172, 110], b: [150, 131], label: ["yes", [188, 98]] },
     { a: [264, 299], c1: [264, 334], c2: [248, 362], b: [206, 364] },
   ],
   claude: { a: [262, 96], c1: [261, 150], c2: [263, 196], b: [262, 231], label: ["no", [262, 164]] },
-  tag: { at: [276, 104], side: "right" },
+  ai: [3, 4], aiArrows: [2],
 };
 
 /** On an iPhone's screen, upright: the offer, the question, then both answers under it (the dashed
@@ -85,17 +85,17 @@ const UPRIGHT: Board = {
   nodes: [
     { kind: "ellipse", c: [150, 70], w: 196, h: 62, label: ["Studio North", "offer"], fill: null },
     { kind: "diamond", c: [150, 172], w: 204, h: 96, label: ["Take it now?"], fill: "yellow" },
-    { kind: "box", c: [226, 300], w: 140, h: 60, label: ["Start in January,", "launch half done"], fill: null, dashed: true, size: 14.5 },
+    { kind: "box", c: [226, 300], w: 140, h: 60, label: ["Start in January,", "launch half done"], fill: null, size: 14.5 },
     { kind: "box", c: [76, 300], w: 146, h: 60, label: ["Finish the launch,", "ship in February"], fill: "pink", size: 14.5 },
     { kind: "ellipse", c: [150, 424], w: 184, h: 68, label: ["Talk again", "in March"], fill: "pink" },
   ],
   arrows: [
     { a: [150, 102], c1: [151, 110], c2: [149, 116], b: [150, 123] },
-    { a: [216, 200], c1: [220, 222], c2: [224, 244], b: [228, 268], label: ["yes", [222, 234]], dashed: true },
+    { a: [216, 200], c1: [220, 222], c2: [224, 244], b: [228, 268], label: ["yes", [222, 234]] },
     { a: [76, 332], c1: [77, 356], c2: [86, 378], b: [100, 394] },
   ],
   claude: { a: [84, 200], c1: [80, 222], c2: [77, 246], b: [76, 268], label: ["no", [80, 234]] },
-  tag: { at: [92, 240], side: "right" },
+  ai: [3, 4], aiArrows: [2],
 };
 
 const FILL: Record<"light" | "dark", Record<Exclude<Fill, null>, string>> = {
@@ -139,10 +139,21 @@ export function WbBoard({ board, dark, on, className = "" }: { board: "wide" | "
     </g>
   );
   const head0 = g.font * 0.72;
-  // Claude's arrow: where its outline goes (its bounds, with the head), in percent of the board.
-  const xs = [g.claude.a[0], g.claude.b[0]], ys = [g.claude.a[1], g.claude.b[1]];
-  const bx0 = Math.min(...xs) - head0 * 0.6, bx1 = Math.max(...xs) + head0 * 0.6, by0 = Math.min(...ys), by1 = Math.max(...ys);
   const pc = (v: number, of: number) => `${((v / of) * 100).toFixed(3)}%`;
+  // Round 25: Claude drew the whole path where you wait (the "no", the two shapes and the arrow between
+  // them), as the app shows an AI's shapes (council-wb r16, 12-ai-drew): each shape it added in its own
+  // dashed accent outline, its arrows not outlined, and one name tag at the left of the first shape's
+  // outline, at its top. The person's own shapes are drawn first; Claude's land together.
+  const mine = (i: number) => !g.ai.includes(i);
+  const words = (n: Node, i: number) => {
+    const size = n.size ?? g.font;
+    return (
+      <text key={i} x={n.c[0]} y={n.c[1] + size * 0.34 - (n.label.length - 1) * size * 0.56} fontSize={size} textAnchor="middle" className={w.words}>
+        {n.label.map((l, j) => <tspan key={j} x={n.c[0]} dy={j ? size * 1.12 : 0}>{l}</tspan>)}
+      </text>
+    );
+  };
+  const first = g.nodes[g.ai[0]];
   return (
     <div className={`${w.board} ${dark ? w.boardDark : ""} ${className}`} style={{ aspectRatio: `${W} / ${H}`, "--bw": W } as React.CSSProperties} data-on={on || undefined}>
       <svg className={`${w.svg} ${hand.className}`} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
@@ -152,29 +163,31 @@ export function WbBoard({ board, dark, on, className = "" }: { board: "wide" | "
             {g.note[0].map((l, j) => <tspan key={j} x={g.note![1][0]} dy={j ? g.note![2] * 1.15 : 0}>{l}</tspan>)}
           </text>
         )}
-        {g.nodes.map((n, i) => n.fill && fillShape(n, fills[n.fill], i))}
+        {g.nodes.map((n, i) => mine(i) && n.fill && fillShape(n, fills[n.fill], i))}
         <g className={w.ink}>
-          {g.nodes.map((n, i) => <path key={i} d={shape(n)} className={n.dashed ? w.dashedPath : undefined} />)}
-          {g.arrows.map((a, i) => arrowInk(a, i, head0))}
+          {g.nodes.map((n, i) => mine(i) && <path key={i} d={shape(n)} className={n.dashed ? w.dashedPath : undefined} />)}
+          {g.arrows.map((a, i) => !g.aiArrows.includes(i) && arrowInk(a, i, head0))}
         </g>
-        {g.nodes.map((n, i) => {
-          const size = n.size ?? g.font;
-          return (
-            <text key={i} x={n.c[0]} y={n.c[1] + size * 0.34 - (n.label.length - 1) * size * 0.56} fontSize={size} textAnchor="middle" className={w.words}>
-              {n.label.map((l, j) => <tspan key={j} x={n.c[0]} dy={j ? size * 1.12 : 0}>{l}</tspan>)}
-            </text>
-          );
-        })}
-        {g.arrows.map((a, i) => lab(a, `l${i}`))}
+        {g.nodes.map((n, i) => mine(i) && words(n, i))}
+        {g.arrows.map((a, i) => !g.aiArrows.includes(i) && lab(a, `l${i}`))}
         <g className={w.claudeInk}>
-          <g className={w.ink}>{arrowInk(g.claude, 0, head0)}</g>
+          {g.ai.map((i) => g.nodes[i].fill && fillShape(g.nodes[i], fills[g.nodes[i].fill!], i))}
+          <g className={w.ink}>
+            {arrowInk(g.claude, -1, head0)}
+            {g.aiArrows.map((i) => arrowInk(g.arrows[i], i, head0))}
+            {g.ai.map((i) => <path key={i} d={shape(g.nodes[i])} />)}
+          </g>
           {lab(g.claude, "c")}
+          {g.ai.map((i) => words(g.nodes[i], i))}
         </g>
       </svg>
-      {/* Claude's change, as the app outlines an AI's: dashed accent, its name tag clear of the ink. */}
-      <i className={w.outline} style={{ left: pc(bx0, W), top: pc(by0, H), width: pc(bx1 - bx0, W), height: pc(by1 - by0, H) }} />
-      <span className={w.tag} data-side={g.tag.side} style={{ left: pc(g.tag.at[0], W), top: pc(g.tag.at[1], H) }}>
-        <AIGlyph name="claude" size={12} color="#fff" />Claude
+      {/* Claude's shapes, as the app outlines an AI's: dashed accent round each, its name tag clear of the ink. */}
+      {g.ai.map((i) => {
+        const n = g.nodes[i];
+        return <i key={i} className={w.outline} style={{ left: pc(n.c[0] - n.w / 2, W), top: pc(n.c[1] - n.h / 2, H), width: pc(n.w, W), height: pc(n.h, H) }} />;
+      })}
+      <span className={w.tag} data-side="left" style={{ left: pc(first.c[0] - first.w / 2, W), top: pc(first.c[1] - first.h / 2, H) }}>
+        <AIGlyph name="claude" size={14} color="#fff" />Claude
       </span>
     </div>
   );

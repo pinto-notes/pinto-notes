@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AIGlyph } from "@/lib/ai-glyphs";
 import { WEEK } from "./Things";
 import h from "./habits.module.css";
 
@@ -50,7 +51,12 @@ export function HabitsNote() {
   // The ring: a circle's stroke, as long as the share done, starting at the top.
   const R = 26, C = 2 * Math.PI * R;
   return (
-    <div className={h.win} role="group" aria-label="Pinto Notes on a Mac: the Habits note, which is a small app">
+    <div className={h.win} role="group" aria-label="Pinto Notes: the Habits note, which is a small app">
+      {/* Round 25: on a phone, the iPhone app's bar (back to the folder, More), as the Notes chapter's. */}
+      <div className={h.ipBar} aria-hidden="true">
+        <span className={h.ipBack}><svg viewBox="0 0 11 19"><path d="M9 2 2 9.5 9 17" /></svg>Notes</span>
+        <span className={h.ipMore}><svg viewBox="0 0 13 4"><circle cx="2" cy="2" r="1.5" /><circle cx="6.5" cy="2" r="1.5" /><circle cx="11" cy="2" r="1.5" /></svg></span>
+      </div>
       <div className={h.bar} aria-hidden="true">
         <span className={h.lights}><i /><i /><i /></span>
         <span className={h.ico}>{I.back}</span><span className={`${h.ico} ${h.dim}`}>{I.fwd}</span>
@@ -114,6 +120,28 @@ export function NewAppSheet() {
         <p className={h.askGo}>Make it with ChatGPT</p>
         <p className={h.askTpl}>Or start from a template</p>
       </div>
+    </div>
+  );
+}
+
+/** The words New App hands to ChatGPT for the Habit tracker example (MakeAnApp.newAppPrompt), cropped to
+ *  their first sentence: the second tells the AI which Pinto Notes tools to use. */
+const HANDED = "In Pinto Notes, make me a new note that is an app: a habit tracker with today's habits to tick, streaks, and a week at a glance.";
+
+/** Round 25: the AI's part in Apps, as it really works (Pane/Views/MakeAnApp.swift): New App opens
+ *  ChatGPT with its words already typed in the message box (WebConnectPlan.prefilled), you press send,
+ *  and the app arrives in Pinto as a new note. ChatGPT's box, light, with the words in it, its + at the
+ *  left and the send button at the right; over it, which AI it is, as the hero's request says it. */
+export function AskChatGpt() {
+  return (
+    <div className={h.gpt} role="group" aria-label={`ChatGPT, opened by New App with the words typed in: ${HANDED}`}>
+      <p className={h.gptWho} aria-hidden="true"><span className={h.gptMark}><AIGlyph name="openai" size={13} color="#fff" /></span>ChatGPT</p>
+      <p className={h.gptText} aria-hidden="true">{HANDED}</p>
+      <p className={h.gptRow} aria-hidden="true">
+        <i><svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" /></svg></i>
+        <i className={h.gptMic}><svg viewBox="0 0 20 20"><rect x="7.4" y="2.6" width="5.2" height="9.2" rx="2.6" /><path d="M4.8 9.6a5.2 5.2 0 0 0 10.4 0M10 14.8V17" /></svg></i>
+        <b className={h.gptSend}><svg viewBox="0 0 20 20"><path d="M10 15.5v-11M5.2 9 10 4.2 14.8 9" /></svg></b>
+      </p>
     </div>
   );
 }

@@ -39,6 +39,22 @@
      same corners, a hairline, and one soft shadow, smaller than before. */
   --frameR: 14px;
   --frameShadow: 0 0 0 1px rgba(30, 15, 5, 0.16), 0 1px 3px rgba(30, 15, 5, 0.1), 0 20px 40px -24px rgba(30, 12, 2, 0.45);
+  /* The same frame on the dark chapter: a light hairline in place of the dark one. */
+  --frameShadowDark: 0 0 0 1px rgba(255, 241, 226, 0.14), 0 1px 3px rgba(0, 0, 0, 0.3), 0 20px 40px -24px rgba(0, 0, 0, 0.8);
+  /* Round 25: one type and spacing scale for every chapter and the close (council r19: "no chapter type
+     system"). Only these: one heading size, one line style under it, one secondary size, one small size;
+     the gap from a heading to its line, from the words to their picture, between a column of words and
+     its picture. The rules at the end of this file apply them; nothing else sets a chapter's type. */
+  --h2: min(5.8vw, 10.5vh, 84px);
+  --h2Lh: 0.92;
+  --h2Ls: -0.04em;
+  --body: 20px;
+  --bodyLh: 1.45;
+  --body2: 17px;
+  --small: 15px;
+  --hb: 20px;
+  --bp: 40px;
+  --col: clamp(40px, 4.6vw, 64px);
   position: relative; margin-top: calc(-1 * var(--hh)); color: #2a1d10; background: var(--page);
 }
 .tail { height: 30vh; }
@@ -72,7 +88,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 /* Round 23: 64 px shorter, so the Notes sheet's torn edge and its colour show above the fold. */
 .hero { position: relative; z-index: 1; height: calc(100svh - 90px); min-height: 600px; box-sizing: border-box; padding-top: var(--hh); display: flex; flex-direction: column; }
 /* The words sit in the middle of the first screen, a touch above it, never against the header. */
-.heroText { position: relative; z-index: 3; box-sizing: content-box; width: min(620px, 43vw); margin: auto 0; padding: max(5svh, 40px) 0 max(8svh, 48px) var(--pad); }
+.heroText { position: relative; z-index: 3; box-sizing: content-box; width: min(610px, 43vw); margin: auto 0; padding: max(5svh, 40px) 0 max(8svh, 48px) var(--pad); }
 .h1 { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(6.9vw, 11vh, 100px); line-height: 0.94; letter-spacing: -0.04em; color: #24170d; }
 .h1You { font-style: italic; letter-spacing: -0.035em; color: #b6450f; }
 .h1Ai { position: relative; display: inline-block; white-space: nowrap; }
@@ -91,7 +107,7 @@ body:has(.stack) :global(.site-header) { height: 72px; }
 
 /* The picture's torn panel. What lies in it (the picture and the notes) is HeroArt.tsx with its own
    heroArt.module.css, so the first screen's content can be swapped without touching the rest. */
-.art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(620px, 43vw) + 44px); container-type: size; clip-path: inset(0 0 0 -60vw); }
+.art { position: absolute; z-index: 1; top: calc(var(--hh) + 6px); bottom: 34px; right: 0; left: calc(var(--pad) + min(610px, 43vw) + 32px); container-type: size; clip-path: inset(0 0 0 -60vw); }
 /* The panel is torn along its left, bottom and top edges like the sheets below (the right runs off
    the page). The left and bottom torn-away strips are subtracted from the panel, so the corner tears
    where they meet; the top is torn by the sheets' own edge, on the panel's inner layer (.artTop). */
@@ -102,7 +118,9 @@ body:has(.stack) :global(.site-header) { height: 72px; }
     mask: linear-gradient(#000, #000), url(/lab/z/tear-left-v1.webp) 0 0 / 24px 840px repeat-y, url(/lab/z/tear-bottom-v1.webp) 0 100% / 920px 26px repeat-x;
     mask-composite: subtract, add;
   }
-  .artTop { position: absolute; inset: 0;
+  /* Round 25: the panel's paper, the picture's own colour, under the picture (its book, notebook and
+     cup are masked away, so only the sprig and the pen frame the note). */
+  .artTop { position: absolute; inset: 0; background: #fdd9b0;
     -webkit-mask: url(/lab/z/edge-v1.webp) 37px 0 / 920px 26px repeat-x, linear-gradient(#000, #000) 0 24px / 100% 100% no-repeat;
     mask: url(/lab/z/edge-v1.webp) 37px 0 / 920px 26px repeat-x, linear-gradient(#000, #000) 0 24px / 100% 100% no-repeat; }
 }
@@ -831,7 +849,12 @@ body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--
   .heroText .fine { display: none; }
   /* The picture: the week's note over the table, all of it above the fold (HeroArt lays it out, in
      the flow; the picture fills what it takes). "Free" sits beside the download button. */
-  .art { position: relative; display: flex; flex-direction: column; flex: 1 0 auto; top: auto; bottom: auto; left: auto; right: auto; height: auto; margin-top: 14px; padding-bottom: calc(var(--tearH) + 14px); container-type: normal; clip-path: none; overflow: hidden; }
+  .art { position: relative; display: flex; flex-direction: column; flex: 1 0 auto; top: auto; bottom: auto; left: auto; right: auto; height: auto; margin-top: 14px; padding-bottom: calc(var(--tearH) + 14px); container-type: normal; clip-path: none; overflow: hidden;
+    /* Round 25: the picture's paper under it, torn along the top (the tear moved here from the picture,
+       which now carries the masks that leave only the sprig and the pen). */
+    background: #fdd9b0;
+    -webkit-mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat;
+    mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat; }
   .freeLine { display: block; }
   .artTop { display: contents; }
 
@@ -1094,4 +1117,76 @@ body:has(.stack) :global(.site-ground) { margin-top: -34px; padding: 42px var(--
 @media (max-width: 760px) {
   /* The note shows its first line and its link to the board again: the chapter is one full page. */
   .sheetMore, .sheetAside { display: block; }
+}
+
+/* ───────────────────────── Round 25: the one scale, applied ─────────────────────────
+   Every chapter's heading, its line, and the gaps around them come from the tokens on .stack (top of
+   this file). These rules come last so they win over the older per-chapter sizes above. */
+.wTitle, .dTitle, .bTitle, .bSide .bTitle, .aTitle, .fTitle {
+  margin: 0; font-family: var(--display); font-weight: 500; font-size: var(--h2); line-height: var(--h2Lh); letter-spacing: var(--h2Ls); }
+.say, .wHead .say, .bHead .say, .dHead .say { font-size: var(--body); line-height: var(--bodyLh); font-weight: 500; }
+.wHead .say, .bHead .say { margin-top: var(--hb); }
+.wIn { column-gap: var(--col); }
+.dBoard { margin-top: var(--bp); }
+.dHead { align-items: last baseline; }
+.dHead .say { padding-bottom: 0; }
+.works, .fReq { font-size: var(--small); }
+@media (max-width: 760px) {
+  .stack { --h2: 46px; --h2Lh: 0.95; --body: 17px; --bodyLh: 1.4; --body2: 16px; --small: 14px; --hb: 12px; --bp: 24px; }
+  .wTitle, .dTitle, .bTitle, .bSide .bTitle, .aTitle, .fTitle { white-space: normal; }
+  .dHead .say { margin-top: var(--hb); }
+  .sheet { margin-top: var(--bp); }
+}
+
+/* ── Round 25: Apps reads request to result: the words and ChatGPT's box on the left, the app on the
+   right; the box runs on over the app window's empty left margin (it stops short of the app's panels). */
+.bIn { grid-template-columns: minmax(0, 440px) minmax(0, 1fr); column-gap: var(--col); }
+.bSide { position: relative; z-index: 2; gap: var(--bp); }
+.bAsk { width: calc(100% + var(--col) + 30px); max-width: none; }
+@media (max-width: 760px) {
+  .bIn { flex-direction: column; gap: 16px; }
+  .bAsk { width: 100%; }
+}
+
+/* ── Round 25: the close. The study first, as a compact row, then the invitation under it; the desk
+   back at full size at the bottom right, beside "Pinto Notes is free.", so the words and the notebook
+   read as one picture. The block starts low enough that, when the footer lifts the cover at the page's
+   end (by its own height), the study still clears the header. ── */
+.cover { --sw: min(66cqw, 100cqh); }
+.coverBody { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: clamp(32px, 6cqh, 56px);
+  padding: clamp(96px, 17cqh, 150px) var(--pad) 24px; }
+.coverStudy { flex: none; width: 100%; }
+.coverText { width: min(480px, 40cqw); }
+.fCtas .ctas { margin-top: 28px; }
+@media (min-width: 761px) and (max-height: 800px) {
+  .coverText ul { grid-template-columns: repeat(2, max-content); column-gap: 32px; margin-top: 20px; }
+  .coverText { width: min(640px, 50cqw); }
+}
+@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+  .coverBody { padding: 72px var(--pad) 200px; }
+  .coverStudy { max-width: 560px; margin: 0 0 56px; }
+  .coverText { width: auto; max-width: 560px; }
+}
+@media (max-width: 760px) {
+  /* The notebook's corner as a strip under the last line, not a screen of art (council r19). */
+  .cover::after { height: 200px; background-size: 460px auto;
+    -webkit-mask: linear-gradient(transparent 0 20px, #000 90px); mask: linear-gradient(transparent 0 20px, #000 90px); }
+  .coverBody { padding-bottom: 190px; }
+}
+
+/* ── Round 25: the phone header's download (council r19: on a phone the header offered Templates while
+   the download had scrolled away). In Templates' place, beside the menu button, once the first screen's
+   buttons have gone under the header (data-past, set by the script); Templates stays in the menu. ── */
+.getIt { display: none; }
+@media (max-width: 600px) {
+  .getIt { position: fixed; z-index: 41; top: calc((var(--hh) - 40px) / 2); right: calc(var(--gutter) + 44px + 6px); display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 15px 0 12px;
+    border-radius: 12px; background: #24170d; color: #fff4e6; font: 650 15px/1 var(--sans); text-decoration: none; white-space: nowrap; opacity: 0; visibility: hidden; }
+  .getIt svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+  .getIt:focus-visible { outline: 3px solid #ee8a14; outline-offset: 2px; }
+  .stack[data-past] .getIt { opacity: 1; visibility: visible; }
+  body:has(.stack[data-past]) :global(.site-nav a[href="/templates"]) { visibility: hidden; }
+}
+@media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
+  .getIt { translate: 0 -6px; transition: opacity 0.2s ease-out, translate 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), visibility 0s 0.25s; }
+  .stack[data-past] .getIt { translate: none; transition-delay: 0s; }
 }

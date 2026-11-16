@@ -7,7 +7,7 @@ import { mailLink, sendLink } from "@/lib/platform";
 import { Download } from "../../_home/Download";
 import x from "../../_home/hero.module.css";
 import { AiShow } from "./AiShow";
-import { HabitsNote, NewAppSheet } from "./Habits";
+import { AskChatGpt, HabitsNote } from "./Habits";
 import { CollabPicture } from "./Collab";
 import { Study, Trust } from "./Close";
 import { HeroArt } from "./HeroArt";
@@ -116,7 +116,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     const reduced = calm();
     /** Each chapter's words that fade before they reach its clip line (headlines and their lines). */
     const fades = chs.map((c) => [...c.querySelectorAll<HTMLElement>("[data-fade]")]);
-    let vh = 0, tt = 0, hh = 0, tear = 0, raf = 0;
+    let vh = 0, tt = 0, hh = 0, tear = 0, raf = 0, pastY = 400;
     /** Where a sheet docks: a chapter under its tab, the close (no tab) under the header,
      *  over the tab strip, so the tabs end with Your AI. */
     const topOf = (i: number) => (TAB[ord[i]] ? tt : hh);
@@ -153,6 +153,10 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
         c.style.setProperty("--l", `${l}px`);
         l += tab.offsetWidth + (narrow ? TAB_GAP_NARROW : TAB_GAP);
       });
+      // Round 25: once the first screen's buttons have gone under the header, a phone's header offers
+      // the iPhone download in Templates' place (.getIt).
+      const cta = hero.querySelector<HTMLElement>("[data-cta]");
+      pastY = cta ? cta.getBoundingClientRect().bottom + scrollY - hh : 400;
       let end = hero.getBoundingClientRect().bottom + scrollY;
       doc = []; mt = [];
       chs.forEach((c, i) => { const m = parseFloat(getComputedStyle(c).marginTop) || 0; mt.push(m); doc.push(end + m); end = doc[i] + c.offsetHeight; });
@@ -161,6 +165,7 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     const frame = () => {
       raf = 0;
       const y = scrollY;
+      if ((y > pastY) !== (el.dataset.past !== undefined)) el.toggleAttribute("data-past", y > pastY);
       const docked: boolean[] = [];
       for (let i = 0; i < chs.length; i++) {
         const nt = doc[i] - y, top = topOf(i);
@@ -271,7 +276,7 @@ const Say = ({ long, short }: { long: string; short: string }) => (
 /* ───────────────────────── The first screen ───────────────────────── */
 
 const Cta = () => (
-  <div className={`${x.ctas} ${s.ctas}`}>
+  <div className={`${x.ctas} ${s.ctas}`} data-cta>
     <Download note={false} />
     <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
       <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
@@ -329,7 +334,7 @@ function Write() {
         <div className={s.wIn}>
           <div className={s.wHead}>
             <h2 id="s-write-h" className={s.wTitle} data-fade>Write <br />notes.</h2>
-            <Say long="Keep what you read and what you decide. It feels like Apple Notes, on Mac and iPhone, and yours come over." short="Keep what you read and what you decide. Like Apple Notes, and yours come over." />
+            <Say long="Keep what you read and what you decide. It feels like Apple Notes, on Mac and iPhone, and brings yours over." short="Keep what you read and what you decide. It feels like Apple Notes, and brings yours over." />
           </div>
           {/* The note on a Mac, and the same note on an iPhone laid over the window's corner. */}
           <div className={s.wDevices} data-fade="pic">
@@ -349,9 +354,9 @@ export type Variant = "0" | "a" | "b" | "c";
 export type WbVariant = Variant | "d";
 
 function Draw({ wb = "0" }: { wb?: WbVariant }) {
-  // With Reduce Motion or `?t=`, the arrow is already drawn when the chapter arrives. On a Mac, Claude
-  // draws it as you scroll through the chapter's stay. On a phone the chapter is only as long as the
-  // board, so it draws on a clock once the board docks (2.4 s), or sooner if you scroll on.
+  // With Reduce Motion or `?t=`, Claude's path is already drawn when the chapter arrives. Otherwise it
+  // lands on a clock once the board docks (round 25: on a Mac too, so the board at rest shows it), or
+  // sooner if you scroll on.
   const bind = useCallback((set: (k: number) => void) => {
     let d0 = 0, t0 = 0, raf = 0, k = 0;
     const show = (v: number) => { if (v !== k) { k = v; set(v); } };
@@ -364,7 +369,7 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
     const off = listen("draw", (d, p) => {
       if (still() || (calm() && p >= 1)) { show(1); return; }
       d0 = d;
-      if (narrowNow() && p >= 0.995 && !t0 && !raf) raf = requestAnimationFrame(tick);
+      if (p >= 0.995 && !t0 && !raf) raf = requestAnimationFrame(tick);
       if (!raf) show(Math.max(d, t0 ? 1 : 0));
     });
     return () => { off(); cancelAnimationFrame(raf); };
@@ -374,9 +379,9 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
       <div className={s.dBody}>
         <div className={s.dHead}>
           <h2 id="s-draw-h" className={s.dTitle} data-fade>Draw on whiteboards.</h2>
-          <Say long="Think a decision through on a board beside your notes. Your AI can read it and draw on it with you." short="Think a decision through. Your AI can read the board and draw on it with you." />
+          <Say long="Think a decision through on a board beside your notes. Here Claude drew what happens if you wait." short="Think a decision through. Here Claude drew what happens if you wait." />
         </div>
-        {wb === "d" ? <div className={s.dBoard} data-fade="pic" role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. Claude has just added the no arrow, outlined and named, to finishing the launch and shipping in February, then talking again in March."><WbCanvas bind={bind} /></div>
+        {wb === "d" ? <div className={s.dBoard} data-fade="pic" role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? The offer leads to a question, take it now? Yes means starting in January with the launch half done. Claude has drawn the other path, outlined and named as its own: no, finish the launch and ship in February, then talk again in March."><WbCanvas bind={bind} /></div>
           : wb !== "0" ? <WbArt v={wb} bind={bind} /> : <div className={s.dBoard} role="img" aria-label="A whiteboard, Studio North: now or March? The offer leads to a question, take it now? Yes, dashed as the path not taken, means starting in January with the launch half done. The path chosen is finishing the launch, shipping in February, then talking again in March. Claude's cursor draws the last arrow, the no, from the question to the path chosen.">
           {/* The board in Pinto's canvas: a thin frame, the drawing, the dock of tools at its foot. */}
           <div className={s.canvas}>
@@ -396,20 +401,20 @@ function Draw({ wb = "0" }: { wb?: WbVariant }) {
 
 function Build() {
   // Round 23: the habit app inside its note (Habits.tsx), so "a note can be a small app" is visible.
-  // Round 24: and how it was made, under the line that says so: Pinto's New App sheet with the habit
-  // tracker described (NewAppSheet), the app it became beside it, the larger of the two.
+  // Round 25: read in order, request to result (council r19: the app came before its prompt): the words,
+  // then ChatGPT with what New App typed into it, laid over the corner of the app it became.
   return (
     <Chapter tone="build" label="s-build-h">
       <div className={s.bBody}>
         <div className={s.bIn}>
-          <div className={s.bApp} data-fade="pic"><HabitsNote /></div>
           <div className={s.bSide}>
             <div className={s.bHead}>
-              <h2 id="s-build-h" className={s.bTitle} data-fade>Build <br />apps.</h2>
-              <Say long="A note can be a small app, like one for the habits you're building. Describe it, and your AI builds it." short="A note can be a small app. Describe one, and your AI builds it." />
+              <h2 id="s-build-h" className={s.bTitle} data-fade>Build apps.</h2>
+              <Say long="A note can be a small app. Describe it in New App, and ChatGPT or Claude builds it as a new note." short="A note can be a small app. Describe it, and ChatGPT or Claude builds it." />
             </div>
-            <div className={s.bAsk} data-fade="pic"><NewAppSheet /></div>
+            <div className={s.bAsk} data-fade="pic"><AskChatGpt /></div>
           </div>
+          <div className={s.bApp} data-fade="pic"><HabitsNote /></div>
         </div>
       </div>
     </Chapter>
@@ -473,15 +478,16 @@ function Cover() {
           <img className={s.coverArt} src={art.close} alt="" width={art.closeW} height={art.closeH} loading="lazy" />
         </div>
       </div>
+      {/* Round 25: the study first, compact, then the invitation, so the page ends on "Pinto Notes is
+          free.", the downloads and the four lines a careful person checks (council r19). */}
       <div data-body className={s.coverBody}>
+        <div className={s.coverStudy}><Study /></div>
         <div className={s.coverText}>
           <h2 id="s-free-h" className={s.fTitle}>Pinto Notes<br />is free.</h2>
           <div className={s.fCtas}><Cta /></div>
           <p className={s.fReq}>Requires macOS 26 or iOS 26.</p>
           <Trust />
         </div>
-        {/* Round 24: the study in its own column, its own quiet area, outweighing the desk beside it. */}
-        <div className={s.coverStudy}><Study /></div>
       </div>
     </section>
   );
@@ -493,6 +499,11 @@ export function Story({ className, wb = "d", ai = "b", hero = "c", collab = fals
   return (
     <div ref={root} className={`${s.stack} ${className}`} data-five={collab || undefined}>
       <span data-probe className={s.probe} aria-hidden="true" />
+      {/* Round 25: on a phone, the iPhone download in the header once the first screen's has scrolled away. */}
+      <a className={s.getIt} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer" aria-label="Get Pinto Notes for iPhone">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.8" /><path d="M7 12.5h2" /></svg>
+        Get it
+      </a>
       <Hero v={hero} />
       <Write />
       <Draw wb={wb} />

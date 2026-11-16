@@ -134,3 +134,22 @@
   .body[data-v="c"] .answer p:first-child { display: none; }
   .stat, .foot { font-size: 14px; margin-top: 14px; }
 }
+
+/* ── Round 25: the page's one scale (s.module.css tokens) and one frame, and the iPhone view on a phone ── */
+.head { align-items: last baseline; }
+.tie { font-size: var(--body); line-height: var(--bodyLh); font-weight: 500; padding-bottom: 0; }
+.stage { margin-top: var(--bp); }
+.foot { font-size: var(--body2); }
+.gpt, .pinto { box-shadow: var(--frameShadowDark); }
+.ipBar { display: none; }
+@media (max-width: 760px) {
+  .tie { margin-top: var(--hb); }
+  .stage { margin-top: var(--bp); }
+  .pBar { display: none; }
+  .ipBar { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 2px 12px 0 8px; color: #d9750f; }
+  .ipBack { display: flex; align-items: center; gap: 5px; font: 400 17px/1 var(--sans); }
+  .ipBack svg { width: 11px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+  .ipMore { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px currentColor; }
+  .ipMore svg { width: 13px; height: 4px; fill: currentColor; }
+  .pNote { padding-top: 4px; }
+}
