@@ -22,8 +22,13 @@ const P256 = { name: "ECDH", namedCurve: "P-256" } as const;
 async function managementToken(): Promise<string> {
   const fromEnv = Deno.env.get("SUPABASE_ACCESS_TOKEN");
   if (fromEnv) return fromEnv;
-  const out = await new Deno.Command("security", { args: ["find-generic-password", "-s", "Supabase CLI", "-a", "access-token", "-w"], stdout: "piped", stderr: "null" }).output();
-  const raw = new TextDecoder().decode(out.stdout).trim();
+  // Newer CLIs keep it under the account "supabase", older ones under "access-token".
+  let raw = "";
+  for (const account of ["supabase", "access-token"]) {
+    const out = await new Deno.Command("security", { args: ["find-generic-password", "-s", "Supabase CLI", "-a", account, "-w"], stdout: "piped", stderr: "null" }).output();
+    raw = new TextDecoder().decode(out.stdout).trim();
+    if (raw) break;
+  }
   return raw.startsWith("go-keyring-base64:") ? atob(raw.slice("go-keyring-base64:".length)) : raw;
 }
 async function api(method: string, path: string, body?: unknown) {
