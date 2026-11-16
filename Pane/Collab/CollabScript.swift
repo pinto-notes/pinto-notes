@@ -26,8 +26,7 @@ import AppKit
 ///   {"showShare": true} / {"closeShare": true}     the Share sheet or popover, as the Share button does
 ///   {"access": "edit" | "view" | "off"}            People with the link
 ///   {"copyLink": "link.txt"}                       Share Link, copied (and written to the file)
-///   {"waitFile": "link.txt"} then {"join": "link.txt"}   another device's link, opened, and Join on its question
-///   {"openLink": {"file": "link.txt", "question": "q.json"}}, then {"answerJoin": "join" | "notNow"}   the question, then the answer
+///   {"waitFile": "link.txt"} then {"join": "link.txt"}   another device's link, opened: it joins and the note opens
 ///   {"type": {"text": "…", "after": "anchor"}}     typed into the open note after `anchor` (or at the end)
 ///   {"waitText": "…"}                              until the open note shows it (60 s; or {"text": "…", "timeout": 180})
 ///   {"tick": "Venue"}                              taps (or clicks) the box of the item with that text
@@ -165,27 +164,17 @@ enum CollabScript {
             let name = value as? String ?? ""
             try await until(600, "the file \(name)") { FileManager.default.fileExists(atPath: dir.appending(path: name).path) }
         case "join":
-            // As opening the link and pressing Join on its question.
+            // As opening the link: it joins with no question, and the note opens.
             let url = try link(value as? String ?? "link.txt")
             let before = Set(sharedNotes().map(\.id))
             JoinCenter.shared.open(url)
-            try await until(60, "the link's question") { joinAsked() != nil || joinFailed() != nil || sharedNotes().contains { !before.contains($0.id) } }
-            if let q = joinAsked() { try write(question(q), to: "join-question.json"); JoinCenter.shared.accept() }
             try await arrived(before)
-        case "openLink":
-            // The link opened, and its question shown: nothing joined until it's answered.
-            let v = value as? [String: String] ?? [:]
-            let url = try link(v["file"] ?? "link.txt")
-            JoinCenter.shared.open(url)
-            try await until(60, "the link's question") { joinAsked() != nil || joinFailed() != nil }
-            if let why = joinFailed() { throw Failed(description: why) }
-            try write(question(joinAsked()!), to: v["question"] ?? "join-question.json")
         case "deadLink":
             // A link that should no longer open: its message stays up, and what happened is written down.
             let v = value as? [String: String] ?? [:]
             let before = Set(sharedNotes().map(\.id))
             JoinCenter.shared.open(try link(v["file"] ?? "link.txt"))
-            try await until(60, "the link's answer") { joinAsked() != nil || joinFailed() != nil || sharedNotes().contains { !before.contains($0.id) } }
+            try await until(60, "the link's answer") { joinFailed() != nil || sharedNotes().contains { !before.contains($0.id) } }
             let says = joinFailed()
             let answer = try JSONSerialization.data(withJSONObject: ["opened": says == nil, "says": says ?? ""] as [String: Any])
             try write(String(decoding: answer, as: UTF8.self), to: v["out"] ?? "old-link.json")
@@ -196,13 +185,6 @@ enum CollabScript {
             NotificationCenter.default.post(name: reviewAI, object: value as? String)
         case "history":
             NotificationCenter.default.post(name: history, object: value as? String)
-        case "answerJoin":
-            // The question's Join, or Not Now.
-            let before = Set(sharedNotes().map(\.id))
-            guard joinAsked() != nil else { throw Failed(description: "no question showing") }
-            if value as? String == "notNow" { JoinCenter.shared.decline(); return }
-            JoinCenter.shared.accept()
-            try await arrived(before)
         case "type":
             let v = value as? [String: String] ?? [:]
             try await type(v["text"] ?? "", after: v["after"])
@@ -326,13 +308,7 @@ enum CollabScript {
         guard let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw Failed(description: "not a link") }
         return url
     }
-    private static func joinAsked() -> JoinPreview? { if case .asking(let p) = JoinCenter.shared.phase { p } else { nil } }
     private static func joinFailed() -> String? { if case .failed(let why) = JoinCenter.shared.phase { why } else { nil } }
-    private static func question(_ p: JoinPreview) -> String {
-        let q: [String: Any] = ["title": JoinCopy.askTitle(p), "message": JoinCopy.askMessage(p), "canEdit": p.canEdit,
-                                "sharedNotesBefore": sharedNotes().map(\.title)]
-        return String(decoding: (try? JSONSerialization.data(withJSONObject: q, options: [.prettyPrinted, .sortedKeys])) ?? Data(), as: UTF8.self)
-    }
     /// Until the joined note is here, then opens it.
     private static func arrived(_ before: Set<UUID>) async throws {
         try await until(60, "the shared note to arrive") { joinFailed() != nil || sharedNotes().contains { !before.contains($0.id) } }
@@ -342,7 +318,7 @@ enum CollabScript {
         // Joining opens the note by itself (CollabStore.join): see that it did, on screen.
         let shows = { editorText() != nil && note.body.split(separator: "\n").first.map { editorText()!.contains($0) } == true }
         // Join opens the note itself; the step fails if it doesn't (on iPhone the push was once
-        // dropped while the Join alert closed: RootView.reveal now waits for it).
+        // dropped while an alert closed: RootView.reveal now waits for it).
         try await until(10, "the joined note to open by itself") { shows() }
         log("the joined note opened by itself")
     }

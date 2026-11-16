@@ -35,7 +35,7 @@ import Testing
         // And the link really works: someone opening it joins as a viewer.
         let sara = server.account("Sara")
         let (saraStore, _, saraContainer) = try device(sara, vault: MemoryLinkVault(), dataKey: SymmetricKey(size: .bits256))
-        #expect(await saraStore.join(link))
+        #expect(await saraStore.join(link).worked)
 
         // Off on one device: after a relaunch, Off everywhere.
         try await mac.setAccess(.off, for: note)

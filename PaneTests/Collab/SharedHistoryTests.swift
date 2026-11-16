@@ -122,7 +122,7 @@ import Testing
         let note = Note(body: "Plan\n\nFirst draft\n")
         emil.context.insert(note)
         try await emil.store.setAccess(access, for: note)
-        #expect(await sara.store.join(try #require(emil.store.linkURL(note))))
+        #expect(await sara.store.join(try #require(emil.store.linkURL(note))).worked)
         await server.eventually { server.channelCount(note.id) == 2 }
         let mine = try #require(emil.store.session(for: note.id))
         let theirs = try #require(sara.store.session(for: sara.context.pointer(forShared: note.id)!.id))

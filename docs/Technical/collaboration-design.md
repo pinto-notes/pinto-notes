@@ -86,7 +86,7 @@ Switching the link to **Edit** turns the note into a shared note (its own key, `
 
 Opening an Edit link in Pinto Notes (the "Edit in Pinto Notes" button on the page, or the universal link): the app proves the answer (`collab_open_link`), gets the sealed note key, opens it, seals it to its own identity key and data key, and joins as an editor (`collab_join_link`). It then appears in the owner's People with its avatar. Someone without the app gets the read-only page and the App Store; someone without an account signs in first.
 
-A link makes a member of whoever holds it, as "anyone with the link" does everywhere; the sheet says so, People shows who joined, and Remove takes them out.
+A link makes a member of whoever holds it, as "anyone with the link" does everywhere; the sheet says so, People shows who joined, and Remove takes them out. Opening a link doesn't ask first (Emil, 16 November 2026; it used to ask "Join “Team offsite”?"): it joins at once, and a line at the foot of the window says "You joined Emil's note. People in it see your name and photo." with Leave, which leaves as Share's Leave Note does (`JoinCenter`).
 
 ### Verifying it's really them
 

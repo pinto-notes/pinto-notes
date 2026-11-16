@@ -5,14 +5,13 @@ import Testing
 import UIKit
 #endif
 
-/// Share's questions on iPhone (Join, Remove, Leave, Delete), presented for real in a window of the
-/// test host on the simulator: no button is filled (a filled Join drew amber text on the system's
-/// blue), and Remove, Leave and Delete are destructive with a Cancel beside them. With
-/// AMBER_HIG_SHOTS set, each is also photographed.
+/// Share's questions on iPhone (Remove, Leave, Delete), presented for real in a window of the test
+/// host on the simulator: Remove, Leave and Delete are destructive with a Cancel beside them. With
+/// AMBER_HIG_SHOTS set, each is also photographed. Opening a link asks nothing any more (Emil, 16
+/// November 2026): it joins, and JoinLinkTests checks the line with Leave that follows.
 @MainActor @Suite(.serialized) struct ShareAlertTests {
     /// Both platforms: the questions' words, as the alerts show them.
     @Test func theQuestionsWords() {
-        #expect(JoinCopy.askTitle(JoinPreview(title: "Team offsite", owner: "Emil Wagman", canEdit: true)) == "Join \u{201C}Team offsite\u{201D}?")
         #expect(ShareCopy.leaveTitle("Team offsite") == "Leave \u{201C}Team offsite\u{201D}?")
     }
 
@@ -45,24 +44,6 @@ import UIKit
             try #require(image.pngData()).write(to: dir.appending(path: "iphone-alert-\(name).png"))
         }
         return found
-    }
-
-    @Test func joinHasNoFilledButton() async throws {
-        let center = JoinCenter()
-        center.ready = { true }
-        center.preview = { _ in JoinPreview(title: "Team offsite", owner: "Emil Wagman", canEdit: true) }
-        CollabFeature.forced = true
-        defer { CollabFeature.forced = nil }
-        struct Host: View {
-            let center: JoinCenter
-            var body: some View { Color.white.modifier(JoinLinkHandler(center: center)) }
-        }
-        center.open(URL(string: "https://pintonotes.com/s/sEbHaDgYXLDfpSMmrziRgA#gIfSqgKHVsQcWBm2RTA0aw")!)
-        let alert = try await Self.present(Host(center: center), name: "join")
-        #expect(alert.title == "Join \u{201C}Team offsite\u{201D}?")
-        #expect(Set(alert.actions.compactMap(\.title)) == ["Not Now", "Join"])
-        // No filled button.
-        #expect(alert.preferredAction == nil)
     }
 
     @Test func removeAndLeaveAreDestructiveWithCancel() async throws {

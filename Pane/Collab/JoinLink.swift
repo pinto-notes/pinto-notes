@@ -3,42 +3,51 @@ import Observation
 import SwiftUI
 
 /// Opening a note's link in the app (`<site>/s/<id>#<secret>`, a universal link, or
-/// `<scheme>://s/<id>#<secret>` from the link's web page): it asks first, "Join “Team offsite”?
-/// Emil shared it with you", because any web page can send the app a link, and joining shows
-/// the owner your name and photo. Join: you join with the link's role and the note opens (Can
-/// view shows it read-only). A note you're already in just opens.
+/// `<scheme>://s/<id>#<secret>` from the link's web page): you join with the link's role and the
+/// note opens (Can view shows it read-only), as a Google Docs link does. A note you're already in
+/// just opens.
 ///
-/// What the person sees: a short "Opening shared note…" while the link is read and while it
-/// joins. Signed out, the link waits until you've signed in, then goes on by itself. A link that
-/// was turned off or changed, or no connection, says so in words. Nothing spins for more than
-/// `timeout`.
+/// It used to ask first ("Join “Team offsite”? Emil shared it with you"), because any web page can
+/// send the app a link and joining shows the owner your name and photo. Emil dropped the question
+/// on 16 November 2026: you open the link to be in the note, and the question was in the way. What
+/// protects you now is the line that comes up as soon as you've joined, "You joined Emil's note.
+/// People in it see your name and photo.", with Leave beside it. Leave leaves the note the way
+/// Share's Leave Note does, and the line goes by itself after `noticeFor`.
+///
+/// What the person sees: a short "Opening shared note…" while it joins. Signed out, the link waits
+/// until you've signed in, then goes on by itself. A link that was turned off or changed, or no
+/// connection, says so in words. Nothing spins for more than `timeout`.
 @MainActor
 @Observable
 final class JoinCenter {
     static let shared = JoinCenter()
 
-    enum Phase: Equatable { case idle, joining, asking(JoinPreview), failed(String) }
+    enum Phase: Equatable { case idle, joining, failed(String) }
     private(set) var phase: Phase = .idle
+    /// The line after joining ("You joined Emil's note…", with Leave), then while and after leaving.
+    private(set) var notice: JoinNotice?
     /// A link waiting for the account to be ready (signed out, or still starting).
     @ObservationIgnored private(set) var pending: URL?
     @ObservationIgnored var timeout: Duration = .seconds(20)
     /// How long a link waits for you to sign in before it's dropped.
     @ObservationIgnored var signInWait: Duration = .seconds(15 * 60)
-    /// Joins with the link; nil when it worked, otherwise what to tell the person. The live store by default.
-    @ObservationIgnored var join: @MainActor (URL) async -> String? = { @MainActor url in
-        guard let store = CollabStore.shared else { return JoinCopy.unavailable }
-        return await store.join(url) ? nil : store.joinProblem ?? JoinCopy.failed
+    /// How long the line after joining or leaving stays.
+    @ObservationIgnored var noticeFor: Duration = .seconds(6)
+    /// Joins with the link and opens the note. The live store by default.
+    @ObservationIgnored var join: @MainActor (URL) async -> JoinOutcome = { @MainActor url in
+        guard let store = CollabStore.shared else { return .failed(JoinCopy.unavailable) }
+        return await store.join(url)
     }
-    /// What the link leads to, before joining; nil when it doesn't open (with `problem` saying why).
-    @ObservationIgnored var preview: @MainActor (URL) async -> JoinPreview? = { @MainActor url in
-        await CollabStore.shared?.preview(url)
+    /// Leaves a note you joined, as Share's Leave Note does; nil when it worked, otherwise what to
+    /// tell the person. The live store by default.
+    @ObservationIgnored var leave: @MainActor (UUID) async -> String? = { @MainActor id in
+        guard let store = CollabStore.shared else { return ShareController.failed(.leave) }
+        return await JoinCenter.leave(id, in: store)
     }
-    @ObservationIgnored var problem: @MainActor () -> String = { @MainActor in CollabStore.shared?.joinProblem ?? JoinCopy.failed }
-    /// The link being asked about.
-    @ObservationIgnored private var asked: URL?
     /// The account can join now (signed in, sharing started).
     @ObservationIgnored var ready: @MainActor () -> Bool = { @MainActor in CollabStore.shared?.isReady == true }
     @ObservationIgnored private var waiting: Task<Void, Never>?
+    @ObservationIgnored private var noticeTask: Task<Void, Never>?
 
     /// A note's link, as the app reads it. Anything else isn't one.
     nonisolated static func isNoteLink(_ url: URL) -> Bool { CollabStore.parseLink(url) != nil }
@@ -52,7 +61,7 @@ final class JoinCenter {
         waiting = Task { await go() }
     }
 
-    @MainActor private final class Outcome { var problem: String? }
+    @MainActor private final class Outcome { var value: JoinOutcome = .failed(JoinCopy.slow) }
 
     func dismissProblem() { if case .failed = phase { phase = .idle } }
 
@@ -64,73 +73,94 @@ final class JoinCenter {
         }
         guard let url = pending, !Task.isCancelled else { return }
         pending = nil
-        phase = .joining
-        let found = Found()
-        do {
-            try await ShareController.within(timeout) { found.preview = await self.preview(url) }
-        } catch {
-            phase = .failed(JoinCopy.slow)
-            return
-        }
-        guard let preview = found.preview else { phase = .failed(problem()); return }
-        // Already in it: nothing to ask, it just opens.
-        if preview.alreadyIn { await joinNow(url); return }
-        asked = url
-        phase = .asking(preview)
-    }
-
-    @MainActor private final class Found { var preview: JoinPreview? }
-
-    /// Join, on the question.
-    func accept() {
-        guard case .asking = phase, let url = asked else { return }
-        asked = nil
-        // The question goes at once and the "Opening…" line takes its place.
-        phase = .joining
-        Task { await joinNow(url, accepting: true) }
-    }
-
-    /// Not Now: nothing happens, and nobody learns the link was opened.
-    func decline() {
-        guard case .asking = phase else { return }
-        asked = nil
-        phase = .idle
-    }
-
-    private func joinNow(_ url: URL, accepting: Bool = false) async {
+        show(nil)
         phase = .joining
         let result = Outcome()
         do {
-            try await ShareController.within(timeout) { result.problem = await self.join(url) }
+            try await ShareController.within(timeout) { result.value = await self.join(url) }
         } catch {
-            result.problem = JoinCopy.slow
+            result.value = .failed(JoinCopy.slow)
         }
-        if accepting, result.problem == nil { Funnel.record(.shareStep(.inviteAccepted)) }
-        phase = result.problem.map(Phase.failed) ?? .idle
+        switch result.value {
+        case .joined(let note, let owner):
+            Funnel.record(.shareStep(.inviteAccepted))
+            phase = .idle
+            show(JoinNotice(kind: .joined, text: JoinCopy.joined(owner: owner), note: note))
+        case .opened:
+            phase = .idle
+        case .failed(let why):
+            phase = .failed(why)
+        }
+    }
+
+    /// Leave, on the line after joining: out of the note again, as Share's Leave Note does.
+    func leaveJoined() async {
+        guard let n = notice, n.canLeave else { return }
+        // "Leaving…" stays until it's done; it doesn't go by itself.
+        show(JoinNotice(kind: .leaving, text: ShareCopy.working(.leave), note: n.note))
+        if let problem = await leave(n.note) {
+            show(JoinNotice(kind: .failed, text: problem, note: n.note))
+        } else {
+            show(JoinNotice(kind: .left, text: JoinCopy.left, note: n.note))
+        }
+    }
+
+    /// Leaves the note with this id in your library through Share's own Leave Note
+    /// (ShareController.confirmLeave): nil when it worked, otherwise what to tell the person.
+    static func leave(_ id: UUID, in store: CollabStore) async -> String? {
+        guard let note = store.context?.note(id), note.deletedAt == nil else { return ShareController.failed(.leave) }
+        let share = ShareController(note: note, backend: store)
+        // Never your own note: that one you stop sharing, from Share.
+        guard !share.isOwner else { return ShareController.failed(.leave) }
+        await share.confirmLeave()
+        return share.state.problem
+    }
+
+    private func show(_ n: JoinNotice?) {
+        noticeTask?.cancel()
+        notice = n
+        guard let n, n.kind != .leaving else { return }
+        noticeTask = Task { [weak self, noticeFor] in
+            try? await Task.sleep(for: noticeFor)
+            guard !Task.isCancelled, let self, self.notice?.id == n.id else { return }
+            self.notice = nil
+        }
     }
 }
 
-/// What a note's link leads to, shown before joining.
-struct JoinPreview: Equatable, Sendable {
-    var title: String?
-    var owner: String?
-    var canEdit: Bool
-    var alreadyIn = false
+/// What opening a note's link did.
+enum JoinOutcome: Equatable, Sendable {
+    /// You joined: the note is in your notes and open. `note` is its id in your library.
+    case joined(note: UUID, owner: String?)
+    /// You were in it already: it just opened.
+    case opened
+    /// It didn't open: what to tell the person.
+    case failed(String)
+
+    var worked: Bool { if case .failed = self { false } else { true } }
+}
+
+/// The line at the foot of the window after a link joined a note: what happened, and Leave.
+struct JoinNotice: Equatable, Identifiable {
+    enum Kind: Equatable { case joined, leaving, left, failed }
+    let id = UUID()
+    var kind: Kind
+    var text: String
+    /// The note joined, in your library: Leave leaves it.
+    var note: UUID
+    /// Leave shows after joining, and again when leaving didn't work.
+    var canLeave: Bool { kind == .joined || kind == .failed }
 }
 
 enum JoinCopy {
-    /// "Join “Team offsite”?", or with no title "Join the note Emil shared?".
-    static func askTitle(_ p: JoinPreview) -> String {
-        if let t = p.title { return "Join \u{201C}\(t)\u{201D}?" }
-        if let o = p.owner { return "Join the note \(ShareCopy.first(o)) shared?" }
-        return "Join this shared note?"
+    /// "You joined Emil's note. People in it see your name and photo."
+    static func joined(owner: String?) -> String {
+        let whose = owner.map { "\(ShareCopy.first($0))'s note" } ?? "the note"
+        return "You joined \(whose). People in it see your name and photo."
     }
 
-    static func askMessage(_ p: JoinPreview) -> String {
-        let who = p.owner.map { "\(ShareCopy.first($0)) shared it with you. " } ?? ""
-        return who + "People in it see your name and photo."
-    }
-
+    static let leave = "Leave"
+    static let left = "You left the note."
     static let joining = "Opening shared note…"
     static let failedTitle = "The shared note didn’t open"
     static let failed = "This link didn’t open. Ask for a new one."
@@ -139,12 +169,10 @@ enum JoinCopy {
 }
 
 /// Listens for note links wherever the app is (signed in or not), shows the short "Opening…"
-/// line while it joins, and says plainly when a link doesn't open.
+/// line while it joins, the line with Leave once it has, and says plainly when a link doesn't open.
 struct JoinLinkHandler: ViewModifier {
     @State var center = JoinCenter.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var asking: JoinPreview? { if case .asking(let p) = center.phase { p } else { nil } }
 
     func body(content: Content) -> some View {
         content
@@ -156,25 +184,49 @@ struct JoinLinkHandler: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: center.phase)
-            .alert(asking.map(JoinCopy.askTitle) ?? "", isPresented: Binding(get: { asking != nil }, set: { if !$0 { center.decline() } })) {
-                Button("Not Now", role: .cancel) { center.decline() }
-                Button("Join") { center.accept() }
-                    #if os(macOS)
-                    // Return joins on the Mac. Not on iPhone: there the default action turns the
-                    // button the system's blue, with the app's amber text on it.
-                    .keyboardShortcut(.defaultAction)
-                    #endif
-                    .accessibilityIdentifier("collab.join")
-            } message: {
-                if let asking { Text(JoinCopy.askMessage(asking)) }
+            .overlay(alignment: .bottom) {
+                if let n = center.notice {
+                    JoinedToast(notice: n) { Task { await center.leaveJoined() } }
+                        .padding(.horizontal, 24)
+                        #if os(macOS)
+                        .padding(.bottom, 20)
+                        #else
+                        // Clear of the foot of the screen, as the note's own notices are.
+                        .padding(.bottom, 64)
+                        #endif
+                        .transition(.opacity)
+                }
             }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: center.phase)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: center.notice)
             .alert(JoinCopy.failedTitle, isPresented: Binding(get: { if case .failed = center.phase { true } else { false } },
                                                               set: { if !$0 { center.dismissProblem() } })) {
                 Button("OK", role: .cancel) { center.dismissProblem() }
             } message: {
                 if case .failed(let why) = center.phase { Text(why) }
             }
+    }
+}
+
+/// "You joined Emil's note. People in it see your name and photo." with Leave: the app's one toast,
+/// at the foot of the window, gone by itself after a few seconds.
+struct JoinedToast: View {
+    let notice: JoinNotice
+    let leave: () -> Void
+
+    private var kind: Toast.Kind {
+        switch notice.kind {
+        case .joined, .left: .done
+        case .leaving: .working
+        case .failed: .failed
+        }
+    }
+
+    var body: some View {
+        Toast(text: notice.text, kind: kind, lines: 2, undo: notice.canLeave ? leave : nil,
+              actionTitle: JoinCopy.leave, actionID: "collab.joined.leave")
+            .accessibilityIdentifier("collab.joined")
+            .task(id: notice.id) { AccessibilityNotification.Announcement(notice.text).post() }
     }
 }
 
