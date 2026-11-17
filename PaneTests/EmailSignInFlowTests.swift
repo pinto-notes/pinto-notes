@@ -25,6 +25,37 @@ import Testing
         #expect(f.emailLocked)
     }
 
+    @Test func anAccountWithoutAPasswordCanSignInWithACode() {
+        var f = EmailSignInFlow(email: "you@example.com")
+        _ = f.beginCheck()
+        f.finishCheck(.password)
+        #expect(f.offersCode, "beside Forgot password?")
+        f.password = "half"
+        f.emailMeACode()
+        #expect(f.step == .confirm)
+        #expect(f.codePurpose == .signIn)
+        #expect(f.password.isEmpty)
+        #expect(f.resendWait(now: .now) == 0, "the screen sends the first code; if that fails, Resend code is ready")
+        #expect(f.action == .verify)
+        f.code = "123456"
+        #expect(f.buttonEnabled)
+        f.back()
+        #expect(f.codePurpose == .confirmSignUp)
+    }
+
+    @Test func theCodeIsOfferedOnlyWhereThePasswordIs() {
+        var f = EmailSignInFlow(email: "you@example.com")
+        #expect(!f.offersCode)
+        _ = f.beginCheck()
+        f.finishCheck(.new)
+        #expect(!f.offersCode, "a new email makes an account with a password")
+        f.emailMeACode()
+        #expect(f.step == .create)
+        f.password = String(repeating: "x", count: 12)
+        f.needsConfirmation(sentAt: .now)
+        #expect(f.codePurpose == .confirmSignUp, "a sign-up's code confirms it")
+    }
+
     @Test func anExistingAccountAsksForItsPassword() {
         var f = EmailSignInFlow(email: "you@example.com")
         _ = f.beginCheck()

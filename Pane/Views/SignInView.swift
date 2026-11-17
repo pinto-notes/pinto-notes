@@ -243,7 +243,7 @@ struct SignInView: View {
     /// back with the address for an account, Create your account for a new email. "Check your
     /// email" replaces it while the code is asked for, in both layouts.
     private var shownHeading: Heading {
-        if flow.step == .confirm { return .beside(title: Self.confirmTitle, line: Self.confirmLine) }
+        if flow.step == .confirm { return .beside(title: Self.confirmTitle, line: flow.codePurpose == .signIn ? Self.signInCodeLine : Self.confirmLine) }
         if case .short(let title) = heading { return .short(Self.shortTitle(title, step: flow.step)) }
         guard case .beside = heading else { return heading }
         switch flow.step {
@@ -297,6 +297,7 @@ struct SignInView: View {
 
     static let confirmTitle = "Check your email"
     static let confirmLine = "We sent a 6-digit code to this address. Type it here to confirm it's yours."
+    static let signInCodeLine = "We sent a 6-digit code to this address. Type it here to sign in."
 
     /// The website's one-line promise, with its low amber marker under "your AI".
     private var promise: some View {
@@ -420,6 +421,14 @@ struct SignInView: View {
                 }
             }
 
+            if flow.offersCode {
+                smallButton("Email me a code instead", id: "signin.emailCode") {
+                    flow.emailMeACode()
+                    error = nil
+                    resendCode(first: true)
+                }
+            }
+
             if flow.step == .forgot(sending: false) {
                 smallButton("Back to Sign In", id: "signin.backToSignIn") {
                     flow.backToSignIn()
@@ -455,7 +464,7 @@ struct SignInView: View {
     private var resendRow: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let wait = flow.resendWait(now: context.date)
-            Button(action: resendCode) {
+            Button(action: { resendCode() }) {
                 HStack(spacing: 6) {
                     if resending { ProgressView().controlSize(.small) }
                     Text(resending ? "Sending a new code…" : wait > 0 ? "Resend code in \(wait) s" : "Resend code")
@@ -472,17 +481,18 @@ struct SignInView: View {
         }
     }
 
-    private func resendCode() {
+    /// `first`: the first code of "Email me a code instead", so no "New code sent" line.
+    private func resendCode(first: Bool = false) {
         guard flow.step == .confirm, !resending, flow.resendWait(now: .now) == 0 else { return }
         resending = true
         error = nil
         codeNotice = nil
-        let email = flow.email
+        let (email, signingIn) = (flow.email, flow.codePurpose == .signIn)
         Task {
             do {
-                try await backend.resendSignUpCode(email: email)
+                if signingIn { try await backend.sendSignInCode(email: email) } else { try await backend.resendSignUpCode(email: email) }
                 flow.codeResent(at: .now)
-                codeNotice = "New code sent. Only the newest one works."
+                if !first { codeNotice = "New code sent. Only the newest one works." }
                 focus = .code
             } catch {
                 self.error = Backend.confirmMessage(for: error)
@@ -639,13 +649,13 @@ struct SignInView: View {
                 working = false
             }
         case .verify:
-            let (email, code) = (flow.email, flow.code)
+            let (email, code, signingIn) = (flow.email, flow.code, flow.codePurpose == .signIn)
             working = true
             codeNotice = nil
             Task {
                 do {
                     // The session that comes back signs in; the app moves on from there.
-                    try await backend.confirmSignUp(email: email, code: code)
+                    if signingIn { try await backend.signInWithCode(email: email, code: code) } else { try await backend.confirmSignUp(email: email, code: code) }
                 } catch {
                     self.error = Backend.confirmMessage(for: error)
                     codeShakes += 1

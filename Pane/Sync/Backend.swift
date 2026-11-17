@@ -551,6 +551,22 @@ final class Backend {
         report(.signedUp(.email), for: response.session)
     }
 
+    /// "Email me a code instead": a sign-in code to an account's address. Never makes an account.
+    /// For one made with an email code on pintonotes.com/connect, which has no password.
+    func sendSignInCode(email: String) async throws {
+        guard let client else { return }
+        try await client.auth.signInWithOTP(email: email.trimmingCharacters(in: .whitespaces), shouldCreateUser: false)
+        Funnel.record(.signInStep(.email, .codeSent))
+    }
+
+    /// The sign-in code from that email: the session that comes back signs in.
+    func signInWithCode(email: String, code: String) async throws {
+        guard let client else { return }
+        Funnel.record(.signInStep(.email, .codeEntered))
+        let response = try await Self.reporting(.email, chosen: false) { try await client.auth.verifyOTP(email: email.trimmingCharacters(in: .whitespaces), token: code, type: .email) }
+        report(.signedIn(.email), for: response.session)
+    }
+
     /// A new confirmation code. Supabase sends at most one a minute to an address.
     func resendSignUpCode(email: String) async throws {
         guard let client else { return }
