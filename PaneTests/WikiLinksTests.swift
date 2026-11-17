@@ -185,6 +185,26 @@ import Testing
         #expect(context.backlinks(to: workIndex).map(\.id) == [fromWork.id])
     }
 
+    /// A link resolves in its own library when another's index was the last one read (two stores
+    /// open at once, as each test window has its own): the other library's notes aren't here.
+    /// NotePageTests' app links found no note at all when a board window's library was read in
+    /// between (17 November 2026).
+    @Test func aLinkResolvesInItsOwnLibraryAfterAnothersWasRead() throws {
+        let mine = try Self.container(), theirs = try Self.container()
+        let here = mine.mainContext, there = theirs.mainContext
+        let acme = here.createNote(in: .all, body: "Acme\nours")
+        let from = here.createNote(in: .all, body: "Plan\nSee [[Acme]].")
+        _ = there.createNote(in: .all, body: "Acme\ntheirs")
+        try here.save(); try there.save()
+        WikiDirectory.invalidate()
+        _ = WikiDirectory.index(there)  // the other library's, read last
+        #expect(here.resolveWikiLink("Acme", from: from)?.id == acme.id, "this library's Acme")
+        // And the other way round, each read again when the other was the last.
+        let theirAcme = try #require(there.fetch(FetchDescriptor<Note>()).first)
+        #expect(there.resolveWikiLink("Acme", from: theirAcme)?.id == theirAcme.id)
+        WikiDirectory.invalidate()
+    }
+
     /// Backlinks come from the notes the store picks (those with a wiki link or a note link):
     /// both kinds count, newest first, unsaved ones included; trashed and locked notes don't. The
     /// note a former sub-note was under links it like any other note now, and counts.

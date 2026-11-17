@@ -536,7 +536,10 @@ enum WikiDirectory {
     }
 
     static func index(_ context: ModelContext) -> WikiIndex {
-        if let cached { return cached }
+        // This library's only. With two open at once (each test window has its own store), the
+        // other's read could come in after this one's was let go, and it named notes that aren't
+        // here (17 November 2026). The app has one library: its index is always the one kept.
+        if let cached, let built = cachedContext, built === context || built.container === context.container { return cached }
         watchSaves()
         let notes = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil && $0.trashedAt == nil }
         // Each folder's path worked out once, not once per note in it.
