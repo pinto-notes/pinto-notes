@@ -50,7 +50,6 @@ SAYS = {
     "emil-share-open": ("emil", "Emil opens Share"),
     "emil-link-can-edit": ("emil", "People with the link: Can edit"),
     "emil-link-copied": ("emil", "Shared: Emil copies the link"),
-    "sara-join-question": ("sara", "Sara opens the link: join?"),
     # Joined, and each phone shows the other (by name, in the re-take) within half a second: one caption.
     "sara-joined": ("sara", "Joined: the list opens on Sara's phone, and each phone shows the other"),
     "sara-sees-emil-here": ("both", "Joined: the list opens on Sara's phone, and each phone shows the other"),
@@ -153,9 +152,9 @@ clips = []
 if at("emil-note") and at("sara-note-gone"):
     clips.append(dict(folder="c9-two-phones", name="two-iphones-c9-shared-list" + SUFFIX, phones=("emil", "sara"),
                       t0=at("emil-note") - 1.5, t1=latest("sara-note-gone", "emil-removed-sara", "sara-lost-access", "sara-kept-copy") + hold + 1.5,
-                      keys=["emil-share-open", "emil-link-copied", "sara-join-question", "sara-sees-emil-here", "emil-sees-sara-tick",
+                      keys=["emil-share-open", "emil-link-copied", "sara-joined", "sara-sees-emil-here", "emil-sees-sara-tick",
                             "sara-typed-before-removal", "emil-removed-sara", "sara-lost-access", "sara-kept-copy"] if SUFFIX else
-                           ["emil-link-copied", "sara-join-question", "sara-joined", "emil-sees-sara-tick", "emil-removed-sara", "sara-note-gone"]))
+                           ["emil-link-copied", "sara-joined", "emil-sees-sara-tick", "emil-removed-sara", "sara-note-gone"]))
 # c10: the stretch from just before the pause to Emil's phone showing the merge (and, in the re-take,
 # Sara's phone saying Synced and both back in colour).
 if at("offline") and at("emil-sees-sara-offline-edits"):

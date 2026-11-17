@@ -29,6 +29,9 @@ final class CollabSession {
         /// against the text here whenever it changes.
         var caret: Anchor?
         var end: Anchor?
+        /// Their carets that came before the text they were taken against, oldest first. Each is
+        /// shown once that text is here, so their caret moves with their typing, never ahead of it.
+        var waiting: [WaitingCaret] = []
         var typingUntil: Date?
         /// When their caret last moved or they last typed: the name flag shows for a moment after.
         var movedAt: Date = .now
@@ -40,6 +43,14 @@ final class CollabSession {
         func isStale(at now: Date = .now) -> Bool { now.timeIntervalSince(heardAt) >= Self.staleAfter }
         /// Presence goes out every 2 seconds: three missed and someone's connection (or yours) is down.
         static let staleAfter: TimeInterval = 6
+    }
+
+    /// A caret as someone sent it, with their document's heads when they took it (`Presence.heads`).
+    struct WaitingCaret: Equatable {
+        var caret: Anchor?
+        var end: Anchor?
+        var heads: Set<CollabText.ChangeHash>
+        var since: Date
     }
 
     /// A caret whose person isn't heard from: solid grey, on white and on black.
@@ -331,9 +342,13 @@ final class CollabSession {
         waitingSince = now
     }
 
-    /// Your role changed (the server said so).
+    /// Your role changed (the server said so: your memberships, the members list, or a change
+    /// refused as read-only). People in the note says so too, at once: the view-only check reads
+    /// your row there first (`isViewOnly`), so a stale row there kept a demoted editor typing.
     func setRole(_ r: String) {
-        guard !isClosed, r != role else { return }
+        guard !isClosed else { return }
+        if let i = members.firstIndex(where: { $0.id == me }), members[i].role != r { members[i].role = r }
+        guard r != role else { return }
         role = r
         record.role = r
         saveSoon()
@@ -467,6 +482,9 @@ final class CollabSession {
         onMembers?(rows)
         members = rows.map { Member(id: $0.user_id, name: $0.display_name ?? "Someone", role: $0.role,
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
+        // The owner changed what you can do: the note's record follows, so a note made editable
+        // again takes your typing (`record.canEdit`), and one made view only stops taking it.
+        if let mine = myRole, mine != role { setRole(mine) }
     }
 
     /// Takes in every change the server has after this device's cursor (and the snapshot, when
@@ -586,9 +604,13 @@ final class CollabSession {
             relayRefused = nil
             catchUp()
             flush()
+            // Back on the channel after a drop: the others see you again now, not on the next beat.
+            sendPresence()
         case .membersChanged:
             CollabScript.trace("who's in the note changed: checking memberships")
             onMembersChanged?()
+            // Someone's role may have changed (yours too): People and the view-only check follow now.
+            Task { await refreshMembers() }
         case .notRelaying(let why):
             // Said again each time Realtime tries (every 5 to 10 seconds): told once, until it changes.
             if relayRefused != why {
@@ -603,9 +625,11 @@ final class CollabSession {
             let wasHere = peers[user] != nil
             peer.name = p.name
             peer.heardAt = .now
-            if peer.caret != p.caret || peer.end != p.end { peer.movedAt = .now }
-            peer.caret = p.caret
-            peer.end = p.end
+            // Their caret waits for the text it was taken against (resolvePeers). From an older
+            // app, without heads, it's shown at once.
+            let heads = p.heads.flatMap { Data(base64Encoded: $0) }.flatMap { $0.heads() } ?? []
+            peer.waiting.append(WaitingCaret(caret: p.caret, end: p.end, heads: heads, since: .now))
+            if peer.waiting.count > Self.waitingCarets { peer.waiting.removeFirst(peer.waiting.count - Self.waitingCarets) }
             if p.typing == true { peer.typingUntil = .now.addingTimeInterval(1.6); peer.movedAt = .now }
             peers[user] = peer
             resolvePeers()
@@ -1070,12 +1094,24 @@ final class CollabSession {
 
     // MARK: Presence
 
+    /// What goes out as your presence, sealed, as JSON. Every field but `name` is optional, and
+    /// decoding ignores fields it doesn't know, so apps older and newer than each other read it.
     private struct Presence: Codable {
         var name: String
         var caret: Anchor?
         var end: Anchor?
         var typing: Bool?
+        /// Your document's heads when the caret was taken (Automerge change hashes, 32 bytes each,
+        /// joined, in base64). Your caret can reach the others before the change it follows, which
+        /// goes by the server; they show it once their document has these. Since 1.4.
+        var heads: String?
     }
+
+    /// Carets kept per person while their text is on its way: a few seconds of fast typing.
+    static let waitingCarets = 64
+    /// A caret whose text hasn't arrived after this long is shown anyway, where it resolves (a
+    /// change of theirs this device may never get: one the server refused, say).
+    @ObservationIgnored var caretWaitsAtMost: TimeInterval = 5
 
     /// The anchor for a UTF-16 offset in this document's text.
     func anchor(at offset: Int) -> Anchor? { CollabText.anchor(in: doc, body, at: offset) }
@@ -1087,6 +1123,7 @@ final class CollabSession {
     /// Every peer's caret against the text as it is now. One that can't resolve yet keeps where it was.
     private func resolvePeers() {
         defer { onCarets?(remoteCarets) }
+        takeArrivedCarets()
         for (id, p) in peers {
             // Not editing: no caret to show.
             guard p.caret != nil else { if p.selection != nil { peers[id]?.selection = nil }; continue }
@@ -1097,12 +1134,43 @@ final class CollabSession {
         }
     }
 
+    /// Each person's newest waiting caret whose text this document has (or that waited too long)
+    /// becomes their caret; the ones before it go. Their heads only grow, so once one hasn't
+    /// arrived, none after it has: each look stops at the first still waiting.
+    private func takeArrivedCarets(now: Date = .now) {
+        var heads: Set<CollabText.ChangeHash>?
+        for (id, p) in peers where !p.waiting.isEmpty {
+            var taken = 0
+            for w in p.waiting {
+                guard now.timeIntervalSince(w.since) >= caretWaitsAtMost || has(w.heads, heads: &heads) else { break }
+                taken += 1
+            }
+            guard taken > 0 else { continue }
+            var peer = p
+            let w = p.waiting[taken - 1]
+            if peer.caret != w.caret || peer.end != w.end { peer.movedAt = now }
+            peer.caret = w.caret
+            peer.end = w.end
+            peer.waiting.removeFirst(taken)
+            peers[id] = peer
+        }
+    }
+
+    /// Whether this document holds every one of these changes. `heads` is this document's, read once.
+    private func has(_ changes: Set<CollabText.ChangeHash>, heads: inout Set<CollabText.ChangeHash>?) -> Bool {
+        if changes.isEmpty { return true }
+        let mine = heads ?? doc.heads()
+        heads = mine
+        return changes.allSatisfy { mine.contains($0) || doc.change(hash: $0) != nil }
+    }
+
     private func sendPresence() {
         guard let channel, keys[epoch] != nil else { return }
         let sel = mySelection
         let p = Presence(name: myName, caret: sel.flatMap { anchor(at: $0.location) },
                          end: sel.flatMap { $0.length > 0 ? anchor(at: NSMaxRange($0)) : nil },
-                         typing: Date.now.timeIntervalSince(typingAt) < 1.2)
+                         typing: Date.now.timeIntervalSince(typingAt) < 1.2,
+                         heads: sel == nil ? nil : doc.heads().raw().base64EncodedString())
         guard let data = try? JSONEncoder().encode(p),
               let ct = try? CollabCrypto.seal(.presence, data, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return }
         channel.send(presence: ct)

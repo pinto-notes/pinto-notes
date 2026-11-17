@@ -215,9 +215,6 @@ extension Color {
     /// The "+2" circle: solid and quiet. Neutral in the Mac's plain look.
     static let avatarMore = Color(Palette.warm(0xECE6DF, 0x3A3632, plain: (0xEBEBEB, 0x3A3A3A)))
     static let avatarMoreInk = Color(Palette.warm(0x5F4E3E, 0xD8CEC3, plain: (0x5C5C5C, 0xD9D9D9)))
-    /// The pencil badge: the app's dark ink in light mode, its cream in dark, solid either way.
-    static let avatarPencil = Color(Palette.warm(0x2A1D10, 0xEDE6DE, plain: (0x262626, 0xE5E5E5)))
-    static let avatarPencilInk = Color(Palette.warm(0xFFFFFF, 0x2A1D10, plain: (0xFFFFFF, 0x262626)))
     /// "Here now": a solid green.
     static let avatarLive = Color(Palette.pair(0x2FA44F, 0x34B85A))
     /// Initials on your own amber avatar: solid dark brown, readable on both ambers.
@@ -231,6 +228,23 @@ struct PresenceStack: View {
     var action: () -> Void
 
     private var here: [CollabSession.Peer] { session.peers.values.sorted { $0.name < $1.name } }
+
+    /// Whether the bar shows it: once someone else is in the note or has joined it, or there's
+    /// something to say (View Only, the sync words on the Mac). A note you've only just shared
+    /// had a lone "people" button beside Share that opened the same popover (Emil, 16 November 2026).
+    @MainActor static func shows(_ session: CollabSession, now: Date = .now) -> Bool {
+        #if os(macOS)
+        let syncWords = SharedSyncLine.ticking(session, now: now)
+        #else
+        let syncWords = false
+        #endif
+        return shows(here: !session.peers.isEmpty, othersJoined: session.members.contains { $0.id != session.me },
+                     viewOnly: session.isViewOnly, syncWords: syncWords)
+    }
+
+    static func shows(here: Bool, othersJoined: Bool, viewOnly: Bool, syncWords: Bool) -> Bool {
+        here || othersJoined || viewOnly || syncWords
+    }
 
     var body: some View {
         Button(action: action) {

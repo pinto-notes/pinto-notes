@@ -74,6 +74,18 @@ extension CollabStore: ShareBackend {
         }
     }
 
+    /// Can edit or Can view for someone in your note, from now on. No new key: they keep reading
+    /// it either way, and the server refuses a viewer's changes. Everyone on the note's channel is
+    /// told at once, as after a removal, so their note turns view only (or editable) without
+    /// reopening it; a device that misses it has the half-minute check.
+    func setRole(_ role: ShareState.Role, of user: UUID, in note: Note) async throws {
+        guard let transport else { throw Collab.Failure.notSignedIn }
+        let session = sessions[note.id]
+        try await transport.setRole(note: session?.noteID ?? note.sharedNoteID ?? note.id, user: user, role: role.rawValue)
+        session?.announceMembersChanged()
+        await session?.refreshMembers()
+    }
+
     /// You leave someone else's note. The server takes you out of it; the owner's next device
     /// gives the note a new key without you.
     /// The note goes from your library on all your devices, as in Apple Notes (SharedLibrary.leave).
@@ -214,51 +226,51 @@ extension CollabStore: ShareBackend {
         return (id, secret)
     }
 
-    /// A link opened in the app: joins the note with the link's role (Can edit or Can view) and
-    /// opens it. A link that was turned off or changed says so.
-    @discardableResult
     /// What a link leads to, before joining: the note's title and who shared it, opened with the
-    /// link's own key. Nil when the link was turned off or changed (joinProblem says so).
-    func preview(_ url: URL) async -> JoinPreview? {
-        guard let transport, let (id, secret) = Self.parseLink(url) else { return nil }
+    /// link's own key. Asked only for a link by the app's own scheme (JoinCenter.asksFirst).
+    func preview(_ url: URL) async -> Result<JoinPreview, JoinFailure> {
+        guard let transport, let (id, secret) = Self.parseLink(url) else { return .failure(JoinFailure(JoinCopy.failed)) }
         let lk = Self.linkKeys(secret, link: id)
-        let opened: Collab.OpenedLink?
-        do { opened = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
-        catch { joinProblem = Self.joinFailure(error); return nil }
-        guard let opened else {
-            joinProblem = "This link was turned off or changed. Ask for a new one."
-            return nil
-        }
+        let found: Collab.OpenedLink?
+        do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
+        catch { return .failure(JoinFailure(Self.joinFailure(error))) }
+        guard let opened = found else { return .failure(JoinFailure("This link was turned off or changed. Ask for a new one.")) }
         let title = opened.head_ct.flatMap { ct -> String? in
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32,
                   let head = try? CollabCrypto.open(.head, ct, nk: SymmetricKey(data: raw), note: opened.note_id) else { return nil }
             return (try? JSONDecoder().decode(NoteHead.self, from: head))?.title
         }
-        let shared: UUID? = opened.note_id
-        let inLibrary = (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
-        let already = openNote(forShared: opened.note_id) != nil || inLibrary
-        return JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already)
+        let already = openNote(forShared: opened.note_id) != nil || isInLibrary(shared: opened.note_id)
+        return .success(JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already))
     }
 
-    func join(_ url: URL) async -> Bool {
-        guard let transport, let me, let library, let (id, secret) = Self.parseLink(url) else { return false }
+    /// Your note for this shared note is in your notes (not deleted), open here or not.
+    private func isInLibrary(shared id: UUID) -> Bool {
+        let shared: UUID? = id
+        return (try? context?.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.sharedNoteID == shared && $0.deletedAt == nil })))?.isEmpty == false
+    }
+
+    /// A link opened in the app: joins the note with the link's role (Can edit or Can view) and
+    /// opens it. A note you're in already just opens. A link that was turned off or changed says so.
+    @discardableResult
+    func join(_ url: URL) async -> JoinOutcome {
+        guard let transport, let me, let library, let (id, secret) = Self.parseLink(url) else { return .failed(JoinCopy.failed) }
         let lk = Self.linkKeys(secret, link: id)
         let found: Collab.OpenedLink?
         do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
-        catch { joinProblem = Self.joinFailure(error); return false }
-        guard let opened = found else {
-            joinProblem = "This link was turned off or changed. Ask for a new one."
-            return false
-        }
+        catch { return .failed(Self.joinFailure(error)) }
+        guard let opened = found else { return .failed("This link was turned off or changed. Ask for a new one.") }
         // Already in the note on this device (your own link, or one you joined before): open it,
         // with no second join. Sessions are listed by the note's id in your library, which for
         // someone else's note isn't the shared note's id (SharedNotes.noteID): looking it up by the
         // shared id found nothing, and every reopened link sent another join.
         if let open = openNote(forShared: opened.note_id) {
             NoteOpener.shared.open(open)
-            return true
+            return .opened
         }
+        // In your notes but not open here yet: joined again below (harmless), and it just opens.
+        let wasIn = isInLibrary(shared: opened.note_id)
         do {
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32 else { throw CollabCrypto.Failure.wrongKey }
@@ -271,10 +283,9 @@ extension CollabStore: ShareBackend {
             // A note of your own for it, in "Shared with me" (never the owner's note id).
             let note = try await library.adopt(shared: opened.note_id, nk: nk, epoch: opened.epoch, role: opened.role)
             NoteOpener.shared.open(note.id)
-            return true
+            return wasIn ? .opened : .joined(note: note.id, owner: opened.owner_name)
         } catch {
-            joinProblem = Self.isDropped(error) ? Self.joinFailure(error) : "This link didn’t open. Ask for a new one."
-            return false
+            return .failed(Self.isDropped(error) ? Self.joinFailure(error) : JoinCopy.failed)
         }
     }
 

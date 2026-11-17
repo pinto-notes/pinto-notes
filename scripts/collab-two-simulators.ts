@@ -29,8 +29,8 @@
 //                                  status bar says 9:41, keyboard clicks are off, the keyboard's first-run tip
 //                                  is skipped, and the phones speak US English.
 //   COLLAB_HOLD=<s>                holds each moment on screen this long, opens Share while Emil shares and
-//                                  removes Sara (as its button does), and shows Sara the link's question
-//                                  before she joins and the lost-access alert before she answers it.
+//                                  removes Sara (as its button does), and shows Sara the lost-access
+//                                  alert before she answers it.
 //   COLLAB_APPEARANCE=light,dark   Emil's phone, then Sara's.
 //   COLLAB_PRIVATE_AI=1            at the end, Sara types a line in a note of her own (not shared), then
 //                                  her AI reads that note and edits it while it's open on her phone.
@@ -252,10 +252,7 @@ const emilSteps = steps(people[0], [
   { waitFile: "go-quit.txt" }, { quit: true },
 ]);
 const saraSteps = steps(people[1], [
-  { waitFile: "link.txt" },
-  ...(show
-    ? [{ openLink: { file: "link.txt", question: "join-question.json" } }, mark("sara-join-question"), ...hold(), { answerJoin: "join" }]
-    : [{ join: "link.txt" }]),
+  { waitFile: "link.txt" }, { join: "link.txt" },
   mark("sara-joined"), { waitPresence: { timeout: 60, soft: true } }, mark("sara-sees-emil-here"), { dump: "here-first.json" }, ...hold(), { dump: "joined.json" },
   { waitFile: "go-tick.txt" }, { tick: "Order lunch" }, mark("sara-ticked"), { waitText: { text: "- [x] Book the venue", timeout: 90 } }, mark("sara-sees-emil-tick"), ...hold(), { dump: "ticks.json" },
   // The server paused while she types and ticks: "Not synced yet" by the people, Emil grey.

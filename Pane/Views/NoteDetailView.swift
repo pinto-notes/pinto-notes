@@ -1356,7 +1356,7 @@ struct NoteDetailView: View {
             said: said?.text ?? (noticeInBar ? undoFailed : nil),
             saidAction: said?.action,
             attachment: AnyView(attachMenu),
-            people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            people: collab.flatMap { collab in PresenceStack.shows(collab) ? AnyView(PresenceStack(session: collab) { showPeople = true }) : nil },
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
                 if !askTargets.isEmpty { askButton }
@@ -1603,7 +1603,7 @@ struct NoteDetailView: View {
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
 
-        if let collab {
+        if let collab, PresenceStack.shows(collab) {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
         }
         // Privacy mode is on: the eye says so, and a tap turns it off.
@@ -2370,8 +2370,12 @@ struct NoteToolbarStage<Pane: View>: View {
                         .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
                     .hidden(!showsItems || !showsWriting)
+                    // Who's in the note: a section of its own, not one of the writing tools
+                    // (Emil, 16 November 2026: the avatar sat between the paperclip and Share).
                     if let people = shown.people {
+                        ToolbarSpacer(.fixed).hidden(!showsItems)
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
+                        ToolbarSpacer(.fixed).hidden(!showsItems)
                     }
                     ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
                 }

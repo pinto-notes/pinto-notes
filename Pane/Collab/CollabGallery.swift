@@ -220,6 +220,11 @@ final class SampleShare: ShareBackend {
         if state.link != nil { state.link = URL(string: "https://pintonotes.com/s/Nw8kQe0rTzYxUv2aBcDeFg#hJkLmNoPqRsTuVwXyZ0123") }
     }
 
+    func setRole(_ role: ShareState.Role, of user: UUID, in note: Note) async throws {
+        try await step("role \(user.uuidString) \(role.rawValue)")
+        if let i = state.people.firstIndex(where: { $0.id == user }) { state.people[i].role = role.rawValue }
+    }
+
     func markVerified(_ user: UUID, in note: Note) {
         calls.append("verified \(user.uuidString)")
         if let i = state.people.firstIndex(where: { $0.id == user }) { state.people[i].verified = true; state.people[i].keyChanged = nil }

@@ -48,6 +48,55 @@ import Testing
         let people = String(source[start..<end])
         #expect(people.contains("Image(systemName: \"ellipsis\")"))
         #expect(!people.contains("chevron.up.chevron.down"))
+        // The ellipsis and right-click open the same menu, which has the roles for the owner.
+        #expect(people.components(separatedBy: "PersonMenu(share: share, person: p)").count == 3)
+    }
+
+    /// The owner's menu on someone's row offers what they can do, at the top, with a tick on theirs,
+    /// then Check Safety Code… and Remove from Note (Emil, 16 November 2026). Choosing Can view
+    /// changes it and says so. Someone else's menu has no roles. The menu is got by handing a
+    /// right-click made here to the row (never posted); the window is never shown.
+    @Test func theOwnersMenuOffersTheRoles() async throws {
+        let (share, backend) = ShareControllerTests.controller(ShareControllerTests.owner(link: .edit))
+        let owners = try #require(await Self.personMenu(share))
+        #expect(MenuLook.layout(owners) == ["Can edit", "Can view", "-", "Check Safety Code…", "-", "Remove from Note"])
+        #expect(owners.items[0].state == .on && owners.items[1].state == .off, "a tick on Can edit")
+        // Chosen as AppKit chooses an item: its action, sent to its target.
+        let canView = owners.items[1]
+        NSApp.sendAction(try #require(canView.action), to: canView.target, from: canView)
+        for _ in 0..<100 where share.done == nil { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(backend.calls == ["role \(ShareControllerTests.sara.uuidString) viewer"])
+        #expect(share.state.people[1].role == "viewer" && share.done?.text == "Sara can view now.")
+        let after = try #require(await Self.personMenu(share))
+        #expect(after.items[0].state == .off && after.items[1].state == .on, "the tick moved to Can view")
+
+        let (member, _) = ShareControllerTests.controller(ShareControllerTests.member())
+        let hers = try #require(await Self.personMenu(member))
+        #expect(MenuLook.layout(hers) == ["Check Safety Code…"])
+    }
+
+    /// The menu on the first row that has one (everyone's but yours), as AppKit gets it from a right-click.
+    static func personMenu(_ share: ShareController) async -> NSMenu? {
+        let host = NSHostingView(rootView: CollaborateRows(share: share).frame(width: 300).background(Color.white))
+        let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 300, height: 400), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.close() }
+        host.frame = CGRect(origin: .zero, size: host.fittingSize)
+        try? await Task.sleep(for: .seconds(0.3))
+        host.layoutSubtreeIfNeeded()
+        for y in stride(from: host.bounds.height - 4, to: 4, by: -3) {
+            let p = host.convert(CGPoint(x: 60, y: y), to: nil)
+            guard let e = NSEvent.mouseEvent(with: .rightMouseDown, location: p, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                                             context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+                  let hit = host.hitTest(host.convert(p, from: nil)) else { continue }
+            var v: NSView? = hit
+            while let view = v {
+                if let m = view.menu(for: e), !m.items.isEmpty { return m }
+                v = view.superview
+            }
+        }
+        return nil
     }
 
     /// Picture is one of the ways, last; a link that can't be made isn't offered.
@@ -62,6 +111,37 @@ import Testing
         #expect(!source.contains("line(ShareCopy.privacy"), "Collaborate doesn't explain encryption")
         #expect(ShareWays.ways(collaborating: true).firstIndex(of: .copy)! < ShareWays.ways(collaborating: true).firstIndex(of: .link)!, "Send Copy left of Web Page")
         #expect(source.contains(".amberProminent(.compact, wide: true)"), "Share Link isn't oversized")
+    }
+
+    /// Join by Link shows once the note is shared, not before: alone with no link, Collaborate is
+    /// the line about what Invite People does and the button (Emil, 16 November 2026).
+    @Test func joinByLinkWaitsUntilTheNoteIsShared() async throws {
+        func access(_ state: ShareState) async -> (row: Bool, invite: Bool, said: [String]) {
+            let share = await CollabShareSnapshots.controller(state)
+            let ax = OffscreenAX(ShareNotePopover(title: "Team offsite", text: "Team offsite", store: ShareLinkStore(state: ShareLinkState(phase: .notShared)),
+                                                  linkAvailable: true, share: share, startingWay: .people, close: {}), size: CGSize(width: 320, height: 520))
+            defer { ax.close() }
+            await ax.settle()
+            let said = ax.texts()
+            return (said.contains("Join by Link"), said.contains("Invite People\u{2026}"), said)
+        }
+        let alone = await access(ShareState(people: [.init(id: CollabShareSnapshots.me, name: "Emil Wagman", isMe: true, role: "owner")]))
+        #expect(!alone.row && alone.invite, "not shared yet: Invite People, no Join by Link: \(alone.said)")
+        let shared = await access(CollabShareSnapshots.owner(.edit))
+        #expect(shared.row && shared.invite, "shared: Join by Link to change or turn off the link: \(shared.said)")
+    }
+
+    /// The people button: only once someone else is in the note or has joined it, or there's
+    /// something to say; a note you just shared has Share alone (Emil, 16 November 2026).
+    @Test func thePeopleButtonWaitsForSomeoneElse() throws {
+        #expect(!PresenceStack.shows(here: false, othersJoined: false, viewOnly: false, syncWords: false), "just shared: no lone people button")
+        #expect(PresenceStack.shows(here: true, othersJoined: false, viewOnly: false, syncWords: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: true, viewOnly: false, syncWords: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: true, syncWords: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: false, syncWords: true))
+        // In the Mac bar, its own section: spaced from the writing tools and from Share.
+        let source = try String(contentsOf: TestFiles.url("Views/NoteDetailView.swift"), encoding: .utf8)
+        #expect(source.contains("ToolbarSpacer(.fixed).hidden(!showsItems)\n                        ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)\n                        ToolbarSpacer(.fixed).hidden(!showsItems)"))
     }
 
     /// The popover is narrower (Emil, 8 November 2026: "I dont like how wide this whole thing is"),
@@ -173,6 +253,11 @@ import Testing
         host.cacheDisplay(in: host.bounds, to: rep)
         return rep
     }
+}
+
+/// A menu's titles, a dash for each separator.
+enum MenuLook {
+    static func layout(_ m: NSMenu) -> [String] { m.items.map { $0.isSeparatorItem ? "-" : $0.title } }
 }
 
 private struct SharePopoverCapture: View {

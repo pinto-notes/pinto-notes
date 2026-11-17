@@ -118,8 +118,6 @@ struct AmberProminentButtonStyle: ButtonStyle {
     var size: ButtonSize = .compact
     /// Full width (a form's row) instead of as wide as the title.
     var wide = false
-    /// A long title in a narrow place takes a second line instead of being cut.
-    var wraps = false
     /// Black with a white label, white with a black one in the dark, like Sign in with Apple:
     /// the primary button beside it on the iPhone welcome, which keeps amber for links.
     var ink = false
@@ -130,7 +128,7 @@ struct AmberProminentButtonStyle: ButtonStyle {
     enum SplitHalf { case leading, trailing }
 
     func makeBody(configuration: Configuration) -> some View {
-        AmberProminentButton(configuration: configuration, size: size, wide: wide, wraps: wraps, ink: ink, joined: joined)
+        AmberProminentButton(configuration: configuration, size: size, wide: wide, ink: ink, joined: joined)
     }
 
     /// The fills and the label's colour, for the contrast test.
@@ -145,7 +143,6 @@ struct AmberProminentButtonStyle: ButtonStyle {
 
 extension ButtonStyle where Self == AmberProminentButtonStyle {
     static var amberProminent: AmberProminentButtonStyle { .init() }
-    static var amberProminentWrapping: AmberProminentButtonStyle { .init(wraps: true) }
     static func amberProminent(_ size: ButtonSize, wide: Bool = false) -> AmberProminentButtonStyle { .init(size: size, wide: wide) }
     /// The primary button in black and white (`ink`).
     static func inkProminent(_ size: ButtonSize, wide: Bool = false) -> AmberProminentButtonStyle { .init(size: size, wide: wide, ink: true) }
@@ -174,7 +171,6 @@ private struct AmberProminentButton: View {
     let configuration: ButtonStyleConfiguration
     let size: ButtonSize
     let wide: Bool
-    var wraps = false
     var ink = false
     var joined: AmberProminentButtonStyle.SplitHalf?
     @Environment(\.amberBusy) private var busy
@@ -209,18 +205,18 @@ private struct AmberProminentButton: View {
             // Semibold, as the secondary button is: bold read as an iPhone button (council, 8 November 2026).
             .font(.system(size: textSize, weight: .semibold))
             .foregroundStyle(Color(label))
-            .lineLimit(wraps ? 3 : twoLines ? 2 : 1)
+            .lineLimit(twoLines ? 2 : 1)
             .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: twoLines || wraps)
+            .fixedSize(horizontal: false, vertical: twoLines)
             // Room above and below a title that grows, so a large title never meets the edge.
-            .padding(.vertical, twoLines ? 12 : wraps || grows ? 6 : 0)
+            .padding(.vertical, twoLines ? 12 : grows ? 6 : 0)
             // Busy: the label keeps its place (so nothing moves) and a spinner sits on it.
             .opacity(busy ? 0 : 1)
             .overlay { if busy { AmberSpinner(color: ink ? Palette.inkButtonLabel : labelColor, reduceMotion: reduceMotion) } }
             .padding(.horizontal, size.padding)
             .frame(maxWidth: wide ? .infinity : nil)
             // The size's height, until a larger text size or a second line needs more.
-            .frame(minHeight: size.height * growth, maxHeight: grows || wraps || twoLines ? nil : size.height)
+            .frame(minHeight: size.height * growth, maxHeight: grows || twoLines ? nil : size.height)
             .background {
                 shape
                     .fill(Color(fill))
@@ -785,8 +781,13 @@ struct Toast: View {
     enum Kind { case done, working, failed }
     let text: String
     var kind = Kind.done
+    /// Lines the text may wrap to before it's cut (one, unless the words need more on iPhone).
+    var lines = 1
     /// An Undo button after the text, for something that was done at once without asking.
     var undo: (() -> Void)? = nil
+    /// The button's words, when it undoes in other words (Leave, after joining a note).
+    var actionTitle = "Undo"
+    var actionID = "toast.undo"
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
@@ -798,21 +799,23 @@ struct Toast: View {
             }
             Text(text)
                 .foregroundStyle(Color.ink)
-                .lineLimit(1)
+                .lineLimit(lines)
+                .fixedSize(horizontal: false, vertical: lines > 1)
             if let undo {
                 Divider().frame(height: 14)
-                Button("Undo", action: undo)
+                Button(LocalizedStringKey(actionTitle), action: undo)
                     .buttonStyle(.hoverLink)
                     .foregroundStyle(Color.amberInk)
                     .contentShape(.rect)
                     #if os(iOS)
                     .frame(minHeight: 44)
                     #endif
-                    .accessibilityIdentifier("toast.undo")
+                    .accessibilityIdentifier(actionID)
             }
         }
         .font(.system(size: ButtonSize.compact.textSize, weight: .semibold))
         .padding(.horizontal, 16)
+        .padding(.vertical, lines > 1 ? 8 : 0)
         .frame(minHeight: 40)
         // Solid, so the note behind never shows through.
         .background(Color.card, in: shape)
@@ -914,19 +917,6 @@ struct SettingsButtonStyle: ButtonStyle {
 extension ButtonStyle where Self == SettingsButtonStyle {
     /// A button on a Settings row.
     static var settings: SettingsButtonStyle { .init() }
-}
-
-/// A row button that fills a group box: one line, the whole width, the row's hover.
-struct SettingsRowButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 14))
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .contentShape(.rect)
-            .background(configuration.isPressed ? SettingsInk.selection : .clear)
-            .hoverRow(reach: EdgeInsets())
-    }
 }
 
 /// A plain icon in the window's bar. Its own style, because the system's hover there is barely

@@ -439,16 +439,6 @@ enum EmbedImages {
     }
 }
 
-private struct EmbedMenu: View {
-    let open: () -> Void
-    let remove: () -> Void
-    var body: some View {
-        Button("Open", systemImage: "eye", action: open)
-        Divider()
-        DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
-    }
-}
-
 /// A web address alone on its line: compact (icon, page title, site) or a card with the page's
 /// picture and summary (Emil, 11-01).
 private struct LinkEmbed: View {

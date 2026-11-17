@@ -69,9 +69,6 @@ enum PaneTips {
         #endif
     }
 
-    /// Days of use before any tip, and before the Mac menu bar tip.
-    static let minimumDays = 3
-    static let menuBarDays = 5
 
     static let all: [any Tip] = [VersionHistoryTip(), ShareLinkTip(), MenuBarTip(), ShareExtensionTip(), NewAppTip()]
 

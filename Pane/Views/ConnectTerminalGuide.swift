@@ -71,15 +71,6 @@ enum TerminalConnect {
         }
     }
 
-    /// True for someone signed in to Claude Code with their Claude account: Claude Code loads
-    /// that account's connectors.
-    static let alreadyHasIt = "Connected Claude already? Claude Code signed in to the same account has Pinto Notes too."
-
-    static func runsOnAComputer(_ guide: ConnectAISection.Guide) -> String {
-        "\(guide.title) runs on your computer. Send yourself the command, or do this from Pinto Notes on your Mac, where it is easier."
-    }
-
-    static let privateNote = "The command holds a private key to your notes. Send it only to yourself."
     static let waiting = "Waiting for it to connect\u{2026}"
     static let connected = "Connected"
 

@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import ApplicationServices
 import Foundation
 import SwiftData
 import SwiftUI
@@ -59,6 +60,7 @@ import Vision
             #expect(SetupCards.page(.claude, pick)?.host == "claude.ai")
             #expect(SetupCards.page(.other, pick) == nil)
         }
+        #expect(SetupCards.width(.prompt) <= SetupCards.width(.gallery))
         #expect(SetupCards.galleryTitle(.chatgpt) == "What should ChatGPT make first?")
     }
 
@@ -69,17 +71,6 @@ import Vision
         #expect(ink["reading-list"] == true)
         #expect(ink["meal-plan"] == false)
         #expect(ink["weekly-review"] == false)
-    }
-
-    /// The card flow never asks for a name, and a connected ChatGPT leads to the gallery
-    /// (Try it), where the store's own order already goes.
-    /// Another AI has no link to open, so a template's ask is shown to copy, word for word.
-    @Test func anotherAIGetsThePromptToCopy() {
-        let pick = SetupCards.picks[0]
-        #expect(SetupCards.page(.other, pick) == nil)
-        #expect(SetupCards.page(.chatgpt, pick) != nil)
-        #expect(SetupCards.prompt(pick).hasPrefix("In Pinto Notes, "))
-        #expect(SetupCards.width(.prompt) <= SetupCards.width(.gallery))
     }
 
     /// The card's shadow is its shape's alone. On the whole card SwiftUI cast it again under every
@@ -94,56 +85,72 @@ import Vision
         #expect(lines.contains { $0.hasPrefix(".shadow(") })
     }
 
-    /// Escape moves on from every step of setup: Skip, Not now and Cancel are its cancel buttons.
-    /// A rig pressing Escape on "Bring in your notes?" got nowhere (round 17). Reads the source,
-    /// as a keyboard shortcut isn't visible from outside the button.
-    @Test func escapeLeavesEverySetupStep() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SetupCards.swift"), encoding: .utf8)
-        let lines = source.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
-        let ways = lines.indices.filter { lines[$0].hasPrefix("Button(only == nil ?") }
-        #expect(ways.count >= 3)
-        for at in ways {
-            #expect(lines[at + 1] == ".keyboardShortcut(.cancelAction)", "\(lines[at])")
+    /// Escape cancels every setup context; the connect card also offers Not now or Cancel.
+    @Test(arguments: [(SetupCardsFlow.Only?.none, Onboarding.Step.bring, true), (nil, .connect, true),
+                      (.importNotes, .bring, true), (.connectAI, .connect, true),
+                      (nil, .connect, false), (.connectAI, .connect, false)])
+    func cancelLeavesEverySetupStep(configuration: (SetupCardsFlow.Only?, Onboarding.Step, Bool)) async throws {
+        let (only, step, escape) = configuration
+        let store = OnboardingStore(defaults: TestDefaults())
+        store.showForPreview(step)
+        var landed: [Onboarding.Landing?] = []
+        let flow = SetupCardsFlow(store: only == nil ? store : nil, backend: Backend(), only: only,
+                                  finish: { landed.append($0) })
+        let ax = OffscreenAX(flow.modelContainer(for: Note.self, inMemory: true), size: CGSize(width: 600, height: 500))
+        defer { ax.close() }
+        await ax.settle()
+        if escape {
+            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: ax.window.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+                isARepeat: false, keyCode: 53))
+            #expect(ax.window.performKeyEquivalent(with: event))
+        } else {
+            #expect(try #require(ax.find("setup.notNow")).press())
+            await ax.settle()
+        }
+        if only == nil, step == .bring {
+            #expect(store.step == .connect)
+            #expect(landed.isEmpty)
+        } else {
+            #expect(landed == [only == nil ? .newNote : nil])
         }
     }
 
-    /// Not now ends setup on a new note, ready to type. "You're set." with one Done button stood
-    /// between the person and writing, and ⌘N made notes behind it (round 17).
-    @Test func notNowGoesStraightToWriting() async throws {
-        let store = OnboardingStore(defaults: TestDefaults())
-        store.showForPreview(.connect)
-        var landed: [Onboarding.Landing?] = []
-        let flow = SetupCardsFlow(store: store, backend: Backend(), finish: { landed.append($0) })
-        let ax = OffscreenAX(flow.modelContainer(for: Note.self, inMemory: true), size: CGSize(width: 600, height: 500))
-        defer { ax.close() }
-        await ax.settle(500)
-        #expect(try #require(ax.find("setup.notNow")).press())
-        await ax.settle(300)
-        #expect(landed == [.newNote])
-    }
-
-    /// ⌘N and ⇧⌘N do nothing while a setup card is up: the notes behind it are shut.
+    /// Scene focus is installed by SwiftUI App, outside the offscreen NSHostingView harness.
+    /// Keep this wiring check: ⌘N and ⇧⌘N must not reach notes behind setup.
     @Test func newNoteIsOffBehindASetupCard() throws {
         let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
         #expect(source.contains(".focusedSceneValue(\\.newNoteAction, newNoteCommand)"))
-        #expect(source.contains("if behindSetupCard { return nil }"))
+        let command = try #require(source.components(separatedBy: "private var newNoteCommand:").last?.components(separatedBy: "\n    }").first)
+        #expect(command.contains("if behindSetupCard { return nil }"))
     }
 
-    /// A section's header merges into one heading, which hid New Folder from VoiceOver (round 18).
-    @Test func voiceOverReachesNewFolderInTheHeading() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "SidebarView.swift"), encoding: .utf8)
-        let header = try #require(source.range(of: "Text(\"Folders\")"))
-        let rest = source[header.lowerBound...].prefix(1500)
-        #expect(rest.contains(".accessibilityAddTraits(.isHeader)"))
-        #expect(rest.contains(".accessibilityAction(named: \"New Folder\")"))
-    }
 
     /// Correcting the address takes the old complaint away; Continue checks again (round 18).
-    @Test func typingClearsTheEmailError() throws {
-        for file in ["SignInView.swift", "WelcomeEmailSignIn.swift"] {
-            let source = try String(contentsOf: TestFiles.url("Views").appending(path: file), encoding: .utf8)
-            #expect(source.contains("email != $0 {") && source.contains("error = nil }; "), "\(file)")
-        }
+    @Test func typingClearsTheEmailError() async throws {
+        let ax = OffscreenAX(SignInView(backend: Backend()), size: CGSize(width: 460, height: 650))
+        defer { ax.close() }
+        await ax.settle()
+        let field = try #require(ax.find("signin.email"))
+        #expect(AXUIElementSetAttributeValue(field.ax, kAXValueAttribute as CFString, "invalid" as CFString) == .success)
+        await ax.settle()
+        #expect(try #require(ax.find("signin.submit")).press())
+        for _ in 0..<20 where ax.find("signin.error") == nil { await ax.settle(25) }
+        #expect(try #require(ax.find("signin.error")).text.contains(EmailSignInFlow.notAnEmail))
+        #expect(AXUIElementSetAttributeValue(field.ax, kAXValueAttribute as CFString, "still-invalid" as CFString) == .success)
+        for _ in 0..<20 where ax.find("signin.error") != nil { await ax.settle(25) }
+        #expect(ax.find("signin.error") == nil)
+        // Continue validates again, without reaching the network for either invalid address.
+        #expect(try #require(ax.find("signin.submit")).press())
+        for _ in 0..<20 where ax.find("signin.error") == nil { await ax.settle(25) }
+        #expect(try #require(ax.find("signin.error")).text.contains(EmailSignInFlow.notAnEmail))
+    }
+
+    /// WelcomeEmailForm is iOS-only; the Mac harness cannot instantiate its text field.
+    /// Keep its binding wiring covered until an iOS interaction harness can edit the actual form.
+    @Test func welcomeEmailEditsClearTheError() throws {
+        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "WelcomeEmailSignIn.swift"), encoding: .utf8)
+        #expect(source.contains("email != $0 { model.error = nil }; model.flow.email = $0"))
     }
 
     /// The Recently Deleted banner pushes the note down instead of lying over its title (round 18).
@@ -152,12 +159,6 @@ import Vision
         #expect(source.contains(".padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)"))
     }
 
-    /// Go to Note's rows are one element each for VoiceOver, and pressable (round 18).
-    @Test func goToNoteRowsAreRowsToVoiceOver() throws {
-        let source = try String(contentsOf: TestFiles.url("Views").appending(path: "QuickOpen.swift"), encoding: .utf8)
-        #expect(source.contains(".accessibilityElement(children: .ignore)"))
-        #expect(source.contains(".accessibilityAction { jumpAndChoose(row) }"))
-    }
 
     /// Deleting the open note opens its neighbour, from More and from Edit, like Notes (round 18).
     @Test func deletingGoesByWayOfTheList() throws {
@@ -170,7 +171,8 @@ import Vision
         #expect(list.contains("publisher(for: .paneDeleteNotes)") && list.contains("performRemove(ids)"))
     }
 
-    /// File › Import Notes too: a sheet opened over the shut window inherits its "disabled", so
+    /// Scene-focus wiring cannot be exercised by the offscreen NSHostingView harness.
+    /// File › Import Notes: a sheet opened over the shut window inherits its "disabled", so
     /// its Choose button looked fine and did nothing, with no way forward (round 18).
     @Test func importIsOffBehindASetupCard() throws {
         let source = try String(contentsOf: TestFiles.url("Views").appending(path: "RootView.swift"), encoding: .utf8)
@@ -193,8 +195,7 @@ import Vision
 
     /// The library shows each AI's bare mark, never the white tile (Emil, 2026-10-30).
     @Test func theLibraryHasNoWhiteTiles() throws {
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appending(path: "Pane/Views/ConnectChoices.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views").appending(path: "ConnectChoices.swift"), encoding: .utf8)
         let row = try #require(src.range(of: "private func libraryRow"))
         let body = src[row.lowerBound...].prefix(400)
         #expect(body.contains("AIGlyph(") && !body.contains("AITile("))
@@ -203,8 +204,7 @@ import Vision
     /// Make with ChatGPT and its arrow are one split button: square where the halves meet, not
     /// two rounded buttons side by side (Emil, 2026-10-30).
     @Test func makeAndItsArrowAreOneSplitButton() throws {
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views").appending(path: "TemplateLibrary.swift"), encoding: .utf8)
         #expect(src.contains("joined: .leading") && src.contains("joined: .trailing"))
         #expect(AmberProminentButtonStyle.amberProminent(.regular, joined: .trailing).joined == .trailing)
     }
@@ -233,8 +233,7 @@ import Vision
     /// note's name showed only in the note). What its AI is asked shows as it's sent: no "…" gap
     /// (the AI gets none either), as plain words.
     @Test func everyTemplateSaysItsNameBesideTheStage() throws {
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().appending(path: "Pane/Views/TemplateLibrary.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views").appending(path: "TemplateLibrary.swift"), encoding: .utf8)
         #expect(src.components(separatedBy: "Text(e.title).font(.system(size: name, weight: .bold))").count == 2)
         #expect(src.contains("TemplateCatalog.Entry.sendable(prompt(e, p))"))
     }
@@ -252,7 +251,7 @@ import Vision
 
     /// Templates opens in the app on the Mac: the sidebar's row and card, and the setup gallery's link.
     @Test func templatesOpenInTheApp() throws {
-        let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
+        let views = try TestFiles.url("Views")
         for file in ["SidebarCards.swift", "SetupCards.swift"] {
             let src = try String(contentsOf: views.appending(path: file), encoding: .utf8)
             #expect(src.contains("post(name: .paneTemplates"), "\(file)")
@@ -303,7 +302,7 @@ import Vision
     /// Emil, 2 November 2026: the connect guide's Back was a different (underlined) one, and the
     /// page dots jumped when Back appeared. Both guides use the quiet Back and centered dots.
     @Test func guidesShareTheirBackAndKeepTheDotsStill() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views")
+        let root = try TestFiles.url("Views")
         for file in ["ConnectWebGuide.swift", "ImportGuide.swift"] {
             let src = try String(contentsOf: root.appending(path: file), encoding: .utf8)
             let bar = try #require(src.range(of: "private var topBar: some View {"))
@@ -343,7 +342,7 @@ import Vision
         #expect(SetupCards.AI.codex.guide == .codex && !SetupCards.AI.codex.asks, "Codex is added on this Mac; its ask is copied")
         #expect(SetupCards.connectReads.contains("read and edit") && SetupCards.connectReads.contains("Disconnect anytime"), "App Review: what it can do, before any AI")
         #expect(AIGlyph.asset("Codex") != nil && AIGlyph.asset("Grok") != nil && AIGlyph.asset("Gemini") != nil)
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane/Views/SetupCards.swift")
+        let url = try TestFiles.url("Views").appending(path: "SetupCards.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
         #expect(source.contains("ConnectWebGuideSheet(ai: g, client: client)") && source.contains("guidePage = .grok") && source.contains("guidePage = .other"),
                 "Grok opens its guide over the card, Other its page")

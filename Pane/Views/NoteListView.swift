@@ -820,7 +820,7 @@ struct NoteListView: View {
     #endif
 
     /// One date's notes (and files), collapsible, under its heading.
-    private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item, Item.ID?) -> Row) -> some View {
+    private func dateSection<Item: Identifiable, Row: View>(_ section: (String, [Item]), @ViewBuilder row: @escaping (Item, Item.ID?) -> Row) -> some View where Item.ID == UUID {
         Section(isExpanded: Binding(
             get: { !collapsed.contains(section.0) },
             set: { open in withAnimation(.snappy(duration: 0.22)) { if open { collapsed.remove(section.0) } else { collapsed.insert(section.0) } } }
@@ -854,12 +854,10 @@ struct NoteListView: View {
                     .padding(.top, NoteListView.headingTop)
                     .padding(.bottom, NoteListView.headingBottom)
                     // A hairline under it, the rows' cards' width, as in Notes (Emil, 12 November 2026).
+                    // Like a row's, it leaves the first row's selection or hover uncut (Emil, 16 November).
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay(alignment: .bottom) {
-                        RowHairline()
-                            .padding(.leading, NoteListView.headingLineLeading)
-                            .padding(.trailing, NoteListView.headingLineTrailing)
-                            .offset(y: NoteListView.headingLineDrop)
+                        if let first = section.1.first?.id, !filled(first) { HeadingLine(first: first) }
                     }
                 #endif
             }
@@ -1169,28 +1167,12 @@ struct NoteListView: View {
     private func menu(for ids: Set<UUID>, folders: [Folder]) -> some View {
         let notes = ids.compactMap { context.note($0) }
         let files = ids.compactMap { context.attachment($0) }.filter { $0.folderID != nil && $0.deletedAt == nil }
-        if !files.isEmpty {
-            if notes.isEmpty && files.count == 1, let file = files.first {
-                menu(for: file, folders: folders)
-            } else {
-                mixedMenu(ids: ids, notes: notes, files: files, folders: folders)
-            }
-        } else if notes.count == 1, let note = notes.first {
+        if notes.count == 1 && files.isEmpty, let note = notes.first {
             menu(for: note, folders: folders)
-        } else if notes.count > 1 {
-            if notes.allSatisfy({ $0.trashedAt != nil }) {
-                Button("Recover \(notes.count) Notes", systemImage: "arrow.uturn.backward") {
-                    withAnimation(.snappy) { notes.forEach(context.restore) }
-                }
-                DestructiveMenuButton("Delete \(notes.count) Notes Forever…", systemImage: "trash") { remove(ids) }
-            } else {
-                Menu("Move \(notes.count) Notes to", systemImage: "folder") {
-                    FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { _ = context.move(notes, to: f, undo: undoManager) } }
-                }
-                if tagsOn, !NoteTagsMenu.taggable(notes).isEmpty { tagsMenu(NoteTagsMenu.taggable(notes)) }
-                Divider()
-                DestructiveMenuButton("Delete \(notes.count) Notes", systemImage: "trash") { remove(ids) }
-            }
+        } else if notes.isEmpty && files.count == 1, let file = files.first {
+            menu(for: file, folders: folders)
+        } else if notes.count + files.count > 1 {
+            selectionMenu(ids: ids, notes: notes, files: files, folders: folders)
         }
     }
 
@@ -1276,24 +1258,25 @@ struct NoteListView: View {
         }
     }
 
-    /// Several items, files among them.
+    /// Several notes or files share the same move, recover and delete actions.
     @ViewBuilder
-    private func mixedMenu(ids: Set<UUID>, notes: [Note], files: [Attachment], folders: [Folder]) -> some View {
-        let count = notes.count + files.count
+    private func selectionMenu(ids: Set<UUID>, notes: [Note], files: [Attachment], folders: [Folder]) -> some View {
+        let label = "\(notes.count + files.count) \(files.isEmpty ? "Notes" : "Items")"
         if notes.allSatisfy({ $0.trashedAt != nil }) && files.allSatisfy({ $0.trashedAt != nil }) {
-            Button("Recover \(count) Items", systemImage: "arrow.uturn.backward") {
+            Button("Recover \(label)", systemImage: "arrow.uturn.backward") {
                 withAnimation(.snappy) {
                     notes.forEach(context.restore)
                     files.forEach(context.restore)
                 }
             }
-            DestructiveMenuButton("Delete \(count) Items Forever…", systemImage: "trash") { remove(ids) }
+            DestructiveMenuButton("Delete \(label) Forever…", systemImage: "trash") { remove(ids) }
         } else {
-            Menu("Move \(count) Items to", systemImage: "folder") {
+            Menu("Move \(label) to", systemImage: "folder") {
                 FolderMenuItems(folders: folders, current: nil) { f in withAnimation(.snappy) { move(ids, to: f) } }
             }
+            if tagsOn, files.isEmpty, !NoteTagsMenu.taggable(notes).isEmpty { tagsMenu(NoteTagsMenu.taggable(notes)) }
             Divider()
-            DestructiveMenuButton("Delete \(count) Items", systemImage: "trash") { remove(ids) }
+            DestructiveMenuButton("Delete \(label)", systemImage: "trash") { remove(ids) }
         }
     }
 
@@ -2197,8 +2180,8 @@ enum RowMetrics {
     static let spacing: CGFloat = 3
     /// The title's start past the list's own 16 pt: 26 pt in from the row's edge, 16 inside the
     /// selected card. Apple Notes has 34; on the card that read as padded (Emil, 2 November 2026).
-    /// The room in front of the title holds the row's status: a lock, the unread dot, shared or a
-    /// pin (NoteRowStatus).
+    /// The room in front of the title holds the row's status: a lock, the unread dot or a pin
+    /// (NoteRowStatus).
     static let leading: CGFloat = 10
     /// Room above and below a row's lines: less when it has a third line, its folder.
     static func top(folderLine: Bool) -> CGFloat { folderLine ? 4 : 7 }
@@ -2265,6 +2248,20 @@ struct Neighbours<Item: Identifiable>: RandomAccessCollection {
 
     func set(_ id: UUID, _ over: Bool) {
         if over { if row != id { row = id } } else if row == id { row = nil }
+    }
+}
+
+/// A date heading's hairline: the rows' cards' width, gone while the row under it is hovered.
+struct HeadingLine: View {
+    let first: UUID
+
+    var body: some View {
+        if RowLineHover.shared.row != first {
+            RowHairline()
+                .padding(.leading, NoteListView.headingLineLeading)
+                .padding(.trailing, NoteListView.headingLineTrailing)
+                .offset(y: NoteListView.headingLineDrop)
+        }
     }
 }
 
@@ -2464,8 +2461,10 @@ struct NoteRow: View {
         let large = typeSize.isAccessibilitySize
         let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: RowMetrics.detailGap))
         let ai = AIEdit.isUnseen(note) ? note.aiEditor : nil
-        // The room before the title: a lock, the unseen AI dot, shared or a pin, one at a time.
+        // The room before the title: a lock, the unseen AI dot or a pin, one at a time.
         let status = NoteRowStatus.of(note, aiUnseen: ai != nil, pinnedHeading: pinnedHeading)
+        // Shared with people: a mark after the title (NoteRowSharedMark).
+        let sharedMark = NoteRowStatus.showsShared(note)
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
         let found = self.found
@@ -2482,6 +2481,9 @@ struct NoteRow: View {
                         // Privacy mode on the Mac: blurred until you point at the list (ListTitleReveal).
                         .blur(radius: titleBlurred ? PreviewBlur.radius : 0)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: titleBlurred)
+                    if sharedMark {
+                        NoteRowSharedMark()
+                    }
                     if app {
                         AppMarkView(size: RowMetrics.markSize)
                             .accessibilityIdentifier("note.app")
@@ -2596,9 +2598,9 @@ struct NoteRow: View {
         .padding(.bottom, RowMetrics.bottom(folderLine: folderLine) + RowMetrics.calmAir)
         .padding(.leading, RowMetrics.leading)
         .accessibilityElement(children: .combine)
-        // Shared once, whether with people (its mark, even while the AI dot has its place) or by a
-        // link (the link by the date).
-        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || (note.isShared && note.trashedAt == nil) ? "Shared" : nil, note.isLocked ? "Locked" : nil,
+        // Shared once, whether with people (its mark after the title) or by a link (the link by
+        // the date).
+        .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || sharedMark ? "Shared" : nil, note.isLocked ? "Locked" : nil,
                              ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
     }

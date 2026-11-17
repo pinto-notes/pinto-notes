@@ -590,8 +590,8 @@ private struct SharePopoverLive: View {
     }
 }
 
-/// Collaborate, in the popover: the people in the note (Verify on click, Remove on right-click),
-/// then Share Link and what the link lets people do, or Leave for someone else's note. Remove and
+/// Collaborate, in the popover: the people in the note (a menu on each: for the owner, what they
+/// can do, then Check Safety Code and Remove; the same on right-click), then Share Link and what the link lets people do, or Leave for someone else's note. Remove and
 /// Leave ask inside the popover, which stays open while they happen; each says when it's done.
 struct CollaborateRows: View {
     @Bindable var share: ShareController
@@ -627,12 +627,13 @@ struct CollaborateRows: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(share.state.people) { p in
-                    let opens = !p.isMe && p.safetyCode != nil
+                    let opens = !p.isMe && (p.safetyCode != nil || share.canChangeRole(p))
                     let row = HStack(spacing: 5) {
-                        PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                        // More actions on this person (Check Safety Code, and Remove for the
-                        // owner), not a role picker: up-down arrows beside "Can view" read as
-                        // changing it, which only Join by Link does (Emil, 12 November 2026).
+                        PersonRow(person: p, removing: share.working == .remove(p.id) || share.working == .role(p.id), size: 24)
+                        // More actions on this person (PersonMenu), not a role pop-up: up-down
+                        // arrows beside "Can view" read as a setting of the row (Emil, 12 November
+                        // 2026). The owner changes someone's role in that menu, at its top, as in
+                        // Google Docs (Emil, 16 November 2026), and the role beside the name follows.
                         // Rows without one keep its room, so every role lines up.
                         Image(systemName: "ellipsis").font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Color.muted)
@@ -647,8 +648,7 @@ struct CollaborateRows: View {
                         if opens {
                             // A light wash under the pointer, as every clickable row has.
                             Menu {
-                                Button("Check Safety Code…") { page = .verify(p.id) }
-                                if share.isOwner { Divider(); Button("Remove from Note", role: .destructive) { share.askRemove(p) } }
+                                PersonMenu(share: share, person: p) { page = .verify(p.id) }
                             } label: { row }
                             .menuStyle(.button)
                             .menuIndicator(.hidden)
@@ -658,45 +658,49 @@ struct CollaborateRows: View {
                         }
                     }
                     .padding(.horizontal, -4)
-                    .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
+                    // Right-click: the same menu.
+                    .contextMenu { if opens { PersonMenu(share: share, person: p) { page = .verify(p.id) } } }
                     .accessibilityIdentifier("share.person")
                 }
             }
             if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text).font(.system(size: 11)) }
+            if case .roleChanged(_, let said) = share.done { DoneLine(text: said).font(.system(size: 11)) }
             if share.isOwner, let why = share.notYet {
                 // Files or an app: not shared with people yet, and the popover says why up front.
                 line(why, problem: false)
             } else if share.isOwner {
-                HStack(spacing: 8) {
-                    Text("Join by Link").font(.system(size: 13))
-                    Spacer(minLength: 0)
-                    // A neutral menu: the system's took the accent, loud for a setting left at Off.
-                    Menu {
-                        Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                if !share.state.notSharedYet {
+                    HStack(spacing: 8) {
+                        Text("Join by Link").font(.system(size: 13))
+                        Spacer(minLength: 0)
+                        // A neutral menu: the system's took the accent, loud for a setting left at Off.
+                        Menu {
+                            Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                                ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                            }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text(share.state.access.rawValue).font(.system(size: 13))
+                                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
+                            }
+                            .foregroundStyle(Color.muted)
+                            // Borderless, as the people's pop-ups above it are.
+                            .padding(.horizontal, 6)
+                            .frame(height: 24)
+                            .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
+                            .padding(.trailing, -6)
                         }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(share.state.access.rawValue).font(.system(size: 13))
-                            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
-                        }
-                        .foregroundStyle(Color.muted)
-                        // Borderless, as the people's pop-ups above it are.
-                        .padding(.horizontal, 6)
-                        .frame(height: 24)
-                        .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
-                        .padding(.trailing, -6)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .modifier(HoverTracking(hovering: $accessHover))
+                        .fixedSize()
+                        .disabled(share.working != nil)
+                        .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
+                        .accessibilityIdentifier("share.access")
                     }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .modifier(HoverTracking(hovering: $accessHover))
-                    .fixedSize()
-                    .disabled(share.working != nil)
-                    .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
-                    .accessibilityIdentifier("share.access")
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }
                 else if share.done == .linkChanged { DoneLine(text: ShareController.Done.linkChanged.text).font(.system(size: 11)) }
@@ -788,6 +792,33 @@ struct CollaborateRows: View {
                 Button("", action: cancel).keyboardShortcut(.cancelAction).hidden().frame(width: 0, height: 0)
             }
             .padding(.top, 4)
+        }
+    }
+}
+
+/// A person's actions, in the menu on their row and on right-click. For the owner: what they can
+/// do (Can edit, Can view, with a tick on theirs), then Check Safety Code… and Remove from Note.
+/// Everyone else: Check Safety Code… only.
+struct PersonMenu: View {
+    @Bindable var share: ShareController
+    let person: ShareState.Person
+    var checkCode: () -> Void = {}
+
+    var body: some View {
+        if share.canChangeRole(person) {
+            // Ticked items, not an inline Picker: a Picker brings its own separators, one above the
+            // first role. A role this build doesn't know ticks neither.
+            ForEach(ShareState.Role.allCases) { r in
+                Toggle(r.label, isOn: Binding(get: { person.role == r.rawValue },
+                                              set: { on in if on { Task { await share.setRole(r, of: person) } } }))
+            }
+            .disabled(share.working != nil)
+            Divider()
+        }
+        if person.safetyCode != nil { Button("Check Safety Code…", action: checkCode) }
+        if share.isOwner, !person.isMe {
+            if person.safetyCode != nil { Divider() }
+            DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(person) }
         }
     }
 }
