@@ -528,3 +528,26 @@ Deno.test({ name: "see_app with steps uses each width and theme asked for, with 
     assertEquals(blocks.filter((b) => b.type === "image").length, 5);
   } finally { await stop(); }
 });
+
+// 2026-11-17: a new app starts from shadcn's neutral starter, whose colours are oklch(). The body
+// contrast check read oklch(0.145 0 0) as numbers and called the fresh starter unreadable (1.0:1),
+// and the field check asked every field for a fill of its own. Colours are now read by the browser.
+Deno.test({ name: "a fresh app with oklch colours passes the contrast check in light and dark", ignore: !hasWebKit }, async () => {
+  const { stop } = await renderService();
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    const made = await tool(pg, a, "create", { type: "app", path: "Notes/Neutral.md" });
+    const said = JSON.stringify([made.errors ?? [], made.notes ?? []]);
+    assert(!/hard to see|contrast/.test(said), said);
+    assert(!/neither a border nor a fill|without a visible border/.test(said), said);
+    const { renderedFindings } = await import("./app_check.ts");
+    const { renderPage } = await import("../../../scripts/page-render/render.ts");
+    const html = JSON.stringify((await linkProject(await withFiles({ amberApp: 1, files: {}, compiled: {} }, await scaffold("Neutral")))).project);
+    const r = await renderPage(html, "Neutral\n", { values: {}, collections: {} }, { today: "2026-11-17", views: [{ width: 390, scheme: "light" }, { width: 390, scheme: "dark" }] });
+    for (const v of r.views) assert(v.contrast >= 12, `${v.name}: ${v.bg} / ${v.fg} = ${v.contrast}`);
+    assertEquals(renderedFindings(r as never).errors.filter((e) => /hard to see/.test(e)), []);
+  } finally {
+    await stop();
+  }
+});
