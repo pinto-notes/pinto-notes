@@ -384,6 +384,10 @@ targets:
         buildPhase: resources
       - path: scripts/template-stage-pictures.ts
         buildPhase: resources
+      # The board benchmark's page driver, for BoardStrokeTrafficTests and BoardLagTests (a stroke
+      # drawn inside the page).
+      - path: canvas-stack/bench/driver.js
+        buildPhase: resources
       # The Mac download's Info.plist, for its update settings (UpdaterTests).
       - path: Pane/Resources/Info-Direct.plist
         buildPhase: resources
@@ -482,6 +486,12 @@ targets:
         buildPhase: resources
       - path: PaneTests/Fixtures/Keep
         type: folder
+        buildPhase: resources
+      # The shared boards' vectors, as the browser writes them (BoardFollowTests, BoardTeamTests,
+      # BoardCommentStreamTests).
+      - path: supabase/functions/_shared/collab-vectors.json
+        buildPhase: resources
+      - path: supabase/functions/_shared/comment-vectors.json
         buildPhase: resources
   # The board benchmark (scripts/board-perf.sh): its own target, so a change to it builds in
   # seconds next to the app's thousands of tests. Runs only when scripts/board-perf.sh asks.

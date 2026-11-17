@@ -315,6 +315,8 @@ enum HoverProbe {
 @MainActor
 enum RenderProbe {
     static var counts: [String: Int] = [:]
+    /// Diagnosis: each counted body also prints what made it run again (SwiftUI's _printChanges).
+    static var printsChanges = false
     static var noteListTransaction: ((ModelContext, [UUID], Transaction) -> Void)?
     private static var scoped: [ObjectIdentifier: [String: Int]] = [:]
 

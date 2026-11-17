@@ -135,6 +135,7 @@ struct RootView: View {
     var body: some View {
         #if DEBUG || QA
         RenderProbe.count("RootView", context: context)
+        if RenderProbe.printsChanges { Self._printChanges() }
         #endif
         #if os(macOS)
         // The window sizes to its content here, and contentMinSize alone didn't hold it (round 19:
@@ -1767,6 +1768,9 @@ struct PaneCommands: Commands {
     @AppStorage(TextSize.key) private var textSize: Double = 0
 
     var body: some Commands {
+        #if DEBUG || QA
+        let _ = RenderProbe.count("PaneCommands")
+        #endif
         // Settings shows as a sheet on the notes window in front, like WhatsApp's.
         // The trademark notes as the About window's credits, where a Mac app keeps them; they sat
         // at the foot of Privacy and security (council round 7).

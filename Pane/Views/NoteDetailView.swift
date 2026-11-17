@@ -1455,6 +1455,7 @@ struct NoteDetailView: View {
         // compiler can type-check in time.
         #if DEBUG || QA
         RenderProbe.count("NoteDetailView", context: context)
+        if RenderProbe.printsChanges { Self._printChanges() }
         #endif
         return content
             // A deleted note says so at its top, with Recover (Emil, 11-03); typing, clicking or
@@ -2650,6 +2651,7 @@ struct NoteToolbarStage<Pane: View>: View {
     var body: some View {
         #if DEBUG || QA
         let _ = RenderProbe.count("NoteToolbarStage", context: context)
+        let _ = RenderProbe.printsChanges ? Self._printChanges() : ()
         #endif
         let parts = $parts, held = $held
         let place = self.place, showsWriting = self.showsWriting

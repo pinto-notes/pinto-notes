@@ -153,13 +153,14 @@ import AppKit
         #expect(PaneCommands.shortcut(.canvas) == KeyboardShortcut("n", modifiers: [.command, .option]))
         #expect(PaneCommands.shortcut(.app) == KeyboardShortcut("n", modifiers: [.command, .control]))
         // Nothing else in the app takes N with a modifier: New Note, New Canvas, New App, New Folder.
-        let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "Pane")
-        guard FileManager.default.fileExists(atPath: sources.path) else { return }
+        // The app's code as the test bundle has it (TestFiles: never read through #filePath).
         var uses = 0
-        for case let url as URL in FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)! where url.pathExtension == "swift" {
-            let text = try String(contentsOf: url, encoding: .utf8)
-            uses += text.components(separatedBy: #".keyboardShortcut("n""#).count - 1
-            uses += text.components(separatedBy: #".keyboardShortcut(Self.shortcut("#).count - 1
+        for folder in ["Views", "App", "Model", "Editor", "Sync"] {
+            for case let url as URL in FileManager.default.enumerator(at: try TestFiles.url(folder), includingPropertiesForKeys: nil)! where url.pathExtension == "swift" {
+                let text = try String(contentsOf: url, encoding: .utf8)
+                uses += text.components(separatedBy: #".keyboardShortcut("n""#).count - 1
+                uses += text.components(separatedBy: #".keyboardShortcut(Self.shortcut("#).count - 1
+            }
         }
         #expect(uses == 4, "⌘N, ⌥⌘N, ⌃⌘N and ⇧⌘N, once each (\(uses))")
     }
