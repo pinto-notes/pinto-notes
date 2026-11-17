@@ -15,6 +15,9 @@
 //   review <platform>          App Review contact, demo account, notes (recovery key filled in), video attachment
 //   attach <platform>          attaches --video to the App Review detail, nothing else
 //   build <platform> <build>   selects a build for the version
+//   states                     each version's state, nothing else
+//   release <platform>         releases an approved version (PENDING_DEVELOPER_RELEASE) to the App Store.
+//                              Needs --apply; run it only on Emil's go for that release.
 //   submit <platform> <build>  selects the build, adds the version to a review submission and SUBMITS it.
 //                              Needs --apply and --submit-for-review, and for ios --ipad <dir>.
 //
@@ -496,6 +499,21 @@ async function selectBuild(platform: string, number: string) {
 }
 
 /** The last step: selects the build, checks the page, and submits the version for review. */
+/** Releases an approved version: the button "Release This Version" in App Store Connect. */
+async function release(platform: string) {
+  // The plain list: with include=build Apple's server often answers 500 (17 November 2026).
+  const v = ((await get(`/v1/apps/${APP_ID}/appStoreVersions?filter[platform]=${platform}&filter[appStoreState]=PENDING_DEVELOPER_RELEASE&fields[appStoreVersions]=platform,versionString,appStoreState,createdDate&limit=5`)).data as J[])
+    .find((x) => x.attributes.appStoreState === "PENDING_DEVELOPER_RELEASE") ?? await versionOf(platform);
+  const a = v.attributes;
+  if (a.appStoreState !== "PENDING_DEVELOPER_RELEASE") throw new Error(`${platform} ${a.versionString} is ${a.appStoreState}, not approved and waiting`);
+  change(`release ${platform} ${a.versionString} to the App Store`);
+  if (APPLY) {
+    await call("POST", "/v1/appStoreVersionReleaseRequests", { data: { type: "appStoreVersionReleaseRequests", relationships: { appStoreVersion: { data: { type: "appStoreVersions", id: v.id } } } } });
+    const now = (await get(`/v1/appStoreVersions/${v.id}`)).data.attributes.appStoreState;
+    say(`${platform} ${a.versionString} is now ${now}`);
+  }
+}
+
 async function submit(platform: string, number: string) {
   const v = await selectBuild(platform, number);
   // The page must be complete before anything is submitted.
@@ -559,6 +577,13 @@ try {
   else if (step === "attach") await attachVideo(platformOf(arg1));
   else if (step === "build" && arg2) await selectBuild(platformOf(arg1), arg2);
   else if (step === "submit" && arg2) await submit(platformOf(arg1), arg2);
+  else if (step === "release") await release(platformOf(arg1));
+  else if (step === "states") {
+    // The versions' states alone, without the build: answers when the full list gives 500.
+    for (const v of (await get(`/v1/apps/${APP_ID}/appStoreVersions?filter[platform]=IOS,MAC_OS&fields[appStoreVersions]=platform,versionString,appStoreState&limit=6`)).data as J[]) {
+      say(`${v.attributes.platform} ${v.attributes.versionString}: ${v.attributes.appStoreState}`);
+    }
+  }
   else say("usage: asc-submit.ts state | backup | unsubmit <ios|mac> | version <ios|mac> <v> | appinfo | texts <ios|mac> | screenshots <ios|mac> | review <ios|mac> | attach <ios|mac> --video <file> | build <ios|mac> <build> | submit <ios|mac> <build>   [--apply] [--package <dir>] [--video <file>]");
   if (!APPLY && step && step !== "state") say("(dry run: nothing was changed; add --apply)");
 } catch (e) {
