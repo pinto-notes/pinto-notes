@@ -54,6 +54,16 @@ describe("the whiteboard page and its canvas", () => {
     expect(host.state.tool).toBe("selection");
   });
 
+  it("9 on the board asks for a picture: the file picker opens, and the page's state stays as it was", () => {
+    const { host } = make();
+    host.message({ load: "1", tool: "rectangle", locked: true, hint: "Click and drag, release when you're finished" });
+    let asked = 0;
+    host.onPickImage = () => asked++;
+    host.message({ pickImage: true });
+    expect(asked).toBe(1);
+    expect(host.state).toMatchObject({ tool: "rectangle", locked: true, hint: "Click and drag, release when you're finished" });
+  });
+
   it("a picture goes to the page once; a page loaded again gets everything again", () => {
     const { host, sent, scene } = make();
     host.message({ load: "1" });

@@ -217,7 +217,9 @@ import WebKit
             .flatMap { FileManager.default.fileExists(atPath: $0.appending(path: "index.html").path) ? $0 : nil }
     }
 
-    static func plainPage(size: CGSize) async throws -> (NSWindow, WKWebView) {
+    /// `titled: false` for a picture of the whole window: under a title bar the page is a title
+    /// bar's height shorter than its view, and a picture of the view has a strip of nothing at the foot.
+    static func plainPage(size: CGSize, titled: Bool = true) async throws -> (NSWindow, WKWebView) {
         let dir = try #require(plainFolder)
         let config = WKWebViewConfiguration()
         BoardLagTests.wakeful(config.preferences)
@@ -228,7 +230,7 @@ import WebKit
         let web = WKWebView(frame: CGRect(origin: .zero, size: size), configuration: config)
         BoardStrokeTrafficTests.drawOffscreen(web)
         let w = BoardLagTests.OffscreenWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
-                                              styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+                                              styleMask: titled ? [.titled, .closable, .fullSizeContentView] : [.borderless], backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         w.ignoresMouseEvents = true
         w.hasShadow = false

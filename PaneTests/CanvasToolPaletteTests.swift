@@ -250,8 +250,10 @@ import WebKit
             await MacWindowChromeTests.settle(w, 5)
             // Excalidraw, as large as our window, the same drawing.
             let size = w.frame.size
-            let (pw, plain) = try await BoardPenStrokeTests.plainPage(size: size)
+            let (pw, plain) = try await BoardPenStrokeTests.plainPage(size: size, titled: false)
             defer { pw.close() }
+            let tall = try await plain.evaluateJavaScript("window.innerHeight") as? Double
+            #expect(tall == Double(size.height), "the reference fills its window: \(tall ?? -1) of \(size.height)")
             _ = try await plain.callAsyncJavaScript("await window.__boardOpen(JSON.parse(scene)); return 1", arguments: ["scene": scene], contentWorld: .page)
             _ = try await plain.evaluateJavaScript("(() => { window.__excalidrawAPI.updateScene({ appState: { theme: '\(dark ? "dark" : "light")' } }); return 1; })()")
             _ = try await plain.evaluateJavaScript(String(format: select, "window.__excalidrawAPI"))
@@ -259,6 +261,44 @@ import WebKit
             let theirs = try await plain.takeSnapshot(configuration: WKSnapshotConfiguration())
             let picture = try #require(Self.sideBySide(ours, theirs, labels: ("Pinto Notes (Full Screen)", "Excalidraw 0.18.1"), dark: dark))
             try picture.write(to: dir.appending(path: "window-beside-excalidraw-\(dark ? "dark" : "light").png"))
+        }
+    }
+
+    /// The browser board's tools, light and dark (Emil, 17 November 2026: the same tools in the
+    /// browser board): the pages web/lib/board-palette-pictures.test.tsx writes into EMIL_SHOTS
+    /// (its real palette, zoom and top bar with the board's stylesheet), photographed offscreen.
+    @Test func theBrowserBoardsPictures() async throws {
+        guard let path = ProcessInfo.processInfo.environment["EMIL_SHOTS"] else { return }
+        let dir = URL(fileURLWithPath: path)
+        let pages = try FileManager.default.contentsOfDirectory(atPath: path).filter { $0.hasPrefix("web-board-") && $0.hasSuffix(".html") }.sorted()
+        for page in pages {
+            let size = page.contains("phone") ? CGSize(width: 390, height: 760) : CGSize(width: 1280, height: 720)
+            for dark in [false, true] {
+                let config = WKWebViewConfiguration()
+                BoardLagTests.wakeful(config.preferences)
+                let web = WKWebView(frame: CGRect(origin: .zero, size: size), configuration: config)
+                web.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                let w = BoardLagTests.OffscreenWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
+                                                      styleMask: [.borderless], backing: .buffered, defer: false)
+                w.isReleasedWhenClosed = false
+                w.ignoresMouseEvents = true
+                w.hasShadow = false
+                w.animationBehavior = .none
+                w.collectionBehavior = [.transient, .ignoresCycle, .stationary, .fullScreenNone]
+                w.contentView = web
+                w.setFrameOrigin(CGPoint(x: -20000, y: -20000))
+                w.orderBack(nil)
+                defer { w.close() }
+                try #require(!NSScreen.screens.contains { $0.frame.intersects(w.frame) }, "the window stays off every screen: \(w.frame)")
+                web.loadFileURL(dir.appending(path: page), allowingReadAccessTo: dir)
+                try await CanvasTests().run(web, until: "document.readyState === 'complete' && !!document.querySelector('nav')")
+                _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
+                try await Task.sleep(for: .milliseconds(200))
+                let image = try await web.takeSnapshot(configuration: WKSnapshotConfiguration())
+                let rep = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
+                let name = page.replacingOccurrences(of: ".html", with: "-\(dark ? "dark" : "light").png")
+                try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: name))
+            }
         }
     }
 

@@ -1,28 +1,50 @@
 "use client";
 
-// The browser board's tools at the foot and the bar over a selection, as the Mac app has them
-// (Pane/Views/CanvasControls.swift): the bar's stroke colour, fill, stroke width and line, arrow
-// type and heads, and More (Duplicate, Delete, the layer order). At phone width the tools used
-// most stay in the toolbar and the rest fold into More Tools; the bar sits over the toolbar.
-// What each offers is lib/board-style.ts.
-import { useEffect, useRef, useState } from "react";
+// The browser board's tools and the bar over a selection, as the Mac app has them. The tools are
+// the app's palette (Pane/Views/CanvasToolPalette.swift): Excalidraw's tools in its order with its
+// keys, at the top in the middle, the hint line under them; on a phone at the foot, with the tools
+// used most and the rest in More. The bar's stroke colour, fill, stroke width and line, arrow type
+// and heads, and More (Duplicate, Delete, the layer order). What each offers and where the palette
+// goes is lib/board-style.ts.
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { PageState } from "@/lib/board-host";
-import { ARROW_TYPES, ARROWHEADS, barPlace, FILLS, LINES, offers, PHONE, STROKES, toolsAt, WIDTHS } from "@/lib/board-style";
+import {
+  ARROW_TYPES, ARROWHEADS, barPlace, FILLS, helpOf, hintFor, hintParts, keysOf, LETTERS, LINES, MORE_TOOLS, offers, PHONE,
+  type PaletteId, placePalette, STROKES, WIDTHS,
+} from "@/lib/board-style";
 import s from "./board.module.css";
 
+/** The tools, by the app's names for them (CanvasTool.title), with their letters. */
 export const TOOLS: { tool: string; label: string; key: string; icon: React.ReactNode }[] = [
   { tool: "selection", label: "Select", key: "V", icon: <path d="M5 3.5l11.5 6.2-5 1.4-2.3 4.9z" /> },
   { tool: "hand", label: "Hand", key: "H", icon: <path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V10m0-.5V4.5a1.5 1.5 0 0 1 3 0V10m0-3.5a1.5 1.5 0 0 1 3 0V13a5.5 5.5 0 0 1-5.5 5.5h-1A5.5 5.5 0 0 1 5 14.6L3.6 12a1.4 1.4 0 0 1 2.3-1.5L8 13" /> },
   { tool: "rectangle", label: "Rectangle", key: "R", icon: <rect x="3.5" y="5" width="15" height="12" rx="2" /> },
   { tool: "diamond", label: "Diamond", key: "D", icon: <path d="M11 3l8 8-8 8-8-8z" /> },
-  { tool: "ellipse", label: "Oval", key: "O", icon: <ellipse cx="11" cy="11" rx="8" ry="6.5" /> },
+  { tool: "ellipse", label: "Ellipse", key: "O", icon: <ellipse cx="11" cy="11" rx="8" ry="6.5" /> },
   { tool: "arrow", label: "Arrow", key: "A", icon: <path d="M4 18L18 4m0 0h-8m8 0v8" /> },
   { tool: "line", label: "Line", key: "L", icon: <path d="M4 18L18 4" /> },
-  { tool: "freedraw", label: "Draw", key: "P", icon: <path d="M3.5 16c2-3 4-4.5 5.5-3.5s.5 3.5 2.5 3.5 3-5 5-7 2.5-1 2.5-1" /> },
+  { tool: "freedraw", label: "Pencil", key: "P", icon: <path d="M3.5 16c2-3 4-4.5 5.5-3.5s.5 3.5 2.5 3.5 3-5 5-7 2.5-1 2.5-1" /> },
   { tool: "text", label: "Text", key: "T", icon: <path d="M5 5.5h12M11 5.5v12" /> },
   { tool: "eraser", label: "Eraser", key: "E", icon: <path d="M8.5 18.5h10M4.6 13.4l7.8-7.8a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L11 17a2 2 0 0 1-1.4.6H8.3a2 2 0 0 1-1.4-.6l-2.3-2.3a1 1 0 0 1 0-1.3z" /> },
   { tool: "comment", label: "Comment", key: "C", icon: <path d="M4.5 4.5h13a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V15.5h-1A1.5 1.5 0 0 1 3 14V6a1.5 1.5 0 0 1 1.5-1.5z" /> },
+  // More's own (MORE_TOOLS).
+  { tool: "frame", label: "Frame", key: "F", icon: <path d="M7 3.5v15M15 3.5v15M3.5 7h15M3.5 15h15" /> },
+  { tool: "laser", label: "Laser Pointer", key: "K", icon: <><path d="M5 3.5l9.5 5.1-4.1 1.2-1.9 4z" /><path d="M14.5 14.5l3.5 3.5M16.5 11.5h3M11.5 16.5v3" /></> },
 ];
+
+/** The rest of the palette: the lock, the sticky note, a picture and More (Excalidraw's ⋮). */
+const PLACES: Record<"lock" | "sticky" | "image" | "more", { label: string; icon: React.ReactNode }> = {
+  lock: { label: "Keep selected tool active after drawing", icon: <><rect x="5" y="10" width="12" height="8.5" rx="2" /><path d="M8 10V7.5a3 3 0 0 1 5.8-1.1" /></> },
+  sticky: { label: "Sticky Note", icon: <><path d="M4.5 4.5h13v8.5l-4.5 4.5h-8.5z" /><path d="M17.5 13h-4.5v4.5M7.5 8.5h7M7.5 11.5h4" /></> },
+  image: { label: "Insert Image", icon: <><rect x="3.5" y="4.5" width="15" height="13" rx="2" /><circle cx="8" cy="9" r="1.5" /><path d="M18.5 14.5l-4-4-7.5 7" /></> },
+  more: { label: "More tools", icon: <path d="M11 5h.01M11 11h.01M11 17h.01" strokeWidth="2.6" /> },
+};
+const LOCKED_ICON = <><rect x="5" y="10" width="12" height="8.5" rx="2" /><path d="M8 10V7.5a3 3 0 0 1 6 0V10" /></>;
+
+/** A place's name and drawing. */
+function placeOf(id: string): { label: string; icon: React.ReactNode } {
+  return (PLACES as Record<string, { label: string; icon: React.ReactNode }>)[id] ?? TOOLS.find((t) => t.tool === id)!;
+}
 
 /** More Tools before one of its tools is picked: the shapes (a square on a circle, as the Mac's
  *  Tools button and the iPhone's Shapes show), not two lines that read as a stroke width (round 13,
@@ -82,9 +104,12 @@ export const FIT_ICON = <path d="M4 8V4h4M14 4h4v4M18 14v4h-4M8 18H4v-4" />;
 
 /** The zoom, at the foot's left corner: Zoom to Fit always, one tap away (round 14, web-07 and
  *  web-08: on a phone it was the last row of More Tools, and a board cut off at the sides stayed
- *  so); on a wider window − the percent + before it, the percent back to 100%. On a phone with the
- *  tools at the foot, it sits just above them. */
-export function ZoomControl({ zoom, command, width, overTools }: { zoom: number; command: Command; width: number; overTools: boolean }) {
+ *  so); on a wider window − the percent + before it, the percent back to 100%, and Undo and Redo
+ *  after it (`history`), as the app's corner has them (Excalidraw's place for them). On a phone with
+ *  the tools at the foot, it sits just above them, and Undo and Redo are in the tools. */
+export function ZoomControl({ zoom, command, width, overTools, history }: {
+  zoom: number; command: Command; width: number; overTools: boolean; history?: { canUndo: boolean; canRedo: boolean };
+}) {
   const phone = width <= PHONE;
   return (
     <div className={phone && overTools ? `${s.zoom} ${s.zoomOverTools}` : s.zoom} role="group" aria-label="Zoom">
@@ -96,51 +121,111 @@ export function ZoomControl({ zoom, command, width, overTools }: { zoom: number;
       <button className={phone ? `${s.zoomButton} ${s.fitPhone}` : s.zoomButton} aria-label="Zoom to fit" title="Zoom to fit" onClick={() => command({ op: "action", name: "zoomToFit" })}>
         <Icon size={phone ? 20 : 18}>{FIT_ICON}</Icon>
       </button>
+      {!phone && history && (<>
+        <span className={s.zoomRule} aria-hidden="true" />
+        <button className={s.zoomButton} aria-label="Undo" title="Undo (⌘Z)" disabled={!history.canUndo} onClick={() => command({ op: "action", name: "undo" })}><Icon size={18}>{UNDO_ICON}</Icon></button>
+        <button className={s.zoomButton} aria-label="Redo" title="Redo (⇧⌘Z)" disabled={!history.canRedo} onClick={() => command({ op: "action", name: "redo" })}><Icon size={18}>{REDO_ICON}</Icon></button>
+      </>)}
     </div>
   );
 }
 
-/** The tools at the foot: every one where they fit; at phone width the ones used most, the rest in
- *  More Tools. Undo and Redo always. */
-export function ToolBar({ state, command, width }: { state: PageState; command: Command; width: number }) {
+const UNDO_ICON = <path d="M8 5L4 9l4 4M4 9h9a5 5 0 0 1 0 10h-3" />;
+const REDO_ICON = <path d="M14 5l4 4-4 4m4-4H9a5 5 0 0 0 0 10h3" />;
+
+/** The visitor's on a Mac: the hint says ⌘'s keys, else Ctrl's. */
+const onMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+/** Excalidraw's hint line, word for word (the page works it out: canvas.jsx hintOf), its keys drawn
+ *  as keys. It takes no clicks. */
+export function HintLine({ text }: { text: string }) {
+  const line = hintFor(text, onMac());
+  return (
+    <p className={s.hint} aria-label={line} data-hint>
+      {hintParts(line).map((p, i) => ("key" in p ? <kbd key={i} className={s.cap}>{p.key}</kbd> : <Fragment key={i}>{p.words}</Fragment>))}
+    </p>
+  );
+}
+
+/** The tools (the app's palette): the lock, a line, the hand and the tools, a line, More. Each
+ *  tool's letter sits in its corner and its keys are in its name; the tool you have is a filled chip
+ *  in the accent. At the top in the middle, where it fits between the board's name and the people on
+ *  it (`side`: the wider of the two), else in a row under them; Excalidraw's hint line under it. On a
+ *  phone, at the foot, with the tools used most, the rest in More, and Undo and Redo. */
+export function ToolBar({ state, command, width, side = 0, pickImage, hint = true }: {
+  state: PageState; command: Command; width: number; side?: number; pickImage?: () => void; hint?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   useDismiss(open, () => setOpen(false), wrap);
-  const { shown, folded } = toolsAt(width, TOOLS.map((t) => t.tool));
-  const byTool = (tool: string) => TOOLS.find((t) => t.tool === tool)!;
-  const inMenu = folded.includes(state.tool ?? "");
-  const pick = (tool: string) => { setOpen(false); command({ op: "tool", tool }); };
-  return (
-    <div ref={wrap} className={s.toolsWrap}>
-      <nav className={s.tools} aria-label="Tools">
-        {shown.map(byTool).map((t) => (
-          <button key={t.tool} className={s.tool} aria-label={`${t.label} (${t.key})`} title={`${t.label} (${t.key})`} aria-pressed={state.tool === t.tool}
-            onClick={() => pick(t.tool)}>
-            <Icon>{t.icon}</Icon>
-          </button>
-        ))}
-        {folded.length > 0 && (
-          // The tool picked from it shows on it, tinted, with the chevron of a menu (as the Mac's
-          // narrow toolbar's Tools button does).
-          <button className={`${s.tool} ${s.moreTools}`} aria-label="More tools" title="More tools" aria-haspopup="menu" aria-expanded={open} aria-pressed={inMenu}
-            onClick={() => setOpen(!open)}>
-            <Icon>{inMenu ? byTool(state.tool!).icon : SHAPES_ICON}</Icon>
-            <Chevron />
-          </button>
-        )}
+  const place = placePalette(width, side);
+  const foot = place.at === "foot";
+  const tool = state.tool ?? "";
+  const fromMore = (MORE_TOOLS as readonly string[]).includes(tool) || place.folded.includes(tool as PaletteId);
+  const run = (id: string) => {
+    setOpen(false);
+    if (id === "lock") command({ op: "lock", on: !state.locked });
+    else if (id === "sticky") command({ op: "sticky" });
+    else if (id === "image") pickImage?.();
+    else command({ op: "tool", tool: id });
+  };
+  const help = (id: PaletteId) => helpOf(placeOf(id).label, keysOf(id));
+  const cell = (id: PaletteId) => {
+    const p = placeOf(id), picked = id === "lock" ? !!state.locked : tool === id;
+    // A sticky note and a picture are things you add, never held.
+    const pressable = id !== "sticky" && id !== "image";
+    return (
+      <button key={id} className={foot ? s.tool : s.cell} data-tool={id} data-soft={id === "lock" || undefined} aria-label={help(id)} title={help(id)}
+        aria-pressed={pressable ? picked : undefined} onClick={() => run(id)}>
+        <Icon size={foot ? 22 : 20}>{id === "lock" && state.locked ? LOCKED_ICON : p.icon}</Icon>
+        {!foot && LETTERS[id] && <span className={s.letter} aria-hidden="true">{LETTERS[id]}</span>}
+      </button>
+    );
+  };
+  const more = (
+    // The tool picked from it shows on it, filled (as the app's More does).
+    <button key="more" className={foot ? `${s.tool} ${s.moreTools}` : s.cell} data-tool="more" aria-label="More tools" title="More tools" aria-haspopup="menu"
+      aria-expanded={open} aria-pressed={fromMore} onClick={() => setOpen(!open)}>
+      <Icon size={foot ? 22 : 20}>{fromMore ? placeOf(tool).icon : foot ? SHAPES_ICON : PLACES.more.icon}</Icon>
+      {foot && <Chevron />}
+    </button>
+  );
+  const nav = (
+    <nav className={foot ? s.tools : s.palette} aria-label="Tools" data-palette={place.at}>
+      {place.groups.map((group, i) => (
+        <Fragment key={i}>
+          {i > 0 && group.length > 0 && place.groups.slice(0, i).some((g) => g.length > 0) && <span className={s.rule} aria-hidden="true" data-rule />}
+          {group.map((id) => (id === "more" ? more : cell(id)))}
+        </Fragment>
+      ))}
+      {foot && (<>
         <span className={s.gap} />
-        <button className={s.tool} aria-label="Undo" title="Undo" disabled={!state.canUndo} onClick={() => command({ op: "action", name: "undo" })}><Icon><path d="M8 5L4 9l4 4M4 9h9a5 5 0 0 1 0 10h-3" /></Icon></button>
-        <button className={s.tool} aria-label="Redo" title="Redo" disabled={!state.canRedo} onClick={() => command({ op: "action", name: "redo" })}><Icon><path d="M14 5l4 4-4 4m4-4H9a5 5 0 0 0 0 10h3" /></Icon></button>
-      </nav>
+        <button className={s.tool} aria-label="Undo" title="Undo" disabled={!state.canUndo} onClick={() => command({ op: "action", name: "undo" })}><Icon>{UNDO_ICON}</Icon></button>
+        <button className={s.tool} aria-label="Redo" title="Redo" disabled={!state.canRedo} onClick={() => command({ op: "action", name: "redo" })}><Icon>{REDO_ICON}</Icon></button>
+      </>)}
+    </nav>
+  );
+  const row = (id: string) => {
+    const p = placeOf(id), keys = id in PLACES ? keysOf(id as PaletteId) : [TOOLS.find((t) => t.tool === id)?.key ?? ""];
+    const lock = id === "lock";
+    return (
+      <button key={id} role={lock ? "menuitemcheckbox" : id === "sticky" || id === "image" ? "menuitem" : "menuitemradio"}
+        aria-checked={lock ? !!state.locked : id === "sticky" || id === "image" ? undefined : tool === id} className={s.menuRow} onClick={() => run(id)}>
+        <Icon size={18}>{p.icon}</Icon><span>{p.label}</span><kbd className={s.key}>{keys[0]}</kbd>
+      </button>
+    );
+  };
+  return (
+    <div ref={wrap} className={foot ? s.toolsWrap : `${s.paletteWrap} ${place.at === "below" ? s.paletteBelow : ""}`} data-palette-place={place.at}>
+      {nav}
       {open && (
-        <div className={s.toolMenu} role="menu" aria-label="More tools">
-          {folded.map(byTool).map((t) => (
-            <button key={t.tool} role="menuitemradio" aria-checked={state.tool === t.tool} className={s.menuRow} onClick={() => pick(t.tool)}>
-              <Icon size={18}>{t.icon}</Icon><span>{t.label}</span><kbd className={s.key}>{t.key}</kbd>
-            </button>
-          ))}
+        <div className={foot ? s.toolMenu : s.paletteMenu} role="menu" aria-label="More tools">
+          {place.folded.map(row)}
+          {place.folded.length > 0 && <hr className={s.menuGap} />}
+          {MORE_TOOLS.map(row)}
         </div>
       )}
+      {!foot && hint && !open && typeof state.hint === "string" && state.hint && <HintLine text={state.hint} />}
     </div>
   );
 }
@@ -148,7 +233,7 @@ export function ToolBar({ state, command, width }: { state: PageState; command: 
 type Tray = "stroke" | "fill" | "width" | "arrow" | "more";
 
 /** The bar over a selection: what the app's selection bar offers, each choice in a small tray. */
-export function StyleBar({ state, command, width, height }: { state: PageState; command: Command; width: number; height: number }) {
+export function StyleBar({ state, command, width, height, top }: { state: PageState; command: Command; width: number; height: number; top?: number }) {
   const [tray, setTray] = useState<Tray | null>(null);
   const bar = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 240, height: 48 });
@@ -164,7 +249,7 @@ export function StyleBar({ state, command, width, height }: { state: PageState; 
   const o = offers(selection);
   const st = (state.style ?? {}) as Record<string, unknown>;
   const narrow = width <= 600;
-  const place = state.bounds ? barPlace(state.bounds, { width, height }, size, narrow) : null;
+  const place = state.bounds ? barPlace(state.bounds, { width, height }, size, narrow, top) : null;
   const set = (key: string, value: unknown) => command({ op: "style", key, value });
   const act = (name: string) => { setTray(null); command({ op: "action", name }); };
   const toggle = (t: Tray) => setTray(tray === t ? null : t);

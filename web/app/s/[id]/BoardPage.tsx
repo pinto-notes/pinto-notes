@@ -17,11 +17,34 @@ import { CHANGE_GONE, SHOW_CHANGE } from "@/lib/board-comments";
 import { placeThread, threadArea } from "@/lib/board-placement";
 import { presentHint, presentKey, styleBarShows } from "@/lib/board-present";
 import { CLEAR_VOTES, clock, DONE, END_VOTING, hostedBy, minutes, minutesFrom, MOST_MINUTES, resultsLine, START_VOTING, STOP_TIMER, TIMER, TIMER_MINUTES, TIMES_UP, type TeamModel, VOTE_CHOICES, VOTING, votesEach, votesIn, votesLeft } from "@/lib/board-team";
+import { prepareImage } from "@/lib/board-image";
+import { paletteWidth, PALETTE, placePalette } from "@/lib/board-style";
 import { CommentBar, FIT_ICON, Icon, StyleBar, ToolBar, TOOLS, useDismiss, useWidth, ZoomControl } from "./BoardControls";
 import NoteLink, { appLink } from "./NoteLink";
 import s from "./board.module.css";
 
 type Props = { id: string; supabaseURL: string; anonKey: string };
+
+/** The board's name narrows to this beside the palette, and no further. */
+const TITLE_MIN = 180;
+export const NOT_A_PICTURE = "That file isn’t a picture this browser can open";
+
+/** An element's width, kept as it changes (0 until it's drawn; measured again when `again` changes:
+ *  it's drawn anew). */
+function useWidthOf(ref: React.RefObject<HTMLElement | null>, again: unknown): number {
+  const [w, setW] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setW(Math.ceil(el.getBoundingClientRect().width));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const o = new ResizeObserver(measure);
+    o.observe(el);
+    return () => o.disconnect();
+  }, [ref, again]);
+  return w;
+}
 
 export default function BoardPage({ id, supabaseURL, anonKey }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -94,17 +117,41 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
   const presenting = state.present ?? null;
   const meName = ctl.account ? (ctl.account.name ?? ctl.account.email).trim() : "";
 
+  // The palette goes at the top in the middle where it fits between the board's name and the
+  // people on it: the wider of the two (the name can narrow to TITLE_MIN), measured.
+  const right = useRef<HTMLDivElement>(null);
+  const rightWidth = useWidthOf(right, !!presenting);
+  const side = Math.max(rightWidth, TITLE_MIN);
+  const palette = ctl.canEdit ? placePalette(width, side) : null;
+  const titleRoom = palette?.at === "top" ? Math.max(TITLE_MIN, Math.floor((width - paletteWidth(PALETTE)) / 2) - 24) : undefined;
+  // Insert Image, or 9 on the board: the browser's file picker, then the page puts it in view.
+  const picker = useRef<HTMLInputElement>(null);
+  const pickImage = useCallback(() => picker.current?.click(), []);
+  useEffect(() => {
+    if (!host) return;
+    host.onPickImage = pickImage;
+    return () => { if (host.onPickImage === pickImage) host.onPickImage = null; };
+  }, [host, pickImage]);
+  const picked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const image = await prepareImage(file);
+    if (image) command({ op: "image", ...image });
+    else host?.onNotice?.(NOT_A_PICTURE);
+  };
+
   // Presenting: the frame alone, the Present bar at the foot, nothing else (as the app presents).
   if (presenting) return <Presenting ctl={ctl} step={presenting} command={command} />;
 
   return (
     <>
       <header className={s.top}>
-        <div className={s.titleBox}>
+        <div className={s.titleBox} style={titleRoom ? { maxWidth: titleRoom } : undefined}>
           <h1 className={s.title}>{ctl.title}</h1>
           <p className={s.status} role="status">{status ?? (ctl.owner ? `${ctl.owner}’s board` : "Live")}</p>
         </div>
-        <div className={s.right}>
+        <div className={s.right} ref={right}>
           {/* Everyone on the board in one group, gently overlapping, white letters on every colour,
               you last (as the app's toolbar groups them; round 13, web-04: E, Comments, then S). */}
           {(peers.length > 0 || ctl.account) && (
@@ -145,12 +192,17 @@ function Board({ ctl, id, focusBoard }: { ctl: BoardController; id: string; focu
         </div>
       </header>
 
-      {ctl.canEdit && <ToolBar state={state} command={command} width={width} />}
+      {ctl.canEdit && (<>
+        {/* The hint line gives way to a banner or the team's bar, which stand under the palette. */}
+        <ToolBar state={state} command={command} width={width} side={side} pickImage={pickImage} hint={!host?.follow.banner && !host?.team.running} />
+        <input ref={picker} type="file" accept="image/*" hidden onChange={picked} data-image-picker />
+      </>)}
       {!ctl.canEdit && ctl.canComment && <CommentBar state={state} command={command} />}
       {/* Never over an open thread: the thread is what you're reading (round 13, web-06). */}
-      {styleBarShows(state, ctl.canEdit, threadOpen) && <StyleBar state={state} command={command} width={width} height={height} />}
+      {styleBarShows(state, ctl.canEdit, threadOpen) && <StyleBar state={state} command={command} width={width} height={height} top={palette?.at === "below" ? 128 : undefined} />}
 
-      <ZoomControl zoom={state.zoom ?? 1} command={command} width={width} overTools={ctl.canEdit} />
+      <ZoomControl zoom={state.zoom ?? 1} command={command} width={width} overTools={ctl.canEdit}
+        history={ctl.canEdit ? { canUndo: !!state.canUndo, canRedo: !!state.canRedo } : undefined} />
 
       {host && <FollowBanner ctl={ctl} />}
       {host?.team.running && <TeamBar team={host.team} color={myColor} below={!!host.follow.banner} changed={() => ctl.onChange?.()} />}

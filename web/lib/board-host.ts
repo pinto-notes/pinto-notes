@@ -20,6 +20,10 @@ const NO_VOTES = JSON.stringify({ op: "votes", on: false, dots: [], results: nul
 /** What the page says about itself (canvas.jsx stateOf); only what the page here reads. */
 export type PageState = {
   tool?: string; selection?: string[]; zoom?: number; canUndo?: boolean; canRedo?: boolean; empty?: boolean; load?: string;
+  /** The tool stays picked after drawing (Q, or the palette's lock). */
+  locked?: boolean;
+  /** Excalidraw's hint for what you're doing, for the line under the palette (canvas.jsx hintOf). */
+  hint?: string | null;
   editing?: boolean; busy?: boolean; style?: Record<string, unknown>; bounds?: { x: number; y: number; width: number; height: number } | null;
   /** The frames in the order Present walks them, and what you present (canvas.jsx stateOf). */
   frames?: { id: string; name: string }[];
@@ -57,6 +61,8 @@ export class BoardHost {
   private outlineTimer: ReturnType<typeof setTimeout> | null = null;
 
   onState: ((s: PageState) => void) | null = null;
+  /** The page asks for a picture (9, Excalidraw's key for one): the browser's file picker. */
+  onPickImage: (() => void) | null = null;
   onAnchor: ((a: Anchor | null) => void) | null = null;
   /** A line to show for a moment: a picture that couldn't go on, an AI's change. */
   onNotice: ((line: string) => void) | null = null;
@@ -237,6 +243,8 @@ export class BoardHost {
       this.comments.onChange?.();
       return;
     }
+    // 9 on the board: a picture, from the browser's file picker (the app shows its own panel).
+    if (m.pickImage === true) { this.onPickImage?.(); return; }
     if ("open" in m || "error" in m || "commentHere" in m) return;
     // Otherwise the page's state.
     const s = m as PageState;
