@@ -48,7 +48,7 @@ function Row({ id, kicker, title, say, flip, wide, children }: { id: string; kic
 function WriteRow() {
   const [ref, seen] = useSeen<HTMLDivElement>();
   return (
-    <Row id="r-write" kicker="Notes" title="Write notes." say="Keep what you read and what you decide. It feels like Apple Notes, on Mac and iPhone, and brings yours over.">
+    <Row id="r-write" kicker="Notes" flip title="Write notes." say="Keep what you read and what you decide. It feels like Apple Notes, on Mac and iPhone, and brings yours over.">
       <div ref={ref} className={`${zs.wDevices} ${r.devices}`} role="img" aria-label="A book note open in Pinto Notes on a Mac, and the same note on an iPhone.">
         <Note live={seen} />
         <NotePhone />
@@ -62,7 +62,7 @@ function DrawRow() {
   // The board draws Claude's path once it's on screen.
   const bind = useCallback((set: (k: number) => void) => { set(seen ? 1 : 0); return () => {}; }, [seen]);
   return (
-    <Row id="r-draw" kicker="Whiteboards" flip wide title="Draw on whiteboards." say="Think a decision through on a board beside your notes. Here Claude drew what happens if you wait.">
+    <Row id="r-draw" kicker="Whiteboards" wide title="Draw on whiteboards." say="Think a decision through on a board beside your notes. Here Claude drew what happens if you wait.">
       <div ref={ref} className={`${zs.dBoard} ${r.board}`} role="img" aria-label="A whiteboard in Pinto Notes, Studio North: now or March? Claude has drawn the other path, outlined and named as its own.">
         <WbCanvas bind={bind} />
       </div>
@@ -72,7 +72,7 @@ function DrawRow() {
 
 function BuildRow() {
   return (
-    <Row id="r-build" kicker="Apps" title="Build apps." say="A note can be a small app. Describe one, and ChatGPT or Claude builds it as a new note.">
+    <Row id="r-build" kicker="Apps" flip title="Build apps." say="A note can be a small app. Describe one, and ChatGPT or Claude builds it as a new note.">
       <div className={r.build}>
         <div className={r.app}><HabitsNote /></div>
         <div className={r.ask}><AskChatGpt /></div>
@@ -83,7 +83,7 @@ function BuildRow() {
 
 function ShareRow() {
   return (
-    <Row id="r-share" kicker="Together" flip wide title="Write together." say="Share a note and write in it at the same time. Each of you can bring your own AI.">
+    <Row id="r-share" kicker="Together" wide title="Write together." say="Share a note and write in it at the same time. Each of you can bring your own AI.">
       <div className={r.share}><CollabPicture /></div>
     </Row>
   );
