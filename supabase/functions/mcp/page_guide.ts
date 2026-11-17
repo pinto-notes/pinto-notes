@@ -4,7 +4,6 @@
 // scripts/page-evals/build-skill.ts), so none of them drift.
 
 import { MAX_PAGE_BYTES, MAX_PAGE_DATA_BYTES, PAGE_CONTRACT } from "./page.ts";
-import { AMBER_BASE_CSS, AMBER_TOKENS } from "./amber-base.ts";
 import { appGuide, IN_CONTROL, scaffold } from "./app_scaffold.ts";
 
 const LIBS_BY_PACKAGE = "chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti, topojson-client and world-atlas";
@@ -57,13 +56,9 @@ ${Object.keys(SCAFFOLD).sort().join("\n")}
 - Work on it like any codebase: list_app_files, read_app_file, write_app_file, edit_app_file, move_app_file, delete_app_file. Keep README.md current; the next AI reads it first.
 - Every save compiles the project the way Vite would (TSX/JSX/TS, the @/ alias, imports without extensions, Tailwind from the classes you use) and answers with errors (the app is broken: compile errors, imports to nothing, script errors, content wider than the screen, unreadable text) and notes (information; use your judgment). Nothing is installed: package.json is there for orientation.
 - React runs on preact/compat. Import by name: react, react-dom, react-dom/client, radix-ui (what shadcn v4 builds on), lucide-react (every icon), recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, pinto-router (screens: Router, Route, route(), back()), and ${LIBS_BY_PACKAGE} (each library's global as its default export: import Chart from "chart.js").
-- src/components/ui/ has 20 shadcn/ui components and src/components/app-shell.tsx a frame with a tab bar on iPhone and a sidebar from 900 px; they're the app's own files, so add and change them freely.
+- src/components/ui/ has 20 shadcn/ui components; they're the app's own files, so add and change them freely.
 - Any other npm package: resolve_package pins an exact file with a hash; add it to <meta name="amber-libs" content="npm:…"> in index.html and it loads before your code as a global.
-- Styling: Tailwind, with shadcn's variables (--background, --primary, …) set from Amber's colours in src/index.css; change them to give the app its own look. Two stylesheets load first, in cascade layers your CSS always beats: amber-tokens.css (the --pinto-* variables: ${AMBER_TOKENS.join(", ")}) and amber-base.css:
-
-\`\`\`css
-${AMBER_BASE_CSS.trim()}
-\`\`\`
+- Styling: Tailwind, with shadcn's variables (--background, --primary, …) in src/index.css.
 
 ## Data
 

@@ -1,8 +1,7 @@
 // check_app and preview_app: let an AI see what it built. See app_check.ts for the findings and
 // app_sample.ts for the sample a note's app is rendered over.
 
-import { render as renderWith, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
-import { noteForPage } from "./page_input.ts";
+import { render as renderWith, renderedFindings, staticReport, testSummary } from "./app_check.ts";
 import { resolvePackage } from "./libraries.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
 import { supplier } from "./app_blobs.ts";
@@ -26,7 +25,7 @@ const REAL_OFF = "Real data isn't available for previews: they always use a samp
 export const appTools = [
   {
     name: "check_app", title: "Check a note's app",
-    description: "Checks a note's app and reports what to fix, as text: the note's title as the app's first heading (and only once), script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, a layout that leaves most of a wide window empty, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, not using the --pinto-* theme, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
+    description: "Checks a note's app and reports what to fix, as text: script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, a layout that leaves most of a wide window empty, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
       "Run it after every set_note_page or edit_note_page and fix what it finds before telling the person the app is done. It renders a sample with the note's shape, not the person's data.",
     inputSchema: { type: "object", properties: { ...noteRef } },
     annotations: read,
@@ -108,7 +107,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
     });
     const browser = typeof r === "string" ? null : renderedFindings(r);
     const errors = [...found.errors, ...(browser?.errors ?? [])];
-    const notes = [...found.warnings, ...(typeof r === "string" ? [] : titleReport(r, noteForPage(sampleNote(body, t), t).title)), ...(browser?.notes ?? [])];
+    const notes = [...found.warnings, ...(browser?.notes ?? [])];
     return {
       app: { id: n.id, title: n.title },
       ok: errors.length === 0 && browser !== null,
