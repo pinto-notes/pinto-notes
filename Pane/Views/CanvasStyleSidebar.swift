@@ -49,8 +49,8 @@ struct CanvasStyleSidebar: View {
     /// the list, the strip).
     static let wideFrom: CGFloat = 1100
 
-    /// Kept clear at the foot: the zoom's bar, and the map over it while it's on.
-    static func foot(map: Bool) -> CGFloat { map ? CGFloat(CanvasMap.bottom) + CanvasMap.size.height + 8 : 64 }
+    /// Kept clear at the foot: the sync line. The zoom's bar and the map are at the right.
+    static let foot: CGFloat = 64
 
     static func layout(board: CGFloat) -> Layout { board >= wideFrom ? .wide : .compact }
     static func panelWidth(_ layout: Layout) -> CGFloat { layout == .wide ? width : strip }

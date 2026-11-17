@@ -19,10 +19,6 @@ struct CanvasOverlay: View {
 
     /// The board, as the overlay measures it (the selection bar, and the corner's tags kept inside it).
     static let space = "canvas.overlay"
-    #if os(macOS)
-    /// The map is on: the style panel stops above it.
-    @AppStorage(CanvasMap.key) private var mapOn = false
-    #endif
 
     var body: some View {
         ZStack {
@@ -34,7 +30,7 @@ struct CanvasOverlay: View {
                 if CanvasStyleSidebar.shows(canvas.state, viewOnly: canvas.viewOnly) {
                     GeometryReader { geo in
                         CanvasStyleSidebar(canvas: canvas, layout: CanvasStyleSidebar.layout(board: geo.size.width),
-                                           height: geo.size.height - CanvasToolPalette.below - CanvasStyleSidebar.foot(map: mapOn))
+                                           height: geo.size.height - CanvasToolPalette.below - CanvasStyleSidebar.foot)
                             .tint(Color(PColor.paneAccent))
                             // Under the tools' row, as Excalidraw's properties are under its top bar.
                             .padding(.leading, CanvasStyleSidebar.inset)
@@ -101,14 +97,14 @@ struct CanvasOverlay: View {
                     // The tools are in the window's toolbar, where a note's are (Emil, 13 November
                     // 2026: "why can't it be at the top like it is for notes"). The zoom stays here.
                     HStack {
-                        // Excalidraw's corner: the map's switch, the zoom, Undo and Redo (Emil, 17
-                        // November 2026).
-                        CanvasCorner(canvas: canvas)
-                        Spacer(minLength: 0)
-                        // Offline, back and synced, across from them (round 12).
+                        // Offline, back and synced, across from the zoom (round 12).
                         BoardSyncLine()
+                        Spacer(minLength: 0)
+                        // The map's switch and the zoom, at the bottom right, clear of the style
+                        // panel on the left; Undo and Redo are ⌘Z and ⇧⌘Z (Emil, 17 November 2026).
+                        CanvasCorner(canvas: canvas)
                     }
-                    .padding(.leading, CanvasMap.left)
+                    .padding(.leading, 16)
                     .overlay {
                         if let notice = canvas.notice {
                             Toast(text: notice, undo: canvas.noticeUndo)
@@ -121,7 +117,7 @@ struct CanvasOverlay: View {
                     }
                     .animation(.smooth(duration: 0.2), value: canvas.notice)
                     .animation(.easeOut(duration: 0.15), value: canvas.state.lost)
-                    .padding(.trailing, 16)
+                    .padding(.trailing, CanvasMap.right)
                     .padding(.bottom, CanvasDock.margin)
                     #else
                     if canvas.state.lost {
@@ -1852,8 +1848,8 @@ struct CanvasZoom: View {
     }
 }
 
-/// The board's bottom left corner, as Excalidraw's: the map's switch (CanvasMap), the zoom (−, the
-/// percent, +), and Undo and Redo, in one glass bar (Emil, 17 November 2026).
+/// The board's bottom right corner: the map's switch (CanvasMap) and the zoom (−, the percent, +) in
+/// one glass bar. No Undo and Redo here: ⌘Z, ⇧⌘Z and the Edit menu (Emil, 17 November 2026).
 struct CanvasCorner: View {
     let canvas: CanvasController
     @AppStorage(CanvasMap.key) private var map = false
@@ -1883,14 +1879,6 @@ struct CanvasCorner: View {
             .accessibilityIdentifier("canvas.zoom")
             CanvasBarButton(title: CanvasMenu.zoomIn, key: "\u{2318}+", symbol: "plus") { canvas.run(.zoomIn) }
                 .accessibilityIdentifier("canvas.zoomIn")
-            // A board you can only look at has nothing to undo.
-            if !canvas.viewOnly {
-                rule
-                CanvasBarButton(title: "Undo", key: "\u{2318}Z", symbol: "arrow.uturn.backward", enabled: canvas.canUndo) { canvas.run(.undo) }
-                    .accessibilityIdentifier("canvas.undo")
-                CanvasBarButton(title: "Redo", key: "\u{21E7}\u{2318}Z", symbol: "arrow.uturn.forward", enabled: canvas.canRedo) { canvas.run(.redo) }
-                    .accessibilityIdentifier("canvas.redo")
-            }
         }
         .padding(4)
         .glassEffect(.regular, in: .capsule)

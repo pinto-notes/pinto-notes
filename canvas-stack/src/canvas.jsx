@@ -1730,9 +1730,9 @@ function bridge(api) {
         break;
       }
       case "minimap":
-        // On: the map, where the app's controls leave room for it (left, bottom, in points).
+        // On: the map, where the app's controls leave room for it (right, bottom, in points).
         if (!map) return false;
-        if (c.on) map.show({ left: Number(c.left) || 12, bottom: Number(c.bottom) || 68 });
+        if (c.on) map.show({ right: Number(c.right) || 12, bottom: Number(c.bottom) || 68 });
         else map.hide();
         return true;
       case "comments":

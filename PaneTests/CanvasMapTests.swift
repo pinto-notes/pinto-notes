@@ -7,7 +7,7 @@ import WebKit
 @testable import Pane
 
 /// The board's map (CanvasMap, canvas-stack/src/minimap.js; Emil, 17 November 2026): off at first
-/// and remembered for every board; the page draws it at the bottom left above the zoom, with the
+/// and remembered for every board; the page draws it at the bottom right above the zoom, with the
 /// part in view outlined; a click there moves the view; it redraws at most every quarter second
 /// and never mid-press; off, it listens to nothing.
 @MainActor @Suite(.serialized) struct CanvasMapTests {
@@ -20,15 +20,15 @@ import WebKit
         #expect(CanvasMap.isOn(d))
         #expect(!CanvasMap.key.contains("."))
         let p = CanvasCommand.minimap(true).payload
-        #expect(p["op"] as? String == "minimap" && p["on"] as? Bool == true && p["left"] as? Double == 12 && p["bottom"] as? Double == CanvasMap.bottom)
+        #expect(p["op"] as? String == "minimap" && p["on"] as? Bool == true && p["right"] as? Double == 12 && p["bottom"] as? Double == CanvasMap.bottom)
         #expect(CanvasMap.bottom == Double(CanvasDock.margin + CanvasCorner.height + 8), "above the zoom's bar")
-        // The style panel stops above it while it's on.
-        #expect(CanvasStyleSidebar.foot(map: true) == CGFloat(CanvasMap.bottom) + CanvasMap.size.height + 8 && CanvasStyleSidebar.foot(map: false) == 64)
+        // It's across from the style panel, which keeps its height with the map on.
+        #expect(CanvasStyleSidebar.foot == 64)
     }
 
-    /// The corner bar has the map's switch, the zoom, and Undo and Redo; the switch tells the page
-    /// and is remembered.
-    @Test func theCornerHasTheMapTheZoomAndUndo() async throws {
+    /// The corner bar has the map's switch and the zoom, and no Undo or Redo (⌘Z and ⇧⌘Z; Emil, 17
+    /// November 2026); the switch tells the page and is remembered.
+    @Test func theCornerHasTheMapAndTheZoomOnly() async throws {
         let d = UserDefaults.standard
         let kept = d.object(forKey: CanvasMap.key)
         defer { if let kept { d.set(kept, forKey: CanvasMap.key) } else { d.removeObject(forKey: CanvasMap.key) } }
@@ -37,10 +37,10 @@ import WebKit
         let ax = OffscreenAX(CanvasCorner(canvas: canvas).padding(8), size: CGSize(width: 420, height: 70))
         defer { ax.close() }
         await ax.settle()
-        for id in ["canvas.map", "canvas.zoomOut", "canvas.zoom", "canvas.zoomIn", "canvas.undo", "canvas.redo"] {
+        for id in ["canvas.map", "canvas.zoomOut", "canvas.zoom", "canvas.zoomIn"] {
             #expect(await ax.waiting(for: id, tries: 5) != nil, "\(id) in \(ax.ids())")
         }
-        #expect(ax.find("canvas.undo")?.enabled == false, "nothing to undo yet")
+        #expect(ax.find("canvas.undo") == nil && ax.find("canvas.redo") == nil, "no Undo or Redo: \(ax.ids())")
         let map = try #require(ax.find("canvas.map"))
         #expect(map.text.contains(CanvasMap.title(false)), "\(map.text)")
         map.press()
@@ -52,7 +52,7 @@ import WebKit
         #expect(!CanvasMap.isOn(d) && canvas.sent.last == .minimap(false), "\(canvas.sent)")
     }
 
-    /// The page's map: none until it's told; then the drawing, small, at the bottom left above the
+    /// The page's map: none until it's told; then the drawing, small, at the bottom right above the
     /// zoom; a click on it moves the view's middle there; off, it's gone and listens to nothing.
     @Test func thePageDrawsTheMapAndAClickMovesTheView() async throws {
         let j = try await CanvasNativeUITests.Joined(scene: CanvasNativeUITests.flowchart, size: CGSize(width: 1000, height: 640))
@@ -61,8 +61,8 @@ import WebKit
         #expect(try await j.js("!!document.querySelector('.pinto-map')") as? Bool == false, "off at first")
         j.canvas.send(.minimap(true))
         try await CanvasTests().run(j.web, until: "!!document.querySelector('.pinto-map')")
-        let place = try #require(try await j.js("(() => { const r = document.querySelector('.pinto-map').getBoundingClientRect(); return [r.left, innerHeight - r.bottom, r.width, r.height]; })()") as? [Double])
-        #expect(place == [12, CanvasMap.bottom, Double(CanvasMap.size.width), Double(CanvasMap.size.height)], "at the bottom left: \(place)")
+        let place = try #require(try await j.js("(() => { const r = document.querySelector('.pinto-map').getBoundingClientRect(); return [innerWidth - r.right, innerHeight - r.bottom, r.width, r.height]; })()") as? [Double])
+        #expect(place == [12, CanvasMap.bottom, Double(CanvasMap.size.width), Double(CanvasMap.size.height)], "at the bottom right: \(place)")
         // The drawing is on it, and the view's box: inside the map.
         let inked = try await j.js("(() => { const c = document.querySelector('.pinto-map canvas'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n; })()") as? Int ?? 0
         #expect(inked > 200, "the drawing is drawn: \(inked) pixels")

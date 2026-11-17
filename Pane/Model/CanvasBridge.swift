@@ -112,7 +112,7 @@ enum CanvasMenu {
     static let noteCard = "Add Note Card\u{2026}"
 }
 
-/// The board's map (Emil, 17 November 2026): the whole drawing small at the bottom left, the part
+/// The board's map (Emil, 17 November 2026): the whole drawing small at the bottom right, the part
 /// in view outlined, a click there moves the view. Off at first; on or off for every board, as you
 /// left it (no dot in its key, ColumnsLayout.key). The page draws it (canvas-stack/src/minimap.js).
 enum CanvasMap {
@@ -120,10 +120,10 @@ enum CanvasMap {
     static let symbol = "map"
     static func title(_ on: Bool) -> String { on ? "Hide Map" : "Show Map" }
     static func isOn(_ defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: key) }
-    /// Its size on the board (minimap.js MAP), and where it stands: at the board's left inset, above
+    /// Its size on the board (minimap.js MAP), and where it stands: at the board's right inset, above
     /// the zoom's bar.
     static let size = CGSize(width: 200, height: 128)
-    static let left: CGFloat = 12
+    static let right: CGFloat = 12
     static let bottom: Double = 16 + 44 + 8  // CanvasDock.margin, CanvasCorner.height, a gap
 }
 
@@ -499,13 +499,13 @@ enum CanvasCommand: Equatable, Sendable {
     case restoreVersion(Data)
     /// Voting's dots and totals on the board (BoardTeam).
     case votes(CanvasVotes)
-    /// The board's map at its bottom left (CanvasMap), or no longer: `bottom` is how far up from
+    /// The board's map at its bottom right (CanvasMap), or no longer: `bottom` is how far up from
     /// the board's foot it goes, clear of the zoom.
     case minimap(Bool, bottom: Double = CanvasMap.bottom)
 
     var payload: [String: Any] {
         switch self {
-        case .minimap(let on, let bottom): ["op": "minimap", "on": on, "left": Double(CanvasMap.left), "bottom": bottom]
+        case .minimap(let on, let bottom): ["op": "minimap", "on": on, "right": Double(CanvasMap.right), "bottom": bottom]
         case .libraryInsert(let item, let at):
             ["op": "libraryInsert", "elements": item.elements, "files": item.files]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }

@@ -1,5 +1,5 @@
 // The board's map (Emil, 17 November 2026): optional, off at first, and the app remembers it for
-// every board. The whole drawing, small, at the board's bottom left above the zoom, with the part
+// every board. The whole drawing, small, at the board's bottom right above the zoom, with the part
 // in view outlined in the accent; a click or a drag on it moves the view there.
 //
 // - Drawn here from the scene's shapes: no export and no pictures, so it's cheap.
@@ -219,7 +219,7 @@ export function mapLayer(api, host, { nonce, busy }) {
     counts,
     get fit() { return fit; },
     get shown() { return !!el; },
-    show({ left = 12, bottom = 68 } = {}) {
+    show({ right = 12, bottom = 68 } = {}) {
       if (!el) {
         el = document.createElement("div");
         el.className = "pinto-map";
@@ -240,7 +240,7 @@ export function mapLayer(api, host, { nonce, busy }) {
         offChange = api.onChange(changed);
         offScroll = api.onScrollChange(boxSoon);
       }
-      el.style.left = `${left}px`;
+      el.style.right = `${right}px`;
       el.style.bottom = `${bottom}px`;
       drawScene();
     },
