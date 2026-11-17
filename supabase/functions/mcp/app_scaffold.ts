@@ -10,6 +10,16 @@
  *  2026-10-13). Said in every app's README, the apps guide and the server's instructions. */
 export const IN_CONTROL = "The person stays in control inside the app, as in any real app, not only through their AI: whatever the app keeps, they can add, edit, rename, reorder and remove themselves (a habit tracker lets them manage its habits), settings are changed in the app, deletes can be undone, and everything is saved in data.json.";
 
+/** What the test runner has (scripts/page-render/test-harness.js): part of every app's README, so an
+ *  AI doesn't spend a fix round finding out (2026-11-17: seven missing features cost five apps a
+ *  round each). Anything not listed fails with a message that names it. */
+export const TEST_RUNNER = `Pinto Notes runs the tests in its own runner, in WebKit: the parts of Vitest and Testing Library below. Anything else fails with a message that names it.
+- vitest: describe, it and test (with .skip, .only, .todo, .each, .skipIf, .runIf), beforeEach, afterEach, beforeAll, afterAll. expect with .not, .resolves and .rejects: toBe, toEqual, toStrictEqual, toMatchObject, toContain, toContainEqual, toHaveLength, toHaveProperty, toMatch, toBeTruthy, toBeFalsy, toBeNull, toBeUndefined, toBeDefined, toBeNaN, toBeTypeOf, toBeInstanceOf, toBeOneOf, toSatisfy, toBeGreaterThan(OrEqual), toBeLessThan(OrEqual), toBeCloseTo, toThrow, toHaveBeenCalled, toHaveBeenCalledOnce, toHaveBeenCalledTimes, toHaveBeenCalledWith, toHaveBeenLastCalledWith, toHaveBeenNthCalledWith, toHaveReturned, toHaveReturnedWith; expect.any, anything, objectContaining, arrayContaining, stringContaining, stringMatching, closeTo, poll, extend, assertions, hasAssertions. vi.fn (mockReturnValue, mockResolvedValue, mockImplementation and their Once forms), vi.spyOn, vi.mocked, vi.clearAllMocks, resetAllMocks, restoreAllMocks, vi.stubGlobal, vi.waitFor, vi.waitUntil, and the clock: vi.useFakeTimers, vi.setSystemTime, vi.advanceTimersByTime(Async), vi.runAllTimers, vi.runOnlyPendingTimers, vi.useRealTimers. Not vi.mock: test through the screen and pinto.data, or spy on an object.
+- @testing-library/react: render (with wrapper or container), renderHook, screen, within, waitFor, waitForElementToBeRemoved, act, cleanup, fireEvent (any event: fireEvent.keyDown, fireEvent.pointerDown…). Queries getBy, getAllBy, queryBy, queryAllBy, findBy and findAllBy with Role (name, level, checked, pressed, selected, expanded, current, hidden), Text (selector, ignore), LabelText (a <label>, aria-label or aria-labelledby; selector), PlaceholderText, DisplayValue, AltText, Title and TestId. Implicit roles include form, region (a <section> with a label), banner, contentinfo, option, listbox, group, separator, progressbar and columnheader.
+- @testing-library/user-event (userEvent, or userEvent.setup()): click, dblClick, tripleClick, type (with {Enter}, {Backspace}, {Delete}, {Tab}, {Escape}, arrows, {Shift>}…{/Shift}; Enter adds a line in a textarea and submits the form from a field; keys the app prevents do nothing), keyboard, clear, paste, selectOptions, deselectOptions, tab, hover, unhover, upload.
+- @testing-library/jest-dom: toBeInTheDocument, toBeVisible, toHaveTextContent, toHaveValue, toHaveDisplayValue, toBeChecked, toBePartiallyChecked, toBeDisabled, toBeEnabled, toBeRequired, toBeValid, toBeInvalid, toHaveAttribute, toHaveClass, toHaveStyle, toHaveFocus, toHaveAccessibleName, toHaveAccessibleDescription, toHaveRole, toBeEmptyDOMElement, toContainElement, toContainHTML.
+- All test files run in one page, one after another; each file starts with no spies, stubs or fake clock left from the one before.`;
+
 /** How an app runs in Pinto Notes: part of every app's README, so any AI working on it reads it. */
 export const appGuide = () => `## How this app runs in Pinto Notes
 
@@ -17,7 +27,8 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 - It is the note: opening the note opens the app, on iPhone (320-440 pt wide, safe areas, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Light and dark follow the device.
 - A normal Vite + React 19 + TypeScript + Tailwind 4 + shadcn/ui project. Pinto Notes compiles it when a file is saved (TSX, the @/ alias, imports without extensions, Tailwind from the classes used) and says what broke; nothing is installed. React runs on preact/compat.
 - Available by name: react, react-dom, radix-ui, lucide-react, recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, pinto-router (Router, Route, route(), back()), chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti.
-- Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/pinto". localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
+- Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/pinto". A function update (set((old) => …)) always builds on the newest value, even for quick taps before a save lands, so no wrapper is needed. localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
+- Several files at once (a screen and its test, or a whole app) go in one write: path the app, and files with each one. That's one version and one check. Written one by one, each save is checked alone, so a half-written app is held back on the way and a 40-file app takes over a minute.
 - The internet works like on any web page: fetch, XMLHttpRequest and WebSocket to any https or wss address, with no prompt. A key for a service is something the person pastes into the app's settings, kept in the store.
 - Links to the person's notes and apps are plain links, written like a [[link]] in a note: <a href="pinto:Work/Acme">Acme</a> (the title, or the folders and the title), pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for another app. Tapping one opens it in Pinto Notes the way a [[link]] does (on iPhone, Back returns to this app); a note that doesn't exist is offered to be made. Anything can be the link (wrap a card in it, or use <Button asChild>); a test checks its href.
 - The device: device.openURL(url) opens a web link once the person agrees to it, share(file) exports one, device.photos.pick() and device.files.pick() let the person choose. Reminders, Calendar, notifications, the camera, contacts, location, Maps and on-device AI are not available yet.`;
@@ -154,7 +165,7 @@ import { pinto } from "pinto"
 import App from "@/App"
 
 // Each feature gets a test like these: do what the person does, check what they see, and check
-// what was saved in the app's data.
+// what was saved in the app's data. Each test starts with no data.
 const saved = () => (pinto.data.collections.items ?? []).map((item: { text: string }) => item.text)
 
 describe("Home", () => {
@@ -219,9 +230,12 @@ What this app is for, in one sentence.
 - Settings (src/screens/settings.tsx)
 
 ## Tests
-\`npm test\` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers; data starts empty for each test, and \`pinto\` (from "pinto") shows what was saved. Pinto Notes runs them, and a quick check that the app opens and its buttons work, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.
+\`npm test\` runs Vitest. Tests live in tests/*.test.tsx and use Testing Library (render, screen, userEvent) with the jest-dom matchers. Each test starts with no data, whatever data.json holds: set up what a test needs by using the app as the person would, or with \`await pinto.store.set("key", value)\` before render. \`pinto\` (from "pinto") shows what was saved. Pinto Notes runs the tests, and a quick check that the app opens and its buttons work over a scrambled sample of data.json, on every save: a version that fails isn't shown to the person; the last one that passed keeps running until the failures are fixed.
 
 **Every feature you add gets a test like the ones in tests/app.test.tsx**: do what the person does, check what they see, and check what was saved. When the app changes on purpose, change its tests to match the new behaviour. Never weaken, skip or delete a test just to make it pass: fix the app instead.
+
+### What the test runner has
+${TEST_RUNNER}
 
 ${appGuide()}
 `,

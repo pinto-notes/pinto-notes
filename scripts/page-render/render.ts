@@ -104,7 +104,7 @@ function importMap(): string {
   imports["@/"] = `${APP_HOST}src/`;
   // run_app_tests only: Vitest and Testing Library as test-harness.js gives them.
   for (const name of ["vitest", "@testing-library/react", "@testing-library/preact", "@testing-library/user-event", "@testing-library/dom"]) imports[name] = `${LIB_HOST}test/harness.js`;
-  for (const name of ["@testing-library/jest-dom", "@testing-library/jest-dom/vitest"]) imports[name] = `${LIB_HOST}test/empty.js`;
+  for (const name of ["@testing-library/jest-dom", "@testing-library/jest-dom/vitest", "@testing-library/jest-dom/matchers"]) imports[name] = `${LIB_HOST}test/empty.js`;
   return `<script type="importmap">${JSON.stringify({ imports })}</script>`;
 }
 
@@ -212,6 +212,14 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     } });
   }
   addEventListener("play", (e) => { if (e.target instanceof HTMLMediaElement) e.target.muted = true; }, true);
+  // A worker made from a blob: URL that the page revokes at once (v86 does, for its timer) loads in
+  // a browser. Here every request, blob: too, goes through the harness's routing, so the worker's
+  // load came after the revoke and it never ran (2026-11-17, the Linux note: a dead emulator in the
+  // tests and the smoke check). Revokes wait 10 s; a check's page lives less than a minute.
+  {
+    const revoke = URL.revokeObjectURL.bind(URL), later = setTimeout.bind(window);
+    URL.revokeObjectURL = (url) => { later(() => revoke(url), 10000); };
+  }
   // Frames the page asks for, so a check can tell whether it animates (a game that plays).
   window.__frames = 0;
   const raf = window.requestAnimationFrame.bind(window);
@@ -316,6 +324,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
 })();`;
 
 type DataDoc = { values: Record<string, unknown>; collections: Record<string, unknown> };
+const noData = (): DataDoc => ({ values: {}, collections: {} });
 /** Every list of records in an app's data, with a way to put a changed list back: collections,
  *  arrays in values (one level down too), and arrays kept in localStorage as JSON strings. */
 function dataLists(doc: DataDoc): { items: Record<string, unknown>[]; with: (items: unknown[]) => DataDoc; withIn: (d: DataDoc, items: unknown[]) => DataDoc }[] {
@@ -505,10 +514,19 @@ export function testRunnerProject(stored: string): string | null {
   if (!files.length) return null;
   const html = `<!doctype html><html lang="en"><body><script type="module">
 const results = [], errors = [];
-const { run } = await import("vitest");
+const { run, forget } = await import("vitest");
+// A name or a package the test runner doesn't have, said so (WebKit's own words don't).
+const HAS = "The tests can import vitest, @testing-library/react, @testing-library/user-event, @testing-library/dom and @testing-library/jest-dom (the parts the app's README lists under Tests), the app's own files (@/…) and the packages the app has.";
+const why = (e) => {
+  const m = String(e && e.message || e);
+  const name = m.match(/Importing binding name '([^']+)' is not found/);
+  if (name) return name[1] + " isn't in Pinto's test runner. " + HAS;
+  const mod = m.match(/Module name, '([^']+)' does not resolve/);
+  if (mod) return "the test imports " + mod[1] + ", which isn't here. " + HAS;
+  return m;
+};
 for (const f of ${JSON.stringify(files)}) {
-  const before = results.length;
-  try { await import(f); } catch (e) { errors.push(f + ": " + String(e && e.message || e).slice(0, 400)); continue; }
+  try { await import(f); } catch (e) { forget(); errors.push(f + ": " + why(e).slice(0, 500)); continue; }
   for (const r of await run(() => window.__amberReset())) results.push({ ...r, file: f });
 }
 window.__testResults = { results, errors };
@@ -694,9 +712,9 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         return { ok: false, error: (e as Error).message };
       }
     });
-    // run_app_tests: every test starts from the same data.
+    // run_app_tests: every test starts from the same data: none (below, at opts.tests).
     await page.exposeFunction("__amberReset", async () => {
-      md = markdown; store = empty(data);
+      md = markdown; store = empty(opts.tests ? noData() : data);
       await page.evaluate(([n, d]) => (window as any).amber._receive(n, d), [noteForPage(md, opts.today), store]);
     });
     if (widget) await page.addInitScript("window.__amberWidget = true;");
@@ -707,7 +725,12 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
   };
 
   if (opts.steps?.length) { md = markdown; store = empty(data); return await trial(open, () => store, opts); }
-  if (opts.tests) { md = markdown; store = empty(data); return await runTests(open); }
+  // The app's tests start with no data, each one, as the app's README says and as Vitest tests do
+  // anywhere: the starter's test checks that adding "Milk" saves ["Milk"]. Over a sample of the
+  // app's data.json (until 2026-11-17) every test of five apps passed until the app had data, then
+  // failed on every save (Habits went from 11 passing to 2), and the sample's words change each
+  // time. The smoke check below still runs over the sample, so the app's real shapes are covered.
+  if (opts.tests) { md = markdown; store = empty(noData()); return await runTests(open); }
   if (opts.smoke) {
     const problems: string[] = [];
     const slow: { name: string; ms: number; width: number }[] = [];

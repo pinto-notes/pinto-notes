@@ -81,8 +81,9 @@ Deno.test("a 60 MB disk image that doesn't compress: sent in pieces, stored in 4
   assert(typeof entry === "object" && "parts" in entry && entry.size === disk.length);
   // One save for the whole file: one version kept, not one per piece.
   assertEquals(await versions(pg, id), before + 1);
-  // The app's text holds names only.
-  assert(pageRow.page_ct.length < 300_000, `the app's text is ${pageRow.page_ct.length}`);
+  // The app's text holds names only: the starter's text, not 60 MB (400 KB: the starter's README
+  // grew by the test runner's list on 2026-11-17).
+  assert(pageRow.page_ct.length < 400_000, `the app's text is ${pageRow.page_ct.length}`);
   // Back exactly, 10 MB at a time; asking for all of it at once says how.
   assertStringIncludes(await fails(tool(pg, a, "fetch", { id: "Notes/Lab.app/disk.img", raw: true })), "offset and limit");
   assertEquals(await sha(await readBack(pg, a, "Notes/Lab.app/disk.img", disk.length)), await sha(disk));

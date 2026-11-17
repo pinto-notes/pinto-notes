@@ -1126,7 +1126,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       // The starter counts as read: its files are what the AI starts from.
       for (const [f, text] of Object.entries(proj.files)) await markRead(tx, c, fileItem(n.id, f), await hash(c, text));
       const { app: _, ...rest } = result;
-      return { ...rest, app: `${base}/`, next: `Read ${base}/README.md, then build the app with write and edit (files under ${base}/src/). Its data is ${base}/data.json.` };
+      return { ...rest, app: `${base}/`, next: `Read ${base}/README.md, then build the app with write and edit (files under ${base}/src/). Write several files in one write (path "${base}", files: [{ path, content }, …]): one save, one check. Its data is ${base}/data.json.` };
     }
     if (type !== "note") throw new ToolError("type is note, folder or app.");
     const content = String(a.content ?? "");
@@ -1182,7 +1182,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const text = replaceIn(p.files[file], a.old_string, a.new_string, all, `${r.base}${file}`);
       const out = await saveProject(tx, c, await full(tx, c, r.note.id), await withFile(p, file, text), `${file}`, a) as Record<string, unknown>;
       await markRead(tx, c, fileItem(r.note.id, file), await hash(c, text));
-      return appResult(out, `${r.base}${file}`);
+      return oneFile(appResult(out, `${r.base}${file}`), r.base);
     }
     if (r.kind === "file") {
       const { bytes, meta, version } = await readFile(tx, c, r.id, r.path);
@@ -1254,7 +1254,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       if (was !== undefined) await mustHaveRead(tx, c, fileItem(r.note.id, file), await hash(c, was), `${r.base}${file}`);
       const out = await saveProject(tx, c, await full(tx, c, r.note.id), await withFile(p, file, content), `${file} (${p.files[file] === undefined ? "created" : "replaced"})`, a) as Record<string, unknown>;
       await markRead(tx, c, fileItem(r.note.id, file), await hash(c, content));
-      return appResult(out, `${r.base}${file}`);
+      return oneFile(appResult(out, `${r.base}${file}`), r.base);
     }
     if (r.kind === "file") return await writeFileTool(tx, a, c);
     throw new ToolError("write writes a note, an app file, an app's data.json or a file.");
@@ -1537,6 +1537,14 @@ function appResult(out: Record<string, unknown> | Content, path: string): unknow
   if (out instanceof Content) return out;
   const { app: _, saved: __, ...rest } = out;
   return { saved: path, ...rest };
+}
+
+/** One file of an app saved and held back: the failure may only be the files not written yet. Said,
+ *  so the AI sends them together instead of chasing it (2026-11-17: each of five apps had a version
+ *  held back with the new App.tsx in and the starter's test not yet replaced). */
+function oneFile(out: unknown, base: string): unknown {
+  if (out instanceof Content || !out || typeof out !== "object" || !String((out as Record<string, unknown>).live ?? "").startsWith("Held back")) return out;
+  return { ...out as Record<string, unknown>, together: `If other files that go with this change aren't written yet, the failure may be only that: write them all in one write (path "${base}", files: [{ path, content }, …]), checked once, together.` };
 }
 
 /** The newest time a device couldn't open the live app and went back to an earlier one. */
