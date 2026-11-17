@@ -17,8 +17,12 @@ export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app (som
 - It runs inside a note on iPhone and Mac, light and dark, and reaches the internet like any web page.
 - See your work with preview_app and check_app before you say it's done.`;
 
+/** The person wants their own version of an app they name or link to: one create does the reading
+ *  (own_version.ts), so the AI starts there instead of browsing on its own. */
+export const OWN_VERSION_LINE = `When the person wants their own version of an app (they give a link to it, or name it: then find its website or App Store page first), start it with create, type app and original: the link, and follow its answer.`;
+
 /** What the file tools' instructions (files_tools.ts) say about apps, and the Claude skill with them. */
-export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. An app links to a note or another app with <a href="pinto:Work/Acme">, written like a [[link]]: pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. ${IN_CONTROL}`;
+export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. An app links to a note or another app with <a href="pinto:Work/Acme">, written like a [[link]]: pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. ${IN_CONTROL} ${OWN_VERSION_LINE}`;
 
 /** The apps guide with the file tools: what every new app's README.md says, as a document (the
  *  MCP resource and the Claude skill's reference). */

@@ -29,6 +29,7 @@ import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
 import { FetchTimeout, NotPublic, publicFetch } from "./public_fetch.ts";
+import { checkLink, study, type Study, studyText } from "./own_version.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
 
 type Args = Record<string, unknown>;
@@ -82,7 +83,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "create", title: "Create",
-    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed; with no folder it goes in the first folder, usually Notes) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed; with no folder it goes in the first folder, usually Notes) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. With original (a link to an app's website or App Store page), it's the start of the person's own version of that app: the answer has the app's public pages, read for you, and how to build it. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -90,6 +91,7 @@ export const FILE_TOOLS: Tool[] = ([
         path: str("Where: \"Work/Acme.md\", \"Work/Clients/\", or the app's note."),
         content: str("A note's markdown."),
         template: str("An app: start from this template's app, data and note (its name, as in pintonotes.com/templates/habit-tracker)."),
+        original: str("An app: the link to an app the person wants their own version of (its website or App Store page). Pinto Notes reads its public pages, with no sign-in, and answers with them and how to build it."),
         pinned: { type: "boolean" },
       },
       required: ["path"],
@@ -206,6 +208,13 @@ export const FILE_PROMPTS = [
     text: (a: Record<string, string>) => `Make my note "${a.note}" an app${a.idea ? `: ${a.idea}` : ""}. Read the note, start the app with create (type "app"), read its README.md and build it. Put any data the note already has into the app's data.json, keeping every fact. Look at it with see_app, then tell me what it does in a line or two.`,
   },
   {
+    name: "own_version",
+    title: "Make my own version of an app",
+    description: "Your own version of an app you like, as a note app: give a link to its website or App Store page. Its features and way of working, with a name and look of its own.",
+    arguments: [{ name: "link", description: "The app's website or App Store page.", required: true }, { name: "note", description: "A note to make it in, if there is one (New App in Pinto Notes makes one).", required: false }],
+    text: (a: Record<string, string>) => ownVersionPrompt(a.link, a.note),
+  },
+  {
     name: "add_data",
     title: "Add data to a note",
     description: "Add rows or items to a note's table or checklist, from text, a list or pasted CSV.",
@@ -221,6 +230,14 @@ export const FILE_PROMPTS = [
   },
 ] as const;
 
+/** The words that start the person's own version of an app, for the MCP prompt and New App in
+ *  Pinto Notes (MakeAnApp.ownVersionPrompt says the same). */
+export function ownVersionPrompt(link: string | undefined, note?: string): string {
+  const at = String(link ?? "").trim() || "the link I give you";
+  const where = note ? `my note "${note}"` : "a new note named for what the app does";
+  return `In Pinto Notes, make my own version of the app at ${at}, as ${where}. Start it with create (type "app", original "${at}") and follow what its answer says, all the way to a tested app.`;
+}
+
 const SWITCHES = new Set(["title_only", "case_sensitive", "pinned", "sub_notes", "deleted", "replace_all", "raw"]);
 export async function runFileTool(name: string, args: Args, ctx: ToolContext): Promise<unknown> {
   // Paths, not ids: "path" is the argument everywhere ("id" from older clients still works).
@@ -228,6 +245,15 @@ export async function runFileTool(name: string, args: Args, ctx: ToolContext): P
   const a = Object.fromEntries(Object.entries(args).map(([k, v]) => [k, SWITCHES.has(k) && v === "true" ? true : SWITCHES.has(k) && v === "false" ? false : v]));
   if (a.path === undefined && a.id !== undefined && name !== "fetch") a.path = a.id;
   if (name === "fetch" && a.id === undefined && a.path !== undefined) a.id = a.path;
+  // create's original is read before the transaction opens too: reading a site takes seconds.
+  if (name === "create" && a.type === "app" && given(a.original)) {
+    if (a.template !== undefined) throw new ToolError("Give template or original, not both.");
+    let link: string;
+    try { link = checkLink(a.original); } catch (e) { throw new ToolError((e as Error).message); }
+    return await runIn(FILE_TOOLS, fileHandlers, name, a, ctx, async () => {
+      try { STUDIED.set(a, await study(link)); } catch (e) { throw new ToolError((e as Error).message); }
+    });
+  }
   // write's content_url is downloaded before the transaction opens: a slow server holds no database connection.
   // An app's file can be as big as an app's binary file; any other file as big as the AI's files.
   const entries = name === "write" && Array.isArray(a.files) ? (a.files as unknown[]).filter((f): f is Args => !!f && typeof f === "object") : [];
@@ -699,6 +725,25 @@ async function appFromTemplate(tx: Tx, c: Call, path: string, slug: string, a: A
   return { ...rest, created: made.path, app: `${base}/`, next: `Read ${base}/README.md and ${base}/data.json before changing the app or its data.` };
 }
 
+/** create's original, read before the transaction (own_version.ts). */
+const STUDIED = new WeakMap<Args, Study>();
+
+/** create { type: "app", original }: the new app, then the method and the app's public pages as
+ *  text, then its screenshots as pictures the AI can look at. */
+function ownVersion(made: Record<string, unknown>, base: string, title: string, s: Study): Content {
+  const head = {
+    ...made,
+    original: s.link,
+    read: s.sources.map((x) => x.url),
+    ...(s.missed.length ? { unread: s.missed.length } : {}),
+    screenshots: s.screenshots.length,
+    next: `Follow "Making the person's own version of an app" below. Read ${base}/README.md first, then write every file in one write (path "${base}", files: [{ path, content }, …]), rename the note "${title}" to the app's own plain name, and look at it with see_app.`,
+  };
+  const blocks: Record<string, unknown>[] = [{ type: "text", text: JSON.stringify(head, null, 2) }, { type: "text", text: studyText(s) }];
+  for (const shot of s.screenshots) blocks.push({ type: "image", data: shot.data, mimeType: shot.mimeType });
+  return new Content(blocks, head);
+}
+
 /** Where a new note goes: a folder (made if needed), or under a note when the place is that note's folder. */
 async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folder: string | null; parent?: Note }> {
   if (!dir) return { folder: null };
@@ -1126,6 +1171,8 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       // The starter counts as read: its files are what the AI starts from.
       for (const [f, text] of Object.entries(proj.files)) await markRead(tx, c, fileItem(n.id, f), await hash(c, text));
       const { app: _, ...rest } = result;
+      const studied = STUDIED.get(a);
+      if (studied) return ownVersion({ ...rest, app: `${base}/` }, base, n.title, studied);
       return { ...rest, app: `${base}/`, next: `Read ${base}/README.md, then build the app with write and edit (files under ${base}/src/). Write several files in one write (path "${base}", files: [{ path, content }, …]): one save, one check. Its data is ${base}/data.json.` };
     }
     if (type !== "note") throw new ToolError("type is note, folder or app.");

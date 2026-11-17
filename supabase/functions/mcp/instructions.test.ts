@@ -68,7 +68,7 @@ Deno.test("the instructions, prompts and tool descriptions name a tool only if t
   for (const set of [undefined, "", "files", "classic", "pages"]) {
     const served = servedTools(set).map((t) => t.name);
     const notServed = everyName().filter((n) => !served.includes(n) && n.includes("_"));
-    const texts = [instructions(set), ...servedPrompts(set).map((p) => p.text({ note: "N", idea: "I", data: "D", change: "C" })), ...servedTools(set).map((t) => t.description)];
+    const texts = [instructions(set), ...servedPrompts(set).map((p) => p.text({ note: "N", idea: "I", data: "D", change: "C", link: "https://example.com" })), ...servedTools(set).map((t) => t.description)];
     for (const text of texts) assertEquals(notServed.filter((n) => new RegExp(`\\b${n}\\b`).test(text)), [], `AMBER_MCP_TOOLS=${set}: ${text.slice(0, 60)}`);
     if (set !== undefined && set !== "" && set !== "files") assertEquals(named(instructions(set)).filter((n) => !served.includes(n)), [], `AMBER_MCP_TOOLS=${set}`);
   }
@@ -76,8 +76,8 @@ Deno.test("the instructions, prompts and tool descriptions name a tool only if t
 
 Deno.test("with the file tools, the prompts and resources are about apps made with them, and the card lists them", async () => {
   await withToolSet(undefined, async () => {
-    assertEquals(servedPrompts().map((p) => p.name), ["make_app", "add_data", "change_app"]);
-    for (const p of servedPrompts()) assert(!/get_page_guide|create_app|update_page_data|preview_app/.test(p.text({ note: "N", idea: "I", data: "D", change: "C" })), p.name);
+    assertEquals(servedPrompts().map((p) => p.name), ["make_app", "own_version", "add_data", "change_app"]);
+    for (const p of servedPrompts()) assert(!/get_page_guide|create_app|update_page_data|preview_app/.test(p.text({ note: "N", idea: "I", data: "D", change: "C", link: "https://example.com" })), p.name);
     const resources = await servedResources();
     const guide = resources.find((r) => r.name === "apps-guide");
     assert(guide, "the apps guide");
