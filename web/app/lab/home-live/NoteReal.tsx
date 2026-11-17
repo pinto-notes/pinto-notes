@@ -54,7 +54,7 @@ const Checks = ({ phone }: { phone?: boolean }) => (
   <ul className={n.checks}>
     <li data-done><i>{I.tick}</i>Phone in another room</li>
     <li><i />{phone ? "A shutdown ritual" : "A shutdown ritual at 6"}</li>
-    <li><i />Two deep hours before lunch</li>
+    <li><i />Deep work before lunch</li>
   </ul>
 );
 
@@ -106,7 +106,9 @@ export function NoteReal() {
             <p className={n.h}>To try</p>
             <Checks phone />
             <p className={n.h}>Decided</p>
-            <ul className={n.dashes}><li>Write 30 minutes before work</li></ul>
+            <ul className={n.dashes}><li>Write 30 minutes before work</li><li>Email twice a day, not all day</li></ul>
+            <p className={n.h}>Next</p>
+            <p>So Good They Can&apos;t Ignore You, then Slow Productivity.</p>
           </div>
         </div>
       </div>
