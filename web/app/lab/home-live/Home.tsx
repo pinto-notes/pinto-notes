@@ -24,12 +24,12 @@ const EXTRAS = [
 
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
-export function Home({ h1 = "a", serif = true, three = false }: { h1?: H1; serif?: boolean; three?: boolean }) {
+export function Home({ h1 = "a", serif = true }: { h1?: H1; serif?: boolean }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${d.main} ${v.main} ${serif ? v.serif : ""}`}>
-      <Hero h1={h1} three={three} />
+      <Hero h1={h1} />
 
       <Rows />
 

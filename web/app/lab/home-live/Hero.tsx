@@ -5,7 +5,6 @@ import { mailLink, sendLink } from "@/lib/platform";
 import { useEffect, useState } from "react";
 import { AIGlyph } from "@/lib/ai-glyphs";
 import { Download } from "../../_home/Download";
-import { HeroThree } from "./HeroThree";
 import x from "./hero.module.css";
 
 // The hero: the headline on the left, and over her shoulder at dusk, she plans tomorrow out loud and
@@ -40,16 +39,14 @@ const TOMORROW = [
   { text: "Book Lisbon flights", at: 2.5 },
 ];
 /** Round 28: the headline options, `?h1=a|b|c`. The lede goes with its headline. */
-export type H1 = "a" | "b" | "c" | "d";
+export type H1 = "a" | "b" | "c";
 const HEAD: Record<H1, { h: React.ReactNode; lede: string }> = {
-  /** Round 30, with `?hero=three`: you, your people and your AI in one notebook. */
-  d: { h: <>The notebook for you, your people <span className={x.mark}>and your AI.</span></>, lede: "Notes, whiteboards and apps. Share them with anyone, and ChatGPT and Claude work in them too." },
   a: { h: <>The notebook <span className={x.mark}>you and your AI</span> share.</>, lede: "Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life." },
   b: { h: <>The notebook for <span className={x.mark} style={{ whiteSpace: "normal", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>you and your AI.</span></>, lede: "Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided." },
   c: { h: <>Write, draw and build <span className={x.mark}>with your AI.</span></>, lede: "Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided." },
 };
 
-export function Hero({ h1 = "a", three = false }: { h1?: H1; three?: boolean }) {
+export function Hero({ h1 = "a" }: { h1?: H1 }) {
   const t = useClock();
   const said = "Plan tomorrow. Run before work, and the dentist.";
   const k1 = span(t, 0.1, 1.1), v1 = mj(span(t, 0, 0.25));
@@ -57,7 +54,7 @@ export function Hero({ h1 = "a", three = false }: { h1?: H1; three?: boolean }) 
   return (
     <section className={x.hero}>
       <div className={x.words}>
-        <h1 className={`${x.h1} ${h1 === "d" ? x.long : ""} rise`} style={rise(0)}>{HEAD[h1].h}</h1>
+        <h1 className={`${x.h1} rise`} style={rise(0)}>{HEAD[h1].h}</h1>
         <p className={`${x.lede} rise`} style={rise(1)}>{HEAD[h1].lede}</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download note={false} />
@@ -75,9 +72,6 @@ export function Hero({ h1 = "a", three = false }: { h1?: H1; three?: boolean }) 
         </div>
         <p className={`${x.fine} rise pi-apple pi-not-ios`} style={rise(3)}>Free for iPhone and Mac. Works with ChatGPT and Claude.</p>
       </div>
-      {three ? (
-        <div className={`${x.card} ${x.three} rise`} style={rise(1)}><HeroThree /></div>
-      ) : (
       <div className={`${x.card} rise`} style={rise(1)} role="img"
         aria-label="Over a woman's shoulder at dusk in San Francisco. She says: Plan tomorrow. Run before work, and the dentist. ChatGPT answers: Done. You also need to book the Lisbon flights by Friday. Added that too. Her Tomorrow note in Pinto Notes fills in on her phone.">
       <div className={x.art}>
@@ -125,7 +119,6 @@ export function Hero({ h1 = "a", three = false }: { h1?: H1; three?: boolean }) 
         </div>
       </div>
       </div>
-      )}
     </section>
   );
 }

@@ -122,9 +122,3 @@
   .card:global(.rise) { animation-name: cardIn; }
 }
 @keyframes cardIn { from { opacity: 0.01; filter: blur(9px); transform: translateY(12px) scale(0.985); } to { opacity: 1; filter: none; transform: none; } }
-
-/* Round 30, `?hero=three`: the shared note on the paper desk (HeroThree.tsx, from home-z HeroG). */
-.three { background: #f8d9b8; --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-/* The longer headline (`?h1=d`) a step smaller, so it sits in three lines. */
-.h1.long { font-size: min(clamp(40px, min(4.3vw, 7vh), 76px), 13cqi); }
-@media (max-width: 900px) { .h1.long { font-size: clamp(38px, 10vw, 56px); } }
