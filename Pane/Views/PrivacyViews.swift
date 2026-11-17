@@ -1,4 +1,8 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+import CoreImage
+#endif
 
 // Privacy mode's own views (PrivacyMode): the cover that asks when your screen is shared, the
 // eye in the toolbar while it's on, and its settings.
@@ -10,11 +14,20 @@ struct PrivacyCover: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
+        let style = PrivacyCoverStyle.active
         content
             .overlay {
                 if mode.asking {
-                    PrivacyCoverView(mode: mode)
-                        .transition(.opacity)
+                    Group {
+                        switch style {
+                        case .current: PrivacyCoverView(mode: mode)
+                        case .frosted: PrivacyAskCard.Frosted(mode: mode)
+                        case .skeleton: PrivacyAskCard.Skeleton(mode: mode)
+                        // The banner never asks: it turns privacy mode on and says so (RootView).
+                        case .banner: EmptyView()
+                        }
+                    }
+                    .transition(.opacity)
                 }
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: mode.asking)
@@ -154,6 +167,407 @@ struct PrivacyCoverView: View {
         #else
         VStack(spacing: 10) { hide.frame(maxWidth: .infinity); show.frame(maxWidth: .infinity) }
         #endif
+    }
+}
+
+// MARK: The study (17 November 2026)
+
+/// How privacy mode tells you it's there when a call starts or your screen is shared. A study:
+/// Emil tried the frosted cover in a real call and it looked broken (an empty grey window with the
+/// toolbar floating on it), and "Blur previews" didn't say what it would do. Only tests and
+/// captures choose a style (PrivacyCoverStudyShots); the app ships `.current`.
+enum PrivacyCoverStyle: Sendable {
+    /// The frosted cover over the whole window, asking (what ships).
+    case current
+    /// A: on by itself, and a slim line under the toolbar says so, with Turn Off.
+    case banner
+    /// B: the app frosted past reading behind a small card: Turn on privacy mode?
+    case frosted
+    /// C: the app's layout as grey bars, with the same card.
+    case skeleton
+
+    #if DEBUG || QA
+    /// Set by the study's pictures; nothing else changes it.
+    @MainActor static var chosen: PrivacyCoverStyle = .current
+    #endif
+
+    @MainActor static var active: PrivacyCoverStyle {
+        #if DEBUG || QA
+        chosen
+        #else
+        .current
+        #endif
+    }
+}
+
+/// The study's words. "Privacy mode" says what it is; "previews" didn't.
+enum PrivacyStudyWords {
+    static let question = "Turn on privacy mode?"
+    static let turnOn = "Turn On"
+    static let notNow = "Not Now"
+    static let turnOff = "Turn Off"
+    static let dismiss = "Hide this message"
+}
+
+/// Where the window's columns are, for the study's skeleton and banner (global coordinates).
+@MainActor @Observable final class PrivacyStudyColumns {
+    static let shared = PrivacyStudyColumns()
+    var sidebar: CGRect = .zero
+    var list: CGRect = .zero
+    var note: CGRect = .zero
+}
+
+extension View {
+    /// Reports this column's frame to PrivacyStudyColumns (debug and QA builds only).
+    @ViewBuilder func privacyStudyColumn(_ column: ReferenceWritableKeyPath<PrivacyStudyColumns, CGRect>) -> some View {
+        #if DEBUG || QA
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { PrivacyStudyColumns.shared[keyPath: column] = $0 }
+        #else
+        self
+        #endif
+    }
+}
+
+/// B and C's card: you're in a call, turn on privacy mode? Not Now and Turn On, the default on
+/// the right as in a Mac alert. Remember this moves to Settings.
+struct PrivacyAskCard: View {
+    let mode: PrivacyMode
+    /// B's frost: the shapes of the columns show, no word can be read.
+    static let frost: CGFloat = 16
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        VStack(spacing: 14) {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 26, weight: .regular))
+                .foregroundStyle(Color.amberInk)
+                .accessibilityHidden(true)
+            VStack(spacing: 4) {
+                Text(mode.coverTitle)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Text(PrivacyStudyWords.question)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.muted)
+            }
+            .multilineTextAlignment(.center)
+            HStack(spacing: 8) {
+                Button(PrivacyStudyWords.notNow) { mode.answer(hide: false, remember: false) }
+                    .buttonStyle(.secondary(.compact, wide: true))
+                    .accessibilityIdentifier("privacy.notNow")
+                Button(PrivacyStudyWords.turnOn) { mode.answer(hide: true, remember: false) }
+                    .buttonStyle(.amberProminent(.compact, wide: true))
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("privacy.turnOn")
+            }
+            .padding(.top, 4)
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 22)
+        .padding(.bottom, 18)
+        .frame(width: 292)
+        .background(Color(Palette.card), in: shape)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.16), radius: 28, y: 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityIdentifier("privacy.card")
+    }
+
+    /// B: the window as it was a moment ago, frosted past reading (PrivacyFrost), a light wash
+    /// over it, and the card. (SwiftUI's blur on the window's content lost the split view's safe
+    /// area: the columns jumped up under the toolbar.)
+    struct Frosted: View {
+        let mode: PrivacyMode
+        var body: some View {
+            ZStack {
+                #if os(macOS)
+                PrivacyFrost(radius: PrivacyAskCard.frost)
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+                #else
+                Rectangle().fill(.thickMaterial).ignoresSafeArea()
+                #endif
+                Color(Palette.page).opacity(0.25)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {}
+                    .accessibilityHidden(true)
+                PrivacyAskCard(mode: mode)
+            }
+        }
+    }
+
+    /// C: the window's columns where they are, with grey bars for every line of text, and the card.
+    struct Skeleton: View {
+        let mode: PrivacyMode
+        var body: some View {
+            ZStack {
+                GeometryReader { proxy in
+                    PrivacySkeleton(origin: proxy.frame(in: .global).origin, columns: PrivacyStudyColumns.shared)
+                }
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {}
+                .accessibilityHidden(true)
+                PrivacyAskCard(mode: mode)
+            }
+        }
+    }
+}
+
+#if os(macOS)
+/// B's frost: a picture of what's behind it in the window, taken as it appears, blurred. A still
+/// is enough: nothing behind it can be used or read until the card is answered.
+struct PrivacyFrost: NSViewRepresentable {
+    var radius: CGFloat
+
+    func makeNSView(context: Context) -> FrostView { FrostView(radius: radius) }
+    func updateNSView(_ view: FrostView, context: Context) {}
+
+    final class FrostView: NSView {
+        let radius: CGFloat
+        init(radius: CGFloat) {
+            self.radius = radius
+            super.init(frame: .zero)
+            wantsLayer = true
+            layer?.contentsGravity = .resize
+        }
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.freeze() }
+        }
+
+        /// Draws the window's content behind this view, blurs it and shows it.
+        func freeze() {
+            // The window's frame view: drawn the right way up (its layer isn't flipped).
+            guard let rootLayer = window?.contentView?.superview?.layer, let mine = layer else { return }
+            let scale = window?.backingScaleFactor ?? 2
+            guard let behind = LayerSnapshot.behind(mine, in: rootLayer, scale: scale),
+                  let blurred = LayerSnapshot.blur(behind, radius: radius * scale) else { return }
+            let r = mine.convert(mine.bounds, to: rootLayer)
+            mine.contents = LayerSnapshot.crop(blurred, to: r, in: rootLayer.bounds, scale: scale)
+        }
+    }
+}
+
+/// Pictures of a window's layers as Core Animation would show them, made by hand: what lies
+/// behind a layer (the frost), a part blurred. render(in:) skips filters and backdrops.
+@MainActor enum LayerSnapshot {
+    /// Every layer under `root`, in the order they're painted (each before its sublayers).
+    static func paintOrder(_ root: CALayer) -> [CALayer] {
+        [root] + (root.sublayers ?? []).flatMap { paintOrder($0) }
+    }
+
+    /// `root` (a layer that isn't flipped) drawn with `layer` and everything painted after it hidden (`keep`: its own
+    /// sublayers stay), at `scale`.
+    static func behind(_ layer: CALayer, in root: CALayer, scale: CGFloat, keep: Bool = false) -> CGImage? {
+        let order = paintOrder(root)
+        guard let at = order.firstIndex(where: { $0 === layer }) else { return nil }
+        var ancestors = Set<ObjectIdentifier>()
+        var up = layer.superlayer
+        while let l = up { ancestors.insert(ObjectIdentifier(l)); up = l.superlayer }
+        let mine = keep ? Set(paintOrder(layer).map(ObjectIdentifier.init)) : []
+        var hidden: [CALayer] = []
+        for l in order[at...] where !ancestors.contains(ObjectIdentifier(l)) && !mine.contains(ObjectIdentifier(l)) && !l.isHidden {
+            // Hiding a layer hides what's under it: its sublayers needn't be listed.
+            if let s = l.superlayer, hidden.contains(where: { $0 === s }) { continue }
+            l.isHidden = true
+            hidden.append(l)
+        }
+        defer { hidden.forEach { $0.isHidden = false } }
+        return draw(root, scale: scale)
+    }
+
+    static func draw(_ root: CALayer, scale: CGFloat) -> CGImage? {
+        let size = root.bounds.size
+        guard let ctx = CGContext(data: nil, width: Int(size.width * scale), height: Int(size.height * scale), bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.scaleBy(x: scale, y: scale)
+        root.render(in: ctx)
+        return ctx.makeImage()
+    }
+
+    static func blur(_ image: CGImage, radius: CGFloat) -> CGImage? {
+        let input = CIImage(cgImage: image)
+        let out = input.clampedToExtent().applyingGaussianBlur(sigma: radius).cropped(to: input.extent)
+        return CIContext(options: nil).createCGImage(out, from: input.extent)
+    }
+
+    /// The part of a picture of `bounds` (drawn at `scale`) that `rect` covers.
+    static func crop(_ image: CGImage, to rect: CGRect, in bounds: CGRect, scale: CGFloat, flipped: Bool = false) -> CGImage? {
+        let top = flipped ? rect.minY : bounds.height - rect.maxY
+        return image.cropping(to: CGRect(x: rect.minX * scale, y: top * scale, width: rect.width * scale, height: rect.height * scale).integral)
+    }
+}
+#endif
+
+/// The app's three columns drawn as a loading skeleton: the sidebar's folders, the list's rows (a
+/// title and a preview each) and the note's title and paragraphs, all grey bars.
+struct PrivacySkeleton: View {
+    let origin: CGPoint
+    let columns: PrivacyStudyColumns
+    @Environment(\.colorScheme) private var scheme
+
+    private var bar: Color { Color.primary.opacity(scheme == .dark ? 0.13 : 0.08) }
+    private var titleBar: Color { Color.primary.opacity(scheme == .dark ? 0.2 : 0.13) }
+
+    private func local(_ r: CGRect) -> CGRect { r.offsetBy(dx: -origin.x, dy: -origin.y) }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Color(Palette.page)
+            let list = local(columns.list), note = local(columns.note), side = local(columns.sidebar)
+            Color(Palette.listGround).frame(width: max(list.width, 0), height: max(list.height, 0)).offset(x: list.minX, y: list.minY)
+            if side.width > 0 {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(scheme == .dark ? Color(white: 0.11) : Color(white: 0.93))
+                    .frame(width: side.width - 16, height: side.height - 16)
+                    .offset(x: side.minX + 8, y: side.minY + 8)
+                sidebarRows.offset(x: side.minX + 24, y: side.minY + 70)
+            }
+            listRows(width: list.width - 40).offset(x: list.minX + 20, y: list.minY + 100)
+            noteLines(width: min(note.width - 96, 680)).offset(x: note.minX + 48, y: note.minY + 92)
+        }
+    }
+
+    private func pill(_ w: CGFloat, _ h: CGFloat, _ c: Color) -> some View {
+        RoundedRectangle(cornerRadius: h / 2, style: .continuous).fill(c).frame(width: max(w, 0), height: h)
+    }
+
+    private var sidebarRows: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            ForEach(Array([96.0, 70, 58, 84, 64, 110, 76].enumerated()), id: \.offset) { i, w in
+                HStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: 4).fill(bar).frame(width: 16, height: 14)
+                    pill(w, 10, i == 0 ? titleBar : bar)
+                }
+                .padding(.top, i == 1 ? 18 : 0)
+            }
+        }
+    }
+
+    private func listRows(width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 30) {
+            ForEach(Array([0.62, 0.48, 0.7, 0.4, 0.55, 0.66, 0.45, 0.58, 0.5, 0.64].enumerated()), id: \.offset) { i, f in
+                VStack(alignment: .leading, spacing: 9) {
+                    pill(width * f, 11, titleBar)
+                    pill(width * (0.78 + Double(i % 3) * 0.07), 9, bar)
+                }
+            }
+        }
+    }
+
+    private func noteLines(width: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 13) {
+            pill(width * 0.42, 22, titleBar).padding(.bottom, 18)
+            ForEach(Array([[1.0, 0.96, 0.98, 0.6], [0.97, 1.0, 0.74], [0.3], [0.94, 0.99, 0.97, 0.88, 0.42], [1.0, 0.82]].enumerated()), id: \.offset) { i, para in
+                VStack(alignment: .leading, spacing: 11) {
+                    ForEach(Array(para.enumerated()), id: \.offset) { _, f in pill(width * f, 10, i == 2 ? titleBar : bar) }
+                }
+                .padding(.bottom, 14)
+            }
+        }
+    }
+}
+
+extension View {
+    /// The study's banner across the list and the note (RootView's split view). Nothing at all
+    /// unless the study chose `.banner`, so the shipping window is laid out as before.
+    @ViewBuilder func privacyBanner() -> some View {
+        if PrivacyCoverStyle.active == .banner { modifier(PrivacyBannerOverlay()) } else { self }
+    }
+
+    /// The banner's room at the top of a column, so it covers neither the list nor the note.
+    @ViewBuilder func privacyBannerRoom(note: Bool = false) -> some View {
+        if PrivacyCoverStyle.active == .banner { modifier(PrivacyBannerRoom(note: note)) } else { self }
+    }
+}
+
+struct PrivacyBannerOverlay: ViewModifier {
+    @State private var mode = PrivacyMode.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .topLeading) {
+                if mode.announcing {
+                    let columns = PrivacyStudyColumns.shared
+                    PrivacyBanner(mode: mode)
+                        .frame(width: max(columns.note.maxX - columns.list.minX, 0))
+                        .padding(.leading, max(columns.list.minX, 0))
+                        .transition(.opacity)
+                }
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: mode.announcing)
+    }
+}
+
+struct PrivacyBannerRoom: ViewModifier {
+    /// The note's column: its text runs under the toolbar and doesn't move for a safe area, so
+    /// the room is made by hand, as for the deleted note's banner (TrashBanner).
+    var note = false
+    @State private var mode = PrivacyMode.shared
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        if note {
+            content
+                .padding(.top, mode.announcing ? PrivacyBanner.height : 0)
+                .background { if mode.announcing { SoftToolbarEdge().ignoresSafeArea() } }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                if mode.announcing { Color.clear.frame(height: PrivacyBanner.height) }
+            }
+        }
+        #else
+        content
+        #endif
+    }
+}
+
+/// A: the line under the toolbar, over the list and the note, while privacy mode turned itself
+/// on: what happened, and Turn Off. The close hides the line; privacy mode stays on.
+struct PrivacyBanner: View {
+    let mode: PrivacyMode
+    static let height: CGFloat = 44
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        HStack(spacing: 9) {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.amberInk)
+                .accessibilityHidden(true)
+            Text(mode.announcement)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+            Spacer(minLength: 12)
+            Button(PrivacyStudyWords.turnOff) { mode.toggle() }
+                .buttonStyle(.secondary)
+                .fixedSize()
+                .accessibilityIdentifier("privacy.bannerTurnOff")
+            Button { mode.dismissAnnouncement() } label: {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).frame(width: 22, height: 22)
+            }
+            .buttonStyle(.quietIcon)
+            .help(PrivacyStudyWords.dismiss)
+            .accessibilityLabel(PrivacyStudyWords.dismiss)
+            .accessibilityIdentifier("privacy.bannerClose")
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 6)
+        .frame(height: 34)
+        .background(Color(Palette.soft), in: shape)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .frame(height: Self.height)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("privacy.banner")
     }
 }
 

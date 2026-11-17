@@ -878,7 +878,8 @@ struct NoteDetailView: View {
                     .overlay(alignment: .top) {
                         // Not under the deleted note's banner: the text starts below it, and this
                         // would cover its title (round 19).
-                        if !Self.captureWithoutToolbar, note.trashedAt == nil {
+                        // Nor under the privacy study's banner (PrivacyBanner), for the same reason.
+                        if !Self.captureWithoutToolbar, note.trashedAt == nil, !(PrivacyCoverStyle.active == .banner && PrivacyMode.shared.announcing) {
                             LinearGradient(stops: Self.toolbarCover.map { .init(color: Color.notePage.opacity($0.opacity), location: $0.location) },
                                            startPoint: .top, endPoint: .bottom)
                                 .frame(height: NoteDetailView.toolbarFade)

@@ -549,6 +549,7 @@ struct RootView: View {
             // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+            .privacyStudyColumn(\.sidebar)
             .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
                 withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
                     visibility = SidebarToggle.toggled(visibility)
@@ -596,6 +597,9 @@ struct RootView: View {
                 .environment(tags)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
+                // The privacy study's banner (PrivacyBanner): room for it over the list.
+                .privacyStudyColumn(\.list)
+                .privacyBannerRoom()
                 // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,
                 // and More and New Note need with the sidebar hidden: a narrower list had to grow
                 // and shrink back on every toggle (Emil, 6 November 2026). So a toggle only slides.
@@ -620,8 +624,13 @@ struct RootView: View {
                 // Small enough to tile on half a 1440 pt screen, with the wider list too (round 17).
                 .navigationSplitViewColumnWidth(min: 360, ideal: 760)
                 .overlay(alignment: .leading) { ColumnHairline() }
+                .privacyStudyColumn(\.note)
+                .privacyBannerRoom(note: true)
                 #endif
         }
+        #if os(macOS)
+        .privacyBanner()
+        #endif
     }
 
     #if os(macOS)

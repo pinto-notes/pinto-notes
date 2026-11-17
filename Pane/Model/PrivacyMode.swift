@@ -71,6 +71,9 @@ final class PrivacyMode {
     var coverTitle: String { sharing || !inCall ? PrivacyWords.coverTitle : PrivacyWords.coverTitleCall }
     /// The frosted notice over the window, asking.
     private(set) var asking = false
+    /// Study only (PrivacyCoverStyle.banner): it turned itself on for a call or sharing, and the
+    /// line under the toolbar says so, with Turn Off. Never set while the app ships `.current`.
+    private(set) var announcing = false
     /// "Show previews" was chosen for this sharing session: not asked again until it stops.
     private var declinedSharing = false
     /// ...or for this call: not asked again until it ends. Sharing that starts during it still asks.
@@ -125,9 +128,16 @@ final class PrivacyMode {
             if sharing { declinedSharing = true }
             if inCall { declinedCall = true }
             asking = false
+            announcing = false
             source = nil
         }
     }
+
+    /// The banner's close button (study): privacy mode stays on, the line goes.
+    func dismissAnnouncement() { announcing = false }
+
+    /// The banner's words (study): "You're in a call. Privacy mode is on."
+    var announcement: String { "\(coverTitle). Privacy mode is on." }
 
     // MARK: The cover
 
@@ -209,7 +219,9 @@ final class PrivacyMode {
     private func begin(_ when: WhenShared, declined: Bool) {
         guard source == nil, !declined else { return }
         switch when {
-        case .ask: asking = true
+        case .ask:
+            // The study's banner: on at once, and the line under the toolbar says so.
+            if PrivacyCoverStyle.active == .banner { source = .automatic; announcing = true } else { asking = true }
         case .hide: source = .automatic
         case .nothing: break
         }
@@ -220,6 +232,7 @@ final class PrivacyMode {
     private func endIfOver() {
         guard !occasion else { return }
         asking = false
+        announcing = false
         if source == .automatic { source = nil }
     }
 

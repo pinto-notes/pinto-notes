@@ -299,6 +299,47 @@ final class Heard<T>: @unchecked Sendable {
         for w in all { #expect(!w.contains("Hidden") && !w.contains("Hides") && !w.contains("hidden"), "it blurs, it doesn't hide: \(w)") }
     }
 
+    // MARK: The study (PrivacyCoverStyle, 17 November 2026)
+
+    /// The app ships the cover it has: the study's styles are for its pictures only.
+    @Test func theAppShipsTheCurrentCover() {
+        #expect(PrivacyCoverStyle.active == .current)
+        let (mode, fake, _) = Self.fresh()
+        mode.callChanged(true)
+        #expect(mode.asking && !mode.announcing)
+        fake.say(false)
+    }
+
+    /// A, the banner: a call turns privacy mode on at once and says so; Turn Off turns it off for
+    /// the rest of the call; the close hides the line and leaves it on; the call's end turns it off.
+    @Test func theStudysBannerTurnsItOnAndSaysSo() {
+        PrivacyCoverStyle.chosen = .banner
+        defer { PrivacyCoverStyle.chosen = .current }
+        let (mode, _, _) = Self.fresh()
+        mode.callChanged(true)
+        #expect(mode.isOn && mode.source == .automatic && mode.announcing && !mode.asking)
+        #expect(mode.announcement == "You\u{2019}re in a call. Privacy mode is on.")
+        mode.dismissAnnouncement()
+        #expect(mode.isOn && !mode.announcing)
+        mode.callChanged(false)
+        #expect(!mode.isOn)
+        mode.callChanged(true)
+        #expect(mode.announcing)
+        mode.toggle()
+        #expect(!mode.isOn && !mode.announcing)
+        mode.callChanged(false)
+        mode.callChanged(true)
+        #expect(mode.isOn && mode.announcing, "a new call turns it on again")
+        mode.callChanged(false)
+        #expect(!mode.announcing)
+    }
+
+    @Test func theStudysWordsSayPrivacyMode() {
+        let all = [PrivacyStudyWords.question, PrivacyStudyWords.turnOn, PrivacyStudyWords.notNow, PrivacyStudyWords.turnOff, PrivacyStudyWords.dismiss]
+        for w in all { #expect(!w.contains("\u{2014}") && !w.lowercased().contains("preview"), "\(w)") }
+        #expect(PrivacyStudyWords.question == "Turn on privacy mode?")
+    }
+
     #if os(iOS)
     /// The iPhone's capture state (recording, mirroring, AirPlay) drives the same model.
     @Test func theIPhonesCaptureStateDrivesTheModel() {

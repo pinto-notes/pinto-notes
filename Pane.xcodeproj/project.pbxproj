@@ -282,6 +282,7 @@
 		243D97CBA0ECF493F4DF7D86 /* NoteOpenTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AC7BF34F462E9BEFE8CEC9F /* NoteOpenTests+Shared.swift */; };
 		244D8C03DC30B26C222FEA4C /* AdvancedProtectionHiddenTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA4930086FA74FB0B5A2F3 /* AdvancedProtectionHiddenTests+Shared.swift */; };
 		2450229B33341B7CCEDF4E51 /* FilmGalaxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 908A4E9500A2944E1A85BF99 /* FilmGalaxy.swift */; };
+		24B3CADEA138F1DBAA5B4215 /* PrivacyCoverStudyShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B1EBC86640B357D6A8DD018 /* PrivacyCoverStudyShots.swift */; };
 		24D337E54F40585DFDED54FE /* template-cover-job-hunt.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E32AA38706EFA8DDABA0A198 /* template-cover-job-hunt.jpg */; };
 		24EF9254B276F270C741DD8D /* GoogleSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD8BF7D9C77E06DFA9BE70C /* GoogleSignIn.swift */; };
 		257B536842B201E95D30D967 /* dayjs.js in Resources */ = {isa = PBXBuildFile; fileRef = 451FCC96A1E65D0DCF2FB5B6 /* dayjs.js */; };
@@ -2018,6 +2019,7 @@
 		5A37C9F239F34435A2AC59C8 /* Backlinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backlinks.swift; sourceTree = "<group>"; };
 		5ABBD3F207DC3886AC6008A9 /* SlashMenuShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashMenuShots.swift; sourceTree = "<group>"; };
 		5B1E13D24097F1FAFE6885DA /* SlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommands.swift; sourceTree = "<group>"; };
+		5B1EBC86640B357D6A8DD018 /* PrivacyCoverStudyShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyCoverStudyShots.swift; sourceTree = "<group>"; };
 		5B31DC6FB48849DBCA14CD4A /* WarmGreySnapshots+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WarmGreySnapshots+Shared.swift"; sourceTree = "<group>"; };
 		5B576A0B7FE050DF74A468A9 /* ListSortUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListSortUITests.swift; sourceTree = "<group>"; };
 		5B958B34D188D2BE722F0B73 /* PhoneSignOutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSignOutTests.swift; sourceTree = "<group>"; };
@@ -3895,6 +3897,7 @@
 				E7B3F35DBDD3ABD83842BE5A /* PersonaImportShots.swift */,
 				DE23F9691285F7E666E3698E /* PersonaR7Shots.swift */,
 				F8D56148E3044A9C6EA1D3DF /* PictureShots.swift */,
+				5B1EBC86640B357D6A8DD018 /* PrivacyCoverStudyShots.swift */,
 				DCC459633BE217A5390E1796 /* PrivacyModeShots.swift */,
 				758321D9F9783C849CA65451 /* SecurityPageShots.swift */,
 				3C8E6181137EDC6B29107329 /* SecurityPageSnapshots.swift */,
@@ -5313,6 +5316,7 @@
 				FD6A4A2CA7ED329363C63C11 /* PersonaR7Shots.swift in Sources */,
 				642E8498CF240ABF38149885 /* PhoneRenderTests+Shared.swift in Sources */,
 				437E4A09C94E18059F043EEE /* PictureShots.swift in Sources */,
+				24B3CADEA138F1DBAA5B4215 /* PrivacyCoverStudyShots.swift in Sources */,
 				B483A96C10CBC99950D942E6 /* PrivacyMode+Shared.swift in Sources */,
 				17330AB1DC511C5B10183E01 /* PrivacyModeShots.swift in Sources */,
 				EDBD03E3A6F8AF0E2BFB9147 /* SecurityPageShots.swift in Sources */,
