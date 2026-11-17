@@ -44,12 +44,14 @@ const HEADERS = { "user-agent": UA, "accept": "text/html,application/xhtml+xml,a
 /** Limits: each page's HTML, each page's text, all the text, pages beyond the link, screenshots. */
 export const LIMITS = { htmlBytes: 3 * 1048576, pageChars: 12_000, storeChars: 8_000, totalChars: 45_000, extraPages: 4, screenshots: 4, shotBytes: 400 * 1024, timeoutMs: 10_000 };
 
-/** Where the App Store listing is looked up (Apple's public lookup); tests point it at their own server. */
-let lookupBase = "https://itunes.apple.com/lookup";
-export function useLookup(base: string): () => void {
-  const before = lookupBase;
+/** Where the App Store listing is looked up and searched for (Apple's public lookup and search);
+ *  tests point them at their own server. */
+let lookupBase = "https://itunes.apple.com/lookup", searchBase = "https://itunes.apple.com/search";
+export function useLookup(base: string, search = base.replace(/lookup$/, "search")): () => void {
+  const before = [lookupBase, searchBase];
   lookupBase = base;
-  return () => { lookupBase = before; };
+  searchBase = search;
+  return () => { [lookupBase, searchBase] = before; };
 }
 
 /** The App Store id in a link to a listing ("apps.apple.com/us/app/name/id123456"), and its country. */
@@ -171,7 +173,9 @@ const WANT: [RegExp, number][] = [
 export function pickPages(links: { href: string; text: string }[], from: string, most = LIMITS.extraPages): string[] {
   const home = new URL(from);
   const site = siteOf(home.hostname);
-  const scored = new Map<string, number>();
+  // The same page with and without www or a last slash is one page; it's read as the site wrote it.
+  const same = (x: string) => x.replace(/^https:\/\/www\./, "https://").replace(/\/$/, "");
+  const scored = new Map<string, { href: string; score: number }>();
   for (const l of links) {
     let u: URL;
     try { u = new URL(l.href); } catch { continue; }
@@ -179,11 +183,8 @@ export function pickPages(links: { href: string; text: string }[], from: string,
     u.hash = "";
     // Tracking and language switches add nothing.
     for (const k of [...u.searchParams.keys()]) if (/^(utm_|ref$|lang$|hl$|locale$)/i.test(k)) u.searchParams.delete(k);
-    const href = u.href.replace(/\/$/, "");
-    // The same page with and without www is one page.
-    const same = (x: string) => x.replace(/^https:\/\/www\./, "https://");
-    if (same(href) === same(home.href.replace(/#.*$/, "").replace(/\/$/, ""))) continue;
-    const key = [...scored.keys()].find((k) => same(k) === same(href)) ?? href;
+    const key = same(u.href);
+    if (key === same(home.href.replace(/#.*$/, ""))) continue;
     const where = `${u.hostname} ${u.pathname} ${l.text}`;
     if (NEVER.test(where) || FILES.test(u.pathname)) continue;
     // A blog post or a single help article is narrower than the section it sits in.
@@ -193,9 +194,9 @@ export function pickPages(links: { href: string; text: string }[], from: string,
     if (!score) continue;
     score -= Math.max(0, depth - 2);
     if (/\/(blog|news|stories|podcast)\b/i.test(u.pathname)) score -= 3;
-    if (score > 0) scored.set(key, Math.max(scored.get(key) ?? 0, score));
+    if (score > (scored.get(key)?.score ?? 0)) scored.set(key, { href: scored.get(key)?.href ?? u.href, score });
   }
-  return [...scored].sort((a, b) => b[1] - a[1] || a[0].length - b[0].length).slice(0, most).map(([u]) => u);
+  return [...scored.values()].sort((a, b) => b.score - a.score || a.href.length - b.href.length).slice(0, most).map((x) => x.href);
 }
 
 /** robots.txt's rules for every robot ("User-agent: *"): whether a path may be read. */
@@ -277,6 +278,32 @@ async function listing(id: string, country: string, url: string): Promise<Listin
   return { source: { url, kind: "app-store", title: s("trackName"), text: cut(lines.join("\n"), LIMITS.storeChars) }, shots, ...(s("sellerUrl") ? { seller: s("sellerUrl") } : {}) };
 }
 
+/** The App Store listing of a site that doesn't link to it: searched by name, and taken only when the
+ *  listing's developer site is this site, so a namesake is never read. */
+async function findListing(names: string[], site: string): Promise<{ id: string; country: string } | null> {
+  for (const term of names) {
+    let results: Record<string, unknown>[] = [];
+    try {
+      const got = await get(`${searchBase}?term=${encodeURIComponent(term)}&entity=software&limit=10&country=us`, 2 * 1048576);
+      results = (JSON.parse(new TextDecoder().decode(got.bytes)) as { results?: Record<string, unknown>[] }).results ?? [];
+    } catch { continue; }
+    for (const r of results) {
+      const seller = typeof r.sellerUrl === "string" ? r.sellerUrl : "";
+      let host = "";
+      try { host = new URL(seller).hostname; } catch { continue; }
+      if (siteOf(host) === site && r.trackId) return { id: String(r.trackId), country: "us" };
+    }
+  }
+  return null;
+}
+
+/** What to search the App Store for: the page title's first part ("Things 3 | Cultured Code" → "Things 3"), then the site's name. */
+export function namesFor(title: string, link: string): string[] {
+  const first = title.split(/\s[|:\u2013\u2014-]\s|[|:.\u2013\u2014]\s/)[0].trim();
+  const label = siteOf(new URL(link).hostname).split(".")[0];
+  return [...new Set([first, label].filter((x) => x && x.length >= 2 && x.length <= 40))];
+}
+
 /** A screenshot small enough to show: Apple's image server makes any width ("…/300x0w.jpg"). */
 async function screenshot(url: string): Promise<Screenshot> {
   const small = url.replace(/\/\d+x\d+[a-z]*\.(png|jpe?g|webp)$/i, "/300x0w.jpg");
@@ -335,6 +362,8 @@ export async function study(raw: unknown): Promise<Study> {
     } catch (e) { miss(link, e); }
     const found = links.map((l) => appStoreId(l.href)).find(Boolean);
     if (found) store = found;
+    // No link to its listing: look it up by name, on this site's word only.
+    else if (sources.length) store = await findListing(namesFor(sources[0].title, link), siteOf(new URL(link).hostname));
   }
 
   const more: Promise<void>[] = [];

@@ -3,7 +3,7 @@
 // internet is a local https server (test_https.ts); nothing leaves the machine.
 //   cd supabase/functions/mcp && deno test -A own_version.test.ts
 import { assert, assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
-import { appStoreId, checkLink, LIMITS, pickPages, readPage, robotsAllow, siteOf, study, studyText, useLookup } from "./own_version.ts";
+import { appStoreId, checkLink, LIMITS, namesFor, pickPages, readPage, robotsAllow, siteOf, study, studyText, useLookup } from "./own_version.ts";
 import { testWeb } from "./test_https.ts";
 
 Deno.test("a page reads as its words: headings, lists, its description and structured data, with menus once and no scripts", () => {
@@ -35,7 +35,8 @@ Deno.test("the pages worth reading: features, help and pricing on the app's own 
     "https://tally.example.com/features#top", "https://tally.example.com/features?utm_source=nav", "https://tally.example.com/", "https://tally.example.com/careers",
   ].map((href) => ({ href, text: "" }));
   const picked = pickPages(links, "https://tally.example.com/");
-  assertEquals(picked, ["https://www.tally.example.com/features", "https://tally.example.com/faq", "https://help.tally.example.com", "https://tally.example.com/pricing"]);
+  // Each read as the site wrote it (a last slash kept: some sites send the address without it to http).
+  assertEquals(picked, ["https://www.tally.example.com/features", "https://tally.example.com/faq", "https://help.tally.example.com/", "https://tally.example.com/pricing"]);
   assertEquals(pickPages(links, "https://tally.example.com/", 2).length, 2);
   // A link's words count as much as its address.
   assertEquals(pickPages([{ href: "https://tally.example.com/p/91", text: "How it works" }, { href: "https://tally.example.com/p/92", text: "Sign in" }], "https://tally.example.com/"), ["https://tally.example.com/p/91"]);
@@ -80,11 +81,16 @@ async function internet() {
     }],
   };
   const web = await testWeb({
-    "tally.example.com": ["93.184.216.34"], "tallyhelp.example.com": ["93.184.216.35"], "lookup.example.com": ["93.184.216.36"], "img.example.com": ["93.184.216.37"], "js.example.com": ["93.184.216.38"],
+    "tally.example.com": ["93.184.216.34"], "tallyhelp.example.com": ["93.184.216.35"], "lookup.example.com": ["93.184.216.36"], "img.example.com": ["93.184.216.37"], "js.example.com": ["93.184.216.38"], "plain.example.com": ["93.184.216.39"],
   }, (req) => {
     const u = new URL(req.url);
     const host = req.headers.get("host")?.split(":")[0];
+    if (host === "lookup.example.com" && u.pathname === "/search") {
+      // A namesake from another developer comes first; only the one whose site this is counts.
+      return Response.json({ results: [{ trackId: 555555, trackName: "Plain", sellerUrl: "https://plain.example.org/" }, { trackId: 963034692, trackName: "Plain Habits", sellerUrl: "https://www.plain.example.com/" }] });
+    }
     if (host === "lookup.example.com") return Response.json(u.searchParams.get("id") === "963034692" ? listing : { resultCount: 0, results: [] });
+    if (host === "plain.example.com") return u.pathname === "/" ? PAGE("<h1>Plain habits</h1><p>A habit tracker for people who like it simple.</p>", "Plain | Habits made simple") : new Response("", { status: 404 });
     if (host === "img.example.com") return u.pathname.endsWith("/300x0w.jpg") ? new Response(PNG, { headers: { "content-type": "image/jpeg" } }) : new Response("no", { status: 404 });
     if (host === "js.example.com") return PAGE("<div id=root></div>");
     if (host === "tallyhelp.example.com") return PAGE("<h1>Help</h1><p>Archive a habit to hide it without losing its history.</p>", "Tally help");
@@ -110,7 +116,7 @@ Deno.test("from the app's website: its features and help pages and its App Store
       ["link", "https://tally.example.com/"],
       ["app-store", "https://apps.apple.com/us/app/id963034692"],
       ["page", "https://tally.example.com/features"],
-      ["page", "https://tallyhelp.example.com"],
+      ["page", "https://tallyhelp.example.com/"],
     ]);
     const store = s.sources[1].text;
     for (const t of ["Name: Tally: Habit Tracker", "Price: $5.99", "Category: Health & Fitness, Productivity", "Rating: 4.8 from 12000 ratings", "Runs on: iPhone, iPad, Watch", "• Negative habits", "### What's new in the latest version", "repeat every few days"]) assertStringIncludes(store, t);
@@ -135,7 +141,7 @@ Deno.test("from an App Store link: the listing first, then the developer's site 
   try {
     const s = await study("https://apps.apple.com/us/app/tally/id963034692");
     assertEquals(s.sources.map((x) => x.kind), ["app-store", "page", "page", "page"]);
-    assertEquals(s.sources.map((x) => x.url).slice(1), ["https://tally.example.com/", "https://tally.example.com/features", "https://tallyhelp.example.com"]);
+    assertEquals(s.sources.map((x) => x.url).slice(1), ["https://tally.example.com/", "https://tally.example.com/features", "https://tallyhelp.example.com/"]);
     assertEquals(s.screenshots.length, 4);
   } finally { await net.close(); }
 });
@@ -167,4 +173,16 @@ Deno.test("long pages are cut so all of it fits one answer", async () => {
     assertStringIncludes(s.sources[0].text, "(cut here: the page goes on)");
     assertStringIncludes(s.sources.at(-1)!.text, "left out");
   } finally { await web.close(); }
+});
+
+Deno.test("a site that doesn't link its App Store listing: searched by name, and only a listing whose developer site it is", async () => {
+  assertEquals(namesFor("Things 3 | Cultured Code", "https://culturedcode.com/things/"), ["Things 3", "culturedcode"]);
+  assertEquals(namesFor("YNAB. Get good at money.", "https://www.ynab.com/"), ["YNAB", "ynab"]);
+  const net = await internet();
+  try {
+    const s = await study("https://plain.example.com/");
+    assertEquals(s.sources.map((x) => [x.kind, x.url]), [["link", "https://plain.example.com/"], ["app-store", "https://apps.apple.com/us/app/id963034692"]]);
+    const searched = net.web.asked.map((x) => new URL(x.url)).filter((u) => u.pathname === "/search");
+    assertEquals(searched.map((u) => u.searchParams.get("term")), ["Plain"]);
+  } finally { await net.close(); }
 });
