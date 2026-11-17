@@ -22,6 +22,10 @@ const I = {
   clip: <svg viewBox="0 0 20 20"><path d="m15.6 9.4-5.8 5.8a3.6 3.6 0 0 1-5.1-5.1l6.4-6.4a2.4 2.4 0 0 1 3.4 3.4L8.3 13.3a1.2 1.2 0 0 1-1.7-1.7l5.6-5.6" /></svg>,
   share: <svg viewBox="0 0 18 20"><path d="M9 12.4V1.8M5.6 5 9 1.6 12.4 5M6.2 7.6H4.4a1.6 1.6 0 0 0-1.6 1.6v7.4a1.6 1.6 0 0 0 1.6 1.6h9.2a1.6 1.6 0 0 0 1.6-1.6V9.2a1.6 1.6 0 0 0-1.6-1.6h-1.8" /></svg>,
   folder: <svg viewBox="0 0 20 16"><path d="M1.5 3.2c0-.9.7-1.7 1.7-1.7h4l1.8 2h7.8c.9 0 1.7.8 1.7 1.7v7.6c0 .9-.8 1.7-1.7 1.7H3.2c-1 0-1.7-.8-1.7-1.7z" /></svg>,
+  undo: <svg viewBox="0 0 20 20"><path d="M7.5 4.5 3.5 8.5l4 4" /><path d="M3.8 8.5h8.2a4.5 4.5 0 0 1 0 9H9" /></svg>,
+  signal: <svg viewBox="0 0 18 12" className={n.fill}><rect x="0" y="8" width="3" height="4" rx="0.8" /><rect x="5" y="5.5" width="3" height="6.5" rx="0.8" /><rect x="10" y="3" width="3" height="9" rx="0.8" /><rect x="15" y="0" width="3" height="12" rx="0.8" /></svg>,
+  wifi: <svg viewBox="0 0 16 12" className={n.fill}><path d="M8 2.2c2.4 0 4.6.9 6.3 2.5l1.3-1.4A10.9 10.9 0 0 0 8 .3 10.9 10.9 0 0 0 .4 3.3l1.3 1.4A9 9 0 0 1 8 2.2zm0 3.7c1.4 0 2.7.5 3.7 1.4l1.3-1.4A7.2 7.2 0 0 0 8 4 7.2 7.2 0 0 0 3 5.9l1.3 1.4c1-.9 2.3-1.4 3.7-1.4zM8 9.6l1.9-2a2.8 2.8 0 0 0-3.8 0z" /></svg>,
+  battery: <svg viewBox="0 0 27 13"><rect x="0.8" y="0.8" width="22.4" height="11.4" rx="3.4" fill="none" stroke="currentColor" strokeOpacity="0.4" /><rect x="2.4" y="2.4" width="19.2" height="8.2" rx="2" fill="currentColor" /><path d="M25 4.6v3.8a2 2 0 0 0 0-3.8z" fill="currentColor" fillOpacity="0.4" /></svg>,
   tick: <svg viewBox="0 0 22 22"><path d="M6.5 11.3l3 3 6-6.3" /></svg>,
 };
 
@@ -32,6 +36,8 @@ const TODAY = [
 const EARLIER = [
   { title: "Studio North", when: "Yesterday", first: "Decided: wait until March.", folder: "Work" },
   { title: "Kyoto in April", when: "Monday", first: "Six days, two cities.", folder: "Trips" },
+  { title: "Morning run", when: "Sunday", first: "Three a week, before work.", folder: "Health" },
+  { title: "Gift ideas", when: "Friday", first: "Mum: the blue scarf from Lisbon.", folder: "Home" },
 ];
 
 function Row({ r }: { r: { title: string; when: string; first: string; folder: string; on?: boolean } }) {
@@ -81,14 +87,17 @@ export function NoteReal() {
             <p className={n.quote}>Deep work is rare, and worth more every year.</p>
             <p className={n.h}>To try</p>
             <Checks />
+            <p className={n.h}>Decided</p>
+            <ul className={n.dashes}><li>Write 30 minutes before work</li><li>Email twice a day, not all day</li></ul>
           </div>
         </div>
       </div>
-      {/* The same note on an iPhone, over the window's lower right corner. */}
+      {/* The same note on an iPhone, as the app shows it (appstore-council/cap20/l/note.png): the status bar,
+          Back in a round button, Undo, then Share and More in one capsule, the note at reading size. */}
       <div className={n.phone} aria-hidden="true">
         <div className={n.screen}>
-          <p className={n.status}><b>9:41</b></p>
-          <p className={n.pBar}><span>{I.back}Reading</span><span className={n.pRound}>{I.more}</span></p>
+          <p className={n.status}><b>9:41</b><span className={n.island} /><span className={n.sIcons}>{I.signal}{I.wifi}{I.battery}</span></p>
+          <p className={n.pBar}><span className={n.glass}>{I.back}</span><span className={n.glass}>{I.undo}</span><span className={`${n.glass} ${n.pair2}`}>{I.share}{I.more}</span></p>
           <div className={n.pNote}>
             <p className={n.title}>Deep Work</p>
             <p>Notes from Cal Newport&apos;s book.</p>
@@ -96,6 +105,8 @@ export function NoteReal() {
             <p className={n.quote}>Deep work is rare, and worth more every year.</p>
             <p className={n.h}>To try</p>
             <Checks phone />
+            <p className={n.h}>Decided</p>
+            <ul className={n.dashes}><li>Write 30 minutes before work</li></ul>
           </div>
         </div>
       </div>
