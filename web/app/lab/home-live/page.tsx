@@ -13,5 +13,5 @@ const display = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], ax
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const q = await searchParams;
   const h1 = q.h1 === "b" || q.h1 === "c" ? q.h1 : "a";
-  return <div className={display.variable}><Home h1={h1} share={q.share === "1" || q.share === "2" || q.share === "3" || q.share === "4" ? q.share : undefined} serif={q.font !== "sans"} /></div>;
+  return <div className={display.variable}><Home h1={h1} share={q.share === "1" || q.share === "2" || q.share === "3" || q.share === "4" ? q.share : undefined} serif={q.font !== "sans"} next={q.next === "a" || q.next === "b" || q.next === "c" ? q.next : undefined} /></div>;
 }

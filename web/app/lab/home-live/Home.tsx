@@ -3,7 +3,7 @@ import { templates } from "@/lib/templates";
 import { G } from "./copy";
 import { Download } from "../../_home/Download";
 import { Hero, type H1 } from "./Hero";
-import { Rows, SHOW_COLLAB } from "./Rows";
+import { Rows, SHOW_COLLAB, type Next } from "./Rows";
 import type { ShareV } from "./Share";
 import { ScrollVar } from "./ScrollVar";
 import d from "./sections.module.css";
@@ -25,19 +25,19 @@ const EXTRAS = [
 
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
-export function Home({ h1 = "a", serif = true, share }: { h1?: H1; serif?: boolean; share?: ShareV }) {
+export function Home({ h1 = "a", serif = true, share, next }: { h1?: H1; serif?: boolean; share?: ShareV; next?: Next }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${d.main} ${v.main} ${serif ? v.serif : ""}`}>
       <Hero h1={h1} />
 
-      <Rows share={share} />
+      <Rows share={share} next={next} />
 
-      {/* The memory study (Emil, 12 November 2026): one quiet line. */}
-      <div className={d.centerHead}>
+      {/* The memory study (Emil, 12 November 2026): one quiet line, unless it's the big number above. */}
+      {next !== "a" && <div className={d.centerHead}>
         <p className={d.lede}>How much does an AI remember with notes? We measured it: in a new chat, 18% right without them, 82.5% with Pinto. <a className={d.inline} href="/blog/ai-memory-with-notes">Read the study</a></p>
-      </div>
+      </div>}
 
       <section className={d.wait} aria-labelledby="wait">
         <div className={d.centerHead}>

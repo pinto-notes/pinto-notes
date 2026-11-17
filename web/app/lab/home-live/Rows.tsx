@@ -5,6 +5,8 @@ import { AskChatGpt, HabitsNote } from "../home-z/Habits";
 import { CollabPicture } from "../home-z/Collab";
 import { ShareArt, type ShareV } from "./Share";
 import { NoteReal } from "./NoteReal";
+import { Gallery } from "./Gallery";
+import { Stats } from "./Stats";
 import { WbCanvas } from "../home-z/Wb";
 import zs from "../home-z/s.module.css";
 import v from "./home.module.css";
@@ -88,13 +90,29 @@ function ShareRow({ v }: { v?: ShareV }) {
   );
 }
 
-export function Rows({ share }: { share?: ShareV }) {
+/** What follows Build (Emil, 2026-11-17: "lets figure out what to put after the build apps one"):
+ *  a = the memory study as a big number, b = Together, c = a folder of recipes as a gallery. */
+export type Next = "a" | "b" | "c";
+
+function GalleryRow() {
+  return (
+    <Row id="r-gallery" kicker="Covers" flip wide title="Make it yours." say="Give a note a cover photo and an icon, and see a folder as a gallery. Recipes, trips, books, anything you keep.">
+      <div role="img" aria-label="A Recipes folder in Pinto Notes shown as a gallery: eight recipe notes, each with a cover photo, an icon and its first line.">
+        <Gallery />
+      </div>
+    </Row>
+  );
+}
+
+export function Rows({ share, next }: { share?: ShareV; next?: Next }) {
   return (
     <section className={r.rows} aria-label="What you can do in Pinto Notes">
       <WriteRow />
       <DrawRow />
       <BuildRow />
-      {SHOW_COLLAB && <ShareRow v={share} />}
+      {next === "a" && <Stats />}
+      {next === "c" && <GalleryRow />}
+      {SHOW_COLLAB && (next === undefined || next === "b") && <ShareRow v={share ?? (next === "b" ? "3" : undefined)} />}
     </section>
   );
 }
