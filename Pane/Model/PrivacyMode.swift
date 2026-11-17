@@ -90,7 +90,11 @@ final class PrivacyMode {
     }
 
     /// Previews are blurred: in the list, the sidebar's cards, search, the menu bar and the widget.
-    var isOn: Bool { source != nil || asking }
+    var isOn: Bool { Self.offered && (source != nil || asking) }
+
+    /// Whether the app offers privacy mode at all (PrivacyWords.offered). The test host keeps it,
+    /// so the parked feature stays tested.
+    static var offered: Bool { PrivacyWords.offered || PaneApp.isUnitTestHost }
     var isManual: Bool { source == .manual }
 
     /// Told each time `isOn` changes (the iPhone's widget and control).
@@ -111,6 +115,7 @@ final class PrivacyMode {
     }
 
     func setManual(_ on: Bool) {
+        if on, !Self.offered { return }
         if on {
             update { asking = false; source = .manual }
         } else {
@@ -207,7 +212,7 @@ final class PrivacyMode {
     }
 
     private func begin(_ when: WhenShared, declined: Bool) {
-        guard source == nil, !declined else { return }
+        guard Self.offered, source == nil, !declined else { return }
         switch when {
         case .ask: asking = true
         case .hide: source = .automatic
@@ -234,7 +239,8 @@ final class PrivacyMode {
     /// Posted on the main thread each time privacy mode turns on or off.
     nonisolated static let didChange = Notification.Name("pinto.privacyMode.changed")
 
-    private func publish() {
+    /// Also on launch while privacy mode is parked: a widget left blurred by an earlier build shows again.
+    func publish() {
         changed(isOn)
         NotificationCenter.default.post(name: Self.didChange, object: nil)
         #if os(iOS)

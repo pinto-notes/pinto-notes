@@ -8,6 +8,7 @@ struct PaneWidgetsBundle: WidgetBundle {
     var body: some Widget {
         ChecklistWidget()
         NewNoteControl()
-        PrivacyModeControl()
+        // Privacy mode is parked (PrivacyWords.offered): its Control Centre switch comes back with it.
+        // PrivacyModeControl()
     }
 }

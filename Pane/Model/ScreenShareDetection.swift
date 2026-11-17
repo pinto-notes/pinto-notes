@@ -244,6 +244,8 @@ extension PrivacyMode {
     /// Watches this device's screen, once, in the app (never in a test host).
     func watchThisDevice() {
         guard !PaneApp.isUnitTestHost, !Self.watching else { return }
+        // Parked (PrivacyWords.offered): nothing is watched, and the widget is told it's off.
+        guard Self.offered else { publish(); return }
         Self.watching = true
         #if os(macOS)
         watch(ProcessShareDetector())

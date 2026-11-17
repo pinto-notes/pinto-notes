@@ -319,3 +319,12 @@ final class Heard<T>: @unchecked Sendable {
     }
     #endif
 }
+
+/// Privacy mode is parked (Emil, 17 November 2026): the app doesn't offer it. The test host keeps
+/// it on, so the rest of these tests still cover it for when it comes back.
+@MainActor @Suite struct PrivacyModeParkedTests {
+    @Test func theAppDoesNotOfferPrivacyMode() {
+        #expect(PrivacyWords.offered == false)
+        #expect(PrivacyMode.offered, "the test host keeps it, to test it")
+    }
+}

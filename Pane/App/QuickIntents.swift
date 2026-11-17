@@ -27,6 +27,11 @@ enum QuickWords {
 
 /// The words privacy mode says, in the app, the widget and Control Centre (PrivacyMode).
 enum PrivacyWords {
+    /// Privacy mode is parked (Emil, 17 November 2026: "let's disable privacy mode, I'm not
+    /// convinced I like it"). Off, the app never offers it: no menu item, Settings section or
+    /// Control Centre switch, no cover on a call or a shared screen, nothing blurred. The code
+    /// and its tests stay, for when it comes back.
+    static let offered = false
     static let menuTitle = "Privacy Mode"
     static let name = "Privacy mode"
     static let turnOff = "Turn off privacy mode"
