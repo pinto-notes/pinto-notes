@@ -252,6 +252,7 @@ enum PrivacyStudyWords {
     static let turnOn = "Turn On"
     static let notNow = "Not Now"
     static let turnOff = "Turn Off"
+    static let on = "Privacy mode is on"
 }
 
 /// Where the window's columns are, for the study's skeleton and banner (global coordinates).
@@ -517,37 +518,50 @@ struct PrivacySkeleton: View {
     }
 }
 
-/// A: the line under the toolbar, over the list and the note, while privacy mode turned itself
-/// on: what happened, and Turn Off. The close hides the line; privacy mode stays on.
-struct PrivacyBanner: View {
+/// The study's notice (A): privacy mode is on, in the sidebar's foot where its other cards sit, so
+/// nothing lies over the note (Emil, 17 November 2026: "move this into the sidebar so it's not in
+/// the way of my note"). The reason under it when a call or sharing turned it on; Turn Off beside.
+struct PrivacySidebarCard: View {
     let mode: PrivacyMode
+    @State private var hovering = false
 
     var body: some View {
-        // The deleted note's banner's shape and place (TrashBanner), so it reads as the app's own.
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        HStack(spacing: 10) {
+        let shape = RoundedRectangle(cornerRadius: SidebarCardMetrics.radius, style: .continuous)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "eye.slash")
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Color.amberInk)
                 .accessibilityHidden(true)
-            Text(mode.announcement)
-                .font(.callout)
-                .foregroundStyle(Color.ink)
-                .lineLimit(2)
-            Spacer(minLength: 8)
-            Button(PrivacyStudyWords.turnOff) { mode.toggle() }
-                .buttonStyle(.secondary)
-                .fixedSize()
-                .accessibilityIdentifier("privacy.bannerTurnOff")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(PrivacyStudyWords.on)
+                    .font(SidebarCardMetrics.title)
+                    .foregroundStyle(Color.ink)
+                if let reason = mode.announcementReason {
+                    Text(reason)
+                        .font(SidebarCardMetrics.line)
+                        .foregroundStyle(Color.muted)
+                }
+                // Turn Off as the other sidebar cards say what they do: a line in the accent.
+                Button(PrivacyStudyWords.turnOff) { mode.toggle() }
+                    .buttonStyle(.plain)
+                    .font(SidebarCardMetrics.button)
+                    .foregroundStyle(Color.amberInk)
+                    .opacity(hovering ? 0.75 : 1)
+                    .frame(minHeight: SidebarCardMetrics.buttonHeight)
+                    .contentShape(.rect)
+                    .onHover { hovering = $0 }
+                    .accessibilityIdentifier("privacy.sidebarTurnOff")
+            }
+            .lineLimit(1)
+            Spacer(minLength: 0)
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 8)
-        .padding(.vertical, 8)
-        .background(Color(Palette.soft), in: shape)
-        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, SidebarCardMetrics.padding)
+        .padding(.top, SidebarCardMetrics.padding)
+        .padding(.bottom, SidebarCardMetrics.padding - 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(Palette.rowPillHover), in: shape)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("privacy.banner")
+        .accessibilityIdentifier("privacy.sidebarCard")
     }
 }
 
@@ -556,7 +570,7 @@ struct PrivacyEyeButton: View {
     @State private var mode = PrivacyMode.shared
 
     var body: some View {
-        // The study's line under the toolbar says it instead (PrivacyBanner).
+        // The study's card in the sidebar says it instead (PrivacySidebarCard).
         if mode.isOn && !PrivacyCoverStyle.active.usesBanner {
             Button(PrivacyWords.turnOff, systemImage: "eye.slash") { mode.toggle() }
                 .labelStyle(.iconOnly)

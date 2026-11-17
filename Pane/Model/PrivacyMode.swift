@@ -71,8 +71,8 @@ final class PrivacyMode {
     var coverTitle: String { sharing || !inCall ? PrivacyWords.coverTitle : PrivacyWords.coverTitleCall }
     /// The frosted notice over the window, asking.
     private(set) var asking = false
-    /// Study only (PrivacyCoverStyle): while privacy mode is on, the line under the toolbar says
-    /// so, with Turn Off, in place of the eye. Never while the app ships `.current`.
+    /// Study only (PrivacyCoverStyle): while privacy mode is on, a card in the sidebar says so,
+    /// with Turn Off, in place of the eye (PrivacySidebarCard). Never while the app ships `.current`.
     var announcing: Bool { isOn && !asking && PrivacyCoverStyle.active.usesBanner }
     /// "Show previews" was chosen for this sharing session: not asked again until it stops.
     private var declinedSharing = false
@@ -132,8 +132,11 @@ final class PrivacyMode {
         }
     }
 
-    /// The banner's words (study): "You're in a call. Privacy mode is on." when a call or sharing
-    /// turned it on, "Privacy mode is on." when you did.
+    /// The card's second line (study): why it came on, when a call or sharing turned it on.
+    var announcementReason: String? { source == .automatic && occasion ? coverTitle : nil }
+
+    /// The notice in words (study, and VoiceOver): "You're in a call. Privacy mode is on." when a
+    /// call or sharing turned it on, "Privacy mode is on." when you did.
     var announcement: String { source == .automatic && occasion ? "\(coverTitle). Privacy mode is on." : "Privacy mode is on." }
 
     // MARK: The cover

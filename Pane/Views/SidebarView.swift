@@ -852,6 +852,12 @@ struct SidebarView: View {
         #endif
     }
 
+    /// The account's foot is under the folders (signed in).
+    private var footShown: Bool {
+        if let backend, case .signedIn = backend.state { return true }
+        return false
+    }
+
     /// The account at the foot, Settings, and the folder dialogs.
     @ViewBuilder private func footed(_ content: some View) -> some View {
         #if os(macOS)
@@ -860,6 +866,17 @@ struct SidebarView: View {
         // fades out at its own bottom edge.
         VStack(spacing: 0) {
             content
+            // Privacy mode is on (the study's A): said here, out of the note's way.
+            if PrivacyMode.shared.announcing {
+                PrivacySidebarCard(mode: PrivacyMode.shared)
+                    .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)
+                    .padding(.trailing, 10)
+                    .padding(.top, 4)
+                    // Signed in, the foot under it keeps its own room.
+                    .padding(.bottom, footShown ? 0 : 8)
+                    .background(Color(Palette.sidebarWarmth).ignoresSafeArea())
+                    .transition(.opacity)
+            }
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
                     if let film, film.cardShown {

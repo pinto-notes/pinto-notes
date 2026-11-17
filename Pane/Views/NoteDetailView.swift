@@ -878,8 +878,7 @@ struct NoteDetailView: View {
                     .overlay(alignment: .top) {
                         // Not under the deleted note's banner: the text starts below it, and this
                         // would cover its title (round 19).
-                        // Nor under the privacy study's banner (PrivacyBanner), for the same reason.
-                        if !Self.captureWithoutToolbar, note.trashedAt == nil, !PrivacyMode.shared.announcing {
+                        if !Self.captureWithoutToolbar, note.trashedAt == nil {
                             LinearGradient(stops: Self.toolbarCover.map { .init(color: Color.notePage.opacity($0.opacity), location: $0.location) },
                                            startPoint: .top, endPoint: .bottom)
                                 .frame(height: NoteDetailView.toolbarFade)
@@ -1323,17 +1322,13 @@ struct NoteDetailView: View {
             #if os(macOS)
             // Room made by hand: the editor's text doesn't move for a safe area, so the banner lay
             // over the note's title (round 18).
-            // The privacy study's line (PrivacyBanner) takes the same place, the same way.
-            .padding(.top, note.trashedAt != nil || PrivacyMode.shared.announcing ? TrashBanner.height : 0)
+            .padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)
             // Pushed down, the editor no longer reaches the toolbar, and the column wore the
             // window's grey band above the banner (Emil, 30 October).
-            .background { if note.trashedAt != nil || PrivacyMode.shared.announcing { SoftToolbarEdge().ignoresSafeArea() } }
+            .background { if note.trashedAt != nil { SoftToolbarEdge().ignoresSafeArea() } }
             .overlay(alignment: .top) {
                 if note.trashedAt != nil {
                     TrashBanner { Self.recover(note, in: context, editor: controller) }
-                        .transition(.opacity)
-                } else if PrivacyMode.shared.announcing {
-                    PrivacyBanner(mode: PrivacyMode.shared)
                         .transition(.opacity)
                 }
             }
