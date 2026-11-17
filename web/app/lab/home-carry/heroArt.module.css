@@ -1,0 +1,95 @@
+/* The first screen's picture, option C (round 18): the still life, and one weekly note lying in its
+   open middle, with the ChatGPT request that just changed it over its corner. Everything here belongs
+   to HeroArt.tsx; the torn panel around it is the page's (.art in s.module.css).
+
+   The picture is square (1254 px) and laid like object-fit: cover, centred, so its side is S, the
+   larger of the panel's width and height. Its open middle runs from about 20% to 70% of S down the
+   picture (under the glasses and the herbs, over the pen). The request and the note are one group,
+   centred in that open middle with air all round, sized in --u (a 380-wide design board, given 53% of
+   S), so at any window size they lie on the paper, centred across the panel. The smallest words never
+   go under 12 px. */
+/* Round 23: the paper-b desk is the picture (art.ts); the group sits in its open middle the same way. */
+
+/* Round 25: the picture is laid as a square (--S) larger than the panel, its right side running off the
+   page, so the sprig sits over the note's top right and the pen under it. Its other props (the open book,
+   the orange notebook, the cup) are masked into the panel's paper (#fdd9b0, the picture's own colour):
+   council r19 counted five props poking out round the card; two now frame it. The masks are in the
+   picture's own coordinates (it is drawn at its own square, no object-fit crop). */
+.pic { --S: max(118cqh, 130cqw); position: absolute; top: calc(-0.04 * var(--S)); right: calc(-0.06 * var(--S)); width: var(--S); height: var(--S); max-width: none; object-fit: fill;
+  --hideBook: radial-gradient(30% 30% at 17% 8%, transparent 0 82%, #000 100%);
+  --hideBinder: radial-gradient(28% 34% at 4% 88%, transparent 0 84%, #000 100%);
+  --hideCup: radial-gradient(19% 21% at 86% 83%, transparent 0 82%, #000 100%);
+  -webkit-mask: var(--hideBook), var(--hideBinder), var(--hideCup); -webkit-mask-composite: source-in, source-in;
+  mask: var(--hideBook), var(--hideBinder), var(--hideCup); mask-composite: intersect; }
+/* Round 24: the note is the subject. The group is about a third larger than round 23's (the card about
+   560 px wide on a 1440 window, its lines about 25 px), centred in the panel a touch above the middle,
+   and the desk is laid 14% larger, so its props sit at the panel's edges and frame the note. It is sized
+   by the panel's width, its height and the picture's side, whichever is tightest, so it always fits. */
+/* Round 25: the note keeps its round 24 size (about 540 px on a 1440 window) but ends at the page's
+   content edge (--padR from it, as the header's button does), with the request inside its corner, so
+   nothing runs past 1320 at 1440 or past the edge at any width; and at least 56 px clear of the panel's
+   torn left edge. The card is laid a little narrower for its type (364 units), as its longest line needs. */
+.box { position: absolute; inset: 0; --padR: max(var(--gutter, 20px), calc((100vw - 1240px) / 2 + var(--gutter, 20px)));
+  --W: min(520px, calc(100cqw - var(--padR) - 56px), calc(100cqh * 1.2)); --u: calc(var(--W) / 364); }
+.group { position: absolute; right: var(--padR); top: 48%; width: var(--W); translate: 0 -50%; font-size: calc(16 * var(--u)); }
+
+/* What you asked in ChatGPT: a small chat line, the ChatGPT mark and name, then your words in a grey
+   bubble. It sits over the note's top right corner, out of the title's way. */
+.ask { position: relative; z-index: 2; display: flex; align-items: center; gap: 0.5em; width: fit-content; max-width: 100%; box-sizing: border-box;
+  margin: 0 calc(14 * var(--u)) calc(-9 * var(--u)) auto; padding: 0.36em 0.4em 0.36em 0.5em; border-radius: 1.1em; background: #fffdf8; font-size: max(12.5px, calc(13.5 * var(--u)));
+  box-shadow: 0 0 0 1px rgba(60, 40, 10, 0.07), 0 0.7em 1.6em -0.7em rgba(70, 45, 10, 0.35); opacity: 0; translate: 0 0.5em; }
+.ask[data-in] { opacity: 1; translate: none; }
+/* ChatGPT's mark in ink, as everywhere on the page (round 23: one colour for an AI's change, amber,
+   so nothing else about the AI is green). */
+.askWho { display: inline-flex; align-items: center; gap: 0.36em; font-size: 0.9em; font-weight: 700; color: #1d1b19; white-space: nowrap; }
+.askMark { flex: none; display: grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 50%; background: #1d1b19; }
+.askMark svg { width: 0.9em; height: 0.9em; }
+.askText { padding: 0.32em 0.8em 0.36em; border-radius: 0.95em; background: #efe9e1; color: #1d1b19; font-weight: 500; line-height: 1.25; white-space: nowrap; }
+
+/* The note: the one thing to look at. A title, what you decided, and two dinners, with room in it. */
+.note { position: relative; z-index: 1; box-sizing: border-box; padding: 1.3em 1.45em 1.3em; border-radius: var(--frameR, 14px);
+  background: #fff; color: #1d1b19; font-size: calc(17.5 * var(--u)); line-height: 1.4;
+  box-shadow: var(--frameShadow); }
+.title { margin: 0; font-size: 1.6em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; }
+/* What you decided, then the dinners, as a note in Pinto writes them: a bold "Decided:", a bulleted list. */
+.decided { margin: 0.5em 0 0; white-space: nowrap; }
+.decided b { font-weight: 650; }
+.lines { margin: 0.55em 0 0; padding: 0 0 0 1.15em; display: grid; gap: 0.3em; }
+.lines li { position: relative; white-space: nowrap; }
+.lines li::marker { color: #b3a493; }
+
+/* ChatGPT's dinner, marked as the app marks an AI's lines (Pane/Editor/DecoratedLayoutFragment.swift):
+   a marker run behind the words, 24% of the amber accent (#d96a06) over the page, radius 5 pt, starting a
+   little before the words; and a 2 pt tick in the accent, 8 pt left of the text column (here, of the
+   bullet). Its room is held from the start, so nothing moves when it lands: it writes itself in, left
+   to right, with its mark; then "Edited by ChatGPT" follows under the list, in the app's amber ink. */
+.wipe { display: inline-flex; clip-path: inset(-0.4em 100% -0.4em -0.4em); }
+.added[data-in] .wipe { clip-path: inset(-0.4em -0.6em -0.4em -0.6em); }
+.run { padding: 0.04em 0.26em 0.08em; margin: 0 -0.26em; border-radius: 0.3em; background: #f6dabe; font-weight: 500; }
+.tick { position: absolute; left: calc(-1.15em - 10px); top: 0.12em; bottom: 0.12em; width: 2px; border-radius: 1px; background: #d96a06; opacity: 0; }
+.added[data-in] .tick { opacity: 1; }
+.by { display: flex; align-items: center; gap: 0.4em; margin: 0.75em 0 0; font-size: max(12.5px, 0.8em); font-weight: 600; color: #a85700; opacity: 0; translate: 0 0.25em; }
+.by[data-in] { opacity: 1; translate: none; }
+.by svg { flex: none; width: 1.05em; height: 1.05em; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ask { transition: opacity 0.35s ease-out, translate 0.5s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .wipe { transition: clip-path 0.9s 0.05s cubic-bezier(0.55, 0, 0.3, 1); }
+  .tick { transition: opacity 0.25s ease-out; }
+  .by { transition: opacity 0.3s ease-out, translate 0.4s cubic-bezier(0.2, 0.9, 0.3, 1); }
+}
+
+/* Phones: the request and the whole note, centred on the picture under the first screen's words, above
+   the fold. The group is in the flow here, and the picture fills the room the first screen leaves. */
+@media (max-width: 760px) {
+  /* The square picture, a little wider than the screen, centred; the same masks (sprig and pen only). */
+  .pic { --S: 116vw; top: 50%; right: auto; left: 50%; translate: -50% -46%; }
+  .box { position: relative; inset: auto; --u: 1; flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; }
+  .group { position: relative; left: auto; right: auto; top: auto; width: auto; translate: none; margin: 0 22px; padding: 30px 0 4px; font-size: 16px; }
+  /* The request stays 22 px in from the screen's edge (the note's own edge). */
+  .ask { margin: 0 12px -8px auto; font-size: 13px; }
+  .note { font-size: 16px; line-height: 1.38; padding: 16px 18px 16px; border-radius: 12px; }
+  .title { font-size: 1.45em; }
+  .decided { margin-top: 0.45em; }
+  .lines { margin-top: 0.5em; }
+}

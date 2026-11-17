@@ -9,7 +9,7 @@ import x from "../../_home/hero.module.css";
 import { AiShow } from "./AiShow";
 import { AskChatGpt, HabitsNote } from "./Habits";
 import { CollabPicture } from "./Collab";
-import { Study, Trust } from "./Close";
+import { GITHUB, Study, Trust } from "./Close";
 import { HeroArt } from "./HeroArt";
 import { useArt } from "./art";
 import { BoardBig, CanvasChrome, Note, NotePhone } from "./Things";
@@ -17,6 +17,8 @@ import { underline } from "./hand";
 import { WbArt, WbCanvas } from "./Wb";
 import { AiAlt } from "./AiAlt";
 import { HeroWin } from "./HeroWin";
+import { HeroG } from "./HeroG";
+import cg from "./closeG.module.css";
 import hw from "./heroWin.module.css";
 import s from "./s.module.css";
 
@@ -127,9 +129,12 @@ function useBinder(root: React.RefObject<HTMLDivElement | null>) {
     const reach = (i: number) => {
       const c = chs[i], top = c.getBoundingClientRect().top;
       const kids = c.querySelectorAll<HTMLElement>("[data-body] > * > *");
-      let b = 0;
+      // Round 26: from -Infinity, not 0. Once the footer lifted the close past the top of the window,
+      // a chapter's lifted words were all above the viewport, the 0 won, and each frame added the last
+      // lift again: scrolling back up from the page's end showed Your AI as an empty dark screen.
+      let b = -Infinity;
       kids.forEach((k) => { const r = k.getBoundingClientRect(); if (r.height > 0 && getComputedStyle(k).display !== "none") b = Math.max(b, r.bottom); });
-      return b - top + lifts[i];
+      return b === -Infinity ? 0 : b - top + lifts[i];
     };
 
     const measure = () => {
@@ -290,7 +295,7 @@ const Cta = () => (
   </div>
 );
 
-function Hero({ v = "0" }: { v?: Variant }) {
+function Hero({ v = "0" }: { v?: HeroVariant }) {
   // Round 21: a, b and c set the words upright in ink (b's full stop in Pinto orange); a and b lay
   // the chapters' kind of picture in the panel (HeroWin), c keeps today's.
   const win = v === "a" || v === "b";
@@ -307,7 +312,7 @@ function Hero({ v = "0" }: { v?: Variant }) {
         <p className={s.fine}>Free on Mac and iPhone. Works with <span className={s.with}><AIGlyph name="openai" size={15} />ChatGPT</span> and <span className={s.with}><AIGlyph name="claude" size={15} color="#d97757" />Claude</span>.</p>
       </div>
       {/* The picture: swap HeroArt (and its heroArt.module.css) for another first screen. */}
-      <div className={`${s.art} ${win ? hw.art : ""}`}><div className={s.artTop}>{win ? <HeroWin /> : <HeroArt />}</div></div>
+      <div className={`${s.art} ${win ? hw.art : ""}`}><div className={s.artTop}>{win ? <HeroWin /> : v === "g" ? <HeroG /> : <HeroArt />}</div></div>
     </section>
   );
 }
@@ -350,6 +355,10 @@ function Write() {
 /* ───────────────────────── Draw on whiteboards ───────────────────────── */
 
 export type Variant = "0" | "a" | "b" | "c";
+/** The first screen has one more: g (round 26), a Pinto note window with ChatGPT over its corner. */
+export type HeroVariant = Variant | "g";
+/** The close: c (round 25: the study, the invitation and four facts) or g (round 26: one picture). */
+export type CloseVariant = "c" | "g";
 /** The whiteboard chapter has one more: d, variant 0's frame holding the real board (part 5). */
 export type WbVariant = Variant | "d";
 
@@ -423,11 +432,11 @@ function Build() {
 
 /* ───────────────────────── Your AI ───────────────────────── */
 
-function Ai({ v = "0" }: { v?: Variant }) {
+function Ai({ v = "0", study = false }: { v?: Variant; study?: boolean }) {
   const sub = useCallback(stayOf("ai"), []);
   if (v !== "0") return (
     <Chapter tone="ai" label="s-ai-h">
-      <AiAlt v={v} title={<h2 id="s-ai-h" className={s.aTitle} data-fade>Your AI,<br />{" "}in all three.</h2>} />
+      <AiAlt v={v} study={study} title={<h2 id="s-ai-h" className={s.aTitle} data-fade>Your AI,<br />{" "}in all three.</h2>} />
     </Chapter>
   );
   return (
@@ -465,10 +474,33 @@ function Share() {
 
 /* ───────────────────────── The cover: the notebook closes ───────────────────────── */
 
-function Cover() {
+function Cover({ v = "g" }: { v?: CloseVariant }) {
   // Round 22: `?art=` picks the picture (art.ts); a phone lays the same file as the cover's ::after.
   const art = useArt();
   const vars = { zIndex: 9, "--s-close-art": `url(${art.close})` } as React.CSSProperties;
+  // Round 26 (Emil: the last section "is just weird and ugly"): one picture. The desk fills the sheet,
+  // the words lie on its empty paper: "Pinto Notes is free.", the downloads, one short paragraph of
+  // small print (what it needs, and what a careful person checks, as one sentence, not a list: each
+  // claim as Close.tsx lists its sources). The study is a line at the end of Your AI now.
+  if (v === "g") return (
+    <section id="s-cover" data-ch="cover" className={`${s.cover} ${cg.cover}`} aria-labelledby="s-free-h" style={vars}>
+      <div className={s.coverPaper} aria-hidden="true">
+        <div className={s.coverSheet}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={cg.art} src={art.close} alt="" width={art.closeW} height={art.closeH} loading="lazy" />
+        </div>
+      </div>
+      <div data-body className={cg.body}>
+        <div className={cg.text}>
+          <h2 id="s-free-h" className={cg.title}>Pinto Notes<br />is free.</h2>
+          <div className={cg.ctas}><Cta /></div>
+          <p className={cg.fine}>Requires macOS 26 or iOS 26. Your notes are encrypted and stored in the EU, and the apps are <a href={GITHUB} target="_blank" rel="noopener noreferrer">open source</a>.</p>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div className={cg.artFlow} aria-hidden="true"><img src={art.close} alt="" width={art.closeW} height={art.closeH} loading="lazy" /></div>
+      </div>
+    </section>
+  );
   return (
     <section id="s-cover" data-ch="cover" className={s.cover} aria-labelledby="s-free-h" style={vars}>
       {/* The close's paper, torn along its top like every sheet above it, with the still life on it. */}
@@ -493,7 +525,7 @@ function Cover() {
   );
 }
 
-export function Story({ className, wb = "d", ai = "b", hero = "c", collab = false }: { className: string; wb?: WbVariant; ai?: Variant; hero?: Variant; collab?: boolean }) {
+export function Story({ className, wb = "d", ai = "b", hero = "g", close = "g", collab = false }: { className: string; wb?: WbVariant; ai?: Variant; hero?: HeroVariant; close?: CloseVariant; collab?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
   useBinder(root);
   return (
@@ -508,9 +540,9 @@ export function Story({ className, wb = "d", ai = "b", hero = "c", collab = fals
       <Write />
       <Draw wb={wb} />
       <Build />
-      <Ai v={ai} />
+      <Ai v={ai} study={close === "g"} />
       {collab && <Share />}
-      <Cover />
+      <Cover v={close} />
       <div className={s.tail} aria-hidden="true" />
     </div>
   );

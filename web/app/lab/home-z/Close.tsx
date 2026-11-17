@@ -14,7 +14,7 @@ import c from "./close.module.css";
 //   (memory there: the notes the AI wrote after each chat and could look up in the next one).
 //   The bars are those two numbers to scale.
 
-const GITHUB = "https://github.com/pinto-notes/pinto-notes";
+export const GITHUB = "https://github.com/pinto-notes/pinto-notes";
 
 /** The four lines a careful person checks, in plain words. */
 export function Trust() {

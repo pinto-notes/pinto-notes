@@ -148,7 +148,12 @@ export function ShakshukaNote() {
 }
 
 /** The chapter's picture, per variant. */
-export function AiAlt({ v, title }: { v: "a" | "b" | "c"; title: React.ReactNode }) {
+/** Round 26: the study, moved out of the close, as one quiet line at the chapter's end (worded as the
+ *  study page puts it, /blog/ai-memory-with-notes: in a new chat, 18% right with nothing, 82.5% with
+ *  Pinto Notes connected; both conditions are new chats, so "without" is the 18%). */
+const STUDY_LINE = "In our test, Claude answered 82.5% of questions about months of past chats right with Pinto Notes, against 18% without.";
+
+export function AiAlt({ v, title, study = false }: { v: "a" | "b" | "c"; title: React.ReactNode; study?: boolean }) {
   const tie = v === "a" ? "Ask ChatGPT or Claude. It answers from what you decided in your notes." : v === "b" ? "Ask ChatGPT or Claude to save something. It writes it into your notes, in the folder you name." : "Ask ChatGPT or Claude. It answers from your notes, and writes into them.";
   return (
     <div className={a.body} data-v={v}>
@@ -174,6 +179,7 @@ export function AiAlt({ v, title }: { v: "a" | "b" | "c"; title: React.ReactNode
         <p className={a.stat} data-fade>In a new chat, Claude answered 82.5% of questions about past chats correctly with Pinto Notes connected, against 18% without. <a href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true"> →</span></a></p>
       )}
       {v === "b" && <p className={a.foot} data-fade>Works with <span className={a.with}><AIGlyph name="openai" size={16} color="#fff1e2" />ChatGPT</span>, <span className={a.with}><AIGlyph name="claude" size={16} color="#d97757" />Claude</span>, Claude Code and Codex.</p>}
+      {v === "b" && study && <p className={a.studyLine} data-fade>{STUDY_LINE} <a href="/blog/ai-memory-with-notes">Read the study<span aria-hidden="true"> →</span></a></p>}
     </div>
   );
 }

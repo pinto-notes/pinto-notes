@@ -1,0 +1,40 @@
+/* Round 26 (`ribbon`), the close (Closes.tsx): one picture (the ribbon's last line), one headline on
+   its strip of paper, the buttons, one line of small print. About one screen on a Mac and on a phone;
+   the footer's torn edge sits on it. */
+
+.stage { position: relative; box-sizing: border-box; height: 100%; min-height: 560px; display: flex; flex-direction: column; justify-content: center; padding: calc(var(--tearH) + 24px) 0 clamp(40px, 9cqh, 96px); }
+.band { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.chat { fill: none; stroke: #2f2f2f; stroke-linecap: round; }
+.askText { font: 500 var(--rf) / 1 var(--sans); fill: #f2efea; }
+
+.row { position: relative; z-index: 1; display: flex; justify-content: center; padding: 0 var(--gutter); }
+/* The pill, then the strip that comes out of it: the strip starts under the pill's middle. */
+.strip { position: relative; display: flex; align-items: center; margin-left: calc(var(--pillH, 60px) * 0.85); }
+.pill { position: absolute; z-index: 2; left: 0; top: 50%; display: grid; place-items: center; height: var(--pillH, 60px); aspect-ratio: 1.7; translate: -50% -50%; border-radius: 999px; background: #fffdf9; box-shadow: 0 0 0 2px #24170d, 0 10px 24px -14px rgba(36, 23, 13, 0.55); }
+.pill img { width: calc(var(--pillH, 60px) * 0.64); height: auto; border-radius: 22%; }
+.out { position: relative; overflow: hidden; padding: 48px 48px 48px 0; margin: -48px -48px -48px 0; }
+/* It comes out of the pill: on a Mac to the right, on a phone downward (--out goes 0 to 1). */
+.paper { position: relative; padding: 0.2em 0.7em 0.26em calc(var(--pillH, 60px) * 0.95); transform: translateX(calc((var(--out, 1) - 1) * (100% + 48px))); }
+.paperBg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.paperBg rect { x: 0; y: 6px; width: calc(100% - 4px); height: calc(100% - 12px); }
+.title { position: relative; margin: 0; font-family: var(--display); font-weight: 500; font-size: min(7.2vw, 11.4svh, 104px); line-height: 1.04; letter-spacing: -0.045em; color: #24170d; white-space: nowrap; }
+.title span { white-space: nowrap; }
+
+.under { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; margin-top: clamp(28px, 5svh, 48px); padding: 0 var(--gutter); }
+.ctas { justify-content: center; align-items: center; margin-top: 0 !important; }
+.req { margin: 14px 0 0; font-size: 15px; font-weight: 600; color: #6b5641; }
+
+@media (max-width: 760px) {
+  /* Content high, so the close and the footer under it make the last screen together. Room above the
+     pill for the question, which comes in from the upper left. */
+  .stage { height: auto; min-height: 0; padding: calc(var(--tearH) + 104px) 0 72px; justify-content: flex-start; }
+  /* On a phone the pill sits in the middle and the strip comes out under it, like a page from a slot. */
+  .strip { flex-direction: column; margin: 0; padding-top: calc(var(--pillH, 46px) / 2); }
+  .pill { left: 50%; top: calc(var(--pillH, 46px) / 2); }
+  .out { padding: 0 40px 48px; margin: 0 -40px -48px; }
+  .paper { padding: calc(var(--pillH, 46px) * 0.5 + 0.12em) 0.55em 0.3em; text-align: center; transform: translateY(calc((var(--out, 1) - 1) * (100% + 56px))); }
+  .title { font-size: min(14.4vw, 60px); line-height: 1.0; white-space: normal; }
+  .title span { display: block; }
+  .ctas { flex-direction: column; }
+}
+:global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .under .ctas.ctas { align-items: center; }

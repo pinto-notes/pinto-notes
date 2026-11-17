@@ -153,3 +153,11 @@
   .ipMore svg { width: 13px; height: 4px; fill: currentColor; }
   .pNote { padding-top: 4px; }
 }
+
+/* ── Round 26: the study, one quiet line under the foot (it left the close). Smaller and softer than the
+   foot, its link in the chapter's ink. ── */
+.studyLine { margin: 6px 0 0; max-width: none; font-size: var(--small, 15px); line-height: 1.45; color: var(--soft); text-wrap: pretty; }
+.studyLine a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255, 241, 226, 0.35); text-underline-offset: 3px; white-space: nowrap; }
+@media (hover: hover) { .studyLine a:hover { text-decoration-color: currentColor; } }
+.studyLine a:focus-visible { outline: 3px solid #ee8a14; outline-offset: 3px; border-radius: 4px; }
+@media (max-width: 760px) { .studyLine { margin-top: 8px; font-size: 14px; } }

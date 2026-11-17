@@ -1,0 +1,143 @@
+/* Round 23: the Habits note (Habits.tsx), measured from the app's capture (cap18/mac/app-habits.png at
+   2x): white note page, title #262626, its first line #6e6e6e, the app's panels #f3f1ee with 16 pt
+   corners, the ring and the done days #cb702b on #eae6e1, the streaks #9d5b1f, hairlines #e5e5e5.
+   The window wears the page's one frame for product pictures (--frameR, --frameShadow on .stack). */
+
+.win { position: relative; box-sizing: border-box; width: 100%; border-radius: var(--frameR, 14px); overflow: hidden; background: #fff; color: #262626; font-family: var(--sans);
+  box-shadow: var(--frameShadow); }
+.fill { fill: currentColor; stroke: none; }
+.bar { display: flex; align-items: center; gap: 16px; height: 48px; padding: 0 10px 0 16px; color: #9a9a9e; }
+.lights { flex: none; display: flex; gap: 8px; margin-right: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.ico { flex: none; display: grid; place-items: center; }
+.ico svg { width: 17px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ico svg[viewBox="0 0 10 16"] { width: 10px; }
+.ico svg[viewBox="0 0 20 6"] { width: 15px; height: 5px; }
+.dim { opacity: 0.6; }
+/* The floating tools, as in the capture: a white capsule with a hairline and a soft shadow. */
+.tools { margin-left: auto; display: flex; align-items: center; gap: 16px; padding: 6px 14px; border-radius: 99px; background: #fff; color: #3a3a3c;
+  box-shadow: 0 0 0 1px #ececec, 0 2px 8px -2px rgba(0, 0, 0, 0.08); }
+.tools > b { font-size: 15px; font-weight: 500; line-height: 1; }
+
+.page { padding: 8px 48px 40px; }
+.title { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.first { margin: 4px 0 0; font-size: 17px; line-height: 1.4; color: #6e6e6e; }
+
+/* This week: the ring and its two lines. */
+.week { margin-top: 16px; display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-radius: 16px; background: #f3f1ee; }
+.ring { flex: none; width: 64px; height: 64px; rotate: -90deg; }
+.ring circle { fill: none; stroke-width: 7; }
+.track { stroke: #eae6e1; }
+.done { stroke: #cb702b; stroke-linecap: round; transition: stroke-dasharray 0.3s ease-out; }
+.pct { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.of { margin: 4px 0 0; font-size: 15px; line-height: 1.35; color: #6e6e6e; }
+
+/* The habits: the days named once along the top, then a row each. */
+.list { margin-top: 16px; padding: 8px 24px 4px; border-radius: 16px; background: #f3f1ee; --dot: 24px; --gap: 8px; }
+.days { margin: 0; display: flex; justify-content: flex-end; gap: var(--gap); padding: 4px 0 8px; box-shadow: inset 0 -1px 0 #e5e5e5; font-size: 13px; font-weight: 500; color: #555; }
+.days span { width: var(--dot); text-align: center; }
+.list ul { margin: 0; padding: 0; list-style: none; }
+.list li { display: flex; align-items: center; gap: 16px; padding: 10px 0; }
+.list li + li { box-shadow: inset 0 1px 0 #e5e5e5; }
+.name { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.name b { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.streak { font-size: 15px; font-weight: 500; line-height: 1.25; color: #9d5b1f; }
+.dots { flex: none; display: flex; gap: var(--gap); }
+.dots button { width: var(--dot); height: var(--dot); padding: 0; border: 0; border-radius: 50%; background: #eae6e1; cursor: pointer; }
+.dots button[data-on] { background: #cb702b; }
+@media (hover: hover) { .dots button:hover { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(203, 112, 43, 0.5); } }
+.dots button:focus-visible { outline: 2px solid #cb702b; outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .dots button { transition: background-color 0.15s ease-out, box-shadow 0.15s ease-out; } }
+
+/* Phones: the same note, its tools down to More, everything a step smaller, the days still in a row. */
+@media (max-width: 760px) {
+  .win { border-radius: 12px; }
+  .bar { height: 40px; gap: 12px; padding: 0 8px 0 12px; }
+  .lights { gap: 6px; margin-right: 4px; }
+  .lights i { width: 10px; height: 10px; }
+  .tools > *:not(:last-child), .ico.dim { display: none; }
+  .tools { padding: 4px 10px; }
+  .page { padding: 4px 16px 16px; }
+  .title { font-size: 24px; }
+  .first { font-size: 15px; }
+  .week { margin-top: 12px; gap: 16px; padding: 12px 16px; border-radius: 12px; }
+  .ring { width: 48px; height: 48px; }
+  .pct { font-size: 19px; }
+  .of { font-size: 13px; }
+  .list { margin-top: 12px; padding: 4px 12px 2px; border-radius: 12px; --dot: 18px; --gap: 5px; }
+  .days { font-size: 11px; padding: 6px 0 6px; }
+  .list li { gap: 8px; padding: 8px 0; }
+  .name b { font-size: 15px; }
+  .streak { font-size: 13px; }
+}
+
+/* Round 24: New App (Habits.tsx, NewAppSheet), from Pane/Views/MakeAnApp.swift on a Mac: a 420 pt sheet
+   on the warm sheet ground #f9f7f4, 24 pt in, 16 pt between its parts: the title (20 bold), its line (13,
+   muted), the box (white, a hairline of 30% brown, 10 pt corners, 12 x 10 in), the examples (amberSoft
+   #fff1dc capsules with the line colour's edge, 24 tall), the wide amber button (34 tall) and the link to
+   the templates (12, muted, centred). The close button at the top right. Here at about 1.1x, so its
+   words read at the page's smallest size. */
+.ask { position: relative; box-sizing: border-box; width: 100%; max-width: 440px; padding: 22px 24px 18px; border-radius: var(--frameR, 14px); background: #f9f7f4; color: #262626; font-family: var(--sans);
+  box-shadow: var(--frameShadow); }
+.ask p { margin: 0; }
+.askX { position: absolute; top: 22px; right: 22px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #ebe7e2; color: #6e6a66; }
+.askX svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.askTitle { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; }
+.askLine { margin-top: 6px !important; font-size: 15px; line-height: 1.35; color: #5f5b57; }
+.askField { margin-top: 18px !important; padding: 11px 13px; border-radius: 11px; background: #fff; box-shadow: inset 0 0 0 1px #dcc9bb; font-size: 15px; line-height: 1.4; color: #262626; }
+.askChips { margin-top: 9px !important; display: flex; flex-wrap: wrap; gap: 7px; }
+.askChips span { display: inline-flex; align-items: center; height: 27px; padding: 0 11px; border-radius: 99px; background: #fff1dc; box-shadow: inset 0 0 0 1px #ecdcc6; font-size: 13.5px; color: #262626; white-space: nowrap; }
+.askGo { margin-top: 18px !important; display: flex; align-items: center; justify-content: center; height: 38px; border-radius: 10px; background: #d96a06; color: #fff; font-size: 15px; font-weight: 600; }
+.askTpl { margin-top: 12px !important; text-align: center; font-size: 13.5px; color: #5f5b57; }
+
+@media (max-width: 760px) {
+  /* On an iPhone the sheet is the same few parts; here the title, its line, the box and the button. */
+  .ask { max-width: none; padding: 18px 18px 18px; border-radius: 12px; }
+  .askX { top: 16px; right: 16px; width: 26px; height: 26px; }
+  .askTitle { font-size: 20px; }
+  .askLine { font-size: 14px; }
+  .askField { margin-top: 14px !important; font-size: 15px; padding: 10px 12px; }
+  .askChips, .askTpl { display: none; }
+  .askGo { margin-top: 14px !important; height: 44px; border-radius: 12px; font-size: 16px; }
+}
+
+/* Round 25: on a phone the note shows as the iPhone app shows it (the Notes chapter's bar: the way back
+   in the accent, More in a ring), not in a Mac window. */
+.ipBar { display: none; }
+@media (max-width: 760px) {
+  .bar { display: none; }
+  .ipBar { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 2px 14px 0 10px; color: #d9750f; }
+  .ipBack { display: flex; align-items: center; gap: 5px; font: 400 17px/1 var(--sans); }
+  .ipBack svg { width: 11px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+  .ipMore { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px currentColor; }
+  .ipMore svg { width: 13px; height: 4px; fill: currentColor; }
+  .page { padding-top: 2px; }
+  /* Round 25: the habits themselves, not the week's ring, so the request and the app it made share one
+     screen on a phone. */
+  .week { display: none; }
+}
+
+/* Round 25: ChatGPT's message box with New App's words in it (AskChatGpt). ChatGPT's light composer:
+   white, very round, a hairline, the words in its ink (#0d0d0d), + at the left, the mic and the black
+   send button at the right. Over the words, which AI it is: the mark and the name, as the hero says it. */
+.gpt { position: relative; box-sizing: border-box; width: 100%; padding: 14px 14px 12px 20px; border-radius: 26px; background: #fff; color: #0d0d0d; font-family: var(--sans);
+  box-shadow: var(--frameShadow); }
+.gpt p { margin: 0; }
+.gptWho { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #1d1b19; }
+.gptMark { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #1d1b19; }
+.gptText { margin-top: 10px !important; padding-right: 6px; font-size: 17px; line-height: 1.45; text-wrap: pretty; }
+.gptRow { display: flex; align-items: center; gap: 10px; margin-top: 10px !important; color: #5d5d5d; }
+.gptRow i { display: grid; place-items: center; width: 34px; height: 34px; margin-left: -8px; }
+.gptRow i svg, .gptSend svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.gptRow .gptMic { margin-left: auto; }
+.gptSend { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #0d0d0d; color: #fff; }
+.gptSend svg { stroke-width: 2; }
+@media (max-width: 760px) {
+  .gpt { padding: 12px 10px 10px 16px; border-radius: 22px; }
+  .gptText { font-size: 15.5px; line-height: 1.42; margin-top: 8px !important; }
+  .gptRow { margin-top: 6px !important; }
+  .gptRow i { width: 30px; height: 30px; }
+  .gptSend { width: 32px; height: 32px; }
+}

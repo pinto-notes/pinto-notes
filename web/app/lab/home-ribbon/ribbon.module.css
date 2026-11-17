@@ -1,0 +1,109 @@
+/* Round 26 (`ribbon`): the confident, type-led first screen (Wispr's lesson). A huge centred headline,
+   one sentence, the buttons, lots of air, and one device that does the explaining (Ribbon.tsx). No app
+   window in the first screen; the Notes chapter arrives only after you scroll. */
+
+/* ── The ribbon ── */
+.ribbon { position: absolute; inset: 0; pointer-events: none; }
+.svg { position: absolute; inset: 0; overflow: visible; }
+.chat { fill: none; stroke: #2f2f2f; stroke-linecap: round; }
+.paper { fill: none; stroke: #fffdf8; stroke-linecap: butt; }
+.tint { fill: none; stroke: #fbdcb9; stroke-linecap: round; }
+.askText { font: 500 var(--rf) / 1 var(--sans); fill: #f2efea; letter-spacing: 0.002em; }
+.noteText { font: 500 var(--rf) / 1 var(--sans); fill: #2a1d10; }
+.nTitle { font-weight: 700; }
+.box { fill: #a79684; font-weight: 400; }
+.measure { visibility: hidden; }
+
+/* The pill the chat runs into and the note comes out of: the Pinto Notes icon, on white, ringed in ink
+   like Wispr's. Over it, the note's mark as the app writes it. */
+.pill { position: absolute; z-index: 2; display: grid; place-items: center; height: var(--pillH); aspect-ratio: 1.7; translate: -50% -50%; border-radius: 999px; background: #fffdf9; box-shadow: 0 0 0 2px #24170d, 0 10px 24px -14px rgba(36, 23, 13, 0.55); }
+.pill img { width: calc(var(--pillH) * 0.64); height: auto; border-radius: 22%; }
+.mark { position: absolute; bottom: calc(100% + 14px); left: 50%; translate: -50% 0; display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px 7px 11px; border-radius: 999px; background: #fff1dc; box-shadow: inset 0 0 0 1px rgba(168, 87, 0, 0.18); color: #a85700; font: 600 15px/1.2 var(--sans); white-space: nowrap; }
+.mark svg { width: 15px; height: 15px; flex: none; }
+@media (prefers-reduced-motion: no-preference) {
+  /* The reel: the new mark rolls up into place with a little overshoot. */
+  .mark { animation: markIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  @keyframes markIn { from { opacity: 0; transform: translateY(14px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+}
+
+/* ── Hero 1: the ribbon ── */
+.hero1 { height: auto; min-height: 0; padding: 0; display: block; }
+.hero1 .stage { position: relative; box-sizing: border-box; height: calc(100svh + 28px); min-height: 680px; padding-top: var(--hh); display: flex; flex-direction: column; }
+.room { position: relative; flex: 1; min-height: 220px; }
+.center { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; text-align: center; padding: clamp(40px, 9svh, 104px) var(--gutter) 0; }
+.h1 { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(7.6vw, 12.4svh, 112px); line-height: 0.96; letter-spacing: -0.042em; color: #24170d; text-wrap: balance; }
+.h1 span, .h1 em { display: block; }
+.h1 em { font-style: italic; letter-spacing: -0.03em; }
+.lede { margin: clamp(20px, 3.4svh, 32px) auto 0; max-width: 31em; font-size: 20px; line-height: 1.42; color: #4a3826; text-wrap: balance; }
+.center [data-cta], .center2 [data-cta] { justify-content: center; align-items: center; }
+.fine { margin: 14px 0 0; font-size: 15px; font-weight: 600; color: #6b5641; }
+.free { display: none; }
+
+/* ── Hand-off a: the first screen holds still and the Notes sheet is laid over it. ── */
+.hold { position: sticky; top: 0; z-index: 1; }
+.hold[data-gone] { visibility: hidden; }
+
+@media (max-width: 760px) {
+  .hero1 .stage { height: calc(100svh + 40px); min-height: 640px; }
+  .center { padding-top: max(28px, 5svh); }
+  .h1 { font-size: min(13.4vw, 64px); line-height: 0.98; }
+  .h1 span { max-width: 7.6em; margin: 0 auto; }
+  .lede { font-size: 17px; max-width: 21em; }
+  .fine { display: none; }
+  .free { display: block; margin: 10px 0 0; font-size: 15px; font-weight: 600; color: #6b5641; }
+  .mark { font-size: 13.5px; padding: 6px 12px 6px 9px; bottom: calc(100% + 10px); }
+  .mark svg { width: 13px; height: 13px; }
+}
+
+/* ── Hero 2: the headline, edited ── */
+/* The first page of the pad: cream, torn along its bottom, laid over the Notes sheet, which is already
+   docked under it. Scrolling tears it away upward. */
+.hero2 { position: relative; z-index: 12; height: auto; min-height: 0; padding: 0; display: block; filter: drop-shadow(0 2px 2px rgba(60, 30, 8, 0.16)) drop-shadow(0 10px 18px rgba(60, 30, 8, 0.14)); pointer-events: none; }
+.sheet { box-sizing: border-box; height: calc(100svh + 30px); min-height: 680px; padding-top: var(--hh); display: flex; flex-direction: column; justify-content: center; background: var(--page); pointer-events: auto;
+  -webkit-mask: linear-gradient(#000, #000), url(/lab/z/tear-bottom-v1.webp) 0 100% / 920px 26px repeat-x;
+  -webkit-mask-composite: source-out;
+  mask: linear-gradient(#000, #000), url(/lab/z/tear-bottom-v1.webp) 0 100% / 920px 26px repeat-x;
+  mask-composite: subtract; }
+.center2 { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 var(--gutter) max(9svh, 64px); }
+.h1x { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(8.2vw, 13.6svh, 124px); line-height: 1; letter-spacing: -0.042em; color: #24170d; }
+.h1x > span { display: block; position: relative; }
+.yours { white-space: nowrap; }
+/* Your caret, after your words, blinking like a text cursor. */
+.caret { display: inline-block; width: 0.045em; height: 0.78em; margin-left: 0.06em; vertical-align: -0.04em; border-radius: 0.02em; background: #24170d; }
+/* The AI's line: the app's tint behind the words and its bar in the margin, at the headline's size. */
+.theirs { display: inline-block !important; margin-top: 0.06em; }
+.tinted { position: relative; display: inline-block; z-index: 0; padding: 0 0.12em 0.04em; font-style: italic; letter-spacing: -0.03em; }
+.tinted::before { content: ""; position: absolute; z-index: -1; inset: 0.15em 0 0.02em; border-radius: 0.1em; background: #fbd9b2; }
+.bar { position: absolute; left: -0.2em; top: 0.12em; bottom: 0.04em; width: 0.055em; border-radius: 0.03em; background: #e8822a; }
+.edited { margin: clamp(14px, 2.2svh, 22px) 0 0; height: 22px; font: 600 16px/22px var(--sans); color: #a85700; }
+.editedIn { display: inline-flex; align-items: center; gap: 7px; }
+.editedIn svg { width: 16px; height: 16px; }
+.center2 .lede { margin-top: clamp(18px, 3svh, 28px); }
+@media (prefers-reduced-motion: no-preference) {
+  .caret { animation: blink 1.06s steps(1, end) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  /* The AI's edit arrives, as an AI's change lands in a note: its line appears (the last 10% of an em
+     on the overshoot), the tint sweeps in behind it, the bar grows, and its mark rolls up. On the
+     next turn (Claude's) the line stays and the tint sweeps again. */
+  .tinted { animation: land 0.46s 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .theirs[data-turn] .tinted { animation: none; }
+  @keyframes land { from { opacity: 0; transform: translateY(0.12em); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+  .tinted::before { transform-origin: 0 50%; animation: sweep 0.7s 1.05s cubic-bezier(0.6, 0, 0.3, 1) both; }
+  .theirs[data-turn] .tinted::before { animation-delay: 0.1s; }
+  .theirs[data-turn] .bar { animation: none; }
+  .edited[data-turn] .editedIn { animation-delay: 0.2s; }
+  @keyframes sweep { from { transform: scaleX(0); } to { transform: none; } }
+  .bar { transform-origin: 50% 0; animation: grow 0.36s 1.05s cubic-bezier(0.4, 0, 0.2, 1) both; }
+  @keyframes grow { from { transform: scaleY(0); } to { transform: none; } }
+  .editedIn { animation: markIn 0.42s 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+}
+@media (max-width: 760px) {
+  .sheet { height: calc(100svh + 24px); min-height: 640px; }
+  .h1x { font-size: min(14.6vw, 70px); line-height: 1.02; }
+  .yours { white-space: normal; }
+  .yours, .theirs { max-width: 6.4em; }
+  .center2 .lede { font-size: 17px; max-width: 21em; }
+  .edited { font-size: 14.5px; }
+}
+/* On an iPhone (and other systems) the buttons stack; in these centred screens they stay centred. */
+:global(:root:is([data-platform="ios"], [data-platform="windows"], [data-platform="android"], [data-platform="linux"])) :is(.center, .center2) [data-cta][data-cta] { align-items: center; }

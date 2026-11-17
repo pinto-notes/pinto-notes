@@ -1,0 +1,151 @@
+/* Round 26, slug `carry`: the first screen's picture is the Notes chapter's own window (Carry.tsx,
+   Story.tsx). These rules are the first screen around it, ChatGPT's window over its corner, and the
+   close where the same window comes back. The window itself keeps the chapter's styles (s.module.css). */
+
+/* ── The first screen: the headline owns it; nothing of the Notes sheet shows until you scroll ── */
+.hero { height: 100svh; min-height: 640px; }
+/* The words end well clear of the window (the binder reports where its note pane lies, --paneL). */
+.heroText { width: min(600px, calc(var(--paneL, 760px) - var(--pad) - 88px)); }
+.h1 { font-size: min(6vw, 9.6vh, 88px); line-height: 0.95; }
+/* The torn paper the window lies on, from a little left of the window to the page's right edge. */
+.art { left: calc(var(--paneL, 760px) - 72px); bottom: 26px; }
+/* hero=2: the paper is wider and the window lies on it, smaller and turned, with the desk round it. */
+.art2 { left: calc(var(--paneL, 760px) - 72px); }
+/* As you scroll, the desk's props fade into the paper (the binder sets --hp from 0 to 1). */
+.art :global(img) { opacity: calc(1 - var(--hp, 0)); }
+/* On hero=2 the desk is fuller: the cup stays; the folded page and the notebook are put away. */
+.art2 :global(img) { --keepCup: radial-gradient(30% 30% at 17% 8%, transparent 0 82%, #000 100%), radial-gradient(28% 34% at 4% 88%, transparent 0 84%, #000 100%);
+  -webkit-mask: var(--keepCup) !important; -webkit-mask-composite: source-in !important; mask: var(--keepCup) !important; mask-composite: intersect !important; }
+/* The headline breaks by sense on a Mac ("The notebook / for you and / your AI."); a phone sets it in two. */
+.br { display: inline; }
+@media (max-width: 760px) { .br { display: none; } }
+.slot { position: absolute; z-index: 0; visibility: hidden; pointer-events: none; }
+/* Where hero=2 lays the note pane: on the paper, a touch smaller than in Notes. */
+.slot2 { left: calc(var(--paneL, 760px) - 28px); top: calc(var(--hh) + 17svh); width: calc(var(--paneW, 455px) * 0.78); height: 1px; }
+
+/* ── ChatGPT's Mac app, narrow (Carry.tsx). Fixed, placed over the window's corner by the binder. ── */
+.chat { position: fixed; z-index: 8; left: 0; top: 0; width: 264px; pointer-events: none; visibility: hidden; will-change: transform, opacity; }
+.chatIn { display: flex; flex-direction: column; height: 276px; border-radius: 14px; background: #0e0e0e; color: #ececec; font-family: var(--sans); overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 0 0 1.5px rgba(30, 15, 5, 0.35), 0 2px 4px rgba(20, 8, 0, 0.18), 0 26px 52px -22px rgba(30, 12, 2, 0.6); }
+.cBar { position: relative; display: flex; align-items: center; height: 36px; margin: 0; padding: 0 13px; }
+.cLights { display: flex; gap: 7px; }
+.cLights i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+.cLights i:nth-child(2) { background: #febc2e; }
+.cLights i:nth-child(3) { background: #28c840; }
+.cSeg { position: absolute; left: 50%; translate: -50% 0; display: flex; padding: 2px; border-radius: 99px; background: #1d1d1d; font-size: 11.5px; line-height: 1; }
+.cSeg b { padding: 5px 11px; border-radius: 99px; background: #2f2f2f; color: #fff; font-weight: 600; }
+.cSeg span { padding: 5px 11px; color: #a8a8a8; }
+/* The thread is anchored at the composer, as a chat is: what's new appears at its foot. Its room is held
+   from the start, so nothing in the window moves when ChatGPT answers. */
+.cThread { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 14px; }
+.cHello { position: absolute; inset: 0 0 18px; display: grid; place-items: center; margin: 0; font-size: 16px; color: #ececec; }
+.cBubble { align-self: flex-end; max-width: 84%; margin: 0 0 12px; padding: 8px 13px 9px; border-radius: 18px; background: #2f2f2f; font-size: 13.5px; line-height: 1.38; }
+.cDot { position: absolute; left: 16px; bottom: 82px; width: 10px; height: 10px; margin: 0; border-radius: 50%; background: #ececec; opacity: 0; }
+.cWorked { margin: 0 0 3px; font-size: 12px; color: #8f8f8f; }
+.cAnswer { margin: 0; font-size: 13.5px; line-height: 1.45; color: #ececec; }
+.cAnswer b { font-weight: 600; color: #fff; }
+.cActs { display: flex; gap: 12px; margin: 9px 0 0; color: #a8a8a8; }
+.cActs i, .cComposer i { display: grid; place-items: center; }
+.cActs svg, .cComposer svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.cComposer { flex: none; display: flex; align-items: center; gap: 8px; margin: 12px 9px 9px; padding: 5px 5px 5px 12px; border-radius: 22px; background: #2a2a2a; color: #ececec; font-size: 13px; line-height: 1.35; }
+.cComposer svg { width: 15px; height: 15px; }
+.cText { flex: 1; min-width: 0; min-height: 1.35em; display: flex; align-items: center; }
+.cText > * { min-width: 0; }
+.cText em { font-style: normal; color: #6ea8fe; white-space: nowrap; }
+.cPh { color: #9b9b9b; }
+.cCaret { display: inline-block; width: 1.5px; height: 1.1em; margin-left: 1px; vertical-align: -0.18em; background: #ececec; }
+.cSend { flex: none; width: 28px; height: 28px; border-radius: 50%; background: #fff; color: #0e0e0e; }
+.cSend svg { stroke-width: 2; }
+.cBubble:not([data-in]), .cReply:not([data-in]) { opacity: 0; translate: 0 8px; }
+.cBubble[data-in] ~ .cHello, .cThread:has(.cBubble[data-in]) .cHello { opacity: 0; }
+.cDot[data-in] { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .cBubble { transition: opacity 0.25s ease-out, translate 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .cReply { transition: opacity 0.3s ease-out, translate 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); }
+  .cHello { transition: opacity 0.2s ease-out; }
+  .cDot[data-in] { animation: cPulse 0.9s ease-in-out infinite alternate; }
+  @keyframes cPulse { from { scale: 0.75; } to { scale: 1.1; } }
+}
+
+/* ── The close: the same window comes back, on the same paper, and "Pinto Notes is free." is written
+   into it as its title. The buttons under it, one line of small print. One screen. ── */
+.close { position: relative; z-index: 9; min-height: calc(100svh - var(--hh)); margin-top: 0; color: #24170d; }
+.closePaper { position: absolute; inset: 0; pointer-events: none; filter: drop-shadow(0 -1px 1px rgba(60, 30, 8, 0.13)) drop-shadow(0 -3px 7px rgba(60, 30, 8, 0.08)); }
+.closeSheet { position: absolute; inset: 0; overflow: hidden; background: #fcdcb4;
+  -webkit-mask: url(/lab/z/edge-v1.webp) 0 0 / var(--tearW) var(--tearH) repeat-x, linear-gradient(#000, #000) 0 calc(var(--tearH) - 2px) / 100% 100% no-repeat;
+  mask: url(/lab/z/edge-v1.webp) 0 0 / var(--tearW) var(--tearH) repeat-x, linear-gradient(#000, #000) 0 calc(var(--tearH) - 2px) / 100% 100% no-repeat; }
+/* The desk under it: the first screen's picture, laid the same way (its right side off the page), so the
+   sprig frames the top right and the pen lies by the window; the folded page, the notebook and the cup
+   are put away (heroArt.module.css's masks). */
+.closeArt { position: absolute; right: -5vw; top: -4svh; width: min(74vw, 124svh); height: auto; max-width: none; pointer-events: none;
+  --hideBook: radial-gradient(30% 30% at 17% 8%, transparent 0 82%, #000 100%);
+  --hideBinder: radial-gradient(28% 34% at 4% 88%, transparent 0 84%, #000 100%);
+  --hideCup: radial-gradient(19% 21% at 86% 83%, transparent 0 82%, #000 100%);
+  -webkit-mask: var(--hideBook), var(--hideBinder), var(--hideCup); -webkit-mask-composite: source-in, source-in;
+  mask: var(--hideBook), var(--hideBinder), var(--hideCup); mask-composite: intersect; }
+.closeBody { position: relative; box-sizing: border-box; min-height: calc(100svh - var(--hh)); display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: calc(var(--tearH) + 56px) var(--pad) 88px; }
+/* The window: Pinto on a Mac, the sidebar folded away, as in the first screen, a new note open. */
+.cwin { width: min(720px, 100%); box-sizing: border-box; border-radius: var(--frameR, 14px); background: #fff; color: #1d1b19; overflow: hidden; box-shadow: var(--frameShadow); }
+.cwBar { display: flex; align-items: center; gap: 14px; height: 46px; padding: 0 14px 0 16px; box-shadow: inset 0 -1px 0 #ececec; color: #66666b; }
+.cwLights { flex: none; display: flex; gap: 8px; margin-right: 2px; }
+.cwLights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
+.cwLights i:nth-child(2) { background: #febc2e; }
+.cwLights i:nth-child(3) { background: #28c840; }
+.cwIco { flex: none; display: grid; place-items: center; }
+.cwIco svg { width: 17px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cwDim { opacity: 0.45; }
+.cwCrumb { font-size: 14px; font-weight: 600; color: #3a3a3c; }
+.cwTools { margin-left: auto; display: flex; align-items: center; gap: 14px; padding: 5px 13px; border-radius: 99px; background: #f6f6f7; }
+.cwTools b { font-size: 15px; font-weight: 500; line-height: 1; }
+.cwTools .cwIco:last-child svg { width: 15px; height: 5px; fill: currentColor; stroke: none; }
+.cwNote { padding: clamp(28px, 5svh, 48px) clamp(28px, 4.4vw, 56px) clamp(30px, 5.4svh, 52px); }
+/* The note's title is the close's headline: the app's own title type, set large. */
+.cwTitle { margin: 0; min-height: 1.05em; font: 750 clamp(40px, min(5.6vw, 9svh), 76px)/1.05 var(--sans); letter-spacing: -0.035em; color: #1d1b19; }
+.cwCaret { display: inline-block; width: 0.06em; height: 0.92em; margin-left: 0.04em; vertical-align: -0.1em; border-radius: 1px; background: #e8820f; }
+.cwLine { margin: 0.7em 0 0; font-size: clamp(18px, min(1.6vw, 2.6svh), 22px); line-height: 1.4; color: #3a342e; }
+.cwLine .with { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; vertical-align: -2px; }
+.cwLine:not([data-in]) { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .cwLine { transition: opacity 0.4s ease-out; }
+  .cwCaret[data-blink] { animation: cwBlink 1s steps(1) infinite; }
+  @keyframes cwBlink { 50% { opacity: 0; } }
+}
+.closeCtas { display: flex; flex-direction: column; align-items: center; margin-top: clamp(28px, 5svh, 44px); }
+.closeCtas > div { margin: 0; justify-content: center; }
+.closeReq { margin: 14px 0 0; font-size: var(--small, 15px); font-weight: 600; color: #5c4a36; text-align: center; }
+
+/* ── Phones ── */
+@media (max-width: 760px) {
+  .hero { height: 100svh; min-height: 0; }
+  /* The paper lies in the flow under the words (round 25's phone hero); the window is laid on it. */
+  .art, .art2 { left: auto; bottom: auto; }
+  .heroText { width: auto; }
+  .h1 { font-size: 44px; line-height: 0.98; }
+  .slotPhone { left: var(--pad); right: var(--pad); top: var(--slotT, 470px); width: auto; height: 1px; }
+  /* On a phone, ChatGPT is cut to what says it: your words, sent, over its composer ("Ask ChatGPT"). */
+  .chat { width: 240px; }
+  .chatIn { height: 128px; border-radius: 16px; }
+  .cBar, .cHello, .cReply, .cDot { display: none; }
+  .cThread { padding: 10px 10px 0; }
+  .cBubble { margin: 0; font-size: 13px; padding: 7px 12px 8px; }
+  .cComposer { margin: 8px; font-size: 12.5px; }
+  .closeBody { padding: calc(var(--tearH) + 40px) var(--pad) 64px; }
+  .cwBar { height: 40px; gap: 12px; }
+  .cwTools { gap: 10px; padding: 4px 10px; }
+  .cwNote { padding: 22px 20px 26px; }
+  .cwTitle { font-size: 38px; }
+  .cwLine { font-size: 16px; }
+}
+/* Your AI stays this long before the close comes up over it (it fills the screen; nothing lifts away). */
+.close { margin-top: 45vh; }
+@media (max-width: 760px) { .close { margin-top: 30vh; } }
+
+/* After the chat's own rules, so these win. */
+/* A narrower window gets a narrower ChatGPT, so it stays over the pane's empty margin. */
+@media (min-width: 761px) and (max-width: 1360px) {
+  .chat { width: 236px; }
+  .chatIn { height: 252px; }
+  .cBubble, .cAnswer { font-size: 12.5px; }
+  .cActs { display: none; }
+}
