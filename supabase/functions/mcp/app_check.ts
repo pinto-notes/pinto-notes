@@ -79,7 +79,7 @@ export function renderedFindings(r: Rendered): { errors: string[]; notes: string
     if ((v.faintCount ?? 0) > 0) notes.push(`${v.name}: ${v.faintCount} text element(s) with contrast under 4.5:1 (${(v.faintText ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if ((v.smallTextCount ?? 0) > 0) notes.push(`${v.name}: ${v.smallTextCount} text element(s) under 12 px (${(v.smallText ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if ((v.clippedCount ?? 0) > 0) notes.push(`${v.name}: ${v.clippedCount} text element(s) cut off by their box (${(v.clipped ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
-    if (v.ghostFields?.length) notes.push(`${v.name}: ${v.ghostFields.length} field(s) without a visible border or fill: ${v.ghostFields.slice(0, 3).join(", ")}.`);
+    if (v.ghostFields?.length) notes.push(`${v.name}: ${v.ghostFields.length} field(s) with neither a border nor a fill: ${v.ghostFields.slice(0, 3).join(", ")}.`);
     if (v.unnamedControls.length) notes.push(`${v.name}: ${v.unnamedControls.length} control(s) without a label VoiceOver can read: ${v.unnamedControls.slice(0, 2).join(" ")}`);
     if (v.width < 600 && (v.under44Count ?? 0) > 0) notes.push(`${v.name}: ${v.under44Count} control(s) smaller than 44 pt to tap (${(v.under44 ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if (v.width < 600 && (v.sections ?? 0) > 5) notes.push(`${v.name}: the first screen stacks ${v.sections} separate sections.`);

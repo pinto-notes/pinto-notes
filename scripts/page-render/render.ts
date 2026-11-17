@@ -806,8 +806,12 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       const text = document.body?.innerText ?? "";
       const flat = text.replace(/\s+/g, " ").toLowerCase();
       const bodyStyle = getComputedStyle(document.body);
-      let bg = bodyStyle.backgroundColor;
-      if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = getComputedStyle(de).backgroundColor;
+      // Any CSS colour (oklch, lab, color-mix: Tailwind 4 and shadcn's starter use oklch) as rgba,
+      // drawn by the browser, so the measurements below read every colour the app can write.
+      const ink = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+      const rgbOf = (c: string) => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = "#000"; ink.fillStyle = c; ink.fillRect(0, 0, 1, 1); const [r, g, b, a] = ink.getImageData(0, 0, 1, 1).data; return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${+(a / 255).toFixed(3)})`; };
+      let bg = rgbOf(bodyStyle.backgroundColor);
+      if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = rgbOf(getComputedStyle(de).backgroundColor);
       if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = "rgb(255, 255, 255)";
       const name = (el: Element) => {
         const a = el.getAttribute("aria-label") || "";
@@ -824,13 +828,13 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       const small = controls.filter((el) => { const r = el.getBoundingClientRect(); return r.height < 28 || r.width < 28; }).length;
       // A control's tap area: its own box, or its label's when the label wraps it.
       const tapBox = (el: Element) => { const r = el.getBoundingClientRect(); const l = (el as HTMLInputElement).labels?.[0]; if (!l) return r; const b = l.getBoundingClientRect(); return b.width * b.height > r.width * r.height ? b : r; };
-      // Fields that don't look like fields: each needs a border and a solid fill of its own.
+      // Fields you can't see: no border and no fill of their own.
       const ghostFields = [...document.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]), select, textarea")].filter(visible).filter((el) => {
         const st = getComputedStyle(el);
-        const border = ["Top", "Right", "Bottom", "Left"].some((k) => parseFloat((st as any)[`border${k}Width`]) >= 1 && !/rgba\([^)]*, 0\)$|transparent/.test((st as any)[`border${k}Color`]));
-        const v = (st.backgroundColor.match(/[\d.]+/g) ?? []).map(Number);
-        const fill = v.length >= 3 && (v[3] === undefined || v[3] > 0.5) && st.backgroundColor !== getComputedStyle(el.parentElement ?? document.body).backgroundColor;
-        return !border || !fill;
+        const border = ["Top", "Right", "Bottom", "Left"].some((k) => parseFloat((st as any)[`border${k}Width`]) >= 1 && !/rgba\([^)]*, 0\)$|transparent/.test(rgbOf((st as any)[`border${k}Color`])));
+        const v = (rgbOf(st.backgroundColor).match(/[\d.]+/g) ?? []).map(Number);
+        const fill = v.length >= 3 && (v[3] === undefined || v[3] > 0.5) && rgbOf(st.backgroundColor) !== rgbOf(getComputedStyle(el.parentElement ?? document.body).backgroundColor);
+        return !border && !fill;
       }).map((el) => (el.getAttribute("name") ?? el.id ?? el.tagName).slice(0, 30));
       const under44 = controls.filter((el) => { const r = tapBox(el); return r.height < 40 || r.width < 40; }).map((el) => (el.textContent?.trim() || el.getAttribute("aria-label") || el.tagName).trim().slice(0, 30));
       // How much of the window's width the content uses.
@@ -942,7 +946,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
           return r.right;
         }, 0) - window.innerWidth)), textLength: text.trim().length,
         shown: want.filter((w) => flat.includes(w.toLowerCase().replace(/\s+/g, " ")) || (/^[\d\s.,\u00a0]+$/.test(w) && flat.replace(/[\s,\u00a0\u202f]/g, "").includes(w.replace(/[\s,\u00a0]/g, "")))).length,
-        bg, fg: bodyStyle.color, unnamed, small,
+        bg, fg: rgbOf(bodyStyle.color), unnamed, small,
       };
     }, want).catch((e) => ({ overflow: 0, textLength: 0, shown: 0, bg: "rgb(255,255,255)", fg: "rgb(0,0,0)", unnamed: [] as string[], small: 0, smallText: [] as string[], smallTextCount: 0, faint: [] as string[], faintCount: 0, headings: [] as string[], excerpt: "", titleCount: 0, ghostFields: [] as string[], sections: 0, nav: false, junk: [] as string[], under44: [] as string[], under44Count: 0, clipped: [] as string[], clippedCount: 0, used: 0, canvases: 0, svgShapes: 0, gridCols: 0, frames: 0, look: { accentHue: null as number | null, nonAmberVivid: 0, tintedBg: false }, err: String(e) }));
     let shot: string | undefined;
