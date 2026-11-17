@@ -16,6 +16,14 @@ struct PrivacyCover: ViewModifier {
     func body(content: Content) -> some View {
         let style = PrivacyCoverStyle.active
         content
+            #if os(macOS)
+            // The study's pictures on the Air: -PrivacyPretendCall YES starts a pretend call.
+            .task {
+                guard UserDefaults.standard.bool(forKey: "PrivacyPretendCall") else { return }
+                try? await Task.sleep(for: .seconds(2))
+                mode.callChanged(true)
+            }
+            #endif
             .overlay {
                 if mode.asking {
                     Group {
@@ -202,7 +210,9 @@ enum PrivacyCoverStyle: String, Sendable, CaseIterable {
 @MainActor @Observable final class PrivacyStudy {
     static let shared = PrivacyStudy()
     static let key = "PrivacyStudyStyle"
-    var style: PrivacyCoverStyle = UserDefaults.standard.string(forKey: PrivacyStudy.key).flatMap(PrivacyCoverStyle.init(rawValue:)) ?? .current
+    /// The unit tests' host shares the installed app's settings: it always starts from what ships.
+    var style: PrivacyCoverStyle = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ? .current
+        : UserDefaults.standard.string(forKey: PrivacyStudy.key).flatMap(PrivacyCoverStyle.init(rawValue:)) ?? .current
 
     func choose(_ style: PrivacyCoverStyle) {
         self.style = style
@@ -221,6 +231,13 @@ struct PrivacyStudyMenu: View {
             Text("A: Turn On and Say So").tag(PrivacyCoverStyle.banner)
             Text("B: Ask on a Card").tag(PrivacyCoverStyle.frosted)
             Text("As It Ships Today").tag(PrivacyCoverStyle.current)
+        }
+        .pickerStyle(.inline)
+        Divider()
+        Picker("Hidden Text", selection: Binding(get: { UserDefaults.standard.string(forKey: "PrivacyStudyText") ?? "blur" },
+                                                  set: { UserDefaults.standard.set($0, forKey: "PrivacyStudyText") })) {
+            Text("Blur").tag("blur")
+            Text("Bars").tag("bars")
         }
         .pickerStyle(.inline)
         Divider()
@@ -310,15 +327,12 @@ struct PrivacyAskCard: View {
         let mode: PrivacyMode
         var body: some View {
             ZStack {
-                #if os(macOS)
-                PrivacyFrost(radius: PrivacyAskCard.frost)
-                    .ignoresSafeArea()
+                // The system's own frost, drawn by the window server (a still blurred by hand
+                // turned the sidebar's glass into a white slab in a real window, 17 November).
+                Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
                     .accessibilityHidden(true)
-                #else
-                Rectangle().fill(.thickMaterial).ignoresSafeArea()
-                #endif
                 // A click outside the card doesn't trap you: privacy mode turns on and you carry on.
-                Color(Palette.page).opacity(0.25)
+                Color(Palette.page).opacity(0.15)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture { mode.answer(hide: true, remember: false) }

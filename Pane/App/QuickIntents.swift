@@ -80,8 +80,13 @@ extension View {
     /// Privacy mode's bars: each line of text drawn as a rounded bar its length, so the list keeps
     /// its shape and nothing can be read on a shared screen. VoiceOver still reads the words: the
     /// person using it is the one at the screen.
-    func privacyBars(_ on: Bool) -> some View {
-        redacted(reason: on ? .placeholder : []).accessibilityRepresentation { self }
+    /// The privacy study (Privacy Study menu) chooses bars or the blur that ships.
+    @ViewBuilder func privacyBars(_ on: Bool) -> some View {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil, UserDefaults.standard.string(forKey: "PrivacyStudyText") == "bars" {
+            redacted(reason: on ? .placeholder : []).accessibilityRepresentation { self }
+        } else {
+            blur(radius: on ? PreviewBlur.radius : 0)
+        }
     }
 }
 
