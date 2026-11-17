@@ -171,6 +171,12 @@ Deno.test("the apps guide asks for an app's own look and layout, and nothing poi
   assert(!/most of a wide window/.test(appTools.find((t) => t.name === "check_app")!.description));
 });
 
+// 2026-11-18 (arm D): 4 of 5 agents guessed what the store hooks return and where they keep data.
+Deno.test("the apps guide says what the store hooks return and where each keeps its data in data.json", () => {
+  const g = appsGuide();
+  for (const part of ['{ "values": {…}, "collections": {…} }', "[value, set], kept in values[key]", "set(null) removes the key", "kept in values.settings", "update(id, patch), remove(id) }, kept in collections[name]"]) assertStringIncludes(g, part);
+});
+
 Deno.test("every tool set tells an AI to read the About me note first and keep it current", () => {
   for (const set of [undefined, "files", "classic", "pages"]) {
     const text = instructions(set);

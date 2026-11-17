@@ -32,7 +32,7 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 - It is the note: opening the note opens the app, on iPhone (320-440 pt wide, safe areas, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Light and dark follow the device.
 - A normal Vite + React 19 + TypeScript + Tailwind 4 + shadcn/ui project. Pinto Notes compiles it when a file is saved (TSX, the @/ alias, imports without extensions, Tailwind from the classes used) and says what broke; nothing is installed. React runs on preact/compat.
 - Available by name: react, react-dom, radix-ui, lucide-react, recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, pinto-router (Router, Route, route(), back()), chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti.
-- Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/pinto". A function update (set((old) => …)) always builds on the newest value, even for quick taps before a save lands, so no wrapper is needed. localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
+- Data is JSON that Pinto Notes keeps for the app (encrypted, synced, with Undo): useStore(key, initial), useCollection(name), useSettings(defaults), batch(fn), setSummary(text) from "@/lib/pinto". data.json is { "values": {…}, "collections": {…} }. useStore (the same as useAppData) is like useState: [value, set], kept in values[key]; set(null) removes the key, so it reads as initial again. useSettings(defaults) gives [settings, update(patch or (s) => patch)], kept in values.settings. useCollection(name) gives { items, add(fields) (resolves to the new id), update(id, patch), remove(id) }, kept in collections[name] with an id on each item. In a test, pinto.data is that same JSON. A function update (set((old) => …)) always builds on the newest value, even for quick taps before a save lands, so no wrapper is needed. localStorage works too and is kept the same way. The person's AI reads and edits it as data.json, so keep its shape simple and describe it in docs/README.md.
 - Several files at once (a screen and its test, or a whole app) go in one write: path the app, and files with each one. That's one version and one check. Written one by one, each save is checked alone, so a half-written app is held back on the way and a 40-file app takes over a minute.
 - The internet works like on any web page: fetch, XMLHttpRequest and WebSocket to any https or wss address, with no prompt. A key for a service is something the person pastes into the app's settings, kept in the store.
 - Links to the person's notes and apps are plain links, written like a [[link]] in a note: <a href="pinto:Work/Acme">Acme</a> (the title, or the folders and the title), pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for another app. Tapping one opens it in Pinto Notes the way a [[link]] does (on iPhone, Back returns to this app); a note that doesn't exist is offered to be made. Anything can be the link (wrap a card in it, or use <Button asChild>); a test checks its href.
@@ -40,8 +40,9 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 
 /** shadcn/ui's own starter colours (neutral, new-york-v4), switched by the device's light or dark
  *  setting instead of a .dark class. No Pinto colours: the app picks its own look (Emil, 2026-11-17).
- *  Two additions: --field, the fill the starter's Input and Select use, and the root font that
- *  follows the reader's text size (accessibility, from amber-base.css). */
+ *  Three changes: --field, the fill the starter's Input and Select use; the root font that follows
+ *  the reader's text size (accessibility, from amber-base.css); and a muted-foreground a little
+ *  darker in light mode (0.53, not 0.556), so muted text reads at 4.5:1 on the muted grey as well. */
 const NEUTRAL_CSS = `@import "tailwindcss";
 @import "tw-animate-css";
 
@@ -60,7 +61,7 @@ const NEUTRAL_CSS = `@import "tailwindcss";
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.53 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);

@@ -480,6 +480,10 @@ async function trial(open: (w: number, s: "light" | "dark") => Promise<{ page: P
       }
     }
     if (fallback) return fallback;
+    // Any other CSS selector ("ul li button", "main > section button"): text that isn't one matches nothing.
+    const css = page.locator(what);
+    const n = await css.count().catch(() => 0);
+    for (let i = 0; i < Math.min(n, 8); i++) if (await css.nth(i).isVisible().catch(() => false)) return css.nth(i);
     throw new Error(`Nothing visible matches "${what}".`);
   };
   for (const step of (opts.steps ?? []).slice(0, 30)) {

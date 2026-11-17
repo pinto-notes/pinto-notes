@@ -633,3 +633,35 @@ Deno.test({ name: "faint text is named by its colour, with the nearest colour th
     await closeBrowser();
   }
 });
+
+// 2026-11-18 (arm D): the starter's own tabs (muted text on the muted grey) read at 4.3:1, so a
+// fresh app drew a contrast note. And see_app's taps took "ul li button" for words to look for.
+Deno.test({ name: "the starter's muted text reads at 4.5:1 on its own greys, and a tap takes any CSS selector", ignore: !hasWebKit }, async () => {
+  try {
+    const { renderPage } = await import("../../../scripts/page-render/render.ts");
+    const probe = `import { useState } from "react"
+export default function App() {
+  const [n, setN] = useState(0)
+  return <main className="bg-background p-4">
+    <h1>Probe</h1>
+    <p className="text-muted-foreground">Muted on the page</p>
+    <p className="bg-muted text-muted-foreground">Muted on muted</p>
+    <p className="bg-card text-muted-foreground">Muted on a card</p>
+    <p className="bg-accent text-muted-foreground">Muted on accent</p>
+    <ul><li><span>Row</span> <button type="button" onClick={() => setN(n + 1)}>Go</button></li></ul>
+    <p>Tapped {n}</p>
+  </main>
+}
+`;
+    const html = JSON.stringify((await linkProject(await withFiles({ amberApp: 1, files: {}, compiled: {} }, { ...await scaffold("Probe"), "/src/App.tsx": probe }))).project);
+    const r = await renderPage(html, "Probe\n", { values: {}, collections: {} }, { today: "2026-11-18", views: [{ width: 390, scheme: "light" }, { width: 390, scheme: "dark" }], probes: false, interact: false });
+    for (const v of r.views) assertEquals((v as unknown as { faintColors: unknown[] }).faintColors, [], v.name);
+    const tapped = await renderPage(html, "Probe\n", { values: {}, collections: {} }, { today: "2026-11-18", steps: [{ tap: "ul li button" }] } as never);
+    const step = tapped.trial![0] as { ok: boolean; error?: string; screen: string[] };
+    assert(step.ok, step.error);
+    assert(step.screen.join(" ").includes("Tapped 1"), step.screen.join(" "));
+  } finally {
+    const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+    await closeBrowser();
+  }
+});
