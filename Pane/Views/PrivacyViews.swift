@@ -503,91 +503,35 @@ struct PrivacySkeleton: View {
     }
 }
 
-extension View {
-    /// The study's banner across the list and the note (RootView's split view). Nothing at all
-    /// unless the study chose `.banner`, so the shipping window is laid out as before.
-    @ViewBuilder func privacyBanner() -> some View {
-        if PrivacyCoverStyle.active.usesBanner { modifier(PrivacyBannerOverlay()) } else { self }
-    }
-
-    /// The banner's room at the top of a column, so it covers neither the list nor the note.
-    @ViewBuilder func privacyBannerRoom(note: Bool = false) -> some View {
-        if PrivacyCoverStyle.active.usesBanner { modifier(PrivacyBannerRoom(note: note)) } else { self }
-    }
-}
-
-struct PrivacyBannerOverlay: ViewModifier {
-    @State private var mode = PrivacyMode.shared
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(alignment: .topLeading) {
-                if mode.announcing {
-                    let columns = PrivacyStudyColumns.shared
-                    PrivacyBanner(mode: mode)
-                        .frame(width: max(columns.note.maxX - columns.list.minX, 0))
-                        .padding(.leading, max(columns.list.minX, 0))
-                        .transition(.opacity)
-                }
-            }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: mode.announcing)
-    }
-}
-
-struct PrivacyBannerRoom: ViewModifier {
-    /// The note's column: its text runs under the toolbar and doesn't move for a safe area, so
-    /// the room is made by hand, as for the deleted note's banner (TrashBanner).
-    var note = false
-    @State private var mode = PrivacyMode.shared
-
-    func body(content: Content) -> some View {
-        #if os(macOS)
-        if note {
-            content
-                .padding(.top, mode.announcing ? PrivacyBanner.height : 0)
-                .background { if mode.announcing { SoftToolbarEdge().ignoresSafeArea() } }
-        } else {
-            content.safeAreaInset(edge: .top, spacing: 0) {
-                if mode.announcing { Color.clear.frame(height: PrivacyBanner.height) }
-            }
-        }
-        #else
-        content
-        #endif
-    }
-}
-
 /// A: the line under the toolbar, over the list and the note, while privacy mode turned itself
 /// on: what happened, and Turn Off. The close hides the line; privacy mode stays on.
 struct PrivacyBanner: View {
     let mode: PrivacyMode
-    static let height: CGFloat = 44
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        HStack(spacing: 9) {
+        // The deleted note's banner's shape and place (TrashBanner), so it reads as the app's own.
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        HStack(spacing: 10) {
             Image(systemName: "eye.slash")
-                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color.amberInk)
                 .accessibilityHidden(true)
             Text(mode.announcement)
-                .font(.system(size: 13))
+                .font(.callout)
                 .foregroundStyle(Color.ink)
-                .lineLimit(1)
-            Spacer(minLength: 12)
+                .lineLimit(2)
+            Spacer(minLength: 8)
             Button(PrivacyStudyWords.turnOff) { mode.toggle() }
                 .buttonStyle(.secondary)
                 .fixedSize()
                 .accessibilityIdentifier("privacy.bannerTurnOff")
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 5)
-        .frame(height: 34)
+        .padding(.leading, 14)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
         .background(Color(Palette.soft), in: shape)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .frame(height: Self.height)
+        .overlay(shape.strokeBorder(Color.line, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("privacy.banner")
     }

@@ -597,9 +597,7 @@ struct RootView: View {
                 .environment(tags)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
-                // The privacy study's banner (PrivacyBanner): room for it over the list.
                 .privacyStudyColumn(\.list)
-                .privacyBannerRoom()
                 // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,
                 // and More and New Note need with the sidebar hidden: a narrower list had to grow
                 // and shrink back on every toggle (Emil, 6 November 2026). So a toggle only slides.
@@ -625,12 +623,8 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 360, ideal: 760)
                 .overlay(alignment: .leading) { ColumnHairline() }
                 .privacyStudyColumn(\.note)
-                .privacyBannerRoom(note: true)
                 #endif
         }
-        #if os(macOS)
-        .privacyBanner()
-        #endif
     }
 
     #if os(macOS)

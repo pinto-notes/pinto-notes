@@ -1323,13 +1323,17 @@ struct NoteDetailView: View {
             #if os(macOS)
             // Room made by hand: the editor's text doesn't move for a safe area, so the banner lay
             // over the note's title (round 18).
-            .padding(.top, note.trashedAt != nil ? TrashBanner.height : 0)
+            // The privacy study's line (PrivacyBanner) takes the same place, the same way.
+            .padding(.top, note.trashedAt != nil || PrivacyMode.shared.announcing ? TrashBanner.height : 0)
             // Pushed down, the editor no longer reaches the toolbar, and the column wore the
             // window's grey band above the banner (Emil, 30 October).
-            .background { if note.trashedAt != nil { SoftToolbarEdge().ignoresSafeArea() } }
+            .background { if note.trashedAt != nil || PrivacyMode.shared.announcing { SoftToolbarEdge().ignoresSafeArea() } }
             .overlay(alignment: .top) {
                 if note.trashedAt != nil {
                     TrashBanner { Self.recover(note, in: context, editor: controller) }
+                        .transition(.opacity)
+                } else if PrivacyMode.shared.announcing {
+                    PrivacyBanner(mode: PrivacyMode.shared)
                         .transition(.opacity)
                 }
             }
