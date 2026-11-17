@@ -39,6 +39,45 @@ const sharedHooks = { set: null, remote: null, outline: null, find: null, peers:
 // Deleted elements are kept a while so another device's copy can't bring them back, then dropped.
 const KEEP_DELETED_MS = 7 * 24 * 3600 * 1000;
 
+// A pencil line keeps the pointer's moves. The engine adds one point to a pencil line per frame it
+// draws (the first move since the frame before), so a frame drawn late loses the moves in between:
+// fewer points, farther apart, and the pressure it works out from the gaps pinches the line where
+// it went fast and leaves blobs at its ends (Emil, 17 November 2026). The moves are kept here as
+// they come, with the ones WebKit merged (getCoalescedEvents), one a frame of the display in the
+// pointer's own time: the points the engine keeps when every frame is on time. The engine takes
+// them at its next frame and at the pen's lift (build.mjs). window.__pintoPen.off turns it off.
+const pencil = { tool: false, kept: false, down: false, id: null, moves: [], t0: 0, last: -1, frame: 1000 / 60 };
+window.__pintoPen = {
+  off: false,
+  take() {
+    if (!pencil.kept) return null;
+    const moves = pencil.moves;
+    pencil.moves = [];
+    return moves;
+  },
+};
+addEventListener("pointerdown", (e) => {
+  pencil.kept = pencil.down = pencil.tool && e.isPrimary && !window.__pintoPen.off;
+  pencil.id = e.pointerId;
+  pencil.moves = [];
+  pencil.t0 = e.timeStamp;
+  pencil.last = -1;
+  pencil.frame = 1000 / ((amber && amber._frameRate) || 60);
+}, { capture: true, passive: true });
+addEventListener("pointermove", (e) => {
+  if (!pencil.down || e.pointerId !== pencil.id) return;
+  const merged = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+  for (const m of merged.length ? merged : [e]) {
+    const frame = Math.floor((m.timeStamp - pencil.t0) / pencil.frame);
+    if (frame <= pencil.last) continue;
+    pencil.last = frame;
+    pencil.moves.push({ clientX: m.clientX, clientY: m.clientY, pressure: m.pressure });
+  }
+}, { capture: true, passive: true });
+const lifted = (e) => { if (e.pointerId === pencil.id) pencil.down = false; };
+addEventListener("pointerup", lifted, { capture: true, passive: true });
+addEventListener("pointercancel", lifted, { capture: true, passive: true });
+
 const emptyScene = () => ({ type: "excalidraw", version: 2, source: "https://pintonotes.com", elements: [], appState: {}, files: {} });
 
 /**
@@ -2411,7 +2450,10 @@ function Canvas({ initial }) {
     let outlined = null;
     // Draw shows a pen where it draws, as FigJam's marker does; the engine's own cursors stay for
     // the rest (crosshair for shapes, grab for the hand, its eraser).
-    const pen = api.onChange((_, s) => { host.classList.toggle("pinto-drawing", !!(s.activeTool && s.activeTool.type === "freedraw") && !s.viewModeEnabled); });
+    const pen = api.onChange((_, s) => {
+      pencil.tool = !!(s.activeTool && s.activeTool.type === "freedraw") && !s.viewModeEnabled;
+      host.classList.toggle("pinto-drawing", pencil.tool);
+    });
     const follow = api.onChange(() => {
       if (!outlined) return;
       if (Date.now() > outlined.until) { outlined = null; return; }

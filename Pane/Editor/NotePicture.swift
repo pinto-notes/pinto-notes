@@ -12,6 +12,11 @@ import AppKit
 /// card, over a cut-paper scene. Drawn from its own text layout, off screen, so it needs no window.
 @MainActor
 enum NotePicture {
+    /// The picture's background and whether it carries the mark, as last chosen. No dot in their
+    /// names (see ColumnsLayout.key): "notePicture.background" and "notePicture.showsMark" until
+    /// 17 November 2026.
+    nonisolated static let backgroundKey = "notePictureBackground"
+    nonisolated static let showsMarkKey = "notePictureShowsMark"
     /// What goes on the picture.
     struct Request: Identifiable {
         let id = UUID()

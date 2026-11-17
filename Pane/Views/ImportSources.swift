@@ -81,28 +81,68 @@ extension ImportKind {
     nonisolated(unsafe) static var isInstalled: (ImportKind) -> Bool = { kind in
         #if os(macOS)
         guard let id = ImportOrigin.files(kind).bundleIdentifier else { return false }
-        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) != nil
+        return InstalledApps.url(id) != nil
         #else
         return false
         #endif
     }
 }
 
+#if os(macOS)
+/// Where an app is on this Mac and its icon, asked of the system once a minute at most for each:
+/// the File menu lists the import sources by whether their apps are installed, and it's made
+/// again whenever the window's menu values change.
+enum InstalledApps {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var urls: [String: (url: URL?, at: Date)] = [:]
+    nonisolated(unsafe) private static var icons: [String: (icon: NSImage?, at: Date)] = [:]
+    static let keep: TimeInterval = 60
+
+    static func url(_ id: String) -> URL? {
+        lock.lock()
+        if let kept = urls[id], kept.at.timeIntervalSinceNow > -keep { lock.unlock(); return kept.url }
+        lock.unlock()
+        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)
+        lock.lock(); urls[id] = (url, Date()); lock.unlock()
+        return url
+    }
+
+    static func icon(_ id: String) -> NSImage? {
+        lock.lock()
+        if let kept = icons[id], kept.at.timeIntervalSinceNow > -keep { lock.unlock(); return kept.icon }
+        lock.unlock()
+        let icon = url(id).map { NSWorkspace.shared.icon(forFile: $0.path) }
+        lock.lock(); icons[id] = (icon, Date()); lock.unlock()
+        return icon
+    }
+}
+#endif
+
 extension ImportOrigin {
     /// The icon in a menu, which takes an image and nothing else: the app's own at menu size when
     /// it's on this Mac, a symbol otherwise.
     @MainActor var menuImage: Image {
         #if os(macOS)
+        if let kept = Self.menuImages[self], kept.at.timeIntervalSinceNow > -60 { return kept.image }
         // The same icon as the list's, at menu size: real where it can be, the drawn tile otherwise.
         let renderer = ImageRenderer(content: ImportSourceIcon(origin: self, size: 16))
         renderer.scale = 2
         if let image = renderer.nsImage {
             image.size = NSSize(width: 16, height: 16)
-            return Image(nsImage: image)
+            let made = Image(nsImage: image)
+            Self.menuImages[self] = (made, Date())
+            return made
         }
         #endif
         return Image(systemName: symbol)
     }
+
+    #if os(macOS)
+    /// Each menu icon as last drawn, for a minute (an app installed meanwhile gets its own icon
+    /// after that). The File menu is made again whenever the window's menu values change, and
+    /// drawing these icons each time was a fifth of that (the owner's sample, 17 November 2026).
+    @MainActor private static var menuImages: [ImportOrigin: (image: Image, at: Date)] = [:]
+    #endif
 }
 
 /// A source's icon. On the Mac it is the app's own icon when that app is on this Mac, drawn by the
@@ -116,9 +156,7 @@ struct ImportSourceIcon: View {
 
     #if os(macOS)
     /// The icon of the installed app with this bundle identifier (captures and tests set their own).
-    nonisolated(unsafe) static var installedIcon: (String) -> NSImage? = { id in
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: id).map { NSWorkspace.shared.icon(forFile: $0.path) }
-    }
+    nonisolated(unsafe) static var installedIcon: (String) -> NSImage? = { id in InstalledApps.icon(id) }
 
     #endif
 

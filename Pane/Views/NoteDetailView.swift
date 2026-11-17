@@ -976,7 +976,7 @@ struct NoteDetailView: View {
                         // A canvas runs edge to edge, under the bars (its controls float over it).
                         .ignoresSafeArea(.container, edges: showingCanvas ? .all : [])
                         #endif
-                        .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls, targets: askTargets, subject: AskAI.subject(note, whiteboard: true)) } }
+                        .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls, targets: askTargets, subject: { [note] in AskAI.subject(note, whiteboard: true) }) } }
                         // B: the first-open card inside the app, at its top, until Start.
                         .safeAreaInset(edge: .top, spacing: 0) {
                             if showingPage, let m = firstOpen, m.full, m.isApp, FirstOpen.variant == .b {

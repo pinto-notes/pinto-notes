@@ -16,8 +16,11 @@ enum ColumnsLayout: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Its UserDefaults key (also a `-experiment.layout narrow` launch argument for tests).
-    static let key = "experiment.layout"
+    /// Its UserDefaults key (also a `-experimentLayout narrow` launch argument for tests). No dot
+    /// in it: RootView keeps it with @AppStorage, and SwiftUI can't watch a key with a dot on its
+    /// own, so the whole notes window drew again on every write to the app's defaults (it was
+    /// "experiment.layout" until 17 November 2026; RenamedDefaults moves what was chosen).
+    static let key = "experimentLayout"
 
     /// The option picked on this device.
     static func current(_ defaults: UserDefaults = .standard) -> ColumnsLayout {

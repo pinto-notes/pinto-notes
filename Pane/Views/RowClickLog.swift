@@ -24,6 +24,11 @@ enum RowClickLog {
     @MainActor private static var observers: [NSObjectProtocol] = []
     @MainActor private static var downAt: Int?
     @MainActor private static var dragged = false
+    /// The press began on a list. A drag elsewhere (a pencil stroke on a board) sends one event per
+    /// pointer move, and each was hit tested through the whole window for nothing (17 November 2026).
+    @MainActor private static var pressOnList = false
+    /// Hit tests done, for tests.
+    @MainActor private(set) static var hitTests = 0
     /// The list's selection binding was set by the list (a click, a key) since the last change.
     @MainActor private static var fromList = false
 
@@ -45,7 +50,7 @@ enum RowClickLog {
         log.notice("rowclick logging on")
     }
 
-    @MainActor private static func note(_ event: NSEvent) {
+    @MainActor static func note(_ event: NSEvent) {
         guard let window = event.window, let content = window.contentView else { return }
         if event.type == .keyDown {
             // Arrow keys only (up, down), and where they went.
@@ -53,7 +58,16 @@ enum RowClickLog {
             log.notice("arrow \(event.keyCode == 125 ? "down" : "up", privacy: .public) to \(name(window.firstResponder), privacy: .public)")
             return
         }
+        // A drag is logged once, for a press on a list, and needs no hit test.
+        if event.type == .leftMouseDragged {
+            guard pressOnList, !dragged else { return }
+            dragged = true
+            log.notice("dragged from row \(downAt ?? -2, privacy: .public)")
+            return
+        }
+        hitTests += 1
         let hit = content.hitTest(content.convert(event.locationInWindow, from: nil))
+        if event.type == .leftMouseDown { pressOnList = false }
         guard let table = enclosingTable(hit) else { return }
         let row = table.row(at: table.convert(event.locationInWindow, from: nil))
         let selected = Array(table.selectedRowIndexes).map(String.init).joined(separator: ",")
@@ -61,12 +75,9 @@ enum RowClickLog {
         case .leftMouseDown:
             downAt = row
             dragged = false
+            pressOnList = true
             log.notice("down row \(row, privacy: .public) clicks \(event.clickCount, privacy: .public) mods \(event.modifierFlags.rawValue & 0xFFFF0000, privacy: .public) active \(NSApp.isActive, privacy: .public) key \(window.isKeyWindow, privacy: .public) firstResponder \(name(window.firstResponder), privacy: .public) selected [\(selected, privacy: .public)]")
             log.notice("down views \(chain(hit), privacy: .public)")
-        case .leftMouseDragged:
-            guard !dragged else { return }
-            dragged = true
-            log.notice("dragged from row \(downAt ?? -2, privacy: .public)")
         case .leftMouseUp:
             log.notice("up row \(row, privacy: .public) (down \(downAt ?? -2, privacy: .public), dragged \(dragged, privacy: .public)) selected [\(selected, privacy: .public)] views \(chain(hit), privacy: .public)")
             // What the table settled on once the click is handled.

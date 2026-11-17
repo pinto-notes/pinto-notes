@@ -28,8 +28,29 @@ enum CanvasNote {
     /// Whether a page (one HTML file, or a project as a note's page stores it) is the canvas.
     /// Only a page that names the canvas at all is parsed.
     static func isCanvas(_ stored: String?) -> Bool {
-        guard let stored, stored.contains("pinto-canvas") else { return false }
-        return NotePageProject.entryHTML(stored).contains(marker)
+        guard let stored else { return false }
+        if let known = memo.answer(stored) { return known }
+        let yes = stored.contains("pinto-canvas") && NotePageProject.entryHTML(stored).contains(marker)
+        memo.keep(stored, yes)
+        return yes
+    }
+
+    /// The last few answers. The note's view asks several times each time it's worked out, and a
+    /// page kept as a project is parsed whole to answer (a tenth of the main thread in the owner's
+    /// sample, 17 November 2026). The same text is the same stored string, so comparing is quick.
+    private static let memo = Memo()
+    private final class Memo: @unchecked Sendable {
+        private let lock = NSLock()
+        private var kept: [(text: String, yes: Bool)] = []
+        func answer(_ text: String) -> Bool? {
+            lock.lock(); defer { lock.unlock() }
+            return kept.first { $0.text == text }?.yes
+        }
+        func keep(_ text: String, _ yes: Bool) {
+            lock.lock(); defer { lock.unlock() }
+            kept.insert((text, yes), at: 0)
+            if kept.count > 4 { kept.removeLast() }
+        }
     }
 
     @MainActor static func has(_ note: Note, in store: NotePageStore = .shared) -> Bool {

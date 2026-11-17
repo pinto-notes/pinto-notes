@@ -13,8 +13,8 @@ struct NotePictureSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("notePicture.background") private var storedBackground = ""
-    @AppStorage("notePicture.showsMark") private var showsMark = true
+    @AppStorage(NotePicture.backgroundKey) private var storedBackground = ""
+    @AppStorage(NotePicture.showsMarkKey) private var showsMark = true
     @State private var dark: Bool?
     @State private var rendered: NotePicture.Rendered?
     @State private var done: Done?

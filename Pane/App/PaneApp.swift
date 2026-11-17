@@ -41,6 +41,8 @@ struct PaneApp: App {
         #if os(iOS)
         AppearanceModeStore.shared.watchWindows()
         #endif
+        // Settings renamed so the window's views can watch them (no dots), before any view reads one.
+        RenamedDefaults.migrate()
         // Error reports and usage counts (Telemetry): the released app only, and first, so a failure
         // further down this launch can be reported.
         TelemetryGate.startIfAllowed()
@@ -337,7 +339,7 @@ private struct SideWindow: ViewModifier {
 /// Built inline in PaneApp's body with an @AppStorage binding, it was redone on every update of the
 /// app, and in a window already busy updating AppKit gave up and the app crashed (Amber Notes Beta
 /// 1.2, 2610071120).
-private struct MenuBarItem: Scene {
+struct MenuBarItem: Scene {
     let backend: Backend
     let sync: SyncEngine
     let container: ModelContainer
@@ -345,7 +347,7 @@ private struct MenuBarItem: Scene {
     @State private var shown = DefaultsFlag(MenuBarSettings.key, default: true)
 
     var body: some Scene {
-        MenuBarExtra(isInserted: Binding(get: { shown.value && MenuBarSettings.allowed }, set: { if MenuBarSettings.allowed { shown.value = $0 } })) {
+        MenuBarExtra(isInserted: Self.inserted(shown, allowed: MenuBarSettings.allowed)) {
             MenuBarPanel(backend: backend, sync: sync)
                 .modelContainer(container)
                 .followsTheme()
@@ -353,6 +355,15 @@ private struct MenuBarItem: Scene {
             Image("MenuBarIcon").accessibilityLabel("Pinto Notes")
         }
         .menuBarExtraStyle(.window)
+    }
+
+    /// Whether the item is in the menu bar. SwiftUI sets it each time the status item reports
+    /// in, with what it already is: only a change reaches the setting.
+    static func inserted(_ shown: DefaultsFlag, allowed: Bool) -> Binding<Bool> {
+        Binding(get: { shown.value && allowed }, set: { on in
+            guard allowed, on != shown.value else { return }
+            shown.value = on
+        })
     }
 }
 #endif
@@ -746,6 +757,10 @@ final class DefaultsFlag {
     var value: Bool {
         get { stored }
         set {
+            // Only a change is written. SwiftUI sets the menu bar item's binding each time its
+            // status item reports in, and every write is news to everything watching the defaults:
+            // with the notes window watching them too, that was a loop (17 November 2026).
+            guard defaults.object(forKey: key) as? Bool != newValue else { return refresh() }
             defaults.set(newValue, forKey: key)
             refresh()
         }

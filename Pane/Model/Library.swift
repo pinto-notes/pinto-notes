@@ -101,7 +101,9 @@ extension ModelContext {
     }
 
     func note(_ id: UUID) -> Note? {
-        try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first
+        var d = FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })
+        d.fetchLimit = 1
+        return try? fetch(d).first
     }
 
     /// The folder new notes go into when "All Notes" is selected.
@@ -613,7 +615,9 @@ extension ModelContext {
     }
 
     func attachment(_ id: UUID) -> Attachment? {
-        try? fetch(FetchDescriptor<Attachment>(predicate: #Predicate { $0.id == id })).first
+        var d = FetchDescriptor<Attachment>(predicate: #Predicate { $0.id == id })
+        d.fetchLimit = 1
+        return try? fetch(d).first
     }
 
     /// Copies files into Pane for embedding in a note (kinds the app can't show are refused).

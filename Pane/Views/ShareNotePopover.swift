@@ -436,7 +436,7 @@ struct WebPagePreview: View {
 /// choice the picture sheet keeps.
 struct PictureBackgrounds: View {
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("notePicture.background") private var storedBackground = ""
+    @AppStorage(NotePicture.backgroundKey) private var storedBackground = ""
 
     var body: some View {
         let chosen = NotePicture.Background(rawValue: storedBackground) ?? (colorScheme == .dark ? .dusk : .hills)
@@ -483,8 +483,8 @@ struct NotePictureThumb: View {
     /// The picture once drawn, for Copy Picture.
     var image: Binding<CGImage?>? = nil
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("notePicture.background") private var storedBackground = ""
-    @AppStorage("notePicture.showsMark") private var showsMark = true
+    @AppStorage(NotePicture.backgroundKey) private var storedBackground = ""
+    @AppStorage(NotePicture.showsMarkKey) private var showsMark = true
     @State private var drawn: CGImage?
 
     var body: some View {

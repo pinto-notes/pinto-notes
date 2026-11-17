@@ -18,6 +18,32 @@ import Testing
         return try await body()
     }
 
+    /// The settings the window's views keep have no dot in their names (SwiftUI watches such a key
+    /// only through every write to the defaults; RootView kept "experiment.layout" and drew the
+    /// whole window again on each, 17 November 2026). A choice made under an old name moves to
+    /// the new one once, and one already made under the new name stays.
+    @Test func theWindowsSettingsHaveNoDotsAndTheOldNamesMoveOnce() throws {
+        for key in [ColumnsLayout.key, CanvasStyleSidebar.openKey, NotePicture.backgroundKey, NotePicture.showsMarkKey,
+                    TextSize.key, NoteFont.key, MenuBarSettings.key, Telemetry.consentKey] + Experiment.allCases.map(\.key) {
+            #expect(!key.contains("."), "\(key)")
+        }
+        #expect(RenamedDefaults.renames.allSatisfy { $0.old.contains(".") && !$0.new.contains(".") })
+        let d = try #require(UserDefaults(suiteName: "ColumnsLayoutTests.\(UUID().uuidString)"))
+        d.set("narrow", forKey: "experiment.layout")
+        d.set(true, forKey: "canvas.stylePanel.open")
+        d.set("sea", forKey: "notePicture.background")
+        d.set("dusk", forKey: NotePicture.backgroundKey)
+        RenamedDefaults.migrate(d)
+        #expect(ColumnsLayout.current(d) == .narrow, "the layout picked is kept")
+        #expect(d.bool(forKey: CanvasStyleSidebar.openKey))
+        #expect(d.string(forKey: NotePicture.backgroundKey) == "dusk", "a choice under the new name stays")
+        for (old, _) in RenamedDefaults.renames { #expect(d.object(forKey: old) == nil, "\(old) is gone") }
+        // Again: nothing moves.
+        d.set("today", forKey: ColumnsLayout.key)
+        RenamedDefaults.migrate(d)
+        #expect(ColumnsLayout.current(d) == .today)
+    }
+
     static func split(_ w: NSWindow) throws -> NSSplitView {
         try #require(w.contentView.flatMap { MacWindowChromeTests.find(NSSplitView.self, in: $0) })
     }

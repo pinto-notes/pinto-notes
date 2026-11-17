@@ -176,7 +176,18 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
               let imp = class_getMethodImplementation(WKPreferences.self, set) else { return }
         typealias Set = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
         unsafeBitCast(imp, to: Set.self)(preferences, set, false, near60)
+        drawsAtDisplayRate = true
         #endif
+    }
+    private(set) static var drawsAtDisplayRate = false
+
+    /// How many frames a second the app draws a page: the display's rate where drawAtDisplayRate
+    /// works, otherwise WebKit's 60. A board's pencil keeps a point a frame (canvas.jsx).
+    static var frameRate: Int {
+        #if os(macOS)
+        if drawsAtDisplayRate, let fps = NSScreen.main?.maximumFramesPerSecond { return min(240, max(60, fps)) }
+        #endif
+        return 60
     }
 
     #if DEBUG || QA
@@ -448,6 +459,8 @@ final class NotePageSandbox: NSObject, WKScriptMessageHandlerWithReply, WKScript
           // The page's own data: its values and collections, as NotePageData.decode keeps them.
           const normal = (d) => { const o = (x) => (x && typeof x === "object" && !Array.isArray(x) ? x : {}); d = o(d); return { values: o(d.values), collections: o(d.collections) }; };
           const amber = {
+            // How many frames a second the app draws this page (NotePageSandbox.frameRate).
+            _frameRate: \(frameRate),
             note: \(json),
             update(op) {
               if (batching) { batching.notes.push(...(Array.isArray(op) ? op : [op])); return Promise.resolve({ ok: true }); }

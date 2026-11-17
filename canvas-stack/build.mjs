@@ -28,6 +28,36 @@ const stubs = {
     export const subsetToBase64 = no, subsetToBinary = no, toBase64 = no; export const WorkerUrl = undefined;`,
   "locale": `export default {};`,
 };
+// A pencil line keeps every move the pointer made (canvas.jsx, window.__pintoPen): where the engine
+// adds the one move its frame got (as the pointer moves, and as it lifts), it adds the moves kept
+// since its last frame. Without the page's list (window.__pintoPen.off) it does as before.
+function keepPencilMoves(contents) {
+  const I = "[\\w$]+";
+  const changed = () => new Error("The engine's pencil changed: give it the kept moves again (build.mjs, keepPencilMoves).");
+  const once = (re) => {
+    const all = [...contents.matchAll(new RegExp(re.source, "g"))];
+    if (all.length !== 1) throw changed();
+    return all[0];
+  };
+  if (/[^\w$]__(?:a|p|q|e|c|x|y|l)[^\w$]/.test(contents)) throw changed();
+  // The handler for moves while pressed: its event and where it is on the board.
+  const head = once(new RegExp(`onPointerMoveFromPointerDownHandler\\(${I}\\)\\{return ${I}\\((${I})=>\\{if\\(this\\.state\\.openDialog\\?\\.name==="elementLinkSelector"\\)return;let (${I})=(${I})\\(\\1,this\\.state\\);`));
+  const [, event, at, toScene] = head;
+  // As it moves: one point, from the frame's move.
+  const move = once(new RegExp(`if\\((${I})\\.type==="freedraw"\\)\\{let (${I})=\\1\\.points,(${I})=(${I})\\.x-\\1\\.x,(${I})=\\4\\.y-\\1\\.y,(${I})=\\2\\.length>0&&\\2\\[\\2\\.length-1\\];if\\(!\\(\\6&&\\6\\[0\\]===\\3&&\\6\\[1\\]===\\5\\)\\)\\{let (${I})=\\1\\.simulatePressure\\?\\1\\.pressures:\\[\\.\\.\\.\\1\\.pressures,(${I})\\.pressure\\];(${I})\\(\\1,\\{points:\\[\\.\\.\\.\\2,(${I})\\(\\3,\\5\\)\\],pressures:\\7\\},!1\\),this\\.setState\\(\\{newElement:\\1\\}\\)\\}\\}`));
+  const [, el, pts, , moveAt, , , prs, moveEvent, mutate, point] = move;
+  if (moveEvent !== event || moveAt !== at || move.index < head.index) throw changed();
+  // As it lifts: the lift's point, last.
+  const up = once(new RegExp(`(${I})\\?\\.type==="freedraw"\\)\\{let (${I})=(${I})\\((${I}),this\\.state\\),(${I})=\\1\\.points,(${I})=\\2\\.x-\\1\\.x,(${I})=\\2\\.y-\\1\\.y;\\6===\\5\\[0\\]\\[0\\]&&\\7===\\5\\[0\\]\\[1\\]&&\\(\\7\\+=1e-4,\\6\\+=1e-4\\);let (${I})=\\1\\.simulatePressure\\?\\[\\]:\\[\\.\\.\\.\\1\\.pressures,\\4\\.pressure\\];${I}\\(\\1,\\{points:\\[\\.\\.\\.\\5,${point.replace(/\$/g, "\\$")}\\(\\6,\\7\\)\\]`));
+  const [, upEl, upAt, upToScene, upEvent, upPts, upX, upY, upPrs] = up;
+  if (upToScene !== toScene) throw changed();
+  // The kept moves, as points of the line `line` (after its last point `last`), and their pressures.
+  const kept = (line, list, last) => `let __a=[],__p=[];for(let __e of ${list}){let __c=${toScene}(__e,this.state),__x=__c.x-${line}.x,__y=__c.y-${line}.y,__l=__a.length?__a[__a.length-1]:${last};__l&&__l[0]===__x&&__l[1]===__y||(__a.push(${point}(__x,__y)),__p.push(__e.pressure))}`;
+  const moveNew = `if(${el}.type==="freedraw"){let ${pts}=${el}.points,__q=window.__pintoPen&&window.__pintoPen.take()||[${event}];${kept(el, "__q", `${pts}.length>0&&${pts}[${pts}.length-1]`)}if(__a.length){let ${prs}=${el}.simulatePressure?${el}.pressures:[...${el}.pressures,...__p];${mutate}(${el},{points:[...${pts},...__a],pressures:${prs}},!1),this.setState({newElement:${el}})}}`;
+  const upNew = `${upEl}?.type==="freedraw"){let ${upAt}=${toScene}(${upEvent},this.state),${upPts}=${upEl}.points,${upX}=${upAt}.x-${upEl}.x,${upY}=${upAt}.y-${upEl}.y;${kept(upEl, "window.__pintoPen&&window.__pintoPen.take()||[]", `${upPts}[${upPts}.length-1]`)}${upPts}=[...${upPts},...__a];${upX}===${upPts}[0][0]&&${upY}===${upPts}[0][1]&&(${upY}+=1e-4,${upX}+=1e-4);let ${upPrs}=${upEl}.simulatePressure?[]:[...${upEl}.pressures,...__p,${upEvent}.pressure];${up[0].slice(up[0].lastIndexOf(";") + 1)}`;
+  return contents.slice(0, move.index) + moveNew + contents.slice(move.index + move[0].length, up.index) + upNew + contents.slice(up.index + up[0].length);
+}
+
 const offline = {
   name: "offline",
   setup(build) {
@@ -46,6 +76,7 @@ const offline = {
         const made = /(\w+)\.classList\.add\("excalidraw-wysiwyg"\)/;
         if (!made.test(contents)) throw new Error("The engine's text box changed: set its typing attributes again (build.mjs).");
         contents = contents.replace(made, (m, v) => `${m},${v}.setAttribute("writingsuggestions","false"),${v}.setAttribute("autocorrect","off"),${v}.setAttribute("autocomplete","off")`);
+        contents = keepPencilMoves(contents);
       }
       return { contents, loader: "js" };
     });

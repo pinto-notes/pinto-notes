@@ -247,6 +247,18 @@ import WebKit
         return frame.hitTest(frame.convert(p, from: nil))
     }
 
+    /// WebKit gives the page's pointer events the buttons the Mac says are held
+    /// (NSEvent.pressedMouseButtons), not the event's own: a drag handed to the web view while no
+    /// button is held on the Mac reaches the page with no buttons and no pressure (0, where a held
+    /// mouse button gives 0.5), unlike a real drag. While a stroke is given, this process is told
+    /// the left button is held (nothing changes outside it). The closure puts it back.
+    static func holdLeftButton() -> () -> Void {
+        guard let m = class_getClassMethod(NSEvent.self, #selector(getter: NSEvent.pressedMouseButtons)) else { return {} }
+        let held: @convention(block) (AnyObject) -> Int = { _ in 1 }
+        let original = method_setImplementation(m, imp_implementationWithBlock(held))
+        return { method_setImplementation(m, original) }
+    }
+
     static func mouse(_ type: NSEvent.EventType, _ p: CGPoint, _ w: NSWindow) -> NSEvent {
         NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                            windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1)!
@@ -322,6 +334,8 @@ import WebKit
                 }
                 handling.append((CACurrentMediaTime() - s) * 1000)
             }
+            var release: (() -> Void)? = holdLeftButton()
+            defer { release?() }
             send(mouse(.leftMouseDown, path[0], w))
             let step = 1 / rate
             var next = CACurrentMediaTime() + step
@@ -331,6 +345,7 @@ import WebKit
                 next += step
                 send(mouse(.leftMouseDragged, p, w))
             }
+            release?(); release = nil
             send(mouse(.leftMouseUp, path[points - 1], w))
             let strokeWall = (CACurrentMediaTime() - t0) * 1000, strokeCPU = mainThreadCPU() - cpu0
             if let o = observer { CFRunLoopRemoveObserver(CFRunLoopGetMain(), o, .commonModes); observer = nil }

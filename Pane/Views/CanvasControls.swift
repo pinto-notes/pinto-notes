@@ -12,7 +12,9 @@ struct CanvasOverlay: View {
     let canvas: CanvasController
     /// For the empty board's "Ask your AI to draw it".
     var targets: [AskAI.Target] = []
-    var subject: AskAI.Subject?
+    /// Worked out only when Ask opens: it reads the board's whole text (the owner's sample had it
+    /// on every redraw of the note's view, 17 November 2026).
+    var subject: (() -> AskAI.Subject)?
 
     /// The style panel's frame on the board, while it shows.
     @State private var stylePanel: CGRect?
@@ -704,7 +706,8 @@ struct CanvasStart: View {
     /// The connected AIs, and what they'd be asked about (this whiteboard): the last line asks
     /// one to draw (whiteboard council, round 1: "make the AI line an action").
     var targets: [AskAI.Target] = []
-    var subject: AskAI.Subject?
+    /// Worked out only when Ask opens (CanvasOverlay.subject).
+    var subject: (() -> AskAI.Subject)?
     /// Your own templates, after the built-in ones.
     var templates: WhiteboardTemplates = .shared
     @State private var asking: AskAI.Target?
@@ -901,7 +904,7 @@ struct CanvasStart: View {
                 Button { asking = t } label: {
                     Label { Text(Self.askTitle(t)) } icon: { AIGlyph(ai: t.ai, size: 14, monochrome: true) }
                 }
-                .askAIPopover($asking, subject: subject, arrowEdge: .bottom)
+                .askAIPopover($asking, subject: subject(), arrowEdge: .bottom)
             } else if let subject, targets.count > 1 {
                 Menu {
                     ForEach(targets) { t in Button(AskAI.submenuItem(t)) { asking = t } }
@@ -913,7 +916,7 @@ struct CanvasStart: View {
                 .menuIndicator(.hidden)
                 #endif
                 .fixedSize()
-                .askAIPopover($asking, subject: subject, arrowEdge: .bottom)
+                .askAIPopover($asking, subject: subject(), arrowEdge: .bottom)
             } else {
                 Button { NotificationCenter.default.post(name: .paneConnectAI, object: nil) } label: {
                     Label(Self.connectTitle, systemImage: "sparkles")

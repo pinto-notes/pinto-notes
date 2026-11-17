@@ -1019,14 +1019,16 @@ struct RootView: View {
     @ViewBuilder
     private var detail: some View {
         #if os(macOS)
-        if let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
+        // The note first: it's what's shown nearly always, and each lookup is a fetch.
+        let shown = shownNote.flatMap { context.note($0) }
+        if shown == nil, let id = shownNote, let file = context.attachment(id), file.folderID != nil, file.deletedAt == nil {
             // A file kept in the folder: its preview.
             FileDetailView(file: file, onNewNote: newNote, onOpenFile: { selectedNote = $0 })
                 .id(id)
         } else {
             // Keep the stage across selections. Native toolbar visibility hides the items and
             // their glass without rebuilding the controls when a note opens again.
-            let note = shownNote.flatMap { context.note($0) }.flatMap { $0.deletedAt == nil ? $0 : nil }
+            let note = shown.flatMap { $0.deletedAt == nil ? $0 : nil }
             let focused = canvasFocused
             let fullScreen = FullScreenAction(on: focused) { focused ? leaveCanvasFocus() : enterFullScreen() }
             NoteToolbarStage(showsItems: note != nil,

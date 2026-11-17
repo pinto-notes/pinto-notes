@@ -59,6 +59,37 @@ import Testing
         #expect(!shown.value)
     }
 
+    /// A flag set to what it already holds writes nothing. SwiftUI sets the menu bar item's
+    /// binding with the same value each time its status item reports in; each write told the
+    /// notes window to work itself out again, which updated the menu bar item again: a loop the
+    /// owner's Mac spent its main thread on, on a board most (17 November 2026).
+    @Test func aFlagSetToWhatItHoldsWritesNothing() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "WindowUpdateTests.\(UUID().uuidString)"))
+        let shown = DefaultsFlag(MenuBarSettings.key, default: true, defaults: defaults)
+        final class Count: @unchecked Sendable { var value = 0 }
+        let writes = Count()
+        let token = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: nil) { _ in writes.value += 1 }
+        defer { NotificationCenter.default.removeObserver(token) }
+        shown.value = true
+        let first = writes.value
+        #expect(first <= 1, "the first set writes once at most: \(first)")
+        for _ in 0..<5 { shown.value = true }
+        #expect(writes.value == first, "the same value again writes nothing: \(writes.value - first) writes")
+        shown.value = false
+        #expect(writes.value == first + 1 && !shown.value && defaults.object(forKey: MenuBarSettings.key) as? Bool == false, "a change is written")
+
+        // The menu bar item's binding: the same value is no change; off and on again are.
+        let inserted = MenuBarItem.inserted(shown, allowed: true)
+        let before = writes.value
+        for _ in 0..<5 { inserted.wrappedValue = false }
+        #expect(writes.value == before, "the status item reporting what it is writes nothing")
+        inserted.wrappedValue = true
+        #expect(writes.value == before + 1 && shown.value)
+        // Where the menu bar item isn't allowed (tests), nothing reaches the setting.
+        MenuBarItem.inserted(shown, allowed: false).wrappedValue = false
+        #expect(shown.value && !MenuBarItem.inserted(shown, allowed: false).wrappedValue)
+    }
+
     /// Every click on a folder row selects it. Folder rows that skipped their updates (an equatable
     /// view) left some clicks without effect: Recently Deleted stayed selected (dev 2610071220).
     @Test(.timeLimit(.minutes(2))) func everyFolderRowClickSelectsIt() async throws {

@@ -12,7 +12,8 @@ struct CanvasStyleSidebar: View {
     @AppStorage(CanvasStyleSidebar.openKey) private var open = false
     @Environment(\.colorScheme) private var scheme
 
-    static let openKey = "canvas.stylePanel.open"
+    /// No dot in it (see ColumnsLayout.key): "canvas.stylePanel.open" until 17 November 2026.
+    static let openKey = "canvasStylePanelOpen"
     static let title = "Style"
     /// From the board's top left corner, as the zoom is from its bottom right.
     static let inset: CGFloat = 12
