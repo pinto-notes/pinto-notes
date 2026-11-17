@@ -18,7 +18,7 @@ export default function Page() {
   return (
     <PostPage
       slug="share-a-note-and-edit-it-together"
-      intro={<>Pinto Notes 1.4 for iPhone lets you share a note with people and write in it together. You see their changes as they type, and the note stays encrypted. The Mac update follows in a few days.</>}
+      intro={<>Pinto Notes 1.4 lets you share a note with people and write in it together, on iPhone and Mac. You see their changes as they type, and the note stays encrypted. It&apos;s out on iPhone today, and the Mac update follows in a few days.</>}
     >
       <h2>Invite people with a link</h2>
       <p>

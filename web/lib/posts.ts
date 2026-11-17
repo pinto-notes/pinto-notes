@@ -82,7 +82,7 @@ export const posts: Post[] = [
   {
     slug: "share-a-note-and-edit-it-together",
     title: "Share a note and edit it together",
-    description: "Pinto Notes 1.4 for iPhone lets you share a note with a link and write in it together, with everyone's cursor showing. Encrypted. Mac follows in days.",
+    description: "Pinto Notes 1.4 lets you share a note with a link and write in it together, on iPhone and Mac, cursors and all. Encrypted. Out on iPhone now, Mac in days.",
     excerpt: "Send a link, and the people you share with write in the note with you. You see their changes as they type, and the note stays encrypted.",
     category: "Building Pinto Notes",
     date: "2026-11-17",
