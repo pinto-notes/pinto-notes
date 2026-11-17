@@ -317,6 +317,27 @@ import AppKit
         #expect(NotePageSandbox.policy.contains("pinto-app: amber-app:") && NotePageSandbox.rules.contains("^pinto-file:"))
     }
 
+    /// A bundled library imports by its package's names (2026-11-17): an own-version app's Markdown
+    /// came out blank because `import { marked } from "marked"` found no such name, the library
+    /// being its global as a default export only. The default import still works too.
+    @Test func aBundledLibraryImportsByItsPackagesNames() async throws {
+        let project = NotePageProject(files: [
+            "/index.html": """
+            <main id="m">md</main>
+            <script type="module">
+              import { marked, Marked, parseInline } from "marked";
+              import markedDefault from "marked";
+              window.__md = [marked.parse("# Plan").trim(), parseInline("*a*"), new Marked().parse("**b**").trim(), markedDefault.marked === marked].join(" ");
+            </script>
+            """,
+        ])
+        #expect(NotePageLibraries.bundled.first { $0.name == "marked" }?.module.contains("export const { marked, Marked,") == true)
+        let sandbox = NotePageSandbox(rules: try await NotePageSandbox.prepare())
+        sandbox.load(html: project.stored, body: "Markdown")
+        try await run(sandbox.webView, until: "window.__md != null")
+        #expect(try await sandbox.webView.evaluateJavaScript("window.__md") as? String == "<h1>Plan</h1> <em>a</em> <p><strong>b</strong></p> true")
+    }
+
     /// A project's binary files (2026-11-14) are served as they are, with the web's type: a .wasm
     /// compiles with instantiateStreaming (which needs application/wasm) and a game's data arrives
     /// byte for byte, with no base64 in the app.

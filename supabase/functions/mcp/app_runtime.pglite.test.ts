@@ -289,6 +289,39 @@ Deno.test({ name: "each test file's tests run once, and a worker from a blob URL
   } finally { await stop(); }
 });
 
+// 2026-11-17, an own-version run: the app's Markdown came out blank and its tests couldn't load,
+// because `import { marked } from "marked"` found no such name (the bundled library came as a
+// default export only). Its package's named exports work now, in the app and in its tests.
+const MARKDOWN = `import { marked, Marked, parseInline } from "marked"
+import markedDefault from "marked"
+export const toHTML = (text: string) => marked.parse(text) as string
+export const inline = (text: string) => parseInline(text) as string
+export const fresh = () => new Marked().parse("# Hi") as string
+export const sameAsDefault = () => markedDefault.marked === marked
+`;
+const MARKDOWN_TEST = `import { it, expect } from "vitest"
+import { render, screen } from "@testing-library/react"
+import { toHTML, inline, fresh, sameAsDefault } from "@/lib/markdown"
+
+it("turns Markdown into HTML with the package's named exports", () => {
+  render(<div dangerouslySetInnerHTML={{ __html: toHTML("# Plan\\n\\n- **milk**") }} />)
+  expect(screen.getByRole("heading", { name: "Plan" })).toBeTruthy()
+  expect(screen.getByText("milk").tagName).toBe("STRONG")
+  expect(inline("*a*")).toBe("<em>a</em>")
+  expect(fresh()).toContain("<h1>Hi</h1>")
+  expect(sameAsDefault()).toBe(true)
+})
+`;
+
+Deno.test({ name: "an app and its tests import marked by name, as its package exports it", ignore: !hasWebKit }, async () => {
+  const { stop } = await renderService();
+  try {
+    const r = await runTests({ "/src/lib/markdown.ts": MARKDOWN, "/tests/markdown.test.tsx": MARKDOWN_TEST });
+    assertEquals(failuresOf(r), []);
+    assertEquals(r.results.filter((t) => t.file === "/tests/markdown.test.tsx").map((t) => t.ok), [true]);
+  } finally { await stop(); }
+});
+
 Deno.test({ name: "an app's tests start with no data, whatever data.json holds; several files are one write and one check", ignore: !hasWebKit }, async () => {
   const { seen, stop } = await renderService();
   try {

@@ -24,6 +24,16 @@ enum NotePageLibraries {
         var bytes: Int
         /// Libraries it needs loaded first (preact-hooks needs preact).
         var requires: [String]?
+        /// The names its npm package exports, as its global's members: `import { marked } from
+        /// "marked"` works as it does with the package (2026-11-17, an app's Markdown came out blank).
+        var exports: [String]?
+
+        /// amber-lib:///esm/<name>.js: the library loaded as a script, its global as the default
+        /// export, and its package's named exports from the global.
+        var module: String {
+            let named = (exports ?? []).isEmpty ? "" : "export const { \((exports ?? []).joined(separator: ", ")) } = globalThis[\"\(global)\"];\n"
+            return "import \"amber-lib:///\(name)\";\nexport default globalThis[\"\(global)\"];\n" + named
+        }
     }
     private struct Manifest: Decodable { var libraries: [Bundled] }
 
@@ -199,12 +209,12 @@ final class LibraryScheme: NSObject, WKURLSchemeHandler {
         if path == "amber-tokens.css" { reply(Data(NotePageTheme.tokens.utf8), type: "text/css"); return }
         if path == "amber-base.css" { reply(Data(NotePageTheme.base.utf8), type: "text/css"); return }
         // ES modules for apps with files: Preact and friends as shipped, the kit, and the other
-        // libraries as their global's default export.
+        // libraries as their global's default export and their package's named exports.
         if path.hasPrefix("esm/") {
             let name = String(path.dropFirst(4).dropLast(3))
             if let file = NotePageLibraries.modules[name], let data = NotePageLibraries.resource(file) { reply(data); return }
             if let lib = NotePageLibraries.bundled.first(where: { $0.name == name }) {
-                reply(Data("import \"amber-lib:///\(lib.name)\";\nexport default globalThis[\"\(lib.global)\"];\n".utf8)); return
+                reply(Data(lib.module.utf8)); return
             }
             task.didFailWithError(URLError(.fileDoesNotExist)); return
         }

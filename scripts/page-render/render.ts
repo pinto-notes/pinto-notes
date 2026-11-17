@@ -80,7 +80,7 @@ const APP_HOST = "https://app.amber.invalid/";
 const APP_LIBS = new URL("../../Pane/Resources/AppLibraries/", import.meta.url);
 const ESM: Record<string, string> = { preact: "preact.module.js", "preact-hooks": "preact-hooks.module.js", "preact-jsx-runtime": "preact-jsx-runtime.module.js",
   htm: "htm.module.js", "amber-router": "amber-router.module.js", amber: "amber.module.js" };
-type Bundled = { name: string; global: string; package: string };
+type Bundled = { name: string; global: string; package: string; exports?: string[] };
 const bundledLibs = (): Bundled[] => JSON.parse(Deno.readTextFileSync(new URL("libraries.json", APP_LIBS))).libraries;
 const kit = (() => { let k: { src: Record<string, string>; compiled: Record<string, string>; css: string } | null = null; return () => (k ??= JSON.parse(Deno.readTextFileSync(new URL("amber-ui.json", APP_LIBS)))); })();
 /** pinto-lib:///, pinto-app:/// and their amber names as this harness serves them. */
@@ -142,7 +142,9 @@ function moduleFile(path: string): { body: string; type: string } | null {
     const name = path.slice(4).replace(/\.js$/, "");
     if (ESM[name]) return { body: hosts(Deno.readTextFileSync(new URL(ESM[name], APP_LIBS))), type: "text/javascript" };
     const lib = bundledLibs().find((l) => l.name === name);
-    if (lib) return { body: `import "${LIB_HOST}${lib.name}";\nexport default globalThis["${lib.global}"];\n`, type: "text/javascript" };
+    // Its global as the default export, and its package's named exports (NotePageLibraries.Bundled.module).
+    const named = lib?.exports?.length ? `export const { ${lib.exports.join(", ")} } = globalThis["${lib.global}"];\n` : "";
+    if (lib) return { body: `import "${LIB_HOST}${lib.name}";\nexport default globalThis["${lib.global}"];\n${named}`, type: "text/javascript" };
     return null;
   }
   if (path.startsWith("amber-ui/")) {

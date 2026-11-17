@@ -10,3 +10,17 @@ Deno.test("names, globals, versions and source files match page.ts and the app's
   const src = (m: { source: string }) => (m.source.includes("/npm/") ? m.source.split("/npm/")[1] : `local:${m.source.match(/\(([^)]+)\)/)?.[1] ?? m.source}`);
   assertEquals(BUNDLED.map((b) => [b.name, b.version, b.npm]).sort(), manifest.map((m) => [m.name, m.version, src(m)]).sort());
 });
+
+// An app imports a bundled library the way its npm package says (`import { marked } from "marked"`),
+// so the names the manifest lists as its exports must all be on the global it defines.
+Deno.test("each bundled library's listed exports are on its global", async () => {
+  const dir = new URL("../../../Pane/Resources/AppLibraries/", import.meta.url);
+  const manifest = JSON.parse(await Deno.readTextFile(new URL("libraries.json", dir))).libraries as { name: string; file: string; global: string; exports?: string[] }[];
+  const listed = manifest.filter((m) => m.exports?.length);
+  assertEquals(listed.map((m) => m.name), ["marked"]);
+  for (const m of listed) {
+    const g: Record<string, Record<string, unknown>> = {};
+    new Function("globalThis", "exports", "module", "define", await Deno.readTextFile(new URL(m.file, dir)))(g, undefined, undefined, undefined);
+    assertEquals(m.exports!.filter((name) => g[m.global]?.[name] === undefined), [], `${m.name}: on ${m.global}`);
+  }
+});
