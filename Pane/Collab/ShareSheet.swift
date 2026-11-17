@@ -10,15 +10,22 @@ import AppKit
 ///   Tapping someone shows their safety code (Verify).
 /// - Share Link hands the link to the system share sheet (iPhone) or share menu (Mac), which
 ///   already have Copy. The link itself is never shown.
-/// - "People with the link: Can edit / Can view / Off". Off stops the link at once; turning it
-///   on again makes a new one, which is also the way to retire a link that went too far.
+/// - "People with the link: Can edit / Can view / Off" (a whiteboard also has Can comment, as
+///   FigJam does). Off stops the link at once; turning it on again makes a new one, which is also
+///   the way to retire a link that went too far.
 /// - Someone else's note: Leave Note instead of the link.
 ///
 /// No email invites in v1: people who sign in with Apple often hide their address.
 struct ShareState: Equatable {
     enum Access: String, CaseIterable, Identifiable {
-        case edit = "Can edit", view = "Can view", off = "Off"
+        case edit = "Can edit", comment = "Can comment", view = "Can view", off = "Off"
         var id: String { rawValue }
+
+        /// What a link can let people do: Can comment only on a whiteboard (a note has no comments).
+        static func choices(board: Bool) -> [Access] { board ? allCases : [.edit, .view, .off] }
+
+        /// The role a link with it gives (`note_invite_links.role`).
+        var role: String { self == .edit ? "editor" : self == .comment ? "commenter" : "viewer" }
     }
     /// What someone else in the note can do. The owner changes it from their row (Can edit, Can
     /// view), as the link's own role is changed under Join by Link.
@@ -41,14 +48,30 @@ struct ShareState: Equatable {
         var verified = false
         /// Their key isn't the one first seen for them: what to say (Collab.KeyChange.message).
         var keyChanged: String? = nil
+        /// Their colour in this note (CollabSession.paletteSlot), when its members are known.
+        var colorSlot: Int? = nil
     }
     var link: URL?
     var access: Access = .off
     var people: [Person] = []
     var problem: String?
 
-    /// Your role in the note: owner, editor or viewer. A note nobody shares yet is yours.
+    /// Your role in the note: owner, editor, commenter or viewer. A note nobody shares yet is yours.
     var myRole: String { people.first(where: \.isMe)?.role ?? "owner" }
+
+    /// The people, each with their colour in this note: the session's when it has said, else the
+    /// one the member list gives, by the board's own rule (CollabSession.slots: the owner, then the
+    /// others as listed). So a person has one colour in Share, on the board and in a browser
+    /// (round 15, comment-role-1: Cleo was plum here and blue on the board).
+    var colored: [Person] {
+        let order = people.filter { $0.role == "owner" }.map(\.id) + people.filter { $0.role != "owner" }.map(\.id)
+        let slots = CollabSession.slots(for: order)
+        return people.map { p in
+            var p = p
+            if p.colorSlot == nil { p.colorSlot = slots[p.id] }
+            return p
+        }
+    }
 }
 
 /// The sheet's content on iPhone: People, then Share Link and what the link lets people do, or
@@ -64,7 +87,7 @@ struct ShareForm: View {
     var body: some View {
         Form {
             Section {
-                ForEach(state.people) { p in
+                ForEach(state.colored) { p in
                     Group {
                         let busy = share.working == .remove(p.id) || share.working == .role(p.id)
                         if p.isMe || p.safetyCode == nil && !share.canChangeRole(p) { PersonRow(person: p, removing: busy) }
@@ -94,7 +117,7 @@ struct ShareForm: View {
                 Section {
                     if !state.notSharedYet {
                         Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                            ForEach(ShareState.Access.choices(board: share.board())) { Text($0.rawValue).tag($0) }
                         } label: {
                             Text("Join by Link")
                         }
@@ -103,7 +126,7 @@ struct ShareForm: View {
                         .accessibilityIdentifier("share.access")
                     }
                 } footer: {
-                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state), done: share.done == .linkChanged)
+                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state, board: share.board()), done: share.done == .linkChanged)
                 }
             } else {
                 Section {
@@ -128,7 +151,7 @@ struct ShareForm: View {
         #endif
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done", action: done).buttonStyle(.quiet) } }
         .navigationDestination(for: UUID.self) { id in
-            if let p = state.people.first(where: { $0.id == id }) {
+            if let p = state.colored.first(where: { $0.id == id }) {
                 PersonDetail(person: p, canRemove: share.isOwner, justVerified: share.done == .verified(p.id),
                              roles: share.canChangeRole(p) ? .init(changing: share.working == .role(p.id), said: share.roleLine(for: p.id),
                                                                    problem: share.working == nil ? state.problem : nil,
@@ -242,9 +265,11 @@ struct PersonRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// One colour per person, from their account id: the same in everyone's view (yours too), and
-    /// the same as their caret. Never the app's accent.
-    static func color(_ person: ShareState.Person) -> Color { CollabSession.color(for: person.id) }
+    /// One colour per person in the note, none shared with anyone else in it: the same in
+    /// everyone's view (yours too), and the same as their caret. Never the app's accent.
+    static func color(_ person: ShareState.Person) -> Color {
+        person.colorSlot.map { CollabSession.color(at: $0) } ?? CollabSession.color(for: person.id)
+    }
 }
 
 /// A person, opened: for the owner, what they can do (Can edit or Can view); their safety code,
@@ -275,7 +300,7 @@ struct PersonDetail: View {
         Form {
             Section {
                 HStack(spacing: 14) {
-                    PersonAvatar(name: person.name, color: CollabSession.color(for: person.id), size: 48, photo: person.photo, ring: .clear)
+                    PersonAvatar(name: person.name, color: PersonRow.color(person), size: 48, photo: person.photo, ring: .clear)
                     VStack(alignment: .leading) {
                         Text(person.name).font(.headline)
                         Text(ShareCopy.role(person.role)).foregroundStyle(.secondary)

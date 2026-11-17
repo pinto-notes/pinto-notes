@@ -1025,3 +1025,41 @@ struct CoverSwatchStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
+
+extension View {
+    /// A toolbar button's label fills its whole cell, so every point of its round hover takes the
+    /// click (Emil, 16 November 2026: a click in the corner of the hovered Eraser did nothing; the
+    /// label took only the glyph's own box). Nothing on iPhone, whose bar buttons are the system's.
+    func toolbarCell() -> some View { modifier(ToolbarCell()) }
+}
+
+struct ToolbarCell: ViewModifier {
+    /// The cell: a toolbar button and its round hover are 36 pt (Tahoe's toolbar).
+    static let size: CGFloat = 36
+    /// How far past the label its clicks reach: the toolbar's padding beside it.
+    static let reach: CGFloat = 8
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        // The height only: the toolbar pads a button's width to the cell itself, and a set width
+        // made every item 14 pt wider (the list's title went, on the Air). That padding took clicks
+        // only level with the glyph, so the shape runs past the label to the cell's corners; the
+        // item's own view ends at the cell, so nothing past it takes a click.
+        content
+            .frame(height: Self.size)
+            .contentShape(Rectangle().inset(by: -Self.reach))
+        #else
+        content
+        #endif
+    }
+}
+
+/// The canvas's dock and bar buttons: press scale 0.97 over 120 ms (DESIGN.md, Buttons); their
+/// hover is the grey well they draw themselves (CanvasBarButton).
+struct CanvasPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}

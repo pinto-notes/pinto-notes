@@ -22,6 +22,15 @@ final class MemoryCollabServer {
     private var members: [UUID: [UUID: MemberRow]] = [:]
     private(set) var updates: [UUID: [Collab.Update]] = [:]
     private(set) var snapshots: [UUID: [Collab.Snapshot]] = [:]
+    /// Shared whiteboards' comment streams (note_comments), in order of id.
+    private(set) var comments: [UUID: [Collab.CommentRow]] = [:]
+    /// A board's room for comments in all (`comments_full`); tests make it small.
+    var commentsRoom = 16_777_216
+    /// Pictures on shared whiteboards (note_files), by note and file id: sealed, with who put them there.
+    struct FileRow { var epoch: Int; var ct: String; var author: UUID }
+    private(set) var files: [UUID: [String: FileRow]] = [:]
+    /// While true, pictures don't arrive (`file` answers nil), as if they hadn't been stored yet.
+    var holdFiles = false
     private var links: [String: LinkRow] = [:]
     /// Why each person's access to a note ended (note_access_ended, 20261112120000).
     private var ended: [UUID: [UUID: Collab.AccessEnded]] = [:]
@@ -52,7 +61,7 @@ final class MemoryCollabServer {
     /// Every row the server holds, as text: for tests that check what never reaches it.
     var everythingStored: String {
         [String(describing: identities), String(describing: notes), String(describing: members), String(describing: updates),
-         String(describing: snapshots), String(describing: links)].joined(separator: "\n")
+         String(describing: snapshots), String(describing: files), String(describing: links), String(describing: comments)].joined(separator: "\n")
     }
 
     func account(_ name: String, id: UUID = UUID()) -> UUID {
@@ -208,6 +217,8 @@ final class MemoryCollabServer {
         members[note] = nil
         updates[note] = nil
         snapshots[note] = nil
+        files[note] = nil
+        comments[note] = nil
         links = links.filter { $0.value.note != note }
     }
 
@@ -254,6 +265,66 @@ final class MemoryCollabServer {
         guard notes[note]?.epoch == epoch else { throw Collab.Failure.staleEpoch }
         snapshots[note, default: []].append(Collab.Snapshot(note_id: note, upto: upto, epoch: epoch, ct: ct))
         updates[note] = updates[note]?.filter { $0.id > upto }
+    }
+
+    // MARK: Comments (note_comments and its guard)
+
+    func commentRows(_ user: UUID, note: UUID, after: Int64) -> [Collab.CommentRow] {
+        guard role(note, user) != nil else { return [] }
+        return (comments[note] ?? []).filter { $0.id > after }
+    }
+
+    func addComment(_ user: UUID, note: UUID, epoch: Int, ct: String) throws -> Collab.CommentRow {
+        guard let r = role(note, user) else { throw Collab.Failure.notMember }
+        guard ["owner", "editor", "commenter"].contains(r) else { throw Collab.Failure.readOnly }
+        guard notes[note]?.epoch == epoch else { throw Collab.Failure.staleEpoch }
+        guard ct.hasPrefix("amb3c.\(epoch).") else { throw Collab.Failure.server("That comment isn't sealed for this note's key.") }
+        guard (comments[note] ?? []).reduce(0, { $0 + $1.ct.utf8.count }) + ct.utf8.count <= commentsRoom else { throw Collab.Failure.commentsFull }
+        nextID += 1
+        let c = Collab.CommentRow(id: nextID, note_id: note, author_id: user, role: r, epoch: epoch, ct: ct)
+        comments[note, default: []].append(c)
+        if !dropRelays { for ch in channels[note] ?? [] where !removedStayOnChannel || members[note]?[ch.user] != nil { deliver(ch, .comment(c)) } }
+        return c
+    }
+
+    /// An entry as an older server, or a member who wrote it by hand, could leave it: for the tests
+    /// of what devices take from whom.
+    func plantComment(_ c: Collab.CommentRow) {
+        nextID = max(nextID, c.id)
+        comments[c.note_id, default: []].append(c)
+    }
+
+    // MARK: Pictures (collab_put_file and note_files' policy)
+
+    static let maxFile = 4_194_304
+    static let maxFiles = 33_554_432
+    /// A board's room for pictures in all; tests make it small.
+    var filesRoom = maxFiles
+
+    /// A picture's row gone, as if it never went up (the app quit before it did).
+    func forgetFile(note: UUID, id: String) { files[note]?[id] = nil }
+
+    func putFile(_ user: UUID, note: UUID, id: String, epoch: Int, ct: String) throws {
+        guard let r = role(note, user) else { throw Collab.Failure.notMember }
+        guard ["owner", "editor"].contains(r) else { throw Collab.Failure.readOnly }
+        guard notes[note]?.epoch == epoch else { throw Collab.Failure.staleEpoch }
+        guard ct.hasPrefix("amb3f.\(epoch).") else { throw Collab.Failure.server("That picture isn't sealed for this note's key.") }
+        guard id.range(of: "^[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil else { throw Collab.Failure.server("note_files_file_id_check") }
+        guard ct.utf8.count <= Self.maxFile else { throw Collab.Failure.picturesFull }
+        if let stored = files[note]?[id], stored.epoch >= epoch { return }
+        let others = (files[note] ?? [:]).filter { $0.key != id }.values.reduce(0) { $0 + $1.ct.utf8.count }
+        guard others + ct.utf8.count <= filesRoom else { throw Collab.Failure.picturesFull }
+        files[note, default: [:]][id] = FileRow(epoch: epoch, ct: ct, author: files[note]?[id]?.author ?? user)
+    }
+
+    func file(_ user: UUID, note: UUID, id: String) -> Collab.File? {
+        guard role(note, user) != nil, !holdFiles, let f = files[note]?[id] else { return nil }
+        return Collab.File(file_id: id, epoch: f.epoch, ct: f.ct)
+    }
+
+    func fileRows(_ user: UUID, note: UUID) -> [Collab.FileRow] {
+        guard role(note, user) != nil else { return [] }
+        return (files[note] ?? [:]).map { Collab.FileRow(file_id: $0.key, epoch: $0.value.epoch) }.sorted { $0.file_id < $1.file_id }
     }
 
     // MARK: Channels
@@ -405,4 +476,15 @@ final class MemoryCollabTransport: CollabTransport {
         try server.check("join")
         return try server.join(me, note: note, onEvent: onEvent)
     }
+    func putFile(note: UUID, id: String, epoch: Int, ct: String) async throws {
+        try server.check("put_file")
+        try server.putFile(me, note: note, id: id, epoch: epoch, ct: ct)
+    }
+    func file(note: UUID, id: String) async throws -> Collab.File? { try server.check("file"); return server.file(me, note: note, id: id) }
+    func comments(note: UUID, after: Int64) async throws -> [Collab.CommentRow] { try server.check("comments"); return server.commentRows(me, note: note, after: after) }
+    func send(comment ct: String, note: UUID, epoch: Int) async throws -> Collab.CommentRow {
+        try server.check("comment")
+        return try server.addComment(me, note: note, epoch: epoch, ct: ct)
+    }
+    func files(of note: UUID) async throws -> [Collab.FileRow] { try server.check("files"); return server.fileRows(me, note: note) }
 }

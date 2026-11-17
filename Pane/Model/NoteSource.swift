@@ -134,6 +134,10 @@ struct NoteDraft: Equatable, Sendable {
     var preview: Data?
     var previewDark: Data?
     var ask: String?
+    /// A shared whiteboard: its .excalidraw file, published beside its page's picture. It's added
+    /// as a whiteboard with this drawing (whiteboard council, round 3: Copy to Pinto Notes), its
+    /// picture is `preview`, and `body` is its words.
+    var boardScene: Data?
 
     init(template t: NoteTemplate, link: NoteSourceLink) {
         self.link = link
@@ -296,7 +300,29 @@ struct WebNoteSource: NoteSourceFetching {
         return URL(string: path, relativeTo: site)
     }
 
-    private struct Shared: Decodable { let title: String?; let body: String }
+    private struct Shared: Decodable {
+        struct Picture: Decodable { let version: Int64 }
+        struct Scene: Decodable { let size: Int; let version: Int64 }
+        let title: String?
+        let body: String
+        let picture: Picture?
+        let scene: Scene?
+    }
+
+    /// A shared board's picture or scene from share-files (`?slug=…&picture=…` or `&scene=…`).
+    private func boardFile(_ slug: String, _ kind: String, version: Int64, limit: Int) async throws -> Data? {
+        guard let supabaseURL, let anonKey,
+              var c = URLComponents(url: supabaseURL.appendingPathComponent("functions/v1/share-files"), resolvingAgainstBaseURL: false) else { return nil }
+        c.queryItems = [URLQueryItem(name: "slug", value: slug), URLQueryItem(name: kind, value: String(version))]
+        guard let url = c.url else { return nil }
+        // Never a stored answer: the version makes each one its own address, and a copy is made once.
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200, data.count <= limit else { return nil }
+        return data
+    }
 
     private func copy(_ link: NoteSourceLink) async throws -> NoteDraft {
         guard let supabaseURL, let anonKey else { throw NoteSourceError.unavailable }
@@ -315,7 +341,18 @@ struct WebNoteSource: NoteSourceFetching {
         guard let shared = decoded else { throw NoteSourceError.notFound(.copy) }
         let cleaned = SharedCopy.clean(shared.body)
         let title = shared.title.flatMap { $0.isEmpty ? nil : $0 } ?? NoteText.title(of: cleaned.body)
-        return NoteDraft(link: link, title: title, body: cleaned.body, leftOut: cleaned.leftOut)
+        var draft = NoteDraft(link: link, title: title, body: cleaned.body, leftOut: cleaned.leftOut)
+        // A whiteboard comes as a whiteboard, from its .excalidraw file; its words alone would be a
+        // different note. Without the file (published before boards had one) it's its words.
+        if let scene = shared.scene {
+            guard let file = try await boardFile(link.slug, "scene", version: scene.version, limit: BoardPicture.maxSceneBytes),
+                  CanvasNote.scene(fromExcalidraw: file) != nil else { throw NoteSourceError.unavailable }
+            draft.boardScene = file
+            if let picture = shared.picture {
+                draft.preview = try? await boardFile(link.slug, "picture", version: picture.version, limit: BoardPicture.maxBytes)
+            }
+        }
+        return draft
     }
 }
 
@@ -394,6 +431,10 @@ extension ModelContext {
             } else {
                 folder = createFolder(named: clean.isEmpty ? "Notes" : clean)
             }
+        }
+        // A shared whiteboard: a whiteboard of your own with its drawing, named as it was.
+        if let file = draft.boardScene, let scene = CanvasNote.scene(fromExcalidraw: file) {
+            return CanvasNote.make(in: .folder(folder.id), context: self, scene: scene, named: draft.title)
         }
         return createNote(in: .folder(folder.id), body: draft.body)
     }

@@ -26,8 +26,8 @@ import Testing
     }
 
     /// Emil shares a note with an Edit link; Sara opens the link and joins.
-    private func shared(_ body: String) async throws -> (emil: Device, sara: Device, note: Note, ids: (UUID, UUID)) {
-        let emilID = server.account("Emil"), saraID = server.account("Sara")
+    private func shared(_ body: String, ids given: (UUID, UUID)? = nil) async throws -> (emil: Device, sara: Device, note: Note, ids: (UUID, UUID)) {
+        let emilID = server.account("Emil", id: given?.0 ?? UUID()), saraID = server.account("Sara", id: given?.1 ?? UUID())
         let emil = try device(emilID, name: "Emil"), sara = try device(saraID, name: "Sara")
         let note = Note(body: body)
         emil.context.insert(note)
@@ -463,6 +463,33 @@ extension CollabTwoPeopleTests {
         #expect(theirs.peers[emilID]?.name == "Emil")
     }
 
+    /// Emil and Sara were both olive: their account ids pick the same colour. In a note they share
+    /// they're two colours, Emil's (the owner's) the one his id picks, and each is the same colour
+    /// on both devices: their carets, avatars and rows in Share.
+    @Test func twoPeopleInANoteAreTwoColoursOnBothDevices() async throws {
+        let same = SharedBoardTests.idsWithOneColour(2)
+        let (emil, sara, note, ids) = try await shared("Hello there\n", ids: (same[0], same[1]))
+        let mine = try #require(emil.store.session(for: note.id))
+        let saraNote = try #require(sara.context.pointer(forShared: note.id))
+        let theirs = try #require(sara.store.session(for: saraNote.id))
+        await server.eventually { mine.members.count == 2 && theirs.members.count == 2 }
+        #expect(mine.paletteSlot(of: ids.0) != mine.paletteSlot(of: ids.1), "two colours")
+        #expect(mine.paletteSlot(of: ids.0) == Int(CollabSession.paletteIndex(for: ids.0)), "the owner's is his own")
+        for id in [ids.0, ids.1] { #expect(mine.paletteSlot(of: id) == theirs.paletteSlot(of: id), "the same on both devices") }
+
+        // Each sees the other's caret in that colour.
+        theirs.selectionChanged(NSRange(location: 3, length: 0))
+        mine.selectionChanged(NSRange(location: 1, length: 0))
+        await server.eventually { !mine.remoteCarets.isEmpty && !theirs.remoteCarets.isEmpty }
+        #expect(mine.remoteCarets.first?.color == CollabSession.color(at: mine.paletteSlot(of: ids.1)))
+        #expect(theirs.remoteCarets.first?.color == CollabSession.color(at: mine.paletteSlot(of: ids.0)))
+        #expect(mine.remoteCarets.first?.color != theirs.remoteCarets.first?.color)
+        // And in Share, on both devices.
+        for (store, n) in [(emil.store, note), (sara.store, saraNote)] {
+            for row in store.shareState(for: n).people { #expect(PersonRow.color(row) == mine.color(of: row.id), "\(row.name)'s row") }
+        }
+    }
+
     /// Bug 18: with the server gone for 16 seconds both phones still looked connected. Someone not
     /// heard from for a while goes grey: their avatar, and their caret without its name flag.
     /// Heard again, they're back in their colour.
@@ -474,7 +501,7 @@ extension CollabTwoPeopleTests {
         let peer = try #require(mine.peers[ids.1])
         #expect(!peer.isStale())
         let live = try #require(mine.remoteCarets(at: .now).first)
-        #expect(live.color == CollabSession.color(for: ids.1) && live.showsName)
+        #expect(live.color == mine.color(of: ids.1) && live.showsName)
 
         let later = peer.heardAt.addingTimeInterval(CollabSession.Peer.staleAfter + 0.5)
         #expect(peer.isStale(at: later))

@@ -12,8 +12,10 @@ const APP_LINK = new RegExp(`^${APP_SCHEME}:\\/\\/(template|copy)\\/([A-Za-z0-9_
 
 export const validAppLink = (href: string) => APP_LINK.test(href);
 
-/// What the button is opening, for the words on the sheet when the app isn't there.
-export const opensWhat = (app: string): "template" | "note" => (APP_LINK.exec(app)?.[1] === "copy" ? "note" : "template");
+/// What the button is opening, for the words on the sheet when the app isn't there. A copy link
+/// opens a note, or a whiteboard when its page says so (OpenInApp's `what`).
+export type OpensWhat = "template" | "note" | "whiteboard";
+export const opensWhat = (app: string): OpensWhat => (APP_LINK.exec(app)?.[1] === "copy" ? "note" : "template");
 
 /// How long the page waits for the browser to leave for Pinto Notes before saying it didn't open.
 export const OPEN_WAIT_MS = 2000;

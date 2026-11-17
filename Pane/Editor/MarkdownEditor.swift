@@ -2456,6 +2456,11 @@ private struct PlatformEditor: NSViewRepresentable {
         if view.allowsUndo != (controller.ownUndo == nil) { view.allowsUndo = controller.ownUndo == nil }
         // Recently Deleted and Can view: shown, selectable to copy, never changed.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
+        // Kept alive under a note's page or board, but hidden there: faded out only, its I-beam
+        // cursor rects stayed live over the board and fought the board's cursor, which flickered
+        // as the mouse moved (Emil, 16 November 2026).
+        let hidden = context.environment.editorUnderPage
+        if scroll.isHidden != hidden { scroll.isHidden = hidden }
     }
 }
 
@@ -3262,6 +3267,9 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             }
         }
         switch selector {
+        case #selector(cancelOperation(_:)):
+            // Writing focus: Esc brings the columns back (ColumnsLayout).
+            if controller?.onEscape() == true { return true }
         case #selector(insertNewline(_:)):
             // Undo goes back a line at a time: without this, ⌘Z took everything typed since the
             // caret last moved, a whole new note back to its empty title (persona council r7d, a
@@ -3303,6 +3311,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.incoming.report(string)
         core.onChange(string)
         controller?.typingChanged(text: string, selection: editingSelection)
+        controller?.onTyped()
         layoutWikiSuggestions()
     }
 

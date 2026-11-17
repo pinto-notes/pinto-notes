@@ -45,6 +45,12 @@ enum AIEdit {
     /// An AI as a note names it: "Claude", or "Sara's Claude" when it's someone else's.
     nonisolated static func whose(_ ai: String, person: String?) -> String { person.map { "\($0)'s \(ai)" } ?? ai }
 
+    /// The same AI, named with or without whose it is ("Claude", "Sara's Claude").
+    nonisolated static func sameAI(_ a: String, _ b: String) -> Bool {
+        let x = a.trimmingCharacters(in: .whitespaces), y = b.trimmingCharacters(in: .whitespaces)
+        return x.caseInsensitiveCompare(y) == .orderedSame || x.hasSuffix("'s \(y)") || y.hasSuffix("'s \(x)")
+    }
+
     /// Who an AI's change is from when the note doesn't know their name yet.
     static let someone = "Someone"
 
@@ -308,6 +314,10 @@ enum AIEdit {
         var earlierBy: String? = nil
 
         enum Kind: Equatable { case edit, pageEdit, dataEdit, pageMade, pageChanged, reverted, heldBack }
+        /// The change was to a whiteboard's drawing: it's said as drawing.
+        var board = false
+        /// What it did to the board, when known: "added 3 shapes and 2 arrows".
+        var drew: String? = nil
 
         /// The note is back to what it was before the edit: undone here or, on a shared note, by
         /// someone else. There's nothing left for the receipt to speak of (persona council r7).
@@ -389,7 +399,10 @@ enum AIEdit {
         var summary: String {
             if kind == .reverted { return "Reverted to the last working version" }
             if kind == .heldBack { return "\(who)'s new version didn't pass its checks: kept the working one" }
-            if kind == .dataEdit, by != AIGlyph.page { return "\(who) changed this app's data" }
+            if kind == .dataEdit, by != AIGlyph.page {
+                if board, let drew { return "\(who) \(drew)" }
+                return board ? "\(who) drew on this whiteboard" : "\(who) changed this app's data"
+            }
             if kind == .pageEdit || kind == .dataEdit { return "Changed in the app" }
             if kind == .pageMade { return "\(who) made this note an app" }
             if kind == .pageChanged { return "\(who) changed this note's app" }
@@ -439,7 +452,7 @@ enum AIEdit {
             switch kind {
             case .reverted: "Reverted"
             case .heldBack: "Kept the working one"
-            case .dataEdit where by != AIGlyph.page: "\(who) changed it"
+            case .dataEdit where by != AIGlyph.page: board ? "\(who) drew on it" : "\(who) changed it"
             case .pageEdit, .dataEdit: "Changed"
             case .pageMade: "\(who) made it"
             case .pageChanged: "\(who) updated it"

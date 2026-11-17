@@ -51,6 +51,9 @@ enum E2EE {
     static func fileMeta(_ id: UUID) -> String { "file-meta:" + id.uuidString.lowercased() }
     static func file(_ id: UUID) -> String { "file:" + id.uuidString.lowercased() }
     static func wrap(_ purpose: String, user: UUID) -> String { "wrap:\(purpose):" + user.uuidString.lowercased() }
+    /// A whiteboard library item's head (its name, group and place) and its shapes (CanvasLibrarySync).
+    static func libraryHead(_ id: UUID) -> String { "library-head:" + id.uuidString.lowercased() }
+    static func libraryItem(_ id: UUID) -> String { "library:" + id.uuidString.lowercased() }
 
     // MARK: Files
 

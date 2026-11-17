@@ -550,7 +550,7 @@ struct ShareButton: View {
     var pictureRequest: (() -> NotePicture.Request?)?
 
     var body: some View {
-        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up") }
+        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
             .help("Share")
             .popover(isPresented: $showing, arrowEdge: .bottom) {
                 SharePopoverLive(note: note, store: store, people: people, picture: picture, pictureRequest: pictureRequest) { showing = false }
@@ -613,7 +613,7 @@ struct CollaborateRows: View {
             } else if share.confirmingLeave {
                 confirm(ShareCopy.leaveTitle(share.note.title), ShareCopy.leaveMessage, action: "Leave", id: "share.confirmLeave",
                         cancel: { share.confirmingLeave = false }) { Task { await share.confirmLeave() } }
-            } else if case .verify(let id) = shown, let p = share.state.people.first(where: { $0.id == id }) {
+            } else if case .verify(let id) = shown, let p = share.state.colored.first(where: { $0.id == id }) {
                 verify(p)
             } else {
                 people
@@ -626,7 +626,7 @@ struct CollaborateRows: View {
     @ViewBuilder private var people: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(share.state.people) { p in
+                ForEach(share.state.colored) { p in
                     let opens = !p.isMe && (p.safetyCode != nil || share.canChangeRole(p))
                     let row = HStack(spacing: 5) {
                         PersonRow(person: p, removing: share.working == .remove(p.id) || share.working == .role(p.id), size: 24)
@@ -676,7 +676,7 @@ struct CollaborateRows: View {
                         // A neutral menu: the system's took the accent, loud for a setting left at Off.
                         Menu {
                             Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                                ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                                ForEach(ShareState.Access.choices(board: share.board())) { Text($0.rawValue).tag($0) }
                             }
                             .pickerStyle(.inline)
                             .labelsHidden()
@@ -704,7 +704,7 @@ struct CollaborateRows: View {
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }
                 else if share.done == .linkChanged { DoneLine(text: ShareController.Done.linkChanged.text).font(.system(size: 11)) }
-                else { line(ShareCopy.link(share.state), problem: false) }
+                else { line(ShareCopy.link(share.state, board: share.board()), problem: false) }
                 Button { Task { await share.shareLink() } } label: {
                     if case .shared = share.done { Label(share.done?.text ?? "", systemImage: "checkmark") }
                     else { Label("Invite People…", systemImage: "person.badge.plus") }
@@ -743,7 +743,7 @@ struct CollaborateRows: View {
                 .padding(.leading, -QuietButtonStyle.inset)
                 .accessibilityIdentifier("share.back")
             HStack(spacing: 10) {
-                PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: 36, photo: p.photo, ring: .clear)
+                PersonAvatar(name: p.name, color: PersonRow.color(p), size: 36, photo: p.photo, ring: .clear)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(p.name).font(.system(size: 13, weight: .semibold))
                     Text(ShareCopy.role(p.role)).font(.system(size: 11)).foregroundStyle(.secondary)

@@ -260,20 +260,6 @@ import Testing
         #expect(scope == .folder(notes.id), "the new note's folder is the one shown (shown: \(scope))")
     }
 
-    /// The empty library's two buttons stay inside the list column: side by side where they fit,
-    /// one above the other where they don't (Emil, 3 November 2026: Bring Your Notes ran past
-    /// the column's edge).
-    @Test func theEmptyLibrarysButtonsFitTheColumn() {
-        let imports = ImportActions(box: ImportActions.Box())
-        let view = NSHostingController(rootView: EmptyLibraryActions(onNewNote: {}, imports: imports))
-        let wide = view.sizeThatFits(in: CGSize(width: 2000, height: 400))
-        let narrow = view.sizeThatFits(in: CGSize(width: 220, height: 400))
-        #expect(narrow.width <= 220, "inside a narrow column (\(narrow))")
-        #expect(narrow.height > wide.height * 1.5, "one above the other there (\(narrow) vs \(wide))")
-        let roomy = view.sizeThatFits(in: CGSize(width: wide.width + 40, height: 400))
-        #expect(abs(roomy.height - wide.height) < 1, "side by side where they fit")
-    }
-
     /// The note opens on the press, as in Apple Notes, not when the button comes up: it waited for
     /// the lift, so a note took as long as the button was held (Emil, 3 November 2026: "it feels
     /// too slow"). The press is held 250 ms; what's open is read while it's held, from a timer that

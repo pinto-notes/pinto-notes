@@ -464,6 +464,8 @@ extension Notification.Name {
     static let paneWatchNotebookFilm = Notification.Name("pane.watchNotebookFilm")
     /// Connect an AI: the File menu, the list's menu on iPhone and iPad, the sidebar's card.
     static let paneConnectAI = Notification.Name("pane.connectAI")
+    /// File › Import Notes › Excalidraw File…: the files picked, as `[URL]`.
+    static let paneImportWhiteboards = Notification.Name("pane.importWhiteboards")
     /// Templates: every template, over the notes (the sidebar's row and card, the setup gallery).
     static let paneTemplates = Notification.Name("pane.templates")
     /// Import notes: the choice of where from, as a card over the notes (Mac).

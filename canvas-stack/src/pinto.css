@@ -1,0 +1,145 @@
+/* The drawing board in Pinto's look: the note's ground, the system font, the amber accent
+   (the --amber-* tokens the app gives every page, light and dark). */
+html, body, #canvas { height: 100%; margin: 0; overflow: hidden; background: var(--amber-bg); }
+body { font-family: var(--amber-font); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+
+.excalidraw, .excalidraw.theme--dark {
+  --ui-font: var(--amber-font);
+  --color-primary: var(--amber-accent);
+  --color-primary-darker: var(--amber-accent-text);
+  --color-primary-darkest: var(--amber-accent-text);
+  --color-primary-hover: var(--amber-accent-text);
+  --color-primary-light: var(--amber-accent-soft);
+  --color-brand-hover: var(--amber-accent-text);
+  --color-brand-active: var(--amber-accent-text);
+  --color-surface-primary-container: var(--amber-accent-soft);
+  --color-on-primary-container: var(--amber-accent-text);
+  --focus-highlight-color: var(--amber-accent-soft);
+  --select-highlight-color: var(--amber-accent);
+  /* The selection's outline and handles: the app's accent, not the engine's purple. */
+  --color-selection: var(--amber-accent);
+  --island-bg-color: var(--amber-bg);
+  --default-bg-color: var(--amber-bg);
+  --popup-bg-color: var(--amber-bg);
+  --sidebar-bg-color: var(--amber-bg);
+  --text-primary-color: var(--amber-text);
+  --color-on-surface: var(--amber-text);
+  --link-color: var(--amber-accent-text);
+  --border-radius-lg: 12px;
+  --border-radius-md: 8px;
+  --shadow-island: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.08);
+  font-family: var(--amber-font);
+}
+/* Neutral greys for buttons and panels, as Apple's fills, not the engine's lavender. */
+.excalidraw { --color-surface-lowest: #FFFFFF; --color-surface-low: #F2F2F7; --color-surface-mid: #E5E5EA; --color-surface-high: #D1D1D6; --button-hover-bg: #E5E5EA; }
+.excalidraw.theme--dark {
+  --color-surface-lowest: #000000; --color-surface-low: #1C1C1E; --color-surface-mid: #2C2C2E; --color-surface-high: #3A3A3C; --button-hover-bg: #2C2C2E;
+  /* The canvas is drawn light and inverted: all the way, so white paper is pure black, as Pinto's notes are. */
+  --theme-filter: invert(100%) hue-rotate(180deg);
+  /* The accent, drawn so that it shows as the accent through that filter (canvas.jsx). */
+  --color-selection: var(--pinto-selection-dark, var(--amber-accent));
+  --island-bg-color: #1C1C1E;
+  --popup-bg-color: #1C1C1E;
+  --sidebar-bg-color: #1C1C1E;
+  --default-bg-color: #000000;
+  --shadow-island: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* None of the engine's own controls show: the app's toolbar (Mac), tool bar (iPhone), menus and style
+   popover stand in for them (CanvasBridge.swift). Its options turn off what they can (canvas actions,
+   the image tool, the top-right corner, the welcome screen); the rest has no option, so it goes here:
+   the tool bar, the main menu, the properties panel, the hint line, the zoom and undo pills, the help,
+   the library, toasts, its right-click menu and the mobile bars. The drawing and the text being typed
+   (.excalidraw-textEditorContainer) stay. */
+.excalidraw .layer-ui__wrapper,
+.excalidraw .App-menu,
+.excalidraw .App-menu_top,
+.excalidraw .App-bottom-bar,
+.excalidraw .App-toolbar,
+.excalidraw .App-toolbar-content,
+.excalidraw .App-mobile-menu,
+.excalidraw .mobile-misc-tools-container,
+.excalidraw .FixedSideContainer,
+.excalidraw .HintViewer,
+.excalidraw .layer-ui__wrapper__footer,
+.excalidraw .footer-center,
+.excalidraw .undo-redo-buttons,
+.excalidraw .zoom-actions,
+.excalidraw .help-icon,
+.excalidraw .HelpDialog,
+.excalidraw .Dialog,
+.excalidraw .Modal,
+.excalidraw .sidebar,
+.excalidraw .default-sidebar,
+.excalidraw .default-sidebar-trigger,
+.excalidraw .sidebar-trigger,
+.excalidraw .context-menu,
+.excalidraw .popover,
+.excalidraw .Toast,
+.excalidraw .scroll-back-to-content,
+.excalidraw .excalidraw-hyperlinkContainer,
+.excalidraw .welcome-screen-center,
+.excalidraw .welcome-screen-decor { display: none !important; }
+
+/* A shared board: the others' pointers, names and selections (shared.js), over the drawing and
+   under the engine's own controls. Solid colours, nothing see-through, and nothing takes a click.
+   Not under the dark filter: each person's colour shows as it is. */
+#canvas { position: relative; }
+.pinto-peers { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.pinto-laser { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.pinto-peer-box, .pinto-peer-pointer, .pinto-peer-flag { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+.pinto-peer-box { box-sizing: border-box; border: 2px solid; border-radius: 4px; }
+.pinto-peer-pointer { width: 16px; height: 20px; display: none; }
+.pinto-peer-pointer svg { display: block; }
+.pinto-peer-flag {
+  height: 16px; line-height: 16px; padding: 0 5px; border-radius: 4px; color: #FFFFFF;
+  font: 600 11px/16px var(--amber-font); white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; opacity: 0;
+}
+
+/* Comment pins (comments.js): small and solid, in their writer's colour with their initial, edged
+   white, the point on the spot. The layer takes no click; each pin takes clicks on itself only.
+   Above the engine's interactive canvas (2) and the others' pointers, under its own UI (4), so a
+   pin takes its click; not under the dark filter. */
+.pinto-comments { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.pinto-pin {
+  position: absolute; left: 0; top: 0; width: 24px; height: 24px; padding: 0; margin: 0; box-sizing: border-box; display: none;
+  border: 2px solid #FFFFFF; border-radius: 12px 12px 12px 3px; color: #FFFFFF; text-align: center;
+  font: 600 11px/20px var(--amber-font); cursor: pointer; pointer-events: auto; will-change: transform;
+  -webkit-appearance: none; appearance: none; outline: none; -webkit-user-select: none; user-select: none;
+}
+.pinto-pin:hover { filter: brightness(1.12); }
+/* An AI's pin: its mark, 13 points, in the middle of the bubble (comments.js colours it). */
+.pinto-pin-mark { position: absolute; left: 3.5px; top: 3.5px; width: 13px; height: 13px; pointer-events: none;
+  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+.pinto-pin.open { box-shadow: 0 0 0 2px var(--pin); z-index: 1; }
+/* On a touch screen a pin takes a tap 44 points square round it (the HIG's smallest target),
+   though it's drawn at 24. */
+@media (pointer: coarse) { .pinto-pin::before { content: ""; position: absolute; left: -12px; top: -12px; width: 44px; height: 44px; } }
+/* Presenting: the pins go with the frames' names, so the frame shows alone; back on Done (canvas.jsx). */
+.pinto-presenting .pinto-comments { display: none; }
+/* The Comment tool's pointer, over the board. */
+.pinto-commenting .excalidraw canvas { cursor: var(--pinto-comment-cursor) !important; }
+/* Draw's pointer: a pen, its tip where the line starts (canvas.jsx). */
+.pinto-drawing .excalidraw canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3.5 20.5l1.2-4.6L15.9 4.7a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.1 19.3z' fill='white' stroke='%231d1d1f' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M14 6.6l3.4 3.4' stroke='%231d1d1f' stroke-width='1.5'/%3E%3Cpath d='M3.2 20.8l.9-3.3 2.4 2.4z' fill='%231d1d1f'/%3E%3C/svg%3E") 3 21, crosshair !important; }
+
+/* Voting (votes.js): your dots in your colour, edged white, along a shape's top edge; the totals
+   in a small dark badge at its corner once voting ended. The layer takes no click; your dots take
+   theirs (to take a vote back). Above the drawing, under the comment pins. */
+.pinto-votes { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.pinto-vote-dot {
+  position: absolute; left: 0; top: 0; width: 14px; height: 14px; box-sizing: border-box; border-radius: 7px;
+  border: 2px solid #FFFFFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); pointer-events: auto; cursor: pointer; will-change: transform;
+}
+.pinto-vote-total {
+  position: absolute; left: 0; top: 0; min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 11px;
+  background: #1D1D1F; color: #FFFFFF; font: 600 12px/22px var(--amber-font); text-align: center; font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); pointer-events: none; will-change: transform;
+}
+.pinto-votes.dark .pinto-vote-total { background: #F5F5F7; color: #1D1D1F; }
+.pinto-votes.dark .pinto-vote-dot { border-color: #000000; }
+@media (pointer: coarse) { .pinto-vote-dot::before { content: ""; position: absolute; left: -15px; top: -15px; width: 44px; height: 44px; } }
+/* While voting, a shape under the pointer takes a vote. */
+.pinto-voting .excalidraw canvas { cursor: pointer !important; }
+/* While voting, the others' pointers, names and selections go: where someone points would say how
+   they vote (round 16, web-15). Their laser stays. They come back with the results (votes.js). */
+.pinto-voting .pinto-peer { display: none !important; }

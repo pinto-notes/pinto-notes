@@ -2178,12 +2178,14 @@ struct SettingsSubPageRow: View {
 }
 
 /// Experimental: features to try, each with a switch, off until turned on (Experiments). Turning
-/// one off hides it; what it kept stays for when it's on again.
+/// one off hides it; what it kept stays for when it's on again. The Mac's Layout picks how the
+/// notes window lays out its columns (ColumnsLayout); a window changes as soon as it's picked.
 struct ExperimentalSettingsPage: View {
     /// Read so the switches redraw when one changes.
     @AppStorage(Experiment.covers.key) private var coversOn = false
     @AppStorage(Experiment.gallery.key) private var galleryOn = false
     @AppStorage(Experiment.tags.key) private var tagsOn = false
+    @AppStorage(ColumnsLayout.key) private var layout = ColumnsLayout.today.rawValue
 
     var body: some View {
         let _ = (coversOn, galleryOn, tagsOn)
@@ -2197,6 +2199,15 @@ struct ExperimentalSettingsPage: View {
                     .settingsSwitch()
                     .accessibilityIdentifier("settings.experiment.\(e.rawValue)")
                 }
+                #if os(macOS)
+                Picker(selection: $layout) {
+                    ForEach(ColumnsLayout.allCases) { l in Text(l.title).tag(l.rawValue) }
+                } label: {
+                    Text("Layout")
+                    Text((ColumnsLayout(rawValue: layout) ?? .today).detail)
+                }
+                .accessibilityIdentifier("settings.experiment.layout")
+                #endif
             } footer: {
                 Text("These may change or go away. Turning one off hides it; nothing in your notes is lost.")
             }

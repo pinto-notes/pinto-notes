@@ -1,0 +1,715 @@
+import Foundation
+import SwiftData
+import SwiftUI
+import Testing
+import WebKit
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
+@testable import Pane
+
+/// Canvas notes (prototype): New Canvas makes one, the drawing round-trips through the page's data,
+/// two devices' drawings merge by element, and the page loads nothing from outside the app.
+extension CanvasTests {
+    static func container() throws -> ModelContainer {
+        try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    }
+
+    // MARK: Your templates
+
+    /// Your templates are kept in the app, in one .excalidrawlib file: what's saved, renamed and
+    /// deleted is there when the app opens again, pictures and the how-to line included.
+    @Test func yourTemplatesArePersistedAcrossAReload() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "pinto-templates-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let files: [String: Any] = ["pic": ["id": "pic", "dataURL": "data:image/png;base64,iVBORw0KGgo=", "mimeType": "image/png", "created": 1]]
+        let elements = WhiteboardTemplate.flowchart.elements.enumerated().map { i, e in e.merging(["id": e["id"] ?? "e\(i)"]) { a, _ in a } }
+            + [["type": "image", "id": "img", "x": 0, "y": 600, "width": 100, "height": 80, "fileId": "pic"]]
+        let t = WhiteboardTemplates(folder: folder)
+        #expect(t.items.isEmpty)
+        let a = try #require(t.add(name: "Onboarding", elements: elements, files: files))
+        let b = try #require(t.add(name: "Standup", elements: WhiteboardTemplate.meeting.elements.enumerated().map { i, e in e.merging(["id": "m\(i)"]) { a, _ in a } }))
+        _ = try #require(t.add(name: "Gone soon", elements: WhiteboardTemplate.retro.elements))
+        #expect(t.add(name: "Empty", elements: []) == nil, "nothing drawn: nothing kept")
+        t.rename(b.id, to: "Daily standup")
+        _ = t.remove(t.items[0].id)
+        t.flush()
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: WhiteboardTemplates.fileName).path))
+
+        let again = WhiteboardTemplates(folder: folder)
+        #expect(again.items.map(\.id) == [b.id, a.id])
+        #expect(again.items.map(\.name) == ["Daily standup", "Onboarding"])
+        let kept = try #require(again.items.last)
+        #expect(kept.elements.count == elements.count)
+        #expect(kept.elements.contains { ($0["customData"] as? [String: Any])?["pintoHint"] as? Bool == true }, "the how-to line")
+        #expect((kept.files["pic"] as? [String: Any])?["dataURL"] as? String == "data:image/png;base64,iVBORw0KGgo=", "its picture")
+        // Kept apart from the library, and not in the test's own library.
+        #expect(WhiteboardTemplates.defaultFolder.lastPathComponent == "Whiteboard Templates")
+        #expect(WhiteboardTemplates.shared.folder == nil, "tests never touch your templates")
+    }
+
+    /// A template's name: trimmed and at most 80 characters; never empty.
+    @Test func aTemplateAlwaysHasAName() {
+        #expect(WhiteboardTemplates.cleaned("  Plan  ") == "Plan")
+        #expect(WhiteboardTemplates.cleaned("") == "Template")
+        #expect(WhiteboardTemplates.cleaned(String(repeating: "a", count: 100)).count == 80)
+    }
+
+    // MARK: New Canvas
+
+    #if os(macOS)
+    /// An Excalidraw file comes in as a whiteboard named after it, with its drawing, background and
+    /// pictures; a file that isn't one is refused by name (whiteboard council, round 2: "Missing
+    /// import blocks moving existing work"). Importing is on the Mac (CanvasImport): on the iPhone
+    /// this test didn't compile, and the iPhone tests with it.
+    @Test func anExcalidrawFileComesInAsAWhiteboard() throws {
+        let file: [String: Any] = [
+            "type": "excalidraw", "version": 2, "source": "https://excalidraw.com",
+            "elements": [["id": "a", "type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 50, "seed": 1, "version": 3]],
+            "appState": ["viewBackgroundColor": "#fff9db", "zoom": ["value": 2]],
+            "files": ["f1": ["id": "f1", "mimeType": "image/png", "dataURL": "data:image/png;base64,AAAA"]],
+        ]
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let good = dir.appending(path: "Launch plan.excalidraw"), bad = dir.appending(path: "notes.json")
+        try JSONSerialization.data(withJSONObject: file).write(to: good)
+        try Data(#"{"hello": 1}"#.utf8).write(to: bad)
+
+        let c = try Self.container()
+        let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
+        let made = CanvasImport.make([good, bad], in: .all, context: c.mainContext, pages: pages, data: data)
+        #expect(made.refused == ["notes.json"])
+        let note = try #require(made.notes.first)
+        #expect(note.title == "Launch plan")
+        #expect(CanvasNote.has(note, in: pages))
+        let scene = try #require((data.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any])
+        #expect((scene["elements"] as? [[String: Any]])?.first?["id"] as? String == "a")
+        #expect((scene["appState"] as? [String: Any])?["viewBackgroundColor"] as? String == "#fff9db", "the background, not the view it was left at")
+        #expect((scene["files"] as? [String: Any])?["f1"] != nil, "its pictures")
+        #expect(CanvasNote.name(ofFile: URL(fileURLWithPath: "/x/Board.excalidraw.json")) == "Board")
+        #expect(CanvasNote.scene(fromExcalidraw: Data(#"{"type": "excalidrawlib", "elements": []}"#.utf8)) == nil, "a library isn't a board")
+    }
+    #endif
+
+    /// The receipt says what an AI did to a board (whiteboard council, round 2, 12).
+    @Test func whatAChangeDidIsSaidPlainly() {
+        func doc(_ els: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(els)], "collections": [String: Any]()] }
+        let box: [String: Any] = ["id": "a", "type": "rectangle", "x": 0, "y": 0, "width": 100, "height": 50]
+        let label: [String: Any] = ["id": "a-t", "type": "text", "containerId": "a", "text": "Manager review", "x": 5, "y": 5, "width": 90, "height": 20]
+        let before = doc([box, label])
+        // Three shapes (short form, no ids) and two arrows added.
+        let added = doc([box, label,
+                         ["type": "rectangle", "x": 200, "y": 0, "width": 100, "height": 50, "label": ["text": "Request"]],
+                         ["type": "rectangle", "x": 200, "y": 100, "width": 100, "height": 50],
+                         ["type": "ellipse", "x": 200, "y": 200, "width": 100, "height": 50],
+                         ["type": "arrow", "x": 250, "y": 50, "width": 0, "height": 50], ["type": "arrow", "x": 250, "y": 150, "width": 0, "height": 50]])
+        #expect(CanvasNote.change(from: before, to: added) == "added Request, 2 shapes and 2 arrows")
+        // Its words changed, and one shape added.
+        var renamed = label; renamed["text"] = "Finance review"
+        #expect(CanvasNote.change(from: before, to: doc([box, renamed, ["type": "diamond", "x": 0, "y": 200, "width": 80, "height": 80]])) == "renamed Manager review to Finance review, added 1 shape")
+        // A few changes with words are named; an arrow is counted.
+        #expect(CanvasNote.change(from: before, to: doc([box, renamed, ["type": "rectangle", "x": 0, "y": 200, "width": 80, "height": 80, "label": ["text": "Notify team"]],
+                                                         ["type": "arrow", "x": 40, "y": 50, "width": 0, "height": 150]])) == "renamed Manager review to Finance review, added Notify team and 1 arrow")
+        var gone = box; gone["isDeleted"] = true
+        #expect(CanvasNote.change(from: before, to: doc([gone, label])) == "removed Manager review")
+        #expect(CanvasNote.change(from: before, to: before) == nil, "nothing to say: the receipt says it drew")
+        var r = AIEdit.Receipt(noteID: UUID(), by: "ChatGPT", at: .now, previous: "", lines: 0, kind: .dataEdit, board: true)
+        r.drew = "added 3 shapes and 2 arrows"
+        #expect(r.summary == "ChatGPT added 3 shapes and 2 arrows")
+    }
+
+    // MARK: Note cards
+
+    /// A card says what its note says: found by id, or by title from the board's folder as a
+    /// [[link]] is; "Locked" for a locked note; "Note deleted" once it's in Recently Deleted or gone
+    /// for good; a title no note has says so. Neither of those opens.
+    @Test func aCardsNoteIsFoundByIdOrTitleAndSaysWhenItsGone() throws {
+        let c = try Self.container()
+        let ctx = c.mainContext
+        let work = ctx.createFolder(named: "Work")
+        let plan = ctx.createNote(in: .folder(work.id), body: "Launch plan\n\n## Goals\n- [ ] Ship the **beta** on Friday\nSee [[Press list|the press list]]\n![shot](pane-file:6F1C2A3B-0000-4000-8000-000000000001)\n")
+        let other = ctx.createNote(in: .all, body: "Launch plan\n\nAn older one, outside Work.")
+        other.updatedAt = .now.addingTimeInterval(-600)
+        let locked = ctx.createNote(in: .all, body: "Salaries\n\nNot for the board.")
+        locked.lockedBody = "sealed"
+        let board = CanvasNote.make(in: .folder(work.id), context: ctx)
+        try ctx.save()
+        WikiDirectory.invalidate()
+        defer { WikiDirectory.invalidate() }
+
+        let gone = UUID()
+        let info = CanvasNoteCard.info(for: [plan.id.uuidString, "Launch plan", "Work/Launch plan", locked.id.uuidString, "No such note", gone.uuidString], from: board, in: ctx)
+        #expect(info[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: "Launch plan", preview: "Goals Ship the beta on Friday See the press list"))
+        #expect(info["Launch plan"]?.id == plan.id, "a title is found from the board's folder first")
+        #expect(info["Work/Launch plan"]?.id == plan.id)
+        #expect(info[locked.id.uuidString] == CanvasNoteCard(id: locked.id, title: locked.title, preview: "Locked"), "never a locked note's text")
+        #expect(info["No such note"] == CanvasNoteCard(id: nil, title: nil, preview: CanvasNoteCard.missingText, deleted: true))
+        #expect(info[gone.uuidString] == CanvasNoteCard(id: gone, title: nil, preview: "Note deleted", deleted: true))
+
+        // Renamed and edited: the card says the new title and lines.
+        plan.body = "Launch plan v2\n\nShip on Monday instead."
+        #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: "Launch plan v2", preview: "Ship on Monday instead."))
+        // In Recently Deleted: deleted, its title left as the card has it.
+        ctx.trash(plan)
+        #expect(CanvasNoteCard.info(for: [plan.id.uuidString], from: board, in: ctx)[plan.id.uuidString] == CanvasNoteCard(id: plan.id, title: nil, preview: "Note deleted", deleted: true, restorable: true))
+        // A whiteboard's card shows its words.
+        let flow = CanvasNote.make(in: .all, context: ctx, scene: Self.scene([["type": "rectangle", "id": "s", "x": 0, "y": 0, "width": 100, "height": 50, "label": ["text": "Start"]],
+                                                                               ["type": "text", "id": "t", "x": 0, "y": 80, "text": "Then ship it"]]), named: "Onboarding flow")
+        #expect(CanvasNoteCard.info(for: [flow.id.uuidString], from: board, in: ctx)[flow.id.uuidString]?.preview == "Start \u{00B7} Then ship it")
+        // A long note: about three lines' worth.
+        #expect(CanvasNoteCard.preview(of: "Title\n" + String(repeating: "word ", count: 200)).count <= CanvasNoteCard.previewLength)
+    }
+
+    /// On Boards (in Linked From): the boards with a card for a note, from their saved scenes, newest first. A
+    /// note on no board, one board, two boards; a board in Recently Deleted or deleted for good, a
+    /// deleted card, a card's parts, an app that isn't a board and a card still naming its note by
+    /// title don't count. A board's change is seen once its bytes change.
+    @Test func aNoteListsTheBoardsItIsOn() throws {
+        let c = try Self.container()
+        let ctx = c.mainContext
+        let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
+        let plan = ctx.createNote(in: .all, body: "Launch plan\n\nShip on Friday.")
+        let press = ctx.createNote(in: .all, body: "Press list\n\nWho hears first.")
+        let lonely = ctx.createNote(in: .all, body: "Groceries\n\nMilk.")
+        func card(_ id: UUID, _ el: String, deleted: Bool = false) -> [[String: Any]] {
+            [["type": "rectangle", "id": el, "x": 0, "y": 0, "width": 260, "height": 120, "groupIds": ["\(el)-group"], "isDeleted": deleted,
+              "customData": ["pintoNote": id.uuidString, "title": "x", "pintoCard": "card"]],
+             ["type": "text", "id": "\(el)-title", "x": 10, "y": 10, "width": 100, "height": 20, "text": "x", "groupIds": ["\(el)-group"],
+              "customData": ["pintoNote": id.uuidString, "pintoCard": "title"]]]
+        }
+        func board(_ name: String, _ elements: [[String: Any]], age: TimeInterval) -> Note {
+            let b = CanvasNote.make(in: .all, context: ctx, pages: pages, data: data, scene: Self.scene(elements), named: name)
+            b.updatedAt = .now.addingTimeInterval(-age)
+            return b
+        }
+        let launch = board("Product launch", card(plan.id, "a") + card(press.id, "b"), age: 600)
+        let roadmap = board("Q3 roadmap", card(plan.id, "c"), age: 60)
+        let trashed = board("Old ideas", card(plan.id, "d"), age: 30)
+        ctx.trash(trashed)
+        let purged = board("Gone", card(plan.id, "e"), age: 20)
+        purged.deletedAt = .now
+        let scratch = board("Scratch", card(plan.id, "f", deleted: true) + [["type": "rectangle", "id": "g", "x": 0, "y": 0, "width": 10, "height": 10,
+                                                                    "customData": ["pintoNote": "Launch plan"]]], age: 10)
+        // An app (not a board) whose data happens to hold the same shape.
+        let app = ctx.createNote(in: .all, body: "Tracker")
+        data.set(app.id, ["values": ["scene": Self.scene(card(plan.id, "h"))], "collections": [String: Any]()])
+        pages.setHere(app.id, .init(html: "<!doctype html><title>Tracker</title>", by: "test", at: .now))
+        try ctx.save()
+
+        let titles = { (n: Note) in CanvasBoards.boards(holding: n.id, in: ctx, data: data, pages: pages).map(\.title) }
+        #expect(titles(plan) == ["Q3 roadmap", "Product launch"], "two boards, newest first; deleted ones, a deleted card and a title-only card left out")
+        #expect(titles(press) == ["Product launch"], "one board")
+        #expect(titles(lonely).isEmpty, "none")
+        #expect(titles(launch).isEmpty, "a board isn't on itself")
+
+        // Linked From (the note's ••• menu) lists them after the notes that link here; a board
+        // isn't listed in its own menu.
+        let listed = { (n: Note) in LinkedFromMenu.boards(holding: n, in: ctx, data: data, pages: pages).map(\.id) }
+        #expect(listed(plan) == [roadmap.id, launch.id])
+        #expect(listed(launch).isEmpty, "a board's own menu doesn't look through the boards")
+        #expect(LinkedFromMenu.boardsTitle == "On Boards")
+        // The card taken off a board: the board drops out once its bytes change.
+        data.set(roadmap.id, ["values": ["scene": Self.scene(card(plan.id, "c", deleted: true))], "collections": [String: Any]()])
+        #expect(titles(plan) == ["Product launch"])
+        // The title-only card found its note (the board opened): it counts.
+        data.set(scratch.id, ["values": ["scene": Self.scene(card(plan.id, "g"))], "collections": [String: Any]()])
+        #expect(titles(plan) == ["Scratch", "Product launch"])
+        // A note in Recently Deleted, or a locked one, lists none.
+        ctx.trash(press)
+        #expect(listed(press).isEmpty)
+        plan.lockedBody = "sealed"
+        #expect(listed(plan).isEmpty)
+    }
+
+    /// A board opened from On Boards (Linked From) selects that note's card: asked once, for that board only.
+    @Test func aBoardOpenedFromOnBoardsIsAskedToSelectTheCardOnce() {
+        let board = UUID(), note = UUID()
+        CanvasLanding.shared.request(board, card: note)
+        #expect(CanvasLanding.shared.take(UUID()) == nil, "another note that opens isn't asked")
+        #expect(CanvasLanding.shared.take(board) == note)
+        #expect(CanvasLanding.shared.take(board) == nil, "once")
+        // Before the page is ready the card waits; then it's sent as the page first reports.
+        let canvas = CanvasController()
+        canvas.focusCard(note)
+        #expect(canvas.sent.isEmpty && canvas.focusing == note)
+        canvas.receive(["tool": "selection"])
+        #expect(canvas.sent == [.focusCard(note)] && canvas.focusing == nil)
+        canvas.focusCard(board)
+        #expect(canvas.sent.last == .focusCard(board), "a page that's ready is asked at once")
+    }
+
+    /// A card on a board is one thing: its note's title in the list's preview and search (not its
+    /// glyph or the note's lines), one box in the row's sketch, and "added the Launch plan card" in
+    /// an AI's receipt.
+    @Test func aCardOnABoardIsOneThingInTheListAndTheReceipt() {
+        let id = UUID().uuidString
+        let card: [[String: Any]] = [
+            ["type": "rectangle", "id": "c", "x": 300, "y": 0, "width": 260, "height": 111, "customData": ["pintoNote": id, "title": "Launch plan", "pintoCard": "card"]],
+            ["type": "line", "id": "c-glyph", "x": 316, "y": 16, "width": 14, "height": 18, "points": [[0, 0], [14, 18]], "customData": ["pintoNote": id, "pintoCard": "glyph"]],
+            ["type": "text", "id": "c-title", "x": 340, "y": 14, "text": "Launch plan", "customData": ["pintoNote": id, "pintoCard": "title"]],
+            ["type": "text", "id": "c-preview", "x": 316, "y": 42, "text": "Ship the beta on Friday", "customData": ["pintoNote": id, "pintoCard": "preview"]],
+        ]
+        let box: [String: Any] = ["type": "rectangle", "id": "a", "x": 0, "y": 0, "width": 100, "height": 50, "label": ["text": "Draft"]]
+        let sketch = CanvasSketch(elements: [box] + card)
+        #expect(sketch.preview == "Draft \u{00B7} Launch plan")
+        #expect(sketch.shapes.count == 2, "the card is one box: \(sketch.shapes.map(\.kind))")
+        func doc(_ els: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(els)], "collections": [String: Any]()] }
+        #expect(CanvasNote.change(from: doc([box]), to: doc([box] + card)) == "added the Launch plan card")
+        // An AI's short form, named by title: the same.
+        let short: [String: Any] = ["type": "rectangle", "id": "p", "x": 0, "y": 200, "customData": ["pintoNote": "Work/Press list"]]
+        #expect(CanvasNote.change(from: doc([box]), to: doc([box, short])) == "added the Press list card")
+        #expect(CanvasSketch(elements: [short]).texts.isEmpty, "no title yet, no words")
+    }
+
+    /// The bar over one card offers Open Note and nothing to style; two cards line up as cards.
+    @Test func aSelectedCardHasNothingToStyleAndLinesUpAsOne() {
+        var m: [String: Any] = ["tool": "selection", "selection": ["rectangle", "line", "line", "text", "text"], "bounds": ["x": 10, "y": 10, "width": 260, "height": 111],
+                                "card": ["note": "N", "title": "Launch plan"], "selectedCards": 1, "onlyCards": true, "cardNotes": ["N"]]
+        let one = CanvasState(m)
+        #expect(one.card == CanvasState.Card(note: "N", title: "Launch plan") && one.cardNotes == ["N"])
+        #expect(one.showsSelectionBar && !one.showsStroke && !one.showsFill && !one.showsText && !one.showsArrowheads && !one.showsAlign)
+        m["card"] = nil; m["selectedCards"] = 2; m["selection"] = Array(repeating: "text", count: 10)
+        let two = CanvasState(m)
+        #expect(two.card == nil && two.showsAlign && two.alignCount == 2)
+        // A card with a shape: the shape's style shows, as before.
+        m["onlyCards"] = false; m["selectedCards"] = 1; m["selection"] = ["rectangle", "line", "text", "ellipse"]
+        #expect(CanvasState(m).showsStroke && CanvasState(m).showsFill)
+    }
+
+    /// Add Note Card…'s search: titles starting with what's typed first, then those holding it,
+    /// newest first; never the board itself.
+    @Test func theNotePickerFindsNotesByTitle() {
+        let board = UUID(), a = UUID(), b = UUID(), c = UUID()
+        let entries = [
+            WikiIndex.Entry(id: a, title: "Press list", folders: [], updated: .now.addingTimeInterval(-60)),
+            WikiIndex.Entry(id: b, title: "Launch plan", folders: ["Work"], updated: .now.addingTimeInterval(-120)),
+            WikiIndex.Entry(id: c, title: "Plan for the launch party", folders: [], updated: .now),
+            WikiIndex.Entry(id: board, title: "Launch board", folders: [], updated: .now),
+        ]
+        #expect(CanvasNotePicker.matches(entries, query: "", excluding: board).map(\.id) == [c, a, b])
+        #expect(CanvasNotePicker.matches(entries, query: "plan", excluding: board).map(\.id) == [c, b])
+        #expect(CanvasNotePicker.matches(entries, query: "LAUNCH", excluding: board).map(\.id) == [b, c])
+        #expect(CanvasNotePicker.matches(entries, query: "zebra", excluding: board).isEmpty)
+    }
+
+    @Test func newCanvasMakesACanvasNoteWithAnEmptyScene() throws {
+        let c = try Self.container()
+        let pages = NotePageStore(file: nil), data = NotePageDataStore(file: nil)
+        let note = CanvasNote.make(in: .all, context: c.mainContext, pages: pages, data: data)
+        #expect(note.body == "Whiteboard")
+        #expect(note.folder != nil)
+        let page = try #require(pages[note.id])
+        #expect(CanvasNote.isCanvas(page.html))
+        #expect(CanvasNote.has(note, in: pages))
+        #expect(NoteAppMark.has(note, in: pages), "a canvas is an app underneath: it syncs and reaches an AI like one")
+        #expect(pages.unpushed[note.id] != nil, "the page goes to the other devices")
+        #expect(data.dirty.contains(note.id), "and so does its scene")
+        let scene = try #require((data.doc(note.id)["values"] as? [String: Any])?["scene"] as? [String: Any])
+        #expect(scene["type"] as? String == "excalidraw")
+        #expect((scene["elements"] as? [Any])?.isEmpty == true)
+        // The project is valid, opens as the canvas page, and tells an AI what it is.
+        let project = try #require(NotePageProject.parse(page.html))
+        #expect(project.problem == nil)
+        #expect(project.index.contains("amber-lib:///canvas/canvas.js"))
+        #expect(project.files["/README.md"]?.contains("values.scene") == true)
+    }
+
+    @Test func anOrdinaryAppIsNotACanvas() {
+        #expect(!CanvasNote.isCanvas("<!doctype html><p>Habits</p>"))
+        #expect(!CanvasNote.isCanvas(nil))
+        #expect(!CanvasNote.isCanvas(#"{"amberApp":1,"files":{"/index.html":"<p>pinto-canvas is a word here</p>"}}"#))
+    }
+
+    @Test func theNewCanvasAskIsMadeOnceHoweverManyWindowsHearIt() {
+        let ask = NewCanvas()
+        ask.ask()
+        #expect(ask.claim())
+        #expect(!ask.claim(), "a second window doesn't make a second canvas")
+        ask.ask()
+        #expect(ask.claim())
+    }
+
+    // MARK: Served from the app
+
+    @Test func theCanvasFilesAreInTheAppAndNothingElseIsServed() throws {
+        let js = try #require(NotePageLibraries.canvasFile("canvas.js"))
+        #expect(js.type == "text/javascript")
+        #expect(js.data.count > 500_000)
+        #expect(NotePageLibraries.canvasFile("canvas.css")?.type == "text/css")
+        let font = try #require(NotePageLibraries.canvasFile("fonts/Excalifont/Excalifont-Regular-a88b72a24fb54c9f94e3b5fdaa7481c9.woff2"))
+        #expect(font.type == "font/woff2")
+        #expect(NotePageLibraries.canvasFile("../Info.plist") == nil)
+        #expect(NotePageLibraries.canvasFile("fonts/x/../../Info.plist") == nil)
+        #expect(NotePageLibraries.canvasFile("canvas-licenses.txt") == nil)
+        // The engine's licence ships with it.
+        let licence = try #require(Bundle.main.url(forResource: "canvas-licenses", withExtension: "txt"))
+        #expect(try String(contentsOf: licence, encoding: .utf8).contains("Copyright (c) 2020 Excalidraw"))
+        // No address of a CDN for fonts, and none of the engine's web app's keys.
+        let text = String(decoding: js.data, as: UTF8.self)
+        #expect(!text.contains("esm.sh") && !text.contains("unpkg.com"))
+        #expect(!text.contains("AIza"))
+    }
+
+    // MARK: Two devices at once
+
+    static func el(_ id: String, version: Int, x: Int = 0, deleted: Bool = false) -> [String: Any] {
+        ["id": id, "type": "rectangle", "version": version, "x": x, "y": 0, "isDeleted": deleted]
+    }
+
+    /// A board's row draws as much as a picture its size can show: a big board's strokes keep a
+    /// point every 1/160 of the drawing, and its largest 600 shapes, in their order. The row drew
+    /// every point of every stroke on the main thread each time it was redrawn (after each save).
+    @Test func aBoardsRowPictureKeepsWhatItsSizeCanShow() throws {
+        var elements: [[String: Any]] = (0..<2000).map { i in
+            ["type": "rectangle", "id": "r\(i)", "x": (i % 50) * 30, "y": (i / 50) * 30, "width": i == 7 ? 400 : 20, "height": 20]
+        }
+        let stroke = (0..<1000).map { i in [Double(i) * 0.5, sin(Double(i) / 20) * 40] }
+        elements.append(["type": "freedraw", "id": "f", "x": 0, "y": 0, "width": 500, "height": 80, "points": stroke])
+        elements.append(["type": "text", "id": "t", "x": 0, "y": -40, "width": 100, "height": 20, "text": "Plan"])
+        let full = CanvasSketch(elements: elements), row = full.forRow()
+        #expect(full.shapes.count == 2001)
+        #expect(row.shapes.count == 600)
+        #expect(row.shapes.contains { $0.frame.width == 400 }, "the largest are kept")
+        let line = try #require(row.shapes.first { $0.kind == "freedraw" }, "the long stroke too, though it came last")
+        let all = try #require(full.shapes.first { $0.kind == "freedraw" })
+        #expect(line.points.count > 20 && line.points.count < 200, "\(line.points.count) of \(all.points.count) points")
+        #expect(line.points.first == all.points.first && line.points.last == all.points.last, "from its start to its end")
+        #expect(row.shapes.map(\.frame.origin) == full.shapes.filter { s in row.shapes.contains { $0.frame == s.frame } }.map(\.frame.origin), "in drawing order")
+        #expect(row.texts == full.texts && row.preview == full.preview, "the words for the line and search stay whole")
+        let small = CanvasSketch(elements: Array(elements.prefix(10)))
+        #expect(small.forRow() == small, "a small board is drawn as it is")
+    }
+
+    /// The sketch a save works out off the main thread for the board's row is the same thinned one
+    /// the row would work out itself: the row drew every point of every stroke after each save,
+    /// as the sketch made after a save was the whole drawing (16 November 2026).
+    @Test func theRowPictureMadeAfterASaveIsTheThinnedOne() async throws {
+        let store = NotePageDataStore(file: nil), id = UUID()
+        let elements: [[String: Any]] = (0..<2000).map { i in
+            ["type": "rectangle", "id": "r\(i)", "x": (i % 50) * 30, "y": (i / 50) * 30, "width": 20, "height": 20]
+        }
+        let doc: [String: Any] = ["values": ["scene": Self.scene(elements)], "collections": [String: Any]()]
+        store.set(id, doc)
+        await CanvasSketch.prime([id], in: store)
+        let shown = try #require(CanvasSketch.shown(id, in: store))
+        #expect(shown.shapes.count == 600)
+        #expect(shown == CanvasSketch.make(try #require(store.peek(id))), "the same as the row works out itself")
+    }
+
+    /// A board's save is made on the drawing the page had: a change that came down meanwhile (the
+    /// iPhone's shape, while the Mac's stroke was on its way) is merged in, and the page is told, as
+    /// what the store has is no longer the page's own. Set on what was there, the change was lost,
+    /// on the board and then on the server (16 November 2026).
+    @Test func aChangeThatCameDownWhileABoardSavedIsMergedIn() async throws {
+        let a = Self.el("a", version: 1), b = Self.el("b", version: 1), c = Self.el("c", version: 1)
+        func data(_ e: [[String: Any]]) -> NotePageData.Doc { ["values": ["scene": Self.scene(e)], "collections": [String: Any]()] }
+        func json(_ e: [[String: Any]]) throws -> String { String(decoding: try JSONSerialization.data(withJSONObject: Self.scene(e)), as: UTF8.self) }
+        func drawn(_ store: NotePageDataStore, _ id: UUID) -> [String] { Self.ids((store.doc(id)["values"] as? [String: Any])?["scene"]).keys.sorted() }
+
+        // Came down before the save reached the app: the page saves on what it had.
+        let store = NotePageDataStore(file: nil), id = UUID()
+        store.set(id, data([a]))
+        let had = try #require(store.docs[id])
+        store.take(id, server: NotePageData.encode(data([a, c])))
+        let saved = try await NotePageDataWrites.set("scene", json: try json([a, b]), note: id, base: had, store: store)
+        #expect(drawn(store, id) == ["a", "b", "c"], "the iPhone's shape and the Mac's stroke")
+        #expect(saved.own != store.docs[id], "the page is told: it has only its own")
+        #expect(Self.ids((NotePageData.decode(saved.own)["values"] as? [String: Any])?["scene"]).keys.sorted() == ["a", "b"])
+
+        // Came down while the save was on its way.
+        let other = NotePageDataStore(file: nil), id2 = UUID(), ab = try json([a, b])
+        other.set(id2, data([a]))
+        let saving = Task { try await NotePageDataWrites.set("scene", json: ab, note: id2, store: other).own }
+        await Task.yield()
+        other.take(id2, server: NotePageData.encode(data([a, c])))
+        let own2 = try await saving.value
+        #expect(drawn(other, id2) == ["a", "b", "c"])
+        #expect(own2 != other.docs[id2])
+
+        // Nothing came down: the store has the page's own, and nothing goes back to it.
+        let again = try await NotePageDataWrites.set("scene", json: try json([a, b, c, Self.el("d", version: 1)]), note: id, base: store.docs[id], store: store)
+        #expect(drawn(store, id) == ["a", "b", "c", "d"])
+        #expect(again.own == store.docs[id])
+    }
+
+    static func ids(_ scene: Any?) -> [String: Int] {
+        Dictionary(((scene as? [String: Any])?["elements"] as? [[String: Any]] ?? []).map { ($0["id"] as! String, $0["x"] as? Int ?? 0) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    @Test func drawingsFromTwoDevicesMergeByElement() {
+        let base = Self.scene([Self.el("a", version: 1), Self.el("b", version: 1)])
+        // Here: moved a, drew c. There: moved b, drew d.
+        let mine = Self.scene([Self.el("a", version: 2, x: 10), Self.el("b", version: 1), Self.el("c", version: 1)])
+        let theirs = Self.scene([Self.el("a", version: 1), Self.el("b", version: 2, x: 20), Self.el("d", version: 1)])
+        let merged = CanvasNote.merge(base: base, mine: mine, theirs: theirs)
+        #expect(Self.ids(merged) == ["a": 10, "b": 20, "c": 0, "d": 0])
+    }
+
+    /// An AI's arrow in the short form has no id until the board opens; merged with this device's
+    /// unsynced changes it was dropped (whiteboard council round 2: the AI's arrows went missing).
+    @Test func elementsWithNoIdSurviveAMerge() {
+        let arrow: [String: Any] = ["type": "arrow", "x": 0, "y": 0, "width": 0, "height": 60, "start": ["id": "a"], "end": ["id": "b"]]
+        let base = Self.scene([Self.el("a", version: 1)])
+        let mine = Self.scene([Self.el("a", version: 2, x: 10)])
+        let theirs = Self.scene([Self.el("a", version: 1), Self.el("b", version: 1), arrow])
+        let merged = CanvasNote.merge(base: base, mine: mine, theirs: theirs) as? [String: Any]
+        let els = (merged?["elements"] as? [[String: Any]]) ?? []
+        #expect(els.filter { $0["type"] as? String == "arrow" }.count == 1, "the AI's arrow is kept, once")
+        #expect(els.count == 3)
+        // Merged again with itself as theirs: still once.
+        let again = CanvasNote.merge(base: base, mine: merged, theirs: merged) as? [String: Any]
+        #expect(((again?["elements"] as? [[String: Any]]) ?? []).filter { $0["type"] as? String == "arrow" }.count == 1)
+    }
+
+    @Test func theNewerEditWinsWhenBothMovedTheSameElement() {
+        let base = Self.scene([Self.el("a", version: 1)])
+        let mine = Self.scene([Self.el("a", version: 2, x: 10)])
+        let theirs = Self.scene([Self.el("a", version: 5, x: 50)])
+        #expect(Self.ids(CanvasNote.merge(base: base, mine: mine, theirs: theirs)) == ["a": 50])
+        #expect(Self.ids(CanvasNote.merge(base: base, mine: theirs, theirs: mine)) == ["a": 50])
+    }
+
+    @Test func aDeletionOnOneDeviceStays() {
+        let base = Self.scene([Self.el("a", version: 1)])
+        let mine = Self.scene([Self.el("a", version: 2, deleted: true)])
+        let theirs = Self.scene([Self.el("a", version: 1), Self.el("b", version: 1)])
+        let merged = CanvasNote.merge(base: base, mine: mine, theirs: theirs)
+        let a = ((merged as? [String: Any])?["elements"] as? [[String: Any]])?.first { $0["id"] as? String == "a" }
+        #expect(a?["isDeleted"] as? Bool == true)
+        #expect(Self.ids(merged).keys.sorted() == ["a", "b"])
+    }
+
+    @Test func thePageDataStoreMergesACanvasRatherThanPickingOneSide() {
+        let store = NotePageDataStore(file: nil)
+        let id = UUID()
+        let base = ["values": ["scene": Self.scene([Self.el("a", version: 1)])], "collections": [String: Any]()] as [String: Any]
+        store.take(id, server: NotePageData.encode(base))
+        store.set(id, ["values": ["scene": Self.scene([Self.el("a", version: 1), Self.el("mine", version: 1)])], "collections": [String: Any]()])
+        let theirs = ["values": ["scene": Self.scene([Self.el("a", version: 1), Self.el("theirs", version: 1)])], "collections": [String: Any]()] as [String: Any]
+        store.take(id, server: NotePageData.encode(theirs))
+        let scene = (store.doc(id)["values"] as? [String: Any])?["scene"]
+        #expect(Self.ids(scene).keys.sorted() == ["a", "mine", "theirs"])
+    }
+
+    // MARK: The page
+
+    @Test func aDrawingIsSavedAsAStandardSceneAndComesBack() async throws {
+        // An AI wrote the short form: the canvas fills it out and saves it back in full.
+        let short: [String: Any] = Self.scene([
+            ["type": "rectangle", "id": "start", "x": 0, "y": 0, "width": 180, "height": 70, "label": ["text": "Start"]],
+        ])
+        let rig = try await Rig(scene: short, size: CGSize(width: 900, height: 600), dark: false)
+        defer { rig.close() }
+        let web = rig.sandbox.webView
+        try await run(web, until: "!!(window.amber && window.amber._canvas)")
+        for _ in 0..<60 where rig.saves == 0 { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(rig.saves >= 1, "the filled-out scene is saved back")
+        #expect(rig.scene?["type"] as? String == "excalidraw")
+        let start = try #require(rig.elements.first { $0["id"] as? String == "start" })
+        #expect(start["seed"] is Int && start["version"] is Int, "a full element, as any Excalidraw scene has")
+        #expect(rig.elements.contains { $0["type"] as? String == "text" && $0["text"] as? String == "Start" }, "its label is a bound text element")
+
+        // A stroke on the canvas is saved after a short pause...
+        let before = rig.saves
+        _ = try await web.evaluateJavaScript("""
+        (() => { const api = amber._canvas.api;
+          const els = api.getSceneElementsIncludingDeleted();
+          const r = { ...els.find((e) => e.id === "start"), id: "drawn", x: 300, version: 1, versionNonce: 7, seed: 11, boundElements: null };
+          api.updateScene({ elements: [...els, r] }); return 1; })()
+        """)
+        for _ in 0..<60 where rig.saves == before { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(rig.elements.contains { $0["id"] as? String == "drawn" })
+
+        // ...and a change from elsewhere (an AI, the other device) shows on the open canvas.
+        var doc = rig.doc
+        var scene = try #require(rig.scene)
+        var els = try #require(scene["elements"] as? [[String: Any]])
+        els.append(["type": "ellipse", "id": "fromAI", "x": 0, "y": 200, "width": 80, "height": 80])
+        scene["elements"] = els
+        doc["values"] = ["scene": scene]
+        rig.doc = doc
+        rig.sandbox.push(body: "Canvas", data: doc)
+        try await run(web, until: "amber._canvas.api.getSceneElements().some((e) => e.id === 'fromAI' && e.type === 'ellipse')")
+        #expect(try await web.evaluateJavaScript("amber._canvas.api.getSceneElements().some((e) => e.id === 'drawn')") as? Bool == true, "what was drawn here stays")
+
+        // The page reached nothing outside the app, fonts included.
+        let violations = try await web.evaluateJavaScript("window.__violations") as? [String]
+        #expect(violations == [], "\(violations ?? [])")
+        let loaded = try await web.evaluateJavaScript("performance.getEntriesByType('resource').map((e) => e.name)") as? [String] ?? []
+        #expect(loaded.allSatisfy { $0.hasPrefix("amber-lib:") || $0.hasPrefix("amber-app:") }, "\(loaded)")
+        #expect(rig.sandbox.blocked.isEmpty, "\(rig.sandbox.blocked)")
+        try await run(web, until: "document.fonts.check('20px Excalifont')")
+    }
+
+    @Test func theLastStrokesAreSavedWhenTheCanvasCloses() async throws {
+        let rig = try await Rig(scene: CanvasNote.emptyScene(), size: CGSize(width: 600, height: 400), dark: false)
+        let web = rig.sandbox.webView
+        try await run(web, until: "!!(window.amber && window.amber._canvas)")
+        _ = try await web.evaluateJavaScript("""
+        (() => { amber._canvas.api.updateScene({ elements: [{ type: "rectangle", id: "last", x: 0, y: 0, width: 10, height: 10, version: 1, versionNonce: 1, seed: 1, isDeleted: false,
+          strokeColor: "#1e1e1e", backgroundColor: "transparent", fillStyle: "solid", strokeWidth: 2, strokeStyle: "solid", roughness: 1, opacity: 100, angle: 0,
+          groupIds: [], frameId: null, roundness: null, boundElements: null, updated: 1, link: null, locked: false, index: "a0" }] }); return 1; })()
+        """)
+        // Closed at once, inside the save delay.
+        rig.close()
+        for _ in 0..<40 where !rig.elements.contains(where: { $0["id"] as? String == "last" }) { try await Task.sleep(for: .milliseconds(50)) }
+        #expect(rig.elements.contains { $0["id"] as? String == "last" })
+    }
+
+    // MARK: Lag
+
+    /// Draws in the page as a person does: pointer events on the drawing surface, inside the web
+    /// view (nothing reaches the system). `amber.__lag.seed(n)` adds n strokes at once;
+    /// `amber.__lag.stroke(moves, y)` draws one with the pencil. An offscreen page draws no frames,
+    /// so the times it returns leave out drawing.
+    static let lagKit = """
+    (() => {
+      const api = amber._canvas.api;
+      const surface = () => document.querySelector("canvas.excalidraw__canvas.interactive") || document.querySelectorAll("canvas")[1];
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
+      const settle = async () => { await tick(); await tick(); await new Promise((r) => setTimeout(r, 0)); };
+      let n = 0;
+      const stroke = (i) => {
+        const pts = []; for (let k = 0; k < 60; k++) pts.push([k * 3, Math.sin(k / 5) * 20]);
+        return { type: "freedraw", id: "s" + i, x: (i % 30) * 30, y: Math.floor(i / 30) * 30, width: 180, height: 40, angle: 0,
+          strokeColor: "#2a1d10", backgroundColor: "transparent", fillStyle: "solid", strokeWidth: 2, strokeStyle: "solid", roughness: 1, opacity: 100,
+          groupIds: [], frameId: null, roundness: null, seed: 100 + i, version: 2, versionNonce: 7 + i, isDeleted: false, boundElements: null,
+          updated: Date.now(), link: null, locked: false, points: pts, pressures: [], simulatePressure: true, lastCommittedPoint: null };
+      };
+      const ev = (type, x, y, buttons) => {
+        const r = surface().getBoundingClientRect();
+        const init = { clientX: r.left + x, clientY: r.top + y, pointerId: 1, pointerType: "mouse", isPrimary: true, button: 0, buttons, bubbles: true, cancelable: true, view: window };
+        (type === "pointerdown" ? surface() : (type === "pointerup" ? window : surface())).dispatchEvent(new PointerEvent(type, init));
+      };
+      return {
+        seed: (count) => { const els = api.getSceneElementsIncludingDeleted().slice(); for (let i = 0; i < count; i++) els.push(stroke(n++)); api.updateScene({ elements: els }); return els.length; },
+        stroke: async (moves, y0 = 300) => {
+          api.setActiveTool({ type: "freedraw" });
+          await settle();
+          const times = [];
+          ev("pointerdown", 100, y0, 1);
+          await settle();
+          for (let k = 1; k <= moves; k++) {
+            const t = performance.now();
+            ev("pointermove", 100 + k * 2, y0 + Math.sin(k / 4) * 30, 1);
+            await settle();
+            times.push(performance.now() - t);
+          }
+          const t = performance.now();
+          ev("pointerup", 100 + moves * 2, y0, 0);
+          await settle();
+          const up = performance.now() - t;
+          times.sort((a, b) => a - b);
+          return { saved: (amber.data.values.scene.elements || []).length, median: times[Math.floor(times.length / 2)], p90: times[Math.floor(times.length * 0.9)], up, count: api.getSceneElementsIncludingDeleted().length };
+        },
+      };
+    })()
+    """
+
+    /// A stroke is saved once, on canvases of 10, 100 and 500 strokes, through the app's data store
+    /// (to a file, as on a person's Mac), with the store's reply and the app's push back to the page.
+    /// Before (13 November 2026, "it gets laggier and laggier"): two saves a stroke, because the page
+    /// took its own save, back from the app, for someone else's and merged it in (every element
+    /// rebuilt and redrawn) and saved again; each save cost the main thread 5, 18 and 80 ms at 10,
+    /// 100 and 500 strokes (after: 2, 6 and about 25 ms, once). The times are printed (PERF), never
+    /// checked.
+    @Test func aStrokeIsSavedOnceHoweverBigTheDrawing() async throws {
+        let rig = try await Rig(scene: CanvasNote.emptyScene(), size: CGSize(width: 1000, height: 700), dark: false)
+        defer { rig.close() }
+        let dir = FileManager.default.temporaryDirectory.appending(path: "canvas-lag-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = NotePageDataStore(file: dir.appending(path: "data.json"))
+        let id = UUID()
+        store.set(id, rig.doc)
+        var mainMs: [Double] = []
+        rig.sandbox.onData = { [weak rig] message in
+            guard let rig else { throw NotePage.OpError("Gone.") }
+            let t = Date()
+            let (after, encoded, _) = try NotePageData.applyEncoded(try NotePageData.Op(message), to: store.doc(id))
+            store.set(id, after, encoded: encoded)
+            mainMs.append(Date().timeIntervalSince(t) * 1000)
+            rig.doc = after
+            rig.saves += 1
+            // The app's push of the store's change, as an echo the page must see as its own.
+            Task { @MainActor in rig.sandbox.push(body: "Canvas", data: store.doc(id)) }
+            return ["data": after]
+        }
+        let web = rig.sandbox.webView
+        try await run(web, until: "!!(window.amber && window.amber._canvas)")
+        _ = try await web.evaluateJavaScript("amber.__lag = \(Self.lagKit); 1")
+        var have = 0
+        for size in [10, 100, 500] {
+            _ = try await web.callAsyncJavaScript("return amber.__lag.seed(\(size - have))", contentWorld: .page)
+            have = size
+            for _ in 0..<40 where (rig.elements.count < size) { try await Task.sleep(for: .milliseconds(50)) }
+            try await Task.sleep(for: .milliseconds(500))
+            let saves = rig.saves
+            mainMs = []
+            let strokes = 3
+            for s in 0..<strokes {
+                _ = try await web.callAsyncJavaScript("return await amber.__lag.stroke(40, \(150 + s * 120))", contentWorld: .page)
+                for _ in 0..<40 where rig.saves < saves + s + 1 { try await Task.sleep(for: .milliseconds(50)) }
+                // Long enough for a second save, should the echo start one.
+                try await Task.sleep(for: .milliseconds(600))
+            }
+            #expect(rig.saves - saves == strokes, "\(size) strokes: one save a stroke, \(rig.saves - saves) for \(strokes)")
+            #expect(rig.elements.count == size + strokes, "every stroke is in the saved scene: \(rig.elements.count)")
+            have += strokes
+            store.waitForSave()
+            let mb = Double(store.docs[id]?.count ?? 0) / 1_048_576
+            print("PERF canvas save strokes=\(size) scene=\(String(format: "%.2f", mb))MB saves/stroke=\(Double(rig.saves - saves) / Double(strokes)) mainMs=\(mainMs.map { Int($0.rounded()) })")
+        }
+    }
+
+    // MARK: Pictures
+
+    /// The canvas with a small flowchart, light and dark, for the hand-back: drawn only when
+    /// CANVAS_SHOTS is set (TEST_RUNNER_CANVAS_SHOTS=1 for xcodebuild), into the test's temporary
+    /// folder, whose path it prints.
+    @Test(arguments: [false, true]) func pictures(dark: Bool) async throws {
+        guard ProcessInfo.processInfo.environment["CANVAS_SHOTS"] != nil else { return }
+        let chart: [[String: Any]] = [
+            ["type": "rectangle", "id": "idea", "x": 0, "y": 0, "width": 200, "height": 80, "label": ["text": "An idea"], "backgroundColor": "#ffec99", "fillStyle": "solid"],
+            ["type": "diamond", "id": "worth", "x": -10, "y": 160, "width": 220, "height": 120, "label": ["text": "Worth it?"]],
+            ["type": "rectangle", "id": "build", "x": 320, "y": 180, "width": 180, "height": 80, "label": ["text": "Build it"], "backgroundColor": "#b2f2bb", "fillStyle": "solid"],
+            ["type": "rectangle", "id": "park", "x": 0, "y": 360, "width": 200, "height": 80, "label": ["text": "Park it"]],
+            ["type": "arrow", "x": 100, "y": 80, "width": 0, "height": 80, "start": ["id": "idea"], "end": ["id": "worth"]],
+            ["type": "arrow", "x": 210, "y": 220, "width": 110, "height": 0, "start": ["id": "worth"], "end": ["id": "build"], "label": ["text": "yes"]],
+            ["type": "arrow", "x": 100, "y": 280, "width": 0, "height": 80, "start": ["id": "worth"], "end": ["id": "park"], "label": ["text": "no"]],
+            ["type": "text", "id": "title", "x": 300, "y": 20, "text": "Drawn on a canvas", "fontSize": 28],
+        ]
+        #if os(macOS)
+        let size = CGSize(width: 1100, height: 720)
+        #else
+        let size = CGSize(width: 393, height: 760)
+        #endif
+        let rig = try await Rig(scene: Self.scene(chart), size: size, dark: dark)
+        defer { rig.close() }
+        let web = rig.sandbox.webView
+        try await run(web, until: "!!(window.amber && window.amber._canvas)")
+        try await run(web, until: "document.fonts.check('20px Excalifont')")
+        #if os(iOS)
+        _ = try await web.evaluateJavaScript("amber._canvas.api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.8 }); 1")
+        #endif
+        try await Task.sleep(for: .seconds(1.5))
+        let config = WKSnapshotConfiguration()
+        config.afterScreenUpdates = true
+        let image = try await web.takeSnapshot(configuration: config)
+        #if os(macOS)
+        let png = try #require(image.tiffRepresentation.flatMap { NSBitmapImageRep(data: $0) }?.representation(using: .png, properties: [:]))
+        let platform = "mac"
+        #else
+        let png = try #require(image.pngData())
+        let platform = "iphone"
+        #endif
+        let dir = FileManager.default.temporaryDirectory.appending(path: "canvas-shots")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appending(path: "canvas-\(platform)-\(dark ? "dark" : "light").png")
+        try png.write(to: url)
+        print("CANVAS_SHOT \(url.path)")
+        Testing.Attachment.record(png, named: url.lastPathComponent)
+    }
+}

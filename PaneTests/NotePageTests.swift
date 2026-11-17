@@ -280,9 +280,10 @@ import AppKit
         return try #require(result)
     }
 
-    /// A sandbox is made ahead of time with a blank document loading in it. Taken the moment it
-    /// was made (a new version arriving while the app is still opening its note at launch), it
-    /// must still load the app: the note stayed blank.
+    /// A sandbox is made ahead of time with a blank document loading in it (on the Mac, a board's
+    /// page, at the app's own address). Taken the moment it was made (a new version arriving while
+    /// the app is still opening its note at launch), it must still load the app: the note stayed
+    /// blank, and on the Mac the board's page used up the one load the app's address was allowed.
     @Test func anAppOpensInASandboxTakenWhileItsBlankDocumentIsStillLoading() async throws {
         for round in 0..<4 {
             _ = try await NotePageSandbox.make()
@@ -296,6 +297,90 @@ import AppKit
             for _ in 0..<100 where result == nil { try await Task.sleep(for: .milliseconds(50)) }
             #expect(result == true, "round \(round): the app should draw, not be refused as a navigation (\(sandbox.blocked))")
         }
+    }
+
+    #if os(macOS)
+    /// The spare made ahead, once its board engine waits for a board.
+    func standingBy() async throws -> NotePageSandbox {
+        NotePageSandbox.prewarm()
+        for _ in 0..<200 where !NotePageSandbox.standingBy { try await Task.sleep(for: .milliseconds(50)) }
+        try #require(NotePageSandbox.standingBy, "the spare is a board's page, its engine loaded")
+        return try await NotePageSandbox.make()
+    }
+
+    /// On the Mac the spare is a board's page with its engine loaded and no board. A board opened
+    /// next is handed to it, nothing loaded again, and shows all its drawing, centred in the view
+    /// it's shown in (a page that started at no size centred it on the corner). An app, a board shown
+    /// small in its parent note, or one with something typed to put back loads over it, as into any
+    /// spare.
+    @Test func aBoardOpensInTheBoardPageMadeAheadAndAnythingElseLoadsOverIt() async throws {
+        let elements: [[String: Any]] = (0..<40).map { i in
+            ["type": "rectangle", "id": "r\(i)", "x": (i % 8) * 90, "y": (i / 8) * 100, "width": 60, "height": 60]
+        }
+        let doc: NotePageData.Doc = ["values": ["scene": CanvasTests.scene(elements)], "collections": [String: Any]()]
+        for kind in ["board", "app", "widget", "restore"] {
+            let s = try await standingBy()
+            let size = CGSize(width: 900, height: 600)
+            let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            s.webView.frame = CGRect(origin: .zero, size: size)
+            window.contentView = s.webView
+            defer { s.disconnect(); window.close() }
+            _ = try await s.webView.evaluateJavaScript("window.__madeAhead = 1; 1")
+            var result: [String]?
+            s.onReady = { result = [] }
+            s.onFailure = { result = $0 }
+            switch kind {
+            case "app": s.load(html: "<main id=m></main><script>amber.onChange((n) => { m.textContent = n.title })</script>", body: Self.habits)
+            case "widget":
+                s.isWidget = true
+                s.load(html: CanvasNote.project, body: "Board", encoded: NotePageData.encode(doc))
+            case "restore": s.load(html: CanvasNote.project, body: "Board", encoded: NotePageData.encode(doc), restore: #"{"fields":[],"scrollY":0}"#)
+            default: s.load(html: CanvasNote.project, body: "Board", encoded: NotePageData.encode(doc))
+            }
+            for _ in 0..<160 where result == nil { try await Task.sleep(for: .milliseconds(50)) }
+            #expect(result == [], "\(kind): drew, with no error (\(result ?? ["nothing"]), \(s.blocked))")
+            let kept = try await s.webView.evaluateJavaScript("window.__madeAhead === 1") as? Bool
+            #expect(kept == (kind == "board"), "\(kind): \(kind == "board" ? "handed to the page made ahead" : "loaded as a page of its own")")
+            if kind == "app" {
+                #expect(try await s.webView.evaluateJavaScript("document.getElementById('m').textContent") as? String == "Habits")
+                continue
+            }
+            try await CanvasTests().run(s.webView, until: "!!(window.amber && amber._canvas && amber._canvasView().settled)")
+            #expect(try await s.webView.evaluateJavaScript("amber._canvas.api.getSceneElements().length") as? Int == 40, "\(kind): the whole drawing")
+            #expect(try await s.webView.evaluateJavaScript("amber.note.title") as? String == "Board", "\(kind): its note")
+            let d = try #require(try await s.webView.evaluateJavaScript("amber._canvasView().drawing") as? [Double])
+            #expect(d[0] >= 0 && d[1] >= 0 && d[0] + d[2] <= size.width && d[1] + d[3] <= size.height, "\(kind): all of it in view: \(d)")
+            #expect(abs(d[0] + d[2] / 2 - size.width / 2) < 20 && abs(d[1] + d[3] / 2 - size.height / 2) < 20, "\(kind): centred in the view it's shown in: \(d)")
+        }
+    }
+    #endif
+
+    /// The page's script with the board's data put in as the store's own bytes is the same script as
+    /// with the data as text: the same page, made without a copy of the drawing on the way.
+    @Test func thePageScriptWithTheStoredBytesIsTheSameScript() throws {
+        let doc: NotePageData.Doc = ["values": ["scene": CanvasTests.scene([["type": "text", "id": "t", "x": 0, "y": 0, "text": "Hej · på dig ✓ /*amber-store*/{}"]])], "collections": [String: Any]()]
+        let bytes = NotePageData.encode(doc)
+        let note = NotePage.data(of: "Board /*amber-store*/{}\n\nText")
+        let made = NotePageSandbox.bootstrap(data: note, store: NotePageData.empty(), encoded: bytes, restore: nil, widget: false)
+        let text = NotePageSandbox.bootstrap(data: note, storeJSON: String(data: bytes, encoding: .utf8))
+        #expect(made == text)
+        #expect(made.contains("Hej · på dig ✓"))
+        // Without stored bytes, the data is encoded as before.
+        #expect(NotePageSandbox.bootstrap(data: note, store: doc, encoded: nil, restore: nil, widget: false) == NotePageSandbox.bootstrap(data: note, store: doc))
+    }
+
+    /// A board starts from no text of its note: opening one doesn't read its whole drawing to put the
+    /// note's text in (a text note that becomes an app still has its text put in once).
+    @Test func aBoardIsNotGivenItsNotesText() throws {
+        let c = try ModelContainer(for: Note.self, Folder.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let board = CanvasNote.make(in: .all, context: c.mainContext, named: "Board\n\n- [ ] a task")
+        NotePageActions.importIfNeeded(board)
+        let values = NotePageDataStore.shared.doc(board.id)["values"] as? [String: Any]
+        #expect(values?["imported"] == nil, "nothing put in")
+        #expect(values?["scene"] != nil)
+        NotePageDataStore.shared.set(board.id, nil)
+        NotePageStore.shared.setHere(board.id, nil)
     }
 
     /// Opening an app note again takes no new picture of a page that has one: each open made a
@@ -959,6 +1044,7 @@ import AppKit
             #expect(abs((s.unpushed[note.id] ?? .distantPast).timeIntervalSince(kept.unpushed ?? .now)) < 0.001)
             #expect(s[other] == arrived)
         }
+        data.waitForSave()
         for d in [data, NotePageDataStore(file: dataFile)] { #expect(d.docs[note.id] == kept.doc) }
         // On again: the app is back as it was.
         #expect(NoteApps.page(note.id, in: store, enabled: true) == v2 && NoteAppMark.has(note, in: store, enabled: true))

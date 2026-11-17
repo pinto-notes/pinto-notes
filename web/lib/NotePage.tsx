@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { renderNote, withoutTitle } from "./render";
 import type { SharedFile } from "./render";
-import { avatarURL, copyAppLink, copyLink, type SharedNote } from "./shared";
+import { avatarURL, copyAppLink, copyLink, isBoard, type BoardPicture, type SharedNote } from "./shared";
+import { editedDay } from "./board-live";
+import { BoardLive, LiveBoardFigure, LiveEdited, LiveTitle, LiveViewOnly } from "./BoardLive";
 import { APP_TEMPLATES } from "./site";
 import OpenInApp from "../app/OpenInApp";
 import { sharerLabel, type Sharer } from "./sharer";
@@ -15,17 +17,14 @@ function Avatar({ by, size }: { by: Sharer | null | undefined; size: number }) {
     : <span className={`${s.avatar} ${s.initials}`} style={{ width: size, height: size }} aria-hidden="true">{sharerLabel(by).initials}</span>;
 }
 
-function edited(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-}
-
 /// A shared note: the page is the note, as in the app. The bar holds only the logo and "Use this note",
 /// lined up with the note; who shared it sits under the title. No pitch for the app: the logo says enough.
-export function NotePage({ slug, note, files, page, sealed = false, editHref = null }: {
+export function NotePage({ slug, note, files, page, board = null, sealed = false, editHref = null }: {
   slug: string; note: SharedNote; files: Record<string, SharedFile>;
   /** The note's page, shown above its text (sealed links, prototype). */
   page?: React.ReactNode;
+  /** A shared whiteboard: its picture stands for its text (the board's words, which describe it). */
+  board?: BoardPicture | null;
   /** A sealed link (/s/<id>#…): the copy opened in this browser; no Use this note or report link yet. */
   sealed?: boolean;
   /** An Edit link: where the app opens it to join the note. */
@@ -56,36 +55,56 @@ export function NotePage({ slug, note, files, page, sealed = false, editHref = n
     </nav>
   );
   // Copies the whole note into the visitor's own Pinto Notes, opened from this page. A sealed
-  // link (collaboration) offers Edit in Pinto Notes instead, or nothing yet.
+  // link (collaboration) offers Edit in Pinto Notes instead, or nothing yet. A whiteboard is
+  // copied as a whiteboard, from its .excalidraw file (NoteSource), so it's offered only when
+  // the page has that file, and says what it does (whiteboard council, round 3: "Use this note").
+  const boardPage = !page && isBoard(note);
   const use = editHref
     ? <a className={s.use} href={editHref}>Edit in Pinto Notes</a>
-    : !sealed && APP_TEMPLATES.live && <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} auto>Use this note</OpenInApp>;
+    : sealed || !APP_TEMPLATES.live ? null
+    : boardPage
+      ? note.scene && <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} what="whiteboard" auto>Copy to Pinto Notes</OpenInApp>
+      : <OpenInApp className={s.use} href={copyLink(slug)} app={copyAppLink(slug)} auto>Use this note</OpenInApp>;
+
+  // A board with its picture follows the board while the page is open (BoardLive.tsx): its title,
+  // Edited line and picture come from there. A board with no picture yet shows its words, as a note.
+  const content = (
+    <>
+      {parent}
+      {page ? (
+        // A note with an app: the app shows the note's title itself, so the page doesn't repeat it.
+        <p className={s.sharedLine} title={email ? `${name} · ${email}` : name}>
+          <span className={s.sharerLabel}>Shared by </span><b>{name}</b> · Edited {editedDay(note.updated_at)}
+        </p>
+      ) : (
+        <>
+          {board ? <LiveTitle className={s.bigTitle} /> : <h1 className={s.bigTitle}>{note.title}</h1>}
+          <div className={s.byline} title={email ? `${name} · ${email}` : name}>
+            <Avatar by={note.shared_by} size={36} />
+            <p>
+              <span className={s.bylineName}><span className={s.sharerLabel}>Shared by </span>{name}</span>
+              {board ? <LiveEdited /> : <span className={s.bylineDate}>Edited {editedDay(note.updated_at)}</span>}
+              {/* What the page is: a picture of the board, kept current from its owner's device. */}
+              {boardPage && (board ? <LiveViewOnly /> : <span className={s.bylineNote}>View only.</span>)}
+            </p>
+          </div>
+        </>
+      )}
+      {page}
+      {board
+        ? <LiveBoardFigure />
+        : <article className="note" dangerouslySetInnerHTML={{ __html: html }} />}
+      {subnotes}
+    </>
+  );
 
   return (
     <Shell className={s.plain}>
       <TopBar href={sealed ? "/" : `/n/${slug}`} rowClassName={s.noteBar}>{use}</TopBar>
       <main className={s.plainMain}>
-        {parent}
-        {page ? (
-          // A note with an app: the app shows the note's title itself, so the page doesn't repeat it.
-          <p className={s.sharedLine} title={email ? `${name} · ${email}` : name}>
-            <span className={s.sharerLabel}>Shared by </span><b>{name}</b> · Edited {edited(note.updated_at)}
-          </p>
-        ) : (
-          <>
-            <h1 className={s.bigTitle}>{note.title}</h1>
-            <div className={s.byline} title={email ? `${name} · ${email}` : name}>
-              <Avatar by={note.shared_by} size={36} />
-              <p>
-                <span className={s.bylineName}><span className={s.sharerLabel}>Shared by </span>{name}</span>
-                <span className={s.bylineDate}>Edited {edited(note.updated_at)}</span>
-              </p>
-            </div>
-          </>
-        )}
-        {page}
-        <article className="note" dangerouslySetInnerHTML={{ __html: html }} />
-        {subnotes}
+        {board
+          ? <BoardLive slug={slug} board={board} title={note.title} updatedAt={note.updated_at}>{content}</BoardLive>
+          : content}
       </main>
       {!sealed && (
         <footer className={s.foot}>

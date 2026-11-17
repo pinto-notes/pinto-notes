@@ -13,8 +13,11 @@ import Testing
         #expect(NoteListView.offersWaysToStart(scope: .all))
         #expect(!NoteListView.offersWaysToStart(scope: .folder(UUID())))
         #expect(!NoteListView.offersWaysToStart(scope: .trash))
-        #expect(NoteListView.bringNotes == "Bring Your Notes\u{2026}")
-        #expect(NoteListView.emptyLine.contains("Apple Notes") && NoteListView.emptyLine.contains("Google Keep"))
+        // On the Mac the list only says it's empty; "Make your first one" is in the note pane
+        // beside it (CreateButtonsTests.theEmptyLibraryOffersTheThree).
+        #expect(!NoteListView.firstOneInList(stacked: false))
+        #expect(!NoteListView.firstOneInList(stacked: true))
+        #expect(FirstOneView.importAction == "Import your notes")
     }
 
     /// The empty library, light and dark, for the review.

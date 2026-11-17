@@ -23,7 +23,8 @@ import {
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
-import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNotes, writeDoc } from "./shared_notes.ts";
+import { boardComments, boardData, changesOf, firstName, forgetShared, isBoard, loadDoc, refuseViewer, type Shared, sharedNotes, writeBoard, writeDoc } from "./shared_notes.ts";
+import { ABOUT as COMMENTS_ABOUT, COLLECTION as COMMENTS, elementIds, isBoardData, keepIn, merge as mergeComments, refusedLine, storedIn, withShown } from "./board_comments.ts";
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
@@ -514,6 +515,7 @@ function unpresent(text: string, P: Paths, files: NoteFile[]): string {
 const sharedItem = (id: string) => `shared:${id}`;
 const sharedLine = (s: Shared) => s.role === "owner" ? "Shared by this person with others: edits merge with what they type."
   : s.role === "editor" ? "Shared with this person, who can edit it: edits merge with what others type."
+  : s.role === "commenter" ? "Shared with this person to comment on: comments can be added in data.json, the drawing can't be changed."
   : "Shared with this person as view only: it can be read here, not changed.";
 
 /** A shared note's text, from its document. */
@@ -536,6 +538,35 @@ async function mustHaveReadShared(tx: Tx, c: Call, s: Shared, path: string) {
   const [r] = await tx<{ stamp: string }[]>`select stamp from public.mcp_reads where session = ${sessionOf(c)} and item = ${sharedItem(s.id)} and read_at > now() - interval '1 day'`;
   if (!r) throw new ToolError(`Read ${path} with fetch before changing it.`);
 }
+
+// A shared whiteboard (Pane/Collab/CollabBoard.swift): its drawing is in the shared document, and
+// its data.json reads and writes there, merged with what people draw.
+
+/** A shared note's data.json: a whiteboard's drawing, from its document. Any other shared note has none. */
+async function sharedBoard(tx: Tx, s: Shared, base: string) {
+  const at = await loadDoc(tx, s);
+  if (!isBoard(at)) throw new ToolError(`"${base}" is shared with other people, and only a whiteboard's data can be read or changed while it's shared.`);
+  return { at, data: await boardData(at, await boardComments(tx, s, at)) };
+}
+
+/** When this session last read a shared board's data.json: what was drawn after that isn't removed
+ *  by a write that leaves it out (the AI never saw it). */
+async function boardReadAt(tx: Tx, c: Call, s: Shared, path: string): Promise<Date> {
+  const [r] = await tx<{ read_at: Date }[]>`select read_at from public.mcp_reads where session = ${sessionOf(c)} and item = ${await itemKey(c, dataItem(s.id))} and read_at > now() - interval '1 day'`;
+  if (!r) throw new ToolError(`Read ${path} with fetch before changing it.`);
+  return new Date(r.read_at);
+}
+
+async function saveBoard(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<typeof loadDoc>>, text: string, path: string, readAt: Date) {
+  let next: unknown;
+  try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
+  const w = await writeBoard(tx, c, s, at, next, readAt);
+  const pictures = w.pictures ? { pictures: `${w.pictures === 1 ? "A new picture was" : `${w.pictures} new pictures were`} left out: an AI can't put a new picture on a shared whiteboard. The people on it can paste or drop one.` } : {};
+  if (!w.changed) return { path, unchanged: true, ...pictures, ...refusedLine(w.refused) };
+  return { saved: path, ...pictures, ...refusedLine(w.refused), shared: "One change, merged with what others draw. It shows as this person's AI, and they can undo it." };
+}
+
+const sharedApp = (base: string) => new ToolError(`"${base}" is a whiteboard shared with other people: its page stays as it is. Change the drawing in ${base}/data.json.`);
 
 async function saveShared(tx: Tx, c: Call, s: Shared, at: Awaited<ReturnType<typeof loadDoc>>, text: string, path: string, verb: "edited" | "written") {
   const w = await writeDoc(tx, c, s, at, text);
@@ -623,17 +654,40 @@ async function appProject(tx: Tx, c: Call, n: Note): Promise<Project> {
   return project;
 }
 
-/** data.json as the AI sees it: the app's JSON, localStorage parsed. */
+/** The elements a write to a board's data.json changed and left on it (an AI's comment speaks of them: Show change). */
+function drawnIn(before: PageData, next: PageData): string[] {
+  const els = (d: PageData) => ((d.values as { scene?: { elements?: unknown[] } })?.scene?.elements ?? []).filter((e): e is Record<string, unknown> => !!e && typeof e === "object" && typeof (e as { id?: unknown }).id === "string");
+  const was = new Map(els(before).map((e) => [e.id as string, JSON.stringify(e)]));
+  return els(next).filter((e) => e.isDeleted !== true && was.get(e.id as string) !== JSON.stringify(e)).map((e) => e.id as string).slice(0, 200);
+}
+
+/** data.json as the AI sees it: the app's JSON, localStorage parsed; a whiteboard's comments shown
+ *  readable, open threads only (board_comments.ts). */
 const dataText = (d: PageData) => JSON.stringify(d, null, 2);
+const shownData = (d: PageData): PageData => isBoardData(d) ? withShown(d, storedIn(d)) : d;
+const dataView = (d: PageData) => dataText(shownData(d));
 async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData, text: string) {
   let next: PageData;
   try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
   if (!next || typeof next !== "object" || Array.isArray(next)) throw new ToolError("data.json must be an object: { \"values\": { … }, \"collections\": { … } }.");
   next = { ...next, values: next.values ?? {}, collections: next.collections ?? {} };
-  if (JSON.stringify(next) === JSON.stringify(before)) return { path: `${base}/data.json`, unchanged: true };
+  // A whiteboard's comments: what the AI added to them (or resolved) joins the ones kept, which
+  // stay as they are otherwise. Never deleted by leaving them out.
+  let refused: string[] = [];
+  if (isBoardData(before)) {
+    const wanted = next.collections[COMMENTS];
+    const collections = { ...next.collections };
+    delete collections[COMMENTS];
+    if (before.collections[COMMENTS]) collections[COMMENTS] = before.collections[COMMENTS];
+    next = { ...next, collections };
+    const merged = mergeComments(storedIn(before), wanted, { id: c.ctx.userId, name: await firstName(tx) ?? "Someone", ai: c.ctx.client }, elementIds(next), new Date(), drawnIn(before, next));
+    next = keepIn(next, merged.changed);
+    refused = merged.refused;
+  }
+  if (JSON.stringify(next) === JSON.stringify(before)) return { path: `${base}/data.json`, unchanged: true, ...refusedLine(refused) };
   await storePageData(tx, c, n.id, next);
-  await markRead(tx, c, dataItem(n.id), await hash(c, dataText(await pageDataOf(tx, c, n.id))));
-  return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it." };
+  await markRead(tx, c, dataItem(n.id), await hash(c, dataView(await pageDataOf(tx, c, n.id))));
+  return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it.", ...refusedLine(refused) };
 }
 
 /** What one change did to a note, as lines: those only in the text before it (removed) and those
@@ -754,7 +808,7 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
 const entryOut = (e: Entry, extra: Record<string, unknown> = {}) => e.kind === "folder"
   ? { path: e.path, type: "folder", ...extra }
   : e.kind === "file" ? fileOut(e.path, e.file)
-  : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.shared ? { shared: e.note.shared.role === "owner" ? "owner" : e.note.shared.role === "editor" ? "can edit" : "view only" } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
+  : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.shared ? { shared: e.note.shared.role === "owner" ? "owner" : e.note.shared.role === "editor" ? "can edit" : e.note.shared.role === "commenter" ? "can comment" : "view only" } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
 const updatedOf = (e: Entry) => e.kind === "note" ? +new Date(e.note.updated_at) : e.kind === "file" ? +new Date(e.file.updated_at) : 0;
 const newest = (a: Entry, b: Entry) => (a.kind === "folder" ? 0 : 1) - (b.kind === "folder" ? 0 : 1) || updatedOf(b) - updatedOf(a) || a.path.localeCompare(b.path);
 
@@ -1025,9 +1079,19 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
         },
       };
     }
+    if (r.kind === "data" && r.note.shared) {
+      const { data } = await sharedBoard(tx, r.note.shared, r.base);
+      const text = dataText(data as PageData);
+      const shown = numberedLines(text, a.offset, a.limit);
+      await markRead(tx, c, dataItem(r.note.shared.id), await hash(c, text));
+      return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
+        metadata: { path: `${r.base}/data.json`, lines: shown.lines, shared: sharedLine(r.note.shared).replace("type", "draw"), ...(r.note.shared.role === "viewer" ? { read_only: true } : r.note.shared.role === "commenter" ? { comments_only: true } : {}),
+          ...(shown.truncated ? { truncated: shown.truncated } : {}),
+          about: "The whiteboard's drawing (values.scene), shared: change elements with edit or write, and what you change merges with what others draw. Its pictures are image elements: move, resize or delete them like any element. Their bytes aren't in data.json, and an AI can't add a new picture. " + COMMENTS_ABOUT } };
+    }
     if (r.kind === "data") {
       const d = await pageDataOf(tx, c, r.note.id);
-      const text = dataText(d);
+      const text = dataView(d);
       const shown = numberedLines(text, a.offset, a.limit);
       // What the app's own notes say its data means: docs/README.md, else README.md, under "## Data".
       const files = (await projectOf(tx, c, r.note.id)).project.files;
@@ -1035,7 +1099,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       await markRead(tx, c, dataItem(r.note.id), await hash(c, text));
       return { id: `${r.base}/data.json`, title: `${r.note.title}: data.json`, text: shown.text, url: `pintonotes://note/${r.note.id}`,
         metadata: { path: `${r.base}/data.json`, lines: shown.lines, shape: { values: dataShape(d.values), collections: dataShape(d.collections) }, ...(readme ? { readme_data: readme } : {}), ...(shown.truncated ? { truncated: shown.truncated } : {}),
-          about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." } };
+          about: "values.localStorage holds what the app keeps in localStorage, parsed; it's saved back as the app expects." + (isBoardData(d) ? " " + COMMENTS_ABOUT : "") } };
     }
     const p = await appProject(tx, c, r.note);
     if (r.kind === "app" && r.dir) {
@@ -1126,9 +1190,18 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const now = renamed ? (await pathsOf(tx, c, true)).pathOf(n.id)! : r.path;
       return { edited: now, ...(now !== r.path ? { renamed_from: r.path } : {}), ...links, checks: checks.length ? checks : "ok" };
     }
+    if (r.kind === "data" && r.note.shared) {
+      const sh = r.note.shared;
+      refuseViewer(sh);
+      const readAt = await boardReadAt(tx, c, sh, `${r.base}/data.json`);
+      // The drawing now: people may have drawn since it was read, and the change merges with that.
+      const { at, data } = await sharedBoard(tx, sh, r.base);
+      return await saveBoard(tx, c, sh, at, replaceIn(dataText(data as PageData), a.old_string, a.new_string, all, `${r.base}/data.json`), `${r.base}/data.json`, readAt);
+    }
+    if (r.kind === "appfile" && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
-      const text = dataText(before);
+      const text = dataView(before);
       await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, text), `${r.base}/data.json`);
       return await saveData(tx, c, r.note, r.base, before, replaceIn(text, a.old_string, a.new_string, all, `${r.base}/data.json`));
     }
@@ -1196,9 +1269,17 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const now = (await pathsOf(tx, c, true)).pathOf(n.id)!;
       return { written: now, ...(now !== r.path ? { renamed_from: r.path } : {}), ...links, checks: checks.length ? checks : "ok" };
     }
+    if (r.kind === "data" && r.note.shared) {
+      const sh = r.note.shared;
+      refuseViewer(sh);
+      const readAt = await boardReadAt(tx, c, sh, `${r.base}/data.json`);
+      const { at } = await sharedBoard(tx, sh, r.base);
+      return await saveBoard(tx, c, sh, at, content, `${r.base}/data.json`, readAt);
+    }
+    if (r.kind === "appfile" && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "data") {
       const before = await pageDataOf(tx, c, r.note.id);
-      await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataText(before)), `${r.base}/data.json`);
+      await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataView(before)), `${r.base}/data.json`);
       return await saveData(tx, c, r.note, r.base, before, content);
     }
     if (r.kind === "appfile") {
@@ -1280,6 +1361,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       await tx`update public.folders set parent_id = ${parent?.id ?? null}, updated_at = now() where id = ${e.folder.id}`;
       return { moved: (await pathsOf(tx, c, true)).folderPathOf(e.folder.id) };
     }
+    if ((r.kind === "appfile" || r.kind === "app") && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "appfile") {
       const target = to.includes(".app/") ? to.slice(to.indexOf(".app/") + 4) : to;
       return await moveAppFile(tx, c, r.note, r.base, r.file, target, a);
@@ -1306,6 +1388,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const d = await classic.delete_folder(tx, { folder: e.folder.id }, c) as { notes_moved_to_recently_deleted: number };
       return { deleted: r.dir, notes_moved_to: `${DELETED} (${d.notes_moved_to_recently_deleted})` };
     }
+    if ((r.kind === "appfile" || r.kind === "app" || r.kind === "data") && r.note.shared) throw sharedApp(r.base);
     if (r.kind === "appfile") {
       const p = await appProject(tx, c, r.note);
       const file = appPath(r.file);

@@ -19,6 +19,10 @@ final class EditorController {
     var readOnly = false
     /// Typing, clicking or tapping into a note in Recently Deleted: the note screen asks to recover it.
     @ObservationIgnored var askToRecover: () -> Void = {}
+    /// The Mac's Writing focus (ColumnsLayout): a keystroke in the note's text.
+    @ObservationIgnored var onTyped: () -> Void = {}
+    /// Esc in the note's text, after its own popovers: true when the window used it.
+    @ObservationIgnored var onEscape: () -> Bool = { false }
     /// Shown, and nothing more: no caret, keyboard, selection, menu, link or tick (the iPhone's
     /// welcome note before sign-in; once it's handed over it's an ordinary note).
     var inert = false

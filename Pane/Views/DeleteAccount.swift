@@ -129,6 +129,8 @@ extension ModelContext {
         NotePageDataStore.shared.forgetAll()
         NotePageNetLog.shared.forgetAll()
         if let film = film ?? (files == nil ? NotebookFilmStore.Places() : nil) { NotebookFilmStore.forgetAll(film) }
+        // The account's whiteboard library, synced with it (LibrarySync).
+        CanvasLibrary.shared.erase()
     }
 }
 

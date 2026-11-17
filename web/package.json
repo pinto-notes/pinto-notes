@@ -3,14 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 5210",
-    "build": "next build",
+    "dev": "node scripts/board-assets.mjs && next dev -p 5210",
+    "build": "node scripts/board-assets.mjs && next build",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "e2ee:copy": "cp ../supabase/functions/_shared/e2ee.ts lib/e2ee.ts"
+    "e2ee:copy": "cp ../supabase/functions/_shared/e2ee.ts lib/e2ee.ts",
+    "collab:copy": "sed 's#\"./e2ee.ts\"#\"./e2ee\"#' ../supabase/functions/_shared/collab.ts > lib/collab.ts",
+    "board:assets": "node scripts/board-assets.mjs"
   },
   "dependencies": {
+    "@automerge/automerge": "3.5.0",
+    "@supabase/realtime-js": "2.118.0",
     "@vercel/analytics": "^2.0.1",
     "next": "^15.5.28",
     "posthog-js": "^1.435.6",

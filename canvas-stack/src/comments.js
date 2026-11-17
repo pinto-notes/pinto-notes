@@ -1,0 +1,347 @@
+// Comments on a whiteboard (Pane/Collab/BoardComments.swift, 15 November 2026): the page's side.
+//
+// - Each open thread is a small solid pin in its writer's colour with their initial, its point on
+//   the spot it's about. A pin on a shape stands at a place on the shape's box (a fraction of its
+//   width and height), so it moves and grows with it; a pin on a spot stays on that spot of the
+//   board. Both in the board's own coordinates: the same place at every zoom and scroll.
+// - The layer takes no click; each pin takes clicks on itself only, and opens its thread (a
+//   native popover the app shows by the pin, which the page tells where the pin is as it moves).
+// - The Comment tool (C): the next click on the board places a comment there, on the shape under
+//   it if there is one. Escape puts the tool down.
+// - While presenting, the pins are hidden (pinto.css, .pinto-presenting), and back on Done.
+// Comments are never elements: pictures, the share page and the .excalidraw file leave them out.
+import { getCommonBounds, sceneCoordsToViewportCoords, viewportCoordsToSceneCoords } from "@excalidraw/excalidraw";
+import { shade } from "./shared.js";
+
+/**
+ * What's drawn round an open pin, in the view's points, for the app to hang the thread where it
+ * covers none of it (round 13, comments-2: the thread hid Draft and its arrows): `on`, the shape
+ * the comment is on, and `near`, the boxes of what else is drawn within reach (arrows and lines as
+ * boxes; at most 60).
+ */
+export function around(pin, byId, s, v, pins = []) {
+  const view = (x, y) => sceneCoordsToViewportCoords({ sceneX: x, sceneY: y }, s);
+  const box = (e) => { const [x1, y1, x2, y2] = getCommonBounds([e]); const a = view(x1, y1), b = view(x2, y2); return [Math.round(a.x), Math.round(a.y), Math.round(b.x - a.x), Math.round(b.y - a.y)]; };
+  const shape = pin.on ? byId.get(pin.on) : null;
+  const out = {};
+  if (shape && !shape.isDeleted) out.on = box(shape);
+  const reach = 420, near = [];
+  for (const e of byId.values()) {
+    if (near.length >= 60) break;
+    // A frame holds what's drawn: a thread may lie over its empty middle (round 15, comment-role-2:
+    // with the frame counted, no side was ever clear and the thread sat on the sticky beside it).
+    if (e.isDeleted || (shape && e.id === shape.id) || (e.containerId && byId.get(e.containerId)) || e.type === "frame" || e.type === "magicframe") continue;
+    const b = box(e);
+    if (b[0] + b[2] < v.x - reach || b[0] > v.x + reach || b[1] + b[3] < v.y - reach || b[1] > v.y + reach) continue;
+    near.push(b);
+  }
+  // The other pins, and their writers' names on them, are kept clear of too (round 15,
+  // comment-role-2: the new comment's box covered Emil's pin).
+  for (const p of pins) if (near.length < 80) near.push(p);
+  out.near = near;
+  return out;
+}
+
+/** A pin: 24 points square, its point (the lower left corner) on the spot. */
+export const PIN = { size: 24 };
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+/** Where a comment points, in the board's coordinates; null when the shape it's on is gone. */
+export function pinPoint(pin, byId) {
+  if (pin.on) {
+    const e = byId.get(pin.on);
+    if (!e || e.isDeleted) return null;
+    const [x1, y1, x2, y2] = getCommonBounds([e]);
+    const fx = clamp01(Number.isFinite(pin.x) ? pin.x : 1), fy = clamp01(Number.isFinite(pin.y) ? pin.y : 0);
+    return { x: x1 + fx * (x2 - x1), y: y1 + fy * (y2 - y1) };
+  }
+  return Number.isFinite(pin.x) && Number.isFinite(pin.y) ? { x: pin.x, y: pin.y } : null;
+}
+
+/**
+ * What a comment at a point of the board is on: the topmost shape there (a shape's words count as
+ * the shape), or nothing. Lines, arrows and frames aren't taken: a comment there is on the spot.
+ */
+export function shapeAt(elements, x, y) {
+  const byId = new Map(elements.map((e) => [e.id, e]));
+  for (let i = elements.length - 1; i >= 0; i--) {
+    let e = elements[i];
+    if (!e || e.isDeleted || ["arrow", "line", "frame", "magicframe", "selection"].includes(e.type)) continue;
+    const [x1, y1, x2, y2] = getCommonBounds([e]);
+    if (x < x1 || x > x2 || y < y1 || y > y2) continue;
+    if (e.containerId) {
+      const c = byId.get(e.containerId);
+      if (!c || c.type === "arrow" || c.type === "line") continue;
+      e = c;
+    }
+    return e;
+  }
+  return null;
+}
+
+/** A new comment's place for how it was placed: a finger's tap on a shape pins it to the shape's
+ *  top right corner, where the pins placed on a selection sit (round 14, comments-iphone-2: the new
+ *  pin sat on Draft's top left, under the finger, and the others top right). A pointer's click keeps
+ *  its spot, as in FigJam. */
+export function placeFor(where, pointerType) {
+  return where && where.on && pointerType === "touch" ? { on: where.on, x: 1, y: 0 } : where;
+}
+
+/** Where a new comment at a point of the board goes: on the shape there, as a fraction of its box,
+ *  or on the spot. */
+export function placeAt(elements, x, y) {
+  const e = shapeAt(elements, x, y);
+  if (!e) return { x, y };
+  const [x1, y1, x2, y2] = getCommonBounds([e]);
+  const w = Math.max(1, x2 - x1), h = Math.max(1, y2 - y1);
+  const r = (v) => Math.round(v * 1000) / 1000;
+  return { on: e.id, x: r(clamp01((x - x1) / w)), y: r(clamp01((y - y1) / h)) };
+}
+
+const TYPE_NAMES = { rectangle: "Rectangle", ellipse: "Oval", diamond: "Diamond", freedraw: "Drawing", image: "Picture", text: "Text", frame: "Frame", magicframe: "Frame", embeddable: "Embed", iframe: "Embed" };
+
+/**
+ * What a shape is called where a comment list names it ("on Idea"): the words in it (its first
+ * line, at most 30 characters), a frame's name, or what kind of shape it is. Null for one that's
+ * gone.
+ */
+export function shapeName(e, all) {
+  if (!e || e.isDeleted) return null;
+  const words = (t) => {
+    const line = String(t || "").split("\n").map((l) => l.trim()).find((l) => l) || "";
+    return line.length > 30 ? line.slice(0, 29).trimEnd() + "\u2026" : line;
+  };
+  if (e.type === "text") { const w = words(e.originalText || e.text); if (w) return w; }
+  const bound = all.find((x) => !x.isDeleted && x.type === "text" && x.containerId === e.id);
+  if (bound) { const w = words(bound.originalText || bound.text); if (w) return w; }
+  if ((e.type === "frame" || e.type === "magicframe") && e.name) return words(e.name);
+  const card = e.customData && (e.customData.pintoCardTitle || e.customData.title);
+  if (typeof card === "string" && card.trim()) return words(card);
+  if (e.customData && e.customData.pintoSticky) return "Sticky note";
+  return TYPE_NAMES[e.type] || "Shape";
+}
+
+/** A new comment on the selection: on its first shape (not the words inside one), at the top
+ *  right corner. Null with nothing selected. */
+export function placeOnSelection(api) {
+  const s = api.getAppState(), ids = s.selectedElementIds || {};
+  const all = api.getSceneElements(), byId = new Map(all.map((e) => [e.id, e]));
+  const chosen = all.filter((e) => ids[e.id]);
+  const top = chosen.find((e) => !e.containerId) || chosen[0];
+  if (!top) return null;
+  const e = top.containerId && byId.get(top.containerId) ? byId.get(top.containerId) : top;
+  return { on: e.id, x: 1, y: 0 };
+}
+
+const BUBBLE = "M4 3.5h16a2.5 2.5 0 0 1 2.5 2.5v9a2.5 2.5 0 0 1-2.5 2.5H10l-5.5 4.2v-4.2H4A2.5 2.5 0 0 1 1.5 15V6A2.5 2.5 0 0 1 4 3.5Z";
+/** The Comment tool's pointer: a small speech bubble, solid white edged in ink, its tail on the spot. */
+export const CURSOR = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="${BUBBLE}" fill="#ffffff" stroke="#1d1d1f" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 10.5h8M12 6.5v8" stroke="#1d1d1f" stroke-width="1.6" stroke-linecap="round"/></svg>`)}") 4 21, crosshair`;
+
+/**
+ * The pins over the board. `post` hands a message to the app. Returns what the bridge drives:
+ * `set` (the pins, from the app), the Comment tool (`commenting`), `here` (a comment on the
+ * selection or at a point) and `focus` (a pin into view).
+ */
+export function commentsLayer(api, host, post, changed = () => {}) {
+  const layer = document.createElement("div");
+  layer.className = "pinto-comments";
+  host.appendChild(layer);
+  const nodes = new Map();
+  let pins = [], me = { color: "#2D639A", dark: "#3677B9", letter: "" }, open = null, draft = null, can = true, commenting = false, sent = "";
+  // Can comment on a shared board: the drawing is in view mode, and comments still go on it.
+  let inView = false;
+  const allowed = () => can && (inView || !api.getAppState().viewModeEnabled);
+  // The shapes the app wants named (its threads'), and the names last told.
+  let asked = [], named = "";
+
+  const node = (id) => {
+    let n = nodes.get(id);
+    if (n) return n;
+    const b = document.createElement("button");
+    b.className = "pinto-pin";
+    b.type = "button";
+    b.tabIndex = -1;
+    b.dataset.comment = id;
+    b.setAttribute("aria-label", "Comment");
+    // Its own click only: the board under it never sees the press, so nothing is selected or drawn.
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); });
+    b.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (id === "draft") return;
+      const r = b.getBoundingClientRect();
+      post({ comment: { open: id, at: [r.left, r.top, r.width, r.height] } });
+    });
+    layer.appendChild(b);
+    nodes.set(id, b);
+    return b;
+  };
+
+  const draw = () => {
+    const s = api.getAppState();
+    const byId = new Map(api.getSceneElements().map((e) => [e.id, e]));
+    const list = draft ? [...pins.filter((p) => p.id !== "draft"), { ...draft, id: "draft", color: me.color, dark: me.dark, letter: me.letter, open: true }] : pins;
+    const seen = new Set();
+    let at = null, openPin = null;
+    const others = [];
+    for (const p of list) {
+      seen.add(p.id);
+      const b = node(p.id);
+      const point = pinPoint(p, byId);
+      if (!point) { b.style.display = "none"; continue; }
+      const v = sceneCoordsToViewportCoords({ sceneX: point.x, sceneY: point.y }, s);
+      b.style.display = "block";
+      b.style.transform = `translate(${v.x}px, ${v.y - PIN.size}px)`;
+      // The writer's colour, as their pointer has it: the dark shade on a dark board.
+      const tint = shade(p, s.theme);
+      b.style.background = tint;
+      b.style.setProperty("--pin", tint);
+      // An AI's: its own mark (the shape of it, coloured by the page: white on its graphite pin,
+      // black on the light grey one of a dark board), never a letter.
+      if (typeof p.mark === "string" && p.mark.startsWith("data:image/")) {
+        let m = b.firstElementChild;
+        if (!m || !m.classList.contains("pinto-pin-mark")) { b.textContent = ""; m = document.createElement("span"); m.className = "pinto-pin-mark"; b.appendChild(m); }
+        const url = `url("${p.mark}")`;
+        if (m.style.webkitMaskImage !== url) { m.style.webkitMaskImage = url; m.style.maskImage = url; }
+        m.style.background = s.theme === "dark" ? "#1D1D1F" : "#FFFFFF";
+        b.classList.add("ai");
+      } else {
+        if (b.firstElementChild || b.textContent !== (p.letter || "")) b.textContent = p.letter || "";
+        b.classList.remove("ai");
+      }
+      b.classList.toggle("open", p.id === open);
+      if (p.id === open) openPin = { p, v };
+      else others.push([Math.round(v.x), Math.round(v.y - PIN.size), PIN.size, PIN.size]);
+    }
+    if (openPin) {
+      const { p, v } = openPin;
+      at = { id: p.id, x: v.x, y: v.y - PIN.size, width: PIN.size, height: PIN.size, ...around(p, byId, s, v, others) };
+    }
+    for (const [id, b] of nodes) if (!seen.has(id)) { b.remove(); nodes.delete(id); }
+    name(byId);
+    // Where the open pin is, for the app's popover: when it moved.
+    const key = open ? JSON.stringify(at) : "";
+    if (open && key !== sent) { sent = key; post({ commentAt: at ? { ...at, x: Math.round(at.x), y: Math.round(at.y) } : { id: open } }); }
+    if (!open) sent = "";
+  };
+
+  // The names of the shapes the threads are on, told to the app when they change (a shape's words
+  // edited, the shape deleted).
+  const name = (byId) => {
+    if (!asked.length) return;
+    const all = [...byId.values()], out = {};
+    for (const id of asked) { const n = shapeName(byId.get(id), all); if (n) out[id] = n; }
+    const key = JSON.stringify(out);
+    if (key !== named) { named = key; post({ commentShapes: out }); }
+  };
+
+  const setCommenting = (on) => {
+    const was = commenting;
+    commenting = !!on && allowed();
+    host.classList.toggle("pinto-commenting", commenting);
+    if (commenting) host.style.setProperty("--pinto-comment-cursor", CURSOR);
+    if (was !== commenting) changed();
+  };
+
+  // A new comment where it goes: drawn at once in your colour, and the app opens its composer.
+  const place = (where) => {
+    draft = where;
+    open = "draft";
+    sent = "";
+    setCommenting(false);
+    post({ comment: { new: where } });
+    draw();
+  };
+
+  // The Comment tool: a click on the board places a comment; one on a pin opens that pin.
+  const press = (e) => {
+    if (!commenting || e.button !== 0) return;
+    const t = e.target;
+    if (!t || !t.closest || t.closest(".pinto-pin") || !t.closest(".excalidraw")) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const p = viewportCoordsToSceneCoords({ clientX: e.clientX, clientY: e.clientY }, api.getAppState());
+    place(placeFor(placeAt(api.getSceneElements(), p.x, p.y), e.pointerType));
+  };
+  window.addEventListener("pointerdown", press, true);
+
+  const off = api.onChange(() => { if (nodes.size || pins.length || draft || asked.length) draw(); });
+  const offScroll = api.onScrollChange(() => { if (nodes.size || pins.length || draft) draw(); });
+
+  return {
+    /** The app's pins: `{ pins, me, open, draft, can, inView }` (`inView`: comments while the drawing is view only). */
+    set(c) {
+      pins = Array.isArray(c.pins) ? c.pins.filter((p) => p && typeof p.id === "string" && typeof p.color === "string") : [];
+      if (c.me && typeof c.me.color === "string") me = { color: c.me.color, dark: typeof c.me.dark === "string" ? c.me.dark : undefined, letter: String(c.me.letter || "") };
+      const was = open;
+      open = typeof c.open === "string" ? c.open : null;
+      if (open !== was) sent = "";
+      draft = c.draft && typeof c.draft === "object" && Number.isFinite(c.draft.x) ? c.draft : null;
+      can = c.can !== false;
+      inView = c.inView === true;
+      asked = Array.isArray(c.shapes) ? c.shapes.filter((x) => typeof x === "string").slice(0, 500) : [];
+      if (!can) setCommenting(false);
+      draw();
+    },
+    get pins() { return pins; },
+    /** Where each pin is drawn now, [x, y, w, h] in the layer's points: a vote's total keeps clear
+     *  of them (votes.js). None while presenting, when they're hidden (pinto.css). */
+    boxes() {
+      if (host.classList.contains("pinto-presenting")) return [];
+      const s = api.getAppState(), byId = new Map(api.getSceneElements().map((e) => [e.id, e]));
+      const list = draft ? [...pins.filter((p) => p.id !== "draft"), { ...draft, id: "draft" }] : pins;
+      const out = [];
+      for (const p of list) {
+        const point = pinPoint(p, byId);
+        if (!point) continue;
+        const v = sceneCoordsToViewportCoords({ sceneX: point.x, sceneY: point.y }, s);
+        out.push([v.x, v.y - PIN.size, PIN.size, PIN.size]);
+      }
+      return out;
+    },
+    get commenting() { return commenting; },
+    /** Comments go on the board while its drawing is view only (Can comment). */
+    get inView() { return inView && can; },
+    /** The Comment tool, on or off. False when you can't comment here. */
+    tool(on) { setCommenting(on); return commenting === !!on; },
+    /** A comment on the selection, or at a point of the page (`x`, `y`). */
+    here(x, y) {
+      if (!allowed()) return false;
+      let where = null;
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        const p = viewportCoordsToSceneCoords({ clientX: x, clientY: y }, api.getAppState());
+        where = placeAt(api.getSceneElements(), p.x, p.y);
+      } else where = placeOnSelection(api);
+      if (!where) return false;
+      place(where);
+      return true;
+    },
+    /**
+     * Brings a pin into view when none of it shows, at the zoom you have; then says where it is.
+     * `above` (iPhone, where a thread opens in a sheet over the lower half): the pin stays in the
+     * top part of the view, that fraction of its height, so the sheet doesn't cover it. The pin of
+     * a comment being written is "draft".
+     */
+    focus(id, above) {
+      const p = id === "draft" && draft ? draft : pins.find((x) => x.id === id);
+      if (!p) return false;
+      const point = pinPoint(p, new Map(api.getSceneElements().map((e) => [e.id, e])));
+      if (!point) return false;
+      const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
+      const v = sceneCoordsToViewportCoords({ sceneX: point.x, sceneY: point.y }, s);
+      const m = 60, room = Number.isFinite(above) && above > 0.2 && above <= 1 ? above : 1;
+      const bottom = s.offsetTop + s.height * room - (room < 1 ? 16 : m);
+      const outX = v.x < s.offsetLeft + m || v.x > s.offsetLeft + s.width - m, outY = v.y < s.offsetTop + m + PIN.size || v.y > bottom;
+      if (outX || outY) {
+        const y = room < 1 ? s.height * room * 0.55 : s.height / 2;
+        // Over a sheet (iPhone): only as far as it has to, so the shape stays where it was beside it.
+        const keepX = room < 1 && !outX;
+        api.updateScene({ appState: { scrollX: keepX ? s.scrollX : -point.x + s.width / 2 / z, scrollY: -point.y + y / z } });
+      }
+      sent = "";
+      draw();
+      return true;
+    },
+    draw,
+    stop() { off(); offScroll(); window.removeEventListener("pointerdown", press, true); layer.remove(); },
+  };
+}

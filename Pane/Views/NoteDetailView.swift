@@ -66,6 +66,16 @@ struct NoteDetailView: View {
     @State private var showNetLog = false
     @State private var showMakeApp = false
     @State private var showAppInfo = false
+    /// A canvas's controls (CanvasBridge): the toolbar's tools and style, the menus.
+    @State private var canvasControls = CanvasController()
+    @State private var confirmingClearCanvas = false
+    /// Save as Template…: its name, asked for (the board's name to start with).
+    @State private var savingTemplate = false
+    /// Timer › Custom…: how many minutes.
+    @State private var askingTimer = false
+    @State private var timerMinutes = "5"
+    @State private var templateFromSelection = false
+    @State private var templateName = ""
 
     struct HostAsk: Identifiable {
         let host: String
@@ -201,6 +211,8 @@ struct NoteDetailView: View {
             .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave, object: context)) { saved in
                 WikiDirectory.take(saved)
                 refreshLinks()
+                // A board's note cards follow their notes as they change.
+                if showingCanvas { canvasControls.notesChanged(context.savedNotes(saved).map { Set($0.notes.map(\.id)) }) }
             }
             // The library's titles and links were read off the main thread: the links follow.
             .onReceive(NotificationCenter.default.publisher(for: WikiDirectory.didRead, object: context)) { _ in refreshLinks() }
@@ -229,7 +241,11 @@ struct NoteDetailView: View {
                 Button("OK") {}
             } message: { Text(lockProblem ?? "") }
             .sheet(isPresented: $showHistory) {
-                if let history = NoteHistory.shared {
+                // A whiteboard's History is its drawing's, not its words' (round 12).
+                if isCanvas, collab == nil {
+                    BoardHistorySheet(model: BoardHistoryModel(board: note.id, title: note.title, changedAt: note.updatedAt,
+                                                               store: BoardHistoryModel.store ?? MemoryBoardHistory(), canvas: canvasControls))
+                } else if let history = NoteHistory.shared {
                     VersionHistorySheet(note: note, history: collab.map(history.forShared) ?? history)
                 }
             }
@@ -351,7 +367,17 @@ struct NoteDetailView: View {
             .onChange(of: NotePageDataStore.shared.arrivals[note.id]) { _, a in
                 guard let a, showingPage else { return }
                 undoData = NotePageData.decode(a.before)
-                showPageReceipt(AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit))
+                // A shared board outlines it as the change arrives (BoardCollab).
+                if showingCanvas, !canvasControls.shared { canvasControls.arrived(by: a.by) }
+                var r = AIEdit.Receipt(noteID: note.id, by: a.by, at: a.at, previous: note.body, lines: 0, kind: .dataEdit, board: showingCanvas)
+                if showingCanvas { r.drew = CanvasNote.change(from: NotePageData.decode(a.before), to: NotePageDataStore.shared.doc(note.id)) }
+                showPageReceipt(r)
+            }
+            // Another of your devices changed the open board: outlined with its name, quietly, for
+            // a moment (round 14, 38-sync-2). A shared board's come through its session (BoardCollab).
+            .onChange(of: NotePageDataStore.shared.fromDevices[note.id]) { _, a in
+                guard let a, showingCanvas, !canvasControls.shared else { return }
+                canvasControls.arrived(from: a.device, kind: .device)
             }
             // Captures: `-lockCapture setup` or `confirm` (see Capture).
             .onReceive(NotificationCenter.default.publisher(for: Capture.lockCapture)) { n in
@@ -376,8 +402,11 @@ struct NoteDetailView: View {
             }
             .task(id: note.id) {
                 await noteOpened()
-                // Opened from a search: at the first line that holds it, once the text is in.
-                if let q = SearchJump.take(note.id), let r = SearchJump.range(of: q, in: note.body) {
+                // Opened from a search: a whiteboard shows the shape whose words hold it (round 14);
+                // a note opens at the first line that holds it, once the text is in.
+                if isCanvas, let q = SearchJump.take(note.id) {
+                    canvasControls.find(q)
+                } else if let q = SearchJump.take(note.id), let r = SearchJump.range(of: q, in: note.body) {
                     try? await Task.sleep(for: .seconds(0.2))
                     controller.showFound(r)
                 }
@@ -418,6 +447,7 @@ struct NoteDetailView: View {
                 }
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
+            .modifier(BoardCollabWiring(note: note, canvas: canvasControls, board: isCanvas))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { Usage.trashed(notes); for n in notes { context.trash(n) } } }
             .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
                 Button("OK") {}
@@ -837,7 +867,14 @@ struct NoteDetailView: View {
         if r.kind == .pageEdit { pageTint = nil }
         if r.kind == .dataEdit {
             // Back to the data before this run of changes; the note's text is untouched.
-            if let undoData { NotePageDataStore.shared.set(note.id, undoData) }
+            if let undoData {
+                // A shared board: back through its document, for everyone (CollabBoard).
+                if let collab, collab.isBoard {
+                    if let scene = (undoData["values"] as? [String: Any])?["scene"] as? [String: Any] { collab.boardRevert(to: scene) }
+                } else {
+                    NotePageDataStore.shared.set(note.id, undoData)
+                }
+            }
             undoData = nil
             return
         }
@@ -905,6 +942,7 @@ struct NoteDetailView: View {
                     .opacity(showingPage ? 0 : 1)
                     .allowsHitTesting(!showingPage)
                     .accessibilityHidden(showingPage)
+                    .environment(\.editorUnderPage, showingPage)
                 if let page = notePage {
                     NotePageView(noteID: note.id, html: page.html, text: vault.text(of: note) ?? "", onUpdate: applyPageEdit, onFailure: pageFailed, onData: pageData,
                                  files: { [context] id in NotePageActions.file(id, note: note, context: context) },
@@ -917,11 +955,28 @@ struct NoteDetailView: View {
                                          if held.at.timeIntervalSinceNow > -3 { showPageReceipt(held) }
                                      }
                                  },
-                                 insetBottom: pageInsetBottom)
+                                 insetBottom: pageInsetBottom, canvas: isCanvas ? canvasControls : nil)
                         .id(note.id)
                         .opacity(showingPage ? 1 : 0)
                         .allowsHitTesting(showingPage)
                         .accessibilityHidden(!showingPage)
+                        // Pictures dropped on a board go onto it, where they're dropped (its web
+                        // view leaves image drags to this: NotePageWebView).
+                        .onDrop(of: CanvasImageDrop.types + [.paneItem], isTargeted: nil) { providers, at in
+                            guard showingCanvas else { return false }
+                            // Notes from the list go on as cards (CanvasNoteDrop).
+                            if CanvasNoteDrop.carriesNotes(providers) {
+                                CanvasNoteDrop.place(providers, at: at, on: canvasControls)
+                            } else {
+                                CanvasImageDrop.place(providers, at: at, on: canvasControls)
+                            }
+                            return true
+                        }
+                        #if os(iOS)
+                        // A canvas runs edge to edge, under the bars (its controls float over it).
+                        .ignoresSafeArea(.container, edges: showingCanvas ? .all : [])
+                        #endif
+                        .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls, targets: askTargets, subject: AskAI.subject(note, whiteboard: true)) } }
                         // B: the first-open card inside the app, at its top, until Start.
                         .safeAreaInset(edge: .top, spacing: 0) {
                             if showingPage, let m = firstOpen, m.full, m.isApp, FirstOpen.variant == .b {
@@ -955,6 +1010,9 @@ struct NoteDetailView: View {
     /// The version that runs: the newest that passed its checks and opens here (NotePageStore.live).
     private var notePage: NotePageStore.Page? { note.isLocked ? nil : NoteApps.page(note.id) }
     private var showingPage: Bool { notePage != nil && mode == .page }
+    /// The note is a canvas (CanvasNote), showing as one: its controls are the app's own.
+    private var isCanvas: Bool { CanvasNote.isCanvas(notePage?.html) }
+    private var showingCanvas: Bool { isCanvas && showingPage }
 
     /// A template just added from the website, opening for the first time.
     private var firstOpen: FirstOpen.Moment? { FirstOpen.shared.pending[note.id] }
@@ -1031,7 +1089,8 @@ struct NoteDetailView: View {
                                                              open: followAppLink)
         // A change you made gets a receipt; the app saving on its own is quiet (Undo still reaches it
         // through version history).
-        if let before, (message as? [String: Any])?["_user"] as? Bool == true { dataChanged(before: before) }
+        // A canvas has its own Undo for every stroke: no receipt for each one.
+        if let before, (message as? [String: Any])?["_user"] as? Bool == true, !CanvasNote.isCanvas(notePage?.html) { dataChanged(before: before) }
         return reply
     }
 
@@ -1195,7 +1254,12 @@ struct NoteDetailView: View {
             }
             #endif
         case .linkedFrom:
-            LinkedFromMenu(note: note) { onOpenNote($0, false) }.equatable()
+            LinkedFromMenu(note: note, open: { onOpenNote($0, false) }, openBoard: { [saver, id = note.id] board in
+                // A board with this note's card: opened with the card selected and in view.
+                saver.flush()
+                CanvasLanding.shared.request(board, card: id)
+                onOpenNote(board, false)
+            }).equatable()
         case .share:
             Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
         case .history:
@@ -1203,6 +1267,82 @@ struct NoteDetailView: View {
         case .askAI:
             // Only its name ("This Note"): the note's text read here worked out the pane again on every key.
             AskAIMenuItems(subject: .note(.init(title: "")), targets: askTargets) { asking = $0 }
+        case .canvasPresent:
+            Button(CanvasPresentBar.startTitle, systemImage: "play.rectangle") { canvasControls.send(.present(.start)) }
+                .accessibilityIdentifier("canvas.present")
+        case .canvasLaser:
+            Button(CanvasTool.laser.help, systemImage: CanvasTool.laser.symbol) { canvasControls.pick(.laser) }
+                .accessibilityIdentifier("canvas.laser")
+        case .canvasVote:
+            let team = canvasControls.team
+            if team.voting?.results != nil, team.hosting {
+                Button(BoardTeam.clearVotes, systemImage: "xmark.circle") { team.clearVoting() }
+                    .accessibilityIdentifier("canvas.team.clearVotes")
+            } else if team.votingOpen, team.hosting {
+                Button(BoardTeam.endVoting, systemImage: "checkmark.circle") { team.endVoting() }
+                    .accessibilityIdentifier("canvas.team.endVoting")
+            } else {
+                Menu(BoardTeam.startVoting, systemImage: "hand.thumbsup") {
+                    ForEach(BoardTeam.voteChoices, id: \.self) { n in
+                        Button(BoardTeam.votesEach(n)) { team.startVoting(votes: n) }
+                            .accessibilityIdentifier("canvas.team.votes.\(n)")
+                        if n == BoardTeam.defaultVotes { Divider() }
+                    }
+                }
+                .disabled(!team.canStart || team.voting != nil)
+                .accessibilityIdentifier("canvas.team.startVoting")
+            }
+        case .canvasTimer:
+            let team = canvasControls.team
+            if team.timer != nil, team.hosting {
+                Button(team.finished ? BoardTeam.done : BoardTeam.stopTimer, systemImage: "timer") { team.stopTimer() }
+                    .accessibilityIdentifier("canvas.team.stopTimer")
+            } else {
+                Menu(BoardTeam.timerMenu, systemImage: "timer") {
+                    ForEach(BoardTeam.timerMinutes, id: \.self) { n in
+                        Button(BoardTeam.minutes(n)) { team.startTimer(seconds: Double(n * 60)) }
+                            .accessibilityIdentifier("canvas.team.timer.\(n)")
+                    }
+                    Divider()
+                    Button(BoardTeam.customTimer) { timerMinutes = "5"; askingTimer = true }
+                        .accessibilityIdentifier("canvas.team.timer.custom")
+                }
+                .disabled(!team.canStart || team.timer != nil)
+                .accessibilityIdentifier("canvas.team.timer")
+            }
+        case .canvasLastAIChange:
+            Button(CanvasController.showLastChangeTitle(canvasControls.lastChangeBy), systemImage: "sparkles") { canvasControls.showLastChange() }
+                .disabled(canvasControls.lastChangeBy == nil)
+                .accessibilityIdentifier("canvas.lastAIChange")
+        case .canvasZoomToFit:
+            Button("Zoom to Fit", systemImage: "arrow.up.left.and.down.right.magnifyingglass") { canvasControls.run(.zoomToFit) }
+                .accessibilityIdentifier("canvas.zoomToFit")
+        case .canvasBackground:
+            Menu("Background", systemImage: "square.fill.on.square") {
+                ForEach(CanvasBackground.all, id: \.hex) { bg in
+                    Toggle(bg.name, isOn: Binding(get: { canvasControls.background.lowercased() == bg.hex }, set: { _ in canvasControls.send(.background(bg.hex)) }))
+                }
+            }
+            .accessibilityIdentifier("canvas.background")
+        case .canvasExport:
+            #if os(macOS)
+            Menu("Export", systemImage: "square.and.arrow.up.on.square") {
+                ForEach(CanvasExport.allCases) { f in
+                    Button(f.title) { CanvasExportAction.save(f, canvas: canvasControls) }
+                        .accessibilityIdentifier("canvas.export.\(f.rawValue)")
+                }
+                Divider()
+                Button(CanvasExportAction.copyTitle) { CanvasExportAction.copy(canvasControls) }
+                    .accessibilityIdentifier("canvas.copyPNG")
+            }
+            .accessibilityIdentifier("canvas.export")
+            #endif
+        case .canvasSaveTemplate:
+            Button(NoteMoreMenu.saveTemplateTitle, systemImage: "square.on.square.dashed") { canvasControls.askTemplateName(.board) }
+            .accessibilityIdentifier("canvas.saveTemplate")
+        case .canvasClear:
+            DestructiveMenuButton("Clear Whiteboard\u{2026}", systemImage: "trash.slash") { confirmingClearCanvas = true }
+                .accessibilityIdentifier("canvas.clear")
         case .recover:
             Button("Recover", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { context.restore(note) } }
                 .accessibilityIdentifier("editor.recover")
@@ -1354,6 +1494,53 @@ struct NoteDetailView: View {
             } message: {
                 Text(Self.recoverMessage)
             }
+            .confirmationDialog("Clear this whiteboard?", isPresented: $confirmingClearCanvas, titleVisibility: .visible) {
+                Button("Clear Whiteboard", role: .destructive) { canvasControls.run(.clear) }
+            } message: {
+                Text("Everything on it is removed. Undo brings it back.")
+            }
+            .alert(NoteMoreMenu.saveTemplateQuestion, isPresented: $savingTemplate) {
+                TextField("Name", text: $templateName)
+                Button("Cancel", role: .cancel) {}
+                Button("Save") {
+                    let name = templateName, selection = templateFromSelection
+                    Task { await canvasControls.saveAsTemplate(named: name, selection: selection) }
+                }
+                    #if os(macOS)
+                    .keyboardShortcut(.defaultAction)
+                    #endif
+            } message: {
+                Text(NoteMoreMenu.saveTemplateMessage)
+            }
+            .alert(BoardTeam.customQuestion, isPresented: $askingTimer) {
+                TextField("Minutes", text: $timerMinutes)
+                Button("Cancel", role: .cancel) {}
+                Button("Start") {
+                    if let n = BoardTeam.minutes(from: timerMinutes) { canvasControls.team.startTimer(seconds: Double(n * 60)) }
+                }
+                    #if os(macOS)
+                    .keyboardShortcut(.defaultAction)
+                    #endif
+            } message: {
+                Text(BoardTeam.customMessage)
+            }
+            // Save as Template… from the More menu, the right-click menu or the selection bar.
+            .onChange(of: canvasControls.namingTemplate) { _, source in
+                guard let source else { return }
+                canvasControls.namingTemplate = nil
+                templateFromSelection = source == .selection
+                templateName = canvasControls.title
+                savingTemplate = true
+            }
+            .focusedSceneValue(\.canvasController, showingCanvas ? canvasControls : nil)
+            .onChange(of: note.title, initial: true) { _, t in
+                canvasControls.title = t
+                canvasControls.rename = { [weak note] name in
+                    guard let note else { return }
+                    if let s = CollabStore.shared?.session(for: note) { CanvasRename.renamed(note, to: name, in: s) } else { CanvasRename.renamed(note, to: name) }
+                }
+                wireCanvasCards()
+            }
             .confirmationDialog("Delete \u{201C}\(note.title)\u{201D} now?", isPresented: $confirmingPurge, titleVisibility: .visible) {
                 Button("Delete Now", role: .destructive) { withAnimation(.snappy) { context.purge(note) } }
             } message: {
@@ -1380,13 +1567,18 @@ struct NoteDetailView: View {
             said: said?.text ?? (noticeInBar ? undoFailed : nil),
             saidAction: said?.action,
             attachment: AnyView(attachMenu),
-            people: collab.flatMap { collab in PresenceStack.shows(collab) ? AnyView(PresenceStack(session: collab) { showPeople = true }) : nil },
+            people: collab.flatMap { collab in PresenceStack.shows(collab) ? AnyView(PresenceStack(session: collab, board: showingCanvas ? canvasControls : nil) { showPeople = true }) : nil },
+            peopleWidth: collab.map { PresenceStack.shows($0) ? PresenceStack.barWidth(viewOnly: $0.isViewOnly) : 0 } ?? 0,
+            ask: askTargets.isEmpty ? nil : AnyView(askButton),
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
-                if !askTargets.isEmpty { askButton }
                 if !trashed { shareMenu }
-                moreMenu
-            }))
+                // Ask AI from More while its own button isn't in the bar (a narrow board): the
+                // popover opens from here.
+                moreMenu.modifier(AskFromMore(asking: $asking, on: !askTargets.isEmpty) { [note, showingCanvas] in AskAI.subject(note, whiteboard: showingCanvas) })
+            }),
+            canvas: showingCanvas && !trashed ? canvasControls : nil,
+            noteID: note.id)
     }
     #endif
 
@@ -1451,6 +1643,32 @@ struct NoteDetailView: View {
     /// Colours for the editor's wiki links, from the library as it is now.
     private func refreshLinks() {
         controller.wiki = WikiDirectory.scope(for: note, in: context)
+    }
+
+    /// A board's note cards: what each says, from its note, and opening one opens the note here, as
+    /// a link does.
+    private func wireCanvasCards() {
+        let id = note.id, context = self.context, open = onOpenNote, saver = self.saver
+        canvasControls.noteID = id
+        // Opened from "On boards" at the foot of a note: that note's card, selected and in view.
+        if let card = CanvasLanding.shared.take(id) { canvasControls.focusCard(card) }
+        // Made from the templates gallery: its template goes in once the page is ready.
+        if let t = CanvasLanding.shared.takeTemplate(id) { canvasControls.start(t) }
+        canvasControls.cardInfo = { refs in
+            let info = CanvasNoteCard.info(for: refs, from: context.note(id), in: context)
+            // A shared board: cards say what your notes say. One for a note you don't have (the
+            // owner's, not shared with you) keeps what it says, so it doesn't read "Note deleted"
+            // for everyone.
+            guard context.note(id)?.isShared == true else { return info }
+            return info.filter { !$0.value.deleted || $0.value.restorable }
+        }
+        canvasControls.openNote = { target in
+            saver.flush()
+            open(target, false)
+        }
+        canvasControls.restoreNote = { target in
+            if let n = context.note(target), n.trashedAt != nil, n.deletedAt == nil { context.restore(n) }
+        }
     }
 
     /// A wiki link was tapped: open its note, or offer to make it, as Obsidian does.
@@ -1619,8 +1837,20 @@ struct NoteDetailView: View {
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
 
+        // A canvas: its own Undo and Redo, at the top as in Freeform (the tools are in its dock).
+        if showingCanvas {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("Undo", systemImage: "arrow.uturn.backward") { canvasControls.run(.undo) }
+                    .disabled(!canvasControls.canUndo)
+                    .accessibilityIdentifier("canvas.undo")
+                Button("Redo", systemImage: "arrow.uturn.forward") { canvasControls.run(.redo) }
+                    .disabled(!canvasControls.canRedo)
+                    .accessibilityIdentifier("canvas.redo")
+            }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
         if let collab, PresenceStack.shows(collab) {
-            ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
+            ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab, board: showingCanvas ? canvasControls : nil) { showPeople = true } }
         }
         // Privacy mode is on: the eye says so, and a tap turns it off.
         if PrivacyMode.shared.isOn {
@@ -1799,20 +2029,20 @@ struct NoteDetailView: View {
             #if os(macOS)
             .tint(.primary)
             #endif
-            .askAIPopover($asking, subject: AskAI.subject(note))
+            .askAIPopover($asking, subject: AskAI.subject(note, whiteboard: showingCanvas))
     }
 
     private var moreMenu: some View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
                                              hasApp: notePage != nil, appsEnabled: NoteApps.enabled, shared: note.isShared, inOwnWindow: inOwnWindow,
-                                             asks: !askTargets.isEmpty)
+                                             asks: !askTargets.isEmpty, canvas: showingCanvas)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
             }
         } label: {
-            Label("More", systemImage: "ellipsis")
+            Label("More", systemImage: "ellipsis").toolbarCell()
         }
         #if os(macOS)
         .tint(.primary)
@@ -1849,6 +2079,10 @@ enum NoteMoreMenu {
         #endif
     }
 
+    static let saveTemplateTitle = "Save as Template\u{2026}"
+    static let saveTemplateQuestion = "Save as Template"
+    static let saveTemplateMessage = "An empty whiteboard offers it beside the built-in templates."
+
     static var isPhoneOrPad: Bool {
         #if os(iOS)
         true
@@ -1865,7 +2099,18 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, linkedFrom, share, history, askAI, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, linkedFrom, share, history, askAI, recover, delete
+        /// A canvas's own: Zoom to Fit, its background, Clear Canvas.
+        case canvasZoomToFit, canvasBackground, canvasExport, canvasClear
+        /// The board kept as one of your templates (WhiteboardTemplates).
+        case canvasSaveTemplate
+        /// Present (its frames one by one) and the laser pointer.
+        case canvasPresent, canvasLaser
+        /// A team session's voting and timer (BoardTeam).
+        case canvasVote, canvasTimer
+        /// The last AI change, outlined again.
+        case canvasLastAIChange
+    }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
@@ -1876,7 +2121,7 @@ enum NoteMoreMenu {
     /// `asks`: an AI is connected and can read this note, so Ask an AI About This Note is offered,
     /// in a group of its own above Delete (round 2 of the councils).
     static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, shared: Bool = false,
-                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false) -> [[Item]] {
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false, canvas: Bool = false) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
         var out: [[Item]] = []
@@ -1899,7 +2144,9 @@ enum NoteMoreMenu {
         let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
-        return out + [about] + copy + [rest] + ask + [[.delete]]
+        // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
+        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser, .canvasVote, .canvasTimer], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear]] : []
+        return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
 
@@ -1912,12 +2159,15 @@ enum NoteMoreMenu {
 struct LinkedFromMenu: View, CustomEquatable {
     let note: Note
     let open: (UUID) -> Void
+    /// Opens a board with this note's card selected (the boards are listed after the notes).
+    let openBoard: (UUID) -> Void
     private let id: UUID
     @Environment(\.modelContext) private var context
 
-    init(note: Note, open: @escaping (UUID) -> Void) {
+    init(note: Note, open: @escaping (UUID) -> Void, openBoard: @escaping (UUID) -> Void = { _ in }) {
         self.note = note
         self.open = open
+        self.openBoard = openBoard
         id = note.id
     }
 
@@ -1930,7 +2180,8 @@ struct LinkedFromMenu: View, CustomEquatable {
     var body: some View {
         let _ = LinkChanges.shared.version
         let linking = Self.notes(linkingTo: note, in: context)
-        if !linking.notes.isEmpty {
+        let boards = Self.boards(holding: note, in: context)
+        if !linking.notes.isEmpty || !boards.isEmpty {
             Menu(Self.title, systemImage: "link") {
                 ForEach(linking.notes, id: \.id) { n in
                     Button(n.title) { open(n.id) }
@@ -1939,9 +2190,31 @@ struct LinkedFromMenu: View, CustomEquatable {
                     Button(Self.more(linking.total - linking.notes.count)) {}
                         .disabled(true)
                 }
+                // The whiteboards with a card for this note: a card on a board links to its note.
+                if !boards.isEmpty {
+                    Section(Self.boardsTitle) {
+                        ForEach(boards) { b in
+                            Button(b.title.isEmpty ? CanvasNote.title : b.title, systemImage: CanvasNote.symbol) { openBoard(b.id) }
+                                .accessibilityIdentifier("editor.linkedFrom.board")
+                        }
+                    }
+                }
             }
             .accessibilityIdentifier("editor.linkedFrom")
         }
+    }
+
+    /// The boards' heading in the menu.
+    static let boardsTitle = "On Boards"
+
+    /// The whiteboards with a card for this note, newest first (CanvasBoards). Looked for again
+    /// once a board's data settles after a change (NotePageDataStore.listRevision, once for a burst
+    /// of strokes), and only for a note: a board drawn on would read its own scene each time.
+    /// None for a locked note or one in Recently Deleted.
+    static func boards(holding note: Note, in context: ModelContext, data: NotePageDataStore = .shared, pages: NotePageStore = .shared) -> [CanvasBoards.Board] {
+        guard !note.isLocked, note.trashedAt == nil, !CanvasNote.has(note, in: pages) else { return [] }
+        let _ = data.listRevision
+        return CanvasBoards.boards(holding: note.id, in: context, data: data, pages: pages)
     }
 
     /// The notes it lists, and how many link here in all. None for a locked note or one in
@@ -2131,6 +2404,50 @@ private struct CollabWiring: ViewModifier {
     }
 }
 
+/// A shared whiteboard hooked to its session (BoardCollab), while the note is open.
+private struct BoardCollabWiring: ViewModifier {
+    let note: Note
+    let canvas: CanvasController
+    /// The note is a whiteboard: its comments are wired too (BoardComments).
+    var board = false
+
+    private var session: CollabSession? { CollabStore.shared?.session(for: note) }
+
+    private struct Key: Hashable { let session: ObjectIdentifier?; let board: Bool }
+
+    /// A board of your own: its comments, from its page data.
+    private func wirePrivate() {
+        guard board, !note.isShared else { return }
+        BoardCollab.wirePrivate(note.id, canvas, canComment: note.trashedAt == nil)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .task(id: Key(session: session.map { ObjectIdentifier($0) }, board: board)) {
+                let found = note.isShared && session == nil ? await SharedEditing.waitForSession { CollabStore.shared?.session(for: note) } : session
+                if Task.isCancelled { return }
+                guard let session = found, session.isBoard else {
+                    if canvas.shared { BoardCollab.unwire(nil, canvas) }
+                    wirePrivate()
+                    return
+                }
+                BoardCollab.wire(session, canvas)
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(0.25))
+                    if Task.isCancelled { break }
+                    BoardCollab.tick(session, canvas)
+                }
+                BoardCollab.unwire(session, canvas)
+                wirePrivate()
+            }
+            // Comments on a board of your own arriving through sync (another device, an AI).
+            .onChange(of: board && !note.isShared ? NotePageDataStore.shared.docs[note.id] : nil) { _, _ in
+                guard board, !note.isShared, !canvas.shared else { return }
+                canvas.show(comments: BoardComments.stored(in: NotePageDataStore.shared.doc(note.id)))
+            }
+    }
+}
+
 /// When the note's editor takes no typing: in Recently Deleted; a shared note until its document
 /// is open on this device; and a shared note you can only view.
 enum SharedEditing {
@@ -2218,8 +2535,19 @@ struct NoteToolbarParts: CustomEquatable, @unchecked Sendable {
     var attachment: AnyView
     /// Who else is in a shared note.
     var people: AnyView?
+    /// How wide the people are in the bar, at most (a board's toolbar keeps room for them).
+    var peopleWidth: CGFloat = 0
+    /// Ask AI, when an AI is connected: beside Share. A narrow board's bar leaves it to More (•••).
+    var ask: AnyView? = nil
     /// Share and More.
     var sharing: AnyView
+    /// A canvas shows: its tools take the writing tools' place (CanvasToolbarTools).
+    var canvas: CanvasController? = nil
+    /// The note these are for. The toolbar shows the note's place and its writing tools with its
+    /// own parts, not before: the place changed a turn ahead of them, and the bar showed a note
+    /// with a board's tools, or a board with none, for a frame (Emil, 16 November 2026: "things
+    /// shift in the toolbar" switching between a note and a board).
+    var noteID: UUID? = nil
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
@@ -2260,6 +2588,13 @@ struct NoteToolbarStage<Pane: View>: View {
     /// A note opened from a folder's gallery: Back with no note before it goes to the cards, so the
     /// toolbar has one way back, not two (FolderGallery). Its folder's name, for the help.
     var backToGallery: (title: String, go: () -> Void)? = nil
+    /// A canvas has the window (FullScreen): only a back control to the notes and the note's
+    /// title on the left, share and ••• on the right.
+    var focusBack: (() -> Void)? = nil
+    /// Full Screen, on and off (FullScreen).
+    var fullScreen: FullScreenAction? = nil
+    /// Only the note shows: the sidebar button, to bring the columns back (SidebarToggle.next).
+    var showColumns: ToggleSidebarAction? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
     /// The width the breadcrumbs get in this column (NoteBreadcrumbs.room).
@@ -2268,24 +2603,69 @@ struct NoteToolbarStage<Pane: View>: View {
     /// Back leads to the note before this one, and from the first note opened from a gallery to its cards.
     static func backGoesToGallery(canGoBack: Bool, inGallery: Bool) -> Bool { inGallery && !canGoBack }
     @AppStorage(Experiment.tags.key) private var tagsOn = false
+    /// The place and the writing tools as they go with the parts on screen (NoteToolbarParts.noteID):
+    /// a newly opened note's come with its parts, in one change.
+    @State private var held: Held?
+    struct Held { var place: Note?; var writing: Bool }
+    /// The column's width, and where it stands in the window (WindowSpot): a whiteboard's toolbar
+    /// shows what fits (CanvasToolbarTools.Fit).
+    @State private var width: CGFloat = 1200
+    @State private var spot: CGRect?
     #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
+
+    /// The parts on screen are for the note open now (or none came yet).
+    private var current: Bool { parts == nil || parts?.noteID == nil || parts?.noteID == place?.id }
+    /// The note whose place shows: the open one, or until its parts come, the one before.
+    private var shownPlace: Note? { current ? place : held?.place }
+    private var shownWriting: Bool { current ? showsWriting : held?.writing ?? showsWriting }
+
+    /// What a whiteboard's toolbar shows at this width: its Fit, and the width its name gets.
+    private var boardBar: (fit: CanvasToolbarTools.Fit, title: CGFloat) {
+        guard let parts, let canvas = parts.canvas else { return (.full, CanvasToolbarTools.titleMax) }
+        let focus = focusBack != nil
+        let place = shownPlace
+        var room = CanvasToolbarTools.Room()
+        room.title = CanvasToolbarTools.titleWidth(place?.title ?? "")
+        room.place = place.map { NoteBreadcrumbs.width($0) + NoteBreadcrumbs.chevronWidth } ?? 0
+        room.asks = parts.ask != nil
+        room.people = parts.peopleWidth
+        room.said = parts.said.map { NoticeText.barWidth($0, action: parts.saidAction?.title) } ?? 0
+        room.focus = focus
+        room.viewOnly = canvas.viewOnly
+        return CanvasToolbarTools.layout(room, width: Self.boardWidth(column: width, spot: spot, besideList: !focus && !ownWindow))
+    }
+
+    /// The room the board's items have: from where they can start to the window's edge. Beside
+    /// the list they start after its buttons, which run past a narrow list's column while the
+    /// sidebar is hidden (Back stood at 373 pt over a list 330 pt wide); in Full Screen and a
+    /// window of its own, after the window's buttons.
+    static func boardWidth(column: CGFloat, spot: CGRect?, besideList: Bool) -> CGFloat {
+        guard let spot, spot.width > 0 else { return column }
+        let start = besideList ? max(spot.minX, CanvasToolbarTools.listBarEnd - 4) : max(spot.minX, CanvasToolbarTools.windowButtonsEnd - 4)
+        return spot.maxX - start
+    }
 
     var body: some View {
         #if DEBUG || QA
         let _ = RenderProbe.count("NoteToolbarStage", context: context)
         #endif
-        let parts = $parts
+        let parts = $parts, held = $held
+        let place = self.place, showsWriting = self.showsWriting
         ZStack {
             // A turn after the pane made them. A pane that has just gone leaves the items as they
             // are: the next pane's are on their way. Native hidden items have no glass.
             pane.onPreferenceChange(NoteToolbarKey.self) {
                 guard let made = $0 else { return }
-                // A different note replaces its tools in place, without a toolbar animation.
+                // A different note replaces its tools in place, without a toolbar animation: its
+                // place, its tools and its writing tools in the one change.
                 var instant = Transaction(animation: nil)
                 instant.disablesAnimations = true
-                withTransaction(instant) { parts.wrappedValue = made }
+                withTransaction(instant) {
+                    parts.wrappedValue = made
+                    if made.noteID == place?.id { held.wrappedValue = Held(place: place, writing: showsWriting) }
+                }
             }
         }
             // The breadcrumbs' width follows the column, never the note (NoteBreadcrumbs.room).
@@ -2293,8 +2673,54 @@ struct NoteToolbarStage<Pane: View>: View {
                 let room = NoteBreadcrumbs.room(column: width, shared: self.parts?.people != nil)
                 if room != crumbRoom { crumbRoom = room }
             }
+            // A note that has no pane of its own (New App's start page): its place soon after.
+            .task(id: place?.id) {
+                try? await Task.sleep(for: .milliseconds(250))
+                if !current {
+                    var instant = Transaction(animation: nil)
+                    instant.disablesAnimations = true
+                    withTransaction(instant) { self.held = Held(place: self.place, writing: self.showsWriting) }
+                }
+            }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width.rounded() }) { width = $0 }
+            .background { WindowSpot { spot = $0 } }
             .toolbar {
-                if self.parts != nil {
+                let board = boardBar
+                let place = shownPlace, showsWriting = shownWriting
+                if self.parts != nil, let focusBack {
+                    ToolbarItem(placement: .navigation) {
+                        Button("Notes", systemImage: "chevron.backward", action: focusBack)
+                            .help("Back to Notes (\u{2303}\u{2318}S)")
+                            .accessibilityIdentifier("canvas.back")
+                    }
+                    .hidden(!showsItems)
+                    if let place {
+                        ToolbarItem(placement: .navigation) {
+                            if self.parts?.canvas != nil {
+                                CanvasTitleField(note: place, maxWidth: board.title)
+                            } else {
+                                Text(place.title)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Color.muted)
+                                    .lineLimit(1)
+                                    .fixedSize()
+                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityIdentifier("note.focusTitle")
+                            }
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
+                    }
+                } else if self.parts != nil {
+                    if let showColumns {
+                        ToolbarItem(placement: .navigation) {
+                            Button(showColumns.title, systemImage: "sidebar.left") { showColumns() }
+                                .help(showColumns.title + " (\u{2303}\u{2318}S)")
+                                .buttonStyle(.barIcon)
+                                .accessibilityIdentifier("note.showColumns")
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    }
                     // Back and forward on the left, then where the note is (Emil, 11-03:
                     // breadcrumbs back), the note's tools on the right. In a note's own window
                     // they sit beside the window's buttons.
@@ -2318,9 +2744,25 @@ struct NoteToolbarStage<Pane: View>: View {
                     .sharedBackgroundVisibility(.hidden)
                     .hidden(!showsItems)
                     if let place, crumbRoom > 0 {
-                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, room: crumbRoom, open: openScope) }
-                            .sharedBackgroundVisibility(.hidden)
-                            .hidden(!showsItems)
+                        // Where the note is, one item for a note and a board alike, so opening the
+                        // other kind changes what's in it, never the bar's items. A board's name has
+                        // its own field, after its folder and the same chevron as a note's title
+                        // (Emil, 16 November 2026: "Notes  Kanban" had no separator).
+                        ToolbarItem {
+                            HStack(spacing: 0) {
+                                if self.parts?.canvas == nil || board.fit.showsPlace {
+                                    NoteBreadcrumbs(note: place, controller: controller, room: self.parts?.canvas == nil ? crumbRoom : nil,
+                                                    open: openScope, showsTitle: self.parts?.canvas == nil)
+                                }
+                                if self.parts?.canvas != nil {
+                                    if board.fit.showsPlace { NoteBreadcrumbs.chevron }
+                                    CanvasTitleField(note: place, maxWidth: board.title)
+                                }
+                            }
+                            .fixedSize()
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
                     }
                     // The note's labels, beside where it is: a click shows the tag's notes.
                     if tagsOn, let place, !NoteLabels.labels(in: place.frontMatter).isEmpty {
@@ -2386,6 +2828,16 @@ struct NoteToolbarStage<Pane: View>: View {
                         .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
                     .hidden(!showsItems || !showsWriting)
+                    if let canvas = shown.canvas {
+                        // A board shared with you to look at: its tools show, off, as a viewer's
+                        // formatting does in a note. To comment on: no drawing tools at all, as in
+                        // FigJam; Comments (C picks the Comment tool) is what's there.
+                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, fit: board.fit, fullScreen: fullScreen).disabled(!showsItems || canvas.viewOnly) }
+                            .hidden(!showsItems || canvas.commentsOnly)
+                        // Comments: viewers read them too, so it's never off for them.
+                        ToolbarItem { CanvasCommentsButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected) }
+                            .hidden(!showsItems)
+                    }
                     // Who's in the note: a section of its own, not one of the writing tools
                     // (Emil, 16 November 2026: the avatar sat between the paperclip and Share).
                     if let people = shown.people {
@@ -2393,7 +2845,21 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
                         ToolbarSpacer(.fixed).hidden(!showsItems)
                     }
-                    ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
+                    ToolbarItemGroup {
+                        // A whiteboard in a narrow column has Full Screen in More Tools instead
+                        // (a viewer's tools are off, so theirs stays), and Ask AI in More.
+                        if let fullScreen, shown.canvas.map({ $0.viewOnly || board.fit.showsFullScreen }) ?? true {
+                            // ⇧⌘F is View › Full Screen's (PaneCommands), for any note.
+                            Button(action: fullScreen.run) { Label(fullScreen.title, systemImage: fullScreen.symbol).toolbarCell() }
+                                .help(fullScreen.title + " (\u{21E7}\u{2318}F)")
+                                .disabled(!showsItems)
+                                .accessibilityIdentifier("note.fullScreen")
+                        }
+                        let askInBar = shown.canvas == nil || board.fit.showsAsk
+                        if let ask = shown.ask, askInBar { ask.disabled(!showsItems) }
+                        shown.sharing.disabled(!showsItems).environment(\.askInBar, askInBar)
+                    }
+                    .hidden(!showsItems)
                 }
                 // Privacy mode is on: the eye says so, and a click turns it off.
                 if PrivacyMode.shared.isOn {
@@ -2611,6 +3077,21 @@ struct NoteBreadcrumbs: View {
     /// grey band, note by note (Emil, 13 November 2026: "the top bar changes depending on note").
     var room: CGFloat? = nil
     let open: (Scope) -> Void
+    /// The note's title after its folder once it scrolls away. A whiteboard's name has a field of
+    /// its own, so its breadcrumbs are the folder alone (round 12: the faded copy kept 110 pt of the
+    /// board's bar for nothing).
+    var showsTitle = true
+
+    /// How wide the folder's part is in the bar: each name with its padding, and the chevrons.
+    static func width(_ note: Note) -> CGFloat {
+        #if os(macOS)
+        let font = NSFont.systemFont(ofSize: ButtonSize.compact.textSize, weight: .semibold)
+        let names = path(note).map { ceil($0.name.size(withAttributes: [.font: font]).width) + ButtonSize.compact.padding * 1.5 }
+        return names.reduce(0, +) + CGFloat(max(0, names.count - 1)) * 8
+        #else
+        return 0
+        #endif
+    }
 
     /// What the rest of the note's bar takes in a column: back and forward with the edge (about
     /// 100), the tools, Share and ••• (about 310), a gap, and who's in a shared note.
@@ -2657,6 +3138,7 @@ struct NoteBreadcrumbs: View {
             // Always laid out, only faded: adding and removing it changed the item's width, and
             // the toolbar slid "Notes" about and drew the two over each other mid-change (Emil,
             // 8 November 2026: "transition here is janky").
+            if showsTitle {
             HStack(spacing: 0) {
                 chevron
                 Text(note.title.isEmpty ? "New note" : note.title)
@@ -2671,6 +3153,7 @@ struct NoteBreadcrumbs: View {
             .animation(.easeOut(duration: 0.15), value: titled)
             // The folders keep their names; the title takes what's left.
             .layoutPriority(-1)
+            }
         }
         .lineLimit(1)
         .modifier(Width(room: room))
@@ -2691,15 +3174,85 @@ struct NoteBreadcrumbs: View {
         }
     }
 
-    private var chevron: some View {
+    private var chevron: some View { Self.chevron }
+
+    /// Between a folder and what's in it: the note's title, a board's name.
+    static var chevron: some View {
         Image(systemName: "chevron.forward")
             .font(.system(size: 9, weight: .semibold))
             .foregroundStyle(Color.muted.opacity(0.7))
             .accessibilityHidden(true)
     }
+
+    /// How wide a chevron is in the bar, as width(_:) counts it.
+    static let chevronWidth: CGFloat = 8
 }
 
 #if os(macOS)
+/// Where a view stands in its window, reported when it moves or changes size: the board's column,
+/// for what its toolbar has room for (NoteToolbarStage.boardWidth). It takes no click.
+struct WindowSpot: NSViewRepresentable {
+    let changed: (CGRect) -> Void
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) {
+        view.changed = changed
+        view.report()
+    }
+
+    final class Probe: NSView {
+        var changed: ((CGRect) -> Void)?
+        private var last: CGRect?
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            report()
+        }
+        override func setFrameSize(_ newSize: NSSize) {
+            super.setFrameSize(newSize)
+            report()
+        }
+        override func setFrameOrigin(_ newOrigin: NSPoint) {
+            super.setFrameOrigin(newOrigin)
+            report()
+        }
+        override func layout() {
+            super.layout()
+            report()
+        }
+        /// Said a turn later, never in the middle of the window's layout.
+        func report() {
+            guard window != nil else { return }
+            let f = convert(bounds, to: nil)
+            let spot = CGRect(x: f.minX.rounded(), y: 0, width: f.width.rounded(), height: 0)
+            guard spot != last else { return }
+            last = spot
+            DispatchQueue.main.async { [weak self] in self?.changed?(spot) }
+        }
+    }
+}
+
+/// Ask AI from the note's More (•••) while its own button isn't in the bar (a narrow whiteboard):
+/// its popover opens from More. With the button there, the popover is the button's.
+struct AskFromMore: ViewModifier {
+    @Binding var asking: AskAI.Target?
+    let on: Bool
+    let subject: () -> AskAI.Subject
+    @Environment(\.askInBar) private var askInBar
+
+    func body(content: Content) -> some View {
+        if on, !askInBar {
+            content.askAIPopover($asking, subject: subject())
+        } else {
+            content
+        }
+    }
+}
+
+extension EnvironmentValues {
+    /// The bar shows Ask AI's own button (NoteToolbarStage): More's Ask opens from it.
+    @Entry var askInBar = true
+}
+
 /// VoiceOver names the window after the open note; the title drawn in the bar stays the list's
 /// (round 22's dump: the window was "All Notes" with Lisbon open).
 struct WindowSpokenTitle: NSViewRepresentable {
@@ -2717,3 +3270,8 @@ struct WindowSpokenTitle: NSViewRepresentable {
     }
 }
 #endif
+
+extension EnvironmentValues {
+    /// The note's text is kept alive under its page or board, and hidden (PlatformEditor, on the Mac).
+    @Entry var editorUnderPage = false
+}

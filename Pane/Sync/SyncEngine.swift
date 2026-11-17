@@ -47,6 +47,8 @@ final class SyncEngine {
     /// What the last sync found (see `Reach`); `reach` adds what the network path says.
     private var lastReach = Reach.online
     var reach: Reach { path.isUp ? lastReach : .offline }
+    /// When the last sync got through, while that's the last thing sync did.
+    var syncedAt: Date? { if case .synced(let d) = status { d } else { nil } }
     /// True once a sync has completed since launch.
     private(set) var hasSynced = false
     /// The signed-in account's library has come down: a pull finished since this sign-in. Until
@@ -128,13 +130,22 @@ final class SyncEngine {
     /// moment it's back. Tests give each engine its own.
     let path: NetworkPath
 
+    /// The whiteboard library this engine keeps in step (LibrarySync); nil syncs none (most tests).
+    let library: CanvasLibrary?
+    /// The server has no library table yet (an app newer than its server): not asked again until then.
+    private var libraryPausedUntil: Date?
+
     init(backend: Backend, context: ModelContext, defaults: UserDefaults = .standard, vault: NoteVault? = nil, crypto: AccountCrypto? = nil,
-         path: NetworkPath = .shared) {
+         path: NetworkPath = .shared, library: CanvasLibrary? = nil) {
         self.backend = backend
         self.context = context
         self.defaults = defaults
         self.lockVault = vault
         self.path = path
+        self.library = library
+        // A change to the library goes up with a sync of its own; opening it brings what's new.
+        library?.onChange = { [weak self] in self?.schedule(after: 0.5) }
+        library?.onLook = { [weak self] in self?.schedule(after: 0) }
         SyncSignal.onChange = { [weak self] in self?.localChanged() }
         path.watch { [weak self] up in self?.networkChanged(up: up) }
         // Start fresh removes the account's files from Storage through here. It happens when this
@@ -265,7 +276,7 @@ final class SyncEngine {
             try ensure(sealer, gen)
             await pushPages(client, sealer: sealer)
             try ensure(sealer, gen)
-            await pushPageData(client, sealer: sealer)
+            await pushPageData(client, sealer: sealer, gen: gen)
             try ensure(sealer, gen)
             await pushAPIKeyNames(client, sealer: sealer, gen: gen)
             try ensure(sealer, gen)
@@ -282,6 +293,7 @@ final class SyncEngine {
                     knowsAccount = true
                 }
                 reportSynced(seconds: Date.now.timeIntervalSince(began), first: first)
+                await syncLibrary(client, sealer: sealer, gen: gen)
             }
             failures.succeeded()
             // Only when it changes: views read it, and every write would redraw them.
@@ -308,6 +320,25 @@ final class SyncEngine {
             status = .offline(Self.describe(error))
             if let r = Self.reach(after: error), r != lastReach { lastReach = r }
             reportFailed(error, pulling: pulling)
+        }
+    }
+
+    /// The whiteboard library's part of a sync (LibrarySync): after the notes, and failing nothing
+    /// else. What didn't go up goes with the next sync.
+    private func syncLibrary(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
+        guard let library, let uid = backend.userID else { return }
+        if let until = libraryPausedUntil, until > .now { return }
+        do {
+            try await LibrarySync.sync(client, sealer: sealer, library: library, owner: uid) { try self.ensure(sealer, gen) }
+            libraryPausedUntil = nil
+        } catch {
+            if outlived(sealer, gen) { return }
+            if LibrarySync.missingTable(error) {
+                libraryPausedUntil = .now.addingTimeInterval(3600)
+                log.notice("the server has no whiteboard library yet; it stays on this device")
+                return
+            }
+            log.error("whiteboard library sync failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -367,6 +398,9 @@ final class SyncEngine {
         let files = ch.postgresChange(AnyAction.self, schema: "public", table: "attachments")
         // Note apps (prototype): an app or its data changed elsewhere (an AI's update_page_data).
         let pages = ch.postgresChange(AnyAction.self, schema: "public", table: "note_pages")
+        // The whiteboard library: another device added, renamed or removed an item. Pulled at once,
+        // so an open library (the Mac's popover, the iPhone's sheet) shows it as it happens.
+        let libraryChanges = library == nil ? [] : [ch.postgresChange(AnyAction.self, schema: "public", table: CanvasLibraryWire.table)]
         let joins = ch.statusChange
         try? await ch.subscribeWithError()
         channel = ch
@@ -375,7 +409,7 @@ final class SyncEngine {
         realtimeTasks.append(Task { [weak self] in
             for await action in notes { self?.realtimeDelivered(); await self?.received(action) }
         })
-        for stream in [folders, files, pages] {
+        for stream in [folders, files, pages] + libraryChanges {
             realtimeTasks.append(Task { [weak self] in
                 for await _ in stream { self?.realtimeDelivered(); self?.schedule(after: 0.25) }
             })
@@ -412,6 +446,13 @@ final class SyncEngine {
 
     /// Who wrote a note app's row, for its receipt: an AI's name (the MCP tools set pane.client), or
     /// nil for one of your devices (they send x-pane-device: iPhone, iPad or Mac).
+    /// The device a change came from, when it was one of yours ("iPhone", "iPad", "Mac"): an open
+    /// board names it on the change (round 14).
+    nonisolated static func device(_ client: String?) -> String? {
+        guard let c = client?.trimmingCharacters(in: .whitespaces), VersionAuthor.devices.contains(c) else { return nil }
+        return c
+    }
+
     nonisolated static func writer(_ client: String?) -> String? {
         guard let c = client?.trimmingCharacters(in: .whitespaces), !c.isEmpty else { return nil }
         if ["iPhone", "iPad", "Mac"].contains(c) || UUID(uuidString: c) != nil { return nil }
@@ -498,6 +539,7 @@ final class SyncEngine {
         guard startedFreshHere || (known != nil && known != keyID) else { return }
         DebouncedSave.flushAll()
         let n = Self.markAllForUpload(context)
+        library?.update(local: false) { $0.forgetServer() }
         forgetCursors()
         synced = [:]
         refused = [:]
@@ -857,6 +899,14 @@ final class SyncEngine {
     /// The shared notes whose pages show this one: only itself (a page is one note).
     func sharedRoots(of id: UUID) -> [UUID] {
         liveShares[id] != nil ? [id] : []
+    }
+
+    /// A shared whiteboard's drawing changed (pushed from here or pulled): its page is written
+    /// again, words and picture (BoardPicture), as a note's is after its text changes. Other apps'
+    /// data isn't on their pages.
+    private func republishBoards(_ ids: [UUID]) {
+        let boards = ids.filter { liveShares[$0] != nil && CanvasNote.isCanvas(NoteApps.page($0)?.html) }
+        if !boards.isEmpty { republishShares(for: boards) }
     }
 
     /// Typing pushes every 0.35 s; the pages are written 2 s after the last push that touched them.
@@ -1387,32 +1437,53 @@ final class SyncEngine {
     /// with this device's changes (NotePageData.merge), and the write only lands if nothing else
     /// wrote in between; otherwise it merges again on the next run. A backend without the column
     /// leaves the data here, unchanged.
-    private func pushPageData(_ client: SupabaseClient, sealer: Sealer) async {
-        struct Row: Decodable { var data_ct: String?; var server_updated_at: Date? }
+    private func pushPageData(_ client: SupabaseClient, sealer: Sealer, gen: Int) async {
+        struct Row: Decodable { var data_ct: String?; var server_updated_at: Date?; var client: String? }
         struct Upsert: Encodable { var note_id: UUID; var data_ct: String }
         let store = NotePageDataStore.shared
+        var pushed: [UUID] = []
+        defer { republishBoards(pushed) }
         for id in store.dirty {
+            // A shared board's drawing travels in its shared document (CollabBoard), not here.
+            if context.note(id)?.isShared == true { store.clean(id); continue }
             do {
-                let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at").eq("note_id", value: id).execute().value
-                let server = rows.first?.data_ct.flatMap { sealer.open($0, context: E2EE.pageData(id)) }.map { Data($0.utf8) }
+                let rows: [Row] = try await client.from("note_pages").select("data_ct,server_updated_at,client").eq("note_id", value: id).execute().value
+                // Opened, merged and sealed off the main thread: a board's drawing is megabytes.
+                let server = await Self.openPageData(rows.first?.data_ct, sealer, id)
                 if rows.first?.data_ct != nil, server == nil { continue }   // sealed with another key: leave it
-                store.take(id, server: server)
-                guard store.dirty.contains(id), let doc = store.docs[id], let json = String(data: doc, encoding: .utf8),
-                      let box = sealer.seal(json, context: E2EE.pageData(id)) else { continue }
+                // Merged in before this device's own goes up: another device's change is marked as
+                // it would be when pulled (round 14, 38-sync-2).
+                let taking = await store.prepareTake(id, server: server)
+                if outlived(sealer, gen) { return }
+                store.take(taking, device: Self.device(rows.first?.client))
+                guard store.dirty.contains(id), let doc = store.docs[id], let box = await Self.sealPageData(doc, sealer, id) else { continue }
+                if outlived(sealer, gen) { return }
                 if let stamp = rows.first?.server_updated_at {
                     let unchanged = Self.stampWindow(stamp)
                     let done: [Row] = try await client.from("note_pages").update(["data_ct": box]).eq("note_id", value: id)
                         .gt("server_updated_at", value: unchanged.after).lt("server_updated_at", value: unchanged.before)
                         .select("data_ct,server_updated_at").execute().value
-                    if !done.isEmpty { store.pushed(id, doc) }
+                    if !done.isEmpty { store.pushed(id, doc); pushed.append(id) }
                 } else {
                     try await client.from("note_pages").upsert(Upsert(note_id: id, data_ct: box), onConflict: "note_id").execute()
                     store.pushed(id, doc)
+                    pushed.append(id)
                 }
             } catch {
                 log.error("page data push failed: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    /// An app's data as the server keeps it, opened off the main thread (nil for none, or another key's).
+    nonisolated static func openPageData(_ box: String?, _ sealer: Sealer, _ id: UUID) async -> Data? {
+        guard let box else { return nil }
+        return await Task.detached(priority: .utility) { sealer.open(box, context: E2EE.pageData(id)).map { Data($0.utf8) } }.value
+    }
+
+    /// An app's data sealed for the server, off the main thread.
+    nonisolated static func sealPageData(_ doc: Data, _ sealer: Sealer, _ id: UUID) async -> String? {
+        await Task.detached(priority: .utility) { String(data: doc, encoding: .utf8).flatMap { sealer.seal($0, context: E2EE.pageData(id)) } }.value
     }
 
     /// The names of the API keys set up here (never their values), so an AI can say which key an
@@ -1579,6 +1650,8 @@ final class SyncEngine {
         // notes' cursor passed while a request for them failed is read again next time.
         let pagesFrom = pagesCursor == .distantPast ? pagesCursor : pagesCursor.addingTimeInterval(-5)
         var newestPage = pagesCursor
+        // Boards whose drawing came down changed (an AI drew, another device): republished below.
+        var redrawn: [UUID] = []
         do {
             try await Self.changedRows(client, "note_pages", since: pagesFrom.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)), size: 1000,
                                        columns: "note_id,page_ct,data_ct,client,updated_at,server_updated_at,draft_problems", key: "note_id") { (pages: [NotePageDTO]) in
@@ -1586,11 +1659,19 @@ final class SyncEngine {
             for r in pages {
                 NotePageStore.shared.take(r)
                 NotePageStore.shared.setDraft(r.note_id, problems: r.draft_problems, by: Self.writer(r.client))
-                if let box = r.data_ct, let json = Wire.sealer?.open(box, context: E2EE.pageData(r.note_id)) {
-                    NotePageDataStore.shared.take(r.note_id, server: Data(json.utf8), by: Self.writer(r.client))
+                let before = NotePageDataStore.shared.peek(r.note_id)
+                // A shared board's drawing comes from its shared document (CollabBoard): what this
+                // row held from before it was shared isn't taken over it.
+                if self.context.note(r.note_id)?.isShared == true {
+                } else if let box = r.data_ct, let open = Wire.sealer, let server = await Self.openPageData(box, open, r.note_id) {
+                    // Opened and merged off the main thread (NotePageDataStore.prepareTake).
+                    let taking = await NotePageDataStore.shared.prepareTake(r.note_id, server: server)
+                    try ensure(sealer, gen)
+                    NotePageDataStore.shared.take(taking, by: Self.writer(r.client), device: Self.device(r.client))
                 } else if r.data_ct == nil {
                     NotePageDataStore.shared.take(r.note_id, server: nil, by: Self.writer(r.client))
                 }
+                if NotePageDataStore.shared.peek(r.note_id) != before { redrawn.append(r.note_id) }
                 if let s = r.server_updated_at, s > newestPage { newestPage = s }
             }
             }
@@ -1606,6 +1687,7 @@ final class SyncEngine {
         // elsewhere, an AI's edit included, is published to every live page it's on, as a local
         // edit would be. After the refresh, so a share seen for the first time counts.
         republishShares(for: pulledNotes)
+        republishBoards(redrawn)
     }
 
     struct MissingStamp: Error {}

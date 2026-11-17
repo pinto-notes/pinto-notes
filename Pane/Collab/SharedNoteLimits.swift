@@ -5,6 +5,10 @@ import Foundation
 /// be locked, show Version History, or be a public web page (that would publish everyone's text).
 /// The app doesn't offer any of them for a shared note, and a note with files or an app isn't
 /// shared with people.
+///
+/// A whiteboard is the one app that can be shared (CollabBoard, 14 November 2026): its drawing
+/// goes in the shared document, and its pictures beside it, each sealed under the note key
+/// (CollabBoard.Pictures, 16 November 2026), so a board with pictures is shared with them.
 enum SharedNoteLimits {
     /// Whether files and photos can go into the note.
     static func allowsFiles(_ note: Note) -> Bool { !note.isLocked && !note.isShared }
@@ -14,8 +18,9 @@ enum SharedNoteLimits {
 
     /// Why this note can't be shared with people yet, or nil when it can. A note that is shared
     /// already, or whose link was on, is past the question.
-    static func notYet(text: String, hasApp: Bool, alreadyShared: Bool) -> String? {
+    static func notYet(text: String, hasApp: Bool, board: Bool = false, alreadyShared: Bool) -> String? {
         guard !alreadyShared else { return nil }
+        if board { return nil }
         if hasApp { return appLine }
         if hasFiles(text) { return filesLine }
         return nil

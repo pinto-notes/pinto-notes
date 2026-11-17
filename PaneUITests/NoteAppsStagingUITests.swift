@@ -397,21 +397,22 @@ final class NoteAppsStagingUITests: XCTestCase {
         let compose = app.buttons["list.newNote"].firstMatch
         XCTAssertTrue(compose.waitForExistence(timeout: 15))
         let before = (try mcp("list_notes", [:])["notes"] as? [Any])?.count ?? -1
-        compose.press(forDuration: 1.0)
-        XCTAssertTrue(app.buttons["compose.newApp"].firstMatch.waitForExistence(timeout: 5), "holding compose offers New App")
-        shot("14-new-app-menu")
-        app.buttons["compose.newApp"].firstMatch.tap()
-        let heading = app.staticTexts["New App"].firstMatch
+        let newApp = app.buttons["list.newApp"].firstMatch
+        XCTAssertTrue(newApp.waitForExistence(timeout: 5), "New App is a button of its own")
+        shot("14-new-app-button")
+        newApp.tap()
+        let heading = app.staticTexts["New app"].firstMatch
         XCTAssertTrue(heading.waitForExistence(timeout: 5))
         // Closed without handing anything over: no note on the server either.
         app.buttons["makeApp.close"].firstMatch.tap()
         XCTAssertTrue(heading.waitForNonExistence(timeout: 4))
         pause(3)
         XCTAssertEqual((try mcp("list_notes", [:])["notes"] as? [Any])?.count ?? -2, before, "closing New App made no note")
-        compose.press(forDuration: 1.0)
-        app.buttons["compose.newApp"].firstMatch.tap()
+        newApp.tap()
         XCTAssertTrue(heading.waitForExistence(timeout: 5))
-        app.buttons["newApp.example.Habit tracker"].firstMatch.tap()
+        let idea = app.textViews["newApp.idea"].firstMatch.exists ? app.textViews["newApp.idea"].firstMatch : app.textFields["newApp.idea"].firstMatch
+        idea.tap()
+        idea.typeText("a habit tracker with today's habits to tick")
         shot("15-new-app-question")
         let copy = app.buttons["makeApp.copy"].firstMatch
         XCTAssertTrue(copy.waitForExistence(timeout: 8), "the token's AI gets the words to copy")

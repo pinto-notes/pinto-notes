@@ -7,7 +7,8 @@ import Foundation
 /// Every account has an identity key pair (P-256). A shared note has a note key (NK) per epoch,
 /// sealed to each member's identity key by whoever made or passed it on (`amb3k`), and once
 /// accepted, under the member's own data key. Changes, snapshots, presence and the note's head are
-/// sealed with NK (`amb3u`, `amb3s`, `amb3p`, `amb3h`).
+/// sealed with NK (`amb3u`, `amb3s`, `amb3p`, `amb3h`), and so is each picture on a shared
+/// whiteboard (`amb3f`, CollabBoard.Pictures).
 enum CollabCrypto {
     enum Failure: Error, Equatable { case malformed, wrongKey }
 
@@ -90,13 +91,15 @@ enum CollabCrypto {
 
     // MARK: Boxes under the note key
 
-    enum Kind: String, Sendable { case update = "u", snapshot = "s", presence = "p", head = "h" }
+    enum Kind: String, Sendable { case update = "u", snapshot = "s", presence = "p", head = "h", file = "f", comment = "c" }
 
+    /// A picture's file id is the board's own (Excalidraw's fileId, which can mix cases): kept as it is.
     private static func aad(_ kind: Kind, note: UUID, epoch: Int, extra: String?) -> Data {
-        Data("amb3\(kind.rawValue)|\(note.uuidString.lowercased())|\(epoch)\(extra.map { "|" + $0.lowercased() } ?? "")".utf8)
+        Data("amb3\(kind.rawValue)|\(note.uuidString.lowercased())|\(epoch)\(extra.map { "|" + (kind == .file ? $0 : $0.lowercased()) } ?? "")".utf8)
     }
 
-    /// `extra`: the author's id for an update, `upto` for a snapshot, the user's id for presence, nil for the head.
+    /// `extra`: the author's id for an update, `upto` for a snapshot, the user's id for presence,
+    /// nil for the head, the file id for a picture.
     static func seal(_ kind: Kind, _ data: Data, nk: SymmetricKey, note: UUID, epoch: Int, extra: String? = nil) throws -> String {
         let box = try AES.GCM.seal(data, using: nk, authenticating: aad(kind, note: note, epoch: epoch, extra: extra))
         guard let combined = box.combined else { throw Failure.malformed }

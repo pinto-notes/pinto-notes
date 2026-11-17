@@ -189,6 +189,7 @@ enum NoteExport {
             switch r {
             case "owner": "owner"
             case "editor": "can edit"
+            case "commenter": "can comment"
             case "viewer": "can view"
             default: r
             }

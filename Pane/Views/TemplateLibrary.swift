@@ -310,6 +310,9 @@ enum TemplateLibraryWords {
     }
     /// Under Make's line with no AI connected: the way to get one (any of the four the dialog offers).
     static let connect = "Connect your AI to have it filled in for you."
+    /// The whiteboard templates' shelf on the front page, after the notes', and the line under it.
+    static let boards = "Whiteboards"
+    static let boardsLine = "Boards laid out for the job, ready for your notes and shapes."
 }
 
 /// Making a template from the library: your AIs to offer, and what Make does.
@@ -428,6 +431,10 @@ struct TemplateLibraryView: View {
     /// did nothing with it: Connect stayed up; a real key on the Air, 10 November 2026).
     var uncover: () -> Void = {}
     var close: () -> Void = {}
+    /// The whiteboard templates: a shelf after the notes' on the front page, and found by Search.
+    /// A click makes a new board from one (round 12: FigJam's templates in the gallery too).
+    var boards: [WhiteboardTemplate] = []
+    var makeBoard: (WhiteboardTemplate) -> Void = { _ in }
     /// What's typed in Search.
     @State var query = ""
     /// The cover the arrow keys are on; nil until one is pressed (nothing is picked at rest).
@@ -655,6 +662,14 @@ struct TemplateLibraryView: View {
         shown.contains(open) ? shown : all
     }
 
+    /// The whiteboard templates Search finds: those whose name or line has what's typed, or all of
+    /// them for "board" and "whiteboard".
+    static func boards(_ all: [WhiteboardTemplate], query: String) -> [WhiteboardTemplate] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        if q.isEmpty || "whiteboard".localizedStandardContains(q) && q.count >= 3 { return all }
+        return all.filter { $0.title.localizedStandardContains(q) || $0.line.localizedStandardContains(q) }
+    }
+
     /// Where an arrow key moves the ring on the front page: one card along its order for any
     /// arrow; nowhere for left and right while they'd move the cursor in what's typed in Search.
     static func arrow(_ order: [TemplateCatalog.Entry], from at: TemplateCatalog.Entry?, by: Int, sideways: Bool, query: String) -> TemplateCatalog.Entry? {
@@ -836,7 +851,8 @@ struct TemplateLibraryView: View {
                               focused = nil
                               show(e)
                           },
-                          point: { point($0, $1) }, submit: { _ = openFromKeys() })
+                          point: { point($0, $1) }, submit: { _ = openFromKeys() },
+                          boards: boards, makeBoard: makeBoard)
     }
 
     // MARK: A template's page
@@ -1496,6 +1512,55 @@ final class MenuAction: NSObject {
     let run: () -> Void
     init(_ run: @escaping () -> Void) { self.run = run }
     @objc func fire() { run() }
+}
+
+/// A whiteboard template's card in the gallery: its drawing small on a paper ground, as the empty
+/// board's tile draws it, and under it its name and what it's for, as the notes' cards have.
+struct BoardTemplateCard: View {
+    let template: WhiteboardTemplate
+    var width: CGFloat = SetupTemplateCard.size.width
+    var art: CGFloat = SetupTemplateCard.artHeight(SetupTemplateCard.size.width)
+    let action: () -> Void
+    @State private var hover = false
+    @Environment(\.colorScheme) private var scheme
+
+    /// The paper the drawing sits on: the board's own white, warmed a touch; a deep grey in the dark.
+    static func paper(dark: Bool) -> Color { dark ? Color(white: 0.12) : Color(rgb: 0xF7F5F0) }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let dark = scheme == .dark
+        return Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Self.paper(dark: dark)
+                    .frame(width: width, height: art)
+                    .overlay { CanvasTemplatePreview(template: template).padding(.horizontal, (width * 0.12).rounded()).padding(.vertical, (art * 0.14).rounded()) }
+                    .clipShape(shape)
+                    .brightness(SetupTemplateCard.quietBrightness(dark: dark, hover: hover))
+                    .overlay(shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+                    .overlay(shape.strokeBorder((dark ? Color.white : Color.black).opacity(SetupTemplateCard.quietRing(dark: dark, hover: hover)), lineWidth: 1.5))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.title).font(.system(size: SetupTemplateCard.nameSize, weight: .semibold)).foregroundStyle(Color.ink)
+                        .lineLimit(1)
+                        .frame(height: 18, alignment: .bottomLeading)
+                    Text(template.line).font(.system(size: SetupTemplateCard.lineSize)).foregroundStyle(Color.muted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(SetupTemplateCard.nameShrink)
+                        .truncationMode(.tail)
+                        .frame(height: 17, alignment: .leading)
+                }
+                .frame(width: SetupTemplateCard.wordsWidth(width), alignment: .leading)
+                .padding(.horizontal, 2)
+            }
+            .frame(width: width, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(CardPress())
+        .onHover { h in withAnimation(.smooth(duration: 0.15)) { hover = h } }
+        .help("New whiteboard from \(template.inSentence)")
+        .accessibilityLabel("\(template.title). Whiteboard. \(template.line)")
+        .accessibilityIdentifier("templates.board.\(template.rawValue)")
+    }
 }
 
 /// A template's files, read once: each pass of the library used to read the app's project and

@@ -153,6 +153,8 @@ struct PresenceAvatars: View {
         var canEdit = true
         /// Not heard from for a while (CollabSession.Peer.isStale).
         var stale = false
+        /// Their colour in the note (CollabSession.color(of:)); the one their id picks without it.
+        var color: Color? = nil
     }
     let people: [Person]
     var size: CGFloat = 28
@@ -179,7 +181,7 @@ struct PresenceAvatars: View {
         return HStack(spacing: 0) {
             ForEach(Array(shown.enumerated()), id: \.element.id) { i, p in
                 let badge = option.badge(typing: p.typing, canEdit: p.canEdit)
-                PersonAvatar(name: p.name, color: CollabSession.color(for: p.id), size: size, photo: p.photo,
+                PersonAvatar(name: p.name, color: p.color ?? CollabSession.color(for: p.id), size: size, photo: p.photo,
                              badge: badge, stale: p.stale, roomForBadge: true, badgeOnly: badges, pencilStyle: pencilStyle)
                     // The next avatar overlaps this one gently, or, when this one has a badge, starts
                     // where the badge ends, so a badge never sits on the next person.
@@ -222,9 +224,11 @@ extension Color {
 }
 
 /// The avatars of everyone else who has the note open. Tapping opens Share (the people are
-/// listed there). With nobody else here it's the plain "people" button.
+/// listed there). With nobody else here it's the plain "people" button. On a shared whiteboard
+/// (`board`) it's a menu: Follow each person here (their view, as FigJam's observe), then People.
 struct PresenceStack: View {
     let session: CollabSession
+    var board: CanvasController? = nil
     var action: () -> Void
 
     private var here: [CollabSession.Peer] { session.peers.values.sorted { $0.name < $1.name } }
@@ -246,12 +250,36 @@ struct PresenceStack: View {
         here || othersJoined || viewOnly || syncWords
     }
 
+    /// The most room it takes in a toolbar: three faces and "+2", with "View Only" for a viewer
+    /// (a whiteboard's toolbar keeps this much for it).
+    static func barWidth(viewOnly: Bool) -> CGFloat { 130 + (viewOnly ? 66 : 0) }
+
     var body: some View {
-        Button(action: action) {
+        if let board, board.shared, !here.isEmpty {
+            Menu {
+                CanvasFollowItems(canvas: board)
+                Divider()
+                Button("People\u{2026}", systemImage: "person.2", action: action)
+                    .accessibilityIdentifier("collab.people.share")
+            } label: { label }
+            .menuIndicator(.hidden)
+            .buttonStyle(.quietIcon)
+            .accessibilityLabel(accessibilityText)
+            .accessibilityIdentifier("collab.people")
+        } else {
+            Button(action: action) { label }
+                .buttonStyle(.quietIcon)
+                .accessibilityLabel(accessibilityText)
+                .accessibilityIdentifier("collab.people")
+        }
+    }
+
+    private var label: some View {
             HStack(spacing: 6) {
                 // Can view: said once, beside the people, so a tap that types nothing isn't a mystery.
+                // Can comment: what you can do instead.
                 if session.isViewOnly {
-                    Text("View Only")
+                    Text(session.isCommenter ? "Comment Only" : "View Only")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("collab.viewOnly")
@@ -263,10 +291,6 @@ struct PresenceStack: View {
                 #endif
                 avatars
             }
-        }
-        .buttonStyle(.quietIcon)
-        .accessibilityLabel(accessibilityText)
-        .accessibilityIdentifier("collab.people")
     }
 
     @ViewBuilder private var avatars: some View {
@@ -278,7 +302,8 @@ struct PresenceStack: View {
                 TimelineView(.periodic(from: .now, by: 0.5)) { t in
                     PresenceAvatars(people: here.map { p in
                         .init(id: p.id, name: p.name, photo: CollabStore.shared?.photos[p.id], typing: p.isTyping,
-                              canEdit: session.members.first { $0.id == p.id }?.role != "viewer", stale: p.isStale(at: t.date))
+                              canEdit: ["owner", "editor"].contains(session.members.first { $0.id == p.id }?.role ?? "editor"), stale: p.isStale(at: t.date),
+                              color: session.color(of: p.id))
                     }, option: Self.badges)
                 }
                 .padding(.horizontal, 2)
@@ -288,7 +313,7 @@ struct PresenceStack: View {
     static let badges = BadgeOption.current
 
     private var accessibilityText: String {
-        let viewOnly = session.isViewOnly ? "View only. " : ""
+        let viewOnly = session.isCommenter ? "Comment only. " : session.isViewOnly ? "View only. " : ""
         let sync = SharedSyncLine.at(.now, session: session).map { "\($0.text). " } ?? ""
         guard !here.isEmpty else { return viewOnly + sync + "People" }
         return viewOnly + sync + "In this note: " + here.map { $0.isStale() ? "\($0.name) (not connected)" : $0.name }.joined(separator: ", ")

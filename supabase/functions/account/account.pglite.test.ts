@@ -8,6 +8,7 @@ import { strFromU8, unzipSync } from "npm:fflate@0.8.3";
 import { asUser, newUser, schemaDB, sqlFor } from "../mcp/pglite.ts";
 import { collect, zip } from "./export.ts";
 import * as sealed from "../mcp/sealed.ts";
+import { aesKey, seal } from "../_shared/e2ee.ts";
 import { forget } from "./forget.ts";
 import { deletePausedUntil } from "./pause.ts";
 
@@ -26,10 +27,13 @@ const NOT_PER_ACCOUNT: Record<string, string> = {
   oauth_tokens: "cascades from mcp_tokens",
   note_share_pages: "a shared page's copy; cascades from note_shares and notes",
   note_share_files: "a shared page's file copy; cascades from note_shares",
+  note_share_pictures: "a shared whiteboard's picture; cascades from note_shares",
+  note_share_scenes: "a shared whiteboard's .excalidraw file; cascades from note_shares",
   site_downloads: "aggregate daily download totals, no account or personal data",
   email_clicks: "a click on an onboarding email; cascades from email_sends",
   note_updates: "a shared note's changes belong to the note; they cascade from shared_notes, not their author (20261107152300)",
   note_snapshots: "a shared note's snapshots belong to the note; they cascade from shared_notes, not their author (20261107152300)",
+  note_files: "a shared whiteboard's pictures belong to the note; they cascade from shared_notes, not their author (20261116150000)",
 };
 
 /** An account with a row in every table an account can have rows in. */
@@ -66,6 +70,12 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.api_key_names (id, user_id, meta_ct) values ($1, $2, $3)`,
     [keyName, me, await a.vault.sealAPIKeyMeta(keyName, JSON.stringify({ name: "Weather", hosts: ["api.example.com"] }))]);
   await sealed.app(pg, me, `insert into public.profiles (user_id, display_name) values ($1, 'Sara Lind')`, [me]);
+  // The whiteboard library: an item kept and one removed (20261117120000_whiteboard_library.sql).
+  const shape = crypto.randomUUID(), gone = crypto.randomUUID(), key = await aesKey(a.dk.slice());
+  await sealed.app(pg, me, `insert into public.whiteboard_library (id, head_ct, body_ct) values ($1, $2, $3)`, [shape,
+    await seal(JSON.stringify({ name: "Server rack", source: "Data flow", place: 1, edited: 1 }), key, a.keyId, `library-head:${shape}`),
+    await seal(JSON.stringify({ elements: [{ type: "rectangle", id: "r", x: 0, y: 0, width: 80, height: 40 }], created: 1 }), key, a.keyId, `library:${shape}`)]);
+  await sealed.app(pg, me, `insert into public.whiteboard_library (id, deleted_at) values ($1, now())`, [gone]);
   const tokenHash = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
   await pg.query(`insert into public.mcp_tokens (user_id, name, token_hash, can_write) values ($1, 'Claude', $2, true)`, [me, tokenHash]);
   const [{ id: grant }] = (await pg.query<{ id: string }>(`select id from public.mcp_tokens where user_id = $1`, [me])).rows;
@@ -206,6 +216,8 @@ Deno.test("the export has everything the server can read, no note text or names,
   assertEquals([data.apps.apps.length, data.apps.versions.length, data.apps.load_failures.length, data.apps.api_keys.length], [1, 1, 1, 1], "the note's app, without its project");
   assertEquals(data.apps.apps[0].has_draft, true);
   assertEquals(data.files.length, 1);
+  assertEquals([data.whiteboard_library.length, data.whiteboard_library.filter((i: { removed_at: string | null }) => i.removed_at).length], [2, 1],
+    "the library's items by id and dates, without their names or shapes");
   assertEquals(data.ai_connections[0].name, "Claude");
   assertEquals(data.share_links[0].slug, as.slug);
   assertEquals(data.share_links[0].title, "Acme kickoff", "a shared page's published copy is readable, so it's included");
@@ -222,7 +234,7 @@ Deno.test("the export has everything the server can read, no note text or names,
   assert(data.notes.find((n: { id: string }) => n.id === as.locked).locked, "locked notes are marked");
 
   const all = JSON.stringify(files);
-  for (const secret of ["Clients/2026", "plan.pdf", "Old list", "Bank", "amb2.", "amb2k."]) assertEquals(all.includes(secret), false, `no ${secret}`);
+  for (const secret of ["Clients/2026", "plan.pdf", "Old list", "Bank", "Server rack", "amb2.", "amb2k."]) assertEquals(all.includes(secret), false, `no ${secret}`);
   assertEquals(all.includes(as.tokenHash), false, "no token hash");
   assertEquals(all.includes("storage_path"), false, "no internal storage paths");
   assertEquals(all.includes("spam"), false, "no reports by other people");

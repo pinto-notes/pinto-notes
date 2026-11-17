@@ -15,6 +15,8 @@ final class FakeCollabServer {
 
     private(set) var updates: [Collab.Update] = []
     private(set) var snapshots: [Collab.Snapshot] = []
+    /// Shared whiteboards' comment streams (note_comments), in order of id.
+    private(set) var comments: [Collab.CommentRow] = []
     private var nextID: Int64 = 1
     var epochs: [UUID: Int] = [:]
     var members: [UUID: [UUID: Member]] = [:]
@@ -71,6 +73,19 @@ final class FakeCollabServer {
         return row
     }
 
+    /// An entry of a board's comment stream, as the guard takes it: from someone who may comment,
+    /// under the note's key, stamped with them and their role.
+    func insertComment(note: UUID, author: UUID, epoch: Int, ct: String) throws -> Collab.CommentRow {
+        guard let role = role(note, author) else { throw Collab.Failure.notMember }
+        guard role != "viewer" else { throw Collab.Failure.readOnly }
+        guard epoch == epochs[note] else { throw Collab.Failure.staleEpoch }
+        let row = Collab.CommentRow(id: nextID, note_id: note, author_id: author, role: role, epoch: epoch, ct: ct, client: aiWriting[author])
+        nextID += 1
+        comments.append(row)
+        for c in channels where c.note == note && c.open { c.deliver(.comment(row)) }
+        return row
+    }
+
     func insertSnapshot(note: UUID, author: UUID, upto: Int64, epoch: Int, ct: String) throws {
         guard let role = role(note, author) else { throw Collab.Failure.notMember }
         guard role != "viewer" else { throw Collab.Failure.readOnly }
@@ -115,6 +130,28 @@ final class FakeCollabServer {
         guard let e = TextDiff.edit(from: old, to: edit(old)) else { throw CollabCrypto.Failure.malformed }
         let heads = doc.heads()
         try doc.spliceText(obj: body, start: UInt64(e.range.location), delete: Int64(e.range.length), value: e.replacement.isEmpty ? nil : e.replacement)
+        let change = try doc.encodeChangesSince(heads: heads)
+        aiWriting[user] = ai
+        defer { aiWriting[user] = nil }
+        return try insertUpdate(note: note, author: user, epoch: epoch, ct: try CollabCrypto.seal(.update, change, nk: nk, note: note, epoch: epoch, extra: user.uuidString))
+    }
+
+    /// Someone's AI drawing on a shared whiteboard through the MCP server: the elements it wrote
+    /// (as data.json's), put into the document's `board` map as one change, as theirs, the AI named.
+    @discardableResult
+    func aiDraws(_ note: UUID, as user: UUID, ai: String, nk: SymmetricKey, _ elements: [[String: Any]]) throws -> Collab.Update {
+        let epoch = epochs[note] ?? 1
+        let doc = Document(textEncoding: .utf16)
+        let snapshot = snapshots(of: note).filter { $0.epoch == epoch }.max { $0.upto < $1.upto }
+        if let s = snapshot {
+            try CollabText.absorb(try CollabCrypto.open(.snapshot, s.ct, nk: nk, note: note, extra: String(s.upto)), into: doc)
+        }
+        for u in updates(of: note) where u.id > (snapshot?.upto ?? 0) && !inFlight.contains(u.id) {
+            try CollabText.absorb(try CollabCrypto.open(.update, u.ct, nk: nk, note: note, extra: u.author_id.uuidString), into: doc)
+        }
+        guard let board = CollabBoard.board(in: doc) else { throw CollabCrypto.Failure.malformed }
+        let heads = doc.heads()
+        for e in elements { try doc.put(obj: board, key: e["id"] as! String, value: .String(CollabBoard.encode(e)!)) }
         let change = try doc.encodeChangesSince(heads: heads)
         aiWriting[user] = ai
         defer { aiWriting[user] = nil }
@@ -253,11 +290,25 @@ final class FakeCollabTransport: CollabTransport {
         return try server.insertUpdate(note: note, author: me, epoch: epoch, ct: ct)
     }
 
+    func comments(note: UUID, after: Int64) async throws -> [Collab.CommentRow] {
+        try call("comments")
+        guard server.role(note, me) != nil else { return [] }
+        return server.comments.filter { $0.note_id == note && $0.id > after }
+    }
+
+    func send(comment ct: String, note: UUID, epoch: Int) async throws -> Collab.CommentRow {
+        try call("send comment")
+        return try server.insertComment(note: note, author: me, epoch: epoch, ct: ct)
+    }
+
     func send(snapshot ct: String, note: UUID, upto: Int64, epoch: Int) async throws {
         try call("send snapshot")
         try server.insertSnapshot(note: note, author: me, upto: upto, epoch: epoch, ct: ct)
     }
 
+    func putFile(note: UUID, id: String, epoch: Int, ct: String) async throws { try call("putFile") }
+    func file(note: UUID, id: String) async throws -> Collab.File? { try call("file"); return nil }
+    func files(of note: UUID) async throws -> [Collab.FileRow] { try call("files"); return [] }
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel {
         try call("join")
         guard server.role(note, me) != nil else { throw Collab.Failure.notMember }

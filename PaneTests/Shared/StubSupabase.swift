@@ -50,6 +50,22 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
         set { lock.withLock { _tooFast = newValue } }
     }
 
+    nonisolated(unsafe) private static var _missingTables: Set<String> = []
+    /// Tables this server doesn't have yet (an app newer than its server): asked for, PostgREST's
+    /// "not in the schema cache" (PGRST205).
+    static var missingTables: Set<String> {
+        get { lock.withLock { _missingTables } }
+        set { lock.withLock { _missingTables = newValue } }
+    }
+
+    nonisolated(unsafe) private static var _libraryRoom: Int?
+    /// The whiteboard library's room, in characters of boxes (pane_library_room): a write that
+    /// would take more is refused (PT413, library_full). Nil: no limit.
+    static var libraryRoom: Int? {
+        get { lock.withLock { _libraryRoom } }
+        set { lock.withLock { _libraryRoom = newValue } }
+    }
+
     nonisolated(unsafe) private static var _account: String?
 
     /// Row-level security, for tests that switch accounts: the account making the requests sees and
@@ -103,6 +119,7 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
         lock.withLock {
             _onRequest = nil
             tables = [:]; _requests = []; _requestTimes = []; _bodies = []; _objects = [:]; _rpcCalls = []; _rpcAnswers = [:]; _tooFast = false
+            _missingTables = []; _libraryRoom = nil
             _sessionLifetime = 3600; _refusesRefresh = false; _endedSessions = 0; _failing = []; _account = nil
         }
     }
@@ -264,6 +281,9 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             return (200, (try? JSONSerialization.data(withJSONObject: value, options: .fragmentsAllowed)) ?? Data("null".utf8))
         }
         let query = comps.queryItems ?? []
+        if missingTables.contains(name) {
+            return (404, Data(#"{"code":"PGRST205","message":"Could not find the table 'public.\#(name)' in the schema cache"}"#.utf8))
+        }
         if method != "GET", tooFast {
             return (429, Data(#"{"code":"PT429","message":"Too many changes too quickly."}"#.utf8))
         }
@@ -289,22 +309,41 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             case "POST":
                 let prefer = request.value(forHTTPHeaderField: "Prefer") ?? ""
                 let incoming = decodeRows(body)
+                if name == "whiteboard_library", let room = _libraryRoom {
+                    func size(_ r: [String: Any]) -> Int { ((r["head_ct"] as? String)?.count ?? 0) + ((r["body_ct"] as? String)?.count ?? 0) }
+                    let ids = Set(incoming.compactMap { ($0["id"] as? String)?.lowercased() })
+                    let kept = list.filter { !ids.contains(($0["id"] as? String)?.lowercased() ?? "") }.map(size).reduce(0, +)
+                    if kept + incoming.map(size).reduce(0, +) > room {
+                        return (413, Data(#"{"code":"PT413","message":"Your whiteboard library is full.","hint":"library_full"}"#.utf8))
+                    }
+                }
+                // A row that's there already is found by the upsert's on_conflict column (its id when
+                // not given), as PostgREST finds it. Found by id alone, a board's row (note_pages has
+                // none) was taken over by any other note's upsert: the first row without one.
+                let conflict = query.first { $0.name == "on_conflict" }?.value ?? "id"
+                let key = { (r: [String: Any]) in (r[conflict] as? String)?.lowercased() }
                 var out: [[String: Any]] = []
                 for var r in incoming {
                     r["id"] = (r["id"] as? String)?.lowercased()
-                    if let i = list.firstIndex(where: { $0["id"] as? String == r["id"] as? String }) {
+                    if let k = key(r), let i = list.firstIndex(where: { key($0) == k }) {
                         if !mine(list[i]) {
                             return (403, Data(#"{"code":"42501","message":"new row violates row-level security policy"}"#.utf8))
                         }
                         if prefer.contains("ignore-duplicates") { continue }
                         var merged = list[i]
                         for (k, v) in r { merged[k] = v }
+                        settle(name, old: list[i], &merged)
                         bump(&merged)
                         list[i] = merged
                         out.append(merged)
                     } else {
                         r["version"] = 0
                         if let owner = _account { r["_owner"] = owner }
+                        // As the table's defaults fill them (note_pages: created_at, updated_at now()).
+                        if name == "note_pages" {
+                            for k in ["created_at", "updated_at"] where r[k] == nil || r[k] is NSNull { r[k] = stamp(.now) }
+                        }
+                        settle(name, old: nil, &r)
                         bump(&r)
                         list.append(r)
                         out.append(r)
@@ -316,7 +355,9 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
                 let patch = decodeRows(body).first ?? [:]
                 var out: [[String: Any]] = []
                 for i in list.indices where matches(list[i]) {
+                    let before = list[i]
                     for (k, v) in patch { list[i][k] = v }
+                    settle(name, old: before, &list[i])
                     bump(&list[i])
                     out.append(list[i])
                 }
@@ -420,6 +461,24 @@ final class StubSupabase: URLProtocol, @unchecked Sendable {
             return content
         }
         return nil
+    }
+
+    /// What a table's own triggers do to a row as it's written. The whiteboard library
+    /// (20261117120000_whiteboard_library.sql): removed stays removed, with nothing of it kept, and
+    /// an item's shapes stay the ones it went up with.
+    private static func settle(_ table: String, old: [String: Any]?, _ r: inout [String: Any]) {
+        guard table == "whiteboard_library" else { return }
+        func set(_ v: Any?) -> Bool { v != nil && !(v is NSNull) }
+        if let old, set(old["deleted_at"]) {
+            r["deleted_at"] = old["deleted_at"]
+            r["head_ct"] = NSNull()
+            r["body_ct"] = NSNull()
+        } else if set(r["deleted_at"]) {
+            r["head_ct"] = NSNull()
+            r["body_ct"] = NSNull()
+        } else if let old {
+            r["body_ct"] = old["body_ct"]
+        }
     }
 
     private static func bump(_ r: inout [String: Any]) {

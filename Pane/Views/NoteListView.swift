@@ -7,6 +7,9 @@ struct NoteListView: View {
     @Environment(\.modelContext) private var context
     #if os(macOS)
     @Environment(\.listSidebarHidden) private var listSidebarHidden
+    @Environment(\.columnsToolbarHidden) private var columnsToolbarHidden
+    /// Two columns (ColumnsLayout): the title is a menu that switches folders.
+    @Environment(\.pickScope) private var pickScope
     #endif
     let scope: Scope
     /// Several notes can be selected (⌘-click, ⇧-click, ⌘A on the Mac; on iPhone, Select Notes in the ••• menu, Edit in Recently Deleted, or a two-finger swipe).
@@ -211,6 +214,11 @@ struct NoteListView: View {
     /// note's text, and reading it a note at a time cost a query per note.
     static func found(_ query: String, in base: [NoteEntry], listedBy order: ListOrder, context: ModelContext) -> [NoteEntry] {
         var matching = Set((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { $0.body.localizedStandardContains(query) }))) ?? [])
+        // The words on whiteboards, which live in their drawings, not their text.
+        let boards = CanvasSketch.notes(holding: query)
+        if !boards.isEmpty {
+            matching.formUnion((try? context.fetchIdentifiers(FetchDescriptor<Note>(predicate: #Predicate { boards.contains($0.id) }))) ?? [])
+        }
         if !base.contains(where: { matching.contains($0.pid) }) { matching = closeMatches(query, context: context) }
         let found = base.filter { matching.contains($0.pid) }
         return order.sortsLike(.standard) ? found : found.sorted { $0.date > $1.date }
@@ -745,24 +753,38 @@ struct NoteListView: View {
         } else {
             // Search and New Note, as on the folders screen (SearchComposeBar). Recently Deleted
             // holds no new notes: the note it made went elsewhere.
-            SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, tip: true, search: $search)
+            SearchComposeBar(newNote: onNewNote, hidesCompose: scope == .trash, search: $search)
+            // Today's note at the top left, where the create study put it (B-iphone-bar); the
+            // bottom bar's right is the three create buttons now.
+            ToolbarItem(placement: .topBarLeading) {
+                TodayButton().tint(.primary)
+            }
         }
         #else
         // One layout with the sidebar shown or hidden: anything that changed with the sidebar
         // made the bar rebuild mid-slide, and its buttons faded in from the wrong place. One
         // item, so one island like the note's own: as a group of two items macOS drew them
         // sometimes apart and sometimes together (Emil, 6 November 2026).
-        ToolbarSpacer(.flexible)
-        ToolbarItem {
-            HStack(spacing: 0) {
-                listMore
-                // Compose sits with the list it adds to, as on the iPhone (Emil, 10-29). Not in
-                // Recently Deleted, which holds no new notes, like Notes.
-                if scope != .trash {
+        // Not while a canvas has the window, nor from the list peeking in over it (FullScreen):
+        // hidden items still took their room, and pushed the note's share and ••• to the middle.
+        if let pickScope, !columnsToolbarHidden {
+            ToolbarItem(placement: .navigation) { ListFolderMenu(scope: scope, title: title, pick: pickScope) }
+        }
+        if !columnsToolbarHidden {
+            ToolbarSpacer(.flexible)
+            ToolbarItem {
+                listMore.labelStyle(.iconOnly)
+            }
+            // New Note, New Canvas and New App, one glass group of their own beside ••• (create
+            // study, B-mac). The fixed space keeps the two groups apart every time. Not in
+            // Recently Deleted, which holds no new notes, like Notes.
+            if scope != .trash {
+                ToolbarSpacer(.fixed)
+                ToolbarItem {
                     ListCompose(selected: selection.count == 1 ? selection.first : nil, newNote: onNewNote)
+                        .labelStyle(.iconOnly)
                 }
             }
-            .labelStyle(.iconOnly)
         }
         #endif
     }
@@ -1125,17 +1147,18 @@ struct NoteListView: View {
             // The last note with the tag lost it (or went to Recently Deleted).
             ContentUnavailableView("No Notes", systemImage: "number", description: Text("No notes have #\(name)."))
         } else if Self.offersWaysToStart(scope: scope) {
-            // Nothing in the whole library (a new account, or one whose first run didn't come):
-            // the two ways to start, in place (newcomer audit #19), New Note the one in the accent.
-            // Words only, like Notes (Emil, 11-03: no app icon on the empty states).
-            ContentUnavailableView {
-                Text("No Notes")
-            } description: {
-                Text(Self.emptyLine)
-            } actions: {
-                // Side by side, or one above the other when the column is too narrow for both
-                // (Emil, 3 November 2026: Bring Your Notes ran past the column's edge).
-                EmptyLibraryActions(onNewNote: onNewNote, imports: imports)
+            // Nothing in the whole library (a new account, or one whose first run didn't come).
+            // One screen at a time (iPhone): "Make your first one" here, a card for each kind
+            // (FirstOneView). Beside a note pane (Mac, iPad) the cards are in that pane, and the
+            // list only says it's empty (empty-mac).
+            if Self.firstOneInList(stacked: stacked) {
+                ScrollView {
+                    FirstOneView(newNote: onNewNote, compact: true)
+                        .padding(.vertical, 24)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+            } else {
+                ContentUnavailableView { Text("No Notes") }
             }
         } else {
             // "No Notes", and the one way to start one here (council round 16: the note pane said
@@ -1154,9 +1177,16 @@ struct NoteListView: View {
     /// folder that's empty has the compose button).
     static func offersWaysToStart(scope: Scope) -> Bool { scope == .all }
 
-    /// The empty library's line and its second button.
-    static let emptyLine = "Write a note, or bring your notes from Apple Notes, Obsidian, Bear, Evernote or Google Keep."
-    static let bringNotes = "Bring Your Notes\u{2026}"
+    /// Where the empty library's cards go: in the list when it's the only thing on screen, else
+    /// in the note pane beside it (RootView.noNote).
+    static func firstOneInList(stacked: Bool) -> Bool {
+        #if os(macOS)
+        false
+        #else
+        stacked
+        #endif
+    }
+
 
     @ViewBuilder
     private func deleteButton(_ note: Note) -> some View {
@@ -1349,31 +1379,22 @@ struct NoteListView: View {
 /// binding, and the action is the same action. Hiding or showing the sidebar hands the split
 /// view's columns over again, and without this the list was worked out again on every toggle.
 #if os(macOS)
-/// The list's New Note. While the note open is an untouched new one, New Note would only put the
-/// cursor back in it (RootView.newNote), so it is off, and looks it: the pencil greyed, as a
-/// disabled toolbar button is (Emil, 2 November 2026). A view of its own: it reads the open note's
-/// text, and only it is worked out again as that note is written in.
+/// The list's create buttons: New Note, New Canvas and New App (CreateButtons). While the note open
+/// is an untouched new one, New Note would only put the cursor back in it (RootView.newNote), so it
+/// is off, and looks it: the pencil greyed, as a disabled toolbar button is (Emil, 2 November 2026).
+/// A view of its own: it reads the open note's text, and only it is worked out again as that note
+/// is written in.
 struct ListCompose: View {
     let selected: UUID?
     let newNote: () -> Void
     @Environment(\.modelContext) private var context
 
     var body: some View {
-        let off = Self.isOff(selected: selected, in: context)
-        ComposeButton(newNote: newNote, off: off) {
-            // The pencil pokes out top-right; ToolbarGlyph re-centres its ink.
-            Label { Text("New Note") } icon: {
-                ToolbarGlyph.image("square.and.pencil", shift: ToolbarGlyph.composeShift)
-                    .foregroundStyle(Self.iconStyle(off: off))
-            }
+        HStack(spacing: 0) {
+            CreateButtons(newNote: newNote, noteOff: Self.isOff(selected: selected, in: context))
         }
-        .disabled(off)
-        .help(off ? "This note is new and empty" : "New Note (⌘N). Click and hold for New App.")
-        .accessibilityLabel("New Note")
-        .newAppTip()
         // The menu bar's quick capture is the other way to start a note.
         .paneTip(MenuBarTip(), arrowEdge: .top)
-        .accessibilityIdentifier("list.newNote")
     }
 
     /// Off on an untouched new note: one that is empty and not in Recently Deleted.
@@ -1425,8 +1446,16 @@ struct NoteEntry: Identifiable, DatedListItem, Sendable {
         parentID = note.getValue(forKey: \.parentID)
     }
 
-    /// The note's model in `context`, if it's still there.
+    /// The note's model in `context`, if it's still there. A row can be drawn once more after its
+    /// note was deleted and saved, and `model(for:)` stops the app for an id the store no longer
+    /// has (NoteOpenClickTests, aNewNoteWithNoFoldersOpensInNotes): a note the context holds is
+    /// taken as it is, and one it doesn't is looked for before it's asked for.
     func note(in context: ModelContext) -> Note? {
+        if let n: Note = context.registeredModel(for: pid) { return n.modelContext != nil && !n.isDeleted ? n : nil }
+        let id = pid
+        var one = FetchDescriptor<Note>(predicate: #Predicate { $0.persistentModelID == id })
+        one.fetchLimit = 1
+        guard (try? context.fetchCount(one)) ?? 0 > 0 else { return nil }
         guard let n = context.model(for: pid) as? Note, n.modelContext != nil else { return nil }
         return n
     }
@@ -2467,6 +2496,9 @@ struct NoteRow: View {
         let sharedMark = NoteRowStatus.showsShared(note)
         let app = NoteAppMark.has(note)
         let picture = Self.picture(of: note)
+        // A whiteboard: its words as the preview and its shapes as the picture.
+        let isBoard = app && CanvasNote.has(note) && !note.isLocked
+        let board = isBoard ? Self.sketch(note.id) : nil
         let found = self.found
         let titleBlurred = ListTitleReveal.blurs(privacyOn: PrivacyMode.shared.isOn, open: open, revealed: reveal?.shown ?? false)
         let labels = tagsOn ? NoteLabels.labels(in: note.frontMatter) : []
@@ -2484,7 +2516,10 @@ struct NoteRow: View {
                     if sharedMark {
                         NoteRowSharedMark()
                     }
-                    if app {
+                    if app, CanvasNote.has(note) {
+                        CanvasMarkView(size: RowMetrics.markSize)
+                            .accessibilityIdentifier("note.canvas")
+                    } else if app {
                         AppMarkView(size: RowMetrics.markSize)
                             .accessibilityIdentifier("note.app")
                     }
@@ -2543,7 +2578,7 @@ struct NoteRow: View {
                         .lineLimit(1)
                         .previewBlur()
                     } else {
-                        Text(note.preview)
+                        Text(isBoard ? Self.boardPreview(board) : note.preview)
                             .foregroundStyle(muted)
                             .lineLimit(large ? 2 : 1)
                             // Privacy mode blurs it in place, so the row keeps its shape.
@@ -2592,6 +2627,14 @@ struct NoteRow: View {
                 FileThumbnail(file: picture, side: RowMetrics.thumbnail, iconWhileLoading: false)
                     .previewBlur()
                     .accessibilityIdentifier("note.thumbnail")
+            } else if let board, !board.shapes.isEmpty {
+                Spacer(minLength: 0)
+                CanvasSketchView(sketch: board, lineWidth: 0.6)
+                    .padding(4)
+                    .frame(width: RowMetrics.thumbnail, height: RowMetrics.thumbnail)
+                    .background(Color.notePage, in: .rect(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.1)))
+                    .accessibilityIdentifier("note.thumbnail")
             }
         }
         .padding(.top, RowMetrics.top(folderLine: folderLine) + RowMetrics.calmAir)
@@ -2603,6 +2646,18 @@ struct NoteRow: View {
         .accessibilityValue([note.isPinned ? "Pinned" : nil, app ? "App" : nil, shared || sharedMark ? "Shared" : nil, note.isLocked ? "Locked" : nil,
                              ai.map { AIEdit.listLine(note, by: $0) }].compactMap { $0 }.joined(separator: ", "))
         .accessibilityIdentifier("note.\(title)")
+    }
+
+    /// A whiteboard's line in the list: its words, "Drawing" for shapes alone, "Empty whiteboard"
+    /// with nothing on it (round 2: it said "No additional text").
+    static func boardPreview(_ sketch: CanvasSketch?) -> String { sketch?.preview ?? emptyBoard }
+    static let emptyBoard = "Empty whiteboard"
+
+    /// A whiteboard's words and shapes for its row, read again a moment after the board changes
+    /// (whiteboard council, round 2: a row still said "No additional text" over a whole flowchart).
+    @MainActor static func sketch(_ id: UUID, in store: NotePageDataStore = .shared) -> CanvasSketch? {
+        _ = store.listRevision
+        return CanvasSketch.shown(id, in: store)
     }
 
     /// The note's first picture, when it's on this device: one on the server only shows once the
@@ -2618,7 +2673,8 @@ struct NoteRow: View {
     private var found: SearchLines.Found? {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty, !note.isLocked else { return nil }
-        return SearchLines.find(in: note.body, query: q, skipping: note.title, lead: SearchLines.rowLead)
+        let words = NoteAppMark.has(note) && CanvasNote.has(note) ? CanvasSketch.of(note.id).map { "\n" + $0.searchText } ?? "" : ""
+        return SearchLines.find(in: note.body + words, query: q, skipping: note.title, lead: SearchLines.rowLead)
     }
 }
 
@@ -2714,42 +2770,6 @@ struct ListSearchField: NSViewRepresentable {
     }
 }
 #endif
-
-/// The empty library's two ways to start: side by side, or one above the other when the column
-/// is too narrow for both (Emil, 3 November 2026: Bring Your Notes ran past the column's edge).
-struct EmptyLibraryActions: View {
-    let onNewNote: () -> Void
-    let imports: ImportActions?
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) { buttons }
-            VStack(spacing: 10) { buttons }
-        }
-    }
-
-    @ViewBuilder
-    private var buttons: some View {
-        Button("New Note", action: onNewNote)
-            .buttonStyle(.amberProminent)
-            .fixedSize()
-            .accessibilityIdentifier("empty.newNote")
-        if let imports {
-            // In the ink: one orange control on the screen. On the Mac it opens the choice of
-            // sources, as Import notes in the sidebar does, not Apple Notes' import alone.
-            Button(NoteListView.bringNotes) {
-                #if os(macOS)
-                NotificationCenter.default.post(name: .paneImportNotes, object: nil)
-                #else
-                imports.appleNotes()
-                #endif
-            }
-            .tint(Color.ink)
-            .fixedSize()
-            .accessibilityIdentifier("empty.bringNotes")
-        }
-    }
-}
 
 #if os(iOS)
 /// The notes list's style: grouped cards one screen at a time (iPhone), the Mac's plain list as a

@@ -495,4 +495,14 @@ enum NoticeText {
 
     /// The words as VoiceOver and a test read them: without the mark.
     static func plain(_ s: String) -> String { s.replacingOccurrences(of: FirstOpen.folderMark, with: "") }
+
+    #if os(macOS)
+    /// How wide the line is in the note's toolbar (NoteToolbarStage): its words, its capsule's
+    /// padding, and its action's word.
+    static func barWidth(_ s: String, action: String?) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        let words = ceil(plain(s).size(withAttributes: [.font: font]).width) + 20
+        return words + (action.map { ceil($0.size(withAttributes: [.font: NSFont.systemFont(ofSize: 13)]).width) + 8 } ?? 0)
+    }
+    #endif
 }

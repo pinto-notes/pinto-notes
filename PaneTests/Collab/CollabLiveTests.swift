@@ -10,7 +10,8 @@ import Testing
 /// by scripts/collab-live-accounts.ts, which refuses production's project). Three accounts: Emil
 /// shares a note with an Edit link, Sara joins through it, both type and converge over the private
 /// Realtime channel; Eve, outside the note, is refused by row-level security and by the channel's
-/// policy; once Sara is removed she can neither read new text nor write.
+/// policy; once Sara is removed she can neither read new text nor write. Then a whiteboard all three
+/// draw on at once, with their pointers, ending the same on every device.
 @MainActor
 @Suite(.enabled(if: CollabLive.config != nil), .serialized)
 struct CollabLiveTests {
@@ -113,6 +114,134 @@ struct CollabLiveTests {
         let renewed = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
         #expect(renewed.epoch == 3)
         #expect(renewed.rekey_after == nil)
+
+        for p in [emil, sara, eve] { p.store.stop() }
+    }
+
+    /// A whiteboard against the real backend: Emil shares a board with an Edit link, Sara and Eve
+    /// join, and all three draw at once, each before seeing the others (a shape each; Sara and Eve
+    /// change the same shape, Eve another). Over the private channel each sees the other two's
+    /// pointers and selections, in three colours that are the same on every device, and all three
+    /// end with the same drawing: the newer edit, and of two as new the lower nonce. A new device
+    /// reads that drawing back from the server alone, where it's only sealed changes.
+    @Test func threeAccountsDrawOnOneBoardAndConverge() async throws {
+        let emil = try await person(0, name: "Emil"), sara = try await person(1, name: "Sara"), eve = try await person(2, name: "Eve")
+        typealias Board = SharedBoardTests
+        let note = CanvasNote.make(in: .all, context: emil.container.mainContext,
+                                   scene: Board.scene([Board.shape("a", x: 10), Board.shape("b", x: 200, index: "a1")]), named: "Launch plan")
+        try await emil.store.setAccess(.edit, for: note)
+        let url = try #require(emil.store.linkURL(note))
+        #expect(await sara.store.join(url).worked)
+        #expect(await eve.store.join(url).worked)
+        let e = try #require(emil.store.session(for: note.id))
+        func session(_ p: Person) throws -> CollabSession {
+            try #require(p.store.session(for: p.container.mainContext.pointer(forShared: note.id)?.id ?? UUID()))
+        }
+        let s = try session(sara), v = try session(eve)
+        #expect(e.isBoard && s.isBoard && v.isBoard)
+        await until { Board.said(s) == ["a:1:1", "b:1:1"] && Board.said(v) == Board.said(s) }
+        #expect(Board.said(s) == ["a:1:1", "b:1:1"] && Board.said(v) == Board.said(s), "both have the board as Emil shared it")
+
+        // All three on the channel, then drawing at once.
+        try await Task.sleep(for: .seconds(1))
+        e.boardLocal([Board.shape("emil-1", x: 0, y: 300, index: "a2")])
+        s.boardLocal([Board.shape("sara-1", x: 200, y: 300, index: "a3"), Board.shape("a", x: 40, version: 2, nonce: 55)])
+        v.boardLocal([Board.shape("eve-1", x: 400, y: 300, index: "a4"), Board.shape("a", x: 90, version: 2, nonce: 900),
+                      Board.shape("b", x: 260, version: 2, nonce: 9, index: "a1")])
+        let all = ["a:2:55", "b:2:9", "emil-1:1:1", "sara-1:1:1", "eve-1:1:1"]
+        await until(20) { [e, s, v].allSatisfy { Board.said($0) == all } }
+        for (name, x) in [("Emil", e), ("Sara", s), ("Eve", v)] {
+            #expect(Board.said(x) == all, "\(name)'s board: \(Board.said(x))")
+            #expect(Board.element("a", in: x)?["x"] as? Double == 40 && Board.element("b", in: x)?["x"] as? Double == 260, "\(name): the winning edits")
+        }
+
+        // Each one's pointer and selection reach the other two.
+        e.boardPresence(pointer: CGPoint(x: 15, y: 20), selection: ["a"])
+        s.boardPresence(pointer: CGPoint(x: 210, y: 45.5), selection: ["b"])
+        v.boardPresence(pointer: CGPoint(x: 420, y: 310), selection: ["eve-1"])
+        await until { [e, s, v].allSatisfy { $0.boardPeers.filter { $0.pointer != nil }.count == 2 } }
+        let ids = [emil.id, sara.id, eve.id]
+        let wanted: [UUID: (CGPoint, [String])] = [emil.id: (CGPoint(x: 15, y: 20), ["a"]), sara.id: (CGPoint(x: 210, y: 45.5), ["b"]), eve.id: (CGPoint(x: 420, y: 310), ["eve-1"])]
+        for (me, x) in zip(ids, [e, s, v]) {
+            let peers = x.boardPeers
+            #expect(Set(peers.map(\.id)) == Set(ids).subtracting([me]), "each sees the other two")
+            for p in peers {
+                #expect(p.pointer == wanted[p.id]?.0 && p.selection == wanted[p.id]?.1, "\(p.name)'s pointer and selection where they put them")
+            }
+            #expect(Set(peers.map(\.color)).count == 2, "in two colours")
+        }
+        let colours = [e, s, v].map { x in ids.map { x.paletteSlot(of: $0) } }
+        #expect(Set(colours[0]).count == 3 && colours.allSatisfy { $0 == colours[0] }, "three colours, the same on every device: \(colours)")
+
+        // Read back from the server alone, as a new device would; the server has only sealed changes.
+        await until { [e, s, v].allSatisfy { $0.unsent == 0 } }
+        let row = try #require(try await emil.store.transport!.memberships().first { $0.note_id == note.id })
+        let fresh = try await CollabSession.load(record: SharedDocument(id: note.id, epoch: row.epoch, role: "owner", saved: Data()), nk: try await emil.store.openKey(row).nk,
+                                                 transport: emil.store.transport!, me: emil.id, name: "Emil")
+        #expect(fresh.isBoard && Board.said(fresh) == all, "a new device reads the same board: \(Board.said(fresh))")
+        let stored: [Collab.Update] = try await emil.client.from("note_updates").select("id,note_id,author_id,epoch,ct,client")
+            .eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(!stored.isEmpty && stored.allSatisfy { !$0.ct.contains("sara-1") && !$0.ct.contains("rectangle") }, "sealed")
+
+        for p in [emil, sara, eve] { p.store.stop() }
+    }
+
+    /// Pictures on a shared whiteboard against the real backend (note_files, collab_put_file): Emil
+    /// shares a board with a picture on it; Sara joins with an Edit link and Eve with a View link,
+    /// and both have it. Sara pastes one: it reaches the other two, sealed on the server. Eve, a
+    /// viewer, sees pictures and can't put one there. Sara is removed: the pictures are sealed
+    /// again under the new key, the server gives her none, and Eve, who stays, opens them.
+    @Test func picturesOnASharedBoardReachEveryoneAndAreSealedAgainAfterARemoval() async throws {
+        let emil = try await person(0, name: "Emil"), sara = try await person(1, name: "Sara"), eve = try await person(2, name: "Eve")
+        typealias Board = SharedBoardTests
+        var scene = Board.scene([Board.shape("a", x: 10), Board.image("pic", file: "Live-Pic1")])
+        scene["files"] = ["Live-Pic1": Board.picture("Live-Pic1", bytes: 40_000)]
+        let note = CanvasNote.make(in: .all, context: emil.container.mainContext, scene: scene, named: "Moodboard")
+        try await emil.store.setAccess(.edit, for: note)
+        #expect(await sara.store.join(try #require(emil.store.linkURL(note))).worked)
+        try await emil.store.setAccess(.view, for: note)
+        #expect(await eve.store.join(try #require(emil.store.linkURL(note))).worked)
+        let e = try #require(emil.store.session(for: note.id))
+        func session(_ p: Person) throws -> CollabSession {
+            try #require(p.store.session(for: p.container.mainContext.pointer(forShared: note.id)?.id ?? UUID()))
+        }
+        let s = try session(sara), v = try session(eve)
+        #expect(s.canWrite && !v.canWrite)
+        let first = Board.picture("Live-Pic1", bytes: 40_000)
+        await until { Board.has(s, "Live-Pic1", first) && Board.has(v, "Live-Pic1", first) }
+        #expect(Board.has(s, "Live-Pic1", first) && Board.has(v, "Live-Pic1", first), "the board's picture came with it")
+
+        // Sara pastes one.
+        let second = Board.picture("Sara-Pic2", bytes: 120_000)
+        Board.put(s, Board.image("pic2", file: "Sara-Pic2", index: "a2"), second)
+        await until(20) { Board.has(e, "Sara-Pic2", second) && Board.has(v, "Sara-Pic2", second) }
+        #expect(Board.has(e, "Sara-Pic2", second) && Board.has(v, "Sara-Pic2", second), "Sara's picture reached Emil and Eve")
+        let rows: [Collab.File] = try await emil.client.from("note_files").select("file_id,epoch,ct").eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(Set(rows.map(\.file_id)) == ["Live-Pic1", "Sara-Pic2"] && rows.allSatisfy { $0.epoch == 1 && $0.ct.hasPrefix("amb3f.1.") })
+        let b64 = String((second["dataURL"] as! String).split(separator: ",")[1].prefix(64))
+        #expect(rows.allSatisfy { !$0.ct.contains(b64) }, "sealed")
+
+        // Eve views: the server refuses her picture, and her board takes none.
+        let sealed = try CollabBoard.Pictures.seal(Board.picture("Eve-Pic3"), nk: SymmetricKey(size: .bits256), note: note.id, epoch: 1)
+        await #expect(throws: Collab.Failure.readOnly) { try await eve.store.transport!.putFile(note: note.id, id: "Eve-Pic3", epoch: 1, ct: sealed) }
+        Board.put(v, Board.image("pic3", file: "Eve-Pic3", index: "a3"), Board.picture("Eve-Pic3"))
+        try await Task.sleep(for: .seconds(1))
+        #expect(Board.element("pic3", in: e) == nil)
+
+        // Sara is removed: sealed again under the new key, for whoever stays.
+        try await emil.store.remove(sara.id, from: note)
+        let after: [Collab.File] = try await emil.client.from("note_files").select("file_id,epoch,ct").eq("note_id", value: note.id.uuidString.lowercased()).execute().value
+        #expect(after.count == 2 && after.allSatisfy { $0.epoch == 2 && $0.ct.hasPrefix("amb3f.2.") }, "sealed again: \(after.map { "\($0.file_id)@\($0.epoch)" })")
+        #expect(try await sara.store.transport!.files(of: note.id).isEmpty)
+        #expect(try await sara.store.transport!.file(note: note.id, id: "Sara-Pic2") == nil, "the server gives her none")
+        await eve.store.checkMemberships()
+        let eveRow = try #require(try await eve.store.transport!.memberships().first { $0.note_id == note.id })
+        #expect(eveRow.epoch == 2)
+        let nk = try await eve.store.openKey(eveRow).nk
+        for f in after {
+            let opened = try CollabBoard.Pictures.open(f, keys: [2: nk], note: note.id)
+            #expect(opened["dataURL"] as? String == (f.file_id == "Sara-Pic2" ? second : first)["dataURL"] as? String, "Eve opens \(f.file_id) under the new key")
+        }
 
         for p in [emil, sara, eve] { p.store.stop() }
     }

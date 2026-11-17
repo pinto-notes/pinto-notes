@@ -144,3 +144,13 @@ Deno.test("every tool set tells an AI to read the About me note first and keep i
   // It names no tool, so it holds whatever tools are served.
   assertEquals(named(ABOUT_ME_INSTRUCTIONS), []);
 });
+
+Deno.test("the file tools tell an AI how to draw on a canvas: the Excalidraw scene in data.json", () => {
+  const text = instructions("files");
+  for (const s of ["A canvas", "Excalidraw scene", "values.scene", "values.scene.elements"]) assertStringIncludes(text, s);
+});
+
+Deno.test("the file tools tell an AI how to put a note on a canvas as a card", () => {
+  const text = instructions("files");
+  for (const s of ["customData.pintoNote", "a note's title", "card for that note", "opens the note", "customData.title"]) assertStringIncludes(text, s);
+});

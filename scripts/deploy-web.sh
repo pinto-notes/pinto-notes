@@ -33,6 +33,10 @@ proxy_secret=$(cat .secrets/mcp-proxy-secret.txt)
 # without a key in Vercel either the site loads no PostHog. pinto-internal/evidence/website-posthog.md.
 posthog_key=${NEXT_PUBLIC_POSTHOG_KEY:-$(cat .secrets/posthog-key.txt 2>/dev/null || true)}
 cd web
+# A shared whiteboard's canvas is the app's own (Pane/Resources/Canvas), copied into public/board/
+# here and uploaded with the site (gitignored, not .vercelignored); Vercel's build has no ../Pane.
+node scripts/board-assets.mjs
+[[ -s public/board/canvas/canvas.js && -s public/board/automerge.wasm ]] || { echo "The whiteboard's canvas files are missing (web/public/board)." >&2; exit 1; }
 vercel link --yes --project amber-notes --scope "$team" >/dev/null
 for env in production preview; do
   pairs=("SUPABASE_URL=$url" "SUPABASE_ANON_KEY=$key" "REPORT_SALT=$salt")

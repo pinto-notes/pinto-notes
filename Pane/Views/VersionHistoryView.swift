@@ -526,7 +526,7 @@ struct MacVersionHistory: View {
 }
 
 /// A separator line. Drawn as a plain fill so it reads the same in the sheet and in captures.
-private struct Hairline: View {
+struct Hairline: View {
     var vertical = false
     var body: some View {
         Rectangle().fill(Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.27, alpha: 1) : NSColor(white: 0.87, alpha: 1) }))

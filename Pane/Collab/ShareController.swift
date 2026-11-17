@@ -77,19 +77,22 @@ final class ShareController {
 
     /// Whether the note has an app (NoteApps), asked when Share opens.
     @ObservationIgnored let hasApp: @MainActor () -> Bool
+    /// Whether the note is a whiteboard (CollabBoard): the one app that can be shared, pictures and all.
+    @ObservationIgnored let board: @MainActor () -> Bool
 
-    init(note: Note, backend: ShareBackend, hasApp: (@MainActor () -> Bool)? = nil) {
+    init(note: Note, backend: ShareBackend, hasApp: (@MainActor () -> Bool)? = nil, board: (@MainActor () -> Bool)? = nil) {
         self.note = note
         self.backend = backend
         let id = note.id
         self.hasApp = hasApp ?? { NoteApps.page(id) != nil }
+        self.board = board ?? { CanvasNote.isCanvas(NoteApps.page(id)?.html) }
         state = backend.shareState(for: note)
     }
 
     /// Why this note can't be shared with people yet (it has files or an app), or nil when it can.
     var notYet: String? {
         guard isOwner else { return nil }
-        return SharedNoteLimits.notYet(text: note.body, hasApp: hasApp(),
+        return SharedNoteLimits.notYet(text: note.body, hasApp: hasApp(), board: board(),
                                        alreadyShared: note.isShared || state.people.count > 1 || state.access != .off)
     }
 
@@ -291,26 +294,38 @@ enum ShareCopy {
     /// request is the one time the server reads the note) is in Help, on the privacy page.
     static let privacy = "Encrypted. Only people in this note can read it. Their AI reads it only when they ask."
 
-    static func link(_ access: ShareState.Access) -> String {
+    /// What the link lets anyone do. A whiteboard opens in a browser too (web/app/s/[id]), so its
+    /// lines say so (round 15, comment-role-1: "join and comment in Pinto Notes" hid the browser).
+    static func link(_ access: ShareState.Access, board: Bool = false) -> String {
+        if board {
+            switch access {
+            case .edit: return "Anyone with the link can sign in and edit in a browser or Pinto Notes."
+            case .comment: return "Anyone with the link can sign in and comment in a browser or Pinto Notes."
+            case .view: return "Anyone with the link can view it in a browser or Pinto Notes."
+            case .off: return "Only people you invite can open this whiteboard."
+            }
+        }
         switch access {
-        case .edit: "Anyone with the link can join and edit in Pinto Notes."
-        case .view: "Anyone with the link can join and read in Pinto Notes."
-        case .off: "Only people you invite can open this note."
+        case .edit: return "Anyone with the link can join and edit in Pinto Notes."
+        case .comment: return "Anyone with the link can join and comment in Pinto Notes."
+        case .view: return "Anyone with the link can join and read in Pinto Notes."
+        case .off: return "Only people you invite can open this note."
         }
     }
 
     /// Under the link: what it does now, or, before the note is shared, what Invite People will do.
-    static func link(_ state: ShareState) -> String {
-        state.notSharedYet ? notSharedYet : link(state.access)
+    static func link(_ state: ShareState, board: Bool = false) -> String {
+        state.notSharedYet ? (board ? notSharedYetBoard : notSharedYet) : link(state.access, board: board)
     }
 
     /// Collaborate's line, under the tabs as every way has one.
     static let collaborate = "People you invite see your changes as you type."
 
     static let notSharedYet = "Invite People makes a link anyone can join with and edit, in Pinto Notes."
+    static let notSharedYetBoard = "Invite People makes a link anyone can sign in with and edit, in a browser or Pinto Notes."
 
     static func role(_ role: String) -> String {
-        role == "owner" ? "Owner" : role == "editor" ? "Can edit" : "Can view"
+        role == "owner" ? "Owner" : role == "editor" ? "Can edit" : role == "commenter" ? "Can comment" : "Can view"
     }
 
     /// Said once someone's role changed.

@@ -32,7 +32,7 @@ extension CollabStore: ShareBackend {
     func access(_ note: Note) -> ShareState.Access { access(of: note.id) }
     func access(of note: UUID) -> ShareState.Access { linkAccess[note] ?? .off }
 
-    /// Can edit or Can view: the note becomes a shared note (its own key) if it isn't one yet, and
+    /// Can edit, Can comment (a whiteboard) or Can view: the note becomes a shared note (its own key) if it isn't one yet, and
     /// the link lets whoever opens it in Pinto Notes join with that role. Off: the link stops
     /// working at once; turning it on again makes a new one.
     func setAccess(_ access: ShareState.Access, for note: Note) async throws {
@@ -43,10 +43,10 @@ extension CollabStore: ShareBackend {
             links[note.id] = nil
             linkAccess[note.id] = nil
             linkVault?.remove(note.id)
-        case .view, .edit:
+        case .view, .edit, .comment:
             if sessions[note.id] == nil { try await share(note) }
             let link = links[note.id] ?? (SealedLink.randomID(bytes: 16), E2EE.randomBytes(16))
-            try await publishInviteLink(note.id, link: link, role: access == .edit ? "editor" : "viewer")
+            try await publishInviteLink(note.id, link: link, role: access.role)
             links[note.id] = link
             linkAccess[note.id] = access
             linkVault?.save(LinkVaultEntry(id: link.id, secret: link.secret, access: access.rawValue), for: note.id)
@@ -179,6 +179,8 @@ extension CollabStore: ShareBackend {
         // Under the new key, or nobody who starts from the server could open the note: tried again
         // until it's in.
         await session.requireSnapshot()
+        // A board's pictures, sealed again under the new key: nothing stored opens with the old one.
+        await session.syncPictures().value
         await session.refreshMembers()
     }
 
@@ -189,7 +191,7 @@ extension CollabStore: ShareBackend {
             ShareState.Person(id: m.id, name: m.name, isMe: m.id == session.me, role: m.role,
                               safetyCode: m.id == session.me ? nil : identity.flatMap { id in m.publicKey.map { CollabCrypto.safetyCode(id.publicRaw, $0) } },
                               verified: m.publicKey.map { verified.isVerified(m.id, key: $0) } ?? false,
-                              keyChanged: keyChanges.first { $0.user == m.id }?.message)
+                              keyChanged: keyChanges.first { $0.user == m.id }?.message, colorSlot: session.paletteSlot(of: m.id))
         }.sorted { ($0.isMe ? 0 : 1, $0.role == "owner" ? 0 : 1) < ($1.isMe ? 0 : 1, $1.role == "owner" ? 0 : 1) }
     }
 
@@ -242,7 +244,8 @@ extension CollabStore: ShareBackend {
             return (try? JSONDecoder().decode(NoteHead.self, from: head))?.title
         }
         let already = openNote(forShared: opened.note_id) != nil || isInLibrary(shared: opened.note_id)
-        return .success(JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor", alreadyIn: already))
+        return .success(JoinPreview(title: title.flatMap { $0.isEmpty ? nil : $0 }, owner: opened.owner_name, canEdit: opened.role == "editor",
+                                    canComment: opened.role == "commenter", alreadyIn: already))
     }
 
     /// Your note for this shared note is in your notes (not deleted), open here or not.
@@ -358,7 +361,7 @@ extension CollabStore: ShareBackend {
             log.notice("renewed \(id, privacy: .public)'s key after someone left (epoch \(session.epoch, privacy: .public))")
             restoreLink(id)
             if let link = links[id], let access = linkAccess[id], access != .off {
-                try await publishInviteLink(id, link: link, role: access == .edit ? "editor" : "viewer")
+                try await publishInviteLink(id, link: link, role: access.role)
             }
         } catch Collab.Failure.staleEpoch {
             log.notice("\(id, privacy: .public)'s key was renewed by another of your devices")

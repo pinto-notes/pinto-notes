@@ -8,3 +8,7 @@ next-env.d.ts
 public/downloads/
 public/updates/
 content/release.json
+
+# The whiteboard page's copies (scripts/board-assets.mjs)
+public/board/canvas/
+public/board/automerge.wasm

@@ -126,6 +126,18 @@ import SwiftUI
         return out
     }
 
+    /// Every element with this identifier, top to bottom as the tree has them.
+    func all(_ id: String) -> [Element] {
+        var out: [Element] = []
+        func walk(_ e: AXUIElement, _ depth: Int) {
+            if Element.string(e, "AXIdentifier") == id { out.append(Element(ax: e)) }
+            guard depth < 40 else { return }
+            for k in Element.children(e) { walk(k, depth + 1) }
+        }
+        if let root { walk(root, 0) }
+        return out
+    }
+
     /// Every identifier in the window, top to bottom as the tree has them.
     func ids() -> [String] {
         var out: [String] = []

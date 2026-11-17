@@ -14,6 +14,10 @@
 //   amb3s.<epoch>.<b64 …>                  a snapshot (Automerge save), AAD "amb3s|<note>|<epoch>|<upto>"
 //   amb3p.<epoch>.<b64 …>                  presence JSON, AAD "amb3p|<note>|<epoch>|<user>"
 //   amb3h.<epoch>.<b64 …>                  the head JSON {title, preview}, AAD "amb3h|<note>|<epoch>"
+//   amb3f.<epoch>.<b64 …>                  a picture on a shared whiteboard: "<mime type>\n" then its
+//                                          bytes, AAD "amb3f|<note>|<epoch>|<file id>" (the id as it is)
+//   amb3c.<epoch>.<b64 …>                  a comment entry on a shared whiteboard, JSON {"comments": [record, …]},
+//                                          AAD "amb3c|<note>|<epoch>|<author>" (its own stream, note_comments)
 //   self wrap: an amb2 box of base64(NK) under the member's data key, context "notekey:<note>:<epoch>"
 import { type Bytes, fromBase64, OpenError, toBase64 } from "./e2ee.ts";
 
@@ -88,12 +92,14 @@ export async function openNoteKey(sealed: string, me: Identity, fromPublic: Byte
   }
 }
 
-export type Kind = "u" | "s" | "p" | "h";
-const BOX3 = /^amb3([usph])\.(\d+)\.([A-Za-z0-9+/]+={0,2})$/;
+export type Kind = "u" | "s" | "p" | "h" | "f" | "c";
+const BOX3 = /^amb3([usphfc])\.(\d+)\.([A-Za-z0-9+/]+={0,2})$/;
+// A picture's file id is the board's own (Excalidraw's fileId, which can mix cases): kept as it is.
 const aad3 = (kind: Kind, note: string, epoch: number, extra?: string) =>
-  enc.encode(`amb3${kind}|${lower(note)}|${epoch}${extra === undefined ? "" : `|${lower(extra)}`}`);
+  enc.encode(`amb3${kind}|${lower(note)}|${epoch}${extra === undefined ? "" : `|${kind === "f" ? extra : lower(extra)}`}`);
 
-/** A note-key box: an update (`extra` = author id), snapshot (upto), presence (user id) or head. */
+/** A note-key box: an update (`extra` = author id), snapshot (upto), presence (user id), head, a
+ *  picture on a shared whiteboard (file id; `pictureBytes`), or a comment entry (author id). */
 export async function seal3(kind: Kind, data: Bytes, nk: Bytes, note: string, epoch: number, extra?: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", nk, "AES-GCM", false, ["encrypt"]);
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -118,6 +124,22 @@ export async function open3(kind: Kind, sealed: string, nk: Bytes, note: string,
 }
 
 export const epochOf = (sealed: string) => Number(BOX3.exec(sealed)?.[2] ?? NaN);
+
+/** What a picture's box holds (`amb3f`): its type, a newline, then its bytes. */
+export function pictureBytes(mimeType: string, data: Bytes): Bytes {
+  const head = enc.encode(`${mimeType}\n`);
+  const out = new Uint8Array(head.length + data.length);
+  out.set(head);
+  out.set(data, head.length);
+  return out;
+}
+
+/** A picture's type and bytes, from what its box held. */
+export function pictureOf(plain: Bytes): { mimeType: string; data: Bytes } {
+  const nl = plain.indexOf(10);
+  if (nl < 1 || nl > 100) throw new OpenError("not a picture");
+  return { mimeType: dec.decode(plain.subarray(0, nl)), data: plain.slice(nl + 1) as Bytes };
+}
 export const text = (b: Bytes) => dec.decode(b);
 export const bytes = (s: string) => enc.encode(s) as Bytes;
 

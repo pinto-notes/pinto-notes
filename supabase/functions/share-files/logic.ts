@@ -66,5 +66,77 @@ export function contentDisposition(name: string, inline: boolean): string {
   return `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${exact}`;
 }
 
+/** The address of a shared board's picture, relative to the Supabase URL. `version` (when it was
+ *  published, in ms) makes a new picture a new address, so a cached one is never shown for it. */
+export function picturePath(slug: string, version: number | string): string {
+  return `/functions/v1/share-files?${new URLSearchParams({ slug, picture: String(version) })}`;
+}
+
+/** The address of a shared board's scene (its .excalidraw file), relative to the Supabase URL.
+ *  `version` makes a new scene a new address, as the picture's does. */
+export function scenePath(slug: string, version: number | string): string {
+  return `/functions/v1/share-files?${new URLSearchParams({ slug, scene: String(version) })}`;
+}
+
+/** What a request asks for: the page's files, one file, the board's picture or its scene. Null:
+ *  nothing that could be there (a malformed slug, id or version, or two things at once). */
+export type ShareRequest = { slug: string; sub: string | null } & (
+  | { kind: "list" }
+  | { kind: "file"; file: string }
+  | { kind: "picture" }
+  | { kind: "scene" }
+);
+export function parseRequest(url: URL): ShareRequest | null {
+  const slug = url.searchParams.get("slug") ?? "";
+  const sub = url.searchParams.get("sub");
+  const file = url.searchParams.get("file");
+  const picture = url.searchParams.get("picture");
+  const scene = url.searchParams.get("scene");
+  if (!SLUG.test(slug) || (sub !== null && !UUID.test(sub)) || (file !== null && !UUID.test(file))) return null;
+  if (picture !== null || scene !== null) {
+    // A board's picture and scene are on its own page only, never a sub-page's, one at a time.
+    const version = picture ?? scene ?? "";
+    if (!PICTURE_VERSION.test(version) || (picture !== null && scene !== null) || file !== null || sub !== null) return null;
+    return { slug, sub: null, kind: picture !== null ? "picture" : "scene" };
+  }
+  return file === null ? { slug, sub, kind: "list" } : { slug, sub, kind: "file", file: file.toLowerCase() };
+}
+
+/** The headers a board's picture is served with: always a PNG (publish_share_picture checks), shown
+ *  in place, cached briefly so Stop Sharing takes it down within a minute. */
+export function pictureHeaders(size: number): Record<string, string> {
+  return {
+    "content-type": "image/png",
+    "content-length": String(size),
+    "content-disposition": contentDisposition("whiteboard.png", true),
+    "x-content-type-options": "nosniff",
+    "cache-control": "private, max-age=60",
+    "access-control-allow-origin": "*",
+    "cross-origin-resource-policy": "cross-origin",
+  };
+}
+
+/** A board's file name from the page's title, as the app names its exports (CanvasExport.filename):
+ *  no path or reserved characters, "Whiteboard" when nothing is left. */
+export function sceneFilename(title: string | null | undefined): string {
+  const name = (title ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/[/\\:*?"<>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 120).trim();
+  return `${name || "Whiteboard"}.excalidraw`;
+}
+
+/** The headers a board's scene is served with: JSON (publish_share_scene checks), downloaded as
+ *  "<board name>.excalidraw", cached briefly as the picture is. */
+export function sceneHeaders(size: number, title: string | null | undefined): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    "content-length": String(size),
+    "content-disposition": contentDisposition(sceneFilename(title), false),
+    "x-content-type-options": "nosniff",
+    "cache-control": "private, max-age=60",
+    "access-control-allow-origin": "*",
+    "cross-origin-resource-policy": "cross-origin",
+  };
+}
+
 export const SLUG = /^[A-Za-z0-9_-]{24,64}$/;
+export const PICTURE_VERSION = /^\d{1,20}$/;
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

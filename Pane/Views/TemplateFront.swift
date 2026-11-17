@@ -230,6 +230,10 @@ struct TemplateFrontPage: View {
     var point: (TemplateCatalog.Entry, Bool) -> Void = { _, _ in }
     /// Return in the field.
     var submit: () -> Void = {}
+    /// The whiteboard templates: a shelf after the notes', and found by Search. A card makes a new
+    /// board from one (round 12: FigJam's templates in the gallery too).
+    var boards: [WhiteboardTemplate] = []
+    var makeBoard: (WhiteboardTemplate) -> Void = { _ in }
 
     @State private var working: String?
     @State private var askOpen = false
@@ -264,6 +268,13 @@ struct TemplateFrontPage: View {
     /// The tile over a new note's name, when nothing matches.
     static func blankIcon(_ size: CGSize) -> CGFloat { small(size) ? 64 : 84 }
     static func small(_ size: CGSize) -> Bool { TemplateLibraryView.narrow(size) || TemplateLibraryView.short(size) }
+
+    /// The whiteboards' shelf: three cards across, each an even share of the page's width.
+    static let boardColumns = 3
+    static func boardCardWidth(_ size: CGSize) -> CGFloat {
+        let width = size.width - TemplateLibraryView.margin(for: size) * 2
+        return ((width - gap * CGFloat(boardColumns - 1)) / CGFloat(boardColumns)).rounded(.down)
+    }
 
     private var margin: CGFloat { TemplateLibraryView.margin(for: size) }
     private var narrow: Bool { TemplateLibraryView.narrow(size) }
@@ -380,9 +391,16 @@ struct TemplateFrontPage: View {
                     asked
                         .id("asked")
                     switch showing {
-                    case .front: shelves
-                    case .results(let answers): results(answers)
-                    case .none: noMatch
+                    case .front:
+                        shelves
+                        boardShelf(boards, top: Self.shelfGap(size))
+                    case .results(let answers):
+                        results(answers)
+                        boardShelf(TemplateLibraryView.boards(boards, query: query), top: Self.shelfGap(size))
+                    case .none:
+                        // No note template for the words, but whiteboards are: those, not "nothing found".
+                        let found = TemplateLibraryView.boards(boards, query: query)
+                        if found.isEmpty { noMatch } else { boardShelf(found, top: Self.resultsTop) }
                     }
                 }
                 .padding(.horizontal, margin)
@@ -502,6 +520,40 @@ struct TemplateFrontPage: View {
             }
         }
         .padding(.top, Self.underField(size))
+    }
+
+    /// The whiteboards under their own heading: on the front page after the notes' shelves, and
+    /// what Search found among them. A card makes a new board from its template.
+    @ViewBuilder private func boardShelf(_ shown: [WhiteboardTemplate], top: CGFloat) -> some View {
+        if !shown.isEmpty {
+            let columns = Self.boardColumns
+            let cw = Self.boardCardWidth(size)
+            let lines = stride(from: 0, to: shown.count, by: columns).map { Array(shown[$0..<min($0 + columns, shown.count)]) }
+            VStack(alignment: .leading, spacing: 0) {
+                Text(TemplateLibraryWords.boards).font(.system(size: TemplateType.heading, weight: .bold)).foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                    .frame(height: 24, alignment: .bottomLeading)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("templates.boards")
+                Text(TemplateLibraryWords.boardsLine).font(.system(size: TemplateType.line)).foregroundStyle(Color.muted)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Self.headingLine)
+                VStack(alignment: .leading, spacing: Self.gap + 4) {
+                    ForEach(lines.indices, id: \.self) { i in
+                        HStack(alignment: .top, spacing: Self.gap) {
+                            ForEach(lines[i]) { t in
+                                BoardTemplateCard(template: t, width: cw, art: EditorialCover.art(cw)) { makeBoard(t) }
+                            }
+                        }
+                    }
+                }
+                .padding(.top, Self.headingGap(size))
+            }
+            .frame(width: width, alignment: .leading)
+            .padding(.top, top)
+            .id("shelf.whiteboards")
+        }
     }
 
     /// Where a template is on the front page, for the keys' ring to bring it into view.

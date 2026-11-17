@@ -214,6 +214,8 @@ struct JoinPreview: Equatable, Sendable {
     var title: String?
     var owner: String?
     var canEdit: Bool
+    /// A whiteboard's Can comment link.
+    var canComment = false
     var alreadyIn = false
 }
 

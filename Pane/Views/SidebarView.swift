@@ -383,6 +383,7 @@ extension Notification.Name {
 
 struct SidebarView: View {
     #if os(macOS)
+    @Environment(\.columnsToolbarHidden) private var columnsToolbarHidden
     #endif
     @Environment(\.behindSetupCard) private var behindSetupCard
     @Environment(\.modelContext) private var context
@@ -761,6 +762,14 @@ struct SidebarView: View {
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
+            // Today's note at the top, as in a folder's notes: the bottom bar's right is the three
+            // create buttons now (CreateBarItems).
+            if stacked {
+                ToolbarItem(placement: .topBarTrailing) {
+                    TodayButton(identifier: "sidebar.today").tint(.primary)
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("New Folder", systemImage: "folder.badge.plus") { startNewFolder(nil) }
@@ -804,17 +813,21 @@ struct SidebarView: View {
             // the menu and keys it looked like it couldn't hide). A fourth button here sent Search
             // to the overflow menu, so New Folder is on the Folders heading (and File, ⇧⌘N).
             // Its own view reads the toggle, so a toggle doesn't work the folders out again.
+            // None of them while a canvas has the window (FullScreen): back, title, share and ••• only.
             ToolbarItem { SidebarToggleButton().buttonStyle(.barIcon) }
             .sharedBackgroundVisibility(.hidden)
+            .hidden(columnsToolbarHidden)
             // Today's note in one press (DailyNotes).
             ToolbarItem { TodayButton(identifier: "sidebar.today").buttonStyle(.barIcon) }
             .sharedBackgroundVisibility(.hidden)
+            .hidden(columnsToolbarHidden)
             ToolbarItem {
                 // The Spotlight-like panel, which finds notes by title and text and runs commands
                 // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
                 SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp).buttonStyle(.barIcon)
             }
             .sharedBackgroundVisibility(.hidden)
+            .hidden(columnsToolbarHidden)
             #endif
         }
     }

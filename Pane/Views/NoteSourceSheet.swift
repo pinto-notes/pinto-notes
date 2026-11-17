@@ -97,12 +97,12 @@ struct NoteSourceSheet: View {
                 }
             }
             if let picture = FirstOpen.image(data: colorScheme == .dark ? draft.previewDark ?? draft.preview : draft.preview) {
-                // An app: a picture of it, as it will open.
+                // An app or a whiteboard: a picture of it, as it will open.
                 picture.resizable().scaledToFit()
                     .clipShape(.rect(cornerRadius: 18, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.line, lineWidth: 1))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityLabel("Picture of the \(draft.title) app")
+                    .accessibilityLabel(draft.boardScene != nil ? "Picture of the whiteboard \(draft.title)" : "Picture of the \(draft.title) app")
                     .accessibilityIdentifier("noteSource.preview")
             } else {
             // The note as it will look, read-only: checklists, headings, lists and tables.

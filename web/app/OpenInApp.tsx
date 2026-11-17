@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { OPEN_WAIT_MS, SITE_EVENT, openEvent, openRequested, opensWhat, validAppLink, withoutOpen } from "@/lib/open-in-app";
+import { OPEN_WAIT_MS, SITE_EVENT, openEvent, openRequested, opensWhat, validAppLink, withoutOpen, type OpensWhat } from "@/lib/open-in-app";
 import type { SiteEvent } from "@/lib/posthog";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { tryApp } from "./open/try-app";
@@ -14,9 +14,11 @@ const send = (e: SiteEvent | null) => { if (e) window.dispatchEvent(new CustomEv
 /// the window offers the Mac app and another try. `href` is the universal link, kept for a copied
 /// link and for a click without JavaScript; `app` is the app's own link, built from a checked slug.
 /// With `auto`, the page also tries the app as it loads when its address asks (?open, from an old link).
-export default function OpenInApp({ href, app, className, label, labelIos, auto = false, children }: {
+export default function OpenInApp({ href, app, className, label, labelIos, what, auto = false, children }: {
   href: string;
   app: string;
+  /// What it opens, for the sheet's words when the app isn't there; from the link when not given.
+  what?: OpensWhat;
   className?: string;
   label?: string;
   /// The name on an iPhone or iPad, when its words differ there (templates/UseLabel.tsx).
@@ -73,7 +75,7 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
       <a ref={link} className={className} href={href} aria-label={name} onClick={onClick} aria-busy={state === "trying" || undefined} data-opening={state === "trying" || undefined}>
         {children}
       </a>
-      {state === "fallback" && createPortal(<OpenSheet what={opensWhat(app)} onRetry={retry} onClose={close} />, document.body)}
+      {state === "fallback" && createPortal(<OpenSheet what={what ?? opensWhat(app)} onRetry={retry} onClose={close} />, document.body)}
     </>
   );
 }
@@ -82,7 +84,7 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
 /// the page. Most people who see it just don't have the app yet, so it says what to do next rather
 /// than sounding like a failure; "Try again" is for the few who do. Escape or Close puts it away and
 /// focus goes back to the button.
-function OpenSheet({ what, onRetry, onClose }: { what: "template" | "note"; onRetry: () => void; onClose: () => void }) {
+function OpenSheet({ what, onRetry, onClose }: { what: OpensWhat; onRetry: () => void; onClose: () => void }) {
   const id = useId();
   const sheet = useRef<HTMLDivElement>(null);
   useEffect(() => {

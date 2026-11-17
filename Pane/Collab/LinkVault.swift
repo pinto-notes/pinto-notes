@@ -16,7 +16,7 @@ protocol LinkVault {
 struct LinkVaultEntry: Codable, Equatable {
     var id: String
     var secret: Data
-    /// "Can edit" or "Can view" (ShareState.Access). Off isn't kept: the entry is removed.
+    /// "Can edit", "Can comment" or "Can view" (ShareState.Access). Off isn't kept: the entry is removed.
     var access: String
 }
 

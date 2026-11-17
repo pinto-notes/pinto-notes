@@ -13,6 +13,15 @@ import Testing
         var sender_d: String; var sender_public: String; var recipient_d: String; var recipient_public: String
         var note_key: String; var wrap: String; var update: String; var update_plain: String; var safety_code: String
         var link_id: String; var link_secret: String; var link_sealed: String
+        var picture_id: String; var picture_png: String; var picture: String
+        /// What the whiteboard page in a browser seals and writes (web/lib/board-*.ts, scripts/board-web-vectors.ts).
+        var web: Web
+        struct Web: Decodable {
+            var user: String; var data_key: String; var identity_wrap: String; var self_wrap: String
+            var link_answer: String; var link_answer_hash: String; var link_key_wrap: String
+            var presence: String; var presence_plain: String
+            var board_upto: Int; var board_snapshot: String; var board_change: String; var board_message: String
+        }
     }
 
     let v: Vectors
@@ -35,6 +44,58 @@ import Testing
         #expect(String(decoding: plain, as: UTF8.self) == v.update_plain)
         #expect(CollabCrypto.safetyCode(b64(v.sender_public), b64(v.recipient_public)) == v.safety_code)
         #expect(CollabCrypto.safetyCode(b64(v.recipient_public), b64(v.sender_public)) == v.safety_code)
+    }
+
+    /// A picture on a shared whiteboard sealed by the server's code opens here, as the board keeps
+    /// it; only under its own id, kept as it is (a board's file ids mix cases), and only as a picture.
+    @Test func aPictureFromTheServerCodeOpens() throws {
+        let nk = SymmetricKey(data: b64(v.note_key)), note = UUID(uuidString: v.note)!
+        let row = Collab.File(file_id: v.picture_id, epoch: v.epoch, ct: v.picture)
+        let picture = try CollabBoard.Pictures.open(row, keys: [v.epoch: nk], note: note)
+        #expect(picture["dataURL"] as? String == "data:image/png;base64," + v.picture_png && picture["mimeType"] as? String == "image/png")
+        #expect(throws: (any Error).self) { try CollabCrypto.open(.file, v.picture, nk: nk, note: note, extra: v.picture_id.lowercased()) }
+        #expect(throws: (any Error).self) { try CollabCrypto.open(.update, v.picture, nk: nk, note: note, extra: v.picture_id) }
+        #expect(throws: (any Error).self) { try CollabBoard.Pictures.open(row, keys: [v.epoch + 1: nk], note: note) }
+        // Sealed here, it opens there the same way: the round trip through this side's own seal.
+        let again = try CollabBoard.Pictures.seal(picture, nk: nk, note: note, epoch: v.epoch)
+        #expect(try CollabBoard.Pictures.open(Collab.File(file_id: v.picture_id, epoch: v.epoch, ct: again), keys: [v.epoch: nk], note: note)["dataURL"] as? String == picture["dataURL"] as? String)
+    }
+
+    /// What the whiteboard page in a browser seals opens here as the app's own (17 November 2026):
+    /// the link's answer and key, the identity and self wraps under the data key, presence, and a
+    /// board it wrote (a snapshot and a change), with its elements, settings, comment and author.
+    @Test func whatTheBrowserBoardSealsOpensHere() throws {
+        let w = v.web, note = UUID(uuidString: v.note)!, user = UUID(uuidString: w.user)!
+        let dk = SymmetricKey(data: b64(w.data_key))
+        var secret = v.link_secret.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while secret.count % 4 != 0 { secret += "=" }
+        let lk = CollabStore.linkKeys(Data(base64Encoded: secret)!, link: v.link_id)
+        #expect(lk.answer == w.link_answer && lk.answerHash == w.link_answer_hash)
+        #expect(try NoteCrypto.open(w.link_key_wrap, key: lk.key, context: "invite:\(v.link_id.lowercased())") == v.note_key)
+        let id = try CollabCrypto.unwrapIdentity(w.identity_wrap, dataKey: dk, user: user)
+        #expect(id.publicRaw == b64(v.recipient_public))
+        #expect(E2EE.bytes(try CollabCrypto.openSelfWrap(w.self_wrap, dataKey: dk, note: note, epoch: v.epoch)) == b64(v.note_key))
+        let nk = SymmetricKey(data: b64(v.note_key))
+        let presence = try CollabCrypto.open(.presence, w.presence, nk: nk, note: note, extra: w.user)
+        #expect(String(decoding: presence, as: UTF8.self) == w.presence_plain)
+        let p = try #require(try JSONSerialization.jsonObject(with: presence) as? [String: Any])
+        #expect(p["name"] as? String == "Sara" && (p["pointer"] as? [Double]) == [120.5, 80] && (p["sel"] as? [String]) == ["box-1"])
+
+        let doc = Document(textEncoding: .utf16)
+        try CollabText.absorb(try CollabCrypto.open(.snapshot, w.board_snapshot, nk: nk, note: note, extra: String(w.board_upto)), into: doc)
+        let board = try #require(CollabBoard.board(in: doc))
+        var drawn = CollabBoard.entries(in: doc, board)
+        #expect(Set(drawn.keys) == ["box-1", "note-2"])
+        #expect(drawn["note-2"]?.element["text"] as? String == "Hej från webben")
+        #expect(CollabBoard.settings(in: doc)["viewBackgroundColor"] as? String == "#fffce8" && CollabBoard.settings(in: doc)["gridModeEnabled"] as? Bool == true)
+        let comments = BoardComments.read(doc)
+        #expect(comments.map(\.id) == ["c-0123456789abcdef"] && comments.first?.on == "box-1" && comments.first?.by == user.uuidString, "by, in upper case as the app writes it")
+        try CollabText.absorb(try CollabCrypto.open(.update, w.board_change, nk: nk, note: note, extra: w.user), into: doc)
+        drawn = CollabBoard.entries(in: doc, board)
+        #expect((drawn["box-1"]?.element["x"] as? NSNumber)?.doubleValue == 240 && drawn["box-1"]?.stamp == .init(version: 4, nonce: 111))
+        // Each of its changes names the person as the app's own do, so History says who.
+        let last = try #require(doc.getHistory().last.flatMap { doc.change(hash: $0) })
+        #expect(last.message == w.board_message && w.board_message == CollabHistory.stamp(user))
     }
 
     @Test func aWrapFromSomeoneElseOrMovedIsRefused() throws {
