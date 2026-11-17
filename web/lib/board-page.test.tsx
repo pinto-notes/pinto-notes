@@ -56,8 +56,9 @@ describe("a shared whiteboard's page", () => {
     expect(d.body.textContent).toContain("Shared by Emil W");
     // The words aren't printed again under the picture.
     expect(d.querySelector("article.note")).toBeNull();
-    // The rest of the page is the note page's own.
-    expect(d.querySelector('aside[aria-label="About Pinto Notes"]')).not.toBeNull();
+    // The rest of the page is the note page's own: no Get Pinto Notes card since 1.4 (the logo in
+    // the bar is enough), and the report link.
+    expect(d.querySelector('aside[aria-label="About Pinto Notes"]')).toBeNull();
     expect(d.querySelector(`a[href="/report/${SLUG}"]`)).not.toBeNull();
   });
 
@@ -117,11 +118,11 @@ describe("a shared whiteboard's link", () => {
     expect(asked.some((u) => u.includes("share-files?slug=") && !u.includes("picture="))).toBe(false);
   });
 
-  it("a note's link is as before: its text describes it, with no picture", async () => {
+  it("a note's link is as in 1.4: its text describes it, and it previews as the note's card", async () => {
     const { mod } = await page({ ...board, title: "Trip", body: "Trip\n\nDay one by the sea.", picture: null });
     const meta = await mod.generateMetadata({ params: Promise.resolve({ slug: SLUG }) });
     expect(meta.description).toBe("Day one by the sea.");
-    expect((meta.openGraph as { images?: unknown }).images).toBeUndefined();
+    expect((meta.openGraph as { images?: unknown }).images).toEqual([{ url: `/og/n/${SLUG}`, width: 1200, height: 630, alt: "Trip, a note shared from Pinto Notes" }]);
   });
 });
 
