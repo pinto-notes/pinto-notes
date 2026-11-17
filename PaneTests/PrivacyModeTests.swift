@@ -311,7 +311,7 @@ final class Heard<T>: @unchecked Sendable {
     }
 
     /// A, the banner: a call turns privacy mode on at once and says so; Turn Off turns it off for
-    /// the rest of the call; the close hides the line and leaves it on; the call's end turns it off.
+    /// the rest of the call; the call's end turns it off. Turned on by hand, it says just that.
     @Test func theStudysBannerTurnsItOnAndSaysSo() {
         PrivacyCoverStyle.chosen = .banner
         defer { PrivacyCoverStyle.chosen = .current }
@@ -319,8 +319,6 @@ final class Heard<T>: @unchecked Sendable {
         mode.callChanged(true)
         #expect(mode.isOn && mode.source == .automatic && mode.announcing && !mode.asking)
         #expect(mode.announcement == "You\u{2019}re in a call. Privacy mode is on.")
-        mode.dismissAnnouncement()
-        #expect(mode.isOn && !mode.announcing)
         mode.callChanged(false)
         #expect(!mode.isOn)
         mode.callChanged(true)
@@ -332,10 +330,26 @@ final class Heard<T>: @unchecked Sendable {
         #expect(mode.isOn && mode.announcing, "a new call turns it on again")
         mode.callChanged(false)
         #expect(!mode.announcing)
+        mode.setManual(true)
+        #expect(mode.announcing && mode.announcement == "Privacy mode is on.")
+        mode.setManual(false)
+    }
+
+    /// B: the card asks; once on, the same line says so, and the eye is gone in both.
+    @Test func theStudysCardEndsInTheSameLine() {
+        PrivacyCoverStyle.chosen = .frosted
+        defer { PrivacyCoverStyle.chosen = .current }
+        let (mode, _, _) = Self.fresh()
+        mode.callChanged(true)
+        #expect(mode.asking && !mode.announcing)
+        mode.answer(hide: true, remember: false)
+        #expect(mode.isOn && mode.announcing && !mode.asking)
+        mode.callChanged(false)
+        #expect(!mode.isOn)
     }
 
     @Test func theStudysWordsSayPrivacyMode() {
-        let all = [PrivacyStudyWords.question, PrivacyStudyWords.turnOn, PrivacyStudyWords.notNow, PrivacyStudyWords.turnOff, PrivacyStudyWords.dismiss]
+        let all = [PrivacyStudyWords.question, PrivacyStudyWords.turnOn, PrivacyStudyWords.notNow, PrivacyStudyWords.turnOff]
         for w in all { #expect(!w.contains("\u{2014}") && !w.lowercased().contains("preview"), "\(w)") }
         #expect(PrivacyStudyWords.question == "Turn on privacy mode?")
     }

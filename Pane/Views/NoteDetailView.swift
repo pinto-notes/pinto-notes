@@ -879,7 +879,7 @@ struct NoteDetailView: View {
                         // Not under the deleted note's banner: the text starts below it, and this
                         // would cover its title (round 19).
                         // Nor under the privacy study's banner (PrivacyBanner), for the same reason.
-                        if !Self.captureWithoutToolbar, note.trashedAt == nil, !(PrivacyCoverStyle.active == .banner && PrivacyMode.shared.announcing) {
+                        if !Self.captureWithoutToolbar, note.trashedAt == nil, !PrivacyMode.shared.announcing {
                             LinearGradient(stops: Self.toolbarCover.map { .init(color: Color.notePage.opacity($0.opacity), location: $0.location) },
                                            startPoint: .top, endPoint: .bottom)
                                 .frame(height: NoteDetailView.toolbarFade)
@@ -2397,7 +2397,7 @@ struct NoteToolbarStage<Pane: View>: View {
                     ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
                 }
                 // Privacy mode is on: the eye says so, and a click turns it off.
-                if PrivacyMode.shared.isOn {
+                if PrivacyMode.shared.isOn && !PrivacyCoverStyle.active.usesBanner {
                     if self.parts == nil { ToolbarSpacer(.flexible) }
                     ToolbarItem { PrivacyEyeButton().buttonStyle(.barIcon) }
                 }

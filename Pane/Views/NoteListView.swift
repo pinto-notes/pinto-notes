@@ -2479,7 +2479,7 @@ struct NoteRow: View {
                         .foregroundStyle(ink)
                         .lineLimit(large ? 3 : 1)
                         // Privacy mode on the Mac: blurred until you point at the list (ListTitleReveal).
-                        .blur(radius: titleBlurred ? PreviewBlur.radius : 0)
+                        .privacyBars(titleBlurred)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: titleBlurred)
                     if sharedMark {
                         NoteRowSharedMark()

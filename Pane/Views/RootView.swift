@@ -1554,6 +1554,10 @@ struct PaneCommands: Commands {
         CommandGroup(replacing: .appInfo) {
             Button("About Pinto Notes") { AboutCredits.show() }
         }
+        #if os(macOS)
+        // The privacy mode study's switch (this branch only, for trying A and B).
+        CommandMenu("Privacy Study") { PrivacyStudyMenu() }
+        #endif
         CommandGroup(replacing: .appSettings) {
             Button("Settings\u{2026}") { SettingsRoute.shared.show() }
                 .keyboardShortcut(",")

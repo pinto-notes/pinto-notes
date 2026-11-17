@@ -66,12 +66,22 @@ struct PreviewBlur: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .blur(radius: on && !revealed ? Self.radius : 0)
+            // Bars where the words were (Emil, 17 November 2026: the blur looked ugly).
+            .privacyBars(on && !revealed)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: on)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: revealed)
             #if os(macOS)
             .onHover { if revealsOnHover { revealed = $0 } }
             #endif
+    }
+}
+
+extension View {
+    /// Privacy mode's bars: each line of text drawn as a rounded bar its length, so the list keeps
+    /// its shape and nothing can be read on a shared screen. VoiceOver still reads the words: the
+    /// person using it is the one at the screen.
+    func privacyBars(_ on: Bool) -> some View {
+        redacted(reason: on ? .placeholder : []).accessibilityRepresentation { self }
     }
 }
 

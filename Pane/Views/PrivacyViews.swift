@@ -63,7 +63,7 @@ struct PrivacyTitleBlur: ViewModifier {
     func body(content: Content) -> some View {
         let blurred = ListTitleReveal.blurs(privacyOn: mode.isOn, open: open, revealed: reveal?.shown ?? false)
         content
-            .blur(radius: blurred ? PreviewBlur.radius : 0)
+            .privacyBars(blurred)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: blurred)
     }
 }
@@ -176,7 +176,7 @@ struct PrivacyCoverView: View {
 /// Emil tried the frosted cover in a real call and it looked broken (an empty grey window with the
 /// toolbar floating on it), and "Blur previews" didn't say what it would do. Only tests and
 /// captures choose a style (PrivacyCoverStudyShots); the app ships `.current`.
-enum PrivacyCoverStyle: Sendable {
+enum PrivacyCoverStyle: String, Sendable, CaseIterable {
     /// The frosted cover over the whole window, asking (what ships).
     case current
     /// A: on by itself, and a slim line under the toolbar says so, with Turn Off.
@@ -186,19 +186,48 @@ enum PrivacyCoverStyle: Sendable {
     /// C: the app's layout as grey bars, with the same card.
     case skeleton
 
-    #if DEBUG || QA
-    /// Set by the study's pictures; nothing else changes it.
-    @MainActor static var chosen: PrivacyCoverStyle = .current
-    #endif
+    /// Set by the study's pictures and tests (not saved).
+    @MainActor static var chosen: PrivacyCoverStyle {
+        get { PrivacyStudy.shared.style }
+        set { PrivacyStudy.shared.style = newValue }
+    }
 
-    @MainActor static var active: PrivacyCoverStyle {
-        #if DEBUG || QA
-        chosen
-        #else
-        .current
-        #endif
+    @MainActor static var active: PrivacyCoverStyle { PrivacyStudy.shared.style }
+
+    /// While privacy mode is on, the line under the toolbar says so, not the eye.
+    var usesBanner: Bool { self != .current }
+}
+
+/// The study's choice, from the Privacy Study menu (this branch only): kept between launches.
+@MainActor @Observable final class PrivacyStudy {
+    static let shared = PrivacyStudy()
+    static let key = "PrivacyStudyStyle"
+    var style: PrivacyCoverStyle = UserDefaults.standard.string(forKey: PrivacyStudy.key).flatMap(PrivacyCoverStyle.init(rawValue:)) ?? .current
+
+    func choose(_ style: PrivacyCoverStyle) {
+        self.style = style
+        UserDefaults.standard.set(style.rawValue, forKey: Self.key)
     }
 }
+
+#if os(macOS)
+/// The Privacy Study menu: A or B, and a pretend call to see it without one.
+struct PrivacyStudyMenu: View {
+    @State private var study = PrivacyStudy.shared
+    @State private var mode = PrivacyMode.shared
+
+    var body: some View {
+        Picker("When a Call Starts", selection: Binding(get: { study.style }, set: { study.choose($0) })) {
+            Text("A: Turn On and Say So").tag(PrivacyCoverStyle.banner)
+            Text("B: Ask on a Card").tag(PrivacyCoverStyle.frosted)
+            Text("As It Ships Today").tag(PrivacyCoverStyle.current)
+        }
+        .pickerStyle(.inline)
+        Divider()
+        Toggle("Pretend I\u{2019}m in a Call", isOn: Binding(get: { mode.inCall }, set: { mode.callChanged($0) }))
+    }
+}
+#endif
 
 /// The study's words. "Privacy mode" says what it is; "previews" didn't.
 enum PrivacyStudyWords {
@@ -206,7 +235,6 @@ enum PrivacyStudyWords {
     static let turnOn = "Turn On"
     static let notNow = "Not Now"
     static let turnOff = "Turn Off"
-    static let dismiss = "Hide this message"
 }
 
 /// Where the window's columns are, for the study's skeleton and banner (global coordinates).
@@ -289,10 +317,11 @@ struct PrivacyAskCard: View {
                 #else
                 Rectangle().fill(.thickMaterial).ignoresSafeArea()
                 #endif
+                // A click outside the card doesn't trap you: privacy mode turns on and you carry on.
                 Color(Palette.page).opacity(0.25)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
-                    .onTapGesture {}
+                    .onTapGesture { mode.answer(hide: true, remember: false) }
                     .accessibilityHidden(true)
                 PrivacyAskCard(mode: mode)
             }
@@ -478,12 +507,12 @@ extension View {
     /// The study's banner across the list and the note (RootView's split view). Nothing at all
     /// unless the study chose `.banner`, so the shipping window is laid out as before.
     @ViewBuilder func privacyBanner() -> some View {
-        if PrivacyCoverStyle.active == .banner { modifier(PrivacyBannerOverlay()) } else { self }
+        if PrivacyCoverStyle.active.usesBanner { modifier(PrivacyBannerOverlay()) } else { self }
     }
 
     /// The banner's room at the top of a column, so it covers neither the list nor the note.
     @ViewBuilder func privacyBannerRoom(note: Bool = false) -> some View {
-        if PrivacyCoverStyle.active == .banner { modifier(PrivacyBannerRoom(note: note)) } else { self }
+        if PrivacyCoverStyle.active.usesBanner { modifier(PrivacyBannerRoom(note: note)) } else { self }
     }
 }
 
@@ -551,16 +580,9 @@ struct PrivacyBanner: View {
                 .buttonStyle(.secondary)
                 .fixedSize()
                 .accessibilityIdentifier("privacy.bannerTurnOff")
-            Button { mode.dismissAnnouncement() } label: {
-                Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).frame(width: 22, height: 22)
-            }
-            .buttonStyle(.quietIcon)
-            .help(PrivacyStudyWords.dismiss)
-            .accessibilityLabel(PrivacyStudyWords.dismiss)
-            .accessibilityIdentifier("privacy.bannerClose")
         }
         .padding(.leading, 12)
-        .padding(.trailing, 6)
+        .padding(.trailing, 5)
         .frame(height: 34)
         .background(Color(Palette.soft), in: shape)
         .padding(.horizontal, 10)
@@ -576,7 +598,8 @@ struct PrivacyEyeButton: View {
     @State private var mode = PrivacyMode.shared
 
     var body: some View {
-        if mode.isOn {
+        // The study's line under the toolbar says it instead (PrivacyBanner).
+        if mode.isOn && !PrivacyCoverStyle.active.usesBanner {
             Button(PrivacyWords.turnOff, systemImage: "eye.slash") { mode.toggle() }
                 .labelStyle(.iconOnly)
                 .foregroundStyle(Color.amberInk)
