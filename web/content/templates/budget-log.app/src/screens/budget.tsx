@@ -17,13 +17,18 @@ export default function Budget() {
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    await b.addCategory(name.trim(), Math.max(0, Number(amount) || 0))
+    // Cleared first, then saved: cleared once the save was confirmed, it could wipe the next one
+    // the person had started typing.
+    const fields = [name.trim(), Math.max(0, Number(amount) || 0)] as const
     setName(""); setAmount("")
+    await b.addCategory(...fields)
   }
   const drop = async (c: Category) => {
     const before = b.categories
-    await b.removeCategory(c.name)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Removed ${c.name}`, () => b.restoreCategories(before))
+    await b.removeCategory(c.name)
   }
 
   return (

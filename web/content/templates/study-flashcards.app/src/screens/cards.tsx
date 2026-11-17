@@ -29,17 +29,21 @@ export default function Cards() {
     // From the fields themselves: Return can come before the last keystroke has re-rendered.
     const qv = (qRef.current?.value ?? q).trim(), av = (aRef.current?.value ?? a).trim(), tv = (tRef.current?.value ?? topic).trim()
     if (!qv || !av) return
-    await add({ q: qv, a: av, ...(tv ? { topic: tv } : {}) })
+    // Cleared first, then saved: cleared once the save was confirmed, it could wipe the next one
+    // the person had started typing.
     setAdded(qv); setQ(""); setA("")
     qRef.current?.focus()
+    await add({ q: qv, a: av, ...(tv ? { topic: tv } : {}) })
   }
   // Return in the answer adds the card (Shift-Return is a new line).
   const enter = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); quick() } }
   const drop = async (c: Card) => {
     const before = cards
     setEditing(null)
-    await remove(c.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Deleted "${c.q}"`, () => restore(before))
+    await remove(c.id)
   }
   const words = find.trim().toLowerCase()
   const shown = words ? cards.filter((c) => `${c.q} ${c.a} ${c.topic ?? ""}`.toLowerCase().includes(words)) : cards
@@ -91,8 +95,8 @@ export default function Cards() {
           {shown.length > 0 && <Levels cards={shown} />}
         </div>
       </div>
-      <EditSheet card={editing} topics={topics} onClose={() => setEditing(null)} onSave={async (patch) => { if (editing) await update(editing.id, patch); setEditing(null) }} onDelete={drop} />
-      <PasteSheet open={pasting} topic={topic} onClose={() => setPasting(false)} onAdd={async (cs) => { await addMany(cs); setPasting(false); offerUndo(`Added ${cs.length} cards`, () => restore(cards)) }} />
+      <EditSheet card={editing} topics={topics} onClose={() => setEditing(null)} onSave={(patch) => { const card = editing; setEditing(null); return card ? update(card.id, patch) : undefined }} onDelete={drop} />
+      <PasteSheet open={pasting} topic={topic} onClose={() => setPasting(false)} onAdd={(cs) => { setPasting(false); offerUndo(`Added ${cs.length} cards`, () => restore(cards)); return addMany(cs) }} />
     </>
   )
 }

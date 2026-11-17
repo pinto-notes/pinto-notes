@@ -48,8 +48,9 @@ A template's app follows the rule every app's README states: the person stays in
 the app (they add, edit, rename, reorder and remove what it keeps, change its settings in the app,
 and can undo a delete), not only through their AI.
 
-The app's own tests run with the template's data.json loaded, the same as a save over the
-person's data, so write them to add what they need rather than assume an empty store.
+The app's own tests start with no data, whatever data.json holds, as every app's do: each test
+sets up what it needs. They have to pass every time, also on a busy machine (a failing version
+isn't shown): `app_runtime.pglite.test.ts` runs every template's suite three times at once.
 
 ## Generated (committed, never edited by hand)
 

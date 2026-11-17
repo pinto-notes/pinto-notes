@@ -24,26 +24,35 @@ export default function Packing() {
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim()) return
-    await addItem(text.trim(), group)
+    // Cleared first, then saved: cleared once the save was confirmed, it could wipe the next one
+    // the person had started typing.
+    const item = text.trim()
     setText("")
+    await addItem(item, group)
   }
   const drop = async (x: Item) => {
     const before = packing
     setEditing(null)
-    await removeItem(x.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Deleted ${x.text}`, () => restorePacking(before))
+    await removeItem(x.id)
   }
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editing || !name.trim()) return
+    // Closed first, then saved: a sheet that closed when its save landed could shut the next one the
+    // person had opened by then. The save lands either way.
+    setEditing(null)
     if (name.trim() !== editing.text) await updateItem(editing.id, name.trim())
     if (moveTo !== (editing.group ?? "Other")) await updateItemGroup(editing.id, moveTo)
-    setEditing(null)
   }
   const unpack = async () => {
     const before = packing
-    await unpackAll()
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo("Unpacked everything", () => restorePacking(before))
+    await unpackAll()
   }
 
   return (

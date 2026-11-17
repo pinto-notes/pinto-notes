@@ -534,9 +534,10 @@ window.__testResults = { results, errors };
   return JSON.stringify({ amberApp: 1, files: { ...p.files, "/index.html": html }, compiled: p.compiled, binary: p.binary });
 }
 
-async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>): Promise<Render> {
+async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>, ms = 30000): Promise<Render> {
   const { page, errors } = await open(390, "light");
-  const got = await page.waitForFunction(() => (window as any).__testResults, null, { timeout: 30000 }).then((h) => h.jsonValue() as Promise<{ results: Render["tests"]; errors: string[] }>).catch(() => ({ results: [], errors: ["The tests didn't finish in 30 s."] }));
+  const timeout = Math.min(Math.max(ms, 1000), 120000);
+  const got = await page.waitForFunction(() => (window as any).__testResults, null, { timeout }).then((h) => h.jsonValue() as Promise<{ results: Render["tests"]; errors: string[] }>).catch(() => ({ results: [], errors: [`The tests didn't finish in ${Math.round(timeout / 1000)} s.`] }));
   await page.context().close();
   return { views: [], blocked: [], updates: [], setData: 0, interaction: { tried: "none", ok: null }, probes: {}, markdownAfter: "", dataAfter: null,
     tests: got.results ?? [], testErrors: [...(got.errors ?? []), ...errors.filter((e) => !/^Failed to load resource/.test(e)).slice(0, 5)] };
@@ -607,6 +608,8 @@ export type RenderOptions = {
   steps?: Step[];
   /** run_app_tests: run the project's tests/*.test.* files instead of opening the app. */
   tests?: boolean;
+  /** How long the tests may take, in ms (30 s, as a save waits; at most 120 s). For load tests. */
+  testsTimeout?: number;
   /** The save gate's smoke check: open at 390 and 1280 and tap each visible tab and button once. */
   smoke?: boolean;
 };
@@ -730,7 +733,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
   // app's data.json (until 2026-11-17) every test of five apps passed until the app had data, then
   // failed on every save (Habits went from 11 passing to 2), and the sample's words change each
   // time. The smoke check below still runs over the sample, so the app's real shapes are covered.
-  if (opts.tests) { md = markdown; store = empty(noData()); return await runTests(open); }
+  if (opts.tests) { md = markdown; store = empty(noData()); return await runTests(open, opts.testsTimeout); }
   if (opts.smoke) {
     const problems: string[] = [];
     const slow: { name: string; ms: number; width: number }[] = [];

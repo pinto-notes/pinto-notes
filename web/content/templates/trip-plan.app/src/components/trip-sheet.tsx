@@ -21,8 +21,10 @@ export function TripSheet({ open, onClose }: { open: boolean; onClose: () => voi
     e.preventDefault()
     if (!ok) return
     const to = /^\d{4}-\d{2}-\d{2}$/.test(end) && end >= start ? end : start
-    await setTrip({ name: name.trim(), ...(place.trim() ? { place: place.trim() } : {}), start, end: to })
+    // Closed first, then saved: a sheet that closed when its save landed could shut the next one the
+    // person had opened by then. The save lands either way.
     onClose()
+    await setTrip({ name: name.trim(), ...(place.trim() ? { place: place.trim() } : {}), start, end: to })
   }
 
   return (
@@ -39,8 +41,9 @@ export function TripSheet({ open, onClose }: { open: boolean; onClose: () => voi
           <DeleteButton className="text-link" onClick={async () => {
             const name = trip.name
             onClose()
-            const undo = await newTrip()
-            offerUndo(`${name} put away. The packing list is ready again.`, undo)
+            // Offered at once (the put-away is still saving), so it can't come late and undo the wrong thing.
+            const done = newTrip()
+            offerUndo(`${name} put away. The packing list is ready again.`, async () => (await done)())
           }}>Start a new trip</DeleteButton>
         )}
       </form>

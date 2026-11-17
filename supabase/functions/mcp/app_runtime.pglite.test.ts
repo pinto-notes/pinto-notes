@@ -5,7 +5,9 @@
 //   - quick writes all land: function updates build on the newest value, before the host confirms;
 //   - the test runner has the common Vitest and Testing Library features, and says which one is
 //     missing when a test reaches for something it doesn't have;
-//   - several files go in one write, checked once; a held-back single file says so.
+//   - several files go in one write, checked once; a held-back single file says so;
+//   - the template apps' tests pass every time, many runs at once on a busy machine (a failing
+//     version isn't shown, so a flaky template test would hold a person's app back at random).
 // Needs Playwright's WebKit, like app_files.pglite.test.ts.
 //   cd supabase/functions/mcp && deno test -A app_runtime.pglite.test.ts
 import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
@@ -318,4 +320,54 @@ Deno.test({ name: "an app's tests start with no data, whatever data.json holds; 
     assertEquals([both.tests, both.live.startsWith("Live")], ["5 passed, 0 failed", true]);
     assertEquals([seen.renders - before.renders, seen.tests - before.tests, seen.smoke - before.smoke], [3, 1, 1]);
   } finally { await stop(); }
+});
+
+/** A template app's folder (web/content/templates), as the files a save gets. */
+async function templateFiles(slug: string) {
+  const root = new URL(`../../../web/content/templates/${slug}.app/`, import.meta.url).pathname;
+  const files: Record<string, string> = {};
+  const walk = async (dir: string, rel: string) => {
+    for await (const e of Deno.readDir(dir)) {
+      const path = `${rel}/${e.name}`;
+      if (e.isDirectory) await walk(`${dir}/${e.name}`, path);
+      else if (path !== "/data.json" && !/\.(png|jpe?g|webp)$/.test(path)) files[path] = await Deno.readTextFile(`${dir}/${e.name}`);
+    }
+  };
+  await walk(root, "");
+  return files;
+}
+
+// The templates' suites failed now and then under load: the Undo bar kept its offer in a module
+// variable from one test to the next, Undo was offered only once a delete was confirmed (after
+// the test, or the person, had moved on), the first screen swapped in the AI's suggestions while
+// the person was typing, and a sheet closed when its save was confirmed, shutting the next one
+// opened by then. Each has its own test in the template; this catches the next one. Here every template's
+// suite runs three times at once (12 pages), with the machine kept busy, and every run has to pass
+// (more pages than that only measures the 30 s budget on a loaded Mac).
+Deno.test({ name: "the template apps' tests pass every time, many runs at once on a busy machine", ignore: !hasWebKit }, async () => {
+  const { renderPage, testRunnerProject, closeBrowser } = await import("../../../scripts/page-render/render.ts");
+  const busy = Array.from({ length: 4 }, () => new Worker(URL.createObjectURL(new Blob(["for (;;) {}"], { type: "text/javascript" })), { type: "module" }));
+  try {
+    const runners = await Promise.all(["habit-tracker", "budget-log", "study-flashcards", "trip-plan"].map(async (slug) => {
+      const p = await withFiles({ amberApp: 1, files: {}, compiled: {} }, await templateFiles(slug));
+      return { slug, runner: testRunnerProject(JSON.stringify((await linkProject(p)).project))! };
+    }));
+    // Each run gets 120 s here, so a slow run shows as slow, not failed: a failed check is a flake,
+    // while a run over the save's 30 s, or a test over its own 5 s, is a capacity note (printed).
+    const runs = await Promise.all(runners.flatMap(({ slug, runner }) => Array.from({ length: 3 }, async (_, i) => {
+      const t0 = performance.now();
+      const r = await renderPage(runner, "Template\n", { values: {}, collections: {} }, { today: "2026-11-17", tests: true, testsTimeout: 120_000 });
+      const results = r.tests ?? [];
+      const all = failuresOf({ results, errors: r.testErrors ?? [] });
+      const late = all.filter((f) => /timed out after \d+ s|didn't finish in \d+ s/.test(f));
+      return { run: `${slug} #${i + 1}`, seconds: Math.round((performance.now() - t0) / 1000), passed: results.filter((t) => t.ok).length, late, failures: all.filter((f) => !late.includes(f)) };
+    })));
+    const slow = runs.filter((r) => r.seconds > 30 || r.late.length).map((r) => `${r.run} ${r.seconds} s${r.late.length ? ` (${r.late.join("; ")})` : ""}`);
+    if (slow.length) console.log(`Over the save's 30 s on this machine (load ${Deno.loadavg()[0].toFixed(0)}): ${slow.join(", ")}`);
+    assertEquals(runs.filter((r) => r.failures.length), [], JSON.stringify(runs.filter((r) => r.failures.length), null, 1));
+    for (const r of runs) assert(r.passed + r.late.length > 20, `${r.run} ran only ${r.passed} tests`);
+  } finally {
+    for (const w of busy) w.terminate();
+    await closeBrowser();
+  }
 });

@@ -141,6 +141,25 @@ describe("Cards", () => {
     expect(await screen.findByText("A better answer")).toBeInTheDocument()
   })
 
+  it("keeps the next sheet open when a save is confirmed late", async () => {
+    await amber.store.set("cards", [card("c1", "Q one", "A one", "Biology", 3, today), card("c2", "Q two", "A two", "Biology", 3, today)])
+    route("/cards")
+    render(<App />)
+    // The device confirms each save a moment after the app already shows it, as on a busy phone.
+    const store = amber.store as unknown as { set: (...a: unknown[]) => Promise<unknown> }
+    const set = store.set
+    store.set = (...a) => set.apply(store, a).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+    try {
+      await userEvent.click(await screen.findByRole("button", { name: "Edit Q one" }))
+      const sheet = within(await screen.findByRole("dialog", { name: "Edit card" }))
+      await userEvent.type(sheet.getByLabelText("Answer"), " more")
+      await userEvent.click(sheet.getByRole("button", { name: "Save" }))
+      await userEvent.click(await screen.findByRole("button", { name: "Edit Q two" }))
+      await new Promise((r) => setTimeout(r, 600))
+      expect(screen.getByRole("dialog", { name: "Edit card" })).toBeInTheDocument()
+    } finally { store.set = set }
+  })
+
   it("opens a new app on Make your first cards, alone, with no numbers about none", async () => {
     render(<App />)
     expect(await screen.findByRole("heading", { name: "Make your first cards" })).toBeInTheDocument()
