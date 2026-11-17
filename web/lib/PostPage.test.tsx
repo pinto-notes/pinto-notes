@@ -110,7 +110,7 @@ describe("an announcement", () => {
     for (const x of posts.filter((p) => !p.draft)) {
       expect(html(<PostCard post={x} />).includes(">Announcement<"), x.slug).toBe(Boolean(x.announcement));
     }
-    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["slash-menu", "pinto-notes-for-iphone", "pinto-notes-in-chatgpt", "import-your-notes"]);
+    expect(posts.filter((p) => p.announcement).map((p) => p.slug)).toEqual(["share-a-note-and-edit-it-together", "slash-menu", "pinto-notes-for-iphone", "pinto-notes-in-chatgpt", "import-your-notes"]);
     const index = new DOMParser().parseFromString(html(<BlogIndex category={null} page={1} />), "text/html");
     expect(index.body.textContent).not.toContain("Announcement");
   });
@@ -123,6 +123,7 @@ describe("an announcement", () => {
       "pinto-notes-in-chatgpt": "2026-10-28",
       "import-your-notes": "2026-10-13",
       "slash-menu": "2026-11-11",
+      "share-a-note-and-edit-it-together": "2026-11-17",
     });
   });
 });
