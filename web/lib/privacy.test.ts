@@ -51,14 +51,17 @@ describe("privacy copy", () => {
     expect(lower).not.toMatch(/nobody (else|but you) can read (it|your notes)/);
     expect(lower).not.toMatch(/no logs\b/);
     expect(lower).not.toMatch(/zeroed/);
-    // The honest parts of the model, on the page and in the policy.
-    for (const text of [READABLE.join(" "), policy]) {
-      for (const phrase of ["email", "sign-in records", "profile name and photo", "notes-password hint", "size and dates", "sub-notes", "pinned", "locked", "ai apps", "devices", "ai connections", "usage counts", "share"]) {
-        expect(text.toLowerCase(), phrase).toContain(phrase);
-      }
+    // The honest parts of the model: every detail on the Privacy & Security page, the kinds in the
+    // policy (Emil, 17 November 2026: the policy names kinds of data, not every detail).
+    for (const phrase of ["email", "sign-in records", "profile name and photo", "notes-password hint", "size and dates", "sub-notes", "pinned", "locked", "ai apps", "devices", "ai connections", "usage counts", "share"]) {
+      expect(READABLE.join(" ").toLowerCase(), phrase).toContain(phrase);
     }
+    for (const phrase of ["email", "sign-in records", "name and photo", "notes-password hint", "sizes and dates", "sub-notes", "pinned", "locked", "which device or ai", "devices signed in", "ai assistants you connect", "usage", "shared"]) {
+      expect(policy.toLowerCase(), phrase).toContain(phrase);
+    }
+    expect(policy).toMatch(/our server decrypts the notes it asks for in memory/);
     const limits = [...AI_ACCESS, ...LIMITS].map((i) => i.label + " " + i.text).join(" ");
-    for (const text of [limits, policy]) {
+    for (const text of [limits]) {
       expect(text).toMatch(/unlocks your whole notes' key in memory/);
       expect(text).toMatch(/Vercel and Supabase/);
       expect(text).toMatch(/No key rotation yet/);
@@ -86,7 +89,12 @@ describe("privacy copy", () => {
     expect(FACTS[0].text).toBe(DEFAULT);
     expect(HELP.find((q) => q.id === "storage")!.a.join(" ")).toContain(DEFAULT);
     expect(HELP.map((q) => q.a.join(" ")).join(" ")).toMatch(RETIRED);
-    for (const text of [ENCRYPTION.items.map((i) => i.text).join(" "), policy]) {
+    expect(policy).toContain("We keep a locked copy of your notes' key, so that signing in opens your notes on a new device");
+    expect(policy).toContain("we could open your notes if we had to, for example under a court order");
+    expect(policy).toContain("and so could someone who gets into your account or our hosting account");
+    expect(policy).toMatch(RETIRED);
+    expect(policy).toMatch(/With Advanced protection on, your notes are end-to-end encrypted: we hold no copy of your key/);
+    for (const text of [ENCRYPTION.items.map((i) => i.text).join(" ")]) {
       expect(text).toContain("We keep a locked copy of your key so that signing in opens your notes on a new device");
       expect(text).toContain("we could open your notes if we had to, for example under a court order, and so could someone who gets into your account");
       expect(text).toContain(STRICT);
@@ -101,36 +109,24 @@ describe("privacy copy", () => {
       expect(text).toMatch(/could open (them|your notes) if (we|it) had to/);
       expect(text).not.toMatch(/Turn on Advanced protection/);
     }
-    // How older versions turn it on stays in the policy only.
-    expect(policy).toMatch(/a saved recovery key or another device/);
     expect(LIMITS.map((i) => i.text).join(" ")).toMatch(/The sealed copy can't be opened with a copy of the database alone\. A recent copy of the database also holds sign-in sessions/);
     expect(WHO_CAN_SEE.map((i) => i.label + " " + i.text).join(" ")).toMatch(/Anyone who can sign in as you, unless Advanced protection is on/);
   });
 
   it("states in the policy what is stored for the copy, why, who can reach it and how to turn it off", () => {
     for (const phrase of [
-      "a copy of your notes' key and your recovery key, sealed with a secret that is kept outside our database",
-      "Whether your account is standard or has Advanced protection on.",
-      "A log of each time our copy was stored, fetched by a device or removed, and each time a request for it was refused: when, and the kind of device. We keep it for 12 months.",
-      "We store the copy for one purpose: so that signing in opens your notes on a new device, with no other device and no recovery key.",
-      "The secret is a setting that every part of our server can read, so a fault in any part of our server could expose the copies.",
-      "The sealed copy can't be opened with a copy or a backup of the database alone, because the secret isn't in it.",
-      "a session from a sign-in in the last hour can get your key as a device of yours would.",
-      "Turning it on deletes our copy at once.",
-      "The app asks such an account once",
-      "every device of yours shows the notice \"A new device opened your notes\", and we send an email to your account's address",
-      "The notice and the email tell you it happened. They don't stop it.",
-      "our own copy until you turn on Advanced protection, start fresh or delete your account",
-      "| Performance of a contract. Advanced protection turns it off |",
+      "our own copy (see Encryption)",
+      "sealed with a secret kept outside our database. We use it for one thing: so that signing in opens your notes on a new device.",
+      "Each time a new device gets your key, your devices show a notice and we email you.",
+      "the record of when our copy of your key was used for 12 months",
     ]) expect(policy, phrase).toContain(phrase);
     expect(LOGS.find((l) => /copy of your key/.test(l.name))!.kept).toBe("12 months");
   });
 
   it("has no wait for the key after a password reset, only for turning Advanced protection on", () => {
-    expect(policy).toContain("There is no waiting period, and that includes after a password reset.");
     expect(ENCRYPTION.note).toMatch(/there is no waiting period, also after a password reset/);
     const waits = sentences([...siteText, policy]).filter((t) => /72 hours/.test(t));
-    expect(waits).toEqual(["To turn it on you need a saved recovery key or another device that has your notes, and for 72 hours after a password reset it can't be turned on."]);
+    for (const t of waits) expect(t, t).toMatch(/can't be turned on/);
     // Only about the key: a post may say "72 hours" about something else (news reports merged within 72 hours).
     for (const [name, source] of posts) expect(source, name).not.toMatch(/(reset|key|protection)[^.]{0,200}72 hours|72 hours[^.]{0,200}(reset|key|protection)/i);
   });
@@ -150,7 +146,7 @@ describe("privacy copy", () => {
     // can do with a locked note.
     const either = /only an old copy of the database|^It can't read, search or change them\.$/;
     const claims = sentences([...siteText, policy]).filter((t) => claim.test(t));
-    expect(claims.length).toBeGreaterThan(5);
+    expect(claims.length).toBeGreaterThan(3);
     for (const t of claims) if (!either.test(t)) expect(t, t).toMatch(/Advanced protection/);
     // The blog posts: the same, for what they say about Pinto Notes.
     const ours = /\b(we|Pinto Notes) can't (read|open)|(your|Your) notes are (then )?end-to-end encrypted|Pinto Notes end-to-end encrypted/;
@@ -176,42 +172,47 @@ describe("privacy copy", () => {
     const thin = sql.filter((s) => s.includes("function public.pane_thin_revisions")).at(-1)!;
     for (const kept of ["interval '24 hours'", "interval '7 days' and in_hour = 1", "interval '90 days' and (in_day = 1 or ai)"]) expect(thin).toContain(kept);
     expect(limit).toBe("500");
-    expect(policy).toContain(`up to ${limit} per note`);
-    expect(policy).toContain(`every version from the last 24 hours, then the last one of each hour for 7 days, the last one of each day for 90 days, and every AI change for 90 days. Older versions are deleted. A note keeps at most ${limit} versions and 10 MB of them`);
+    // The policy gives the longest any version is kept, which the thinning above sets.
+    expect(policy).toContain("**Earlier versions of a note:** up to 90 days.");
     expect(policy).not.toMatch(/up to 100 per note/);
   });
 
   it("lists the same log retention as the privacy policy", () => {
-    for (const l of LOGS) expect(policy.toLowerCase()).toContain(l.kept);
-    expect(policy).toContain("no backups");
+    // The page lists each log; the policy gives the longest of the providers' (a day) and our own.
+    const days = (k: string) => (/hour/.test(k) ? 0 : 1);
+    expect(LOGS.filter((l) => !/copy of your key/.test(l.name)).every((l) => days(l.kept) <= 1 || /month|days/.test(l.kept))).toBe(true);
+    expect(policy).toContain("request logs at our hosting providers for a day or less");
     expect(policy).toContain("Export Your Notes");
     expect(page).toContain("Export Your Notes");
   });
 
   it("says what the website counts, and never that it counts nothing", () => {
-    for (const text of [policy, page, FACTS.map((f) => f.text).join(" ")]) {
+    expect(policy).toMatch(/Pages viewed, links clicked and where, how far pages are scrolled, the site or ad you came from/);
+    expect(policy).toMatch(/Mac downloads as daily totals/);
+    expect(policy).not.toMatch(/(apps and this website|website) (have|has|uses) no (analytics|tracking)/);
+    for (const text of [page, FACTS.map((f) => f.text).join(" ")]) {
       expect(text).toMatch(/counts page views and where visitors came from/);
       expect(text).toMatch(/Mac downloads as daily totals/);
       expect(text).not.toMatch(/(on|or) (the|this) website, and we never/);
       expect(text).not.toMatch(/(apps and this website|website) (have|has|uses) no (analytics|tracking)/);
     }
-    expect(policy).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all visitors\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\. Vercel never uses cookies\. PostHog uses none either, unless you choose Accept on the website's cookie banner/);
     expect(page).toMatch(/where on a page people click and how far pages are scrolled with PostHog, in the EU\. These are counted across all\s+visitors\. Neither keeps a profile of you, and neither runs on shared notes or the connect pages\.\s+PostHog uses a cookie only if you choose Accept on the cookie banner/);
-    // Heatmaps are named, and limited to the marketing pages, in the long form too.
-    expect(policy).toMatch(/where on the page each click landed/);
     // Session replays (web/lib/posthog.ts replayAllowed): only after Accept, inputs masked, never on private pages,
     // kept 30 days; and said in the summary, the long form, the page, the retention list and the banner.
-    expect(policy).toMatch(/records your visits to the website's public pages as session replays/);
-    expect(policy).toMatch(/If you choose Accept, PostHog also records your visit as a session replay.*Everything typed into a field is masked.*Without Accept, no visit is recorded or replayed\./);
-    expect(policy).toMatch(/\*\*Session replays,\*\* only if you accept: kept at PostHog for 30 days/);
+    expect(policy).toMatch(/\*\*If you accept,\*\* PostHog keeps a random identifier in a cookie for up to a year, so return visits count as one visitor, and records session replays of the public pages\. Anything typed into a field is masked before it's sent\./);
+    expect(policy).toMatch(/\*\*If you don't accept,\*\* nothing is stored in your browser for analytics\./);
+    expect(policy).toContain("session replays for 30 days");
+    expect(policy).toContain("Analytics never run on shared notes, the connect pages or report pages.");
     expect(page).toMatch(/records your visits to the public pages as session replays,\s+with everything you type masked/);
-    expect(policy).toMatch(/\| PostHog, Inc\. \| Website usage: /);
-    expect(policy).toContain("None of this touches your notes or your computer");
+    expect(policy).toContain("**PostHog:** usage and diagnostics, and website analytics, in Frankfurt, Germany.");
   });
 
   // docs/Technical/app-telemetry.md: the App Store 1.2 and Mac download 1.2.3 and later report errors and a few usage counts.
   it("says what the apps report about themselves, where it goes and how to turn it off", () => {
-    for (const text of [policy, page, FACTS.map((f) => f.text).join(" ")]) {
+    expect(policy).not.toMatch(/no third-party analytics/i);
+    expect(policy).toMatch(/Never your notes or what you write/);
+    expect(policy).toMatch(/They never contain your notes, titles, folder or file names, what you search for, anything an AI wrote, your email address or your keys\./);
+    for (const text of [page, FACTS.map((f) => f.text).join(" ")]) {
       expect(text).not.toMatch(/no third-party analytics/i);
       expect(text).not.toMatch(/no crash-reporting tools/i);
       expect(text).toMatch(/App Store version 1\.2 and the Mac download 1\.2\.3/);
@@ -219,24 +220,21 @@ describe("privacy copy", () => {
       expect(text).toMatch(/PostHog in the EU|PostHog, hosted in Frankfurt/);
       expect(text).toMatch(/never your notes/);
     }
-    expect(policy).toContain("**Diagnostics and usage from the apps**");
-    expect(policy).toContain("This started with the App Store version 1.2 and the Mac download 1.2.3. Earlier versions send none of this.");
-    expect(policy).not.toContain("1.2 and earlier send none");
-    expect(policy).toContain("**Settings → General → Share diagnostics and usage** turns all of it off");
-    expect(policy).toContain("| Diagnostics and usage from the apps | To find and fix errors, and to learn where people get stuck | Legitimate interests.");
+    expect(policy).toContain("**Usage and diagnostics.**");
+    expect(policy).toContain("The app's reports can be turned off in **Settings → General → Share diagnostics and usage**.");
+    expect(policy).toContain("| Find and fix problems, and learn how Pinto Notes is used so we can improve it | Legitimate interests. You can object, or turn the app's reports off |");
     // Delete Account doesn't reach PostHog, and the policy says so.
-    expect(policy).toMatch(/it doesn't remove the ones PostHog already holds/);
+    expect(policy).toMatch(/To have the reports PostHog already holds deleted too, write to us\./);
     expect(page).toContain("Share diagnostics and usage");
   });
 
   it("says the website asks before its one cookie, and names everything it stores", () => {
     expect(policy).not.toMatch(/website sets no cookies/i);
     expect(policy).toContain("The website asks before it sets a cookie.");
-    expect(policy).toContain("`amber_consent`");
-    expect(policy).toContain("`ph_<project key>_posthog`, only if you accept");
-    expect(policy).toMatch(/expires a year after your last visit/);
+    expect(policy).toContain("**Your choice** on the cookie banner is kept in your browser");
+    expect(policy).toMatch(/in a cookie for up to a year/);
     expect(policy).toMatch(/Do Not Track or Global Privacy Control, we treat it as Reject/);
-    expect(policy).toMatch(/\| Consent, which you can withdraw at any time with Cookie settings \|/);
+    expect(policy).toMatch(/\| Consent, which you can withdraw at any time \|/);
   });
 
   it("is a cream page that ends in the dark band, like Help and the changelog (site audit, 13 October 2026)", () => {
