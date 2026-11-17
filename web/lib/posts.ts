@@ -80,6 +80,19 @@ export const SHOTS = {
 
 export const posts: Post[] = [
   {
+    slug: "share-a-note-and-edit-it-together",
+    title: "Share a note and edit it together",
+    description: "Pinto Notes 1.4 for iPhone lets you share a note with a link and write in it together, with everyone's cursor showing. Encrypted. Mac follows in days.",
+    excerpt: "Send a link, and the people you share with write in the note with you. You see their changes as they type, and the note stays encrypted.",
+    category: "Building Pinto Notes",
+    date: "2026-11-17",
+    updated: "2026-11-17",
+    image: { src: "/blog/launch/share-mac-carets.webp", alt: "A Team offsite note in Pinto Notes with Sara's cursor and name flag in the agenda, and someone else selecting a line in the Bring checklist.", width: 1280, height: 560, window: false },
+    thumb: cover("berry", "share-together", 1040, 624, "Two cut-paper hands writing in one checklist together"),
+    draft: false,
+    announcement: true,
+  },
+  {
     slug: "slash-menu",
     title: "Type / to format your notes, like in Notion",
     description: "Pinto Notes 1.3 for Mac adds a / menu like Notion's: headings, checklists, callouts, tables, dividers, dates and links to other notes, all from the keyboard.",

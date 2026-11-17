@@ -293,6 +293,12 @@
   "w": 880,
   "h": 550
  },
+ "share-together": {
+  "ground": "#ae7272",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "tables": {
   "ground": "#fbeccc",
   "ink": "dark",
