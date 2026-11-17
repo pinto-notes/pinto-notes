@@ -209,6 +209,13 @@ struct HoverSwap<Resting: View, Items: View>: View {
     }
 }
 
+/// Whether the pointer is on a row's ••• (RowMenuButton) right now. A press there opens the menu
+/// and picks nothing: the list's press-to-select and its own selection leave the row alone, so the
+/// note that's open stays open (Emil, 17 November 2026: "the note itself should not become active").
+@MainActor enum RowMenuPointer {
+    static var on = false
+}
+
 /// A row's own menu under the pointer (••• in place of a folder's count): the same menu as a
 /// right-click, a 24 pt target that takes the accent while the pointer is on it. It never
 /// changes the row's height.
@@ -232,7 +239,8 @@ struct RowMenuButton<Items: View>: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .modifier(HoverTracking(hovering: $hovering))
+        .modifier(HoverTracking(hovering: $hovering) { RowMenuPointer.on = $0 })
+        .onDisappear { if hovering { RowMenuPointer.on = false } }
         // The row keeps the height of its text; the target reaches past it. To the right as well:
         // the circle's edge sits where a count's last digit does.
         .padding(.vertical, -(Hover.menuTarget - 16) / 2)

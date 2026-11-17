@@ -292,7 +292,10 @@ struct NoteListView: View {
         let behind: Bool = behindSetupCard
         let listSelection: Binding<Set<UUID>> = Binding(get: { selection }, set: { (new: Set<UUID>) in
             guard !behind else { return }
-            let kept: Set<UUID> = PressSelect.selection(from: selection, asking: new, byKey: NSApp.currentEvent?.type == .keyDown)
+            let byKey = NSApp.currentEvent?.type == .keyDown
+            // A press on a row's ••• opens its menu and leaves the open note open.
+            guard byKey || !RowMenuPointer.on else { return }
+            let kept: Set<UUID> = PressSelect.selection(from: selection, asking: new, byKey: byKey)
             RowClickLog.listSet(selection, kept); selection = kept
         })
         #else
