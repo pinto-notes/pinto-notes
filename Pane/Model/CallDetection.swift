@@ -14,9 +14,9 @@ import Foundation
 // Only meeting apps and browsers count (`CallApps`), so dictation, Siri, Voice Memos, a dictation
 // app or Pinto itself never do. A browser captures from a helper process (Chrome's
 // com.google.Chrome.helper, Safari's com.apple.WebKit.GPU): a helper's bundle id starts with its
-// app's, and WebKit's processes count as Safari. The microphone has to be in use for 3 seconds
-// to start a call, and released for 10 to end it, so a short voice message or a muted moment
-// doesn't flicker the cover.
+// app's, and WebKit's processes count as Safari. The microphone has to be in use for 1 second
+// to start a call (3 felt slow to Emil, 17 November 2026), and released for 10 to end it, so a
+// muted moment doesn't flicker privacy mode.
 
 /// A process capturing the microphone now.
 struct MicUser: Sendable, Hashable {
@@ -68,7 +68,7 @@ enum CallApps {
 /// Decides from who's capturing the microphone, as it changes. Pure, for the tests.
 struct CallHeuristic: Sendable {
     /// In use this long before it's a call.
-    static let start: TimeInterval = 3
+    static let start: TimeInterval = 1
     /// Released this long before the call is over.
     static let end: TimeInterval = 10
 
@@ -188,11 +188,11 @@ import CoreAudio
 /// stops capturing (no notice for kAudioProcessPropertyIsRunningInput: seen on macOS 27, 13
 /// November 2026), so it listens for what does change then (the process list, and whether each
 /// input device runs for anyone) and reads the list again; while a microphone is in use it also
-/// reads it every 5 seconds, for a second app starting while the device already runs. Nothing
+/// reads it every 2 seconds, for a second app starting while the device already runs. Nothing
 /// runs while no microphone is in use. Everything it keeps is on `queue`.
 final class CoreAudioMicSource: MicSource, @unchecked Sendable {
     /// How often it reads again while a microphone is in use.
-    static let whileInUse: TimeInterval = 5
+    static let whileInUse: TimeInterval = 2
 
     private let queue = DispatchQueue(label: "pinto.call-detector", qos: .utility)
     private var changed: (@Sendable (Set<MicUser>) -> Void)?

@@ -229,21 +229,18 @@ struct PresenceStack: View {
 
     private var here: [CollabSession.Peer] { session.peers.values.sorted { $0.name < $1.name } }
 
-    /// Whether the bar shows it: once someone else is in the note or has joined it, or there's
-    /// something to say (View Only, the sync words on the Mac). A note you've only just shared
-    /// had a lone "people" button beside Share that opened the same popover (Emil, 16 November 2026).
-    @MainActor static func shows(_ session: CollabSession, now: Date = .now) -> Bool {
-        #if os(macOS)
-        let syncWords = SharedSyncLine.ticking(session, now: now)
-        #else
-        let syncWords = false
-        #endif
-        return shows(here: !session.peers.isEmpty, othersJoined: session.members.contains { $0.id != session.me },
-                     viewOnly: session.isViewOnly, syncWords: syncWords)
+    /// Whether the bar shows it: only once someone else is in the note or has joined it (View Only
+    /// is a note someone shared with you, so they have). A note you've only just shared had a lone
+    /// "people" button beside Share that opened the same popover (Emil, 16 November 2026), and
+    /// typing in it brought the button back with "Synced" for a moment (Emil, 17 November 2026: "why
+    /// even show that people button before you have shared with anyone").
+    @MainActor static func shows(_ session: CollabSession) -> Bool {
+        shows(here: !session.peers.isEmpty, othersJoined: session.members.contains { $0.id != session.me },
+              viewOnly: session.isViewOnly)
     }
 
-    static func shows(here: Bool, othersJoined: Bool, viewOnly: Bool, syncWords: Bool) -> Bool {
-        here || othersJoined || viewOnly || syncWords
+    static func shows(here: Bool, othersJoined: Bool, viewOnly: Bool) -> Bool {
+        here || othersJoined || viewOnly
     }
 
     var body: some View {
@@ -264,7 +261,13 @@ struct PresenceStack: View {
                 avatars
             }
         }
+        #if os(macOS)
+        // The toolbar's own style, as Share's and •••'s: a quiet style here drew its island as a
+        // narrow pill beside their round ones (Emil, 17 November 2026).
+        .buttonStyle(.automatic)
+        #else
         .buttonStyle(.quietIcon)
+        #endif
         .accessibilityLabel(accessibilityText)
         .accessibilityIdentifier("collab.people")
     }

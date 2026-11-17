@@ -61,12 +61,19 @@ final class FakeMic: MicSource, @unchecked Sendable {
 
     // MARK: Timing
 
-    @Test func aCallStartsAfterThreeSecondsAndEndsTenAfterRelease() {
+    /// Quick enough to feel immediate (Emil, 17 November 2026: 3 seconds, and up to 5 more for the
+    /// next read, was "pretty slow"): a call starts 1 second in, and the microphone is read again
+    /// every 2 seconds while it's in use, so it's never more than about 3 seconds.
+    @Test func aCallStartsAfterOneSecondAndEndsTenAfterRelease() {
+        #expect(CallHeuristic.start <= 1)
+        #if os(macOS)
+        #expect(CoreAudioMicSource.whileInUse <= 2)
+        #endif
         let (d, _, clock, said) = Self.detector()
         defer { d.stop() }
         d.heard([Self.user("com.google.Chrome.helper")])
-        clock.advance(2.9); d.evaluate()
-        #expect(said.all.isEmpty, "not yet: a short voice message isn't a call")
+        clock.advance(0.9); d.evaluate()
+        #expect(said.all.isEmpty, "not yet: a moment of microphone isn't a call")
         clock.advance(0.2); d.evaluate()
         #expect(said.all == [true])
         d.heard([])
@@ -80,11 +87,11 @@ final class FakeMic: MicSource, @unchecked Sendable {
         let (d, _, clock, said) = Self.detector()
         defer { d.stop() }
         d.heard([Self.user("us.zoom.xos")])
-        clock.advance(1); d.heard([])
+        clock.advance(0.5); d.heard([])
         clock.advance(5); d.evaluate()
-        #expect(said.all.isEmpty, "1 second of microphone isn't a call")
+        #expect(said.all.isEmpty, "half a second of microphone isn't a call")
         d.heard([Self.user("us.zoom.xos")])
-        clock.advance(3); d.evaluate()
+        clock.advance(1); d.evaluate()
         #expect(said.all == [true])
         d.heard([]); clock.advance(8)
         d.heard([Self.user("us.zoom.xos")]); clock.advance(8); d.evaluate()
@@ -109,7 +116,7 @@ final class FakeMic: MicSource, @unchecked Sendable {
         mic.say([Self.user("com.microsoft.teams2")])
         let deadline = Date().addingTimeInterval(CallHeuristic.start + 3)
         while said.all.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(100)) }
-        #expect(said.all == [true], "the call started about 3 s in, with nothing else said")
+        #expect(said.all == [true], "the call started about 1 s in, with nothing else said")
     }
 
     // MARK: Privacy mode
