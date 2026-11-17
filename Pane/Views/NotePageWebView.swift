@@ -91,6 +91,15 @@ final class NotePageWebView: WKWebView {
             }
             menu.addItem(.separator())
         }
+        // A picture: its crop handles, as Excalidraw's menu has (the bar over the selection had
+        // them until 17 November 2026; the style panel's Actions too).
+        if canvas?.state.cropping == true {
+            menu.addItem(CanvasMenuItem(title: CanvasStyleSidebar.doneCroppingTitle) { [weak self] in self?.canvas?.send(.cropDone) })
+            menu.addItem(.separator())
+        } else if canvas?.state.selection == ["image"], canvas?.viewOnly != true {
+            menu.addItem(CanvasMenuItem(title: CanvasSelectionBar.crop) { [weak self] in self?.canvas?.run(.crop) })
+            menu.addItem(.separator())
+        }
         // A Kanban or Retro column, a Timeline step: the next of its kind first (round 15).
         if let grows = canvas?.state.grows, canvas?.viewOnly != true {
             menu.addItem(CanvasMenuItem(title: grows.title) { [weak self] in self?.canvas?.send(.grow) })
@@ -130,6 +139,15 @@ final class NotePageWebView: WKWebView {
         menu.addItem(item("Bring Forward", .bringForward, enabled: selected))
         menu.addItem(item("Send Backward", .sendBackward, enabled: selected))
         menu.addItem(item("Send to Back", .sendToBack, enabled: selected))
+        // Two or more: lined up, as the style panel's Align (the bar's Align until 17 November).
+        if let state = canvas?.state, state.showsAlign {
+            let align = NSMenuItem(title: CanvasStyleSidebar.alignTitle, action: nil, keyEquivalent: "")
+            let items = NSMenu(title: CanvasStyleSidebar.alignTitle)
+            items.autoenablesItems = false
+            for a in CanvasStyleSidebar.aligns(state.alignCount) { items.addItem(item(a.title, a.action)) }
+            align.submenu = items
+            menu.addItem(align)
+        }
         menu.addItem(.separator())
         menu.addItem(item("Select All", .selectAll))
         menu.addItem(item("Zoom to Fit", .zoomToFit))

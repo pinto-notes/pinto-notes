@@ -1574,10 +1574,10 @@ struct NoteDetailView: View {
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
                 if !trashed { shareMenu }
-                // Ask AI from More while its own button isn't in the bar (a narrow board): the
-                // popover opens from here.
-                moreMenu.modifier(AskFromMore(asking: $asking, on: !askTargets.isEmpty) { [note, showingCanvas] in AskAI.subject(note, whiteboard: showingCanvas) })
+                moreWithAsk
             }),
+            share: trashed ? nil : AnyView(shareMenu),
+            more: AnyView(moreWithAsk),
             canvas: showingCanvas && !trashed ? canvasControls : nil,
             noteID: note.id)
     }
@@ -2031,6 +2031,12 @@ struct NoteDetailView: View {
             .tint(.primary)
             #endif
             .askAIPopover($asking, subject: AskAI.subject(note, whiteboard: showingCanvas))
+    }
+
+    /// More, with Ask AI's popover when its own button isn't in the bar (a board's): the popover
+    /// opens from here.
+    private var moreWithAsk: some View {
+        moreMenu.modifier(AskFromMore(asking: $asking, on: !askTargets.isEmpty) { [note, showingCanvas] in AskAI.subject(note, whiteboard: showingCanvas) })
     }
 
     private var moreMenu: some View {
@@ -2538,11 +2544,16 @@ struct NoteToolbarParts: CustomEquatable, @unchecked Sendable {
     var people: AnyView?
     /// How wide the people are in the bar, at most (a board's toolbar keeps room for them).
     var peopleWidth: CGFloat = 0
-    /// Ask AI, when an AI is connected: beside Share. A narrow board's bar leaves it to More (•••).
+    /// Ask AI, when an AI is connected: beside Share. A board's bar leaves it to More (•••).
     var ask: AnyView? = nil
     /// Share and More.
     var sharing: AnyView
-    /// A canvas shows: its tools take the writing tools' place (CanvasToolbarTools).
+    /// Share alone (nil: a deleted note's) and More alone, for a board's bar, where Share stands
+    /// apart, filled in the accent (BoardToolbar).
+    var share: AnyView? = nil
+    var more: AnyView? = nil
+    /// A canvas shows: its actions take the writing tools' place (BoardToolbar); its tools are
+    /// on the board (CanvasToolPalette).
     var canvas: CanvasController? = nil
     /// The note these are for. The toolbar shows the note's place and its writing tools with its
     /// own parts, not before: the place changed a turn ahead of them, and the bar showed a note
@@ -2609,7 +2620,7 @@ struct NoteToolbarStage<Pane: View>: View {
     @State private var held: Held?
     struct Held { var place: Note?; var writing: Bool }
     /// The column's width, and where it stands in the window (WindowSpot): a whiteboard's toolbar
-    /// shows what fits (CanvasToolbarTools.Fit).
+    /// shows what fits (BoardToolbar.Fit).
     @State private var width: CGFloat = 1200
     @State private var spot: CGRect?
     #if DEBUG || QA
@@ -2623,19 +2634,19 @@ struct NoteToolbarStage<Pane: View>: View {
     private var shownWriting: Bool { current ? showsWriting : held?.writing ?? showsWriting }
 
     /// What a whiteboard's toolbar shows at this width: its Fit, and the width its name gets.
-    private var boardBar: (fit: CanvasToolbarTools.Fit, title: CGFloat) {
-        guard let parts, let canvas = parts.canvas else { return (.full, CanvasToolbarTools.titleMax) }
+    private var boardBar: (fit: BoardToolbar.Fit, title: CGFloat) {
+        guard let parts, let canvas = parts.canvas else { return (.full, BoardToolbar.titleMax) }
         let focus = focusBack != nil
         let place = shownPlace
-        var room = CanvasToolbarTools.Room()
-        room.title = CanvasToolbarTools.titleWidth(place?.title ?? "")
+        var room = BoardToolbar.Room()
+        room.title = BoardToolbar.titleWidth(place?.title ?? "")
         room.place = place.map { NoteBreadcrumbs.width($0) + NoteBreadcrumbs.chevronWidth } ?? 0
-        room.asks = parts.ask != nil
         room.people = parts.peopleWidth
         room.said = parts.said.map { NoticeText.barWidth($0, action: parts.saidAction?.title) } ?? 0
         room.focus = focus
-        room.viewOnly = canvas.viewOnly
-        return CanvasToolbarTools.layout(room, width: Self.boardWidth(column: width, spot: spot, besideList: !focus && !ownWindow))
+        room.library = !canvas.viewOnly
+        room.share = parts.share != nil
+        return BoardToolbar.layout(room, width: Self.boardWidth(column: width, spot: spot, besideList: !focus && !ownWindow))
     }
 
     /// The room the board's items have: from where they can start to the window's edge. Beside
@@ -2644,7 +2655,7 @@ struct NoteToolbarStage<Pane: View>: View {
     /// window of its own, after the window's buttons.
     static func boardWidth(column: CGFloat, spot: CGRect?, besideList: Bool) -> CGFloat {
         guard let spot, spot.width > 0 else { return column }
-        let start = besideList ? max(spot.minX, CanvasToolbarTools.listBarEnd - 4) : max(spot.minX, CanvasToolbarTools.windowButtonsEnd - 4)
+        let start = besideList ? max(spot.minX, BoardToolbar.listBarEnd - 4) : max(spot.minX, BoardToolbar.windowButtonsEnd - 4)
         return spot.maxX - start
     }
 
@@ -2830,16 +2841,6 @@ struct NoteToolbarStage<Pane: View>: View {
                         .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
                     .hidden(!showsItems || !showsWriting)
-                    if let canvas = shown.canvas {
-                        // A board shared with you to look at: its tools show, off, as a viewer's
-                        // formatting does in a note. To comment on: no drawing tools at all, as in
-                        // FigJam; Comments (C picks the Comment tool) is what's there.
-                        ToolbarItemGroup { CanvasToolbarTools(canvas: canvas, fit: board.fit, fullScreen: fullScreen).disabled(!showsItems || canvas.viewOnly) }
-                            .hidden(!showsItems || canvas.commentsOnly)
-                        // Comments: viewers read them too, so it's never off for them.
-                        ToolbarItem { CanvasCommentsButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected) }
-                            .hidden(!showsItems)
-                    }
                     // Who's in the note: a section of its own, not one of the writing tools
                     // (Emil, 16 November 2026: the avatar sat between the paperclip and Share).
                     if let people = shown.people {
@@ -2847,21 +2848,39 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
                         ToolbarSpacer(.fixed).hidden(!showsItems)
                     }
+                    if let canvas = shown.canvas {
+                        // A board's actions, at the right edge (Emil, 17 November 2026: "sharing,
+                        // ... at the very right, while the toggles in the center"): Share, filled in
+                        // the accent, then the library, Comments and More. The tools are on the board
+                        // (CanvasToolPalette). Full Screen is the window's own (its green button,
+                        // ⇧⌘F) and Ask AI is in More.
+                        if let share = shown.share {
+                            ToolbarItem { share.disabled(!showsItems).environment(\.prominentShare, board.fit.shareInWords ? .words : .glyph) }
+                                .sharedBackgroundVisibility(.hidden)
+                                .hidden(!showsItems)
+                        }
+                        ToolbarItemGroup {
+                            // A board you can only look at or comment on: nothing to add from the library.
+                            if !canvas.viewOnly { CanvasLibraryButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected) }
+                            // Comments: viewers read them too, so it's never off for them.
+                            CanvasCommentsButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected)
+                            if let more = shown.more { more.disabled(!showsItems).environment(\.askInBar, false) }
+                        }
+                        .hidden(!showsItems)
+                    } else {
                     ToolbarItemGroup {
-                        // A whiteboard in a narrow column has Full Screen in More Tools instead
-                        // (a viewer's tools are off, so theirs stays), and Ask AI in More.
-                        if let fullScreen, shown.canvas.map({ $0.viewOnly || board.fit.showsFullScreen }) ?? true {
+                        if let fullScreen {
                             // ⇧⌘F is View › Full Screen's (PaneCommands), for any note.
                             Button(action: fullScreen.run) { Label(fullScreen.title, systemImage: fullScreen.symbol).toolbarCell() }
                                 .help(fullScreen.title + " (\u{21E7}\u{2318}F)")
                                 .disabled(!showsItems)
                                 .accessibilityIdentifier("note.fullScreen")
                         }
-                        let askInBar = shown.canvas == nil || board.fit.showsAsk
-                        if let ask = shown.ask, askInBar { ask.disabled(!showsItems) }
-                        shown.sharing.disabled(!showsItems).environment(\.askInBar, askInBar)
+                        if let ask = shown.ask { ask.disabled(!showsItems) }
+                        shown.sharing.disabled(!showsItems)
                     }
                     .hidden(!showsItems)
+                    }
                 }
                 // Privacy mode is on: the eye says so, and a click turns it off.
                 if PrivacyMode.shared.isOn {

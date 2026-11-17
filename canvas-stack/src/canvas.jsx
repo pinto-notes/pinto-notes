@@ -27,6 +27,7 @@ import { CARD, cardAt, cardNotes, expandSeeds, isCard, newCards, noteOf, refresh
 import { changedSince, hash, joinToBoard, newPictures, normalizeShared, peersLayer, reconcile, restamp, stamp, fitTo, followTo, viewOf } from "./shared.js";
 import { commentsLayer } from "./comments.js";
 import { votesLayer } from "./votes.js";
+import { mapLayer } from "./minimap.js";
 
 const amber = window.amber;
 const SAVE_DELAY = 300;
@@ -238,6 +239,92 @@ export function blockedKey(e) {
   if (e.altKey && e.code === "Slash") return true;                  // stats
   if (!cmd && !e.altKey && k === "i") return true;                  // image (F and K pick the frame and the laser, as in Excalidraw)
   return false;
+}
+
+/**
+ * Excalidraw's hint under its toolbar (0.18.1, HintViewer's getHints and its English words), for
+ * the line the app shows under its tool palette (CanvasHint). Word for word, with its keys as a Mac
+ * names them (getShortcutKey); its line breaks are spaces, as the page shows them.
+ */
+const HINTS = {
+  canvasPanning: "To move canvas, hold mouse wheel or spacebar while dragging, or use the hand tool",
+  linearElement: "Click to start multiple points, drag for single line",
+  arrowTool: "Click to start multiple points, drag for single line. Press {{arrowShortcut}} again to change arrow type.",
+  freeDraw: "Click and drag, release when you're finished",
+  text: "Tip: you can also add text by double-clicking anywhere with the selection tool",
+  text_selected: "Double-click or press ENTER to edit text",
+  text_editing: "Press Escape or CtrlOrCmd+ENTER to finish editing",
+  linearElementMulti: "Click on last point or press Escape or Enter to finish",
+  lockAngle: "You can constrain angle by holding SHIFT",
+  resize: "You can constrain proportions by holding SHIFT while resizing,\nhold ALT to resize from the center",
+  resizeImage: "You can resize freely by holding SHIFT,\nhold ALT to resize from the center",
+  rotate: "You can constrain angles by holding SHIFT while rotating",
+  lineEditor_info: "Hold CtrlOrCmd and Double-click or press CtrlOrCmd + Enter to edit points",
+  lineEditor_pointSelected: "Press Delete to remove point(s),\nCtrlOrCmd+D to duplicate, or drag to move",
+  lineEditor_nothingSelected: "Select a point to edit (hold SHIFT to select multiple),\nor hold Alt and click to add new points",
+  bindTextToElement: "Press enter to add text",
+  createFlowchart: "Hold CtrlOrCmd and Arrow key to create a flowchart",
+  deepBoxSelect: "Hold CtrlOrCmd to deep select, and to prevent dragging",
+  eraserRevert: "Hold Alt to revert the elements marked for deletion",
+  disableSnapping: "Hold CtrlOrCmd to disable snapping",
+  enterCropEditor: "Double click the image or press ENTER to crop the image",
+  leaveCropEditor: "Click outside the image or press ENTER or ESCAPE to finish cropping",
+};
+
+/** Excalidraw's getShortcutKey on a Mac: Cmd for CtrlOrCmd, Option for the first Alt. */
+export function macKeys(text) {
+  return text.replace(/\bAlt\b/i, "Alt").replace(/\bShift\b/i, "Shift").replace(/\b(Enter|Return)\b/i, "Enter")
+    .replace(/\bCtrlOrCmd\b/gi, "Cmd").replace(/\bAlt\b/i, "Option");
+}
+
+const linear = (e) => !!e && (e.type === "arrow" || e.type === "line");
+
+/**
+ * The hint Excalidraw shows for this state (getHints), or null. `selected`: the selected elements.
+ * Excalidraw's own panels (search, the sidebar) and tools (embeds, placing a picture) aren't on
+ * this board, so their hints aren't either.
+ */
+export function hintOf(s, selected) {
+  const t = s.activeTool || {};
+  if (t.type === "eraser") return HINTS.eraserRevert;
+  if (t.type === "arrow" || t.type === "line") {
+    if (s.multiElement != null) return HINTS.linearElementMulti;
+    if (t.type === "arrow") return HINTS.arrowTool.replace("{{arrowShortcut}}", macKeys("A"));
+    return HINTS.linearElement;
+  }
+  if (t.type === "freedraw") return HINTS.freeDraw;
+  if (t.type === "text") return HINTS.text;
+  const one = selected.length === 1 ? selected[0] : null;
+  if (s.isResizing && s.lastPointerDownWith === "mouse" && one) {
+    if (linear(one) && one.points.length === 2) return HINTS.lockAngle;
+    return one.type === "image" ? HINTS.resizeImage : HINTS.resize;
+  }
+  if (s.isRotating && s.lastPointerDownWith === "mouse") return HINTS.rotate;
+  if (one && one.type === "text") return HINTS.text_selected;
+  if (s.editingTextElement) return HINTS.text_editing;
+  if (s.croppingElementId) return HINTS.leaveCropEditor;
+  if (one && one.type === "image") return HINTS.enterCropEditor;
+  if (t.type === "selection") {
+    if (s.selectionElement && !selected.length && !s.editingTextElement && !s.editingLinearElement) return HINTS.deepBoxSelect;
+    if (s.gridModeEnabled && s.selectedElementsAreBeingDragged) return HINTS.disableSnapping;
+    if (!selected.length) return HINTS.canvasPanning;
+    if (one && linear(one)) {
+      if (s.editingLinearElement) return s.editingLinearElement.selectedPointsIndices ? HINTS.lineEditor_pointSelected : HINTS.lineEditor_nothingSelected;
+      return HINTS.lineEditor_info;
+    }
+    // A box, a diamond or an ellipse: words go in it, and it starts a flowchart.
+    if (one && !s.newElement && !s.selectedElementsAreBeingDragged && ["rectangle", "diamond", "ellipse"].includes(one.type)) {
+      return [HINTS.bindTextToElement, HINTS.createFlowchart];
+    }
+  }
+  return null;
+}
+
+/** The line HintViewer shows for a hint: one, or several joined as sentences. */
+export function hintLine(h) {
+  if (!h) return null;
+  const line = Array.isArray(h) ? h.map((x) => macKeys(x).replace(/\. ?$/, "")).join(". ") : macKeys(h);
+  return line.replace(/\s*\n\s*/g, " ");
 }
 
 const base64 = (text) => btoa(unescape(encodeURIComponent(text)));
@@ -454,6 +541,8 @@ let engine = null;
 let comments = null;
 /** Voting's dots and totals (votes.js). */
 let votes = null;
+// The board's map, while it's on (minimap.js).
+let map = null;
 
 /**
  * A sticky note (whiteboard council, round 2: retro and kanban boards with no sticky tool): a
@@ -1336,6 +1425,11 @@ export function findWords(api, query) {
 /** How far round the selection what's drawn is listed for its style bar (stateOf), in view points. */
 export const NEARBY_REACH = 260;
 
+/** The hint line for this state (hintOf), or null where the app shows none. */
+function busyHint(s, selected) {
+  return s.viewModeEnabled || (comments && comments.commenting) ? null : hintLine(hintOf(s, selected));
+}
+
 export function stateOf(api, app) {
   const s = api.getAppState();
   const ids = s.selectedElementIds || {};
@@ -1392,6 +1486,11 @@ export function stateOf(api, app) {
   return {
     // The Comment tool is the page's own, over the engine's selection tool.
     tool: comments && comments.commenting ? "comment" : s.activeTool && s.activeTool.type,
+    // The tool stays picked after drawing (Q, or the palette's lock).
+    locked: !!(s.activeTool && s.activeTool.locked),
+    // Excalidraw's hint for what you're doing, for the line under the app's palette: none in view
+    // mode (Excalidraw shows no toolbar there) or with the Comment tool (the page's own).
+    hint: busyHint(s, selected),
     cropping: !!s.croppingElementId,
     present: steps ? (() => {
       const i = Math.min(presenting.index, steps.length - 1), f = steps[i].id && api.getSceneElements().find((e) => e.id === steps[i].id);
@@ -1547,7 +1646,7 @@ function bridge(api) {
     putBack();
     setTimeout(() => { putBack(); replaying = false; remember(); }, 30);
   };
-  let last = null, lastState = null, busySent = false;
+  let last = null, lastState = null, busySent = false, busyLine = null;
   const report = () => {
     const state = stateOf(api, app);
     const json = JSON.stringify(state);
@@ -1558,11 +1657,19 @@ function bridge(api) {
     try { window.webkit.messageHandlers.amberCanvas.postMessage(state); } catch (e) {}
   };
   // While a press draws, moves, resizes or boxes, or the view pans or zooms under a selection: the
-  // last state, busy (the app's bar over the selection stands aside), once.
+  // last state, busy (the app's bar over the selection stands aside), once; again only if the hint
+  // changes (a resize's "hold Shift", a line's next point). The selection is looked up by its ids,
+  // not over the drawing: this runs on every frame of a drag.
   const reportBusy = () => {
-    if (busySent || !lastState || lastState.busy) return;
+    if (!lastState) return;
+    const s = api.getAppState(), ids = Object.keys(s.selectedElementIds || {});
+    const byId = app && app.scene && app.scene.getNonDeletedElementsMap ? app.scene.getNonDeletedElementsMap() : null;
+    const selected = byId ? ids.map((id) => byId.get(id)).filter(Boolean) : api.getSceneElements().filter((e) => s.selectedElementIds[e.id]);
+    const hint = busyHint(s, selected);
+    if (busySent ? hint === busyLine : lastState.busy && hint === lastState.hint) return;
     busySent = true;
-    const state = { ...lastState, busy: true, nearby: [] };
+    busyLine = hint;
+    const state = { ...lastState, busy: true, nearby: [], hint };
     last = JSON.stringify(state);
     try { window.webkit.messageHandlers.amberCanvas.postMessage(state); } catch (e) {}
   };
@@ -1617,6 +1724,23 @@ function bridge(api) {
         if (api.getAppState().viewModeEnabled) break;
         api.setActiveTool({ type: c.tool });
         break;
+      case "lock": {
+        // The tool stays picked after drawing, as Excalidraw's lock (Q) keeps it; off, back to
+        // selecting, as Q does.
+        if (api.getAppState().viewModeEnabled) return false;
+        const t = api.getAppState().activeTool;
+        if (!!t.locked !== !!c.on) {
+          if (app && typeof app.toggleLock === "function") app.toggleLock("ui");
+          else api.setActiveTool(c.on ? { type: t.type, locked: true } : { type: "selection", locked: false });
+        }
+        break;
+      }
+      case "minimap":
+        // On: the map, where the app's controls leave room for it (left, bottom, in points).
+        if (!map) return false;
+        if (c.on) map.show({ left: Number(c.left) || 12, bottom: Number(c.bottom) || 68 });
+        else map.hide();
+        return true;
       case "comments":
         if (!comments) return false;
         comments.set(c);
@@ -1802,7 +1926,9 @@ function bridge(api) {
     s.editingTextElement, s.croppingElementId, s.viewModeEnabled, s.viewBackgroundColor, s.frameRendering, s.width, s.height,
     s.currentItemStrokeColor, s.currentItemBackgroundColor, s.currentItemFillStyle,
     s.currentItemStrokeWidth, s.currentItemStrokeStyle, s.currentItemOpacity, s.currentItemFontFamily, s.currentItemFontSize,
-    s.currentItemStartArrowhead, s.currentItemEndArrowhead, s.currentItemArrowType, comments && comments.commenting, presenting && presenting.index];
+    s.currentItemStartArrowhead, s.currentItemEndArrowhead, s.currentItemArrowType, comments && comments.commenting, presenting && presenting.index,
+    // What the hint line says (hintOf): the tool's lock, a line's points being edited.
+    s.activeTool && s.activeTool.locked, !!s.editingLinearElement, !!(s.editingLinearElement && s.editingLinearElement.selectedPointsIndices)];
   const viewOf = (s) => [s.zoom && s.zoom.value, s.scrollX, s.scrollY];
   const same = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
   let queued = false, shown = null, view = null, viewMoving = null;
@@ -1810,7 +1936,8 @@ function bridge(api) {
   const soon = () => {
     const s = api.getAppState();
     const selected = Object.keys(s.selectedElementIds || {}).length > 0;
-    if (pressing(s)) { if (selected || s.newElement) reportBusy(); return; }
+    // A box being drawn over nothing, or a line's next point, changes only the hint.
+    if (pressing(s)) { if (selected || s.newElement || s.selectionElement || s.multiElement) reportBusy(); return; }
     const now = shownOf(s), at = viewOf(s), moved = !same(at, view);
     if (same(now, shown) && (!moved || viewMoving)) { if (moved && selected) reportBusy(); return; }
     shown = now;
@@ -1930,9 +2057,12 @@ function bridge(api) {
         return;
       }
     }
-    if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key || "").toLowerCase() === "s" && !api.getAppState().editingTextElement) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      addSticky(api);
+    if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey && !api.getAppState().editingTextElement) {
+      const k = (e.key || "").toLowerCase();
+      // N, as the app's tool palette shows it, or S, as in FigJam: a sticky note.
+      if (k === "s" || k === "n") { e.preventDefault(); e.stopImmediatePropagation(); addSticky(api); return; }
+      // 9, Excalidraw's key for a picture: the app's own file panel (the engine's asks the page).
+      if (e.key === "9") { e.preventDefault(); e.stopImmediatePropagation(); post({ pickImage: true }); return; }
     }
   };
   // No right-click menu from the engine or the web view: the app shows its own (Mac).
@@ -1962,6 +2092,8 @@ function bridge(api) {
   comments = commentsLayer(api, document.getElementById("canvas") || document.body, post, () => setTimeout(report, 0));
   // A vote's total keeps clear of the comment pins (round 16, web-16).
   votes = votesLayer(api, document.getElementById("canvas") || document.body, post, () => (comments ? comments.boxes() : []));
+  // The map, at the bottom left above the zoom, while the app says it's on (off at first).
+  map = mapLayer(api, document.getElementById("canvas") || document.body, { nonce: sceneNonce, busy: (s) => s.cursorButton === "down" || pressing(s) });
   window.addEventListener("keydown", keys, true);
   window.addEventListener("contextmenu", menu, true);
   window.addEventListener("dblclick", twice, true);
@@ -1974,6 +2106,7 @@ function bridge(api) {
     presentingLook(false);
     if (comments) { comments.stop(); comments = null; }
     if (votes) { votes.stop(); votes = null; }
+    if (map) { map.hide(); map = null; }
     off(); offScroll(); offHistory && offHistory(); window.removeEventListener("keydown", keys, true); window.removeEventListener("contextmenu", menu, true);
     window.removeEventListener("dblclick", twice, true); window.removeEventListener("pointerdown", commandClick, true); window.removeEventListener("touchstart", tap, true);
   } };
@@ -2527,7 +2660,7 @@ function Canvas({ initial }) {
     const calls = { libraryPiece: () => libraryPiece(api), boardPiece: (a) => boardPiece(api, !!(a && a.selection)), libraryPreview: (a) => libraryPreview(a && a.elements, a && a.files), versionPicture: (a) => versionPicture(a && a.elements, a && a.files, a && a.dark, a && a.background), freeSpot: (a) => freeSpot(api, a.width, a.height) };
     Object.defineProperty(amber, "_canvasCall", { value: async (name, args) => (calls[name] ? calls[name](args) : null), configurable: true });
     Object.defineProperty(amber, "_canvasExport", { value: (format, selected, light, page) => exportScene(api, format, selected, light === true, typeof page === "string" ? page : undefined), configurable: true });
-    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}), votes: () => (votes ? votes.state : null) }, configurable: true });
+    Object.defineProperty(amber, "_canvas", { value: { api, scene: () => sceneFrom(api.getSceneElementsIncludingDeleted(), api.getAppState(), api.getFiles()), save, command: controls.command, state: controls.state, trails: () => (sharedHooks.trails ? sharedHooks.trails() : {}), votes: () => (votes ? votes.state : null), map: () => map }, configurable: true });
     return () => {
       follow(); pen(); keepCentre.disconnect(); controls.stop(); off(); offSelection(); offViewMoved(); unlisten(); removeEventListener("pagehide", flush);
       window.removeEventListener("wheel", wheel, { capture: true }); window.removeEventListener("pointerdown", press, true); window.removeEventListener("keydown", key, true); window.removeEventListener("pointerup", released, true);

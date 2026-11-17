@@ -112,6 +112,21 @@ enum CanvasMenu {
     static let noteCard = "Add Note Card\u{2026}"
 }
 
+/// The board's map (Emil, 17 November 2026): the whole drawing small at the bottom left, the part
+/// in view outlined, a click there moves the view. Off at first; on or off for every board, as you
+/// left it (no dot in its key, ColumnsLayout.key). The page draws it (canvas-stack/src/minimap.js).
+enum CanvasMap {
+    static let key = "canvasMap"
+    static let symbol = "map"
+    static func title(_ on: Bool) -> String { on ? "Hide Map" : "Show Map" }
+    static func isOn(_ defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: key) }
+    /// Its size on the board (minimap.js MAP), and where it stands: at the board's left inset, above
+    /// the zoom's bar.
+    static let size = CGSize(width: 200, height: 128)
+    static let left: CGFloat = 12
+    static let bottom: Double = 16 + 44 + 8  // CanvasDock.margin, CanvasCorner.height, a gap
+}
+
 /// Style values as the scene stores them.
 enum CanvasStyle {
     struct Swatch: Identifiable, Hashable {
@@ -235,6 +250,11 @@ enum CanvasObstacle: Equatable, Sendable {
 /// What the page reports.
 struct CanvasState: Equatable, Sendable {
     var tool: CanvasTool = .selection
+    /// The tool stays picked after drawing (the palette's lock, Q).
+    var locked = false
+    /// Excalidraw's hint for what you're doing, word for word (canvas.jsx hintOf), shown under the
+    /// tool palette (CanvasHint). Nil: none.
+    var hint: String?
     /// Presenting: which step of how many (a frame, or the whole board when there are none).
     struct Presenting: Equatable, Sendable {
         var index: Int; var count: Int; var name: String
@@ -315,6 +335,8 @@ struct CanvasState: Equatable, Sendable {
 
     init(_ m: [String: Any]) {
         if let t = (m["tool"] as? String).flatMap(CanvasTool.init(rawValue:)) { tool = t }
+        locked = (m["locked"] as? Bool) ?? false
+        hint = (m["hint"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         if let p = m["present"] as? [String: Any], let i = (p["index"] as? NSNumber)?.intValue, let n = (p["count"] as? NSNumber)?.intValue {
             let f = (p["frame"] as? [NSNumber])?.map { CGFloat($0.doubleValue) }
             present = Presenting(index: i, count: n, name: p["name"] as? String ?? "",
@@ -401,6 +423,8 @@ enum CanvasCommand: Equatable, Sendable {
     }
 
     case tool(CanvasTool)
+    /// The tool stays picked after drawing, or no longer (Excalidraw's lock, Q).
+    case lock(Bool)
     case style(StyleKey, Value)
     case action(Action)
     /// Moves the view by this many points (the drawing follows the pointer).
@@ -474,15 +498,20 @@ enum CanvasCommand: Equatable, Sendable {
     case restoreVersion(Data)
     /// Voting's dots and totals on the board (BoardTeam).
     case votes(CanvasVotes)
+    /// The board's map at its bottom left (CanvasMap), or no longer: `bottom` is how far up from
+    /// the board's foot it goes, clear of the zoom.
+    case minimap(Bool, bottom: Double = CanvasMap.bottom)
 
     var payload: [String: Any] {
         switch self {
+        case .minimap(let on, let bottom): ["op": "minimap", "on": on, "left": Double(CanvasMap.left), "bottom": bottom]
         case .libraryInsert(let item, let at):
             ["op": "libraryInsert", "elements": item.elements, "files": item.files]
                 .merging(at.map { ["x": Double($0.x), "y": Double($0.y)] } ?? [:]) { a, _ in a }
         case .template(let item, let title):
             ["op": "template", "elements": item.elements, "files": item.files].merging(title.map { ["title": $0] } ?? [:]) { a, _ in a }
         case .tool(let t): ["op": "tool", "tool": t.rawValue]
+        case .lock(let on): ["op": "lock", "on": on]
         case .style(let k, let v): ["op": "style", "key": k.rawValue, "value": v.any]
         case .action(let a): ["op": "action", "name": a.rawValue]
         case .pan(let dx, let dy): ["op": "pan", "dx": dx, "dy": dy]
@@ -566,6 +595,9 @@ final class CanvasController {
 
     init() {
         team.pageChanged = { [weak self] in self?.sendVotes() }
+        #if os(macOS)
+        pickImage = { [weak self] in if let self { BoardToolbar.pickImage(self) } }
+        #endif
     }
 
     /// What voting shows on the page now.
@@ -606,6 +638,8 @@ final class CanvasController {
         if let error = m["error"] as? String { confirm(error, for: .seconds(6)); return }
         if let r = m["remote"] as? [String: Any] { remoteChange(r); return }
         if let ref = m["open"] as? String { openCard(ref); return }
+        // 9 on the board: a picture, from a file (the palette's Insert Image).
+        if m["pickImage"] as? Bool == true { pickImage(); return }
         if let b = m["board"] as? [String: Any] {
             // The pictures its new image elements show come with the change, first.
             if let files = b["files"] as? [String: Any], !files.isEmpty {
@@ -645,6 +679,10 @@ final class CanvasController {
             load = l
             pageFiles = []
             if shared { sendShared() }
+            #if os(macOS)
+            // The map, when it's on (it's the app's, for every board).
+            if CanvasMap.isOn() { send(.minimap(true)) }
+            #endif
             onLoad?()
             // Its comments, again, and voting's dots.
             lastPins = nil
@@ -1532,6 +1570,10 @@ final class CanvasController {
     }
 
     func pick(_ tool: CanvasTool) { send(.tool(tool)) }
+
+    /// Pictures from a file onto the board (the palette's Insert Image, and 9). Set by the Mac's
+    /// board; tests count the asks.
+    @ObservationIgnored var pickImage: () -> Void = {}
     func run(_ action: CanvasCommand.Action) { send(.action(action)) }
     func set(_ key: CanvasCommand.StyleKey, _ value: CanvasCommand.Value) { send(.style(key, value)) }
 

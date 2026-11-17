@@ -1472,44 +1472,44 @@ extension CanvasNativeUITests {
         #expect(w.toolbar?.isVisible == false)
     }
 
-    /// In a narrow column the board's toolbar steps down: the main tools, the rest in More Tools,
-    /// so every tool can still be reached (whiteboard council, round 2, 15), and what's shown is
-    /// worked out from what the bar holds (round 12): each step needs less room, a long name or
-    /// Ask AI moves the steps, and the name gets what's left.
-    @Test func aNarrowWindowKeepsEveryToolReachable() {
-        typealias T = CanvasToolbarTools
+    /// Every tool is on the board's palette or in its More, in a narrow board too (the tools used
+    /// least fold into More first), and the window's toolbar steps down by its own rules: the
+    /// folder goes first, then Share's words, and the name gets what's left (Emil, 17 November
+    /// 2026: the tools on the board, the actions in the bar).
+    @Test func everyToolIsOnThePaletteAndTheBarStepsDown() {
+        typealias T = BoardToolbar
+        typealias P = CanvasToolPalette
         #expect(!CanvasSelectionBar.inView(CGRect(x: -400, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)), "no bar for a selection out of view")
         #expect(CanvasSelectionBar.inView(CGRect(x: -100, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)))
-        for fit in T.Fit.allCases {
-            let reachable = Set(fit.shown + fit.inMore + CanvasTool.shapes + T.inShapesMenu + T.inComments + T.inNoteMore)
-            #expect(reachable == Set(CanvasTool.allCases), "\(fit) misses \(Set(CanvasTool.allCases).subtracting(reachable))")
-            #expect(Set(fit.shown).isDisjoint(with: fit.inMore), "\(fit): a tool is in the bar or in the menu, not both")
+        func tools(_ items: [P.Item]) -> [CanvasTool] { items.compactMap { if case .tool(let t) = $0 { t } else { nil } } }
+        var folds: [Int] = []
+        for width in [1400.0, 1000, 760, 620, 560, 480, 420, 360] {
+            let (groups, folded) = P.fitted(width: width)
+            let shown = groups.flatMap { $0 }
+            let reachable = Set(tools(shown) + tools(folded) + P.moreTools + [.comment])
+            #expect(reachable == Set(CanvasTool.allCases), "\(width): \(Set(CanvasTool.allCases).subtracting(reachable)) can't be reached")
+            #expect(shown.contains(.more) && Set(shown).isDisjoint(with: folded), "\(width): More shows, and a tool is on the palette or in More")
+            #expect(P.width(groups) <= width - 24 || folded.count == P.foldOrder.count, "\(width): the palette fits: \(P.width(groups))")
+            #expect(folded.contains(.sticky) || shown.contains(.sticky), "\(width): the sticky note")
+            folds.append(folded.count)
         }
-        let room = T.Room(title: T.titleWidth("Publishing flow"), place: 50, asks: true)
+        #expect(folds == folds.sorted() && folds.first == 0, "a narrower board folds more, a wide one none: \(folds)")
+        // The whole palette fits a board beside the sidebar and the list at 1400 pt (809 pt).
+        #expect(P.fitted(width: 809).folded.isEmpty)
+        let room = T.Room(title: T.titleWidth("Publishing flow"), place: 50)
         let widths = T.Fit.allCases.map { T.needed($0, room) }
         #expect(widths == widths.sorted(by: >), "each step needs less: \(widths)")
-        // The board column at 1400 pt with the sidebar (809 pt) has room for everything.
         #expect(T.layout(room, width: 809).fit == .full)
-        // Ask AI and a shared board's people take room; a long name takes room before tools go.
-        #expect(T.layout(room, width: 700).fit > T.layout(T.Room(title: room.title, place: 50), width: 700).fit || T.layout(room, width: 700).fit == T.layout(T.Room(title: room.title, place: 50), width: 700).fit)
         var people = room
-        people.people = PresenceStack.barWidth(viewOnly: false)
-        #expect(T.layout(people, width: 809).fit > .full, "the faces of a shared board push the folder out")
-        let long = T.Room(title: T.titleWidth(String(repeating: "Quarterly planning ", count: 4)), place: 50, asks: true)
+        people.people = 3 * PresenceStack.barWidth(viewOnly: false)
+        #expect(T.layout(people, width: 520).fit > T.layout(room, width: 520).fit || T.layout(room, width: 520).fit == .tight, "the faces of a shared board take room")
+        let long = T.Room(title: T.titleWidth(String(repeating: "Quarterly planning ", count: 4)), place: 50)
         let (fit, title) = T.layout(long, width: 809)
         #expect(title <= T.titleMax && title >= T.titleFloor(fit), "\(fit) \(title)")
-        // The smallest window (710 pt) beside the list: the narrowest, its name at its least
+        // The smallest window (710 pt) beside the list: Share as its glyph, the name at its least
         // (theBoardsToolbarNeverClips measures that it fits).
         let least = T.layout(room, width: 710 - T.listBarEnd + 4)
-        #expect(least.fit == .narrowest && least.title == T.titleMin, "\(least)")
-        // Folding: Pencil goes before Arrow and Text, and Ask AI keeps its button until the one
-        // Tools menu (round 13, 15-narrow-window: at 1000 pt Pencil stayed and Ask AI folded).
-        let order = T.Fit.allCases.map { fit in (fit, T.Fit.allCases.firstIndex { !$0.shown.contains(.freedraw) }!, T.Fit.allCases.firstIndex { !$0.shown.contains(.arrow) }!) }
-        #expect(order.allSatisfy { $0.1 < $0.2 }, "Pencil folds before Arrow")
-        #expect(T.Fit.narrow.shown == [.selection, .arrow, .text] && T.Fit.narrow.inMore.contains(.freedraw))
-        #expect(T.Fit.allCases.filter { $0 != .narrowest }.allSatisfy(\.showsAsk) && !T.Fit.narrowest.showsAsk)
-        let at1000 = T.layout(room, width: 1000 - T.listBarEnd + 4)
-        #expect(at1000.fit <= .narrow && at1000.fit.showsAsk, "\(at1000)")
+        #expect(least.fit == .tight && least.title == T.titleMin, "\(least)")
     }
 
     /// A sticky note: yellow, square, typed into at once; the next one goes beside it, never on
@@ -3177,20 +3177,21 @@ extension CanvasNativeUITests {
         #expect(lib.thumbnails[item.id] == nil && lib.darkThumbnails[item.id] == nil)
     }
 
-    /// The Library button is in the toolbar (Image moved into the Shapes menu to make room); in a
-    /// narrow window it's in More Tools.
-    @Test func theLibraryIsInTheToolbarAndInMoreToolsWhenNarrow() async throws {
+    /// The Library button is in the toolbar, among the board's actions, at every width; the tools,
+    /// pictures and sticky notes are on the board's palette, not in the toolbar.
+    @Test func theLibraryStaysInTheToolbar() async throws {
         let c = try Self.canvasLibrary()
         try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
             defer { w.close() }
-            await MacWindowChromeTests.settle(w, 20)
-            var labels = try MacWindowChromeTests.items(w).map(\.label)
-            #expect(labels.contains(CanvasLibraryPopover.title) && !labels.contains(CanvasToolbarTools.imageTitle), "Library in the toolbar, Image in the Shapes menu: \(labels)")
-            w.setContentSize(CGSize(width: 1000, height: 700))
-            await MacWindowChromeTests.settle(w, 20)
-            labels = try MacWindowChromeTests.items(w).map(\.label)
-            #expect(!labels.contains(CanvasLibraryPopover.title) && labels.contains("More Tools"), "narrow: in More Tools: \(labels)")
+            for size in [CGSize(width: 1400, height: 900), CGSize(width: 1000, height: 700)] {
+                w.setContentSize(size)
+                await MacWindowChromeTests.settle(w, 20)
+                let labels = try MacWindowChromeTests.items(w).map(\.label)
+                #expect(labels.contains(CanvasLibraryPopover.title), "\(Int(size.width)): Library in the toolbar: \(labels)")
+                #expect(!labels.contains(BoardToolbar.imageTitle) && !labels.contains("More Tools") && !labels.contains("Shapes"),
+                        "\(Int(size.width)): no tools in the toolbar: \(labels)")
+            }
         }
     }
 
@@ -3220,7 +3221,9 @@ extension CanvasNativeUITests {
                     try await Self.expectWholeToolbar(w, "\(Int(width)) pt, \(name.prefix(12))")
                 }
             }
-            // Full Screen: the board has the window; the bar starts after the window's buttons.
+            // Full Screen: the board has the window; the bar starts after the window's buttons. A
+            // board's bar has no Full Screen button (the View menu's ⇧⌘F, the window's own): in
+            // as Present takes the window.
             CanvasRename.renamed(board, to: "Publishing flow")
             @MainActor func press(_ id: String) async throws {
                 let e = try #require(await MacEmptyDetailTests.waitForElement(id, in: w) ?? MacEmptyDetailTests.element(id, in: w), "no \(id)")
@@ -3229,7 +3232,8 @@ extension CanvasNativeUITests {
             }
             w.setContentSize(CGSize(width: 1400, height: 800))
             await MacWindowChromeTests.settle(w, 15)
-            try await press("note.fullScreen")
+            NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)
+            await MacWindowChromeTests.settle(w, 15)
             #expect(try Self.collapsed(w) == [true, true], "Full Screen")
             for width in [1400.0, 760] {
                 w.setContentSize(CGSize(width: width, height: 800))
@@ -3276,22 +3280,22 @@ extension CanvasNativeUITests {
         let labels = Set(shown.filter(\.board).map(\.label))
         #expect(labels.contains("Share") && labels.contains("More"), "\(at): Share and More show: \(labels.sorted())")
         #expect(labels.contains(BoardCommentUI.title), "\(at): Comments shows")
+        #expect(labels.contains(CanvasLibraryPopover.title), "\(at): the library shows")
         // One Comments button: no Comment tool beside it (round 12, two near-identical bubbles).
         let boardLabels = shown.filter(\.board).map(\.label)
         #expect(boardLabels.filter { $0 == BoardCommentUI.title }.count == 1 && !boardLabels.contains(CanvasTool.comment.title) && !boardLabels.contains(BoardCommentUI.comment),
                 "\(at): one Comments button: \(boardLabels)")
-        // Every tool in the bar or in a menu: the step the bar shows is the one whose tools these are.
-        typealias T = CanvasToolbarTools
-        let tools = Set(CanvasTool.allCases.filter { labels.contains($0.title) })
-        let fit = labels.contains("Tools") ? T.Fit.narrowest : T.Fit.allCases.first { Set($0.shown) == tools && ($0.showsLibrary == labels.contains(CanvasLibraryPopover.title)) }
-        let step = try #require(fit, "\(at): the bar's tools \(tools.map(\.title).sorted()) are no step's")
-        #expect(step == .narrowest || labels.contains("Shapes"), "\(at): the shapes' button")
-        #expect(step.inMore.isEmpty || labels.contains("More Tools") || labels.contains("Tools"), "\(at): More Tools holds \(step.inMore)")
-        #expect(step.showsLibrary || labels.contains("More Tools") || labels.contains("Tools"), "\(at): the library is in More Tools")
-        #expect(labels.contains { $0.hasSuffix("Full Screen") } || labels.contains("More Tools") || labels.contains("Tools"), "\(at): Full Screen in the bar or More Tools")
-        #expect(labels.contains { $0.hasPrefix("Ask ") } || NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, shared: false, asks: true, canvas: true).joined().contains(.askAI),
-                "\(at): Ask AI in the bar or in More")
-        print("toolbar at \(at): \(step) " + sorted.map { "\($0.label.isEmpty ? "(blank)" : $0.label) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
+        // The actions only: the tools are on the board (CanvasToolPalette), Full Screen is the
+        // window's (⇧⌘F) and Ask AI is in More.
+        let tools = CanvasTool.allCases.filter { labels.contains($0.title) }
+        #expect(tools.isEmpty && !labels.contains("Shapes") && !labels.contains("Tools") && !labels.contains("More Tools"), "\(at): tools in the bar: \(boardLabels)")
+        #expect(!labels.contains { $0.hasSuffix("Full Screen") }, "\(at): no Full Screen button: \(boardLabels)")
+        #expect(!labels.contains { $0.hasPrefix("Ask ") } && NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, shared: false, asks: true, canvas: true).joined().contains(.askAI),
+                "\(at): Ask AI in More: \(boardLabels)")
+        // Share, then the library, Comments and More, at the right edge.
+        let order = sorted.filter(\.board).map(\.label).filter { ["Share", CanvasLibraryPopover.title, BoardCommentUI.title, "More"].contains($0) }
+        #expect(order == ["Share", CanvasLibraryPopover.title, BoardCommentUI.title, "More"], "\(at): the actions' order: \(order)")
+        print("toolbar at \(at): " + sorted.map { "\($0.label.isEmpty ? "(blank)" : $0.label) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
         // The list's title is clear of its buttons (round 11: its "…" sat on "All Notes").
         if !focus, let title = await MacEmptyDetailTests.waitForElement("list.folderName", in: w),
            let screen = title.value(forKey: "accessibilityFrame") as? NSRect, screen.width > 0 {
@@ -3489,11 +3493,11 @@ extension CanvasNativeUITests {
             let last = dark.filter { $0.x > right - Int(3 * scale) }
             return (dark.map(\.y).min()!...dark.map(\.y).max()!, last.map(\.y).min()!...last.map(\.y).max()!, Int(CGFloat(right) / scale))
         }
-        let long = try await ink("Quarterly planning for the whole design team", width: CanvasToolbarTools.titleMin)
+        let long = try await ink("Quarterly planning for the whole design team", width: BoardToolbar.titleMin)
         let middle = long.all.lowerBound + (long.all.upperBound - long.all.lowerBound) / 2
         #expect(long.last.lowerBound > middle, "the last ink is low, the ellipsis's dots: \(long)")
-        #expect(long.right <= Int(CanvasToolbarTools.titleMin), "inside the field: \(long)")
-        let short = try await ink("Plan B", width: CanvasToolbarTools.titleMin)
+        #expect(long.right <= Int(BoardToolbar.titleMin), "inside the field: \(long)")
+        let short = try await ink("Plan B", width: BoardToolbar.titleMin)
         #expect(short.last.lowerBound <= short.all.lowerBound + 2, "a short name ends in its whole last letter: \(short)")
     }
 
@@ -4566,17 +4570,20 @@ extension CanvasNativeUITests {
                     try await shot(String(format: "%02d-template-%@", i < 5 ? 2 + i : 29 + i - 5, t.rawValue), w, web)
                     if i == 0 { clicksReachTheBoard(w, web) }
                 }
-                // The bar where it covers nothing drawn: no shape, line or words of the board's
-                // under it (round 16, 43-timeline-1: Add Step on Design; 46-org-chart-1: Add Report
-                // on Alex and the line to Jo). Measured on the bar as shown.
+                // The template's next part is in the style panel: its Template section, or the
+                // compact strip's Actions (the bar over the selection is gone on the Mac, Emil, 17
+                // November 2026: "I prefer just having the style menu").
                 @MainActor func barCoversNothing(_ name: String) async {
-                    for _ in 0..<20 where MacEmptyDetailTests.element("canvas.selectionBar", in: w) == nil { await MacWindowChromeTests.settle(w, 1) }
-                    guard let e = MacEmptyDetailTests.element("canvas.selectionBar", in: w),
-                          let frame = (e.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue else { Issue.record("\(name): no selection bar"); return }
-                    let r = web.convert(w.convertFromScreen(frame), from: nil)
-                    let hit = canvas.state.nearby.filter { $0.hits(r) }
-                    #expect(hit.isEmpty, "\(name): the bar at \(r) covers \(hit)")
-                    if let b = canvas.state.bounds { #expect(!r.intersects(b), "\(name): the bar at \(r) is on the selection \(b)") }
+                    let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+                    NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+                    defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+                    var found = false
+                    for _ in 0..<20 where !found {
+                        found = MacEmptyDetailTests.element("canvas.stylePanel.grow", in: w) != nil || MacEmptyDetailTests.element("canvas.stylePanel.open.actions", in: w) != nil
+                        if !found { await MacWindowChromeTests.settle(w, 1) }
+                    }
+                    #expect(found, "\(name): the style panel offers \(canvas.state.grows?.title ?? "the next part")")
+                    #expect(MacEmptyDetailTests.element("canvas.selectionBar", in: w) == nil, "\(name): no bar over the selection")
                 }
                 @MainActor func barsOnTemplates(_ suffix: String) async throws {
                     try await insert(.timeline)

@@ -12,6 +12,15 @@ enum BoardFollowUI {
     static let height: CGFloat = 32
     static let font = Font.system(size: 13, weight: .semibold)
     #endif
+
+    /// Where a banner at the top of the board stands: under the Mac's tool palette while it shows.
+    @MainActor static func top(_ canvas: CanvasController) -> CGFloat {
+        #if os(macOS)
+        CanvasToolPalette.shows(canvas) ? CanvasToolPalette.below : 12
+        #else
+        12
+        #endif
+    }
 }
 
 /// The banner over a shared board: "Sara is presenting" with Follow, or "Following Sara" with Stop
@@ -33,7 +42,7 @@ struct CanvasFollowBanner: View {
             }
             if let banner {
                 bar(banner)
-                    .padding(.top, 12)
+                    .padding(.top, BoardFollowUI.top(canvas))
                     .transition(.opacity)
             }
         }

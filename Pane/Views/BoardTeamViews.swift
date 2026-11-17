@@ -13,7 +13,7 @@ struct CanvasTeamBar: View {
         VStack {
             if team.running {
                 bar(team)
-                    .padding(.top, canvas.followBanner == nil ? 12 : 12 + BoardFollowUI.height + 8)
+                    .padding(.top, canvas.followBanner == nil ? BoardFollowUI.top(canvas) : BoardFollowUI.top(canvas) + BoardFollowUI.height + 8)
                     .transition(.opacity)
             }
         }

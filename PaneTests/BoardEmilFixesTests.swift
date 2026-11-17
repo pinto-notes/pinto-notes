@@ -61,8 +61,9 @@ import WebKit
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
-            let ids = ["canvas.tool.selection", "canvas.tool.hand", "canvas.tool.freedraw", "canvas.tool.arrow", "canvas.tool.text",
-                       "canvas.tool.eraser", "canvas.tool.library", "canvas.comments", "note.fullScreen"]
+            // The board's own actions (its tools are on the board now: CanvasToolPaletteTests;
+            // More is a note's, a menu).
+            let ids = ["canvas.tool.library", "canvas.comments"]
             var checked = 0
             for id in ids {
                 guard let f = await frame(id, in: w) else { continue }
@@ -89,7 +90,7 @@ import WebKit
                 }
                 #expect(probed >= 7, "\(id): its corners and three of its edges were tried: \(probed)")
             }
-            #expect(checked >= 6, "found the board's buttons: \(checked)")
+            #expect(checked >= 2, "found the board's buttons: \(checked)")
         }
     }
 
@@ -114,62 +115,109 @@ import WebKit
         #expect(editor != nil, "the note's text shows")
     }
 
-    /// The style panel: at the board's top left, folded and opened from its title. With nothing
-    /// selected it sets how the next shape is drawn; with a selection, the selection. Clicks
-    /// beside it reach the board.
-    @Test func theStylePanelSetsTheNextShapeAndTheSelection() async throws {
-        let d = UserDefaults.standard
-        let kept = d.object(forKey: CanvasStyleSidebar.openKey)
-        defer { if let kept { d.set(kept, forKey: CanvasStyleSidebar.openKey) } else { d.removeObject(forKey: CanvasStyleSidebar.openKey) } }
-        d.set(true, forKey: CanvasStyleSidebar.openKey)
+    /// The style panel in Full Screen: Excalidraw's whole panel at the board's left, under the
+    /// tools, always open (no title to fold it by). With nothing selected it sets how the next
+    /// shape is drawn; with a selection, the selection, and it holds what the bar over the
+    /// selection held (Layers, Align, Actions): the Mac has no bar over the selection now (Emil,
+    /// 17 November 2026). Clicks beside it reach the board.
+    @Test func theStylePanelIsExcalidrawsWholePanelInFullScreen() async throws {
+        let c = try CanvasNativeUITests.canvasLibrary()
+        let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        let (w, web, canvas) = try await Self.openBoard(c, board)
+        defer { w.close() }
+        NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)
+        defer { NotificationCenter.default.post(name: .paneCanvasPresenting, object: false) }
+        await MacWindowChromeTests.settle(w, 15)
+        let area = web.convert(web.bounds, to: nil)
+        #expect(CanvasStyleSidebar.layout(board: area.width) == .wide, "Full Screen gives the board \(area.width) pt")
+        // Nothing selected: everything a new shape takes.
+        #expect(CanvasStyleSidebar.parts(canvas.state).next)
+        let panel = try #require(await frame("canvas.stylePanel", in: w), "the style panel shows")
+        #expect(abs(panel.minX - area.minX - CanvasStyleSidebar.inset) < 2, "at the board's left: \(panel) in \(area)")
+        #expect(abs(panel.width - CanvasStyleSidebar.width) <= 1, "the whole panel: \(panel.width)")
+        #expect(await frame("canvas.stylePanel.toggle", in: w) == nil, "nothing to fold it by")
+        #expect(await frame("canvas.stylePanel.picker.strokeColor", in: w) != nil, "the colour in use opens Excalidraw's picker")
+        // Extra bold, for the next shape.
+        try press("canvas.stylePanel.width.2", in: w)
+        try await CanvasTests().run(web, until: "window.amber._canvas.api.getAppState().currentItemStrokeWidth === 4")
+        // Clicks beside and below it reach the board; a click on it is the panel's.
+        // (A view's hitTest takes its superview's coordinates: the window's frame view has none.)
+        let root = try #require(w.contentView?.superview)
+        func onBoard(_ p: NSPoint) -> Bool {
+            var v = root.hitTest(root.convert(p, from: nil))
+            while let x = v { if x === web { return true }; v = x.superview }
+            return false
+        }
+        for p in [NSPoint(x: panel.maxX + 6, y: panel.midY), NSPoint(x: panel.midX, y: panel.minY - 6), NSPoint(x: panel.midX, y: panel.minY - 120)]
+            where area.contains(p) {
+            #expect(onBoard(p), "a click beside the panel at \(p) reaches the board")
+        }
+        #expect(!onBoard(NSPoint(x: panel.midX, y: panel.maxY - 16)), "a click on the panel is the panel's")
+        // A box selected: no bar over it; the panel has its layers and what to do with it.
+        _ = try await web.evaluateJavaScript("(() => { const api = amber._canvas.api, e = api.getSceneElements().find((x) => x.type === 'rectangle'); api.updateScene({ appState: { selectedElementIds: { [e.id]: true } } }); return 1; })()")
+        for _ in 0..<40 where !canvas.state.hasSelection { await MacWindowChromeTests.settle(w, 1) }
+        await MacWindowChromeTests.settle(w, 5)
+        #expect(await frame("canvas.selectionBar", in: w) == nil, "no bar over the selection on the Mac")
+        let parts = CanvasStyleSidebar.parts(canvas.state)
+        #expect(!parts.next && parts.layers && parts.actions && !parts.align)
+        for id in ["canvas.stylePanel.layer.sendToBack", "canvas.stylePanel.layer.bringToFront", "canvas.stylePanel.action.duplicate",
+                   "canvas.stylePanel.action.delete", "canvas.stylePanel.action.saveToLibrary", "canvas.stylePanel.action.saveTemplate"] {
+            #expect(await frame(id, in: w) != nil, "\(id) is in the panel")
+        }
+        #expect((await frame("canvas.stylePanel.action.comment", in: w) != nil) == (canvas.canComment && !canvas.viewOnly), "Add Comment when you can comment")
+        let count = "amber._canvas.api.getSceneElements().filter((e) => !e.isDeleted).length"
+        let before = try #require(try await web.evaluateJavaScript(count) as? Int)
+        try press("canvas.stylePanel.action.duplicate", in: w)
+        try await CanvasTests().run(web, until: "\(count) > \(before)")
+        // Everything: the panel sets it, and lines it up.
+        canvas.run(.selectAll)
+        for _ in 0..<40 where canvas.state.selection.count < 2 { await MacWindowChromeTests.settle(w, 1) }
+        await MacWindowChromeTests.settle(w, 3)
+        #expect(!CanvasStyleSidebar.parts(canvas.state).next)
+        try press("canvas.stylePanel.strokeStyle.1", in: w)
+        try await CanvasTests().run(web, until: "window.amber._canvas.api.getSceneElements().filter(e => !e.isDeleted && e.type === 'rectangle').every(e => e.strokeStyle === 'dashed')")
+        #expect(await frame("canvas.stylePanel.align.alignLeft", in: w) != nil, "Align, for two or more")
+        // And the right-click menu lines them up too (the bar's Align).
+        let align = try #require(web.canvasMenu().items.first { $0.title == CanvasStyleSidebar.alignTitle }?.submenu, "Align in the right-click menu")
+        #expect(align.items.map(\.title) == CanvasStyleSidebar.aligns(canvas.state.alignCount).map(\.title))
+    }
+
+    /// The style panel beside the sidebar and the list: Excalidraw's compact strip, a button for
+    /// each section that applies, each opening its section in a popover (the board is narrower
+    /// than CanvasStyleSidebar.wideFrom).
+    @Test func theStylePanelIsAStripBesideTheColumns() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
         let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
         let (w, web, canvas) = try await Self.openBoard(c, board)
         defer { w.close() }
         await MacWindowChromeTests.settle(w, 5)
-        // Nothing selected: everything a new shape takes.
-        #expect(CanvasStyleSidebar.parts(canvas.state).next)
-        let panel = try #require(await frame("canvas.stylePanel", in: w), "the style panel shows")
         let area = web.convert(web.bounds, to: nil)
-        #expect(abs(panel.minX - area.minX - CanvasStyleSidebar.inset) < 2, "at the board's left: \(panel) in \(area)")
-        #expect(panel.width <= CanvasStyleSidebar.width + 1)
-        // Extra bold, for the next shape.
-        try press("canvas.stylePanel.width.2", in: w)
-        try await CanvasTests().run(web, until: "window.amber._canvas.api.getAppState().currentItemStrokeWidth === 4")
-        // Clicks beside and below it reach the board.
-        // (A view's hitTest takes its superview's coordinates: the window's frame view has none.)
-        let root = try #require(w.contentView?.superview)
-        for p in [NSPoint(x: panel.maxX + 6, y: panel.midY), NSPoint(x: panel.midX, y: panel.minY - 6), NSPoint(x: panel.midX, y: panel.minY - 200)] {
-            let hit = root.hitTest(root.convert(p, from: nil))
-            var v = hit, onBoard = false
-            while let x = v { if x === web { onBoard = true; break }; v = x.superview }
-            #expect(onBoard, "a click beside the panel at \(p) lands on \(hit.map { String(describing: type(of: $0)) } ?? "nothing")")
+        #expect(CanvasStyleSidebar.layout(board: area.width) == .compact, "the board beside the columns: \(area.width) pt")
+        let strip = try #require(await frame("canvas.stylePanel", in: w), "the strip shows")
+        #expect(abs(strip.width - CanvasStyleSidebar.strip) <= 1 && abs(strip.minX - area.minX - CanvasStyleSidebar.inset) < 2, "a strip at the left: \(strip)")
+        @MainActor func shown() async -> [CanvasStyleSidebar.Pop] {
+            var out: [CanvasStyleSidebar.Pop] = []
+            for pop in CanvasStyleSidebar.Pop.allCases where await frame("canvas.stylePanel.open.\(pop.rawValue)", in: w, tries: 3) != nil { out.append(pop) }
+            return out
         }
-        // And a click on it is the panel's.
-        let onPanel = root.hitTest(root.convert(NSPoint(x: panel.midX, y: panel.maxY - 14), from: nil))
-        var under = onPanel, toBoard = false
-        while let x = under { if x === web { toBoard = true; break }; under = x.superview }
-        #expect(onPanel != nil && !toBoard, "a click on the panel's title is the panel's: \(onPanel.map { String(describing: type(of: $0)) } ?? "nothing")")
-        // The box beside it selected: its bar keeps off the panel (it lay over the Opacity row).
+        // Nothing selected: the next shape's style.
+        #expect(await shown() == [.stroke, .fill, .lines, .text, .opacity])
+        // A box: its style, then Layers and Actions.
         _ = try await web.evaluateJavaScript("(() => { const api = amber._canvas.api, e = api.getSceneElements().find((x) => x.type === 'rectangle'); api.updateScene({ appState: { selectedElementIds: { [e.id]: true } } }); return 1; })()")
         for _ in 0..<40 where !canvas.state.hasSelection { await MacWindowChromeTests.settle(w, 1) }
         await MacWindowChromeTests.settle(w, 5)
-        let bar = try #require(await frame("canvas.selectionBar", in: w), "the selection bar shows")
-        let beside = try #require(await frame("canvas.stylePanel", in: w))
-        #expect(!bar.intersects(beside), "the selection bar \(bar) keeps off the style panel \(beside)")
-        // A selection: the panel sets it.
-        canvas.run(.selectAll)
-        for _ in 0..<40 where !canvas.state.hasSelection { await MacWindowChromeTests.settle(w, 1) }
-        #expect(!CanvasStyleSidebar.parts(canvas.state).next)
-        try press("canvas.stylePanel.strokeStyle.1", in: w)
-        try await CanvasTests().run(web, until: "window.amber._canvas.api.getSceneElements().filter(e => !e.isDeleted && e.type === 'rectangle').every(e => e.strokeStyle === 'dashed')")
-        // Folded to its title, and open again.
-        try press("canvas.stylePanel.toggle", in: w)
-        await MacWindowChromeTests.settle(w, 3)
-        let folded = try #require(await frame("canvas.stylePanel", in: w))
-        #expect(folded.height < 40 && folded.width < panel.width, "folded to its title: \(folded)")
-        #expect(d.bool(forKey: CanvasStyleSidebar.openKey) == false, "remembered folded")
-        try press("canvas.stylePanel.toggle", in: w)
+        #expect(await shown() == CanvasStyleSidebar.Pop.allCases.filter { $0.shows(CanvasStyleSidebar.parts(canvas.state)) })
+        #expect(await shown().suffix(2) == [.arrange, .actions])
+        // Clicks beside it reach the board (where it is now: it grew for the box's Layers and Actions).
+        let grown = try #require(await frame("canvas.stylePanel", in: w))
+        #expect(grown.height > strip.height, "more buttons for a box: \(strip.height) to \(grown.height)")
+        let root = try #require(w.contentView?.superview)
+        for p in [NSPoint(x: grown.maxX + 6, y: grown.midY), NSPoint(x: grown.midX, y: grown.minY - 6)] where area.contains(p) {
+            let hit = root.hitTest(root.convert(p, from: nil))
+            var v = hit, onBoard = false, chain: [String] = []
+            while let x = v { chain.append(String(describing: type(of: x))); if x === web { onBoard = true; break }; v = x.superview }
+            #expect(onBoard, "a click beside the strip \(grown) at \(p) reaches the board: \(chain.prefix(6))")
+        }
     }
 
     /// Something's drawn but none of it is in view: Back to content shows, and brings it back.
@@ -189,8 +237,10 @@ import WebKit
         #expect(!canvas.state.lost, "the drawing is back in view")
     }
 
-    /// Full Screen is in every note's toolbar, as a board's: an ordinary note and a note app too.
-    @Test(arguments: ["note", "board", "app"])
+    /// Full Screen is in every note's toolbar: an ordinary note and a note app. A board's bar has
+    /// only its actions (Emil, 17 November 2026): its Full Screen is the window's, and ⇧⌘F
+    /// (CanvasNativeUITests, theBoardsToolbarNeverClips).
+    @Test(arguments: ["note", "app"])
     func everyNoteHasFullScreen(_ kind: String) async throws {
         let (c, title) = try Self.library(kind)
         try await AppSnapshotTests.withLastNote(c, title) {
@@ -226,7 +276,8 @@ import WebKit
                 w.contentView?.layoutSubtreeIfNeeded()
                 w.displayIfNeeded()
                 let labels = Set((w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }.map(\.label))
-                let writing = labels.contains("Checklist"), drawing = labels.contains("Select")
+                // A board's bar: its Comments (its tools are on the board now).
+                let writing = labels.contains("Checklist"), drawing = labels.contains(BoardCommentUI.title)
                 #expect(!(writing && drawing), "a note's tools beside a board's: \(labels.sorted())")
                 let state = writing ? "note" : drawing ? "board" : "neither"
                 if states.last != state { states.append(state) }
@@ -275,16 +326,11 @@ import WebKit
         guard let path = ProcessInfo.processInfo.environment["EMIL_SHOTS"] else { return }
         let dir = URL(fileURLWithPath: path)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let d = UserDefaults.standard
-        let kept = d.object(forKey: CanvasStyleSidebar.openKey)
-        defer { if let kept { d.set(kept, forKey: CanvasStyleSidebar.openKey) } else { d.removeObject(forKey: CanvasStyleSidebar.openKey) } }
         for dark in [false, true] {
             let look = dark ? "dark" : "light"
             func save(_ name: String, _ w: NSWindow, _ web: WKWebView?) async throws {
                 try await Self.picture(w, covering: web).write(to: dir.appending(path: "\(name)-\(look).png"))
             }
-            // A board: its toolbar and location, the panel folded.
-            d.set(false, forKey: CanvasStyleSidebar.openKey)
             let c = try CanvasNativeUITests.canvasLibrary()
             let notes = try c.mainContext.fetch(FetchDescriptor<Note>())
             let board = try #require(notes.first { $0.title == "Publishing flow" })
@@ -292,23 +338,50 @@ import WebKit
                 let (w, web, canvas) = try await AppSnapshotTests.withLastNote(c, board.title) { try await CanvasNativeUITests.boardWindow(c, board, dark: dark) }
                 defer { w.close() }
                 _ = try await CanvasNativeUITests.settledView(w, web)
+                @MainActor func select(_ filter: String) async throws {
+                    _ = try await web.evaluateJavaScript("(() => { const api = amber._canvas.api, ids = {}; api.getSceneElements().filter((e) => \(filter)).forEach((e) => { ids[e.id] = true }); api.updateScene({ appState: { selectedElementIds: ids } }); return 1; })()")
+                    for _ in 0..<40 where canvas.state.hasSelection == (filter == "false") { await MacWindowChromeTests.settle(w, 1) }
+                    await MacWindowChromeTests.settle(w, 5)
+                }
+                let box = "e.id === (amber._canvas.api.getSceneElements().find((x) => x.type === 'rectangle') || {}).id"
+                // Beside the columns: the compact strip, for the next shape, then for a box.
                 try await save("board", w, web)
-                // The style panel open: for the next shape, then for a selection.
-                d.set(true, forKey: CanvasStyleSidebar.openKey)
-                await MacWindowChromeTests.settle(w, 5)
-                try await save("style-panel-next-shape", w, web)
-                _ = try await web.evaluateJavaScript("(() => { const api = amber._canvas.api, e = api.getSceneElements().find((x) => x.type === 'rectangle'); api.updateScene({ appState: { selectedElementIds: { [e.id]: true } } }); return 1; })()")
-                for _ in 0..<40 where !canvas.state.hasSelection { await MacWindowChromeTests.settle(w, 1) }
-                await MacWindowChromeTests.settle(w, 5)
-                try await save("style-panel-selection", w, web)
+                try await select(box)
+                try await save("style-panel-compact-selection", w, web)
+                // Full Screen: the whole panel, for the next shape, a box, and all of it (Align).
+                try await select("false")
+                NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)
+                await MacWindowChromeTests.settle(w, 15)
+                _ = try await CanvasNativeUITests.settledView(w, web)
+                try await save("style-panel-wide-next-shape", w, web)
+                try await select(box)
+                try await save("style-panel-wide-selection", w, web)
+                try await select("!e.isDeleted")
+                try await save("style-panel-wide-all", w, web)
+                try await select("false")
+                NotificationCenter.default.post(name: .paneCanvasPresenting, object: false)
+                await MacWindowChromeTests.settle(w, 15)
                 // Nothing drawn in view: Back to content.
-                d.set(false, forKey: CanvasStyleSidebar.openKey)
-                canvas.run(.selectAll)
-                _ = try await web.evaluateJavaScript("(() => { amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); return 1; })()")
                 canvas.send(.pan(dx: 20000, dy: 20000))
                 for _ in 0..<40 where !canvas.state.lost { await MacWindowChromeTests.settle(w, 1) }
                 await MacWindowChromeTests.settle(w, 5)
                 try await save("back-to-content", w, web)
+            }
+            // Excalidraw's colour picker, as its popover shows it: the grid with its keys, the
+            // shades with theirs, the hex code and the eyedropper.
+            do {
+                let canvas = CanvasController()
+                canvas.receive(["selection": ["rectangle"], "style": ["strokeColor": "#1971c2"]])
+                let ax = OffscreenAX(CanvasColorPicker(canvas: canvas, key: .strokeColor, current: "#1971c2")
+                    .padding(14)
+                    .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(nsColor: .windowBackgroundColor)), size: CGSize(width: 260, height: 330), dark: dark)
+                defer { ax.close() }
+                await ax.settle()
+                try #require(try MacEmptyDetailTests.picture(ax.window).representation(using: .png, properties: [:]))
+                    .write(to: dir.appending(path: "color-picker-\(look).png"))
             }
             // A note's location, for the board's beside it: a long note scrolled past its title,
             // which then shows after the folder (as in Notes).
@@ -378,7 +451,7 @@ import WebKit
 
     /// The window as a PNG, a page in it drawn from its own picture (an offscreen web view isn't
     /// drawn into the window's).
-    private static func picture(_ w: NSWindow, covering web: WKWebView?) async throws -> Data {
+    static func picture(_ w: NSWindow, covering web: WKWebView?) async throws -> Data {
         var cover: NSImageView?
         if let web {
             _ = try? await web.callAsyncJavaScript("await document.fonts.ready; return 1", contentWorld: .page)
@@ -402,11 +475,11 @@ import WebKit
     }
 
     /// An element's frame in the window, found by its identifier (toolbar items too).
-    private func frame(_ id: String, in w: NSWindow) async -> CGRect? {
+    private func frame(_ id: String, in w: NSWindow, tries: Int = 20) async -> CGRect? {
         let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
         NSApp.accessibilitySetValue(true, forAttribute: enhanced)
         defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
-        for _ in 0..<20 {
+        for _ in 0..<tries {
             if let e = MacEmptyDetailTests.element(id, in: w), let screen = e.value(forKey: "accessibilityFrame") as? NSRect, screen.width > 0 {
                 return w.convertFromScreen(screen)
             }

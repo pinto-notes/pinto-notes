@@ -549,13 +549,39 @@ struct ShareButton: View {
     var picture: (() -> Void)?
     var pictureRequest: (() -> NotePicture.Request?)?
 
+    /// A board's bar: Share stands apart, filled in the accent (BoardToolbar).
+    @Environment(\.prominentShare) private var prominent
+
     var body: some View {
-        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
-            .help("Share")
-            .popover(isPresented: $showing, arrowEdge: .bottom) {
-                SharePopoverLive(note: note, store: store, people: people, picture: picture, pictureRequest: pictureRequest) { showing = false }
+        Group {
+            switch prominent {
+            case .words?:
+                // A Label, so the toolbar item is named Share too (a Text left its label empty).
+                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.titleOnly).padding(.horizontal, 4) }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(PColor.paneAccent))
+            case .glyph?:
+                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly) }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(PColor.paneAccent))
+            case nil:
+                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
             }
+        }
+        .help("Share")
+        .popover(isPresented: $showing, arrowEdge: .bottom) {
+            SharePopoverLive(note: note, store: store, people: people, picture: picture, pictureRequest: pictureRequest) { showing = false }
+        }
     }
+}
+
+/// How a board's bar shows Share: in words, or its glyph in a narrow column; filled in the accent
+/// either way.
+enum ProminentShare: Sendable { case words, glyph }
+
+extension EnvironmentValues {
+    /// Share stands apart in a board's bar (NoteToolbarStage); nil: a note's plain Share.
+    @Entry var prominentShare: ProminentShare? = nil
 }
 
 /// The popover with a ShareController that lives as long as it's open, kept current.
