@@ -1,0 +1,73 @@
+/* Round 31: Pinto on a Mac and an iPhone at the app's own proportions (see NoteReal.tsx). Everything is
+   in em of one base size, which follows the picture's width, so the window reads like a real window
+   scaled down, not like a poster. White window, the app's greys, its orange for checks and Back. */
+.pair { --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; position: relative; container-type: inline-size; padding: 0 0 7% 0; font-family: var(--sans); color: #1d1b19; }
+.fill { fill: currentColor; stroke: none; }
+
+.mac { width: 86%; font-size: clamp(8.5px, 1.95cqi, 14px); display: grid; grid-template-columns: 17.5em minmax(0, 1fr); height: 31em; border-radius: 0.9em; overflow: hidden; background: #fff;
+  box-shadow: 0 0 0 1px rgba(30, 15, 5, 0.12), 0 2px 6px rgba(30, 15, 5, 0.06), 0 34px 60px -30px rgba(60, 28, 4, 0.42); }
+.bar { display: flex; align-items: center; gap: 1em; height: 3.4em; padding: 0 0.9em; color: #6e6e73; }
+.lights { display: flex; gap: 0.5em; margin-right: 0.3em; }
+.lights i { width: 0.8em; height: 0.8em; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.ico { flex: none; display: grid; place-items: center; }
+.ico svg, .round svg, .pBar svg { width: 1.1em; height: 1.1em; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ico svg[viewBox="0 0 10 16"] { width: 0.62em; }
+.ico svg[viewBox="0 0 20 6"], .round svg[viewBox="0 0 20 6"], .pRound svg { width: 1em; height: 0.3em; }
+.dim { opacity: 0.4; }
+.round { flex: none; display: grid; place-items: center; width: 2.1em; height: 2.1em; border-radius: 50%; box-shadow: 0 0 0 1px #ececec, 0 1px 4px rgba(0, 0, 0, 0.06); }
+.round:first-of-type { margin-left: auto; }
+
+/* The notes column. */
+.list { display: flex; flex-direction: column; min-width: 0; box-shadow: inset -1px 0 0 #ececec; background: #fff; }
+.all { margin: 0.4em 1.2em 0.2em; display: grid; gap: 0.05em; }
+.all b { font-size: 1.15em; font-weight: 700; }
+.all span { font-size: 0.86em; color: #6e6e73; }
+.day { margin: 0.9em 1.2em 0.3em; font-size: 0.86em; font-weight: 600; color: #6e6e73; }
+.rows { margin: 0; padding: 0 0.5em; list-style: none; display: grid; gap: 0.1em; }
+.rows li { display: grid; gap: 0.1em; padding: 0.55em 0.8em 0.6em; border-radius: 0.7em; min-width: 0; }
+.rows li[data-on] { background: #ececee; }
+.rows b { font-size: 1em; font-weight: 700; line-height: 1.25; }
+.line { display: flex; min-width: 0; font-size: 0.9em; color: #6e6e73; white-space: nowrap; }
+.dot { margin: 0 0.35em; }
+.first { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.in { display: flex; align-items: center; gap: 0.35em; font-size: 0.82em; color: #8e8e93; }
+.in svg { width: 1.05em; height: 0.85em; fill: none; stroke: currentColor; stroke-width: 1.4; }
+
+/* The note column. */
+.noteCol { display: flex; flex-direction: column; min-width: 0; }
+.crumb { margin-left: 0.4em; font-size: 1em; font-weight: 600; color: #6e6e73; }
+.tools { margin-left: auto; display: flex; align-items: center; gap: 1em; padding: 0.4em 0.9em; border-radius: 99px; color: #3a3a3c; box-shadow: 0 0 0 1px #ececec, 0 1px 4px rgba(0, 0, 0, 0.05); }
+.tools > b { font-size: 1.02em; font-weight: 500; line-height: 1; }
+.note { padding: 1.2em 9em 1em 2.4em; font-size: 1.05em; line-height: 1.45; }
+.note p, .pNote p { margin: 0; }
+.title { font-size: 2.05em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 0.45em !important; }
+.h { margin-top: 1em !important; font-size: 1.25em; font-weight: 700; line-height: 1.3; }
+.quote { margin-top: 0.3em !important; padding-left: 0.8em; box-shadow: inset 0.2em 0 0 #e2c9a6; color: #55504a; }
+.checks { margin: 0.35em 0 0; padding: 0; list-style: none; display: grid; gap: 0.35em; }
+.checks li { display: flex; align-items: center; gap: 0.6em; }
+.checks i { flex: none; display: grid; place-items: center; width: 1.2em; height: 1.2em; border-radius: 50%; box-shadow: inset 0 0 0 0.09em #c7c7cc; }
+.checks svg { width: 100%; height: 100%; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.checks li[data-done] { color: #8e8e93; text-decoration: line-through; text-decoration-color: #b0b0b5; }
+.checks li[data-done] i { background: #d9750f; box-shadow: none; }
+
+/* The iPhone, over the window's lower right corner, at the same type scale as the Mac's note. */
+.phone { position: absolute; right: 0; bottom: 0; width: 25%; font-size: clamp(6px, 1.35cqi, 10px); aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.5em; border-radius: 2.6em; background: #1d1611;
+  box-shadow: 0 0 0 1.5px #4a3a2c, 0 1.2em 2.6em -0.8em rgba(40, 10, 0, 0.6), 0 0.3em 0.8em rgba(40, 10, 0, 0.2); }
+.screen { height: 100%; box-sizing: border-box; border-radius: 2.1em; background: #fff; overflow: hidden; }
+.status { position: relative; margin: 0; padding: 1em 2em 0; font-size: 1.1em; }
+.status::after { content: ""; position: absolute; left: 50%; top: 0.75em; translate: -50% 0; width: 7.5em; height: 2em; border-radius: 1em; background: #1d1611; }
+.pBar { margin: 0; display: flex; align-items: center; justify-content: space-between; padding: 1em 1.2em 0.4em; color: #d9750f; font-size: 1.3em; font-weight: 500; }
+.pBar > span:first-child { display: inline-flex; align-items: center; gap: 0.3em; }
+.pBar svg[viewBox="0 0 10 16"] { width: 0.6em; stroke-width: 2.2; }
+.pRound { display: grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; box-shadow: inset 0 0 0 0.1em currentColor; }
+.pNote { padding: 0.6em 1.5em; font-size: 1.3em; line-height: 1.4; }
+.pNote .title { font-size: 1.9em; }
+
+/* A phone visitor sees the iPhone alone, upright and large: the Mac window doesn't fit a phone column. */
+@media (max-width: 900px) {
+  .pair { padding: 0; }
+  .mac { display: none; }
+  .phone { position: relative; margin: 0 auto; width: min(64%, 260px); font-size: min(3.85cqi, 10px); }
+}

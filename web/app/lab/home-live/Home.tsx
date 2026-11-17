@@ -4,6 +4,7 @@ import { G } from "./copy";
 import { Download } from "../../_home/Download";
 import { Hero, type H1 } from "./Hero";
 import { Rows, SHOW_COLLAB } from "./Rows";
+import type { ShareV } from "./Share";
 import { ScrollVar } from "./ScrollVar";
 import d from "./sections.module.css";
 import v from "./home.module.css";
@@ -24,14 +25,14 @@ const EXTRAS = [
 
 /// The home page: the hero, her note lifting off into the week film, three people already living like
 /// this, templates, everything else, and the download.
-export function Home({ h1 = "a", serif = true }: { h1?: H1; serif?: boolean }) {
+export function Home({ h1 = "a", serif = true, share }: { h1?: H1; serif?: boolean; share?: ShareV }) {
   const all = templates();
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${d.main} ${v.main} ${serif ? v.serif : ""}`}>
       <Hero h1={h1} />
 
-      <Rows />
+      <Rows share={share} />
 
       {/* The memory study (Emil, 12 November 2026): one quiet line. */}
       <div className={d.centerHead}>
