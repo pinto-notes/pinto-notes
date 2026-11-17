@@ -5,13 +5,13 @@ import s from "./post-parts.module.css";
 /// result has it on the first screen; the rest is for the people who read on.
 
 /// The short answer, with links that jump to the sections that have the detail.
-export function Answer({ children, jump = [] }: { children: React.ReactNode; jump?: { href: string; label: string }[] }) {
+export function Answer({ children, jump = [], label = "The short answer", jumpTo = "Jump to" }: { children: React.ReactNode; jump?: { href: string; label: string }[]; label?: string; jumpTo?: string }) {
   return (
-    <aside className={s.answer} aria-label="The short answer">
+    <aside className={s.answer} aria-label={label}>
       {children}
       {jump.length ? (
         <p className={`${s.jump} post-jump`}>
-          Jump to{" "}
+          {jumpTo}{" "}
           {jump.map((j, i) => <span key={j.href} className={s.jumpItem}><a href={j.href}>{j.label}</a>{i < jump.length - 1 ? <span className={s.jumpDot} aria-hidden="true">·</span> : null}</span>)}
         </p>
       ) : null}
@@ -24,7 +24,7 @@ export function Path({ steps, keys }: { steps: string[]; keys?: string }) {
   return (
     <span className={s.path} role="group" aria-label={steps.join(", then ") + (keys ? ` (${keys})` : "")}>
       {steps.map((step, i) => (
-        <span key={step} className={s.step} aria-hidden="true"><span>{step}</span>{keys && i === steps.length - 1 ? <kbd>{keys}</kbd> : null}</span>
+        <span key={`${i}-${step}`} className={s.step} aria-hidden="true"><span>{step}</span>{keys && i === steps.length - 1 ? <kbd>{keys}</kbd> : null}</span>
       ))}
     </span>
   );
@@ -60,12 +60,12 @@ export function Banner({ src }: { src: string }) {
 /// Something to keep: a checklist, a cheat sheet, a prompt or a script, with a Copy button that copies
 /// `text` exactly. What shows is `children`, or the text itself in a code block. Copies are counted as
 /// blog_copy_clicked (lib/posthog.ts reads data-event).
-export function Keep({ title, note, text, code = false, children }: { title: string; note?: React.ReactNode; text: string; code?: boolean; children?: React.ReactNode }) {
+export function Keep({ title, note, text, code = false, children, copyLabel = "Copy" }: { title: string; note?: React.ReactNode; text: string; code?: boolean; children?: React.ReactNode; copyLabel?: string }) {
   return (
     <div className={s.keep}>
       <div className={s.keepHead}>
         <p className={s.keepTitle}>{title}</p>
-        <CopyButton text={text} label="Copy" className={s.copy} event="blog_copy_clicked" />
+        <CopyButton text={text} label={copyLabel} className={s.copy} event="blog_copy_clicked" />
       </div>
       {children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre> : <pre className={s.plain} tabIndex={0}>{text}</pre>)}
       {note && <p className={s.keepNote}>{note}</p>}

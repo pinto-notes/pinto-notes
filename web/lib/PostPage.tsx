@@ -8,6 +8,7 @@ import { ClosingBand } from "./ClosingBand";
 import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, published, type Category, type Post } from "./posts";
 import { APP_STORE_URL, MAKER_URL, SITE_URL, pageMetadata } from "./site";
 import { JsonLd, article, breadcrumbs, faqPage, maker, organization } from "./structured-data";
+import { languagesFor } from "./i18n/blog";
 
 type QA = { q: string; a: string[] };
 
@@ -21,6 +22,7 @@ export function postMetadata(slug: string, { title }: { title?: string } = {}): 
     path: `/blog/${x.slug}`,
     index: !x.draft,
     article: { published: x.date, modified: x.updated, author: AUTHOR.name },
+    languages: x.draft ? undefined : languagesFor(x.slug),
     // Drafts have no card of their own (only published posts get one) and use the site's.
     ...(x.draft ? {} : { image: { url: `/og/blog/${x.slug}`, alt: `${x.title}, on the Pinto Notes blog` } }),
   });
@@ -217,10 +219,10 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
 function ArrowGlyph() {
   return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>;
 }
-function XGlyph() {
+export function XGlyph() {
   return <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3Z" /></svg>;
 }
-function LinkedInGlyph() {
+export function LinkedInGlyph() {
   return <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z" /></svg>;
 }
 function MailGlyph() {
