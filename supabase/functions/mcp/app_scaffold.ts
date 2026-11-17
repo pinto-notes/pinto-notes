@@ -35,12 +35,113 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 - Links to the person's notes and apps are plain links, written like a [[link]] in a note: <a href="pinto:Work/Acme">Acme</a> (the title, or the folders and the title), pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for another app. Tapping one opens it in Pinto Notes the way a [[link]] does (on iPhone, Back returns to this app); a note that doesn't exist is offered to be made. Anything can be the link (wrap a card in it, or use <Button asChild>); a test checks its href.
 - The device: device.openURL(url) opens a web link once the person agrees to it, share(file) exports one, device.photos.pick() and device.files.pick() let the person choose. Reminders, Calendar, notifications, the camera, contacts, location, Maps and on-device AI are not available yet.`;
 
+/** shadcn/ui's own starter colours (neutral, new-york-v4), switched by the device's light or dark
+ *  setting instead of a .dark class. No Pinto colours: the app picks its own look (Emil, 2026-11-17). */
+const NEUTRAL_CSS = `@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+}
+`;
+
 export async function scaffold(title: string, lang = "en"): Promise<Record<string, string>> {
   const [{ STACK_FILES }, { SHADCN_UI }] = await Promise.all([import("./app_stack.gen.ts"), import("./shadcn-ui.ts")]);
   const safe = title.replace(/[<>&"`$\\{}]/g, "").trim() || "App";
+  // The Training demo's frame (app-shell.tsx, stat-card.tsx) stays in the demo, not in every app.
+  const { "/src/components/app-shell.tsx": _shell, "/src/components/stat-card.tsx": _stat, ...stack } = STACK_FILES
   return {
-    ...STACK_FILES,
+    ...stack,
     ...SHADCN_UI,
+    "/src/index.css": NEUTRAL_CSS,
     "/package.json": JSON.stringify({
       name: safe.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "app",
       private: true, type: "module",
@@ -60,6 +161,7 @@ export async function scaffold(title: string, lang = "en"): Promise<Record<strin
 <html lang="${lang}">
   <head>
     <meta charset="utf-8" />
+    <meta name="amber-base" content="none" />
     <title>${safe}</title>
   </head>
   <body>
@@ -75,36 +177,29 @@ import App from "./App"
 createRoot(document.getElementById("root")!).render(<App />)
 `,
     "/src/App.tsx": `import { Router, Route } from "pinto-router"
-import { House, Settings as SettingsIcon } from "lucide-react"
 import { Toaster } from "@/components/ui/sonner"
-import { AppShell } from "@/components/app-shell"
 import Home from "@/screens/home"
 import Settings from "@/screens/settings"
 
-// The app's places: a tab bar on iPhone, a sidebar from 900 px (components/app-shell.tsx).
-const screens = [
-  { path: "/", label: "Home", icon: House },
-  { path: "/settings", label: "Settings", icon: SettingsIcon },
-]
-
 export default function App() {
   return (
-    <AppShell title="${safe}" screens={screens}>
-      <div className="mx-auto max-w-5xl px-4 pt-4 min-[900px]:px-10 min-[900px]:pt-8">
-        <Router>
-          <Route path="/" component={Home} default />
-          <Route path="/settings" component={Settings} />
-        </Router>
-      </div>
+    <main className="mx-auto max-w-5xl px-4 py-6">
+      <nav className="mb-6 flex gap-4 text-sm">
+        <a href="#/">Home</a>
+        <a href="#/settings">Settings</a>
+      </nav>
+      <Router>
+        <Route path="/" component={Home} default />
+        <Route path="/settings" component={Settings} />
+      </Router>
       <Toaster position="top-center" />
-    </AppShell>
+    </main>
   )
 }
 `,
     "/src/screens/home.tsx": `import { useState } from "react"
 import { Check, Pencil, Plus, Trash2 } from "lucide-react"
 import { useCollection } from "@/lib/pinto"
-import { PageHeader } from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -131,7 +226,7 @@ export default function Home() {
   }
   return (
     <>
-      <PageHeader title="${safe}" />
+      <h1 className="mb-4 text-2xl font-semibold">${safe}</h1>
       <form onSubmit={add} className="flex gap-2">
         <Label htmlFor="new-item" className="sr-only">New item</Label>
         <Input id="new-item" placeholder="New item" value={text} onChange={(e) => setText(e.currentTarget.value)} />
@@ -198,7 +293,6 @@ describe("Home", () => {
 })
 `,
     "/src/screens/settings.tsx": `import { useSettings } from "@/lib/pinto"
-import { PageHeader } from "@/components/app-shell"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -210,7 +304,7 @@ export default function Settings() {
   const [settings, update] = useSettings(DEFAULTS)
   return (
     <>
-      <PageHeader title="Settings" />
+      <h1 className="mb-4 text-2xl font-semibold">Settings</h1>
       <Card className="gap-0 py-0">
         <div className="flex items-center gap-3 px-4 py-3.5">
           <Label htmlFor="name" className="flex-1">Name</Label>

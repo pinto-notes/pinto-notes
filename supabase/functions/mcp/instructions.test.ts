@@ -131,6 +131,28 @@ Deno.test("every guide an AI gets for apps says the person stays in control insi
   assertStringIncludes(FILE_INSTRUCTIONS, IN_CONTROL);
 });
 
+// Emil, 2026-11-17: the AI-built apps all looked alike. A new app starts from shadcn's neutral
+// starter with no Pinto colours, no Pinto frame and no amber-base.css, and nothing tells the AI to
+// look like Pinto Notes; its look is the AI's call.
+Deno.test("a new app starts with no Pinto look, and no guide asks for one", async () => {
+  const files = await scaffold("Habits");
+  assert(!/--(pinto|amber)-/.test(files["/src/index.css"]), "index.css uses Pinto's colours");
+  assertStringIncludes(files["/src/index.css"], "--background: oklch(1 0 0)");
+  assertStringIncludes(files["/index.html"], '<meta name="amber-base" content="none" />');
+  assertEquals(Object.keys(files).filter((p) => /app-shell|stat-card/.test(p)), []);
+  for (const [path, text] of Object.entries(files)) assert(!/AppShell|PageHeader/.test(text), `${path} uses the Pinto frame`);
+  const { PAGE_API } = await import("./page_guide.ts");
+  const { appTools } = await import("./app_tools.ts");
+  const checkApp = appTools.find((t) => t.name === "check_app")!.description;
+  for (const text of [await pageGuide(), appsGuide(), PAGE_API, PAGE_INSTRUCTIONS, FILE_INSTRUCTIONS, checkApp]) {
+    for (const rule of [/look like Pinto/i, /Use the variables instead/i, /Nothing see-through/i, /Amber's colou?rs/i, /--pinto-\* theme/, /app-shell/]) assert(!rule.test(text), `${rule} in ${text.slice(0, 60)}`);
+  }
+  // A one-file app with its own fixed colours gets no note telling it to use Pinto's variables.
+  const { pageWarnings } = await import("./page_lint.ts");
+  const own = pageWarnings(`<html lang="en"><style>body { background: #0b1d3a; color: white }</style><script>pinto.onChange(() => {})</script></html>`);
+  assertEquals(own.filter((w) => /--pinto|dark variant|background on html or body/.test(w)), []);
+});
+
 Deno.test("every tool set tells an AI to read the About me note first and keep it current", () => {
   for (const set of [undefined, "files", "classic", "pages"]) {
     const text = instructions(set);
