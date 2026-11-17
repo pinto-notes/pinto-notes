@@ -189,9 +189,9 @@ try {
 
   // 3. Draws a rectangle with the pointer, as a person does, and moves the pointer over the board.
   const before = new Set((await elements(page)).map((e) => e.id));
-  await page.getByRole("button", { name: "Rectangle (R)" }).click();
+  await page.getByRole("button", { name: "Rectangle (R or 2)" }).click();
   // Pressed once the canvas says it has the tool.
-  await page.locator('nav[aria-label="Tools"] button[aria-label="Rectangle (R)"][aria-pressed="true"]').waitFor();
+  await page.locator('nav[aria-label="Tools"] button[aria-label="Rectangle (R or 2)"][aria-pressed="true"]').waitFor();
   await page.mouse.move(520, 420);
   await page.mouse.down();
   for (let i = 1; i <= 10; i++) await page.mouse.move(520 + i * 16, 420 + i * 9);
@@ -385,7 +385,7 @@ try {
     problems.push("phone width: More Tools doesn't show the picked tool");
   // A shape picked at phone width (with Select, as you pick one): its bar sits over the toolbar,
   // inside the window.
-  await page2.getByRole("button", { name: "Select (V)" }).click();
+  await page2.getByRole("button", { name: "Select (V or 1)" }).click();
   await select(page2, drawn.id);
   const dock = await page2.getByRole("toolbar", { name: "Selection" }).evaluate((n) => { const r = n.getBoundingClientRect(); return { left: r.left, right: r.right }; });
   if (dock.left < 0 || dock.right > 390) problems.push(`phone width: the selection's bar doesn't fit: ${JSON.stringify(dock)}`);
@@ -414,7 +414,7 @@ try {
   await sleep(600);
   const cv = await wholeIn(cpage);
   if (!cv.ok) problems.push(`the commenter's board didn't open whole: ${JSON.stringify(cv.v)}`);
-  if (await cpage.getByRole("button", { name: "Rectangle (R)" }).count()) problems.push("a commenter has the drawing tools");
+  if (await cpage.getByRole("button", { name: "Rectangle (R or 2)" }).count()) problems.push("a commenter has the drawing tools");
   if (await cpage.locator('header button[aria-label="More"]').count()) problems.push("a commenter has the board's More menu");
   const had = (await elements(cpage)).length;
   await cpage.mouse.click(900, 600);
