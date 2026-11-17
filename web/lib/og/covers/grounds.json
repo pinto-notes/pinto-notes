@@ -209,6 +209,12 @@
   "w": 880,
   "h": 550
  },
+ "meal-planner": {
+  "ground": "#d75f33",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "memory-study": {
   "ground": "#5d2d47",
   "ink": "light",

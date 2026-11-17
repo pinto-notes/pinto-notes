@@ -21,6 +21,7 @@ export const SHELVES: Shelf[] = [
       { slug: "apple-notes-budget-template", ask: "Is there a budget template for Notes?" },
       { slug: "apple-notes-habit-tracker", ask: "Can Notes track my habits?" },
       { slug: "apple-notes-trip-planner-template", ask: "Can Notes plan a trip?" },
+      { slug: "apple-notes-meal-planner-template", ask: "Can Notes plan the week's dinners?" },
       { slug: "back-up-apple-notes", ask: "How do I back up my notes?" },
       { slug: "export-apple-notes-to-markdown", ask: "How do I get my notes out as Markdown?" },
       { slug: "move-apple-notes-to-icloud", ask: "Notes stuck in On My Mac?" },

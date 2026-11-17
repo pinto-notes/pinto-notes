@@ -77,6 +77,7 @@ export default function Page() {
       <p>Each is written in Markdown, so it arrives formatted when you <a href="#paste">paste it as Markdown</a>. Every item has a word in it, on purpose: an empty checklist item doesn&apos;t survive the paste.</p>
       <TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" />
       <p>For a whole trip, with the bookings and the days as well as the packing, there&apos;s an <a href="/blog/apple-notes-trip-planner-template">Apple Notes trip planner template</a>.</p>
+      <p>For the week&apos;s dinners and the grocery list that goes with them, there&apos;s an <a href="/blog/apple-notes-meal-planner-template">Apple Notes meal planner template</a>.</p>
 
       <h2 id="paste">Paste them in formatted</h2>
       <PostFigure src="/blog/macos27/notes27-paste-as-markdown" width={1328} height={400} maxWidth={640}
