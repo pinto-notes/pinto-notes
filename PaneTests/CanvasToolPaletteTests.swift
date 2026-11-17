@@ -236,7 +236,8 @@ import WebKit
         for dark in [false, true] {
             let c = try CanvasNativeUITests.canvasLibrary()
             let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
-            let (w, web, _) = try await AppSnapshotTests.withLastNote(c, board.title) { try await CanvasNativeUITests.boardWindow(c, board, dark: dark) }
+            // As the window you're using: Share's accent fill shows.
+            let (w, web, _) = try await AppSnapshotTests.withLastNote(c, board.title) { try await CanvasNativeUITests.boardWindow(c, board, dark: dark, keyLook: true) }
             defer { w.close() }
             _ = try await CanvasNativeUITests.settledView(w, web)
             NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)

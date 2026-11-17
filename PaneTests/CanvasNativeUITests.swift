@@ -3527,11 +3527,15 @@ extension CanvasNativeUITests {
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
             #expect(try Self.collapsed(w) == [false, false], "the canvas leaves the columns open")
-            // The tools are in the window's toolbar, where a note's are, then Full Screen, Share and More.
+            // The board's actions are in the window's toolbar, at its right edge; the tools are on
+            // the board (CanvasToolPalette), and Full Screen is View › Full Screen, ⇧⌘F (Emil,
+            // 17 November 2026).
             let labels = try MacWindowChromeTests.items(w).map(\.label)
-            // At 1280 with both columns, the compact set: the rest under More Tools.
-            for l in ["Select", "Pencil", "Shapes", "Arrow", "Text", "More Tools", "Full Screen", "Share"] {
+            for l in ["Share", CanvasLibraryPopover.title, BoardCommentUI.title, "More"] {
                 #expect(labels.contains(l), "\(l) in the toolbar: \(labels)")
+            }
+            for l in ["Select", "Pencil", "Shapes", "More Tools", "Full Screen"] {
+                #expect(!labels.contains(l), "\(l) not in the toolbar: \(labels)")
             }
             // Its name, as a field you can type in, beside where it is.
             @MainActor func fields(_ v: NSView) -> [NSTextField] { (v as? NSTextField).map { [$0] } ?? [] + v.subviews.flatMap(fields) }
@@ -3546,9 +3550,13 @@ extension CanvasNativeUITests {
             }
             try await press("sidebar.toggle")
             #expect(try Self.collapsed(w) == [true, false], "one click: the folders")
-            try await press("note.fullScreen")
+            // The View menu isn't in the test host: Present's way in and out, which runs the same
+            // enterFullScreen and leaveCanvasFocus as the menu's Full Screen.
+            NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)
+            await MacWindowChromeTests.settle(w, 12)
             #expect(try Self.collapsed(w) == [true, true], "Full Screen: the canvas alone")
-            try await press("note.fullScreen")
+            NotificationCenter.default.post(name: .paneCanvasPresenting, object: false)
+            await MacWindowChromeTests.settle(w, 12)
             #expect(try Self.collapsed(w) == [true, false], "and back as they were")
         }
     }
@@ -6286,9 +6294,13 @@ extension CanvasNativeUITests {
     }
 
     /// A board in the app's own window, offscreen, as `whiteboardWindowPictures` opens it.
-    static func boardWindow(_ c: ModelContainer, _ note: Note, size: CGSize = CGSize(width: 1400, height: 900), dark: Bool) async throws -> (NSWindow, NotePageWebView, CanvasController) {
-        let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
-                         styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+    /// `keyLook`: drawn as the window you're using, for a picture (an inactive window greys its
+    /// toolbar's filled buttons, Share's accent among them); it's never made key.
+    static func boardWindow(_ c: ModelContainer, _ note: Note, size: CGSize = CGSize(width: 1400, height: 900), dark: Bool, keyLook: Bool = false) async throws -> (NSWindow, NotePageWebView, CanvasController) {
+        let rect = CGRect(x: -20000, y: -20000, width: size.width, height: size.height)
+        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        let w: NSWindow = keyLook ? KeyLookWindow(contentRect: rect, styleMask: style, backing: .buffered, defer: false)
+                                  : NSWindow(contentRect: rect, styleMask: style, backing: .buffered, defer: false)
         w.isReleasedWhenClosed = false
         w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore())
@@ -6308,6 +6320,12 @@ extension CanvasNativeUITests {
             w.close()
             throw error
         }
+    }
+
+    /// Says it's the key and main window, so it's drawn as active; never made key.
+    final class KeyLookWindow: NSWindow {
+        override var isKeyWindow: Bool { true }
+        override var isMainWindow: Bool { true }
     }
 
     /// The scene of picture 16: the flowchart template, then an AI's approval flow beside it, then
@@ -6461,9 +6479,10 @@ extension CanvasNativeUITests {
               new ResizeObserver(() => { const s = amber._canvas.api.getAppState(); window.__steps.push([area.clientWidth, area.clientHeight, s.scrollX, s.scrollY, s.zoom.value]); }).observe(area);
               return 1; })()
             """)
-            let full = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
-            let button = try #require(full ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
-            _ = button.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+            // Full Screen (View › Full Screen on a board: the View menu isn't in the test host, so
+            // Present's way in, the same enterFullScreen).
+            NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)
+            defer { NotificationCenter.default.post(name: .paneCanvasPresenting, object: false) }
             // What the page has seen while the window lays out, before anything draws it.
             var early: [String] = []
             for _ in 0..<8 {
@@ -6501,9 +6520,10 @@ extension CanvasNativeUITests {
     }
 
     /// A board whole at 1000 pt stays whole when the window narrows to 760 pt (about 52%), and
-    /// the one Tools button left shows a menu's chevron. Round 12, 15-narrow-760: it stayed at 76%,
-    /// cut off on both sides, because with 48 pt kept round it the board needed 44%, under the
-    /// 50% floor; and the Tools button was a grey arrow with no sign it opens a menu.
+    /// the palette stays whole on it, what doesn't fit in More. Round 12, 15-narrow-760: it stayed
+    /// at 76%, cut off on both sides, because with 48 pt kept round it the board needed 44%, under
+    /// the 50% floor. (Round 12's Tools menu in the window's bar went with the palette, 17 November
+    /// 2026.)
     @Test func aNarrowerWindowKeepsTheWholeBoard() async throws {
         let c = try AppSnapshotTests.container()
         let note = CanvasNote.make(in: .all, context: c.mainContext)
@@ -6531,32 +6551,15 @@ extension CanvasNativeUITests {
             #expect(whole(after), "still whole at 760 pt: \(after)")
             let zoom = try #require(after["zoom"] as? Double)
             #expect(zoom >= 0.5 - 1e-6 && zoom < (before["zoom"] as? Double ?? 1), "zoomed out, not under half: \(zoom)")
-            // The one Tools button: a chevron beside the tool, drawn in the button's own padding, so
-            // the button is as wide as a plain one and the bar still fits 710 pt
-            // (theBoardsToolbarNeverClips). Its right part has ink; Share's, a plain button with a
-            // narrow symbol, has none.
-            let shown = (w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }
-            let tools = try #require(shown.first { $0.label == "Tools" }?.view, "the Tools menu at 760 pt: \(shown.map(\.label))")
-            let comments = try #require(shown.first { $0.label == BoardCommentUI.title }?.view)
-            #expect(abs(tools.frame.width - comments.frame.width) <= 2, "as wide as a plain button: \(tools.frame.width) against \(comments.frame.width)")
-            let picture = try MacEmptyDetailTests.picture(w)
-            let height = try #require(w.contentView?.superview).bounds.height
-            @MainActor func rightInk(_ v: NSView) -> Int {
-                let f = v.convert(v.bounds, to: nil)
-                let y = Int((height - f.midY) * 2)
-                guard let ground = picture.colorAt(x: Int((f.minX + 4) * 2), y: y)?.usingColorSpace(.deviceRGB) else { return -1 }
-                var n = 0
-                for x in Int((f.minX + 27) * 2)..<Int((f.maxX - 2) * 2) {
-                    for y in Int((height - f.maxY + 8) * 2)..<Int((height - f.minY - 8) * 2) {
-                        guard let c = picture.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
-                        if abs(c.redComponent - ground.redComponent) + abs(c.greenComponent - ground.greenComponent) + abs(c.blueComponent - ground.blueComponent) > 0.3 { n += 1 }
-                    }
-                }
-                return n
-            }
-            let share = try #require(shown.first { $0.label == "Share" }?.view, "Share at 760 pt: \(shown.map(\.label))")
-            let chevron = rightInk(tools), plain = rightInk(share)
-            #expect(chevron >= 12 && plain <= 4, "a chevron beside the tool: \(chevron) inked pixels in the button's right part, \(plain) in a plain button's")
+            // The palette at 760 pt: whole on the board and in its middle, as wide as what fits,
+            // the rest in More.
+            let area = web.convert(web.bounds, to: nil)
+            let palette = try #require(await CanvasToolPaletteTests.frame("canvas.palette", in: w), "the palette at 760 pt")
+            #expect(palette.minX >= area.minX + 11 && palette.maxX <= area.maxX - 11, "whole on the board: \(palette) in \(area)")
+            #expect(abs(palette.midX - area.midX) <= 2, "in its middle: \(palette.midX) against \(area.midX)")
+            let fitted = CanvasToolPalette.fitted(width: area.width)
+            #expect(abs(palette.width - CanvasToolPalette.width(fitted.groups)) <= 2, "as wide as what fits: \(palette.width), \(fitted.folded.count) in More")
+            #expect(await CanvasToolPaletteTests.frame(CanvasToolPalette.Item.more.identifier, in: w) != nil, "More, with the rest")
             try await Self.expectWholeToolbar(w, "760 pt")
         }
     }
