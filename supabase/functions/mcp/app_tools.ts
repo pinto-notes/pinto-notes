@@ -25,7 +25,7 @@ const REAL_OFF = "Real data isn't available for previews: they always use a samp
 export const appTools = [
   {
     name: "check_app", title: "Check a note's app",
-    description: "Checks a note's app and reports what to fix, as text: script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, a layout that leaves most of a wide window empty, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
+    description: "Checks a note's app and reports what to fix, as text: script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
       "Run it after every set_note_page or edit_note_page and fix what it finds before telling the person the app is done. It renders a sample with the note's shape, not the person's data.",
     inputSchema: { type: "object", properties: { ...noteRef } },
     annotations: read,

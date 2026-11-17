@@ -27,7 +27,7 @@ export const TEST_RUNNER = `Pinto Notes runs the tests in its own runner, in Web
 /** How an app runs in Pinto Notes: part of every app's README, so any AI working on it reads it. */
 export const appGuide = () => `## How this app runs in Pinto Notes
 
-- Design it as its own product, with a look that fits what it does.
+- Design it as its own product, with a look and layout that fit what it does. It lives inside a note, which already has Pinto's own navigation around it.
 - ${IN_CONTROL}
 - It is the note: opening the note opens the app, on iPhone (320-440 pt wide, safe areas, the keyboard shrinks the view) and on the Mac (a window from about 500 to 1,800 px, resized live). Light and dark follow the device.
 - A normal Vite + React 19 + TypeScript + Tailwind 4 + shadcn/ui project. Pinto Notes compiles it when a file is saved (TSX, the @/ alias, imports without extensions, Tailwind from the classes used) and says what broke; nothing is installed. React runs on preact/compat.

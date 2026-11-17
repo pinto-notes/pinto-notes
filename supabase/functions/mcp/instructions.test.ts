@@ -154,6 +154,23 @@ Deno.test("a new app starts with no Pinto look, and no guide asks for one", asyn
   assertEquals(own.filter((w) => /--pinto|dark variant|background on html or body/.test(w)), []);
 });
 
+// 2026-11-18 (arm D): in arm C, three of five apps put a sidebar inside a note that already has Pinto's.
+// Nothing an AI reads with the file tools points it at a sidebar or the Training example's Shell.
+Deno.test("the apps guide asks for an app's own look and layout, and nothing points an AI at a sidebar", async () => {
+  assertStringIncludes(appsGuide(), "Design it as its own product, with a look and layout that fit what it does. It lives inside a note, which already has Pinto's own navigation around it.");
+  await withToolSet(undefined, async () => {
+    const resources = await servedResources();
+    assertEquals(resources.filter((r) => r.uri.startsWith("amber://examples/")).map((r) => r.uri), []);
+    const { servedTools } = await import("./tool_set.ts");
+    const files = await scaffold("Habits");
+    const read = [instructions(), ...servedTools().map((t) => t.description), ...resources.map((r) => r.text), ...Object.values(files)];
+    // Pinto's own sidebar (where tags are found) is fine to mention.
+    for (const text of read.map((t) => t.replace("finds every note with it in the sidebar", ""))) for (const nudge of [/sidebar/i, /\bShell\b/, /most of a wide window/, /of the window's width/]) assert(!nudge.test(text), `${nudge} in ${text.slice(0, 80)}`);
+  });
+  const { appTools } = await import("./app_tools.ts");
+  assert(!/most of a wide window/.test(appTools.find((t) => t.name === "check_app")!.description));
+});
+
 Deno.test("every tool set tells an AI to read the About me note first and keep it current", () => {
   for (const set of [undefined, "files", "classic", "pages"]) {
     const text = instructions(set);

@@ -390,6 +390,8 @@ export type View = {
   bg: string; fg: string; contrast: number; bgLuminance: number;
   unnamedControls: string[]; smallTargets: number; screenshot?: string;
   smallText: string[]; smallTextCount: number; faintText: string[]; faintCount: number; headings: string[]; excerpt: string; png?: string;
+  /** Each colour pair under 4.5:1 (3:1 for large text), with the nearest colour that reads (`use`). */
+  faintColors: { color: string; background: string; ratio: number; use: string; useRatio: number; texts: string[]; className: string }[];
   titleCount: number; ghostFields: string[]; sections: number; nav: boolean; junk: string[]; under44: string[]; under44Count: number; clipped: string[]; clippedCount: number; usedWidth: number; canvases: number; svgShapes: number; gridCols: number; frames: number;
   look: { accentHue: number | null; nonAmberVivid: number; tintedBg: boolean };
 };
@@ -915,7 +917,29 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       // Text cut off by its box (no ellipsis meant).
       const clipped = texts.filter((el) => { const s = getComputedStyle(el); return el.clientWidth > 2 && s.clip !== "rect(0px, 0px, 0px, 0px)" && !(s.position === "absolute" && el.clientWidth <= 2) && el.scrollWidth > el.clientWidth + 2 && s.overflowX !== "visible" && s.textOverflow !== "ellipsis" && s.overflowX !== "auto" && s.overflowX !== "scroll"; }).map((el) => (el.textContent ?? "").trim().slice(0, 40));
       const smallText = texts.filter((el) => parseFloat(getComputedStyle(el).fontSize) < 12).map((el) => (el.textContent ?? "").trim().slice(0, 40));
-      const faint = texts.filter((el) => { const s = getComputedStyle(el); if (parseFloat(s.opacity) < 0.3) return false; const a = lumOf(s.color), b = lumOf(behind(el)); const [x, y] = [a, b].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) < 4.5; }).map((el) => (el.textContent ?? "").trim().slice(0, 40));
+      // Text under 4.5:1 against what's behind it (3:1 for large text: 24 px, or 18.66 px bold), with
+      // translucent text laid over its background first. Each colour pair once, with the nearest colour
+      // that reads: the text's own colour moved away from the background, in 2% steps.
+      const solid = (fg: string, bk: string) => { const [r, g, b, a] = rgbaOf(fg), [r0, g0, b0] = rgbaOf(bk); return `rgb(${Math.round(r * a + r0 * (1 - a))}, ${Math.round(g * a + g0 * (1 - a))}, ${Math.round(b * a + b0 * (1 - a))})`; };
+      const ratioOf = (x: string, y: string) => { const [p, q] = [lumOf(x), lumOf(y)].sort((m, n) => n - m); return (p + 0.05) / (q + 0.05); };
+      const hexOf = (c: string) => "#" + rgbaOf(c).slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join("");
+      const readable = (fg: string, bk: string, need: number) => {
+        const [r, g, b] = rgbaOf(fg), t = lumOf(bk) > lumOf(fg) ? 0 : 255;
+        for (let k = 0.02; k < 1.001; k += 0.02) { const c = `rgb(${Math.round(r + (t - r) * k)}, ${Math.round(g + (t - g) * k)}, ${Math.round(b + (t - b) * k)})`; if (ratioOf(c, bk) >= need) return c; }
+        return t ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+      };
+      const faintPairs = new Map<string, { color: string; background: string; ratio: number; use: string; useRatio: number; texts: string[]; className: string }>();
+      const faint = texts.filter((el) => {
+        const s = getComputedStyle(el); if (parseFloat(s.opacity) < 0.3) return false;
+        const bk = behind(el), fg = solid(s.color, bk), size = parseFloat(s.fontSize);
+        const need = size >= 24 || (size >= 18.66 && parseInt(s.fontWeight) >= 700) ? 3 : 4.5, ratio = ratioOf(fg, bk);
+        if (ratio >= need) return false;
+        const key = hexOf(fg) + hexOf(bk), text = (el.textContent ?? "").trim().slice(0, 40);
+        const pair = faintPairs.get(key) ?? (() => { const use = readable(fg, bk, need); const p = { color: hexOf(fg), background: hexOf(bk), ratio: Math.round(ratio * 10) / 10, use: hexOf(use), useRatio: Math.floor(ratioOf(use, bk) * 10) / 10, texts: [] as string[], className: "" }; faintPairs.set(key, p); return p; })();
+        if (pair.texts.length < 3) pair.texts.push(text);
+        pair.className ||= (typeof (el as HTMLElement).className === "string" ? (el as HTMLElement).className : "").split(/\s+/).find((c) => /^(dark:)?text-(?!(xs|sm|base|lg|[2-9]?xl|left|right|center|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip)$)/.test(c)) ?? "";
+        return true;
+      }).map((el) => (el.textContent ?? "").trim().slice(0, 40));
       return {
         // Values a script showed by mistake: an unawaited promise, an object, undefined, NaN.
         // Elements whose own text is exactly the note's title (headings or not).
@@ -934,7 +958,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         junk: [...new Set((text.match(/\[object (Promise|Object)\]|\bundefined\b|\bNaN\b|Invalid Date/g) ?? []))],
         under44: under44.slice(0, 5), under44Count: under44.length, clipped: clipped.slice(0, 5), clippedCount: clipped.length, used,
         canvases, svgShapes, gridCols, frames: (window as any).__frames as number, look,
-        smallText: smallText.slice(0, 5), smallTextCount: smallText.length, faint: faint.slice(0, 5), faintCount: faint.length,
+        smallText: smallText.slice(0, 5), smallTextCount: smallText.length, faint: faint.slice(0, 5), faintCount: faint.length, faintColors: [...faintPairs.values()].slice(0, 4),
         headings: [...document.querySelectorAll("h1, h2, h3, [role=heading]")].filter(visible).map((h) => (h.textContent ?? "").trim().slice(0, 80)).slice(0, 12),
         excerpt: text.replace(/\s+/g, " ").trim().slice(0, 500),
         // amber-base.css clips sideways overflow (html, body { overflow-x: clip }), so scrollWidth no longer
@@ -949,7 +973,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         shown: want.filter((w) => flat.includes(w.toLowerCase().replace(/\s+/g, " ")) || (/^[\d\s.,\u00a0]+$/.test(w) && flat.replace(/[\s,\u00a0\u202f]/g, "").includes(w.replace(/[\s,\u00a0]/g, "")))).length,
         bg, fg: rgbOf(bodyStyle.color), unnamed, small,
       };
-    }, want).catch((e) => ({ overflow: 0, textLength: 0, shown: 0, bg: "rgb(255,255,255)", fg: "rgb(0,0,0)", unnamed: [] as string[], small: 0, smallText: [] as string[], smallTextCount: 0, faint: [] as string[], faintCount: 0, headings: [] as string[], excerpt: "", titleCount: 0, ghostFields: [] as string[], sections: 0, nav: false, junk: [] as string[], under44: [] as string[], under44Count: 0, clipped: [] as string[], clippedCount: 0, used: 0, canvases: 0, svgShapes: 0, gridCols: 0, frames: 0, look: { accentHue: null as number | null, nonAmberVivid: 0, tintedBg: false }, err: String(e) }));
+    }, want).catch((e) => ({ overflow: 0, textLength: 0, shown: 0, bg: "rgb(255,255,255)", fg: "rgb(0,0,0)", unnamed: [] as string[], small: 0, smallText: [] as string[], smallTextCount: 0, faint: [] as string[], faintCount: 0, faintColors: [] as View["faintColors"], headings: [] as string[], excerpt: "", titleCount: 0, ghostFields: [] as string[], sections: 0, nav: false, junk: [] as string[], under44: [] as string[], under44Count: 0, clipped: [] as string[], clippedCount: 0, used: 0, canvases: 0, svgShapes: 0, gridCols: 0, frames: 0, look: { accentHue: null as number | null, nonAmberVivid: 0, tintedBg: false }, err: String(e) }));
     let shot: string | undefined;
     if (opts.shots && (width < 600 || scheme === "light")) {
       shot = `${opts.shots}-${width}-${scheme}.png`;
@@ -963,7 +987,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
     }
     views.push({ name: `${widget ? "widget" : width}-${scheme}`, width, scheme, errors, overflowPx: m.overflow, textLength: m.textLength, shown: m.shown, sampled: want.length,
       bg: m.bg, fg: m.fg, contrast: contrastOf(m.bg, m.fg), bgLuminance: lum(m.bg), unnamedControls: m.unnamed, smallTargets: m.small, screenshot: shot,
-      smallText: m.smallText, smallTextCount: m.smallTextCount, faintText: m.faint, faintCount: m.faintCount, headings: m.headings, excerpt: m.excerpt,
+      smallText: m.smallText, smallTextCount: m.smallTextCount, faintText: m.faint, faintCount: m.faintCount, faintColors: m.faintColors, headings: m.headings, excerpt: m.excerpt,
       titleCount: m.titleCount, ghostFields: m.ghostFields, sections: m.sections, nav: m.nav, junk: m.junk, under44: m.under44, under44Count: m.under44Count, clipped: m.clipped, clippedCount: m.clippedCount, usedWidth: m.used, canvases: m.canvases, svgShapes: m.svgShapes, gridCols: m.gridCols, frames: m.frames, look: m.look, ...(png ? { png } : {}) });
 
     await page.context().close();

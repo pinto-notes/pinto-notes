@@ -20,6 +20,7 @@ export function staticReport(html: string, body: string): { errors: string[]; wa
 type View = {
   name: string; width: number; scheme: string; errors: string[]; overflowPx: number; textLength: number; contrast: number; bgLuminance: number;
   unnamedControls: string[]; smallTargets: number; smallText?: string[]; smallTextCount?: number; faintText?: string[]; faintCount?: number;
+  faintColors?: { color: string; background: string; ratio: number; use: string; useRatio: number; texts: string[]; className: string }[];
   headings?: string[]; excerpt?: string; png?: string;
   titleCount?: number; ghostFields?: string[]; sections?: number; nav?: boolean; junk?: string[]; under44?: string[]; under44Count?: number; clipped?: string[]; clippedCount?: number; usedWidth?: number; canvases?: number; svgShapes?: number; gridCols?: number; frames?: number;
 };
@@ -65,7 +66,7 @@ export function titleReport(r: Rendered, title: string): string[] {
  * What the browser saw, in two kinds. errors: the app is broken for the person (a script error,
  * sideways scrolling, text you can't read, a blank screen, markup from its data running, something
  * it tried to load). notes: information for the AI's own judgment (small targets, faint text, a
- * crowded first screen, an empty wide window…), never a reason to call the app unfinished.
+ * crowded first screen…), never a reason to call the app unfinished.
  */
 export function renderedFindings(r: Rendered): { errors: string[]; notes: string[] } {
   const errors: string[] = [], notes: string[] = [];
@@ -76,14 +77,24 @@ export function renderedFindings(r: Rendered): { errors: string[]; notes: string
     if (v.contrast < 3) errors.push(`${v.name}: body text is hard to see (contrast ${v.contrast.toFixed(1)}:1 against its background${v.scheme === "dark" ? ", in dark mode" : ""}).`);
     else if (v.contrast < 4.5) notes.push(`${v.name}: body text contrast is ${v.contrast.toFixed(1)}:1 (4.5:1 reads well).`);
     if (v.junk?.length) notes.push(`${v.name}: shows ${v.junk.map((j) => `"${j}"`).join(", ")}, probably a value used before it was ready or a missing field.`);
-    if ((v.faintCount ?? 0) > 0) notes.push(`${v.name}: ${v.faintCount} text element(s) with contrast under 4.5:1 (${(v.faintText ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
+    if ((v.faintCount ?? 0) > 0 && !v.faintColors) notes.push(`${v.name}: ${v.faintCount} text element(s) with contrast under 4.5:1 (${(v.faintText ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if ((v.smallTextCount ?? 0) > 0) notes.push(`${v.name}: ${v.smallTextCount} text element(s) under 12 px (${(v.smallText ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if ((v.clippedCount ?? 0) > 0) notes.push(`${v.name}: ${v.clippedCount} text element(s) cut off by their box (${(v.clipped ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if (v.ghostFields?.length) notes.push(`${v.name}: ${v.ghostFields.length} field(s) with neither a border nor a fill: ${v.ghostFields.slice(0, 3).join(", ")}.`);
     if (v.unnamedControls.length) notes.push(`${v.name}: ${v.unnamedControls.length} control(s) without a label VoiceOver can read: ${v.unnamedControls.slice(0, 2).join(" ")}`);
     if (v.width < 600 && (v.under44Count ?? 0) > 0) notes.push(`${v.name}: ${v.under44Count} control(s) smaller than 44 pt to tap (${(v.under44 ?? []).slice(0, 3).map((t) => `"${t}"`).join(", ")}).`);
     if (v.width < 600 && (v.sections ?? 0) > 5) notes.push(`${v.name}: the first screen stacks ${v.sections} separate sections.`);
-    if (v.width >= 1100 && v.usedWidth !== undefined && v.usedWidth > 0 && v.usedWidth < 0.45) notes.push(`${v.name}: the content uses ${Math.round(v.usedWidth * 100)}% of the window's width.`);
+  }
+  // Faint text, once per colour pair across the views, with the colour to use instead: a note, never
+  // a held-back version (the look is the app's; the fix is one value where that colour is defined).
+  const pairs = new Map<string, NonNullable<View["faintColors"]>[number] & { views: string[] }>();
+  for (const v of r.views) for (const f of v.faintColors ?? []) {
+    const p = pairs.get(f.color + f.background) ?? { ...f, texts: [], views: [] };
+    for (const t of f.texts) if (p.texts.length < 3 && !p.texts.includes(t)) p.texts.push(t);
+    p.views.push(v.name); pairs.set(f.color + f.background, p);
+  }
+  for (const p of [...pairs.values()].slice(0, 4)) {
+    notes.push(`Text in ${p.color} on ${p.background} is ${p.ratio}:1 (${p.texts.map((t) => `"${t}"`).join(", ")}${p.className ? `; ${p.className}` : ""}; ${p.views.join(", ")}). ${p.use} reads at ${p.useRatio}:1: use it where that colour is defined.`);
   }
   if (r.interaction.tried !== "none" && r.interaction.ok === false) (/error/i.test(r.interaction.error ?? "") ? errors : notes).push(`Using the app's first control: ${r.interaction.error ?? "nothing changed"}.`);
   for (const [k, p] of Object.entries(r.probes ?? {})) {

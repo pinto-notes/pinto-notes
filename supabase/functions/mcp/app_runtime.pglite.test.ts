@@ -593,3 +593,43 @@ export default function App() {
     await closeBrowser();
   }
 });
+
+// 2026-11-18 (arm D): faint secondary text in B and C apps was counted, not fixed. The check now
+// names each colour pair and the nearest colour that reads, lays translucent text (Tailwind's
+// text-black/40) over its background first, and holds large text to 3:1 as WCAG does.
+Deno.test({ name: "faint text is named by its colour, with the nearest colour that reads, translucent text included", ignore: !hasWebKit }, async () => {
+  try {
+    const { renderPage } = await import("../../../scripts/page-render/render.ts");
+    const { renderedFindings } = await import("./app_check.ts");
+    const probe = `export default function App() {
+  return <main style={{ background: "#ffffff", color: "#111111", minHeight: "100vh" }}>
+    <h1>Probe</h1>
+    <p className="text-muted-foreground" style={{ color: "#a3a3a3", fontSize: "15px" }}>3 left today</p>
+    <p style={{ color: "rgb(0 0 0 / 0.3)", fontSize: "15px" }}>Last saved a minute ago</p>
+    <p style={{ color: "#8f8f8f", fontSize: "40px" }}>25:00</p>
+    <p style={{ fontSize: "15px" }}>Body text that reads well enough on white.</p>
+  </main>
+}
+`;
+    const html = JSON.stringify((await linkProject(await withFiles({ amberApp: 1, files: {}, compiled: {} }, { ...await scaffold("Probe"), "/src/App.tsx": probe }))).project);
+    const r = await renderPage(html, "Probe\n", { values: {}, collections: {} }, { today: "2026-11-18", views: [{ width: 390, scheme: "light" }], probes: false, interact: false });
+    const pairs = (r.views[0] as unknown as { faintColors: { color: string; background: string; ratio: number; use: string; useRatio: number; texts: string[]; className: string }[] }).faintColors;
+    const lum = (hex: string) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const grey = pairs.find((p) => p.texts.includes("3 left today"));
+    assert(grey, JSON.stringify(pairs));
+    assertEquals([grey.color, grey.background, grey.className], ["#a3a3a3", "#ffffff", "text-muted-foreground"]);
+    assert(ratio(grey.use, "#ffffff") >= 4.5 && ratio(grey.use, "#ffffff") < 5.2, `${grey.use} is ${ratio(grey.use, "#ffffff")}:1: readable, and no darker than it needs to be`);
+    // 30% black on white is #b2b2b2 to the eye (alpha is kept in 255ths), 2.1:1.
+    const see = pairs.find((p) => p.texts.includes("Last saved a minute ago"));
+    assert(see && /^#b[23]b[23]b[23]$/.test(see.color) && ratio(see.use, "#ffffff") >= 4.5, JSON.stringify(pairs));
+    // 40 px text at 3.3:1 is large text, which reads from 3:1.
+    assert(!pairs.some((p) => p.texts.includes("25:00")), JSON.stringify(pairs));
+    const f = renderedFindings(r as never);
+    assertEquals(f.errors, []);
+    assert(f.notes.some((n) => n.startsWith("Text in #a3a3a3 on #ffffff") && n.includes(grey.use)), f.notes.join("\n"));
+  } finally {
+    const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+    await closeBrowser();
+  }
+});
