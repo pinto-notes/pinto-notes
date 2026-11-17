@@ -115,7 +115,7 @@ export function faqPage(items: { q: string; a: string[] }[], path: string): Thin
 }
 
 /// A blog post as an Article, written by the maker and published by Pinto Notes.
-export function article({ title, description, path, date, updated, image }: { title: string; description: string; path: string; date: string; updated: string; image?: string }): Thing {
+export function article({ title, description, path, date, updated, image, lang = "en" }: { title: string; description: string; path: string; date: string; updated: string; image?: string; lang?: string }): Thing {
   return {
     "@type": "Article",
     "@id": `${SITE_URL}${path}#article`,
@@ -123,7 +123,7 @@ export function article({ title, description, path, date, updated, image }: { ti
     description,
     url: `${SITE_URL}${path}`,
     mainEntityOfPage: `${SITE_URL}${path}`,
-    inLanguage: "en",
+    inLanguage: lang,
     datePublished: date,
     dateModified: updated,
     image: `${SITE_URL}${image ?? "/mark.png"}`,

@@ -3,12 +3,18 @@ import { changelog } from "@/lib/changelog";
 import { postShots } from "@/lib/post-images";
 import { categories, categoryPath, isFeatured, newestFirst, pageCount, pageOf, pagePath, published } from "@/lib/posts";
 import { SITE_URL } from "@/lib/site";
+import { TRANSLATIONS, languagesFor, localPath } from "@/lib/i18n/blog";
 import { coverPath } from "@/lib/template-covers";
 import { templates } from "@/lib/templates";
 
 // The pages meant for search. Shared notes are never listed. The changelog is one page (its
 // releases have no pages of their own), last changed with the newest release. Blog posts are listed
 // once they're published, with the day they were last checked and every capture the post shows.
+const alternates = (slug: string) => {
+  const l = languagesFor(slug);
+  return l ? { alternates: { languages: Object.fromEntries(Object.entries(l).map(([k, v]) => [k, `${SITE_URL}${v}`])) } } : {};
+};
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const released = changelog()[0]?.date;
   const page = (path: string, priority: number, lastModified?: string): MetadataRoute.Sitemap[number] => ({
@@ -29,7 +35,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       })),
     // Every post written for search, as questions.
     page("/blog/answers", 0.6, published().filter((p) => !isFeatured(p)).map((p) => p.updated).sort().at(-1)),
-    ...published().map((p) => ({ ...page(`/blog/${p.slug}`, 0.8, p.updated), images: postShots(p.slug).map((s) => `${SITE_URL}${s.src}`) })),
+    ...published().map((p) => ({ ...page(`/blog/${p.slug}`, 0.8, p.updated), images: postShots(p.slug).map((s) => `${SITE_URL}${s.src}`), ...alternates(p.slug) })),
+    // Translations of a post (the language pilot), each with the same hreflang set as the original.
+    ...TRANSLATIONS.map((t) => ({ ...page(localPath(t), 0.7, t.updated), ...alternates(t.of) })),
     // The gallery shows every template's cover; the alt text describing each is on the page.
     { ...page("/templates", 0.8, templates().map((t) => t.updated).sort().at(-1)), images: templates().map((t) => `${SITE_URL}${coverPath(t.slug)}`) },
     ...templates().map((t) => page(`/templates/${t.slug}`, 0.7, t.updated)),
