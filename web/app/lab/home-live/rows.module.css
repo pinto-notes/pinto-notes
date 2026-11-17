@@ -1,0 +1,36 @@
+/* Round 28: the four rows. The lab's frame tokens (home-z s.module.css .stack) the real-UI pieces read. */
+.rows {
+  --display: var(--s-display), "Iowan Old Style", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --frameR: 14px;
+  --frameShadow: 0 0 0 1px rgba(30, 15, 5, 0.12), 0 2px 6px rgba(30, 15, 5, 0.06), 0 34px 60px -30px rgba(60, 28, 4, 0.42);
+  display: grid; gap: clamp(120px, 14vw, 180px);
+}
+@media (max-width: 900px) { .rows { gap: 96px; } }
+
+/* Words narrow, the app wide: the UI is the star. */
+@media (min-width: 901px) {
+  .row { grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr); gap: clamp(40px, 5vw, 80px); }
+  .row[data-flip] { grid-template-columns: minmax(0, 1.38fr) minmax(0, 0.62fr); }
+  .wide { grid-template-columns: minmax(0, 0.5fr) minmax(0, 1.5fr); }
+  .wide[data-flip] { grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.5fr); }
+}
+.title { font-size: clamp(34px, 3.6vw, 52px); }
+.pic { min-width: 0; position: relative; }
+
+.devices { --pf: clamp(11.5px, 1.2vw, 13px); }
+.board.board { position: relative; display: grid; margin: 0; aspect-ratio: 16 / 10.4; border-radius: var(--frameR); background: #fff; box-shadow: var(--frameShadow); }
+.board > * { min-height: 0; }
+
+/* Apps: the app, with ChatGPT's request over its lower left corner. */
+.build { position: relative; padding: 0 0 clamp(90px, 9vw, 130px) 0; }
+.app { position: relative; margin-left: clamp(24px, 6vw, 96px); }
+.ask { position: absolute; left: 0; bottom: 0; width: min(440px, 64%); z-index: 2; }
+
+@media (max-width: 900px) {
+  .devices { padding: 0; }
+  .board.board { aspect-ratio: 3 / 4; }
+  .build { padding: 0; display: grid; gap: 14px; }
+  .app { margin: 0; }
+  .ask { position: relative; width: 100%; order: -1; }
+}
