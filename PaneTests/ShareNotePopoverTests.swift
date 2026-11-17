@@ -131,14 +131,13 @@ import Testing
         #expect(shared.row && shared.invite, "shared: Join by Link to change or turn off the link: \(shared.said)")
     }
 
-    /// The people button: only once someone else is in the note or has joined it, or there's
-    /// something to say; a note you just shared has Share alone (Emil, 16 November 2026).
+    /// The people button: only once someone else is in the note or has joined it; a note you just
+    /// shared has Share alone, also while "Synced" shows after typing (Emil, 16 and 17 November 2026).
     @Test func thePeopleButtonWaitsForSomeoneElse() throws {
-        #expect(!PresenceStack.shows(here: false, othersJoined: false, viewOnly: false, syncWords: false), "just shared: no lone people button")
-        #expect(PresenceStack.shows(here: true, othersJoined: false, viewOnly: false, syncWords: false))
-        #expect(PresenceStack.shows(here: false, othersJoined: true, viewOnly: false, syncWords: false))
-        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: true, syncWords: false))
-        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: false, syncWords: true))
+        #expect(!PresenceStack.shows(here: false, othersJoined: false, viewOnly: false), "just shared: no lone people button")
+        #expect(PresenceStack.shows(here: true, othersJoined: false, viewOnly: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: true, viewOnly: false))
+        #expect(PresenceStack.shows(here: false, othersJoined: false, viewOnly: true))
         // In the Mac bar, its own section: spaced from the writing tools and from Share.
         let source = try String(contentsOf: TestFiles.url("Views/NoteDetailView.swift"), encoding: .utf8)
         #expect(source.contains("ToolbarSpacer(.fixed).hidden(!showsItems)\n                        ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)\n                        ToolbarSpacer(.fixed).hidden(!showsItems)"))

@@ -43,6 +43,8 @@ enum PressSelect {
     /// The press on a row, before the list sees it. `table` and `row`: where it landed.
     static func press(_ event: NSEvent, on table: NSTableView, row: Int) {
         if pressed != nil || narrowing != nil { lifted() }
+        // On the row's •••: its menu opens, and the row isn't picked.
+        if RowMenuPointer.on { return }
         // A plain press on one of several picked notes may start dragging them all, so they stay
         // picked; if the button comes up without a drag, that note alone is picked (`lifted`).
         if event.modifierFlags.intersection([.command, .shift, .control, .option]).isEmpty,

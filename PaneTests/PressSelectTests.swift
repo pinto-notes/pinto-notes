@@ -44,6 +44,21 @@ import Testing
         #expect(SidebarView.dropTarget(nil, over: true, id: work, dropped: false, buttonDown: false) == nil, "said after the drop")
     }
 
+    /// A press on a row's ••• opens its menu and picks nothing: the open note stays open (Emil,
+    /// 17 November 2026).
+    @Test func aPressOnARowsMenuPicksNothing() {
+        let (table, _, window) = list()
+        RowMenuPointer.on = true
+        defer { RowMenuPointer.on = false }
+        PressSelect.press(press(window), on: table, row: 3)
+        #expect(table.selectedRowIndexes == IndexSet(integer: 0))
+        PressSelect.lifted()
+        RowMenuPointer.on = false
+        PressSelect.press(press(window), on: table, row: 3)
+        #expect(table.selectedRowIndexes == IndexSet(integer: 3), "off the •••, a press picks the row")
+        PressSelect.lifted()
+    }
+
     @Test func theEndOfADragSelectsNothingMore() {
         let (table, _, window) = list()
         PressSelect.pressBegan()
