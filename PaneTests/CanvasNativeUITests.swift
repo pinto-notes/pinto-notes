@@ -4132,8 +4132,9 @@ extension CanvasNativeUITests {
         // their tiles in line with the first row's.
         let ax = OffscreenAX(CanvasStart(canvas: CanvasController()), size: CGSize(width: 760, height: 560))
         defer { ax.close() }
-        await ax.settle()
-        let more = try #require(ax.find("canvas.moreTemplates"), "\(ax.ids())")
+        // Waited for: on a busy Mac one settle wasn't enough for the window's tree (17 November
+        // 2026, the check found no elements at all).
+        let more = try #require(await ax.waiting(for: "canvas.moreTemplates"), "\(ax.ids())")
         #expect(more.text.contains(CanvasStart.moreTemplatesTitle), "\(more.text)")
         let first = try T.first.map { try #require(ax.find("canvas.template.\($0.rawValue)"), "\($0)").frame }
         let second = try T.more.map { try #require(ax.find("canvas.template.\($0.rawValue)"), "\($0)").frame }
