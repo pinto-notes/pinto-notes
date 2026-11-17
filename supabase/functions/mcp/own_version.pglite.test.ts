@@ -47,10 +47,11 @@ Deno.test("create with original: the app, then the method and the original's pag
     const made = JSON.parse(head.text!);
     assertEquals([made.app, made.original, made.read, made.screenshots], ["Notes/New app.app/", "https://tally.example.com/", ["https://tally.example.com/", "https://apps.apple.com/us/app/id963034692", "https://tally.example.com/features"], 2]);
     // One short ask, not a method (Emil, 17 Nov: no rules for how the AI builds; the rerun showed
-    // which lines earn their place): what to make, the features list, the rename, public pages only.
+    // which lines earn their place): what to make, the features list with a test per built feature,
+    // the rename, public pages only.
     assertEquals(made.next, ownVersionAsk("New app"));
-    for (const s of ["own name and look", "everything it does that a note app can do", "docs/README.md", "rename the note \"New app\"", "never sign in"]) assertStringIncludes(made.next, s);
-    for (const s of ["one write", "see_app", "test", "data.json"]) assert(!made.next.includes(s), `no rule about ${s}`);
+    for (const s of ["own name and look", "everything it does that a note app can do", "docs/README.md", "each marked built or not, with a test for each one built", "rename the note \"New app\"", "never sign in"]) assertStringIncludes(made.next, s);
+    for (const s of ["one write", "see_app", "data.json"]) assert(!made.next.includes(s), `no rule about ${s}`);
     assert(guide.text!.startsWith("## What the public pages say about https://tally.example.com/"), "the pages, no method");
     for (const s of ["### App Store listing: Tally: Habit Tracker", "Price: $5.99", "- Habits to break"]) assertStringIncludes(guide.text!, s);
     assertEquals(pictures.map((p) => [p.type, p.mimeType]), [["image", "image/jpeg"], ["image", "image/jpeg"]]);

@@ -22,11 +22,12 @@ import { toBase64 } from "../_shared/e2ee.ts";
 /** What create's answer asks of the AI, with the pages and screenshots. Emil, 17 Nov: no rules for how
  *  the AI builds. A rerun without a method (one plain sentence) kept two things worth a line: listing
  *  the features and building what a note app can do took coverage from 39-48% to 74-81%, and none of
- *  the plain runs renamed the note. One write, a test per feature, demo data, see_app and the report
- *  to the person made no difference or are in the server's instructions already, so they went.
+ *  the plain runs renamed the note. A third run without the test line built the same lists less deeply
+ *  (50-74%), and coverage followed the test count across all nine apps, so a test per built feature
+ *  stays. One write, demo data, see_app and the report to the person made no difference, so they went.
  *  2026-11-18-own-version/REPORT.md has the numbers. */
 export function ownVersionAsk(title: string): string {
-  return `Make the person their own version of this app, with its own name and look: everything it does that a note app can do, and the nearest thing that works for the rest. List its features in docs/README.md with the link, each marked built or not, and rename the note "${title}" to the app's plain name. Use only these public pages: never sign in or make an account anywhere.`;
+  return `Make the person their own version of this app, with its own name and look: everything it does that a note app can do, and the nearest thing that works for the rest. List its features in docs/README.md with the link, each marked built or not, with a test for each one built, and rename the note "${title}" to the app's plain name. Use only these public pages: never sign in or make an account anywhere.`;
 }
 
 /** One page that was read. */
