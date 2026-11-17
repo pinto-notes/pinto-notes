@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import WebKit
 
 /// A canvas's own controls, over the drawing (direction B, "Dock", 13 November 2026):
 /// - one floating dock centred at the foot: Undo and Redo, then the tools (Mac); the tools and the
@@ -16,7 +17,8 @@ struct CanvasOverlay: View {
     /// on every redraw of the note's view, 17 November 2026).
     var subject: (() -> AskAI.Subject)?
 
-    private static let space = "canvas.overlay"
+    /// The board, as the overlay measures it (the selection bar, and the corner's tags kept inside it).
+    static let space = "canvas.overlay"
     #if os(macOS)
     /// The map is on: the style panel stops above it.
     @AppStorage(CanvasMap.key) private var mapOn = false
@@ -1153,10 +1155,29 @@ struct CanvasBarButton: View {
     var well: Namespace.ID? = nil
     let action: () -> Void
     @State private var hovering = false
-    @State private var tagShown = false
+    @State private var tagShown: Bool
     @State private var tagWait: Task<Void, Never>?
+    /// From the button's middle to the board's left and right edges.
+    @State private var room = CanvasTag.Room.unlimited
+
+    /// `tagShown`: its tag already up, as after a hover (for pictures).
+    init(title: String, key: String? = nil, symbol: String, selected: Bool = false, enabled: Bool = true, well: Namespace.ID? = nil,
+         tagShown: Bool = false, action: @escaping () -> Void) {
+        self.title = title
+        self.key = key
+        self.symbol = symbol
+        self.selected = selected
+        self.enabled = enabled
+        self.well = well
+        self.action = action
+        _tagShown = State(initialValue: tagShown)
+    }
 
     var body: some View {
+        #if os(macOS)
+        // For the tag's placement, worked out off the main actor.
+        let tagRoom = room, space = CanvasOverlay.space
+        #endif
         Button(action: action) {
             CanvasWell(selected: selected, hovering: hovering && enabled, well: well) {
                 Image(systemName: symbol)
@@ -1180,8 +1201,20 @@ struct CanvasBarButton: View {
                 tagShown = false
             }
         }
-        .overlay(alignment: .top) {
-            if tagShown { CanvasTag(title: title, key: key).fixedSize().offset(y: -38).allowsHitTesting(false).transition(.opacity) }
+        // Over the button, kept inside the board (real-window check, 17 Nov: the map's "Hide Map"
+        // was cut off at the board's left edge, under the list).
+        .onGeometryChange(for: CanvasTag.Room.self) { proxy in
+            guard let board = proxy.bounds(of: .named(space)) else { return .unlimited }
+            let mid = proxy.size.width / 2
+            return CanvasTag.Room(left: mid - board.minX, right: board.maxX - mid)
+        } action: { room = $0 }
+        .overlay {
+            if tagShown {
+                // A layout, not an alignment guide: a guide's closure wasn't asked again when the
+                // room came in, so the tag stayed centred and cut off.
+                CanvasTag.Place(room: tagRoom) { CanvasTag(title: title, key: key) }
+                    .allowsHitTesting(false).transition(.opacity)
+            }
         }
         .animation(.easeOut(duration: 0.12), value: tagShown)
         #endif
@@ -1192,6 +1225,40 @@ struct CanvasBarButton: View {
 struct CanvasTag: View {
     let title: String
     var key: String?
+
+    /// How far the board reaches from the button's middle, left and right.
+    struct Room: Equatable {
+        var left: CGFloat, right: CGFloat
+        static let unlimited = Room(left: .infinity, right: .infinity)
+    }
+    /// Kept this far inside the board's edges.
+    nonisolated static let margin: CGFloat = 8
+
+    /// The point of a tag `width` wide that stands over the button's middle: its own middle, unless
+    /// that would take it past the board's edge; then it moves in, `margin` from the edge.
+    nonisolated static func middle(width: CGFloat, room: Room) -> CGFloat {
+        var x = width / 2
+        if room.left - margin < x { x = room.left - margin }
+        if room.right - margin < width - x { x = width - (room.right - margin) }
+        return x
+    }
+
+    /// Puts the tag 38 points over its button's top: over the button's middle, moved in to stay
+    /// `margin` inside the board (`room`, from the button's middle).
+    struct Place: Layout {
+        var room: Room
+
+        func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+            proposal.replacingUnspecifiedDimensions()
+        }
+
+        func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+            guard let tag = subviews.first else { return }
+            let size = tag.sizeThatFits(.unspecified)
+            let x = CanvasTag.middle(width: size.width, room: room)
+            tag.place(at: CGPoint(x: bounds.midX - x, y: bounds.minY - 38), anchor: .topLeading, proposal: ProposedViewSize(size))
+        }
+    }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -2498,8 +2565,8 @@ struct CanvasTitleField: View {
                         }
                     }
                     .focused($focused)
-                    .onSubmit { commit() }
-                    .onExitCommand { text = note.title; focused = false }
+                    .onSubmit { commit(); toBoard() }
+                    .onExitCommand { text = note.title; focused = false; toBoard() }
                     .help("Rename")
                     .accessibilityLabel("Whiteboard name")
                     .accessibilityIdentifier("canvas.title")
@@ -2517,6 +2584,13 @@ struct CanvasTitleField: View {
 
     private func commit() {
         if let t = Self.renamed(note, to: text) { text = t } else { text = note.title }
+    }
+
+    /// Done renaming (Return or Escape): the keys go back to the board, so its tool keys pick
+    /// tools again (real-window check, 17 Nov: P after the name typed into it).
+    private func toBoard() {
+        guard let web = NotePageLive.view(note.id) else { return }
+        web.window?.makeFirstResponder(web)
     }
 
     /// Renames a canvas: its text is its title, one line. Nil when there's nothing to change.

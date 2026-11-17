@@ -1512,38 +1512,51 @@ extension CanvasNativeUITests {
         #expect(least.fit == .tight && least.title == T.titleMin, "\(least)")
     }
 
-    /// A sticky note: yellow, square, typed into at once; the next one goes beside it, never on
-    /// top, and S makes one too (whiteboard council, round 2: retro and kanban boards with no sticky tool).
-    @Test func aStickyNoteIsTypedIntoAndTheNextGoesBesideIt() async throws {
+    /// A sticky note: yellow, square, selected and not typed into (real-window check, 17 Nov: typing
+    /// at once took the next tool keys as words); Return types in it. The next one goes beside it,
+    /// never on top, and S makes one too (whiteboard council, round 2: retro and kanban boards with
+    /// no sticky tool).
+    @Test func aStickyNoteIsSelectedAndTheNextGoesBesideIt() async throws {
         let j = try await Joined(scene: CanvasTests.scene([]))
         defer { j.close() }
         try await j.ready()
+        // How many stickies, whether the newest is the one selected, and whether anything is typed in.
+        let look = "(() => { const api = amber._canvas.api, s = api.getAppState(), st = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky), ids = Object.keys(s.selectedElementIds || {}); return JSON.stringify({ n: st.length, selected: st.length > 0 && ids.length === 1 && ids[0] === st[st.length - 1].id, editing: !!s.editingTextElement }); })()"
+        func placed(_ n: Int, _ what: String) async throws {
+            let want = "{\"n\":\(n),\"selected\":true,\"editing\":false}"
+            for _ in 0..<100 where try await j.js(look) as? String != want { try await Task.sleep(for: .milliseconds(30)) }
+            // Still only selected a moment later (typing used to start 30 ms after).
+            try await Task.sleep(for: .milliseconds(200))
+            let now = try await j.js(look) as? String ?? ""
+            #expect(now == want, "\(what): \(now)")
+        }
+        /// Return on the selected sticky types in it, as on any shape; then the words, and done.
+        func type(_ words: String) async throws {
+            _ = try await j.js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true })); 0")
+            await j.until("Return types in the sticky") { j.canvas.state.editing }
+            _ = try await j.js("(() => { const t = document.querySelector('textarea'); t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); return 0; })()")
+            await j.until("done typing") { !j.canvas.state.editing }
+        }
         j.canvas.send(.sticky)
-        await j.until("typing in the sticky note") { j.canvas.state.editing }
+        try await placed(1, "the first sticky, selected")
         let first = try #require(try await j.js("JSON.stringify(amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => [Math.round(e.x), Math.round(e.y), e.width, e.backgroundColor]))") as? String)
         #expect(first.contains("180,\"#ffec99\""), "\(first)")
-        // Done typing; another goes beside it, not on top of it.
-        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
-        await j.until("done typing") { !j.canvas.state.editing }
+        // Another goes beside it, not on top of it.
         j.canvas.send(.sticky)
-        await j.until("typing in the second") { j.canvas.state.editing }
+        try await placed(2, "the second, selected")
         let xs = try #require(try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => Math.round(e.x)).join(',')") as? String)
         let both = xs.split(separator: ",").compactMap { Int($0) }
         #expect(both.count == 2 && both[1] - both[0] == 180 + 24, "side by side: \(xs)")
-        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
-        await j.until("done typing") { !j.canvas.state.editing }
         _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true })); 0")
-        await j.until("S makes one") { j.canvas.state.editing }
-        let n = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length") as? Int
-        #expect(n == 3)
+        try await placed(3, "S makes one")
         // On a retro, a sticky goes on the lanes, in view; they don't push it away.
-        _ = try await j.js("document.activeElement && document.activeElement.blur(); amber._canvas.api.updateScene({ elements: [] }); 0")
+        _ = try await j.js("amber._canvas.api.updateScene({ elements: [] }); 0")
         await j.until("cleared") { j.canvas.state.empty }
         j.canvas.send(.insert(.retro))
         await j.until("the retro is in") { !j.canvas.state.empty }
         try await Task.sleep(for: .milliseconds(300))
         j.canvas.send(.sticky)
-        await j.until("typing in it") { j.canvas.state.editing }
+        try await placed(1, "a sticky on the retro")
         let place = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
           const e = api.getSceneElements().find((e) => e.customData && e.customData.pintoSticky);
@@ -1559,23 +1572,15 @@ extension CanvasNativeUITests {
           return JSON.stringify({ over, ink: words && words.strokeColor }); })()
         """) as? String
         #expect(clear == "{\"over\":false,\"ink\":\"#2a1d10\"}", "not on a card, its words in ink: \(clear ?? "")")
-        // Pick a lane's card and press S twice: each goes under the last in that lane, and the
-        // view follows when it runs past the edge (never onto another lane or a lane's name).
-        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
-        await j.until("done typing") { !j.canvas.state.editing }
+        // Pick a lane's card and press S twice: each goes under the last in that lane (the new one
+        // is selected), and the view follows when it runs past the edge (never onto another lane
+        // or a lane's name).
         _ = try await j.js("(() => { const api = amber._canvas.api; const st = new Set(api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).map((e) => e.id)); api.updateScene({ elements: api.getSceneElements().filter((e) => !st.has(e.id) && !st.has(e.containerId)) }); return 0; })()")
         _ = try await j.js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const t = all.find((e) => e.type === 'text' && e.text === 'Demo every Friday'); api.updateScene({ appState: { selectedElementIds: { [t.containerId]: true } } }); return 0; })()")
         try await Task.sleep(for: .milliseconds(100))
-        for n in 0..<2 {
-            if n > 0 {
-                // Done typing, the note stays selected (as Escape leaves it).
-                _ = try await j.js("(() => { const api = amber._canvas.api, st = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky); api.updateScene({ appState: { selectedElementIds: { [st[st.length - 1].id]: true } } }); return 0; })()")
-                try await Task.sleep(for: .milliseconds(100))
-            }
+        for n in 1...2 {
             j.canvas.send(.sticky)
-            await j.until("typing in the next") { j.canvas.state.editing }
-            _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
-            await j.until("done typing") { !j.canvas.state.editing }
+            try await placed(n, "the next in the lane")
         }
         let lane = try #require(try await j.js("""
         (() => { const api = amber._canvas.api, s = api.getAppState(), z = s.zoom.value;
@@ -1586,18 +1591,14 @@ extension CanvasNativeUITests {
         #expect(lane == "{\"sameX\":true,\"below\":true,\"inView\":true}", "under it in the same lane, the view following it: \(lane)")
         // With room below, picking a card puts the sticky under it, and the lane grows to hold
         // the next one (as a retro board fills up).
-        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
-        await j.until("done typing") { !j.canvas.state.editing }
         _ = try await j.js("amber._canvas.api.updateScene({ elements: amber._canvas.api.getSceneElements().filter((e) => !(e.customData && e.customData.pintoSticky) && !(e.containerId && amber._canvas.api.getSceneElements().find((c) => c.id === e.containerId && c.customData && c.customData.pintoSticky))) }); amber._canvas.api.updateScene({ appState: { zoom: { value: 0.4 }, scrollX: 200, scrollY: 200 } }); 0")
         try await Task.sleep(for: .milliseconds(200))
-        for _ in 0..<2 {
+        for n in 1...2 {
             _ = try await j.js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const st = all.filter((e) => e.customData && e.customData.pintoSticky); const t = all.find((e) => e.type === 'text' && e.text === 'Shipped on time'); const c = st.length ? st[st.length - 1] : all.find((e) => e.id === t.containerId); api.updateScene({ appState: { selectedElementIds: { [c.id]: true } } }); return 0; })()")
             try await Task.sleep(for: .milliseconds(100))
             j.canvas.send(.sticky)
-            await j.until("typing in it") { j.canvas.state.editing }
-            try await Task.sleep(for: .milliseconds(100))
-            _ = try await j.js("(() => { const t = document.querySelector('textarea'); t.value = 'Typed here'; t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); return 0; })()")
-            await j.until("done typing") { !j.canvas.state.editing }
+            try await placed(n, "a sticky under the card")
+            try await type("Typed here")
         }
         // What's typed goes in the new sticky, never in the card it was put under.
         let typed = try await j.js("(() => { const all = amber._canvas.api.getSceneElements(); return JSON.stringify(all.filter((e) => e.type === 'text' && e.containerId).map((e) => { const c = all.find((x) => x.id === e.containerId); return [!!(c.customData && c.customData.pintoSticky), e.text]; })); })()") as? String ?? ""
@@ -3641,13 +3642,18 @@ extension CanvasNativeUITests {
         try await Task.sleep(for: .milliseconds(150))
         _ = try await j.js("(() => { const api = amber._canvas.api; api.scrollToContent(api.getSceneElements(), { fitToContent: false }); return 1; })()")
         try await Task.sleep(for: .milliseconds(200))
-        // Sticky notes under the cards, as people add them on a retro: pick the card, press S, type.
+        // Sticky notes under the cards, as people add them on a retro: pick the card, press S, Return, type.
         // One in each lane, then a second in the first (its lane grows to hold it).
         for (under, words) in [("Shipped on time", "Demo went well"), ("Too many meetings", "Standups run long"), ("Demo every Friday", "Ask design to join planning"), ("Demo went well", "Calm launch day")] {
             _ = try await j.js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const t = all.find((e) => e.type === 'text' && e.text === \(String(reflecting: under))); const c = t && (all.find((e) => e.id === t.containerId) || t); if (c) api.updateScene({ appState: { selectedElementIds: { [c.id]: true } } }); return 1; })()")
             try await Task.sleep(for: .milliseconds(100))
+            let had = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length") as? Int ?? 0
             j.canvas.send(.sticky)
-            await j.until("the sticky is typed into") { j.canvas.state.editing }
+            // It comes selected, not typed into; Return types in it, as on any shape.
+            let placed = "(() => { const api = amber._canvas.api, s = api.getAppState(), st = api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky); return st.length > \(had) && st.some((e) => s.selectedElementIds[e.id]); })()"
+            for _ in 0..<100 where try await j.js(placed) as? Bool != true { try await Task.sleep(for: .milliseconds(30)) }
+            _ = try await j.js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true })); 0")
+            await j.until("Return types in the sticky") { j.canvas.state.editing }
             try await Task.sleep(for: .milliseconds(150))
             _ = try await j.js("(() => { const t = document.querySelector('textarea'); if (t) { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); } return 1; })()")
             await j.until("the sticky is written") { !j.canvas.state.editing }
@@ -4905,7 +4911,7 @@ extension CanvasNativeUITests {
                     for _ in 0..<100 where canvas.highlight == nil { await MacWindowChromeTests.settle(w, 1) }
                     await MacWindowChromeTests.settle(w, 10)
                     try await shot("16-ai-changed", w, web)
-                    // Sticky notes on a retro: four made with S's command, each typed into.
+                    // Sticky notes on a retro: four made with S's command, each typed into with Return.
                     canvas.highlight = nil
                     try await insert(.retro)
                     try await js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } })")
@@ -4914,6 +4920,10 @@ extension CanvasNativeUITests {
                         try await js("(() => { const api = amber._canvas.api, all = api.getSceneElements(); const t = all.find((e) => e.type === 'text' && e.text === \(String(reflecting: under))); const c = t && (all.find((e) => e.id === t.containerId) || t); if (c) api.updateScene({ appState: { selectedElementIds: { [c.id]: true } } }); })()")
                         await MacWindowChromeTests.settle(w, 3)
                         canvas.send(.sticky)
+                        // It comes selected, not typed into; Return types in it, as on any shape.
+                        let placed = "(() => { const api = amber._canvas.api, s = api.getAppState(); return api.getSceneElements().some((e) => e.customData && e.customData.pintoSticky && s.selectedElementIds[e.id]); })()"
+                        for _ in 0..<60 where try await web.evaluateJavaScript(placed) as? Bool != true { await MacWindowChromeTests.settle(w, 1) }
+                        try await js("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }))")
                         for _ in 0..<60 where !canvas.state.editing { await MacWindowChromeTests.settle(w, 1) }
                         try await Task.sleep(for: .milliseconds(150))
                         try await js("const t = document.querySelector('textarea'); if (t) { t.value = \(String(reflecting: words)); t.dispatchEvent(new Event('input', { bubbles: true })); t.blur(); }")

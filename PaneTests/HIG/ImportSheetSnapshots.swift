@@ -54,7 +54,7 @@ import UIKit
             done.encrypted = 0
             done.filesMissing = 0
             done.archived = 37
-            done.dropped = ["212 notes had colors, which Pinto Notes doesn't have.", "3 notes had reminders, which Pinto Notes doesn't keep."]
+            done.dropped = ["212 notes had colours, which Pinto Notes doesn't have.", "3 notes had reminders, which Pinto Notes doesn't keep."]
         }
         var out: [(name: String, phase: ImportSheet.Phase, sources: [ImportSource])] = [("empty", .choosing, []), ("files", .choosing, s), ("progress", .importing(done: 642, total: 1_489), s), ("summary", .finished(done), s)]
         // The wrong folder picked: named as it is, with what to choose instead (newcomer audit #20).

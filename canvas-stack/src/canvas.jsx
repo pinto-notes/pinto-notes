@@ -547,7 +547,9 @@ let map = null;
 /**
  * A sticky note (whiteboard council, round 2: retro and kanban boards with no sticky tool): a
  * square yellow card whose words wrap inside it and move with it, next to what's selected (so
- * pressing S again makes a row) or in the middle of the view, then typed into at once.
+ * pressing S again makes a row) or in the middle of the view. It's selected, not typed into:
+ * Excalidraw 0.18 has no sticky tool to place one with a click, and typing at once took the next
+ * tool keys as words (real-window check, 17 Nov). Return or a double-click types in it.
  */
 export function addSticky(api) {
   const s = api.getAppState(), z = (s.zoom && s.zoom.value) || 1;
@@ -611,22 +613,6 @@ export function addSticky(api) {
     const dy = at.y + h + m > vy + vh ? (vy + vh) - (at.y + h + m) : 0;
     flushSync(() => api.updateScene({ appState: { scrollY: s.scrollY + dy }, captureUpdate: CaptureUpdateAction.NEVER }));
   }
-  // Typing starts in it, as Return does on a selected shape, once the engine has it (a timer, not
-  // an animation frame: frames don't come while the window is hidden).
-  // The engine edits what it has selected, so wait until that's the sticky, not the card it
-  // was put under (typing went into the card otherwise).
-  const start = (tries) => {
-    const placed = api.getSceneElements().find((e) => e.id === card.id);
-    if (!engine || !placed || typeof engine.startTextEditing !== "function") return;
-    const sel = Object.keys((engine.state && engine.state.selectedElementIds) || {});
-    if ((sel.length !== 1 || sel[0] !== card.id) && tries > 0) {
-      api.updateScene({ appState: { selectedElementIds: { [card.id]: true } } });
-      setTimeout(() => start(tries - 1), 20);
-      return;
-    }
-    engine.startTextEditing({ sceneX: placed.x + placed.width / 2, sceneY: placed.y + placed.height / 2, container: placed });
-  };
-  setTimeout(() => start(20), 30);
   return card.id;
 }
 
@@ -1639,6 +1625,14 @@ function bridge(api) {
       straighten(moved);
       return;
     }
+    if (name === "selectAll") {
+      // Everything, then the Select tool, which keeps it (the other way round, the action's
+      // state puts the old tool back). The Comment tool goes down too.
+      app.actionManager.executeAction(action, "api", value);
+      if (api.getAppState().activeTool.type !== "selection") api.setActiveTool({ type: "selection" });
+      if (comments && comments.commenting) comments.tool(false);
+      return;
+    }
     if (name !== "undo" && name !== "redo") { app.actionManager.executeAction(action, "api", value); return; }
     remember();
     replaying = true;
@@ -1996,8 +1990,14 @@ function bridge(api) {
   const off = api.onChange(soon);
   const offScroll = api.onScrollChange(viewMoved);
   const offHistory = app && app.history.onHistoryChangedEmitter.on(report);
+  // The Mac or iPhone app's web view, not a browser.
+  const inApp = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.amberCanvas);
   // The engine's own dialogs never open; the app's menus keep their keys (⌘K, ⌘F).
   const keys = (e) => {
+    // In the app, Tab never takes the keys off the board (real-window check, 17 Nov: Tab went to
+    // the board's name in the window's bar, then P renamed the board "p"); ⌃Tab still moves on, as
+    // from a Mac text view. Typing, Tab is the text box's own. In a browser, Tab moves on as usual.
+    if (inApp && e.key === "Tab" && !e.metaKey && !e.ctrlKey && !e.altKey) e.preventDefault();
     if (presenting) {
       const k = e.key, to = k === "ArrowRight" || k === "ArrowDown" || k === " " || k === "PageDown" ? "next"
         : k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" ? "prev" : k === "Escape" ? "stop" : null;
@@ -2024,6 +2024,13 @@ function bridge(api) {
       }
     }
     if (viewing) return;
+    // ⌘A: everything, with the Select tool, as in Excalidraw (the pen stayed picked).
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && (e.key || "").toLowerCase() === "a" && !typing && !api.getAppState().editingTextElement) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      run("selectAll");
+      report();
+      return;
+    }
     // Tab: a mind map's next branch off the selected shape, as in FigJam (whiteboard council,
     // round 6). While typing in a shape, its words are kept first, then the branch grows from it.
     if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && selecting()) {

@@ -2842,7 +2842,9 @@ struct NoteToolbarStage<Pane: View>: View {
                         }
                         .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
-                    .hidden(!showsItems || !showsWriting)
+                    // Not on a whiteboard: they're a note's (real-window check, 17 Nov: Aa,
+                    // Checklist, Table and the paperclip showed greyed out on a board).
+                    .hidden(!showsItems || !showsWriting || shown.canvas != nil)
                     // Who's in the note: a section of its own, not one of the writing tools
                     // (Emil, 16 November 2026: the avatar sat between the paperclip and Share).
                     if let people = shown.people {

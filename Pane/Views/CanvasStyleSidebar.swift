@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 #if os(macOS)
 /// The style of what's selected, or of what's drawn next, and what to do with the selection:
@@ -6,15 +7,32 @@ import SwiftUI
 /// 17 November 2026: a style panel that's always there; "I prefer just having the style menu" to a
 /// bar over the selection). Only the sections that apply show. On a wide board (Full Screen) it's
 /// Excalidraw's full panel, one section under another; on a narrower one, Excalidraw's compact
-/// strip, a button for each section that opens it in a popover. Nothing to fold, no title.
+/// strip, a button for each section that opens it beside the strip. Nothing to fold, no title.
 struct CanvasStyleSidebar: View {
     let canvas: CanvasController
     var layout: Layout = .wide
     /// The most it can be tall: a taller panel scrolls.
     var height: CGFloat = 800
     @Environment(\.colorScheme) private var scheme
-    /// The compact strip's section open in a popover.
-    @State private var open: Pop?
+    /// What's open beside the panel.
+    @State private var open: Card?
+    /// Where each opener's top is, in the panel.
+    @State private var tops: [Card: CGFloat] = [:]
+    @State private var cardHeight: CGFloat = 0
+
+    /// A strip button's section, or Excalidraw's picker for the colour in use. It opens beside the
+    /// panel, never over the tools (real-window check, 17 Nov: the system popover, centred on its
+    /// button, covered the left half of the tools' palette).
+    enum Card: Hashable { case pop(Pop), picker(CanvasCommand.StyleKey) }
+    static let space = "canvas.stylePanel"
+    /// Between the panel and what opens beside it.
+    static let cardGap: CGFloat = 8
+
+    /// The top of what opens beside the panel, in the panel (whose top is under the tools): at its
+    /// opener's top, moved up only as far as it must to end inside `room`, never above the panel's top.
+    static func cardTop(opener: CGFloat, card: CGFloat, room: CGFloat) -> CGFloat {
+        max(0, min(opener, room - card))
+    }
 
     enum Layout: Equatable, Sendable { case wide, compact }
 
@@ -78,7 +96,7 @@ struct CanvasStyleSidebar: View {
         return p
     }
 
-    /// The compact strip's buttons, each a section or two in a popover.
+    /// The compact strip's buttons, each a section or two in a card beside the strip.
     enum Pop: String, CaseIterable, Identifiable {
         case stroke, fill, lines, arrow, text, opacity, arrange, actions
         var id: String { rawValue }
@@ -127,13 +145,72 @@ struct CanvasStyleSidebar: View {
             case .compact: compact(parts)
             }
         }
+        .coordinateSpace(.named(Self.space))
         // Solid: over a drawing, glass let the lines run through it.
         .background(Color.card, in: shape)
         .raised(in: shape)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Self.title)
         .accessibilityIdentifier("canvas.stylePanel")
-        .onChange(of: canvas.state.selection) { _, _ in open = nil }
+        .overlay(alignment: .topLeading) {
+            if let open {
+                card(open)
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { cardHeight = $0 }
+                    .offset(x: Self.panelWidth(layout) + Self.cardGap,
+                            y: Self.cardTop(opener: tops[open] ?? 0, card: cardHeight, room: height))
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: open)
+        // Closed by what changes under it, as a popover was.
+        .onChange(of: canvas.state.selection) { _, _ in close() }
+        .onChange(of: canvas.state.tool) { _, _ in close() }
+        .onChange(of: layout) { _, _ in close() }
+    }
+
+    private func toggle(_ c: Card) {
+        if open == c { close() } else { open = c }
+    }
+
+    /// Closes what's open beside the panel; the keys go back to the board (the picker had them).
+    private func close() {
+        guard open != nil else { return }
+        open = nil
+        canvas.focusPage()
+    }
+
+    /// Records an opener's top, for its card.
+    private func opener(_ c: Card) -> some ViewModifier { OpenerTop(card: c, tops: $tops) }
+
+    private struct OpenerTop: ViewModifier {
+        let card: Card
+        @Binding var tops: [Card: CGFloat]
+        func body(content: Content) -> some View {
+            let space = CanvasStyleSidebar.space
+            content.onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .named(space)).minY }) { tops[card] = $0 }
+        }
+    }
+
+    /// What opens beside the panel: solid, raised, as the panel is. Escape or a click on the board
+    /// closes it.
+    private func card(_ c: Card) -> some View {
+        let state = canvas.state
+        let shape = RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+        return Group {
+            switch c {
+            case .pop(let pop): sectionCard(pop)
+            case .picker(let key):
+                CanvasColorPicker(canvas: canvas, key: key, current: key == .strokeColor ? state.strokeColor : state.mixedFill ? "mixed" : state.backgroundColor)
+                    .padding(12)
+            }
+        }
+        .fixedSize()
+        .background(Color.card, in: shape)
+        .raised(in: shape)
+        .background(CanvasCardWatch(close: close))
+        .onExitCommand(perform: close)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("canvas.stylePanel.card")
     }
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Radius.lg, style: .continuous) }
@@ -402,9 +479,9 @@ struct CanvasStyleSidebar: View {
     }
 
     private func stripButton(_ pop: Pop, state: CanvasState, dark: Bool) -> some View {
-        Button { open = open == pop ? nil : pop } label: {
+        Button { toggle(.pop(pop)) } label: {
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(open == pop ? Color.soft : .clear)
+                RoundedRectangle(cornerRadius: 8, style: .continuous).fill(open == .pop(pop) ? Color.soft : .clear)
                 switch pop {
                 case .stroke:
                     Circle().fill(CanvasStyle.shown(state.strokeColor, dark: dark) ?? .primary).frame(width: 18, height: 18)
@@ -426,12 +503,10 @@ struct CanvasStyleSidebar: View {
         .help(pop.title)
         .accessibilityLabel(pop.title)
         .accessibilityIdentifier("canvas.stylePanel.open.\(pop.rawValue)")
-        .popover(isPresented: Binding(get: { open == pop }, set: { if !$0, open == pop { open = nil } }), arrowEdge: .trailing) {
-            popoverContent(pop)
-        }
+        .modifier(opener(.pop(pop)))
     }
 
-    @ViewBuilder private func popoverContent(_ pop: Pop) -> some View {
+    @ViewBuilder private func sectionCard(_ pop: Pop) -> some View {
         let parts = Self.parts(canvas.state)
         let state = canvas.state
         Group {
@@ -509,7 +584,8 @@ struct CanvasStyleSidebar: View {
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
             Rectangle().fill(Color.primary.opacity(0.12)).frame(width: 1, height: 18).accessibilityHidden(true)
-            CanvasColorButton(canvas: canvas, key: key, current: current)
+            CanvasColorButton(key: key, current: current, open: open == .picker(key)) { toggle(.picker(key)) }
+                .modifier(opener(.picker(key)))
         }
     }
 
@@ -584,27 +660,71 @@ struct CanvasStyleSidebar: View {
     }
 }
 
-/// The colour in use, as a swatch: a click opens Excalidraw's picker for it.
+/// The colour in use, as a swatch: a click opens Excalidraw's picker for it, beside the panel.
 struct CanvasColorButton: View {
-    let canvas: CanvasController
     let key: CanvasCommand.StyleKey
     let current: String
-    @State private var showing = false
+    var open = false
+    let action: () -> Void
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        Button { showing.toggle() } label: {
+        Button(action: action) {
             CanvasSelectionBar.fillSwatch(current, dark: scheme == .dark, size: 20)
                 .padding(2)
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.primary.opacity(0.25), lineWidth: 1).padding(-2))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.primary.opacity(open ? 0.6 : 0.25), lineWidth: open ? 1.5 : 1).padding(-2))
         }
         .buttonStyle(CanvasPressStyle())
         .help(key == .strokeColor ? "Stroke colour" : "Background colour")
         .accessibilityLabel(key == .strokeColor ? "Stroke colour" : "Background colour")
+        .accessibilityAddTraits(open ? .isSelected : [])
         .accessibilityIdentifier("canvas.stylePanel.picker.\(key.rawValue)")
-        .popover(isPresented: $showing, arrowEdge: .trailing) {
-            CanvasColorPicker(canvas: canvas, key: key, current: current).padding(12)
+    }
+}
+
+/// While a card is open beside the style panel: a click on the board, or Escape, closes it (the
+/// click still reaches the board, as one outside a popover does). Takes no clicks of its own.
+private struct CanvasCardWatch: NSViewRepresentable {
+    let close: () -> Void
+
+    func makeNSView(context: Context) -> Watch { Watch() }
+    func updateNSView(_ v: Watch, context: Context) { v.close = close }
+
+    final class Watch: NSView {
+        var close: () -> Void = {}
+        nonisolated(unsafe) private var monitor: Any?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let monitor { NSEvent.removeMonitor(monitor); self.monitor = nil }
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] e in
+                // Monitors run on the main thread.
+                nonisolated(unsafe) let event = e
+                MainActor.assumeIsolated { self?.saw(event) }
+                return e
+            }
         }
+
+        /// Escape, or a click on the board: closed once the event has gone where it goes.
+        private func saw(_ e: NSEvent) {
+            guard let w = window, e.window === w else { return }
+            guard e.type == .keyDown ? e.keyCode == 53 : Self.onBoard(e.locationInWindow, in: w) else { return }
+            Task { @MainActor [weak self] in self?.close() }
+        }
+
+        /// Whether a point of the window lands on the board (its web view), not on anything over it.
+        static func onBoard(_ p: NSPoint, in w: NSWindow) -> Bool {
+            // A view's hitTest takes its superview's coordinates: the frame view's, from the window's.
+            guard let root = w.contentView?.superview else { return false }
+            var v = root.hitTest(root.convert(p, from: nil))
+            while let x = v { if x is WKWebView { return true }; v = x.superview }
+            return false
+        }
+
+        deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
     }
 }
 
@@ -682,7 +802,7 @@ struct CanvasColorPicker: View {
         let shade = Self.activeShade(current, key: key)
         let here = Self.place(current)
         VStack(alignment: .leading, spacing: 10) {
-            heading("Colors")
+            heading("Colours")
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(28), spacing: 6), count: 5), alignment: .leading, spacing: 6) {
                 ForEach(Self.names.indices, id: \.self) { i in
                     let value = Self.color(i, shade: shade)
@@ -690,19 +810,20 @@ struct CanvasColorPicker: View {
                         .help("\(Self.names[i].capitalized) (\(Self.keys[i].uppercased()))")
                 }
             }
-            heading("Shades")
+            // Only a palette colour has shades: none to show for another (the board's ink), and no
+            // heading over nothing (real-window check, 17 Nov).
             if let n = here?.name, let list = Self.shades[n] {
-                HStack(spacing: 6) {
-                    ForEach(list.indices, id: \.self) { i in
-                        swatch(list[i], label: "\u{21E7}\(i + 1)", on: here?.shade == i, dark: dark, id: "canvas.color.shade.\(i + 1)")
-                            .help("\(n.capitalized), shade \(i + 1) (\u{21E7}\(i + 1))")
+                VStack(alignment: .leading, spacing: 10) {
+                    heading("Shades")
+                    HStack(spacing: 6) {
+                        ForEach(list.indices, id: \.self) { i in
+                            swatch(list[i], label: "\u{21E7}\(i + 1)", on: here?.shade == i, dark: dark, id: "canvas.color.shade.\(i + 1)")
+                                .help("\(n.capitalized), shade \(i + 1) (\u{21E7}\(i + 1))")
+                        }
                     }
                 }
-            } else {
-                Text("No shades for this colour")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.muted)
-                    .frame(height: 28)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("canvas.color.shades")
             }
             heading("Hex code")
             HStack(spacing: 6) {

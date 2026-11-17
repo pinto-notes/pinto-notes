@@ -183,7 +183,7 @@ import WebKit
     }
 
     /// The style panel beside the sidebar and the list: Excalidraw's compact strip, a button for
-    /// each section that applies, each opening its section in a popover (the board is narrower
+    /// each section that applies, each opening its section beside the strip (the board is narrower
     /// than CanvasStyleSidebar.wideFrom).
     @Test func theStylePanelIsAStripBesideTheColumns() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
@@ -218,6 +218,65 @@ import WebKit
             while let x = v { chain.append(String(describing: type(of: x))); if x === web { onBoard = true; break }; v = x.superview }
             #expect(onBoard, "a click beside the strip \(grown) at \(p) reaches the board: \(chain.prefix(6))")
         }
+    }
+
+    /// What a strip button or the colour in use opens shows beside the panel, below the tools
+    /// (real-window check, 17 Nov: the colour popover, centred on its button, covered the left half
+    /// of the tools' palette): its top at its opener's, none of it over the palette. The board's ink
+    /// (#2a1d10, not one of the palette's colours) shows no Shades. A click on the board closes it,
+    /// as Escape does, and the keys are the board's again. Beside the columns (the strip) and in
+    /// Full Screen (the whole panel).
+    @Test func whatThePanelOpensShowsBesideItBelowTheTools() async throws {
+        let c = try CanvasNativeUITests.canvasLibrary()
+        let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        let (w, web, canvas) = try await Self.openBoard(c, board)
+        defer { w.close() }
+        await MacWindowChromeTests.settle(w, 5)
+        canvas.set(.strokeColor, .text("#2a1d10"))
+        for _ in 0..<40 where canvas.state.strokeColor != "#2a1d10" { await MacWindowChromeTests.settle(w, 1) }
+        #expect(canvas.state.strokeColor == "#2a1d10", "the board's ink: \(canvas.state.strokeColor)")
+        @MainActor func opens(_ opener: String, beside panelID: String, _ name: String) async throws {
+            let palette = try #require(await frame("canvas.palette", in: w), "\(name): the palette")
+            let panel = try #require(await frame(panelID, in: w), "\(name): the panel")
+            let button = try #require(await frame(opener, in: w), "\(name): \(opener)")
+            try press(opener, in: w)
+            let card = try #require(await frame("canvas.stylePanel.card", in: w), "\(name): it opens")
+            // Window points: a bigger y is higher up.
+            #expect(card.minX >= panel.maxX + 4 && card.minX <= panel.maxX + 12, "\(name): beside the panel: \(card) by \(panel)")
+            #expect(!card.intersects(palette), "\(name): not over the tools: \(card) and \(palette)")
+            #expect(card.maxY <= palette.minY, "\(name): below the tools' bottom edge: \(card.maxY) under \(palette.minY)")
+            #expect(abs(card.maxY - button.maxY) <= 2, "\(name): at its opener's top: \(card.maxY) and \(button.maxY)")
+            #expect(await frame("canvas.color.blue", in: w) != nil, "\(name): the palette's colours")
+            let shades = await frame("canvas.color.shades", in: w, tries: 2), shade = await frame("canvas.color.shade.1", in: w, tries: 2)
+            #expect(shades == nil && shade == nil, "\(name): no Shades for the board's ink")
+        }
+        // Beside the columns: the strip's Stroke.
+        try await opens("canvas.stylePanel.open.stroke", beside: "canvas.stylePanel", "the strip")
+        // A click on the board closes it; the click is the board's.
+        let area = web.convert(web.bounds, to: nil)
+        let root = try #require(w.contentView?.superview)
+        let spot = NSPoint(x: area.maxX - 40, y: area.minY + 140)
+        let down = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: spot, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                   windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let hit = root.hitTest(root.convert(spot, from: nil))
+        #expect(hit === web || hit?.isDescendant(of: web) == true, "the spot is the board's")
+        NSApp.sendEvent(down)
+        let up = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: spot, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                 windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 0))
+        NSApp.sendEvent(up)
+        for _ in 0..<30 where await frame("canvas.stylePanel.card", in: w, tries: 1) != nil { await MacWindowChromeTests.settle(w, 1) }
+        #expect(await frame("canvas.stylePanel.card", in: w, tries: 2) == nil, "a click on the board closes it")
+        // Full Screen: the whole panel, and the colour in use's picker beside it.
+        NotificationCenter.default.post(name: .paneCanvasPresenting, object: true)
+        defer { NotificationCenter.default.post(name: .paneCanvasPresenting, object: false) }
+        await MacWindowChromeTests.settle(w, 15)
+        #expect(CanvasStyleSidebar.layout(board: web.convert(web.bounds, to: nil).width) == .wide)
+        try await opens("canvas.stylePanel.picker.strokeColor", beside: "canvas.stylePanel", "the whole panel")
+        // Escape closes it, and the keys are the board's (through the app, as a key press comes).
+        CanvasToolPaletteTests.keys("\u{1B}", in: w, throughApp: true)
+        for _ in 0..<30 where await frame("canvas.stylePanel.card", in: w, tries: 1) != nil { await MacWindowChromeTests.settle(w, 1) }
+        #expect(await frame("canvas.stylePanel.card", in: w, tries: 2) == nil, "Escape closes it")
+        #expect(w.firstResponder === web, "the keys are the board's: \(w.firstResponder.map { String(describing: type(of: $0)) } ?? "nothing")")
     }
 
     /// Something's drawn but none of it is in view: Back to content shows, and brings it back.
@@ -367,7 +426,7 @@ import WebKit
                 await MacWindowChromeTests.settle(w, 5)
                 try await save("back-to-content", w, web)
             }
-            // Excalidraw's colour picker, as its popover shows it: the grid with its keys, the
+            // Excalidraw's colour picker, as its card shows it: the grid with its keys, the
             // shades with theirs, the hex code and the eyedropper.
             do {
                 let canvas = CanvasController()

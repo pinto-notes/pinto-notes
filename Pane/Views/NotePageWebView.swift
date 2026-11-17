@@ -198,6 +198,22 @@ final class NotePageWebView: WKWebView {
         return []
     }
 
+    // MARK: Select All
+
+    /// Edit › Select All over a board: everything on it, with the Select tool, as ⌘A on the board
+    /// (the page takes the key itself). Typing in a shape, its words, as WebKit selects them.
+    override func selectAll(_ sender: Any?) {
+        if let canvas, !canvas.state.editing {
+            canvas.run(.selectAll)
+            return
+        }
+        let sel = #selector(selectAll(_:))
+        typealias Select = @convention(c) (AnyObject, Selector, Any?) -> Void
+        if let imp = class_getMethodImplementation(WKWebView.self, sel), WKWebView.instancesRespond(to: sel) {
+            unsafeBitCast(imp, to: Select.self)(self, sel, sender)
+        }
+    }
+
     // MARK: Undo and Redo
 
     @objc func undo(_ sender: Any?) {
@@ -220,6 +236,7 @@ final class NotePageWebView: WKWebView {
             // A board takes a paste whatever's on the clipboard (no text field has focus to make
             // WebKit allow it).
             if item.action == #selector(paste(_:)) { return true }
+            if item.action == #selector(selectAll(_:)), !canvas.state.editing { return !canvas.viewOnly }
             if item.action == #selector(undo(_:)) { return canvas.canUndo }
             if item.action == #selector(redo(_:)) { return canvas.canRedo }
         }

@@ -108,7 +108,8 @@ import WebKit
     }
 
     /// The letters and Excalidraw's numbers pick the tools; Q keeps the tool after drawing, N adds a
-    /// sticky note and 9 asks for a picture (the app's own file panel), as the palette says.
+    /// sticky note (selected, not typed into) and 9 asks for a picture (the app's own file panel),
+    /// as the palette says.
     @Test func theKeysPickTheTools() async throws {
         let j = try await CanvasNativeUITests.Joined(scene: CanvasTests.scene([]))
         defer { j.close() }
@@ -135,14 +136,15 @@ import WebKit
         j.canvas.pick(.ellipse)
         j.canvas.send(.lock(true))
         await j.until("the palette's lock keeps the ellipse") { j.canvas.state.locked && j.canvas.state.tool == .ellipse }
-        // N: a sticky note, typed into at once.
+        // N: a sticky note, selected, not typed into (Excalidraw 0.18 has no sticky tool to place one
+        // with a click; typing at once took the next tool keys as words).
         try await key("v")
         try await key("n")
-        await j.until("N makes a sticky note") { j.canvas.state.editing }
-        let stickies = try await j.js("amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length") as? Int
-        #expect(stickies == 1)
-        _ = try await j.js("document.activeElement && document.activeElement.blur(); 0")
-        await j.until("done typing") { !j.canvas.state.editing }
+        let stickies = "amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length"
+        for _ in 0..<100 where try await j.js(stickies) as? Int != 1 { try await Task.sleep(for: .milliseconds(30)) }
+        #expect(try await j.js(stickies) as? Int == 1, "N makes a sticky note")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(!j.canvas.state.editing && j.canvas.state.tool == .selection && j.canvas.state.hasSelection, "selected, not typed into")
         // 9: a picture, from the app's panel; never the page's own file picker.
         var asked = 0
         j.canvas.pickImage = { asked += 1 }
@@ -153,7 +155,7 @@ import WebKit
 
     /// The palette floats at the top middle of the board, the hint under it; clicks beside it, under
     /// it and on the hint reach the board, and a click on a tool picks it. The window's toolbar has
-    /// no tool in it, only the actions: Share, the library, Comments and More.
+    /// no tool in it, only the actions: Share, the library, Comments and More (no writing tools).
     @Test func thePaletteFloatsOnTheBoardAndTheBarHoldsTheActions() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
         let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
@@ -195,6 +197,226 @@ import WebKit
         #expect(!CanvasTool.allCases.contains { labels.contains($0.title) } && !labels.contains("Shapes") && !labels.contains("More Tools"), "no tools in the bar: \(labels)")
         #expect(labels.contains("Share") && labels.contains(CanvasLibraryPopover.title) && labels.contains(BoardCommentUI.title) && labels.contains("More"), "\(labels)")
         #expect(!labels.contains { $0.hasSuffix("Full Screen") }, "no Full Screen button: \(labels)")
+        // A note's writing tools aren't there, not even greyed out (real-window check, 17 Nov).
+        #expect(!labels.contains { ["Format", "Checklist", "Table", "Attach"].contains($0) }, "no writing tools on a board: \(labels)")
+    }
+
+    // MARK: The real-window check (17 November 2026)
+
+    /// N, then a tool's key a moment later, as a person types them (real-window check, 17 Nov: N
+    /// started typing in the new sticky, so the next tool keys went into it as words): N places a
+    /// sticky and selects it, P picks the pen, and nothing is typed into the sticky.
+    @Test func nPlacesAStickyAndTheNextKeyPicksATool() async throws {
+        let j = try await CanvasNativeUITests.Joined(scene: CanvasTests.scene([]))
+        defer { j.close() }
+        try await j.ready()
+        let w = j.rig.window
+        #expect(w.makeFirstResponder(j.web))
+        Self.keys("n", in: w)
+        let stickies = "amber._canvas.api.getSceneElements().filter((e) => e.customData && e.customData.pintoSticky).length"
+        for _ in 0..<100 where try await j.js(stickies) as? Int != 1 { try await Task.sleep(for: .milliseconds(20)) }
+        #expect(try await j.js(stickies) as? Int == 1, "N places a sticky note")
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(!j.canvas.state.editing, "not typed into")
+        Self.keys("p", in: w)
+        await j.until("P picks the pen, not \(j.canvas.state.tool)") { j.canvas.state.tool == .freedraw }
+        let words = try await j.js("JSON.stringify(amber._canvas.api.getSceneElements().filter((e) => e.type === 'text').map((e) => e.originalText))") as? String ?? ""
+        #expect(!words.lowercased().contains("p"), "nothing typed into the sticky: \(words)")
+        #expect(!j.canvas.state.editing)
+    }
+
+    /// ⌘A picks the Select tool as it selects everything, as in Excalidraw (real-window check, 17
+    /// Nov: with the pen, ⌘A selected everything and the palette still showed the pen). Edit ›
+    /// Select All does the same.
+    @Test func commandAPicksSelect() async throws {
+        let j = try await CanvasNativeUITests.Joined(scene: CanvasNativeUITests.flowchart)
+        defer { j.close() }
+        try await j.ready()
+        let all = "(() => { const api = amber._canvas.api, ids = api.getAppState().selectedElementIds || {}; return api.getSceneElements().filter((e) => !(e.type === 'text' && e.containerId)).every((e) => ids[e.id]); })()"
+        let w = j.rig.window
+        #expect(w.makeFirstResponder(j.web))
+        // The key, as a person presses it.
+        j.canvas.pick(.freedraw)
+        await j.until("the pen") { j.canvas.state.tool == .freedraw }
+        Self.keys("a", flags: .command, in: w)
+        await j.until("⌘A picks Select, not \(j.canvas.state.tool)") { j.canvas.state.tool == .selection }
+        #expect(try await j.js(all) as? Bool == true, "everything is selected")
+        // The Edit menu's.
+        _ = try await j.js("amber._canvas.api.updateScene({ appState: { selectedElementIds: {} } }); 0")
+        j.canvas.pick(.rectangle)
+        await j.until("the rectangle") { j.canvas.state.tool == .rectangle && !j.canvas.state.hasSelection }
+        let web = try #require(j.web as? NotePageWebView)
+        #expect(web.validateUserInterfaceItem(NSMenuItem(title: "Select All", action: #selector(NotePageWebView.selectAll(_:)), keyEquivalent: "a")))
+        web.selectAll(nil)
+        await j.until("Select All picks Select, not \(j.canvas.state.tool)") { j.canvas.state.tool == .selection }
+        #expect(try await j.js(all) as? Bool == true, "everything is selected from the menu")
+    }
+
+    /// Tab and Shift-Tab on the board keep the keys on the board (real-window check, 17 Nov: Tab
+    /// went to the board's name in the window's toolbar, then P renamed the board "p"). After them
+    /// P picks the pen and the name is as it was.
+    @Test func tabKeepsTheKeysOnTheBoard() async throws {
+        let c = try CanvasNativeUITests.canvasLibrary()
+        let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        let (w, web, canvas) = try await AppSnapshotTests.withLastNote(c, board.title) { try await CanvasNativeUITests.boardWindow(c, board, dark: false) }
+        defer { w.close() }
+        _ = try await CanvasNativeUITests.settledView(w, web)
+        _ = try #require(Self.nameField(in: w), "the board's name is in the toolbar")
+        #expect(w.makeFirstResponder(web))
+        for flags: NSEvent.ModifierFlags in [[], .shift] {
+            Self.keys("\t", flags: flags, in: w)
+            // WebKit hands the focus on a turn or two later, when it does.
+            for _ in 0..<10 { await MacWindowChromeTests.settle(w, 1); try await Task.sleep(for: .milliseconds(20)) }
+            let r = w.firstResponder
+            #expect(r === web || (r as? NSView)?.isDescendant(of: web) == true,
+                    "\(flags.isEmpty ? "Tab" : "Shift-Tab") leaves the keys on the board, not on \(r.map { String(describing: type(of: $0)) } ?? "nothing")")
+        }
+        Self.keys("p", in: w)
+        for _ in 0..<60 where canvas.state.tool != .freedraw { await MacWindowChromeTests.settle(w, 1) }
+        #expect(canvas.state.tool == .freedraw, "P picks the pen: \(canvas.state.tool)")
+        #expect(board.title == "Publishing flow", "the name is as it was: \(board.title)")
+        // ⌃Tab still moves on from the board, as it does from a Mac text view.
+        Self.keys("\t", flags: .control, in: w)
+        for _ in 0..<10 { await MacWindowChromeTests.settle(w, 1); try await Task.sleep(for: .milliseconds(20)) }
+        let r = w.firstResponder
+        #expect(!(r === web || (r as? NSView)?.isDescendant(of: web) == true), "⌃Tab moves on: \(r.map { String(describing: type(of: $0)) } ?? "nothing")")
+    }
+
+    /// Return in the board's name renames it and gives the keys back to the board, so the next
+    /// tool key picks a tool; Escape puts the name back and gives them back too.
+    @Test func doneRenamingGivesTheKeysBackToTheBoard() async throws {
+        let c = try CanvasNativeUITests.canvasLibrary()
+        let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        let (w, web, canvas) = try await AppSnapshotTests.withLastNote(c, board.title) { try await CanvasNativeUITests.boardWindow(c, board, dark: false) }
+        defer { w.close() }
+        _ = try await CanvasNativeUITests.settledView(w, web)
+        @MainActor func rename(to words: String, with command: Selector) async throws {
+            let field = try #require(Self.nameField(in: w), "the board's name")
+            #expect(w.makeFirstResponder(field))
+            await MacWindowChromeTests.settle(w, 2)
+            let editor = try #require(w.firstResponder as? NSTextView, "renaming: \(w.firstResponder.map { String(describing: type(of: $0)) } ?? "nothing")")
+            editor.insertText(words, replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+            editor.doCommand(by: command)
+            for _ in 0..<20 where w.firstResponder !== web { await MacWindowChromeTests.settle(w, 1) }
+        }
+        try await rename(to: "Launch flow", with: #selector(NSResponder.insertNewline(_:)))
+        #expect(board.title == "Launch flow", "Return renames the board: \(board.title)")
+        #expect(w.firstResponder === web, "and the keys are the board's: \(w.firstResponder.map { String(describing: type(of: $0)) } ?? "nothing")")
+        Self.keys("p", in: w)
+        for _ in 0..<60 where canvas.state.tool != .freedraw { await MacWindowChromeTests.settle(w, 1) }
+        #expect(canvas.state.tool == .freedraw && board.title == "Launch flow", "P picks the pen, the name stays: \(canvas.state.tool), \(board.title)")
+        try await rename(to: "Something else", with: #selector(NSResponder.cancelOperation(_:)))
+        #expect(board.title == "Launch flow", "Escape keeps the name: \(board.title)")
+        #expect(w.firstResponder === web, "and the keys are the board's: \(w.firstResponder.map { String(describing: type(of: $0)) } ?? "nothing")")
+    }
+
+    /// A whiteboard's bar has no writing tools, not even greyed out (real-window check, 17 Nov: Aa,
+    /// Checklist, Table and the paperclip on a new board): one made with New Whiteboard, in every
+    /// frame from the note before it, and one in a window of its own (Open in New Window).
+    @Test func aBoardsBarHasNoWritingTools() async throws {
+        let c = try CanvasNativeUITests.canvasLibrary()
+        let writing: Set<String> = ["Format", "Checklist", "Table", "Attach"]
+        @MainActor func labels(_ w: NSWindow) -> Set<String> {
+            Set((w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }.map { $0.label })
+        }
+        @MainActor func board(_ w: NSWindow) -> Bool { w.contentView.flatMap { MacWindowChromeTests.find(NotePageWebView.self, in: $0) } != nil }
+        try await AppSnapshotTests.withLastNote(c, "Groceries") {
+            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
+            defer { w.close() }
+            await MacWindowChromeTests.settle(w, 30)
+            #expect(!board(w) && !labels(w).isDisjoint(with: writing), "a note and its writing tools to begin with: \(labels(w).sorted())")
+            NewCanvas.shared.ask()
+            // Each change of the bar, frame by frame, from the note to the new board, loaded.
+            let loaded = "!!(window.amber && window.amber._canvas && window.amber._canvasView)"
+            var seen: [String] = [], wrong: [String] = [], ready = false, after = 0, i = 0
+            while i < 600 && after < 40 {
+                i += 1
+                w.contentView?.layoutSubtreeIfNeeded()
+                w.displayIfNeeded()
+                let web = w.contentView.flatMap { MacWindowChromeTests.find(NotePageWebView.self, in: $0) }
+                if let web, !ready, i % 3 == 0 { ready = (try? await web.evaluateJavaScript(loaded)) as? Bool == true }
+                if ready { after += 1 }
+                let now = labels(w)
+                let line = "\(web == nil ? "note" : ready ? "board" : "board, loading"): \(now.sorted().joined(separator: ", "))"
+                if seen.last != line { seen.append(line) }
+                if web != nil, !now.isDisjoint(with: writing), wrong.last != line { wrong.append(line) }
+                try await Task.sleep(for: .milliseconds(16))
+            }
+            #expect(ready, "the new board opened: \(seen)")
+            #expect(wrong.isEmpty, "no writing tools on the new board: \(wrong)")
+            print("BAR new board: \(seen)")
+        }
+        // A board in a window of its own.
+        let note = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 1100, height: 760),
+                         styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        w.contentViewController = NSHostingController(rootView: NoteWindowView(noteID: note.id).modelContainer(c).environment(SetupStore()))
+        w.setContentSize(CGSize(width: 1100, height: 760))
+        defer { w.close() }
+        for _ in 0..<100 where !board(w) { await MacWindowChromeTests.settle(w, 1) }
+        await MacWindowChromeTests.settle(w, 20)
+        #expect(board(w), "the board, in its own window")
+        #expect(labels(w).contains("Share"), "its bar: \(labels(w).sorted())")
+        #expect(labels(w).isDisjoint(with: writing), "no writing tools on a board in its own window: \(labels(w).sorted())")
+    }
+
+    /// The corner's tags stay on the board (real-window check, 17 Nov: "Hide Map", over the map's
+    /// switch at the board's left edge, was cut off by the edge): a tag moves in to 8 points from
+    /// either edge, and stays centred over its button where there's room.
+    @Test func theCornersTagsStayOnTheBoard() async throws {
+        let room = { (l: CGFloat, r: CGFloat) in CanvasTag.Room(left: l, right: r) }
+        #expect(CanvasTag.middle(width: 80, room: .unlimited) == 40, "centred with room")
+        #expect(CanvasTag.middle(width: 80, room: room(200, 200)) == 40)
+        #expect(CanvasTag.middle(width: 80, room: room(22, 500)) == 14, "at the left edge: 8 from it")
+        #expect(CanvasTag.middle(width: 80, room: room(500, 22)) == 66, "at the right edge: 8 from it")
+        // Drawn: the map's switch at the board's left, its tag up.
+        let view = ZStack(alignment: .bottomLeading) {
+            Color.white
+            CanvasBarButton(title: "Hide Map", symbol: "map.fill", tagShown: true) {}
+                .padding(.leading, 6)
+                .padding(.bottom, 8)
+        }
+        .frame(width: 320, height: 120)
+        .coordinateSpace(.named(CanvasOverlay.space))
+        let ax = OffscreenAX(view, size: CGSize(width: 320, height: 120))
+        defer { ax.close() }
+        await ax.settle()
+        let rep = try MacEmptyDetailTests.picture(ax.window)
+        let scale = CGFloat(rep.pixelsWide) / 320
+        // The tag's dark points, above the button (the button's own glyph is below y = 70).
+        var left = CGFloat.infinity, right = -CGFloat.infinity
+        for y in stride(from: 4, to: 66, by: 1) {
+            for x in stride(from: 0, to: 320, by: 0.5) {
+                guard let c = rep.colorAt(x: Int(x * scale), y: Int(CGFloat(y) * scale))?.usingColorSpace(.sRGB) else { continue }
+                if c.redComponent < 0.25 && c.greenComponent < 0.25 && c.blueComponent < 0.25 { left = min(left, x); right = max(right, x) }
+            }
+        }
+        #expect(left.isFinite, "the tag is drawn")
+        #expect(left >= CanvasTag.margin - 1, "the tag starts inside the board, 8 points in: \(left)")
+        #expect(right > 40, "and reads in full: \(left) to \(right)")
+    }
+
+    /// Keys pressed down and up, as the window delivers them, without posting anything system-wide.
+    /// `throughApp`: handed to the app first, as a key press comes (its local monitors see it).
+    static func keys(_ text: String, flags: NSEvent.ModifierFlags = [], in w: NSWindow, throughApp: Bool = false) {
+        let codes: [Character: UInt16] = ["a": 0, "s": 1, "n": 45, "p": 35, "r": 15, "v": 9, "x": 7, "\t": 48, "\r": 36, "\u{1B}": 53]
+        for c in text {
+            let chars = String(c)
+            for kind in [NSEvent.EventType.keyDown, .keyUp] {
+                if let e = NSEvent.keyEvent(with: kind, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: w.windowNumber,
+                                            context: nil, characters: chars, charactersIgnoringModifiers: chars, isARepeat: false, keyCode: codes[c] ?? 0) {
+                    if throughApp { NSApp.sendEvent(e) } else { w.sendEvent(e) }
+                }
+            }
+        }
+    }
+
+    /// The board's name in the window's toolbar: the text field under it (its placeholder is a new
+    /// board's name; the accessibility name is SwiftUI's, on a view around it).
+    static func nameField(in w: NSWindow) -> NSTextField? {
+        guard let frame = w.contentView?.superview else { return nil }
+        return MacWindowChromeTests.find(NSTextField.self, in: frame) { $0.isEditable && $0.placeholderString == CanvasNote.title }
     }
 
     /// Each tool's letter reads in both looks (17 November 2026: in dark mode the letters were

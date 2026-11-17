@@ -202,9 +202,31 @@ import Testing
         let ax = OffscreenAX(CanvasColorPicker(canvas: canvas, key: .strokeColor, current: "#1971c2").padding(12), size: CGSize(width: 220, height: 320), dark: dark)
         defer { ax.close() }
         await ax.settle()
-        for id in CanvasColorPicker.names.map({ "canvas.color.\($0)" }) + (1...5).map({ "canvas.color.shade.\($0)" }) + ["canvas.color.hex", "canvas.color.eyedropper"] {
+        for id in CanvasColorPicker.names.map({ "canvas.color.\($0)" }) + (1...5).map({ "canvas.color.shade.\($0)" }) + ["canvas.color.shades", "canvas.color.hex", "canvas.color.eyedropper"] {
             #expect(await ax.waiting(for: id, tries: 5) != nil, "\(id) in \(ax.ids())")
         }
+    }
+
+    /// A colour that isn't one of the palette's (the board's ink, #2a1d10) has no shades, and the
+    /// picker shows no Shades section for it, heading and all (real-window check, 17 Nov: "Shades",
+    /// then "No shades for this colour").
+    @Test func aColourWithNoShadesShowsNoShades() async throws {
+        let canvas = CanvasController()
+        let ax = OffscreenAX(CanvasColorPicker(canvas: canvas, key: .strokeColor, current: "#2a1d10").padding(12), size: CGSize(width: 220, height: 320))
+        defer { ax.close() }
+        await ax.settle()
+        #expect(await ax.waiting(for: "canvas.color.hex", tries: 5) != nil, "the picker built: \(ax.ids())")
+        #expect(!ax.ids().contains { $0.hasPrefix("canvas.color.shade") }, "no Shades: \(ax.ids())")
+        #expect(CanvasColorPicker.place("#2a1d10") == nil)
+    }
+
+    /// What the panel opens shows beside it, its top at its opener's; moved up only as far as it
+    /// must to end above the zoom, never above the panel's top, which is under the tools.
+    @Test func whatThePanelOpensStaysBelowTheTools() {
+        #expect(CanvasStyleSidebar.cardTop(opener: 5, card: 330, room: 600) == 5, "at its opener's top")
+        #expect(CanvasStyleSidebar.cardTop(opener: 200, card: 330, room: 400) == 70, "moved up to end inside the room")
+        #expect(CanvasStyleSidebar.cardTop(opener: 200, card: 500, room: 400) == 0, "never above the panel's top")
+        #expect(CanvasStyleSidebar.cardTop(opener: -12, card: 100, room: 400) == 0, "an opener scrolled up: from the top")
     }
 }
 #endif

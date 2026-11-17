@@ -435,7 +435,8 @@ enum CanvasCommand: Equatable, Sendable {
     case insert(WhiteboardTemplate, title: String? = nil)
     /// A picture onto the board (CanvasImage), at a point of the page or the middle of the view.
     case image(CanvasImage, at: CGPoint?)
-    /// A sticky note, next to what's selected or in the middle of the view, typed into at once.
+    /// A sticky note, next to what's selected or in the middle of the view, and selected (Return or
+    /// a double-click types in it; typing at once took the next tool keys as words).
     case sticky
     /// Add Column or Add Step: the next of the selected template part's kind (CanvasState.grows),
     /// typed into at once, as Tab does.
