@@ -27,7 +27,9 @@ import AppKit
 ///   {"access": "edit" | "view" | "off"}            People with the link
 ///   {"copyLink": "link.txt"}                       Share Link, copied (and written to the file)
 ///   {"waitFile": "link.txt"} then {"join": "link.txt"}   another device's link, opened: it joins and the note opens
-///   {"type": {"text": "…", "after": "anchor"}}     typed into the open note after `anchor` (or at the end)
+///   {"type": {"text": "…", "after": "anchor"}}     typed into the open note after `anchor` (or at the end);
+///                                                  "pace": 0.18 types a character every 0.18 s or so (for films)
+///   {"endEditing": true}                           the keyboard put away, as its button in the bar does
 ///   {"waitText": "…"}                              until the open note shows it (60 s; or {"text": "…", "timeout": 180})
 ///   {"tick": "Venue"}                              taps (or clicks) the box of the item with that text
 ///   {"remove": "Sara"}                             Remove from Note on that person in Share, and its Remove
@@ -186,8 +188,15 @@ enum CollabScript {
         case "history":
             NotificationCenter.default.post(name: history, object: value as? String)
         case "type":
-            let v = value as? [String: String] ?? [:]
-            try await type(v["text"] ?? "", after: v["after"])
+            let v = value as? [String: Any] ?? [:]
+            try await type(v["text"] as? String ?? "", after: v["after"] as? String, pace: v["pace"] as? Double)
+        case "endEditing":
+            #if os(iOS)
+            editor()?.resignFirstResponder()
+            #else
+            editor()?.window?.makeFirstResponder(nil)
+            #endif
+            try await Task.sleep(for: .seconds(0.5))
         case "replace":
             // The words selected and typed over, as a person does.
             let v = value as? [String: String] ?? [:]
@@ -514,6 +523,12 @@ enum CollabScript {
         #endif
     }
 
+    /// The pause after a typed character: quick by default, or about `pace` seconds (a third either way).
+    nonisolated static func delay(after ch: Character, pace: Double?) -> Double {
+        if let pace, pace > 0 { return pace * Double.random(in: 0.7...1.3) }
+        return ch == " " ? 0.11 : Double.random(in: 0.06...0.13)
+    }
+
     private static func replace(_ words: String, with new: String) async throws {
         try await until(60, "the editor to take typing") { editor()?.isEditable == true }
         let view = editor()!
@@ -535,8 +550,9 @@ enum CollabScript {
     }
 
     /// Types a character at a time through the text view's own input path, as the keyboard does;
-    /// Return asks the editor first, so lists continue.
-    private static func type(_ text: String, after anchor: String?) async throws {
+    /// Return asks the editor first, so lists continue. `pace`: seconds a character, give or take a
+    /// third, in place of the usual quick typing.
+    private static func type(_ text: String, after anchor: String?, pace: Double? = nil) async throws {
         // A shared note is read-only until its document has opened.
         try await until(60, "the editor to take typing") { editor()?.isEditable == true }
         let view = editor()!
@@ -570,7 +586,7 @@ enum CollabScript {
             #else
             if ch == "\n" { view.insertNewline(nil) } else { view.insertText(String(ch), replacementRange: view.selectedRange()) }
             #endif
-            try await Task.sleep(for: .seconds(ch == " " ? 0.11 : Double.random(in: 0.06...0.13)))
+            try await Task.sleep(for: .seconds(delay(after: ch, pace: pace)))
         }
     }
 }

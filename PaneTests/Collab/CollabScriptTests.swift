@@ -18,6 +18,16 @@ struct CollabScriptTests {
         #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.PaneShare") == nil)
     }
 
+    /// Typing for a film: about `pace` a character (a third either way); without it, the usual quick typing.
+    @Test func typingTakesItsPace() {
+        for _ in 0..<50 {
+            #expect((0.139...0.261).contains(CollabScript.delay(after: "a", pace: 0.2)))
+            #expect((0.06...0.13).contains(CollabScript.delay(after: "a", pace: nil)))
+        }
+        #expect(CollabScript.delay(after: " ", pace: nil) == 0.11)
+        #expect(CollabScript.delay(after: " ", pace: 0) == 0.11)
+    }
+
     @Test func theReleaseIdentityIgnoresIt() {
         // This test host is Pinto Notes' own bundle: the argument does nothing here.
         #expect(Bundle.main.bundleIdentifier != CollabScript.betaBundleID)
