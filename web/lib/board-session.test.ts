@@ -4,9 +4,23 @@
 // selections cross, pictures and comments travel sealed, and a snapshot keeps the document short.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { loadAutomerge } from "./automerge";
 import { open3, pictureBytes, seal3 } from "./collab";
+
+// A presence beat held up as it's sealed or opened, `ms` real milliseconds, once (the beats' order
+// test). WebCrypto answers from other threads, so on a busy computer one beat can take longer than
+// the next.
+const slow = vi.hoisted(() => ({ seal: 0, open: 0 }));
+vi.mock("./collab", async (original) => {
+  const real = await original<typeof import("./collab")>();
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  return {
+    ...real,
+    seal3: async (...a: Parameters<typeof real.seal3>) => { if (a[0] === "p" && slow.seal) { const ms = slow.seal; slow.seal = 0; await wait(ms); } return real.seal3(...a); },
+    open3: async (...a: Parameters<typeof real.open3>) => { if (a[0] === "p" && slow.open) { const ms = slow.open; slow.open = 0; await wait(ms); } return real.open3(...a); },
+  };
+});
 import type { Bytes } from "./e2ee";
 import { type Automerge, type Comment, commentJSON, entryOf, foldComments, ordered, PALETTE, put, slots, STALE } from "./board-doc";
 import { TeamModel } from "./board-team";
@@ -322,6 +336,32 @@ describe("a shared board in the browser", () => {
     sara.s.presence([1, 1], []);
     await clock.advance(120);
     expect([people[0].presenting, people[0].view]).toEqual([null, null]);
+    emil.s.close(); sara.s.close();
+  });
+
+  it("presence is sent and read in the order it's made, however long a beat takes to seal or open", async () => {
+    // Two beats sealed at once could go out in either order, and two opened at once be read in
+    // either: an older beat read last undid the newer one until the next (the voting test's count
+    // came out 2, not 3, on a busy Mac, 17 November 2026).
+    const server = new Server(), clock = new TestClock();
+    await server.share();
+    const emil = await open(server, EMIL, clock, { name: "Emil Wagman" });
+    const sara = await open(server, SARA, clock, { name: "Sara Berg" });
+    let people: ReturnType<BoardSession["boardPeople"]> = [];
+    emil.s.onPeople = (p) => { people = p; };
+    await clock.advance(500);
+    const twoBeats = async (a: [number, number, number, number], b: [number, number, number, number]) => {
+      sara.s.look(null, a, null);  // goes at once
+      sara.s.look(null, b, null);  // the next beat, 100 ms on
+      await clock.advance(120);
+      await new Promise((r) => setTimeout(r, 200));
+      await clock.advance(500);
+      return people.find((p) => p.name === "Sara")?.view;
+    };
+    slow.seal = 80;  // the first beat is sealed after the second
+    expect(await twoBeats([0, 0, 800, 500], [100, 100, 800, 500])).toEqual([100, 100, 800, 500]);
+    slow.open = 80;  // the first beat is opened after the second
+    expect(await twoBeats([0, 0, 800, 500], [200, 200, 800, 500])).toEqual([200, 200, 800, 500]);
     emil.s.close(); sara.s.close();
   });
 

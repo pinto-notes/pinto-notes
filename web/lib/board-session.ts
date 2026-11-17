@@ -181,6 +181,10 @@ export class BoardSession {
   private pointerTimer: (() => void) | null = null;
   private flagTimer: (() => void) | null = null;
   private pointerSentAt = 0;
+  /** Beats are sealed one after another and read one after another: two at once can finish in
+   *  either order, and an older beat read last undoes the newer one until the next. */
+  private beatsOut: Promise<void> = Promise.resolve();
+  private beatsIn: Promise<void> = Promise.resolve();
   private myPointer: [number, number] | null = null;
   private mySelection: string[] = [];
   private myPresenting: Presenting | null = null;
@@ -252,7 +256,7 @@ export class BoardSession {
       this.live = await this.transport.live({
         update: (u) => this.receive(u),
         comment: (row) => void this.receiveComment(row),
-        presence: (user, ct) => void this.presenceIn(user, ct),
+        presence: (user, ct) => { this.beatsIn = this.beatsIn.then(() => this.presenceIn(user, ct)).catch(() => {}); },
         leave: (user) => { if (this.peers.delete(user.toLowerCase())) { this.sendPeers(); this.onPeople?.(this.boardPeople()); } this.onLeft?.(user.toLowerCase()); void this.refreshMembers(); },
         members: () => void this.refreshMembers(),
         relaying: () => { this.relayed = true; void this.catchUp(); void this.flush(); void this.flushComments(); },
@@ -803,8 +807,8 @@ export class BoardSession {
     const team = this.teamNow?.();
     if (team?.session) p.team = team.session;
     if (team?.dots) p.dots = team.dots;
-    const live = this.live;
-    void seal3("p", new TextEncoder().encode(JSON.stringify(p)) as Bytes, this.nk, this.note, this.epoch, this.me).then((ct) => live.presence(ct)).catch(() => {});
+    const live = this.live, bytes = new TextEncoder().encode(JSON.stringify(p)) as Bytes, nk = this.nk, note = this.note, epoch = this.epoch, me = this.me;
+    this.beatsOut = this.beatsOut.then(() => seal3("p", bytes, nk, note, epoch, me)).then((ct) => live.presence(ct)).catch(() => {});
   }
 
   private async presenceIn(user: string, ct: string) {
