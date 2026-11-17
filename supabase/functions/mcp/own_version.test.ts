@@ -129,9 +129,9 @@ Deno.test("from the app's website: its features and help pages and its App Store
     for (const never of ["/login", "/account", "/privacy"]) assert(!asked.includes(never), `never asked for ${never}`);
     assert(!asked.includes("/faq"), "robots.txt is kept");
     for (const { headers } of net.web.asked) assertEquals([headers.get("cookie"), headers.get("authorization")], [null, null], "nothing of anyone's goes along");
-    // What the AI reads: the method, then each page with where it came from.
+    // What the AI reads: each page with where it came from, and no method.
     const text = studyText(s);
-    assert(text.startsWith("## Making the person's own version of an app"));
+    assert(text.startsWith("## What the public pages say about https://tally.example.com/"), text.slice(0, 80));
     for (const t of ["### The page you were given: Tally", "### App Store listing: Tally: Habit Tracker", "### Page: Tally features", "### Couldn't be read", "Screenshots from the App Store listing (4, below)"]) assertStringIncludes(text, t);
   } finally { await net.close(); }
 });

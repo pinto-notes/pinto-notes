@@ -3,8 +3,8 @@
 // its own (Emil, 17 November 2026). Pinto Notes has no AI of its own, so this is what makes it one
 // step for whichever AI the person uses: create { type: "app", original: link } reads the app's
 // public pages here (its site, the pages about its features and how it works, its App Store
-// listing and a few screenshots) and answers with them and the method below, so the AI needs no
-// other tool and asks nothing back.
+// listing and a few screenshots) and answers with them and a short ask (ownVersionAsk), so the AI
+// needs no other tool and asks nothing back.
 //
 // Public pages only, the way a browser with no account sees them: publicFetch sends no cookies or
 // credentials, sign-in, sign-up, account and checkout pages are never followed, and pages the
@@ -13,24 +13,21 @@
 // The test (~/content-tools/projects/pinto-app-clone/2026-11-17-test/REPORT.md): five apps built
 // from a link in 4 to 9 minutes, about 55% of their listed features. What was missing: features on
 // pages the AI never opened, screenshots it couldn't read, and platform features left out with no
-// stand-in. Each part below answers one of those.
+// stand-in. Reading the pages and screenshots here answers the first two; the ask answers the third.
 
 import { FetchTimeout, NotPublic, publicFetch } from "./public_fetch.ts";
 import { readCapped } from "./tools.ts";
 import { toBase64 } from "../_shared/e2ee.ts";
 
-/** The method, as the AI reads it in create's answer (and the MCP prompt points at it). */
-export const OWN_VERSION_GUIDE = `## Making the person's own version of an app
-
-The person gave you a link to an app and wants their own version of it, as this note's app: the same features and the same way of working, with a name, a look and words of its own. Below are the app's public pages, read for you: its site, its pages about features and help, and its App Store listing with screenshots. Use public pages only. Never sign in, sign up or make an account anywhere, and never ask the person for theirs.
-
-1. List what it does. In docs/README.md, under "## Features of the original", write every feature the pages name, one line each, as a checklist: "- [x]" for each one you build, "- [ ]" with the reason for each one you leave out. Keep the link there too, so a later change can read the pages again. This list is how the person sees what they got.
-2. Build every feature a note app can do. Start with what someone does in it every day, then go down the list. Leave out only what needs something a note app doesn't have (notifications, widgets, a watch, health data, blocking other apps, the original's own servers or other people's accounts), and build the nearest thing that works instead: what's due shows when the app opens; a file the original imports or exports (a bank's CSV, a deck) comes in with device.files.pick() and goes out with share(). Where the pages don't say how something works, choose the simplest thing that works and note it under "## Decisions".
-3. Make it its own. Give it a plain name for what it does ("Habits", "Budget", "Flashcards"), never the original's name, and rename the note to it. Copy no logo, icon, picture, colour scheme or text: write every word yourself, and design a look that fits what it does. The screenshots show how it works; build that way of working, not that look. Inside the app, never mention the original.
-4. Build it in one go: every file (screens, lib, tests, docs/README.md, and a data.json with a few realistic examples) in one write with files, then fix what the check reports.
-5. Test each feature you check off, like tests/app.test.tsx does: each test starts with no data.
-6. Look at it with see_app, on iPhone and Mac, light and dark, and fix what looks wrong.
-7. Tell the person in a few lines what their app does, and what the original has that this one can't.`;
+/** What create's answer asks of the AI, with the pages and screenshots. Emil, 17 Nov: no rules for how
+ *  the AI builds. A rerun without a method (one plain sentence) kept two things worth a line: listing
+ *  the features and building what a note app can do took coverage from 39-48% to 74-81%, and none of
+ *  the plain runs renamed the note. One write, a test per feature, demo data, see_app and the report
+ *  to the person made no difference or are in the server's instructions already, so they went.
+ *  2026-11-18-own-version/REPORT.md has the numbers. */
+export function ownVersionAsk(title: string): string {
+  return `Make the person their own version of this app, with its own name and look: everything it does that a note app can do, and the nearest thing that works for the rest. List its features in docs/README.md with the link, each marked built or not, and rename the note "${title}" to the app's plain name. Use only these public pages: never sign in or make an account anywhere.`;
+}
 
 /** One page that was read. */
 export type Source = { url: string; kind: "link" | "page" | "app-store"; title: string; text: string };
@@ -408,11 +405,11 @@ export async function study(raw: unknown): Promise<Study> {
 
 /** The pages as the AI reads them in create's answer, after the method. */
 export function studyText(s: Study): string {
-  const parts = [OWN_VERSION_GUIDE, "", `## What the public pages say about ${s.link}`];
+  const parts = [`## What the public pages say about ${s.link}`];
   for (const src of s.sources) {
     parts.push("", `### ${src.kind === "app-store" ? "App Store listing" : src.kind === "link" ? "The page you were given" : "Page"}: ${src.title || src.url}`, src.url, "", src.text);
   }
   if (s.missed.length) parts.push("", "### Couldn't be read", ...s.missed.map((m) => `- ${m.url}: ${m.why}`));
-  if (s.screenshots.length) parts.push("", `### Screenshots from the App Store listing (${s.screenshots.length}, below)`, "They show how it works. Build that way of working with a look of your own.");
+  if (s.screenshots.length) parts.push("", `### Screenshots from the App Store listing (${s.screenshots.length}, below)`);
   return parts.join("\n");
 }

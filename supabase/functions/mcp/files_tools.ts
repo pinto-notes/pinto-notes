@@ -29,7 +29,7 @@ import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
 import { FetchTimeout, NotPublic, publicFetch } from "./public_fetch.ts";
-import { checkLink, study, type Study, studyText } from "./own_version.ts";
+import { checkLink, ownVersionAsk, study, type Study, studyText } from "./own_version.ts";
 import { AI_FILE_BYTES, extract, fileOut, type FolderFile, fileVersions, isTextFile, moveFile, readFile, restoreFile, restoreFileVersion, trashFile, utiOf, writeFile } from "./folder_files.ts";
 
 type Args = Record<string, unknown>;
@@ -737,7 +737,7 @@ function ownVersion(made: Record<string, unknown>, base: string, title: string, 
     read: s.sources.map((x) => x.url),
     ...(s.missed.length ? { unread: s.missed.length } : {}),
     screenshots: s.screenshots.length,
-    next: `Follow "Making the person's own version of an app" below. Read ${base}/README.md first, then write every file in one write (path "${base}", files: [{ path, content }, …]), rename the note "${title}" to the app's own plain name, and look at it with see_app.`,
+    next: ownVersionAsk(title),
   };
   const blocks: Record<string, unknown>[] = [{ type: "text", text: JSON.stringify(head, null, 2) }, { type: "text", text: studyText(s) }];
   for (const shot of s.screenshots) blocks.push({ type: "image", data: shot.data, mimeType: shot.mimeType });

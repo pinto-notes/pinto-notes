@@ -9,7 +9,7 @@ import { type Account, account, toolContext } from "./sealed.ts";
 import { Content, ToolError } from "./tools.ts";
 import { FILE_PROMPTS, FILE_TOOLS, ownVersionPrompt, runFileTool } from "./files_tools.ts";
 import { FILE_APP_INSTRUCTIONS } from "./page_guide.ts";
-import { OWN_VERSION_GUIDE, useLookup } from "./own_version.ts";
+import { ownVersionAsk, useLookup } from "./own_version.ts";
 import { testWeb } from "./test_https.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -46,9 +46,13 @@ Deno.test("create with original: the app, then the method and the original's pag
     const [head, guide, ...pictures] = out.content as { type: string; text?: string; data?: string; mimeType?: string }[];
     const made = JSON.parse(head.text!);
     assertEquals([made.app, made.original, made.read, made.screenshots], ["Notes/New app.app/", "https://tally.example.com/", ["https://tally.example.com/", "https://apps.apple.com/us/app/id963034692", "https://tally.example.com/features"], 2]);
-    for (const s of ["one write", "rename the note \"New app\"", "see_app"]) assertStringIncludes(made.next, s);
-    assert(guide.text!.startsWith(OWN_VERSION_GUIDE), "the method first");
-    for (const s of ["### App Store listing: Tally: Habit Tracker", "Price: $5.99", "- Habits to break", "never mention the original"]) assertStringIncludes(guide.text!, s);
+    // One short ask, not a method (Emil, 17 Nov: no rules for how the AI builds; the rerun showed
+    // which lines earn their place): what to make, the features list, the rename, public pages only.
+    assertEquals(made.next, ownVersionAsk("New app"));
+    for (const s of ["own name and look", "everything it does that a note app can do", "docs/README.md", "rename the note \"New app\"", "never sign in"]) assertStringIncludes(made.next, s);
+    for (const s of ["one write", "see_app", "test", "data.json"]) assert(!made.next.includes(s), `no rule about ${s}`);
+    assert(guide.text!.startsWith("## What the public pages say about https://tally.example.com/"), "the pages, no method");
+    for (const s of ["### App Store listing: Tally: Habit Tracker", "Price: $5.99", "- Habits to break"]) assertStringIncludes(guide.text!, s);
     assertEquals(pictures.map((p) => [p.type, p.mimeType]), [["image", "image/jpeg"], ["image", "image/jpeg"]]);
     // A real app, ready for the AI to build: the starter's files, readable and writable.
     const files = (await tool(pg, a, "list", { path: "Notes/New app.app" })).files as { path: string }[];
@@ -83,5 +87,5 @@ Deno.test("an AI is told where to start: the instructions, create's description,
   assertEquals(ownVersionPrompt(" https://tally.example.com ", "New app"),
     `In Pinto Notes, make my own version of the app at https://tally.example.com, as my note "New app". Start it with create (type "app", original "https://tally.example.com") and follow what its answer says, all the way to a tested app.`);
   // The product never calls it cloning.
-  for (const t of [FILE_APP_INSTRUCTIONS, create.description, p.description, p.title, OWN_VERSION_GUIDE, ownVersionPrompt("x")]) assert(!/clon/i.test(t), t);
+  for (const t of [FILE_APP_INSTRUCTIONS, create.description, p.description, p.title, ownVersionAsk("New app"), ownVersionPrompt("x")]) assert(!/clon/i.test(t), t);
 });
