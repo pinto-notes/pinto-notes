@@ -464,7 +464,7 @@ struct SignInView: View {
     private var resendRow: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let wait = flow.resendWait(now: context.date)
-            Button(action: resendCode) {
+            Button(action: { resendCode() }) {
                 HStack(spacing: 6) {
                     if resending { ProgressView().controlSize(.small) }
                     Text(resending ? "Sending a new code…" : wait > 0 ? "Resend code in \(wait) s" : "Resend code")
