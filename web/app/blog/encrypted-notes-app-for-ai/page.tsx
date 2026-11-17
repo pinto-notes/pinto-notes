@@ -50,7 +50,7 @@ export default function Page() {
       <h2 id="encrypted">What&apos;s encrypted</h2>
       <p>
         Your notes, their titles, folder names, file names and files, and every earlier version are encrypted on your device before
-        they&apos;re uploaded. The key is made on your first device. We store the encrypted copies, in Frankfurt.
+        they&apos;re uploaded. The key is made on your first device, or in your browser if you sign up on our website. We store the encrypted copies, in Frankfurt.
       </p>
       <p>
         We keep a locked copy of your key so that signing in opens your notes on a new
