@@ -38,21 +38,15 @@ const TOMORROW = [
   { text: "Call the dentist", at: 1.6 },
   { text: "Book Lisbon flights", at: 2.5 },
 ];
-/** Round 29 (Emil, after Granola): the headline says what the product is; the line under it is the
- *  killer line, short, in two lines. `?h1=a|b` and `?sub=1|2|3`. */
-export type H1 = "a" | "b";
-export type Sub = "1" | "2" | "3";
-const HEAD: Record<H1, string> = {
-  a: "The notebook for you and your AI.",
-  b: "One notes app for every AI you use.",
-};
-const SUB: Record<Sub, [string, string]> = {
-  "1": ["Notes, whiteboards and apps.", "Every new chat starts from your notes."],
-  "2": ["Notes, whiteboards and apps.", "ChatGPT and Claude work in them with you."],
-  "3": ["Notes, whiteboards and apps.", "One notebook for every AI you use."],
+/** Round 28: the headline options, `?h1=a|b|c`. The lede goes with its headline. */
+export type H1 = "a" | "b" | "c";
+const HEAD: Record<H1, { h: React.ReactNode; lede: string }> = {
+  a: { h: <>The notebook <span className={x.mark}>you and your AI</span> share.</>, lede: "Every chat starts from zero. Give ChatGPT and Claude your notes, and they finally know your life." },
+  b: { h: <>The notebook for <span className={x.mark} style={{ whiteSpace: "normal", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone" }}>you and your AI.</span></>, lede: "Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided." },
+  c: { h: <>Write, draw and build <span className={x.mark}>with your AI.</span></>, lede: "Simple notes, whiteboards and apps. ChatGPT and Claude work in all three with you, and can read what you decided." },
 };
 
-export function Hero({ h1 = "a", sub = "1" }: { h1?: H1; sub?: Sub }) {
+export function Hero({ h1 = "a" }: { h1?: H1 }) {
   const t = useClock();
   const said = "Plan tomorrow. Run before work, and the dentist.";
   const k1 = span(t, 0.1, 1.1), v1 = mj(span(t, 0, 0.25));
@@ -60,8 +54,8 @@ export function Hero({ h1 = "a", sub = "1" }: { h1?: H1; sub?: Sub }) {
   return (
     <section className={x.hero}>
       <div className={x.words}>
-        <h1 className={`${x.h1} rise`} style={rise(0)}>{HEAD[h1]}</h1>
-        <p className={`${x.lede} rise`} style={rise(1)}>{SUB[sub][0]}<br />{SUB[sub][1]}</p>
+        <h1 className={`${x.h1} rise`} style={rise(0)}>{HEAD[h1].h}</h1>
+        <p className={`${x.lede} rise`} style={rise(1)}>{HEAD[h1].lede}</p>
         <div className={`${x.ctas} rise`} style={rise(2)}>
           <Download note={false} />
           <a className={x.iphone} href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">

@@ -34,29 +34,3 @@
   .app { margin: 0; }
   .ask { position: relative; width: 100%; order: -1; }
 }
-
-/* Round 29, the default (after Linear): each thing a whole screen. The title big on the left, its line
-   on the right at the title's top, then the product wide under them. */
-.rowsFull { gap: 0; }
-.full { box-sizing: border-box; min-height: 100svh; display: grid; align-content: center; gap: clamp(40px, 6vh, 72px); padding: clamp(64px, 10vh, 120px) 0; }
-.fullHead { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 80px); align-items: start; }
-.fullTitle { margin: 0; font-size: clamp(48px, 6vw, 96px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; color: #2a1d10; }
-.fullSay { margin: 0; padding-top: 30px; font-size: clamp(19px, 1.7vw, 24px); line-height: 1.4; color: #4a3826; text-wrap: pretty; }
-.fullPic { min-width: 0; position: relative; }
-/* The pictures sized for a wide stage. */
-.full .devices { --pf: clamp(12px, 1.25vw, 14px); max-width: 1100px; }
-.full .board.board { aspect-ratio: 16 / 8.6; }
-.full .build { padding: 0 0 clamp(70px, 8vw, 120px); }
-.full .app { margin-left: clamp(120px, 22vw, 340px); }
-.full .ask { width: min(460px, 42%); }
-@media (max-width: 900px) {
-  .full { min-height: 0; padding: 48px 0; gap: 24px; }
-  .fullHead { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .fullTitle { font-size: 46px; }
-  .fullSay { padding-top: 0; font-size: 18px; }
-  .full .board.board { aspect-ratio: 3 / 4; }
-  .full .build { padding: 0; }
-  .full .app { margin: 0; }
-  .full .ask { width: 100%; }
-}
-[data-serif] .fullTitle { font-family: var(--display); font-weight: 500; letter-spacing: -0.03em; }
