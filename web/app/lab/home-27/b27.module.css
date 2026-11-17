@@ -1,0 +1,117 @@
+/* Round 27: the binder's cover (Binder27.tsx), from round 26's home-binder. Colours: the cover's amber
+   (#ef891f), its burnt-orange spine (#c15d22), the elastic band's deep green; ChatGPT's mark on ink,
+   Claude's on its terracotta (#d97757). Ink type on the amber (6.8:1), never cream (2.3:1). */
+
+/* The board: amber, with the site's paper grain in soft light. */
+.board, .face { background-color: #ef891f; background-image: url(/lab/z/grain-v1.webp), radial-gradient(120% 90% at 20% 0%, rgba(255, 230, 190, 0.18), transparent 60%), linear-gradient(transparent 70%, rgba(120, 50, 0, 0.08));
+  background-size: 320px 320px, 100% 100%, 100% 100%; background-blend-mode: soft-light, normal, normal; color: #24170d; }
+.spine { position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: clamp(26px, 3vw, 46px); background-color: #c15d22;
+  background-image: url(/lab/z/grain-v1.webp), linear-gradient(90deg, rgba(255, 210, 160, 0.12), transparent 40%, rgba(70, 20, 0, 0.35) 92%, rgba(70, 20, 0, 0.5));
+  background-size: 320px 320px, 100% 100%; background-blend-mode: soft-light, normal; }
+.band { position: absolute; z-index: 1; top: 0; bottom: 0; right: clamp(40px, 5vw, 84px); width: clamp(14px, 1.6vw, 24px); background-color: #2b4a34;
+  background-image: url(/lab/z/grain-v1.webp), linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent 35%, rgba(0, 0, 0, 0.18));
+  background-size: 320px 320px, 100% 100%; background-blend-mode: soft-light, normal;
+  box-shadow: 2px 0 2px rgba(80, 30, 0, 0.22), 4px 2px 8px rgba(80, 30, 0, 0.14); }
+.shade { position: absolute; z-index: 4; inset: 0; background: #2a1404; opacity: 0; pointer-events: none; border-radius: inherit; }
+
+/* ───────────────────────── Hero c: the cover is the first screen ─────────────────────────
+   Inset on the cream page, so the page shows all round it (council r22, fable). A window is cut in it
+   where the note lies under it (the first screen's picture, laid as on hero a): through it, the note's
+   title, its highlights and To try, where ChatGPT's lines come in. In the cover's own box: --cx/--cy is
+   its top left on the screen. */
+.cover { --cx: 16px; --cy: calc(var(--hh) + 6px);
+  /* The window, on the screen: from just left of the note's pane to most of its width, and the whole note
+     from its toolbar to its foot, so both of ChatGPT's lines are seen coming in. */
+  --wl: calc(var(--restX) - 34px); --wt: calc(var(--restY) - 30px); --ww: calc(var(--paneW) * 0.84 + 34px); --wh: min(540px, 100svh - var(--wt) - 40px);
+  position: absolute; z-index: 5; left: var(--cx); right: 16px; top: var(--cy); bottom: 18px; border-radius: 6px 16px 16px 6px; transform-origin: 0 50%; will-change: transform;
+  filter: drop-shadow(0 1px 1px rgba(80, 35, 5, 0.18)) drop-shadow(0 10px 18px rgba(80, 35, 5, 0.16)); }
+.board { position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+  --hole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect width='100%25' height='100%25' rx='18'/%3E%3C/svg%3E");
+  -webkit-mask-image: linear-gradient(#000, #000), var(--hole); mask-image: linear-gradient(#000, #000), var(--hole);
+  -webkit-mask-position: 0 0, calc(var(--wl) - var(--cx)) calc(var(--wt) - var(--cy)); mask-position: 0 0, calc(var(--wl) - var(--cx)) calc(var(--wt) - var(--cy));
+  -webkit-mask-size: 100% 100%, var(--ww) var(--wh); mask-size: 100% 100%, var(--ww) var(--wh);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-composite: xor; mask-composite: exclude; }
+/* The window's cut edge: the board's thickness, a shadow it casts onto the note inside. */
+.cut { position: absolute; left: calc(var(--wl) - var(--cx)); top: calc(var(--wt) - var(--cy)); width: var(--ww); height: var(--wh); border-radius: 18px; pointer-events: none;
+  box-shadow: inset 0 0 0 1.5px rgba(150, 70, 10, 0.55), inset 0 4px 7px rgba(70, 25, 0, 0.32), inset 0 -1px 0 rgba(255, 220, 170, 0.35); }
+.words { position: absolute; z-index: 2; left: calc(max(var(--padX), 100px) - var(--cx)); top: 0; bottom: 0; width: min(640px, calc(var(--wl) - max(var(--padX), 100px) - 48px)); display: flex; flex-direction: column; justify-content: center; padding-bottom: 4svh; }
+.words h1 { font-size: min(6.1vw, 10vh, 88px); }
+.words p { color: #3a2414 !important; }
+.words p:first-of-type { font-weight: 500; }
+.words p svg { fill: #24170d; }
+.words :global(a[class*="iphone"]) { background: #fff1e2; }
+.words :global(a[class*="iphone"]) svg { stroke: #8a5a2a; }
+.words :global(a[class*="offMac"]) { color: #3a2414 !important; text-decoration-color: rgba(58, 36, 20, 0.4) !important; }
+
+/* ── The AIs' bookmarks: they come out from between the pages at the top and hang down the cover, right of
+   the window. They swing once as the page arrives, and settle. ── */
+.ribbons { position: absolute; pointer-events: none; }
+.ribbon { position: absolute; top: 0; width: var(--rw, 20px); height: var(--rl, 110px); transform-origin: 50% 0; background: var(--rc);
+  background-image: url(/lab/z/grain-v1.webp), linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.12));
+  background-size: 320px 320px, 100% 100%; background-blend-mode: soft-light, normal;
+  filter: drop-shadow(0 2px 2px rgba(60, 25, 5, 0.22)) drop-shadow(1px 5px 7px rgba(60, 25, 5, 0.14)); }
+.ribbon[data-ai="gpt"] { --rc: #2e2a26; left: var(--r1x, 0px); rotate: var(--r1a, -4deg); --rl: var(--r1l, 110px); }
+.ribbon[data-ai="claude"] { --rc: #c4664a; left: var(--r2x, 30px); rotate: var(--r2a, 5deg); --rl: var(--r2l, 130px); }
+.charm { position: absolute; left: 50%; bottom: 0; width: var(--cs, 52px); height: var(--cs, 52px); translate: -50% 62%; rotate: calc(-1 * var(--ra, 0deg)); display: grid; place-items: center; border-radius: 50%;
+  background: var(--cc); background-image: url(/lab/z/grain-v1.webp), radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.16), transparent 60%);
+  background-size: 320px 320px, 100% 100%; background-blend-mode: soft-light, normal;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.1), inset 0 -2px 3px rgba(0, 0, 0, 0.18); }
+.charm svg { width: 54%; height: 54%; }
+.ribbon[data-ai="gpt"] .charm { --cc: #171513; --ra: var(--r1a, -4deg); }
+.ribbon[data-ai="claude"] .charm { --cc: #d97757; --ra: var(--r2a, 5deg); }
+.ribbon[data-ai="claude"] .charm svg { width: 58%; height: 58%; }
+.r1 { z-index: 3; top: -12px; left: calc(var(--wl) + var(--ww) - var(--cx) + clamp(34px, 3.6vw, 64px)); width: 90px; height: 0;
+  --r1x: 0px; --r2x: clamp(34px, 3.4vw, 46px); --r1l: min(30svh, 260px); --r2l: min(38svh, 330px); --r1a: 2deg; --r2a: -3deg; --cs: clamp(54px, 4.6vw, 76px); --rw: clamp(18px, 1.6vw, 24px); }
+@media (prefers-reduced-motion: no-preference) {
+  .r1 .ribbon { animation: swing 1.5s 0.1s cubic-bezier(0.3, 0, 0.2, 1) both; }
+  .r1 .ribbon[data-ai="claude"] { animation-delay: 0.22s; }
+  @keyframes swing { 0% { transform: rotate(7deg); } 35% { transform: rotate(-3.5deg); } 65% { transform: rotate(1.4deg); } 100% { transform: none; } }
+}
+:global([data-still]) .r1 .ribbon { animation: none; }
+
+/* Phones: the cover inset by a few px, the words at its top, the window under them, the bookmarks short
+   and right of the headline, so a charm never pushes the headline down (council r22). */
+@media (max-width: 760px) {
+  .cover { --cx: 8px; --cy: calc(var(--hh) + 4px); right: 8px; bottom: 10px;
+    --wl: calc(var(--pad) - 6px); --wt: calc(var(--cy) + var(--coverWin, 374px)); --ww: calc(100vw - 2 * var(--pad) + 12px); --wh: calc(100svh - var(--cy) - var(--coverWin, 374px) - 14px); }
+  .words { left: 42px; right: 22px; width: auto; justify-content: flex-start; padding: 22px 0 0; }
+  .words h1 { max-width: 7.2em; font-size: min(10.2vw, 5.2svh, 40px); }
+  .words p[class*="fine"] { display: none; }
+  .words h1 br { display: inline; }
+  /* The bookmarks hang down the right edge past the headline's first line; the charms come to rest beside
+     its shorter second and third lines. */
+  .r1 { top: -8px; left: auto; right: 18px; width: 70px; --r1x: 0px; --r2x: 30px; --r1l: 82px; --r2l: 122px; --cs: 42px; --rw: 14px; }
+  .band { right: 16px; width: 10px; }
+}
+
+/* ───────────────────────── Close b: the cover swings shut ─────────────────────────
+   The section docks under the tabs (so all four stay in view on the closed binder) and fills the screen
+   below them; the footer's torn edge lands on its lower part (--footH keeps the words above it). Its face
+   is held under the tabs while the section's box rises, turning shut. */
+.close { position: sticky; top: var(--tt); height: calc(100svh - var(--tt)); margin-top: 64vh; pointer-events: none; color: #24170d; }
+body:has(.close) :global(.site-footer) { margin-top: calc(-1 * var(--binderFootH, 0px)); }
+.close + * { height: 0 !important; }
+.face { position: absolute; left: 0; right: 0; top: calc(var(--tabH) * 0.3); bottom: 0; pointer-events: auto; transform-origin: 0 50%; will-change: transform;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.5), 0 -1px 0 rgba(120, 50, 0, 0.18), 0 -3px 8px rgba(80, 35, 5, 0.12); }
+.leaf { position: absolute; z-index: 1; height: auto; width: clamp(180px, 23vw, 380px); right: calc(clamp(40px, 5vw, 84px) + 7vw); top: calc((100svh - var(--tt) - var(--footH, 140px)) / 2); translate: 0 -50%; rotate: -6deg; pointer-events: none; }
+/* Council r22 (fable): no dead orange under the words; the block sits in the middle of the cover above the
+   footer's edge. */
+.closeBody { position: absolute; z-index: 2; inset: 0 0 var(--footH, 140px) 0; display: flex; align-items: center; padding: 0 var(--pad); }
+.closeText { padding-left: clamp(0px, 2vw, 24px); max-width: min(620px, 50vw); }
+.closeTitle { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(7.6vw, 13vh, 120px); line-height: 0.9; letter-spacing: -0.045em; }
+.closeCtas { margin-top: clamp(22px, 3.6vh, 36px); }
+.closeCtas :global(a[class*="iphone"]) { background: #fff1e2; }
+.closeCtas :global(a[class*="iphone"]) svg { stroke: #8a5a2a; }
+.closeCtas :global(a[class*="offMac"]) { color: #3a2414 !important; text-decoration-color: rgba(58, 36, 20, 0.4) !important; }
+.closeFine { margin: 16px 0 0; max-width: 31em; font-size: 15px; line-height: 1.5; font-weight: 500; color: #3a2414; text-wrap: pretty; }
+.closeFine a { color: #24170d; font-weight: 650; text-decoration: underline; text-decoration-color: rgba(36, 23, 13, 0.4); text-underline-offset: 3px; }
+.closeFine a:focus-visible { outline: 3px solid #24170d; outline-offset: 3px; border-radius: 4px; }
+@media (max-width: 760px) {
+  .close { margin-top: 56vh; }
+  .closeBody { align-items: flex-start; padding: 6svh 26px 0 42px; }
+  .closeText { padding-left: 0; max-width: none; }
+  .closeTitle { font-size: min(14vw, 8svh); }
+  .closeFine { font-size: 14px; }
+  .leaf { width: 30vw; right: 14vw; top: auto; bottom: calc(var(--footH, 140px) + 2svh); translate: 0 0; }
+}

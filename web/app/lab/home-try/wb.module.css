@@ -1,0 +1,233 @@
+/* Round 21: the whiteboard chapter's variants (Wb.tsx). The window is the Notes chapter's frame; the
+   board, its toolbar, the AI outline, tag and receipt and the iPhone dock are the app's, measured from
+   its captures: canvas #fff (dark #000), ink #2a1d10 (dark #ebddd1), fills #a5d8ff #ffec99 #b2f2bb
+   (dark #04375e #291600 #002f00), accent #d96a06 (dark #f4ad33), the picked tool #a85700, the receipt
+   #fcedd8 with #a85700 words (dark #3a3939, #f4ad33). */
+
+.stage { position: relative; min-height: 0; margin-top: clamp(14px, 2.6vh, 28px); --accent: #d96a06; }
+.wide { position: relative; height: 100%; }
+.narrow { display: none; }
+
+/* a and c: the window, and the iPhone over its bottom right corner (as in Notes: 13em wide, over the
+   window by 64px, hanging lower than it). */
+.pair { --pf: clamp(11.5px, 1.45vh, 13px); position: relative; box-sizing: border-box; height: calc(100% + max(6svh, 32px) - 30px); padding: 0 calc(13 * var(--pf) - 64px) calc(3.6 * var(--pf)) 0; }
+.overPhone { position: absolute; right: 0; bottom: 0; font-size: var(--pf); }
+
+/* b: the window cropped by the page: its top left corner and toolbar in view, the canvas running off
+   the right and the bottom, so the board can be drawn much larger. */
+.bigCrop { position: absolute; left: 0; top: 0; bottom: calc(-1 * max(6svh, 32px) - 80px); right: calc((100% - 100vw) / 2 - 64px); }
+.bigCrop .mac { height: 100%; border-radius: 14px 0 0 0; }
+.bigCrop .canvas { display: block; }
+.bigCrop .fit { position: absolute; left: clamp(28px, 3.4vw, 52px); top: clamp(16px, 2.6vh, 30px); width: min(1060px, calc(100vw - var(--pad) - 170px), calc((100svh - 470px) * 2.42)); margin: 0; }
+.bigCrop .zoom, .bigCrop .receipt { display: none; }
+
+/* ── The window ── */
+.mac { position: relative; box-sizing: border-box; height: 100%; display: grid; grid-template-rows: 46px minmax(0, 1fr);
+  border-radius: 14px; background: #fff; color: #1d1b19; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(10, 30, 20, 0.28), 0 2px 4px rgba(0, 20, 10, 0.14), 0 34px 64px -30px rgba(0, 15, 8, 0.7); }
+.withList { grid-template-columns: minmax(0, 228px) minmax(0, 1fr); }
+.noList { grid-template-columns: minmax(0, 1fr); }
+.bar { grid-column: 1 / -1; display: flex; align-items: center; height: 46px; padding: 0 14px 0 16px; color: #6e6e73; }
+.lights { flex: none; display: flex; gap: 8px; margin-right: 16px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.listBar { flex: none; display: flex; align-items: center; gap: 12px; width: calc(228px - 16px - 52px - 16px); color: #8e8e93; }
+.boardBar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; height: 100%; }
+.withList .boardBar { padding-left: 18px; box-shadow: inset 1px 0 0 #ececec; }
+.ico { flex: none; display: grid; place-items: center; }
+.ico svg { width: 17px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ico svg.filled, .filled { fill: currentColor; stroke: none; }
+.ico svg[viewBox="0 0 20 6"] { width: 15px; height: 5px; }
+.ico svg[viewBox="0 0 24 20"] { width: 21px; }
+.ico svg[viewBox="0 0 22 20"] { width: 19px; }
+.ico svg[viewBox="0 0 10 16"] { width: 10px; height: 15px; }
+.ico > svg[width] { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+.dim { opacity: 0.45; }
+.picked { color: #a85700; }
+.pill { padding: 4px 10px; border-radius: 99px; background: #f2f2f3; font-size: 13px; font-weight: 650; color: #3a3a3c; white-space: nowrap; }
+.crumb { min-width: 0; display: flex; gap: 12px; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.crumb span { color: #6e6e73; }
+.crumb b { font-weight: 600; color: #1d1b19; overflow: hidden; text-overflow: ellipsis; }
+.tools { margin-left: auto; display: flex; align-items: center; gap: 15px; }
+
+/* The notes list: the board selected, then the same life's notes as Notes. */
+.list { grid-row: 2; padding: 10px 8px; overflow: hidden; box-shadow: inset 0 1px 0 #ececec, inset -1px 0 0 #ececec; }
+.list ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px 9px 12px; border-radius: 10px; }
+.list li[data-on] { background: #ebebed; }
+.rowText { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.rowText b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; line-height: 1.25; }
+.scribble svg { display: block; width: 14px; height: 14px; fill: none; stroke: #8e8e93; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.when { font-size: 13px; line-height: 1.3; color: #6e6e73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.in { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: #8e8e93; }
+.in svg { width: 13px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.sketch { flex: none; width: 40px; height: 40px; border-radius: 8px; background: #fff; box-shadow: 0 0 0 1px #e3e3e6; }
+
+/* The canvas: the board as large as the column allows, the receipt at its foot, the zoom at the right. */
+.canvas { grid-row: 2; position: relative; min-width: 0; min-height: 0; background: #fff; container-type: size; display: grid; place-items: center; }
+.fit { width: min(calc(100cqw - 44px), calc((100cqh - 58px) * 2.1428)); margin-bottom: 40px; }
+.zoom { position: absolute; right: 18px; bottom: 21px; font: 500 12px/1 var(--sans); font-variant-numeric: tabular-nums; color: #8e8e93; }
+.receipt { position: absolute; left: 50%; bottom: 14px; translate: -50% 0; display: flex; align-items: center; gap: 8px; margin: 0; padding: 7px 14px; border-radius: 99px; white-space: nowrap;
+  background: #fcedd8; box-shadow: 0 0 0 1px #f5dbb3, 0 6px 16px -8px rgba(120, 60, 0, 0.3); font: 600 13px/1.1 var(--sans); color: #a85700; }
+.receipt svg { flex: none; color: #3d2a17; fill: currentColor; }
+.receipt i { width: 1px; height: 15px; background: #ecd2ad; }
+.receipt b { font-weight: 600; }
+
+/* ── The board ── */
+.board { position: relative; width: 100%; }
+.svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; }
+.ink path { fill: none; stroke: #2a1d10; stroke-width: 2.3px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.dashed path, .ink path.dashedPath { stroke-dasharray: 7 6; }
+.words, .title { fill: #2a1d10; }
+.note { fill: #8a8178; }
+.gap { fill: #fff; }
+.claudeInk { opacity: 0; }
+.outline { position: absolute; opacity: 0; pointer-events: none; }
+/* Round 25: the outline round each shape Claude drew, a little out from its ink as the app draws it
+   (12-ai-drew), and its name tag beside the first, at the outline's top; both at the board's scale
+   here (the board is shown about 1.4x the app's own), so they're seen. */
+.outline::before { content: ""; position: absolute; inset: -9px; border: 2.5px dashed var(--accent); border-radius: 9px; background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.tag { position: absolute; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 10px; border-radius: 99px; background: var(--accent); color: #fff; font: 600 15px/1 var(--sans); white-space: nowrap; opacity: 0; pointer-events: none; }
+.tag svg { width: 14px; height: 14px; }
+.tag[data-side="left"] { translate: calc(-100% - 18px) -9px; }
+.receipt { opacity: 0; }
+.board[data-on] .claudeInk, .board[data-on] .outline, .board[data-on] .tag, .receipt[data-on] { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .claudeInk { transition: opacity 0.25s ease-out; }
+  .outline, .tag { transition: opacity 0.3s 0.15s ease-out; }
+  .receipt { transition: opacity 0.3s 0.35s ease-out, translate 0.45s 0.35s cubic-bezier(0.34, 1.4, 0.64, 1); }
+  .receipt:not([data-on]) { translate: -50% 10px; }
+}
+
+/* ── Dark mode: the board's own dark look, the list in the app's near-black ── */
+.dark { --accent: #f4ad33; }
+.mac.dark { background: #000; color: #f5f5f7; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 2px 4px rgba(0, 0, 0, 0.3), 0 34px 64px -30px rgba(0, 0, 0, 0.8); }
+.mac.dark .bar { background: linear-gradient(90deg, #0d0d0d 0 228px, #000 228px); color: #98989d; }
+.mac.dark.noList .bar { background: #000; }
+.dark .listBar { color: #98989d; }
+.dark .pill { background: #2a2a2c; color: #e5e5e7; }
+.dark .crumb span { color: #98989d; }
+.dark .crumb b { color: #f5f5f7; }
+.dark .picked { color: #f4ad33; }
+.dark.withList .boardBar { box-shadow: inset 1px 0 0 #222; }
+.dark .list { background: #0d0d0d; box-shadow: inset 0 1px 0 #222, inset -1px 0 0 #222; }
+.dark .list li[data-on] { background: #2a2a2c; }
+.dark .when { color: #98989d; }
+.dark .in, .dark .scribble svg { color: #7c7c80; stroke: currentColor; }
+.dark .sketch { background: #000; box-shadow: 0 0 0 1px #333; }
+.dark .canvas { background: #000; }
+.dark .zoom { color: #8e8e93; }
+.dark .receipt { background: #3a3939; box-shadow: 0 0 0 1px #4a4848, 0 6px 16px -8px rgba(0, 0, 0, 0.6); color: #f4ad33; }
+.dark .receipt svg { color: #e5e5e5; }
+.dark .receipt i { background: #575555; }
+.boardDark .ink path { stroke: #ebddd1; }
+.boardDark .words, .boardDark .title { fill: #ebddd1; }
+.boardDark .note { fill: #8f8a85; }
+.boardDark .gap { fill: #000; }
+
+/* ── The iPhone ── */
+.phone { width: 13em; aspect-ratio: 9 / 19.5; box-sizing: border-box; padding: 0.42em; border-radius: 2.2em; background: #1d1611;
+  box-shadow: 0 0 0 1.5px #3a3a3a, 0 1.2em 2.6em -0.8em rgba(0, 15, 8, 0.65), 0 0.3em 0.8em rgba(0, 15, 8, 0.25); }
+.screen { position: relative; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; border-radius: 1.8em; background: #fff; overflow: hidden; color: #1d1b19; }
+.dark .screen { background: #000; color: #f5f5f7; }
+.status { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 0.85em 1.25em 0 1.5em; font-size: 0.8em; }
+.island { position: absolute; left: 50%; top: 0.55em; width: 32%; height: 1.4em; translate: -50% 0; border-radius: 0.8em; background: #1d1611; }
+.sIcons { display: flex; gap: 0.2em; }
+.sIcons i { width: 0.3em; height: 0.6em; border-radius: 0.1em; background: currentColor; }
+.nav { display: flex; justify-content: space-between; align-items: center; margin: 0.9em 0 0; padding: 0 0.9em; font-size: 0.9em; font-weight: 500; color: #d9750f; }
+.nav > span:first-child { display: flex; align-items: center; gap: 0.3em; }
+.nav svg { width: 0.55em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.navMore svg { width: 1.1em; height: 0.35em; fill: currentColor; stroke: none; }
+.dark .nav { color: #f4ad33; }
+.phoneBoard { flex: 1; min-height: 0; display: grid; align-content: center; padding: 0 0.5em 3.4em; }
+.phoneBoard .ink path { stroke-width: 1.4px; }
+.phoneBoard .tag { height: 1.45em; padding: 0 0.5em; gap: 0.3em; font-size: 0.72em; }
+.phoneBoard .tag svg { width: 0.85em; height: 0.85em; }
+.phoneBoard .outline::before { inset: -0.3em; border-width: 1.5px; border-radius: 0.45em; }
+.dock { position: absolute; left: 0.55em; right: 0.55em; bottom: 1em; display: flex; justify-content: space-between; align-items: center; padding: 0.22em; border-radius: 99px;
+  background: rgba(250, 250, 252, 0.86); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.07), 0 0.3em 1em -0.3em rgba(0, 0, 0, 0.3); }
+.dock i { display: grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%; color: #3a3a3c; }
+.dock i[data-picked] { background: rgba(120, 120, 128, 0.18); color: #d9750f; }
+.dock svg { width: 0.8em; height: 0.8em; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.dock .style { width: 0.95em; height: 0.95em; margin: 0 0.15em; background: conic-gradient(red, orange, yellow, lime, deepskyblue, blueviolet, red); }
+.dark .dock { background: rgba(44, 44, 46, 0.9); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 0.3em 1em -0.3em rgba(0, 0, 0, 0.6); }
+.dark .dock i { color: #e5e5e7; }
+.dark .dock i[data-picked] { background: rgba(120, 120, 128, 0.36); color: #f4ad33; }
+
+/* ───────────────────────── Phones ───────────────────────── */
+@media (max-width: 760px) {
+  .stage { margin-top: 18px; }
+  .wide { display: none; }
+  .narrow { display: block; }
+  /* a: the iPhone, as large as the chapter allows, centred. */
+  .soloPhone { margin: 0 auto; font-size: min(18px, 4.6vw); }
+  /* b and c: the window's top left corner, the compact board large, the window running off the right
+     edge of the screen and under the next sheet. */
+  .phoneCrop { position: relative; height: 404px; margin-right: calc(-1 * var(--pad)); }
+  .cropPhone { position: absolute; inset: 0 -40px -70px 0; height: auto; grid-template-rows: 40px minmax(0, 1fr); border-radius: 12px 0 0 0; }
+  .cropPhone .bar { height: 40px; padding-left: 13px; }
+  .cropPhone .lights { gap: 7px; margin-right: 12px; }
+  .cropPhone .lights i { width: 11px; height: 11px; }
+  .cropPhone .boardBar { gap: 10px; }
+  .cropPhone .crumb { font-size: 13.5px; gap: 9px; }
+  .cropPhone .tools { margin-left: 18px; }
+  .cropPhone .canvas { display: block; }
+  .fitTall { position: absolute; left: 10px; top: 14px; width: min(340px, calc(100vw - 52px)); }
+  .fitTall .ink path { stroke-width: 1.9px; }
+}
+
+/* ── d (part 5): variant 0's frame (same place, size and 22px corners) holding the real board. The
+   toolbar is the app's, from an active window (council-wb r16): white capsules 36px tall, icons on a
+   35.5px pitch in #262626, Select in #a85700, 8px between capsules, 8px from the top and right of the
+   window. The zoom: 12px, #6a6a6a, at the bottom right. ── */
+.dCanvas { --accent: #d96a06; position: relative; min-height: 0; border-radius: var(--frameR, 14px); background: #fff; color: #262626; container-type: size; overflow: hidden;
+  box-shadow: var(--frameShadow); }
+.dTools { position: absolute; z-index: 1; top: 12px; right: 12px; display: flex; gap: 8px; }
+.dTools[data-set="narrow"] { display: none; }
+.cap { display: flex; align-items: center; height: 36px; padding: 0 2px; border-radius: 99px; background: #fff;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 1px 5px rgba(0, 0, 0, 0.07); }
+.cap .ico { width: 35.5px; height: 36px; }
+/* Each icon at the real glyph's size (final/46, measured at 1x): Select 10 wide, Hand 13.5, Pencil 13.5,
+   the shapes 19.5, Arrow 12.5, Text 19.5, Eraser 17, Library 20.5, Comments 18, Full Screen 16, the AI
+   16, Share 14.5, More 15; none taller than 18.5. */
+.cap .ico svg { width: 22px; height: 22px; stroke-width: 1.3; }
+.cap .ico[data-k="select"] svg:first-child { width: 21px; height: 21px; }
+.cap .ico[data-k="hand"] svg { width: 24px; height: 24px; stroke-width: 1.2; }
+.cap .ico[data-k="pencil"] svg { width: 19px; height: 19px; }
+.cap .ico[data-k="rect"] svg { width: 20px; height: 14.5px; stroke-width: 1.5; }
+.cap .ico[data-k="arrow"] svg { width: 23px; height: 23px; stroke-width: 1.25; }
+.cap .ico[data-k="eraser"] svg { width: 25px; height: 25px; stroke-width: 1.15; }
+.cap .ico[data-k="library"] svg { width: 25px; height: 23px; stroke-width: 1.2; }
+.cap .ico[data-k="comment"] svg { width: 23px; height: 23px; stroke-width: 1.25; }
+.cap .ico[data-k="full"] svg { width: 23px; height: 23px; stroke-width: 1.3; }
+.cap .ico[data-k="share"] svg { width: 21px; height: 23px; stroke-width: 1.3; }
+.cap .ico[data-k="more"] svg { width: 17.5px; height: 5.3px; }
+.cap .ico > svg[width] { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+.cap .ico[data-picked] { color: #a85700; }
+.aa { font: 400 19px/1 var(--sans); letter-spacing: -0.01em; }
+.cap .ico svg.chev { width: 9px; height: 6px; margin-left: 3px; color: #8e8e93; stroke-width: 1.6; }
+.dTools[data-set="narrow"] .cap:first-child .ico { display: flex; align-items: center; justify-content: center; width: 50px; }
+/* The board as large as the frame allows, a little under centre: its title clears the toolbar, and the
+   board's own empty foot takes the zoom. */
+.dFit { position: absolute; left: 50%; top: calc(50% + 14px); translate: -50% -50%; width: min(calc(100cqw - 72px), calc((100cqh - 40px) * 2.1428)); }
+.dTall { display: none; }
+.dZoom { position: absolute; right: 24px; bottom: 18px; font: 500 12px/1 var(--sans); font-variant-numeric: tabular-nums; color: #6a6a6a; }
+
+@media (max-width: 760px) {
+  .dCanvas { container-type: normal; border-radius: 12px; padding: 54px 12px 30px; }
+  .dTools { top: 10px; right: 10px; gap: 6px; }
+  .dTools[data-set="mac"] { display: none; }
+  .dTools[data-set="narrow"] { display: flex; }
+  .cap { height: 34px; }
+  .cap .ico { width: 34px; height: 34px; }
+  .dFit { position: static; translate: none; width: 100%; }
+  .dWide { display: none; }
+  .dTall { display: block; }
+  .dTall .ink path { stroke-width: 1.9px; }
+  .dZoom { right: 16px; bottom: 12px; font-size: 11px; }
+  .dTall .outline::before { inset: -6px; border-width: 2px; border-radius: 7px; }
+  .dTall .tag { height: 25px; padding: 0 9px 0 8px; gap: 5px; font-size: 13px; }
+  .dTall .tag svg { width: 12px; height: 12px; }
+  .dTall .tag[data-side="left"] { translate: calc(-100% - 12px) -6px; }
+}

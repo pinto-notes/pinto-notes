@@ -1,0 +1,80 @@
+/* Round 27, slug `film` (2026-11-17): the first screen's picture is a recording (Film.tsx). Two versions:
+   ?hero=1 (default): the words left, the iPhone recording standing on the torn paper right (Granola's
+   layout). ?hero=2: the words big and centred, the ChatGPT recording as a wide dark slab under them, which
+   holds while the words go and the Notes sheet is laid over it. */
+
+/* ── A loop and its first frame (Film.tsx). The picture is the first paint; the video, whose first frame is
+   the same picture, shows only once it plays. ── */
+.film { position: relative; overflow: hidden; }
+.still, .video { display: block; width: 100%; height: auto; }
+.video { position: absolute; inset: 0; height: 100%; object-fit: cover; opacity: 0; }
+.film[data-playing] .video { opacity: 1; }
+
+/* ── The first screen. It owns the screen: nothing of the Notes sheet shows until you scroll. ── */
+.hero { height: 100svh; min-height: 640px; }
+.h1 { font-size: min(6vw, 9.6vh, 88px); line-height: 0.95; }
+.br { display: inline; }
+.brN { display: none; }
+.onNarrow { display: none; }
+
+/* A chapter's tab shows once its sheet has docked. Before the script runs (the first half second) nothing
+   hides the Notes tab, which would peek over the fold under the first screen. */
+.hero ~ [data-ch]:not([data-docked]) [data-tab] { visibility: hidden; }
+
+/* ?hero=1, a Mac: the iPhone stands on the paper, centred between the paper's torn left edge and the
+   page's content edge, as tall as leaves the app's bar ("Claude changed 4 lines") well inside the first
+   screen. Its foot runs off the screen; the Notes sheet is laid over it as you scroll. */
+.v1 { --artL: calc(var(--pad) + min(610px, 43vw) + 32px); }
+.v1 .text { width: min(600px, 42vw); }
+.device { --H: min(calc((100svh - var(--hh) - 118px) / 0.835), 900px); --W: calc(var(--H) * 1206 / 2622); --bez: 11px;
+  position: absolute; z-index: 2; top: calc(var(--hh) + 48px); left: calc((var(--artL) + 100% - var(--pad)) / 2 - var(--W) / 2 - var(--bez));
+  width: var(--W); padding: var(--bez); border-radius: calc(var(--W) * 0.155 + var(--bez)); background: #1b1612;
+  box-shadow: inset 0 0 0 1.5px #3a322b, 0 0 0 1px rgba(40, 20, 5, 0.25), 0 3px 6px rgba(50, 25, 5, 0.18), 0 40px 70px -28px rgba(60, 28, 4, 0.55); }
+.device .film { border-radius: calc(var(--W) * 0.155); background: #fcf9f3; }
+
+/* ?hero=2, a Mac: the words big and centred, then the slab. */
+.v2 { height: auto; min-height: 0; display: block; padding-bottom: 0; }
+.v2 .text { width: auto; margin: 0; padding: max(5svh, 36px) var(--pad) 0; text-align: center; box-sizing: border-box; }
+.v2 .h1 { font-size: min(7.2vw, 11.4svh, 110px); line-height: 0.93; white-space: nowrap; }
+.v2 .text > p { margin-left: auto; margin-right: auto; }
+:global(:root) .v2 .text [data-cta][data-cta] { justify-content: center; align-items: center; }
+.v2 .lede { max-width: 31em; }
+/* The slab: a wide sheet of the torn paper, and on it ChatGPT's window, dark, as large as the page's
+   column allows. It holds (sticky) while the words scroll away, for half a screen, before Notes rises. */
+.slabRun { position: relative; height: calc(var(--slabH) + 52svh); margin-top: clamp(28px, 4.4svh, 44px);
+  --slabW: min(860px, calc(100% - 2 * var(--pad))); --slabH: calc(var(--slabW) * 612 / 860 + 2 * 34px); }
+.slab { position: sticky; top: calc(var(--hh) + 22px); height: var(--slabH); }
+.slabPaper { position: absolute; inset: 0 0 auto; height: calc(var(--slabH) + 40svh); background: #fdd9b0;
+  -webkit-mask: url(/lab/z/edge-v1.webp) 0 0 / 920px 26px repeat-x, linear-gradient(#000, #000) 0 24px / 100% 100% no-repeat;
+  mask: url(/lab/z/edge-v1.webp) 0 0 / 920px 26px repeat-x, linear-gradient(#000, #000) 0 24px / 100% 100% no-repeat; }
+.win { position: relative; width: var(--slabW); margin: 34px auto 0; border-radius: 16px; background: #0e0e0e; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 0 1.5px rgba(30, 15, 5, 0.32), 0 3px 6px rgba(20, 8, 0, 0.2), 0 44px 80px -36px rgba(40, 16, 2, 0.7); }
+.win .film { background: #0e0e0e; }
+
+/* ── Phones ── */
+@media (max-width: 760px) {
+  .onWide { display: none; }
+  .onNarrow { display: block; }
+  .br { display: none; }
+  .brN { display: inline; }
+  /* The Notes sheet's torn edge (it laps the hero by --tearH) waits under the fold. */
+  .hero { height: auto; min-height: calc(100svh + var(--tearH)); }
+  .h1 { font-size: min(11.4vw, 6svh); line-height: 0.98; }
+  .v1 .text { width: auto; }
+  /* The recording's crop, "Heard about" down to the app's bar, as a piece of the iPhone screen lying on
+     the paper: the width of the column, so its lines are about 14 px. */
+  .card { position: relative; z-index: 2; margin: 30px var(--pad) 0; padding-top: 8px; border-radius: 20px; background: #fcf9f3; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(60, 30, 8, 0.08), 0 2px 5px rgba(50, 25, 5, 0.14), 0 26px 44px -24px rgba(60, 28, 4, 0.55); }
+
+  /* ?hero=2 on a phone: the words centred and larger; the same crop as a full-width slab, edge to edge,
+     on the paper. */
+  .v2 .text { padding: 22px var(--pad) 0; }
+  .v2 .h1 { font-size: min(12vw, 6svh); line-height: 0.95; white-space: normal; }
+  .v2 .lede { max-width: none; }
+  .slabRun { height: auto; margin-top: 12px; }
+  .slab { position: relative; top: auto; height: auto; padding: 14px 0 calc(var(--tearH) + 28px); }
+  /* "Heard about" sits a little under the crop's top; on the slab it starts at the edge's air. */
+  .slab .card .film { margin-top: -10px; }
+  .slabPaper { height: 100%; }
+  .slab .card { margin: 0; padding-top: 0; border-radius: 0; box-shadow: 0 1px 0 rgba(60, 30, 8, 0.1), 0 -1px 0 rgba(60, 30, 8, 0.1), 0 24px 40px -26px rgba(60, 28, 4, 0.5); }
+}

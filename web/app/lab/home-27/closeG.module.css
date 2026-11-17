@@ -1,0 +1,45 @@
+/* Round 26, `?close=g` (the default): the close is one picture. The paper-b desk (the sprig, the folded
+   page, the orange notebook, the pen) is the whole sheet: laid at the sheet's full height, anchored to
+   its right edge, its own empty paper on the left melting into the sheet's. On that paper: "Pinto Notes
+   is free.", the two downloads and one short paragraph of small print. No study (it's a line in Your
+   AI now), no list. At the page's end the footer's torn edge lies on the notebook.
+   The sheet itself (sticky, torn along its top) is the page's .cover (s.module.css). */
+
+/* The picture: its own colour is the sheet's (#fcddb6), so the left edge, where it fades, never shows. */
+.art { position: absolute; top: 0; right: 0; height: 100%; width: auto; max-width: none; aspect-ratio: 3 / 2; pointer-events: none;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 22%); mask: linear-gradient(90deg, transparent, #000 22%); }
+
+.body { position: relative; z-index: 1; box-sizing: border-box; height: 100%; display: flex; align-items: center; padding: calc(var(--tearH) + 24px) var(--pad) 48px; }
+/* The words sit on the picture's empty paper, a touch above the middle, so they also clear the footer
+   when it lifts the sheet at the page's end. */
+.text { width: min(560px, 46cqw); margin-top: -4cqh; }
+.title { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(7.2cqw, 13.5cqh, 104px); line-height: 0.92; letter-spacing: -0.04em; color: #24170d; }
+.ctas > div { margin-top: clamp(24px, 4cqh, 36px); }
+.fine { margin: 18px 0 0; max-width: 31em; font-size: var(--small, 15px); line-height: 1.5; font-weight: 500; color: #5c4a36; text-wrap: pretty; }
+.fine a { color: #24170d; font-weight: 600; text-decoration: underline; text-decoration-color: rgba(36, 23, 13, 0.35); text-underline-offset: 3px; }
+@media (hover: hover) { .fine a:hover { text-decoration-color: currentColor; } }
+.fine a:focus-visible { outline: 3px solid #ee8a14; outline-offset: 3px; border-radius: 4px; }
+
+/* The picture again, in the flow under the words: shown only where the sheet scrolls like a page. */
+.artFlow { display: none; }
+
+/* Phones, and windows taller than wide: the sheet scrolls like a page. The words first, then the desk's
+   right side under them, as one block at the phone's full width, its foot under the footer's torn edge. */
+@media (max-width: 760px), (max-aspect-ratio: 1/1) {
+  .cover::after { display: none; }
+  .art { display: none; }
+  .body { display: block; height: auto; padding: 88px 0 0; }
+  .text { width: auto; max-width: 560px; margin: 0; padding: 0 var(--pad); }
+  .title { font-size: min(15vw, 92px); }
+  /* The desk's right 62% from just under the sprig down: the folded page, the notebook and the pen, at
+     the phone's full width (the sprig is the first screen's and the Mac close's). */
+  .artFlow { position: relative; display: block; width: 100%; aspect-ratio: 1905 / 1495; margin-top: 12px; overflow: hidden; pointer-events: none;
+    -webkit-mask: linear-gradient(180deg, transparent, #000 10%); mask: linear-gradient(180deg, transparent, #000 10%); }
+  .artFlow img { position: absolute; right: 0; bottom: 0; width: calc(100% / 0.62); max-width: none; height: auto; }
+}
+@media (max-width: 760px) {
+  /* Round 27: the close is one screen on a phone, its title still in view at the page's end. */
+  .body { padding-top: 56px; }
+  .artFlow { aspect-ratio: 1905 / 1150; }
+  .fine { margin-top: 14px; }
+}

@@ -1,0 +1,160 @@
+/* Round 21: the Your AI chapter's variants (AiAlt.tsx). ChatGPT from the demo video: page #0e0e0e,
+   rail #000, your bubble #292927, words #ececec, "Worked for" #8f8f8f, actions #b4b4b4, composer
+   #2a2a2a. Pinto: the Notes chapter's window; the receipt #fcedd8 with #a85700 words, as the app. */
+
+.body { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; padding: var(--airT) var(--pad) max(5svh, 28px); }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px 56px; }
+.head h2 br { display: none; }
+.tie { margin: 0; max-width: 20em; padding-bottom: 6px; font-size: 20px; line-height: 1.42; font-weight: 500; color: var(--soft); text-wrap: pretty; }
+.stage { flex: none; margin-top: clamp(20px, 3.4vh, 36px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "one two"; column-gap: clamp(24px, 3vw, 44px); align-items: start; }
+.one { grid-area: one; min-width: 0; }
+.two { grid-area: two; min-width: 0; margin-top: clamp(28px, 5vh, 56px); }
+/* b (round 23, the default): the chat and the note it made, side by side, top-aligned, one height. */
+@media (min-width: 761px) {
+  .body[data-v="b"] .two { margin-top: 0; }
+  .body[data-v="b"] .pinto { height: clamp(330px, 47vh, 440px); }
+}
+.body[data-v="c"] .stage { grid-template-areas: "one then" "one two"; grid-template-rows: auto 1fr; }
+.body[data-v="c"] .two { margin-top: 12px; }
+.then { grid-area: then; align-self: end; margin: clamp(28px, 5vh, 56px) 0 0; font-size: 18px; line-height: 1.4; font-weight: 500; color: var(--ink); }
+.stat, .foot { margin: clamp(14px, 2.2vh, 22px) 0 0; max-width: 46em; font-size: 16px; line-height: 1.45; color: var(--soft); }
+.stat a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255, 241, 226, 0.35); text-underline-offset: 3px; white-space: nowrap; }
+@media (hover: hover) { .stat a:hover { text-decoration-color: currentColor; } }
+.with { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; vertical-align: -2px; }
+.fill, .gpt svg.fill, .pinto svg.fill { fill: currentColor; stroke: none; }
+
+/* ── ChatGPT ── */
+.gpt { display: grid; grid-template-columns: 58px minmax(0, 1fr); height: clamp(330px, 47vh, 440px); border-radius: var(--frameR, 14px); overflow: hidden; background: #0e0e0e; color: #ececec; font-family: var(--sans);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 1px 3px rgba(0, 0, 0, 0.3), 0 20px 40px -24px rgba(0, 0, 0, 0.8); }
+.rail { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 14px; background: #000; }
+.lights { display: flex; gap: 6px; margin-bottom: 10px; }
+.lights i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.rail > i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: #b4b4b4; }
+.rail > i.railOn { background: #2a2a2a; color: #fff; }
+.rail svg, .gTop svg, .acts svg, .composer svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.rail svg[viewBox="0 0 20 6"], .gTop svg[viewBox="0 0 20 6"], .acts svg[viewBox="0 0 20 6"] { height: 5px; }
+.gMain { position: relative; min-width: 0; display: flex; flex-direction: column; }
+.gTop { display: flex; align-items: center; gap: 14px; margin: 0; padding: 12px 16px 6px; color: #b4b4b4; font-size: 12.5px; }
+.gShare { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
+.gShare svg { width: 13px; height: 13px; }
+.gThread { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 8px clamp(18px, 2.8vw, 40px) 0; }
+.turn { display: grid; gap: 8px; }
+.bubble { justify-self: end; max-width: 82%; margin: 4px 0 10px; padding: 10px 16px; border-radius: 20px; background: #292927; font-size: 15px; line-height: 1.42; }
+.worked { margin: 0; font-size: 13.5px; color: #8f8f8f; }
+.answer p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.5; color: #ececec; text-wrap: pretty; }
+.answer b { font-weight: 600; color: #fff; }
+.answer code { padding: 1px 5px; border-radius: 5px; background: #2a2a2a; font: 0.86em/1 ui-monospace, "SF Mono", Menlo, monospace; }
+.acts { display: flex; gap: 14px; margin: 0; color: #b4b4b4; }
+.acts i { display: grid; place-items: center; }
+.composer { display: flex; align-items: center; gap: 12px; margin: 10px clamp(14px, 2.2vw, 28px) 14px; padding: 7px 7px 7px 14px; border-radius: 99px; background: #2a2a2a; color: #9b9b9b; font-size: 14.5px; }
+.composer span { flex: 1; }
+.composer i { display: grid; place-items: center; }
+.composer b { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; font-size: 13.5px; }
+.composer b svg { width: 9px; height: 7px; }
+.composer .send { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #0e0e0e; }
+.composer .send svg { stroke-width: 1.8; }
+.bubble :global(.sr) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ── Pinto: a note in its own window ── */
+.pinto { position: relative; border-radius: var(--frameR, 14px); overflow: hidden; background: #fff; color: #1d1b19; font-family: var(--sans);
+  box-shadow: 0 0 0 1px rgba(60, 25, 5, 0.22), 0 1px 3px rgba(0, 0, 0, 0.3), 0 20px 40px -24px rgba(0, 0, 0, 0.8); }
+.pBar { display: flex; align-items: center; gap: 13px; height: 46px; padding: 0 12px 0 16px; color: #8e8e93; }
+.pLights { flex: none; display: flex; gap: 8px; margin-right: 8px; }
+.pLights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
+.pLights i:nth-child(2) { background: #febc2e; }
+.pLights i:nth-child(3) { background: #28c840; }
+.pIco { flex: none; display: grid; place-items: center; }
+.pIco svg { width: 17px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.pIco svg[viewBox="0 0 10 16"] { width: 10px; }
+.pIco svg[viewBox="0 0 20 6"] { width: 15px; height: 5px; }
+.dim { opacity: 0.45; }
+.crumb { min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.crumb span { color: #6e6e73; }
+.crumb svg { width: 6px; height: 10px; fill: none; stroke: #b0b0b5; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.crumb b { font-weight: 600; color: #1d1b19; }
+.pTools { margin-left: auto; display: flex; align-items: center; gap: 13px; padding: 5px 12px; border-radius: 99px; background: #f6f6f7; color: #3a3a3c; }
+.pTools > b { font-size: 15px; font-weight: 500; line-height: 1; }
+.pNote { padding: clamp(14px, 2.2vh, 22px) clamp(24px, 2.6vw, 36px) 24px; font-size: 17px; line-height: 1.5; color: #2b2622; }
+.pNote p { margin: 0 0 10px; text-wrap: pretty; }
+.nTitle { margin: 0 0 10px; font-size: clamp(26px, 2.2vw, 30px); font-weight: 750; letter-spacing: -0.025em; line-height: 1.1; color: #1d1b19; }
+.read mark { padding: 2px 4px; margin: 0 -4px; border-radius: 4px; background: #ffe58f; color: inherit; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.read b { font-weight: 700; }
+/* What ChatGPT wrote, marked as the app marks an AI's lines (Pane/Editor/DecoratedLayoutFragment.swift):
+   a marker run behind the words and a 2 pt tick 8 pt left of the text. Round 24: one attribution, the
+   receipt, and the lines marked lightly: the tint as the app draws it at 45% of its strength, as it
+   fades (24% x 0.45 of the accent over the page; the tick 45% of the way from the page to the accent).
+   At full strength every line of a note the AI wrote read as selected text (council r18). */
+.wrote { position: relative; }
+.wrote::before { content: ""; position: absolute; left: -10px; top: 3px; bottom: 14px; width: 2px; border-radius: 1px; background: #eebc8f; }
+.wrote span { padding: 0.06em 0.25em; margin: 0 -0.25em; border-radius: 0.25em; background: #fbefe4; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.wrote ul { margin: 0 0 10px; padding-left: 1.2em; }
+.wrote li::marker { color: #b3a493; }
+.meta { color: #6b5f55; font-size: 15px; }
+.pinto:has(.receipt) .pNote { padding-bottom: 66px; }
+.receipt { position: absolute; left: 50%; bottom: 14px; translate: -50% 0; display: flex; align-items: center; gap: 9px; margin: 0; padding: 7px 14px; border-radius: 99px; white-space: nowrap;
+  background: #fcedd8; box-shadow: 0 0 0 1px #f5dbb3, 0 6px 16px -8px rgba(120, 60, 0, 0.3); font: 600 13.5px/1.1 var(--sans); color: #a85700; }
+.receipt svg { flex: none; width: 14px; height: 14px; }
+.receipt i { width: 1px; height: 15px; background: #ecd2ad; }
+.receipt b { font-weight: 600; }
+.receipt > span, .receipt b { flex: none; white-space: nowrap; }
+
+/* ───────────────────────── Phones: one picture, the answer and the note laid together ───────────────────────── */
+@media (max-width: 760px) {
+  .body { padding: calc(var(--tearH) + 16px) var(--pad) 14px; }
+  .head { display: block; }
+  .head h2 br { display: inline; }
+  .tie { margin-top: 12px; font-size: 17px; padding: 0; }
+  .stage { display: block; margin-top: 18px; }
+  .gpt { display: block; height: auto; }
+  .rail, .gTop, .acts, .composer { display: none; }
+  .gThread { padding: 14px 16px 6px; }
+  .bubble { font-size: 14.5px; padding: 9px 14px; margin: 0 0 8px; }
+  .worked { font-size: 12.5px; }
+  .answer p { font-size: 15px; margin-bottom: 8px; }
+  .two { margin: -10px 0 0 22px; }
+  .pBar { height: 38px; gap: 10px; padding: 0 10px 0 13px; }
+  .pLights { gap: 6px; margin-right: 4px; }
+  .pLights i { width: 10px; height: 10px; }
+  .pTools > *:not(:last-child), .pIco.dim { display: none; }
+  .pTools { padding: 4px 9px; }
+  .crumb { font-size: 13px; }
+  .pNote { padding: 10px 16px 14px; font-size: 15px; line-height: 1.45; }
+  .pNote p { margin-bottom: 7px; }
+  .nTitle { font-size: 22px; margin-bottom: 6px; }
+  .pinto:has(.receipt) .pNote { padding-bottom: 66px; }
+  /* The receipt fits the card: the mark, who wrote it, and Undo (See all changes is left to the Mac). */
+  .receipt { font-size: 13px; padding: 7px 13px; bottom: 12px; gap: 8px; }
+  .receipt .wide { display: none; }
+  .wrote > p:last-child { display: none; }
+  .wrote ul { margin-bottom: 0; }
+  .body[data-v="c"] .then { margin: 12px 0 10px; font-size: 15.5px; }
+  .body[data-v="c"] .two { margin: 0; }
+  .body[data-v="c"] .answer p:first-child { display: none; }
+  .stat, .foot { font-size: 14px; margin-top: 14px; }
+}
+
+/* ── Round 25: the page's one scale (s.module.css tokens) and one frame, and the iPhone view on a phone ── */
+.head { align-items: last baseline; }
+.tie { font-size: var(--body); line-height: var(--bodyLh); font-weight: 500; padding-bottom: 0; }
+.stage { margin-top: var(--bp); }
+.foot { font-size: var(--body2); }
+.gpt, .pinto { box-shadow: var(--frameShadowDark); }
+.ipBar { display: none; }
+@media (max-width: 760px) {
+  .tie { margin-top: var(--hb); }
+  .stage { margin-top: var(--bp); }
+  .pBar { display: none; }
+  .ipBar { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 2px 12px 0 8px; color: #d9750f; }
+  .ipBack { display: flex; align-items: center; gap: 5px; font: 400 17px/1 var(--sans); }
+  .ipBack svg { width: 11px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+  .ipMore { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; box-shadow: inset 0 0 0 1.6px currentColor; }
+  .ipMore svg { width: 13px; height: 4px; fill: currentColor; }
+  .pNote { padding-top: 4px; }
+}
+/* Round 26: the study as one quiet line under the chapter's foot. */
+.studyLine { margin: 8px 0 0; font-size: var(--small, 15px); line-height: 1.45; color: rgba(255, 236, 214, 0.62); text-wrap: pretty; }
+.studyLine a { color: rgba(255, 241, 226, 0.92); font-weight: 600; text-decoration: underline; text-decoration-color: rgba(255, 241, 226, 0.35); text-underline-offset: 3px; white-space: nowrap; }
+@media (hover: hover) { .studyLine a:hover { text-decoration-color: currentColor; } }
+.studyLine a:focus-visible { outline: 3px solid #ee8a14; outline-offset: 3px; border-radius: 4px; }

@@ -1,0 +1,241 @@
+/* Round 27, slug `try`: the first screen holds a demo you can play with (Try.tsx). Everything in the demo
+   is sized in em off one unit (--u), so the Mac window, ChatGPT and the requests keep their proportions
+   at any width. The app's own type is the system sans; the page's headline is Newsreader. */
+
+/* ───────────────────────── The first screens ───────────────────────── */
+
+/* v1: the headline on the left, the demo on the right, on the hero's torn peach paper. */
+/* No z-index on the hero or its columns: the window carried into Notes (Try.tsx, useCarry) must stack
+   with the chapters' sheets. The words and ChatGPT go under the rising sheet; the window over it. */
+.hero1 { position: relative; box-sizing: border-box; height: calc(100svh + var(--tabH)); min-height: 700px; padding: var(--hh) var(--pad) 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: clamp(40px, 5vw, 88px); }
+.words { position: relative; max-width: 560px; padding-bottom: calc(2svh + var(--tabH)); }
+.h1 { margin: 0; font-family: var(--display); font-weight: 500; font-size: min(5.6vw, 9.4vh, 80px); line-height: 0.95; letter-spacing: -0.04em; color: #24170d; }
+.br { display: inline; }
+.side { position: relative; padding-bottom: var(--tabH); }
+.hero1 .mac { position: relative; z-index: 3; transform-origin: 0 0; will-change: transform; }
+/* ChatGPT stays over the note. It scrolls with the page, a fixed gap above the Notes sheet, and is off
+   screen before that sheet docks, so its higher z-index never covers a chapter. */
+.hero1 .gpt { z-index: 4; }
+/* The torn paper the demo lies on: from a little left of the demo to the page's edge (s.art's torn
+   left and bottom edges, s.artTop's torn top). */
+.hero1 .paper { z-index: 0; left: auto; right: 0; width: calc(var(--demoW) + var(--pad) + 44px); top: calc(var(--hh) + 8px); bottom: 30px; }
+.hero1 { --demoW: calc(var(--u) * 40); --u: clamp(13px, 1.12vw, 16px); }
+.hero1 .side { width: var(--demoW); }
+
+/* v2: a centred headline with air, then the demo in a wide rounded frame, starting low in the first
+   screen (Dusk's blue panel): the top of the frame and the change landing show; the rest is a scroll away. */
+.hero2 { position: relative; z-index: 1; box-sizing: border-box; padding: calc(var(--hh) + clamp(28px, 5svh, 56px)) var(--pad) clamp(72px, 12svh, 120px); text-align: center; }
+.hero2 .words { max-width: none; margin: 0 auto; padding: 0; }
+.hero2 .h1 { font-size: min(7.4vw, 12vh, 112px); line-height: 0.93; }
+.hero2 .lede { margin-left: auto; margin-right: auto; }
+.hero2 .ctaRow > div { justify-content: center; }
+
+.slab { position: relative; box-sizing: border-box; width: 100%; max-width: 1240px; margin: clamp(32px, 5svh, 48px) auto 0; padding: clamp(24px, 2.6vw, 40px) clamp(28px, 4vw, 56px) clamp(32px, 4vw, 56px);
+  border-radius: 28px; background: #e9772a; text-align: left; overflow: hidden; --u: clamp(13px, 1.06vw, 16px); }
+/* The frame's paper: Pinto orange with the chapters' printed dots, heavier at the corners. */
+.slab::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(circle, #b5490c 0 1.5px, transparent 2px); background-size: 8px 8px; opacity: 0.38;
+  -webkit-mask: radial-gradient(60% 70% at 100% 100%, #000, transparent 75%), radial-gradient(40% 60% at 0 0, rgba(0, 0, 0, 0.7), transparent 75%);
+  mask: radial-gradient(60% 70% at 100% 100%, #000, transparent 75%), radial-gradient(40% 60% at 0 0, rgba(0, 0, 0, 0.7), transparent 75%); }
+
+/* ───────────────────────── The demo ───────────────────────── */
+
+.demo { position: relative; font-size: var(--u, 15px); font-family: var(--sans); color: #1d1b19; }
+.stage { position: relative; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.fill { fill: currentColor; stroke: none !important; }
+
+/* Pinto on a Mac (cap24/mac/undo.png): white, the traffic lights, back and forward, "Folder › Note", the
+   tools in a pale capsule. */
+.mac { position: relative; box-sizing: border-box; width: 36em; border-radius: 0.9em; background: #fff; overflow: hidden; box-shadow: var(--frameShadow); }
+.bar { display: flex; align-items: center; gap: 0.9em; height: 3em; padding: 0 0.8em 0 1em; color: #6e6e73; }
+.lights { flex: none; display: flex; gap: 0.5em; margin-right: 0.35em; }
+.lights i { width: 0.78em; height: 0.78em; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.14); }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.ico { flex: none; display: grid; place-items: center; }
+.ico svg { width: 1.1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dim { opacity: 0.4; }
+.crumb { display: flex; align-items: center; gap: 0.45em; margin-left: 0.3em; font-size: 0.93em; white-space: nowrap; color: #6e6e73; }
+.crumb svg { width: 0.5em; height: 0.75em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+.crumb b { font-weight: 600; color: #1d1b19; }
+.tools { margin-left: auto; display: flex; align-items: center; gap: 0.95em; padding: 0.35em 0.85em; border-radius: 99px; background: #f5f5f6; color: #3a3a3c; }
+.tools b { font-size: 0.98em; font-weight: 500; line-height: 1; }
+.tools .ico svg { width: 1.05em; height: 0.95em; }
+.tools .ico:last-child svg { width: 1em; height: 0.3em; }
+.pane { box-sizing: border-box; min-height: 23.2em; padding: 0.9em 2.4em 1.6em 2.6em; }
+
+/* The note. */
+.note { display: grid; }
+.note p { position: relative; margin: 0; }
+.title { font-size: 2em; font-weight: 750; letter-spacing: -0.025em; line-height: 1.15; color: #1d1b19; }
+.by { margin-top: 0.2em !important; font-size: 1.04em; line-height: 1.5; color: #6e6a66; justify-self: start; }
+.h { margin-top: 1.05em !important; margin-bottom: 0.3em !important; font-size: 0.8em; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #6f6359; }
+.quote { margin-top: 0.3em !important; padding: 0.05em 0 0.1em 0.85em; box-shadow: inset 0.18em 0 0 #e8d3b6; font-size: 1.1em; line-height: 1.38; color: #2b2622; }
+.check, .dish, .dot, .p { display: flex; align-items: center; gap: 0.7em; min-height: 2.35em; font-size: 1.1em; line-height: 1.35; color: #1d1b19; justify-self: start; }
+.p { display: block; min-height: 0; margin-top: 0.55em !important; }
+.p b { font-weight: 700; }
+.note > .p:nth-child(2) { margin-top: 0.4em !important; }
+.dish b { font-weight: 600; color: #6e6a66; margin-right: 0.15em; }
+.dot { min-height: 1.95em; }
+.box { flex: none; width: 1.1em; height: 1.1em; border-radius: 50%; box-shadow: inset 0 0 0 0.09em #c4c0bb; }
+.bullet { flex: none; width: 0.36em; height: 0.36em; margin: 0 0.15em 0 0.3em; border-radius: 50%; background: #3a3530; }
+
+/* An AI's lines, as the app marks them: a peach run behind the words, an orange tick in the margin. */
+.run { padding: 0.12em 0.36em 0.16em; margin: 0 -0.36em; border-radius: 0.36em; background: #f8dcc3; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.p .run { line-height: 1.75; }
+.tick { position: absolute; left: -1.05em; top: 0.42em; bottom: 0.42em; width: 0.19em; border-radius: 0.1em; background: #e57a1c; }
+.p .tick { top: 0.3em; bottom: 0.3em; }
+
+/* ChatGPT's Mac app, narrow (web/public/demo/pinto-notes-chatgpt.mp4): dark, Chat and Work at the top. */
+.gpt { position: absolute; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; width: 17.2em; height: 20.5em; border-radius: 0.95em; background: #0e0e0e; color: #ececec; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 0 0 1.5px rgba(30, 15, 5, 0.35), 0 2px 4px rgba(20, 8, 0, 0.18), 0 26px 52px -22px rgba(30, 12, 2, 0.6); }
+.gBar { position: relative; flex: none; display: flex; align-items: center; height: 2.5em; margin: 0; padding: 0 0.9em; }
+.gLights { display: flex; gap: 0.46em; }
+.gLights i { width: 0.74em; height: 0.74em; border-radius: 50%; background: #ff5f57; }
+.gLights i:nth-child(2) { background: #febc2e; }
+.gLights i:nth-child(3) { background: #28c840; }
+.seg { position: absolute; left: 50%; translate: -50% 0; display: flex; padding: 0.14em; border-radius: 99px; background: #1d1d1d; font-size: 0.78em; line-height: 1; }
+.seg b { padding: 0.42em 0.95em; border-radius: 99px; background: #2f2f2f; color: #fff; font-weight: 600; }
+.seg span { padding: 0.42em 0.95em; color: #a8a8a8; }
+/* A chat reads from the top: your message, then the answer under it. */
+.thread { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; padding: 0.7em 0.95em 0; overflow: hidden; }
+.before { margin: 0 0 0.9em; font-size: 0.88em; line-height: 1.45; color: #ececec; opacity: 0.55;
+  -webkit-mask: linear-gradient(transparent, #000 70%); mask: linear-gradient(transparent, #000 70%); }
+.bubble { align-self: flex-end; max-width: 86%; margin: 0 0 0.85em; padding: 0.55em 0.9em 0.6em; border-radius: 1.2em; background: #2f2f2f; font-size: 0.9em; line-height: 1.38; }
+.think { position: absolute; width: 0.65em; height: 0.65em; margin: 0; border-radius: 50%; background: #ececec; opacity: 0; }
+.worked { margin: 0 0 0.25em; font-size: 0.8em; color: #8f8f8f; }
+.answer { margin: 0; font-size: 0.9em; line-height: 1.45; color: #ececec; }
+.answer b { font-weight: 600; color: #fff; }
+.acts { display: flex; gap: 0.85em; margin: 0.65em 0 0; color: #a8a8a8; }
+.acts i, .composer i { display: grid; place-items: center; }
+.acts svg, .composer svg { width: 0.95em; height: 0.95em; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.composer { flex: none; display: flex; align-items: center; gap: 0.55em; margin: 0.6em; padding: 0.34em 0.34em 0.34em 0.8em; border-radius: 1.5em; background: #2a2a2a; color: #ececec; font-size: 0.88em; }
+.composer svg { width: 1.05em; height: 1.05em; }
+.ph { flex: 1; color: #9b9b9b; }
+.send { flex: none; width: 1.9em; height: 1.9em; border-radius: 50%; background: #fff; color: #0e0e0e; }
+.send svg { stroke-width: 2; }
+
+/* Pinto on an iPhone (phones only): the note's bar, the note, the label at its foot. */
+.iphone { display: none; }
+
+/* The requests. Each is a button that sends its words to ChatGPT; the one shown is filled. */
+.chips { display: flex; flex-direction: column; align-items: flex-start; gap: 0.55em; }
+.chip { display: inline-flex; align-items: center; gap: 0.6em; box-sizing: border-box; height: 2.6em; padding: 0 0.42em 0 1em; border: 0; border-radius: 99px; background: #fffaf3; color: #2a1d10;
+  font: 600 0.93em/1 var(--sans); letter-spacing: -0.005em; white-space: nowrap; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(60, 35, 10, 0.16), 0 1px 2px rgba(60, 35, 10, 0.1); transition: background-color 0.18s ease-out, box-shadow 0.18s ease-out, color 0.18s ease-out, scale 0.12s ease-out; }
+.chip:hover { background: #fff; box-shadow: 0 0 0 1px rgba(60, 35, 10, 0.3), 0 3px 10px -4px rgba(60, 35, 10, 0.35); }
+.chip:active { scale: 0.97; }
+.chip:focus-visible { outline: 2px solid #e8820f; outline-offset: 2px; }
+.chipSend { flex: none; display: grid; place-items: center; width: 1.9em; height: 1.9em; border-radius: 50%; background: #2a1d10; color: #fff; transition: background-color 0.18s ease-out, color 0.18s ease-out; }
+.chipSend svg { width: 1.05em; height: 1.05em; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.chip[data-on] { background: #2a1d10; color: #fff4e6; box-shadow: 0 0 0 1px #2a1d10, 0 4px 12px -6px rgba(40, 20, 5, 0.6); }
+.chip[data-on] .chipSend { background: #fff4e6; color: #2a1d10; }
+
+/* v1 on a Mac: the window, ChatGPT over its lower right corner (clear of the note's words), the requests
+   under the window on the left, their foot level with ChatGPT's. */
+.demo[data-v="1"] { width: 40em; }
+.demo[data-v="1"] .gpt { right: 0; top: 15.2em; }
+.demo[data-v="1"] .chips { position: absolute; left: 0; top: 27.6em; }
+.demo[data-v="1"] { height: 35.7em; }
+/* The note's words wrap where the Notes chapter's window wraps them, so the carried window (useCarry)
+   dissolves into that one line for line. Words under ChatGPT's top edge wrap short of it. */
+.demo[data-v="1"] .note { max-width: 20.5em; }
+.demo[data-v="1"] .note > .p[data-ai] { max-width: 17em; }
+
+/* v2 in its frame: ChatGPT on the left, the window on the right, top-aligned; the requests in a row
+   under ChatGPT. The note's second highlight goes, so the change sits high enough to show. */
+.demo[data-v="2"] .stage { display: grid; grid-template-columns: 19em minmax(0, 1fr); align-items: start; column-gap: 2em; }
+.demo[data-v="2"] .gpt { position: relative; grid-column: 1; grid-row: 1; width: auto; height: 24em; }
+.demo[data-v="2"] .mac { grid-column: 2; grid-row: 1; align-self: stretch; width: auto; }
+/* One centred row under both windows, inside the slab. */
+.demo[data-v="2"] .chips { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.7em; margin-top: 1.4em; }
+.demo[data-v="2"] .pane { min-height: 19.5em; }
+.demo[data-v="2"] [data-extra] { display: none; }
+
+/* ───────────────────────── Motion ───────────────────────── */
+/* The page's own run plays from first paint (no script needed): your message is already sent, the
+   lines land at --at, ChatGPT answers. A tap remounts the run, which plays again from the tap. */
+@media (prefers-reduced-motion: no-preference) {
+  .note [data-ai] { animation: land 0.46s var(--at, 0ms) cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+  @keyframes land {
+    from { opacity: 0; clip-path: inset(-0.4em 100% -0.4em -2em); }
+    30% { opacity: 1; }
+    to { opacity: 1; clip-path: inset(-0.4em -1em -0.4em -2em); }
+  }
+  .note [data-ai] .run { animation: glow 1.4s var(--at, 0ms) ease-out both; }
+  @keyframes glow { from { background-color: #f3c497; } to { background-color: #f8dcc3; } }
+  .note[data-swap], .crumb[data-swap] { animation: swap 0.24s var(--at, 0ms) ease-out both; }
+  @keyframes swap { from { opacity: 0; translate: 0 0.3em; } to { opacity: 1; translate: none; } }
+  .thread[data-tap] .bubble { animation: rise 0.42s var(--at, 0ms) cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .thread[data-tap] .before { animation: fade 0.2s ease-out both; }
+  @keyframes rise { from { opacity: 0; translate: 0 0.7em; scale: 0.96; } to { opacity: 1; translate: none; scale: none; } }
+  @keyframes fade { from { opacity: 0; } }
+  .reply { animation: rise2 0.45s var(--at, 0ms) cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+  @keyframes rise2 { from { opacity: 0; translate: 0 0.45em; } to { opacity: 1; translate: none; } }
+  /* ChatGPT's dot while it works, where its answer will start, until it answers. */
+  .think { animation: think var(--at, 0ms) linear both; }
+  @keyframes think { 0%, 12% { opacity: 0; } 18%, 96% { opacity: 1; } 100% { opacity: 0; } }
+  .change { animation: rise2 0.4s var(--at, 0ms) cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+}
+/* The dot sits under your message, where the answer appears. */
+.bubble + .think { margin-top: 0.15em; position: relative; }
+
+/* ───────────────────────── Phones ───────────────────────── */
+@media (max-width: 760px) {
+  /* The first screen is the hero to its foot: the Notes sheet's torn edge waits under it until you scroll. */
+  /* Tall enough that the Notes tab, which sits above its sheet until the script runs, starts below the screen. */
+  .hero1 { display: flex; flex-direction: column; align-items: stretch; height: auto; min-height: calc(100svh + var(--tearH) + var(--tabH)); padding: var(--hh) 0 0; }
+  .words { max-width: none; padding: 22px var(--pad) 0; }
+  .h1 { font-size: min(11.4vw, 6.2svh); line-height: 0.96; }
+  .br { display: none; }
+  /* The paper lies under the demo, torn along its top, to the screen's foot. */
+  .hero1 .paper { display: none; }
+  .hero1 .side { flex: 1 0 auto; width: auto; margin-top: 10px; padding: calc(var(--tearH) + 14px) var(--pad) 28px; background: #fdd9b0;
+    -webkit-mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat;
+    mask: url(/lab/z/edge-v1.webp) 0 0 / 800px 24px repeat-x, linear-gradient(#000, #000) 0 22px / 100% 100% no-repeat; }
+  .hero1, .slab { --u: 14px; }
+
+  .mac { display: none; }
+  .iphone { display: block; box-sizing: border-box; border-radius: 1.4em; background: #fff; overflow: hidden; box-shadow: var(--frameShadow); }
+  .ipBar { display: flex; align-items: center; justify-content: space-between; height: 2.8em; margin: 0; padding: 0 0.85em 0 0.6em; }
+  .ipBack { display: flex; align-items: center; gap: 0.3em; font-size: 1.12em; color: #e8820f; }
+  .ipBack svg { width: 0.62em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .ipMore { display: grid; place-items: center; width: 2.1em; height: 2.1em; border-radius: 50%; box-shadow: inset 0 0 0 1.4px #e8820f; color: #e8820f; }
+  .ipMore svg { width: 1em; height: 0.3em; }
+  .ipPane { padding: 0 1.3em 0.5em 1.6em; min-height: 13.4em; }
+  .ipPane .title { font-size: 1.9em; }
+  .ipPane [data-long], .ipPane .by { display: none; }
+  .ipPane .quote[data-extra] { display: block; }
+  .fineWide { display: none; }
+  .ipPane .p { font-size: 1.04em; }
+  .ipPane .check, .ipPane .dish, .ipPane .dot { font-size: 1.07em; min-height: 2.1em; }
+  .ipPane .dot { min-height: 1.75em; }
+  .change { display: flex; align-items: center; gap: 0.6em; height: 3.1em; margin: 0 0.7em 0.7em; padding: 0 1em; border-radius: 99px; background: #faf8f6; box-shadow: 0 0 0 0.5px #d9d4cf, 0 6px 14px -6px rgba(0, 0, 0, 0.18); font-size: 0.98em; }
+  .change b { flex: 1; font-weight: 600; }
+  .change > svg { width: 0.55em; height: 0.8em; fill: none; stroke: #b0aca8; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .changeMark { display: grid; place-items: center; }
+
+  /* ChatGPT is cut to your message, sent, over the note's top right corner. */
+  .demo .gBar, .demo .reply, .demo .think, .demo .before, .demo .composer { display: none; }
+  .demo .thread { padding: 0.6em; }
+  .demo .bubble { margin: 0; max-width: none; align-self: stretch; font-size: 0.95em; }
+  .demo .stage { padding-top: 2.2em; }
+  .demo[data-v] { width: auto; height: auto; }
+  .demo[data-v] .stage { display: block; }
+  /* One row that scrolls on its own, as ChatGPT's own suggestions do on an iPhone; the page never does. */
+  .demo[data-v] .chips { position: static; width: auto; flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; gap: 0.45em; margin: 0.9em calc(-1 * var(--pad)) 0; padding: 0.2em var(--pad) 0.3em; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .demo[data-v] .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; }
+  .demo[data-v] .gpt { position: absolute; right: -0.2em; top: 0; left: auto; grid-column: auto; grid-row: auto; width: 15.4em; height: auto; border-radius: 1.1em; }
+  .chip { height: 2.45em; font-size: 0.9em; padding-left: 0.85em; }
+  .chipSend { width: 1.75em; height: 1.75em; }
+
+  .hero2 { min-height: calc(100svh + var(--tearH) + var(--tabH)); padding: calc(var(--hh) + 28px) var(--pad) 48px; }
+  /* Beats the site's phone rule that left-aligns the buttons on iPhone (:root:is([data-platform]) .ctas.ctas). */
+  :root .hero2 .ctaRow > div[data-cta][data-cta] { align-items: center; }
+  /* Before the platform script runs (or with no script), the two buttons wrap instead of running off the screen. */
+  .hero1 div[data-cta], .hero2 div[data-cta] { flex-wrap: wrap; }
+  .hero2 .h1 { font-size: min(11.4vw, 6.2svh); }
+  .slab { margin-top: 30px; padding: 18px 16px 18px; border-radius: 22px; }
+}
