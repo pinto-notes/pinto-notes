@@ -549,7 +549,8 @@ struct ShareButton: View {
     var picture: (() -> Void)?
     var pictureRequest: (() -> NotePicture.Request?)?
 
-    /// A board's bar: Share stands apart, filled in the accent (BoardToolbar).
+    /// A board's bar: Share stands apart, the app's primary button (BoardToolbar): the accent with
+    /// a white label, white with a black one in dark mode, as every primary button in the app.
     @Environment(\.prominentShare) private var prominent
 
     var body: some View {
@@ -557,13 +558,11 @@ struct ShareButton: View {
             switch prominent {
             case .words?:
                 // A Label, so the toolbar item is named Share too (a Text left its label empty).
-                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.titleOnly).padding(.horizontal, 4) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(PColor.paneAccent))
+                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.titleOnly) }
+                    .buttonStyle(.amberProminent)
             case .glyph?:
                 Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly) }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(PColor.paneAccent))
+                    .buttonStyle(.amberProminent)
             case nil:
                 Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
             }
