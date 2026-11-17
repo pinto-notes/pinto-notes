@@ -32,7 +32,7 @@ import ZIPFoundation
         let lines = (1...140).map { "Line \($0): the long read goes on and on, words across the whole column, so some are always under the bar." }
         _ = c.mainContext.createNote(in: .folder(travel.id), body: "Long read\n\n" + lines.joined(separator: "\n"))
         try c.mainContext.save()
-        try await PersonaEditorShots.keeping(PersonaEditorShots.linkKeys) {
+        try await PersonaEditorShots.keeping([]) {
             for m in Self.modes {
                 try await PersonaEditorShots.window(c, note: "Long read", dark: m.dark) { w in
                     try await PersonaEditorShots.scrollToEnd(w)
@@ -106,7 +106,7 @@ import ZIPFoundation
         guard Self.dir != nil else { return }
         let c = try await Self.notionLibrary()
         let titles = Set(((try? c.mainContext.fetch(FetchDescriptor<Note>())) ?? []).map(\.title))
-        try await PersonaEditorShots.keeping(PersonaEditorShots.linkKeys) {
+        try await PersonaEditorShots.keeping([]) {
             for m in Self.modes {
                 for (note, name) in [("Home", "home"), ("Reading list", "database"), ("Dune", "row")] where titles.contains(note) {
                     try await PersonaEditorShots.window(c, note: note, dark: m.dark) { w in

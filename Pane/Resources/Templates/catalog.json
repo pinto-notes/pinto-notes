@@ -15,6 +15,59 @@
    "mood-energy-log",
    "workout-log",
    "daily-journal"
+  ],
+  "tailor": "Ask which habits fit that and how often, then set up my tracker.",
+  "fits": [
+   {
+    "words": [
+     "habit",
+     "habits",
+     "routine",
+     "routines",
+     "streak",
+     "streaks",
+     "daily",
+     "everyday",
+     "discipline",
+     "goal",
+     "goals",
+     "resolution",
+     "resolutions",
+     "consistency"
+    ],
+    "why": "Tick each habit off every day and see your streaks."
+   },
+   {
+    "weight": 0.8,
+    "words": [
+     "running",
+     "run",
+     "walk",
+     "walking",
+     "steps",
+     "water",
+     "drink",
+     "meditate",
+     "meditation",
+     "stretch",
+     "stretching",
+     "yoga",
+     "vitamins",
+     "floss",
+     "exercise",
+     "read",
+     "pages",
+     "sober",
+     "smoking",
+     "alcohol",
+     "screen",
+     "phone",
+     "practice",
+     "piano",
+     "guitar"
+    ],
+    "why": "Make it a habit you tick every day, with a streak."
+   }
   ]
  },
  {
@@ -33,6 +86,28 @@
    "one-on-one-notes",
    "daily-standup",
    "decision-log"
+  ],
+  "tailor": "Ask what these meetings are and who is in them, then set the note up for them.",
+  "fits": [
+   {
+    "words": [
+     "meeting",
+     "meetings",
+     "minutes",
+     "transcript",
+     "transcripts",
+     "call",
+     "calls",
+     "sync",
+     "agenda",
+     "actions",
+     "client",
+     "clients",
+     "work",
+     "team"
+    ],
+    "why": "After each meeting: what was decided, and who does what."
+   }
   ]
  },
  {
@@ -51,6 +126,27 @@
    "meeting-notes",
    "one-on-one-notes",
    "weekly-review"
+  ],
+  "tailor": "Ask what I'm working on and who reads it, then write today's standup.",
+  "fits": [
+   {
+    "words": [
+     "standup",
+     "stand up",
+     "scrum",
+     "status",
+     "update",
+     "updates",
+     "blockers",
+     "commits",
+     "yesterday",
+     "meetings",
+     "work",
+     "team",
+     "progress"
+    ],
+    "why": "Yesterday, today and what's in the way, one section a day."
+   }
   ]
  },
  {
@@ -69,6 +165,30 @@
    "grocery-list",
    "recipe-box",
    "budget-log"
+  ],
+  "tailor": "Ask who I cook for and what to skip, then plan the dinners and the grocery list.",
+  "fits": [
+   {
+    "words": [
+     "meal",
+     "meals",
+     "dinner",
+     "dinners",
+     "food",
+     "eat",
+     "eating",
+     "cooking",
+     "cook",
+     "lunch",
+     "lunches",
+     "menu",
+     "diet",
+     "nutrition",
+     "meal prep",
+     "groceries"
+    ],
+    "why": "Plans the week's dinners and writes the shopping list."
+   }
   ]
  },
  {
@@ -87,6 +207,25 @@
    "book-notes",
    "study-flashcards",
    "cornell-notes"
+  ],
+  "tailor": "Ask what I like to read and what's on my list, then file the first books.",
+  "fits": [
+   {
+    "words": [
+     "book",
+     "books",
+     "read",
+     "reading",
+     "novel",
+     "novels",
+     "library",
+     "tbr",
+     "kindle",
+     "audiobooks",
+     "authors"
+    ],
+    "why": "Books to read, reading and finished, each with a line on why."
+   }
   ]
  },
  {
@@ -105,6 +244,29 @@
    "daily-journal",
    "habit-tracker",
    "weekly-review"
+  ],
+  "tailor": "Ask what I want to notice, then log today.",
+  "fits": [
+   {
+    "words": [
+     "mood",
+     "moods",
+     "energy",
+     "feel",
+     "feeling",
+     "feelings",
+     "mental",
+     "anxiety",
+     "stress",
+     "tired",
+     "sleep",
+     "wellbeing",
+     "emotions",
+     "therapy",
+     "health"
+    ],
+    "why": "A short evening check-in that shows patterns over weeks."
+   }
   ]
  },
  {
@@ -123,6 +285,36 @@
    "decision-log",
    "weekly-review",
    "meeting-notes"
+  ],
+  "tailor": "Ask what kind of job I'm looking for and where I've applied, then fill in the table.",
+  "fits": [
+   {
+    "words": [
+     "job",
+     "jobs",
+     "career",
+     "application",
+     "applications",
+     "apply",
+     "applying",
+     "interview",
+     "interviews",
+     "cv",
+     "resume",
+     "recruiter",
+     "recruiters",
+     "offers",
+     "hiring"
+    ],
+    "why": "Every application, where it stands and what happens next."
+   },
+   {
+    "weight": 0.6,
+    "words": [
+     "work"
+    ],
+    "why": "Every application, where it stands and what happens next."
+   }
   ]
  },
  {
@@ -141,6 +333,89 @@
    "budget-log",
    "gift-ideas",
    "daily-journal"
+  ],
+  "tailor": "Ask when I'm going, who with and what I enjoy, then plan the trip.",
+  "fits": [
+   {
+    "words": [
+     "trip",
+     "trips",
+     "travel",
+     "travelling",
+     "traveling",
+     "holiday",
+     "holidays",
+     "vacation",
+     "weekend away",
+     "flight",
+     "flights",
+     "hotel",
+     "hotels",
+     "packing",
+     "pack",
+     "itinerary",
+     "journey",
+     "road trip",
+     "roadtrip",
+     "camping",
+     "honeymoon",
+     "abroad",
+     "city break"
+    ],
+    "why": "The days, the bookings and a packing list, with a countdown."
+   },
+   {
+    "words": [
+     "lisbon",
+     "porto",
+     "paris",
+     "rome",
+     "milan",
+     "venice",
+     "florence",
+     "london",
+     "edinburgh",
+     "dublin",
+     "barcelona",
+     "madrid",
+     "seville",
+     "berlin",
+     "munich",
+     "vienna",
+     "prague",
+     "budapest",
+     "amsterdam",
+     "copenhagen",
+     "stockholm",
+     "oslo",
+     "helsinki",
+     "reykjavik",
+     "athens",
+     "istanbul",
+     "new york",
+     "los angeles",
+     "san francisco",
+     "tokyo",
+     "kyoto",
+     "seoul",
+     "bangkok",
+     "bali",
+     "sydney",
+     "japan",
+     "italy",
+     "spain",
+     "portugal",
+     "france",
+     "greece",
+     "iceland",
+     "norway",
+     "thailand",
+     "mexico",
+     "morocco",
+     "croatia"
+    ],
+    "why": "Plans the trip day by day, with bookings and a packing list."
+   }
   ]
  },
  {
@@ -159,6 +434,40 @@
    "cornell-notes",
    "reading-list",
    "book-notes"
+  ],
+  "tailor": "Ask what I'm studying and for my notes, then make the first cards.",
+  "fits": [
+   {
+    "words": [
+     "study",
+     "studying",
+     "flashcard",
+     "flashcards",
+     "cards",
+     "exam",
+     "exams",
+     "learn",
+     "learning",
+     "memorise",
+     "memorize",
+     "revision",
+     "revise",
+     "vocabulary",
+     "language",
+     "spanish",
+     "french",
+     "german",
+     "japanese",
+     "anki",
+     "quiz",
+     "test",
+     "school",
+     "university",
+     "course",
+     "courses"
+    ],
+    "why": "Turns your notes into flashcards that come back when due."
+   }
   ]
  },
  {
@@ -177,6 +486,32 @@
    "meeting-notes",
    "one-on-one-notes",
    "bug-triage"
+  ],
+  "tailor": "Ask what's being decided and what the options are, then log it.",
+  "fits": [
+   {
+    "words": [
+     "decision",
+     "decisions",
+     "decide",
+     "decided",
+     "choice",
+     "choices",
+     "tradeoffs",
+     "options",
+     "architecture",
+     "adr"
+    ],
+    "why": "What you chose, what you didn't, and why."
+   },
+   {
+    "weight": 0.6,
+    "words": [
+     "work",
+     "team"
+    ],
+    "why": "What you chose, what you didn't, and why."
+   }
   ]
  },
  {
@@ -195,6 +530,52 @@
    "habit-tracker",
    "mood-energy-log",
    "meal-plan"
+  ],
+  "tailor": "Ask what I train and how often, then set the log up for that.",
+  "fits": [
+   {
+    "words": [
+     "workout",
+     "workouts",
+     "training",
+     "train",
+     "gym",
+     "lifting",
+     "lift",
+     "weights",
+     "strength",
+     "exercise",
+     "fitness",
+     "sets",
+     "reps",
+     "bench",
+     "squat",
+     "deadlift",
+     "crossfit",
+     "bests"
+    ],
+    "why": "A row for each session, and your personal bests."
+   },
+   {
+    "words": [
+     "running",
+     "run",
+     "runs",
+     "jog",
+     "jogging",
+     "marathon",
+     "5k",
+     "10k",
+     "cycling",
+     "bike",
+     "swim",
+     "swimming",
+     "cardio",
+     "race",
+     "pace"
+    ],
+    "why": "A row for each run, with distance and time, and your bests."
+   }
   ]
  },
  {
@@ -213,6 +594,33 @@
    "meal-plan",
    "grocery-list",
    "home-maintenance"
+  ],
+  "tailor": "Ask what I can spend a month and on what, then set up my budget.",
+  "fits": [
+   {
+    "words": [
+     "budget",
+     "spend",
+     "spending",
+     "spent",
+     "money",
+     "expense",
+     "expenses",
+     "cost",
+     "costs",
+     "finance",
+     "finances",
+     "saving",
+     "savings",
+     "bills",
+     "rent",
+     "salary",
+     "cash",
+     "payments",
+     "subscriptions"
+    ],
+    "why": "What you spend against a monthly budget, by category."
+   }
   ]
  },
  {
@@ -231,6 +639,28 @@
    "meeting-notes",
    "daily-standup",
    "decision-log"
+  ],
+  "tailor": "Ask who it's with and what I want to raise, then add it under Next time.",
+  "fits": [
+   {
+    "words": [
+     "1 1",
+     "1on1",
+     "one on one",
+     "manager",
+     "boss",
+     "report",
+     "reports",
+     "mentor",
+     "coaching",
+     "feedback",
+     "meeting",
+     "meetings",
+     "work",
+     "team"
+    ],
+    "why": "One running note per person: topics, then follow-ups."
+   }
   ]
  },
  {
@@ -249,6 +679,25 @@
    "reading-list",
    "study-flashcards",
    "cornell-notes"
+  ],
+  "tailor": "Ask which book and what stood out so far, then start its notes.",
+  "fits": [
+   {
+    "words": [
+     "book",
+     "books",
+     "read",
+     "reading",
+     "quotes",
+     "highlights",
+     "highlight",
+     "kindle",
+     "nonfiction",
+     "summary",
+     "summaries"
+    ],
+    "why": "The big idea and the best lines of each book you read."
+   }
   ]
  },
  {
@@ -267,6 +716,26 @@
    "daily-standup",
    "decision-log",
    "meeting-notes"
+  ],
+  "tailor": "Ask what product it's for and for the first report, then file it.",
+  "fits": [
+   {
+    "words": [
+     "bug",
+     "bugs",
+     "issue",
+     "issues",
+     "triage",
+     "qa",
+     "defects",
+     "crashes",
+     "support",
+     "tickets",
+     "software",
+     "testing"
+    ],
+    "why": "Every bug in one table, sorted by severity."
+   }
   ]
  },
  {
@@ -285,6 +754,25 @@
    "daily-journal",
    "mood-energy-log",
    "habit-tracker"
+  ],
+  "tailor": "Ask what a good week looks like for me, then run this week's review.",
+  "fits": [
+   {
+    "words": [
+     "review",
+     "week",
+     "weeks",
+     "weekly",
+     "reflect",
+     "reflection",
+     "retro",
+     "retrospective",
+     "sunday",
+     "progress",
+     "goals"
+    ],
+    "why": "Five questions once a week, written up for you."
+   }
   ]
  },
  {
@@ -304,6 +792,25 @@
    "grocery-list",
    "budget-log"
   ],
+  "tailor": "Ask what I like to cook and for the first recipe, then file it.",
+  "fits": [
+   {
+    "words": [
+     "recipe",
+     "recipes",
+     "cooking",
+     "cook",
+     "baking",
+     "bake",
+     "food",
+     "dishes",
+     "kitchen",
+     "cookbook",
+     "ingredients"
+    ],
+    "why": "Each recipe cleaned up and filed, ingredients as a checklist."
+   }
+  ],
   "opened": "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [ ] 250 g red lentils\n- [ ] 1 onion\n- [ ] 2 carrots\n- [ ] 2 cloves of garlic\n- [ ] 1 tsp ground cumin\n- [ ] 2 lemons\n\nFrom the cupboard: olive oil, salt.\n\n1. Soften the onion, carrots and garlic in olive oil with the cumin.\n2. Add the lentils and a litre of water. Simmer for 20 minutes.\n3. Blend half of it, then stir in the lemon juice and salt to taste."
  },
  {
@@ -322,6 +829,30 @@
    "meeting-notes",
    "weekly-review",
    "daily-standup"
+  ],
+  "tailor": "Ask where I post and how often, then plan the next two weeks.",
+  "fits": [
+   {
+    "words": [
+     "content",
+     "post",
+     "posts",
+     "posting",
+     "social",
+     "blog",
+     "newsletter",
+     "youtube",
+     "instagram",
+     "tiktok",
+     "linkedin",
+     "videos",
+     "video",
+     "marketing",
+     "publish",
+     "publishing"
+    ],
+    "why": "What goes out when, and a list of ideas for later."
+   }
   ]
  },
  {
@@ -340,6 +871,29 @@
    "budget-log",
    "grocery-list",
    "meal-plan"
+  ],
+  "tailor": "Ask what kind of home I have and what needs doing, then add the jobs.",
+  "fits": [
+   {
+    "words": [
+     "home",
+     "house",
+     "apartment",
+     "flat",
+     "maintenance",
+     "chores",
+     "repair",
+     "repairs",
+     "cleaning",
+     "garden",
+     "car",
+     "boiler",
+     "filters",
+     "renovation",
+     "diy"
+    ],
+    "why": "What's due around the house, and when you last did it."
+   }
   ]
  },
  {
@@ -358,6 +912,24 @@
    "budget-log",
    "trip-plan",
    "grocery-list"
+  ],
+  "tailor": "Ask who I buy for and what they like, then add the first ideas.",
+  "fits": [
+   {
+    "words": [
+     "gift",
+     "gifts",
+     "present",
+     "presents",
+     "birthday",
+     "birthdays",
+     "christmas",
+     "xmas",
+     "wishlist",
+     "anniversary"
+    ],
+    "why": "Ideas by person, saved when you hear them."
+   }
   ]
  },
  {
@@ -376,6 +948,29 @@
    "study-flashcards",
    "book-notes",
    "reading-list"
+  ],
+  "tailor": "Ask what course it's for and for my notes, then make Cornell notes.",
+  "fits": [
+   {
+    "words": [
+     "study",
+     "studying",
+     "lecture",
+     "lectures",
+     "class",
+     "classes",
+     "course",
+     "courses",
+     "school",
+     "university",
+     "college",
+     "exam",
+     "exams",
+     "seminar",
+     "textbook"
+    ],
+    "why": "Lecture notes with a question for each and a summary."
+   }
   ]
  },
  {
@@ -394,6 +989,24 @@
    "mood-energy-log",
    "weekly-review",
    "habit-tracker"
+  ],
+  "tailor": "Ask what I want to remember each day, then write today's entry.",
+  "fits": [
+   {
+    "words": [
+     "journal",
+     "journaling",
+     "diary",
+     "gratitude",
+     "reflect",
+     "reflection",
+     "memories",
+     "thoughts",
+     "day",
+     "days"
+    ],
+    "why": "Four short questions a day, written up as an entry."
+   }
   ]
  },
  {
@@ -412,6 +1025,22 @@
    "meal-plan",
    "recipe-box",
    "budget-log"
+  ],
+  "tailor": "Ask what I need and where I shop, then add it sorted by aisle.",
+  "fits": [
+   {
+    "words": [
+     "grocery",
+     "groceries",
+     "shopping",
+     "shop",
+     "supermarket",
+     "food",
+     "buy",
+     "pantry"
+    ],
+    "why": "One shopping list, sorted by aisle."
+   }
   ]
  }
 ]

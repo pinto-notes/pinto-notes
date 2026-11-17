@@ -39,7 +39,9 @@ import Testing
         #expect(VersionAuthorMark.asset("ChatGPT") == "AIGlyphOpenAI")
         #expect(VersionAuthorMark.asset("Codex") == "AIGlyphOpenAI")
         #expect(VersionAuthorMark.asset("Claude Code (work laptop)") == "AIGlyphClaude")
-        #expect(VersionAuthorMark.asset("Cursor") == nil)
+        // Every other AI the app has a mark for shows it (since 8 November 2026); one without a mark shows none.
+        #expect(VersionAuthorMark.asset("Cursor") == "AIGlyphCursor")
+        #expect(VersionAuthorMark.asset("Some Other AI") == nil)
     }
 
     /// Rows written before authors were recorded take them from the revision before.

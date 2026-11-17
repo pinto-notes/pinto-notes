@@ -95,6 +95,19 @@ import Testing
         }
     }
 
+    /// A note of 200 checklist lines (12,500 characters) shows with its top styled, the rest on
+    /// the turns after: styled whole, it was about a quarter of opening the note (13 November 2026).
+    @Test func aNoteOfTwoHundredLinesOpensWithItsTopStyledFirst() async {
+        let text = "Plan\n\n" + (0..<200).map { "- [ ] Item \($0) with **bold** and a [link](https://example.com)" }.joined(separator: "\n")
+        let h = await EditorHarness(text, focus: false)
+        defer { h.close() }
+        let first = h.view.core.lastRegions.first ?? "none"
+        #expect(first.hasPrefix("{0, ") && first != "{0, \((text as NSString).length)}", "styled first: \(first)")
+        for _ in 0..<200 where h.view.core.unstyledFrom != Int.max { await h.settle(0.02) }
+        #expect(h.view.core.unstyledFrom == Int.max)
+        #expect(Self.signature(h.view.textStorage!) == Self.reference(text, active: nil))
+    }
+
     @Test func progressiveOpenEndsFullyStyled() async {
         let text = PerfFixtures.longNote(lines: 3000)
         let h = await EditorHarness(text, focus: false)

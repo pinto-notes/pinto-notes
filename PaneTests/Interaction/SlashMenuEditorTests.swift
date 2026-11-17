@@ -278,7 +278,7 @@ import Testing
         let row = try #require(SlashCommand.available.firstIndex(of: .bulleted))
         // A click there lands in the list, not the text. SwiftUI's buttons take clicks only in a
         // window in front of an active app (never on a developer's Mac), so the test then calls
-        // what the row's button calls (as NoteLinksFootTests does off CI).
+        // what the row's button calls.
         let p = CGPoint(x: list.frame.minX + 60, y: list.frame.minY + 4 + (CGFloat(row) + 0.5) * SlashCommandList.rowHeight)
         let hit = h.view.superview?.hitTest(h.view.convert(p, to: h.view.superview))
         #expect(hit.map { $0 === list || $0.isDescendant(of: list) } == true, "the click goes to the list: \(String(describing: hit))")

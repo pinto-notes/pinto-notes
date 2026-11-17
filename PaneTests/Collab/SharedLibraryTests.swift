@@ -854,7 +854,8 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(AIEdit.listLine(note, by: "Claude") == "Edited by Sara's Claude")
         let receipt = try #require(AIEdit.markSeen(note))
         #expect(receipt.previous == "Offsite plan\n- Venue", "the tint and the margin marks start from here")
-        #expect(receipt.summary == "Sara's Claude changed 1 line")
+        // Named by what it did (the AI edit mark, bc759c5a); the review's title still counts lines.
+        #expect(receipt.summary == "Sara's Claude added \u{201C}Budget\u{201D}")
         #expect(receipt.by == "Claude", "the mark is the AI's own")
         #expect(receipt.undoLabel == "Undo Sara's Claude's changes")
         #expect(AIReview(receipt)?.title == "Sara's Claude changed 1 line")
@@ -862,7 +863,7 @@ extension NetworkFaults.SharedLibraryTests {
         // Sara's phone: her own AI, named as in a note of her own.
         await waitUntil { mine.aiEditedAt != nil }
         #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil)
-        #expect(try #require(AIEdit.markSeen(mine)).summary == "Claude changed 1 line")
+        #expect(try #require(AIEdit.markSeen(mine)).summary == "Claude added \u{201C}Budget\u{201D}")
     }
 
     /// Undo on that receipt takes the AI's change out of the document, as your edit, for everyone.
@@ -996,7 +997,7 @@ extension NetworkFaults.SharedLibraryTests {
         #expect(mine.aiEditor == "Claude" && mine.aiEditorPerson == nil)
         let receipt = try #require(AIEdit.markSeen(mine))
         #expect(receipt.previous == "Offsite plan\n- Venue\n- Dates", "only its own line is the AI's")
-        #expect(receipt.summary == "Claude changed 1 line")
+        #expect(receipt.summary == "Claude added \u{201C}Budget\u{201D}")
         // Undo takes out its line and leaves Emil's.
         try await AIEdit.undo(receipt, on: mine, library: phone.library)
         #expect(onPhone.text == "Offsite plan\n- Venue\n- Dates")
@@ -1159,15 +1160,19 @@ extension NetworkFaults.SharedLibraryTests {
 
         server.remove(member, from: note.id)
         await sara.library.reconcile(try await sara.transport.memberships())
+        await sara.library.told()
         #expect(mine.deletedAt != nil)
         #expect(said.all.count == 1)
         let removal = try #require(said.all.first)
         #expect(removal.id == mine.id)
         #expect(removal.alertTitle == "You no longer have access to \u{201C}Trip plan\u{201D}")
-        #expect(removal.message == "Ask Emil to share it with you again if you still need it.")
+        // The server says why (collab_access_ended), and who.
+        #expect(removal.reason == .removed)
+        #expect(removal.message == "Emil removed you from this note.")
         #expect(removal.copy == nil, "nothing typed here, nothing to keep")
         // Said once: the next look has nothing more to say.
         await sara.library.reconcile(try await sara.transport.memberships())
+        await sara.library.told()
         #expect(said.all.count == 1)
         // The notes window's queue says it once too.
         let queue = SharedRemovals()
@@ -1192,6 +1197,7 @@ extension NetworkFaults.SharedLibraryTests {
         // What collab_unshare leaves in a member's row, as sync applies it.
         mine.deletedAt = .now
         SharedNotes.pointerArrived?(mine)
+        await sara.library.told()
         #expect(said.all.map(\.id) == [mine.id])
         #expect(said.all.first?.message == "Ask its owner to share it with you again if you still need it.")
         #expect(mine.sharedDocument == nil)
@@ -1216,8 +1222,65 @@ extension NetworkFaults.SharedLibraryTests {
         onMac.trashedAt = onPhone.trashedAt
         onMac.deletedAt = onPhone.deletedAt
         SharedNotes.pointerArrived?(onMac)
+        await mac.library.told()
         #expect(onMac.sharedDocument == nil)
         #expect(said.all.isEmpty)
+    }
+
+    /// The owner stopped sharing: said as that, by name (the server keeps why, 20261112120000).
+    @Test func theAlertSaysTheOwnerStoppedSharing() async throws {
+        server.names = [owner: "Emil Wagman"]
+        let emil = try device(owner)
+        let (note, _) = try await shared("Party plan", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let said = SaidRemovals()
+        sara.library.onLostAccess = { said.all.append($0) }
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        try await emil.library.unshare(note)
+        await sara.library.reconcile(try await sara.transport.memberships())
+        await sara.library.told()
+        #expect(mine.deletedAt != nil)
+        #expect(said.all.map(\.reason) == [.unshared])
+        #expect(said.all.first?.message == "Emil stopped sharing this note.")
+    }
+
+    /// Left on the phone; the Mac's access check saw the membership gone before sync brought the
+    /// phone's leave, and told you that you'd lost a note you had just left (collab-fixes-r7). The
+    /// server says it was your own leave now, so nothing is said.
+    @Test func aLeaveOnAnotherDeviceFoundByTheAccessCheckSaysNothing() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Book club", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member), mac = try device(member)
+        let said = SaidRemovals()
+        mac.library.onLostAccess = { said.all.append($0) }
+        let onPhone = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onMac = try await mac.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        try await phone.library.leave(onPhone)
+        // No sync between them yet: the Mac only sees its membership gone.
+        await mac.library.reconcile(try await mac.transport.memberships())
+        await mac.library.told()
+        #expect(onMac.deletedAt != nil)
+        #expect(said.all.isEmpty)
+    }
+
+    /// A server that keeps no reason (production before the migration), or offline: the alert as
+    /// before, asking the owner.
+    @Test func withNoReasonTheAlertAsksTheOwner() async throws {
+        server.answersWhy = false
+        let emil = try device(owner)
+        let (note, _) = try await shared("Trip", on: emil)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let said = SaidRemovals()
+        sara.library.onLostAccess = { said.all.append($0) }
+        _ = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        server.remove(member, from: note.id)
+        await sara.library.reconcile(try await sara.transport.memberships())
+        await sara.library.told()
+        #expect(said.all.first?.reason == nil)
+        #expect(said.all.first?.message == "Ask its owner to share it with you again if you still need it.")
     }
 
     /// Bug 19: removed while typing, what they'd typed went with the note. When they'd typed in it
@@ -1237,10 +1300,12 @@ extension NetworkFaults.SharedLibraryTests {
         server.remove(member, from: note.id)
         sara.transport.offline = false
         await sara.library.reconcile(try await sara.transport.memberships())
+        await sara.library.told()
         #expect(mine.deletedAt != nil)
         let removal = try #require(said.all.first)
         #expect(removal.copy == "Offsite plan\n- Venue\n- Dinner at 8")
-        #expect(removal.message == "Ask its owner to share it with you again if you still need it. You can keep a copy of it as it is on this Mac.")
+        // "on this Mac", "on this iPhone": the device it runs on.
+        #expect(removal.message == "Its owner removed you from this note. You can keep a copy of it as it is on this \(InstallID.kind).")
 
         // Keep a Copy: an ordinary note of Sara's with her text, not in Shared with me.
         let queue = SharedRemovals()
@@ -1443,5 +1508,488 @@ extension NetworkFaults.SharedLibraryTests {
         emilSession.local("Groceries\n- [x] Milk", selection: nil)
         await waitUntil(3) { onPhone.text.contains("[x] Milk") }
         #expect(onPhone.text == "Groceries\n- [x] Milk", "relayed live")
+    }
+}
+
+/// The sharing update (after Mac 1.3): the collaboration bugs still open when sharing was switched
+/// off for 1.3, each as it happened.
+extension NetworkFaults.SharedLibraryTests {
+    /// The same storage as `d`, with a library of its own: the app opened again.
+    private func reopened(_ d: Device) -> SharedLibrary {
+        let key = dataKeys[d.transport.me]!, nk = self.nk
+        return SharedLibrary(context: d.context, transport: d.transport, name: "Sara", dataKey: { key }, openKey: { _ in nk })
+    }
+
+    /// Two sessions on one note (r7b): the stored document was here without the key for its
+    /// epoch, so it was fetched; the fetch stored the key and waited on the network, and the open
+    /// view, asking every 0.25 s, opened the record meanwhile. The fetch then opened a second
+    /// session on it, and both were on the note's channel. The view waits for the fetch now.
+    @Test func aViewAskingWhileTheDocumentLoadsDoesntOpenASecondSession() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Milk", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        try await joinsSettle(sara)
+        sara.library.closeAll()
+        // No key box for the note here (a new key not taken yet): it can't open from the record alone.
+        mine.sharedDocument?.keyBoxes = Data()
+        let library = reopened(sara)
+        #expect(library.session(for: mine) == nil)
+        let joins = sara.transport.calls.filter { $0 == "join" }.count
+        sara.transport.holdsPulls = true
+        let loading = Task { await library.ensureDocument(mine) }
+        await waitUntil { sara.transport.heldPulls == 1 }
+        // The key is in the record now; the view asks again while the pull waits.
+        #expect(library.session(for: mine) == nil, "the load opens it, not the view")
+        sara.transport.releasePulls()
+        let loaded = try #require(await loading.value)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(library.session(for: mine) === loaded)
+        #expect(sara.transport.calls.filter { $0 == "join" }.count == joins + 1, "one channel")
+        emilSession.local("Groceries\n- [x] Milk", selection: nil)
+        await waitUntil(3) { loaded.text.contains("[x] Milk") }
+        #expect(loaded.text == "Groceries\n- [x] Milk", "relayed live")
+    }
+
+    /// Changes a device sends go up as one or more change chunks; Automerge deflates one over 256
+    /// bytes. Each is found with its hash, as Automerge names it.
+    @Test func everyChangeInABlobIsFoundWithItsHash() throws {
+        let doc = CollabText.Document(textEncoding: .utf16)
+        let body = try doc.putObject(obj: .ROOT, key: "body", ty: .Text)
+        try doc.spliceText(obj: body, start: 0, delete: 0, value: "Milk")
+        doc.commitWith(message: nil)
+        let first = doc.heads()
+        try doc.spliceText(obj: body, start: 4, delete: 0, value: String(repeating: "Long line of groceries. ", count: 60))
+        doc.commitWith(message: nil)
+        let blob = try doc.encodeChangesSince(heads: [])
+        let found = try #require(CollabText.changes(in: blob))
+        #expect(found.count == 2)
+        #expect(Set(found.map(\.hash)) == Set(doc.getHistory()))
+        #expect(found.first.map { Set([$0.hash]) } == first)
+        #expect(found.map(\.bytes).reduce(Data(), +) == blob)
+        #expect(CollabText.changes(in: doc.save())?.isEmpty == true, "a saved document holds no loose changes")
+        // A saved document before changes (a catch-up's snapshot in the stored tail): the changes after it.
+        let more = doc.heads()
+        try doc.spliceText(obj: body, start: 0, delete: 0, value: "Shopping\n")
+        doc.commitWith(message: nil)
+        let after = try doc.encodeChangesSince(heads: more)
+        let tail = try #require(CollabText.changes(in: doc.save() + after))
+        #expect(tail.map(\.bytes) == [after])
+        #expect(Set(tail.map(\.hash)) == doc.heads())
+        #expect(CollabText.changes(in: Data([0x85, 0x6F, 0x4A, 0x83, 0, 0, 0, 0, 0, 9])) == nil, "a chunk cut short doesn't parse")
+    }
+
+    /// collab-fixes-r7b: a snapshot is the saved document, which leaves out a change Automerge
+    /// holds back for one it builds on. Something this device doesn't have comes before that
+    /// change, so a snapshot then would let the server drop it for everyone. None goes up until it
+    /// arrives, and the held change survives the device's own compaction and a relaunch.
+    @Test func aSnapshotWaitsWhileAChangeIsHeldBack() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        sara.transport.deaf = true
+        // Emil adds Milk, then Bread after it. Milk's change is stored late (still being written).
+        type("- [ ] Milk\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        let milk = try #require(server.updates(of: note.id).last)
+        server.inFlight.insert(milk.id)
+        type("- [ ] Bread\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        await hers.catchUp().value
+        #expect(hers.holdsChangesBack, "Bread waits for Milk")
+        #expect(hers.text == "Groceries\n")
+
+        let snapshots = server.snapshots(of: note.id).count
+        await hers.requireSnapshot()
+        #expect(server.snapshots(of: note.id).count == snapshots, "no snapshot while a change is held back")
+        // Compacting here keeps it, and it's still held when the note opens again.
+        hers.compact()
+        #expect(mine.sharedDocument?.tailChanges == 1)
+        sara.library.closeAll()
+        let library = reopened(sara)
+        let again = try #require(library.session(for: mine))
+        #expect(again.holdsChangesBack)
+
+        // Milk lands: both are in, and the snapshot goes up.
+        server.inFlight.remove(milk.id)
+        await again.catchUp().value
+        #expect(!again.holdsChangesBack)
+        #expect(again.text == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
+        await again.requireSnapshot()
+        #expect(server.snapshots(of: note.id).count == snapshots + 1)
+        // Someone starting from the server has everything.
+        let fresh = try device(member)
+        let theirs = try await fresh.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        #expect(fresh.library.session(for: theirs)?.text == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
+    }
+
+    /// Round 6: a shared note with no copy here was fetched again every 0.25 s after each failure
+    /// (the open view asks that often), offline too. Each failure waits twice as long, up to two
+    /// minutes; with no network nothing is asked; the network coming back tries at once.
+    @Test func aDocumentThatWontDownloadBacksOffAndWaitsForTheNetwork() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, _) = try await shared("Plan", on: emil)
+        server.add(member, to: note.id)
+        // Its pointer came from Sara's other device; no document here yet.
+        let pointer = Note(body: SharedNotes.placeholder(title: "Plan"), folder: nil)
+        pointer.sharedNoteID = note.id
+        sara.context.insert(pointer)
+        var clock = Date.now
+        var up = false
+        sara.library.now = { clock }
+        sara.library.networkUp = { up }
+        let asks = { sara.transport.calls.filter { $0 == "memberships" }.count }
+
+        #expect(await sara.library.ensureDocument(pointer) == nil)
+        #expect(asks() == 0, "no network, no request")
+        up = true
+        sara.transport.offline = true
+        for _ in 0..<5 { _ = await sara.library.ensureDocument(pointer) }
+        #expect(asks() == 1, "one try, then it waits")
+        #expect(sara.library.nextTry(note.id) == clock.addingTimeInterval(2))
+        clock += 2.5
+        _ = await sara.library.ensureDocument(pointer)
+        #expect(asks() == 2)
+        #expect(sara.library.nextTry(note.id) == clock.addingTimeInterval(4), "twice as long")
+        for _ in 0..<10 { clock += 200; _ = await sara.library.ensureDocument(pointer) }
+        #expect(sara.library.nextTry(note.id) == clock.addingTimeInterval(120), "two minutes at most")
+
+        // Back online: at once, and it opens.
+        sara.transport.offline = false
+        sara.library.networkCameBack()
+        #expect(await sara.library.ensureDocument(pointer) != nil)
+        #expect(sara.library.nextTry(note.id) == nil)
+    }
+
+    /// Round 6: sharing starts before the key check and stopped only at sign-out, so a check that
+    /// found the key replaced left it running. It stops when the key isn't ready, and when the key
+    /// it started with isn't the account's any more.
+    @Test func sharingStopsWhenTheKeyIsntReady() async throws {
+        let previous = CollabStore.shared
+        defer { CollabStore.shared = previous; SharedRemovals.shared.clear() }
+        let key = dataKeys[owner]!
+        let transport = FakeCollabTransport(server: server, me: owner)
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key }, book: CollabKeyBook(account: owner, defaults: TestDefaults()))
+        let c = try container()
+        store.context = c.mainContext
+        store.keyID = "key-1"
+        CollabStore.shared = store
+        let note = c.mainContext.createNote(in: .all, body: "Plan")
+        try await transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let session = try #require(try await store.library?.becomeShared(note, nk: nk))
+
+        #expect(!CollabStore.keyChanged(ready: true, keyID: "key-1"), "the same key: nothing changes")
+        #expect(CollabStore.shared === store && !session.isClosed)
+        #expect(CollabStore.keyChanged(ready: false, keyID: nil))
+        #expect(CollabStore.shared == nil)
+        #expect(session.isClosed, "nothing goes out under a key that isn't ready")
+
+        CollabStore.shared = store
+        store.keyID = "key-1"
+        #expect(CollabStore.keyChanged(ready: true, keyID: "key-2"), "replaced while ready")
+        #expect(CollabStore.shared == nil)
+    }
+
+    /// Round 6: a widget tick on a Can view list went nowhere, and nothing said so. The tick opens
+    /// the note; the note says it's view-only, as a tap in it does.
+    @Test func aWidgetTickOnACanViewListSaysItsViewOnly() async throws {
+        let tmp = FileManager.default.temporaryDirectory.appending(path: "viewonly-\(UUID())")
+        ChecklistShelf.rootOverride = tmp.appending(path: "Shelf")
+        defer { ChecklistShelf.rootOverride = nil; try? FileManager.default.removeItem(at: tmp) }
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n- [ ] Bread", on: emil)
+        server.add(member, to: note.id, role: "viewer")
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "viewer")
+        let notices = NoteNotices()
+        ChecklistShelf.tick(note: mine.id, index: 0, text: "Bread", done: true)
+        #expect(sara.context.applyChecklistTicks(library: sara.library, notices: notices).isEmpty)
+        #expect(ChecklistShelf.ticks().isEmpty, "not kept to try again: it can't go in")
+        #expect(notices.take(mine.id) == NoteWrites.viewOnlyMessage)
+        #expect(notices.take(mine.id) == nil, "said once")
+        #expect(!emilSession.text.contains("[x]"))
+    }
+
+    /// 11-05, not reproduced: a note closed and opened again at once might be handed the channel
+    /// still being taken down (Realtime's client keeps one per topic). A join waits for the close.
+    @Test func aJoinWaitsForTheSameNotesChannelToClose() async throws {
+        let closings = ChannelClosings()
+        let log = ClosingLog()
+        closings.close("note:a") {
+            await withCheckedContinuation { log.release = $0 }
+            log.steps.append("closed")
+        }
+        #expect(closings.isClosing("note:a") && !closings.isClosing("note:b"))
+        let joining = Task { @MainActor in
+            await closings.ready("note:a")
+            log.steps.append("joined")
+        }
+        await closings.ready("note:b")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(log.steps.isEmpty, "the join waits")
+        log.release?.resume()
+        await joining.value
+        #expect(log.steps == ["closed", "joined"])
+        #expect(!closings.isClosing("note:a"))
+    }
+}
+
+@MainActor final class ClosingLog {
+    var steps: [String] = []
+    var release: CheckedContinuation<Void, Never>?
+}
+
+/// The 1.4 review council (collab-sol, collab-opus): collaboration ships switched on for the first
+/// time in 1.4, and each of these lost shared text, or left it unsent while saying it was synced.
+extension NetworkFaults.SharedLibraryTests {
+    /// collab-sol 3, collab-opus 1: Sara types Bread right after Milk, and Milk's change is stored
+    /// late. Emil's Mac holds Bread back until Milk arrives. Stopping sharing then wrote Emil's note
+    /// without either, and the server deleted the shared note with both. It waits for Milk now.
+    @Test func stoppingSharingWaitsForAChangeHeldBack() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        emil.transport.deaf = true
+        type("- [ ] Milk\n", in: hers)
+        await waitUntil { hers.unsent == 0 }
+        let milk = try #require(server.updates(of: note.id).last)
+        server.inFlight.insert(milk.id)
+        type("- [ ] Bread\n", in: hers)
+        await waitUntil { hers.unsent == 0 }
+        await emilSession.catchUp().value
+        #expect(emilSession.holdsChangesBack, "Bread waits for Milk")
+        #expect(!emilSession.isUpToDate)
+
+        await #expect(throws: SharedLibrary.Problem.notUpToDate) { try await emil.library.unshare(note) }
+        #expect(server.role(note.id, member) == "editor", "still shared: nothing of Sara's went")
+        #expect(note.isShared)
+
+        // Milk lands: sharing stops with both in Emil's note.
+        server.inFlight.remove(milk.id)
+        try await emil.library.unshare(note)
+        #expect(!note.isShared && note.body == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
+        let sent = try #require(emil.transport.unshared[note.id])
+        #expect(Wire.sealer?.open(sent, context: E2EE.body(note.id)) == "Groceries\n- [ ] Milk\n- [ ] Bread\n")
+    }
+
+    /// collab-sol 5: Emil removes Jonas and types under the new key; Sara's device gets his change
+    /// before it has that key. The change was marked as taken and never tried again, so it never
+    /// showed for Sara, and her device could no longer snapshot. It goes in once the key arrives.
+    @Test func aChangeUnderANewKeyThatArrivesFirstGoesInOnceTheKeyDoes() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Team\n", on: emil)
+        server.add(member, to: note.id)
+        let jonas = UUID()
+        server.add(jonas, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        server.remove(jonas, from: note.id)
+        emilSession.reseal(nk: nk, epoch: 2)
+        type("- Budget\n", in: emilSession)
+        await waitUntil { emilSession.isSent }
+        await hers.catchUp().value
+        #expect(hers.text == "Team\n", "sealed with a key Sara's device doesn't have yet")
+        #expect(!hers.isUpToDate)
+
+        // The look at memberships brings the new key.
+        await sara.library.reconcile(try await sara.transport.memberships())
+        await waitUntil { hers.text == "Team\n- Budget\n" }
+        #expect(hers.epoch == 2)
+        #expect(hers.text == "Team\n- Budget\n")
+        await hers.catchUp().value
+        #expect(hers.isUpToDate)
+        // Nothing left that didn't open: a snapshot goes up under the new key.
+        await hers.requireSnapshot()
+        #expect(server.snapshots(of: note.id).contains { $0.epoch == 2 })
+        #expect(!hers.owesSnapshot)
+    }
+
+    /// collab-sol 5, after a relaunch: changes that didn't open aren't read past, so the app quitting
+    /// before the key arrives doesn't lose them, however many came after (catching up asks again for
+    /// only the last 64).
+    @Test func changesThatDidntOpenAreAskedForAgainAfterARelaunch() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Team\n", on: emil)
+        server.add(member, to: note.id)
+        let jonas = UUID()
+        server.add(jonas, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        server.remove(jonas, from: note.id)
+        emilSession.reseal(nk: nk, epoch: 2)
+        type("- Budget\n", in: emilSession)
+        await waitUntil { emilSession.isSent }
+        for i in 0..<(Int(CollabSession.rewind) + 6) {
+            type("\(i % 10)", in: emilSession)
+            await waitUntil { emilSession.isSent }
+        }
+        await hers.catchUp().value
+        #expect(hers.text == "Team\n")
+
+        // Sara's app quits before her device has the new key, and opens again.
+        sara.library.closeAll()
+        let library = reopened(sara)
+        let again = try #require(library.session(for: mine))
+        await again.catchUp().value
+        await library.reconcile(try await sara.transport.memberships())
+        await waitUntil { again.text == emilSession.text }
+        #expect(again.text == emilSession.text)
+        #expect(again.text.hasPrefix("Team\n- Budget\n"))
+        #expect(!again.holdsChangesBack)
+    }
+
+    /// collab-opus 4: a catch-up that takes a snapshot keeps the whole saved document in the stored
+    /// tail. A change held back after it was forgotten when the app opened again (the tail didn't
+    /// read as changes), so a snapshot could go up without what it builds on.
+    @Test func aChangeHeldBackAfterACaughtUpSnapshotIsStillHeldAfterARelaunch() async throws {
+        let emil = try device(owner), sara = try device(member)
+        let (note, emilSession) = try await shared("Groceries\n", on: emil)
+        server.add(member, to: note.id)
+        let mine = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let hers = try #require(sara.library.session(for: mine))
+        await hers.catchUp().value
+        sara.transport.deaf = true
+        // A snapshot Sara's device catches up from.
+        type("- [ ] Apples\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        await emilSession.writeSnapshot()
+        await hers.catchUp().value
+        let record = try #require(mine.sharedDocument)
+        #expect(record.tail.count > 9 && record.tail[8] == 0, "the stored tail starts with a saved document")
+        // Then Milk, stored late, and Bread after it.
+        type("- [ ] Milk\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        let milk = try #require(server.updates(of: note.id).last)
+        server.inFlight.insert(milk.id)
+        type("- [ ] Bread\n", in: emilSession)
+        await waitUntil { emilSession.unsent == 0 }
+        await hers.catchUp().value
+        #expect(hers.holdsChangesBack)
+
+        // The app opens again from what's stored (it was quit, not closed: nothing compacted).
+        let copy = SharedDocument(id: note.id, epoch: record.epoch, role: record.role, saved: record.saved, cursor: record.cursor)
+        copy.tail = record.tail
+        copy.tailChanges = record.tailChanges
+        copy.snapshotUpto = record.snapshotUpto
+        let again = try CollabSession.open(record: copy, keys: [1: nk], transport: sara.transport, me: member, name: "Sara")
+        #expect(again.holdsChangesBack, "Bread still waits for Milk")
+        let snapshots = server.snapshots(of: note.id).count
+        await again.requireSnapshot()
+        #expect(server.snapshots(of: note.id).count == snapshots, "no snapshot without Milk")
+    }
+
+    /// Text that doesn't compress, so its sealed change is bigger than the server takes.
+    static func paste(_ count: Int) -> String {
+        var bytes = [UInt8](repeating: 0, count: count)
+        for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+        return Data(bytes).base64EncodedString()
+    }
+
+    /// collab-sol 6, collab-opus 5: a paste too big to go up as one change is carried by a snapshot.
+    /// That was owed only in memory, and the note said it was synced: quit before the snapshot went
+    /// up, and the paste never reached anyone. The debt is stored, the note says it isn't synced,
+    /// and the snapshot goes once the app opens again.
+    @Test func aPasteTooBigToSendIsUnsentUntilASnapshotCarriesItAfterARelaunchToo() async throws {
+        CollabSession.snapshotQuiet = 0.05
+        let emil = try device(owner)
+        let (note, session) = try await shared("Notes\n", on: emil)
+        // A change first, so the snapshot has a point of its own (the server keeps one per point and key).
+        type("Plan\n", in: session)
+        await waitUntil { session.isSent }
+        emil.transport.offline = true
+        let paste = Self.paste(300_000)
+        type(paste, in: session)
+        await waitUntil { session.unsent == 0 }
+        #expect(session.unsent == 0, "too big to go up as a change")
+        #expect(session.owesSnapshot)
+        #expect(!session.isSent, "not synced until a snapshot carries it")
+
+        // The app quits before the snapshot goes, and opens again online.
+        emil.library.closeAll()
+        try emil.context.save()
+        let again = try device(owner, container: emil.container)
+        let stored = try #require(again.context.note(note.id))
+        #expect(stored.sharedDocument?.owesSnapshot == true)
+        // The next look at memberships opens it, to send what it owes.
+        await again.library.reconcile(try await again.transport.memberships())
+        let reopened = try #require(again.library.sessions[note.id])
+        await waitUntil { reopened.isSent }
+        #expect(reopened.isSent && !reopened.owesSnapshot)
+        server.add(member, to: note.id)
+        let sara = try device(member)
+        let theirs = try await sara.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        #expect(theirs.body == "Notes\nPlan\n" + paste)
+    }
+
+    /// collab-sol 2: Emil deletes his shared note for good while offline. The one try at stopping
+    /// sharing failed and nothing tried again, so the others kept reading and editing it. The next
+    /// look at memberships finds a note of his that's still shared but gone here, and stops it.
+    @Test func theOwnersDeleteForGoodOfflineStopsSharingOnceBackOnline() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Budget", on: emil)
+        server.add(member, to: note.id)
+        emil.library.install()
+        emil.transport.offline = true
+        emil.context.purge(note)
+        await waitUntil(1) { false }
+        #expect(note.deletedAt != nil)
+        #expect(server.role(note.id, member) == "editor", "offline: still shared")
+        emil.transport.offline = false
+        await emil.library.reconcile(try await emil.transport.memberships())
+        #expect(server.members[note.id] == nil, "nobody is in it anymore")
+        #expect(emil.transport.unshared[note.id] != nil)
+    }
+
+    /// collab-opus 6: Sara types on her phone offline, then leaves the note on her Mac. When the
+    /// phone is back, the note goes, and what she typed there went with it unsaid: a note you left
+    /// says nothing. When it takes text that never went up, Keep a Copy is offered.
+    @Test func leavingOnAnotherDeviceOffersWhatYouTypedHereThatDidntGoUp() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Book club", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member), mac = try device(member)
+        let said = SaidRemovals()
+        phone.library.onLostAccess = { said.all.append($0) }
+        let onPhone = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let onMac = try await mac.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(phone.library.session(for: onPhone))
+        phone.transport.offline = true
+        type("\n- Dune", in: session)
+        try await mac.library.leave(onMac)
+        phone.transport.offline = false
+        await phone.library.reconcile(try await phone.transport.memberships())
+        await phone.library.told()
+        #expect(onPhone.deletedAt != nil)
+        let removal = try #require(said.all.first)
+        #expect(said.all.count == 1)
+        #expect(removal.reason == .left)
+        #expect(removal.copy == "Book club\n- Dune")
+        #expect(removal.message == "You left this note on another device. You can keep a copy of it as it is on this \(InstallID.kind).")
+    }
+
+    /// The same, when the Mac's leave reaches the phone by sync first (its pointer, marked as yours),
+    /// with the phone still offline.
+    @Test func leavingOnAnotherDeviceBySyncOffersWhatYouTypedHereThatDidntGoUp() async throws {
+        let emil = try device(owner)
+        let (note, _) = try await shared("Book club", on: emil)
+        server.add(member, to: note.id)
+        let phone = try device(member)
+        let said = SaidRemovals()
+        phone.library.onLostAccess = { said.all.append($0) }
+        phone.library.install()
+        let onPhone = try await phone.library.adopt(shared: note.id, nk: nk, epoch: 1, role: "editor")
+        let session = try #require(phone.library.session(for: onPhone))
+        phone.transport.offline = true
+        type("\n- Dune", in: session)
+        onPhone.deletedAt = .now
+        onPhone.trashedAt = onPhone.deletedAt
+        SharedNotes.pointerArrived?(onPhone)
+        await phone.library.told()
+        let removal = try #require(said.all.first)
+        #expect(removal.copy == "Book club\n- Dune")
+        #expect(removal.message.hasPrefix("You left this note on another device."))
     }
 }

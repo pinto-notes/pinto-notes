@@ -18,7 +18,7 @@ TEST_RUNNER_AMBER_DEMO_FRAMES="$OUT" TEST_RUNNER_AMBER_STORE_FRAMES="$OUT" xcode
   -derivedDataPath build/ddqa -testLanguage en -testRegion US \
   ENABLE_TESTABILITY=YES ENABLE_HARDENED_RUNTIME=NO ONLY_ACTIVE_ARCH=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) QA' \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
-  test -only-testing:'PaneTests/MacStoreShots/storeFrames()' > "$OUT/test.txt" 2>&1 &
+  test -only-testing:'PaneHIGTests/MacStoreShots/storeFrames()' > "$OUT/test.txt" 2>&1 &
 test_pid=$!
 # Each ready-<scene> lists "role window-number"; answer with shot-<scene> once they're captured.
 while kill -0 $test_pid 2>/dev/null; do

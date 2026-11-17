@@ -224,6 +224,30 @@ import AppKit
         #expect((font?.pointSize ?? 0) > 5)
     }
 
+    /// A dash typed on the line under some text starts a dashed list, as in Notes. Markdown reads a
+    /// lone "-" there as a heading underline, which made the line above a heading (Emil, 15 November 2026).
+    @Test func aDashUnderTextStartsAListAndLeavesTheTextBody() {
+        let body = MarkdownStyler().bodyFont.pointSize
+        for under in ["-", "- ", "-  "] {
+            let text = "Title\nWhat I would do right now:\n" + under
+            let storage = NSTextStorage(string: text)
+            MarkdownStyler().apply(to: storage, active: NSRange(location: (text as NSString).length, length: 0))
+            let line = (text as NSString).range(of: "What")
+            let font = storage.attribute(.font, at: line.location, effectiveRange: nil) as? PFont
+            #expect(font?.pointSize == body, "\(under.debugDescription) under the line")
+            if under != "-" {
+                let dash = (text as NSString).range(of: under, options: .backwards)
+                #expect((storage.attribute(.paneLine, at: dash.location, effectiveRange: nil) as? LineDecoration)?.kind == .dash)
+            }
+        }
+        // A heading written as one stays one.
+        let text = "Title\n## Plans\n- "
+        let storage = NSTextStorage(string: text)
+        MarkdownStyler().apply(to: storage, active: NSRange(location: (text as NSString).length, length: 0))
+        let font = storage.attribute(.font, at: (text as NSString).range(of: "Plans").location, effectiveRange: nil) as? PFont
+        #expect((font?.pointSize ?? 0) > body)
+    }
+
     @Test func handlesEmojiOffsets() {
         let storage = NSTextStorage(string: "🎉 Party\n**bold** 🎈 *it*")
         MarkdownStyler().apply(to: storage, active: NSRange(location: 0, length: 0))

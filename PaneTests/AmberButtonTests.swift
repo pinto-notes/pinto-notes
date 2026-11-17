@@ -7,27 +7,7 @@ import Testing
 /// Primary buttons stay readable in both appearances: white on the accent (Palette.accent; amber in
 /// Pinto Notes, your own with scripts/set-accent.sh). The file and test names keep "Amber" because
 /// the button style is `.amberProminent` and CI's test lists name these tests.
-@MainActor
-@Suite struct AmberButtonTests {
-    /// WCAG relative luminance of an sRGB colour.
-    static func luminance(_ c: NSColor) -> Double {
-        let s = c.usingColorSpace(.sRGB)!
-        func lin(_ v: CGFloat) -> Double { let v = Double(v); return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
-        return 0.2126 * lin(s.redComponent) + 0.7152 * lin(s.greenComponent) + 0.0722 * lin(s.blueComponent)
-    }
-
-    static func contrast(_ a: NSColor, _ b: NSColor) -> Double {
-        let la = luminance(a), lb = luminance(b)
-        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-    }
-
-    /// The colours as a view in `appearance` would draw them.
-    static func resolved(_ c: NSColor, _ appearance: NSAppearance.Name) -> NSColor {
-        var out = c
-        NSAppearance(named: appearance)!.performAsCurrentDrawingAppearance { out = c.usingColorSpace(.sRGB)! }
-        return out
-    }
-
+extension AmberButtonTests {
     @Test(arguments: [NSAppearance.Name.aqua, .darkAqua])
     func labelReadsOnTheFill(_ appearance: NSAppearance.Name) {
         let fill = Self.resolved(AmberProminentButtonStyle.fill, appearance)

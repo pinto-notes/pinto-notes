@@ -10,7 +10,7 @@ import UIKit
 /// AMBER_HIG_SHOTS is set. Mac:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/AIChangesSnapshots`; iPhone:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=…'
-/// -only-testing:PaneTests/AIChangesSnapshots CODE_SIGNING_ALLOWED=NO`.
+/// -only-testing:PaneHIGTests/AIChangesSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct AIChangesSnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
 

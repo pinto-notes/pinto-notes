@@ -5,7 +5,7 @@
 //
 // The accounts are made confirmed through the admin API, so no email is sent, and are opted out of the
 // onboarding emails straight away. Their addresses are at example.com, which never receives mail. The file holds their passwords: keep it out of the repo.
-// Then: TEST_RUNNER_COLLAB_LIVE=<out.json> xcodebuild test-without-building … -only-testing:PaneTests/CollabLiveTests
+// Then: TEST_RUNNER_COLLAB_LIVE=<out.json> xcodebuild test-without-building … -only-testing:PaneSystemTests/CollabLiveTests
 const url = Deno.env.get("SUPABASE_URL"), service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"), anon = Deno.env.get("SUPABASE_ANON_KEY");
 const out = Deno.args[0];
 if (!url || !service || !anon || !out) throw new Error("Needs SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY and an output path.");

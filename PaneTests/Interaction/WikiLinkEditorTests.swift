@@ -34,6 +34,23 @@ import Testing
         return (0..<length).allSatisfy { ((h.view.textStorage!.attribute(.font, at: r.location + offset + $0, effectiveRange: nil) as? NSFont)?.pointSize ?? 99) < 1 }
     }
 
+    /// A note opens with the scope of the note before it and gets its own a moment later. Without
+    /// a wiki link nothing in it depends on the scope, so the text isn't styled again: that second
+    /// pass was half of opening a note after a delete or in another folder (Emil, 12 November 2026).
+    /// With a link, the new scope still restyles it.
+    @Test func aNewScopeRestylesOnlyANoteWithWikiLinks() async {
+        for (text, restyles) in [("Plain\n" + String(repeating: "- [ ] An item with **bold**\n", count: 50), false), (Self.text, true)] {
+            let h = await EditorHarness(text, focus: false)
+            defer { h.close() }
+            h.view.setWiki(Self.scope(1))
+            var edits = 0
+            let watch = NotificationCenter.default.addObserver(forName: NSTextStorage.didProcessEditingNotification, object: h.view.textStorage, queue: nil) { _ in edits += 1 }
+            defer { NotificationCenter.default.removeObserver(watch) }
+            h.view.setWiki(Self.scope(2))
+            #expect((edits > 0) == restyles, "\(restyles ? "a note with links" : "a note without") was styled \(edits) times")
+        }
+    }
+
     @Test func linksShowAsLinksWithTheirSyntaxHidden() async {
         let h = await EditorHarness(Self.text, focus: false)
         defer { h.close() }
@@ -166,6 +183,36 @@ import Testing
         defer { h.close() }
         h.view.setWiki(Self.scope())
         await h.snapshot("wiki-links-dark")
+    }
+
+    /// `[[Lisbon#` offers Lisbon's headings; Return takes one and closes the link.
+    @Test func typingAHashOffersTheNotesHeadings() async throws {
+        let h = await EditorHarness("Plan\n")
+        defer { h.close() }
+        h.controller.suggestTitles = { _ in ["Lisbon"] }
+        h.controller.suggestHeadings = { target, typed in
+            target == "Lisbon" ? WikiDirectory.headingSuggestions(typed, in: "Lisbon\n## Food\n## Plan\n## Places") : []
+        }
+        await h.select((h.text as NSString).length)
+        await h.type("Eat at [[Lisbon#")
+        #expect(h.controller.wikiSuggestions == ["Food", "Plan", "Places"])
+        #expect(h.controller.wikiHeadings)
+        await h.type("pl")
+        #expect(h.controller.wikiSuggestions == ["Plan", "Places"])
+        #expect(h.view.subviews.contains { $0 is NSHostingView<WikiSuggestionList> })
+        await h.snapshot("wiki-heading-suggestions-light")
+        await h.press(EditorHarness.down)
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nEat at [[Lisbon#Places]]")
+        #expect(h.controller.wikiSuggestions.isEmpty && !h.controller.wikiHeadings)
+
+        // Inside a link that's closed already: the brackets aren't doubled.
+        await h.type(" and [[Lisbon#]]")
+        await h.select((h.text as NSString).length - 2)
+        await h.type("F")
+        #expect(h.controller.wikiSuggestions == ["Food"])
+        await h.press(EditorHarness.returnKey)
+        #expect(h.text == "Plan\nEat at [[Lisbon#Places]] and [[Lisbon#Food]]")
     }
 }
 

@@ -53,14 +53,14 @@ enum Hover {
     /// A selected row, like Notes: a quiet neutral fill under an icon and name in the accent. A
     /// hovered row is the same pill, fainter (`row`).
     static var selected: AnyShapeStyle {
-        #if DEBUG
+        #if DEBUG || QA
         if tintedSelection { return AnyShapeStyle(.tint.opacity(0.16)) }
         #endif
         return AnyShapeStyle(Color(Palette.rowPill))
     }
     /// A hovered row's pill: the selection's, fainter. Plain, never vibrant (see `Palette.rowPill`).
     static var rowHover: AnyShapeStyle { AnyShapeStyle(Color(Palette.rowPillHover)) }
-    #if DEBUG
+    #if DEBUG || QA
     /// Captures only: the alternative look, a fill in the accent.
     nonisolated(unsafe) static var tintedSelection = false
     #endif
@@ -83,8 +83,9 @@ extension View {
     /// A list row that takes a light fill under the pointer, in the selection's own place
     /// (`reach`: how far the selection reaches past the row's content). `id` names the row for
     /// captures. `pointer` hears the pointer come onto the row and leave it.
-    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false, pointer: ((Bool) -> Void)? = nil) -> some View {
-        modifier(HoverRow(id: id, reach: reach, selected: selected, pointer: pointer))
+    /// `line`: the row's id in a notes list, whose hover hides the hairlines beside it (RowLine).
+    func hoverRow(_ id: String = "", reach: EdgeInsets = Hover.listReach, selected: Bool = false, line: UUID? = nil, pointer: ((Bool) -> Void)? = nil) -> some View {
+        modifier(HoverRow(id: id, reach: reach, selected: selected, line: line, pointer: pointer))
     }
 
     /// A plain button or control with a shape of its own: a light fill under the pointer, behind
@@ -128,10 +129,11 @@ private struct HoverRow: ViewModifier {
     let id: String
     let reach: EdgeInsets
     var selected = false
+    var line: UUID?
     var pointer: ((Bool) -> Void)?
 
     func body(content: Content) -> some View {
-        HoverRowReader(id: id, reach: reach, selected: selected, pointer: pointer) { _ in content }
+        HoverRowReader(id: id, reach: reach, selected: selected, line: line, pointer: pointer) { _ in content }
     }
 }
 
@@ -144,6 +146,8 @@ struct HoverRowReader<Content: View>: View {
     var selected = false
     /// C and D's note rows: the selection is a card a step lighter than the list, with sm corners.
     var card = false
+    /// A notes list row's id: its hover hides the hairlines on either side of its fill (RowLine).
+    var line: UUID?
     var pointer: ((Bool) -> Void)?
     @ViewBuilder let content: (Bool) -> Content
     @State private var hovering = false
@@ -152,7 +156,7 @@ struct HoverRowReader<Content: View>: View {
     var body: some View {
         #if os(macOS)
         let on = hovering || preview.contains("*") || (!id.isEmpty && preview.contains(id))
-        #if DEBUG
+        #if DEBUG || QA
         // Here rather than on appear: a test's window is never shown.
         let _ = HoverProbe.register(id) { [self] in hovering = $0 }
         #endif
@@ -170,7 +174,9 @@ struct HoverRowReader<Content: View>: View {
                         .padding(EdgeInsets(top: -reach.top, leading: -reach.leading, bottom: -reach.bottom, trailing: -reach.trailing))
                 }
             }
-            #if DEBUG
+            .onChange(of: on) { _, now in if let line { RowLineHover.shared.set(line, now) } }
+            .onDisappear { if let line, on { RowLineHover.shared.set(line, false) } }
+            #if DEBUG || QA
             .onChange(of: hovering) { HoverProbe.rowChanges += 1 }
             #endif
         #else
@@ -275,7 +281,7 @@ private struct HoverOverlay<S: InsettableShape>: ViewModifier {
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// Tests: sets a named row's hover the way the pointer does, and counts hover changes.
 @MainActor
 enum HoverProbe {

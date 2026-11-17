@@ -7,128 +7,7 @@ import Testing
 /// is enough to open the notes on a new device, unless the account keeps its key on its devices
 /// only. A fake Keychain per device and one fake server, which seals nothing: what crosses is
 /// checked by `KeyCopyBox` against the vectors the server's tests check too.
-@MainActor @Suite(.serialized) struct KeyCopyTests {
-    typealias Keychain = KeyStartupTests.FakeKeychain
-
-    /// The account's key row and the `key` function, as one server.
-    final class Server: AccountKeyServer, KeyCopyServer, @unchecked Sendable {
-        var row: ServerKey?
-        var generation = 0
-        var protection: KeyProtection?
-        /// account_key_copies: what a device stored.
-        var copy: StoredKey?
-        /// KEY_COPY isn't on.
-        var off = false
-        var offline = false
-        /// The function can't be reached, while the rest of the server can.
-        var functionDown = false
-        /// Storing a copy fails, while the function answers everything else.
-        var storeFails = false
-        /// A password reset in the last 72 hours.
-        var pausedUntil: Date?
-        /// The session's sign-in is older than the server allows for a fetch.
-        var wantsSignIn = false
-        /// The password was just reset: until when Advanced protection can't be turned on.
-        var strictPausedUntil: Date?
-        /// What devices said they saw when they stored.
-        private(set) var froms: [KeyProtection?] = []
-        /// What `fetch` hands out instead of the copy (a server gone wrong).
-        var handsOut: StoredKey?
-        /// keep_key_on_devices is satisfied: a recovery key was saved or another device holds the key.
-        var anotherWayBack = false
-        private(set) var stores: [Bool] = []
-        private(set) var fetches = 0
-        private(set) var asked = 0
-
-        func fetch() async throws -> ServerKeyState {
-            if offline { throw URLError(.notConnectedToInternet) }
-            return ServerKeyState(key: row, generation: generation, protection: protection, copy: copy != nil && copy?.keyID == row?.key_id,
-                                  strictPausedUntil: copy != nil ? strictPausedUntil : nil)
-        }
-
-        func create(_ key: ServerKey, generation: Int) async throws -> (key: ServerKey, created: Bool) {
-            if offline { throw URLError(.notConnectedToInternet) }
-            if generation < self.generation { throw KeyError.staleGeneration }
-            let made = row == nil
-            if made { row = key }
-            return (row!, made)
-        }
-
-        func markRecoveryKeySaved() async throws -> Date? {
-            row?.recovery_saved_at = Date(timeIntervalSince1970: 1000)
-            anotherWayBack = true
-            return row?.recovery_saved_at
-        }
-
-        func startFresh(keyID: String) async throws -> Bool {
-            guard row?.key_id == keyID else { return false }
-            row = nil
-            copy = nil
-            generation += 1
-            return true
-        }
-
-        func available() async throws -> Bool {
-            asked += 1
-            if offline || functionDown { throw KeyCopyError.offline }
-            return !off
-        }
-
-        func store(_ key: StoredKey, user: UUID, choose: Bool, from: KeyProtection?) async throws {
-            if offline || functionDown || storeFails { throw KeyCopyError.offline }
-            if off { throw KeyCopyError.off }
-            stores.append(choose)
-            froms.append(from)
-            guard let row else { throw KeyCopyError.noCopy }
-            // As the function does: a strict account gets a copy only from a choice that saw it strict.
-            if protection == .strict, !(choose && from == .strict) { throw KeyCopyError.strict }
-            if !choose, protection != .standard { throw KeyCopyError.notChosen }
-            guard AccountCrypto.isAccountsKey(key, row, user: user) else { throw KeyCopyError.wrongKey }
-            copy = key
-            protection = .standard
-        }
-
-        func fetch(user: UUID, keyID: String) async throws -> StoredKey {
-            fetches += 1
-            if offline || functionDown { throw KeyCopyError.offline }
-            if off { throw KeyCopyError.off }
-            if wantsSignIn { throw KeyCopyError.reauth }
-            if protection == .strict { throw KeyCopyError.strict }
-            guard let copy, copy.keyID == row?.key_id else { throw KeyCopyError.noCopy }
-            if let pausedUntil { throw KeyCopyError.paused(until: pausedUntil) }
-            return handsOut ?? copy
-        }
-
-        func keepOnDevices(device: UUID) async throws {
-            if offline { throw KeyCopyError.offline }
-            guard anotherWayBack else { throw KeyCopyError.needsRecoveryKey }
-            protection = .strict
-            copy = nil
-        }
-    }
-
-    let user = UUID()
-    let server = Server()
-    let defaults = UserDefaults(suiteName: "key-copy-\(UUID())")!
-
-    /// A device with a Keychain of its own, which shares nothing with any other (no iCloud Keychain).
-    func device(_ keychain: Keychain? = nil) -> (AccountCrypto, Keychain) {
-        let k = keychain ?? Keychain(cloud: KeyStartupTests.Cloud())
-        return (AccountCrypto(store: k, defaults: defaults, sleep: { _ in throw CancellationError() }), k)
-    }
-
-    func attach(_ crypto: AccountCrypto) async { await crypto.attach(account: user, server: server, copies: server) }
-
-    /// An account from before copies: a device holds its key, and nobody has chosen anything.
-    func accountFromBefore() throws -> (AccountCrypto, Keychain, StoredKey) {
-        let k = StoredKey.generate()
-        server.row = try k.serverRow(user: user)
-        let keychain = Keychain(cloud: KeyStartupTests.Cloud())
-        keychain.synced[user] = k
-        let (crypto, _) = device(keychain)
-        return (crypto, keychain, k)
-    }
-
+extension KeyCopyTests {
     // MARK: The boxes on the way
 
     struct Vectors: Decodable {
@@ -219,6 +98,94 @@ import Testing
         let again = try KeyCopyBox.seal(key, to: receiverPublic, direction: .down, user: user)
         #expect(again != v.down)
         #expect(try KeyCopyBox.open(again, with: receiver, direction: .down, user: user, keyID: v.id) == key)
+    }
+
+    @Test(arguments: [false, true], [false, true])
+    func availabilityFromAnOldAccountCannotStoreItsKeyInTheNewOne(available: Bool, creating: Bool) async throws {
+        let (crypto, keychain, _) = try accountFromBefore()
+        defer { crypto.signedOut() }
+        if creating { server.row = nil; keychain.synced[user] = nil }
+        server.protection = creating ? nil : .standard
+        server.off = !available
+        let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        server.beforeAvailable = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        let old = Task { await attach(crypto) }
+        for await _ in entered.stream { break }
+        let nextUser = UUID(), next = Server(), nextKey = StoredKey.generate()
+        next.row = try nextKey.serverRow(user: nextUser)
+        next.protection = .strict
+        keychain.synced[nextUser] = nextKey
+        await crypto.attach(account: nextUser, server: next, copies: next)
+        release.continuation.yield(())
+        await old.value
+        #expect(next.stores.isEmpty && crypto.protection == .strict)
+        #expect(crypto.keyToHandOver == nextKey, "a stale creation cannot open its key in another account")
+        #expect(!crypto.copiesOn)
+        #expect(defaults.object(forKey: AccountCrypto.copiesOffUntilKey) == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func supersededProtectionChoiceCannotChangeCurrentPreferences(strict: Bool) async throws {
+        let (crypto, keychain, key) = try accountFromBefore()
+        defer { crypto.signedOut() }
+        server.protection = .strict
+        server.anotherWayBack = true
+        await attach(crypto)
+        let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        server.afterChoice = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        let old = Task {
+            if strict { try await crypto.keepOnDevicesOnly(device: UUID()) }
+            else { try await crypto.keepCopy() }
+        }
+        for await _ in entered.stream { break }
+        // A same-account restart also invalidates a previous protection choice.
+        let nextUser = strict ? user : UUID(), next = Server()
+        next.row = try key.serverRow(user: nextUser)
+        next.protection = strict ? .standard : .strict
+        next.copy = strict ? key : nil
+        keychain.synced[nextUser] = key
+        crypto.signedOut()
+        defaults.set(true, forKey: AccountCrypto.wasStrictKey(nextUser))
+        await crypto.attach(account: nextUser, server: next, copies: next)
+        let protection = crypto.protection, copy = crypto.serverCopy
+        release.continuation.yield(())
+        try await old.value
+        #expect(crypto.protection == protection && crypto.serverCopy == copy)
+        #expect(defaults.bool(forKey: AccountCrypto.wasStrictKey(nextUser)))
+    }
+
+    @Test func staleRecoveryConfirmationCannotVerifyANewAccountsOfflineKey() async throws {
+        let (crypto, keychain, _) = try accountFromBefore()
+        defer { crypto.signedOut() }
+        server.protection = .strict
+        await attach(crypto)
+        defaults.set(true, forKey: AccountCrypto.recoveryProvenKey(user))
+        let entered = AsyncStream<Void>.makeStream(), release = AsyncStream<Void>.makeStream()
+        defer { entered.continuation.finish(); release.continuation.finish() }
+        server.afterChoice = {
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+        }
+        let old = Task { await crypto.recheck() }
+        for await _ in entered.stream { break }
+        let nextUser = UUID(), next = Server()
+        keychain.synced[nextUser] = StoredKey.generate()
+        next.offline = true
+        crypto.signedOut()
+        #expect(crypto.openHeld(account: nextUser))
+        await crypto.attach(account: nextUser, server: next, copies: next)
+        #expect(crypto.unverified)
+        release.continuation.yield(())
+        await old.value
+        #expect(crypto.unverified, "the old account's confirmation cannot stop this account's verification")
     }
 
     // MARK: The decision

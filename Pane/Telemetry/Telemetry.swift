@@ -53,6 +53,8 @@ final class Telemetry: @unchecked Sendable {
     private var pendingAt = Date.distantFuture
     private var launchedAt: Date?
     private var openedDay: Int?
+    /// When the app last left the front (`app_returned`).
+    private var leftAt: Date?
 
     init() {}
 
@@ -94,7 +96,7 @@ final class Telemetry: @unchecked Sendable {
         get { lock.withLock { consents } }
         set {
             let defaults = lock.withLock { self.defaults }
-            if !newValue { defaults.removeObject(forKey: Self.settingsSnapshotKey) }
+            if !newValue { defaults.removeObject(forKey: Self.settingsSnapshotKey); defaults.removeObject(forKey: AIMadeFolders.key) }
             defaults.set(newValue, forKey: Self.consentKey)
             if !newValue { lock.withLock { empty() } }
         }
@@ -142,6 +144,7 @@ final class Telemetry: @unchecked Sendable {
     private func startOver() {
         launchID = UUID().uuidString.lowercased()
         defaults.removeObject(forKey: Self.onceKey)
+        defaults.removeObject(forKey: AIMadeFolders.key)
     }
 
     private func empty() {
@@ -261,12 +264,21 @@ final class Telemetry: @unchecked Sendable {
     /// The app came to the front: "app opened" once at launch, and once more for each new day
     /// (UTC) it's still running, so a Mac app left open for a week counts as used on each day.
     func becameActive(signedIn: Bool) {
-        let day = Int(now().timeIntervalSince1970 / 86400)
-        let launch: Bool? = lock.withLock {
-            defer { openedDay = day }
-            return openedDay == nil ? true : openedDay == day ? nil : false
+        let at = now()
+        let day = Int(at.timeIntervalSince1970 / 86400)
+        let (launch, left): (Bool?, Date?) = lock.withLock {
+            defer { openedDay = day; leftAt = nil }
+            return (openedDay == nil ? true : openedDay == day ? nil : false, leftAt)
         }
         if let launch { record(.appOpened(launch: launch, signedIn: signedIn)) }
+        // Back after a while the same day: an app left open (the Mac's, mostly) used again.
+        else if let left, let away = AwayBucket(seconds: at.timeIntervalSince(left)) { record(.appReturned(away)) }
+    }
+
+    /// The app left the front: when, for `app_returned`.
+    func left() {
+        let at = now()
+        lock.withLock { leftAt = at }
     }
 
     /// The app left the front (or is quitting): everything waiting goes out. The sync timings are
@@ -383,8 +395,9 @@ struct TelemetryContext: Equatable, Sendable {
     var deviceClass: DeviceClass
     var channel: BuildChannel
     var distribution: Distribution
-    /// A Pinto Notes team member's own device (`PintoInternal`, set by the install scripts), so
-    /// their testing can be left out of the numbers. Sent only when true.
+    /// One of ours: a build made on a team machine (`PaneTeamBuild`, Config/Backend.xcconfig), or a
+    /// device marked `PintoInternal` by the install scripts, so testing is left out of the numbers.
+    /// Sent only when true.
     var isInternal = false
 
     enum Key: String, CaseIterable {
@@ -397,11 +410,19 @@ struct TelemetryContext: Equatable, Sendable {
     /// Whether `defaults` marks this device as the team's. `scripts/install-mac.sh` writes the
     /// default; `scripts/install-phone.sh` launches the app once with `-PintoInternal YES`, which
     /// only lasts that launch, so it's kept here.
-    static func isInternal(_ defaults: UserDefaults, arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
+    static func isInternal(_ defaults: UserDefaults, arguments: [String] = ProcessInfo.processInfo.arguments,
+                           info: [String: Any] = Bundle.main.infoDictionary ?? [:]) -> Bool {
+        if isTeamBuild(info) { return true }
         if let i = arguments.firstIndex(of: "-" + internalKey), i + 1 < arguments.count, ["YES", "1", "true"].contains(arguments[i + 1]) {
             defaults.set(true, forKey: internalKey)
         }
         return defaults.bool(forKey: internalKey)
+    }
+
+    /// Whether the build itself says it is one of ours. Release scripts build with NO; anything
+    /// else (an unset or unexpanded value) counts as a person's build, so a mistake never hides users.
+    static func isTeamBuild(_ info: [String: Any]) -> Bool {
+        (info["PaneTeamBuild"] as? String) == "YES"
     }
 
     var properties: [String: Any] {
@@ -436,7 +457,7 @@ struct TelemetryContext: Equatable, Sendable {
                                 appBuild: VersionNumber(info["CFBundleVersion"] as? String),
                                 osVersion: VersionNumber("\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"),
                                 platform: platform, deviceClass: device, channel: TelemetryGate.channel, distribution: distribution,
-                                isInternal: isInternal(.standard))
+                                isInternal: isInternal(.standard, info: info))
     }
 }
 

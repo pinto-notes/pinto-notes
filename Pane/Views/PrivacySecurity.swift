@@ -23,9 +23,7 @@ enum PrivacyCopy {
     /// The Mac's page in one line: how the notes are kept, and with a copy kept by Pinto Notes,
     /// that Pinto Notes can open them too.
     static func summary(serverCopy: Bool) -> String { status + " " + backInFooter(serverCopy: serverCopy) }
-    static let devicesHeader = "Your devices"
     static let backInHeader = "To help you back in"
-    static let aiHeader = "While connected"
     static let inUseNow = "In use now"
     /// Pinto Notes' copy of the key: the Mac tile says it short, the iPhone row a little longer.
     static let pintoNotes = "Pinto Notes"
@@ -41,10 +39,8 @@ enum PrivacyCopy {
     static let aiFooter = "Each AI holds its own copy of your key."
     static let recoveryKey = "Recovery key"
     static let recoverySaved = "Saved"
-    static let recoveryNotSaved = "Not saved"
     static let saveARecoveryKey = "Save a recovery key"
     static let saveARecoveryKeyLine = "Opens your notes if you lose your devices."
-    static let lockedTitle = "Locked notes"
     /// "An AI", not "AIs": in this font "AIs" reads as "Als". An AI is shown "Locked note" in
     /// place of the title (the MCP server's LOCKED_TITLE, 4 November 2026).
     static let lockedLine = "An AI sees that a locked note exists, not its title or text. Lock one from a note\u{2019}s \u{2022}\u{2022}\u{2022} menu."
@@ -148,7 +144,7 @@ extension AccountCrypto {
 
 /// What Settings › Security shows, read from the account: everything that can open your notes, in
 /// the groups the page draws. Pure, so tests check it without drawing a thing.
-struct SecurityContent: Equatable {
+struct SecurityContent: CustomEquatable {
     /// The AI whose mark a connection shows: its own, or the one its name says (round 20: a
     /// connected Claude and ChatGPT with a key beside them).
     static func aiMark(_ mark: String?, title: String) -> String? {
@@ -213,7 +209,7 @@ struct SecurityContent: Equatable {
         return out
     }
 
-    static func == (a: Self, b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
 
     init(serverCopy: Bool, protection: KeyProtection?, recoverySaved: Bool, backedUp: Bool, others: [KeyDevice],
          connections: [Connection], platform: String = InstallID.platform, now: Date = .now) {
@@ -286,6 +282,7 @@ struct PrivacyPage: View {
             Section {
                 SettingsSubPageRow(page: .encryption, id: "privacy.encryption", detail: Self.encryptionLine(advanced: crypto.protection == .strict))
             }
+            PrivacyModeSection()
             DiagnosticsSection()
             LegalRowsSection()
         }
@@ -856,15 +853,10 @@ struct HowItWorksMac: View {
 }
 #endif
 
-private struct RecoveryKeyItem: Identifiable {
-    let key: String
-    var id: String { key }
-}
-
 /// Face ID, Touch ID or the device passcode (`deviceOwnerAuthentication`).
 enum DeviceOwner {
     @MainActor static func authenticate(reason: String) async -> Bool {
-        #if DEBUG
+        #if DEBUG || QA
         // UI tests run on a simulator with no passcode and no account (its key store is in memory):
         // nothing is asked there. Release builds always ask.
         if ProcessInfo.processInfo.arguments.contains("-uitest") { return true }
@@ -886,7 +878,7 @@ enum DeviceOwner {
     /// The same question, telling a Cancel from a failure, for buttons that should say when
     /// nothing happened.
     @MainActor static func confirm(reason: String) async -> Outcome {
-        #if DEBUG
+        #if DEBUG || QA
         if ProcessInfo.processInfo.arguments.contains("-uitest") || ProcessInfo.processInfo.arguments.contains("-ownerConfirmed") { return .confirmed }
         #endif
         let context = LAContext()

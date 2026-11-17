@@ -28,7 +28,24 @@ import SwiftUI
         window.orderFrontRegardless()  // far off screen; accessibility lists ordered-in windows only
     }
 
+    /// Read an existing offscreen test window through the same accessibility interface.
+    init(window: NSWindow) {
+        self.window = window
+        window.setAccessibilityIdentifier(name)
+        window.orderFrontRegardless()
+    }
+
     func close() { window.orderOut(nil); window.close() }
+
+    /// The element with this identifier once it's there, settling between looks (with other
+    /// tests' windows in, a view can take longer than one settle to build its tree).
+    func waiting(for id: String, tries: Int = 20, until: (Element) -> Bool = { _ in true }) async -> Element? {
+        for _ in 0..<tries {
+            if let e = find(id), until(e) { return e }
+            await settle()
+        }
+        return find(id).flatMap { until($0) ? $0 : nil }
+    }
 
     func settle(_ ms: Int = 400) async {
         for _ in 0..<4 {
@@ -71,13 +88,42 @@ import SwiftUI
     }
 
     func find(_ id: String) -> Element? {
+        find { Element.string($0.ax, "AXIdentifier") == id }
+    }
+
+    func find(where matches: (Element) -> Bool) -> Element? {
         func search(_ e: AXUIElement, _ depth: Int) -> AXUIElement? {
-            if Element.string(e, "AXIdentifier") == id { return e }
+            if matches(Element(ax: e)) { return e }
             guard depth < 40 else { return nil }
             for k in Element.children(e) { if let hit = search(k, depth + 1) { return hit } }
             return nil
         }
         return root.flatMap { search($0, 0) }.map(Element.init)
+    }
+
+    /// Everything the window says (each element's label, value and title), top to bottom.
+    func texts() -> [String] {
+        var out: [String] = []
+        func walk(_ e: AXUIElement, _ depth: Int) {
+            let t = Element(ax: e).text
+            if !t.isEmpty { out.append(t) }
+            guard depth < 40 else { return }
+            for k in Element.children(e) { walk(k, depth + 1) }
+        }
+        if let root { walk(root, 0) }
+        return out
+    }
+
+    /// Every element in the window with this role (AXScrollArea, AXButton…).
+    func elements(role: String) -> [Element] {
+        var out: [Element] = []
+        func walk(_ e: AXUIElement, _ depth: Int) {
+            if Element.string(e, kAXRoleAttribute) == role { out.append(Element(ax: e)) }
+            guard depth < 40 else { return }
+            for k in Element.children(e) { walk(k, depth + 1) }
+        }
+        if let root { walk(root, 0) }
+        return out
     }
 
     /// Every identifier in the window, top to bottom as the tree has them.

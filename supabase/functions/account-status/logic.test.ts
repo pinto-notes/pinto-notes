@@ -16,6 +16,12 @@ Deno.test("the reply is two booleans and nothing else", () => {
   assertEquals(Object.keys(statusFrom({ exists: true, has_password: true })).sort(), ["exists", "password"]);
 });
 
+Deno.test("an account made with an email code is asked for a password, not sent to Apple", () => {
+  assertEquals(statusFrom({ exists: true, has_password: false, email_only: true }), { exists: true, password: true });
+  assertEquals(statusFrom({ exists: true, has_password: false, email_only: false }), { exists: true, password: false });
+  assertEquals(statusFrom({ exists: true, has_password: true, email_only: false }), { exists: true, password: true });
+});
+
 Deno.test("the limiter allows the limit, then refuses until the window resets", () => {
   const l = new RateLimiter(2, 1000);
   assert(l.allow("k", 0)); assert(l.allow("k", 1)); assert(!l.allow("k", 2));

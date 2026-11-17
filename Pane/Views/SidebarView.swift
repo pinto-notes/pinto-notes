@@ -21,7 +21,8 @@ enum AccountName {
 #if os(macOS)
 /// The account at the foot of the sidebar, like the Mac App Store's: your photo (or initials) in a
 /// circle and your name. Clicking it opens Settings at Account (Emil, 6 November 2026: the menu it
-/// used to open said nothing Settings doesn't). It never opens Connect an AI.
+/// used to open said nothing Settings doesn't); a click never opens Connect an AI. Its right-click
+/// menu holds Connect an AI, Templates and Import Notes (AccountMenuItems).
 struct AccountButton: View {
     let backend: Backend
     /// Captures: a second line with the email, when it is a real one (the alternative look).
@@ -60,14 +61,14 @@ struct AccountButton: View {
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            #if DEBUG
+                            #if DEBUG || QA
                             .footProbe("sidebar.account.name")
                             #endif
                         if let away {
                             // On your name's line, so the words under it have the row's whole width.
                             Spacer(minLength: 0)
                             OfflineCloud(reach: away)
-                                #if DEBUG
+                                #if DEBUG || QA
                                 .footProbe("sidebar.offline.cloud")
                                 #endif
                         }
@@ -76,7 +77,7 @@ struct AccountButton: View {
                         OfflineWords(reach: away)
                             .font(.system(size: 11))
                             .foregroundStyle(Color.muted)
-                            #if DEBUG
+                            #if DEBUG || QA
                             .footProbe("sidebar.offline.title")
                             #endif
                     } else if let email {
@@ -104,6 +105,19 @@ struct AccountButton: View {
         }
         .onChange(of: offline?.source.reach, initial: true) { _, now in
             if let now { offline?.status.noticed(now) }
+        }
+        // Your account's menu: the homes of the setup rows once they've left the foot, Connect an
+        // AI first and one click away (Emil, 12 November 2026: "it was easy to connect another AI").
+        // A click still opens Settings at Account (Emil, 6 November 2026).
+        .contextMenu {
+            Button(AccountMenuItems.settings, systemImage: "person.crop.circle") { Self.open() }
+            Divider()
+            ForEach(AccountMenuItems.items) { item in
+                Button(item.title, systemImage: item.symbol) { item.open() }
+            }
+        }
+        .accessibilityActions {
+            ForEach(AccountMenuItems.items) { item in Button(item.title) { item.open() } }
         }
         .help(away.map { OfflineCopy.title($0) } ?? "Account settings")
         .accessibilityLabel(away.flatMap { OfflineCopy.line($0) }.map { "\(name). \($0). More about this" } ?? "\(name), Settings")
@@ -266,6 +280,8 @@ extension View {
 }
 
 enum SidebarStyle {
+    /// A tag's coloured dot sits in the width of a folder's icon, so the names line up.
+    static let tagDotWidth: CGFloat = 20
     /// iPhone: your photo at the top left of the folders. As big as the bar's round glass buttons,
     /// filling the same 44 pt target, so its edge sits as far from the screen's as theirs (Emil,
     /// 11 November 2026: a 38 pt photo in it sat 3 pt further in and looked smaller).
@@ -404,12 +420,11 @@ struct SidebarView: View {
     @State private var drops = FolderDropState()
     /// A folder dragged over the "Folders" heading: dropped there it goes to the top level.
     @State private var headingOver = false
-    @State private var deletingFolder: Folder?
     /// Folders picked together with ⌘ or ⇧ (Mac), beside the one shown: Delete takes them all.
     @State private var picked: Set<UUID> = []
     /// The folder shown in place of All Notes while there's only one (see `Scope.settled`).
     @State private var standIn: UUID?
-    /// Several picked folders waiting on Delete's question.
+    /// Folders waiting on one deletion confirmation.
     @State private var deletingFolders: [Folder] = []
     @State private var showSettings = false
     /// The folder whose Move is open (iPhone): where it goes, picked in a sheet.
@@ -431,6 +446,8 @@ struct SidebarView: View {
     @Environment(\.importActions) private var imports
     @Environment(Backend.self) private var backend: Backend?
     @Environment(SyncEngine.self) private var sync: SyncEngine?
+    /// The notebook film's card, while it's offered: above the others, in their place.
+    @Environment(NotebookFilmStore.self) private var film: NotebookFilmStore?
 
     /// All Notes and Recently Deleted, counted by the store (unsaved changes included), as the list
     /// shows them.
@@ -446,12 +463,6 @@ struct SidebarView: View {
         if folders > 1 { return true }
         let loose = #Predicate<Note> { (n: Note) -> Bool in n.folder == nil && n.deletedAt == nil && n.trashedAt == nil }
         return ((try? context.fetchCount(FetchDescriptor<Note>(predicate: loose))) ?? 0) > 0
-    }
-
-    /// A folder's notes as its list counts them. In a window the list's notes count them
-    /// (LibraryNotes.listedCount); this reads the folder's own notes.
-    static func listedNotes(in folder: Folder, context: ModelContext) -> Int {
-        folder.liveNotes.count
     }
 
     private var files: (live: Int, trashed: Int, byFolder: [UUID: Int]) {
@@ -510,7 +521,7 @@ struct SidebarView: View {
     private var roots: [Folder] { folders.filter { $0.parent == nil || $0.parent?.deletedAt != nil } }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("SidebarView", context: context)
         #endif
         let files = self.files
@@ -533,7 +544,11 @@ struct SidebarView: View {
         .background { if stacked { Color(Palette.foldersGround).ignoresSafeArea() } }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if let card = sidebarCard, card != .mac, !editingFolders {
+                if let film, film.cardShown, !editingFolders {
+                    FilmCard(store: film)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                } else if let card = sidebarCard, card != .mac, !editingFolders {
                     cardView(card)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
@@ -847,7 +862,12 @@ struct SidebarView: View {
             content
             if let backend, case .signedIn = backend.state {
                 VStack(alignment: .leading, spacing: 4) {
-                    if let card = sidebarCard {
+                    if let film, film.cardShown {
+                        FilmCard(store: film)
+                            .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)
+                            .padding(.trailing, 10)
+                            .padding(.bottom, 2)
+                    } else if let card = sidebarCard {
                         // Its words start on the rows' icons' line, like the title and the account.
                         cardView(card)
                             .padding(.leading, SidebarStyle.edge(nested: nested) - SidebarCardMetrics.padding)
@@ -887,7 +907,7 @@ struct SidebarView: View {
 
     #if os(macOS)
     private static var offlineStandIn: (any OfflineSource)? {
-        #if DEBUG
+        #if DEBUG || QA
         OfflineStandIn.launched
         #else
         nil
@@ -909,7 +929,7 @@ struct SidebarView: View {
             if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { startRename(f) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .paneDeleteFolder)) { n in
-            if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { deleteFolder(f) }
+            if let id = n.object as? UUID, let f = context.folder(id), f.deletedAt == nil { requestDelete([f]) }
         }
         .alert("No room for another folder", isPresented: $folderLimitReached) {
             Button("OK", role: .cancel) {}
@@ -925,25 +945,19 @@ struct SidebarView: View {
             FolderMoveSheet(folder: folder)
         }
         #endif
-        .confirmationDialog("Delete \u{201C}\(deletingFolder?.name ?? "")\u{201D}?", isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }), titleVisibility: .visible) {
-            Button("Delete Folder", role: .destructive) {
-                if let f = deletingFolder { performDelete(f) }
-                deletingFolder = nil
-            }
-        } message: {
-            Text(deletingFolder.map { f in
-                let c = Self.contents(of: f, files: { context.files(in: $0).count })
-                return Self.deleteMessage(subfolders: c.subfolders, notes: c.notes, files: c.files)
-            } ?? "")
-        }
-        .confirmationDialog(Self.deleteFoldersTitle(deletingFolders.count), isPresented: Binding(get: { !deletingFolders.isEmpty }, set: { if !$0 { deletingFolders = [] } }), titleVisibility: .visible) {
-            Button("Delete Folders", role: .destructive) {
-                deletingFolders.forEach(performDelete)
+        .confirmationDialog(deletingFolders.count == 1 ? "Delete \u{201C}\(deletingFolders[0].name)\u{201D}?" : "Delete \(deletingFolders.count) folders?",
+                            isPresented: Binding(get: { !deletingFolders.isEmpty }, set: { if !$0 { deletingFolders = [] } }), titleVisibility: .visible) {
+            Button(deletingFolders.count == 1 ? "Delete Folder" : "Delete Folders", role: .destructive) {
+                performDelete(deletingFolders)
                 deletingFolders = []
-                picked = []
             }
         } message: {
-            Text("Their notes and files move to Recently Deleted, where you can recover them for 30 days.")
+            if deletingFolders.count == 1, let folder = deletingFolders.first {
+                let c = Self.contents(of: folder, files: { context.files(in: $0).count })
+                Text(Self.deleteMessage(subfolders: c.subfolders, notes: c.notes, files: c.files))
+            } else {
+                Text("Their notes and files move to Recently Deleted, where you can recover them for 30 days.")
+            }
         }
         .alert(Self.nameAlertTitle(renaming: renaming != nil, inside: (newFolderParent ?? nil) != nil), isPresented: Binding(
             get: { renaming != nil || newFolderParent != nil },
@@ -1095,7 +1109,7 @@ struct SidebarView: View {
             nudge: { f, step in SidebarView.folderChange { context.nudge(f, by: step) } },
             delete: { f in
                 // A picked folder's Delete Folder takes every picked folder, as in Finder.
-                if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { deleteFolder(f) }
+                if !picked.isEmpty, Self.selection(scope: scope, picked: picked).contains(.folder(f.id)) { deletePicked() } else { requestDelete([f]) }
             })
     }
 
@@ -1243,6 +1257,7 @@ struct SidebarView: View {
     /// Rename: on the Mac the name is typed in the folder's row, as in Notes; on iPhone in an alert.
     private func startRename(_ f: Folder) {
         #if os(macOS)
+        NameKeyHold.start()
         namingFolder = f.id
         #else
         nameDraft = f.name; renaming = f
@@ -1254,7 +1269,10 @@ struct SidebarView: View {
     private func startNewFolder(_ parent: Folder?) {
         #if os(macOS)
         guard let f = context.createUntitledFolder(parent: parent) else { folderLimitReached = true; return }
-        scope = .folder(f.id)
+        Usage.count(.folderCreated)
+        // Its name first, then its list: the field takes the keys before the list is built for
+        // the new folder, and the keys typed meanwhile go into the name (NameKeyHold).
+        NameKeyHold.start { scope = .folder(f.id) }
         namingFolder = f.id
         #else
         nameDraft = ""; newFolderParent = .some(parent)
@@ -1275,6 +1293,7 @@ struct SidebarView: View {
             try? context.save()
         } else if let parent = newFolderParent {
             let f = context.createFolder(named: name, parent: parent)
+            Usage.count(.folderCreated)
             scope = .folder(f.id)
         }
     }
@@ -1309,9 +1328,6 @@ struct SidebarView: View {
         return "\(gone) \(whose) \(held.joined(separator: " and ")) \(moves) to Recently Deleted, where you can recover \(them) for 30 days."
     }
 
-    /// "Delete 3 folders?"
-    static func deleteFoldersTitle(_ count: Int) -> String { "Delete \(count) folders?" }
-
     /// What the sidebar list shows picked: the folder shown, and any picked beside it.
     static func selection(scope: Scope?, picked: Set<UUID>) -> Set<Scope> {
         Set(picked.map { Scope.folder($0) }).union(scope.map { [$0] } ?? [])
@@ -1336,31 +1352,31 @@ struct SidebarView: View {
     /// something, in one question.
     private func deletePicked() {
         let all = Self.selection(scope: scope, picked: picked).compactMap { s -> Folder? in
-            if case .folder(let id) = s, id != roots.first?.id, let f = context.folder(id), f.deletedAt == nil { return f }
+            if case .folder(let id) = s, let f = context.folder(id), f.deletedAt == nil { return f }
             return nil
         }
-        guard all.count > 1 else {
-            if let f = all.first { deleteFolder(f) }
-            return
-        }
+        requestDelete(all)
+    }
+
+    /// Notes stays; empty folders go immediately, otherwise one question covers the selection.
+    private func requestDelete(_ folders: [Folder]) {
+        let all = folders.filter { $0.id != roots.first?.id }
+        guard !all.isEmpty else { return }
         if all.allSatisfy({ $0.liveNotes.isEmpty && $0.liveChildren.isEmpty && context.files(in: $0.id).isEmpty }) {
-            all.forEach(performDelete)
-            picked = []
+            performDelete(all)
         } else {
             deletingFolders = all
         }
     }
 
-    /// Asks first when the folder holds notes, like Notes: they move to Recently Deleted.
-    private func deleteFolder(_ f: Folder) {
-        // Notes stays, as in Apple Notes (its menu has no Delete; this is for ⌫ and other ways in).
-        guard f.id != roots.first?.id else { return }
-        if f.liveNotes.isEmpty && f.liveChildren.isEmpty && context.files(in: f.id).isEmpty { performDelete(f) } else { deletingFolder = f }
-    }
-
-    private func performDelete(_ f: Folder) {
-        if scope == .folder(f.id) { scope = .all }
-        SidebarView.folderChange { context.trash(f) }
+    private func performDelete(_ folders: [Folder]) {
+        for folder in folders {
+            if scope == .folder(folder.id) { scope = .all }
+            Usage.count(.folderDeleted)
+            AIUndoUsage.folderDeleted(folder.id)
+            SidebarView.folderChange { context.trash(folder) }
+        }
+        if folders.count > 1 { picked = [] }
     }
 }
 
@@ -1528,7 +1544,7 @@ private struct CountedRow: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("CountedRow")
         #endif
         let selected = selection == (trash ? .trash : .all)
@@ -1622,6 +1638,7 @@ private struct TrashDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         lid.dropped { over = $0 }
         DropLoader.load(info.itemProviders(for: [.paneItem])) { [context, undo] items, _ in
+            Usage.trashed(items.filter { $0.kind == .note }.flatMap(\.ids).compactMap { context.note($0) })
             SidebarView.folderChange { context.trashDropped(items, undo: undo) }
         }
         return true
@@ -1853,8 +1870,8 @@ extension View {
 /// then every folder row. Nothing it is given changes what it shows: the selection reaches it
 /// through its binding, the folders and counts through its queries, and the action is the same
 /// action. So two of them are always equal.
-extension SidebarView: @MainActor Equatable {
-    static func == (a: SidebarView, b: SidebarView) -> Bool { true }
+extension SidebarView: @MainActor CustomEquatable {
+    static func isEqual(_ a: SidebarView, _ b: SidebarView) -> Bool { true }
 }
 
 /// A folder row with its sub-folders; accepts dropped notes and folders. Not an equatable view:
@@ -1903,7 +1920,7 @@ private struct FolderTree: View {
     @Binding var naming: UUID?
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("FolderTree")
         #endif
         Group {
@@ -1972,7 +1989,7 @@ private struct FolderTree: View {
     private var label: some View {
         // Under the pointer the count gives way to ••• with the folder's menu.
         let selected = selection == .folder(folder.id) || picked.contains(folder.id)
-        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? SidebarView.listedNotes(in: folder, context: context)
+        let listed = library.map { $0.listedCount(inFolder: folder.id, context: context) } ?? folder.liveNotes.count
         return HoverRowReader(id: folder.name, reach: Hover.sidebarReach(depth: depth), selected: selected) { hovering in
             Label {
                 #if os(macOS)
@@ -2012,7 +2029,10 @@ private struct FolderTree: View {
         // Safari: they land in this folder.
         .onDrop(of: FolderDrop.types, delegate: FolderDrop(over: { targeted($0, folder.id) }) { providers in
             drops.lifted(folder.id)
+            let dropped = DropSpeed.start()
             DropLoader.load(providers) { items, urls in
+                DropSpeed.step("loaded", since: dropped)
+                defer { DropSpeed.step("moved", since: dropped); DispatchQueue.main.async { DropSpeed.step("next turn", since: dropped) } }
                 var moved = false
                 for item in items {
                     switch item.kind {
@@ -2133,8 +2153,8 @@ enum FolderAction: String, CaseIterable, Identifiable {
 /// it reads itself), the files, the selection, the drop. Not for the sidebar's actions, made new
 /// on every pass but doing the same things: as inputs they worked every folder row out again with
 /// each pass (180 rows against 72 for three saves).
-extension FolderTree: @MainActor Equatable {
-    static func == (a: FolderTree, b: FolderTree) -> Bool {
+extension FolderTree: @MainActor CustomEquatable {
+    static func isEqual(_ a: FolderTree, _ b: FolderTree) -> Bool {
         a.folder.id == b.folder.id && a.files == b.files && a.selection == b.selection
             && a.notesID == b.notesID && a.depth == b.depth && a.picked == b.picked
     }
@@ -2331,8 +2351,10 @@ private struct FolderPreview: View {
     private func card(_ note: Note) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(note.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                .privacyTitleBlur()
             if !note.isLocked, note.preview != NoteText.noPreview {
                 Text(note.preview).font(.caption).foregroundStyle(.secondary).lineLimit(6)
+                    .previewBlur(revealsOnHover: false)
             }
         }
         .padding(10)

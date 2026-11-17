@@ -23,7 +23,7 @@ import { challenge, handleOAuth, isOAuthPath, publicBase, resolveAccessToken, su
 import { SERVER_CARD_PATH, SERVER_INFO, serverCardResponse } from "./card.ts";
 import { APPS_GUIDE_URI, appsGuide, BASE_CSS_URI, GUIDE_URI, PAGE_INSTRUCTIONS, PAGE_PROMPTS, pageGuide } from "./page_guide.ts";
 import { AMBER_BASE_CSS } from "./amber-base.ts";
-import { afterResponse, UseTally } from "./ai_use.ts";
+import { afterResponse, itemOf, UseTally } from "./ai_use.ts";
 
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 /** Whether this server's tools build apps: the file tools do (an app is a path, "X.app/"), and so
@@ -278,7 +278,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
         const started = performance.now();
         try {
           const result = toolSet() === "files" ? await runFileTool(name, args, ctx) : await runTool(name, args, ctx);
-          tally(ctx).add(name, true);
+          tally(ctx).add(name, true, itemOf(name, args));
           if (ctx.timing) ctx.timing.total = performance.now() - started;
           if (result instanceof Content) {
             return ok(id, { content: result.content, ...(result.structured ? { structuredContent: result.structured } : {}) });
@@ -291,7 +291,7 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
           // Tool errors go back to the model as results so it can correct itself, and are logged
           // by their kind. Anything else is logged by its class and code only: a message can
           // quote a note.
-          tally(ctx).add(name, false);
+          tally(ctx).add(name, false, itemOf(name, args));
           if (e instanceof ToolError) log("tool_error", { tool: name, kind: toolErrorKind(e.message) });
           else log("tool_failed", { tool: name, ms: performance.now() - started, ...errorKind(e) });
           const message = e instanceof ToolError || e instanceof Error ? e.message : String(e);

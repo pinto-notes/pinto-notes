@@ -8,7 +8,7 @@ import Testing
 /// every screen, captured by `screencapture -l` from the shell so the sheet's material renders.
 /// The test writes `window-<name>` (the sheet's window number) and waits for the shell to write
 /// `shot-<name>`. Nothing appears on the display and nothing takes focus.
-///   `TEST_RUNNER_AMBER_SHARE_ASK_SHOTS=/path xcodebuild … test -only-testing:PaneTests/ShareAskSnapshots`
+///   `TEST_RUNNER_AMBER_SHARE_ASK_SHOTS=/path xcodebuild … test -only-testing:PaneHIGTests/ShareAskSnapshots`
 @MainActor @Suite(.serialized) struct ShareAskSnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_SHARE_ASK_SHOTS"].map { URL(fileURLWithPath: $0) } }
 

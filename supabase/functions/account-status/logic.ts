@@ -15,9 +15,13 @@ export type Status = { exists: boolean; password: boolean };
 /** Shapes the lookup into the reply. An account without a password (Sign in with Apple only)
  *  exists but can't take a password: the app tells the person to use Apple instead of offering
  *  a password that can't work, or a sign-up that the server would refuse. */
-export function statusFrom(row: { exists: boolean; has_password: boolean } | undefined): Status {
+/// `email_only`: no password, but the account signs in by email and not with Apple or Google: one
+/// made with an email code on pintonotes.com/connect. The app signs in by password, so it answers
+/// "password" for it: the app then asks for one and offers Forgot password?, which sets it. Said
+/// "Apple or Google" instead, the app would send that person to a sign-in they don't have.
+export function statusFrom(row: { exists: boolean; has_password: boolean; email_only?: boolean } | undefined): Status {
   if (!row?.exists) return { exists: false, password: false };
-  return { exists: true, password: row.has_password };
+  return { exists: true, password: row.has_password || row.email_only === true };
 }
 
 /** Fixed-window limiter keyed by an opaque string (hashed IP or email). Per isolate. */

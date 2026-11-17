@@ -152,7 +152,8 @@ import Testing
     /// A note drags from anywhere on its card, not only its words.
     @Test func aNoteDragsFromItsWholeCard() throws {
         let list = try SettingsHomeTests.source("Pane/Views/NoteListView.swift")
-        let row = try #require(list.range(of: "private struct ListRow").map { String(list[$0.lowerBound...].prefix(1600)) })
+        // The row's declaration through its body (it grew past 1,600 characters with its tags and drag chip).
+        let row = try #require(list.range(of: "private struct ListRow").map { String(list[$0.lowerBound...].prefix(4000)) })
         let shape = try #require(row.range(of: ".contentShape(Rectangle().inset(by: -6))"))
         let drag = try #require(row.range(of: ".draggable(PaneDragItem(kind: .note"))
         #expect(shape.lowerBound < drag.lowerBound, "the shape comes before the drag")
@@ -190,7 +191,7 @@ import Testing
         drops.land(a)
         #expect(drops.landings[a] == 2 && drops.landings[b] == nil, "each drop bounces only its own row")
         let sidebar = try SettingsHomeTests.source("Pane/Views/SidebarView.swift")
-        #expect(sidebar.contains("drops.lifted(folder.id)\n            DropLoader.load(providers)"), "lit before the dropped item is read")
+        #expect(sidebar.contains("drops.lifted(folder.id)\n            let dropped = DropSpeed.start()\n            DropLoader.load(providers)"), "lit before the dropped item is read")
         // The wait between the lift and the drop keeps the row lit, and the drop's own time replaces it.
         drops.lifted(b)
         #expect(drops.lit(b) && !drops.lit(a), "lit from the lift")

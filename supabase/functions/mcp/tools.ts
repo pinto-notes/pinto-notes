@@ -536,11 +536,11 @@ export async function listedNotes(tx: Tx, call: Call) {
 
 // MARK: Helpers
 
-/** A note's sub-notes, their sub-notes, and so on. */
-export async function descendants(tx: Tx, id: string): Promise<string[]> {
+/** Sub-notes below one or more roots, deduplicated by the recursive query. */
+export async function descendants(tx: Tx, roots: string | string[]): Promise<string[]> {
   const rows = await tx<{ id: string }[]>`
     with recursive d as (
-      select id from public.notes where parent_id = ${id} and deleted_at is null
+      select id from public.notes where parent_id = any(${typeof roots === "string" ? [roots] : roots}::uuid[]) and deleted_at is null
       union
       select n.id from public.notes n join d on n.parent_id = d.id where n.deleted_at is null
     ) select id from d`;
@@ -627,8 +627,8 @@ export async function findFolder(tx: Tx, v: Vault, ref: string, create: boolean)
       checkFolderName(part);
       const id = crypto.randomUUID();
       const [row] = await tx<{ id: string; parent_id: string | null; sort_index: number }[]>`
-        insert into public.folders (id, name_ct, parent_id, sort_index)
-        values (${id}, ${await v.sealFolder(id, part)}, ${parentId}, ${Date.now() / 1000})
+        insert into public.folders (id, name_ct, parent_id, sort_index, ai_made)
+        values (${id}, ${await v.sealFolder(id, part)}, ${parentId}, ${Date.now() / 1000}, true)
         returning id, parent_id, sort_index`;
       next = { ...row, sort_index: Number(row.sort_index), name: part };
       all.push(next);
@@ -878,16 +878,14 @@ export const handlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unkn
         // Which sub-notes are hidden depends on their parents' text: filter here, page by page.
         const parents = new Parents(tx, c.v);
         const batch = Math.max(100, limit + 1);
-        let skipped = 0;
+        let seen = 0;
         for (let at = 0; rows.length < limit + 1; at += batch) {
           const got = await tx<NoteRow[]>`select ${HEAD_COLUMNS(tx)} from public.notes where deleted_at is null ${where()} order by ${order()} limit ${batch} offset ${at}`;
           const hidden = await parents.hidden(got);
-          for (const r of got) {
-            if (hidden.has(r.id)) continue;
-            if (skipped < offset) { skipped++; continue; }
-            rows.push(r);
-            if (rows.length === limit + 1) break;
-          }
+          const visible = got.filter((r) => !hidden.has(r.id));
+          const start = Math.max(0, offset - seen);
+          rows.push(...visible.slice(start, start + limit + 1 - rows.length));
+          seen += visible.length;
           if (got.length < batch) break;
         }
       }
@@ -1051,8 +1049,8 @@ export const handlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<unkn
     for (let i = 0; i < ids.length; i++) all.filter((x) => x.parent_id === ids[i]).forEach((x) => ids.push(x.id));
     const inFolders = await tx<{ id: string }[]>`select id from public.notes where folder_id = any(${ids}::uuid[]) and trashed_at is null and deleted_at is null`;
     // Sub-notes go with their parents even when they sit in another folder.
-    const all_ids = new Set(inFolders.map((r) => r.id));
-    for (const r of inFolders) for (const d of await descendants(tx, r.id)) all_ids.add(d);
+    const roots = inFolders.map((r) => r.id);
+    const all_ids = new Set([...roots, ...await descendants(tx, roots)]);
     const trashed = await tx`update public.notes set trashed_at = now(), is_pinned = false, updated_at = now()
       where id = any(${[...all_ids]}::uuid[]) and trashed_at is null and deleted_at is null returning id`;
     await tx`update public.folders set deleted_at = now(), updated_at = now() where id = any(${ids}::uuid[])`;

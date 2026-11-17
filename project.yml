@@ -31,10 +31,26 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.3"
+    MARKETING_VERSION: "1.4"
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: complete
+targetTemplates:
+  # What every unit test target is: hosted by the app on the Mac and on iPhone, and loading
+  # PaneTestsLoaded (PaneTests/Harness/ClosedWindows.swift) as it starts.
+  PaneTestBundle:
+    type: bundle.unit-test
+    supportedDestinations: [iOS, macOS]
+    info:
+      path: PaneTests/Info/${target_name}.plist
+      properties:
+        NSPrincipalClass: ${target_name}.PaneTestsLoaded
+    dependencies:
+      - target: Pane
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
 targets:
   Pane:
     type: application
@@ -107,12 +123,13 @@ targets:
         PaneAccent: $(PANE_ACCENT)
         PanePostHogKey: $(PANE_POSTHOG_KEY)
         PanePostHogHost: $(PANE_POSTHOG_HOST)
+        PaneTeamBuild: $(PANE_TEAM_BUILD)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSAppleEventsUsageDescription: Pinto Notes reads the Apple Notes you choose to import. It never changes them.
         NSFaceIDUsageDescription: Pinto Notes uses Face ID to open your locked notes, show your recovery key, approve AI connections and add a device.
         NSCameraUsageDescription: Pinto Notes uses the camera to scan the code on a device you add.
-        NSPhotoLibraryAddUsageDescription: Pinto Notes saves a picture to your photo library when you choose Save Image in the share sheet.
+        NSPhotoLibraryAddUsageDescription: Pinto Notes saves pictures and videos to your photo library when you choose Save Image or Save Video in the share sheet.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: dev.emilwagman.pane.item
             UTTypeDescription: Pane item
@@ -281,17 +298,16 @@ targets:
         SKIP_INSTALL: YES
         # QuickIntents: New Note runs in the app; the extension's copy only names it.
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
+  # The unit and interaction tests are four test targets, one per group of folders under PaneTests:
+  # after a test edit only its own target's module is compiled again, a quarter to a half of what
+  # one target of every test took (scripts/ci/select-tests.py maps PaneTests/Suite names to them).
+  # Each target compiles PaneTests/Harness and PaneTests/Shared too: the helpers the others use.
+  # Test targets can't import each other, so a helper another folder needs goes in Shared.
   PaneTests:
-    type: bundle.unit-test
-    supportedDestinations: [iOS, macOS]
-    # PaneTestsLoaded (PaneTests/Harness/ClosedWindows.swift).
-    info:
-      path: PaneTests/Info.generated.plist
-      properties:
-        NSPrincipalClass: PaneTests.PaneTestsLoaded
+    templates: [PaneTestBundle]
     sources:
       - path: PaneTests
-        excludes: [Fixtures]
+        excludes: [Fixtures, Info, Interaction, HIG, Network, Collab, Perf]
       - path: PaneTests/Fixtures
         excludes: [Markdown, Keep]
         buildPhase: resources
@@ -330,6 +346,31 @@ targets:
       - path: supabase/functions/mcp/amber-base.ts
         buildPhase: resources
       - path: supabase/functions/mcp/folder_files.ts
+        buildPhase: resources
+      # Help link and email contracts read the website sources from the test bundle.
+      - path: web/lib/site.ts
+        buildPhase: resources
+      - path: web/content/privacy-policy.md
+        buildPhase: resources
+      - path: web/next.config.ts
+        buildPhase: resources
+      - path: web/app/help
+        type: folder
+        buildPhase: resources
+      - path: web/app/privacy
+        type: folder
+        buildPhase: resources
+      - path: web/app/privacy-security
+        type: folder
+        buildPhase: resources
+      - path: web/app/terms
+        type: folder
+        buildPhase: resources
+      - path: scripts/template-catalog.py
+        buildPhase: resources
+      - path: scripts/page-render/render.ts
+        buildPhase: resources
+      - path: scripts/template-stage-pictures.ts
         buildPhase: resources
       # The Mac download's Info.plist, for its update settings (UpdaterTests).
       - path: Pane/Resources/Info-Direct.plist
@@ -370,12 +411,66 @@ targets:
       # The design rules, for AmberButtonTests (the button sizes and radii in code are the file's).
       - path: docs/DESIGN.md
         buildPhase: resources
-    dependencies:
-      - target: Pane
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        "TEST_HOST[sdk=macosx*]": "$(BUILT_PRODUCTS_DIR)/Pane.app/Contents/MacOS/Pane"
+  # The editor and the app driven offscreen: typing, lists, tables, selection, menus.
+  PaneInteractionTests:
+    templates: [PaneTestBundle]
+    sources:
+      - PaneTests/Interaction
+      - PaneTests/Harness
+      - PaneTests/Shared
+      # The flat fixtures (LayoutHangTests reads hang-2026.txt).
+      - path: PaneTests/Fixtures
+        excludes: [Markdown, Keep]
+        buildPhase: resources
+      # The app's code, read by MenuLookTests, SidebarPillTests and others (TestFiles.swift).
+      - path: Pane/Views
+        type: folder
+        buildPhase: resources
+      - path: Pane/App
+        type: folder
+        buildPhase: resources
+      - path: Pane/Model
+        type: folder
+        buildPhase: resources
+      - path: Pane/Editor
+        type: folder
+        buildPhase: resources
+      - path: Pane/Sync
+        type: folder
+        buildPhase: resources
+  # The design pass: snapshots and shots of every screen, written only when asked for.
+  PaneHIGTests:
+    templates: [PaneTestBundle]
+    sources:
+      - path: Pane/Views
+        type: folder
+        buildPhase: resources
+      - PaneTests/HIG
+      - PaneTests/Harness
+      - PaneTests/Shared
+      # habit-tracker.json, for the note page shots (NoteSourceTests.habitTrackerFixture).
+      - path: PaneTests/Fixtures
+        excludes: [Markdown, Keep]
+        buildPhase: resources
+  # Sync against a stub server, shared notes, and the suites that time things.
+  PaneSystemTests:
+    templates: [PaneTestBundle]
+    sources:
+      - PaneTests/Network
+      - PaneTests/Collab
+      - PaneTests/Perf
+      - PaneTests/Harness
+      - PaneTests/Shared
+      # The imports' fixtures, synced in ImportSyncTests.
+      - path: PaneTests/Fixtures
+        excludes: [Markdown, Keep]
+        buildPhase: resources
+      - path: PaneTests/Fixtures/Markdown
+        type: folder
+        buildPhase: resources
+      - path: PaneTests/Fixtures/Keep
+        type: folder
+        buildPhase: resources
   PaneUITests:
     type: bundle.ui-testing
     supportedDestinations: [iOS, macOS]
@@ -400,4 +495,4 @@ schemes:
       targets:
         Pane: all
     test:
-      targets: [PaneTests, PaneUITests]
+      targets: [PaneTests, PaneInteractionTests, PaneHIGTests, PaneSystemTests, PaneUITests]

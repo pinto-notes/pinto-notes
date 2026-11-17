@@ -12,15 +12,8 @@ import UIKit
 /// are marked "(sample)". Offscreen, into pinto-internal/evidence/security-page-final:
 /// Mac: `TEST_RUNNER_AMBER_HIG_SHOTS=$PINTO_INTERNAL/evidence/security-page-final scripts/qa-test.sh PaneTests/SecurityPageSnapshots`.
 /// iPhone: the same suite on a simulator (`TEST_RUNNER_AMBER_HIG_SHOTS=… xcodebuild test -scheme Pane
-/// -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:PaneTests/SecurityPageSnapshots CODE_SIGNING_ALLOWED=NO`).
-@MainActor @Suite(.serialized) struct SecurityPageSnapshots {
-    static let mac = KeyDevice(id: UUID(), name: "Sara\u{2019}s MacBook Air (sample)", platform: "macos", how: .added, backedUp: false,
-                               addedAt: .now.addingTimeInterval(-6 * 86400), seenAt: .now, removing: false)
-    static let phone = KeyDevice(id: UUID(), name: "Work iPhone (sample)", platform: "ios", how: .keychain, backedUp: true,
-                                 addedAt: .now.addingTimeInterval(-200 * 86400), seenAt: .now.addingTimeInterval(-3 * 86400), removing: false)
-    static let ais = [Connection(id: UUID(), name: "ChatGPT", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "chatgpt.com"),
-                      Connection(id: UUID(), name: "Claude", kind: "oauth", created_at: .now, last_used_at: .now, revoked_at: nil, redirect_host: "claude.ai")]
-
+/// -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:PaneHIGTests/SecurityPageSnapshots CODE_SIGNING_ALLOWED=NO`).
+extension SecurityPageSnapshots {
     /// The two kinds of account: a copy kept by Pinto Notes, and Advanced protection on.
     static func accounts() async throws -> [(String, AccountCrypto)] {
         [("standard", await AdvancedProtectionHiddenTests.standard()), ("advanced", try await AdvancedProtectionHiddenTests.strict())]
@@ -104,7 +97,7 @@ import UIKit
     }
 
     /// Settings on iPhone, signed in: the list and every page, light and dark, and each page's end
-    /// (7 November 2026). `-only-testing:PaneTests/SecurityPageSnapshots/phoneSettings()`.
+    /// (7 November 2026). `-only-testing:PaneHIGTests/SecurityPageSnapshots/phoneSettings()`.
     @Test func phoneSettings() async throws {
         guard ListLayoutSnapshots.dir != nil else { return }
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")

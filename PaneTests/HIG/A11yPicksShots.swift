@@ -138,7 +138,7 @@ import UIKit
 /// accent targets, the tick on the chosen one, its name under the row), and with High contrast
 /// (no accent row), light and dark. On a simulator, before the Mac half:
 /// `TEST_RUNNER_PANE_A11Y_PICKS_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/A11yPicksPhoneShots CODE_SIGNING_ALLOWED=NO`
+/// -only-testing:PaneHIGTests/A11yPicksPhoneShots CODE_SIGNING_ALLOWED=NO`
 @MainActor @Suite(.serialized) struct A11yPicksPhoneShots {
     @Test func pictures() async throws {
         guard let dir = ProcessInfo.processInfo.environment["PANE_A11Y_PICKS_SHOTS"].map({ URL(fileURLWithPath: $0).appending(path: "raw-ios") }) else { return }

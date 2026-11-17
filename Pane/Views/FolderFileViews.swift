@@ -1,7 +1,9 @@
+import ImageIO
 import QuickLook
 import QuickLookThumbnailing
 import SwiftData
 import SwiftUI
+import os
 import UniformTypeIdentifiers
 #if os(macOS)
 import Quartz
@@ -63,9 +65,49 @@ enum ListItem: Identifiable, DatedListItem {
 }
 
 /// What a drop carries: items from inside the app, and file or folder URLs from outside it.
+/// How long a drop on a folder takes, from the button's release (the drop) to what was dragged
+/// read, the move done and the next turn of the run loop, in the system log (category "speed"):
+/// `log stream --predicate 'subsystem == "dev.emilwagman.pane" AND category == "speed"'`
+/// (Emil, 12 November 2026: "it feels like the entire app freezes when I drag and drop a note").
+enum DropSpeed {
+    private static let log = Logger(subsystem: "dev.emilwagman.pane", category: "speed")
+
+    static func start() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    static func step(_ what: StaticString, since start: TimeInterval) {
+        let ms = Int((ProcessInfo.processInfo.systemUptime - start) * 1000)
+        log.notice("drop on a folder: \(what, privacy: .public) after \(ms, privacy: .public) ms")
+    }
+}
+
+/// A drag's items, read from the drag itself when the drop happens. Loading them through their
+/// item providers took about 300 ms on the Air, with the note and its drag image still on screen
+/// after the drop (Emil, 12 November 2026: "it looks like the whole app is just frozen"). Read
+/// here, the note moved 7 ms after the drop. Anything else in the drop (a file from Finder) still
+/// loads through its provider.
+@MainActor
+enum DragNow {
+    /// The items of a drop that carries only notes, folders and files of this app; nil otherwise.
+    static func items(_ providers: [NSItemProvider]) -> [PaneDragItem]? {
+        #if os(macOS)
+        let type = UTType.paneItem.identifier
+        guard !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(type) }) else { return nil }
+        let items = (NSPasteboard(name: .drag).pasteboardItems ?? []).compactMap { $0.data(forType: NSPasteboard.PasteboardType(type)) }
+            .compactMap { try? JSONDecoder().decode(PaneDragItem.self, from: $0) }
+        return items.count == providers.count ? items : nil
+        #else
+        return nil
+        #endif
+    }
+}
+
 enum DropLoader {
     @MainActor
     static func load(_ providers: [NSItemProvider], then handle: @escaping @MainActor ([PaneDragItem], [URL]) -> Void) {
+        if let items = DragNow.items(providers) {
+            handle(items, [])
+            return
+        }
         let group = DispatchGroup()
         final class Box: @unchecked Sendable { var items: [PaneDragItem] = []; var urls: [URL] = []; let lock = NSLock() }
         let box = Box()
@@ -139,7 +181,7 @@ struct FileRow: View {
 
     var body: some View {
         let large = typeSize.isAccessibilitySize
-        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: 8))
+        let detail = large ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2)) : AnyLayout(HStackLayout(spacing: RowMetrics.detailGap))
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: RowMetrics.spacing) {
                 Text(file.filename)
@@ -150,7 +192,7 @@ struct FileRow: View {
                 detail {
                     Text(DateBucket.rowDate(NoteRow.shownDate(of: file, byCreation: datedByCreation)))
                         .monospacedDigit()
-                        .foregroundStyle(Color.ink.opacity(0.85))
+                        .foregroundStyle(Color.ink)
                     Text(file.listDetail)
                         .monospacedDigit()
                         .foregroundStyle(Color.muted)
@@ -233,9 +275,26 @@ struct FileThumbnail: View {
         // A page or picture says more than an icon; a spreadsheet's or text's thumbnail is mostly blank.
         let t = file.type
         guard FileStore.exists(file), t.conforms(to: .pdf) || t.conforms(to: .image) || t.conforms(to: .movie) else { image = nil; return }
+        // A picture is decoded here at twice the pixels it fills: the system's thumbnail came out
+        // about half as sharp as the row (Emil, 13 November 2026: "make this nicer").
+        if t.conforms(to: .image) {
+            let url = FileStore.url(for: file.id, filename: file.filename), pixels = side * scale * 2
+            if let sharp = await Task.detached(priority: .utility, operation: { Self.decode(url, pixels: pixels) }).value {
+                image = sharp
+                return
+            }
+        }
         let request = QLThumbnailGenerator.Request(fileAt: FileStore.url(for: file.id, filename: file.filename),
                                                    size: CGSize(width: side, height: side), scale: scale, representationTypes: .thumbnail)
         image = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request).cgImage
+    }
+
+    /// A picture's thumbnail, its longest side `pixels`, turned the way the photo was taken.
+    nonisolated static func decode(_ url: URL, pixels: CGFloat) -> CGImage? {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                        kCGImageSourceThumbnailMaxPixelSize: Int(pixels.rounded(.up)), kCGImageSourceShouldCacheImmediately: true]
+        return CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary)
     }
 }
 

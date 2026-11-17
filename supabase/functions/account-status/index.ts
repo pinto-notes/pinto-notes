@@ -44,9 +44,12 @@ Deno.serve(atHome("account-status", (req) => atLeast(FLOOR_MS, async () => {
   if (!perEmail.allow(await hashKey(SALT, email))) return reply({ error: "slow down" }, 429);
 
   try {
-    const [row] = await sql<{ exists: boolean; has_password: boolean }[]>`
+    const [row] = await sql<{ exists: boolean; has_password: boolean; email_only: boolean }[]>`
       select true as exists,
-             coalesce(u.encrypted_password, '') <> '' as has_password
+             coalesce(u.encrypted_password, '') <> '' as has_password,
+             exists (select 1 from auth.identities i where i.user_id = u.id and i.provider = 'email')
+               and not exists (select 1 from auth.identities i where i.user_id = u.id and i.provider <> 'email')
+               as email_only
       from auth.users u
       where lower(u.email) = ${email} and u.deleted_at is null
       order by (coalesce(u.encrypted_password, '') <> '') desc

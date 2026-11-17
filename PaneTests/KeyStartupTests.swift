@@ -5,131 +5,7 @@ import Testing
 /// Getting a device the account's key (`AccountCrypto`, `KeyStartup`), with a fake Keychain and a
 /// fake server. The loops in the background are switched off (their sleep throws) unless a test
 /// runs them; the tests poll and retry by hand.
-@MainActor @Suite(.serialized) struct KeyStartupTests {
-    /// iCloud Keychain: what each device has saved, delivered to the others when they receive.
-    final class Cloud: @unchecked Sendable {
-        var keys: [UUID: StoredKey] = [:]
-    }
-
-    /// One device's Keychain. Its synced items go to the cloud; it has the cloud's only after
-    /// `receive()` (or right away with `autoReceive`). Pending items stay here.
-    final class FakeKeychain: AccountKeyStore, @unchecked Sendable {
-        let cloud: Cloud
-        var syncs = true
-        var autoReceive: Bool
-        /// Lagging sync: the cloud's key shows up on the load after this many.
-        var receiveAfterLoads: Int?
-        private(set) var loads = 0
-        var synced: [UUID: StoredKey] = [:]
-        var pending: [UUID: StoredKey] = [:]
-        var previous: [UUID: StoredKey] = [:]
-        /// The key another device handed over (Add a device): on this device only.
-        var local: [UUID: StoredKey] = [:]
-        private(set) var syncedWrites = 0
-        /// The Keychain refuses writes of the synced item (the Mac download's -34018), or all of them.
-        var refusesSynced = false
-        var refusesAll = false
-
-        init(cloud: Cloud, autoReceive: Bool = true) {
-            self.cloud = cloud
-            self.autoReceive = autoReceive
-        }
-
-        func receive() { synced.merge(cloud.keys) { _, new in new } }
-
-        func load(account: UUID, slot: KeySlot) -> StoredKey? {
-            if slot == .previous { return previous[account] }
-            if slot == .local { return local[account] }
-            guard slot == .synced else { return pending[account] }
-            loads += 1
-            if autoReceive || receiveAfterLoads.map({ loads > $0 }) == true { receive() }
-            return synced[account]
-        }
-
-        func save(_ key: StoredKey, account: UUID, slot: KeySlot) -> Bool {
-            if refusesAll || (refusesSynced && slot == .synced) { return false }
-            if slot == .pending { pending[account] = key; return true }
-            if slot == .previous { previous[account] = key; return true }
-            if slot == .local { local[account] = key; return true }
-            syncedWrites += 1
-            synced[account] = key
-            cloud.keys[account] = key
-            return true
-        }
-
-        func remove(account: UUID, slot: KeySlot) {
-            switch slot {
-            case .pending: pending[account] = nil
-            case .previous: previous[account] = nil
-            case .local: local[account] = nil
-            case .synced: synced[account] = nil; cloud.keys[account] = nil
-            }
-        }
-    }
-
-    final class FakeServer: AccountKeyServer, @unchecked Sendable {
-        var row: ServerKey?
-        /// account_key_resets.generation: bumped by start_fresh.
-        var generation = 0
-        var offline = false
-        /// Answers nothing (a request that hangs).
-        var hangs = false
-        /// start_fresh wants a recent sign-in.
-        var needsReauth = false
-        /// start_fresh within 72 hours of a password reset: refused until this.
-        var pausedUntil: Date?
-        /// The insert lands but the answer is lost.
-        var loseCreateResponse = false
-        private(set) var creates = 0
-        private(set) var startedFresh: [String] = []
-
-        private(set) var fetches = 0
-
-        func fetch() async throws -> ServerKeyState {
-            fetches += 1
-            if hangs { try await Task.sleep(for: .seconds(3600)) }
-            if offline { throw URLError(.notConnectedToInternet) }
-            return ServerKeyState(key: row, generation: generation)
-        }
-
-        /// The generation each create said it read.
-        private(set) var createGenerations: [Int] = []
-
-        func create(_ key: ServerKey, generation: Int) async throws -> (key: ServerKey, created: Bool) {
-            if offline { throw URLError(.notConnectedToInternet) }
-            createGenerations.append(generation)
-            // create_account_key: a key for a generation the account has moved past is refused.
-            if generation < self.generation { throw KeyError.staleGeneration }
-            creates += 1
-            let made = row == nil
-            if made { row = key }
-            if loseCreateResponse { throw URLError(.networkConnectionLost) }
-            return (row!, made)
-        }
-
-        func markRecoveryKeySaved() async throws -> Date? {
-            if offline { throw URLError(.notConnectedToInternet) }
-            row?.recovery_saved_at = Date(timeIntervalSince1970: 1000)
-            return row?.recovery_saved_at
-        }
-
-        func startFresh(keyID: String) async throws -> Bool {
-            if offline { throw URLError(.notConnectedToInternet) }
-            if let pausedUntil { throw KeyError.pausedAfterReset(until: pausedUntil) }
-            if needsReauth { throw KeyError.reauth }
-            startedFresh.append(keyID)
-            guard row?.key_id == keyID else { return false }
-            row = nil
-            generation += 1
-            return true
-        }
-    }
-
-    let user = UUID()
-    let cloud = Cloud()
-    let server = FakeServer()
-    let defaults = UserDefaults(suiteName: "key-startup-\(UUID())")!
-
+extension KeyStartupTests {
     /// Runs the loops in the background at once: their waits only yield. The fetch's time limits
     /// (12 s, and 1 s with the key here) get a sleep that throws, which sets no limit; a limit that
     /// only yields races the fake server's answer, and on a busy machine it wins and the device
@@ -149,6 +25,90 @@ import Testing
         let k = StoredKey.generate()
         server.row = try k.serverRow(user: user)
         return k
+    }
+
+    /// A response already in flight belongs to the account that requested it.
+    enum PendingKeyFetch: CaseIterable { case startup, refresh, recovery, markSaved, resetFetch, resetDelete, resetFiles, resetRestart }
+    @Test(arguments: PendingKeyFetch.allCases) func oldAccountFetchCannotChangeProtection(operation: PendingKeyFetch) async throws {
+        actor DelayedServer: AccountKeyServer {
+            var pending: CheckedContinuation<ServerKeyState, Never>?
+            var waiting: CheckedContinuation<Void, Never>?
+            func fetch() async throws -> ServerKeyState {
+                await withCheckedContinuation { continuation in
+                    pending = continuation
+                    waiting?.resume()
+                    waiting = nil
+                }
+            }
+            func waitForFetch() async {
+                if pending == nil { await withCheckedContinuation { waiting = $0 } }
+            }
+            func finish(_ state: ServerKeyState = ServerKeyState(key: nil, generation: 42, protection: .strict)) {
+                pending?.resume(returning: state)
+                pending = nil
+            }
+            func create(_ key: ServerKey, generation: Int) async throws -> (key: ServerKey, created: Bool) { throw KeyError.notReady }
+            func markRecoveryKeySaved() async throws -> Date? { _ = try await fetch(); return .now }
+            func startFresh(keyID: String) async throws -> Bool { _ = try await fetch(); return true }
+        }
+        let delayed = DelayedServer(), nextAccount = UUID()
+        let (crypto, keychain) = device()
+        defer { crypto.signedOut() }
+        let oldRequest = Task {
+            await crypto.attach(account: user, server: delayed)
+        }
+        await delayed.waitForFetch()
+        if operation != .startup {
+            await delayed.finish()
+            await oldRequest.value
+        }
+        var removedFiles: [UUID] = []
+        crypto.removeAccountFiles = { account in
+            removedFiles.append(account)
+            if operation == .resetFiles { _ = try? await delayed.fetch() }
+        }
+        let followup = operation == .startup ? nil : Task {
+            switch operation {
+            case .refresh: try? await crypto.refreshCopyState()
+            case .recovery: try? await crypto.recover(typed: StoredKey.generate().recoveryText)
+            case .markSaved: try? await crypto.markRecoveryKeySaved()
+            default: try? await crypto.startFresh(confirmation: "start fresh")
+            }
+        }
+        if operation != .startup { await delayed.waitForFetch() }
+        if operation == .resetDelete || operation == .resetFiles {
+            await delayed.finish(ServerKeyState(key: try StoredKey.generate().serverRow(user: user)))
+            await delayed.waitForFetch()
+        }
+        if operation == .resetFiles { await delayed.finish(); await delayed.waitForFetch() }
+        if operation == .resetRestart {
+            await delayed.finish(ServerKeyState(key: nil))
+            await delayed.waitForFetch()
+            keychain.synced[nextAccount] = StoredKey.generate()
+            server.generation = 1
+        }
+        await crypto.attach(account: nextAccount, server: server)
+        #expect(crypto.recoveryKeyChanged == (operation == .resetRestart))
+        let nextFetches = server.fetches
+        #expect(crypto.phase == .ready)
+        await delayed.finish()
+        await oldRequest.value
+        await followup?.value
+        #expect(crypto.account == nextAccount && crypto.phase == .ready)
+        #expect(crypto.protection == nil)
+        #expect(!defaults.bool(forKey: AccountCrypto.wasStrictKey(nextAccount)))
+        #expect(crypto.recoverySavedAt == nil && server.fetches == nextFetches)
+        if operation == .resetDelete || operation == .resetFiles {
+            #expect(removedFiles == [user], "a completed reset still cleans the old account's files")
+            #expect(!defaults.bool(forKey: AccountCrypto.startedFreshHereKey(nextAccount)))
+        }
+        if operation == .recovery {
+            let current = try #require(crypto.keyToHandOver)
+            server.offline = true
+            try await crypto.recover(typed: current.recoveryText)
+            #expect(crypto.keyToHandOver?.generation == current.generation,
+                    "a stale recovery fetch must not poison the new account's cached generation")
+        }
     }
 
     // MARK: The decision alone
@@ -616,10 +576,12 @@ import Testing
 
     // MARK: Offline
 
-    @Test func offlineWithTheKeyCarriesOnAndChecksLater() async throws {
+    @Test(arguments: [false, true])
+    func anOfflineKeyIsCheckedWhenTheServerReturns(stale: Bool) async throws {
         let k = try existingKey()
         let (crypto, keychain) = device()
-        keychain.synced[user] = k
+        defer { crypto.signedOut() }
+        keychain.synced[user] = stale ? StoredKey.generate() : k
         server.offline = true
         await crypto.attach(account: user, server: server)
         #expect(crypto.phase == .ready && crypto.unverified)
@@ -627,8 +589,11 @@ import Testing
         #expect(crypto.unverified)
         server.offline = false
         await crypto.recheck()
-        #expect(crypto.phase == .ready && !crypto.unverified)
-        crypto.signedOut()
+        if stale {
+            #expect(crypto.phase == .mismatch && E2EE.sealer == nil)
+        } else {
+            #expect(crypto.phase == .ready && !crypto.unverified)
+        }
     }
 
     /// A plane's Wi-Fi before you pay, or a dead connection: requests hang instead of failing.
@@ -719,19 +684,6 @@ import Testing
         crypto.signedOut()
     }
 
-    @Test func offlineWithAKeyTheServerNoLongerHas() async throws {
-        let (crypto, keychain) = device()
-        keychain.synced[user] = StoredKey.generate()
-        _ = try existingKey()
-        server.offline = true
-        await crypto.attach(account: user, server: server)
-        #expect(crypto.phase == .ready)
-        server.offline = false
-        await crypto.recheck()
-        #expect(crypto.phase == .mismatch && E2EE.sealer == nil)
-        crypto.signedOut()
-    }
-
     @Test func offlineWithoutTheKey() async throws {
         let (crypto, keychain) = device()
         server.offline = true
@@ -743,30 +695,20 @@ import Testing
         crypto.signedOut()
     }
 
-    @Test func offlineRetriesInTheBackground() async throws {
+    @Test(arguments: [false, true])
+    func backgroundRetryOpensOrVerifiesTheKey(alreadyHeld: Bool) async throws {
         let k = try existingKey()
         let (crypto, keychain) = device(sleep: Self.loopsRunAtOnce)
+        defer { crypto.signedOut() }
+        if alreadyHeld { keychain.synced[user] = k }
         server.offline = true
         await crypto.attach(account: user, server: server)
-        #expect(crypto.phase == .unreachable)
+        #expect(crypto.phase == (alreadyHeld ? .ready : .unreachable))
+        if alreadyHeld { #expect(crypto.unverified) }
         server.offline = false
         keychain.synced[user] = k
         await crypto.waitForBackground()
         #expect(crypto.phase == .ready && !crypto.unverified && server.creates == 0)
-        crypto.signedOut()
-    }
-
-    @Test func aKeyUsedOfflineIsCheckedInTheBackground() async throws {
-        let k = try existingKey()
-        let (crypto, keychain) = device(sleep: Self.loopsRunAtOnce)
-        keychain.synced[user] = k
-        server.offline = true
-        await crypto.attach(account: user, server: server)
-        #expect(crypto.phase == .ready && crypto.unverified)
-        server.offline = false
-        await crypto.waitForBackground()
-        #expect(crypto.phase == .ready && !crypto.unverified)
-        crypto.signedOut()
     }
 
     // MARK: While running
@@ -791,33 +733,23 @@ import Testing
         crypto.signedOut()
     }
 
-    @Test func theServersKeyGoneMidwayWithoutAResetComesBackTheSame() async throws {
-        let k = try existingKey()
+    @Test(arguments: [false, true])
+    func aMissingServerKeyIsReplacedOnlyAfterAReset(reset: Bool) async throws {
+        let original = try existingKey()
         let (crypto, keychain) = device()
-        keychain.synced[user] = k
+        defer { crypto.signedOut() }
+        keychain.synced[user] = original
         await crypto.attach(account: user, server: server)
         server.row = nil
+        if reset { server.generation = 1 }
         await crypto.recheck()
-        #expect(crypto.phase == .ready && keychain.synced[user] == k, "no new key: the row goes back")
-        #expect(k.matches(try #require(server.row), user: user))
-        #expect(keychain.previous[user] == nil && !crypto.recoveryKeyChanged)
-        crypto.signedOut()
-    }
-
-    @Test func theServersKeyGoneMidwayAfterAResetMakesANewOne() async throws {
-        let k = try existingKey()
-        let (crypto, keychain) = device()
-        keychain.synced[user] = k
-        await crypto.attach(account: user, server: server)
-        server.row = nil
-        server.generation = 1
-        await crypto.recheck()
-        let new = try #require(keychain.synced[user])
-        #expect(crypto.phase == .ready && new != k && new.generation == 1)
-        #expect(new.matches(try #require(server.row), user: user))
-        #expect(keychain.previous[user] == k, "the old key is kept aside on this device")
-        #expect(crypto.recoveryKeyChanged)
-        crypto.signedOut()
+        let current = try #require(keychain.synced[user])
+        let row = try #require(server.row)
+        #expect(crypto.phase == .ready && current.matches(row, user: user))
+        #expect((current != original) == reset)
+        #expect(current.generation == (reset ? 1 : original.generation))
+        #expect(keychain.previous[user] == (reset ? original : nil))
+        #expect(crypto.recoveryKeyChanged == reset)
     }
 
     // MARK: A synced key is never replaced without a reset

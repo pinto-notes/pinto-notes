@@ -21,7 +21,7 @@ enum AppIdentity {
     /// session or notes, and never stops at launch on a Keychain prompt for the installed app's
     /// items (a Debug build is signed differently, so the Keychain asks, and the app waits).
     static let devRun: Bool = {
-        #if DEBUG
+        #if DEBUG || QA
         ProcessInfo.processInfo.environment["PANE_DEV_RUN"] == "1"
         #else
         false

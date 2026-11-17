@@ -347,7 +347,7 @@ enum DesignLook: String, CaseIterable, Sendable {
     #endif
 
     private static var initial: DesignLook {
-        #if DEBUG
+        #if DEBUG || QA
         let raw = ProcessInfo.processInfo.environment["PINTO_LOOK"] ?? UserDefaults.standard.string(forKey: "PintoLook")
         return raw.flatMap(DesignLook.init(rawValue:)) ?? shipped
         #else

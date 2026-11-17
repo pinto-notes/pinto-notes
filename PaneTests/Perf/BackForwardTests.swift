@@ -111,7 +111,8 @@ import WebKit
         defer { window.close(); RenderProbe.noteListTransaction = nil }
         await NoteOpenTests.open(notes[1], in: window)
         await NoteOpenTests.settle(window)
-        try press("New Note", in: window)
+        // New Note shares the list's toolbar item with its ••• (7 November 2026): pressed by its button.
+        try #require(await MacWindowChromeTests.pressNewNote(window), "New Note in the toolbar")
         await NoteOpenTests.settle(window)
         let empty = try #require(try container.mainContext.fetch(FetchDescriptor<Note>()).first { $0.body.isEmpty && $0.deletedAt == nil })
         var removalAnimated = false

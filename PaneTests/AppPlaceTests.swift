@@ -70,15 +70,28 @@ struct AppPlaceTests {
         #endif
     }
 
+    /// Keyboard shortcuts is on the Mac only: iPhone has no menus to list.
+    static let shortcuts: [SettingsPage] = {
+        #if os(macOS)
+        [.shortcuts]
+        #else
+        []
+        #endif
+    }()
+
+    /// In the groups' order (SettingsPage.groups, 7 November 2026), with Today's note and, last,
+    /// Experimental (Settings › Experimental, 12 November 2026).
     @Test func signedOutShowsGeneralAndAccount() {
         let view = SettingsView(backend: Backend(), sync: nil, route: SettingsRoute(defaults: defaults()))
-        #expect(view.pages == [.account, .general, .appearance, .security, .help], "Appearance and how security works are there signed out too")
+        #expect(view.pages == [.account, .general, .appearance] + Self.shortcuts + [.todaysNote, .security, .help, .experimental],
+                "Appearance and how security works are there signed out too")
         #expect(!view.pages.contains(.ai) && !view.pages.contains(.storage))
     }
 
     @Test func signedInShowsAccountAIAndStorage() {
         let backend = Backend(testClient: CaptureScreen.client, email: "sara@example.com")
         let view = SettingsView(backend: backend, sync: nil, route: SettingsRoute(defaults: defaults()))
-        #expect(view.pages == [.account, .general, .ai, .appearance, .security, .storage, .help], "the Mac's sidebar and iPhone's list, in order")
+        #expect(view.pages == [.account, .general, .appearance] + Self.shortcuts + [.ai, .todaysNote, .security, .storage, .help, .experimental],
+                "the Mac's sidebar and iPhone's list, in order")
     }
 }

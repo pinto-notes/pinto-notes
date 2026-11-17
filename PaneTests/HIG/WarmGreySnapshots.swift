@@ -11,11 +11,7 @@ import Testing
 /// so the sidebar's glass renders. The test writes `window-id` and `ready-<name>`, then waits
 /// for the shell to write `shot-<name>`.
 /// `TEST_RUNNER_AMBER_DEMO_FRAMES=/path scripts/qa-test.sh PaneTests/WarmGreySnapshots`
-@MainActor @Suite(.serialized) struct WarmGreySnapshots {
-    /// Captured by window id (screencapture), which needs the window on screen: set only by CI's
-    /// snapshots workflow, and the gate for every on-screen shot (AppSnapshotTests.onScreenAllowed).
-    static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_DEMO_FRAMES"].map { URL(fileURLWithPath: $0) } }
-
+extension WarmGreySnapshots {
     static func shoot(_ w: NSWindow, _ name: String, in dir: URL) async throws {
         try "\(w.windowNumber)".write(to: dir.appending(path: "window-id"), atomically: true, encoding: .utf8)
         try "".write(to: dir.appending(path: "ready-\(name)"), atomically: true, encoding: .utf8)

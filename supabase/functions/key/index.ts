@@ -44,10 +44,10 @@ async function userFor(token: string): Promise<string | null> {
   return typeof u?.id === "string" ? u.id : null;
 }
 
-async function notify(uid: string, platform: string) {
+async function notify(uid: string, platform: string, first = false) {
   const [row] = await sql<{ email: string | null }[]>`select email from auth.users where id = ${uid}`;
   if (!row?.email) return "off" as const;
-  return await deliver(Deno.env, fetchedMail(row.email, platform, new Date()));
+  return await deliver(Deno.env, fetchedMail(row.email, platform, new Date(), first));
 }
 
 Deno.serve(atHome("key", async (req) => {

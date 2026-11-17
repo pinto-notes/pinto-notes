@@ -44,8 +44,13 @@ def client_secret() -> tuple[str, int]:
 
 
 def access_token() -> str:
-    raw = subprocess.run(["security", "find-generic-password", "-s", "Supabase CLI", "-a", "access-token", "-w"],
-                         capture_output=True, text=True, check=True).stdout.strip()
+    # Newer CLIs keep it under the account "supabase", older ones under "access-token".
+    raw = ""
+    for account in ("supabase", "access-token"):
+        raw = subprocess.run(["security", "find-generic-password", "-s", "Supabase CLI", "-a", account, "-w"],
+                             capture_output=True, text=True).stdout.strip()
+        if raw:
+            break
     prefix = "go-keyring-base64:"
     return base64.b64decode(raw[len(prefix):]).decode() if raw.startswith(prefix) else raw
 

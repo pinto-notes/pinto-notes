@@ -15,11 +15,15 @@ import { ANCHOR, localToday, moved } from "./template-sample.ts";
 
 /** The live view's size in CSS pixels on the template page's stage: TemplateAppPreview.css in the
  * app. The stage's 624 x 464 pt at 75%, where the apps lay out in two columns. */
+// "stage-card": an app's card on the templates library's front page (239 by 204 pt, beside its
+// cover): drawn 520 px tall, where each app's whole blocks reach close to its own tabs, and shown
+// without those tabs (its top 454 px), so the picture ends cleanly and full.
+const FRONT = [{ name: "stage-card", width: 533, height: 520 }];
 const SIZES = Deno.env.get("STAGE_SIZES")
   // STAGE_SIZES="try-a:640:480,try-b:720:540" draws other sizes, to look at one before it ships.
   ? Deno.env.get("STAGE_SIZES")!.split(",").map((s) => { const [name, w, h] = s.split(":"); return { name, width: Number(w), height: Number(h) }; })
   // "stage-narrow": a narrow sheet's stage (a small window), the app in its one column.
-  : [{ name: "stage", width: 832, height: 619 }, { name: "stage-narrow", width: 533, height: 640 }];
+  : [{ name: "stage", width: 832, height: 619 }, { name: "stage-narrow", width: 533, height: 640 }].concat(FRONT);
 
 // The sample's dates are written for ANCHOR and moved to today: TemplateFiles.sample in the app,
 // and scripts/template-sample.ts here. The stage's day is today, as the live app shows it

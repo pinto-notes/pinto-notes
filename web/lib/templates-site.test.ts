@@ -72,10 +72,8 @@ describe("a shared page", () => {
     expect(html.indexOf("Shared by ")).toBeGreaterThan(html.indexOf("<h1"));
   });
 
-  it("mentions the app once, after the note", () => {
-    const html = page();
-    expect(html.match(/Get Pinto Notes/g)).toHaveLength(1);
-    expect(html.indexOf("Get Pinto Notes")).toBeGreaterThan(html.indexOf('<article class="note">'));
+  it("doesn't pitch the app: the logo in the bar is the only mention", () => {
+    expect(page()).not.toContain("Get Pinto Notes");
   });
 });
 

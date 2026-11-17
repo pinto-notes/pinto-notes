@@ -23,6 +23,18 @@ final class MemoryCollabServer {
     private(set) var updates: [UUID: [Collab.Update]] = [:]
     private(set) var snapshots: [UUID: [Collab.Snapshot]] = [:]
     private var links: [String: LinkRow] = [:]
+    /// Why each person's access to a note ended (note_access_ended, 20261112120000).
+    private var ended: [UUID: [UUID: Collab.AccessEnded]] = [:]
+
+    /// What collab_access_ended answers: nothing while they're in the note.
+    func accessEnded(_ user: UUID, note: UUID) -> Collab.AccessEnded? {
+        members[note]?[user] == nil ? ended[note]?[user] : nil
+    }
+
+    /// The trigger on note_members: removed, unshared or left, and by whom.
+    private func ends(_ note: UUID, for user: UUID, _ reason: Collab.AccessEnded.Reason, by: UUID?) {
+        ended[note, default: [:]][user] = Collab.AccessEnded(reason: reason, by_name: by.flatMap { people[$0]?.name })
+    }
     private var nextID: Int64 = 0
     private var order = 0
     private var channels: [UUID: [MemoryChannel]] = [:]
@@ -141,7 +153,7 @@ final class MemoryCollabServer {
         guard role(note, caller) == "owner" else { throw Collab.Failure.notOwner }
         guard user != caller, let current = notes[note]?.epoch else { throw Collab.Failure.server("bad request") }
         guard epoch == current + 1 else { throw Collab.Failure.staleEpoch }
-        if let user { members[note]?[user] = nil }
+        if let user, members[note]?[user] != nil { members[note]?[user] = nil; ends(note, for: user, .removed, by: caller) }
         links = links.filter { $0.value.note != note }
         let stay = Set(members[note]?.keys.map { $0 } ?? [])
         guard Set(wraps.map(\.user_id)).intersection(stay).count == stay.count else { throw Collab.Failure.wrapsIncomplete }
@@ -156,6 +168,14 @@ final class MemoryCollabServer {
         // A removed person's open channel is cut, as the realtime policy refuses them from now on.
         if let user, !removedStayOnChannel { for c in channels[note] ?? [] where c.user == user { c.cut() } }
         return epoch
+    }
+
+    /// collab_set_role: the owner, for someone else in the note, to editor or viewer only.
+    func setRole(_ caller: UUID, note: UUID, user: UUID, role r: String) throws {
+        guard role(note, caller) == "owner" else { throw Collab.Failure.notOwner }
+        guard ["editor", "viewer"].contains(r), user != caller else { throw Collab.Failure.server("bad request") }
+        guard let current = role(note, user), current != "owner" else { throw Collab.Failure.notMember }
+        members[note]?[user]?.role = r
     }
 
     func updateHead(_ user: UUID, note: UUID, head: String) throws {
@@ -173,6 +193,7 @@ final class MemoryCollabServer {
         guard let r = role(note, user) else { throw Collab.Failure.notMember }
         guard r != "owner" else { throw Collab.Failure.server("The owner can't leave their own note.") }
         members[note]?[user] = nil
+        ends(note, for: user, .left, by: nil)
         if notes[note]?.rekeyAfter == nil { notes[note]?.rekeyAfter = .now }
         for c in channels[note] ?? [] where c.user == user { c.cut() }
     }
@@ -182,6 +203,7 @@ final class MemoryCollabServer {
         guard role(note, user) == "owner" else { throw Collab.Failure.notOwner }
         guard !(updates[note] ?? []).contains(where: { $0.id > upto }) else { throw Collab.Failure.server("The note changed meanwhile. Try again.") }
         for c in channels[note] ?? [] { c.cut() }
+        for m in members[note]?.keys.map({ $0 }) ?? [] where m != user { ends(note, for: m, .unshared, by: user) }
         notes[note] = nil
         members[note] = nil
         updates[note] = nil
@@ -350,12 +372,14 @@ final class MemoryCollabTransport: CollabTransport {
         try server.check("remove")
         return try server.remove(me, note: note, user: user, epoch: epoch, wraps: wraps)
     }
+    func setRole(note: UUID, user: UUID, role: String) async throws { try server.check("set_role"); try server.setRole(me, note: note, user: user, role: role) }
     func updateHead(note: UUID, head: String) async throws { try server.check("head"); try server.updateHead(me, note: note, head: head) }
     func createLink(id: String, note: UUID, role: String, epoch: Int, answerHash: String, keyWrap: String) async throws {
         try server.check("create_link")
         try server.createLink(me, id: id, note: note, role: role, epoch: epoch, answerHash: answerHash, keyWrap: keyWrap)
     }
     func leave(note: UUID) async throws { try server.check("leave"); try server.leave(me, note: note) }
+    func accessEnded(note: UUID) async throws -> Collab.AccessEnded? { try server.check("access_ended"); return server.accessEnded(me, note: note) }
     func unshare(note: UUID, body: String, head: String, upto: Int64) async throws { try server.check("unshare"); try server.unshare(me, note: note, upto: upto) }
     func stopLink(note: UUID) async throws { try server.check("stop_link"); try server.stopLink(me, note: note) }
     func openLink(id: String, answer: String) async throws -> Collab.OpenedLink? { try server.check("open_link"); return server.openLink(id: id, answer: answer) }

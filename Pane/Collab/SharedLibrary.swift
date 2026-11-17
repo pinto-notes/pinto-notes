@@ -52,6 +52,17 @@ final class SharedLibrary {
     private var adopting: [UUID: (task: Task<UUID, Error>, announce: Bool)] = [:]
     /// The last look found no memberships and no shared notes in the library.
     private var nothingShared = false
+    /// Documents whose download failed, by shared note: when the next try may go, and how long
+    /// this wait is. A note with no copy here was asked for every 0.25 s by the open view while it
+    /// failed, offline too (persona council round 6). Each failure doubles the wait, up to
+    /// `longestRetry`; the network coming back clears them all.
+    private var failedLoads: [UUID: (next: Date, wait: TimeInterval)] = [:]
+    static var firstRetry: TimeInterval = 2
+    static var longestRetry: TimeInterval = 120
+    /// Whether there's a network at all (NetworkPath): nothing is asked of the server without one.
+    var networkUp: @MainActor () -> Bool = { NetworkPath.shared.isUp }
+    var now: @MainActor () -> Date = { .now }
+    private var networkWatch: UUID?
     /// How many times reconcile went through the library's notes (for tests).
     private(set) var libraryScans = 0
 
@@ -80,6 +91,9 @@ final class SharedLibrary {
     /// Hooks this library into sync: a shared note's pointer arriving from another of your
     /// devices gets its document.
     func install() {
+        if networkWatch == nil {
+            networkWatch = NetworkPath.shared.watch { [weak self] up in if up { self?.networkCameBack() } }
+        }
         SharedNotes.pointerArrived = { [weak self] note in
             guard let self else { return }
             // The library has a shared note now: the next look goes through it.
@@ -87,9 +101,16 @@ final class SharedLibrary {
             // Deleted on another of your devices (you left there), or by the owner stopping sharing.
             // Only the owner's stopping is news: your own leaving comes marked as yours (removeLocally).
             if note.deletedAt != nil {
-                let removal = note.trashedAt == nil && note.sharedNoteID != note.id ? self.lostAccess(note) : nil
+                var removal = note.sharedNoteID != note.id ? self.lostAccess(note) : nil
+                if note.trashedAt != nil {
+                    // You left on another device (marked as yours): said only when that takes text
+                    // typed here that never went up, to offer a copy of it (collab-opus 6).
+                    removal = removal.flatMap { $0.unsent && $0.copy != nil ? $0 : nil }
+                    removal?.reason = .left
+                }
+                let shared = note.sharedNoteID
                 self.forget(note)
-                if let removal { self.onLostAccess?(removal) }
+                if let removal, let shared { self.tell(removal, shared: shared) }
                 return
             }
             guard note.sharedDocument == nil else { return }
@@ -139,9 +160,9 @@ final class SharedLibrary {
         // The notes row becomes the pointer (placeholder text) on the next push.
         note.touch()
         context.saveOrReport()
-        open(session, note: note)
-        await session.writeSnapshot()
-        return session
+        let opened = open(session, note: note)
+        await opened.writeSnapshot()
+        return opened
     }
 
     // MARK: Someone else's note
@@ -247,23 +268,34 @@ final class SharedLibrary {
         if let s = sessions[note.id] { return s }
         guard note.isShared, note.deletedAt == nil, let record = note.sharedDocument, !record.saved.isEmpty,
               let dk = dataKey() else { return nil }
+        // Being loaded or joined right now: that one opens it. A view asking meanwhile opened the
+        // record as the load was filling it in (the load had just stored the new key), and the load
+        // then opened a second session on it: two on one note, each on the channel (r7b).
+        if let shared = note.sharedNoteID, loading[shared] != nil || adopting[shared] != nil { return nil }
         let keys = record.openKeys(dataKey: dk)
         guard keys[record.epoch] != nil else { return nil }
         let name = nameSource
         do {
             let session = try CollabSession.open(record: record, keys: keys, transport: transport, me: me, name: name())
-            open(session, note: note)
-            return session
+            return open(session, note: note)
         } catch {
             log.error("a shared note's document didn't open: \(String(describing: error), privacy: .public)")
             return nil
         }
     }
 
+    /// The network is back: documents that failed to download are tried again at once.
+    func networkCameBack() { failedLoads = [:] }
+
+    /// When the next try for a shared note's document may go, after a failed one (nil: now).
+    func nextTry(_ shared: UUID) -> Date? { failedLoads[shared]?.next }
+
     /// A shared note this device has no document for yet (its pointer came from another of your
-    /// devices): the document from the server, with the key from your membership.
+    /// devices): the document from the server, with the key from your membership. After a failed
+    /// try, the next waits (`failedLoads`), and nothing goes without a network; `force` (stopping
+    /// sharing, leaving: something you asked for) tries now whatever the last try did.
     @discardableResult
-    func ensureDocument(_ note: Note) async -> CollabSession? {
+    func ensureDocument(_ note: Note, force: Bool = false) async -> CollabSession? {
         if let s = session(for: note) { return s }
         guard let shared = note.sharedNoteID else {
             log.error("\(note.id, privacy: .public) has no shared document: it isn't a shared note here")
@@ -276,6 +308,8 @@ final class SharedLibrary {
             if let s = session(for: note) { return s }
         }
         if let running = loading[shared] { return await running.value }
+        guard networkUp() else { return nil }
+        if !force, let failed = failedLoads[shared], now() < failed.next { return nil }
         let task = Task<CollabSession?, Never> { [weak self] in
             guard let self else { return nil }
             do {
@@ -300,8 +334,7 @@ final class SharedLibrary {
                 note.sharedDocument = record
                 note.body = session.text
                 context.saveOrReport()
-                open(session, note: note)
-                return session
+                return open(session, note: note)
             } catch {
                 log.error("loading a shared note failed: \(String(describing: error), privacy: .public)")
                 return nil
@@ -310,6 +343,12 @@ final class SharedLibrary {
         loading[shared] = task
         let session = await task.value
         loading[shared] = nil
+        if session != nil || note.deletedAt != nil {
+            failedLoads[shared] = nil
+        } else {
+            let wait = failedLoads[shared].map { min($0.wait * 2, Self.longestRetry) } ?? Self.firstRetry
+            failedLoads[shared] = (now().addingTimeInterval(wait), wait)
+        }
         return session
     }
 
@@ -320,7 +359,15 @@ final class SharedLibrary {
         return try await openKey(row)
     }
 
-    private func open(_ session: CollabSession, note: Note) {
+    /// One session per note. A second one opened on a note that has one (two ways in at once) isn't
+    /// kept: what it loaded goes into the open one, which carries on, and it never connects.
+    @discardableResult
+    private func open(_ session: CollabSession, note: Note) -> CollabSession {
+        if let existing = sessions[note.id], existing !== session, !existing.isClosed {
+            existing.takeIn(session)
+            CollabScript.trace("a second session opened on the note: merged into the one already open")
+            return existing
+        }
         sessions[note.id] = session
         // The hooks find the note by its id each time, never by the object it opened with:
         // SwiftData doesn't keep a saved note alive by itself. The one `adopt` made when you joined
@@ -356,6 +403,7 @@ final class SharedLibrary {
         }
         onOpen?(session, note)
         session.connect()
+        return session
     }
 
     /// The document's text into the note: the list, search and links read it from there. Not a
@@ -416,7 +464,17 @@ final class SharedLibrary {
                 if row.epoch > session.epoch { await refreshKey(session, row: row) }
             } else if note.sharedDocument == nil {
                 await ensureDocument(note)
+            } else if note.sharedDocument?.owesSnapshot == true {
+                // A snapshot owed from before the app last quit (a paste too big to send, a new
+                // key): the note opens here to send it.
+                session(for: note)
             }
+        }
+        // Yours, still shared on the server but deleted for good here (or on another of your
+        // devices) while sharing couldn't be stopped: it stops now (collab-sol 2).
+        for row in rows where row.role == "owner" {
+            guard let note = context.note(row.note_id), note.deletedAt != nil, sessions[note.id] == nil else { continue }
+            await stopSharingDeleted(row.note_id)
         }
         // Joined on another device, whose pointer hasn't reached this one yet. Your own notes
         // come with their own pointer (their id is the shared note's).
@@ -476,7 +534,7 @@ final class SharedLibrary {
     /// it's refused and tried again later; the server also refuses if a change came after it.
     func unshare(_ note: Note) async throws {
         guard let shared = note.sharedNoteID, shared == note.id else { throw Problem.notShared }
-        guard let session = await ensureDocument(note) else { throw Problem.notUpToDate }
+        guard let session = await ensureDocument(note, force: true) else { throw Problem.notUpToDate }
         await session.catchUp().value
         guard session.isUpToDate else { throw Problem.notUpToDate }
         let text = session.text
@@ -493,24 +551,32 @@ final class SharedLibrary {
         context.saveOrReport()
     }
 
-    /// Someone else's shared note you deleted for good: its document goes, and you leave it (as
-    /// in Apple Notes). Offline, the next look at your memberships leaves it (`reconcile`). Your own
-    /// note's document just goes; the others keep the note.
+    /// A shared note you deleted for good: its document goes. Someone else's you leave (as in Apple
+    /// Notes); yours stops being shared for everyone. Offline, the next look at your memberships
+    /// does it (`reconcile`).
     func deleted(_ note: Note) async {
         guard let shared = note.sharedNoteID else { return }
         forget(note)
         if shared == note.id {
             // Yours, deleted for good while still shared (sharing couldn't be stopped when it went
-            // to Recently Deleted): it stops now. The row is deleted, so the text isn't needed.
-            SharedNotes.unsharing.insert(note.id)
-            defer { SharedNotes.unsharing.remove(note.id) }
-            if let body = try? Wire.seal("", E2EE.body(note.id)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), note.id) {
-                // Its row is deleted for good, so no text is kept: no change can be lost.
-                try? await transport.unshare(note: shared, body: body, head: head, upto: .max)
-            }
+            // to Recently Deleted): it stops now. Offline, the next look at your memberships does it.
+            await stopSharingDeleted(shared)
             return
         }
         try? await transport.leave(note: shared)
+    }
+
+    /// Stops sharing your note that's deleted for good. The row is deleted, so the text isn't
+    /// needed, and no change can be lost.
+    private func stopSharingDeleted(_ shared: UUID) async {
+        SharedNotes.unsharing.insert(shared)
+        defer { SharedNotes.unsharing.remove(shared) }
+        guard let body = try? Wire.seal("", E2EE.body(shared)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), shared) else { return }
+        do {
+            try await transport.unshare(note: shared, body: body, head: head, upto: .max)
+        } catch {
+            log.error("stopping sharing a note deleted for good failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     nonisolated static func date(_ s: String?) -> Date? {
@@ -556,6 +622,7 @@ final class SharedLibrary {
         // Removed, or the owner stopped sharing: what to say, from the document before it goes.
         // A note you'd moved to Recently Deleted you left yourself.
         let removal = byYou || note.trashedAt != nil ? nil : lostAccess(note)
+        let shared = note.sharedNoteID
         forget(note)
         note.body = ""
         note.deletedAt = .now
@@ -565,7 +632,40 @@ final class SharedLibrary {
         note.touch()
         context.saveOrReport()
         onClose?(note.id)
-        if let removal { onLostAccess?(removal) }
+        if let removal, let shared { tell(removal, shared: shared) }
+    }
+
+    /// Tellings still asking the server why (`tell`), for tests to wait on.
+    private var telling: [Task<Void, Never>] = []
+
+    /// A note you lost: the server is asked why first (`collab_access_ended`), so the alert says
+    /// "Emil removed you" or "Emil stopped sharing", and says nothing for a note you left on
+    /// another device before that device's sync said so here (the alert once by mistake, seen in
+    /// collab-fixes-r7). Offline, or from a server that doesn't keep it: the alert as before.
+    private func tell(_ removal: SharedRemoval, shared: UUID) {
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var removal = removal
+            let ended = try? await transport.accessEnded(note: shared)
+            if let ended {
+                // Your own leave says nothing, unless it takes text typed here that never went up
+                // (you left on another device): then a copy is offered (collab-opus 6).
+                if ended.reason == .left, removal.copy == nil || !removal.unsent { return }
+                removal.reason = ended.reason
+                removal.by = ended.by_name.flatMap(SharedRemoval.firstName) ?? removal.owner
+            }
+            onLostAccess?(removal)
+        }
+        telling.append(task)
+    }
+
+    /// Every loss noticed so far has been told (or found to be your own leave).
+    func told() async {
+        while !telling.isEmpty {
+            let tasks = telling
+            telling = []
+            for t in tasks { await t.value }
+        }
     }
 
     /// What to tell you about a note you're no longer in, from what this device has of it, before
@@ -576,13 +676,14 @@ final class SharedLibrary {
         let session = sessions[note.id]
         guard session != nil || note.sharedDocument != nil else { return nil }
         let text = session?.text ?? note.sharedDocument?.storedText() ?? ""
-        let typed = session.map { $0.typedHere || !$0.isSent } ?? !(note.sharedDocument?.outbox.isEmpty ?? true)
+        let unsent = session.map { !$0.isSent } ?? note.sharedDocument.map { !$0.outbox.isEmpty || $0.owesSnapshot } ?? false
+        let typed = unsent || session?.typedHere == true
         let blank = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         // The copy goes where the note was, unless that was Shared with me (it's not shared).
         let sharedWithMe = dataKey().map { SharedNotes.sharedWithMeID(dataKey: $0) }
         return SharedRemoval(id: note.id, title: blank ? "" : NoteText.title(of: text), owner: session?.ownerFirstName,
                              copy: typed && !blank ? text : nil, folder: note.folder.flatMap { $0.id == sharedWithMe ? nil : $0.id },
-                             sharedWithMe: sharedWithMe)
+                             sharedWithMe: sharedWithMe, unsent: unsent)
     }
 
     /// Start fresh: the server deleted the account's shared notes and memberships with its keys.
@@ -608,6 +709,8 @@ final class SharedLibrary {
     func closeAll() {
         for s in sessions.values { s.close() }
         sessions = [:]
+        if let networkWatch { NetworkPath.shared.forget(networkWatch) }
+        networkWatch = nil
     }
 }
 
@@ -634,7 +737,7 @@ extension SharedDocument {
 // MARK: Losing access
 
 /// A shared note that went from this device because you're no longer in it: its owner removed you
-/// or stopped sharing it (the server doesn't say which). Said once, as Apple Notes does, with your
+/// or stopped sharing it (the server says which, `reason`). Said once, as Apple Notes does, with your
 /// text to keep as a note of your own when you'd typed in it here (persona council round 7, bugs
 /// 17 and 19).
 struct SharedRemoval: Identifiable, Equatable {
@@ -650,15 +753,34 @@ struct SharedRemoval: Identifiable, Equatable {
     let folder: UUID?
     /// Your Shared with me folder, which the copy never goes in (it isn't shared).
     var sharedWithMe: UUID? = nil
+    /// Some of your text here never reached the server (offline, or a snapshot still owed).
+    var unsent = false
+
+    /// Why, as the server recorded it (removed or unshared; a note you left is said only when it
+    /// took text typed here that never went up). Nil when it couldn't be asked.
+    var reason: Collab.AccessEnded.Reason? = nil
+    /// Who did it, by first name (the server's word, else `owner`).
+    var by: String? = nil
 
     var alertTitle: String {
         title.isEmpty ? "You no longer have access to a shared note" : "You no longer have access to \u{201C}\(title)\u{201D}"
     }
 
     var message: String {
-        let ask = "Ask \(owner ?? "its owner") to share it with you again if you still need it."
-        guard copy != nil else { return ask }
-        return ask + " You can keep a copy of it as it is on this \(InstallID.kind)."
+        let who = by ?? owner
+        let why: String
+        switch reason {
+        case .removed?: why = "\(who ?? "Its owner") removed you from this note."
+        case .unshared?: why = "\(who ?? "Its owner") stopped sharing this note."
+        case .left?: why = "You left this note on another device."
+        case nil: why = "Ask \(who ?? "its owner") to share it with you again if you still need it."
+        }
+        guard copy != nil else { return why }
+        return why + " You can keep a copy of it as it is on this \(InstallID.kind)."
+    }
+
+    nonisolated static func firstName(_ full: String) -> String? {
+        full.split(separator: " ").first.map(String.init)
     }
 
     static let keepCopy = "Keep a Copy"

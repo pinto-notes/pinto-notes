@@ -41,8 +41,11 @@ struct EmbedView: View {
             NSMaxRange(embed.range) <= ns.length ? ns.substring(with: embed.range) : nil
         }
         let rewrite = self.rewrite
+        let controller = self.controller, range = embed.range
         return { size in
-            if let line, let new = ImageSizes.relabel(line, to: size) { rewrite(new) }
+            guard let line, let new = ImageSizes.relabel(line, to: size) else { return }
+            // Cover makes it the note's cover: moved up above the title (NoteCover).
+            if size == .cover, let controller { controller.makeCover(line: new, from: range) } else { rewrite(new) }
         }
     }
 
@@ -433,16 +436,6 @@ enum EmbedImages {
         guard let image = CGImageSourceCreateThumbnailAtIndex(src, 0, options as CFDictionary) else { return nil }
         cache.setObject(image, forKey: url.path as NSString, cost: image.bytesPerRow * image.height)
         return image
-    }
-}
-
-private struct EmbedMenu: View {
-    let open: () -> Void
-    let remove: () -> Void
-    var body: some View {
-        Button("Open", systemImage: "eye", action: open)
-        Divider()
-        DestructiveMenuButton("Remove from Note", systemImage: "trash", action: remove)
     }
 }
 

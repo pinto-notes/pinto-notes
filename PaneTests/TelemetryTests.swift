@@ -171,15 +171,19 @@ private func names(_ events: [[String: Any]]) -> [String] { events.compactMap { 
     /// else's events don't carry the property at all.
     @Test func aTeamDeviceSaysInternalAndNoOtherDoes() async throws {
         let plain = TestDefaults()
-        #expect(!TelemetryContext.isInternal(plain, arguments: ["Pane"]))
+        #expect(!TelemetryContext.isInternal(plain, arguments: ["Pane"], info: [:]))
         let marked = TestDefaults()
         marked.set(true, forKey: TelemetryContext.internalKey)
-        #expect(TelemetryContext.isInternal(marked, arguments: ["Pane"]))
+        #expect(TelemetryContext.isInternal(marked, arguments: ["Pane"], info: [:]))
         // install-phone.sh launches once with the argument; the default outlives that launch.
         let phone = TestDefaults()
-        #expect(TelemetryContext.isInternal(phone, arguments: ["Pane", "-PintoInternal", "YES"]))
-        #expect(TelemetryContext.isInternal(phone, arguments: ["Pane"]))
-        #expect(!TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane", "-PintoInternal", "NO"]))
+        #expect(TelemetryContext.isInternal(phone, arguments: ["Pane", "-PintoInternal", "YES"], info: [:]))
+        #expect(TelemetryContext.isInternal(phone, arguments: ["Pane"], info: [:]))
+        #expect(!TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane", "-PintoInternal", "NO"], info: [:]))
+        // Any build made on a team machine says so in its Info.plist; release scripts build with NO.
+        #expect(TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane"], info: ["PaneTeamBuild": "YES"]))
+        #expect(!TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane"], info: ["PaneTeamBuild": "NO"]))
+        #expect(!TelemetryContext.isInternal(TestDefaults(), arguments: ["Pane"], info: ["PaneTeamBuild": "$(PANE_TEAM_BUILD)"]))
 
         for team in [false, true] {
             var context = testContext

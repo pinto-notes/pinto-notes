@@ -2,11 +2,11 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// Sharing a note with people. Off for Mac 1.3 (Emil, 11 November 2026: it ships without it), so
-/// the shared-notes store never starts, Share offers only the web page, and note links don't
-/// join. Nothing turns it on or off at launch; tests set `forced`.
+/// Sharing a note with people. Off for Mac 1.3 (Emil, 11 November 2026: it shipped without it),
+/// on again for the sharing update that follows. Nothing turns it on or off at launch; tests set
+/// `forced`.
 enum CollabFeature {
-    static let released = false
+    static let released = true
     nonisolated(unsafe) static var forced: Bool?
     static var isOn: Bool { forced ?? released }
 }
@@ -19,6 +19,8 @@ protocol ShareBackend: AnyObject {
     func shareState(for note: Note) -> ShareState
     func setAccess(_ access: ShareState.Access, for note: Note) async throws
     func remove(_ user: UUID, from note: Note) async throws
+    /// What someone else in the note can do from now on (owner only). They see it at once.
+    func setRole(_ role: ShareState.Role, of user: UUID, in note: Note) async throws
     /// You leave someone else's note: it goes from your notes, and from their People.
     func leave(_ note: Note) async throws
     /// "They match": you checked someone's safety code (a changed key is trusted from here on).
@@ -51,12 +53,15 @@ final class ShareController {
 
     enum Done: Equatable {
         case shared(copied: Bool), linkChanged, removed(UUID), verified(UUID)
+        /// Someone's role changed: what they can do now, by name ("Sara can view now.").
+        case roleChanged(UUID, line: String)
         var text: String {
             switch self {
             case .shared(let copied): copied ? "Copied" : "Sent"
             case .linkChanged: "Saved"
             case .removed: "Removed"
             case .verified: "Verified"
+            case .roleChanged(_, let line): line
             }
         }
     }
@@ -68,7 +73,7 @@ final class ShareController {
     var removedLine: String { removedName.map { "\($0) removed" } ?? Done.removed(UUID()).text }
     @ObservationIgnored var timeout: Duration = .seconds(20)
 
-    enum Work: Equatable { case link, access, remove(UUID), leave }
+    enum Work: Equatable { case link, access, remove(UUID), role(UUID), leave }
 
     /// Whether the note has an app (NoteApps), asked when Share opens.
     @ObservationIgnored let hasApp: @MainActor () -> Bool
@@ -105,6 +110,9 @@ final class ShareController {
     func shareLink() async {
         if let link = state.link, state.access != .off {
             sharing = link
+            // A link lasts 7 days from when it was last made: sharing it again renews it while the
+            // sheet opens, so one kept from last week still lets people in.
+            if isOwner { try? await backend.setAccess(state.access, for: note) }
             return
         }
         guard isOwner else { return }
@@ -144,6 +152,23 @@ final class ShareController {
             guard !Task.isCancelled else { return }
             self?.done = nil
         }
+    }
+
+    /// The owner changes what someone else in the note can do; nobody changes the owner's.
+    func canChangeRole(_ person: ShareState.Person) -> Bool { isOwner && !person.isMe && person.role != "owner" }
+
+    /// Can edit or Can view for someone, from their row's menu. Their note follows at once (they
+    /// can type, or it's view only), and the sheet says so by name: "Sara can view now."
+    func setRole(_ role: ShareState.Role, of person: ShareState.Person) async {
+        guard canChangeRole(person), person.role != role.rawValue else { return }
+        await run(.role(person.id)) { try await self.backend.setRole(role, of: person.id, in: self.note) }
+        if state.problem == nil { finished(.roleChanged(person.id, line: ShareCopy.roleChanged(ShareCopy.first(person.name), to: role))) }
+    }
+
+    /// "Sara can view now.", while it's said, for that person's page.
+    func roleLine(for person: UUID) -> String? {
+        if case .roleChanged(let id, let line) = done, id == person { return line }
+        return nil
     }
 
     func askRemove(_ person: ShareState.Person) {
@@ -244,6 +269,7 @@ final class ShareController {
         case .link: "The link wasn't made. Check your connection and try again."
         case .access: "The link didn't change. Check your connection and try again."
         case .remove: "They weren't removed. Check your connection and try again."
+        case .role: "What they can do didn't change. Check your connection and try again."
         case .leave: "You didn't leave the note. Check your connection and try again."
         }
     }
@@ -253,6 +279,7 @@ final class ShareController {
         case .link: "Making the link took too long. Try again."
         case .access: "Changing the link took too long. Try again."
         case .remove: "Removing took too long. Try again."
+        case .role: "Changing what they can do took too long. Try again."
         case .leave: "Leaving took too long. Try again."
         }
     }
@@ -274,7 +301,7 @@ enum ShareCopy {
 
     /// Under the link: what it does now, or, before the note is shared, what Invite People will do.
     static func link(_ state: ShareState) -> String {
-        state.access == .off && state.people.count <= 1 ? notSharedYet : link(state.access)
+        state.notSharedYet ? notSharedYet : link(state.access)
     }
 
     /// Collaborate's line, under the tabs as every way has one.
@@ -284,6 +311,11 @@ enum ShareCopy {
 
     static func role(_ role: String) -> String {
         role == "owner" ? "Owner" : role == "editor" ? "Can edit" : "Can view"
+    }
+
+    /// Said once someone's role changed.
+    static func roleChanged(_ first: String, to role: ShareState.Role) -> String {
+        role == .editor ? "\(first) can edit now." : "\(first) can view now."
     }
 
     static func first(_ name: String) -> String { name.split(separator: " ").first.map(String.init) ?? name }
@@ -312,6 +344,7 @@ enum ShareCopy {
         case .link: "Making the link…"
         case .access: "Changing the link…"
         case .remove: "Removing…"
+        case .role: "Changing…"
         case .leave: "Leaving…"
         }
     }

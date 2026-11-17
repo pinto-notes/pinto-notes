@@ -92,8 +92,9 @@ import Testing
         }
         let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
         let table = try #require(split.arrangedSubviews.first.flatMap { find(NSTableView.self, in: $0) })
+        // Where you were, as the app reads it back: written to the defaults a moment after the click.
         func remembered() -> Scope? {
-            UserDefaults.standard.data(forKey: "lastScope").flatMap { try? JSONDecoder().decode(Scope.self, from: $0) }
+            (LaunchSpot.value(forKey: "lastScope") as? Data).flatMap { try? JSONDecoder().decode(Scope.self, from: $0) }
         }
         var selected: [Scope] = []
         // Twice over every row, with Recently Deleted (the last row) in between, as Emil clicked.
@@ -170,7 +171,8 @@ import Testing
         func walk(_ v: NSView) { if let t = v as? NSTableView { tables.append(t) }; v.subviews.forEach(walk) }
         walk(try #require(w.contentView))
         let table = try #require(tables.max { $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX })
-        let rows = (0..<table.numberOfRows).filter { table.rect(ofRow: $0).height >= 40 }
+        // Note rows: taller than the date headings, which are 40 points (NoteListGeometryTests).
+        let rows = (0..<table.numberOfRows).filter { table.rect(ofRow: $0).height > 40.5 }
         try #require(rows.count >= 4)
         table.selectRowIndexes([rows[0]], byExtendingSelection: false)
         await settle()

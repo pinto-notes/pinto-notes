@@ -346,4 +346,20 @@ enum ChecklistShelf {
         let ids = Set(applied.map(\.id))
         write(ticks().filter { !ids.contains($0.id) }, to: "Ticks.json")
     }
+
+    // MARK: Privacy mode (the app writes, the widget and the control read)
+
+    /// Privacy mode as the app left it: `hidden` while notes are hidden for any reason (the
+    /// widget then says Hidden), `manual` while the person turned it on themselves (the Control
+    /// Centre switch shows that). The control writes `manual` and the app takes it up.
+    struct Privacy: Codable, Hashable, Sendable {
+        var hidden = false
+        var manual = false
+    }
+
+    static func privacy() -> Privacy { read("Privacy.json", as: Privacy.self) ?? Privacy() }
+
+    /// True when it changed (the widget should redraw).
+    @discardableResult
+    static func savePrivacy(_ p: Privacy) -> Bool { write(p, to: "Privacy.json") }
 }

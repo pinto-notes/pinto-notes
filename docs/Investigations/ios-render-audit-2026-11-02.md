@@ -28,7 +28,7 @@ Run it with:
 
 ```sh
 xcodebuild test -project Pane.xcodeproj -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  CODE_SIGNING_ALLOWED=NO '-only-testing:PaneTests/PhoneRenderTests'
+  CODE_SIGNING_ALLOWED=NO '-only-testing:PaneSystemTests/PhoneRenderTests'
 ```
 
 `scripts/prepush.sh --tests` runs Mac tests only, so `scripts/ci/select-tests.py --suites-of` now

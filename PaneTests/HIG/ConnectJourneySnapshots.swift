@@ -11,7 +11,7 @@ import UIKit
 /// text size, and the Mac's sheet. Offscreen; runs only when AMBER_HIG_SHOTS is set. Mac:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/ConnectJourneySnapshots`; iPhone: the same
 /// test on a simulator (`xcodebuild test -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/ConnectJourneySnapshots CODE_SIGNING_ALLOWED=NO`).
+/// -only-testing:PaneHIGTests/ConnectJourneySnapshots CODE_SIGNING_ALLOWED=NO`).
 @MainActor @Suite(.serialized) struct ConnectJourneySnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
     static let client = SupabaseClient(supabaseURL: URL(string: "http://127.0.0.1:9")!, supabaseKey: "test")

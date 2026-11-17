@@ -762,8 +762,11 @@ struct AccountSettingsPage: View {
 
 /// General: today's note, whether ticked items sink, this Mac's menu bar, shortcut and login
 /// item (the Mac only), keys for apps in notes (iPhone only: parked on the Mac, Emil, 6 November
-/// 2026), and the diagnostics switch. The setup guide is on Help and feedback.
+/// 2026), and the diagnostics switch. The setup guide is on Help and feedback. On the Mac it
+/// also imports notes, as the sidebar's notice says Settings does (Emil, 12 November 2026).
 struct GeneralSettingsPage: View {
+    /// Closes Settings, so what a row opens isn't under the card.
+    var close: () -> Void = {}
     @AppStorage(ChecklistSorting.key, store: ChecklistSorting.store) private var sortsTicked = true
     #if os(macOS)
     @AppStorage(MenuBarSettings.key) private var menuBar = true
@@ -800,6 +803,16 @@ struct GeneralSettingsPage: View {
             Section(GeneralCopy.checklists) {
                 Toggle(GeneralCopy.ticked, isOn: $sortsTicked).settingsSwitch().accessibilityIdentifier("settings.notes.ticked")
             }
+            #if os(macOS)
+            Section {
+                // The same choice of where from as File › Import Notes and your account's menu.
+                Button(action: importNotes) {
+                    SettingsLinkRow(title: GeneralCopy.importNotes, detail: GeneralCopy.importDetail, symbol: "square.and.arrow.down", trailing: "chevron.right")
+                }
+                .settingsRowLink()
+                .accessibilityIdentifier("settings.importNotes")
+            }
+            #endif
             #if os(iOS)
             if NoteApps.enabled { APIKeysSection() }
             #endif
@@ -808,6 +821,14 @@ struct GeneralSettingsPage: View {
         .task { login = await LoginItem.refresh() }
         #endif
     }
+
+    #if os(macOS)
+    /// Settings closes, then the import sheet opens on the notes window.
+    private func importNotes() {
+        close()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NotificationCenter.default.post(name: .paneImportNotes, object: nil) }
+    }
+    #endif
 }
 
 /// The version, and on the Mac download its updates: Sparkle installs them when you quit, and one
@@ -978,6 +999,10 @@ struct StorageSettingsPage: View {
 struct HelpSettingsPage: View {
     /// Signed in or not; nothing on the page depends on it now the setup guide is gone from it.
     var signedIn: Bool
+    /// The notebook film has been shown on this device and is kept: Help shows it again.
+    var film = false
+    /// How many months that film covers, for its name here.
+    var filmMonths = 1
     /// Closes Settings.
     var close: () -> Void = {}
     /// Where the address goes when no mail app opens; tests keep the real clipboard out of it.
@@ -995,6 +1020,14 @@ struct HelpSettingsPage: View {
     var body: some View {
         SettingsPageForm {
             Section { greeting }
+            if film {
+                Section {
+                    Button(HelpCopy.film(months: filmMonths)) { HelpPage.playFilm(close: close) }
+                        .accessibilityIdentifier("settings.notebookFilm")
+                } footer: {
+                    Text(HelpCopy.filmFooter)
+                }
+            }
             #if os(macOS)
             // The setup guide is in the Help menu only (Emil, 8 November 2026).
             Section {
@@ -1670,7 +1703,7 @@ struct AIPhoneRow: View {
                 .accessibilityIdentifier("connect.swipeDisconnect")
         }
         .contextMenu {
-            Button(role: .destructive, action: disconnect) { Label("Disconnect\u{2026}", systemImage: "xmark.circle") }
+            DestructiveMenuButton("Disconnect\u{2026}", systemImage: "xmark.circle", action: disconnect)
                 .accessibilityIdentifier("connect.menuDisconnect")
         }
         .disabled(working)
@@ -2141,5 +2174,32 @@ struct SettingsSubPageRow: View {
         NavigationLink(value: page) { label }
             .accessibilityIdentifier(id)
         #endif
+    }
+}
+
+/// Experimental: features to try, each with a switch, off until turned on (Experiments). Turning
+/// one off hides it; what it kept stays for when it's on again.
+struct ExperimentalSettingsPage: View {
+    /// Read so the switches redraw when one changes.
+    @AppStorage(Experiment.covers.key) private var coversOn = false
+    @AppStorage(Experiment.gallery.key) private var galleryOn = false
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
+
+    var body: some View {
+        let _ = (coversOn, galleryOn, tagsOn)
+        SettingsPageForm {
+            Section {
+                ForEach(Experiment.allCases) { e in
+                    Toggle(isOn: Binding(get: { Experiments.isOn(e) }, set: { Experiments.set(e, $0) })) {
+                        Text(e.title)
+                        Text(e.detail)
+                    }
+                    .settingsSwitch()
+                    .accessibilityIdentifier("settings.experiment.\(e.rawValue)")
+                }
+            } footer: {
+                Text("These may change or go away. Turning one off hides it; nothing in your notes is lost.")
+            }
+        }
     }
 }

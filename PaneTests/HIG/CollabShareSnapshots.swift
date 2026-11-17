@@ -9,19 +9,10 @@ import UIKit
 /// iPhone's sheet, with sample people and no server. Offscreen; runs only when AMBER_HIG_SHOTS is
 /// set. Mac: `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh PaneTests/CollabShareSnapshots`;
 /// iPhone: the same suite under `xcodebuild test -destination 'platform=iOS Simulator,…'`.
-@MainActor @Suite(.serialized) struct CollabShareSnapshots {
+extension CollabShareSnapshots {
     static var dir: URL? { ProcessInfo.processInfo.environment["AMBER_HIG_SHOTS"].map { URL(fileURLWithPath: $0) } }
 
-    static let me = CollabGallery.emil, sara = CollabGallery.sara, jonas = CollabGallery.jonas
-
     static var alone: ShareState { ShareState(people: [.init(id: me, name: "Emil Wagman", isMe: true, role: "owner")]) }
-    static func owner(_ access: ShareState.Access = .edit) -> ShareState {
-        ShareState(link: access == .off ? nil : URL(string: "https://pintonotes.com/s/sEbHaDgYXLDfpSMmrziRgA#gIfSqgKHVsQcWBm2RTA0aw"), access: access, people: [
-            .init(id: me, name: "Emil Wagman", isMe: true, role: "owner"),
-            .init(id: sara, name: "Sara Lind", role: "editor", safetyCode: "4821 0937 5512"),
-            .init(id: jonas, name: "Jonas Berg", role: "viewer", safetyCode: "0712 8461 3495"),
-        ])
-    }
     static var member: ShareState {
         ShareState(people: [
             .init(id: sara, name: "Sara Lind", isMe: true, role: "editor"),
@@ -29,27 +20,6 @@ import UIKit
             .init(id: jonas, name: "Jonas Berg", role: "viewer", safetyCode: "0712 8461 3495"),
         ])
     }
-
-    /// A controller over sample state, put into the moment the picture shows.
-    static func controller(_ state: ShareState, _ moment: Moment = .rest) async -> ShareController {
-        let backend = SampleShare(state)
-        let share = ShareController(note: Note(body: "Team offsite"), backend: backend)
-        switch moment {
-        case .rest: break
-        case .making:
-            backend.delay = .seconds(30)
-            Task { await share.shareLink() }
-            try? await Task.sleep(for: .milliseconds(50))
-        case .confirmRemove: share.askRemove(state.people[1])
-        case .confirmLeave: share.askLeave()
-        case .failed:
-            backend.fails = true
-            await share.setAccess(.view)
-        }
-        return share
-    }
-
-    enum Moment { case rest, making, confirmRemove, confirmLeave, failed }
 
     /// name, state, moment, and the person whose safety code shows.
     static let states: [(String, ShareState, Moment, UUID?)] = [

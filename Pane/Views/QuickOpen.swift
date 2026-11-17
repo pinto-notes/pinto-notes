@@ -497,7 +497,7 @@ struct QuickOpenPanel: View {
     /// Finds notes by their text, off the main thread (`QuickOpen.textHits`). Nil: titles only.
     let searchText: (@Sendable (String) async -> [QuickOpen.TextHit])?
 
-    #if DEBUG
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
     @State private var query: String
@@ -556,6 +556,8 @@ struct QuickOpenPanel: View {
     @State private var textHits: [QuickOpen.TextHit]
     @FocusState private var focused: Bool
     @State private var window = WeakWindow()
+    /// Privacy mode: the notes' titles show while you point at the list or move through it with the arrows.
+    @State private var reveal = ListTitleReveal()
 
     /// `initialQuery`, `initialTextHits`: snapshots start with text typed and found.
     init(notes: [QuickOpen.NoteItem], commands: [QuickOpen.CommandItem], choose: @escaping (QuickOpen.Row) -> Void, close: @escaping () -> Void,
@@ -652,7 +654,7 @@ struct QuickOpenPanel: View {
     }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("QuickOpenPanel", context: context)
         #endif
         let rows = rows
@@ -674,9 +676,11 @@ struct QuickOpenPanel: View {
                     // Held, the arrows repeat at the system's rate, as in any Mac list (Emil, 9 November
                     // 2026: "If I hold arrow down or up, logically it should move multiple times").
                     .onKeyPress(.downArrow, phases: [.down, .repeat]) { _ in
+                        reveal.navigated()
                         highlighted = QuickOpen.step(1, from: min(highlighted, max(rows.count - 1, 0)), count: rows.count); return .handled
                     }
                     .onKeyPress(.upArrow, phases: [.down, .repeat]) { _ in
+                        reveal.navigated()
                         highlighted = QuickOpen.step(-1, from: min(highlighted, max(rows.count - 1, 0)), count: rows.count); return .handled
                     }
                     .onKeyPress(.escape) { close(); return .handled }
@@ -712,7 +716,7 @@ struct QuickOpenPanel: View {
         // open, quieter (Emil, 9 November 2026: "I cant click into the app when it has search open,
         // without it closing search immediately"); ⌘K or a click in the field brings it back.
         .onAppear { focused = true; Task { @MainActor in focused = true } }
-        .onChange(of: focused) { _, now in focusChanged(now) }
+        .onChange(of: focused) { _, now in reveal.focus(now); focusChanged(now) }
         .onChange(of: focusRequest) { focused = true }
         .background(WindowFinder(found: window))
         .onChange(of: query) { _, q in
@@ -773,6 +777,8 @@ struct QuickOpenPanel: View {
             }
             .scrollIndicators(.never)
             .frame(height: min(height(rows), Metrics.maxList))
+            .environment(\.listTitleReveal, reveal)
+            .onHover { reveal.pointer($0) }
             // At once, no easing: a held arrow scrolls with each step instead of piling up animations.
             .onChange(of: index) { _, i in
                 guard rows.indices.contains(i) else { return }
@@ -816,7 +822,9 @@ struct QuickOpenPanel: View {
             }
     }
 
-    @ViewBuilder private func rowView(_ row: QuickOpen.Row, on: Bool, column: CGFloat?) -> some View {
+    /// A row as the list draws it. (Not private: the privacy tests draw one alone, since a drawing
+    /// of the whole panel leaves out its scroll view or SwiftUI's blur.)
+    @ViewBuilder func rowView(_ row: QuickOpen.Row, on: Bool, column: CGFloat?) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
         HStack(spacing: 10) {
             switch row {
@@ -824,6 +832,7 @@ struct QuickOpenPanel: View {
                 switch QuickOpen.look {
                 case .quiet:
                     highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
+                        .privacyTitleBlur()
                     Spacer(minLength: 8)
                     if let f = n.folder { Text(f).foregroundStyle(Color.muted).lineLimit(1) }
                 case .list:
@@ -834,6 +843,7 @@ struct QuickOpenPanel: View {
                     icon(n.locked ? "lock" : "doc.text", on: on, acts: false)
                     highlightedTitle(n.title.isEmpty ? "New Note" : n.title)
                         .lineLimit(1)
+                        .privacyTitleBlur()
                         .layoutPriority(1)
                     if let words = QuickOpen.shownPreview(n) {
                         Text(words)
@@ -841,6 +851,7 @@ struct QuickOpenPanel: View {
                             .foregroundStyle(Color.muted)
                             .lineLimit(1)
                             .truncationMode(.tail)
+                            .previewBlur()
                             .accessibilityIdentifier("quickOpen.preview")
                     }
                     Spacer(minLength: 12)
@@ -857,6 +868,7 @@ struct QuickOpenPanel: View {
                     // As the sidebar has it: an icon, the name in the accent when chosen, a figure at the end.
                     icon(n.locked ? "lock" : "doc.text", on: on, acts: false)
                     highlightedTitle(n.title.isEmpty ? "New Note" : n.title, ink: on ? Color(PColor.paneAccent) : Color.ink)
+                        .privacyTitleBlur()
                     Spacer(minLength: 8)
                     Text(QuickOpen.dateText(n)).foregroundStyle(Color.muted).monospacedDigit()
                 }
@@ -866,6 +878,7 @@ struct QuickOpenPanel: View {
                     // The folder in the note rows' column; the column takes the date's place.
                     HStack(spacing: 10) {
                         Text(t.title.isEmpty ? "New Note" : t.title).foregroundStyle(Color.ink).lineLimit(1)
+                            .privacyTitleBlur()
                         Spacer(minLength: 12)
                         if let column {
                             Group {
@@ -1010,6 +1023,8 @@ struct QuickOpenPanel: View {
             .foregroundStyle(Color.muted)
             .lineLimit(1)
             .truncationMode(.tail)
+            // Privacy mode: a line of another note's text is a preview.
+            .previewBlur()
             .accessibilityLabel(s.text)
     }
 

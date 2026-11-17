@@ -173,9 +173,8 @@ enum FileKinds {
     static func isHTML(_ name: String) -> Bool { ["html", "htm"].contains((name as NSString).pathExtension.lowercased()) }
 
     /// The kinds Add File offers.
-    static var contentTypes: [UTType] {
-        endings.compactMap { UTType(filenameExtension: $0) } + [.pdf, .image, .plainText, .commaSeparatedText, .json, .sourceCode]
-    }
+    /// Worked out once: the list and the note pane ask for it on every pass (a type lookup per ending).
+    static let contentTypes: [UTType] = endings.compactMap { UTType(filenameExtension: $0) } + [.pdf, .image, .plainText, .commaSeparatedText, .json, .sourceCode]
 
     static func isSupported(_ url: URL) -> Bool { endings.contains(url.pathExtension.lowercased()) }
 

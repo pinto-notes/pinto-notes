@@ -26,6 +26,17 @@ struct TemplateCatalog: Sendable {
         /// A sub-note of the example, whole, for the stage to show open beside the note that
         /// lists it (Recipe box: its index says a recipe is filed; the recipe is what you get).
         var opened: String?
+        /// What a person might say when this is what they want, in groups, each with the line
+        /// saying why it fits those words; and the ask that carries their words. The library's
+        /// Search reads them (TemplateAsk); web/content/template-words.json.
+        var fits: [Fit]?
+        var tailor: String?
+        struct Fit: Decodable, Equatable, Sendable {
+            let words: [String]
+            let why: String
+            /// Less than 1 for words that fit this template less well than they fit another.
+            var weight: Double?
+        }
         var id: String { slug }
 
         /// An app's compiled project (as a note's page holds it) and its starting data, as the site has them.
@@ -105,26 +116,12 @@ struct TemplateCatalog: Sendable {
         entries = url.flatMap { try? Data(contentsOf: $0) }.flatMap { try? JSONDecoder().decode([Entry].self, from: $0) } ?? []
     }
 
-    /// The filters: everything, each kind, and last, set apart, the ones with an app: "Apps" is a
-    /// format, not a topic, and among the topics it read as one of them (council, 10 November 2026).
-    static let filters = ["All", "Habits and health", "Work", "Learning", "Home and life", "Apps"]
-    /// The filters that are topics: every one but All and Apps.
-    static let topics = filters.filter { $0 != "All" && $0 != "Apps" }
-
-    /// A kind's name on its segment: one word each, so the six fit a small window (the site's
-    /// full names made the control 750 pt wide, wider than the sheet in a small window).
+    /// A kind's name, one word each (the site's full names are longer): on a template's page.
     static func label(_ filter: String) -> String {
         switch filter {
         case "Habits and health": "Health"
         case "Home and life": "Personal"
         default: filter
-        }
-    }
-
-    func shown(filter: String, query: String) -> [Entry] {
-        entries.filter { e in
-            (filter == "All" || (filter == "Apps" ? e.app : e.category == filter))
-                && (query.isEmpty || e.title.localizedStandardContains(query) || e.tagline.localizedStandardContains(query) || e.description.localizedStandardContains(query))
         }
     }
 }
@@ -194,10 +191,6 @@ nonisolated enum NoWidow {
 
 enum TemplateLibraryWords {
     static let title = "Templates"
-    /// Under the sheet's name: what these are, and what an "App" is (council, 10 November 2026:
-    /// without it the gallery is coloured pictures and a word). "Can": your AI fills one in when
-    /// you ask it to, not by itself ("fills in and keeps up to date" read as a standing service).
-    static let subtitle = "Notes and small apps your AI can fill in and keep up to date."
     /// Back, from a template's page: the button says "Templates"; VoiceOver hears where it goes.
     static let back = "Back to Templates"
     /// On the stage: what you see is filled in; Make adds an empty one that your AI fills.
@@ -215,15 +208,6 @@ enum TemplateLibraryWords {
     static let copy = "Copy the prompt"
     static let copied = "Prompt copied"
     static let clear = "Clear search"
-    static let searchAll = "Search all templates"
-
-    /// The gallery when nothing matches: what was typed, and the kind when one is picked
-    /// ("No Work templates for “zebra”"). Clear search is beside it.
-    static func none(query: String, filter: String) -> String {
-        let kind = filter == "All" ? "" : filter == "Apps" ? "app " : "\(TemplateCatalog.label(filter)) "
-        let q = query.trimmingCharacters(in: .whitespaces)
-        return q.isEmpty ? "No \(kind)templates" : "No \(kind)templates for \u{201C}\(q)\u{201D}"
-    }
 
     /// Make with an AI by name (the button, and the arrow's menu); with none that opens with the
     /// ask, what it adds.
@@ -362,7 +346,7 @@ enum TemplateMaking {
     /// names the note, and two of the same name leave the AI guessing. No note, no ask.
     /// `into` is the folder it goes to (the library's: New Note's folder); nil is the template's own.
     @MainActor static func make(_ e: TemplateCatalog.Entry, with ai: SetupCards.AI, context: ModelContext, account: UUID?, into: FolderChoice? = nil,
-                                reach: SyncEngine.Reach = .online,
+                                reach: SyncEngine.Reach = .online, prompt: String? = nil,
                                 source: any NoteSourceFetching = ShippedTemplates(), ledger: NoteSourceLedger? = nil,
                                 copy: (String) -> Void = ConnectClipboard.set, open: (URL) -> Void) async -> UUID? {
         let link = NoteSourceLink(kind: .template, slug: e.slug)
@@ -384,11 +368,12 @@ enum TemplateMaking {
         // Without an AI that opens with the ask, Make only adds the note: the prompt is the
         // page's to copy ("Copy the prompt"), never put on the clipboard unasked.
         if ai.asks {
-            copy(SetupCards.prompt(pick))
+            // `prompt`: the front page's, which carries the words typed in Search.
+            copy(prompt ?? SetupCards.prompt(pick))
             // While sync is away the AI isn't opened: it can't see a note that hasn't synced, and
             // with no network its page is a browser error. The note is here and the ask is on the
             // clipboard; the page's line says so (`TemplateLibraryWords.caption`).
-            if reach == .online, let page = SetupCards.page(ai, pick) { open(page) }
+            if reach == .online, let page = prompt.map({ TryIt.page(for: ai.name, prompt: $0) }) ?? SetupCards.page(ai, pick) { open(page) }
         }
         return note
     }
@@ -410,15 +395,15 @@ struct ShippedTemplates: NoteSourceFetching {
 /// 9 November 2026: "page navigation instead of the template being a thing that shows up on the
 /// right side ... notion templates, apple app store").
 ///
-/// The gallery: under the sheet's name and one line saying what these are, the covers across its
-/// whole width, each with its name and a few words under it, filtered in place by a kind and by
-/// Search. Nothing is picked at rest; the arrow keys move a ring through the covers and Return
-/// opens the one it's on.
+/// The gallery is the front page (TemplateFrontPage, Emil, 12 November 2026: "the editorial
+/// style"): a question and a wide field, then shelves of covers, apps and rows, every template on
+/// it once; Search takes plain words and offers a new note when nothing matches. Nothing is picked
+/// at rest; the arrow keys move a ring through the cards and Return opens the one it's on.
 ///
 /// A template's page, opened by a click or Return: its example large in a frame, and beside it
 /// its name, what it is, the button that makes it, what that does, and what your AI is asked;
 /// under them, more like it. Back, Esc and ⌘[ return to the gallery as it was left (it stays
-/// under the page: its scroll, kind and search are kept).
+/// under the page: its scroll and search are kept).
 struct TemplateLibraryView: View {
     var catalog = TemplateCatalog.shipped
     /// Your connected AIs, the one you used last first: Make uses the first, or the one picked
@@ -431,6 +416,10 @@ struct TemplateLibraryView: View {
     /// The folder of the note a template made, if you still have it.
     var have: (TemplateCatalog.Entry) -> String? = { _ in nil }
     var make: (TemplateCatalog.Entry, SetupCards.AI) -> Void = { _, _ in }
+    /// The front page's Search: Make with an ask that carries the words typed in Search, and a
+    /// new note named from the words when no template is it.
+    var makeAsking: ((TemplateCatalog.Entry, SetupCards.AI, String) -> Void)? = nil
+    var makeBlank: ((String, SetupCards.AI) -> Void)? = nil
     /// Opens Connect an AI; nil where there's none to open (a picture, a test).
     var connect: (() -> Void)? = nil
     /// Something is shown over the library (Connect an AI): its keys are that thing's.
@@ -439,24 +428,20 @@ struct TemplateLibraryView: View {
     /// did nothing with it: Connect stayed up; a real key on the Air, 10 November 2026).
     var uncover: () -> Void = {}
     var close: () -> Void = {}
-    /// Captures: the kind picked and what's typed in Search.
-    @State var filter = "All"
+    /// What's typed in Search.
     @State var query = ""
     /// The cover the arrow keys are on; nil until one is pressed (nothing is picked at rest).
     @State var focused: TemplateCatalog.Entry?
     @State private var picked: SetupCards.AI?
     private var ai: SetupCards.AI { picked ?? ais.first ?? .other }
     @State private var copied = false
-    /// The grid's measured row, inside the scroll bar.
-    @State private var row: CGFloat = 0
     /// The sheet's size, fitted to the window it's on.
     @State var size = Self.size
-    /// What has the keys on the gallery: Search (its caret shows), or the covers (the ring shows).
-    /// One cue at a time: the arrows take the keys from Search to the covers, and Search has no
-    /// caret while the ring is out (council, 10 November 2026: a caret and a ring at once). On a
-    /// template's page nothing has them: its keys (Esc, ⌘[, Return, and the arrows to the template
-    /// before and after) are its buttons' shortcuts, which need no focus.
-    enum Keys: Hashable { case search, covers, page }
+    /// What has the keys: on the front page Search (the arrow keys move a ring through the cards
+    /// meanwhile, and what's typed anywhere goes into the field); on a template's page a view of
+    /// no size beside it, so Tab walks the page's own buttons. Its other keys (Esc, ⌘[, Return,
+    /// and the arrows to the template before and after) are its buttons' shortcuts.
+    enum Keys: Hashable { case search, page }
     @FocusState private var keys: Keys?
     /// The examples with more under their frame's foot than shows: the foot fades while there is.
     @State private var below: Set<String> = []
@@ -473,8 +458,18 @@ struct TemplateLibraryView: View {
         if pressed[e.slug] == nil { pressed[e.slug] = .some(have(e)) }
         make(e, ai)
     }
-    /// The gallery has rows under its foot: they fade out there.
-    @State private var galleryMore = true
+
+    /// Makes a template from a front page row: with the words typed in Search in its ask, when
+    /// there are some and the front page's ask can carry them.
+    private func act(_ e: TemplateCatalog.Entry, _ with: SetupCards.AI, _ prompt: String?) {
+        guard let prompt, let makeAsking else { return press(e, with) }
+        if pressed[e.slug] == nil { pressed[e.slug] = .some(have(e)) }
+        makeAsking(e, with, prompt)
+    }
+
+    /// The order the keys walk on the front page, and a page's left and right arrows: what Search
+    /// found, or the front page's.
+    private var order: [TemplateCatalog.Entry] { TemplateFrontPage.order(query, catalog: catalog) }
     /// The examples scrolled down from their top: the top fades while one is.
     @State private var above: Set<String> = []
     /// Counts the moves, so one overtaken by the next stops where it is.
@@ -520,8 +515,6 @@ struct TemplateLibraryView: View {
     /// circle), a margin under the sheet's top. The x never moves between the two pages.
     static let controls: CGFloat = 28
     static func topRow(for size: CGSize) -> CGFloat { margin(for: size) + controls }
-    /// The gallery's one line under its name, a little under the row.
-    static let subtitleRow: CGFloat = 22
     /// A narrow sheet (a small window): the words beside the stage need a larger share of it, and
     /// an app is laid out in its one-column width.
     static func narrow(_ size: CGSize) -> Bool { size.width < 900 }
@@ -662,30 +655,19 @@ struct TemplateLibraryView: View {
         shown.contains(open) ? shown : all
     }
 
-    /// Whether the left and right arrows move through the covers: not while they'd move the
-    /// cursor in what's typed in Search.
-    static func arrowsMoveCovers(searching: Bool, query: String) -> Bool { !searching || query.isEmpty }
-
-    /// Where an arrow key takes the keys on the gallery: to a cover (the ring), back to Search
-    /// (up from the first row), or nowhere (up with no ring out; left and right while they move
-    /// the cursor in Search).
-    enum ArrowTo: Equatable { case cover(TemplateCatalog.Entry), search, nowhere }
-    static func arrow(_ shown: [TemplateCatalog.Entry], from at: TemplateCatalog.Entry?, rows: Int, along: Int, columns: Int, searching: Bool, query: String) -> ArrowTo {
-        if along != 0, !arrowsMoveCovers(searching: searching, query: query) { return .nowhere }
-        let at = at.flatMap { shown.contains($0) ? $0 : nil }
-        if rows < 0 {
-            guard let at, let i = shown.firstIndex(of: at) else { return .nowhere }
-            if i < columns { return .search }
-        }
-        return step(shown, from: at, by: along + rows * columns).map { .cover($0) } ?? .nowhere
+    /// Where an arrow key moves the ring on the front page: one card along its order for any
+    /// arrow; nowhere for left and right while they'd move the cursor in what's typed in Search.
+    static func arrow(_ order: [TemplateCatalog.Entry], from at: TemplateCatalog.Entry?, by: Int, sideways: Bool, query: String) -> TemplateCatalog.Entry? {
+        if sideways, !query.isEmpty { return nil }
+        return step(order, from: at.flatMap { order.contains($0) ? $0 : nil }, by: by)
     }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-        let shown = catalog.shown(filter: filter, query: query)
+        let shown = order
         ZStack {
-            // Under a page the gallery keeps its place, out of sight, and takes no clicks or VoiceOver.
-            gallery(shown)
+            // Under a page the front page keeps its place, out of sight, and takes no clicks or VoiceOver.
+            front
                 .opacity(open == nil ? 1 : 0)
                 // Nor while a page is being got ready: a second click then would start a second move.
                 .allowsHitTesting(open == nil && loading == nil)
@@ -719,10 +701,10 @@ struct TemplateLibraryView: View {
         .background { if !inSheet { shape.fill(SetupCards.ground).shadow(color: .black.opacity(0.2), radius: 30, y: 20) } }
         .clipShape(inSheet ? RoundedRectangle(cornerRadius: 0) : shape)
         .overlay { if !inSheet { shape.strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5) } }
-        .onKeyPress(.upArrow) { arrow(shown, rows: -1, along: 0) }
-        .onKeyPress(.downArrow) { arrow(shown, rows: 1, along: 0) }
-        .onKeyPress(.leftArrow) { arrow(shown, rows: 0, along: -1) }
-        .onKeyPress(.rightArrow) { arrow(shown, rows: 0, along: 1) }
+        .onKeyPress(.upArrow) { arrow(shown, by: -1, sideways: false) }
+        .onKeyPress(.downArrow) { arrow(shown, by: 1, sideways: false) }
+        .onKeyPress(.leftArrow) { arrow(shown, by: -1, sideways: true) }
+        .onKeyPress(.rightArrow) { arrow(shown, by: 1, sideways: true) }
         // Esc with the keys inside an app's example (after a click in it): the same as Esc
         // anywhere on the page, back to the gallery. There the key is the example's first, and
         // what it didn't use closed the whole sheet (real keys on the Air, 10 November 2026).
@@ -735,69 +717,53 @@ struct TemplateLibraryView: View {
         .onKeyPress(.return) { pressStop() || openFromKeys() ? .handled : .ignored }
         .onKeyPress(.space) { pressStop() ? .handled : .ignored }
         .onKeyPress(keys: [.tab, Self.backTab]) { tab($0) }
-        // With the ring out, what's typed still goes to Search, and the ring to its first match.
-        .onKeyPress(phases: .down) { typed($0) }
+        // Typing anywhere on the front page types into the field, and brings the page back to it.
+        .onKeyPress(characters: .alphanumerics.union(.punctuationCharacters), phases: .down) { press in
+            guard open == nil, !covered, keys != .search, press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
+            query += press.characters
+            keys = .search
+            return .handled
+        }
         .onAppear {
             if inSheet, let window = NSApp.mainWindow { size = Self.size(on: window.frame.size) }
             keys = open == nil ? .search : nil
         }
-        // The keys go back to the gallery with it: to the ring if it's out, else to Search.
+        // The keys go back to Search with the front page.
         .onChange(of: open) { _, now in
-            keys = now == nil ? (focused == nil ? .search : .covers) : .page
+            keys = now == nil ? .search : .page
             stop = nil
         }
-        // Search with the keys shows its caret: the ring goes.
-        .onChange(of: keys) { _, now in if now == .search { focused = nil } }
+        // What's typed changes what shows: the ring goes.
+        .onChange(of: query) { _, _ in focused = nil }
     }
 
-    /// An arrow key: in the gallery it moves the ring through the covers; on a page, left and
-    /// right go to the template before and after in the gallery's order.
-    private func arrow(_ shown: [TemplateCatalog.Entry], rows: Int, along: Int) -> KeyPress.Result {
+    /// An arrow key: on the front page it moves the ring through the cards; on a page, left and
+    /// right go to the template before and after in the front page's order (or Search's).
+    private func arrow(_ shown: [TemplateCatalog.Entry], by: Int, sideways: Bool) -> KeyPress.Result {
+        guard !covered else { return .ignored }
         if let open {
-            guard along != 0 else { return .ignored }
+            guard sideways else { return .ignored }
             let order = Self.walk(shown, all: catalog.entries, open: open)
-            if let to = Self.step(order, from: open, by: along), to != open {
+            if let to = Self.step(order, from: open, by: by), to != open {
                 // The ring follows, so going back shows where you are.
                 if focused != nil || shown.contains(to) { focused = shown.contains(to) ? to : nil }
                 show(to)
             }
             return .handled
         }
-        switch Self.arrow(shown, from: focused, rows: rows, along: along, columns: columns, searching: keys == .search, query: query) {
-        case .nowhere: return .ignored
-        case .search:
-            focused = nil
-            keys = .search
-        case .cover(let to):
-            focused = to
-            keys = .covers
-        }
+        guard let to = Self.arrow(shown, from: focused, by: by, sideways: sideways, query: query) else { return .ignored }
+        focused = to
         return .handled
     }
 
-    /// A letter, a digit or a space typed while the ring is out goes on the end of what's in
-    /// Search, and Delete takes the last one off; the ring moves to the first match.
-    private func typed(_ press: KeyPress) -> KeyPress.Result {
-        guard open == nil, keys == .covers, press.modifiers.subtracting(.shift).isEmpty else { return .ignored }
-        if press.key == .delete {
-            guard !query.isEmpty else { return .ignored }
-            query.removeLast()
-        } else if let c = press.characters.first, press.characters.count == 1, c.isLetter || c.isNumber || c == " " {
-            query.append(c)
-        } else {
-            return .ignored
-        }
-        focused = catalog.shown(filter: filter, query: query).first
-        return .handled
-    }
-
-    /// Return, on the gallery or in Search: opens the cover the ring is on; with something typed
-    /// and no ring, the first match.
+    /// Return, on the front page or in Search: opens the card the ring is on; with something
+    /// typed and no ring, the best match.
     private func openFromKeys() -> Bool {
-        let shown = catalog.shown(filter: filter, query: query)
-        guard open == nil, let to = focused.flatMap({ shown.contains($0) ? $0 : nil }) ?? (query.isEmpty ? nil : shown.first) else { return false }
-        show(to)
-        return true
+        let shown = order
+        guard open == nil, !covered else { return false }
+        if let to = focused.flatMap({ shown.contains($0) ? $0 : nil }) { show(to); return true }
+        if case .results(let answers) = TemplateFrontPage.showing(query, in: catalog.entries), let first = answers.first { show(first.entry); return true }
+        return false
     }
 
     /// Opens a template's page, goes from one template's to another's, or (nil) back to the
@@ -811,7 +777,7 @@ struct TemplateLibraryView: View {
         instant.disablesAnimations = true
         guard let e else {
             // Back by a key (Esc, ⌘[, Return on Back): the ring is on the cover you came from.
-            if let from = open, NSApp.currentEvent?.type == .keyDown, catalog.shown(filter: filter, query: query).contains(from) { focused = from }
+            if let from = open, NSApp.currentEvent?.type == .keyDown, order.contains(from) { focused = from }
             withTransaction(instant) {
                 loading = nil
                 warm = nil
@@ -859,229 +825,18 @@ struct TemplateLibraryView: View {
         }
     }
 
-    // MARK: The gallery
+    // MARK: The front page
 
-    private var columns: Int {
-        let r = row > 0 ? row : size.width - Self.margin(for: size) * 2 - 1
-        let w = Self.cardWidth(row: r, gap: Self.gap)
-        return max(1, Int((r + Self.gap) / (w + Self.gap)))
-    }
-
-    private func gallery(_ shown: [TemplateCatalog.Entry]) -> some View {
-        // No line under the header: the covers start a margin under it, and going up under it
-        // they fade out (grid).
-        VStack(spacing: 0) {
-            header
-            if shown.isEmpty {
-                // Nothing matches: what was looked for, and the way back, where the covers were.
-                HStack(spacing: 12) {
-                    Text(TemplateLibraryWords.none(query: query, filter: filter))
-                        .font(.system(size: 13)).foregroundStyle(Color.muted)
-                        .accessibilityIdentifier("templates.none")
-                    if !query.isEmpty {
-                        Button(TemplateLibraryWords.clear) {
-                            query = ""
-                            keys = .search
-                        }
-                        .buttonStyle(.secondary)
-                        .accessibilityIdentifier("templates.clear")
-                        // Looked for inside a kind: the same words in all of them is one press away.
-                        if filter != "All" {
-                            Button(TemplateLibraryWords.searchAll) {
-                                filter = "All"
-                                keys = .search
-                            }
-                            .buttonStyle(.secondary)
-                            .accessibilityIdentifier("templates.searchAll")
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                grid(shown)
-            }
-        }
-    }
-
-    /// The top row (the sheet's name, the kinds, Search and the close x; on a sheet too narrow
-    /// for all four at their sizes Search is shorter, and the name always shows: without it the
-    /// smallest sheet opened on "All, Apps, Health" with nothing saying what they were), and
-    /// under the name one line saying what these are.
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ViewThatFits(in: .horizontal) {
-                headerRow(search: Self.searchWidth)
-                headerRow(search: Self.searchNarrow)
-            }
-            .frame(height: Self.controls)
-            Text(TemplateLibraryWords.subtitle)
-                .font(.system(size: 13)).foregroundStyle(Color.muted)
-                .lineLimit(1)
-                .frame(height: Self.subtitleRow, alignment: .bottom)
-                .accessibilityIdentifier("templates.subtitle")
-        }
-        .padding(.horizontal, Self.margin(for: size))
-        .padding(.top, Self.margin(for: size))
-    }
-
-    /// Search's least width: on the full sheet, and on one too narrow for that beside the name.
-    static let searchWidth: CGFloat = 140
-    static let searchNarrow: CGFloat = 84
-
-    private func headerRow(search least: CGFloat) -> some View {
-        HStack(spacing: least < Self.searchWidth ? 10 : 14) {
-            Text(TemplateLibraryWords.title).font(.system(size: 20, weight: .bold)).foregroundStyle(Color.ink)
-                .fixedSize()
-                .accessibilityAddTraits(.isHeader)
-            TemplateKinds(filter: $filter)
-            Spacer(minLength: 0)
-            search(least: least)
-            // Esc is this x's while the gallery shows; on a page it's Back's.
-            CardCloseButton(cancels: open == nil && !covered, action: close)
-        }
-    }
-
-    /// Search, focused when the library opens: type to narrow, Esc clears what's typed and only
-    /// then closes, as a Mac search field does.
-    private func search(least: CGFloat) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Search", text: $query).textFieldStyle(.plain)
-                .focused($keys, equals: .search)
-                .onSubmit { _ = openFromKeys() }
-                .accessibilityIdentifier("templates.search")
-                .onKeyPress(.escape) {
-                    guard !query.isEmpty else { return .ignored }
-                    query = ""
-                    return .handled
-                }
-            if !query.isEmpty {
-                SearchClearButton { query = "" }
-            }
-        }
-        .font(.system(size: 13))
-        .padding(.leading, 10)
-        .padding(.trailing, 6)
-        .frame(minWidth: least, maxWidth: 220)
-        .frame(height: 28)
-        .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 8, style: .continuous))
-    }
-
-    /// Between the covers' rows: a little more than between the covers, since each has its words under it.
-    static let rowGap: CGFloat = 18
-    /// A card's words under its art: 8 pt, the name's line (18), 2 pt and the line under it (17).
-    static let cardWords: CGFloat = 45
-
-    /// The rows' rhythm on a sheet: the art's height and the gap between rows, chosen so the
-    /// sheet's foot falls inside a row of covers at rest, never through a name or the line under
-    /// it (council, 10 November 2026: on the smallest sheet the foot cut "Dinners and the
-    /// shopping" in half). The art is 10:7 where that works, a little shorter where it doesn't,
-    /// the gap 18 to 26. Scrolled, anything can be at the foot: it fades out there.
-    static func rhythm(viewport: CGFloat, width: CGFloat) -> (art: CGFloat, gap: CGFloat) {
-        func good(_ art: CGFloat, _ gap: CGFloat) -> Bool {
-            let pitch = art + cardWords + gap
-            let into = (viewport - gridTop).truncatingRemainder(dividingBy: pitch)
-            // The foot is 6 pt or more into a cover, so the words over it are clear of the fade.
-            return into >= 6 && into <= art
-        }
-        for ratio in stride(from: 0.70, through: 0.60, by: -0.01) {
-            let art = (width * ratio).rounded()
-            for gap in stride(from: rowGap, through: rowGap + 8, by: 1) where good(art, gap) { return (art, gap) }
-        }
-        return (SetupTemplateCard.artHeight(width), rowGap)
-    }
-
-    private func grid(_ shown: [TemplateCatalog.Entry]) -> some View {
-        GeometryReader { geo in
-            // The row the cards really get: less than the pane when a mouse is attached and the
-            // scroll bar takes its own room (the cards then left a column's gap).
-            let width = Self.cardWidth(row: row > 0 ? row : geo.size.width - Self.margin(for: size) * 2, gap: Self.gap)
-            let rhythm = Self.rhythm(viewport: geo.size.height, width: width)
-            ScrollViewReader { scroller in
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: Self.gap, alignment: .top)], alignment: .leading, spacing: rhythm.gap) {
-                        ForEach(shown) { e in
-                            // The art, and under it its name and a few words; the ring is the
-                            // arrow keys', never a pick.
-                            SetupTemplateCard(pick: e.pick, width: width, captionBelow: true, selected: focused == e, line: TemplateLibraryWords.line(e), app: e.app, art: rhythm.art,
-                                              pointer: { on in point(e, on) }) {
-                                focused = nil
-                                show(e)
-                            }
-                            // Where each card is in the grid, kept without drawing again.
-                            .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named(Self.space)) }) { [seen] in seen.cards[e.slug] = $0 }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { row = $0 }
-                    .padding(.horizontal, Self.margin(for: size))
-                    .padding(.top, Self.gridTop)
-                    // Under the last row's line, the sheet's margin: scrolled to its end, the
-                    // gallery ends as it's framed at its sides.
-                    .padding(.bottom, Self.margin(for: size))
-                    .coordinateSpace(.named(Self.space))
-                }
-                .onScrollGeometryChange(for: CGRect.self, of: { $0.visibleRect }) { [seen] _, now in seen.visible = now }
-                .onScrollGeometryChange(for: Bool.self, of: { Self.more(content: $0.contentSize.height, offset: $0.contentOffset.y, room: $0.containerSize.height) }) { _, more in galleryMore = more }
-                // The cover the keys are on is always in full view: it comes in by the nearest
-                // edge, no further than it must.
-                .onChange(of: focused?.slug, initial: true) { _, slug in
-                    guard let slug, let anchor = Self.revealAnchor(cell: seen.cards[slug], visible: seen.visible) else { return }
-                    if reduceMotion { scroller.scrollTo(slug, anchor: anchor) } else { withAnimation(.snappy(duration: 0.2)) { scroller.scrollTo(slug, anchor: anchor) } }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        // Scrolled up under the header, the covers fade out over the grid's own top margin: no
-        // edge is drawn there, and at rest nothing is in the fade.
-        // At the foot, while there are rows under it, they fade out the same way: whatever the
-        // foot cuts (a cover, a name) is never a hard edge, and at the gallery's end, where the
-        // margin shows under the last row, there's no fade.
-        .mask {
-            VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: Self.gridTop)
-                Rectangle()
-                LinearGradient(colors: [.black, galleryMore ? .clear : .black], startPoint: .top, endPoint: .bottom).frame(height: Self.galleryFoot)
-            }
-        }
-        // The covers take the keys from Search when an arrow moves the ring onto one. No ring of
-        // the system's around the grid: the ring on the cover is the cue.
-        .focusable(true, interactions: .edit)
-        .focused($keys, equals: .covers)
-        .focusEffectDisabled()
-    }
-
-    /// Where a cover the keys moved to comes into view: nowhere when it's in view with a gap to
-    /// spare; by the foot when the foot cuts it; otherwise by the top. A cover not laid out yet
-    /// (a lazy grid's) comes in by the foot: the keys only reach one by going down.
-    static func revealAnchor(cell: CGRect?, visible: CGRect) -> UnitPoint? {
-        guard let cell, !visible.isEmpty else { return .bottom }
-        // With less to spare than the grid has over its first row: at rest the first row is in
-        // view, and the first arrow press scrolled it up by its own top margin (real keys on the
-        // Air, 10 November 2026).
-        let above = cell.minY - revealSpare < visible.minY - 0.5, below = cell.maxY + revealSpare > visible.maxY + 0.5
-        guard above || below else { return nil }
-        return above ? .top : .bottom
-    }
-
-    static let revealSpare: CGFloat = 8
-    /// The grid's margin over its first row.
-    static let gridTop: CGFloat = 14
-    /// How tall the fade at the gallery's foot is, while there are rows under it.
-    static let galleryFoot: CGFloat = 24
-
-    /// Where the grid's cards are and what's in view, kept outside the view's state so scrolling
-    /// never draws the library again.
-    final class Seen { var cards: [String: CGRect] = [:]; var visible: CGRect = .zero }
-    @State private var seen = Seen()
-    static let space = "templates.grid"
-
-    /// As many cards of at least the gallery's width as fit, widened to fill the row exactly: five
-    /// across the full sheet, three on the smallest.
-    static func cardWidth(row: CGFloat, gap: CGFloat) -> CGFloat {
-        let least = SetupTemplateCard.size.width
-        let count = max(1, ((row + gap) / (least + gap)).rounded(.down))
-        return ((row - gap * (count - 1)) / count).rounded(.down)
+    /// The front page (TemplateFrontPage): it gets the library's parts and its keys, and opens a
+    /// template's page here.
+    private var front: some View {
+        TemplateFrontPage(catalog: catalog, ai: ai, folder: folder, size: size, covered: covered, query: $query, focused: focused, keys: $keys,
+                          held: { pressed[$0.slug] ?? have($0) }, act: { act($0, $1, $2) }, makeBlank: makeBlank, connect: connect, close: close,
+                          open: { e in
+                              focused = nil
+                              show(e)
+                          },
+                          point: { point($0, $1) }, submit: { _ = openFromKeys() })
     }
 
     // MARK: A template's page
@@ -1103,8 +858,8 @@ struct TemplateLibraryView: View {
                     Group {
                         Button("") { show(nil) }.keyboardShortcut(e == open && !covered ? KeyboardShortcut("[", modifiers: .command) : nil)
                         // The arrows, to the template before and after in the gallery's order.
-                        Button("") { _ = arrow(shown, rows: 0, along: -1) }.keyboardShortcut(e == open ? KeyboardShortcut(.leftArrow, modifiers: []) : nil)
-                        Button("") { _ = arrow(shown, rows: 0, along: 1) }.keyboardShortcut(e == open ? KeyboardShortcut(.rightArrow, modifiers: []) : nil)
+                        Button("") { _ = arrow(shown, by: -1, sideways: true) }.keyboardShortcut(e == open ? KeyboardShortcut(.leftArrow, modifiers: []) : nil)
+                        Button("") { _ = arrow(shown, by: 1, sideways: true) }.keyboardShortcut(e == open ? KeyboardShortcut(.rightArrow, modifiers: []) : nil)
                     }
                     .opacity(0).accessibilityHidden(true)
                 }
@@ -1741,87 +1496,6 @@ final class MenuAction: NSObject {
     let run: () -> Void
     init(_ run: @escaping () -> Void) { self.run = run }
     @objc func fire() { run() }
-}
-
-/// The kinds, as one row of words in a quiet track: the picked one on a raised pill in the
-/// sheet's own greys, its word in ink. Drawn here, not the system's segmented picker: in a key
-/// window that one filled its pick with the accent under white words (white on amber, about 2:1,
-/// in the real app; grey in a window that isn't key, so the pictures showed another control;
-/// council, 10 November 2026). Every kind has a hover look; the arrow keys are the covers'.
-struct TemplateKinds: View {
-    @Binding var filter: String
-    @Environment(\.colorScheme) private var scheme
-
-    static let height: CGFloat = 28
-    /// The raised pill under the picked kind: white on the light track, a lighter grey on the dark.
-    static func pill(dark: Bool) -> Color { dark ? Color(white: 0.34) : .white }
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(TemplateCatalog.filters, id: \.self) { kind in
-                // Apps is a format among topics: last, and spaced as the rest (a wider gap before
-                // it read as a spacing fault, and a hairline as one more line).
-                Kind(name: TemplateCatalog.label(kind), on: filter == kind) { filter = kind }
-                    .accessibilityIdentifier("templates.kind.\(TemplateCatalog.label(kind))")
-            }
-        }
-        .padding(2)
-        .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 9, style: .continuous))
-        .fixedSize()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Kind")
-    }
-
-    private struct Kind: View {
-        let name: String
-        let on: Bool
-        let action: () -> Void
-        @State private var hover = false
-        @Environment(\.colorScheme) private var scheme
-
-        var body: some View {
-            Button(action: action) {
-                Text(name)
-                    .font(.system(size: 13, weight: on ? .semibold : .regular))
-                    .foregroundStyle(on ? Color.ink : Color.ink.opacity(0.8))
-                    .padding(.horizontal, 13)
-                    .frame(height: TemplateKinds.height - 4)
-                    .background {
-                        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        if on {
-                            shape.fill(TemplateKinds.pill(dark: scheme == .dark))
-                                .shadow(color: .black.opacity(scheme == .dark ? 0 : 0.12), radius: 1.5, y: 0.5)
-                        } else if hover {
-                            shape.fill(Color.primary.opacity(0.07))
-                        }
-                    }
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .onHover { hover = $0 }
-            .accessibilityAddTraits(on ? .isSelected : [])
-        }
-    }
-}
-
-/// The × in Search that clears it, with a hover look like every clickable.
-private struct SearchClearButton: View {
-    let action: () -> Void
-    @State private var hover = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 13))
-                .foregroundStyle(hover ? Color.ink.opacity(0.7) : Color.muted.opacity(0.7))
-                .frame(width: 18, height: 18)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .onHover { hover = $0 }
-        .accessibilityLabel("Clear search")
-        .help("Clear search")
-    }
 }
 
 /// A template's files, read once: each pass of the library used to read the app's project and

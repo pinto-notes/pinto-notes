@@ -10,25 +10,9 @@ import UIKit
 /// open the way the menu bar and links open them (NoteOpener), Back pops the navigation stack as
 /// the back button does, and keys go into the editor the way the keyboard puts them there: no
 /// input events. Each test counts the bodies of the big views (RenderProbe) along one path.
-@MainActor @Suite(.serialized) struct PhoneRenderTests {
+extension PhoneRenderTests {
     static func ms(_ d: Duration) -> Double {
         Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15
-    }
-
-    static func library(notes count: Int) throws -> (ModelContainer, [Note]) {
-        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let ctx = c.mainContext
-        let folder = Folder(name: "Notes")
-        ctx.insert(folder)
-        var notes: [Note] = []
-        for i in 0..<count {
-            let n = Note(body: "Note \(i)\n\nSome text for note \(i), with **bold** and a list:\n- one\n- two\n", folder: folder)
-            n.updatedAt = Date().addingTimeInterval(Double(-i * 3600))
-            ctx.insert(n)
-            notes.append(n)
-        }
-        try ctx.save()
-        return (c, notes)
     }
 
     /// The notes window as the app shows it on an iPhone 17 Pro, opened on All Notes.
@@ -42,69 +26,6 @@ import UIKit
         window.rootViewController = UIHostingController(rootView: RootView().modelContainer(c))
         window.isHidden = false
         return (window, c, notes)
-    }
-
-    static func update(_ window: UIWindow) async {
-        for _ in 0..<4 { await Task.yield() }
-        window.layoutIfNeeded()
-    }
-
-    static func settle(_ window: UIWindow, seconds: Double = 0.5) async {
-        let clock = ContinuousClock()
-        let end = clock.now + .milliseconds(Int(seconds * 1000))
-        while clock.now < end {
-            try? await Task.sleep(for: .milliseconds(30))
-            window.layoutIfNeeded()
-        }
-    }
-
-    static func find<T: UIView>(_ type: T.Type, in view: UIView) -> T? {
-        if let v = view as? T { return v }
-        for s in view.subviews { if let v = find(type, in: s) { return v } }
-        return nil
-    }
-
-    static func all<T: UIView>(_ type: T.Type, in view: UIView) -> [T] {
-        var out: [T] = []
-        if let v = view as? T { out.append(v) }
-        for s in view.subviews { out += all(type, in: s) }
-        return out
-    }
-
-    static func editor(in window: UIWindow) -> PaneTextView? {
-        all(PaneTextView.self, in: window).first { $0.window != nil && !$0.isHidden }
-    }
-
-    static func navigation(in window: UIWindow) -> UINavigationController? {
-        func walk(_ vc: UIViewController) -> UINavigationController? {
-            if let n = vc as? UINavigationController, n.viewControllers.count > 1 { return n }
-            for c in vc.children { if let n = walk(c) { return n } }
-            return nil
-        }
-        return window.rootViewController.flatMap(walk)
-    }
-
-    /// Opens a note and waits until its editor shows it.
-    static func open(_ note: Note, in window: UIWindow) async throws {
-        NoteOpener.shared.request = note.id
-        for _ in 0..<60 {
-            await update(window)
-            if editor(in: window)?.text.contains(note.title) == true { return }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        Issue.record("The note \(note.title) did not open")
-    }
-
-    /// Back, as the back button does it, and waits until the editor has gone.
-    static func back(in window: UIWindow) async throws {
-        let nav = try #require(navigation(in: window), "a navigation stack with the note on it")
-        nav.popViewController(animated: false)
-        for _ in 0..<60 {
-            await update(window)
-            if editor(in: window) == nil { return }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        Issue.record("Back left the editor up")
     }
 
     static func line(_ counts: [String: Int]) -> String {
@@ -201,6 +122,55 @@ import UIKit
         // Loose: the counts above are the guard; this catches a step many times slower.
         #expect(PerfTiming.median(opens) < 500 * PerfBudget.slack)
         #expect(PerfTiming.median(backs) < 400 * PerfBudget.slack)
+    }
+
+    /// A note opened is styled once. The editor used to start with the link scope of the note
+    /// opened before, so the new note's scope arriving a moment later styled the whole note again:
+    /// on the first open after launch and on every open in another folder.
+    @Test func openStylesOnce() async throws {
+        let (window, c, notes) = try Self.window(notes: 4)
+        defer { window.isHidden = true }
+        let other = Folder(name: "Work")
+        c.mainContext.insert(other)
+        notes[1].folder = other
+        notes[1].body = "Note 1\n\nSee [[Note 2]] and [[Nowhere]].\n"
+        try c.mainContext.save()
+        await Self.settle(window, seconds: 1)
+        for note in [notes[0], notes[1], notes[2]] {
+            try await Self.open(note, in: window)
+            await Self.settle(window)
+            let editor = try #require(Self.editor(in: window))
+            #expect(editor.core.lastRegions == ["full"], "\(note.title) is styled once on opening, not \(editor.core.lastRegions)")
+            try await Self.back(in: window)
+            await Self.settle(window)
+        }
+    }
+
+    /// Send a Copy's text and picture are made when the share sheet asks for them, not each time
+    /// a note opens: the toolbar's menu is built with the note, and drawing the picture and
+    /// converting the text there took more of an open than making the editor did.
+    @Test func openingLeavesSendACopyForLater() async throws {
+        let (window, _, notes) = try Self.window(notes: 4)
+        defer { window.isHidden = true; HoverProbe.enabled = false }
+        notes[1].body = "Plan\n\n## Today\n- [ ] Tram 28\n- [x] Book flights\n"
+        await Self.settle(window, seconds: 1)
+        HoverProbe.enabled = true
+        RenderProbe.counts = [:]
+        for note in notes.prefix(3) {
+            try await Self.open(note, in: window)
+            await Self.settle(window)
+            try await Self.back(in: window)
+            await Self.settle(window)
+        }
+        #expect(RenderProbe.counts["NoteThumbnail"] == nil, "no picture is drawn for a note that is only opened")
+        // What the sheet gets once asked: readable text, and the page as a picture.
+        let text = try await NoteCopy(body: notes[1].body).exported(as: .utf8PlainText)
+        #expect(String(decoding: text, as: UTF8.self) == ReadableText.from(markdown: notes[1].body))
+        #expect(!String(decoding: text, as: UTF8.self).contains("- [ ]"))
+        let png = try await NoteThumbnail(title: "Plan", body: notes[1].body).exported(as: .png)
+        let picture = try #require(UIImage(data: png))
+        #expect(picture.size.width * picture.scale == 360 && picture.size.height * picture.scale == 360)
+        #expect(RenderProbe.counts["NoteThumbnail"] == 1)
     }
 
     @Test func typing() async throws {

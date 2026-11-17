@@ -192,6 +192,8 @@ enum ImageSizes {
     /// The text's width and the window's height, from the editor (EditorCore.setImageBox).
     nonisolated(unsafe) static var column: CGFloat = 520
     nonisolated(unsafe) static var viewHeight: CGFloat = 900
+    /// The tallest a cover's banner gets.
+    static let coverMax: CGFloat = 220
     /// Cards and note apps line up with this width.
     static let maxWidth: CGFloat = 520
 
@@ -222,7 +224,9 @@ enum ImageSizes {
         let own = natural[id] ?? .infinity
         switch size {
         case .cover:
-            return CGSize(width: column, height: min(max(column / 2.6, 120), viewHeight * 0.45))
+            // A banner, not the page: at most 220 points and under a third of the window. In a wide
+            // window it took a third of the screen before the title (Emil, 13 November 2026).
+            return CGSize(width: column, height: min(max(column / 3.2, 120), Self.coverMax, max(viewHeight * 0.3, 120)))
         case .small:
             let w = min(column * 0.4, 260, own)
             return CGSize(width: w, height: min(w / a, 260))
@@ -259,6 +263,127 @@ enum ImageSizes {
         return ns.replacingCharacters(in: m.range(at: 2), with: label(name, size: size))
     }
     private static let pictureLine = try! NSRegularExpression(pattern: #"^([ \t]*!\[)([^\]]*)(\]\(pane-file:[0-9a-fA-F-]{36}\)[ \t]*)$"#)
+}
+
+/// A note's cover and icon (Emil, 13 November 2026: "number 1 is something we should clearly do").
+/// The cover is a picture at Cover size (`![Lemons.jpg|cover](pane-file:…)`) on the first line after
+/// the title: the editor draws it as a banner above the title. The icon is an emoji the title starts
+/// with ("🍋 Lemon pasta"), drawn large. Both are plain Markdown, so an older app, the web and any AI
+/// read them as a picture and a title.
+enum NoteCover {
+    /// Room between the banner and the title.
+    static let gap: CGFloat = 22
+
+    /// The cover among a note's embeds: the first, a picture at Cover size, with only the title before it.
+    static func find(_ embeds: [LineEmbed], in ns: NSString) -> LineEmbed? {
+        guard let e = embeds.first, case .image(_, let raw) = e.kind, ImageSizes.label(raw).size == .cover,
+              e.range.location <= ns.length else { return nil }
+        return lines(before: e.range.location, in: ns) == 1 ? e : nil
+    }
+
+    /// The cover line in a note's text, if it has one: the line and the picture's file.
+    static func find(in text: String) -> (range: NSRange, id: UUID)? {
+        let ns = text as NSString
+        guard let e = find(LineEmbed.find(in: text).prefix(1).map { $0 }, in: ns), case .image(let id, _) = e.kind else { return nil }
+        return (e.range, id)
+    }
+
+    /// The text with `line` as its cover: in place of the cover it had, or right after the title.
+    /// `moving`: a picture line elsewhere in the note that becomes the cover, taken from its place.
+    static func setting(_ line: String, in text: String, moving: NSRange? = nil) -> String {
+        var text = text
+        if let moving, NSMaxRange(moving) <= (text as NSString).length {
+            let ns = text as NSString
+            text = ns.replacingCharacters(in: ns.lineRange(for: moving), with: "")
+        }
+        let ns = text as NSString
+        if let old = find(in: text) { return ns.replacingCharacters(in: old.range, with: line) }
+        let title = MarkdownStyler.titleLocation(ns)
+        guard title < ns.length else { return "New Note\n" + line + "\n" + text }
+        let end = NSMaxRange(ns.lineRange(for: NSRange(location: title, length: 0)))
+        let lead = end == ns.length && !text.hasSuffix("\n") ? "\n" : ""
+        return ns.replacingCharacters(in: NSRange(location: end, length: 0), with: lead + line + "\n")
+    }
+
+    /// The text without its cover line.
+    static func removing(from text: String) -> String {
+        guard let old = find(in: text) else { return text }
+        let ns = text as NSString
+        return ns.replacingCharacters(in: ns.lineRange(for: old.range), with: "")
+    }
+
+    /// The cover line for a picture file.
+    static func line(id: UUID, filename: String) -> String {
+        FileStore.markdown(id: id, filename: ImageSizes.label(filename.replacingOccurrences(of: "|", with: "-"), size: .cover), image: true)
+    }
+
+    /// One edit from `old` to `new`: the part between what they share at each end. The selection
+    /// stays on the same text.
+    static func edit(from old: String, to new: String, selection: NSRange) -> TextEdit? {
+        guard old != new else { return nil }
+        let a = old as NSString, b = new as NSString
+        var head = 0
+        while head < a.length, head < b.length, a.character(at: head) == b.character(at: head) { head += 1 }
+        var tail = 0
+        while tail < a.length - head, tail < b.length - head, a.character(at: a.length - 1 - tail) == b.character(at: b.length - 1 - tail) { tail += 1 }
+        let range = NSRange(location: head, length: a.length - head - tail)
+        let replacement = b.substring(with: NSRange(location: head, length: b.length - head - tail))
+        let delta = b.length - a.length
+        let caret = selection.location >= NSMaxRange(range) ? selection.location + delta : min(selection.location, head)
+        return TextEdit(range: range, replacement: replacement, caret: max(0, min(caret, b.length)))
+    }
+
+    /// How many non-blank lines come before `location`, counting no further than two.
+    private static func lines(before location: Int, in ns: NSString) -> Int {
+        var n = 0, i = 0, blank = true
+        while i < location, i < ns.length {
+            let c = ns.character(at: i)
+            if c == 0x0A { if !blank { n += 1; if n > 1 { return n } }; blank = true }
+            else if c != 0x20 && c != 0x09 && c != 0x0D { blank = false }
+            i += 1
+        }
+        return blank ? n : n + 1
+    }
+
+    /// `icon` and a space in front of the title, the icon selected (to be swapped in the emoji panel).
+    static func iconEdit(_ icon: String, in text: String) -> TextEdit {
+        let at = MarkdownStyler.titleLocation(text as NSString)
+        let length = (icon as NSString).length
+        return TextEdit(range: NSRange(location: at, length: 0), replacement: icon + " ", caret: at, selection: NSRange(location: at, length: length))
+    }
+
+    /// The note's text with `icon` in front of its title in place of the one it had; nil takes
+    /// the icon (and its space) away.
+    static func settingIcon(_ icon: String?, in text: String) -> String {
+        let ns = text as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        let old = at <= ns.length ? (iconLength(ns.substring(from: at)) ?? 0) : 0
+        let new = icon.map { $0 + " " } ?? ""
+        if text.isEmpty { return new.isEmpty ? text : new + "New Note" }
+        return ns.replacingCharacters(in: NSRange(location: at, length: old), with: new)
+    }
+
+    /// The icon a title starts with, if it has one.
+    static func icon(of text: String) -> String? {
+        let ns = text as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, iconLength(ns.substring(from: at)) != nil else { return nil }
+        return ns.substring(from: at).first.map(String.init)
+    }
+
+    /// The length (UTF-16) of the emoji a title starts with, and the space after it: the icon.
+    static func iconLength(_ title: String) -> Int? {
+        guard let first = title.first, isEmoji(first) else { return nil }
+        let rest = title.dropFirst()
+        guard rest.first == " " else { return rest.isEmpty ? first.utf16.count : nil }
+        return first.utf16.count + 1
+    }
+
+    static func isEmoji(_ c: Character) -> Bool {
+        guard let s = c.unicodeScalars.first else { return false }
+        if s.properties.isEmojiPresentation { return true }
+        return s.properties.isEmoji && c.unicodeScalars.count > 1 && s.value > 0xFF
+    }
 }
 
 /// A single-line embed in a note: a file, an image, a link preview or a note's card.

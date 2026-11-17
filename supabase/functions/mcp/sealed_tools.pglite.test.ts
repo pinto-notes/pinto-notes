@@ -114,9 +114,44 @@ Deno.test("lists hide sub-notes a live parent links, by opening the parents", as
   assertEquals(overview.total_notes, 2);
   assertEquals((await tool(pg, a, "read_note", { id: parent })).sub_notes.map((s: { title: string }) => s.title).sort(), ["Day 1", "Day 2"]);
   // Paging counts only what's listed.
-  const page = await tool(pg, a, "list_notes", { limit: 1, offset: 1 });
-  assertEquals(page.notes.length, 1);
+  const first = await tool(pg, a, "list_notes", { limit: 1 });
+  const page = await tool(pg, a, "list_notes", { limit: 1, offset: first.next_offset });
+  assertEquals([first.notes[0].id, page.notes[0].id].sort(), [parent, loose].sort());
   assertEquals(page.next_offset, null);
+  assertEquals((await tool(pg, a, "list_notes", { limit: 1, offset: 2 })).notes, []);
+});
+
+Deno.test("hidden sub-notes do not consume offsets across database batches", async () => {
+  const pg = await schemaDB(), a = await account(pg);
+  const folderId = await folder(pg, a, "Days"), parent = await note(pg, a, "Trip");
+  const ids: string[] = [];
+  for (let i = 0; i < 120; i++) ids.push(await note(pg, a, `Day ${i}`, { folder: folderId, parent }));
+  await edit(pg, a, parent, ids.filter((_, i) => i % 2 === 0).map((id) => `[day](pane-note:${id})`).join("\n"));
+  await app(pg, a.id, `update public.notes n set created_at = to_timestamp(r.position::double precision)
+    from unnest($1::uuid[]) with ordinality r(id, position) where n.id = r.id`, [ids]);
+  const visible = ids.filter((_, i) => i % 2 !== 0).reverse();
+  for (const offset of [45, 55, 60]) {
+    const page = await tool(pg, a, "list_notes", { folder: folderId, sort: "created", offset, limit: 10 });
+    assertEquals(page.notes.map((n: { id: string }) => n.id), visible.slice(offset, offset + 10));
+    assertEquals(page.next_offset, offset + 10 < visible.length ? offset + 10 : null);
+  }
+});
+
+Deno.test("deleting a folder follows overlapping note trees across folders only for its owner", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg), other = await account(pg);
+  const root = await folder(pg, a, "Trips"), nested = await folder(pg, a, "2026", root);
+  const parent = await note(pg, a, "Trip", { folder: root });
+  const child = await note(pg, a, "Day", { folder: nested, parent });
+  const outside = await note(pg, a, "Packing", { parent: child });
+  const unrelated = await note(pg, a, "Keep"), foreign = await note(pg, other, "Keep");
+  const empty = await folder(pg, a, "Empty");
+  assertEquals(await tool(pg, a, "delete_folder", { folder: empty }), { deleted_folders: 1, notes_moved_to_recently_deleted: 0 });
+  assertEquals(await tool(pg, a, "delete_folder", { folder: root }), { deleted_folders: 2, notes_moved_to_recently_deleted: 3 });
+  const rows = (await pg.query<{ id: string }>(`select id from public.notes where trashed_at is not null`)).rows;
+  assertEquals(rows.map((r) => r.id).sort(), [parent, child, outside].sort());
+  assertEquals((await tool(pg, a, "read_note", { id: unrelated })).in_recently_deleted, false);
+  assertEquals((await tool(pg, other, "read_note", { id: foreign })).in_recently_deleted, false);
 });
 
 Deno.test("finding a note by title opens the heads; two notes with the title need an id", async () => {

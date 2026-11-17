@@ -189,6 +189,20 @@ struct MarkdownStyler {
     }
 
     /// Where the note's first non-empty line starts (the title), or the end.
+    /// Where the second non-blank line ends (the cover's line, if the note has one).
+    static func secondLineEnd(_ ns: NSString) -> Int {
+        var seen = 0, i = 0, blank = true
+        while i < ns.length {
+            let c = ns.character(at: i)
+            if c == 0x0A {
+                if !blank { seen += 1; if seen == 2 { return i } }
+                blank = true
+            } else if c != 0x20 && c != 0x09 && c != 0x0D { blank = false }
+            i += 1
+        }
+        return ns.length
+    }
+
     static func titleLocation(_ ns: NSString) -> Int {
         var i = 0
         while i < ns.length {
@@ -208,7 +222,13 @@ struct MarkdownStyler {
         let structure = structure ?? NoteStructure(text)
         let ns = text as NSString
         let whole = NSRange(location: 0, length: ns.length)
-        let full = region.map { NSIntersectionRange($0, whole) } ?? whole
+        var full = region.map { NSIntersectionRange($0, whole) } ?? whole
+        // The title's room for a cover depends on the line under it: a change near the top restyles
+        // the title too, so the banner's room comes and goes with its line.
+        if full.location > 0, full != whole, full.location <= Self.secondLineEnd(ns) {
+            full = NSUnionRange(full, NSRange(location: 0, length: 0))
+        }
+        let cover = NoteCover.find(structure.embeds, in: ns)
         let editing = active.location != NSNotFound && ns.length > 0
         let activeLines = editing ? ns.lineRange(for: NSRange(location: min(active.location, ns.length), length: min(active.length, ns.length - min(active.location, ns.length)))) : NSRange(location: NSNotFound, length: 0)
         func isActive(_ r: NSRange) -> Bool {
@@ -310,6 +330,10 @@ struct MarkdownStyler {
                 if firstLineIsTitle && plain {
                     // The website's display type: heavy and tight.
                     storage.addAttribute(.font, value: Self.titleFont, range: lineRange)
+                    // The note's icon: the emoji it starts with, large (NoteCover).
+                    if Experiments.isOn(.covers), let icon = NoteCover.iconLength(line) {
+                        storage.addAttribute(.font, value: PFont.systemFont(ofSize: (EditorMetrics.title * 1.9).rounded()), range: NSRange(location: lineRange.location, length: min(icon, lineRange.length)))
+                    }
                     let p = baseParagraph()
                     #if os(iOS)
                     // The welcome note's room under the title.
@@ -371,7 +395,7 @@ struct MarkdownStyler {
         styleHighlights(storage, in: full, isActive: isActive, skip: walker.codeRanges + walker.inlineCodeRanges)
         styleDates(storage, in: full, selection: active, skip: walker.codeRanges + walker.inlineCodeRanges)
         let grids = drawsGrids ? styleGrids(storage, in: full, grids: structure.grids) : []
-        let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds)
+        let embeds = styleEmbeds(storage, in: full, embeds: structure.embeds, cover: cover)
         return StyledBlocks(embeds: embeds, grids: grids)
     }
 
@@ -501,7 +525,7 @@ struct MarkdownStyler {
         }
     }
 
-    /// Tags (`#work`, `#work/clients`) show in the accent colour, as in Notes and Obsidian; the text
+    /// Tags (`#work`, `#work/clients`) show as a label in the tag's colour (TagColors); the text
     /// stays as written, since it's the tag's name. Clicking one shows every note with it
     /// (LinkPolicy's `.tag`). Not in code, links or the title. While the caret is in one, it's being
     /// written: no link then, so a click there places the caret. A ticked item keeps its muted look.
@@ -517,10 +541,24 @@ struct MarkdownStyler {
             if storage.attribute(.link, at: r.location, effectiveRange: nil) != nil { continue }
             if NSLocationInRange(r.location, titleLine), (storage.attribute(.font, at: r.location, effectiveRange: nil) as? PFont) == Self.titleFont { continue }
             if (storage.attribute(.foregroundColor, at: r.location, effectiveRange: nil) as? PColor) == PColor.clear { continue }
-            if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
-                storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
-            }
             let writing = selection.location != NSNotFound && selection.location > r.location && selection.location <= NSMaxRange(r)
+            if storage.attribute(.strikethroughStyle, at: r.location, effectiveRange: nil) == nil {
+                // A label in the tag's colour (TagColors), drawn behind it by DecoratedLayoutFragment.
+                // While it's being typed it's plain accent text: its name, and so its colour, isn't settled.
+                // With Tags off (Experiments) every tag is accent text, as before it.
+                if writing || !Experiments.isOn(.tags) {
+                    storage.addAttribute(.foregroundColor, value: PColor.paneLinkText, range: r)
+                } else {
+                    let color = TagColors.current(for: tag.name)
+                    storage.addAttributes([.foregroundColor: color.ink, .paneTag: color], range: r)
+                    // Room around the label (TagLabel): after the tag, and before it when a word
+                    // or space is there, so it never touches what's beside it.
+                    storage.addAttribute(.kern, value: TagLabel.room, range: NSRange(location: NSMaxRange(r) - 1, length: 1))
+                    if r.location > 0, ns.character(at: r.location - 1) != 0x0A {
+                        storage.addAttribute(.kern, value: TagLabel.room, range: NSRange(location: r.location - 1, length: 1))
+                    }
+                }
+            }
             if !writing, let url = LinkPolicy.tagURL(tag.name) { storage.addAttribute(.link, value: url, range: r) }
         }
     }
@@ -559,7 +597,7 @@ struct MarkdownStyler {
     }
 
     /// File, image and link lines become one reserved line for a live view.
-    private func styleEmbeds(_ storage: NSTextStorage, in scope: NSRange, embeds: [LineEmbed]) -> [LineEmbed] {
+    private func styleEmbeds(_ storage: NSTextStorage, in scope: NSRange, embeds: [LineEmbed], cover: LineEmbed? = nil) -> [LineEmbed] {
         var shown: [LineEmbed] = []
         let ns = storage.string as NSString
         for e in embeds {
@@ -575,10 +613,16 @@ struct MarkdownStyler {
             storage.removeAttribute(.link, range: e.range)
             storage.removeAttribute(.kern, range: e.range)
             let p = NSMutableParagraphStyle()
-            p.minimumLineHeight = e.height
-            p.maximumLineHeight = e.height
-            p.paragraphSpacingBefore = 4
-            p.paragraphSpacing = 8
+            if e.range == cover?.range {
+                // The cover is drawn above the title: its own line takes no room.
+                p.minimumLineHeight = 0.01
+                p.maximumLineHeight = 0.01
+            } else {
+                p.minimumLineHeight = e.height
+                p.maximumLineHeight = e.height
+                p.paragraphSpacingBefore = 4
+                p.paragraphSpacing = 8
+            }
             storage.addAttribute(.paragraphStyle, value: p, range: line)
             var e = e
             e.index = shown.count
@@ -939,6 +983,24 @@ private struct StyleWalker: MarkupWalker {
         if trail > 0, r.length >= lead + trail { storage.addAttributes(dim, range: NSRange(location: NSMaxRange(r) - trail, length: trail)) }
     }
 
+    /// A heading cmark made from text and a "-" on the line under it (a setext underline of one dash).
+    private func isDashUnderline(_ r: NSRange) -> Bool {
+        let text = ns.substring(with: r) as NSString
+        // "## Plans" is a heading as written, whatever comes under it.
+        if text.trimmingCharacters(in: .whitespaces).hasPrefix("#") { return false }
+        let newline = text.range(of: "\n", options: .backwards)
+        let under: String
+        if newline.location != NSNotFound {
+            under = text.substring(from: NSMaxRange(newline))
+        } else {
+            // The underline outside the heading's range: the line after it.
+            let next = NSMaxRange(ns.paragraphRange(for: r))
+            guard next < ns.length else { return false }
+            under = ns.substring(with: ns.paragraphRange(for: NSRange(location: next, length: 0)))
+        }
+        return under.trimmingCharacters(in: .whitespacesAndNewlines) == "-"
+    }
+
     private func delimiterLength(_ r: NSRange, char: unichar) -> Int {
         var n = 0
         while n < r.length, ns.character(at: r.location + n) == char { n += 1 }
@@ -947,6 +1009,9 @@ private struct StyleWalker: MarkupWalker {
 
     mutating func visitHeading(_ heading: Heading) {
         guard let r = map.range(heading.range), safe(r) else { return descendInto(heading) }
+        // A lone dash under a line of text is a dashed list just started, as in Notes, though
+        // Markdown reads it as a heading underline (Emil, 15 November 2026).
+        if isDashUnderline(r) { return descendInto(heading) }
         storage.addAttribute(.font, value: styler.headingFont(heading.level), range: r)
         if DesignLook.current == .paper, heading.level <= 2 {
             storage.addAttribute(.kern, value: Palette.tracking(styler.headingFont(heading.level).pointSize), range: r)

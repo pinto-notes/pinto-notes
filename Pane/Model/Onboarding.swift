@@ -460,6 +460,8 @@ extension Notification.Name {
     static let paneReplayOnboarding = Notification.Name("pane.replayOnboarding")
     /// Help › Keyboard Shortcuts.
     static let paneShowShortcuts = Notification.Name("pane.showShortcuts")
+    /// Help's "Watch your first month": shows the notebook film this device kept.
+    static let paneWatchNotebookFilm = Notification.Name("pane.watchNotebookFilm")
     /// Connect an AI: the File menu, the list's menu on iPhone and iPad, the sidebar's card.
     static let paneConnectAI = Notification.Name("pane.connectAI")
     /// Templates: every template, over the notes (the sidebar's row and card, the setup gallery).

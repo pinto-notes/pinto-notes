@@ -108,6 +108,7 @@ enum TelemetryLifecycle {
     }
 
     private static func leave(quitting: Bool) {
+        Telemetry.shared.left()
         #if os(iOS)
         // A little time from the system to finish the send after the app has left the screen.
         let time = BackgroundTime()

@@ -55,6 +55,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project Pan
 
 The interaction tests drive the real editor in an offscreen window. They never move your mouse or take focus.
 
+The tests are four test targets, so a test edit compiles only its own: `PaneTests` (the files at the top of `PaneTests/`), `PaneInteractionTests` (`PaneTests/Interaction`), `PaneHIGTests` (`PaneTests/HIG`) and `PaneSystemTests` (`PaneTests/Network`, `Collab` and `Perf`). Name a suite `PaneTests/Suite` wherever it is; `scripts/qa-test.sh` runs it in its target. A target can't see another's code: a helper that tests in another folder use goes in `PaneTests/Shared`, which every target compiles.
+
 ## The backend and the AI server
 
 ```sh

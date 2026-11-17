@@ -266,7 +266,9 @@ import Testing
         try await PersonaR7Shots.pressable(c, note: "Lisbon trip", dark: false) { ax in
             Capture.aiEdit(c.mainContext, title: "Lisbon trip", scene: "lisbontrip", by: "ChatGPT")
             await ax.settle(1500)
-            #expect(try #require(ax.find("receipt.review"), "\(ax.ids())").press())
+            // Review isn't on the receipt since the AI edit mark (Emil, 12 November 2026: "I can see
+            // the changes"): the review starts as a script starts it (CollabScript.reviewAI).
+            NotificationCenter.default.post(name: CollabScript.reviewAI, object: nil)
             await ax.settle(800)
             #expect(try #require(ax.find("review.undoAll"), "\(ax.ids())").press())
             await ax.settle(800)

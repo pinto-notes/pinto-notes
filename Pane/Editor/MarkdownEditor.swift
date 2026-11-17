@@ -1,5 +1,5 @@
 import SwiftUI
-#if DEBUG && os(macOS)
+#if (DEBUG || QA) && os(macOS)
 import SwiftData
 #endif
 import os
@@ -42,20 +42,50 @@ struct MarkdownEditor: View {
     /// iPhone: opens with the date in view (the welcome note, and the note it becomes). Other notes
     /// open at their title, the date just above the top (DateFold).
     var dateShown = false
-    /// What sits under the note's last line and scrolls with it: the notes that link here.
-    var foot: NoteLinks? = nil
     /// The note whose collapsed sections this device keeps (HeadingFolds); nil keeps them only while open.
     var foldsID: UUID? = nil
+    /// The note's own link scope, so its first styling colours links for it. Nil: the controller's.
+    var wiki: WikiScope? = nil
     let onChange: (String) -> Void
 
     var body: some View {
-        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foot: foot, foldsID: foldsID, onChange: onChange)
+        PlatformEditor(initialText: initialText, header: header, controller: controller, autofocus: autofocus, identifier: identifier, titleLine: titleLine, followsInitialText: followsInitialText, dateShown: dateShown, foldsID: foldsID, wiki: wiki ?? controller.wiki, onChange: onChange)
     }
 }
 
-/// How far under the last line the note's foot (its links) starts.
-enum EditorFoot {
-    static let gap: CGFloat = 36
+/// Owns outside text arrivals for both editors. Recent reports are echoes of debounced saves;
+/// document changes bypass that filter. A composition keeps the latest arrival until commit.
+struct EditorIncomingText {
+    private(set) var baseline = ""
+    private var reported: [Int] = []
+    private var composingArrival: String?
+
+    mutating func report(_ text: String) {
+        baseline = text
+        reported.append(text.hashValue)
+        if reported.count > 64 { reported.removeFirst(reported.count - 64) }
+    }
+
+    mutating func reset(to text: String) {
+        reported.removeAll()
+        report(text)
+    }
+
+    mutating func receive(_ text: String, composing: Bool, ignoresEchoes: Bool = false) -> String? {
+        guard text != baseline, !ignoresEchoes || !reported.contains(text.hashValue) else { return nil }
+        if composing { composingArrival = text; return nil }
+        reset(to: text)
+        return text
+    }
+
+    // Clear before unmarking: the platform may deliver a text-change callback synchronously.
+    mutating func cancelComposition() { composingArrival = nil }
+
+    mutating func finishComposition(_ text: String) -> String? {
+        guard let arrived = composingArrival else { return nil }
+        composingArrival = nil
+        return TextDiff.merge(base: baseline, mine: text, theirs: arrived)
+    }
 }
 
 /// Behaviour shared by the UIKit and AppKit text views.
@@ -68,6 +98,7 @@ final class EditorCore {
     let foldDelegate = FoldingContentDelegate()
     var onChange: (String) -> Void = { _ in }
     var applyingEdit = false
+    var incoming = EditorIncomingText()
     /// Checklist lines ticked since the last sort. Each tick starts the wait again, so quick
     /// ticks settle once, together, and nothing moves under a pointer that's still ticking.
     private var pendingSort: DispatchWorkItem?
@@ -80,6 +111,10 @@ final class EditorCore {
     /// Live views currently placed over the text.
     private(set) var embeds: [LineEmbed] = []
     private(set) var grids: [GridTable] = []
+    /// Room above the title for the note's cover (NoteCover): the view adds it to the text's top
+    /// inset (TextKit leaves out space before a document's first paragraph) and the banner is
+    /// placed in it (`overlays`).
+    private(set) var coverRoom: CGFloat = 0
     /// Looks up a file so images can be sized (set by the text view).
     var resolveAttachment: (UUID) -> Attachment? = { _ in nil }
     /// Called after a restyle, so the view can place live views.
@@ -194,13 +229,24 @@ final class EditorCore {
             }
             out.append(("g\(g.index)", f, AnyView(view), .grid(g, request: request, selected: isSelected)))
         }
+        let cover = NoteCover.find(embeds, in: storage.string as NSString)
         for e in embeds where !folds.isHidden(e.range.location) {
             // Cards and pictures run the text's width, like the text (no max width, Emil 10-31).
             var maxW = CGFloat.infinity
             if case .note(let id, _) = e.kind, NoteWidgets.isApp(id) { maxW = NoteWidgets.maxWidth }
             // A picture has its own width (ImageSizes): the text's, or less.
             if case .image = e.kind { maxW = ImageSizes.size(for: e).width }
-            guard let f = frame(at: e.range.location, height: e.height, maxWidth: maxW) else { continue }
+            var placed: CGRect?
+            if e.range == cover?.range {
+                // The cover: a banner in the room the styler left above the title.
+                let title = MarkdownStyler.titleLocation(storage.string as NSString)
+                placed = frame(at: title, height: e.height, maxWidth: maxW).map {
+                    $0.offsetBy(dx: 0, dy: -(e.height + NoteCover.gap))
+                }
+            } else {
+                placed = frame(at: e.range.location, height: e.height, maxWidth: maxW)
+            }
+            guard let f = placed else { continue }
             let remove = {
                 let ns = target.currentText as NSString
                 var r = ns.lineRange(for: e.range)
@@ -228,7 +274,12 @@ final class EditorCore {
             default: break
             }
             #endif
-            out.append((e.key, f, AnyView(EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)),
+            let embedView = EmbedView(embed: e, controller: controller, selected: isSelected, select: select, remove: remove, rewrite: rewrite)
+            // The cover's banner shows Change Cover and Remove under the pointer.
+            let shown = e.range == cover?.range && controller?.readOnly != true
+                ? AnyView(CoverHover(content: embedView, change: { [weak controller] in controller?.changeCover() }, remove: { [weak controller] in controller?.removeCover() }))
+                : AnyView(embedView)
+            out.append((e.key, f, shown,
                         .embed(e, controller: controller.map(ObjectIdentifier.init), resolved: resolved(e), selected: isSelected)))
         }
         return out
@@ -287,7 +338,7 @@ final class EditorCore {
         if region == nil, ns.length > Self.progressiveThreshold {
             // A long note: style the top now and the rest a chunk at a time,
             // so it opens at once. The active line is styled with the top.
-            region = chunk(ns, structure: structure, from: 0, including: line)
+            region = chunk(ns, structure: structure, from: 0, size: Self.firstChunk, including: line)
             unstyledFrom = NSMaxRange(region!)
             styling = storage
             scheduleChunk()
@@ -302,6 +353,7 @@ final class EditorCore {
         if lastRegions.count > 6 { lastRegions.removeFirst() }
         let blocks = styler.apply(to: storage, active: selection ?? NSRange(location: NSNotFound, length: 0), region: region, structure: structure)
         folds.apply(to: storage, code: structure.code, selection: selection)
+        coverRoom = NoteCover.find(blocks.embeds, in: storage.string as NSString).map { $0.height + NoteCover.gap } ?? 0
         publish(blocks)
     }
 
@@ -338,6 +390,10 @@ final class EditorCore {
     func setWiki(_ wiki: WikiScope?, storage: NSTextStorage, selection: NSRange?) {
         guard styler.wiki != wiki else { return }
         styler.wiki = wiki
+        // Only a wiki link's look depends on the scope. A note that opens gets its scope a moment
+        // after its editor is made, and restyling the whole note then styled it twice: half of
+        // opening a note after a delete or in another folder (Emil, 12 November 2026).
+        guard storage.string.contains("[[") else { return }
         needsFull = true
         restyle(storage, selection: selection, force: true)
     }
@@ -391,8 +447,12 @@ final class EditorCore {
 
     // MARK: Progressive styling
 
-    /// Notes longer than this open with their top styled first.
-    static let progressiveThreshold = 24_000
+    /// Notes longer than this open with their top styled first: about a tall window of text, then
+    /// the rest a chunk at a time on the turns after. From 24,000 and a first chunk of 16,000: a
+    /// note of 200 checklist lines (12,500 characters) was styled whole before it showed, about a
+    /// quarter of opening it (Emil, 13 November 2026: "speed of actions and navigation").
+    static let progressiveThreshold = 8_000
+    private static let firstChunk = 6_000
     private static let chunkSize = 16_000
     /// Everything from here on hasn't been styled yet (Int.max: all styled).
     private(set) var unstyledFrom = Int.max
@@ -401,8 +461,8 @@ final class EditorCore {
 
     /// Whole lines from `from`, about one chunk long, never cutting a code block
     /// or table, and reaching at least to the end of `including`.
-    private func chunk(_ ns: NSString, structure: NoteStructure, from: Int, including: NSRange) -> NSRange {
-        var end = min(ns.length, from + Self.chunkSize)
+    private func chunk(_ ns: NSString, structure: NoteStructure, from: Int, size: Int = chunkSize, including: NSRange) -> NSRange {
+        var end = min(ns.length, from + size)
         if including.location != NSNotFound { end = max(end, min(ns.length, NSMaxRange(including))) }
         end = end < ns.length ? NSMaxRange(ns.lineRange(for: NSRange(location: end, length: 0))) : ns.length
         var r = NSRange(location: from, length: end - from)
@@ -789,14 +849,14 @@ private struct PlatformEditor: UIViewRepresentable {
     let titleLine: Bool
     let followsInitialText: Bool
     let dateShown: Bool
-    let foot: NoteLinks?
     let foldsID: UUID?
+    let wiki: WikiScope?
     let onChange: (String) -> Void
 
     func makeUIView(context: Context) -> PaneTextView {
         let view = PaneTextView(frame: .zero)
         view.core.styler.firstLineIsTitle = titleLine
-        view.core.styler.wiki = controller.wiki
+        view.core.styler.wiki = wiki
         view.dateShown = dateShown
         view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
@@ -806,7 +866,6 @@ private struct PlatformEditor: UIViewRepresentable {
         view.controller = controller
         view.core.resolveAttachment = { [weak controller] id in controller?.resolveAttachment(id) }
         view.inputAccessoryView = FormatBarHost(controller: controller) { [weak view] in view?.resignFirstResponder() }
-        view.setFoot(foot)
         if autofocus { DispatchQueue.main.async { view.becomeFirstResponder() } }
         // A note's editor, made for the note just tapped: on screen once this pass is drawn.
         DispatchQueue.main.async { NoteOpenSpeed.drawn() }
@@ -818,7 +877,7 @@ private struct PlatformEditor: UIViewRepresentable {
         view.setHeader(header)
         if followsInitialText { view.syncExternal(initialText) }
         if controller.target !== view { controller.target = view }
-        view.setWiki(controller.wiki)
+        view.setWiki(wiki)
         view.setImages(controller.imagesArrived)
         // Recently Deleted: no keyboard, no caret.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
@@ -827,7 +886,6 @@ private struct PlatformEditor: UIViewRepresentable {
         // Read here so a change to it lays the text out again.
         _ = controller.bottomReserve
         view.showRemoteCarets(controller.remoteCarets)
-        view.setFoot(foot)
         view.setNeedsLayout()
     }
 }
@@ -923,7 +981,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         textLayoutManager?.delegate = core.layoutDelegate
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
         core.folds.showsAtCaret = true
-        delegate = self
         textDropDelegate = self
         // A text view only looks at drops of what it can paste: notes dragged from the list
         // (linked where they are dropped) are added to that.
@@ -940,14 +997,16 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         linkTextAttributes = [:]
         typingAttributes = core.styler.typingAttributes
         self.text = text
-        lastReported = text
-        remember(text)
+        core.incoming.report(text)
         // Undo's floor: the note as it opened.
         noteStack?.removeAllActions(); typing = nil; typedText = self.text
         observeUndo()
         if !watchingCells { watchingCells = true; watchCells() }
         core.observe(textStorage)
         core.restyle(textStorage, selection: nil, force: true)
+        // Only now: setting the text tells the delegate the selection changed, and that styled the
+        // whole note once more before the line above (as on the Mac, 2 November).
+        delegate = self
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         observeChangeHighlight()
         core.watchDays { [weak self] in
@@ -971,6 +1030,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: UIContentSizeCategory.didChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: UIAccessibility.boldTextStatusDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: NoteFont.didChange, object: nil)
+        // A tag's colour changed: its labels are drawn again.
+        NotificationCenter.default.addObserver(self, selector: #selector(textSizeChanged), name: TagColors.didChange, object: nil)
     }
 
     func setHeader(_ s: String) {
@@ -982,8 +1043,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         // The whole width, as on the Mac: no reading column (Emil, 31 October 2026).
         let side: CGFloat = 20
         let hasDate = !(headerLabel.text ?? "").isEmpty
-        let foot = footHeight
-        let inset = UIEdgeInsets(top: hasDate ? 44 : 14, left: side, bottom: 120 + (controller?.bottomReserve ?? 0) + (foot > 0 ? EditorFoot.gap + foot : 0), right: side)
+        let inset = UIEdgeInsets(top: (hasDate ? 44 : 14) + core.coverRoom, left: side, bottom: 120 + (controller?.bottomReserve ?? 0), right: side)
         if textContainerInset != inset { textContainerInset = inset }
         headerLabel.frame = CGRect(x: 0, y: DateFold.labelTop, width: bounds.width, height: DateFold.labelHeight)
         foldDate(hasDate)
@@ -992,50 +1052,6 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
                          storage: textStorage, selection: editingSelection)
         layoutCards()
         layoutRemoteCarets()
-        placeFoot()
-    }
-
-    // MARK: The note's foot
-
-    private var footHost: UIHostingController<NoteLinksSection>?
-    private weak var footModel: NoteLinks?
-
-    /// The foot's height, 0 when it shows nothing.
-    var footHeight: CGFloat { (footModel?.height ?? 0) > 0.5 ? footModel!.height : 0 }
-    /// Where the foot is (tests).
-    var footFrame: CGRect? { footHost?.view.frame }
-
-    func setFoot(_ model: NoteLinks?) {
-        guard model !== footModel else { return }
-        footHost?.view.removeFromSuperview()
-        footHost = nil
-        footModel = model
-        if let model {
-            let h = UIHostingController(rootView: NoteLinksSection(model: model))
-            h.view.backgroundColor = .clear
-            h.sizingOptions = []
-            addSubview(h.view)
-            footHost = h
-            model.changed = { [weak self] in self?.setNeedsLayout() }
-        }
-        setNeedsLayout()
-    }
-
-    /// The foot's frame: lined up with the text, which starts the line fragment's padding inside
-    /// the inset (the Mac's editor has no padding, the iPhone's does).
-    static func footFrame(inset: UIEdgeInsets, padding: CGFloat, width: CGFloat, y: CGFloat, height: CGFloat) -> CGRect {
-        CGRect(x: inset.left + padding, y: y, width: max(0, width - inset.left - inset.right - 2 * padding), height: height)
-    }
-
-    /// Under the last line, across the text's width.
-    private func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
-        // Lazy TextKit 2 layout: see the Mac's placeFoot.
-        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
-        let used = tlm.usageBoundsForTextContainer.maxY
-        let frame = Self.footFrame(inset: textContainerInset, padding: textContainer.lineFragmentPadding, width: bounds.width,
-                                   y: textContainerInset.top + used + EditorFoot.gap, height: max(footModel?.height ?? 0, 1))
-        if host.view.frame != frame { host.view.frame = frame }
     }
 
     // MARK: Other people's carets (collaboration prototype)
@@ -1276,7 +1292,7 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         guard (note.object as AnyObject?) === noteStack else { return }
         // An undo or redo that changed the text without the text view saying so is saved like
         // typing (on the Mac it wasn't: persona council r7, bug 18).
-        if note.name != .NSUndoManagerDidCloseUndoGroup, text != lastReported, markedTextRange == nil { textDidChange() }
+        if note.name != .NSUndoManagerDidCloseUndoGroup, text != core.incoming.baseline, markedTextRange == nil { textDidChange() }
         reportUndo()
     }
 
@@ -1718,31 +1734,20 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     private func textDidChange() {
         guard markedTextRange == nil else { return }
-        takeWhatArrivedWhileComposing()
+        if let merged = core.incoming.finishComposition(text) { replaceText(with: merged) }
         recordTyping()
-        core.layoutDelegate.tint.stop()
+        core.layoutDelegate.tint.typed(text)
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage, selection: editingSelection, force: true)
         typingAttributes = core.typingAttributes(text, at: selectedRange.location)
         recordOwnEdit()
-        lastReported = text
-        remember(text)
+        core.incoming.report(text)
         core.onChange(text)
         controller?.typingChanged(text: text, selection: editingSelection)
         // A shared note's stack closes no undo groups, so nothing else tells the bar: typing
         // left Undo missing until someone else's edit came in (persona council r7f).
         if controller?.ownUndo != nil { reportUndo() }
-    }
-
-    /// The last body we reported or received, to tell outside edits from our own.
-    var lastReported = ""
-    /// Hashes of recent texts we reported, not yet all written to the note.
-    private var reported: [Int] = []
-
-    private func remember(_ s: String) {
-        reported.append(s.hashValue)
-        if reported.count > 64 { reported.removeFirst(reported.count - 64) }
     }
 
     /// Redraws just the lines an AI changed while their tint swells and fades.
@@ -1769,7 +1774,31 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
+    func markChanges(from previous: String, to after: String, color: PColor) {
+        let tint = core.layoutDelegate.tint
+        // In the same frame as the words: now if the text is in, else the moment it arrives.
+        tint.whenText(currentText, is: after) { [weak self] in
+            guard let self else { return }
+            tint.play(from: previous, to: after, color: color)
+            self.controller?.markTableCells(from: previous, to: after, color: color)
+            self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
+        }
+    }
+
+    /// An AI's tick gets the pop yours does, once the line is laid out again.
+    private func popTicks(_ lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for line in lines {
+                guard let r = self.core.checkboxRect(line: line, layout: self.textLayoutManager) else { continue }
+                CheckPop.play(in: self.layer, rect: r.offsetBy(dx: self.textContainerInset.left, dy: self.textContainerInset.top))
+            }
+        }
+    }
+
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
+    var tintStrength: CGFloat { core.layoutDelegate.tint.strength }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
@@ -1806,32 +1835,25 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
     }
 
     func syncExternal(_ new: String) {
-        guard new != lastReported else { return }
-        // The note still holds text we typed a moment ago (it's saved once typing
-        // pauses): that's not a change from elsewhere.
-        if reported.contains(new.hashValue) { return }
-        syncDocument(new)
+        if let accepted = core.incoming.receive(new, composing: markedTextRange != nil, ignoresEchoes: true) {
+            replaceText(with: accepted)
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func syncDocument(_ new: String) {
-        guard new != lastReported else { return }
-        // Mid-composition (an input method, dictation) the text can't change under it:
-        // the change is taken in when the composition ends (textDidChange).
-        if markedTextRange != nil { arrivedWhileComposing = new; return }
-        reported.removeAll()
-        lastReported = new
-        // Until what you type next is saved, the note still holds this: not a change again.
-        remember(new)
-        replaceText(with: new)
+        if let accepted = core.incoming.receive(new, composing: markedTextRange != nil) {
+            replaceText(with: accepted)
+            // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func takeRestored(_ new: String) {
         // Restoring is a choice: it wins over a composition, and over the text you typed before.
-        arrivedWhileComposing = nil
+        core.incoming.cancelComposition()
         if markedTextRange != nil { unmarkText() }
-        reported.removeAll()
-        lastReported = new
-        remember(new)
+        core.incoming.reset(to: new)
         replaceText(with: new)
         noteStack?.removeAllActions(); typing = nil; typedText = text
         clearTint()
@@ -1841,20 +1863,9 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
         if contentOffset.y > bottom { setContentOffset(CGPoint(x: contentOffset.x, y: bottom), animated: false) }
     }
 
-    /// A change from elsewhere that arrived while you were composing.
-    private var arrivedWhileComposing: String?
-
-    /// The composition ended: put the change that arrived meanwhile under what you typed,
-    /// or, if you both changed the same lines, keep yours (the other is in version history).
-    private func takeWhatArrivedWhileComposing() {
-        guard let arrived = arrivedWhileComposing else { return }
-        arrivedWhileComposing = nil
-        if let merged = TextDiff.merge(base: lastReported, mine: text, theirs: arrived) { replaceText(with: merged) }
-    }
-
     private func replaceText(with new: String) {
         guard new != text, markedTextRange == nil, let edit = TextDiff.edit(from: text, to: new) else { return }
-        core.layoutDelegate.tint.stop()
+        if !core.layoutDelegate.tint.follow(new) { core.layoutDelegate.tint.stop() }
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange
         let offset = contentOffset
@@ -1949,8 +1960,8 @@ final class PaneTextView: UITextView, UITextViewDelegate, EditorTarget, UIGestur
 
     /// Your edit, for undo, unless it's an undo itself.
     private func recordOwnEdit() {
-        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: lastReported, to: text) else { return }
-        own.record(e, in: lastReported)
+        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: core.incoming.baseline, to: text) else { return }
+        own.record(e, in: core.incoming.baseline)
     }
 
     /// Undo or Redo of your own last step, through the text system so it's saved and sent like typing.
@@ -2397,8 +2408,8 @@ private struct PlatformEditor: NSViewRepresentable {
     let titleLine: Bool
     let followsInitialText: Bool
     let dateShown: Bool
-    let foot: NoteLinks?
     let foldsID: UUID?
+    let wiki: WikiScope?
     let onChange: (String) -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -2408,11 +2419,11 @@ private struct PlatformEditor: NSViewRepresentable {
         scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay
         let view = PaneTextView(frame: .zero)
-        #if DEBUG && os(macOS)
+        #if (DEBUG || QA) && os(macOS)
         view.renderContext = context.environment.modelContext
         #endif
         view.core.styler.firstLineIsTitle = titleLine
-        view.core.styler.wiki = controller.wiki
+        view.core.styler.wiki = wiki
         view.core.folds.noteID = foldsID
         view.configure(text: initialText, header: header)
         view.setAccessibilityIdentifier(identifier)
@@ -2421,7 +2432,6 @@ private struct PlatformEditor: NSViewRepresentable {
         view.core.resolveAttachment = { [weak controller] id in controller?.resolveAttachment(id) }
         controller.target = view
         scroll.documentView = view
-        view.setFoot(foot)
         if autofocus { view.focusWhenShown() }
         // Format › Untick All for this note, not the one before (after this update, not in it).
         DispatchQueue.main.async { [weak controller, weak view] in
@@ -2439,14 +2449,13 @@ private struct PlatformEditor: NSViewRepresentable {
         view.setHeader(header)
         if followsInitialText { view.syncExternal(initialText) }
         if controller.target !== view { controller.target = view }
-        view.setWiki(controller.wiki)
+        view.setWiki(wiki)
         view.setImages(controller.imagesArrived)
         view.showRemoteCarets(controller.remoteCarets)
         // A shared note keeps its own undo (only your edits); the system's would undo everyone's.
         if view.allowsUndo != (controller.ownUndo == nil) { view.allowsUndo = controller.ownUndo == nil }
         // Recently Deleted and Can view: shown, selectable to copy, never changed.
         if view.isEditable == controller.readOnly { view.isEditable = !controller.readOnly }
-        view.setFoot(foot)
     }
 }
 
@@ -2534,7 +2543,7 @@ final class NoteScrollView: NSScrollView {
 }
 
 final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
-    #if DEBUG
+    #if DEBUG || QA
     weak var renderContext: ModelContext?
     #endif
     let core = EditorCore()
@@ -2603,7 +2612,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         operation.run()
     }
 
-    #if DEBUG
+    #if DEBUG || QA
     var renderedCardKeys: Set<String> { Set(cardHosts.keys) }
     #endif
     private var cardLayoutQueued = false
@@ -2623,7 +2632,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func configure(text: String, header: String) {
         textLayoutManager?.delegate = core.layoutDelegate
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.delegate = core.foldDelegate
-        core.onCardsChanged = { [weak self] in self?.queueCardLayout() }
+        core.onCardsChanged = { [weak self] in
+            guard let self else { return }
+            // A cover came, went or changed size: the text's top moves for its banner.
+            if self.coverRoom != self.core.coverRoom { self.coverRoom = self.core.coverRoom; self.setInsets(width: self.frame.width) }
+            self.queueCardLayout()
+        }
         drawsBackground = false
         isRichText = false
         allowsUndo = true
@@ -2646,8 +2660,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         drawn = false
         foldedAt = nil
         string = text
-        lastReported = text
-        remember(text)
+        core.incoming.report(text)
         core.observe(textStorage!)
         observeChangeHighlight()
         core.watchDays { [weak self] in
@@ -2659,6 +2672,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         typingAttributes = core.typingAttributes(text, at: selectedRange().location)
         if textSizeObserver == nil {
             textSizeObserver = NotificationCenter.default.addObserver(forName: TextSize.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
+        if experimentsObserver == nil {
+            // Settings › Experimental: the icon drawn large, or as text again.
+            experimentsObserver = NotificationCenter.default.addObserver(forName: Experiments.didChange, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.textSizeChanged() }
+            }
+        }
+        if tagColorsObserver == nil {
+            // A tag's colour changed (TagColors): its labels are drawn again.
+            tagColorsObserver = NotificationCenter.default.addObserver(forName: TagColors.didChange, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.textSizeChanged() }
             }
         }
@@ -2684,9 +2709,13 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     private var textSizeObserver: NSObjectProtocol?
     private var noteFontObserver: NSObjectProtocol?
+    private var experimentsObserver: NSObjectProtocol?
+    private var iconPopover: NSPopover?
+    private var coverPopover: NSPopover?
+    private var tagColorsObserver: NSObjectProtocol?
 
-    /// View › Bigger or Smaller: every line restyled at the new size, the cards and foot moved to
-    /// where the text now is. The caret and scroll stay where they were.
+    /// View › Bigger or Smaller: every line restyled at the new size, the cards moved to where the
+    /// text now is. The caret and scroll stay where they were.
     func textSizeChanged() {
         guard let storage = textStorage else { return }
         core.styler.bodySize = EditorMetrics.body
@@ -2694,7 +2723,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         typingAttributes = core.typingAttributes(string, at: selectedRange().location)
         if let tlm = textLayoutManager { tlm.invalidateLayout(for: tlm.documentRange) }
         setInsets(width: frame.width)
-        placeFoot()
         // Cards draw their text at the size they were given: forget it, so each table and card
         // gets its content again at the new size.
         cardContent.removeAll()
@@ -2756,6 +2784,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         }
         // A short note still scrolls past its date: never shorter than the view plus the fold.
         var newSize = newSize
+        // Show lifted a change at the end clear of the receipt: the room under it stays until you type.
+        newSize.height = max(newSize.height, showRoom)
         if DesignLook.readingPage, hasDate, let scroll = enclosingScrollView {
             let view = scroll.contentView.bounds.height - scroll.contentInsets.top - scroll.contentInsets.bottom
             newSize.height = max(newSize.height, view + Self.fold)
@@ -2764,7 +2794,6 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         // Like Notes on the Mac: a slim margin and text that uses the full width. The date sits
         // centred above the title, folded out of view until you scroll up (see `fold`).
         setInsets(width: newSize.width)
-        placeFoot()
         sizePictures()
         foldDate()
         // Straight to their new places: while the width changes (the sidebar sliding, the window
@@ -2781,73 +2810,29 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.setImageBox(width: width, height: height, storage: textStorage!, selection: editingSelection)
     }
 
+    /// The cover's room above the title, as last applied to the insets (EditorCore.coverRoom).
+    private var coverRoom: CGFloat = 0
+
     private func setInsets(width: CGFloat) {
-        // The foot's room goes under the text: the inset is the same above and below, so it's
-        // half of it each side and the text is drawn that much higher (`textContainerOrigin`).
+        // The cover's room goes above the text: the inset is the same above and below, so it's
+        // half of it each side and the text is drawn that much lower (`textContainerOrigin`).
         if DesignLook.readingPage {
             let side = Self.textSide(width: width)
-            let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + footExtra / 2)
+            let inset = NSSize(width: side, height: (headerLabel.stringValue.isEmpty ? Self.bareTop : Self.textTop) + coverRoom / 2)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: side, y: Self.dateTop, width: max(0, width - side * 2), height: 16)
         } else {
-            let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + footExtra / 2)
+            let inset = NSSize(width: 20, height: (headerLabel.stringValue.isEmpty ? 14 : 44) + coverRoom / 2)
             if textContainerInset != inset { textContainerInset = inset }
             headerLabel.alignment = .center
             headerLabel.frame = NSRect(x: 0, y: 14, width: width, height: 16)
         }
     }
 
-    // MARK: The note's foot
-
-    private var footHost: NSHostingView<NoteLinksSection>?
-    private weak var footModel: NoteLinks?
-    /// The room the foot takes under the text, its gap included.
-    private var footExtra: CGFloat = 0
-    /// Where the foot is (tests).
-    var footFrame: CGRect? { footHost?.frame }
-
     override var textContainerOrigin: NSPoint {
         let o = super.textContainerOrigin
-        return NSPoint(x: o.x, y: o.y - footExtra / 2)
-    }
-
-    func setFoot(_ model: NoteLinks?) {
-        guard model !== footModel else { return }
-        footHost?.removeFromSuperview()
-        footHost = nil
-        footModel = model
-        if let model {
-            let h = NSHostingView(rootView: NoteLinksSection(model: model))
-            h.sizingOptions = []
-            addSubview(h)
-            footHost = h
-            model.changed = { [weak self] in self?.footChanged() }
-        }
-        footChanged()
-    }
-
-    private func footChanged() {
-        let h = footModel?.height ?? 0
-        let extra = h > 0.5 ? EditorFoot.gap + h : 0
-        if extra != footExtra {
-            footExtra = extra
-            setInsets(width: frame.width)
-        }
-        placeFoot()
-    }
-
-    /// Under the last line, across the text's width.
-    func placeFoot() {
-        guard let host = footHost, let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return }
-        // TextKit 2 lays out lazily: until the whole note has been laid out, the used height is
-        // only the first lines', and the foot sat under the title (Lisbon on the Air, 11-04). The
-        // foot shows only for a note with links or mentions, so only those pay for the layout.
-        if (footModel?.height ?? 0) > 0.5 { tlm.ensureLayout(for: tcm.documentRange) }
-        let o = textContainerOrigin
-        let used = tlm.usageBoundsForTextContainer.maxY
-        let frame = NSRect(x: o.x, y: o.y + used + EditorFoot.gap, width: max(0, bounds.width - o.x * 2), height: max(footModel?.height ?? 0, 1))
-        if host.frame != frame { host.frame = frame }
+        return NSPoint(x: o.x, y: o.y + coverRoom / 2)
     }
 
     /// What each live view last showed, so one whose content is the same isn't given it again.
@@ -2859,7 +2844,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     func layoutCards(animated: Bool = true) {
         cardLayoutQueued = false
         queuedCardAnimation = true
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("PaneTextView.layoutCards", context: renderContext)
         #endif
         guard let storage = textStorage else { return }
@@ -2879,7 +2864,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
             if case .grid(_, let request, _) = item.content { wantsFocus = request != nil } else { wantsFocus = false }
             guard cardHosts[item.key] != nil || wantsFocus || item.frame.intersects(viewport) else { continue }
             let host = cardHosts[item.key] ?? {
-                #if DEBUG
+                #if DEBUG || QA
                 RenderProbe.count("CardHost.created", context: renderContext)
                 #endif
                 let h: NSHostingView<AnyView>
@@ -2974,7 +2959,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     @objc private func undoneOrRedone(_ note: Notification) {
-        guard (note.object as AnyObject?) === undoManager, string != lastReported, !hasMarkedText() else { return }
+        guard (note.object as AnyObject?) === undoManager, string != core.incoming.baseline, !hasMarkedText() else { return }
         textDidChange(Notification(name: NSText.didChangeNotification, object: self))
     }
 
@@ -3307,30 +3292,18 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     func textDidChange(_ notification: Notification) {
         guard !hasMarkedText() else { return }
-        takeWhatArrivedWhileComposing()
-        core.layoutDelegate.tint.stop()
+        if let merged = core.incoming.finishComposition(string) { replaceText(with: merged) }
+        core.layoutDelegate.tint.typed(string)
+        showRoom = 0
         // Rows still sliding would cover the new text.
         core.endSlides()
         core.restyle(textStorage!, selection: editingSelection, force: true)
         typingAttributes = core.typingAttributes(string, at: selectedRange().location)
         recordOwnEdit()
-        lastReported = string
-        remember(string)
+        core.incoming.report(string)
         core.onChange(string)
         controller?.typingChanged(text: string, selection: editingSelection)
         layoutWikiSuggestions()
-        // A line more or less moves the foot even when the view keeps its height, once it's laid out.
-        DispatchQueue.main.async { [weak self] in self?.placeFoot() }
-    }
-
-    /// The last body we reported or received, to tell outside edits from our own.
-    var lastReported = ""
-    /// Hashes of recent texts we reported, not yet all written to the note.
-    private var reported: [Int] = []
-
-    private func remember(_ s: String) {
-        reported.append(s.hashValue)
-        if reported.count > 64 { reported.removeFirst(reported.count - 64) }
     }
 
     /// Redraws just the lines an AI changed while their tint swells and fades.
@@ -3356,7 +3329,91 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         core.layoutDelegate.tint.play(from: previous, to: currentText, untilCleared: untilCleared)
     }
 
+    func markChanges(from previous: String, to after: String, color: PColor) {
+        let tint = core.layoutDelegate.tint
+        // In the same frame as the words: now if the text is in, else the moment it arrives.
+        tint.whenText(currentText, is: after) { [weak self] in
+            guard let self else { return }
+            tint.play(from: previous, to: after, color: color)
+            tint.inView = { [weak self] in (self?.changePlacement(from: previous) ?? 0) == 0 }
+            // Room under the last line while the receipt is up, so the end of the note can scroll
+            // clear of it (council r5). It goes when you type.
+            if let tlm = self.textLayoutManager {
+                self.showRoom = max(self.showRoom, tlm.usageBoundsForTextContainer.maxY + self.textContainerOrigin.y * 2 + 72)
+                if self.frame.height < self.showRoom { self.setFrameSize(CGSize(width: self.frame.width, height: self.showRoom)) }
+            }
+            self.controller?.markTableCells(from: previous, to: after, color: color)
+            self.popTicks(ChangeTint.tickedLines(from: previous, to: after))
+        }
+    }
+
+    /// An AI's tick gets the pop yours does, once the line is laid out again.
+    private func popTicks(_ lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let host = self.layer else { return }
+            let origin = self.textContainerOrigin
+            for line in lines {
+                guard let r = self.core.checkboxRect(line: line, layout: self.textLayoutManager) else { continue }
+                self.effectiveAppearance.performAsCurrentDrawingAppearance {
+                    CheckPop.play(in: host, rect: r.offsetBy(dx: origin.x, dy: origin.y))
+                }
+            }
+        }
+    }
+
+    /// Where the first change from `previous` is: 1 below what you can see, -1 above, 0 in view.
+    func changePlacement(from previous: String) -> Int {
+        guard let rect = firstChangeRect(from: previous) else { return 0 }
+        let visible = visibleRect
+        if rect.minY > visible.maxY - 8 { return 1 }
+        if rect.maxY < visible.minY + 8 { return -1 }
+        return 0
+    }
+
+    /// Scrolls the first change from `previous` to a third of the way down, and marks it again.
+    /// The height Show grew the text to, so the change can sit above the receipt (0 when not).
+    private var showRoom: CGFloat = 0
+
+    func showChange(from previous: String) {
+        // TextKit estimates the height of text it hasn't laid out: measure, scroll, and measure again
+        // where it now is, until it holds still.
+        for _ in 0..<4 {
+            if let tlm = textLayoutManager {
+                tlm.ensureLayout(for: tlm.documentRange)
+                // The view grows to the laid-out text, so the scroll can reach the end of it.
+                let needed = tlm.usageBoundsForTextContainer.maxY + textContainerOrigin.y * 2
+                if frame.height < needed { setFrameSize(CGSize(width: frame.width, height: needed)) }
+            }
+            guard let rect = firstChangeRect(from: previous) else { return }
+            let visible = visibleRect
+            // Room under a change at the very end, so it scrolls up clear of the receipt rather
+            // than staying under it at the bottom edge (council r2 pictures).
+            // About 40% up from the bottom, its neighbours above it: a third of the way down left
+            // the page mostly empty under a change at the end (council r6).
+            showRoom = max(showRoom, rect.maxY + visible.height * 0.4)
+            if frame.height < showRoom { setFrameSize(CGSize(width: frame.width, height: showRoom)) }
+            let y = min(max(0, rect.minY - visible.height * 0.6), max(0, bounds.height - visible.height))
+            if abs(y - visible.minY) < 1 { break }
+            guard let scroller = enclosingScrollView else { scroll(CGPoint(x: visible.minX, y: y)); break }
+            let clip = scroller.contentView
+            clip.scroll(to: clip.convert(CGPoint(x: visible.minX, y: y), from: self))
+            scroller.reflectScrolledClipView(clip)
+        }
+        core.layoutDelegate.tint.replay(from: previous, to: currentText)
+    }
+
+    func firstChangeRect(from previous: String) -> CGRect? {
+        let text = currentText
+        let first = ChangeTint.changedWords(from: previous, to: text).first
+            ?? ChangeTint.removals(from: previous, to: text).first?.paragraph
+            ?? ChangeTint.paragraphRanges(changedFrom: previous, to: text).first
+        guard let first else { return nil }
+        return remoteRangeRects(first).first ?? remoteCaretRect(at: first.location)
+    }
+
     var isTinted: Bool { core.layoutDelegate.tint.isLit }
+    var tintStrength: CGFloat { core.layoutDelegate.tint.strength }
 
     func clearTint() { core.layoutDelegate.tint.stop() }
 
@@ -3376,8 +3433,8 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     /// Your edit, for undo, unless it's an undo itself.
     private func recordOwnEdit() {
-        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: lastReported, to: string) else { return }
-        own.record(e, in: lastReported)
+        guard let own = controller?.ownUndo, !applyingOwnUndo, let e = TextDiff.edit(from: core.incoming.baseline, to: string) else { return }
+        own.record(e, in: core.incoming.baseline)
     }
 
     /// Edit › Undo reaches the text view first: in a shared note it undoes your own last step.
@@ -3547,53 +3604,36 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     func syncExternal(_ new: String) {
-        guard new != lastReported else { return }
-        // The note still holds text we typed a moment ago (it's saved once typing
-        // pauses): that's not a change from elsewhere.
-        if reported.contains(new.hashValue) { return }
-        syncDocument(new)
+        if let accepted = core.incoming.receive(new, composing: hasMarkedText(), ignoresEchoes: true) {
+            replaceText(with: accepted)
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func syncDocument(_ new: String) {
-        guard new != lastReported else { return }
-        // Mid-composition (a dead key, an input method) the text can't change under it:
-        // the change is taken in when the composition ends (textDidChange).
-        if hasMarkedText() { arrivedWhileComposing = new; return }
-        reported.removeAll()
-        lastReported = new
-        // Until what you type next is saved, the note still holds this: not a change again.
-        remember(new)
-        replaceText(with: new)
+        if let accepted = core.incoming.receive(new, composing: hasMarkedText()) {
+            replaceText(with: accepted)
+            // An AI's mark waiting for this text starts now, in the same frame (ChangeTint.textArrived).
+            core.layoutDelegate.tint.textArrived(accepted)
+        }
     }
 
     func takeRestored(_ new: String) {
         // Restoring is a choice: it wins over a composition, and over the text you typed before.
         // (The scroll view keeps the scroll inside a shorter text by itself.)
-        arrivedWhileComposing = nil
+        core.incoming.cancelComposition()
         if hasMarkedText() { unmarkText() }
-        reported.removeAll()
-        lastReported = new
-        remember(new)
+        core.incoming.reset(to: new)
         replaceText(with: new)
         undoManager?.removeAllActions()
         clearTint()
     }
 
-    /// A change from elsewhere that arrived while you were composing.
-    private var arrivedWhileComposing: String?
-
-    /// The composition ended: put the change that arrived meanwhile under what you typed,
-    /// or, if you both changed the same lines, keep yours (the other is in version history).
-    private func takeWhatArrivedWhileComposing() {
-        guard let arrived = arrivedWhileComposing else { return }
-        arrivedWhileComposing = nil
-        if let merged = TextDiff.merge(base: lastReported, mine: string, theirs: arrived) { replaceText(with: merged) }
-    }
-
     private func replaceText(with new: String) {
         guard new != string, !hasMarkedText(), let storage = textStorage,
               let edit = TextDiff.edit(from: string, to: new) else { return }
-        core.layoutDelegate.tint.stop()
+        // The mark moves with the text: an AI's next edit builds on it (council r3).
+        if !core.layoutDelegate.tint.follow(new) { core.layoutDelegate.tint.stop() }
         // Only what changed is replaced, so your caret, selection and scroll stay put.
         let keep = selectedRange()
         storage.replaceCharacters(in: edit.range, with: edit.replacement)
@@ -3906,6 +3946,7 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
     }
 
     override func keyDown(with event: NSEvent) {
+        hideTitleActions()
         // Recently Deleted: typing asks to recover the note first, like Notes. Moving around and
         // the ⌘ shortcuts (Copy, Select All) still work.
         if controller?.readOnly == true, Self.edits(event) {
@@ -4187,9 +4228,124 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         super.cursorUpdate(with: event)
     }
 
+    // MARK: Add Icon and Add Cover beside the title
+
+    private var titleActionsHost: NSHostingView<TitleActions>?
+
+    /// The title's first line, in this view.
+    func titleLineRect() -> CGRect? {
+        guard let tlm = textLayoutManager, let tcm = tlm.textContentManager else { return nil }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard at < ns.length, let loc = tcm.location(tcm.documentRange.location, offsetBy: at),
+              let frag = tlm.textLayoutFragment(for: loc), let line = frag.textLineFragments.first else { return nil }
+        let o = textContainerOrigin, b = line.typographicBounds, f = frag.layoutFragmentFrame
+        // Where the words end, not the line's whole width.
+        let end = line.locationForCharacter(at: line.characterRange.length)
+        return CGRect(x: o.x + f.minX + b.minX, y: o.y + f.minY + b.minY, width: max(0, end.x), height: b.height)
+    }
+
+    /// Shows the title's buttons while the pointer is on the title or just above it, where they fit.
+    func updateTitleActions(at p: CGPoint) {
+        guard controller?.readOnly != true, Experiments.isOn(.covers), let title = titleLineRect() else { hideTitleActions(); return }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        let needsIcon = NoteCover.iconLength(ns.substring(from: at)) == nil
+        let needsCover = NoteCover.find(core.embeds, in: ns) == nil
+        let near = p.y >= title.minY - 20 && p.y <= title.maxY + 4
+        guard near, needsIcon || needsCover else { hideTitleActions(); return }
+        let width = TitleActions.width(icon: needsIcon, cover: needsCover)
+        let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
+        guard title.maxX + 16 <= right - width else { hideTitleActions(); return }
+        // Right after the title's words, where the eye is (Notion puts them by the title too); at the
+        // column's end they sat far from it, and Add Cover's menu ran off the window.
+        let frame = CGRect(x: title.maxX + 14, y: title.midY - TitleActions.height / 2, width: width, height: TitleActions.height)
+        let view = TitleActions(icon: needsIcon, cover: needsCover,
+                                addIcon: { [weak self] in self?.hideTitleActions(); self?.controller?.addIcon() },
+                                addCover: { [weak self] in self?.presentCoverPicker(fromTitle: true) })
+        if let host = titleActionsHost {
+            host.rootView = view
+            host.frame = frame
+        } else {
+            let host = NSHostingView(rootView: view)
+            host.sizingOptions = []
+            host.frame = frame
+            addSubview(host)
+            titleActionsHost = host
+        }
+    }
+
+    /// The icon picker, by the title's start (IconPicker): picking closes it.
+    func presentIconPicker() {
+        guard let controller, let title = titleLineRect() else { return }
+        hideTitleActions()
+        iconPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = IconPicker.size
+        popover.contentViewController = NSHostingController(rootView: IconPicker(current: NoteCover.icon(of: string)) { [weak self, weak popover, weak controller] icon in
+            controller?.setIcon(icon)
+            popover?.close()
+            self?.window?.makeFirstResponder(self)
+        })
+        let anchor = CGRect(x: title.minX, y: title.minY, width: min(title.width, 60), height: title.height)
+        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+        iconPopover = popover
+    }
+
+    /// The cover picker (CoverPicker): under Add Cover by the title, or under the banner's Change
+    /// Cover. Picking closes it.
+    func presentCoverPicker(fromTitle: Bool) {
+        guard let controller, let title = titleLineRect() else { return }
+        let anchor: CGRect
+        if fromTitle, let buttons = titleActionsFrame {
+            anchor = CGRect(x: buttons.maxX - 90, y: buttons.minY, width: 90, height: buttons.height)
+        } else {
+            // The banner's bottom right corner, where Change Cover sits.
+            let right = bounds.width - textContainerInset.width - (textContainer?.lineFragmentPadding ?? 0)
+            anchor = CGRect(x: right - 120, y: title.minY - NoteCover.gap - 40, width: 100, height: 30)
+        }
+        hideTitleActions()
+        coverPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = CoverPicker.size
+        popover.contentViewController = NSHostingController(rootView: CoverPicker { [weak popover, weak controller] source in
+            popover?.close()
+            controller?.pickCover(source)
+        })
+        popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+        coverPopover = popover
+    }
+
+    /// Add Icon and Add Cover are showing (tests).
+    var titleActionsShown: Bool { titleActionsHost != nil }
+    var titleActionsFrame: CGRect? { titleActionsHost.map { $0.frame } }
+
+    func hideTitleActions() {
+        titleActionsHost?.removeFromSuperview()
+        titleActionsHost = nil
+    }
+
+    /// The pointer left the text: the title's buttons go, unless it's on them.
+    func pointerLeft(_ event: NSEvent) {
+        if let host = titleActionsHost, !host.frame.contains(convert(event.locationInWindow, from: nil)) { hideTitleActions() }
+    }
+
+    /// A click on the icon opens the emoji panel to change it.
+    private func clickedIcon(at p: CGPoint) -> Bool {
+        guard controller?.readOnly != true, Experiments.isOn(.covers), let title = titleLineRect() else { return false }
+        let ns = string as NSString
+        let at = MarkdownStyler.titleLocation(ns)
+        guard NoteCover.iconLength(ns.substring(from: at)) != nil else { return false }
+        let iconWidth = (EditorMetrics.title * 1.9 * 1.2).rounded()
+        return p.y >= title.minY && p.y <= title.maxY && p.x >= title.minX && p.x <= title.minX + iconWidth
+    }
+
     /// Over a checkbox the pointer is an arrow, not the text I-beam, like Notes.
     override func mouseMoved(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        updateTitleActions(at: p)
         // Over someone's caret, their name shows.
         if !caretViews.isEmpty || hoveredCaret != nil { hoverCaret(at: p) }
         if card(at: p) != nil { return }
@@ -4213,6 +4369,10 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
+        if event.clickCount == 1, clickedIcon(at: p) {
+            controller?.changeIcon()
+            return
+        }
         let point = CGPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
         // A heading's chevron collapses or opens its section; the caret stays where it is.
         if event.clickCount == 1, let h = foldToggle(at: point) {

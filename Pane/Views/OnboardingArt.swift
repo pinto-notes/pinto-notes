@@ -21,7 +21,7 @@ enum OnboardingArt {
 
     static let key = "onboardingArtSet"
 
-    #if DEBUG
+    #if DEBUG || QA
     /// Tests: a set to use, ahead of everything else.
     nonisolated(unsafe) static var forced: Set?
     #endif
@@ -29,7 +29,7 @@ enum OnboardingArt {
     /// This person's set: the one kept in `defaults`, or a new 50/50 pick, kept. A debug build
     /// takes `PINTO_ONBOARDING_SET=still|desk` first, for captures and tests.
     static func set(defaults: UserDefaults = .standard, random: () -> Bool = { Bool.random() }) -> Set {
-        #if DEBUG
+        #if DEBUG || QA
         if let forced { return forced }
         if let forced = ProcessInfo.processInfo.environment["PINTO_ONBOARDING_SET"].flatMap(Set.init(rawValue:)) { return forced }
         #endif

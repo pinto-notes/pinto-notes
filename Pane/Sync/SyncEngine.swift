@@ -42,10 +42,6 @@ final class SyncEngine {
     /// changes. A poll used to set `status` twice and, when it took over 0.7 s, faded the spinner
     /// in and out (release gate, 11 November 2026: 1,550 layouts in 20 s of idle).
     private(set) var showsSyncing = false
-    /// The run now going is a backup poll that nobody else asked to join (`showsSyncing` stays).
-    private var polling = false
-    /// Someone other than a backup poll asked for a sync while a run was going.
-    private var askedAgain = false
     /// Bumped by every `stop`: work that began before it and resumes after takes nothing in.
     private(set) var generation = 0
     /// What the last sync found (see `Reach`); `reach` adds what the network path says.
@@ -71,9 +67,7 @@ final class SyncEngine {
     private let context: ModelContext
     private var pending: Task<Void, Never>?
     private var running = false
-    private var again = false
-    /// A push-only run was asked for while another run was going.
-    private var pushAgain = false
+    private var queuedSync: Request?
     /// Throttled pushes while you type: at most one every `pushInterval`.
     private var pushLoop: Task<Void, Never>?
     private var pushWanted = false
@@ -166,7 +160,7 @@ final class SyncEngine {
     }
 
     /// A backup poll: a full sync that doesn't show as one (`showsSyncing`).
-    private func poll() async { await sync(pulling: true, quietly: true) }
+    private func poll() async { await sync(.poll) }
 
     /// Something changed here: push it soon, at most every `pushInterval`, first one at once.
     func localChanged() {
@@ -190,33 +184,31 @@ final class SyncEngine {
     /// A full run pushes then pulls; `pulling: false` only pushes (your own typing).
     /// Asked for while a run is going, it runs again straight after that one, and returns
     /// once that follow-up is done: when it returns, what you asked for has happened.
-    func sync(pulling: Bool = true) async { await sync(pulling: pulling, quietly: false) }
+    func sync(pulling: Bool = true) async { await sync(pulling ? .full : .push) }
 
-    /// `quietly`: a backup poll. Its runs don't show as syncing, nor a follow-up only polls asked for.
-    private func sync(pulling: Bool, quietly: Bool) async {
-        // Nothing moves until the account's key is open here.
+    /// Coalesced work: a full sync includes a push; a foreground push joining a poll makes
+    /// the next pull visible. Quietness belongs to the request, never mutable running state.
+    enum Request: Equatable {
+        case push, poll, full
+        var pulling: Bool { self != .push }
+        func merging(_ other: Self) -> Self { self == other ? self : .full }
+    }
+
+    private func sync(_ request: Request) async {
         guard let client = backend.client, case .signedIn = backend.state, Wire.sealer != nil else { return }
         if running {
-            if pulling { again = true } else { pushAgain = true }
-            if !quietly { askedAgain = true }
+            queuedSync = queuedSync.map { $0.merging(request) } ?? request
             await withCheckedContinuation { waiting.append($0) }
             return
         }
         running = true
-        polling = quietly
-        askedAgain = false
-        var pulling = pulling
-        while true {
-            await run(client, pulling: pulling)
-            if again { again = false; pushAgain = false; pulling = true }
-            else if pushAgain { pushAgain = false; pulling = false }
-            else { break }
-            polling = !askedAgain
-            askedAgain = false
-            // Signed out meanwhile: nothing more goes up.
-            guard case .signedIn = backend.state else { again = false; pushAgain = false; break }
+        var next: Request? = request
+        while let request = next {
+            await run(client, request: request)
+            next = queuedSync
+            queuedSync = nil
+            guard case .signedIn = backend.state else { break }
         }
-        polling = false
         running = false
         let done = waiting
         waiting = []
@@ -226,7 +218,7 @@ final class SyncEngine {
     /// Callers of `sync` that arrived while a run was going, until their follow-up is done.
     private var waiting: [CheckedContinuation<Void, Never>] = []
 
-    private func run(_ client: SupabaseClient, pulling: Bool) async {
+    private func run(_ client: SupabaseClient, request: Request) async {
         // The key can go (signed out, Start fresh) between runs.
         guard let sealer = Wire.sealer else { return }
         // And during one (signed out, another account, Start fresh): the run keeps the key it
@@ -235,7 +227,7 @@ final class SyncEngine {
         // The engine can also be stopped meanwhile (signed out, the library erased or handed to
         // another account): what the run then gets back is for a library that's gone.
         let gen = generation
-        await Wire.$runSealer.withValue(sealer) { await run(client, pulling: pulling, sealer: sealer, gen: gen) }
+        await Wire.$runSealer.withValue(sealer) { await run(client, request: request, sealer: sealer, gen: gen) }
     }
 
     struct Stopped: Error {}
@@ -254,7 +246,8 @@ final class SyncEngine {
     /// with a key that's no longer the account's.
     private func outlived(_ sealer: Sealer?, _ gen: Int) -> Bool { gen != generation || sealer?.isRetired == true }
 
-    private func run(_ client: SupabaseClient, pulling: Bool, sealer: Sealer, gen: Int) async {
+    private func run(_ client: SupabaseClient, request: Request, sealer: Sealer, gen: Int) async {
+        let pulling = request.pulling
         // No network: nothing is tried (each read would be retried for seconds first). What's
         // waiting goes up when it's back (networkChanged).
         guard path.isUp else {
@@ -264,7 +257,7 @@ final class SyncEngine {
         resetOldLibraryIfNeeded()
         adoptKeyIfChanged(sealer.keyID)
         if pulling { status = .syncing }
-        if pulling, !polling, !showsSyncing { showsSyncing = true }
+        if request == .full, !showsSyncing { showsSyncing = true }
         defer { if showsSyncing { showsSyncing = false } }
         let began = Date.now
         do {
@@ -1186,10 +1179,25 @@ final class SyncEngine {
     /// Sends this device's note over the server's row `s`, only if that's still the server's
     /// version: a third write that landed meanwhile isn't overwritten. Empty when it did; the note
     /// stays to go up, and the next push resolves against the newer row.
-    private func update(_ client: SupabaseClient, _ n: Note, over s: NoteDTO) async throws -> [NoteDTO] {
-        var query = try client.from("notes").update(NoteDTO(n).patch).eq("id", value: n.id)
+    private func update(_ client: SupabaseClient, _ n: Note, over s: NoteDTO, patch: NoteDTO.Patch? = nil) async throws -> [NoteDTO] {
+        var query = try client.from("notes").update(patch ?? NoteDTO(n).patch).eq("id", value: n.id)
         if let v = s.version { query = query.eq("version", value: Int(v)) }
         return try await query.select().execute().value
+    }
+
+    /// Shared rows hold pointers, not mergeable text. A new pointer preserves the ordinary
+    /// note it replaces; removing an uploaded pointer must never resurrect sharing.
+    enum SharingConflict {
+        case mergeText, joined, unshared, shareLocal, takeServer, writeLocal
+
+        static func decide(localShared: Bool, serverShared: Bool, pointerUploaded: Bool, serverNewer: Bool) -> Self {
+            switch (localShared, serverShared) {
+            case (false, false): .mergeText
+            case (false, true): .joined
+            case (true, false): pointerUploaded ? .unshared : .shareLocal
+            case (true, true): serverNewer ? .takeServer : .writeLocal
+            }
+        }
     }
 
     /// The server changed this note since we last saw it, and so did we.
@@ -1202,47 +1210,39 @@ final class SyncEngine {
         }
         // Theirs can't be opened here: nothing is merged with it or written over it.
         if s.unreadable { _ = skipUnreadable(s.id, "A note"); return [] }
-        // A shared note's row is only a pointer: its text is in the shared document, so there's
-        // nothing to merge, and the newer of the two places wins. A note this device didn't know
-        // was shared keeps what was typed here as a conflicted copy: that text isn't in the document.
-        if s.shared_note_id != nil || n.isShared {
-            if s.shared_note_id != nil, !n.isShared {
-                insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: n.body), folder: n.folder, at: n.updatedAt)
-                apply(s, to: n)
-                SharedNotes.pointerArrived?(n)
-                return server
+        switch SharingConflict.decide(localShared: n.isShared, serverShared: s.shared_note_id != nil,
+                                      pointerUploaded: n.sharedDocument?.pointerOnServer ?? true,
+                                      serverNewer: s.updated_at > n.updatedAt) {
+        case .joined:
+            insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: n.body), folder: n.folder, at: n.updatedAt)
+            apply(s, to: n)
+            SharedNotes.pointerArrived?(n)
+            return server
+        case .unshared:
+            apply(s, to: n)
+            if n.isShared, n.deletedAt != nil { SharedNotes.pointerArrived?(n) }
+            return server
+        case .takeServer:
+            apply(s, to: n)
+            return server
+        case .shareLocal:
+            if s.body != n.body, s.body != SharedNotes.placeholder(title: NoteText.title(of: s.body)) {
+                insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
             }
-            if s.shared_note_id == nil, n.sharedDocument?.pointerOnServer ?? true {
-                // The pointer was on the server and now isn't: sharing was stopped elsewhere
-                // (collab_unshare). The server's row wins; pushing this pointer would bring the
-                // sharing back over the owner's text.
-                apply(s, to: n)
-                if n.isShared, n.deletedAt != nil { SharedNotes.pointerArrived?(n) }
-                return server
-            }
-            if s.shared_note_id == nil {
-                // Edited elsewhere as an ordinary note just before it was shared here: that text
-                // may not be in the document, so it's kept as a conflicted copy, and the row
-                // becomes the pointer.
-                if s.body != n.body, s.body != SharedNotes.placeholder(title: NoteText.title(of: s.body)) {
-                    insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version), body: Self.conflictCopy(of: s.body), folder: n.folder, at: s.updated_at)
-                }
-                return try await update(client, n, over: s)
-            }
-            if s.updated_at > n.updatedAt { apply(s, to: n); return server }
             return try await update(client, n, over: s)
+        case .writeLocal: return try await update(client, n, over: s)
+        case .mergeText: break
         }
         if s.body == n.body && s.locked_body == n.lockedBody && Self.sameProps(s, n) {
             // The same text, but not necessarily the same place: a move, trash, restore or pin made
             // here and one made elsewhere are put together, each side's change kept.
             let mine = Place(n), theirs = Place(s)
-            guard !mine.same(as: theirs), let sv = s.version else { return server }
+            guard !mine.same(as: theirs), s.version != nil else { return server }
             let base = syncedPlace[n.id].flatMap { $0.version == n.serverVersion ? $0.place : nil }
             let merged = Place.merge(base: base, mine: mine, theirs: theirs)
             var patch = NoteDTO(n).patch
             merged.write(to: &patch)
-            let saved: [NoteDTO] = try await client.from("notes").update(patch)
-                .eq("id", value: n.id).eq("version", value: Int(sv)).select().execute().value
+            let saved = try await update(client, n, over: s, patch: patch)
             // Moved on again meanwhile: the next push tries again.
             guard saved.first != nil else { return [] }
             if !merged.same(as: mine) { merged.write(to: n, folder: merged.folder.flatMap { context.folder($0) }) }
@@ -1253,15 +1253,14 @@ final class SyncEngine {
         // Both typed since the version we last had: where the edits don't touch the same lines,
         // put them together (like Notes), instead of one side's edit going to version history.
         // Front matter is put together the same way.
-        if !sealed, let base = synced[n.id], base.version == n.serverVersion, let sv = s.version,
+        if !sealed, let base = synced[n.id], base.version == n.serverVersion, s.version != nil,
            let merged = TextDiff.merge(base: base.body, mine: n.body, theirs: s.body),
            let props = Self.mergeProps(base: base.props, mine: n.frontMatter, theirs: s.hasProps ? s.front_matter : n.frontMatter) {
             let mine = n.body
             var patch = NoteDTO(n).patch
             patch.body = merged
             patch.front_matter = props
-            let saved: [NoteDTO] = try await client.from("notes").update(patch)
-                .eq("id", value: n.id).eq("version", value: Int(sv)).select().execute().value
+            let saved = try await update(client, n, over: s, patch: patch)
             // Moved on again meanwhile: the next push tries again.
             guard let row = saved.first else { return [] }
             DebouncedSave.flushAll()
@@ -1279,16 +1278,16 @@ final class SyncEngine {
             return saved
         }
         if sealed { return try await resolveSealedConflict(client, local: n, server: s) }
-        let copyID = Self.conflictCopyID(of: n.id, server: s.version)
-        if s.updated_at > n.updatedAt {
-            // Theirs is newer: keep it, and keep ours as a conflicted copy.
-            insertConflictCopy(copyID, body: Self.conflictCopy(of: n.body), frontMatter: n.frontMatter, folder: n.folder, at: n.updatedAt)
+        // Keep the losing edit as a copy whichever side wins; the server also keeps revisions.
+        let theirsWins = s.updated_at > n.updatedAt
+        insertConflictCopy(Self.conflictCopyID(of: n.id, server: s.version),
+                           body: Self.conflictCopy(of: theirsWins ? n.body : s.body),
+                           frontMatter: theirsWins || !s.hasProps ? n.frontMatter : s.front_matter,
+                           folder: n.folder, at: theirsWins ? n.updatedAt : s.updated_at)
+        if theirsWins {
             apply(s, to: n)
             return server
         }
-        // Ours is newer: it goes up, and theirs is kept here as a conflicted copy (the server
-        // keeps it in note_revisions too), so neither edit is lost.
-        insertConflictCopy(copyID, body: Self.conflictCopy(of: s.body), frontMatter: s.hasProps ? s.front_matter : n.frontMatter, folder: n.folder, at: s.updated_at)
         return try await update(client, n, over: s)
     }
 
@@ -1464,6 +1463,7 @@ final class SyncEngine {
         var byID = Dictionary(uniqueKeysWithValues: context.allFoldersIncludingDeleted().map { ($0.id, $0) })
         var appliedFolders: [FolderDTO] = []
         for r in folderRows where !r.unreadable || skipUnreadable(r.id, "A folder") {
+            if r.ai_made, r.deleted_at == nil { AIMadeFolders.mark(r.id, at: r.created_at) }
             let f = byID[r.id] ?? { let f = Folder(name: r.name); f.id = r.id; context.insert(f); byID[r.id] = f; return f }()
             if f.dirty && f.serverVersion > 0 { continue }
             // A row this device has already, as it is (the cursor's overlap brings the newest rows
@@ -1911,6 +1911,8 @@ struct FolderDTO: Codable, PagedRow {
     var server_stamp: String? = nil
     /// Doesn't open with this device's key: never applied.
     var unreadable = false
+    /// An AI made it (the MCP server's create). Read only: the app never sends it.
+    var ai_made = false
 
     init(_ f: Folder) {
         id = f.id
@@ -1922,7 +1924,7 @@ struct FolderDTO: Codable, PagedRow {
         deleted_at = f.deletedAt
     }
 
-    enum CodingKeys: String, CodingKey { case id, name_ct, parent_id, sort_index, created_at, updated_at, deleted_at, server_updated_at }
+    enum CodingKeys: String, CodingKey { case id, name_ct, parent_id, sort_index, created_at, updated_at, deleted_at, server_updated_at, ai_made }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1934,6 +1936,7 @@ struct FolderDTO: Codable, PagedRow {
         deleted_at = try c.decodeIfPresent(Date.self, forKey: .deleted_at)
         server_updated_at = try c.decodeIfPresent(Date.self, forKey: .server_updated_at)
         server_stamp = try? c.decodeIfPresent(String.self, forKey: .server_updated_at)
+        ai_made = (try? c.decodeIfPresent(Bool.self, forKey: .ai_made)) ?? false
         if let box = try c.decodeIfPresent(String.self, forKey: .name_ct), let n = Wire.sealer?.open(box, context: E2EE.folder(id)) {
             name = n
         } else {

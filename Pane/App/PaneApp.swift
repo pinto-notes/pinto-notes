@@ -141,6 +141,7 @@ struct PaneApp: App {
         NoteVault.shared = inMemory ? NoteVault(keyStore: captureFaceID ? CaptureFaceIDKeyStore() as LockKeyStore : MemoryKeyStore(), defaults: MemoryDefaults(), drivesSync: true)
             : NoteVault(keyStore: KeychainKeyStore(), drivesSync: true)
         Capture.lockedNotesFromArguments(container.mainContext)
+        Capture.recipesFromArguments(container.mainContext)
         // Amber Notes Beta only: the two-device check of shared notes, from a local steps file.
         CollabScript.runIfRequested(context: container.mainContext, signIn: { email, password in try await backend.signIn(email: email, password: password) },
                                     skipIntro: {
@@ -219,8 +220,10 @@ struct PaneApp: App {
             } else {
                 AppGate(backend: backend, sync: sync, session: session)
                     .connectHandler(backend: backend)
-                    // A note's link opened in the app joins the note (after sign-in, if need be).
+                    // A note's link (handed over by ConnectCenter.receive): joining, its question, the line with Leave.
                     .joinLinkHandler()
+                    // Privacy mode's cover, when your screen is shared.
+                    .privacyCover()
                     .followsTheme()
                     .followsAppearanceMode(pinned: Self.testScheme)
             }
@@ -320,6 +323,7 @@ private struct SideWindow: ViewModifier {
             .environment(backend)
             .environment(sync)
             .environment(\.networkReach, sync.reach)
+            .privacyCover()
             .followsTheme()
             .followsAppearanceMode(pinned: nil)
     }
@@ -472,7 +476,7 @@ extension View {
 /// (`-windowProbe`, or any DEBUG build): "window card {{x, y}, {w, h}} -> {{x, y}, {w, h}}".
 enum WindowProbe {
     static let enabled: Bool = {
-        #if DEBUG
+        #if DEBUG || QA
         true
         #else
         ProcessInfo.processInfo.arguments.contains("-windowProbe")
@@ -593,13 +597,13 @@ extension View {
     func popupSheet(_ name: String) -> some View {
         environment(\.inSheet, true)
             .presentationBackground(SetupCards.ground)
-            #if DEBUG
+            #if DEBUG || QA
             .onChange(of: name, initial: true) { SheetProbe.last = name }
             #endif
     }
 }
 
-#if DEBUG
+#if DEBUG || QA
 /// The popup sheet that showed last, for tests: their windows never go on a screen there.
 @MainActor enum SheetProbe {
     static var last: String?
@@ -778,6 +782,8 @@ final class AppSession {
     let shareAsk = ShareAskStore()
     /// "How did you hear about Pinto Notes?", once, for a new account.
     let heardFrom = HeardFromStore()
+    /// The notebook film, once, after a month of real use.
+    let notebookFilm = NotebookFilmStore()
     /// Asks to approve an AI connection from a browser, while signed in with the key here.
     private(set) var connectAsks: ConnectAsks?
     /// "Connected ChatGPT", "Your notes were deleted…": said once on each device.
@@ -853,6 +859,19 @@ final class AppSession {
         followers.append(Self.follow({ [backend] in backend.state }) { [weak self] in await self?.stateChanged() })
         // A first pull that answers late (a slow or failed first sync) still gets its answer heard.
         followers.append(Self.follow({ [sync] in sync.knowsAccount }) { [weak self] in await self?.firstPullAnswered() })
+        // The key check's answer: sharing stops when the key isn't ready (replaced, removed, a
+        // mismatch), and starts again under a key that changed while ready.
+        followers.append(Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                await Self.changed { AccountCrypto.shared.isReady ? AccountCrypto.shared.keyID ?? "" : nil }
+                guard !Task.isCancelled else { return }
+                let crypto = AccountCrypto.shared
+                guard CollabStore.keyChanged(ready: crypto.isReady, keyID: crypto.keyID), crypto.isReady,
+                      let self, case .signedIn = self.backend.state, let client = self.backend.client, let user = self.backend.userID else { continue }
+                let context = self.context
+                Task { @MainActor in await CollabStore.attach(client: client, account: user, context: context) }
+            }
+        })
         // The key opened after the gate (a device linked, a recovery key typed): the library opens.
         followers.append(Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -885,6 +904,8 @@ final class AppSession {
             welcomedAccount = nil
             shareAsk.attach(account: nil, service: nil)
             heardFrom.attach(account: nil, service: nil)
+            // The film's card, the film in hand and its movies go with the account.
+            notebookFilm.attach(account: nil, service: nil)
             if backend.state == .disabled { NoteVault.shared.attach(account: nil, remote: nil) } else { NoteVault.shared.lockNow() }
             AccountCrypto.shared.signedOut()
             CollabStore.detach()
@@ -907,6 +928,7 @@ final class AppSession {
         Self.log.notice("onboarding: \(String(describing: self.onboarding.phase), privacy: .public) at sign-in (made \(Int(-(self.backend.accountCreated ?? .distantPast).timeIntervalSinceNow), privacy: .public) s ago, empty \(SyncEngine.holdsNothing(self.context), privacy: .public))")
         shareAsk.attach(account: backend.userID, service: SupabaseShareAsk(client: client), created: backend.accountCreated)
         heardFrom.attach(account: backend.userID, service: SupabaseHeardFrom(client: client))
+        notebookFilm.attach(account: backend.userID, service: SupabaseFilmSource(client: client))
         NoteVault.shared.attach(account: backend.userID, remote: SupabaseLockRemote(client: client))
         KeyDevices.shared.attach(account: backend.userID, server: SupabaseKeyDevices(client: client))
         KeyDevices.shared.removedHere = { [weak self] in await self?.removedFromDevices() }
@@ -923,6 +945,8 @@ final class AppSession {
         ).run()
         // Without the key the gate asks for it; the library starts when it's open (below).
         guard AccountCrypto.shared.allowsSync else { return }
+        // The notebook film shows as the app opens, if an earlier launch got it ready; never later.
+        notebookFilm.atLaunch(otherPrompt: onboarding.holdsAsks() || (AccountCrypto.shared.recoveryKeyChangeNeedsSaying && AccountCrypto.shared.offersRecoveryKey))
         await openLibrary(client)
     }
 
@@ -949,12 +973,13 @@ final class AppSession {
     }
 
     /// The account's Welcome note, if this device is the one to write it (WelcomeNote): once per
-    /// account, never for an account from before. Its to-do already asks for the Mac, so the Mac
-    /// card stays away for it.
+    /// account, never for an account from before, and on the Mac never over notes already here
+    /// (an import got there first). Its to-do already asks for the Mac, so the Mac card stays away
+    /// for it. That card only shows on iPhone and iPad, so a Mac that skips the note changes no card.
     private func writeWelcomeNote(_ user: UUID) async {
         guard let client = backend.client else { return }
         let context = self.context
-        let id = await WelcomeNote.settle(account: user, claim: {
+        let id = await WelcomeNote.settle(account: user, holdsNotes: { WelcomeNote.libraryHoldsNotes(context) }, claim: {
             let won: Bool = try await client.rpc("claim_welcome_note").execute().value
             return won
         }, write: { body in
@@ -1032,15 +1057,17 @@ final class AppSession {
         let noteQuery = FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil })
         let hasNote = ((try? context.fetchCount(noteQuery)) ?? 0) > 0
         // Never during the first-run flow, nor in the day after it.
-        if !onboarding.holdsAsks() {
+        if !onboarding.holdsAsks() && !notebookFilm.visible && !notebookFilm.offered {
             let days = max(shareAsk.server?.days ?? 0, ShareAsk.localDays().count)
             await heardFrom.refresh(daysOfUse: days, hasNote: hasNote,
                                     otherPrompt: (notices?.shownThisLaunch ?? false) || notices?.current != nil
                                         || (AccountCrypto.shared.recoveryKeyChangeNeedsSaying && AccountCrypto.shared.offersRecoveryKey) || PaneTips.all.contains { $0.shouldDisplay })
         }
         // "Enjoying Pinto Notes?": only here, at launch, and only when nothing else asks or shows.
-        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || (notices?.shownThisLaunch ?? false)
+        shareAsk.atLaunch(otherPrompt: onboarding.holdsAsks() || heardFrom.visible || notebookFilm.visible || notebookFilm.offered || (notices?.shownThisLaunch ?? false)
                           || notices?.current != nil || (AccountCrypto.shared.recoveryKeyChangeNeedsSaying && AccountCrypto.shared.offersRecoveryKey) || PaneTips.all.contains { $0.shouldDisplay })
+        // The notebook film is only got ready here, for the next launch to offer as a card.
+        await notebookFilm.prepare(context: context)
         await InstallID.report(client)
     }
 
@@ -1230,7 +1257,11 @@ struct AppGate: View {
                 .environment(onboarding)
                 .shareAskSheet(shareAsk)
                 .heardFromSheet(heardFrom)
+                .notebookFilmSheet(session.notebookFilm)
+                // Its card sits in the sidebar (FilmCard).
+                .environment(session.notebookFilm)
                 .task {
+                    session.notebookFilm.showIfForced()
                     try? await Task.sleep(for: .seconds(1.2))
                     shareAsk.showIfForced()
                     heardFrom.showIfForced()
@@ -1256,7 +1287,11 @@ struct AppGate: View {
             .modifier(SetupGate(locked: notesLocked, card: setupCard))
             .shareAskSheet(shareAsk)
             .heardFromSheet(heardFrom)
+            .notebookFilmSheet(session.notebookFilm)
+            // Its card sits in the sidebar (FilmCard).
+            .environment(session.notebookFilm)
             .task {
+                session.notebookFilm.showIfForced()
                 try? await Task.sleep(for: .seconds(1.2))
                 shareAsk.showIfForced()
                 heardFrom.showIfForced()
@@ -1328,6 +1363,7 @@ struct AppGate: View {
         .onChange(of: setup.progress?.imported == true, initial: true) { _, imported in
             if imported { Task { await PaneTips.importedOnce() } }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .paneWatchNotebookFilm)) { _ in session.notebookFilm.rewatch() }
         .onReceive(NotificationCenter.default.publisher(for: .paneReplayOnboarding)) { _ in
             guard case .signedIn = backend.state, !keyGateShown else { return }
             onboarding.startReplay()

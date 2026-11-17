@@ -12,21 +12,7 @@ import AppKit
 /// See what your AI changed in a note, and undo it in one tap (Emil, 29 October 2026). The list
 /// marks the note until you open it; inside, the lines the AI changed stay tinted and Undo stays
 /// offered while you read, and both go quietly once you type, undo or leave the note.
-@MainActor @Suite(.serialized) struct AIChangesTests {
-    static let before = "Lisbon, 4 days in May\n\n- [ ] Day 1: Alfama and the castle\n- [ ] Day 2: Belém and the tile museum\n- [ ] Day 3: LX Factory"
-    static let after = "Lisbon, 4 days in May\n\n- [ ] Day 1: Alfama and the castle\n- [ ] Day 2: Belém and the tile museum\n- [ ] Day 3: Sintra, Pena Palace first\n- [ ] Day 4: LX Factory and a late lunch"
-
-    /// A note this device had, then an AI's edit synced onto it, as the sync engine records it.
-    static func aiEdited(_ c: ModelContainer, by ai: String = "ChatGPT") -> Note {
-        let note = c.mainContext.createNote(in: .all, body: before)
-        AIEditTests.arrive(note, body: after, by: ai)
-        return note
-    }
-
-    static func container() throws -> ModelContainer {
-        try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    }
-
+extension AIChangesTests {
     @Test func aConnectedAIShowsItsMark() {
         #expect(SecurityContent.aiMark("Claude", title: "My helper") == "Claude")
         #expect(SecurityContent.aiMark(nil, title: "ChatGPT") == "ChatGPT", "by its name")
@@ -57,8 +43,7 @@ import AppKit
     /// The AI Changes window: Return opens the note, never undoes (a stray Return while reading
     /// changed the note, council 11-04), and the summary has room to say what the AI did.
     @Test func returnOpensTheNoteAndUndoIsAClickOfItsOwn() throws {
-        let src = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/AIChangesView.swift"), encoding: .utf8)
+        let src = try String(contentsOf: TestFiles.url("Views/AIChangesView.swift"), encoding: .utf8)
         let bar = try #require(src.range(of: "private func actions(_ c: AIChange) -> some View").map { String(src[$0.lowerBound...].prefix(2200)) })
         let undo = try #require(bar.range(of: "Button(\"Undo This Change\")"))
         let open = try #require(bar.range(of: "Button(\"Open Note\")"))
@@ -87,9 +72,8 @@ import AppKit
         let filter = try #require(src.range(of: "struct AIChangesFilter").map { String(src[$0.lowerBound...].prefix(600)) })
         #expect(filter.contains(".tint(.primary)"))
         // The receipt says its whole line ("ChatGPT changed 3 li…" in round 5).
-        let marks = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Pane/Views/AIMarks.swift"), encoding: .utf8)
-        let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary)").map { String(marks[$0.lowerBound...].prefix(400)) })
+        let marks = try String(contentsOf: TestFiles.url("Views/AIMarks.swift"), encoding: .utf8)
+        let receipt = try #require(marks.range(of: "Text(compact ? receipt.shortSummary : receipt.summary").map { String(marks[$0.lowerBound...].prefix(400)) })
         #expect(receipt.contains(".fixedSize(horizontal: true, vertical: false)"))
     }
     #endif
@@ -156,12 +140,15 @@ import AppKit
         #expect(h.view.isTinted)
         await h.caret(after: "late lunch")
         await h.type("!")
+        // It fades in a third of a second rather than cutting out (council r1).
+        await h.settle(0.5)
         #expect(!h.view.isTinted, "typing makes it yours")
     }
 
-    /// The note as the app shows it: opened with an AI's edit waiting, the tint is there and stays;
-    /// your first keystroke takes it away; opened again, nothing is marked.
-    @Test func theOpenNoteKeepsTheMarkUntilYouType() async throws {
+    /// The note as the app shows it: opened with an AI's edit waiting, the tint is there, then
+    /// fades on its own while you read (Emil, 12 November 2026: it stayed until you typed, and that
+    /// was annoying); opened again, nothing is marked.
+    @Test func theOpenNoteMarksTheChangeThenLetsItGo() async throws {
         let c = try Self.container()
         let note = Self.aiEdited(c)
         func open() -> (NSWindow, EditorController) {
@@ -176,11 +163,7 @@ import AppKit
         #expect(controller.isTinted, "what the AI changed is marked")
         #expect(!AIEdit.isUnseen(note), "and the list's mark is gone")
         try? await Task.sleep(for: .seconds(6))
-        #expect(controller.isTinted, "still marked while you read")
-        let view = try #require(controller.target as? PaneTextView)
-        view.insertText("!", replacementRange: NSRange(location: (view.string as NSString).length, length: 0))
-        try? await Task.sleep(for: .seconds(0.3))
-        #expect(!controller.isTinted, "typing clears it")
+        #expect(!controller.isTinted, "gone by itself, without typing")
         window.close()
 
         let (again, second) = open()
@@ -289,10 +272,8 @@ import AppKit
         #expect(undo.title == "Undo ChatGPT's changes", "VoiceOver says whose change it undoes")
         #expect(Self.yourUndoItem(in: open) == nil, "never two")
         try Self.shot(open, "2-note-\(mode)")
-        try? await Task.sleep(for: .seconds(6))
-        #expect(controller.isTinted, "still tinted while you read")
-        #expect(Self.aiUndoItem(in: open) != nil, "and Undo still there")
-
+        // The tint fades on its own after a few seconds (Emil, 12 November 2026; the Mac's
+        // theOpenNoteMarksTheChangeThenLetsItGo): Undo is taken while the change is marked.
         Self.tap(undo)
         try? await Task.sleep(for: .seconds(1.0))
         #expect(note.body == Self.before, "Undo put the note back")

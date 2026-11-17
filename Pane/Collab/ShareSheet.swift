@@ -20,6 +20,16 @@ struct ShareState: Equatable {
         case edit = "Can edit", view = "Can view", off = "Off"
         var id: String { rawValue }
     }
+    /// What someone else in the note can do. The owner changes it from their row (Can edit, Can
+    /// view), as the link's own role is changed under Join by Link.
+    enum Role: String, CaseIterable, Identifiable {
+        case editor, viewer
+        var id: String { rawValue }
+        var label: String { ShareCopy.role(rawValue) }
+    }
+    /// Nobody else is in the note and it has no link yet. Join by Link stays out of sight then: it
+    /// read "Off" right above a button that makes a link anyone can join (Emil, 16 November 2026).
+    var notSharedYet: Bool { access == .off && people.count <= 1 }
     struct Person: Identifiable, Equatable {
         let id: UUID
         var name: String
@@ -56,8 +66,9 @@ struct ShareForm: View {
             Section {
                 ForEach(state.people) { p in
                     Group {
-                        if p.isMe || p.safetyCode == nil { PersonRow(person: p, removing: share.working == .remove(p.id)) }
-                        else { NavigationLink(value: p.id) { PersonRow(person: p, removing: share.working == .remove(p.id)) } }
+                        let busy = share.working == .remove(p.id) || share.working == .role(p.id)
+                        if p.isMe || p.safetyCode == nil && !share.canChangeRole(p) { PersonRow(person: p, removing: busy) }
+                        else { NavigationLink(value: p.id) { PersonRow(person: p, removing: busy) } }
                     }
                     #if os(iOS)
                     .swipeActions { if share.isOwner, !p.isMe { Button("Remove", role: .destructive) { share.askRemove(p) } } }
@@ -67,6 +78,7 @@ struct ShareForm: View {
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
                     if case .removed = share.done { DoneLine(text: share.removedLine) }
+                    if case .roleChanged(_, let said) = share.done { DoneLine(text: said) }
                 }
             }
 
@@ -80,14 +92,16 @@ struct ShareForm: View {
                         .listRowBackground(Color.clear)
                 }
                 Section {
-                    Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                        ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
-                    } label: {
-                        Text("Join by Link")
+                    if !state.notSharedYet {
+                        Picker(selection: Binding(get: { state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                        } label: {
+                            Text("Join by Link")
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(share.working != nil)
+                        .accessibilityIdentifier("share.access")
                     }
-                    .pickerStyle(.menu)
-                    .disabled(share.working != nil)
-                    .accessibilityIdentifier("share.access")
                 } footer: {
                     footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state), done: share.done == .linkChanged)
                 }
@@ -116,6 +130,9 @@ struct ShareForm: View {
         .navigationDestination(for: UUID.self) { id in
             if let p = state.people.first(where: { $0.id == id }) {
                 PersonDetail(person: p, canRemove: share.isOwner, justVerified: share.done == .verified(p.id),
+                             roles: share.canChangeRole(p) ? .init(changing: share.working == .role(p.id), said: share.roleLine(for: p.id),
+                                                                   problem: share.working == nil ? state.problem : nil,
+                                                                   choose: { r in Task { await share.setRole(r, of: p) } }) : nil,
                              verify: { share.verify(p) }, done: done, remove: { share.askRemove(p) })
             }
         }
@@ -230,12 +247,22 @@ struct PersonRow: View {
     static func color(_ person: ShareState.Person) -> Color { CollabSession.color(for: person.id) }
 }
 
-/// A person, opened: their safety code, calmly, for anyone who wants to check, "They match", and
-/// Remove for the owner. A changed key says so in one line, and "They match" trusts the new one.
+/// A person, opened: for the owner, what they can do (Can edit or Can view); their safety code,
+/// calmly, for anyone who wants to check, "They match"; and Remove for the owner. A changed key
+/// says so in one line, and "They match" trusts the new one.
 struct PersonDetail: View {
     let person: ShareState.Person
     var canRemove = true
     var justVerified = false
+    /// The owner's choice of what this person can do; nil for everyone else.
+    var roles: Roles?
+    struct Roles {
+        var changing = false
+        /// "Sara can view now.", once it's done.
+        var said: String?
+        var problem: String?
+        var choose: (ShareState.Role) -> Void
+    }
     var verify: () -> Void = {}
     /// Closes the whole sheet (the Back button goes back to Share).
     var done: (() -> Void)?
@@ -253,6 +280,22 @@ struct PersonDetail: View {
                         Text(person.name).font(.headline)
                         Text(ShareCopy.role(person.role)).foregroundStyle(.secondary)
                     }
+                }
+            }
+            if let roles {
+                Section {
+                    Picker(selection: Binding<ShareState.Role?>(get: { ShareState.Role(rawValue: person.role) },
+                                                                set: { r in if let r { roles.choose(r) } })) {
+                        ForEach(ShareState.Role.allCases) { Text($0.label).tag(Optional($0)) }
+                    } label: {
+                        Text("Access")
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(roles.changing)
+                    .accessibilityIdentifier("share.person.role")
+                } footer: {
+                    if let problem = roles.problem { Text(problem).foregroundStyle(.red).accessibilityIdentifier("share.problem") }
+                    else if let said = roles.said { DoneLine(text: said) }
                 }
             }
             if let code = person.safetyCode {

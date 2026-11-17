@@ -39,6 +39,8 @@ import Testing
         // SwiftUI hands it back to the editor, which must keep what's typed.
         h.view.syncExternal("Title\n\nHello")
         #expect(h.text == "Title\n\nHello world")
+        h.view.syncDocument("Title\n\nHello")
+        #expect(h.text == "Title\n\nHello", "document changes may return to earlier text")
         // A real outside change does come through.
         h.view.syncExternal("Title\n\nHello from the phone")
         #expect(h.text == "Title\n\nHello from the phone")
@@ -56,12 +58,33 @@ import Testing
         h.view.setMarkedText("´", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
         #expect(h.view.hasMarkedText())
         h.view.syncExternal("Title\n\nCafe\n\nOat milk")
-        // Updates keep coming while composing; they must not be lost either.
-        h.view.syncExternal("Title\n\nCafe\n\nOat milk")
+        // Only the latest of several remote arrivals should be merged.
+        h.view.syncExternal("Title\n\nCafe\n\nAlmond milk")
         h.view.insertText("é", replacementRange: NSRange(location: NSNotFound, length: 0))
         await h.settle()
-        #expect(h.text == "Title\n\nCafée\n\nOat milk", "both the composed letter and the other device's edit")
+        #expect(h.text == "Title\n\nCafée\n\nAlmond milk", "both the composed letter and the other device's edit")
         #expect(reported.last == h.text, "what's saved includes the other device's edit")
+    }
+
+    @Test func restoringDiscardsAPendingCompositionArrival() async {
+        let h = await EditorHarness("Title\n\nCafe\n\nMilk")
+        defer { h.close() }
+        await h.caret(after: "Caf")
+        h.view.setMarkedText("´", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+        h.view.syncExternal("Title\n\nCafe\n\nOat milk")
+        h.view.takeRestored("Restored")
+        #expect(!h.view.hasMarkedText())
+        await h.caret(after: "Restored")
+        await h.type("!")
+        #expect(h.text == "Restored!", "a deferred arrival must not merge after the restore")
+    }
+
+    @Test func onlyTheLatest64ReportsAreIgnoredAsEchoes() {
+        var incoming = EditorIncomingText()
+        for i in 0...64 { incoming.report("Text \(i)") }
+        #expect(incoming.receive("Text 1", composing: false, ignoresEchoes: true) == nil)
+        #expect(incoming.receive("Text 0", composing: false, ignoresEchoes: true) == "Text 0")
+        #expect(incoming.receive("Text 1", composing: false, ignoresEchoes: true) == "Text 1", "an arrival resets the echo history")
     }
 
     @Test func mergeKeepsBothSidesUnlessTheyTouchTheSameLine() {

@@ -5,24 +5,7 @@ import Testing
 
 /// Share with people, as the buttons drive it (ShareController over a sample backend): Share Link,
 /// the link switch, Remove, Leave, and what the sheet says when something fails or takes too long.
-@MainActor @Suite(.serialized) struct ShareControllerTests {
-    static let me = CollabGallery.emil
-    static let sara = CollabGallery.sara
-
-    static func owner(link: ShareState.Access = .off) -> ShareState {
-        ShareState(link: link == .off ? nil : URL(string: "https://pintonotes.com/s/sEbHaDgYXLDfpSMmrziRgA#gIfSqgKHVsQcWBm2RTA0aw"), access: link, people: [
-            .init(id: me, name: "Emil Wagman", isMe: true, role: "owner"),
-            .init(id: sara, name: "Sara Lind", role: "editor", safetyCode: "4821 0937 5512"),
-        ])
-    }
-
-    static func member() -> ShareState {
-        ShareState(people: [
-            .init(id: sara, name: "Sara Lind", isMe: true, role: "editor"),
-            .init(id: me, name: "Emil Wagman", role: "owner", safetyCode: "4821 0937 5512"),
-        ])
-    }
-
+extension ShareControllerTests {
     static func controller(_ state: ShareState) -> (ShareController, SampleShare) {
         let backend = SampleShare(state)
         return (ShareController(note: Note(body: "Team offsite"), backend: backend), backend)
@@ -40,12 +23,15 @@ import Testing
         #expect(share.working == nil && share.state.problem == nil)
     }
 
-    /// With a link on, Share Link hands it over at once: no second link, no server call.
+    /// With a link on, Share Link hands it over at once, with no second link, and makes the same
+    /// link again so it lasts another 7 days (council 11-16: a week-old link stopped working).
     @Test func shareLinkWithALinkOnSharesThatLink() async {
         let (share, backend) = Self.controller(Self.owner(link: .view))
+        let link = share.state.link
         await share.shareLink()
-        #expect(backend.calls.isEmpty)
-        #expect(share.sharing == share.state.link)
+        #expect(share.sharing == link)
+        #expect(backend.calls == ["access Can view"])
+        #expect(share.state.link == link)
     }
 
     /// People with the link: Can edit, Can view, Off. Off stops the link (nothing to share);
@@ -96,6 +82,66 @@ import Testing
         await member.setAccess(.edit)
         await member.shareLink()
         #expect(backend.calls.isEmpty && member.sharing == nil)
+    }
+
+    /// The owner changes what someone can do, after they joined (Emil, 16 November 2026): Can view,
+    /// then Can edit again. Each says so by name; choosing their role as it is does nothing.
+    @Test func theOwnerChangesWhatSomeoneCanDo() async throws {
+        let (share, backend) = Self.controller(Self.owner(link: .edit))
+        let sara = try #require(share.state.people.first { $0.id == Self.sara })
+        #expect(share.canChangeRole(sara))
+        await share.setRole(.viewer, of: sara)
+        #expect(backend.calls == ["role \(Self.sara.uuidString) viewer"])
+        #expect(share.state.people.first { $0.id == Self.sara }?.role == "viewer")
+        #expect(share.done == .roleChanged(Self.sara, line: "Sara can view now.") && share.done?.text == "Sara can view now.")
+        #expect(share.roleLine(for: Self.sara) == "Sara can view now." && share.roleLine(for: Self.me) == nil)
+        #expect(share.working == nil && share.state.problem == nil)
+        let viewer = try #require(share.state.people.first { $0.id == Self.sara })
+        await share.setRole(.viewer, of: viewer)
+        #expect(backend.calls.count == 1, "already a viewer: nothing asked")
+        await share.setRole(.editor, of: viewer)
+        #expect(backend.calls.last == "role \(Self.sara.uuidString) editor")
+        #expect(share.state.people.first { $0.id == Self.sara }?.role == "editor")
+        #expect(share.done?.text == "Sara can edit now.")
+        // The link isn't touched: a role is the person's, not the link's.
+        #expect(share.state.access == .edit && !backend.calls.contains { $0.hasPrefix("access") })
+    }
+
+    /// Only the owner changes roles, never their own, and nobody changes the owner's.
+    @Test func onlyTheOwnerChangesRolesAndNeverTheOwners() async throws {
+        let (owner, ownerCalls) = Self.controller(Self.owner())
+        let me = try #require(owner.state.people.first { $0.isMe })
+        #expect(!owner.canChangeRole(me))
+        await owner.setRole(.viewer, of: me)
+        #expect(ownerCalls.calls.isEmpty)
+
+        let (member, backend) = Self.controller(Self.member())
+        let emil = try #require(member.state.people.first { $0.role == "owner" })
+        let herself = try #require(member.state.people.first { $0.isMe })
+        #expect(!member.canChangeRole(emil) && !member.canChangeRole(herself))
+        await member.setRole(.viewer, of: emil)
+        await member.setRole(.viewer, of: herself)
+        #expect(backend.calls.isEmpty)
+    }
+
+    /// A role change that fails or hangs says so, and the role stays as it was.
+    @Test func aRoleChangeThatFailsSaysSo() async throws {
+        let (share, backend) = Self.controller(Self.owner(link: .edit))
+        let sara = try #require(share.state.people.first { $0.id == Self.sara })
+        backend.fails = true
+        await share.setRole(.viewer, of: sara)
+        #expect(share.state.problem == ShareController.failed(.role(Self.sara)))
+        #expect(share.done == nil && share.state.people.first { $0.id == Self.sara }?.role == "editor")
+        backend.fails = false
+        backend.delay = .seconds(5)
+        share.timeout = .milliseconds(150)
+        let task = Task { await share.setRole(.viewer, of: sara) }
+        try await Task.sleep(for: .milliseconds(60))
+        #expect(share.working == .role(Self.sara), "the row shows it happening")
+        await task.value
+        #expect(share.working == nil)
+        #expect(share.state.problem == ShareController.timedOut(.role(Self.sara)))
+        #expect(ShareCopy.working(.role(Self.sara)) == "Changing…")
     }
 
     /// Leave asks first; confirmed, you're out and the sheet closes.
@@ -166,6 +212,11 @@ import Testing
         // Before the note is shared, the line says what Share Link will do, not that a link is off.
         #expect(ShareCopy.link(ShareState(people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")])) == ShareCopy.notSharedYet)
         #expect(ShareCopy.link(Self.owner(link: .off)) == ShareCopy.link(.off))
+        // Join by Link shows only once the note is shared: alone with no link, it's out of sight
+        // (Emil, 16 November 2026: "Off" above a button that makes a link read as a contradiction).
+        #expect(ShareState(people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")]).notSharedYet)
+        #expect(!Self.owner(link: .off).notSharedYet, "someone else is in the note")
+        #expect(!ShareState(link: URL(string: "https://pintonotes.com/s/x"), access: .edit, people: [.init(id: Self.me, name: "Emil Wagman", isMe: true, role: "owner")]).notSharedYet, "a link is on")
         #expect(ShareCopy.removeMessage(Self.owner().people[1]).hasPrefix("Sara can't open this note anymore."))
     }
 
@@ -269,6 +320,7 @@ import Testing
     func shareState(for note: Note) -> ShareState { state }
     func setAccess(_ access: ShareState.Access, for note: Note) async throws {}
     func remove(_ user: UUID, from note: Note) async throws { throw Collab.Failure.wrapsIncomplete }
+    func setRole(_ role: ShareState.Role, of user: UUID, in note: Note) async throws {}
     func leave(_ note: Note) async throws {}
     func markVerified(_ user: UUID, in note: Note) {}
 }

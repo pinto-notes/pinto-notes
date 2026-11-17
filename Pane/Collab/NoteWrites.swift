@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Changes to a note's text made outside its editor: Siri and Shortcuts, a tick in the widget,
 /// "Add to a note" in the share sheet, Undo and Review of an AI's change.
@@ -57,4 +58,19 @@ enum NoteWrites {
         library.mirror(session.text, into: note)
         return .changed
     }
+}
+
+/// Something to say in a note when it next shows, from outside its editor: a widget tick on a
+/// Can view list opens the note (WidgetTickIntent) and says there that it's view-only, as a tap
+/// in the note does, instead of the tick going nowhere (persona council round 6).
+@MainActor
+@Observable
+final class NoteNotices {
+    static let shared = NoteNotices()
+    private(set) var waiting: [UUID: String] = [:]
+
+    func post(_ text: String, for note: UUID) { waiting[note] = text }
+
+    /// What's waiting for this note, once: the note's view shows it.
+    func take(_ note: UUID) -> String? { waiting.removeValue(forKey: note) }
 }

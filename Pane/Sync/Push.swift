@@ -34,7 +34,7 @@ enum APNsEnvironment: String, Equatable, Sendable {
     /// builds, production otherwise.
     static func resolve(profile: Data?) -> APNsEnvironment {
         if let profile, let env = fromProfile(profile) { return env }
-        #if DEBUG
+        #if DEBUG || QA
         return .sandbox
         #else
         return .production

@@ -7,43 +7,7 @@ import Testing
 
 /// The notes window's toolbar and the note's first lines, in a real window that is never shown:
 /// a titled window lays out its toolbar without being on screen, and nothing appears on the display.
-@MainActor @Suite(.serialized) struct MacWindowChromeTests {
-    /// The demo library's window with `title` open, at `size`.
-    static func window(_ c: ModelContainer, size: CGSize) -> NSWindow {
-        let w = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height),
-                         styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-        w.isReleasedWhenClosed = false
-        w.contentViewController = NSHostingController(rootView: RootView().modelContainer(c).environment(SetupStore()))
-        w.setContentSize(size)
-        return w
-    }
-
-    static func settle(_ w: NSWindow, _ turns: Int = 10) async {
-        for _ in 0..<turns {
-            w.contentView?.layoutSubtreeIfNeeded()
-            w.displayIfNeeded()
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-    }
-
-    static func find<T: NSView>(_ type: T.Type, in view: NSView, where ok: @MainActor (T) -> Bool = { _ in true }) -> T? {
-        if let v = view as? T, ok(v) { return v }
-        for s in view.subviews { if let v = find(type, in: s, where: ok) { return v } }
-        return nil
-    }
-
-    /// The toolbar's items with a view, by label, and the column each one stands over.
-    static func items(_ w: NSWindow) throws -> [(label: String, column: Int, frame: CGRect)] {
-        let split = try #require(w.contentView.flatMap { find(NSSplitView.self, in: $0) })
-        let columns = split.arrangedSubviews.map { $0.isHidden ? CGRect.null : $0.convert($0.bounds, to: nil) }
-        return (w.toolbar?.items ?? []).compactMap { item in
-            guard !item.isHidden, let view = item.view, view.window != nil else { return nil }
-            let f = view.convert(view.bounds, to: nil)
-            let column = columns.firstIndex { !$0.isNull && f.midX >= $0.minX && f.midX < $0.maxX } ?? -1
-            return (item.label, column, f)
-        }
-    }
-
+extension MacWindowChromeTests {
     /// Emil (10-29): "inside the note panel we should just have the stuff that is relating to
     /// the note itself." Compose goes to the list; the sidebar has New Folder, Today and Search
     /// (Emil, 10-31: search was in the list's header on 10-30); the note keeps Format, Checklist,
@@ -430,18 +394,6 @@ import Testing
             await Self.settle(w, 3)
             #expect(made.name == "Audit folder", "Return commits the name")
         }
-    }
-
-    /// A toolbar item, by its label, while it stands in the window's toolbar.
-    static func toolbarItem(_ w: NSWindow, _ label: String) -> NSToolbarItem? {
-        w.toolbar?.items.first { $0.label == label && $0.view?.window != nil }
-    }
-
-    /// Presses a toolbar item's button the way its overflow menu does: the same action a click
-    /// runs. (A click needs the window on screen; this window never is.)
-    static func press(_ item: NSToolbarItem) -> Bool {
-        guard let m = item.menuFormRepresentation, let action = m.action else { return false }
-        return NSApp.sendAction(action, to: m.target, from: m)
     }
 
     /// Emil (10-29): "the content of the note is placed weirdly far down." And 10-31: the date

@@ -9,7 +9,7 @@ import UIKit
 /// second line at the accessibility sizes instead of being cut. Pictures when AMBER_HIG_SHOTS is
 /// set, on a simulator:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/AmberButtonDynamicTypeSnapshots CODE_SIGNING_ALLOWED=NO`.
+/// -only-testing:PaneHIGTests/AmberButtonDynamicTypeSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct AmberButtonDynamicTypeSnapshots {
     static let row = ButtonSize.big.height
 

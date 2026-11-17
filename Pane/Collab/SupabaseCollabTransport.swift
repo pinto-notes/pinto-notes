@@ -17,6 +17,8 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 final class SupabaseCollabTransport: CollabTransport {
     let client: SupabaseClient
     let me: UUID
+    /// Channels still being taken down, by topic: a join waits for its note's.
+    let closings = ChannelClosings()
 
     init(client: SupabaseClient, me: UUID) {
         self.client = client
@@ -95,6 +97,12 @@ final class SupabaseCollabTransport: CollabTransport {
         }
     }
 
+    func setRole(note: UUID, user: UUID, role: String) async throws {
+        try await call("set role") {
+            try await client.rpc("collab_set_role", params: ["p_note": Self.id(note), "p_user": Self.id(user), "p_role": role]).execute()
+        }
+    }
+
     /// `collab_remove`'s arguments. `p_user` goes as an explicit null when no one is removed (a new
     /// key after someone left): left out, PostgREST looks for a three-argument function, finds none,
     /// and the key was never renewed.
@@ -137,6 +145,13 @@ final class SupabaseCollabTransport: CollabTransport {
         struct Params: Encodable { let p_note: String; let p_body_ct: String; let p_head_ct: String; let p_upto: Int64 }
         try await call("unshare") {
             try await client.rpc("collab_unshare", params: Params(p_note: Self.id(note), p_body_ct: body, p_head_ct: head, p_upto: upto)).execute()
+        }
+    }
+
+    func accessEnded(note: UUID) async throws -> Collab.AccessEnded? {
+        try await call("access ended") {
+            let rows: [Collab.AccessEnded] = try await client.rpc("collab_access_ended", params: ["p_note": Self.id(note)]).execute().value
+            return rows.first
         }
     }
 
@@ -242,11 +257,16 @@ final class SupabaseCollabTransport: CollabTransport {
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel {
         // Each device is its own presence entry; a person has left when their last one has.
         let device = UUID().uuidString.lowercased()
-        let channel = client.realtimeV2.channel("note:\(Self.id(note))") {
+        let topic = "note:\(Self.id(note))"
+        // Realtime's client keeps one channel per topic and hands back the one it has. A note
+        // closed and opened again at once got the old channel, still being removed, which then went
+        // from under the new session (11-05, not reproduced). The close finishes first.
+        await closings.ready(topic)
+        let channel = client.realtimeV2.channel(topic) {
             $0.isPrivate = true
             $0.presence.key = device
         }
-        let live = SupabaseCollabChannel(channel: channel, client: client, me: me)
+        let live = SupabaseCollabChannel(channel: channel, client: client, me: me, topic: topic, closings: closings)
         let inserts = channel.postgresChange(InsertAction.self, schema: "public", table: "note_updates", filter: .eq("note_id", value: Self.id(note)))
         let presence = channel.broadcastStream(event: "presence")
         let membersChanged = channel.broadcastStream(event: "members")
@@ -263,7 +283,9 @@ final class SupabaseCollabTransport: CollabTransport {
                 try await group.next()
             }
         } catch {
-            await client.realtimeV2.removeChannel(channel)
+            let client = client
+            closings.close(topic) { await client.realtimeV2.removeChannel(channel) }
+            await closings.ready(topic)
             log.error("collab channel refused: \(String(describing: error), privacy: .public)")
             throw Collab.Failure.notMember
         }
@@ -346,13 +368,17 @@ final class SupabaseCollabChannel: CollabChannel {
     private let channel: RealtimeChannelV2
     private let client: SupabaseClient
     private let me: UUID
+    private let topic: String
+    private let closings: ChannelClosings
     var tasks: [Task<Void, Never>] = []
     private var open = true
 
-    init(channel: RealtimeChannelV2, client: SupabaseClient, me: UUID) {
+    init(channel: RealtimeChannelV2, client: SupabaseClient, me: UUID, topic: String, closings: ChannelClosings) {
         self.channel = channel
         self.client = client
         self.me = me
+        self.topic = topic
+        self.closings = closings
     }
 
     func send(presence ct: String) {
@@ -371,9 +397,35 @@ final class SupabaseCollabChannel: CollabChannel {
         open = false
         tasks.forEach { $0.cancel() }
         let channel = channel, client = client
-        Task {
+        closings.close(topic) {
             await channel.untrack()
             await client.realtimeV2.removeChannel(channel)
         }
     }
+}
+
+/// Channels being taken down, by topic, one after another: a join to a topic waits until the
+/// channel closing on it is gone from Realtime's client, so it never gets that one handed back.
+@MainActor
+final class ChannelClosings {
+    private var closing: [String: Task<Void, Never>] = [:]
+
+    /// Takes a channel down (`work`), after anything still closing on the same topic.
+    func close(_ topic: String, _ work: @escaping @MainActor () async -> Void) {
+        let before = closing[topic]
+        closing[topic] = Task { @MainActor in
+            await before?.value
+            await work()
+        }
+    }
+
+    /// Returns once nothing is closing on `topic`.
+    func ready(_ topic: String) async {
+        while let task = closing[topic] {
+            await task.value
+            if closing[topic] == task { closing[topic] = nil }
+        }
+    }
+
+    func isClosing(_ topic: String) -> Bool { closing[topic] != nil }
 }

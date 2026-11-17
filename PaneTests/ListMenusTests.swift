@@ -15,7 +15,7 @@ import Testing
 
     @Test func aLongPressHasNotesActionsAndNoSelect() {
         // Share, Move and Delete across the top; then Pin, Lock and Duplicate.
-        #expect(NoteRowMenu.groups(locked: false, trashed: false) == [[.share, .move, .delete], [.pin, .lock, .duplicate]])
+        #expect(NoteRowMenu.groups(locked: false, trashed: false) == [[.share, .move, .delete], [.pin, .lock, .duplicate], [.tags]])
         // A locked note's text isn't here to share or copy; its lock can come off.
         #expect(NoteRowMenu.groups(locked: true, trashed: false) == [[.move, .delete], [.pin, .removeLock]])
         // In Recently Deleted: back, or gone for good.
@@ -35,7 +35,7 @@ import Testing
     /// Lock Note and Version History as in the note's own ••• menu (NoteMoreMenu).
     @Test func theMacRightClickIsGroupedLikeNotes() {
         #expect(NoteRowMenu.macGroups(locked: false, trashed: false)
-                == [[.openInNewWindow], [.pin, .lock], [.duplicate], [.share], [.move, .history], [.delete]])
+                == [[.openInNewWindow], [.pin, .lock], [.duplicate], [.share], [.move, .tags, .history], [.delete]])
         // A locked note's text isn't here to share, copy or look back through; its lock can come off.
         #expect(NoteRowMenu.macGroups(locked: true, trashed: false) == [[.openInNewWindow], [.pin, .removeLock], [.move], [.delete]])
         #expect(NoteRowMenu.macGroups(locked: false, trashed: true) == [[.recover, .delete]])

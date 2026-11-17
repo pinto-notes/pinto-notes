@@ -63,7 +63,9 @@ import Testing
 #if os(macOS)
 extension EditorPerfTests {
     @Test func openBreakdown() async {
-        for (name, text) in [("5000 lines", PerfFixtures.longNote()), ("blocks", PerfFixtures.blockyNote()), ("80 lines", PerfFixtures.longNote(lines: 80))] {
+        for (name, text) in [("5000 lines", PerfFixtures.longNote()), ("blocks", PerfFixtures.blockyNote()), ("80 lines", PerfFixtures.longNote(lines: 80)),
+                           // A long checklist: the note ActionSpeedTests opens next.
+                           ("200 checklist items", "Note\n\n" + (0..<200).map { "- [ ] Item \($0) with **bold** and a [link](https://example.com)" }.joined(separator: "\n"))] {
             let clock = ContinuousClock()
             let window = KeyableWindow(contentRect: NSRect(x: -30000, y: -30000, width: 720, height: 900), styleMask: [.borderless], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false

@@ -11,7 +11,7 @@ import UIKit
 /// Connect your AI card was, light and dark, with no AI connected. Offscreen; runs only when
 /// AMBER_HIG_SHOTS is set, on a simulator:
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/MacFirstSnapshots CODE_SIGNING_ALLOWED=NO`.
+/// -only-testing:PaneHIGTests/MacFirstSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct MacFirstSnapshots {
     #if os(macOS)
     /// The Mac is unchanged: its card and its rows as before.

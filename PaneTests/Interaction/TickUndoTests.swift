@@ -36,18 +36,15 @@ import UIKit
         let at = (body as NSString).range(of: "Rain").location + 2
         h.view.setSelectedRange(NSRange(location: at, length: 0))
         h.controller.moveItem(up: true)
-        await h.settle(0.2)
-        #expect(h.text == "Packing\n\n- [ ] Passport\n- [ ] Rain jacket\n- [ ] Chargers")
+        #expect(await h.until { h.text == "Packing\n\n- [ ] Passport\n- [ ] Rain jacket\n- [ ] Chargers" })
         let moved = h.selection
         #expect(moved.length == 0)
         #expect(undo.undoActionName == "Move Item")
         undo.undo()
-        await h.settle(0.2)
-        #expect(h.text == body)
+        #expect(await h.until { h.text == body })
         #expect(h.selection == NSRange(location: at, length: 0))
         undo.redo()
-        await h.settle(0.2)
-        #expect(h.selection == moved)
+        #expect(await h.until { h.selection == moved })
     }
 
     @Test func undoingAMoveAfterTicksKeepsTheText() async throws {
@@ -112,8 +109,7 @@ import UIKit
         let h = await EditorHarness("Packing\n\n- [ ] Passport\n- [ ] Chargers", focus: false)
         defer { h.close() }
         await h.click(circle(h, "Passport"))
-        await h.settle(0.1)
-        #expect(h.text.contains("- [x] Passport"), "\(h.text)")
+        #expect(await h.until { h.text.contains("- [x] Passport") }, "\(h.text)")
     }
 
     @Test func oneCommandZPutsTheTickAndTheMoveBack() async throws {
@@ -132,23 +128,18 @@ import UIKit
         undo.beginUndoGrouping()
         await h.click(circle(h, "Oat milk"))
         undo.endUndoGrouping()
-        await h.settle(Self.settle)
-        #expect(h.text == Self.sunk, "ticked and sunk")
+        #expect(await h.until { h.text == Self.sunk }, "ticked and sunk")
 
         undo.undo()
-        await h.settle(0.2)
-        #expect(h.text == Self.typed, "one ⌘Z: unticked, back at the top")
+        #expect(await h.until { h.text == Self.typed }, "one ⌘Z: unticked, back at the top")
         #expect(undo.canUndo, "the typing before it is still there to undo")
         undo.undo()
-        await h.settle(0.2)
-        #expect(h.text == Self.body)
+        #expect(await h.until { h.text == Self.body })
 
         undo.redo()
-        await h.settle(0.2)
-        #expect(h.text == Self.typed)
+        #expect(await h.until { h.text == Self.typed })
         undo.redo()
-        await h.settle(0.2)
-        #expect(h.text == Self.sunk, "redo ticks and sinks it again")
+        #expect(await h.until { h.text == Self.sunk }, "redo ticks and sinks it again")
     }
     #endif
 

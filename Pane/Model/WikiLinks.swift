@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftData
 
 /// Obsidian's wiki links, `[[Title]]`, `[[Folder/Title]]`, `[[Title|shown text]]` and
@@ -347,6 +348,16 @@ private extension Array where Element: Equatable {
     }
 }
 
+/// Goes up whenever where notes link, or what notes and folders are called, may have changed:
+/// Linked From (the note's ••• menu, `LinkedFromMenu`) reads it, so its list is looked up again
+/// only then, never for a save of typing that touches neither.
+@MainActor @Observable
+final class LinkChanges {
+    static let shared = LinkChanges()
+    private(set) var version = 0
+    func bump() { version &+= 1 }
+}
+
 /// The library's titles as a `WikiIndex`, built once and again after the store saves, so styling
 /// a note on every keystroke doesn't fetch every note.
 @MainActor
@@ -356,10 +367,34 @@ enum WikiDirectory {
     private static weak var cachedContext: ModelContext?
     private static var observer: NSObjectProtocol?
     /// Goes up each time a title or folder changes.
-    private(set) static var generation = 0
+    private(set) static var generation = 0 { didSet { if !quiet { LinkChanges.shared.bump() } } }
+    /// While a read `ready` asked for goes in: whoever asked gets it then, so Linked From isn't
+    /// told. Telling it made two libraries open at once (two windows' contexts) ask in turn for
+    /// ever, each read telling the other's menu to ask again (WindowMinHeightTests hung, 13
+    /// November 2026).
+    private static var quiet = false
     private static var lastSignature: [String] = []
 
-    /// Where each note that links to others links, by its id: what "Linked from" is worked out
+    /// Other libraries' index and links, kept while one library's are in: two libraries open at
+    /// once (each test window has its own) took turns, each asking for its own and reading every
+    /// note again, after every change, a tenth of a second each (ActionSpeedTests, 13 November
+    /// 2026). Asked again, a library's come back as they were; a save in it lets them go.
+    private struct Kept {
+        weak var context: ModelContext?
+        let index: WikiIndex
+        let outgoing: LinkGraph
+        let paths: [UUID: [String]]
+    }
+    private static var kept: [ObjectIdentifier: Kept] = [:]
+    /// At most this many other libraries are kept. More than this, taking turns, would each be
+    /// read again on its turn; a library's are let go when it closes, and the app has one.
+    private static let keepsOthers = 32
+    #if DEBUG || QA
+    /// Tests: how many times every note was read on the main thread (`ready`).
+    private(set) static var readsHere = 0
+    #endif
+
+    /// Where each note that links to others links, by its id: what Linked From is worked out
     /// from, instead of every note's text being searched each time a note opens.
     private static var outgoing: LinkGraph?
     private static weak var outgoingContext: ModelContext?
@@ -386,11 +421,30 @@ enum WikiDirectory {
     /// up to `readHere` notes is read here and now: quick enough, and its links show at once.
     static func ready(_ context: ModelContext) -> WikiIndex? {
         if let cached, cachedContext === context, outgoing != nil, outgoingContext === context { return cached }
+        if reading !== context, let back = kept[ObjectIdentifier(context)], back.context === context {
+            keepCurrent()
+            kept[ObjectIdentifier(context)] = nil
+            cached = back.index
+            cachedContext = context
+            outgoing = back.outgoing
+            outgoingContext = context
+            folderPaths = back.paths
+            lastSignature = []
+            // Another library's titles: whoever reads by the generation reads again. Nobody is
+            // told (see `quiet`).
+            quiet = true
+            generation += 1
+            quiet = false
+            return cached
+        }
         let live = #Predicate<Note> { $0.deletedAt == nil && $0.trashedAt == nil }
         if reading !== context, ((try? context.fetchCount(FetchDescriptor<Note>(predicate: live))) ?? 0) <= readHere {
             watchSaves()
             reading = context
             savedWhileReading = []
+            #if DEBUG || QA
+            readsHere += 1
+            #endif
             // Whoever asked gets it now: nobody is told it was read (telling the open note made it
             // ask again, the same turn).
             install(read(using: context), announce: false)
@@ -421,7 +475,11 @@ enum WikiDirectory {
     private static func install(_ read: (entries: [WikiIndex.Entry], outgoing: LinkGraph, paths: [UUID: [String]]), announce: Bool = true) {
         guard let context = reading else { return }
         reading = nil
+        quiet = !announce
+        defer { quiet = false }
         if cached == nil || cachedContext !== context {
+            keepCurrent()
+            kept[ObjectIdentifier(context)] = nil
             cached = WikiIndex(read.entries)
             cachedContext = context
             lastSignature = []
@@ -430,6 +488,7 @@ enum WikiDirectory {
         outgoing = read.outgoing
         outgoingContext = context
         folderPaths = read.paths
+        if announce { LinkChanges.shared.bump() }
         // What was saved while it was read is read again from the context, which has it.
         let again = savedWhileReading
         savedWhileReading = []
@@ -501,10 +560,20 @@ enum WikiDirectory {
         return index
     }
 
+    /// The library that's in, put with the others before another comes in.
+    private static func keepCurrent() {
+        kept = kept.filter { $0.value.context != nil }
+        guard let cached, let context = cachedContext, outgoingContext === context, let outgoing else { return }
+        if kept.count >= keepsOthers, let any = kept.keys.first { kept[any] = nil }
+        kept[ObjectIdentifier(context)] = Kept(context: context, index: cached, outgoing: outgoing, paths: folderPaths)
+    }
+
     static func invalidate() {
         cached = nil
         outgoing = nil
         folderPaths = [:]
+        kept = [:]
+        LinkChanges.shared.bump()
     }
 
     /// A save, taken into the index and the links note by note: most saves are a note being typed
@@ -513,6 +582,8 @@ enum WikiDirectory {
     /// same save twice is harmless.
     static func take(_ saved: Notification) {
         guard let context = saved.object as? ModelContext else { return }
+        // A library that isn't in: what was kept of it is read again when it's asked for.
+        kept[ObjectIdentifier(context)] = nil
         // A folder that only gained or lost notes (the store saves it with them) leaves every
         // path as it was: only a rename or a move of a folder makes the index read again.
         let changes = context.savedModels(saved).map { (notes: $0.notes, folders: movedOrRenamed($0.folders, in: context)) }
@@ -521,14 +592,20 @@ enum WikiDirectory {
         }
         if outgoingContext === context, outgoing != nil {
             if let changes, !changes.folders {
-                for n in changes.notes { outgoing?[n.id] = OutgoingLinks(of: n, folders: context.folderPath(n.folder)) }
+                for n in changes.notes {
+                    let links = OutgoingLinks(of: n, folders: context.folderPath(n.folder))
+                    // Most saves are typing that doesn't touch a link: Linked From isn't made again for those.
+                    if outgoing?[n.id] != links { outgoing?[n.id] = links; LinkChanges.shared.bump() }
+                }
             } else {
                 outgoing = nil
+                LinkChanges.shared.bump()
             }
         }
         guard var index = cached, context === cachedContext else { return }
         guard let changes, !changes.folders else {
             cached = nil
+            LinkChanges.shared.bump()
             return
         }
         let changed = index.take(changes.notes.map { n in
@@ -676,11 +753,26 @@ extension ModelContext {
         return found.sorted { (index.updated(of: $0) ?? .distantPast) > (index.updated(of: $1) ?? .distantPast) }
     }
 
+    /// Linked From's list: the first `limit` notes that link to `note`, newest first, and how many
+    /// link to it in all. Only those first ones are read (a note linked from 2,000 others reads 50).
+    func linkedFrom(_ note: Note, limit: Int) -> (notes: [Note], total: Int) {
+        let ids = backlinkIDs(to: note)
+        guard !ids.isEmpty else { return ([], 0) }
+        let first = Array(ids.prefix(limit))
+        let read = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { first.contains($0.id) }))) ?? []
+        let byID = Dictionary(read.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let notes = first.compactMap { byID[$0] }.filter { $0.deletedAt == nil && $0.trashedAt == nil && !$0.isLocked }
+        return (notes, ids.count - (first.count - notes.count))
+    }
+
     /// After `note` was renamed from `oldTitle`, points the wiki links that led to it under its
     /// old title at its new one, as Obsidian does when a file is renamed. Returns how many notes
-    /// changed. Locked notes can't be read here and keep their links.
+    /// changed. Locked notes can't be read here and keep their links. A shared note's links change
+    /// in its document, as your edit, so the others get them and the next change doesn't put the
+    /// old ones back; one you can only view keeps its links.
     @discardableResult
-    func retargetWikiLinks(to note: Note, renamedFrom oldTitle: String) -> Int {
+    func retargetWikiLinks(to note: Note, renamedFrom oldTitle: String,
+                           library: SharedLibrary? = CollabStore.shared?.library) -> Int {
         let newTitle = note.title
         guard !oldTitle.isEmpty, !newTitle.isEmpty, WikiLinks.key(oldTitle) != WikiLinks.key(newTitle) else { return 0 }
         let before = WikiDirectory.index(self).with(title: oldTitle, for: note.id)
@@ -695,10 +787,29 @@ extension ModelContext {
             candidates = (try? fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.body.contains("[[") }))) ?? []
         }
         for other in candidates where other.id != note.id && other.deletedAt == nil && !other.isLocked && other.body.contains("[[") {
-            let from = folderPath(other.folder)
-            let updated = WikiLinks.retarget(other.body, to: newTitle) { link in
-                WikiLinks.key(link.name) == oldKey && before.resolve(link.target, from: from) == note.id
+            let from = folderPath(other.folder), target = note.id
+            let rewrite = { (body: String) in
+                WikiLinks.retarget(body, to: newTitle) { link in
+                    WikiLinks.key(link.name) == oldKey && before.resolve(link.target, from: from) == target
+                }
             }
+            if other.isShared {
+                switch NoteWrites.change(other, library: library, rewrite) {
+                case .changed: changed += 1
+                case .notReady:
+                    // Its document isn't open here yet: the links change once it is.
+                    guard let library else { break }
+                    Task { @MainActor [weak self] in
+                        guard await library.ensureDocument(other) != nil,
+                              NoteWrites.change(other, library: library, rewrite) == .changed else { return }
+                        try? self?.save()
+                        SyncSignal.changed()
+                    }
+                case .unchanged, .viewOnly: break
+                }
+                continue
+            }
+            let updated = rewrite(other.body)
             guard updated != other.body else { continue }
             other.body = updated
             other.dirty = true
@@ -753,12 +864,12 @@ struct OutgoingLinks: Equatable, Sendable {
 
 /// What the editor needs to colour wiki links: the library's titles, seen from the open note's
 /// folder. Equal while neither changes, so the editor restyles only when they do.
-struct WikiScope: Equatable {
+struct WikiScope: CustomEquatable {
     var index: WikiIndex
     var from: [String]
     var generation: Int
 
     func resolves(_ target: String) -> Bool { index.resolve(target, from: from) != nil }
 
-    static func == (a: WikiScope, b: WikiScope) -> Bool { a.generation == b.generation && a.from == b.from }
+    static func isEqual(_ a: WikiScope, _ b: WikiScope) -> Bool { a.generation == b.generation && a.from == b.from }
 }

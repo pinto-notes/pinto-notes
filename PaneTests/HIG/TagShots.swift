@@ -43,6 +43,12 @@ import Testing
         }
         let n = c.mainContext.createNote(in: .all, body: note)
         n.updatedAt = .now.addingTimeInterval(600)
+        // Labels from the right-click (NoteLabels): on the open note and two others in the list.
+        n.frontMatter = NoteLabels.setting(["Needs review", "Q2"], in: nil)
+        let all = (try? c.mainContext.fetch(FetchDescriptor<Note>())) ?? []
+        for (title, labels) in [("Launch checklist", ["Needs review"]), ("Q3 planning", ["Waiting on Theo"])] {
+            all.first { $0.title == title }?.frontMatter = NoteLabels.setting(labels, in: nil)
+        }
         try c.mainContext.save()
         return c
     }
@@ -80,7 +86,8 @@ import Testing
         return try #require(out.representation(using: .png, properties: [:]))
     }
 
-    @Test func states() async throws {
+    /// Tags is an experiment (Experiments): on for the pictures, as it was after.
+    @Test(.experiment(.tags)) func states() async throws {
         guard let dir = ProcessInfo.processInfo.environment["PANE_TAG_SHOTS"].map({ URL(fileURLWithPath: $0) }) else { return }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let c = try Self.library()

@@ -10,7 +10,7 @@ import UIKit
 /// Running log table, Settings and each of its pages, and the sign-in card at the password
 /// step, light and dark. On a simulator (no Simulator window needed):
 /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path xcodebuild test -scheme Pane -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-/// -only-testing:PaneTests/ListLayoutSnapshots CODE_SIGNING_ALLOWED=NO`.
+/// -only-testing:PaneHIGTests/ListLayoutSnapshots CODE_SIGNING_ALLOWED=NO`.
 @MainActor @Suite(.serialized) struct ListLayoutSnapshots {
     #if os(iOS)
     static var dir: URL? { ImportSheetSnapshots.dir }
@@ -152,9 +152,10 @@ import UIKit
     }
     #else
     /// What the iPhone shots show, checked on the Mac too: Settings' first screen ends with Help
-    /// and feedback, there signed in and out, and it opens by a link like any other page.
+    /// and feedback, then Experimental on its own (12 November 2026), there signed in and out, and
+    /// Help opens by a link like any other page.
     @Test func iPhoneSettingsEndWithHelp() {
-        #expect(SettingsPage.groups.last == [.help])
+        #expect(SettingsPage.groups.suffix(2) == [[.help], [.experimental]])
         #expect(SettingsView(backend: Backend(), sync: nil).pages.contains(.help))
         let route = SettingsRoute(defaults: UserDefaults(suiteName: "settings-help-\(UUID())")!)
         route.open(.help)

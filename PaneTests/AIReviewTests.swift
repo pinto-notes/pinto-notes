@@ -5,31 +5,7 @@ import Testing
 /// Review an AI's edit part by part (persona council, 4 November 2026: Jonas, Maya, Marcus): the
 /// parts in order, Keep and Undo for each, Keep All and Undo All, the count at the end, and a part
 /// you changed since refused with the reason, your typing kept.
-@Suite struct AIReviewTests {
-    static let before = """
-    Sync rewrite
-
-    Plan
-    - [ ] Queue the writes
-    - [ ] Retry on reconnect
-
-    Notes
-    Keep the old path for a week.
-    """
-    /// Claude rewrote one item, added one, and replaced the notes line with two.
-    static let after = """
-    Sync rewrite
-
-    Plan
-    - [ ] Queue the writes offline, in order
-    - [ ] Retry on reconnect
-    - [ ] Have Codex review it
-
-    Notes
-    Drop the old path now.
-    Tell Leo.
-    """
-
+extension AIReviewTests {
     @Test func thePartsComeInOrderWithWhatWasThere() throws {
         let r = AIReview(by: "Claude", previous: Self.before, after: Self.after)
         #expect(r.parts.count == 3)

@@ -6,6 +6,7 @@ import TipKit
 import UniformTypeIdentifiers
 
 struct NoteDetailView: View {
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
     @Environment(\.modelContext) private var context
     @Environment(\.undoManager) private var undoManager
     @Environment(SyncEngine.self) private var sync: SyncEngine?
@@ -17,6 +18,9 @@ struct NoteDetailView: View {
     @State private var importing = false
     /// Dev: an app built outside (scripts/build-app.ts), from a file, into this note.
     @State private var importingApp = false
+    /// Add Cover: a picture for the note's banner (NoteCover).
+    @State private var pickingCover = false
+    @State private var pickingCoverPhoto = false
     @State private var saver = DebouncedSave()
     @State private var shareLinks = ShareLinkStore()
     @State private var showHistory = HistoryLaunch.open
@@ -45,6 +49,10 @@ struct NoteDetailView: View {
     @State private var pageFieldFocused = false
     /// A receipt waiting for the field to let go.
     @State private var heldReceipt: AIEdit.Receipt?
+    /// The pointer is on the receipt: it stays while you reach for Undo.
+    @State private var receiptHovered = false
+    /// The AI's change is out of view: 1 below, -1 above (the receipt offers Show).
+    @State private var receiptPlacement = 0
     @State private var undoFailed: String?
     /// For Undo of a page an AI made: the page before it (nil: none).
     @State private var undoPage: NotePageStore.Page?
@@ -87,12 +95,6 @@ struct NoteDetailView: View {
     @State private var missingNote: String?
     /// The title when the note opened; renaming it points wiki links at the new title on leaving.
     @State private var titleAtOpen: String?
-    /// Notes that link here.
-    @State private var backlinks: [UUID] = []
-    /// The foot of the note: what links here, with its lines, and what mentions it.
-    @State private var links = NoteLinks()
-    /// The wiki index's generation when they were last looked for.
-    @State private var linksGeneration = -1
     /// Note pages (prototype): Page or Text, when the note has a page.
     @State private var mode: NoteMode = NoteDetailView.startMode
     /// Which side a note with an app opens on (Mac shots photograph both).
@@ -129,6 +131,15 @@ struct NoteDetailView: View {
         chrome(editor)
             .quickLookPreview(previewBinding)
             .fileImporter(isPresented: $importing, allowedContentTypes: FileKinds.contentTypes, allowsMultipleSelection: true, onCompletion: attach)
+            .background {
+                Color.clear.fileImporter(isPresented: $pickingCover, allowedContentTypes: [.image]) { result in
+                    guard case .success(let url) = result, let file = context.addAttachments([url]).first else { return }
+                    controller.setCover(file)
+                }
+                .modifier(PhotoAttach(isPresented: $pickingCoverPhoto) { urls in
+                    if let file = context.addAttachments(urls).first(where: \.isImage) { controller.setCover(file) }
+                })
+            }
             #if DEBUG || QA
             .background {
                 Color.clear.fileImporter(isPresented: $importingApp, allowedContentTypes: [.json, .html, .plainText]) { result in
@@ -164,6 +175,15 @@ struct NoteDetailView: View {
             .onDisappear {
                 saver.flush()
                 followRename()
+                OpenNoteIDs.shared.closed(note.id)
+            }
+            // The sidebar leaves out an AI's change to a note that's open (SidebarAILine).
+            .onAppear {
+                OpenNoteIDs.shared.opened(note.id)
+            }
+            .onChange(of: note.id) { old, new in
+                OpenNoteIDs.shared.closed(old)
+                OpenNoteIDs.shared.opened(new)
             }
             .confirmationDialog(missingNote.map { "Create \u{201C}\($0)\u{201D}?" } ?? "", isPresented: Binding(get: { missingNote != nil }, set: { if !$0 { missingNote = nil } }), titleVisibility: .visible) {
                 Button("Create Note") { if let name = missingNote { createLinkedNote(name) } }
@@ -180,9 +200,9 @@ struct NoteDetailView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave, object: context)) { saved in
                 WikiDirectory.take(saved)
-                refreshLinks(after: saved)
+                refreshLinks()
             }
-            // The library's titles and links were read off the main thread: links and "Linked from" follow.
+            // The library's titles and links were read off the main thread: the links follow.
             .onReceive(NotificationCenter.default.publisher(for: WikiDirectory.didRead, object: context)) { _ in refreshLinks() }
             .shareLinkChrome(shareLinks, note: note)
     }
@@ -348,6 +368,7 @@ struct NoteDetailView: View {
             }
             // A version was restored (from the history, or Undo of an AI's edit): the editor
             // shows it at once, with nothing to undo back into, and an AI's marking goes.
+            .modifier(WaitingNotice(note: note.id, controller: controller))
             .onReceive(NotificationCenter.default.publisher(for: NoteHistory.restored)) { n in
                 guard n.object as? UUID == note.id, collab == nil, let text = vault.text(of: note) else { return }
                 withAnimation(.easeIn(duration: 0.2)) { receipt = nil }
@@ -391,13 +412,13 @@ struct NoteDetailView: View {
                         reviewResult = left.partlyUndoneLine(by: collab?.onlyOtherName)
                         Task { @MainActor in
                             try? await Task.sleep(for: .seconds(0.15))
-                            if self.receipt == left { controller.tintChanges(from: left.previous, untilCleared: true) }
+                            if self.receipt == left { controller.tintChanges(from: left.previous) }
                         }
                     }
                 }
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
-            .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { for n in notes { context.trash(n) } } }
+            .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { Usage.trashed(notes); for n in notes { context.trash(n) } } }
             .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
                 Button("OK") {}
             } message: { Text(SharedNoteLimits.filesMessage) }
@@ -612,7 +633,7 @@ struct NoteDetailView: View {
             #if os(iOS)
             // A shared note's too: its review takes parts out of the document, for everyone
             // (persona council round 7, bug 16).
-            if inBar, !showingPage, AIReceipt.reviews(receipt) {
+            if inBar, !showingPage, AIReceipt.reviews(receipt), AIReceipt.offersReview {
                 // What the AI changed, one tap away (Emil, 4 November 2026: Review Changes inside
                 // the Undo menu was hidden and unclear). Undo stays in the bar.
                 AIChangeButton(receipt: receipt) { startReview(receipt) }
@@ -623,9 +644,19 @@ struct NoteDetailView: View {
             #endif
             if !inBar {
                 AIReceipt(receipt: receipt, seeAll: Self.seesAllChanges(receipt) ? { AIChangesCenter.shared.show(ai: receipt.by) } : nil,
-                          review: AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil) { undo(receipt) }
+                          review: AIReceipt.offersReview && AIReceipt.reviews(receipt) ? { startReview(receipt) } : nil,
+                          placement: receiptPlacement,
+                          show: receiptPlacement == 0 ? nil : {
+                              controller.showChange(from: receipt.previous)
+                              withAnimation(.smooth(duration: 0.2)) { receiptPlacement = 0 }
+                          }) { undo(receipt) }
+                .onHover { receiptHovered = $0 }
+                // Fades as one piece: text and capsule together, never bare words over the note (council r6).
+                .compositingGroup()
                 #if os(macOS)
                 .padding(.bottom, 20)
+                // No fade under it: each size of fade hid or cut the note's lines (council r3 to
+                // r6). The end of the note can scroll clear of it instead (MarkdownEditor showRoom).
                 #else
                 .padding(.bottom, 64)
                 #endif
@@ -711,8 +742,8 @@ struct NoteDetailView: View {
     }
 
     /// An AI's edit you haven't seen: tint what it changed and offer Undo. Opening the note counts
-    /// as seeing it, so the list's dot goes; the tint and Undo stay while you read, and go quietly
-    /// once you start typing, undo it or leave the note (`staysUntilEdited`).
+    /// as seeing it, so the list's dot goes; the tint fades after a few seconds and the receipt
+    /// soon after (`AIReceipt.stays`), or at once when you start typing, undo it or leave the note.
     private func showAIEdit() {
         guard let seen = AIEdit.markSeen(note) else { return }
         // The earlier one may not be on screen yet: a sync lands an AI's edits a moment apart, inside
@@ -722,23 +753,48 @@ struct NoteDetailView: View {
         Telemetry.shared.record(.firstAIEditSeen)
         try? context.save()
         let slow = ChangeTint.slowMotion
-        Task { @MainActor in
-            // Let the editor take the new text first.
-            try? await Task.sleep(for: .seconds(0.15 * slow))
-            guard landingReceipt == r else { return } // a later edit took it over
+        // An AI's edit lands whole, in one go (it's one call, nothing is typed): the words it
+        // changed are marked in its colour in the same frame as they appear, swept in, then fade
+        // on their own (Emil, 12 November 2026: "it should be instant, that is how we design it").
+        controller.markChanges(from: r.previous, to: r.after ?? note.body, color: AIGlyph.caretColor(r.by))
+        // A receipt already up takes the new words in the same frame as the text, in place:
+        // no lag, no growing from one side (council r3).
+        let inPlace = receipt != nil && note.id == r.noteID
+        if inPlace {
             landingReceipt = nil
-            guard note.id == r.noteID else { return }
-            controller.tintChanges(from: r.previous, untilCleared: r.staysUntilEdited)
-            withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
-            PaneTips.aiEditLanded()
+            receiptPlacement = controller.changePlacement(from: r.previous)
+            var still = Transaction()
+            still.disablesAnimations = true
+            withTransaction(still) { receipt = r }
         }
-    }
-
-    /// You started typing: what the AI changed is yours now, so its marking goes, quietly.
-    private func editedSinceAIEdit() {
-        guard let r = receipt, r.staysUntilEdited else { return }
-        withAnimation(.easeOut(duration: 0.2)) { receipt = nil }
-        controller.clearTint()
+        Task { @MainActor in
+            if !inPlace {
+                // The receipt once the editor has the text (and a later edit hasn't taken over).
+                try? await Task.sleep(for: .seconds(0.05 * slow))
+                guard landingReceipt == r else { return }
+                landingReceipt = nil
+                guard note.id == r.noteID else { return }
+                receiptPlacement = controller.changePlacement(from: r.previous)
+                withAnimation(.spring(duration: 0.45 * slow, bounce: 0.25)) { receipt = r }
+                PaneTips.aiEditLanded()
+            }
+            // The receipt and its Undo go a little after the tint, unless the pointer is on it.
+            // Show goes once the change is in view, however it got there (council r2).
+            let until = Date.now.addingTimeInterval(AIReceipt.stays * slow)
+            while Date.now < until {
+                try? await Task.sleep(for: .seconds(0.25))
+                if receiptPlacement != 0, receipt == r, controller.changePlacement(from: r.previous) == 0 {
+                    withAnimation(.smooth(duration: 0.2)) { receiptPlacement = 0 }
+                }
+            }
+            // Undo stays as long as the change is marked, and a moment after (council r5: a long
+            // rewrite's pill went while it was still marked).
+            while receipt == r, controller.isTinted { try? await Task.sleep(for: .seconds(0.25)) }
+            try? await Task.sleep(for: .seconds(0.6))
+            while receiptHovered || ChangeTint.holdForCapture { try? await Task.sleep(for: .seconds(0.3)) }
+            guard receipt == r, review == nil else { return }
+            withAnimation(.easeOut(duration: 0.3)) { receipt = nil }
+        }
     }
 
     /// A shared note you can only view keeps an AI's change: Undo says so, where the receipt is,
@@ -790,6 +846,7 @@ struct NoteDetailView: View {
         Task { @MainActor in
             do {
                 try await AIEdit.undo(r, on: note)
+                AIUndoUsage.undone(.undo, change: r.created ? .created : .edited, at: r.at)
             } catch {
                 // Couldn't reach the server: say so where the receipt was.
                 withAnimation(.smooth(duration: 0.25)) { undoFailed = (error as? LocalizedError)?.errorDescription ?? "Couldn't undo. Try again." }
@@ -810,7 +867,7 @@ struct NoteDetailView: View {
             ZStack {
                 // A shared note's editor takes merged text from its session (CollabWiring), not from
                 // the note's mirrored body, which can lag a keystroke behind and undo it.
-                NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, foot: trashed ? nil : links, onChange: save)
+                NoteEditorText(note: note, controller: controller, autofocus: autofocus, followsInitialText: collab == nil, onChange: save)
                     #if os(macOS)
                     // Like Notes: the text runs under the see-through toolbar, which fades it at the
                     // edge (AppKit insets the text by the toolbar's height).
@@ -1054,7 +1111,6 @@ struct NoteDetailView: View {
     private func noteOpened() async {
         titleAtOpen = note.body.isEmpty || note.isLocked ? nil : note.title
         refreshLinks()
-        links.findMentions(note, context: context)
         receipt = nil
         review = nil
         shownPage = NoteApps.enabled ? NotePageStore.shared[note.id] : nil
@@ -1138,6 +1194,8 @@ struct NoteDetailView: View {
                 FolderMenuItems(folders: context.allFolders(), current: note.folder?.id) { f in context.move([note], to: f, undo: undoManager) }
             }
             #endif
+        case .linkedFrom:
+            LinkedFromMenu(note: note) { onOpenNote($0, false) }.equatable()
         case .share:
             Menu("Share", systemImage: "square.and.arrow.up") { shareItems }
         case .history:
@@ -1163,7 +1221,7 @@ struct NoteDetailView: View {
                         NotificationCenter.default.post(name: .paneDeleteNotes, object: Set([note.id]))
                         #else
                         let open = onOpenNote
-                        withAnimation(.snappy) { context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
+                        withAnimation(.snappy) { Usage.trashed([note]); context.remove([note], undo: undoManager) { back in if let n = back.first { open(n.id, false) } } }
                         #endif
                     }
                 }
@@ -1255,7 +1313,7 @@ struct NoteDetailView: View {
     private func chrome(_ content: some View) -> some View {
         // Counted here, once per body: a statement in the body itself is more than the
         // compiler can type-check in time.
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("NoteDetailView", context: context)
         #endif
         return content
@@ -1322,7 +1380,7 @@ struct NoteDetailView: View {
             said: said?.text ?? (noticeInBar ? undoFailed : nil),
             saidAction: said?.action,
             attachment: AnyView(attachMenu),
-            people: collab.map { collab in AnyView(PresenceStack(session: collab) { showPeople = true }) },
+            people: collab.flatMap { collab in PresenceStack.shows(collab) ? AnyView(PresenceStack(session: collab) { showPeople = true }) : nil },
             // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
             sharing: AnyView(Group {
                 if !askTargets.isEmpty { askButton }
@@ -1337,7 +1395,12 @@ struct NoteDetailView: View {
         // Recently Deleted is read-only: nothing typed or ticked there is kept.
         guard !trashed else { return }
         Usage.edited(note.id)
-        if receipt != nil { editedSinceAIEdit() }
+        // Typing after an AI's edit: its marks fade (the editor). On the Mac the receipt stays its
+        // few seconds, so Undo can still take the AI's change out of what you wrote (council r1);
+        // on the iPhone its place is your own Undo now.
+        #if os(iOS)
+        if let r = receipt, r.staysUntilEdited { withAnimation(.easeOut(duration: 0.2)) { receipt = nil } }
+        #endif
         // A shared note's text lives in its document; the note follows it (CollabStore).
         if let collab {
             if !collab.isViewOnly { collab.local(text, selection: controller.target?.currentSelection) }
@@ -1385,33 +1448,8 @@ struct NoteDetailView: View {
 
     // MARK: Wiki links
 
-    /// Colours for the editor's wiki links and the "Linked from" list, from the library as it is now.
+    /// Colours for the editor's wiki links, from the library as it is now.
     private func refreshLinks() {
-        controller.wiki = WikiDirectory.scope(for: note, in: context)
-        backlinks = note.isLocked ? [] : context.backlinkIDs(to: note)
-        links.refresh(backlinks, note: note, context: context)
-        linksGeneration = WikiDirectory.generation
-    }
-
-    /// After a save, "Linked from" is looked for again only if the save could have changed it: a
-    /// title or folder changed, a note was deleted for good, or a note it changed links here or did.
-    /// Most saves are this note being typed in.
-    private func refreshLinks(after saved: Notification) {
-        let link = "pane-note:\(note.id.uuidString.lowercased())"
-        let mayLink: (Note) -> Bool = { other in
-            other.id != note.id && (backlinks.contains(other.id) || other.body.contains("[[") || other.body.contains(link))
-        }
-        let changes = context.savedNotes(saved)
-        // Another note's text changed (it may mention this one now), or this one's title did.
-        if changes?.notes.contains(where: { $0.id != note.id }) ?? true {
-            links.findMentions(note, context: context, delay: .seconds(1))
-        } else {
-            links.findMentions(note, context: context, delay: .seconds(0.8), force: false)
-        }
-        guard WikiDirectory.generation == linksGeneration, let changes, !changes.notes.contains(where: mayLink) else {
-            refreshLinks()
-            return
-        }
         controller.wiki = WikiDirectory.scope(for: note, in: context)
     }
 
@@ -1433,7 +1471,7 @@ struct NoteDetailView: View {
     /// Opens the note a link names, at its heading, or offers to make it. False when there's none.
     @discardableResult
     private func followLink(_ target: String, heading: String?) -> Bool {
-        // What was just typed here counts in the next note's "Linked from".
+        // What was just typed here counts in the next note's Linked From.
         saver.flush()
         guard let linked = context.resolveWikiLink(target, from: note) else {
             missingNote = WikiLinks.name(of: target)
@@ -1447,10 +1485,6 @@ struct NoteDetailView: View {
     /// A link asked for a heading in this note: the text scrolls to it. A note showing its app
     /// opens on the app.
     private func landOnHeading() {
-        if !showingPage, let at = LinkLanding.shared.takeLocation(note.id) {
-            controller.reveal(at)
-            return
-        }
         guard let heading = LinkLanding.shared.take(note.id), !showingPage,
               let text = vault.text(of: note), let at = WikiLinks.headingLocation(heading, in: text) else { return }
         controller.reveal(at)
@@ -1484,6 +1518,15 @@ struct NoteDetailView: View {
         let sync = self.sync
         controller.resolveAttachment = { id in context.attachment(id) }
         controller.sharePicture = { sharePicture() }
+        controller.pickCover = { [$pickingCover, $pickingCoverPhoto, controller] source in
+            switch source {
+            case .photos: $pickingCoverPhoto.wrappedValue = true
+            case .file: $pickingCover.wrappedValue = true
+            case .pattern(let p):
+                // Drawn to a picture and kept like any other cover.
+                if let url = p.render(), let file = context.addAttachments([url]).first { controller.setCover(file) }
+            }
+        }
         controller.canSharePicture = { [note] in !note.isLocked && note.trashedAt == nil }
         controller.resolveNoteModel = { id in context.note(id) }
         // A note dragged in from the list is linked by its title. Not this note to itself.
@@ -1499,12 +1542,6 @@ struct NoteDetailView: View {
         }
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
         controller.suggestHeadings = { [note] target, typed in WikiDirectory.headingSuggestions(typed, target: target, from: note, in: context) }
-        links.open = { [saver] id, location in
-            // What was just typed here counts in the next note's "Linked from".
-            saver.flush()
-            LinkLanding.shared.request(id, location: location)
-            onOpenNote(id, false)
-        }
         controller.download = { a in await sync?.download(a) ?? false }
         // A shared note takes no files (SharedNoteLimits): it says so instead.
         controller.attach = { if SharedNoteLimits.allowsFiles(note) { importing = true } else { refusingSharedFiles = note.isShared } }
@@ -1564,6 +1601,13 @@ struct NoteDetailView: View {
                     .transition(.opacity)
             }
             .sharedBackgroundVisibility(.hidden)
+        } else if tagsOn, !note.isLocked, !trashed, !NoteLabels.labels(in: note.frontMatter).isEmpty {
+            // The note's labels in the middle of the bar, where nothing else is: a tap shows the
+            // tag's notes.
+            ToolbarItem(placement: .principal) {
+                NoteLabelChips(labels: NoteLabels.labels(in: note.frontMatter), limit: 2) { controller.openTag($0) }
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
         // Undo, a round button of its own just left of Share and More (Emil, 29 October 2026): it
         // comes once you change the note and goes when there's nothing left since it opened.
@@ -1575,8 +1619,13 @@ struct NoteDetailView: View {
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
 
-        if let collab {
+        if let collab, PresenceStack.shows(collab) {
             ToolbarItem(placement: .primaryAction) { PresenceStack(session: collab) { showPeople = true } }
+        }
+        // Privacy mode is on: the eye says so, and a tap turns it off.
+        if PrivacyMode.shared.isOn {
+            ToolbarItem(placement: .primaryAction) { PrivacyEyeButton().tint(.primary) }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
         }
         // Share beside More in one floating capsule, as in Notes; Share is no longer in More.
         ToolbarItemGroup(placement: .primaryAction) {
@@ -1644,6 +1693,27 @@ struct NoteDetailView: View {
             }
             .disabled(note.isShared)
             Divider()
+            // The note's cover: a photo across the top (NoteCover), while the experiment is on.
+            if Experiments.isOn(.covers) {
+            Group {
+                let hasCover = NoteCover.find(in: note.body) != nil
+                Menu(hasCover ? "Change Cover" : "Add Cover", systemImage: "photo.artframe") {
+                    Button("Choose from Photos…", systemImage: "photo.on.rectangle") { pickingCoverPhoto = true }
+                    Button("Choose File…", systemImage: "folder") { pickingCover = true }
+                    Divider()
+                    ForEach(CoverPattern.allCases) { p in Button(p.title) { controller.pickCover(.pattern(p)) } }
+                }
+                .accessibilityIdentifier("attach.cover")
+                Button("Add Icon", systemImage: "face.smiling") { controller.addIcon() }
+                    .accessibilityIdentifier("attach.icon")
+                if hasCover {
+                    Button("Remove Cover", systemImage: "rectangle.slash") { controller.removeCover() }
+                        .accessibilityIdentifier("attach.removeCover")
+                }
+            }
+            .disabled(note.isShared)
+            Divider()
+            }
             Group {
                 Button("Link to a Note…", systemImage: "note.text.badge.plus") { linkingNote = true }
                     .accessibilityIdentifier("attach.noteLink")
@@ -1795,7 +1865,7 @@ enum NoteMoreMenu {
         #endif
     }
 
-    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, share, history, askAI, recover, delete }
+    enum Item: Hashable { case openInNewWindow, pin, lock, lockNow, removeLock, makeApp, appInfo, devImportApp, duplicate, moveTo, linkedFrom, share, history, askAI, recover, delete }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
     /// Note in New Window on the Mac (not in the note's own window); what the note is (pinned,
@@ -1820,8 +1890,10 @@ enum NoteMoreMenu {
         if appsEnabled, !hasApp, !locked, !trashed, !shared { about.append(.makeApp) }
         if hasApp, !shared { about.append(.appInfo) }
         if dev, appsEnabled, !locked, !trashed, !shared { about.append(.devImportApp) }
-        // What links here is at the foot of the note (NoteLinksSection), not in this menu.
+        // The notes that link here, beside where this one goes (LinkedFromMenu: shown only when
+        // one does). Not under the note's text any more (Emil, 12 November 2026).
         var rest: [Item] = [.moveTo]
+        if !locked { rest.append(.linkedFrom) }
         // Sharing has its own button beside More, on iPhone and iPad as on the Mac.
         if !locked, !shared { rest.append(.history) }
         let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
@@ -1831,6 +1903,57 @@ enum NoteMoreMenu {
     }
 }
 
+/// Linked From, in the note's ••• menu: the notes with a real link to this one (a `[[link]]` or a
+/// note link), by title, newest first. Choosing one opens it. Nothing shows when no note links
+/// here. The same words as the title in another note aren't a link and don't count (Emil, 12
+/// November 2026: the list under the note's text matched any "to play" for a note called To Play).
+/// Looked up from the link index as the menu's items are made: the view is equal to itself while
+/// the note is the same, and is made again only when `LinkChanges` goes up, never for typing.
+struct LinkedFromMenu: View, CustomEquatable {
+    let note: Note
+    let open: (UUID) -> Void
+    private let id: UUID
+    @Environment(\.modelContext) private var context
+
+    init(note: Note, open: @escaping (UUID) -> Void) {
+        self.note = note
+        self.open = open
+        id = note.id
+    }
+
+    static let title = "Linked From"
+    /// A menu lists at most this many, the newest; a last, greyed item says how many more link here.
+    static let shown = 50
+
+    nonisolated static func isEqual(_ a: Self, _ b: Self) -> Bool { a.id == b.id }
+
+    var body: some View {
+        let _ = LinkChanges.shared.version
+        let linking = Self.notes(linkingTo: note, in: context)
+        if !linking.notes.isEmpty {
+            Menu(Self.title, systemImage: "link") {
+                ForEach(linking.notes, id: \.id) { n in
+                    Button(n.title) { open(n.id) }
+                }
+                if linking.total > linking.notes.count {
+                    Button(Self.more(linking.total - linking.notes.count)) {}
+                        .disabled(true)
+                }
+            }
+            .accessibilityIdentifier("editor.linkedFrom")
+        }
+    }
+
+    /// The notes it lists, and how many link here in all. None for a locked note or one in
+    /// Recently Deleted.
+    static func notes(linkingTo note: Note, in context: ModelContext) -> (notes: [Note], total: Int) {
+        note.isLocked || note.trashedAt != nil ? ([], 0) : context.linkedFrom(note, limit: shown)
+    }
+
+    /// The last item when more notes link here than are listed: "1,950 More".
+    static func more(_ count: Int) -> String { "\(count.formatted()) More" }
+}
+
 /// The note's text in the editor, under its date. A view of its own: it is what reads the text
 /// and the date, so a save while you type works out this view, not the whole note pane.
 private struct NoteEditorText: View {
@@ -1838,19 +1961,23 @@ private struct NoteEditorText: View {
     let controller: EditorController
     let autofocus: Bool
     let followsInitialText: Bool
-    let foot: NoteLinks?
     let onChange: (String) -> Void
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteEditorText", context: note.modelContext)
         #endif
         // A locked note that isn't open has no text to give the editor; its pane shows the lock.
         if let text = NoteVault.shared.text(of: note) {
             // The note the welcome becomes opens as the welcome showed it, date and all.
             let handoff = WelcomeHandoff.shared.opening == note.id
+            // This note's link scope from the start. The controller's is the note opened before
+            // until noteOpened runs, and the new one arriving then styled the whole note again.
+            // Read so a rename elsewhere (refreshLinks) still colours the links again.
+            let _ = controller.wiki
+            let wiki = note.modelContext.map { WikiDirectory.scope(for: note, in: $0) }
             MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                           followsInitialText: followsInitialText, dateShown: handoff, foot: foot, foldsID: note.id, onChange: onChange)
+                           followsInitialText: followsInitialText, dateShown: handoff, foldsID: note.id, wiki: wiki, onChange: onChange)
         }
     }
 }
@@ -1872,8 +1999,11 @@ private struct SendCopyItem: View {
         #else
         // Readable text, and a picture of the note as a page for the sheet's header, as Notes
         // sends (Emil, 4 November 2026: the header showed iOS's blank icon, the text "## Plan").
-        ShareLink(item: ReadableText.from(markdown: note.body),
-                  preview: SharePreview(note.title.isEmpty ? "Note" : note.title, image: NoteThumbnail.image(for: note))) {
+        // Both are made when the sheet asks for them: the menu is built with the note, and making
+        // them here took more of each open than the editor did (13 November 2026).
+        let title = note.title.isEmpty ? "Note" : note.title
+        ShareLink(item: NoteCopy(body: note.body),
+                  preview: SharePreview(title, image: NoteThumbnail(title: title, body: note.body))) {
             Label("Send a Copy…", systemImage: "square.and.arrow.up")
         }
         #endif
@@ -1881,13 +2011,40 @@ private struct SendCopyItem: View {
 }
 
 #if os(iOS)
-/// A note drawn as a small page: its title and first lines, for the share sheet's header.
-@MainActor
-enum NoteThumbnail {
-    static func image(for note: Note) -> Image {
-        let lines = ReadableText.from(markdown: note.body).split(separator: "\n", omittingEmptySubsequences: true).dropFirst().prefix(6)
+/// What Send a Copy sends: the note as readable text, worked out when it's sent.
+struct NoteCopy: Transferable {
+    let body: String
+
+    var text: String { ReadableText.from(markdown: body) }
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.text)
+    }
+}
+
+/// A note drawn as a small page: its title and first lines, for the share sheet's header. Drawn
+/// when the sheet asks for it.
+struct NoteThumbnail: Transferable {
+    let title: String
+    let body: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .png) { thumb in
+            try await MainActor.run {
+                guard let data = thumb.image()?.pngData() else { throw CocoaError(.fileWriteUnknown) }
+                return data
+            }
+        }
+    }
+
+    @MainActor
+    func image() -> UIImage? {
+        #if DEBUG
+        RenderProbe.count("NoteThumbnail")
+        #endif
+        let lines = ReadableText.from(markdown: body).split(separator: "\n", omittingEmptySubsequences: true).dropFirst().prefix(6)
         let page = VStack(alignment: .leading, spacing: 3) {
-            Text(note.title.isEmpty ? "Note" : note.title)
+            Text(title)
                 .font(.system(size: 13, weight: .bold)).lineLimit(2)
             ForEach(Array(lines.enumerated()), id: \.offset) { _, l in
                 Text(String(l)).font(.system(size: 8)).foregroundStyle(Color(white: 0.35)).lineLimit(1)
@@ -1900,7 +2057,7 @@ enum NoteThumbnail {
         .environment(\.colorScheme, .light)
         let r = ImageRenderer(content: page)
         r.scale = 3
-        return r.uiImage.map { Image(uiImage: $0) } ?? Image(systemName: "note.text")
+        return r.uiImage
     }
 }
 #endif
@@ -2010,6 +2167,20 @@ enum SharedEditing {
     }
 }
 
+/// What was left to say in this note from outside it (NoteNotices: a widget tick on a Can view
+/// list), said as a tap in the note says it, once the note shows.
+private struct WaitingNotice: ViewModifier {
+    let note: UUID
+    let controller: EditorController
+
+    func body(content: Content) -> some View {
+        content.onChange(of: NoteNotices.shared.waiting[note], initial: true) { _, waiting in
+            guard waiting != nil, let text = NoteNotices.shared.take(note) else { return }
+            controller.notice = EditorNotice(text: text)
+        }
+    }
+}
+
 /// "This app wants to reach …" for a request, or the whole address of a link an app asked to open.
 /// Its own modifier: the note's body is at the limit of what the compiler type-checks in one go.
 private struct HostAskAlert: ViewModifier {
@@ -2036,7 +2207,7 @@ private struct HostAskAlert: ViewModifier {
 /// without it). So the pane only makes its items, where their state is, and hands them up.
 /// `NoteToolbarStage` stands in the detail column for as long as a note is open and shows them
 /// in a toolbar that stays: the items are brought up to date in place, like any other view.
-struct NoteToolbarParts: Equatable, @unchecked Sendable {
+struct NoteToolbarParts: CustomEquatable, @unchecked Sendable {
     /// The writing controls belong to the persistent stage. Only Attach opens this pane's UI.
     var writingDisabled: Bool
     /// A line the pane has to say while an app shows ("Added to (folder) Habits"): in the bar,
@@ -2052,7 +2223,7 @@ struct NoteToolbarParts: Equatable, @unchecked Sendable {
     /// Views can't be compared: each time the pane works its items out, they count as new.
     let made = NoteToolbarParts.next()
 
-    static func == (a: NoteToolbarParts, b: NoteToolbarParts) -> Bool { a.made == b.made }
+    static func isEqual(_ a: NoteToolbarParts, _ b: NoteToolbarParts) -> Bool { a.made == b.made }
 
     nonisolated(unsafe) private static var count = 0
     private static func next() -> Int {
@@ -2086,14 +2257,23 @@ struct NoteToolbarStage<Pane: View>: View {
     var place: Note? = nil
     /// A breadcrumb's folder, shown in the list.
     var openScope: (Scope) -> Void = { _ in }
+    /// A note opened from a folder's gallery: Back with no note before it goes to the cards, so the
+    /// toolbar has one way back, not two (FolderGallery). Its folder's name, for the help.
+    var backToGallery: (title: String, go: () -> Void)? = nil
     @ViewBuilder let pane: Pane
     @State private var parts: NoteToolbarParts?
-    #if DEBUG
+    /// The width the breadcrumbs get in this column (NoteBreadcrumbs.room).
+    @State private var crumbRoom: CGFloat = NoteBreadcrumbs.titleWidth
+
+    /// Back leads to the note before this one, and from the first note opened from a gallery to its cards.
+    static func backGoesToGallery(canGoBack: Bool, inGallery: Bool) -> Bool { inGallery && !canGoBack }
+    @AppStorage(Experiment.tags.key) private var tagsOn = false
+    #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         let _ = RenderProbe.count("NoteToolbarStage", context: context)
         #endif
         let parts = $parts
@@ -2108,6 +2288,11 @@ struct NoteToolbarStage<Pane: View>: View {
                 withTransaction(instant) { parts.wrappedValue = made }
             }
         }
+            // The breadcrumbs' width follows the column, never the note (NoteBreadcrumbs.room).
+            .onGeometryChange(for: CGFloat.self, of: \.size.width) { width in
+                let room = NoteBreadcrumbs.room(column: width, shared: self.parts?.people != nil)
+                if room != crumbRoom { crumbRoom = room }
+            }
             .toolbar {
                 if self.parts != nil {
                     // Back and forward on the left, then where the note is (Emil, 11-03:
@@ -2115,11 +2300,14 @@ struct NoteToolbarStage<Pane: View>: View {
                     // they sit beside the window's buttons.
                     ToolbarItemGroup(placement: ownWindow ? .navigation : .automatic) {
                         Group {
-                            Button("Back", systemImage: "chevron.backward") { history.back() }
-                                .help("Back (⌘[)")
+                            Button("Back", systemImage: "chevron.backward") {
+                                if Self.backGoesToGallery(canGoBack: history.canGoBack, inGallery: backToGallery != nil) { backToGallery?.go() } else { history.back() }
+                            }
+                                .help(!history.canGoBack && backToGallery != nil ? "Back to \(backToGallery!.title) (⌘[)" : "Back (⌘[)")
                                 .keyboardShortcut("[", modifiers: .command)
-                                .disabled(!showsItems || !history.canGoBack)
+                                .disabled(!showsItems || !(history.canGoBack || backToGallery != nil))
                                 .buttonStyle(.barIcon)
+                                .accessibilityIdentifier("note.back")
                             Button("Forward", systemImage: "chevron.forward") { history.forward() }
                                 .help("Forward (⌘])")
                                 .keyboardShortcut("]", modifiers: .command)
@@ -2129,10 +2317,19 @@ struct NoteToolbarStage<Pane: View>: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
                     .hidden(!showsItems)
-                    if let place {
-                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, open: openScope) }
+                    if let place, crumbRoom > 0 {
+                        ToolbarItem { NoteBreadcrumbs(note: place, controller: controller, room: crumbRoom, open: openScope) }
                             .sharedBackgroundVisibility(.hidden)
                             .hidden(!showsItems)
+                    }
+                    // The note's labels, beside where it is: a click shows the tag's notes.
+                    if tagsOn, let place, !NoteLabels.labels(in: place.frontMatter).isEmpty {
+                        ToolbarItem {
+                            NoteLabelChips(labels: NoteLabels.labels(in: place.frontMatter)) { controller.openTag($0) }
+                                .padding(.leading, 4)
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
                     }
                     if let said = self.parts?.said {
                         ToolbarItem {
@@ -2189,10 +2386,19 @@ struct NoteToolbarStage<Pane: View>: View {
                         .disabled(!showsItems || !showsWriting || shown.writingDisabled)
                     }
                     .hidden(!showsItems || !showsWriting)
+                    // Who's in the note: a section of its own, not one of the writing tools
+                    // (Emil, 16 November 2026: the avatar sat between the paperclip and Share).
                     if let people = shown.people {
+                        ToolbarSpacer(.fixed).hidden(!showsItems)
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
+                        ToolbarSpacer(.fixed).hidden(!showsItems)
                     }
                     ToolbarItemGroup { shown.sharing.disabled(!showsItems) }.hidden(!showsItems)
+                }
+                // Privacy mode is on: the eye says so, and a click turns it off.
+                if PrivacyMode.shared.isOn {
+                    if self.parts == nil { ToolbarSpacer(.flexible) }
+                    ToolbarItem { PrivacyEyeButton().buttonStyle(.barIcon) }
                 }
             }
     }
@@ -2204,24 +2410,15 @@ struct NoteToolbarStage<Pane: View>: View {
 @MainActor
 final class LinkLanding {
     static let shared = LinkLanding()
-    private var pending: (id: UUID, heading: String?, location: Int?)?
+    private var pending: (id: UUID, heading: String)?
 
-    func request(_ id: UUID, heading: String) { pending = (id, heading, nil) }
-    /// A line of "Linked from" was opened: the note scrolls to the link on it.
-    func request(_ id: UUID, location: Int) { pending = (id, nil, location) }
+    func request(_ id: UUID, heading: String) { pending = (id, heading) }
 
     /// The heading asked for in note `id`, once.
     func take(_ id: UUID) -> String? {
-        guard let p = pending, p.id == id, let heading = p.heading else { return nil }
+        guard let p = pending, p.id == id else { return nil }
         pending = nil
-        return heading
-    }
-
-    /// The place in its text asked for in note `id`, once.
-    func takeLocation(_ id: UUID) -> Int? {
-        guard let p = pending, p.id == id, let location = p.location else { return nil }
-        pending = nil
-        return location
+        return p.heading
     }
 }
 
@@ -2408,7 +2605,25 @@ struct NoteBreadcrumbs: View {
     static let titleWidth: CGFloat = 240
     let note: Note
     var controller: EditorController? = nil
+    /// The Mac's note column: the item's width, the same for every note. Sized by the note's own
+    /// path and title, a long title or a wider list left the note's items too little room, and
+    /// macOS gave up the bar's columns: the list lost its title and count and the bar turned one
+    /// grey band, note by note (Emil, 13 November 2026: "the top bar changes depending on note").
+    var room: CGFloat? = nil
     let open: (Scope) -> Void
+
+    /// What the rest of the note's bar takes in a column: back and forward with the edge (about
+    /// 100), the tools, Share and ••• (about 310), a gap, and who's in a shared note.
+    static func reserved(shared: Bool) -> CGFloat { 440 + (shared ? 48 : 0) }
+
+    /// The breadcrumbs' width in a note column `column` wide: what the rest leaves, up to the
+    /// path and a full title; none when even the path wouldn't fit. Whole points in steps of 8,
+    /// so dragging the divider doesn't rebuild the bar each point.
+    static func room(column: CGFloat, shared: Bool) -> CGFloat {
+        let left = ((column - reserved(shared: shared)) / 8).rounded(.down) * 8
+        guard left >= 72 else { return 0 }
+        return min(left, titleWidth + 100)
+    }
 
     /// The note's place, outermost first: Recently Deleted, its folders, or All Notes.
     static func path(_ note: Note) -> [(scope: Scope, name: String)] {
@@ -2449,17 +2664,31 @@ struct NoteBreadcrumbs: View {
                     .foregroundStyle(Color.ink)
                     .padding(.horizontal, ButtonSize.compact.padding * 0.75)
                     // Room kept for it all the time now, so a long title can't crowd out Share and •••.
-                    .frame(maxWidth: Self.titleWidth, alignment: .leading)
+                    .frame(maxWidth: room == nil ? Self.titleWidth : .infinity, alignment: .leading)
             }
             .opacity(titled ? 1 : 0)
             .accessibilityHidden(!titled)
             .animation(.easeOut(duration: 0.15), value: titled)
+            // The folders keep their names; the title takes what's left.
+            .layoutPriority(-1)
         }
         .lineLimit(1)
-        // Its own width: a toolbar item is otherwise given too little, and showed only "…".
-        .fixedSize()
+        .modifier(Width(room: room))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Location")
+    }
+
+    /// The column's width when given one; otherwise its own (a toolbar item is otherwise given too
+    /// little, and showed only "…").
+    private struct Width: ViewModifier {
+        let room: CGFloat?
+        func body(content: Content) -> some View {
+            if let room {
+                content.frame(width: room, alignment: .leading).clipped()
+            } else {
+                content.fixedSize()
+            }
+        }
     }
 
     private var chevron: some View {

@@ -39,10 +39,9 @@ import UniformTypeIdentifiers
         let clock = ContinuousClock()
         for reuse in [false, true] {
             let controller = EditorController()
-            let links = NoteLinks()
             func editor(_ index: Int) -> AnyView {
                 AnyView(MarkdownEditor(initialText: "Note \(index)\n\nSome text with **bold** and a list:\n- one\n- two\n",
-                                       header: "Today", controller: controller, foot: links, onChange: { _ in })
+                                       header: "Today", controller: controller, onChange: { _ in })
                     .id(reuse ? 0 : index))
             }
             let window = NSWindow(contentRect: NSRect(x: -30000, y: -30000, width: 720, height: 760),
@@ -119,8 +118,6 @@ import UniformTypeIdentifiers
                 view.core.resolveAttachment = { id in controller.resolveAttachment(id) }
                 controller.target = view
                 stage("attach") { scroll.documentView = view; window.contentView = scroll }
-                let links = NoteLinks()
-                stage("empty links foot") { view.setFoot(links) }
                 stage("viewport") {
                     scroll.layoutSubtreeIfNeeded()
                     view.setFrameSize(NSSize(width: scroll.contentSize.width, height: scroll.contentSize.height))

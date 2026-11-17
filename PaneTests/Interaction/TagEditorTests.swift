@@ -6,7 +6,7 @@ import Testing
 
 /// Tags in the real Mac editor: accent-coloured text that shows its notes on click, never in
 /// code, headings' marks, links or the title, and offered from the library as you type `#`.
-@MainActor @Suite(.serialized) struct TagEditorTests {
+@MainActor @Suite(.serialized, .experiment(.tags, on: false)) struct TagEditorTests {
     static let text = """
     Trip planning #notatag
     Book the flights #travel and ask Sara (#family/sara).

@@ -217,9 +217,9 @@ extension ModelContext {
 /// Today's Note in the notes window it's chosen in: the calendar button and the compose button's
 /// menu read it from the environment, File › Today's Note from the window in front.
 /// Equal whatever its closure, as ImportActions: one made on an earlier pass opens the same note.
-struct TodaysNoteAction: Equatable {
+struct TodaysNoteAction: CustomEquatable {
     var open: () -> Void
-    static func == (a: TodaysNoteAction, b: TodaysNoteAction) -> Bool { true }
+    static func isEqual(_ a: TodaysNoteAction, _ b: TodaysNoteAction) -> Bool { true }
 }
 
 private struct TodaysNoteFocusKey: FocusedValueKey {

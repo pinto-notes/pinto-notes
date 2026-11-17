@@ -11,9 +11,7 @@ import Testing
 /// the window is made key, which orders it in: CI only (TEST_RUNNER_PANE_SNAPSHOTS), never on a
 /// developer's Mac. A note row is clicked too, as the control: if it doesn't select, the clicks
 /// aren't reaching the list and the test says so instead of blaming file rows.
-@MainActor @Suite(.serialized) struct FileRowClickTests {
-    static var onCI: Bool { ProcessInfo.processInfo.environment["PANE_SNAPSHOTS"] == "1" }
-
+extension FileRowClickTests {
     /// The list, holding its selection where the test can read it.
     @MainActor @Observable final class Selection { var ids: Set<UUID> = [] }
 
@@ -25,19 +23,6 @@ import Testing
                 NoteListView(scope: scope, selection: Binding(get: { selection.ids }, set: { selection.ids = $0 }), onNewNote: {})
             }
         }
-    }
-
-    /// A borderless window that can be key, so clicks select instead of activating.
-    final class KeyWindow: NSWindow {
-        override var canBecomeKey: Bool { true }
-        override var canBecomeMain: Bool { true }
-    }
-
-    static func table(in view: NSView?) -> NSTableView? {
-        guard let view else { return nil }
-        if let t = view as? NSTableView { return t }
-        for v in view.subviews { if let t = table(in: v) { return t } }
-        return nil
     }
 
     /// A click as the mouse makes it: down, then up (queued first, so the table's tracking loop sees it).

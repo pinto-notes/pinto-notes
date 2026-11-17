@@ -72,6 +72,11 @@ enum TelemetryProperty: String, CaseIterable, Sendable {
     // Felt speed (note_opened_speed, search_speed), and the storage level.
     case under100ms = "under_100ms", over1s = "over_1s"
     case level
+    // The notebook film: why it was offered, and where it was closed.
+    case place, form, days
+    case activeDays = "active_days"
+    // An AI's change taken back (ai_change_undone), and coming back to the app (app_returned).
+    case change, after, away
 
     static let frameSlots: [TelemetryProperty] = [.frame0, .frame1, .frame2, .frame3, .frame4, .frame5, .frame6, .frame7]
 }
@@ -130,13 +135,14 @@ extension GateScreen {
 
 /// Which AI was connected, by where its approval went. Never the name it gave itself or its host.
 enum AIKind: String, TelemetryWord {
-    case claude, chatgpt, other
+    case claude, chatgpt, grok, other
 
     /// `verified`: ConnectTrust's name for a return address it knows, or nil.
     init(verified: String?) {
         switch verified {
         case "Claude", "Claude Code": self = .claude
         case "ChatGPT", "Codex": self = .chatgpt
+        case "Grok": self = .grok
         default: self = .other
         }
     }
@@ -289,7 +295,7 @@ enum CountBucket: String, TelemetryWord {
 /// Which AI a connect guide is for, never a name the AI gave itself.
 enum ConnectAIKind: String, TelemetryWord {
     // `incredible` stays so older reports still read; nothing sends it now.
-    case chatgpt, claude, codex, other, incredible
+    case chatgpt, claude, codex, grok, other, incredible
     case claudeCode = "claude_code"
 }
 
@@ -308,6 +314,54 @@ enum SignInStep: String, TelemetryWord {
     case codeSent = "code_sent"
     case codeEntered = "code_entered"
     case passwordShown = "password_shown"
+}
+
+/// How far the notebook film got (NotebookFilmStore, NotebookFilmView).
+enum NotebookFilmStep: String, TelemetryWord {
+    /// The account qualified (FilmEligibility), and the film was got ready for the next launch.
+    case ready
+    /// Its card is in the sidebar as the app opens: again at each launch until it's opened or closed.
+    case offered
+    /// From its card.
+    case opened
+    case cardClosed = "card_closed"
+    /// From Help, after it was shown or put away.
+    case rewatched
+    /// A slide came up for the first time (with `page`): how far through the slides people get.
+    case slide
+    /// Play was pressed on the last slide.
+    case played
+    case watchedAgain = "watched_again"
+    /// The film reached its end screen.
+    case finished
+    case shareTapped = "share_tapped"
+    /// Mac: Save video, saved.
+    case saved
+    /// The film's screen went (with `place`, and `page`: the furthest slide seen).
+    case closed
+}
+
+/// Where the film's screen was when it went.
+enum NotebookFilmPlace: String, TelemetryWord { case slides, film, end }
+
+extension FilmForm: TelemetryWord {}
+
+/// Why the film was offered: what the month was, in the rough.
+struct NotebookFilmWhy: Equatable, Sendable {
+    var form: FilmForm?
+    var notes: CountBucket?
+    /// Since the first note.
+    var days: Int
+    /// Days written on in the last 30.
+    var activeDays: Int
+
+    init(form: FilmForm?, notes: CountBucket?, days: Int, activeDays: Int) {
+        self.form = form; self.notes = notes; self.days = days; self.activeDays = activeDays
+    }
+
+    init(_ stats: FilmStats, form: FilmForm?) {
+        self.init(form: form, notes: CountBucket(stats.notes), days: stats.days, activeDays: stats.activeDays)
+    }
 }
 
 /// Which side of adding a device this one is.
@@ -353,6 +407,7 @@ enum SettingsPageWord: String, TelemetryWord {
     case shortcuts
     case aiConnection = "ai_connection"
     case addAI = "add_ai"
+    case experimental
 
     init(_ page: SettingsPage) {
         switch page {
@@ -393,6 +448,8 @@ enum TelemetryWords {
         add(SettingName.self); add(TodayFolderWord.self); add(SettingsPageWord.self); add(AppearanceMode.self); add(Theme.self)
         add(NoteFont.self); add(TodaysNoteSettings.Title.self)
         add(UsedFeature.self); add(ShareStep.self); add(StorageLevelWord.self)
+        add(NotebookFilmStep.self); add(NotebookFilmPlace.self); add(FilmForm.self)
+        add(AIChangeWord.self); add(AIUndoHow.self); add(SinceBucket.self); add(AwayBucket.self)
         return words
     }()
 }
@@ -430,6 +487,12 @@ enum TelemetryEvent: Equatable, Sendable {
     case firstSync(milliseconds: Int)
     case aiConnected(AIKind)
     case firstAIEditSeen
+    /// The person took back what an AI did: Undo on the note, Undo in AI Changes, or deleting a
+    /// note an AI changed in the last week. `change`: what the AI did, when the app knows it.
+    case aiChangeUndone(AIUndoHow, change: AIChangeWord?, after: SinceBucket)
+    /// The app came back to the front after at least half an hour away, the same day (a new day
+    /// is an `app_opened`).
+    case appReturned(AwayBucket)
 
     // Funnels: where people get stuck, step by step.
     case onboardingStep(OnboardingStep, FunnelAction)
@@ -439,6 +502,8 @@ enum TelemetryEvent: Equatable, Sendable {
     /// No method until one is chosen (`.shown`).
     case signInStep(SignInMethod?, SignInStep, kind: SignInFailureKind? = nil)
     case linkDeviceStep(LinkRole, LinkStep, kind: FailureKind? = nil)
+    /// `why` with `.ready` and `.offered`, `page` with `.slide` and `.closed`, `place` with `.closed`.
+    case notebookFilmStep(NotebookFilmStep, page: Int? = nil, place: NotebookFilmPlace? = nil, why: NotebookFilmWhy? = nil)
 
     // Settings: which are used.
     /// Every setting's value on this device: once per install, after an update, and when Share
@@ -491,8 +556,9 @@ enum TelemetryEvent: Equatable, Sendable {
         case appOpened = "app_opened", signedIn = "signed_in", signedUp = "signed_up", keyReady = "key_ready"
         case gateShown = "gate_shown", firstNoteCreated = "first_note_created", firstSync = "first_sync"
         case aiConnected = "ai_connected", firstAIEditSeen = "first_ai_edit_seen"
+        case aiChangeUndone = "ai_change_undone", appReturned = "app_returned"
         case onboardingStep = "onboarding_step", importStep = "import_step", connectStep = "connect_step"
-        case signInStep = "sign_in_step", linkDeviceStep = "link_device_step"
+        case signInStep = "sign_in_step", linkDeviceStep = "link_device_step", notebookFilmStep = "notebook_film_step"
         case settingsState = "settings_state", settingChanged = "setting_changed", settingsPageOpened = "settings_page_opened"
         case featureUsed = "feature_used", aiDisconnected = "ai_disconnected", signedOut = "signed_out", accountDeleted = "account_deleted"
         case shareStep = "share_step", storageLevel = "storage_level"
@@ -515,6 +581,8 @@ enum TelemetryEvent: Equatable, Sendable {
         case .firstSync: .firstSync
         case .aiConnected: .aiConnected
         case .firstAIEditSeen: .firstAIEditSeen
+        case .aiChangeUndone: .aiChangeUndone
+        case .appReturned: .appReturned
         case .onboardingStep: .onboardingStep
         case .importStep: .importStep
         case .connectStep: .connectStep
@@ -531,6 +599,7 @@ enum TelemetryEvent: Equatable, Sendable {
         case .storageLevel: .storageLevel
         case .noteOpenedSpeed: .noteOpenedSpeed
         case .searchSpeed: .searchSpeed
+        case .notebookFilmStep: .notebookFilmStep
         case .keychainFailed: .keychainFailed
         case .keyStartup: .keyStartup
         case .syncFailed: .syncFailed
@@ -560,6 +629,8 @@ enum TelemetryEvent: Equatable, Sendable {
         case .firstNoteCreated, .firstAIEditSeen: [:]
         case .firstSync(let ms): [.durationMS: .number(Self.rounded(ms))]
         case .aiConnected(let kind): [.kind: .word(kind)]
+        case .aiChangeUndone(let how, let change, let after): Self.word([.how: .word(how), .after: .word(after)], .change, change)
+        case .appReturned(let away): [.away: .word(away)]
         case .onboardingStep(let step, let action): [.step: .word(step), .action: .word(action)]
         case .importStep(let source, let step, let page, let count, let kind):
             Self.word(Self.word(Self.with([.source: .word(source), .step: .word(step)], .page, page.map { min(max($0, 1), 5) }), .count, count), .kind, kind)
@@ -576,6 +647,16 @@ enum TelemetryEvent: Equatable, Sendable {
         case .storageLevel(let level): [.level: .word(level)]
         case .noteOpenedSpeed(let t), .searchSpeed(let t):
             [.under100ms: .number(t.under100ms), .under250ms: .number(t.under250ms), .under1s: .number(t.under1s), .over1s: .number(t.over1s)]
+        case .notebookFilmStep(let step, let page, let place, let why):
+            {
+                var p = Self.word(Self.with([.step: .word(step)], .page, page.map { min(max($0, 1), 8) }), .place, place)
+                if let why {
+                    p = Self.word(Self.word(p, .form, why.form), .count, why.notes)
+                    p[.days] = .number(min(max(why.days, 0), 400))
+                    p[.activeDays] = .number(min(max(why.activeDays, 0), 31))
+                }
+                return p
+            }()
         case .keychainFailed(let item, let operation, let status):
             [.item: .word(item), .operation: .word(operation), .status: .number(status)]
         case .keyStartup(let outcome, let hadKey, let store):
@@ -640,6 +721,7 @@ enum TelemetryEvent: Equatable, Sendable {
     static let samples: [TelemetryEvent] = [
         .appOpened(launch: true, signedIn: true), .signedIn(.apple), .signedUp(.email), .keyReady(.recoveryKey, store: .keychain),
         .gateShown(.addDevice), .firstNoteCreated, .firstSync(milliseconds: 1234), .aiConnected(.claude), .firstAIEditSeen,
+        .aiChangeUndone(.changesList, change: .created, after: .under5m), .appReturned(.under2h),
         .onboardingStep(.bring, .skipped), .importStep(.appleNotes, .done, count: .upTo99), .connectStep(.chatgpt, .failed, kind: .network),
         .signInStep(.email, .failed, kind: .badCode), .linkDeviceStep(.newDevice, .codeShown),
         .settingsState([.appearance: .word(AppearanceMode.dark), .theme: .word(Theme.paper), .font: .word(NoteFont.serif),
@@ -650,6 +732,7 @@ enum TelemetryEvent: Equatable, Sendable {
         .featureUsed(.checklistTicked), .aiDisconnected(.chatgpt), .signedOut, .accountDeleted,
         .shareStep(.inviteAccepted), .storageLevel(.almostFull),
         .noteOpenedSpeed(SpeedTimings(under100ms: 30, under250ms: 12, under1s: 6, over1s: 2)), .searchSpeed(SpeedTimings(under100ms: 4)),
+        .notebookFilmStep(.offered, why: NotebookFilmWhy(form: .spiral, notes: .upTo99, days: 35, activeDays: 12)), .notebookFilmStep(.closed, page: 3, place: .slides),
         .keychainFailed(item: .keySynced, operation: .save, status: -34018),
         .keyStartup(.wait, hadKey: true, store: .keychain),
         .syncFailed(FailureSummary(kind: .database, status: nil, code: .rowSecurity, hint: .wrongKey), runs: 3),

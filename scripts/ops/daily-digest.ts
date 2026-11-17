@@ -200,8 +200,13 @@ export function render(d: Digest): string {
 async function token(): Promise<string> {
   const env = Deno.env.get("SUPABASE_ACCESS_TOKEN");
   if (env) return env;
-  const out = await new Deno.Command("security", { args: ["find-generic-password", "-s", "Supabase CLI", "-a", "access-token", "-w"], stdout: "piped", stderr: "null" }).output();
-  let t = new TextDecoder().decode(out.stdout).trim();
+  // Newer CLIs keep it under the account "supabase", older ones under "access-token".
+  let t = "";
+  for (const account of ["supabase", "access-token"]) {
+    const out = await new Deno.Command("security", { args: ["find-generic-password", "-s", "Supabase CLI", "-a", account, "-w"], stdout: "piped", stderr: "null" }).output();
+    t = new TextDecoder().decode(out.stdout).trim();
+    if (t) break;
+  }
   if (t.startsWith("go-keyring-base64:")) t = new TextDecoder().decode(Uint8Array.from(atob(t.slice(18)), (ch) => ch.charCodeAt(0)));
   if (!t.startsWith("sbp_")) throw new Error("No Supabase access token: set SUPABASE_ACCESS_TOKEN or run supabase login.");
   return t;

@@ -54,6 +54,10 @@ struct RootView: View {
     /// Every tag in the library, for the sidebar's Tags and the tags offered while one is typed.
     @State private var tags = TagIndex()
     @State private var justCreated: UUID?
+    /// Settings › Experimental › Gallery view, read so the window changes when it's switched.
+    @AppStorage(Experiment.gallery.key) private var galleryExperiment = false
+    /// The scope is being put back as it was at launch: a gallery keeps the note that was open.
+    @State private var restoringScope = false
     #if os(iOS)
     /// The notes links opened, for Back to the note or app a link was in.
     @State private var trail = LinkTrail()
@@ -82,7 +86,8 @@ struct RootView: View {
     @State private var pendingSharedDelete: [Note]?
     /// Files the import sheet opens with (shared, opened from Files, dropped on the app).
     @State private var importFiles: [URL] = []
-    @AppStorage("lastScope") private var lastScopeData: Data = Data()
+    /// The folder you were in, for the next launch (LaunchSpot).
+    private var lastScopeData: Data { LaunchSpot.value(forKey: "lastScope") as? Data ?? Data() }
     /// Files that weren't added (a kind the app can't show, or over 100 MB), said once.
     @State private var refusal: FileRefusal?
     #if os(macOS)
@@ -102,7 +107,8 @@ struct RootView: View {
     #endif
     @Environment(SetupStore.self) private var setupStore: SetupStore?
     @Environment(Backend.self) private var backendForConnect: Backend?
-    @AppStorage("lastNote") private var lastNote: String = ""
+    /// The note you were on, for the next launch (LaunchSpot).
+    private var lastNote: String { LaunchSpot.value(forKey: "lastNote") as? String ?? "" }
 
     /// The single open note, when exactly one is selected.
     private var selectedNote: UUID? {
@@ -115,7 +121,7 @@ struct RootView: View {
     private var shownNote: UUID? { shown.count == 1 ? shown.first : nil }
 
     var body: some View {
-        #if DEBUG
+        #if DEBUG || QA
         RenderProbe.count("RootView", context: context)
         #endif
         #if os(macOS)
@@ -123,7 +129,13 @@ struct RootView: View {
         // it still went to 621 and cut the note off).
         let split = split.frame(minWidth: WindowFrameMemory.minimum.width)
         #endif
-        return popups(imports(lifecycle(split)).newAppSheet())
+        return alerts(sceneValues(popups(imports(lifecycle(split)).newAppSheet())))
+    }
+
+    /// The window's values for the menus and commands (apart, so the compiler can check the
+    /// body in time).
+    private func sceneValues(_ content: some View) -> some View {
+        content
             // Reports: the notes are on screen, for the cold launch time (Telemetry).
             .onAppear { Telemetry.shared.notesShown() }
             .focusedSceneValue(\.newNoteAction, newNoteCommand)
@@ -145,6 +157,11 @@ struct RootView: View {
             .background(ListWidthKeeper(probe: listWidth))
             .onChange(of: visibility) { old, new in listWidth.changed(from: old, to: new) }
             #endif
+    }
+
+    /// Refusals, shared deletes and lost shares, said over the window.
+    private func alerts(_ content: some View) -> some View {
+        content
             .sharedDeleteConfirmation($pendingSharedDelete) { removeNow($0) }
             .onReceive(NotificationCenter.default.publisher(for: FileRefusal.notification)) { n in refusal = n.object as? FileRefusal }
             .alert(refusal?.title ?? "", isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } })) {
@@ -296,15 +313,14 @@ struct RootView: View {
                 if templateAIs != nil { templateAIs = now }
             }
         }
-        return ZStack {
-            TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
-                                have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in
+        // What Make does. `prompt`: the front page's ask, with the words typed in Search.
+        let run: (TemplateCatalog.Entry, SetupCards.AI, String?) -> Void = { e, ai, prompt in
                 Task {
                     let before = (selection, scope)
                     let had = TemplateMaking.have(e, context: context, account: account) != nil
                     // A real-input check never opens the AI's page in a browser.
                     let note = await TemplateMaking.make(e, with: ai, context: context, account: account,
-                                                         into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach,
+                                                         into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder), reach: reach, prompt: prompt,
                                                          open: { if !Self.templatesStandIn { openURLForTemplates($0) } })
                     // No second sheet: the page just said what it is. The note opens with a line
                     // saying where it went, and Undo beside it.
@@ -324,6 +340,24 @@ struct RootView: View {
                     }
                     withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
                 }
+        }
+        return ZStack {
+            TemplateLibraryView(ais: ais, folder: target?.name ?? TemplateMaking.firstFolder,
+                                have: { TemplateMaking.have($0, context: context, account: account) }, make: { e, ai in run(e, ai, nil) },
+                                makeAsking: { e, ai, prompt in run(e, ai, prompt) }, makeBlank: { words, ai in
+                // No template for the words (the front page's Search): a new note named
+                // from them, where New Note would put it, with Undo beside "Added to" as for Make.
+                let before = (selection, scope)
+                guard let note = TemplateAsk.makeBlank(words, with: ai, context: context, into: target.map { .existing($0.id) } ?? .new(TemplateMaking.firstFolder),
+                                                       reach: reach, open: { if !Self.templatesStandIn { openURLForTemplates($0) } }), let made = context.note(note) else { return }
+                FirstOpen.shared.fromLibrary(note, title: made.title, slug: "blank", isApp: false, folder: made.folder?.name ?? "Notes", hadIt: false,
+                                             waitingFor: ai.asks && reach != .online ? ai.name : nil, undo: {
+                    if let n = context.note(note), n.trashedAt == nil { context.trash(n) }
+                    selection = before.0
+                    scope = before.1
+                })
+                selection = [note]
+                withAnimation(.snappy(duration: 0.2)) { templateAIs = nil }
             }, connect: { withAnimation(.snappy(duration: 0.2)) { connectingOverTemplates = true } }, covered: connectingOverTemplates, uncover: closeConnect,
                close: { withAnimation(.snappy(duration: 0.2)) { templateAIs = nil } })
             // Esc is the library's own: its x on the gallery, Back on a template's page.
@@ -355,7 +389,7 @@ struct RootView: View {
             #if os(iOS)
             if sizeClass != .compact { twoColumns } else { threeColumns }
             #else
-            threeColumns
+            if galleryScope != nil { galleryColumns } else { threeColumns }
             #endif
         }
         .environment(editor)
@@ -486,6 +520,7 @@ struct RootView: View {
                     NoteListView(scope: s, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                         .equatable()
                         .environment(library)
+                        .environment(tags)
                         .environment(openNotes)
                         .phoneScreen()
                 }
@@ -494,36 +529,71 @@ struct RootView: View {
     }
     #endif
 
+    /// The folders, the same beside the list or beside a folder's gallery.
+    @ViewBuilder
+    private var sidebarColumn: some View {
+        // The folders and the list are compared before they're worked out again (see their `==`):
+        // on the Mac the split view hands its columns over again whenever one is hidden or shown,
+        // and on iPhone every pass of this view (each note opened or closed) worked out the
+        // folders under the stack and the list again (ios-render-audit-2026-11-02.md).
+        SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
+            .equatable()
+            .environment(library)
+            .environment(tags)
+            // The account's tag colours (sealed in its profile), on every sign-in.
+            .task(id: backendForConnect?.state) { if let b = backendForConnect { await TagColors.shared.bind(b) } }
+            #if os(macOS)
+            // The sidebar hides with its own button, first beside the window's buttons as in
+            // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
+            // keys it looked like it couldn't). Ours, not the system's, so it stays in its
+            // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
+            .toolbar(removing: .sidebarToggle)
+            .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
+            .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
+                withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
+                    visibility = SidebarToggle.toggled(visibility)
+                }
+            })
+            #else
+            // iPad: room for the title beside the account button.
+            .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
+            #endif
+    }
+
+    #if os(macOS)
+    /// The folder shown as a gallery, when the one open is (ListOrderStore.showsGallery).
+    private var galleryScope: Scope? {
+        let _ = galleryExperiment
+        return scope.flatMap { ListOrderStore.shared.showsGallery($0) ? $0 : nil }
+    }
+
+    /// A folder as a gallery: the sidebar, and the cards in the list's and the note's place. A
+    /// card opens its note there, with a way back to the cards, as in Apple Notes.
+    private var galleryColumns: some View {
+        NavigationSplitView(columnVisibility: $visibility) {
+            sidebarColumn
+        } detail: {
+            Group {
+                if shown.isEmpty, let s = galleryScope {
+                    FolderGallery(scope: s, library: library, open: { selectedNote = $0 }, newNote: newNote)
+                } else {
+                    // Back (⌘[) goes to the cards once there's no note before this one.
+                    detail
+                }
+            }
+            .navigationSplitViewColumnWidth(min: 360, ideal: 760)
+        }
+    }
+    #endif
+
     private var threeColumns: some View {
         NavigationSplitView(columnVisibility: $visibility) {
-            // The folders and the list are compared before they're worked out again (see their `==`):
-            // on the Mac the split view hands its columns over again whenever one is hidden or shown,
-            // and on iPhone every pass of this view (each note opened or closed) worked out the
-            // folders under the stack and the list again (ios-render-audit-2026-11-02.md).
-            SidebarView(scope: $scope, onNewNote: newNote, onOpenNote: openFound, onNewNoteIn: newNote(inFolder:))
-                .equatable()
-                .environment(library)
-                .environment(tags)
-                #if os(macOS)
-                // The sidebar hides with its own button, first beside the window's buttons as in
-                // Notes, and with View › Hide Sidebar (⌃⌘S) (Emil, 11-04: with only the menu and
-                // keys it looked like it couldn't). Ours, not the system's, so it stays in its
-                // place with the sidebar shown or hidden; New Folder moved to the Folders heading.
-                .toolbar(removing: .sidebarToggle)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 360)
-                .environment(\.toggleSidebar, ToggleSidebarAction(shown: visibility == .all) {
-                    withAnimation(SidebarToggle.animation(reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)) {
-                        visibility = SidebarToggle.toggled(visibility)
-                    }
-                })
-                #else
-                // iPad: room for the title beside the account button.
-                .navigationSplitViewColumnWidth(min: 264, ideal: 270, max: 400)
-                #endif
+            sidebarColumn
         } content: {
             NoteListView(scope: scope ?? .all, selection: $selection, onNewNote: newNote, showsEmpty: $listEmpty, showsResults: $listSearching)
                 .equatable()
                 .environment(library)
+                .environment(tags)
                 #if os(macOS)
                 .environment(\.listSidebarHidden, visibility != .all)
                 // Never narrower than the window's buttons, the sidebar's New Folder, Today and Search,
@@ -652,6 +722,9 @@ struct RootView: View {
                 // beside Notes, its Recover banner over nothing).
                 if let new, let id = selectedNote, let note = context.note(id),
                    ModelContext.lists(new, note) == false { selection = [] }
+                // A folder shown as a gallery opens on its cards, unless a note was just made in it.
+                if restoringScope { restoringScope = false }
+                else if let new, ListOrderStore.shared.showsGallery(new), selectedNote != justCreated { selection = [] }
                 #endif
                 #if os(iOS)
                 // Back on the iPhone folder list nothing is open: a note left selected would keep
@@ -743,10 +816,10 @@ struct RootView: View {
     }
 
     private func rememberScope(_ new: Scope?) {
-        if let new, let data = try? JSONEncoder().encode(new) { lastScopeData = data }
+        if let new, let data = try? JSONEncoder().encode(new) { LaunchSpot.set(data, forKey: "lastScope") }
         #if os(iOS)
         // Back out of a folder on iPhone: the next launch opens the folders, as in Notes.
-        if new == nil, sizeClass == .compact { lastScopeData = PhoneLaunchSpot.folders }
+        if new == nil, sizeClass == .compact { LaunchSpot.set(PhoneLaunchSpot.folders, forKey: "lastScope") }
         #endif
     }
 
@@ -758,11 +831,15 @@ struct RootView: View {
         if new != nil { NoteOpenSpeed.tapped(at: Self.eventTime()) }
         if old != nil { NotificationCenter.default.post(name: .paneNoteClosed, object: nil) }
         discardIfEmpty(old)
-        if let new { lastNote = new.uuidString }
+        if let new { LaunchSpot.set(new.uuidString, forKey: "lastNote") }
+        #if os(macOS)
+        // Back to a gallery's cards: the next launch opens on them, not on the note.
+        if new == nil, let s = scope, ListOrderStore.shared.showsGallery(s) { LaunchSpot.set(PhoneLaunchSpot.list, forKey: "lastNote") }
+        #endif
         #if os(iOS)
         // Back out of a note on iPhone: the next launch opens the list it was in, not the note,
         // as in Notes. Leaving the app with the note open changes nothing here, so it reopens.
-        if new == nil, sizeClass == .compact { lastNote = PhoneLaunchSpot.list }
+        if new == nil, sizeClass == .compact { LaunchSpot.set(PhoneLaunchSpot.list, forKey: "lastNote") }
         #endif
         // A spare web view waiting to start waits on: starting one lands in the next open or Back.
         NotePageSandbox.navigationOccurred()
@@ -871,6 +948,7 @@ struct RootView: View {
         }
         #endif
         withAnimation(.snappy(duration: 0.25)) {
+            Usage.trashed(notes)
             context.remove(notes, undo: undoManager) { back in selection = Set(back.map(\.id)) }
             selection = []
         }
@@ -893,7 +971,8 @@ struct RootView: View {
                              openScope: { s in
                                  scope = s
                                  if visibility == .detailOnly { visibility = .doubleColumn }
-                             }) {
+                             },
+                             backToGallery: galleryScope.map { s in (FolderGallery.title(of: s, context: context), { selection = [] }) }) {
                 if let note {
                     NoteDetailView(note: note, controller: editor, autofocus: justCreated == note.id, onNewNote: newNote) { target, edit in
                         if edit { justCreated = target }
@@ -1133,6 +1212,9 @@ struct RootView: View {
         #if os(iOS)
         // You went Back out of the note last time: the list (or the folders) opens, with no note.
         if sizeClass == .compact, lastNote == PhoneLaunchSpot.list || scope == nil { return }
+        #else
+        // You went back to a gallery's cards last time: they're what opens.
+        if lastNote == PhoneLaunchSpot.list, let s = scope, ListOrderStore.shared.showsGallery(s) { return }
         #endif
         // A file kept in a folder reopens like a note.
         if let id = UUID(uuidString: lastNote), let f = context.attachment(id), f.folderID != nil, f.deletedAt == nil, f.trashedAt == nil {
@@ -1152,6 +1234,7 @@ struct RootView: View {
         #endif
         if let s = try? JSONDecoder().decode(Scope.self, from: lastScopeData),
            !({ if case .folder(let id) = s { return context.folder(id) == nil } else { return false } }()) {
+            restoringScope = s != scope
             scope = s
         } else if scope == nil {
             scope = .all
@@ -1170,6 +1253,54 @@ enum PhoneLaunchSpot {
     static let list = "list"
     /// The last scope, after Back out of a folder: open the folder list.
     static let folders = Data("folders".utf8)
+}
+
+/// Where you were (the last folder and note), kept for the next launch. Written half a second
+/// after a switch on the Mac, not in it: as @AppStorage, each folder switch wrote two defaults in the click's
+/// own update, and every view that reads a default was updated with it, about a tenth of the
+/// switch (Emil, 12 November 2026: "switching between folders is not fast enough").
+@MainActor
+enum LaunchSpot {
+    private static var pending: [String: Any] = [:]
+    private static var scheduled = false
+    private static var watching = false
+
+    static func set(_ value: Any, forKey key: String) {
+        #if os(iOS)
+        // iOS can end the app in the background without a word: written at once there.
+        UserDefaults.standard.set(value, forKey: key)
+        #else
+        pending[key] = value
+        watchForQuit()
+        guard !scheduled else { return }
+        scheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { flush() }
+        #endif
+    }
+
+    /// The value waiting to be written, or the one written.
+    static func value(forKey key: String) -> Any? { pending[key] ?? UserDefaults.standard.object(forKey: key) }
+
+    static func flush() {
+        scheduled = false
+        let values = pending
+        pending = [:]
+        for (key, value) in values { UserDefaults.standard.set(value, forKey: key) }
+    }
+
+    /// Another account's library: what was waiting goes, with what was written (AccountLibrary).
+    static func forget(_ keys: [String]) { keys.forEach { pending.removeValue(forKey: $0) } }
+
+    #if os(macOS)
+    /// Quitting or closing a window writes what's waiting at once.
+    private static func watchForQuit() {
+        guard !watching else { return }
+        watching = true
+        for name in [NSApplication.willTerminateNotification, NSWindow.willCloseNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in MainActor.assumeIsolated { flush() } }
+        }
+    }
+    #endif
 }
 
 /// What the note pane shows with several notes selected, as in Notes.
@@ -1282,7 +1413,7 @@ struct EmptyDetailView: View {
 /// `importActions` as changed on every pass of RootView (iPhone, 2026-11-02: both worked out again
 /// on every note opened, ios-render-audit-2026-11-02.md). The closures now live in one box the
 /// window keeps, and the value handed down is only that box: the same bits on every pass.
-struct ImportActions: Equatable {
+struct ImportActions: CustomEquatable {
     @MainActor final class Box {
         var appleNotes: () -> Void = {}
         var from: (ImportKind) -> Void = { _ in }
@@ -1300,7 +1431,7 @@ struct ImportActions: Equatable {
         self.box = box
     }
 
-    static func == (a: ImportActions, b: ImportActions) -> Bool { a.box === b.box }
+    static func isEqual(_ a: ImportActions, _ b: ImportActions) -> Bool { a.box === b.box }
 }
 
 extension EnvironmentValues {
@@ -1428,6 +1559,9 @@ struct PaneCommands: Commands {
                 .disabled(newNote == nil)
             Button("New App…") { NewApp.shared.open() }
                 .disabled(newNote == nil || !NoteApps.enabled)
+            // The Templates library, wherever its sidebar row has gone (Emil, 12 November 2026).
+            Button(AppMenuWords.newFromTemplate) { NotificationCenter.default.post(name: .paneTemplates, object: nil) }
+                .disabled(newNote == nil)
             // ⌘T: Obsidian has no key for it and Pinto has no Font menu; ⌥⌘T is Table, ⇧⌘T Title.
             Button("Today\u{2019}s Note") { todaysNote?.open() }
                 .keyboardShortcut("t")
@@ -1480,6 +1614,10 @@ struct PaneCommands: Commands {
             Button("\(AIChangeCopy.title)\u{2026}") { AIChangesCenter.shared.show() }
                 .keyboardShortcut("a", modifiers: [.command, .option])
                 .disabled(AIChangesCenter.shared.store == nil)
+            // Blurs the notes on screen (PrivacyMode). ⌃⌘P: nothing else in the app or macOS has it;
+            // ⌘P is Print. Ticked while on.
+            Toggle(PrivacyWords.menuTitle, isOn: Binding(get: { PrivacyMode.shared.isOn }, set: { _ in PrivacyMode.shared.toggle() }))
+                .keyboardShortcut("p", modifiers: [.command, .control])
         }
         CommandGroup(after: .help) {
             // The website's changes page: release notes are never shown in the app by themselves.
@@ -1509,7 +1647,7 @@ struct PaneCommands: Commands {
             Button("Connect an AI\u{2026}") { NotificationCenter.default.post(name: .paneConnectAI, object: nil) }
             Divider()
             // One item in File, the sources inside: six of them crowded it (round 17).
-            Menu("Import Notes") {
+            Menu(AppMenuWords.importNotes) {
                 Button { importNotes?() } label: { Label { Text("Import from Apple Notes…") } icon: { ImportOrigin.appleNotes.menuImage } }
                     .disabled(importNotes == nil)
                 ForEach(ImportKind.listed) { kind in
@@ -1809,12 +1947,12 @@ struct ListWidthKeeper: NSViewRepresentable {
 
 #if os(macOS)
 /// The sidebar button's action, and whether the sidebar shows now.
-struct ToggleSidebarAction: Equatable {
+struct ToggleSidebarAction: CustomEquatable {
     let shown: Bool
     let run: () -> Void
     func callAsFunction() { run() }
     var title: String { shown ? "Hide Sidebar" : "Show Sidebar" }
-    static func == (a: Self, b: Self) -> Bool { a.shown == b.shown }
+    static func isEqual(_ a: Self, _ b: Self) -> Bool { a.shown == b.shown }
 }
 
 extension EnvironmentValues {

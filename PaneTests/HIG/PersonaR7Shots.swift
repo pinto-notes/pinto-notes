@@ -17,7 +17,7 @@ import ZIPFoundation
 /// `TEST_RUNNER_PERSONA_R7_SHOTS=<shots>/r7 scripts/qa-test.sh PaneTests/PersonaR7Shots`
 /// PERSONA_R7_SUFFIX=-v2 names a re-take's files `<name>-v2.png` (and its text files the same way),
 /// next to the first take's, which stay.
-@MainActor @Suite(.serialized) struct PersonaR7Shots {
+extension PersonaR7Shots {
     static var dir: URL? { ProcessInfo.processInfo.environment["PERSONA_R7_SHOTS"].map { URL(fileURLWithPath: $0) } }
     static var suffix: String { ProcessInfo.processInfo.environment["PERSONA_R7_SUFFIX"] ?? "" }
 
@@ -38,23 +38,6 @@ import ZIPFoundation
 
     static func note(_ c: ModelContainer, _ title: String) throws -> Note {
         try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == title && $0.deletedAt == nil })
-    }
-
-    /// The notes window in a borderless window far off screen, ordered in so its buttons can be
-    /// pressed through the accessibility API (a titled window off screen is pulled back onto it).
-    static func pressable(_ c: ModelContainer, note: String, dark: Bool, _ body: (OffscreenAX) async throws -> Void) async throws {
-        try await AppSnapshotTests.withLastNote(c, note) {
-            let ax = OffscreenAX(RootView().modelContainer(c).environment(SetupStore()).environment(\.controlActiveState, .key),
-                                 size: PersonaEditorShots.size, dark: dark)
-            defer { ax.close() }
-            await ax.settle(1600)
-            if let split = AIEditSplit.find(in: ax.window.contentView) {
-                split.setPosition(220, ofDividerAt: 0)
-                split.setPosition(540, ofDividerAt: 1)
-            }
-            await ax.settle(800)
-            try await body(ax)
-        }
     }
 
     /// The borderless window as drawn, from the notes list rightwards (as PersonaEditorShots'
@@ -92,16 +75,6 @@ import ZIPFoundation
     }
 
     // MARK: - C1. The AI's edit on the Mac (light)
-
-    /// The demo library with "Lisbon trip" in Travel, as `-seedTrip` makes it on the iPhone.
-    static func tripLibrary() throws -> ModelContainer {
-        let c = try PersonaEditorShots.library()
-        let travel = try #require(c.mainContext.allFolders().first { $0.name == "Travel" })
-        let trip = c.mainContext.createNote(in: .folder(travel.id), body: Capture.lisbonTrip)
-        trip.updatedAt = .now.addingTimeInterval(-20 * 60)
-        try c.mainContext.save()
-        return c
-    }
 
     /// The note before, ChatGPT's edit landing (the highlight, the margin ticks and the receipt),
     /// the review card, then the dates kept, the sentence undone and the tasks kept.
@@ -261,9 +234,6 @@ import ZIPFoundation
     }
 
     // MARK: - C7. Apple Notes import (light)
-
-    /// A generated photo (a dusk sky over a roofline), as a pasted picture would be.
-    static func photoPNG() -> Data { DemoData.samplePNG() }
 
     /// "Weekend list", the import tests' note as Notes hands it over (its HTML and its stored
     /// checklist), with a table and a photo put in it, as Notes would write them.

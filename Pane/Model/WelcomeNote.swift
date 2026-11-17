@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 /// Every account's first note, "Welcome": a short to-do list for getting started, written for the
 /// device the account starts on (Emil's pick, 28 October 2026, from PN design's "the welcome
@@ -92,22 +93,71 @@ enum WelcomeNote {
     static var ticked: Set<Int> = []
 
     static func askedKey(_ account: UUID) -> String { "welcome.asked.\(account.uuidString.lowercased())" }
+    /// The note this device wrote for the account, so an import can find it again.
+    static func noteKey(_ account: UUID) -> String { "welcome.note.\(account.uuidString.lowercased())" }
 
     /// After an account's first sync on this device: asks the server once whether this device
     /// writes the note, and if so writes it (`write` makes the note and returns its id). An answer
     /// is remembered, so a later launch doesn't ask again; a failed ask is tried next launch.
     /// Returns the note's id when this device wrote it.
+    ///
+    /// On the Mac a library that already holds notes (an import got there first) gets none: the
+    /// claim is still asked and remembered, so it isn't written later either (Emil, 12 November
+    /// 2026: "let's not create the welcome note on Mac if you have imported notes"). The iPhone
+    /// always writes the note its welcome showed being written.
     @discardableResult
-    static func settle(account: UUID, defaults: UserDefaults = .standard, claim: () async throws -> Bool,
+    static func settle(account: UUID, defaults: UserDefaults = .standard, device: Device = thisDevice,
+                       holdsNotes: () -> Bool = { false }, claim: () async throws -> Bool,
                        write: (String) -> UUID?) async -> UUID? {
         guard !defaults.bool(forKey: askedKey(account)) else { return nil }
         let won: Bool
         do { won = try await claim() } catch { return nil }
         defaults.set(true, forKey: askedKey(account))
         guard won else { return nil }
-        let id = write(body(for: thisDevice, ticked: ticked))
-        ticked = []
+        defer { ticked = [] }
+        if device == .mac, holdsNotes() { return nil }
+        let id = write(body(for: device, ticked: ticked))
+        if let id { defaults.set(id.uuidString, forKey: noteKey(account)) }
         return id
+    }
+
+    /// Notes in the library besides what Pinto seeds it with: what an import (or anything else)
+    /// brought. Deleted notes and the seeded ones don't count.
+    static func libraryHoldsNotes(_ context: ModelContext) -> Bool {
+        let live = (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt == nil && $0.trashedAt == nil }))) ?? []
+        return live.contains { $0.body != Seed.welcome && !$0.body.contains(Seed.sampleAppLine) }
+    }
+
+    /// The note as it was written: only ticks and trailing whitespace may differ.
+    static func isUntouched(_ text: String, for device: Device) -> Bool {
+        func plain(_ s: String) -> String {
+            s.split(separator: "\n", omittingEmptySubsequences: false).map { part -> String in
+                var line = String(part)
+                while line.last?.isWhitespace == true { line.removeLast() }
+                if line.hasPrefix("- [x] ") || line.hasPrefix("- [X] ") { line = "- [ ] " + line.dropFirst(6) }
+                return line
+            }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return plain(text) == plain(body(for: device))
+    }
+
+    /// Mac: an import has brought `imported` notes in. The welcome note this device wrote goes to
+    /// Recently Deleted, as Delete Note sends it, when it still reads as written: its to-dos are
+    /// about an empty notebook. Edited at all, it stays. Returns whether it went.
+    @discardableResult
+    static func importFinished(imported: Int, context: ModelContext, account: UUID? = AccountCrypto.shared.account,
+                               defaults: UserDefaults = .standard, device: Device = thisDevice) -> Bool {
+        guard device == .mac, imported > 0, let account, let raw = defaults.string(forKey: noteKey(account)) else { return false }
+        guard let id = UUID(uuidString: raw), let note = context.note(id), note.deletedAt == nil, note.trashedAt == nil, !note.isLocked else {
+            // Gone already (deleted, or never here): nothing to look for again.
+            defaults.removeObject(forKey: noteKey(account))
+            return false
+        }
+        guard isUntouched(note.body, for: device) else { return false }
+        context.trash(note)
+        defaults.removeObject(forKey: noteKey(account))
+        SyncSignal.changed()
+        return true
     }
 }
 

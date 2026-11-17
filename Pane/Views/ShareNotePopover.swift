@@ -54,7 +54,7 @@ enum ShareWays {
         case .people: ShareCopy.privacy
         case .link where sharedWithPeople && !trashed: SharedNoteLimits.pageLine
         case .link where trashed: "The page is down while this note is in Recently Deleted."
-        case .link where shared: "Anyone with the link can read this page. Your changes appear on it as you make them."
+        case .link where shared: "Anyone with the link can read it. It updates as you write."
         case .link: "A page anyone with the link can read. It keeps up with your changes until you stop publishing."
         case .copy: "Sends the note as it is now. Later changes aren't sent."
         case .picture: "A picture of the note, to post or send."
@@ -167,29 +167,21 @@ struct ShareNotePopover: View {
             // One filled button per tab, the tab's main action, as Collaborate has.
             primary("Publish Web Page…", "globe", id: "share.create", busy: store.state.isWorking) { close(); _ = store.requestShare() }
         } else {
+            // Published: the address (click it to open the page), Copy Link, and a quiet Stop
+            // Publishing. No separate Open row or divider (Emil, 12 November 2026: "too much").
             if let url = store.url {
-                // The address in a field, as a link is shown to be copied: not grey code (council,
-                // 8 November 2026). Selectable; Copy Link copies all of it.
-                Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.ink)
-                    .textSelection(.enabled)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    // Plain selectable words: neither a field to type in nor a disabled one (council).
+                PageAddress(url: url) { close(); NSWorkspace.shared.open(url) }
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 10)
             }
             primary("Copy Link", "link", id: "share.copy") { close(); Task { await store.shareAndCopy() } }
-                .padding(.bottom, 6)
-            if let url = store.url {
-                row("Open Web Page", "safari", id: "share.open") { NSWorkspace.shared.open(url) }
+            Button { close(); Task { await store.stopSharing() } } label: {
+                Text("Stop Publishing").foregroundStyle(.red)
             }
-            Divider().padding(.horizontal, 8).padding(.vertical, 4)
-            row("Stop Publishing", "xmark.circle", id: "share.stop", destructive: true) { Task { await store.stopSharing() } }
+            .buttonStyle(.quiet)
+            .padding(.top, 6)
+            .accessibilityIdentifier("share.stop")
         }
     }
 
@@ -598,8 +590,8 @@ private struct SharePopoverLive: View {
     }
 }
 
-/// Collaborate, in the popover: the people in the note (Verify on click, Remove on right-click),
-/// then Share Link and what the link lets people do, or Leave for someone else's note. Remove and
+/// Collaborate, in the popover: the people in the note (a menu on each: for the owner, what they
+/// can do, then Check Safety Code and Remove; the same on right-click), then Share Link and what the link lets people do, or Leave for someone else's note. Remove and
 /// Leave ask inside the popover, which stays open while they happen; each says when it's done.
 struct CollaborateRows: View {
     @Bindable var share: ShareController
@@ -635,14 +627,17 @@ struct CollaborateRows: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(share.state.people) { p in
-                    let opens = !p.isMe && p.safetyCode != nil
+                    let opens = !p.isMe && (p.safetyCode != nil || share.canChangeRole(p))
                     let row = HStack(spacing: 5) {
-                        PersonRow(person: p, removing: share.working == .remove(p.id), size: 24)
-                        // A pop-up, as Anyone with the link is: a chevron read as navigation
-                        // (council, 8 November 2026). Rows without one keep its room, so every
-                        // role lines up.
-                        Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                        PersonRow(person: p, removing: share.working == .remove(p.id) || share.working == .role(p.id), size: 24)
+                        // More actions on this person (PersonMenu), not a role pop-up: up-down
+                        // arrows beside "Can view" read as a setting of the row (Emil, 12 November
+                        // 2026). The owner changes someone's role in that menu, at its top, as in
+                        // Google Docs (Emil, 16 November 2026), and the role beside the name follows.
+                        // Rows without one keep its room, so every role lines up.
+                        Image(systemName: "ellipsis").font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Color.muted)
+                            .frame(width: 12)
                             .opacity(opens ? 1 : 0)
                     }
                     .font(.system(size: 13))
@@ -653,8 +648,7 @@ struct CollaborateRows: View {
                         if opens {
                             // A light wash under the pointer, as every clickable row has.
                             Menu {
-                                Button("Check Safety Code…") { page = .verify(p.id) }
-                                if share.isOwner { Divider(); Button("Remove from Note", role: .destructive) { share.askRemove(p) } }
+                                PersonMenu(share: share, person: p) { page = .verify(p.id) }
                             } label: { row }
                             .menuStyle(.button)
                             .menuIndicator(.hidden)
@@ -664,45 +658,49 @@ struct CollaborateRows: View {
                         }
                     }
                     .padding(.horizontal, -4)
-                    .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
+                    // Right-click: the same menu.
+                    .contextMenu { if opens { PersonMenu(share: share, person: p) { page = .verify(p.id) } } }
                     .accessibilityIdentifier("share.person")
                 }
             }
             if case .removed = share.done { DoneLine(text: ShareController.Done.removed(UUID()).text).font(.system(size: 11)) }
+            if case .roleChanged(_, let said) = share.done { DoneLine(text: said).font(.system(size: 11)) }
             if share.isOwner, let why = share.notYet {
                 // Files or an app: not shared with people yet, and the popover says why up front.
                 line(why, problem: false)
             } else if share.isOwner {
-                HStack(spacing: 8) {
-                    Text("Join by Link").font(.system(size: 13))
-                    Spacer(minLength: 0)
-                    // A neutral menu: the system's took the accent, loud for a setting left at Off.
-                    Menu {
-                        Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
-                            ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                if !share.state.notSharedYet {
+                    HStack(spacing: 8) {
+                        Text("Join by Link").font(.system(size: 13))
+                        Spacer(minLength: 0)
+                        // A neutral menu: the system's took the accent, loud for a setting left at Off.
+                        Menu {
+                            Picker("Join by Link", selection: Binding(get: { share.state.access }, set: { a in Task { await share.setAccess(a) } })) {
+                                ForEach(ShareState.Access.allCases) { Text($0.rawValue).tag($0) }
+                            }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Text(share.state.access.rawValue).font(.system(size: 13))
+                                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
+                            }
+                            .foregroundStyle(Color.muted)
+                            // Borderless, as the people's pop-ups above it are.
+                            .padding(.horizontal, 6)
+                            .frame(height: 24)
+                            .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
+                            .padding(.trailing, -6)
                         }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(share.state.access.rawValue).font(.system(size: 13))
-                            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.muted)
-                        }
-                        .foregroundStyle(Color.muted)
-                        // Borderless, as the people's pop-ups above it are.
-                        .padding(.horizontal, 6)
-                        .frame(height: 24)
-                        .background { if accessHover { RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Hover.row) } }
-                        .padding(.trailing, -6)
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .modifier(HoverTracking(hovering: $accessHover))
+                        .fixedSize()
+                        .disabled(share.working != nil)
+                        .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
+                        .accessibilityIdentifier("share.access")
                     }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .modifier(HoverTracking(hovering: $accessHover))
-                    .fixedSize()
-                    .disabled(share.working != nil)
-                    .accessibilityLabel("Join by Link: \(share.state.access.rawValue)")
-                    .accessibilityIdentifier("share.access")
                 }
                 if let problem = share.state.problem { line(problem, problem: true) }
                 else if share.done == .linkChanged { DoneLine(text: ShareController.Done.linkChanged.text).font(.system(size: 11)) }
@@ -797,4 +795,55 @@ struct CollaborateRows: View {
         }
     }
 }
+
+/// A person's actions, in the menu on their row and on right-click. For the owner: what they can
+/// do (Can edit, Can view, with a tick on theirs), then Check Safety Code… and Remove from Note.
+/// Everyone else: Check Safety Code… only.
+struct PersonMenu: View {
+    @Bindable var share: ShareController
+    let person: ShareState.Person
+    var checkCode: () -> Void = {}
+
+    var body: some View {
+        if share.canChangeRole(person) {
+            // Ticked items, not an inline Picker: a Picker brings its own separators, one above the
+            // first role. A role this build doesn't know ticks neither.
+            ForEach(ShareState.Role.allCases) { r in
+                Toggle(r.label, isOn: Binding(get: { person.role == r.rawValue },
+                                              set: { on in if on { Task { await share.setRole(r, of: person) } } }))
+            }
+            .disabled(share.working != nil)
+            Divider()
+        }
+        if person.safetyCode != nil { Button("Check Safety Code…", action: checkCode) }
+        if share.isOwner, !person.isMe {
+            if person.safetyCode != nil { Divider() }
+            DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(person) }
+        }
+    }
+}
+
+/// A published page's address in the Share popover: plain words, underlined on hover, that open
+/// the page. Copy Link sits under it, so it isn't a field to select from.
+struct PageAddress: View {
+    let url: URL
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            Text(url.absoluteString.replacingOccurrences(of: "https://", with: ""))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.ink)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.hoverLink)
+        .help("Open Web Page")
+        .accessibilityLabel("Open Web Page")
+        .accessibilityIdentifier("share.open")
+    }
+}
+
 #endif

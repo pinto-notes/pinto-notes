@@ -52,11 +52,41 @@ import Testing
         #expect(strength > 0)
         #expect(tint.strength(at: train) == 0, "and not tinted: it didn't change")
         let rect = marked.removalRect(gap, at: .zero)
-        #expect(rect.maxY <= 0 + 1, "in the gap above the line: \(rect)")
+        let line = try #require(marked.textLineFragments.first)
+        let capTop = line.typographicBounds.minY + line.glyphOrigin.y - NSFont.systemFont(ofSize: EditorMetrics.body).capHeight
+        #expect(rect.maxY < capTop && rect.minY > line.typographicBounds.minY - 6, "in the seam above the line's letters: \(rect), caps at \(capTop)")
         #expect(try fragment(0).removalMark == nil)
         await h.snapshot("removal-mark")
         tint.stop()
         #expect(marked.removalMark == nil, "gone once cleared")
+    }
+
+    /// The seam mark sits in the margin left of the checkbox, out of the text column, so it
+    /// can't read as an underline (council r3; r1 had it under the circle, r3 under the words).
+    @Test func inAChecklistTheMarkSitsInTheMargin() async throws {
+        let old = "Groceries\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Eggs"
+        let new = "Groceries\n\n- [ ] Oat milk\n- [ ] Eggs"
+        let h = await EditorHarness(new, focus: false)
+        defer { h.close() }
+        h.view.tintChanges(from: old, untilCleared: true)
+        await h.settle(0.9)
+        let eggs = (h.text as NSString).range(of: "- [ ] Eggs").location
+        let layout = try #require(h.view.textLayoutManager)
+        let content = try #require(layout.textContentManager)
+        let loc = try #require(content.location(content.documentRange.location, offsetBy: eggs))
+        layout.ensureLayout(for: NSTextRange(location: loc))
+        let marked = try #require(layout.textLayoutFragment(for: loc) as? DecoratedLayoutFragment)
+        let (gap, _) = try #require(marked.removalMark)
+        let line = try #require(marked.textLineFragments.first)
+        let rect = marked.removalRect(gap, at: .zero)
+        let d = try #require(marked.decoration)
+        let box = marked.checkboxRect(d)
+        #expect(rect.maxX <= box.minX, "left of the circle")
+        #expect(rect.maxX < line.typographicBounds.minX + line.locationForCharacter(at: 6).x, "clear of the words")
+        #expect(rect.width <= box.width + 6)
+        #expect(marked.renderingSurfaceBounds.contains(rect), "drawn, not clipped")
+        _ = line
+        h.view.core.layoutDelegate.tint.stop()
     }
     #endif
 }

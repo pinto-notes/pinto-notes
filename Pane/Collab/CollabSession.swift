@@ -29,6 +29,9 @@ final class CollabSession {
         /// against the text here whenever it changes.
         var caret: Anchor?
         var end: Anchor?
+        /// Their carets that came before the text they were taken against, oldest first. Each is
+        /// shown once that text is here, so their caret moves with their typing, never ahead of it.
+        var waiting: [WaitingCaret] = []
         var typingUntil: Date?
         /// When their caret last moved or they last typed: the name flag shows for a moment after.
         var movedAt: Date = .now
@@ -40,6 +43,14 @@ final class CollabSession {
         func isStale(at now: Date = .now) -> Bool { now.timeIntervalSince(heardAt) >= Self.staleAfter }
         /// Presence goes out every 2 seconds: three missed and someone's connection (or yours) is down.
         static let staleAfter: TimeInterval = 6
+    }
+
+    /// A caret as someone sent it, with their document's heads when they took it (`Presence.heads`).
+    struct WaitingCaret: Equatable {
+        var caret: Anchor?
+        var end: Anchor?
+        var heads: Set<CollabText.ChangeHash>
+        var since: Date
     }
 
     /// A caret whose person isn't heard from: solid grey, on white and on black.
@@ -157,9 +168,11 @@ final class CollabSession {
     @ObservationIgnored private(set) var relayRefused: String?
     /// The last pull reached the server: everything stored up to `lastSeen` is in the document.
     @ObservationIgnored private var pulled = false
-    /// Everything the server has is in the document as of the last pull, and every change opened:
-    /// its text can stand for the note (stopping sharing writes it back as the owner's own).
-    var isUpToDate: Bool { pulled && !missing && !isClosed }
+    /// Everything the server has is in the document as of the last pull, every change opened, and
+    /// none waits for one it builds on: its text can stand for the note (stopping sharing writes it
+    /// back as the owner's own, and the server then drops every change). A held-back change isn't in
+    /// the text yet (collab-sol 3, collab-opus 1).
+    var isUpToDate: Bool { pulled && !missing && heldBack.isEmpty && !isClosed }
     @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private var retryDelay: Duration = .seconds(2)
     @ObservationIgnored private var snapshotTask: Task<Void, Never>?
@@ -169,11 +182,31 @@ final class CollabSession {
     static var snapshotRetryAfter: Duration = .seconds(20)
     /// When a change from someone else last arrived: a snapshot waits for a quiet moment.
     @ObservationIgnored private var lastArrival = Date.distantPast
-    /// A change too big to send on its own is in the document only: the next snapshot carries it.
-    @ObservationIgnored private var needsSnapshot = false
-    /// A change from the server that didn't open here: no snapshot until it does (a snapshot
-    /// without it would let the server drop it for everyone).
-    @ObservationIgnored private var missing = false
+    /// A snapshot is owed: a change too big to send on its own is in the document only (the next
+    /// snapshot carries it), or the note has a new key that devices starting out need one under.
+    /// Stored with the document (`SharedDocument.owesSnapshot`), so it's paid after a relaunch too,
+    /// and until it is the note isn't synced (collab-sol 6, collab-opus 5).
+    private var needsSnapshot: Bool {
+        get { !isClosed && record.owesSnapshot }
+        set { if !isClosed { record.owesSnapshot = newValue } }
+    }
+    /// Changes from the server that didn't open here, by id: sealed with a key this device doesn't
+    /// hold yet (someone was removed, and the membership check hasn't brought the new key), or
+    /// that didn't apply. Tried again when a key arrives (`reseal`), and asked for again by every
+    /// pull: catching up never reads past them (collab-sol 5).
+    @ObservationIgnored private var refused: [Int64: Collab.Update] = [:]
+    /// The newest snapshot didn't open here: asked for again by the next pull.
+    @ObservationIgnored private var snapshotRefused: Int64?
+    /// Something from the server didn't open here: no snapshot until it does (a snapshot without
+    /// it would let the server drop it for everyone), and the text can't stand for the note.
+    private var missing: Bool { !refused.isEmpty || snapshotRefused != nil }
+    /// Changes Automerge holds back until a change they build on arrives. A saved document leaves
+    /// them out, so they're kept here and in the stored tail, and while there are any no snapshot
+    /// goes up: something this device doesn't have yet comes before them, and a snapshot past it
+    /// would let the server drop it for everyone (collab-fixes-r7b).
+    @ObservationIgnored private var heldBack: [(bytes: Data, hash: CollabText.ChangeHash)] = []
+    /// Some change here waits for one it builds on (`heldBack`).
+    var holdsChangesBack: Bool { !heldBack.isEmpty }
     @ObservationIgnored private var mySelection: NSRange?
     @ObservationIgnored private var typingAt = Date.distantPast
     @ObservationIgnored private var presenceTask: Task<Void, Never>?
@@ -215,7 +248,10 @@ final class CollabSession {
         try CollabText.absorb(record.saved, into: doc)
         if !record.tail.isEmpty { try doc.applyEncodedChanges(encoded: record.tail) }
         guard case .Object(let body, .Text)? = try doc.get(obj: .ROOT, key: "body") else { throw CollabCrypto.Failure.malformed }
-        return CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
+        let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
+        // Held back when the app last ran: still waiting for what they build on.
+        s.hold(CollabText.changes(in: record.tail) ?? [])
+        return s
     }
 
     /// The document as the server has it, for a device that has none yet: the newest snapshot,
@@ -239,15 +275,22 @@ final class CollabSession {
             last = max(last, u.id)
         }
         guard case .Object(let body, .Text)? = try doc.get(obj: .ROOT, key: "body") else { throw CollabCrypto.Failure.malformed }
+        var held: [(bytes: Data, hash: CollabText.ChangeHash)] = []
+        for u in pull.updates {
+            guard let k = keys[u.epoch], let change = try? CollabCrypto.open(.update, u.ct, nk: k, note: record.id, extra: u.author_id.uuidString) else { continue }
+            held += (CollabText.changes(in: change) ?? []).filter { doc.change(hash: $0.hash) == nil }
+        }
         record.saved = doc.save()
-        record.tail = Data()
-        record.tailChanges = 0
+        // What the saved document leaves out (held back) stays in the tail.
+        record.tail = held.reduce(Data()) { $0 + $1.bytes }
+        record.tailChanges = held.count
         record.cursor = last
         record.snapshotUpto = pull.snapshot?.upto ?? 0
         record.sinceSnapshot = pull.updates.count
         CollabScript.trace("document loaded from the server: \(pull.updates.count) changes up to \(last), \(pull.updates.filter { $0.client != nil }.count) by an AI")
         let s = CollabSession(record: record, keys: keys, doc: doc, body: body, transport: transport, me: me, name: name)
         s.applied = Set(pull.updates.map(\.id))
+        s.hold(held)
         return s
     }
 
@@ -266,10 +309,14 @@ final class CollabSession {
         self.me = me
         nameSource = name
         text = (try? doc.text(obj: body)) ?? ""
-        isSent = record.outbox.isEmpty
+        isSent = record.outbox.isEmpty && !record.owesSnapshot
         // Changes typed here before (offline, then the app quit) still wait.
         if !isSent { waitingSince = .now }
     }
+
+    /// Nothing of yours waits: no change to send, and no snapshot owed (one carries a change too big
+    /// to send on its own).
+    private var allSent: Bool { record.outbox.isEmpty && !record.owesSnapshot }
 
     /// Every change to `isSent`, so a wait is timed from its start to the moment it ends.
     private func setSent(_ sent: Bool) {
@@ -295,12 +342,40 @@ final class CollabSession {
         waitingSince = now
     }
 
-    /// Your role changed (the server said so).
+    /// Your role changed (the server said so: your memberships, the members list, or a change
+    /// refused as read-only). People in the note says so too, at once: the view-only check reads
+    /// your row there first (`isViewOnly`), so a stale row there kept a demoted editor typing.
     func setRole(_ r: String) {
-        guard !isClosed, r != role else { return }
+        guard !isClosed else { return }
+        if let i = members.firstIndex(where: { $0.id == me }), members[i].role != r { members[i].role = r }
+        guard r != role else { return }
         role = r
         record.role = r
         saveSoon()
+    }
+
+    /// Another session made for this note's record that isn't kept (SharedLibrary.open): its
+    /// document merges into this one (Automerge merges are safe in any order) and it closes without
+    /// writing to the record, which this one stores from now on.
+    func takeIn(_ other: CollabSession) {
+        guard other !== self else { return }
+        other.closed = true
+        other.pulling?.cancel()
+        guard !isClosed else { return }
+        try? doc.merge(other: other.doc)
+        for h in other.heldBack { try? doc.applyEncodedChanges(encoded: h.bytes) }
+        hold(other.heldBack)
+        applied.formUnion(other.applied)
+        for (e, k) in other.keys where keys[e] == nil { keys[e] = k }
+        if other.epoch > epoch, keys[other.epoch] != nil { epoch = other.epoch }
+        for (id, u) in other.refused where !applied.contains(id) { refused[id] = u }
+        _ = takeRefused()
+        record.saved = doc.save()
+        record.tail = heldBack.reduce(Data()) { $0 + $1.bytes }
+        record.tailChanges = heldBack.count
+        textChanged()
+        saveSoon()
+        catchUp()
     }
 
     /// For good: the session stops, before its storage is deleted.
@@ -320,9 +395,23 @@ final class CollabSession {
         self.epoch = epoch
         record.epoch = epoch
         onResealed?(nk, epoch)
+        // Changes that came under this key before this device had it go in now.
+        if takeRefused() { textChanged() }
         saveSoon()
         sendPresence()
         flush()
+        // And anything else that didn't open (a snapshot under it) is asked for again.
+        catchUp()
+    }
+
+    /// Takes the changes that didn't open before, oldest first, now that a key may have arrived.
+    /// Whether any went in.
+    private func takeRefused() -> Bool {
+        guard !isClosed, !refused.isEmpty else { return false }
+        var took = false
+        for u in refused.values.sorted(by: { $0.id < $1.id }) where take(u) { took = true }
+        if took { saveSoon() }
+        return took
     }
 
     /// The whole document sealed, for the server to hand to devices starting out.
@@ -393,6 +482,9 @@ final class CollabSession {
         onMembers?(rows)
         members = rows.map { Member(id: $0.user_id, name: $0.display_name ?? "Someone", role: $0.role,
                                     publicKey: $0.public_key.flatMap { Data(base64Encoded: $0) }, accepted: $0.accepted, avatarPath: $0.avatar_path) }
+        // The owner changed what you can do: the note's record follows, so a note made editable
+        // again takes your typing (`record.canEdit`), and one made view only stops taking it.
+        if let mine = myRole, mine != role { setRole(mine) }
     }
 
     /// Takes in every change the server has after this device's cursor (and the snapshot, when
@@ -440,16 +532,23 @@ final class CollabSession {
             if let k = keys[s.epoch], let saved = try? CollabCrypto.open(.snapshot, s.ct, nk: k, note: noteID, extra: String(s.upto)) {
                 if (try? CollabText.absorb(saved, into: doc)) != nil {
                     keep(saved)
+                    hold([])
                     changed = true
                     CollabScript.trace("snapshot up to \(s.upto) taken by catch-up")
                 }
                 record.cursor = max(record.cursor, s.upto)
                 record.snapshotUpto = max(record.snapshotUpto, s.upto)
                 record.sinceSnapshot = 0
+                // Whoever wrote it had every change up to it: those that didn't open here are in it.
+                refused = refused.filter { $0.key > s.upto }
+                snapshotRefused = nil
             } else {
                 log.error("a snapshot didn't open here")
-                missing = true
+                snapshotRefused = s.upto
             }
+        } else {
+            // None newer than what this device has.
+            snapshotRefused = nil
         }
         var newest = record.cursor
         // An AI's change among them: the text from just before the first one, to mark what it changed.
@@ -472,6 +571,10 @@ final class CollabSession {
         }
         // Which way each change came, for the two-phone runs: a change taken here was not relayed.
         if !taken.isEmpty { CollabScript.trace("catch-up took \(taken.count == 1 ? "change \(taken[0])" : "\(taken.count) changes, \(taken[0]) to \(taken.last!)"), not relayed") }
+        // Never past something that didn't open: after a relaunch (which forgets `refused`) the
+        // next pull asks for it again, however many came after it.
+        if let first = refused.keys.min() { newest = min(newest, first - 1) }
+        if let upto = snapshotRefused { newest = min(newest, upto - 1) }
         record.cursor = newest
         saveSoon()
         if changed { textChanged() }
@@ -501,9 +604,13 @@ final class CollabSession {
             relayRefused = nil
             catchUp()
             flush()
+            // Back on the channel after a drop: the others see you again now, not on the next beat.
+            sendPresence()
         case .membersChanged:
             CollabScript.trace("who's in the note changed: checking memberships")
             onMembersChanged?()
+            // Someone's role may have changed (yours too): People and the view-only check follow now.
+            Task { await refreshMembers() }
         case .notRelaying(let why):
             // Said again each time Realtime tries (every 5 to 10 seconds): told once, until it changes.
             if relayRefused != why {
@@ -518,9 +625,11 @@ final class CollabSession {
             let wasHere = peers[user] != nil
             peer.name = p.name
             peer.heardAt = .now
-            if peer.caret != p.caret || peer.end != p.end { peer.movedAt = .now }
-            peer.caret = p.caret
-            peer.end = p.end
+            // Their caret waits for the text it was taken against (resolvePeers). From an older
+            // app, without heads, it's shown at once.
+            let heads = p.heads.flatMap { Data(base64Encoded: $0) }.flatMap { $0.heads() } ?? []
+            peer.waiting.append(WaitingCaret(caret: p.caret, end: p.end, heads: heads, since: .now))
+            if peer.waiting.count > Self.waitingCarets { peer.waiting.removeFirst(peer.waiting.count - Self.waitingCarets) }
             if p.typing == true { peer.typingUntil = .now.addingTimeInterval(1.6); peer.movedAt = .now }
             peers[user] = peer
             resolvePeers()
@@ -535,28 +644,32 @@ final class CollabSession {
 
     /// One change from the server into the document (and its storage). Your own come back too:
     /// from another of your devices they're new here; from this one Automerge already has them.
-    /// Returns whether it was new.
+    /// Returns whether it was new. One that doesn't open (no key for it yet, say) isn't taken: it's
+    /// kept to try again (`refused`).
     private func take(_ u: Collab.Update) -> Bool {
         guard u.note_id == noteID, !applied.contains(u.id) else { return false }
-        applied.insert(u.id)
-        record.sinceSnapshot += 1
         if u.author_id != me { lastArrival = .now }
         guard let k = keys[u.epoch] else {
             log.error("a change sealed with a key this device doesn't hold (epoch \(u.epoch))")
-            missing = true
+            refused[u.id] = u
             return false
         }
         do {
             let change = try CollabCrypto.open(.update, u.ct, nk: k, note: noteID, extra: u.author_id.uuidString)
             let heads = u.client == nil ? nil : doc.heads()
             try CollabText.absorb(change, into: doc)
+            applied.insert(u.id)
+            refused[u.id] = nil
+            record.sinceSnapshot += 1
+            // Before it's kept: keeping can compact, which keeps only what's known to be held back.
+            hold(CollabText.changes(in: change) ?? [])
             keep(change)
             // An AI's change that didn't go in: Automerge holds it back for one it builds on.
             if let heads, doc.heads() == heads { hold(u, change) }
             return true
         } catch {
             log.error("a change didn't open or apply: \(String(describing: error), privacy: .public)")
-            missing = true
+            refused[u.id] = u
             return false
         }
     }
@@ -762,11 +875,13 @@ final class CollabSession {
     /// Sends the changes waiting to go up, oldest first, one at a time. Offline (or any failure
     /// that may pass), they stay, saved, and go when the server answers again.
     func flush() {
-        guard !isClosed, !sending, !record.outbox.isEmpty else { setSent(record.outbox.isEmpty); return }
+        guard !isClosed else { return }
+        guard !sending, !record.outbox.isEmpty else { setSent(allSent); return }
         guard record.canEdit else {
             // A viewer's edits are refused by the server: they stay on this device only until
             // the document is opened again.
             record.pending = []
+            needsSnapshot = false
             setSent(true)
             return
         }
@@ -776,7 +891,7 @@ final class CollabSession {
             let outcome = await sendPending()
             sending = false
             guard !isClosed else { return }
-            setSent(record.pending.isEmpty)
+            setSent(allSent)
             saveSoon()
             switch outcome {
             case .done:
@@ -827,6 +942,7 @@ final class CollabSession {
                 case .readOnly:
                     setRole("viewer")
                     record.pending = []
+                    needsSnapshot = false
                     return .stop
                 case .notMember:
                     onRemoved?()
@@ -881,8 +997,19 @@ final class CollabSession {
     func compact() {
         guard !isClosed, record.tailChanges > 0 else { return }
         record.saved = doc.save()
-        record.tail = Data()
-        record.tailChanges = 0
+        // A saved document leaves out what Automerge holds back: those stay in the tail.
+        hold([])
+        record.tail = heldBack.reduce(Data()) { $0 + $1.bytes }
+        record.tailChanges = heldBack.count
+    }
+
+    /// Notes which of `changes` Automerge held back, and lets go of held ones that went in since.
+    private func hold(_ changes: [(bytes: Data, hash: CollabText.ChangeHash)]) {
+        heldBack.removeAll { doc.change(hash: $0.hash) != nil }
+        for c in changes where doc.change(hash: c.hash) == nil && !heldBack.contains(where: { $0.hash == c.hash }) {
+            heldBack.append(c)
+            CollabScript.trace("a change held back for one it builds on that isn't here yet")
+        }
     }
 
     /// Stored a moment after the last change, as the editor saves a note: once per pause in
@@ -919,7 +1046,7 @@ final class CollabSession {
     func writeSnapshot() async {
         guard !isClosed, record.canEdit else { return }
         await catchUp().value
-        guard !isClosed, !missing, record.pending.isEmpty else { retrySnapshotLater(); return }
+        guard !isClosed, !missing, heldBack.isEmpty, record.pending.isEmpty else { retrySnapshotLater(); return }
         let upto = record.cursor
         guard let ct = try? sealedSnapshot(upto: upto), ct.utf8.count <= Self.maxSnapshot else {
             log.error("a snapshot is over the server's limit and can't go up")
@@ -931,6 +1058,7 @@ final class CollabSession {
             record.snapshotUpto = max(record.snapshotUpto, upto)
             record.sinceSnapshot = 0
             needsSnapshot = false
+            setSent(allSent)
             compact()
             saveSoon()
         } catch {
@@ -942,18 +1070,21 @@ final class CollabSession {
     /// The note has a new key: a snapshot under it is needed now, because devices that start out
     /// (and people who join) have only the new key. Written at once, and tried again until it's in.
     func requireSnapshot() async {
+        guard !isClosed, record.canEdit else { return }
         needsSnapshot = true
+        setSent(false)
+        saveSoon()
         await writeSnapshot()
     }
 
     /// A needed snapshot that didn't go up goes again a little later, until one does.
     private func retrySnapshotLater() {
-        guard needsSnapshot, !isClosed, snapshotRetry == nil else { return }
+        guard !isClosed, needsSnapshot, snapshotRetry == nil else { return }
         snapshotRetry = Task { [weak self] in
             try? await Task.sleep(for: Self.snapshotRetryAfter)
             guard let self, !Task.isCancelled else { return }
             snapshotRetry = nil
-            guard needsSnapshot, !isClosed else { return }
+            guard !isClosed, needsSnapshot else { return }
             await writeSnapshot()
         }
     }
@@ -963,12 +1094,24 @@ final class CollabSession {
 
     // MARK: Presence
 
+    /// What goes out as your presence, sealed, as JSON. Every field but `name` is optional, and
+    /// decoding ignores fields it doesn't know, so apps older and newer than each other read it.
     private struct Presence: Codable {
         var name: String
         var caret: Anchor?
         var end: Anchor?
         var typing: Bool?
+        /// Your document's heads when the caret was taken (Automerge change hashes, 32 bytes each,
+        /// joined, in base64). Your caret can reach the others before the change it follows, which
+        /// goes by the server; they show it once their document has these. Since 1.4.
+        var heads: String?
     }
+
+    /// Carets kept per person while their text is on its way: a few seconds of fast typing.
+    static let waitingCarets = 64
+    /// A caret whose text hasn't arrived after this long is shown anyway, where it resolves (a
+    /// change of theirs this device may never get: one the server refused, say).
+    @ObservationIgnored var caretWaitsAtMost: TimeInterval = 5
 
     /// The anchor for a UTF-16 offset in this document's text.
     func anchor(at offset: Int) -> Anchor? { CollabText.anchor(in: doc, body, at: offset) }
@@ -980,6 +1123,7 @@ final class CollabSession {
     /// Every peer's caret against the text as it is now. One that can't resolve yet keeps where it was.
     private func resolvePeers() {
         defer { onCarets?(remoteCarets) }
+        takeArrivedCarets()
         for (id, p) in peers {
             // Not editing: no caret to show.
             guard p.caret != nil else { if p.selection != nil { peers[id]?.selection = nil }; continue }
@@ -990,12 +1134,43 @@ final class CollabSession {
         }
     }
 
+    /// Each person's newest waiting caret whose text this document has (or that waited too long)
+    /// becomes their caret; the ones before it go. Their heads only grow, so once one hasn't
+    /// arrived, none after it has: each look stops at the first still waiting.
+    private func takeArrivedCarets(now: Date = .now) {
+        var heads: Set<CollabText.ChangeHash>?
+        for (id, p) in peers where !p.waiting.isEmpty {
+            var taken = 0
+            for w in p.waiting {
+                guard now.timeIntervalSince(w.since) >= caretWaitsAtMost || has(w.heads, heads: &heads) else { break }
+                taken += 1
+            }
+            guard taken > 0 else { continue }
+            var peer = p
+            let w = p.waiting[taken - 1]
+            if peer.caret != w.caret || peer.end != w.end { peer.movedAt = now }
+            peer.caret = w.caret
+            peer.end = w.end
+            peer.waiting.removeFirst(taken)
+            peers[id] = peer
+        }
+    }
+
+    /// Whether this document holds every one of these changes. `heads` is this document's, read once.
+    private func has(_ changes: Set<CollabText.ChangeHash>, heads: inout Set<CollabText.ChangeHash>?) -> Bool {
+        if changes.isEmpty { return true }
+        let mine = heads ?? doc.heads()
+        heads = mine
+        return changes.allSatisfy { mine.contains($0) || doc.change(hash: $0) != nil }
+    }
+
     private func sendPresence() {
         guard let channel, keys[epoch] != nil else { return }
         let sel = mySelection
         let p = Presence(name: myName, caret: sel.flatMap { anchor(at: $0.location) },
                          end: sel.flatMap { $0.length > 0 ? anchor(at: NSMaxRange($0)) : nil },
-                         typing: Date.now.timeIntervalSince(typingAt) < 1.2)
+                         typing: Date.now.timeIntervalSince(typingAt) < 1.2,
+                         heads: sel == nil ? nil : doc.heads().raw().base64EncodedString())
         guard let data = try? JSONEncoder().encode(p),
               let ct = try? CollabCrypto.seal(.presence, data, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString) else { return }
         channel.send(presence: ct)

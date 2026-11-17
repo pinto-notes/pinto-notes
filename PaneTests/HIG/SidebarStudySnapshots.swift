@@ -101,7 +101,7 @@ import Testing
         try await AppSnapshotTests.shoot(window(both, library: lib, over: gallery), name: "study-templates-\(mode)", size: Self.size, dark: dark, wait: 1.0)
     }
 
-    /// The foot (Templates, Connect an AI, Import, the account) under the folder rows, at rest and
+    /// The foot (Templates and the account) under the folder rows, at rest and
     /// with a folder, a row and the account under the pointer, light and dark: every pill the same
     /// shape, in the same place, the icons and names on one line. Into a folder with
     /// `TEST_RUNNER_AMBER_HIG_SHOTS=/path scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/foot(dark:)'`.
@@ -123,7 +123,7 @@ import Testing
                 .modelContainer(lib)
         }
         try await AppSnapshotTests.render(sidebar([]), name: "sidebar-foot-rest-\(mode)", dark: dark)
-        try await AppSnapshotTests.render(sidebar(["Travel", "sidebar.connectAI", "sidebar.account"]), name: "sidebar-foot-hover-\(mode)", dark: dark)
+        try await AppSnapshotTests.render(sidebar(["Travel", "sidebar.templates", "sidebar.account"]), name: "sidebar-foot-hover-\(mode)", dark: dark)
         try await AppSnapshotTests.render(sidebar(["*"]), name: "sidebar-foot-hover-all-\(mode)", dark: dark)
     }
 
@@ -166,6 +166,23 @@ import Testing
                 let view = window(SidebarStudy(), library: lib, over: card(start, search: search))
                 try await AppSnapshotTests.shoot(view, name: "mac-settings-card-\(name)", size: Self.size, dark: dark, wait: 1.2)
             }
+        }
+    }
+
+    /// Settings › General with Import Notes…, what the sidebar's notice says Settings does, light
+    /// and dark. `AMBER_HIG_SHOTS=/path scripts/qa-test.sh 'PaneTests/SidebarStudySnapshots/settingsGeneral(dark:)'`.
+    @Test(arguments: [false, true])
+    func settingsGeneral(dark: Bool) async throws {
+        guard AppSnapshotTests.dir != nil else { return }
+        let lib = try Self.library()
+        var v = try await AppSnapshotTests.settingsFixture()
+        ProfileStore.shared.showForPreview(name: "Sara Lind", photo: nil)
+        defer { ProfileStore.shared.showForPreview(name: nil, photo: nil) }
+        v.start = .general
+        v.close = {}
+        try await AppSnapshotTests.withLastNote(lib, "Trip documents") {
+            try await AppSnapshotTests.shoot(window(SidebarStudy(), library: lib, over: v), name: "settings-general-import-\(dark ? "dark" : "light")",
+                                             size: Self.size, dark: dark, wait: 1.2)
         }
     }
 
@@ -278,23 +295,17 @@ import Testing
         }
     }
 
-    /// The app carries every template of the website, and the kinds and search narrow them.
+    /// The app carries every template of the website: the front page has each, and Search finds them.
     @Test func theLibraryHasEveryTemplate() {
         let c = TemplateCatalog.shipped
         #expect(c.entries.count >= 23)
-        #expect(c.shown(filter: "All", query: "").count == c.entries.count)
-        let apps = c.shown(filter: "Apps", query: "").allSatisfy(\.app)
-        let work = c.shown(filter: "Work", query: "").allSatisfy { $0.category == "Work" }
-        let found = c.shown(filter: "All", query: "trip").map(\.slug)
+        #expect(TemplateFront.shipped.order(for: c).count == c.entries.count)
+        let found = TemplateAsk.answers("trip", in: c.entries).map(\.entry.slug)
         let covers = c.entries.filter { Bundle.main.url(forResource: "template-cover-\($0.slug)", withExtension: "jpg") == nil }.map(\.slug)
-        #expect(apps && work)
         #expect(found.contains("trip-plan"))
         #expect(covers.isEmpty)
         #expect(SetupCards.prompt(c.entries[0].pick).hasPrefix("In Pinto Notes, use my Habit tracker note."))
         // In use: every template has its filled-in note, and every app its picture.
-        // The cards fill the row: five across 1000 pt, none narrower than the gallery's.
-        let w = TemplateLibraryView.cardWidth(row: 992, gap: 16)
-        #expect(w >= SetupTemplateCard.size.width && 5 * w + 4 * 16 <= 992 && 5 * w + 4 * 16 > 992 - 5)
         let bare = c.entries.filter { $0.example.isEmpty || ($0.app && $0.appPicture(dark: false) == nil) }.map(\.slug)
         #expect(bare.isEmpty)
     }

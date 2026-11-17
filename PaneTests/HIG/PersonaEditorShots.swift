@@ -6,15 +6,15 @@ import Testing
 @testable import Pane
 
 /// Before and after pictures for the persona council's editor round (4 November 2026): Untick
-/// All, the links foot, text size, the empty note pane and Notion on the import list. The same
+/// All, text size, the empty note pane and Notion on the import list. (The links foot it also
+/// drew went on 12 November 2026: what links here is in the note's ••• menu now.) The same
 /// file draws the before on release/1.3 (with the after-only parts compiled out) and the after on
 /// the branch. Real notes windows, titled and never shown; nothing touches the screen.
 /// Runs only when PERSONA_SHOTS is set; PERSONA_SIDE names the side:
 /// `TEST_RUNNER_PERSONA_SHOTS=/tmp/shots TEST_RUNNER_PERSONA_SIDE=after scripts/qa-test.sh PaneTests/PersonaEditorShots`
-@MainActor @Suite(.serialized) struct PersonaEditorShots {
+extension PersonaEditorShots {
     static var dir: URL? { ProcessInfo.processInfo.environment["PERSONA_SHOTS"].map { URL(fileURLWithPath: $0) } }
     static var side: String { ProcessInfo.processInfo.environment["PERSONA_SIDE"] ?? "after" }
-    static let size = CGSize(width: 1180, height: 760)
     static let modes: [(dark: Bool, name: String)] = [(false, "light"), (true, "dark")]
 
     static func url(_ slug: String, _ name: String) throws -> URL {
@@ -27,72 +27,6 @@ import Testing
         try #require(rep.representation(using: .png, properties: [:])).write(to: url(slug, name))
     }
 
-    /// The demo library, with Weekend plans and Packing list linking Lisbon (as `-demoLinks`
-    /// makes them) and a short Sintra note that Weekend plans links and Lisbon mentions.
-    static func library() throws -> ModelContainer {
-        let c = try AppSnapshotTests.container()
-        let context = c.mainContext
-        let travel = try #require(context.allFolders().first { $0.name == "Travel" })
-        let weekend = context.createNote(in: .folder(travel.id), body: "Weekend plans\n\n- [ ] Flights for [[Lisbon]] on Thursday\n- [ ] Ask Sara about [[Lisbon#Food|where to eat]]\n- [ ] Train to [[Sintra]] on Saturday")
-        weekend.updatedAt = .now.addingTimeInterval(-2 * 3600)
-        let packing = context.createNote(in: .folder(travel.id), body: "Packing list\n\nRain jacket and good shoes for **[[Lisbon]]**, the hills are real.")
-        packing.updatedAt = .now.addingTimeInterval(-26 * 3600)
-        let sintra = context.createNote(in: .folder(travel.id), body: "Sintra\n\nA day by train from Rossio. Pena Palace first, then the Moorish castle.")
-        sintra.updatedAt = .now.addingTimeInterval(-30 * 3600)
-        try context.save()
-        WikiDirectory.invalidate()
-        return c
-    }
-
-    /// The notes window over `c` with `note` open, drawn at 2x after `prepare`.
-    static func window(_ c: ModelContainer, note: String, dark: Bool, _ body: (NSWindow) async throws -> Void) async throws {
-        try await AppSnapshotTests.withLastNote(c, note) {
-            let w = MacWindowChromeTests.window(c, size: size)
-            w.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-            defer { w.close() }
-            await MacWindowChromeTests.settle(w, 16)
-            // The list from its top (opened from below, it slides under the list's header off screen).
-            try MacEmptyDetailTests.list(w).scrollRowToVisible(0)
-            await MacWindowChromeTests.settle(w, 3)
-            try await body(w)
-        }
-    }
-
-    /// The notes list and the note, title bar included, at 2x. The sidebar's glass and the
-    /// toolbar's glass buttons can't be drawn off screen (they come out white): the buttons'
-    /// platters are hidden and the picture starts at the list.
-    static func picture(_ w: NSWindow) throws -> NSBitmapImageRep {
-        let frame = try #require(w.contentView?.superview)
-        var hidden: [NSView] = []
-        func hide(_ v: NSView) {
-            if !v.isHidden, ["NSToolbarPlatterView", "NSGlassContainerView"].contains(String(describing: type(of: v))) { v.isHidden = true; hidden.append(v); return }
-            v.subviews.forEach(hide)
-        }
-        hide(frame)
-        defer { hidden.forEach { $0.isHidden = false } }
-        let full = try MacEmptyDetailTests.picture(w)
-        let table = try MacEmptyDetailTests.list(w)
-        let left = table.convert(table.bounds, to: nil).minX
-        let scale = CGFloat(full.pixelsWide) / frame.bounds.width
-        let image = try #require(full.cgImage?.cropping(to: CGRect(x: (left * scale).rounded(), y: 0, width: CGFloat(full.pixelsWide) - (left * scale).rounded(), height: CGFloat(full.pixelsHigh))))
-        return NSBitmapImageRep(cgImage: image)
-    }
-
-    static func editor(_ w: NSWindow) throws -> PaneTextView {
-        try #require(w.contentView.flatMap { MacWindowChromeTests.find(PaneTextView.self, in: $0) })
-    }
-
-    /// Scrolls the note to its foot.
-    static func scrollToEnd(_ w: NSWindow) async throws {
-        let sv = try #require(try editor(w).enclosingScrollView)
-        for _ in 0..<3 {
-            let doc = try #require(sv.documentView)
-            sv.contentView.scroll(to: NSPoint(x: 0, y: max(0, doc.frame.height - sv.contentView.bounds.height)))
-            sv.reflectScrolledClipView(sv.contentView)
-            await MacWindowChromeTests.settle(w, 4)
-        }
-    }
-
     /// Keeps the defaults a shot changes and puts them back.
     static func keeping(_ keys: [String], _ body: () async throws -> Void) async throws {
         let d = UserDefaults.standard
@@ -100,8 +34,6 @@ import Testing
         defer { for (k, v) in zip(keys, kept) { if let v { d.set(v, forKey: k) } else { d.removeObject(forKey: k) } } }
         try await body()
     }
-
-    static let linkKeys = ["noteLinks.linkedShown", "noteLinks.mentionsShown", "noteLinks.footShown"]
 
     // MARK: - 1. Untick All (Maya)
 
@@ -122,38 +54,6 @@ import Testing
                 #expect(!tv.string.contains("- [x]"))
                 #endif
                 try Self.save(try Self.picture(w), "untick-all", "groceries-\(m.name)")
-            }
-        }
-    }
-
-    // MARK: - 2. The links foot (Elena, Jonas)
-
-    /// A short note (Sintra) and the end of a long one (Lisbon), as each opens; after: folded,
-    /// then unfolded.
-    @Test func linksFoot() async throws {
-        guard Self.dir != nil else { return }
-        let c = try Self.library()
-        try await Self.keeping(Self.linkKeys) {
-            var states: [(name: String, shown: Bool?)] = [("", nil)]
-            #if !PERSONA_BEFORE
-            states = [("-folded", false), ("-unfolded", true)]
-            #endif
-            for state in states {
-                Self.linkKeys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-                #if !PERSONA_BEFORE
-                if let shown = state.shown { UserDefaults.standard.set(shown, forKey: NoteLinksSection.shownKey) }
-                #endif
-                for m in Self.modes {
-                    try await Self.window(c, note: "Sintra", dark: m.dark) { w in
-                        await MacWindowChromeTests.settle(w, 10)
-                        try Self.save(try Self.picture(w), "links-foot", "short-note\(state.name)-\(m.name)")
-                    }
-                    try await Self.window(c, note: "Lisbon", dark: m.dark) { w in
-                        await MacWindowChromeTests.settle(w, 10)
-                        try await Self.scrollToEnd(w)
-                        try Self.save(try Self.picture(w), "links-foot", "long-note-end\(state.name)-\(m.name)")
-                    }
-                }
             }
         }
     }

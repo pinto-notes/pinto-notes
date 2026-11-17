@@ -107,8 +107,9 @@ struct SettingsView: View {
             if let client = backend.client { AIConnectionPage(client: client, preview: connections) }
         case .addAI:
             if let client = backend.client { AddAIPage(client: client, preview: connections) }
-        case .general: GeneralSettingsPage()
+        case .general: GeneralSettingsPage(close: closeSettings)
         case .todaysNote: TodaysNoteSettingsPage()
+        case .experimental: ExperimentalSettingsPage()
         case .shortcuts:
             #if os(macOS)
             KeyboardShortcutsSettingsPage()
@@ -117,7 +118,7 @@ struct SettingsView: View {
             #endif
         case .appearance: AppearanceSettingsPage()
         case .storage: StorageSettingsPage(backend: backend)
-        case .help: HelpSettingsPage(signedIn: isSignedIn, close: closeSettings)
+        case .help: HelpSettingsPage(signedIn: isSignedIn, film: NotebookFilmStore.canRewatch(backend.userID), filmMonths: NotebookFilmStore.keptMonths(backend.userID), close: closeSettings)
         case .security:
             if isSignedIn, crypto.isReady {
                 // Two rows: Encryption, one level down, and Diagnostics (Emil, 7 November 2026).
@@ -276,6 +277,8 @@ enum GeneralCopy {
     static let typeShortcut = "Type a shortcut\u{2026}"
     static let cancelRecording = "Cancel"
     static let login = "Open at login"
+    static let importNotes = "Import Notes\u{2026}"
+    static let importDetail = "From Apple Notes, Obsidian, Notion and more."
 }
 
 /// What General's menus offer: your folders, and the notes a day can start from.
@@ -335,7 +338,6 @@ struct SignOutButton: View {
     /// A button of its own at the end of Account (the Mac's, as System Settings has it), not a row.
     var compact = false
     @Environment(\.modelContext) private var context
-    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var flow: SignOutFlow?
 
     var body: some View {

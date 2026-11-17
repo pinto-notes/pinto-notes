@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SwiftData
 import Testing
@@ -161,5 +162,30 @@ import Testing
         let only = Folder(name: "Shared with me"); only.sortIndex = -1; ctx2.insert(only)
         let n = ctx2.createNote(in: .all, body: "Plan")
         #expect(n.folder?.name == "Notes")
+    }
+
+    /// iPhone's Edit renumbered every top-level folder from 1, Shared with me too, and new notes in
+    /// All Notes went into it again (it then sorted first with an ordinary index). It keeps its place
+    /// now, and it's known by its id when the key is open, whatever its index.
+    @Test func reorderingFoldersKeepsNewNotesOutOfSharedWithMe() throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = ModelContext(c)
+        let notes = ctx.createFolder(named: "Notes")
+        let work = ctx.createFolder(named: "Work")
+        let shared = Folder(name: "Shared with me")
+        shared.sortIndex = -1
+        ctx.insert(shared)
+        ctx.reorder(work, to: 2)
+        #expect(shared.sortIndex == -1)
+        #expect(ctx.createNote(in: .all, body: "Plan").folder?.id == notes.id)
+
+        // Its index lost on another device: with the key open it's still known by its id.
+        let key = SymmetricKey(size: .bits256)
+        let byID = Folder(name: "Shared with me")
+        byID.id = SharedNotes.sharedWithMeID(dataKey: key)
+        byID.sortIndex = 0
+        #expect(ModelContext.isSharedWithMe(byID, dataKey: key))
+        #expect(!ModelContext.isSharedWithMe(byID, dataKey: nil))
+        #expect(!ModelContext.isSharedWithMe(notes, dataKey: key))
     }
 }

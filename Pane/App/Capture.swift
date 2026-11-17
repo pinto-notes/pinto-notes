@@ -813,3 +813,40 @@ enum AIEditSplit {
     }
 }
 #endif
+
+/// A Recipes folder with covers and icons, shown as a gallery, for recordings (`-uitest`):
+///   `-recipes /path/to/photos`   pasta.png, kanelbullar.png… in that folder
+/// The pancakes and the shopping list have no picture; the shopping list no icon.
+extension Capture {
+    static let recipes: [(icon: String, photo: String, body: String)] = [
+        ("🍋", "pasta", "Lemon pasta\n\n20 min. Serves 4.\n\n## Ingredients\n\n- [ ] 400 g spaghetti\n- [ ] 2 lemons, zest and juice\n- [ ] 60 g butter\n- [ ] 80 g parmesan, finely grated\n\n## Method\n\n1. Boil the spaghetti in well salted water. Keep a cup of the water.\n2. Melt the butter in a wide pan with the lemon zest.\n3. Toss the pasta in with a splash of the water.\n"),
+        ("🥐", "kanelbullar", "Mormor's kanelbullar\n\nFor Sunday fika. Makes 24.\n"),
+        ("🍲", "meatballs", "Mormor's meatballs\n\nFrom Greta, 1974.\n"),
+        ("🍳", "shakshuka", "Shakshuka\n\nEggs in spicy tomato, for two.\n"),
+        ("🌮", "tacos", "Fish tacos\n\nCod, pickled onion, lime.\n"),
+        ("🍞", "sourdough", "Sourdough loaf\n\nStarter the night before.\n"),
+        ("🍪", "cookies", "Brown butter cookies\n\nFlaky salt on top.\n"),
+        ("🥞", "", "Sunday pancakes\n\n3 eggs, 3 dl milk, 2 dl flour, a pinch of salt. Rest the batter for 30 minutes.\n"),
+        ("", "", "Shopping list\n\n- [ ] Oat milk\n- [ ] Lemons\n- [ ] Parmesan\n- [x] Basil\n- [ ] Flaky salt\n"),
+    ]
+
+    @MainActor static func recipesFromArguments(_ context: ModelContext) {
+        guard ProcessInfo.processInfo.arguments.contains("-uitest"), let dir = argument("-recipes") else { return }
+        let photos = URL(fileURLWithPath: dir)
+        let folder = context.createFolder(named: "Recipes")
+        for (i, r) in recipes.enumerated() {
+            var body = r.icon.isEmpty ? r.body : r.icon + " " + r.body
+            if !r.photo.isEmpty, let file = try? FileStore.importFile(at: photos.appending(path: "\(r.photo).png")) {
+                context.insert(file)
+                body = NoteCover.setting(NoteCover.line(id: file.id, filename: file.filename), in: body)
+            }
+            let note = context.createNote(in: .folder(folder.id), body: body)
+            note.updatedAt = .now.addingTimeInterval(Double(-i) * 3600)
+        }
+        // One more, plain, for adding a cover and an icon to on camera.
+        let plain = context.createNote(in: .folder(folder.id), body: "Green curry\n\nThai basil, coconut milk.\n")
+        plain.updatedAt = .now.addingTimeInterval(-86400)
+        try? context.save()
+        ListOrderStore.shared.setGallery(true, for: .folder(folder.id))
+    }
+}

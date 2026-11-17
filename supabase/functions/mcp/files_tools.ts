@@ -18,7 +18,7 @@ import { appHandlers, realPreviewsServed } from "./app_tools.ts";
 import { FILE_APP_INSTRUCTIONS } from "./page_guide.ts";
 import { pageDataProblems, type PageData } from "./page.ts";
 import {
-  bodyOf, Content, descendants, findFolder, handlers as classic, iso, LOCKED, MAX_READ_CHARS,
+  bodyOf, Content, descendants, findFolder, folders, handlers as classic, iso, LOCKED, MAX_READ_CHARS,
   type Note, type NoteRow, quote, refuseLocked, runIn, save, Scan, type Tool, type ToolContext, ToolError, type Tx, type Call, UUID,
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
@@ -81,7 +81,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "create", title: "Create",
-    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed; with no folder it goes in the first folder, usually Notes) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -112,7 +112,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -183,7 +183,7 @@ export const ABOUT_ME_INSTRUCTIONS = `If the person has a note titled "About me"
  *  format rules live where they're needed (the tools' checks and descriptions, an app's README). */
 export const FILE_INSTRUCTIONS = `Pinto Notes is the person's notes, as files: each note is a markdown file in folders ("Work/Acme.md"; its first line is its title). A note's sub-notes and files are in the folder with its name ("Work/Acme/Agenda.md", "Work/Acme/contract.pdf"); folders also hold files of their own ("To read/Paper.pdf").
 ${ABOUT_ME_INSTRUCTIONS}
-In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title (renaming a note with move, edit or write updates the links to it; fetch lists what links to a note).
+In a note, a checklist item is "- [ ] item" (tick it by editing it to "- [x] item"), a table is a markdown table (a tracker has a <!-- pane-table: … --> line above it giving each column's type; fetch gives today's date), and [[Title]], [[Title|shown text]] or [[Title#Heading]] links to another note by its title (renaming a note with move, edit or write updates the links to it; fetch lists what links to a note). A tag is #name in the text ("#needs-review", "#work/clients"; no spaces): the person sees it as a coloured label and finds every note with it in the sidebar, so tag notes when they ask you to sort or flag them, on the line of tags under the title.
 A note listed with locked: true is locked by the person with a separate password: it shows here as "Locked note", without its title or text, and only they can open it, in Pinto Notes. Deleted notes stay in "Recently Deleted/" for 30 days, and every change keeps the version before it (history, restore).
 ${FILE_APP_INSTRUCTIONS}
 Read before you edit; edit and write answer with checks: fix what they report.`;
@@ -690,6 +690,9 @@ async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folde
   return { folder: (await findFolder(tx, c.v, dir, true)).id };
 }
 
+/** The app's "Shared with me" folder, which holds the notes other people shared: never a default place. */
+const isSharedWithMe = (f: { sort_index: number; name: string }) => f.sort_index < 0 && f.name === SHARED_DIR.slice(0, -1);
+
 /** Makes a note at a path; its first line is its name. */
 async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = false): Promise<{ path: string; id: string; checks: string[]; linked_from?: string }> {
   const P = await pathsOf(tx, c);
@@ -699,9 +702,18 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
   if (P.at(parts.concat(name).join("/") + ".md")) throw new ToolError(`"${parts.concat(name).join("/")}.md" already exists. Read it, then change it with edit or write.`);
   // A locked note shows as "Locked note.md": one with this name in the same place would make its
   // [[links]] ambiguous, so it isn't made.
-  const dir = parts.length ? parts.join("/") + "/" : "";
-  if (P.children(dir).some((e) => e.kind === "note" && e.note.locked_body && key(P.linkTitle(e.note)) === key(name))) {
+  const lockedHere = (d: string) => P.children(d).some((e) => e.kind === "note" && e.note.locked_body && key(P.linkTitle(e.note)) === key(name));
+  if (lockedHere(parts.length ? parts.join("/") + "/" : "")) {
     throw new ToolError("A locked note already has this name. Pick another name, or ask the person to unlock it.");
+  }
+  // Every note is in a folder, as when the person makes one in the app: a note written at the
+  // top goes in the first folder ("Notes"), like a file does (Emil, 12 November 2026: an AI's
+  // note with no folder was unclear). Not "Shared with me", which the app makes first in the list
+  // (sort_index -1) and skips the same way (ModelContext.isSharedWithMe).
+  if (!parts.length) {
+    parts.push((await folders(tx, c.v)).find((f) => !f.parent_id && !isSharedWithMe(f))?.name ?? "Notes");
+    if (P.at(parts.concat(name).join("/") + ".md")) throw new ToolError(`"${parts.concat(name).join("/")}.md" already exists. Read it, then change it with edit or write.`);
+    if (lockedHere(parts.join("/") + "/")) throw new ToolError("A locked note already has this name. Pick another name, or ask the person to unlock it.");
   }
   let body = content.replace(/^\s*\n/, "");
   if (!body.trim()) body = `${name}\n`;

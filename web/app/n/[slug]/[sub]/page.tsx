@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { NotePage } from "@/lib/NotePage";
 import { summary, withoutTitle } from "@/lib/render";
+import { noteShareImage } from "@/lib/og/note-card";
 import { sharedFiles, sharedNote } from "@/lib/shared";
 
 // Rendered on every visit, never cached: Stop Sharing and locking the note take the page
@@ -15,7 +16,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const note = await sharedNote(slug, sub);
   if (!note) return { title: "Not shared · Pinto Notes" };
   const description = summary(withoutTitle(note.body));
-  return { title: `${note.title} · Pinto Notes`, description, openGraph: { title: note.title, description, siteName: "Pinto Notes", type: "article" } };
+  // Next.js replaces the layout's openGraph and twitter rather than merging, so the card goes in both.
+  const images = [noteShareImage(slug, sub, note.title)];
+  return {
+    title: `${note.title} · Pinto Notes`,
+    description,
+    openGraph: { title: note.title, description, siteName: "Pinto Notes", type: "article", images },
+    twitter: { card: "summary_large_image", title: note.title, description, images },
+  };
 }
 
 export default async function Page({ params }: Props) {
