@@ -45,7 +45,12 @@ struct EmailSignInFlow: Equatable {
     /// address (smtp_max_frequency).
     static let resendCooldown: TimeInterval = 60
 
+    /// What the code step's code does: confirm a new account's address, or sign in instead of the
+    /// password ("Email me a code instead").
+    enum CodePurpose: Equatable { case confirmSignUp, signIn }
+
     var step: Step = .email
+    var codePurpose: CodePurpose = .confirmSignUp
     var email = ""
     var password = ""
     /// The code being typed or filled in by iOS from the email: digits only, at most six.
@@ -134,6 +139,11 @@ struct EmailSignInFlow: Equatable {
         return false
     }
 
+    /// "Email me a code instead" sits with Forgot password?: a sign-in code in place of the password.
+    /// An account made with an email code on pintonotes.com/connect has no password, and this is
+    /// its way in; anyone else can use it too.
+    var offersCode: Bool { offersReset }
+
     /// Continue (or Return in the email field): start asking. False if there's nothing to ask.
     mutating func beginCheck() -> Bool {
         guard step == .email, emailLooksValid else { return false }
@@ -160,6 +170,7 @@ struct EmailSignInFlow: Equatable {
     /// "Use a different email".
     mutating func back() {
         step = .email
+        codePurpose = .confirmSignUp
         password = ""
         code = ""
         codeSentAt = nil
@@ -174,6 +185,7 @@ struct EmailSignInFlow: Equatable {
         default: return
         }
         step = .confirm
+        codePurpose = .confirmSignUp
         password = ""
         code = ""
         codeSentAt = sentAt
@@ -192,6 +204,17 @@ struct EmailSignInFlow: Equatable {
         guard step == .confirm else { return }
         codeSentAt = at
         code = ""
+    }
+
+    /// "Email me a code instead": the code screen, signing in. No code has gone out yet (the screen
+    /// sends one next), so Resend code is ready at once if that send fails.
+    mutating func emailMeACode() {
+        guard offersCode else { return }
+        step = .confirm
+        codePurpose = .signIn
+        password = ""
+        code = ""
+        codeSentAt = nil
     }
 
     /// "Forgot password?".
