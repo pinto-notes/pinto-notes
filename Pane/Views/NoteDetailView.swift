@@ -2033,11 +2033,13 @@ struct NoteDetailView: View {
             .askAIPopover($asking, subject: AskAI.subject(note, whiteboard: showingCanvas))
     }
 
+    #if os(macOS)
     /// More, with Ask AI's popover when its own button isn't in the bar (a board's): the popover
-    /// opens from here.
+    /// opens from here. The Mac's toolbar only (AskFromMore is the Mac's).
     private var moreWithAsk: some View {
         moreMenu.modifier(AskFromMore(asking: $asking, on: !askTargets.isEmpty) { [note, showingCanvas] in AskAI.subject(note, whiteboard: showingCanvas) })
     }
+    #endif
 
     private var moreMenu: some View {
         Menu {
