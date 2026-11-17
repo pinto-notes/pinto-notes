@@ -551,3 +551,45 @@ Deno.test({ name: "a fresh app with oklch colours passes the contrast check in l
     await stop();
   }
 });
+
+// 2026-11-17: the neutral starter dropped amber-base.css, and with it the line that makes rem follow
+// the reader's text size (iPhone Dynamic Type, which Pinto Notes passes in as --pinto-root-font).
+// Its fields also asked for a bg-field colour the neutral CSS didn't define, so they were see-through.
+Deno.test({ name: "a new app's text follows the reader's text size, and its fields have a fill", ignore: !hasWebKit }, async () => {
+  try {
+    const { renderPage } = await import("../../../scripts/page-render/render.ts");
+    const probe = `import { useEffect, useState } from "react"
+import { Input } from "@/components/ui/input"
+
+export default function App() {
+  const [seen, setSeen] = useState("")
+  useEffect(() => {
+    // Measured once the page's styles have loaded.
+    const measure = () => {
+      const root = document.documentElement
+      const before = getComputedStyle(root).fontSize
+      const field = getComputedStyle(document.getElementById("probe-field")!).backgroundColor
+      root.style.setProperty("--pinto-root-font", "23px/1.3 -apple-system, system-ui, sans-serif")
+      const larger = getComputedStyle(root).fontSize
+      root.style.removeProperty("--pinto-root-font")
+      setSeen(\`root \${before} larger \${larger} field \${field}\`)
+    }
+    if (document.readyState === "complete") measure(); else addEventListener("load", measure, { once: true })
+  }, [])
+  return <main><h1>Probe</h1><Input id="probe-field" aria-label="Probe field" /><p>{seen}</p></main>
+}
+`;
+    const html = JSON.stringify((await linkProject(await withFiles({ amberApp: 1, files: {}, compiled: {} }, { ...await scaffold("Probe"), "/src/App.tsx": probe }))).project);
+    const r = await renderPage(html, "Probe\n", { values: {}, collections: {} }, { today: "2026-11-17", views: [{ width: 390, scheme: "light" }, { width: 390, scheme: "dark" }], probes: false, interact: false });
+    for (const v of r.views) {
+      const seen = v.excerpt ?? "";
+      // The renderer passes the iPhone's default reading size (17 px), as the app does.
+      assertStringIncludes(seen, "root 17px", `${v.name}: ${seen}`);
+      assertStringIncludes(seen, "larger 23px", `${v.name}: ${seen}`);
+      assert(/field \S/.test(seen) && !/field (rgba\(0, 0, 0, 0\)|transparent)/.test(seen), `${v.name}: ${seen}`);
+    }
+  } finally {
+    const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+    await closeBrowser();
+  }
+});

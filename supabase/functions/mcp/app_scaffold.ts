@@ -39,7 +39,9 @@ export const appGuide = () => `## How this app runs in Pinto Notes
 - The device: device.openURL(url) opens a web link once the person agrees to it, share(file) exports one, device.photos.pick() and device.files.pick() let the person choose. Reminders, Calendar, notifications, the camera, contacts, location, Maps and on-device AI are not available yet.`;
 
 /** shadcn/ui's own starter colours (neutral, new-york-v4), switched by the device's light or dark
- *  setting instead of a .dark class. No Pinto colours: the app picks its own look (Emil, 2026-11-17). */
+ *  setting instead of a .dark class. No Pinto colours: the app picks its own look (Emil, 2026-11-17).
+ *  Two additions: --field, the fill the starter's Input and Select use, and the root font that
+ *  follows the reader's text size (accessibility, from amber-base.css). */
 const NEUTRAL_CSS = `@import "tailwindcss";
 @import "tw-animate-css";
 
@@ -64,6 +66,7 @@ const NEUTRAL_CSS = `@import "tailwindcss";
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
+  --field: oklch(1 0 0);
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -91,6 +94,7 @@ const NEUTRAL_CSS = `@import "tailwindcss";
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
+    --field: oklch(0.205 0 0);
     --ring: oklch(0.556 0 0);
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
@@ -118,6 +122,7 @@ const NEUTRAL_CSS = `@import "tailwindcss";
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-field: var(--field);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -131,6 +136,9 @@ const NEUTRAL_CSS = `@import "tailwindcss";
 }
 
 @layer base {
+  /* The reader's text size: on iPhone Pinto Notes passes Dynamic Type in as --pinto-root-font, so
+     rem follows it. Any font the app sets on html or body wins. */
+  html { font: var(--pinto-root-font, 100%/1.5 ui-sans-serif, system-ui, sans-serif); }
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground; }
 }

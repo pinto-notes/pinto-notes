@@ -136,7 +136,8 @@ Deno.test("every guide an AI gets for apps says the person stays in control insi
 // look like Pinto Notes; its look is the AI's call.
 Deno.test("a new app starts with no Pinto look, and no guide asks for one", async () => {
   const files = await scaffold("Habits");
-  assert(!/--(pinto|amber)-/.test(files["/src/index.css"]), "index.css uses Pinto's colours");
+  // The one Pinto variable it reads is the reader's text size (accessibility, not a look).
+  assertEquals([...new Set(files["/src/index.css"].match(/--(pinto|amber)-[a-z-]+/g) ?? [])], ["--pinto-root-font"]);
   assertStringIncludes(files["/src/index.css"], "--background: oklch(1 0 0)");
   assertStringIncludes(files["/index.html"], '<meta name="amber-base" content="none" />');
   assertEquals(Object.keys(files).filter((p) => /app-shell|stat-card/.test(p)), []);
