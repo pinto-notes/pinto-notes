@@ -35,9 +35,14 @@ struct CreateButtons: View {
         ToolbarGlyph.image(kind.symbol, shift: kind == .note ? ToolbarGlyph.composeShift : .zero)
             .foregroundStyle(kind == .note ? ListCompose.iconStyle(off: noteOff) : .primary)
         #else
-        Image(systemName: kind.symbol)
+        kind.image
         #endif
     }
+}
+
+extension CreateKind {
+    /// The kind's glyph: the system's symbol, or the app's own (CreateKind.ownSymbols).
+    var image: Image { Self.ownSymbols.contains(symbol) ? Image(symbol) : Image(systemName: symbol) }
 }
 
 #if os(iOS)
@@ -49,7 +54,7 @@ struct CreateBarItems: ToolbarContent {
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             ForEach(CreateKind.allCases.filter(\.shown)) { kind in
-                Button(kind.title, systemImage: kind.symbol) { kind.run(newNote: newNote) }
+                Button { kind.run(newNote: newNote) } label: { Label { Text(kind.title) } icon: { kind.image } }
                     .tint(.primary)
                     .accessibilityIdentifier(kind == .note ? identifier : identifier.replacingOccurrences(of: "newNote", with: kind == .canvas ? "newCanvas" : "newApp"))
             }
@@ -129,7 +134,7 @@ struct FirstOneView: View {
                         .accessibilityHidden(true)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: kind.symbol)
+                    kind.image
                         .font(.system(size: 14, weight: .regular))
                         .foregroundStyle(Color.ink)
                         .frame(width: 18)

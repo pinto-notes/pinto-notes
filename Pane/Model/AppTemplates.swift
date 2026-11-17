@@ -43,12 +43,16 @@ enum CreateKind: String, CaseIterable, Identifiable {
         switch self {
         case .note: "square.and.pencil"
         case .canvas: CanvasNote.symbol
-        // A verb, not the apps' grid: the grid read as "show all", not "make an app" (Emil,
-        // 13 November 2026: "the app icon sucks"). A new app starts from a template or a wish to
-        // your AI. Apps in the list keep the grid (NoteAppMark).
-        case .app: "wand.and.sparkles"
+        // An app's square with a plus at its corner (Emil, 17 November 2026), not the apps' grid:
+        // the grid read as "show all", not "make an app" (13 November: "the app icon sucks"). The
+        // app's own symbol (Assets.xcassets, scripts/glyphs): CreateKind.image draws it. Apps in
+        // the list keep the grid (NoteAppMark).
+        case .app: "app.corner.plus"
         }
     }
+
+    /// Symbols the app has in its own assets rather than the system's (scripts/glyphs).
+    static let ownSymbols: Set<String> = ["app.corner.plus"]
 
     /// ⌘N, ⌥⌘N, ⌃⌘N: New Note's key with one modifier more. ⇧⌘N stays New Folder, as in Notes.
     var keys: String {

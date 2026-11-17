@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3300" height="2200">
+ <!--glyph: "", point size: 100.0, font version: "", template writer version: "138.0.0"-->
+ <g id="Notes">
+  <rect height="2200" id="artboard" style="fill:white;opacity:1" width="3300" x="0" y="0"/>
+  <text style="stroke:none;fill:black;font-family:sans-serif;font-size:13;" transform="matrix(1 0 0 1 263 1800)">app.corner.plus (New App). Made by scripts/glyphs/app-corner-plus.swift.</text>
+ </g>
+ <g id="Guides">
+  <line id="Baseline-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="696" y2="696"/>
+  <line id="Capline-S" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="625.541" y2="625.541"/>
+  <line id="Baseline-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1126" y2="1126"/>
+  <line id="Capline-M" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1055.54" y2="1055.54"/>
+  <line id="Baseline-L" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1556" y2="1556"/>
+  <line id="Capline-L" style="fill:none;stroke:#27AAE1;opacity:1;stroke-width:0.5;" x1="263" x2="3036" y1="1485.54" y2="1485.54"/>
+  <line id="left-margin-Regular-M" style="fill:none;stroke:#00AEEF;stroke-width:0.5;opacity:1.0;" x1="1391" x2="1391" y1="1030.79" y2="1150.12"/>
+  <line id="right-margin-Regular-M" style="fill:none;stroke:#00AEEF;stroke-width:0.5;opacity:1.0;" x1="1504.531" x2="1504.531" y1="1030.79" y2="1150.12"/>
+ </g>
+ <g id="Symbols">
+  <g id="Regular-M" transform="matrix(1 0 0 1 1438.781 1126)">
+   <path d="M4.531 -78.281L-14.725 -78.281C-35.345 -78.281 -43.281 -70.345 -43.281 -49.725L-43.281 -20.275C-43.281 0.345 -35.345 8.281 -14.725 8.281L14.725 8.281C35.345 8.281 43.281 0.345 43.281 -20.275L43.281 -39.531C43.281 -41.689 41.532 -43.438 39.375 -43.438C37.218 -43.438 35.469 -41.689 35.469 -39.531L35.469 -20.275C35.469 -3.970 31.030 0.469 14.725 0.469L-14.725 0.469C-31.030 0.469 -35.469 -3.970 -35.469 -20.275L-35.469 -49.725C-35.469 -66.030 -31.030 -70.469 -14.725 -70.469L4.531 -70.469C6.689 -70.469 8.437 -72.218 8.437 -74.375C8.437 -76.532 6.689 -78.281 4.531 -78.281ZM19.844 -69.688L57.344 -69.688C59.501 -69.688 61.250 -71.436 61.250 -73.594C61.250 -75.751 59.501 -77.500 57.344 -77.500L19.844 -77.500C17.686 -77.500 15.938 -75.751 15.938 -73.594C15.938 -71.436 17.686 -69.688 19.844 -69.688ZM42.500 -54.844L42.500 -92.344C42.500 -94.501 40.751 -96.250 38.594 -96.250C36.436 -96.250 34.688 -94.501 34.688 -92.344L34.688 -54.844C34.688 -52.686 36.436 -50.938 38.594 -50.938C40.751 -50.938 42.500 -52.686 42.500 -54.844Z"/>
+  </g>
+ </g>
+</svg>

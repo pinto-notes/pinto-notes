@@ -24,19 +24,40 @@ import AppKit
 
     // MARK: The three
 
-    @Test func theThreeHaveTheirOwnNamesGlyphsAndKeys() {
+    @Test func theThreeHaveTheirOwnNamesGlyphsAndKeys() throws {
         #expect(CreateKind.allCases.map(\.title) == ["New Note", "New Whiteboard", "New App"])
         #expect(CreateKind.app.menuTitle == "New App\u{2026}")
         #expect(CreateKind.allCases.map(\.keys) == ["\u{2318}N", "\u{2325}\u{2318}N", "\u{2303}\u{2318}N"])
         #expect(CreateKind.canvas.help == "New Whiteboard (\u{2325}\u{2318}N)")
         // Three different pictures, each its own outline: compose's boxed pencil, a bare scribble
-        // (no box, no pencil), and a wand for New App (no grid: it read as "show all", 11-13).
+        // (no box, no pencil), and an app's square with a plus at its corner for New App (no grid:
+        // it read as "show all", 11-13; app.corner.plus, 11-17), the app's own symbol.
         #expect(Set(CreateKind.allCases.map(\.symbol)).count == 3)
         #expect(!CanvasNote.symbol.contains("pencil") && !CanvasNote.symbol.contains("square"))
-        #expect(!CreateKind.app.symbol.contains("square") && !CreateKind.app.symbol.contains("grid"))
+        #expect(CreateKind.app.symbol == "app.corner.plus" && !CreateKind.app.symbol.contains("grid"))
+        #expect(CreateKind.ownSymbols.contains(CreateKind.app.symbol))
         #if os(macOS)
         for kind in CreateKind.allCases {
-            #expect(NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil) != nil, "\(kind.symbol) exists")
+            let own = CreateKind.ownSymbols.contains(kind.symbol)
+            #expect(own == (NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil) == nil), "\(kind.symbol): the system's, or the app's own")
+            let image = own ? NSImage(symbolName: kind.symbol, bundle: .main, variableValue: 1) : NSImage(systemSymbolName: kind.symbol, accessibilityDescription: nil)
+            #expect(image != nil, "\(kind.symbol) exists")
+        }
+        // In the toolbar the app's own takes New Note's room, so the three buttons are one size,
+        // and it's drawn (not an empty image).
+        let glyphs = CreateKind.allCases.map { ToolbarGlyph.nsImage($0.symbol, shift: .zero) }
+        #expect(glyphs[2].size == glyphs[0].size, "\(glyphs.map(\.size))")
+        let rep = try #require(glyphs[2].bestRepresentation(for: CGRect(origin: .zero, size: glyphs[2].size), context: nil, hints: nil))
+        let bitmap = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 40, pixelsHigh: 40, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+        rep.draw(in: CGRect(x: 0, y: 0, width: 40, height: 40))
+        NSGraphicsContext.restoreGraphicsState()
+        let inked = (0..<40).flatMap { x in (0..<40).map { (x, $0) } }.filter { (bitmap.colorAt(x: $0.0, y: $0.1)?.alphaComponent ?? 0) > 0.5 }.count
+        #expect(inked > 40, "New App's glyph is drawn: \(inked) pixels")
+        #else
+        for kind in CreateKind.allCases {
+            #expect((CreateKind.ownSymbols.contains(kind.symbol) ? UIImage(named: kind.symbol) : UIImage(systemName: kind.symbol)) != nil, "\(kind.symbol) exists")
         }
         #endif
         #expect(CreateKind.canvas.symbol == CanvasNote.symbol, "the list marks a canvas with the button's glyph")
