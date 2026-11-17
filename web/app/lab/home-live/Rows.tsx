@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AskChatGpt, HabitsNote } from "../home-z/Habits";
 import { CollabPicture } from "../home-z/Collab";
 import { Note, NotePhone } from "../home-z/Things";
@@ -32,7 +32,22 @@ function useSeen<T extends HTMLElement>() {
   return [ref, seen] as const;
 }
 
+/** `full` (default, after Linear): each thing is a whole screen, the title left, its line right, the
+ *  product wide under them. `alt`: the earlier alternating rows. */
+export type Layout = "full" | "alt";
+const LayoutCtx = createContext<Layout>("full");
+
 function Row({ id, kicker, title, say, flip, wide, children }: { id: string; kicker: string; title: React.ReactNode; say: string; flip?: boolean; wide?: boolean; children: React.ReactNode }) {
+  const layout = useContext(LayoutCtx);
+  if (layout === "full") return (
+    <div className={r.full}>
+      <div className={r.fullHead}>
+        <div><p className={v.kicker}>{kicker}</p><h3 id={id} className={r.fullTitle}>{title}</h3></div>
+        <p className={r.fullSay}>{say}</p>
+      </div>
+      <div className={r.fullPic}>{children}</div>
+    </div>
+  );
   return (
     <div className={`${v.row} ${r.row} ${wide ? r.wide : ""}`} data-flip={flip || undefined}>
       <div className={v.words}>
@@ -89,13 +104,15 @@ function ShareRow() {
   );
 }
 
-export function Rows() {
+export function Rows({ layout = "full" }: { layout?: Layout }) {
   return (
-    <section className={r.rows} aria-label="What you can do in Pinto Notes">
+    <LayoutCtx.Provider value={layout}>
+    <section className={`${r.rows} ${layout === "full" ? r.rowsFull : ""}`} aria-label="What you can do in Pinto Notes">
       <WriteRow />
       <DrawRow />
       <BuildRow />
       {SHOW_COLLAB && <ShareRow />}
     </section>
+    </LayoutCtx.Provider>
   );
 }

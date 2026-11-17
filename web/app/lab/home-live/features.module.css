@@ -1,0 +1,24 @@
+/* Round 29: Granola's second section, in Pinto's paper. The heading, three lines each led by an icon,
+   and on the right the note with ChatGPT writing into it, on the paper desk (home-z HeroG). */
+.features { --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --frameR: 14px; --frameShadow: 0 0 0 1px rgba(30, 15, 5, 0.12), 0 2px 6px rgba(30, 15, 5, 0.06), 0 34px 60px -30px rgba(60, 28, 4, 0.42);
+  display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(40px, 5vw, 80px); align-items: center; }
+.title { margin: 0; font-size: clamp(40px, 4.4vw, 64px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; color: #2a1d10; text-wrap: balance; }
+.list { margin: clamp(32px, 4vw, 48px) 0 0; padding: 0; list-style: none; display: grid; }
+/* One hairline under each row, fading out to the right, as Granola rules its rows. */
+.list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 18px; align-items: center; padding: 18px 0;
+  background: linear-gradient(90deg, rgba(80, 45, 10, 0.16), rgba(80, 45, 10, 0) 85%) bottom / 100% 1px no-repeat; }
+.list li:first-child { background: linear-gradient(90deg, rgba(80, 45, 10, 0.16), rgba(80, 45, 10, 0) 85%) top / 100% 1px no-repeat, linear-gradient(90deg, rgba(80, 45, 10, 0.16), rgba(80, 45, 10, 0) 85%) bottom / 100% 1px no-repeat; }
+.list p { margin: 0; font-size: clamp(17px, 1.35vw, 19px); line-height: 1.4; color: #6b5a48; text-wrap: pretty; }
+.list b { color: #2a1d10; font-weight: 650; }
+.icon { display: grid; place-items: center; width: 64px; height: 56px; }
+.icon img { width: 56px; height: 56px; object-fit: contain; }
+.glyphs { display: flex; gap: 6px; color: #1d1b19; }
+/* The picture: the paper desk panel HeroG lays itself into (a size container, like home-z's .art). */
+.pic { position: relative; aspect-ratio: 1 / 1.02; container-type: size; overflow: hidden; border-radius: 22px; background: #f8d9b8; }
+@media (max-width: 900px) {
+  .features { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .list li { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; padding: 14px 0; }
+  .icon { width: 48px; height: 44px; }
+  .icon img { width: 44px; height: 44px; }
+}

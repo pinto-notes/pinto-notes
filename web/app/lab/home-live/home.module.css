@@ -80,3 +80,5 @@
 .serif h1 > span { background: linear-gradient(transparent 86%, var(--mark) 86%, var(--mark) 93%, transparent 93%); padding-bottom: 0.02em; }
 .serif .big { font-size: clamp(42px, 5vw, 72px); line-height: 0.98; }
 .serif .rowTitle { line-height: 1; }
+/* Round 29: six tiles now (two moved up into the features), three a row. */
+@media (min-width: 1001px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 960px; } }

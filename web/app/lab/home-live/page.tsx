@@ -12,6 +12,7 @@ const display = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], ax
  *  the live type. */
 export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const q = await searchParams;
-  const h1 = q.h1 === "b" || q.h1 === "c" ? q.h1 : "a";
-  return <div className={display.variable}><Home h1={h1} serif={q.font !== "sans"} /></div>;
+  const h1 = q.h1 === "b" ? "b" : "a";
+  const sub = q.sub === "2" || q.sub === "3" ? q.sub : "1";
+  return <div className={display.variable}><Home h1={h1} sub={sub} rows={q.rows === "alt" ? "alt" : "full"} serif={q.font !== "sans"} /></div>;
 }

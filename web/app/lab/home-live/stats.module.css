@@ -1,0 +1,26 @@
+/* Round 29: the study as rising bars. One series, so no legend: each bar is named under it and its value
+   sits on top in ink; Pinto's bar is the page's orange, the others a quiet tan. */
+.stats { display: grid; justify-items: center; text-align: center; gap: 48px; }
+.head { display: grid; justify-items: center; gap: 18px; }
+.title { margin: 0; font-size: clamp(48px, 6vw, 92px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; color: #2a1d10; }
+.say { margin: 0; max-width: 34em; font-size: clamp(17px, 1.4vw, 20px); line-height: 1.45; color: #6b5a48; text-wrap: balance; }
+.chart { --h: clamp(240px, 30vw, 380px); width: min(100%, 760px); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(10px, 2vw, 24px); align-items: end; }
+.col { display: grid; grid-template-rows: auto var(--h) auto; justify-items: center; gap: 10px; }
+.bar { align-self: end; width: 100%; height: calc(var(--h) * var(--v)); border-radius: 4px 4px 0 0; background: #ead2b4; transform-origin: bottom; scale: 1 0.02;
+  transition: scale 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 0.12s); }
+.col[data-us] .bar { background: linear-gradient(180deg, #f0901a, #d96a06); box-shadow: 0 24px 40px -24px rgba(217, 106, 6, 0.7); }
+.num { align-self: end; font-size: clamp(22px, 2.4vw, 34px); font-weight: 750; letter-spacing: -0.02em; color: #9c8670; opacity: 0; transition: opacity 0.4s ease calc(0.5s + var(--i) * 0.12s);
+  grid-row: 1; translate: 0 calc(var(--h) * (1 - var(--v))); }
+.col[data-us] .num { color: #2a1d10; font-size: clamp(30px, 3.4vw, 48px); }
+.name { font-size: 15px; font-weight: 600; color: #6b5a48; }
+.col[data-us] .name { color: #2a1d10; }
+.chart[data-on] .bar { scale: 1 1; }
+.chart[data-on] .num { opacity: 1; }
+.fine { margin: -16px 0 0; max-width: 46em; font-size: 14px; line-height: 1.45; color: #8a7660; }
+.fine a { color: #2a1d10; font-weight: 600; text-decoration: underline; text-decoration-color: #f0901a; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+@media (max-width: 700px) {
+  .stats { gap: 32px; }
+  .chart { --h: 220px; }
+  .name { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar, .num { transition: none; } }
