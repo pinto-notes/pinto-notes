@@ -277,6 +277,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-meal-planner-template",
+    title: "Apple Notes meal planner template, with the grocery list",
+    description: "Apple Notes has no meal planner, but one note can hold the week's dinners and the grocery list. A template to paste in, and a free plan that writes the list.",
+    excerpt: "A meal planner for Apple Notes, ready to paste in: a week of dinners and the groceries by aisle. How to set it up for the shop, where it stops, and a plan that writes the list.",
+    category: "Apple Notes",
+    date: "2026-11-17",
+    updated: "2026-11-17",
+    image: SHOTS.aiEdit,
+    thumb: cover("clay", "meal-planner", 1600, 1000, "A paper cooking pot with a wooden spoon beside a checklist card, two carrots and a lemon"),
+    draft: false,
+  },
+  {
     slug: "apple-notes-trip-planner-template",
     title: "Apple Notes trip planner template, bookings to packing",
     description: "Apple Notes has no trip planner, but one note can hold the bookings, the days and the packing list. A template to paste in, and a free trip plan that counts.",
