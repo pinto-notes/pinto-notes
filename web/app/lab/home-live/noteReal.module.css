@@ -40,7 +40,7 @@
 .crumb { margin-left: 0.4em; font-size: 1em; font-weight: 600; color: #6e6e73; }
 .tools { margin-left: auto; display: flex; align-items: center; gap: 1em; padding: 0.4em 0.9em; border-radius: 99px; color: #3a3a3c; box-shadow: 0 0 0 1px #ececec, 0 1px 4px rgba(0, 0, 0, 0.05); }
 .tools > b { font-size: 1.02em; font-weight: 500; line-height: 1; }
-.note { padding: 1.4em 11.5em 1em 2.4em; font-size: 1.05em; line-height: 1.45; }
+.note { padding: 1.4em 9em 1em 2.4em; font-size: 1.05em; line-height: 1.45; }
 .note p, .pNote p { margin: 0; }
 .title { font-size: 2.05em; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 0.45em !important; }
 .h { margin-top: 1em !important; font-size: 1.25em; font-weight: 700; line-height: 1.3; }
@@ -58,7 +58,7 @@
 
 /* The iPhone, as the app draws a note (cap20/l/note.png): everything in units of the screen's width
    (an iPhone screen is 440 pt wide; body text 17 pt), so it's the app's layout at any size. */
-.phone { --pw: 31cqi; position: absolute; right: 0; bottom: 0; width: var(--pw); aspect-ratio: 1320 / 2868; box-sizing: border-box; padding: calc(var(--pw) * 0.028); border-radius: calc(var(--pw) * 0.155); background: #121110;
+.phone { --pw: 25cqi; position: absolute; right: 0; bottom: 0; width: var(--pw); aspect-ratio: 1320 / 2868; box-sizing: border-box; padding: calc(var(--pw) * 0.028); border-radius: calc(var(--pw) * 0.155); background: #121110;
   box-shadow: inset 0 0 0 1px #4a4642, 0 0 0 1px rgba(30, 15, 5, 0.18), 0 30px 60px -24px rgba(40, 10, 0, 0.5), 0 6px 16px rgba(40, 10, 0, 0.16); }
 .screen { height: 100%; box-sizing: border-box; border-radius: calc(var(--pw) * 0.13); background: #fff; overflow: hidden; container-type: inline-size; color: #2a1d12; }
 .screen .ico, .screen svg { display: block; }
@@ -88,5 +88,5 @@
 @media (max-width: 900px) {
   .pair { padding: 0; }
   .mac { display: none; }
-  .phone { --pw: min(68cqi, 280px); position: relative; margin: 0 auto; }
+  .phone { --pw: min(58cqi, 240px); position: relative; margin: 0 auto; }
 }
