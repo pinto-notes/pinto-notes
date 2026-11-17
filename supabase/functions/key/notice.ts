@@ -9,8 +9,26 @@ const KINDS: Record<string, string> = { ios: "an iPhone or iPad", macos: "a Mac"
 
 const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export function fetchedMail(to: string, platform: string, at: Date): Mail {
+/// `first`: the first device of an account made on the web. Its notes were only on the server until
+/// now, so the email says they're on that device, and still says what to do if it wasn't them.
+export function fetchedMail(to: string, platform: string, at: Date, first = false): Mail {
   const when = at.toISOString().slice(0, 16).replace("T", " at ") + " UTC";
+  const kind = KINDS[platform] ?? "a device";
+  if (first) {
+    const lines = [
+      `Your account signed in to Pinto Notes on ${kind} and your notes opened there (${when}). It's the first device with your notes, and everything your AI wrote is there.`,
+      "If that was you, there's nothing to do.",
+      "If it wasn't, reset your password from the sign-in screen now, then reply to this email and we'll help you check your account.",
+    ];
+    return {
+      from: `${SENDER_NAME} <${HELLO}>`,
+      to,
+      reply_to: HELLO,
+      subject: "Your notes are on your device",
+      text: lines.join("\n\n") + "\n\nPinto Notes\n",
+      html: lines.map((l) => `<p>${escape(l)}</p>`).join("") + "<p>Pinto Notes</p>",
+    };
+  }
   const lines = [
     `Someone signed in to Pinto Notes with your account on ${KINDS[platform] ?? "a new device"} and opened your notes there (${when}).`,
     "If that was you, there's nothing to do.",

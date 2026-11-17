@@ -20,7 +20,9 @@ export type Deps = {
    *  or null when the token doesn't say. Read only after `userFor` accepted the token. */
   signedInAt?: (token: string) => number | null;
   /** Tells the person a device got their key, by email. Best effort; never fails the request. */
-  notify?: (uid: string, platform: string) => Promise<string | void>;
+  /// `first`: the first device to get the key of an account made on the web (op "create"), so the
+  /// email says the notes are on that device now rather than warning of a new one.
+  notify?: (uid: string, platform: string, first?: boolean) => Promise<string | void>;
   now?: () => number;
 };
 
@@ -398,12 +400,19 @@ async function fetchKey(deps: Deps, s: Secrets, uid: string, body: Record<string
         where user_id = ${uid} and key_id = ${row.key_id}`;
     }
     await sql`update public.account_key_copies set opened_at = now() where user_id = ${uid}`;
-    await sql`insert into public.account_notices (user_id, kind, what) values (${uid}, 'key_fetched', 'A new device opened your notes')`;
+    // An account made on the web has no device until its first sign-in in the app. That device
+    // isn't new to anyone: there's no other device to tell, and the email says the notes are there.
+    const [{ first }] = await sql<{ first: boolean }[]>`
+      select exists (select 1 from public.key_copy_events where user_id = ${uid} and what = 'stored' and platform = 'web')
+         and not exists (select 1 from public.key_copy_events where user_id = ${uid} and what = 'fetched' and id <> ${taken})
+         and not exists (select 1 from public.key_copy_events where user_id = ${uid} and what = 'stored' and platform is distinct from 'web')
+         as first`;
+    if (!first) await sql`insert into public.account_notices (user_id, kind, what) values (${uid}, 'key_fetched', 'A new device opened your notes')`;
     if (deps.notify) {
       // What became of the email is written down too ("mailed": sent, logged, failed, off), so a
       // test can check it was rendered and not sent, and support can see a person was told.
       let outcome: string | void = "failed";
-      try { outcome = await deps.notify(uid, platform ?? ""); } catch (e) { logError("key notify", e); }
+      try { outcome = await deps.notify(uid, platform ?? "", first); } catch (e) { logError("key notify", e); }
       if (typeof outcome === "string") {
         await sql`insert into public.key_copy_events (user_id, what, why, platform) values (${uid}, 'mailed', ${outcome}, ${platform})`;
       }

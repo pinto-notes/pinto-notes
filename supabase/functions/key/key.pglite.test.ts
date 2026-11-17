@@ -8,6 +8,7 @@ import { fromBase64, hex, keyIdOf, newDataKey, OpenError, recoveryKEK, toBase64,
 import { openAtRest, openTransport, sealTransport, secrets, type KeyMaterial } from "../_shared/keycopy.ts";
 import { asUser, newUser, schemaDB, sqlFor } from "../mcp/pglite.ts";
 import { handle, holdHours, LIMITS, resealAll, signedInAtOf, signInHours, type Deps } from "./logic.ts";
+import { fetchedMail } from "./notice.ts";
 
 const P256 = { name: "ECDH", namedCurve: "P-256" } as const;
 const SECRET_1 = toBase64(crypto.getRandomValues(new Uint8Array(32)));
@@ -664,6 +665,40 @@ Deno.test("an account signed up on the web gets its key, its copy and standard m
   assertEquals(got.status, 200);
   const k = await openTransport(got.body.sealed, got.pair.privateKey, "down", a.id, a.keyId);
   assertEquals([hex(k.dataKey), hex(k.recovery)], [hex(a.key.dataKey), hex(a.key.recovery)]);
+});
+
+Deno.test("a web account's first device gets the first-device email and no new-device notice; the next device gets both", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await webMade(await newUser(pg));
+  const told: { uid: string; first?: boolean }[] = [];
+  w.deps.notify = (uid, _p, first) => { told.push({ uid, first }); return Promise.resolve("logged"); };
+  const notices = async () => (await pg.query(`select kind from public.account_notices where user_id = $1`, [a.id])).rows.length;
+  assertEquals((await create(w, a)).status, 200);
+
+  assertEquals((await fetchKey(w, a.id)).status, 200);
+  assertEquals(told, [{ uid: a.id, first: true }]);
+  assertEquals(await notices(), 0);
+
+  assertEquals((await fetchKey(w, a.id)).status, 200);
+  assertEquals(told[1], { uid: a.id, first: false });
+  assertEquals(await notices(), 1);
+});
+
+Deno.test("an account made in the app always gets the new-device warning", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  const told: (boolean | undefined)[] = [];
+  w.deps.notify = (_u, _p, first) => { told.push(first); return Promise.resolve("logged"); };
+  assertEquals((await store(w, a)).status, 200);
+  assertEquals((await fetchKey(w, a.id)).status, 200);
+  assertEquals(told, [false]);
+});
+
+Deno.test("the first-device email names the device and still says what to do if it wasn't you", () => {
+  const m = fetchedMail("a@b.se", "ios", new Date("2026-11-17T08:00:00Z"), true);
+  assertEquals(m.subject, "Your notes are on your device");
+  assert(m.text.includes("an iPhone or iPad") && m.text.includes("reset your password"));
+  assertEquals(fetchedMail("a@b.se", "ios", new Date()).subject, "A new device opened your notes");
 });
 
 Deno.test("the web makes a key only for an account with none, never turns Advanced protection off, and only for a row its key makes", async () => {
