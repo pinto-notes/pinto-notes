@@ -514,7 +514,7 @@ export function testRunnerProject(stored: string): string | null {
   if (!files.length) return null;
   const html = `<!doctype html><html lang="en"><body><script type="module">
 const results = [], errors = [];
-const { run, forget } = await import("vitest");
+const { run, forget, strays } = await import("vitest");
 // A name or a package the test runner doesn't have, said so (WebKit's own words don't).
 const HAS = "The tests can import vitest, @testing-library/react, @testing-library/user-event, @testing-library/dom and @testing-library/jest-dom (the parts the app's README lists under Tests), the app's own files (@/…) and the packages the app has.";
 const why = (e) => {
@@ -528,6 +528,7 @@ const why = (e) => {
 for (const f of ${JSON.stringify(files)}) {
   try { await import(f); } catch (e) { forget(); errors.push(f + ": " + why(e).slice(0, 500)); continue; }
   for (const r of await run(() => window.__amberReset())) results.push({ ...r, file: f });
+  for (const e of strays()) errors.push(f + ": after its tests, an error in " + e);
 }
 window.__testResults = { results, errors };
 </script></body></html>`;

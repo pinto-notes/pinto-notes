@@ -68,15 +68,28 @@ export function sampleNote(markdown: string, today: string): string {
   }).join("\n");
 }
 
-/** The app's data with every value replaced the same way; keys, nesting, ids, dates and file refs kept. */
-export function sampleData(data: unknown, today: string, depth = 0, labels = new Map<string, string>()): unknown {
+/** Every id in the app's data (the value of an "id" key), so references to them can be kept. */
+function idsIn(data: unknown, out = new Set<string>(), depth = 0): Set<string> {
+  if (depth > 12 || !data || typeof data !== "object") return out;
+  for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+    if (k === "id" && (typeof v === "string" || typeof v === "number")) out.add(String(v));
+    else idsIn(v, out, depth + 1);
+  }
+  return out;
+}
+
+/** The app's data with every value replaced the same way; keys, nesting, ids, dates and file refs
+ *  kept, and so is any string that is one of the data's ids: a habitId, an order list or a map's
+ *  value still points at its item (2026-11-17: they were replaced, so the sample's links broke). */
+export function sampleData(data: unknown, today: string, depth = 0, labels = new Map<string, string>(), ids: Set<string> = idsIn(data)): unknown {
   if (depth > 12) return null;
-  if (Array.isArray(data)) return data.slice(0, 50).map((v) => sampleData(v, today, depth + 1, labels));
+  if (Array.isArray(data)) return data.slice(0, 50).map((v) => sampleData(v, today, depth + 1, labels, ids));
   if (data && typeof data === "object") {
     const o = data as Record<string, unknown>;
     if (typeof o.$file === "string") return { $file: "00000000-0000-4000-8000-000000000000", name: "sample.png", type: "image/png" };
-    return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, k === "id" || k === "created" || k === "updated" ? v : sampleData(v, today, depth + 1, labels)]));
+    return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, k === "id" || k === "created" || k === "updated" ? v : sampleData(v, today, depth + 1, labels, ids)]));
   }
+  if (typeof data === "string" && ids.has(data)) return data;
   if (typeof data === "number") {
     // Whole numbers stay whole (a count of glasses, a box from 1 to 5) and the sign stays: an app
     // that shows "3 / 8" isn't previewed as "3.11 / 8" (the real-AI run, 8 Nov).

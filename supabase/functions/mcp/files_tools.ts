@@ -113,7 +113,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a disk image): content_base64 to its path, and the app loads it with fetch like any web page. An app's binary file can be up to 100 MB and its text 16 MB; one write carries up to 10 MB of base64, so send a bigger file in pieces (content_base64 with offset, and size for the whole file: it's saved when the last piece arrives). Instead of content_base64, content_url takes a public https address: the server downloads the file (up to 100 MB for an app, 10 MB otherwise) and stores its bytes as they are. To change several files of an app in one save (one version, one check), give path the app (\"Games/Doom.app\") and files. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. An app takes binary files the same way (a .wasm, a game's data, a disk image): content_base64 to its path, and the app loads it with fetch like any web page. An app's binary file can be up to 100 MB and its text 16 MB; one write carries up to 10 MB of base64, so send a bigger file in pieces (content_base64 with offset, and size for the whole file: it's saved when the last piece arrives). Instead of content_base64, content_url takes a public https address: the server downloads the file (up to 100 MB for an app, 10 MB otherwise) and stores its bytes as they are. To change several files of an app in one save (one version, one check), give path the app (\"Games/Doom.app\") and files; data.json can be one of them: it's saved as the app's data, and kept even when the version is held back. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -165,8 +165,8 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "see_app", title: "See an app",
-    description: "Screenshots of a note's app at iPhone and Mac sizes, light and dark, over a sample with the shape of its data" + (realPreviewsServed() ? " (data: \"real\" only if the person allowed it in Pinto Notes)" : "") + ", with what each view shows and anything broken." +
-      (tryOn() ? " With steps, uses the app like a person instead and answers after each step with what's on screen, console errors, what changed in its data, and screenshots: { tap: \"Add\" } (text, label or CSS selector), { type: \"85\", into: \"Weight\" }, { scroll: \"down\" }, { wait: 500 | \"Saved\" }, { press: \"Enter\" }, { resize: \"phone\" | \"desktop\" }, { dark: true }. Nothing is written back." : ""),
+    description: "Screenshots of a note's app at iPhone and Mac sizes, light and dark, over a sample with the shape of its data (its ids and what points at them kept, its words replaced)" + (realPreviewsServed() ? " (data: \"real\" only if the person allowed it in Pinto Notes)" : "") + ", with what each view shows and anything broken." +
+      (tryOn() ? " With steps, uses the app like a person instead and answers after each step with what's on screen, console errors, what changed in its data, and a screenshot (and the last screen at each other width and theme given): { tap: \"Add\" } (text, label or CSS selector), { type: \"85\", into: \"Weight\" }, { scroll: \"down\" }, { wait: 500 | \"Saved\" }, { press: \"Enter\" }, { resize: \"phone\" | \"desktop\" }, { dark: true }. Nothing is written back." : ""),
     inputSchema: {
       type: "object",
       properties: {
@@ -1484,7 +1484,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (r.note.shared) throw new ToolError(`"${r.note.title}" is shared, and shared notes don't have apps yet.`);
     const failure = await loadFailure(tx, r.note.id);
     const seen = Array.isArray(a.steps) && a.steps.length && tryOn()
-      ? await appHandlers.try_app(tx, { id: r.note.id, steps: a.steps, data: a.data, screenshots: "last" }, c)
+      ? await appHandlers.try_app(tx, { id: r.note.id, steps: a.steps, data: a.data, widths: a.widths, themes: a.themes, screenshots: "all" }, c)
       : await appHandlers.preview_app(tx, { id: r.note.id, widths: a.widths, themes: a.themes, data: a.data }, c);
     const strip = <T,>(v: T): T => JSON.parse(JSON.stringify(v).replaceAll(r.note.id, "")) as T;
     if (!Object.keys(failure).length) return seen instanceof Content ? seen : strip(seen);
@@ -1800,12 +1800,21 @@ async function writeAppFiles(tx: Tx, a: Args, c: Call) {
   const done: { path: string; did: string; bytes?: number }[] = [];
   const seen = new Set<string>();
   const base = r.base.toLowerCase();
+  // data.json isn't a file of the version: it's the app's data, saved as a write to it alone would
+  // (2026-11-17: in a held-back batch it was kept with the version's files, the answer said
+  // "created", and the data never reached the app).
+  let newData: string | undefined;
   for (const x of list as Args[]) {
     const raw = String(x.path ?? "");
     const file = appPath(raw.toLowerCase().startsWith(base + "/") ? raw.slice(base.length + 1) : raw);
     if (seen.has(file)) throw new ToolError(`${file} is in files twice. Nothing was saved.`);
     seen.add(file);
     const where = `${r.base}${file}`;
+    if (file.toLowerCase() === "/data.json") {
+      if (x.delete === true || typeof x.content !== "string") throw new ToolError(`${r.base}/data.json is the app's data: give it as content (JSON), or leave it out. Nothing was saved.`);
+      newData = x.content;
+      continue;
+    }
     const was = stampOf(p, file);
     if (x.delete === true) {
       if (was === undefined) throw new ToolError(`No ${where} to delete. Nothing was saved.`);
@@ -1832,7 +1841,19 @@ async function writeAppFiles(tx: Tx, a: Args, c: Call) {
       done.push({ path: where, did: was === undefined ? "created" : "replaced", bytes: new TextEncoder().encode(got.text).length });
     }
   }
-  if (done.every((d) => d.did === "unchanged")) return { saved: `${r.base}/`, unchanged: true, files: done };
+  // The data first, so it's kept whatever the checks say about the version, and the checks run
+  // over it. Like a write to data.json alone, it must have been read.
+  let data: { path: string; did: string } | undefined;
+  if (newData !== undefined) {
+    const before = await pageDataOf(tx, c, r.note.id);
+    await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataText(before)), `${r.base}/data.json`);
+    const out = await saveData(tx, c, r.note, r.base, before, newData) as { unchanged?: boolean };
+    data = { path: `${r.base}/data.json`, did: out.unchanged ? "unchanged" : "saved (the app's data)" };
+  }
+  if (done.every((d) => d.did === "unchanged")) {
+    if (!data) return { saved: `${r.base}/`, unchanged: true, files: done };
+    return { saved: `${r.base}/`, files: [...done, data], ...(data.did === "unchanged" ? { unchanged: true } : { data: "Saved: the open app shows it at once, and the person can undo it." }) };
+  }
   // Every text file compiled in one build.
   p = await withFiles(p, texts);
   const changed = done.filter((d) => d.did !== "unchanged");
@@ -1840,7 +1861,11 @@ async function writeAppFiles(tx: Tx, a: Args, c: Call) {
   for (const d of done) if (d.did !== "deleted") await markRead(tx, c, fileItem(r.note.id, d.path.slice(r.base.length)), await hash(c, stampOf(p, d.path.slice(r.base.length))!));
   if (saved instanceof Content) return saved;
   const { app: _, saved: __, files: ___, ...rest } = saved as Record<string, unknown>;
-  return { saved: `${r.base}/`, files: done, ...rest };
+  const held = String(rest.live ?? "").startsWith("Held back");
+  const kept = data && data.did !== "unchanged"
+    ? { data: held ? "data.json was saved even though this version is held back: it's the app's data, kept apart from the code. The version the person has (if any) shows it now; fix the checks and save the code again." : "Saved with this version: the open app shows it at once, and the person can undo it." }
+    : {};
+  return { saved: `${r.base}/`, files: data ? [...done, data] : done, ...kept, ...rest };
 }
 
 async function loadFailure(tx: Tx, id: string): Promise<Record<string, unknown>> {

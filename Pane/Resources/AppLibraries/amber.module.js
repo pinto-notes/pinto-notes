@@ -1,4 +1,4 @@
-// amber 1.2.0 (Pinto Notes): an app's data as Preact hooks.
+// amber 1.2.1 (Pinto Notes): an app's data as Preact hooks.
 //   import { useStore, useCollection, useSettings, setSummary, batch } from "amber";
 // An app keeps its data as JSON in its own store: encrypted, synced, versioned, with Undo. A note
 // with an app is just the app; its text is only the title and a summary line (setSummary).
@@ -37,8 +37,11 @@ export const batch = (fn) => bridge.batch(fn);
 // one was lost (2026-11-17: all five apps in a test wrote their own workaround). A function update
 // builds on the newest value written, and the hooks show it.
 const pending = new Map();
-const saved = (key, initial) => { const now = (bridge.data && bridge.data.values) || {}; return key in now ? now[key] : initial; };
-const newest = (key, initial) => pending.has(key) ? pending.get(key).value : saved(key, initial);
+// Nothing stored, null or undefined (storing either removes the key) reads as the hook's initial
+// value, in what it shows and in what a function update gets (2026-11-17: it got undefined).
+const orInitial = (v, initial) => v === undefined || v === null ? initial : v;
+const saved = (key, initial) => { const now = (bridge.data && bridge.data.values) || {}; return orInitial(now[key], initial); };
+const newest = (key, initial) => pending.has(key) ? orInitial(pending.get(key).value, initial) : saved(key, initial);
 function write(key, value) {
   const entry = pending.get(key) || { value, count: 0 };
   entry.value = value; entry.count++;
@@ -139,7 +142,7 @@ export function useImported() {
 export function useAppData(key, initial) {
   const { data } = useLive();
   const values = (data && data.values) || {};
-  const value = pending.has(key) ? pending.get(key).value : key in values ? values[key] : initial;
+  const value = pending.has(key) ? orInitial(pending.get(key).value, initial) : orInitial(values[key], initial);
   const set = (next) => write(key, typeof next === "function" ? next(newest(key, initial)) : next);
   return [value, set];
 }
@@ -151,6 +154,10 @@ export const useStore = (key, initial) => useAppData(key, initial);
 export function useSettings(defaults = {}) {
   const [kept, set] = useAppData("settings", {});
   const settings = { ...defaults, ...(kept || {}) };
-  // Built on the newest settings, so two quick changes to different fields both stay.
-  return [settings, (patch) => set((old) => ({ ...(old || {}), ...patch }))];
+  // Built on the newest settings, so two quick changes to different fields both stay. A function
+  // update gets the settings with their defaults, as useState's does: update((s) => ({ size: s.size + 1 })).
+  return [settings, (patch) => set((old) => {
+    const kept = old || {};
+    return { ...kept, ...(typeof patch === "function" ? patch({ ...defaults, ...kept }) : patch) };
+  })];
 }

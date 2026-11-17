@@ -371,3 +371,160 @@ Deno.test({ name: "the template apps' tests pass every time, many runs at once o
     await closeBrowser();
   }
 });
+
+const failsWith = async (p: Promise<unknown>) => { try { await p; } catch (e) { return (e as Error).message; } throw new Error("expected the tool to refuse"); };
+
+// 2026-11-17 (loosen test): 6 of 10 agents put data.json in a multi-file write whose version was
+// held back. The answer said "created" and the data never reached the app; 3 never noticed.
+Deno.test({ name: "data.json in a write with other files is the app's data: kept, and said so, even when the version is held back", ignore: !hasWebKit }, async () => {
+  const { stop } = await renderService();
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    await tool(pg, a, "create", { type: "app", path: "Notes/Reading.app".replace(".app", ".md") });
+    const books = { values: {}, collections: { books: [{ id: "b1", title: "Middlemarch" }, { id: "b2", title: "Stoner" }] } };
+    const failing = `import { it, expect } from "vitest"\nit("is not done yet", () => { expect(1).toBe(2) })\n`;
+
+    // Not read first: refused, and nothing is saved (as a write to data.json alone).
+    const refused = await failsWith(tool(pg, a, "write", { path: "Notes/Reading.app", files: [{ path: "tests/later.test.tsx", content: failing }, { path: "data.json", content: JSON.stringify(books) }] }));
+    assertStringIncludes(refused, "Read Notes/Reading.app/data.json with fetch before changing it.");
+
+    await tool(pg, a, "fetch", { id: "Notes/Reading.app/data.json" });
+    const out = await tool(pg, a, "write", { path: "Notes/Reading.app", files: [{ path: "tests/later.test.tsx", content: failing }, { path: "data.json", content: JSON.stringify(books) }] });
+    assert(String(out.live).startsWith("Held back"), out.live);
+    assertStringIncludes(out.data, "data.json was saved even though this version is held back");
+    assertEquals(out.files.find((f: { path: string }) => f.path.endsWith("data.json")), { path: "Notes/Reading.app/data.json", did: "saved (the app's data)" });
+    const kept = JSON.parse((await tool(pg, a, "fetch", { id: "Notes/Reading.app/data.json" })).text.replace(/^\s*\d+\t/gm, ""));
+    assertEquals(kept.collections.books.map((b: { title: string }) => b.title), ["Middlemarch", "Stoner"]);
+    // It isn't a file of the version either.
+    const listed: string = (await tool(pg, a, "fetch", { id: "Notes/Reading.app/" })).text;
+    assert(!/data\.json\s+\(/.test(listed), listed);
+    assertStringIncludes(listed, "Notes/Reading.app/data.json");
+  } finally { await stop(); }
+});
+
+// 2026-11-17 (loosen test): a sonner toast's Undo broke the test page ("pageerror: The object can
+// not be found here", no test name; 8 of 10 agents dropped sonner), and "{Enter}" saw the state
+// from before the last keystrokes (Preact ran effects and renders late in the test page).
+const REACTS_SCREEN = `import { useEffect, useState } from "react"
+import { toast } from "sonner"
+export function Groceries() {
+  const [items, setItems] = useState<string[]>(["Eggs"])
+  const [text, setText] = useState("")
+  const [count, setCount] = useState(0)
+  useEffect(() => { setCount(items.length) }, [items])
+  const drop = (x: string) => { const before = items; setItems(items.filter((i) => i !== x)); toast(\`Deleted \${x}\`, { action: { label: "Undo", onClick: () => setItems(before) } }) }
+  return <div>
+    <input aria-label="New item" value={text} onInput={(e) => setText(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { setItems([...items, text]); setText("") } }} />
+    <p>{count} on the list</p>
+    {items.map((x) => <button key={x} onClick={() => drop(x)}>Delete {x}</button>)}
+  </div>
+}
+export function Broken() { return <button onClick={() => { throw new Error("the button broke") }}>Break</button> }
+`;
+const REACTS_TEST = `import { it, expect } from "vitest"
+import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { Toaster } from "@/components/ui/sonner"
+import { Groceries, Broken } from "@/screens/reacts"
+it("adds with Enter what was typed, and shows the effect's count at once", async () => {
+  render(<Groceries />)
+  await userEvent.type(screen.getByLabelText("New item"), "Milk{Enter}")
+  expect(screen.getByRole("button", { name: "Delete Milk" })).toBeInTheDocument()
+  expect(screen.getByText("2 on the list")).toBeInTheDocument()
+  expect(screen.getByLabelText("New item")).toHaveValue("")
+})
+it("deletes with a toast and brings it back with its Undo", async () => {
+  render(<><Groceries /><Toaster position="top-center" /></>)
+  await userEvent.click(screen.getByRole("button", { name: "Delete Eggs" }))
+  expect(await screen.findByText("Deleted Eggs")).toBeInTheDocument()
+  await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
+  expect(await screen.findByRole("button", { name: "Delete Eggs" })).toBeInTheDocument()
+})
+it("fails by name when the app throws in a handler", async () => {
+  render(<Broken />)
+  await userEvent.click(screen.getByRole("button", { name: "Break" }))
+})
+it("runs on after that", () => { expect(1).toBe(1) })
+`;
+Deno.test({ name: "tests run as with React: state is current after each key, effects have run, a toast's Undo works, and a handler's error names its test", ignore: !hasWebKit }, async () => {
+  try {
+    const r = await runTests({ "/src/screens/reacts.tsx": REACTS_SCREEN, "/tests/reacts.test.tsx": REACTS_TEST });
+    const byName = Object.fromEntries(r.results.map((t: { name: string; ok: boolean; error?: string }) => [t.name, t]));
+    assertEquals(r.errors, []);
+    for (const n of ["adds with Enter what was typed, and shows the effect's count at once", "deletes with a toast and brings it back with its Undo", "runs on after that"]) assert(byName[n]?.ok, `${n}: ${byName[n]?.error}`);
+    const broke = byName["fails by name when the app throws in a handler"];
+    assert(!broke.ok);
+    assertStringIncludes(String(broke.error), `An error in the app during this test, in a "click" handler: the button broke`);
+  } finally {
+    const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+    await closeBrowser();
+  }
+});
+
+// 2026-11-17 (loosen test): useSettings ignored a function update, and useStore's function setter
+// could get undefined instead of the initial value when nothing was stored.
+const HOOKS_SCREEN = `import { useStore, useSettings } from "@/lib/pinto"
+export default function Hooks() {
+  const [n, setN] = useStore("n", 5)
+  const [s, update] = useSettings({ size: 1, theme: "light" })
+  return <div>
+    <button onClick={() => setN((old: number) => old + 1)}>Add one</button>
+    <button onClick={() => { setN(undefined as unknown as number); setN((old: number) => old + 10) }}>Clear and add ten</button>
+    <p>n is {String(n)}</p>
+    <button onClick={() => update((old: { size: number; theme: string }) => ({ size: old.size + 1 }))}>Bigger</button>
+    <p>size is {String(s.size)} {s.theme}</p>
+  </div>
+}
+`;
+const HOOKS_TEST = `import { it, expect } from "vitest"
+import { render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { pinto } from "pinto"
+import Hooks from "@/screens/hooks"
+it("a function update starts from the initial value when nothing is stored", async () => {
+  render(<Hooks />)
+  await userEvent.click(screen.getByRole("button", { name: "Add one" }))
+  await waitFor(() => expect(pinto.data.values.n).toBe(6))
+  await userEvent.click(screen.getByRole("button", { name: "Clear and add ten" }))
+  await waitFor(() => expect(pinto.data.values.n).toBe(15))
+  expect(screen.getByText("n is 15")).toBeInTheDocument()
+})
+it("useSettings takes a function update, given the settings with their defaults", async () => {
+  render(<Hooks />)
+  await userEvent.click(screen.getByRole("button", { name: "Bigger" }))
+  await userEvent.click(screen.getByRole("button", { name: "Bigger" }))
+  await waitFor(() => expect(pinto.data.values.settings).toEqual({ size: 3 }))
+  expect(screen.getByText("size is 3 light")).toBeInTheDocument()
+})
+`;
+Deno.test({ name: "the store hooks do what the README says: function updates in useSettings, and the initial value when nothing is stored", ignore: !hasWebKit }, async () => {
+  try {
+    const r = await runTests({ "/src/screens/hooks.tsx": HOOKS_SCREEN, "/tests/hooks.test.tsx": HOOKS_TEST });
+    assertEquals(failuresOf(r), []);
+    assertEquals(r.results.length, 4);
+  } finally {
+    const { closeBrowser } = await import("../../../scripts/page-render/render.ts");
+    await closeBrowser();
+  }
+});
+
+// 2026-11-17 (loosen test): see_app with steps ignored widths and themes and gave only the last
+// screenshot.
+Deno.test({ name: "see_app with steps uses each width and theme asked for, with a picture after each step", ignore: !hasWebKit }, async () => {
+  const { stop } = await renderService();
+  try {
+    const pg = await schemaDB();
+    const a = await account(pg);
+    await tool(pg, a, "create", { type: "app", path: "Notes/Groceries.md" });
+    const seen = await tool(pg, a, "see_app", { path: "Notes/Groceries.app", widths: [390, 1280], themes: ["light", "dark"], steps: [{ type: "Milk", into: "New item" }, { press: "Enter" }] });
+    const blocks = seen.content as { type: string; text?: string }[];
+    const head = JSON.parse(blocks[0].text!);
+    assertEquals(head.view, "390 px light");
+    assertEquals(head.steps.length, 2);
+    assertEquals(head.other_views.map((v: { view: string }) => v.view), ["390 px dark", "1280 px light", "1280 px dark"]);
+    const captions = blocks.filter((b) => b.type === "text").slice(1).map((b) => b.text);
+    assertEquals(captions, ["After step 1 (390 px light):", "After step 2 (390 px light):", "After the last step, at 390 px dark:", "After the last step, at 1280 px light:", "After the last step, at 1280 px dark:"]);
+    assertEquals(blocks.filter((b) => b.type === "image").length, 5);
+  } finally { await stop(); }
+});

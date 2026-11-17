@@ -11,6 +11,43 @@ import { createElement } from "react";
 import { options as preactOptions } from "preact";
 
 // The harness's own clock: a test may fake the page's timers and Date (vi.useFakeTimers).
+// Errors in the app's event handlers and timers, kept with the test they happened in. The page
+// itself reports an error from the app's libraries only as "Script error." (they come from another
+// origin) and with no test name (2026-11-17: a sonner toast's Undo gave "pageerror: The object can
+// not be found here", and 8 of 10 agents dropped sonner). Caught here, it fails the test that was
+// running, saying what went wrong and where.
+let runningTest = null;
+const strayErrors = [];
+const describeError = (e) => { const m = String(e?.message ?? e); return e?.name && e.name !== "Error" && !m.startsWith(e.name) ? `${e.name}: ${m}` : m; };
+const caught = (e, where) => { const m = `${where}: ${describeError(e)}`.slice(0, 400); (runningTest ?? strayErrors).push(m); };
+const guard = (fn, where) => typeof fn !== "function" ? fn : function (...a) {
+  try { return fn.apply(this, a); } catch (e) { caught(e, typeof where === "function" ? where(a) : where); }
+};
+{
+  const st = window.setTimeout, si = window.setInterval, raf = window.requestAnimationFrame;
+  window.setTimeout = function (fn, ms, ...a) { return st.call(window, guard(fn, "a timer"), ms, ...a); };
+  window.setInterval = function (fn, ms, ...a) { return si.call(window, guard(fn, "a timer"), ms, ...a); };
+  if (raf) window.requestAnimationFrame = function (fn) { return raf.call(window, guard(fn, "an animation frame")); };
+  const wrapped = new WeakMap(), add = EventTarget.prototype.addEventListener, remove = EventTarget.prototype.removeEventListener;
+  const handler = (a) => a[0]?.type ? `a "${a[0].type}" handler` : "an event handler";
+  EventTarget.prototype.addEventListener = function (type, fn, o) {
+    if (typeof fn !== "function") return add.call(this, type, fn, o);
+    let w = wrapped.get(fn);
+    if (!w) { w = guard(fn, handler); wrapped.set(fn, w); }
+    return add.call(this, type, w, o);
+  };
+  EventTarget.prototype.removeEventListener = function (type, fn, o) { return remove.call(this, type, (typeof fn === "function" && wrapped.get(fn)) || fn, o); };
+  // What's left (an error in a promise's code, say) still names the test, in the page's words.
+  add.call(window, "error", (e) => caught(e.error ?? e.message, "the page"));
+  // The test's pointer is made up, so the browser has no such pointer to capture (WebKit throws
+  // NotFoundError; jsdom has no pointer capture at all). A drag library's setPointerCapture is fine.
+  for (const m of ["setPointerCapture", "releasePointerCapture"]) {
+    const was = Element.prototype[m];
+    if (was) Element.prototype[m] = function (id) { try { return was.call(this, id); } catch (e) { if (e?.name !== "NotFoundError") throw e; } };
+  }
+}
+/** Errors that came between tests (a timer firing after its test ended), for the runner page. */
+export function strays() { return strayErrors.splice(0); }
 const real = { setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window), setInterval: window.setInterval.bind(window), clearInterval: window.clearInterval.bind(window), Date: window.Date };
 const realNow = () => real.Date.now();
 
@@ -383,6 +420,7 @@ export async function run(reset) {
       const name = [...path, t.name].filter(Boolean).join(" › ");
       const t0 = performance.now();
       assertions = 0; wantAssertions = null;
+      const uncaught = runningTest = [];
       try {
         if (failedAll.length) throw new Error(`beforeAll failed: ${failedAll[0]}`);
         await reset?.();
@@ -392,12 +430,14 @@ export async function run(reset) {
         await Promise.race([t.fn(), new Promise((_, no) => { timer = real.setTimeout(() => no(new Error(`timed out after ${limit / 1000} s`)), limit); })]).finally(() => real.clearTimeout(timer));
         if (wantAssertions === -1 && !assertions) throw new Error("expect.hasAssertions(): no expect() ran");
         if (wantAssertions >= 0 && wantAssertions !== null && assertions !== wantAssertions) throw new Error(`expect.assertions(${wantAssertions}): ${assertions} ran`);
+        if (uncaught.length) throw new Error(`An error in the app during this test, in ${uncaught[0]}${uncaught.length > 1 ? ` (and ${uncaught.length - 1} more)` : ""}`);
         results.push({ name, ok: true, ms: Math.round(performance.now() - t0) });
       } catch (e) {
         results.push({ name, ok: false, error: String(e?.message ?? e).slice(0, 500), ms: Math.round(performance.now() - t0) });
       } finally {
         for (const a of after) { try { await a(); } catch {} }
         cleanup();
+        runningTest = null;
       }
     }
     for (const f of suite.afterAll) { try { await f(); } catch {} }
@@ -415,13 +455,18 @@ export async function run(reset) {
 const mounted = [];
 export function cleanup() { for (const m of mounted.splice(0)) { try { m.root.unmount(); } catch {} if (m.owned) m.container.remove(); } }
 const flush = () => new Promise((ok) => real.setTimeout(ok, 0));
-/** Under fake timers, runs fn and then the renders and effects it caused before returning, as
- *  React's act() does (Preact's own test-utils do it this way): render(<Ticker />) has started its
- *  interval when it returns, so vi.advanceTimersByTime moves it. Only then: on the real clock,
- *  running effects early changed which screen existing tests saw (the habit tracker template's
- *  Undo test found the bar left by the test before it), and their saves would be held back. */
+// Effects run as React runs them in a test. Preact runs useEffect after the next frame (or 100 ms),
+// and a test page draws few frames, so effects came late: a sonner Toaster hadn't subscribed when
+// toast() was called, and "{Enter}" saw the state from before the last keystrokes (2026-11-17,
+// loosen test: 8 of 10 agents dropped sonner, and agents read the DOM instead of their state).
+// Here they're queued for the next task, and act(), render, fireEvent and every userEvent step run
+// them before returning, as React's act() does.
+let pendingEffects = null;
+const runPendingEffects = () => { const f = pendingEffects; pendingEffects = null; f?.(); };
+preactOptions.requestAnimationFrame = (cb) => { pendingEffects = cb; real.setTimeout(runPendingEffects, 0); };
+/** Runs fn, then the renders and effects it caused (and any already waiting), before returning, as
+ *  React's act() does (Preact's own test-utils do it this way). */
 function flushSync(fn) {
-  if (!clock) return fn();
   const raf = preactOptions.requestAnimationFrame, debounce = preactOptions.debounceRendering;
   let effects = null;
   const renders = [];
@@ -429,16 +474,17 @@ function flushSync(fn) {
   preactOptions.debounceRendering = (cb) => { renders.push(cb); };
   try {
     const r = fn();
-    for (let i = 0; i < 25 && (effects || renders.length); i++) {
+    for (let i = 0; i < 25 && (effects || renders.length || pendingEffects); i++) {
       while (renders.length) renders.shift()();
       if (effects) { const e = effects; effects = null; e(); }
+      if (pendingEffects) runPendingEffects();
     }
     return r;
   } finally {
     preactOptions.requestAnimationFrame = raf; preactOptions.debounceRendering = debounce;
   }
 }
-export async function act(fn) { const r = await flushSync(() => fn?.()); await flush(); await flush(); return r; }
+export async function act(fn) { const r = await flushSync(() => fn?.()); await flush(); flushSync(() => {}); await flush(); flushSync(() => {}); return r; }
 export function render(ui, o = {}) {
   const owned = !o.container;
   const container = o.container ?? (o.baseElement ?? document.body).appendChild(document.createElement("div"));
@@ -691,6 +737,7 @@ const eventClass = (type) => /^key/.test(type) ? KeyboardEvent : /^pointer/.test
 const dispatch = (el, type, init = {}) => {
   if (!el) throw new Error(`Can't fire "${type}": no element.`);
   const { target: _target, clipboardData, dataTransfer, ...rest } = init;
+  if (/^pointer/.test(type)) rest.pointerId ??= 1, rest.pointerType ??= "mouse", rest.isPrimary ??= true;
   const ev = new (eventClass(type))(type, { bubbles: !/^(focus|blur|mouseenter|mouseleave|pointerenter|pointerleave|load|scroll)$/.test(type), cancelable: true, composed: true, ...rest });
   if (clipboardData) Object.defineProperty(ev, "clipboardData", { value: clipboardData });
   if (dataTransfer) Object.defineProperty(ev, "dataTransfer", { value: dataTransfer });
@@ -781,17 +828,20 @@ function keys(text) {
 const MODS = { Shift: "shiftKey", Control: "ctrlKey", Alt: "altKey", Meta: "metaKey" };
 async function press(list, opts = {}) {
   const held = { shiftKey: false, ctrlKey: false, altKey: false, metaKey: false };
-  for (const k of list) {
+  // One key: down and what it does, then up. Each is flushed (renders and effects) before the next,
+  // as user-event does inside React's act(), so a handler always sees the state of the last key.
+  const down = (k) => {
     const el = document.activeElement ?? document.body;
-    if (MODS[k.key]) { if (!k.release) { held[MODS[k.key]] = true; dispatch(el, "keydown", { key: k.key, ...held }); } if (k.release || !k.hold) { held[MODS[k.key]] = false; dispatch(el, "keyup", { key: k.key, ...held }); } continue; }
-    if (k.key === "selectall") { el.select?.(); continue; }
+    if (MODS[k.key]) { if (!k.release) { held[MODS[k.key]] = true; dispatch(el, "keydown", { key: k.key, ...held }); } if (k.release || !k.hold) { held[MODS[k.key]] = false; dispatch(el, "keyup", { key: k.key, ...held }); } return null; }
+    if (k.key === "selectall") { el.select?.(); return null; }
     const key = k.key === "\n" ? "Enter" : k.key;
-    if (k.release) { dispatch(el, "keyup", { key, ...held }); continue; }
+    if (k.release) { dispatch(el, "keyup", { key, ...held }); return null; }
     const go = dispatch(el, "keydown", { key, code: key.length === 1 ? (/[a-z]/i.test(key) ? "Key" + key.toUpperCase() : /\d/.test(key) ? "Digit" + key : key === " " ? "Space" : "") : key, ...held });
     const printable = key.length === 1;
     // No keypress for Enter: WebKit submits a form itself on a synthetic Enter keypress, so the
     // form was sent twice (a quick-entry field saved each to-do twice).
     if (go && printable) dispatch(el, "keypress", { key, charCode: key.charCodeAt(0), ...held });
+    let tab = false;
     if (go) {
       const shortcut = held.ctrlKey || held.metaKey;
       if (printable && !shortcut) {
@@ -803,15 +853,23 @@ async function press(list, opts = {}) {
         else if (el.tagName === "BUTTON" || (el.tagName === "A" && el.hasAttribute("href")) || (el.tagName === "INPUT" && /^(button|submit|reset|checkbox|radio)$/.test(el.type) && el.type !== "checkbox")) el.click();
       } else if (key === "Backspace") erase(el, false);
       else if (key === "Delete") erase(el, true);
-      else if (key === "Tab") await user.tab({ shift: held.shiftKey });
+      else if (key === "Tab") tab = true;
       else if (/^Arrow(Left|Right)$/.test(key) && editable(el) && !el.isContentEditable) { const [s] = selectionOf(el); putCaret(el, Math.max(0, Math.min((el.value ?? "").length, s + (key === "ArrowLeft" ? -1 : 1)))); }
       else if (key === "Home" && editable(el)) putCaret(el, 0);
       else if (key === "End" && editable(el)) putCaret(el, (el.value ?? "").length);
     }
-    if (!k.hold) {
-      dispatch(el, "keyup", { key, ...held });
-      if (go && key === " " && (el.tagName === "BUTTON" || (el.tagName === "INPUT" && /^(checkbox|radio|button|submit|reset)$/.test(el.type)))) el.click();
-    }
+    return { el, key, go, tab };
+  };
+  const up = ({ el, key, go }, k) => {
+    if (k.hold) return;
+    dispatch(el, "keyup", { key, ...held });
+    if (go && key === " " && (el.tagName === "BUTTON" || (el.tagName === "INPUT" && /^(checkbox|radio|button|submit|reset)$/.test(el.type)))) el.click();
+  };
+  for (const k of list) {
+    const d = flushSync(() => down(k));
+    if (!d) continue;
+    if (d.tab) await user.tab({ shift: held.shiftKey });
+    flushSync(() => up(d, k));
     if (opts.delay) await new Promise((ok) => real.setTimeout(ok, opts.delay));
   }
   await act();
@@ -821,11 +879,12 @@ const user = {
   async click(el, o = {}) {
     usable(el, "click");
     const init = { button: 0, shiftKey: !!o.shiftKey, ctrlKey: !!o.ctrlKey, metaKey: !!o.metaKey, altKey: !!o.altKey };
-    for (const t of ["pointerover", "pointerenter", "mouseover", "mouseenter", "pointerdown", "mousedown"]) dispatch(el, t, init);
-    const target = el.closest?.("input, select, textarea, button, a[href], [tabindex], [contenteditable]") ?? null;
-    if (target && focusable(target)) target.focus(); else if (!target && document.activeElement && document.activeElement !== document.body) document.activeElement.blur?.();
-    for (const t of ["pointerup", "mouseup"]) dispatch(el, t, init);
-    if (!el.disabled) el.click();
+    flushSync(() => {
+      for (const t of ["pointerover", "pointerenter", "mouseover", "mouseenter", "pointerdown", "mousedown"]) dispatch(el, t, init);
+      const target = el.closest?.("input, select, textarea, button, a[href], [tabindex], [contenteditable]") ?? null;
+      if (target && focusable(target)) target.focus(); else if (!target && document.activeElement && document.activeElement !== document.body) document.activeElement.blur?.();
+    });
+    flushSync(() => { for (const t of ["pointerup", "mouseup"]) dispatch(el, t, init); if (!el.disabled) el.click(); });
     await act();
   },
   async dblClick(el) { await user.click(el); await user.click(el); dispatch(el, "dblclick", { button: 0, detail: 2 }); await act(); },

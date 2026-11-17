@@ -36,6 +36,21 @@ Deno.test("the sample keeps the note's shape and none of its words", () => {
   assert(!JSON.stringify(d).includes("Lisbon") && !JSON.stringify(d).includes("Ana") && !JSON.stringify(d).includes("abc"));
 });
 
+Deno.test("the sample keeps what points at an item: a reference by id, an order list and a map's value", () => {
+  // 2026-11-17 (loosen test): ids were kept but references to them were replaced, so see_app's
+  // sample showed log entries for habits that weren't there.
+  const d = sampleData({
+    values: { order: ["walk", "read"], today: { walk: "done" }, pinned: "read" },
+    collections: { habits: [{ id: "walk", name: "Walk to work" }, { id: "read", name: "Read Middlemarch" }], log: [{ id: "l1", habitId: "walk", note: "Rainy" }] },
+  }, "2026-11-17") as any;
+  assertEquals(d.values.order, ["walk", "read"]);
+  assertEquals(d.values.pinned, "read");
+  assertEquals(d.collections.log[0].habitId, "walk");
+  assertEquals(Object.keys(d.values.today), ["walk"]);
+  const text = JSON.stringify(d);
+  assert(!text.includes("Walk to work") && !text.includes("Middlemarch") && !text.includes("Rainy"), text);
+});
+
 Deno.test("!important is called out because the base never needs it", () => {
   assertStringIncludes(pageWarnings(`<html lang="en"><style>input { border: 0 !important; }</style><p style="color: red !important">x</p>`).join(), "!important appears 2 times");
   assertEquals(pageWarnings(`<html lang="en"><style>input { border: 0; }</style>`).some((w) => w.includes("!important")), false);
