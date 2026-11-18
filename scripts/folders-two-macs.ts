@@ -158,9 +158,9 @@ try {
     tunnels.push(new Deno.Command("ssh", { args: ["-N", "-o", "ExitOnForwardFailure=yes", "-R", "56421:127.0.0.1:56421", host], stdout: "null", stderr: "null" }).spawn());
   }
   for (const p of people) {
-    await ssh(p.host, `mkdir -p ~/${p.dir} ${p.tmp} && rm -rf ~/${p.dir}/PintoTest.app`);
+    // A fresh folder for this run's steps and flags (a glob that matches nothing stops zsh's rm).
+    await ssh(p.host, `rm -rf ${p.tmp} ~/${p.dir}/PintoTest.app && mkdir -p ~/${p.dir} ${p.tmp}`);
     await sh(["rsync", "-a", "--delete", `${p.app}/`, `${p.host}:${p.dir}/PintoTest.app/`]);
-    await ssh(p.host, `rm -f ${p.tmp}/*.txt ${p.tmp}/*.json ${p.tmp}/collab-script.log`, true);
     await sh(["ssh", p.host, `cat > ${p.tmp}/folders-steps.json`], JSON.stringify(steps[p.name]));
     if (photo) await sh(["scp", "-q", photo, `${p.host}:${p.tmp}/photo.jpg`]);
   }
@@ -212,12 +212,13 @@ check("both edits are in the note on both Macs", [mp?.text, jp?.text].every((t) 
 if (photo) check("the photo is in the note on Jonas's Mac", jp?.text?.includes("pane-file:") === true);
 const mm = read("maja-after-move.json"), jm = read("jonas-after-move.json");
 check("Jonas's new note is in Maja's folder", folderNotes(mm, "Recipes").includes("Shakshuka"), folderNotes(mm, "Recipes").join(", "));
-check("the note Jonas moved out left the folder for Maja", !folderNotes(mm, "Recipes").includes("Lentil soup"));
+// A check that something is gone needs the file that says so.
+check("the note Jonas moved out left the folder for Maja", mm !== null && !folderNotes(mm, "Recipes").includes("Lentil soup"));
 check("Jonas keeps his copy in his own folder", folderNotes(jm, "My recipes").includes("Lentil soup"));
 const jl = read("jonas-left.json");
-check("after leaving, Maja's notes are gone from Jonas's Mac", !folderNotes(jl, "Recipes").includes("Pancakes"), folderNotes(jl, "Recipes").join(", "));
+check("after leaving, Maja's notes are gone from Jonas's Mac", jl !== null && !folderNotes(jl, "Recipes").includes("Pancakes"), folderNotes(jl, "Recipes").join(", "));
 const je = read("jonas-end.json"), me = read("maja-end.json");
-check("stop sharing: the folder is gone from Jonas's Mac", !folderNotes(je, "Recipes").includes("Pancakes"));
+check("stop sharing: the folder is gone from Jonas's Mac", je !== null && !folderNotes(je, "Recipes").includes("Pancakes"));
 check("stop sharing: Maja keeps her folder and notes", folderNotes(me, "Recipes").includes("Pancakes"));
 for (const p of people) {
   const log = (() => { try { return Deno.readTextFileSync(`${out}/${p.name.toLowerCase()}.log`); } catch { return ""; } })();

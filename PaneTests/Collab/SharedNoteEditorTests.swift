@@ -185,6 +185,42 @@ extension NetworkFaults {
         #expect(note?.modelContext == nil)
     }
 
+    /// The same, further along: the note's document was downloading when the account changed. The
+    /// download finishes into a closed library and stops there (an Air run, 11-18).
+    @Test func aDownloadThatFinishesAfterSigningOutStops() async throws {
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        defer { store.stop() }
+        var note: Note? = nil
+        var download: Task<CollabSession?, Never>? = nil
+        do {
+            let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            let context = c.mainContext
+            store.context = context
+            let n = context.createNote(in: .all, body: "Groceries\nMilk")
+            try context.save()
+            try await transport.share(note: n.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+            let library = try #require(store.library)
+            let session = try await library.becomeShared(n, nk: nk)
+            session.close()
+            library.closeAll()
+            store.sessions = [:]
+            // As on a device that has the pointer and not the document yet.
+            n.sharedDocument?.saved = Data()
+            let noteKey = nk
+            let fresh = SharedLibrary(context: context, transport: transport, name: "Emil", dataKey: { key }, openKey: { _ in noteKey })
+            fresh.networkUp = { true }
+            note = n
+            download = Task { await fresh.ensureDocument(n, force: true) }
+            await Task.yield()
+            fresh.closeAll()
+        }
+        let opened = await download?.value
+        #expect(opened == nil)
+        #expect(note?.modelContext == nil)
+    }
+
     /// Sharing starts at launch, before any view has loaded your profile: your caret and "In this
     /// note" still carry your name, from the profile's cached copy, not "Someone".
     @Test func sharingAtLaunchUsesYourCachedName() throws {

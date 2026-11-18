@@ -35,6 +35,7 @@ final class SharedLibrary {
     private let openKey: @MainActor (Collab.Membership) async throws -> SymmetricKey
     /// Open shared notes, by the id of the note in your library.
     private(set) var sessions: [UUID: CollabSession] = [:]
+    private var closed = false
     /// Called with a session as it opens, to hook it up further (the store's members, photos).
     var onOpen: ((CollabSession, Note) -> Void)?
     /// Called with a note's id when it leaves your library (you left, or were removed).
@@ -311,6 +312,7 @@ final class SharedLibrary {
     /// sharing, leaving: something you asked for) tries now whatever the last try did.
     @discardableResult
     func ensureDocument(_ note: Note, force: Bool = false) async -> CollabSession? {
+        guard alive(note) else { return nil }
         if let s = session(for: note) { return s }
         guard let shared = note.sharedNoteID else {
             log.error("\(note.id, privacy: .public) has no shared document: it isn't a shared note here")
@@ -320,6 +322,7 @@ final class SharedLibrary {
         // the note opens once (`adopt`).
         while let joining = adopting[shared] {
             _ = try? await joining.task.value
+            guard alive(note) else { return nil }
             if let s = session(for: note) { return s }
         }
         if let running = loading[shared] { return await running.value }
@@ -328,13 +331,15 @@ final class SharedLibrary {
         let task = Task<CollabSession?, Never> { [weak self] in
             guard let self else { return nil }
             do {
-                guard let row = try await transport.memberships().first(where: { $0.note_id == shared }) else {
+                let rows = try await transport.memberships()
+                guard alive(note) else { return nil }
+                guard let row = rows.first(where: { $0.note_id == shared }) else {
                     // Not in it anymore (removed while this device was away).
-                    if await isMember(shared) == false { removeLocally(note) }
+                    if await isMember(shared) == false, alive(note) { removeLocally(note) }
                     return nil
                 }
                 let nk = try await key(for: row)
-                guard let dk = dataKey() else { return nil }
+                guard alive(note), let dk = dataKey() else { return nil }
                 let record = note.sharedDocument ?? context.sharedDocument(shared) ?? {
                     let r = SharedDocument(id: shared, epoch: row.epoch, role: row.role, saved: Data())
                     context.insert(r)
@@ -346,6 +351,7 @@ final class SharedLibrary {
                 record.setKey(try CollabCrypto.selfWrap(nk, dataKey: dk, note: shared, epoch: row.epoch), epoch: row.epoch)
                 let name = nameSource
                 let session = try await CollabSession.load(record: record, nk: nk, transport: transport, me: me, name: name())
+                guard alive(note), record.modelContext != nil else { session.close(); return nil }
                 note.sharedDocument = record
                 note.body = session.text
                 context.saveOrReport()
@@ -358,6 +364,7 @@ final class SharedLibrary {
         loading[shared] = task
         let session = await task.value
         loading[shared] = nil
+        guard alive(note) else { return nil }
         if session != nil || note.deletedAt != nil {
             failedLoads[shared] = nil
         } else {
@@ -740,7 +747,12 @@ final class SharedLibrary {
 
     /// Closes every open session for good (signing out, or the library replaced): what's stored
     /// stays, and opens again with the next library.
+    /// A note this library can still work on: not closed (signed out, or into another account),
+    /// and the note still in its store. A download that finishes after either stops there.
+    private func alive(_ note: Note) -> Bool { !closed && note.modelContext != nil }
+
     func closeAll() {
+        closed = true
         for s in sessions.values { s.close() }
         sessions = [:]
         if let networkWatch { NetworkPath.shared.forget(networkWatch) }
