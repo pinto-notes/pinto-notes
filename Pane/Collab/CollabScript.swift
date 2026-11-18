@@ -335,6 +335,9 @@ enum CollabScript {
             let name = v["folder"] ?? ""
             try await until(90, "the folder \(name) to arrive") { joinFailed() != nil || folderNamed(name) != nil }
             if let why = joinFailed() { throw Failed(description: why) }
+        case "write":
+            // A file the run script carries to the other device, which waits for it.
+            try write("ok", to: value as? String ?? "flag.txt")
         case "checkNow":
             await CollabStore.shared?.checkMemberships()
         case "waitNoteIn":

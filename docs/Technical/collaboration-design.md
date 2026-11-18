@@ -277,7 +277,7 @@ Each member's pointer for a note sits in their folder for `shared_notes.folder_i
 
 - **In:** a note made in a shared folder, moved into it, or written there by an AI is shared into it: shared on its own first if it isn't (`collab_share`), then `collab_folder_note_add`. A note made by an app from before shared folders stays the maker's until one of their newer devices sees it there and shares it in.
 - **Subfolders** are shared with the folder: made, renamed, moved and deleted for everyone.
-- **Out:** moved out of the shared folder, or deleted, a note leaves the folder for everyone. Whoever moved it keeps it as an ordinary note of theirs. If they made it, it's that note; otherwise their device keeps a copy and the note's maker loses it with everyone else (`collab_folder_note_remove`, access ended with reason `moved`).
+- **Out:** moved out of the shared folder, or deleted, a note leaves the folder for everyone (`collab_folder_note_remove`): every membership that came through the folder ends with reason `moved`, and the note gets a new key without them. Its maker keeps it. If whoever moved it isn't its maker, their device keeps a copy where they put it, and the maker's device moves the maker's note out of the shared folder into one of their own folders on its next look. Nobody loses a note they made because someone else moved it.
 - **Notes stay with their maker.** A note's owner is whoever made it. If they leave the folder or are removed, the notes they made leave with them, as their own.
 
 ### People
@@ -291,9 +291,28 @@ Each member's pointer for a note sits in their folder for `shared_notes.folder_i
 
 Files in a shared note are sealed under the note's key, not the owner's data key, so everyone in the note opens them (see `SharedFiles`). A recipe folder with photos works.
 
+### How the app does it
+
+`FolderSharing` (Pane/Collab/FolderSharing.swift) looks at your shared folders with the half-minute membership check, before the notes' own look, so a folder you lost takes its notes with it in one alert. Each look:
+
+- opens FK from your membership (your own copy, else the copy sealed to you after a new key, which it then keeps as your own with `collab_folder_accept`);
+- brings the tree both ways. What each device last saw (`FolderSyncState`, kept per device) says which side changed: a rename or move made here goes up (`collab_folder_put`), one made elsewhere comes down. A subfolder made here goes up; one deleted here is dropped, with its notes leaving the folder;
+- joins notes it isn't in yet (`collab_folder_join_note`), opens them (`SharedLibrary.adopt`) and puts them in place;
+- shares in notes made or moved into the tree here (`collab_share`, then `collab_folder_note_add`), and takes out notes moved out or deleted;
+- after someone left or was removed, the owner's device makes a new FK and seals it, each note's key and each name again, in one call (`collab_folder_rekey`, names in `p_names`).
+
+Share Folder is in a top-level folder's menu (not Notes, not "Shared with me") on Mac and iPhone. It opens the note's Share sheet over the folder (`FolderShareBackend`), with the folder's words, Leave Folder for a member and Stop Sharing for the owner. A shared folder's icon has people on it (`folder.badge.person.crop`). A folder's link opens through the same join as a note's: if it isn't a note's link, it's asked for as a folder's.
+
+Older apps (1.3, 1.4) see the folders as ordinary folders and the notes as shared notes, or with "This note is shared. Update Pinto Notes to open it." A note an older app makes in a shared folder stays its maker's until a newer device of theirs shares it in.
+
+The AI file tools (supabase/functions/mcp/shared_notes.ts) show a shared folder where it sits in your folders, read and edit its notes, make notes in it (shared in at once) and move notes between its folders.
+
+Tests: PaneTests/Collab/SharedFoldersTests.swift (two and three people over the in-memory server, MemoryFolderServer), PaneTests/FolderVectorsTests.swift (the formats against `collab-vectors.json`), supabase/functions/_shared/collab.test.ts, collab_folders.pglite.test.ts and mcp/shared_folders.pglite.test.ts; in real windows on two Macs, scripts/folders-two-macs.ts.
+
 ### Not yet
 
-- Note apps and sub-notes in shared notes. The Share sheet and the folder say so.
+- Note apps and sub-notes in shared notes. The Share sheet says so: notes with an app or sub-notes stay yours and aren't shared.
+- The AI can't make subfolders in a shared folder, move a note into or out of one, or delete inside one; it says so.
 - Version history of folder moves.
 
 ## 7. Share as template
