@@ -286,6 +286,7 @@ Each member's pointer for a note sits in their folder for `shared_notes.folder_i
 - **Joining** by the folder's link makes you a member of the folder (`collab_folder_join_link`). The folder lands at the top of your folders.
 - **Removing** someone, or their leaving, takes their folder membership and every `via_folder` note membership in one call; each note gets a new key from its owner's next device (`rekey_after`, as for a note), and the folder's owner makes a new FK, seals it to everyone left and rewraps each note's key under it (`collab_folder_rekey`).
 - **Stop sharing** (owner): everyone else loses the folder and its notes. The owner's notes become ordinary notes again; notes others made in it leave with them.
+- **Joining again** after leaving: your old copy of the folder comes back (it isn't left deleted), the owner's notes come back into it, and notes of yours still in it go back into the shared folder.
 
 ### Files and photos
 
@@ -307,7 +308,9 @@ Older apps (1.3, 1.4) see the folders as ordinary folders and the notes as share
 
 The AI file tools (supabase/functions/mcp/shared_notes.ts) show a shared folder where it sits in your folders, read and edit its notes, make notes in it (shared in at once) and move notes between its folders.
 
-Tests: PaneTests/Collab/SharedFoldersTests.swift (two and three people over the in-memory server, MemoryFolderServer), PaneTests/FolderVectorsTests.swift (the formats against `collab-vectors.json`), supabase/functions/_shared/collab.test.ts, collab_folders.pglite.test.ts and mcp/shared_folders.pglite.test.ts; in real windows on two Macs, scripts/folders-two-macs.ts.
+Tests: PaneTests/Collab/SharedFoldersTests.swift (two and three people over the in-memory server, MemoryFolderServer), PaneTests/FolderVectorsTests.swift (the formats against `collab-vectors.json`), supabase/functions/_shared/collab.test.ts, collab_folders.pglite.test.ts and mcp/shared_folders.pglite.test.ts; in real windows, scripts/folders-two-macs.ts (two Macs, or both accounts side by side on one with `FOLDERS_HOSTS=fleet-air2,fleet-air2` and a build per account).
+
+The first real-window runs (18 November 2026, air2) found what the in-memory tests didn't, each now with a test: opening a second shared note let the first one's changes into the editor, and from there into the second note's document (one editor serves every note in a window); a membership check that began before Stop Sharing emptied the owner's note after it; joining again after leaving left the folder deleted; and two crashes when the account changed while a shared note was opening.
 
 ### Not yet
 

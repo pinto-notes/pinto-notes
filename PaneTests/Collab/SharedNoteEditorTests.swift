@@ -407,7 +407,6 @@ extension NetworkFaults {
     }
 }
 }
-#endif
 
 @MainActor @Observable private final class Picked {
     var note: Note
@@ -422,3 +421,4 @@ private struct PickedNote: View {
         NoteDetailView(note: picked.note, controller: controller, onNewNote: {}).id(picked.note.id)
     }
 }
+#endif
