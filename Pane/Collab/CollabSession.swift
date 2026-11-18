@@ -913,7 +913,8 @@ final class CollabSession {
     private enum SendOutcome { case done, later, stop }
 
     private func sendPending() async -> SendOutcome {
-        while let change = record.pending.first {
+        // The store the document lived in went away while a send was out: nothing left to send.
+        while !(isStored && record.modelContext == nil), let change = record.pending.first {
             let ct: String
             do {
                 ct = try CollabCrypto.seal(.update, change, nk: nk, note: noteID, epoch: epoch, extra: me.uuidString)

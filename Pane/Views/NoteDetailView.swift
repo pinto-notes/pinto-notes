@@ -878,7 +878,8 @@ struct NoteDetailView: View {
                     .onAppear { if note.isLocked { vault.touch() } }
                     // Opened by a link to one of its headings: there, once the text is laid out.
                     .task {
-                        try? await Task.sleep(for: .milliseconds(150))
+                        // Gone before then (the note closed, or its store went away): nothing to land on.
+                        guard (try? await Task.sleep(for: .milliseconds(150))) != nil, note.modelContext != nil else { return }
                         landOnHeading()
                     }
                     // The note's images that are on the server and not here are fetched as it opens,
