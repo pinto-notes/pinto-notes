@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Observation
 import SwiftData
 import os
 
@@ -17,23 +18,24 @@ private let log = Logger(subsystem: "dev.emilwagman.pane", category: "collab")
 /// - notes made in it, moved into it or written there by an AI are shared into it; notes moved
 ///   out of it or deleted leave it, for everyone.
 @MainActor
+@Observable
 final class FolderSharing {
     unowned let store: CollabStore
     let transport: any FolderTransport
     let context: ModelContext
-    private(set) var state: FolderSyncState
-    private let saveState: @MainActor (FolderSyncState) -> Void
+    @ObservationIgnored private(set) var state: FolderSyncState
+    @ObservationIgnored private let saveState: @MainActor (FolderSyncState) -> Void
 
     /// Your shared folders, by the shared folder's id (the owner's folder id).
     private(set) var roots: [UUID: Root] = [:]
     /// What each folder's link lets people do. No entry: the link is off.
     var linkAccess: [UUID: ShareState.Access] = [:]
-    var links: [UUID: (id: String, secret: Data)] = [:]
+    @ObservationIgnored var links: [UUID: (id: String, secret: Data)] = [:]
     /// Folders whose sharing ended here (you left, were removed, or it was stopped): told once.
-    var onLost: ((FolderRemoval) -> Void)?
+    @ObservationIgnored var onLost: ((FolderRemoval) -> Void)?
     /// Looks in progress, for tests to wait on.
-    private(set) var syncs = 0
-    private var running: Task<Void, Never>?
+    @ObservationIgnored private(set) var syncs = 0
+    @ObservationIgnored private var running: Task<Void, Never>?
 
     struct Root: Equatable {
         let id: UUID
@@ -77,6 +79,10 @@ final class FolderSharing {
         }
         return nil
     }
+
+    /// Your folders that are shared folders (the shared folder itself, not its subfolders): the
+    /// sidebar marks them.
+    var sharedFolderIDs: Set<UUID> { Set(roots.keys.compactMap { try? localID($0) }) }
 
     /// True for a folder that's shared: the shared folder itself.
     func isSharedRoot(_ folder: Folder) -> Bool {
@@ -600,7 +606,7 @@ final class FolderSharing {
 
     /// Who shared the folder, by name, as its members list says.
     func ownerName(of folder: Folder) -> String? { ownerNames[folder.id] }
-    private var ownerNames: [UUID: String] = [:]
+    @ObservationIgnored private var ownerNames: [UUID: String] = [:]
 
     /// Opening a folder's link: you join the folder with the link's role; its folder lands at
     /// the top of your folders, with its notes.
@@ -660,4 +666,14 @@ struct FolderRemoval: Equatable, Identifiable {
     }
 
     static func == (a: FolderRemoval, b: FolderRemoval) -> Bool { a.name == b.name && a.reason == b.reason }
+}
+
+/// Shared folders you lost, said one at a time over the notes (JoinLinkHandler).
+@MainActor @Observable
+final class FolderRemovals {
+    static let shared = FolderRemovals()
+    private(set) var queue: [FolderRemoval] = []
+    var current: FolderRemoval? { queue.first }
+    func add(_ r: FolderRemoval) { if !queue.contains(r) { queue.append(r) } }
+    func shown() { if !queue.isEmpty { queue.removeFirst() } }
 }

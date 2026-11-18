@@ -745,6 +745,12 @@ struct RootView: View {
             .task(id: onboarding?.landing) { openLanding() }
             // A note opened from the menu bar or the Home Screen widget.
             .onChange(of: NoteOpener.shared.request) { _, id in reveal(id) }
+            // A shared folder just joined by its link: its notes show.
+            .onChange(of: NoteOpener.shared.folderRequest) { _, id in
+                guard let id, let f = context.folder(id), f.deletedAt == nil else { return }
+                NoteOpener.shared.folderRequest = nil
+                scope = .folder(f.id)
+            }
             // New Note from Control Centre, the Lock Screen, the Action button or Siri.
             .onChange(of: NoteOpener.shared.newNoteAsked) { _, asked in if asked { openAskedFromOutside() } }
             // From the onboarding emails: ambernotes.app/open/import and /open/history.

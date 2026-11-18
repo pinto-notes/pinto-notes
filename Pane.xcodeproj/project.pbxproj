@@ -1440,6 +1440,7 @@
 		E659303BB877D7004262E67A /* template-cover-study-flashcards-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 4AB6AADB762A4239B8CC8707 /* template-cover-study-flashcards-large.jpg */; };
 		E6682AC8CBDCAE514A960B51 /* template-app-habit-tracker-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2A7B9A6437069D55101DDFDB /* template-app-habit-tracker-light.jpg */; };
 		E6D79538E266A83D83BAA3EC /* LinkedLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E309D28E80265DB79E8CAC3 /* LinkedLibraryTests.swift */; };
+		E6DB5ECDA29B1494F5574FFD /* FolderShareBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54CBD96C018A361FC09722FB /* FolderShareBackend.swift */; };
 		E7133BE82D75BD30F97869FE /* template-app-budget-log-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3DB3498A8DE2D5E442CCEA2D /* template-app-budget-log-stage-card-light.jpg */; };
 		E71E91C556CB0880D1390CE2 /* KeepImportTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BAB76BCB209BDBBEE16E14 /* KeepImportTests+Shared.swift */; };
 		E721143BCF1CD9D3DE548522 /* template-app-study-flashcards.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 98086AC5C15AF19299166868 /* template-app-study-flashcards.project.json */; };
@@ -1512,6 +1513,7 @@
 		F274AC79AD184D6E3169CD60 /* AIConnectionsPageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F7E18AED628E9D608DA30DC /* AIConnectionsPageTests.swift */; };
 		F2E1F37EAD89885E49AFFFA2 /* OldNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35D79FDD1B9E683ACD5F3BCA /* OldNameTests.swift */; };
 		F352EC9EC9BB2925CFED7F82 /* Highlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D78B0A2D3E9ED73435A8B91 /* Highlights.swift */; };
+		F366A1A81C97A2DC48F74D67 /* FolderShareBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54CBD96C018A361FC09722FB /* FolderShareBackend.swift */; };
 		F3A82E615E39FA2B12E4D1D6 /* KeyStartupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC1A686247652CA9E7C73EB4 /* KeyStartupTests.swift */; };
 		F3F5A1D60F5764AAAFA27C78 /* StubSupabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13D334A88590B3D0095E37B /* StubSupabase.swift */; };
 		F4352BD154634C08389F7FF1 /* CollabText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC69D91E636A7BD81BB0164 /* CollabText.swift */; };
@@ -2000,6 +2002,7 @@
 		533FEF595166704617E0EA6B /* preact.module.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = preact.module.js; sourceTree = "<group>"; };
 		53EFEF0B8258BBDA96D05B51 /* ConnectDetectTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectDetectTests.swift; sourceTree = "<group>"; };
 		54785B843656F68AE620E39F /* TestDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestDefaults.swift; sourceTree = "<group>"; };
+		54CBD96C018A361FC09722FB /* FolderShareBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderShareBackend.swift; sourceTree = "<group>"; };
 		54F683F906477EE42A239EF0 /* SupabaseCollabTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseCollabTransport.swift; sourceTree = "<group>"; };
 		550BEF23962BF4E461634AD1 /* SessionStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStorageTests.swift; sourceTree = "<group>"; };
 		550E4D52A7E05ECB1417CCD0 /* RichPaste.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichPaste.swift; sourceTree = "<group>"; };
@@ -3360,6 +3363,7 @@
 				4DC69D91E636A7BD81BB0164 /* CollabText.swift */,
 				D5E284C84E38F42AD8AB2327 /* CollabTransport.swift */,
 				979D2E9DD51369BF10092D4A /* FolderCrypto.swift */,
+				54CBD96C018A361FC09722FB /* FolderShareBackend.swift */,
 				A4B96F68F0D7C867E172D9E8 /* FolderSharing.swift */,
 				7FB86D40DF26FF75E3D905D4 /* FolderTransport.swift */,
 				3AC5205EF7FD68D7C5065C73 /* JoinLink.swift */,
@@ -5027,6 +5031,7 @@
 				BFA444849B687C47057C7C56 /* FolderFileViews.swift in Sources */,
 				3C5726BD6097194CCFDF8831 /* FolderFiles.swift in Sources */,
 				F125EDF497590DCDE9425D0C /* FolderGallery.swift in Sources */,
+				E6DB5ECDA29B1494F5574FFD /* FolderShareBackend.swift in Sources */,
 				1D0F42C4AA5BF9D76B8209E1 /* FolderSharing.swift in Sources */,
 				A78B83A67CB646DEAEA98C01 /* FolderTransport.swift in Sources */,
 				40DDF5DDC2A49131D20E5937 /* FormatBar.swift in Sources */,
@@ -5813,6 +5818,7 @@
 				B3A35F855326D7C579373AF0 /* FolderFileViews.swift in Sources */,
 				09512A465EB52DDF7EDBB653 /* FolderFiles.swift in Sources */,
 				725FF5B95854E7514E3E6C4D /* FolderGallery.swift in Sources */,
+				F366A1A81C97A2DC48F74D67 /* FolderShareBackend.swift in Sources */,
 				EA5C333110BD08F3D7085981 /* FolderSharing.swift in Sources */,
 				37CEC0E4B96E763D62E6D5E2 /* FolderTransport.swift in Sources */,
 				BC8F6F8C8E7ED9F06766A538 /* FormatBar.swift in Sources */,

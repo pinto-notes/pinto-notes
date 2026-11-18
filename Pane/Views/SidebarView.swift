@@ -429,6 +429,8 @@ struct SidebarView: View {
     @State private var showSettings = false
     /// The folder whose Move is open (iPhone): where it goes, picked in a sheet.
     @State private var movingFolder: Folder?
+    /// Share Folder's sheet is open for this folder.
+    @State private var sharingFolder: Folder?
     /// The folders screen's Edit (iPhone): rows to reorder, each with its ••• menu.
     @State private var editingFolders = false
     /// A card at the foot was closed in this window (it's also kept per account, and on the server).
@@ -937,6 +939,11 @@ struct SidebarView: View {
             Text(Self.folderLimitMessage)
         }
         #endif
+        .sheet(item: $sharingFolder) { folder in
+            if let store = CollabStore.shared, let sharing = store.folders {
+                ShareSheet(folder: FolderShareBackend(folder: folder, sharing: sharing, store: store))
+            }
+        }
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
             if let backend { SettingsView(backend: backend, sync: sync) }
@@ -1065,10 +1072,13 @@ struct SidebarView: View {
     /// Window first (Emil, 2 November 2026); what to make in it, what to do with it, and Delete on
     /// its own at the end. Notes, the first folder, has no Move To: it stays first, where new notes
     /// go. Nor Delete, as in Notes: with every folder gone the sidebar had only Recently Deleted
-    /// (Emil, 3 November 2026). Pinto has no folder sharing, so no Share.
-    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows, reorders: Bool = FolderAction.opensWindows) -> [[FolderAction]] {
+    /// (Emil, 3 November 2026). Share Folder, in a group of its own, for a folder at the top level
+    /// (not Notes, not "Shared with me"), as in Notes; a folder inside a shared folder is shared with it.
+    nonisolated static func folderMenu(isNotes: Bool, newWindow: Bool = FolderAction.opensWindows, reorders: Bool = FolderAction.opensWindows,
+                                       shares: Bool = false) -> [[FolderAction]] {
         (newWindow ? [[.openInNewWindow]] : [])
-            + [[.newNote, .newFolder], isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move]]
+            + [[.newNote, .newFolder]] + (shares ? [[.share]] : [])
+            + [isNotes ? [.rename, .duplicate] : [.rename, .duplicate, .move]]
             // Mac: the same as dragging a folder between two rows, without the drag (iPhone has
             // Edit's handles). Notes stays first, so it has neither.
             + (isNotes || !reorders ? [] : [[.moveUp, .moveDown]])
@@ -1102,6 +1112,7 @@ struct SidebarView: View {
             openInNewWindow: { [openWindow] in NoteWindows.open(folder: $0.id, with: openWindow) },
             newNote: { onNewNoteIn($0.id) },
             newFolder: startNewFolder,
+            share: { sharingFolder = $0 },
             rename: startRename,
             duplicate: { f in SidebarView.folderChange { _ = context.duplicate(f) } },
             moveSheet: startMove,
@@ -1434,7 +1445,9 @@ private struct FolderDropIcon: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         let lit = drops.lit(id)
-        DropOpenIcon(symbol: "folder", kind: .folder, open: lit, selected: selected || lit)
+        // A shared folder has people on it, as in Notes.
+        DropOpenIcon(symbol: CollabStore.shared?.folders?.sharedFolderIDs.contains(id) == true ? "folder.badge.person.crop" : "folder",
+                     kind: .folder, open: lit, selected: selected || lit)
             .keyframeAnimator(initialValue: 1.0, trigger: drops.landings[id] ?? 0) { content, scale in
                 content.scaleEffect(reduceMotion ? 1 : scale)
             } keyframes: { _ in
@@ -2103,7 +2116,7 @@ private struct AskLoad: Equatable {
 
 /// An action on a folder in its menus (`SidebarView.folderMenu`).
 enum FolderAction: String, CaseIterable, Identifiable {
-    case openInNewWindow, newNote, newFolder, rename, duplicate, move, moveUp, moveDown, delete
+    case openInNewWindow, newNote, newFolder, share, rename, duplicate, move, moveUp, moveDown, delete
 
     var id: String { rawValue }
 
@@ -2121,6 +2134,7 @@ enum FolderAction: String, CaseIterable, Identifiable {
         case .openInNewWindow: NoteWindows.openFolderTitle
         case .newNote: "New Note"
         case .newFolder: "New Folder"
+        case .share: "Share Folder"
         case .rename: "Rename"
         case .duplicate: "Duplicate"
         case .move: "Move To"
@@ -2139,6 +2153,7 @@ enum FolderAction: String, CaseIterable, Identifiable {
         case .openInNewWindow: NoteWindows.symbol
         case .newNote: "square.and.pencil"
         case .newFolder: "folder.badge.plus"
+        case .share: "person.crop.circle.badge.plus"
         case .rename: "pencil"
         case .duplicate: "plus.square.on.square"
         case .move: "folder"
@@ -2165,6 +2180,8 @@ struct FolderMenuActions {
     var openInNewWindow: (Folder) -> Void = { _ in }
     var newNote: (Folder) -> Void = { _ in }
     var newFolder: (Folder) -> Void = { _ in }
+    /// Share Folder: the folder's Share sheet.
+    var share: (Folder) -> Void = { _ in }
     var rename: (Folder) -> Void = { _ in }
     var duplicate: (Folder) -> Void = { _ in }
     /// iPhone: Move To opens a sheet of the folders.
@@ -2190,7 +2207,7 @@ private struct FolderActionsMenu: View {
     var ask: ((AskAI.Target) -> Void)? = nil
 
     var body: some View {
-        let groups = SidebarView.folderMenu(isNotes: isNotes)
+        let groups = SidebarView.folderMenu(isNotes: isNotes, shares: FolderSharingMenu.shares(folder, isNotes: isNotes))
         // Ask an AI, in a group of its own before Delete (at the end for Notes, which has none).
         let askAt = groups.firstIndex(where: { $0.contains(.delete) }) ?? groups.count
         let targets = ask == nil ? [] : ConnectedAIs.shared.targets
@@ -2244,6 +2261,7 @@ private struct FolderActionsMenu: View {
             case .openInNewWindow: actions.openInNewWindow(folder)
             case .newNote: actions.newNote(folder)
             case .newFolder: actions.newFolder(folder)
+            case .share: actions.share(folder)
             case .rename: actions.rename(folder)
             case .duplicate: actions.duplicate(folder)
             case .move: actions.moveSheet(folder)
@@ -2502,3 +2520,13 @@ struct AccountPhotoButton: View {
     }
 }
 #endif
+
+/// Whether a folder's menu has Share Folder: sharing is on, you're signed in with it, and the
+/// folder is one of yours at the top level (or a shared folder itself), not Notes or "Shared with me".
+enum FolderSharingMenu {
+    @MainActor static func shares(_ folder: Folder, isNotes: Bool) -> Bool {
+        guard CollabFeature.isOn, !isNotes, let sharing = CollabStore.shared?.folders else { return false }
+        if sharing.sharedFolderIDs.contains(folder.id) { return true }
+        return folder.parent == nil && !ModelContext.isSharedWithMe(folder) && sharing.root(of: folder) == nil
+    }
+}

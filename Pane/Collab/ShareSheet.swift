@@ -73,7 +73,7 @@ struct ShareForm: View {
                     #if os(iOS)
                     .swipeActions { if share.isOwner, !p.isMe { Button("Remove", role: .destructive) { share.askRemove(p) } } }
                     #endif
-                    .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
+                    .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton(share.isFolder ? "Remove from Folder" : "Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
                 }
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
@@ -103,12 +103,24 @@ struct ShareForm: View {
                         .accessibilityIdentifier("share.access")
                     }
                 } footer: {
-                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced : ShareCopy.link(state), done: share.done == .linkChanged)
+                    footer(share.done == .linkChanged ? nil : share.linkReplaced ? ShareCopy.linkReplaced
+                           : share.isFolder ? ShareCopy.folderLink(state) + " " + ShareCopy.folderNotYet : ShareCopy.link(state),
+                           done: share.done == .linkChanged)
+                }
+                if share.isFolder, share.stopSharing != nil, !state.notSharedYet {
+                    Section {
+                        Button(role: .destructive) { share.askStop() } label: {
+                            Text("Stop Sharing").foregroundStyle(.red)
+                        }
+                        .amberBusy(share.working == .stop)
+                        .disabled(share.working != nil)
+                        .accessibilityIdentifier("share.stop")
+                    }
                 }
             } else {
                 Section {
                     Button(role: .destructive) { share.askLeave() } label: {
-                        Text("Leave Note").foregroundStyle(.red)
+                        Text(share.isFolder ? "Leave Folder" : "Leave Note").foregroundStyle(.red)
                     }
                     .amberBusy(share.working == .leave)
                     .disabled(share.working != nil)
@@ -197,13 +209,19 @@ struct ShareConfirmations: ViewModifier {
                 Button("Cancel", role: .cancel) { share.confirmingRemove = nil }
                 Button("Remove", role: .destructive) { Task { await share.confirmRemove() } }
             } message: {
-                Text(share.confirmingRemove.map(ShareCopy.removeMessage) ?? "")
+                Text(share.confirmingRemove.map(share.isFolder ? ShareCopy.removeFolderMessage : ShareCopy.removeMessage) ?? "")
             }
             .alert(ShareCopy.leaveTitle(share.note.title), isPresented: $share.confirmingLeave) {
                 Button("Cancel", role: .cancel) {}
                 Button("Leave", role: .destructive) { Task { await share.confirmLeave() } }
             } message: {
-                Text(ShareCopy.leaveMessage)
+                Text(share.isFolder ? ShareCopy.leaveFolderMessage : ShareCopy.leaveMessage)
+            }
+            .alert(ShareCopy.stopTitle(share.note.title), isPresented: $share.confirmingStop) {
+                Button("Cancel", role: .cancel) {}
+                Button("Stop Sharing", role: .destructive) { Task { await share.confirmStop() } }
+            } message: {
+                Text(ShareCopy.stopMessage)
             }
     }
 }
@@ -414,6 +432,15 @@ struct ShareSheet: View {
         _share = State(initialValue: ShareController(note: note, backend: backend))
     }
 
+    /// A folder's Share: the same sheet, for the folder (FolderShareBackend).
+    init(folder backend: FolderShareBackend) {
+        note = backend.standIn
+        let c = ShareController(note: backend.standIn, backend: backend, hasApp: { false })
+        c.isFolder = true
+        c.stopSharing = { [weak backend] in try await backend?.stop() }
+        _share = State(initialValue: c)
+    }
+
     var body: some View {
         NavigationStack {
             ShareForm(share: share, done: { dismiss() })
@@ -427,6 +454,7 @@ struct ShareSheet: View {
             }
         }
         .onChange(of: share.left) { _, left in if left { dismiss() } }
+        .onChange(of: share.stopped) { _, stopped in if stopped { dismiss() } }
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 360)
         #endif

@@ -327,6 +327,12 @@ struct JoinLinkHandler: ViewModifier {
             } message: {
                 if let asking { Text(JoinCopy.askMessage(asking)) }
             }
+            .alert(FolderRemovals.shared.current?.title ?? "", isPresented: Binding(get: { FolderRemovals.shared.current != nil },
+                                                                                  set: { if !$0 { FolderRemovals.shared.shown() } })) {
+                Button("OK", role: .cancel) { FolderRemovals.shared.shown() }
+            } message: {
+                Text(FolderRemovals.shared.current?.message ?? "")
+            }
             .alert(JoinCopy.failedTitle, isPresented: Binding(get: { if case .failed = center.phase { true } else { false } },
                                                               set: { if !$0 { center.dismissProblem() } })) {
                 Button("OK", role: .cancel) { center.dismissProblem() }

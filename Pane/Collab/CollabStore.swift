@@ -176,9 +176,11 @@ final class CollabStore {
         guard let context, let ft = transport as? any FolderTransport, let me else { folders = nil; return }
         let defaults = folderDefaults
         let state = defaults.map { FolderSyncState.load(account: me, defaults: $0) } ?? FolderSyncState()
-        folders = FolderSharing(store: self, transport: ft, context: context, state: state) { s in
+        let sharing = FolderSharing(store: self, transport: ft, context: context, state: state) { s in
             if let defaults { FolderSyncState.save(s, account: me, defaults: defaults) }
         }
+        sharing.onLost = { [weak self] r in if let self, self === CollabStore.shared { FolderRemovals.shared.add(r) } }
+        folders = sharing
     }
 
     private func makeLibrary() {

@@ -73,7 +73,24 @@ final class ShareController {
     var removedLine: String { removedName.map { "\($0) removed" } ?? Done.removed(UUID()).text }
     @ObservationIgnored var timeout: Duration = .seconds(20)
 
-    enum Work: Equatable { case link, access, remove(UUID), role(UUID), leave }
+    enum Work: Equatable { case link, access, remove(UUID), role(UUID), leave, stop }
+
+    /// A shared folder's Share, not a note's: the same sheet, with the folder's words, and Stop
+    /// Sharing for its owner (FolderShareBackend).
+    @ObservationIgnored var isFolder = false
+    @ObservationIgnored var stopSharing: (@MainActor () async throws -> Void)?
+    var confirmingStop = false
+    /// Sharing stopped: the sheet closes.
+    private(set) var stopped = false
+
+    func askStop() { if isOwner, stopSharing != nil { confirmingStop = true } }
+
+    func confirmStop() async {
+        confirmingStop = false
+        guard let stopSharing else { return }
+        await run(.stop) { try await stopSharing() }
+        if state.problem == nil { stopped = true }
+    }
 
     /// Whether the note has an app (NoteApps), asked when Share opens.
     @ObservationIgnored let hasApp: @MainActor () -> Bool
@@ -270,7 +287,8 @@ final class ShareController {
         case .access: "The link didn't change. Check your connection and try again."
         case .remove: "They weren't removed. Check your connection and try again."
         case .role: "What they can do didn't change. Check your connection and try again."
-        case .leave: "You didn't leave the note. Check your connection and try again."
+        case .leave: "You didn't leave. Check your connection and try again."
+        case .stop: "Sharing didn't stop. Check your connection and try again."
         }
     }
 
@@ -281,6 +299,7 @@ final class ShareController {
         case .remove: "Removing took too long. Try again."
         case .role: "Changing what they can do took too long. Try again."
         case .leave: "Leaving took too long. Try again."
+        case .stop: "Stopping took too long. Try again."
         }
     }
 }
@@ -339,6 +358,25 @@ enum ShareCopy {
     static func leaveTitle(_ title: String) -> String { "Leave \u{201C}\(title)\u{201D}?" }
     static let leaveMessage = "It's removed from your notes. To join again, you need a new link."
 
+    // MARK: Shared folders
+
+    static func folderLink(_ state: ShareState) -> String {
+        if state.notSharedYet { return "Invite People makes a link anyone can join with. They get this folder and every note in it, in Pinto Notes." }
+        switch state.access {
+        case .edit: return "Anyone with the link can join and edit every note in this folder, in Pinto Notes."
+        case .view: return "Anyone with the link can join and read every note in this folder, in Pinto Notes."
+        case .off: return "Only people you invite can open this folder."
+        }
+    }
+    /// What a shared folder doesn't share yet.
+    static let folderNotYet = "Notes with an app or sub-notes stay yours and aren't shared yet."
+    static func removeFolderMessage(_ person: ShareState.Person) -> String {
+        "\(first(person.name)) can't open this folder or its notes anymore. Notes they made in it leave with them. The link changes, so the old one stops working."
+    }
+    static let leaveFolderMessage = "Its notes are removed from your notes. Notes you made in it stay yours. To join again, you need a new link."
+    static func stopTitle(_ name: String) -> String { "Stop sharing \u{201C}\(name)\u{201D}?" }
+    static let stopMessage = "Everyone else loses this folder and its notes. Notes others made in it leave with them. Your notes stay here."
+
     static func working(_ work: ShareController.Work) -> String {
         switch work {
         case .link: "Making the link…"
@@ -346,6 +384,7 @@ enum ShareCopy {
         case .remove: "Removing…"
         case .role: "Changing…"
         case .leave: "Leaving…"
+        case .stop: "Stopping…"
         }
     }
 }

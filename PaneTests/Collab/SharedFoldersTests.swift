@@ -235,6 +235,46 @@ import Testing
         #expect(notes(in: recipes) == ["Lentil soup", "Pancakes"])
         #expect(!server.calls.contains("folder_note_add") || server.folders.notesIn(maja.id, root: recipes.id).count == 3)
     }
+
+    // MARK: Share Folder
+
+    @Test func shareFolderIsInTheFoldersMenuInAGroupOfItsOwn() {
+        let groups = SidebarView.folderMenu(isNotes: false, newWindow: true, reorders: true, shares: true)
+        #expect(groups[2] == [.share])
+        #expect(FolderAction.share.title == "Share Folder")
+        #expect(!SidebarView.folderMenu(isNotes: false, newWindow: true, reorders: true).flatMap { $0 }.contains(.share))
+    }
+
+    @Test func theShareSheetSharesTheFolderAndStopsIt() async throws {
+        let maja = try device(server.account("Maja"), name: "Maja"), jonas = try device(server.account("Jonas"), name: "Jonas")
+        let recipes = Folder(name: "Recipes")
+        maja.context.insert(recipes)
+        _ = note("Pancakes\nFlour", in: recipes, on: maja)
+        let backend = FolderShareBackend(folder: recipes, sharing: maja.folders, store: maja.store)
+        let share = ShareController(note: backend.standIn, backend: backend, hasApp: { false })
+        share.isFolder = true
+        share.stopSharing = { try await backend.stop() }
+        #expect(share.isOwner && share.state.notSharedYet)
+        #expect(ShareCopy.folderLink(share.state).contains("every note in it"))
+        await share.shareLink()
+        #expect(share.state.problem == nil)
+        let url = try #require(share.state.link)
+        #expect(maja.folders.sharedFolderIDs == [recipes.id])
+
+        _ = await jonas.store.join(url)
+        let theirs = try #require(folder("Recipes", on: jonas))
+        let his = FolderShareBackend(folder: theirs, sharing: jonas.folders, store: jonas.store)
+        let hisShare = ShareController(note: his.standIn, backend: his, hasApp: { false })
+        #expect(!hisShare.isOwner)
+
+        await share.confirmStop()
+        share.askStop()
+        await share.confirmStop()
+        #expect(share.state.problem == nil && share.stopped)
+        await look(jonas)
+        #expect(folder("Recipes", on: jonas) == nil)
+        #expect(maja.folders.sharedFolderIDs.isEmpty)
+    }
 }
 
 extension ModelContext {
