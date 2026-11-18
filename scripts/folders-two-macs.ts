@@ -112,6 +112,7 @@ const steps: Record<string, unknown[]> = {
     { wait: 4 },
     { open: "Pancakes" },
     { type: { text: "\nA pinch of salt" } },
+    { wait: 3 }, { dump: "jonas-typed.json" },
     { write: "jonas-in.txt" },
     { waitText: { text: "Serve with berries", timeout: 120 } },
     ...(photo ? [{ waitText: { text: "pane-file:", timeout: 120, soft: true } }] : []),
@@ -149,6 +150,8 @@ const tunnels: Deno.ChildProcess[] = [];
 const results: [string, boolean, string][] = [];
 const check = (name: string, ok: boolean, detail = "") => { results.push([name, ok, detail]); console.log(ok ? "PASS" : "FAIL", name, detail); };
 const pids: Record<string, string> = {}, recorders: Record<string, string> = {};
+const filmSeconds = Number(Deno.env.get("FOLDERS_FILM") ?? 480);
+const keep = Deno.env.get("FOLDERS_KEEP") === "1";
 try {
   for (const host of new Set(hosts)) {
     // The local stack on the Air's 127.0.0.1:56421.
@@ -162,7 +165,7 @@ try {
     if (photo) await sh(["scp", "-q", photo, `${p.host}:${p.tmp}/photo.jpg`]);
   }
   await sleep(2);
-  for (const host of new Set(hosts)) recorders[host] = (await airrun(host, `nohup screencapture -V 900 -x ~/folders/${host}.mov >/dev/null 2>&1 & echo $!`)).trim();
+  for (const host of new Set(hosts)) recorders[host] = (await airrun(host, `rm -f ~/folders/${host}.mov; nohup screencapture -V ${filmSeconds} -x ~/folders/${host}.mov >/dev/null 2>&1 & echo $!`)).split("\n")[0].trim();
   for (const p of people) {
     await airrun(p.host, `open -n ~/${p.dir}/PintoTest.app --args -collabScript ${p.tmp}/folders-steps.json -PintoAppearance light; sleep 3; open ~/${p.dir}/PintoTest.app; echo ok`);
     pids[p.name] = await ssh(p.host, `pgrep -n -f ${p.dir}/PintoTest.app/Contents/MacOS`, true);
@@ -190,11 +193,14 @@ try {
   // Exact PIDs only: the test apps, then the recordings.
   for (const p of people) if (pids[p.name]) await ssh(p.host, `kill ${pids[p.name]}`, true);
   for (const host of new Set(hosts)) {
-    if (/^\d+$/.test(recorders[host] ?? "")) await airrun(host, `kill -INT ${recorders[host]}; sleep 2; echo stopped`).catch(() => "");
+    // A background screencapture ignores Ctrl-C, so it films a set length and writes the file when done.
+    const pid = recorders[host];
+    if (/^\d+$/.test(pid ?? "")) await ssh(host, `while kill -0 ${pid} 2>/dev/null; do sleep 2; done; ls ~/folders/${host}.mov`, true);
     await sh(["scp", "-q", `${host}:folders/${host}.mov`, `${out}/`], undefined, true);
   }
   for (const t of tunnels) { try { t.kill(); } catch { /* gone */ } }
-  for (const p of people) await fetch(`${api}/auth/v1/admin/users/${p.id}`, { method: "DELETE", headers: admin }).then((r) => r.body?.cancel());
+  if (keep) console.log("kept the accounts:", people.map((p) => `${p.name} ${p.id}`).join(", "));
+  else for (const p of people) await fetch(`${api}/auth/v1/admin/users/${p.id}`, { method: "DELETE", headers: admin }).then((r) => r.body?.cancel());
 }
 
 // MARK: Checks

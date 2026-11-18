@@ -165,8 +165,11 @@ final class CollabStore {
     /// while it draws doesn't change what it observes as it draws.
     func session(for note: Note) -> CollabSession? {
         if let s = sessions[note.id] { return s }
-        guard note.isShared, note.deletedAt == nil, let library else { return nil }
-        Task { @MainActor in
+        guard note.modelContext != nil, note.isShared, note.deletedAt == nil, let library else { return nil }
+        Task { @MainActor [weak self] in
+            // By now the library may be another account's (signed out, or into someone else), and
+            // this note gone with the old one: it isn't opened.
+            guard let self, self.library === library, note.modelContext != nil else { return }
             if library.session(for: note) == nil { await library.ensureDocument(note) }
         }
         return nil

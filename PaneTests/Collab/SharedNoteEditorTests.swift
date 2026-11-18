@@ -155,6 +155,36 @@ extension NetworkFaults {
         #expect(session.text == "Groceries\nMilk\nEggs")
     }
 
+    /// Signing in to another account takes the old library away while a shared note of it is being
+    /// opened: the opening finds the note gone and stops, the app doesn't crash (an Air run, 11-18).
+    @Test func aSharedNoteWhoseStoreWentAwayIsNotOpened() async throws {
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        defer { store.stop() }
+        var note: Note? = nil
+        do {
+            let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            let context = c.mainContext
+            store.context = context
+            let n = context.createNote(in: .all, body: "Groceries\nMilk")
+            try context.save()
+            try await transport.share(note: n.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+            let session = try await #require(store.library).becomeShared(n, nk: nk)
+            session.close()
+            store.library?.closeAll()
+            store.sessions = [:]
+            note = n
+            // Asked for while its store is still here; the opening runs after it's gone.
+            _ = store.session(for: n)
+            store.context = nil
+        }
+        for _ in 0..<20 { await Task.yield() }
+        try await Task.sleep(for: .milliseconds(200))
+        // The note's store really went away (what the crash needed), and the app is still here.
+        #expect(note?.modelContext == nil)
+    }
+
     /// Sharing starts at launch, before any view has loaded your profile: your caret and "In this
     /// note" still carry your name, from the profile's cached copy, not "Someone".
     @Test func sharingAtLaunchUsesYourCachedName() throws {

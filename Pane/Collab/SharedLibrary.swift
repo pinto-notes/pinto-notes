@@ -279,7 +279,9 @@ final class SharedLibrary {
     /// with no network. Nil for a note that isn't shared, or whose document isn't here yet.
     func session(for note: Note) -> CollabSession? {
         if let s = sessions[note.id] { return s }
-        guard note.isShared, note.deletedAt == nil, let record = note.sharedDocument, !record.saved.isEmpty,
+        // A note whose store went away (an account switch) has nothing left to open.
+        guard note.modelContext != nil, note.isShared, note.deletedAt == nil, let record = note.sharedDocument,
+              record.modelContext != nil, !record.saved.isEmpty,
               let dk = dataKey() else { return nil }
         // Being loaded or joined right now: that one opens it. A view asking meanwhile opened the
         // record as the load was filling it in (the load had just stored the new key), and the load
