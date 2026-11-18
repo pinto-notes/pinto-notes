@@ -26,6 +26,10 @@ import Testing
         let store = CollabStore(name: name, transport: server.transport(for: user), dataKey: { key }, book: CollabKeyBook(account: user, defaults: TestDefaults()))
         store.folderDefaults = nil
         store.context = container.mainContext
+        let root = FileManager.default.temporaryDirectory.appending(path: "shared-folders-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        store.library!.files.root = root
+        store.library!.files.lookEvery = 0
         return Device(id: user, store: store, context: container.mainContext, container: container)
     }
 
@@ -160,6 +164,35 @@ import Testing
         await look(maja, jonas)
         let theirs = try #require(folder("Desserts", on: jonas))
         #expect(notes(in: theirs) == ["Pancakes", "Tiramisu"])
+    }
+
+    @Test func aPhotoInAFoldersNoteOpensForEveryoneInTheFolder() async throws {
+        let maja = try device(server.account("Maja"), name: "Maja"), jonas = try device(server.account("Jonas"), name: "Jonas")
+        let recipes = Folder(name: "Recipes")
+        maja.context.insert(recipes)
+        // A recipe with a photo, before the folder is shared.
+        let bytes = Data("pancake photo bytes".utf8)
+        let pic = Pane.Attachment(filename: "pancakes.jpg", contentType: "public.jpeg", size: Int64(bytes.count))
+        let url = FileStore.url(for: pic.id, filename: pic.filename, in: maja.store.library!.files.root)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try bytes.write(to: url)
+        maja.context.insert(pic)
+        let pancakes = note("Pancakes\n" + pic.markdown + "\n", in: recipes, on: maja)
+        try await maja.folders.setAccess(.edit, for: recipes)
+        // Shared into the folder, photo and all.
+        #expect(pancakes.isShared)
+        await maja.store.library!.files.settled()
+        _ = await jonas.store.join(try #require(maja.folders.linkURL(recipes.id)))
+        let his = try #require(folder("Recipes", on: jonas)?.notes.first { $0.title == "Pancakes" })
+        let session = try #require(jonas.store.sessions[his.id])
+        await server.eventually {
+            if jonas.context.attachment(pic.id) == nil { jonas.store.library!.files.follow(session) }
+            return jonas.context.attachment(pic.id) != nil
+        }
+        let theirs = try #require(jonas.context.attachment(pic.id))
+        #expect(await jonas.store.library!.files.download(theirs))
+        #expect(try Data(contentsOf: FileStore.url(for: theirs.id, filename: theirs.filename, in: jonas.store.library!.files.root)) == bytes)
+        #expect(!server.everythingStored.contains("pancake photo"))
     }
 
     // MARK: What comes out
