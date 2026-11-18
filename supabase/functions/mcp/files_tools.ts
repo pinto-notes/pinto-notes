@@ -24,7 +24,7 @@ import {
   wholeNumber, withHead, checkSize, readCapped,
 } from "./tools.ts";
 import { DELETED, type Entry, Paths, safeName, SHARED_DIR } from "./paths.ts";
-import { changesOf, forgetShared, loadDoc, refuseViewer, type Shared, sharedNotes, writeDoc } from "./shared_notes.ts";
+import { changesOf, createInFolder, forgetShared, loadDoc, refuseViewer, type Shared, sharedFolderOf, sharedNotes, writeDoc } from "./shared_notes.ts";
 import { needles, WordIndex } from "./words.ts";
 import { followRename as retargetForRename, key, linkLines, WikiIndex } from "./wikilinks.ts";
 import { toBase64, fromBase64 } from "../_shared/e2ee.ts";
@@ -709,7 +709,23 @@ async function placeFor(tx: Tx, c: Call, P: Paths, dir: string): Promise<{ folde
   if (owner?.shared) throw new ToolError(`"${P.pathOf(owner.id)}" is shared with other people, and shared notes can't have sub-notes or files yet.`);
   if (owner) return { folder: owner.folder_id, parent: owner };
   if (dir.toLowerCase().startsWith(DELETED.toLowerCase().slice(0, -1))) throw new ToolError("Nothing can be made in Recently Deleted.");
+  await refuseNewFolderIn(tx, c, P, dir);
   return { folder: (await findFolder(tx, c.v, dir, true)).id };
+}
+
+const NO_SHARED_FOLDERS = "Folders can't be made in a shared folder by an AI yet. Make it in Pinto Notes, then put notes in it here.";
+const NO_SHARED_MOVES = "Notes can't be moved into or out of a shared folder by an AI yet: everyone in it would gain or lose the note. Move it in Pinto Notes.";
+
+/** A folder about to be made at `dir`: refused when it would be inside a shared folder (its tree
+ *  is sealed under the folder's key and shared with everyone in it). */
+async function refuseNewFolderIn(tx: Tx, c: Call, P: Paths, dir: string) {
+  const parts = dir.replace(/\/+$/, "").split("/").filter(Boolean);
+  for (let i = parts.length; i > 0; i--) {
+    const e = P.at(parts.slice(0, i).join("/") + "/");
+    if (e?.kind !== "folder") continue;
+    if (i < parts.length && await sharedFolderOf(tx, c, e.folder.id)) throw new ToolError(NO_SHARED_FOLDERS);
+    return;
+  }
 }
 
 /** The app's "Shared with me" folder, which holds the notes other people shared: never a default place. */
@@ -742,6 +758,13 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
   else if (titleOf(body) !== name) body = `${name}\n\n${body}`;
   checkSize(body);
   const where = await placeFor(tx, c, P, parts.join("/"));
+  // In a shared folder: a shared note in it for everyone, from the start.
+  const inShared = !where.parent ? await sharedFolderOf(tx, c, where.folder) : undefined;
+  if (inShared) {
+    const made = await createInFolder(tx, c, inShared, where.folder!, body, pinned);
+    await markRead(tx, c, sharedItem(made), await hash(c, body));
+    return { path: (await pathsOf(tx, c, true)).pathOf(made)!, id: made, checks: noteChecks("", body, today()) };
+  }
   const id = crypto.randomUUID();
   const head = { title: titleOf(body), preview: previewOf(body) };
   await tx`insert into public.notes (id, body_ct, head_ct, folder_id, parent_id, is_pinned)
@@ -774,7 +797,7 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
 }
 
 const entryOut = (e: Entry, extra: Record<string, unknown> = {}) => e.kind === "folder"
-  ? { path: e.path, type: "folder", ...extra }
+  ? { path: e.path, type: "folder", ...(e.folder.shared ? { shared: e.folder.shared } : {}), ...extra }
   : e.kind === "file" ? fileOut(e.path, e.file)
   : { path: e.path, type: e.app ? "note+app" : "note", updated: iso(e.note.updated_at), ...(e.note.is_pinned ? { pinned: true } : {}), ...(e.note.locked_body ? { locked: true } : {}), ...(e.note.shared ? { shared: e.note.shared.role === "owner" ? "owner" : e.note.shared.role === "editor" ? "can edit" : "view only" } : {}), ...(e.note.trashed_at ? { deleted: iso(e.note.trashed_at) } : {}), ...extra };
 const updatedOf = (e: Entry) => e.kind === "note" ? +new Date(e.note.updated_at) : e.kind === "file" ? +new Date(e.file.updated_at) : 0;
@@ -1103,6 +1126,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const path = clean(a.path);
     if (!path) throw new ToolError("path is where it goes: a note \"Work/Acme.md\", a folder \"Work/Clients/\", or an app's note.");
     if (type === "folder") {
+      await refuseNewFolderIn(tx, c, await pathsOf(tx, c), path.replace(/\/+$/, ""));
       const f = await findFolder(tx, c.v, path.replace(/\/+$/, ""), true);
       return { created: (await pathsOf(tx, c, true)).folderPathOf(f.id) };
     }
@@ -1266,8 +1290,20 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     const to = clean(a.to);
     if (!to) throw new ToolError("to is where it goes.");
     if (r.kind === "note" && r.note.shared) {
-      if (r.note.virtual) throw new ToolError(`"${r.path}" can be moved once Pinto Notes has opened it on one of this person's devices.`);
       if (/\.md$/i.test(to)) throw new ToolError(`"${r.path}" is shared: rename it by changing its first line with edit.`);
+      // Between folders of one shared folder: it moves for everyone (collab_folder_note_move).
+      const sf = r.note.shared.folder;
+      const dest = P.at(to.replace(/\/+$/, "") + "/");
+      const into = dest?.kind === "folder" ? await sharedFolderOf(tx, c, dest.folder.id) : undefined;
+      if (sf || into) {
+        if (!sf || !into || into.f.root !== sf.root) throw new ToolError(NO_SHARED_MOVES);
+        if (into.f.role === "viewer") throw new ToolError("This shared folder is view only for this person, so nothing in it can be moved here.");
+        await tx`select public.collab_folder_note_move(${sf.root}::uuid, ${r.note.shared.id}::uuid, ${into.treeId}::uuid)`;
+        if (!r.note.virtual) await tx`update public.notes set folder_id = ${dest!.kind === "folder" ? dest!.folder.id : null}, parent_id = null, updated_at = now() where id = ${r.note.id}`;
+        forgetShared(c);
+        return { moved: (await pathsOf(tx, c, true)).pathOf(r.note.id), shared: "Moved for everyone in the shared folder." };
+      }
+      if (r.note.virtual) throw new ToolError(`"${r.path}" can be moved once Pinto Notes has opened it on one of this person's devices.`);
     }
     if (r.kind === "note") {
       let n = await full(tx, c, r.note.id);
@@ -1278,6 +1314,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       if (dir.toLowerCase() !== here.toLowerCase()) {
         if (dir.toLowerCase().startsWith(r.path.replace(/\.md$/, "").toLowerCase())) throw new ToolError("A note can't move into its own folder.");
         const where = await placeFor(tx, c, P, dir);
+        if (await sharedFolderOf(tx, c, where.folder) || await sharedFolderOf(tx, c, n.folder_id)) throw new ToolError(NO_SHARED_MOVES);
         // Out of its old parent: the link to it there goes too.
         if (n.parent_id && n.parent_id !== where.parent?.id) {
           const old = await full(tx, c, n.parent_id, true).catch(() => null);
@@ -1319,6 +1356,10 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       if (e?.kind !== "folder") throw new ToolError(`"${r.dir}" is a note's folder: move the note ("${r.dir.replace(/\/$/, ".md")}") instead.`);
       const parts = to.replace(/\/+$/, "").split("/").filter(Boolean);
       const name = parts.pop()!;
+      if (await sharedFolderOf(tx, c, e.folder.id)) throw new ToolError("A shared folder and the folders in it can't be moved or renamed by an AI yet. Do it in Pinto Notes.");
+      if (parts.length) await refuseNewFolderIn(tx, c, P, parts.join("/") + "/x");
+      const into = parts.length ? P.at(parts.join("/") + "/") : undefined;
+      if (into?.kind === "folder" && await sharedFolderOf(tx, c, into.folder.id)) throw new ToolError("A folder can't be moved into a shared folder by an AI yet. Do it in Pinto Notes.");
       const parent = parts.length ? await findFolder(tx, c.v, parts.join("/"), true) : null;
       const fresh = await pathsOf(tx, c, true);
       if (parent && (parent.id === e.folder.id || fresh.folderPathOf(parent.id).toLowerCase().startsWith(r.dir.toLowerCase()))) throw new ToolError("A folder can't move into itself.");
@@ -1341,6 +1382,9 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
   async delete(tx, a, c) {
     const P = await pathsOf(tx, c);
     const r = await resolve(tx, c, a.path);
+    if (r.kind === "note" && r.note.shared?.folder) {
+      throw new ToolError(`"${r.path}" is in a shared folder: deleting it there takes it from everyone in it. Delete it in Pinto Notes.`);
+    }
     if (r.kind === "note" && r.note.shared) return await deleteShared(tx, c, r.note, r.path);
     if (r.kind === "note") {
       const d = await classic.delete_note(tx, { id: r.note.id }, c) as { sub_notes_moved: number };
@@ -1349,6 +1393,7 @@ export const fileHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
     if (r.kind === "dir") {
       const e = P.at(r.dir);
       if (e?.kind !== "folder") throw new ToolError(r.dir ? `"${r.dir}" is a note's folder: delete the note ("${r.dir.replace(/\/$/, ".md")}") instead.` : "The top level can't be deleted.");
+      if (await sharedFolderOf(tx, c, e.folder.id)) throw new ToolError(`"${r.dir}" is a shared folder (or in one): deleting it takes it from everyone in it. Do it in Pinto Notes.`);
       const d = await classic.delete_folder(tx, { folder: e.folder.id }, c) as { notes_moved_to_recently_deleted: number };
       return { deleted: r.dir, notes_moved_to: `${DELETED} (${d.notes_moved_to_recently_deleted})` };
     }

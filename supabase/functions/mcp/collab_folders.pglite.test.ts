@@ -352,31 +352,33 @@ Deno.test("a new folder key: every member's wrap in one call, names and note wra
   await refused(app(pg, w.sara.id, `select public.collab_folder_put($1, $2, $3, $4, 0)`, [w.root, w.dinner, w.root, await sealFolderName("Dinner", w.fk, w.root, 1, w.dinner)]), "key changed", "stale_epoch");
 });
 
-Deno.test("taking a note out: its maker keeps it and the folder's members leave it; anyone else's take ends it for everyone ('moved')", async () => {
+Deno.test("taking a note out: its maker keeps it, whoever moves it; everyone in it through the folder leaves it ('moved')", async () => {
   const pg = await schemaDB();
   const w = await folderWorld(pg);
   const mine = await noteInFolder(pg, w, w.emil, "Pancakes", w.root, [w.sara, w.jonas]);
   const theirs = await noteInFolder(pg, w, w.emil, "Waffles", w.root, [w.sara, w.jonas]);
-  const saraPointer = crypto.randomUUID();
-  await app(pg, w.sara.id, `insert into public.notes (id, body_ct, head_ct, shared_note_id) values ($1, $2, $3, $4)`,
-    [saraPointer, await w.sara.a.vault.sealBody(saraPointer, "Waffles\n"), await w.sara.a.vault.sealHead(saraPointer, { title: "Waffles" }), theirs.id]);
   await refused(app(pg, w.jonas.id, `select public.collab_folder_note_remove($1, $2)`, [w.root, mine.id]), "view this shared folder", "read_only");
+  await refused(app(pg, w.sara.id, `select public.collab_folder_note_remove($1, $2)`, [w.root, crypto.randomUUID()]), "isn't in this shared folder", "no_note");
   // The maker moves it out.
   await app(pg, w.emil.id, `select public.collab_folder_note_remove($1, $2)`, [w.root, mine.id]);
   const row = await sharedRow(pg, mine.id);
   assertEquals([row.folder_root, row.folder_id, row.folder_wrap, row.rekey_after !== null], [null, null, null, true]);
   assertEquals([await ended(pg, mine.id, w.sara.id), await ended(pg, mine.id, w.jonas.id)], ["moved", "moved"]);
   assertEquals((await noteRole(pg, mine.id, w.emil.id)).role, "owner");
-  // Sara moves Emil's note out: her device kept a copy; the shared note goes for everyone.
+  // Sara moves Emil's note out: Emil keeps it, with his own row; Sara and Jonas leave it ('moved', by Sara).
   await app(pg, w.sara.id, `select public.collab_folder_note_remove($1, $2)`, [w.root, theirs.id]);
-  assertEquals(await sharedRow(pg, theirs.id), undefined);
-  assertEquals([await ended(pg, theirs.id, w.emil.id), await ended(pg, theirs.id, w.jonas.id), await ended(pg, theirs.id, w.sara.id)], ["moved", "moved", "moved"]);
-  const [{ by_user }] = (await pg.query<{ by_user: string }>(`select by_user from public.note_access_ended where note_id = $1 and user_id = $2`, [theirs.id, w.emil.id])).rows;
-  assertEquals(by_user, w.sara.id);
-  const pointers = (await pg.query<{ deleted: boolean }>(`select deleted_at is not null as deleted from public.notes where shared_note_id = $1 or id = $1`, [theirs.id])).rows;
-  assertEquals(pointers.map((p) => p.deleted), [true, true]);
-  // What Emil reads about it: moved, by Sara.
-  assertEquals((await app(pg, w.emil.id, `select reason, by_name from public.collab_access_ended($1)`, [theirs.id]))[0], { reason: "moved", by_name: "Sara" });
+  const t = await sharedRow(pg, theirs.id);
+  assertEquals([t.folder_root, t.folder_id, t.folder_wrap, t.rekey_after !== null], [null, null, null, true]);
+  assertEquals((await noteRole(pg, theirs.id, w.emil.id)).role, "owner");
+  assertEquals([await noteRole(pg, theirs.id, w.sara.id), await noteRole(pg, theirs.id, w.jonas.id)], [undefined, undefined]);
+  assertEquals([await ended(pg, theirs.id, w.sara.id), await ended(pg, theirs.id, w.jonas.id), await ended(pg, theirs.id, w.emil.id)], ["moved", "moved", undefined]);
+  const by = (await pg.query<{ user_id: string; by_user: string }>(`select user_id, by_user from public.note_access_ended where note_id = $1`, [theirs.id])).rows;
+  assertEquals(by.every((r) => r.by_user === w.sara.id), true);
+  assertEquals((await app(pg, w.jonas.id, `select reason, by_name from public.collab_access_ended($1)`, [theirs.id]))[0], { reason: "moved", by_name: "Sara" });
+  // Emil's notes row for it is untouched, and he still writes to it.
+  const [pointer] = (await pg.query<{ deleted_at: string | null; shared_note_id: string }>(`select deleted_at, shared_note_id from public.notes where id = $1`, [theirs.id])).rows;
+  assertEquals([pointer.deleted_at, pointer.shared_note_id], [null, theirs.id]);
+  await push(pg, w.emil, theirs.id, theirs.nk);
 });
 
 Deno.test("stopping sharing a folder: everyone else's access ends 'unshared', notes leave the folder, the tree goes", async () => {

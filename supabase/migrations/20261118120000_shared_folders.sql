@@ -681,34 +681,20 @@ begin
 end $$;
 
 -- A note taken out of the shared folder (moved out, or deleted there). Editors and the owner.
---   * The caller made it (the note's owner): it stays theirs, a shared note with whoever is in it
---     directly. Everyone in it through the folder leaves it ('moved'), it gets a new key from the
---     owner's next device (rekey_after), and it leaves the folder.
---   * Someone else made it: the caller's device has already kept a copy. The shared note goes for
---     everyone, as collab_unshare does: every membership ends 'moved', the owner's too (recorded
---     for them by hand, since an owner's row records nothing), and every pointer to it is deleted.
+-- Whoever made it keeps it, whoever moves it: losing your own note because someone else dragged it
+-- out couldn't be undone. The note leaves the folder (its folder columns cleared), every membership
+-- in it through the folder ends with reason 'moved' (by the caller), the caller's own too when it
+-- came through the folder, and the note gets a new key from its owner's next device (rekey_after).
+-- The maker stays its owner with whoever is in it directly; their device moves it into a folder of
+-- their own on its next look. A mover who isn't the maker has already kept a copy on their device.
 create or replace function public.collab_folder_note_remove(p_root uuid, p_note uuid) returns void
 language plpgsql security definer set search_path = '' as $$
-declare
-  s public.shared_notes;
-  had text := coalesce(current_setting('pane.access_ended', true), '');
 begin
   perform public.pane_take('write');
   perform public.collab_folder_need(p_root, 'editor');
-  select * into s from public.shared_notes where id = p_note and folder_root = p_root for update;
-  if s.id is null then raise exception 'That note isn''t in this shared folder.' using errcode = 'P0002', hint = 'no_note'; end if;
-  if s.owner_id = auth.uid() then
-    perform public.collab_folder_end_note(p_note, p_root, 'moved', auth.uid(), true);
-    return;
-  end if;
-  insert into public.note_access_ended (note_id, user_id, reason, by_user)
-  values (p_note, s.owner_id, 'moved', auth.uid())
-  on conflict (note_id, user_id) do update set reason = excluded.reason, by_user = excluded.by_user, at = now();
-  perform set_config('pane.access_ended', 'moved', true);
-  delete from public.shared_notes where id = p_note;
-  perform set_config('pane.access_ended', had, true);
-  update public.notes set deleted_at = now(), body_ct = null, head_ct = null, locked_body = null
-  where shared_note_id = p_note and deleted_at is null;
+  perform 1 from public.shared_notes where id = p_note and folder_root = p_root for update;
+  if not found then raise exception 'That note isn''t in this shared folder.' using errcode = 'P0002', hint = 'no_note'; end if;
+  perform public.collab_folder_end_note(p_note, p_root, 'moved', null, true);
 end $$;
 
 -- A folder member joins a note of the folder with its key, opened from folder_wrap: key_wrap sealed

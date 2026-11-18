@@ -382,7 +382,7 @@ export type NoteRow = {
  *  membership and key: its text is a document, never this row's body. A virtual one has no row of
  *  this account's yet (it shows in "Shared with me/" until a device places it). */
 export type Note = NoteRow & { title: string; preview?: string; shared?: Shared; virtual?: boolean };
-export type FolderRow = { id: string; name: string; parent_id: string | null; sort_index: number };
+export type FolderRow = { id: string; name: string; parent_id: string | null; sort_index: number; /** A shared folder (or in one): the person's role there. */ shared?: string };
 
 /** Everything but the body, for lists: bodies can be megabytes. */
 export const HEAD_COLUMNS = (tx: Tx) => tx`id, head_ct, locked_body, folder_id, parent_id, is_pinned, created_at, updated_at, trashed_at, version`;

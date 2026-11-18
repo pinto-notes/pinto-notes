@@ -136,6 +136,11 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.template_takedowns (note_id, user_id, template_id) values ($1, $2, $3)`, [crypto.randomUUID(), me, template]);
   // Why access to someone else's shared note ended (20261112120000_collab_access_ended.sql).
   await pg.query(`insert into public.note_access_ended (note_id, user_id, reason) values ($1, $2, 'left')`, [crypto.randomUUID(), me]);
+  // A shared folder of theirs, with its owner as member, and why one of someone else's ended (20261118120000_shared_folders.sql).
+  const shelf = crypto.randomUUID();
+  await pg.query(`insert into public.shared_folders (id, root_id, owner_id) values ($1, $1, $2)`, [shelf, me]);
+  await pg.query(`insert into public.folder_members (folder_id, user_id, role, epoch, key_wrap, wrapped_by) values ($1, $2, 'owner', 1, $3, $2)`, [shelf, me, `amb3k.${b64(120)}`]);
+  await pg.query(`insert into public.folder_access_ended (folder_id, user_id, reason) values ($1, $2, 'left')`, [crypto.randomUUID(), me]);
   return { folder, note, trashed, locked, slug, tokenHash, acct: a };
 }
 
