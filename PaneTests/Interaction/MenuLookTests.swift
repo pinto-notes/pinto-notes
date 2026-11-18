@@ -20,22 +20,6 @@ extension MenuLookTests {
         return w
     }
 
-    /// The first menu a right-click finds, going down `host` row by row, that `wanted` accepts.
-    static func menu(in host: NSView, window: NSWindow, x: CGFloat, wanted: (NSMenu) -> Bool) -> NSMenu? {
-        for y in stride(from: host.bounds.height - 5, to: 5, by: -4) {
-            let p = host.convert(CGPoint(x: x, y: y), to: nil)
-            guard let e = NSEvent.mouseEvent(with: .rightMouseDown, location: p, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                                             context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
-                  let hit = host.hitTest(host.convert(p, from: nil)) else { continue }
-            var v: NSView? = hit
-            while let view = v {
-                if let m = view.menu(for: e), wanted(m) { return m }
-                v = view.superview
-            }
-        }
-        return nil
-    }
-
     static func controls(_ v: NSView) -> [String] {
         ((v as? NSControl).map { ["\(type(of: $0)) enabled=\($0.isEnabled)"] } ?? []) + v.subviews.flatMap { controls($0) }
     }
@@ -48,6 +32,42 @@ extension MenuLookTests {
     }
 
     static func layout(_ m: NSMenu) -> [String] { m.items.map { $0.isSeparatorItem ? "-" : $0.title } }
+
+    // MARK: Asking for a menu
+
+    /// A table that counts the times it's asked for a menu, with three rows.
+    final class CountingTable: NSTableView, NSTableViewDataSource {
+        var asked = 0
+        override func menu(for event: NSEvent) -> NSMenu? { asked += 1; return NSMenu(title: "Row") }
+        func numberOfRows(in tableView: NSTableView) -> Int { 3 }
+    }
+
+    /// The menu sweeps ask a table only on one of its rows. Past the rows the sidebar's list looks
+    /// up row -1 and throws on the CI runners' macOS, which left FolderMenuShots running until the
+    /// job's time ran out (18 November 2026).
+    @Test func aTableIsAskedForItsMenuOnlyOnARow() throws {
+        let w = Self.offscreenWindow(CGSize(width: 200, height: 200))
+        let table = CountingTable(frame: CGRect(x: 0, y: 0, width: 200, height: 200))
+        table.addTableColumn(NSTableColumn(identifier: .init("c")))
+        table.rowHeight = 20
+        table.dataSource = table
+        w.contentView = table
+        defer { w.close() }
+        table.reloadData()
+        func click(_ y: CGFloat) throws -> NSEvent {
+            try #require(NSEvent.mouseEvent(with: .rightMouseDown, location: table.convert(CGPoint(x: 50, y: y), to: nil), modifierFlags: [], timestamp: 0,
+                                            windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        let under = table.rect(ofRow: 2).maxY + 40
+        #expect(table.row(at: CGPoint(x: 50, y: under)) == -1)
+        #expect(Self.menu(of: table, for: try click(under)) == nil)
+        #expect(table.asked == 0, "not asked past its rows")
+        #expect(Self.menu(of: table, for: try click(table.rect(ofRow: 1).midY))?.title == "Row")
+        #expect(table.asked == 1, "asked on a row")
+        let onRows = stride(from: 195.0, to: 5, by: -4).filter { table.row(at: CGPoint(x: 50, y: $0)) >= 0 }.count
+        #expect(Self.menu(in: table, window: w, x: 50) { _ in false } == nil)
+        #expect(onRows > 0 && table.asked == 1 + onRows, "the sweep asks it once per point on a row, and nowhere else")
+    }
 
     // MARK: Red titles
 

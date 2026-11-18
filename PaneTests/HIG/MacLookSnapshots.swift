@@ -185,21 +185,12 @@ private struct FollowingSidebar: View {
         try? await Task.sleep(for: .seconds(0.6))
         host.layoutSubtreeIfNeeded()
         let parent = c.mainContext.allFolders().first { $0.name == folder }?.parent?.name
-        for y in stride(from: 395.0, to: 5, by: -4) {
-            let p = host.convert(CGPoint(x: 80, y: y), to: nil)
-            guard let e = NSEvent.mouseEvent(with: .rightMouseDown, location: p, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
-                  let hit = host.hitTest(host.convert(p, from: nil)) else { continue }
-            var v: NSView? = hit
-            while let view = v {
-                if let m = view.menu(for: e), let move = m.items.first(where: { $0.title == "Move To" })?.submenu,
-                   move.items.contains(where: { $0.title.trimmingCharacters(in: .whitespaces) == (parent ?? "Top Level") && $0.state == .on }),
-                   move.items.contains(where: { $0.title.trimmingCharacters(in: .whitespaces) == folder && !$0.isEnabled }) {
-                    return m
-                }
-                v = view.superview
-            }
+        let found = MenuLookTests.menu(in: host, window: window, x: 80) { m in
+            guard let move = m.items.first(where: { $0.title == "Move To" })?.submenu else { return false }
+            return move.items.contains { $0.title.trimmingCharacters(in: .whitespaces) == (parent ?? "Top Level") && $0.state == .on }
+                && move.items.contains { $0.title.trimmingCharacters(in: .whitespaces) == folder && !$0.isEnabled }
         }
-        throw CancellationError()
+        return try #require(found, "no row's right-click gave \(folder)'s menu")
     }
 
     @Test func theMenuIsGroupedWithPlainIconsAndMoveToTicksWhereItIs() async throws {

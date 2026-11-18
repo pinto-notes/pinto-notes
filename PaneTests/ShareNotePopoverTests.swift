@@ -85,18 +85,7 @@ import Testing
         host.frame = CGRect(origin: .zero, size: host.fittingSize)
         try? await Task.sleep(for: .seconds(0.3))
         host.layoutSubtreeIfNeeded()
-        for y in stride(from: host.bounds.height - 4, to: 4, by: -3) {
-            let p = host.convert(CGPoint(x: 60, y: y), to: nil)
-            guard let e = NSEvent.mouseEvent(with: .rightMouseDown, location: p, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                                             context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
-                  let hit = host.hitTest(host.convert(p, from: nil)) else { continue }
-            var v: NSView? = hit
-            while let view = v {
-                if let m = view.menu(for: e), !m.items.isEmpty { return m }
-                v = view.superview
-            }
-        }
-        return nil
+        return MenuLookTests.menu(in: host, window: window, x: 60, step: 3) { !$0.items.isEmpty }
     }
 
     /// Picture is one of the ways, last; a link that can't be made isn't offered.
