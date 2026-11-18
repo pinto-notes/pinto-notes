@@ -3,7 +3,10 @@
 // photo; Jonas makes a note in the folder; Jonas moves a note out (he keeps a copy, it leaves the
 // folder for Maja); Jonas leaves, joins again with a new link, and Maja stops sharing.
 //
-//   deno run -A scripts/folders-two-macs.ts <path to the test build's .app> [photo.jpg]
+//   deno run -A scripts/folders-two-macs.ts <Maja's .app> [Jonas's .app] [photo.jpg]
+//
+// FOLDERS_HOSTS=fleet-air2,fleet-air2 runs both on one Mac, side by side: then give two builds with
+// different bundle ids (dev.emilwagman.pintotest.maja and .jonas), so each has its own library.
 //
 // The build is the Mac app with a test bundle id (dev.emilwagman.pintotest.*: its own data folder,
 // never the installed Pinto Notes' library) and this Mac's local stack as its backend, at
@@ -12,8 +15,11 @@
 // (screencapture, in the rig's runner, which has the Screen Recording grant). Take the fleet's
 // screens first (fleet run airs --need screen ...). The two accounts (folders-<run>-*@example.com)
 // are deleted at the end.
-const app = Deno.args[0], photo = Deno.args[1];
-if (!app?.endsWith(".app")) throw new Error("Give the path to the test build's .app.");
+const apps = Deno.args.filter((a) => a.replace(/\/$/, "").endsWith(".app")), photo = Deno.args.find((a) => /\.(jpe?g|png|heic)$/i.test(a));
+if (!apps.length) throw new Error("Give the path to the test build's .app.");
+const hosts = (Deno.env.get("FOLDERS_HOSTS") ?? "fleet-air,fleet-air2").split(",");
+const oneMac = hosts[0] === hosts[1];
+if (oneMac && apps.length < 2) throw new Error("On one Mac, give two builds with different bundle ids.");
 const root = new URL("..", import.meta.url).pathname;
 const status = new TextDecoder().decode((await new Deno.Command("supabase", { args: ["status", "-o", "env", "--workdir", root], stderr: "null" }).output()).stdout);
 const env = Object.fromEntries(status.split("\n").filter((l) => l.includes("=")).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).replace(/^"|"$/g, "")]));
@@ -40,9 +46,10 @@ const ssh = (host: string, cmd: string, quiet = false) => sh(["ssh", host, cmd],
 
 // MARK: Accounts
 
-type Person = { name: string; host: string; email: string; password: string; id: string; tmp: string };
+type Person = { name: string; host: string; email: string; password: string; id: string; tmp: string; app: string; dir: string };
 const people: Person[] = [];
-for (const [name, host] of [["Maja", "fleet-air"], ["Jonas", "fleet-air2"]]) {
+for (const [i, name] of ["Maja", "Jonas"].entries()) {
+  const host = hosts[i];
   const email = `folders-${run}-${name.toLowerCase()}@example.com`, password = crypto.randomUUID() + crypto.randomUUID();
   await fetch(`${api}/rest/v1/signup_allowlist`, { method: "POST", headers: { ...admin, Prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ email }) }).then((r) => r.body?.cancel());
   const res = await fetch(`${api}/auth/v1/admin/users`, { method: "POST", headers: admin, body: JSON.stringify({ email, password, email_confirm: true }) });
@@ -52,14 +59,17 @@ for (const [name, host] of [["Maja", "fleet-air"], ["Jonas", "fleet-air2"]]) {
   const s = await (await fetch(`${api}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: anon, "content-type": "application/json" }, body: JSON.stringify({ email, password }) })).json();
   await fetch(`${api}/rest/v1/profiles`, { method: "POST", headers: { apikey: anon, authorization: `Bearer ${s.access_token}`, "content-type": "application/json" },
     body: JSON.stringify({ display_name: name }) }).then((r) => r.body?.cancel());
-  const tmp = (await ssh(host, "getconf DARWIN_USER_TEMP_DIR")).replace(/\/$/, "");
-  people.push({ name, host, email, password, id, tmp });
+  // Each person's steps, flags and log in a folder of their own (CollabScript writes beside the steps).
+  const tmp = `${(await ssh(host, "getconf DARWIN_USER_TEMP_DIR")).replace(/\/$/, "")}/folders-${name.toLowerCase()}`;
+  people.push({ name, host, email, password, id, tmp, app: apps[Math.min(i, apps.length - 1)].replace(/\/$/, ""), dir: `folders/${name.toLowerCase()}` });
 }
 const [maja, jonas] = people;
 
 // MARK: Steps
 
-const intro = (p: Person) => [{ signIn: { email: p.email, password: p.password } }, { waitReady: 120 }, { skipIntro: 10 }];
+// One Mac: the two windows side by side on the Air's 1440 x 932 point screen.
+const frame = (p: Person) => oneMac ? [{ windowFrame: [p.name === "Maja" ? 0 : 720, 0, 720, 900] }] : [];
+const intro = (p: Person) => [{ signIn: { email: p.email, password: p.password } }, { waitReady: 120 }, { skipIntro: 10 }, ...frame(p)];
 const steps: Record<string, unknown[]> = {
   Maja: [
     ...intro(maja),
@@ -138,22 +148,24 @@ const relay: [string, Person, Person][] = [
 const tunnels: Deno.ChildProcess[] = [];
 const results: [string, boolean, string][] = [];
 const check = (name: string, ok: boolean, detail = "") => { results.push([name, ok, detail]); console.log(ok ? "PASS" : "FAIL", name, detail); };
-const pids: Record<string, string> = {};
+const pids: Record<string, string> = {}, recorders: Record<string, string> = {};
 try {
-  for (const p of people) {
+  for (const host of new Set(hosts)) {
     // The local stack on the Air's 127.0.0.1:56421.
-    tunnels.push(new Deno.Command("ssh", { args: ["-N", "-o", "ExitOnForwardFailure=yes", "-R", "56421:127.0.0.1:56421", p.host], stdout: "null", stderr: "null" }).spawn());
-    await ssh(p.host, "mkdir -p ~/folders && rm -rf ~/folders/PintoTest.app");
-    await sh(["rsync", "-a", "--delete", `${app}/`, `${p.host}:folders/PintoTest.app/`]);
-    await ssh(p.host, `rm -f ${p.tmp}/*.txt ${p.tmp}/*.json ${p.tmp}/collab-script.log; cat > ${p.tmp}/folders-steps.json`, true);
+    tunnels.push(new Deno.Command("ssh", { args: ["-N", "-o", "ExitOnForwardFailure=yes", "-R", "56421:127.0.0.1:56421", host], stdout: "null", stderr: "null" }).spawn());
+  }
+  for (const p of people) {
+    await ssh(p.host, `mkdir -p ~/${p.dir} ${p.tmp} && rm -rf ~/${p.dir}/PintoTest.app`);
+    await sh(["rsync", "-a", "--delete", `${p.app}/`, `${p.host}:${p.dir}/PintoTest.app/`]);
+    await ssh(p.host, `rm -f ${p.tmp}/*.txt ${p.tmp}/*.json ${p.tmp}/collab-script.log`, true);
     await sh(["ssh", p.host, `cat > ${p.tmp}/folders-steps.json`], JSON.stringify(steps[p.name]));
     if (photo) await sh(["scp", "-q", photo, `${p.host}:${p.tmp}/photo.jpg`]);
   }
   await sleep(2);
+  for (const host of new Set(hosts)) recorders[host] = (await airrun(host, `nohup screencapture -V 900 -x ~/folders/${host}.mov >/dev/null 2>&1 & echo $!`)).trim();
   for (const p of people) {
-    await airrun(p.host, `nohup screencapture -V 900 -x ~/folders/${p.name.toLowerCase()}.mov >/dev/null 2>&1 & echo started`);
-    await airrun(p.host, `open -n ~/folders/PintoTest.app --args -collabScript ${p.tmp}/folders-steps.json -PintoAppearance light; sleep 3; open ~/folders/PintoTest.app; echo ok`);
-    pids[p.name] = await ssh(p.host, "pgrep -n -f folders/PintoTest.app/Contents/MacOS", true);
+    await airrun(p.host, `open -n ~/${p.dir}/PintoTest.app --args -collabScript ${p.tmp}/folders-steps.json -PintoAppearance light; sleep 3; open ~/${p.dir}/PintoTest.app; echo ok`);
+    pids[p.name] = await ssh(p.host, `pgrep -n -f ${p.dir}/PintoTest.app/Contents/MacOS`, true);
   }
   // Carry files across and wait for both sides to finish.
   const end = Date.now() + 15 * 60_000;
@@ -175,11 +187,11 @@ try {
     await sh(["/bin/zsh", "-c", `ssh ${p.host} 'cd ${p.tmp} && tar cf - collab-script.log *.json 2>/dev/null' | tar xf - -C ${out} && mv ${out}/collab-script.log ${out}/${p.name.toLowerCase()}.log`], undefined, true);
   }
 } finally {
-  for (const p of people) {
-    // Exact PIDs only: the test app, then the recording.
-    if (pids[p.name]) await ssh(p.host, `kill ${pids[p.name]}`, true);
-    await airrun(p.host, `pkill -INT -x -u $(id -u) screencapture; sleep 2; echo stopped`).catch(() => "");
-    await sh(["scp", "-q", `${p.host}:folders/${p.name.toLowerCase()}.mov`, `${out}/`], undefined, true);
+  // Exact PIDs only: the test apps, then the recordings.
+  for (const p of people) if (pids[p.name]) await ssh(p.host, `kill ${pids[p.name]}`, true);
+  for (const host of new Set(hosts)) {
+    if (/^\d+$/.test(recorders[host] ?? "")) await airrun(host, `kill -INT ${recorders[host]}; sleep 2; echo stopped`).catch(() => "");
+    await sh(["scp", "-q", `${host}:folders/${host}.mov`, `${out}/`], undefined, true);
   }
   for (const t of tunnels) { try { t.kill(); } catch { /* gone */ } }
   for (const p of people) await fetch(`${api}/auth/v1/admin/users/${p.id}`, { method: "DELETE", headers: admin }).then((r) => r.body?.cancel());

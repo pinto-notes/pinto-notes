@@ -51,7 +51,8 @@ import AppKit
 ///   {"showFolderShare": "Recipes"}, {"shareFolder": {"folder", "file", "access"}}, {"joinFolder": {"file", "folder"}},
 ///   {"waitNoteIn"/"waitNoteGone": {"folder", "title", "timeout"}}, {"moveTo": {"title", "folder"}},
 ///   {"leaveFolder"/"stopFolder": "Recipes"}, {"waitFolderGone": {"folder"}}, {"dumpFolders": "folders.json"},
-///   {"checkNow": true} (the membership look, now), {"attach": "/path/photo.jpg"}, {"write": "flag.txt"}
+///   {"checkNow": true} (the membership look, now), {"attach": "/path/photo.jpg"}, {"write": "flag.txt"},
+///   {"windowFrame": [x, y, w, h]} (Mac: the window there, for two apps side by side)
 ///   {"dump": "state.json"}                         the open note's text, its share state and saved link, who's
 ///                                                  in it, its sync line, its AI mark, and a lost-access alert
 ///   {"wait": 2}, {"quit": true}
@@ -91,7 +92,9 @@ enum CollabScript {
     private static var skipIntro: (() -> Void)?
     private static var context: ModelContext?
     private static var current: Note?
-    private static let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+    /// Where the steps' files and log are: the steps file's folder, so two test apps on one Mac
+    /// (one per account) keep theirs apart.
+    private static var dir = URL(fileURLWithPath: NSTemporaryDirectory())
 
     /// Plays the steps file, if there is one. Called once the app has started.
     static func runIfRequested(context: ModelContext, signIn: @escaping (String, String) async throws -> Void, skipIntro: @escaping () -> Void) {
@@ -99,6 +102,7 @@ enum CollabScript {
               let data = try? Data(contentsOf: file),
               let steps = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
         running = true
+        dir = file.deletingLastPathComponent()
         self.context = context
         self.signIn = signIn
         self.skipIntro = skipIntro
@@ -391,6 +395,13 @@ enum CollabScript {
             }
         case "dumpFolders":
             try write(dumpFolders(), to: value as? String ?? "folders.json")
+        case "windowFrame":
+            // [x, y, width, height] from the screen's bottom left: two test apps side by side on one Mac.
+            #if os(macOS)
+            if let f = value as? [Double], f.count == 4, let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) {
+                window.setFrame(NSRect(x: f[0], y: f[1], width: f[2], height: f[3]), display: true)
+            }
+            #endif
         case "quit":
             log("quit")
             #if os(macOS)
