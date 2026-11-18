@@ -47,6 +47,11 @@ import AppKit
 ///                                                  shows: its title, message and buttons written to the file
 ///   {"answerLostAccess": "keepCopy" | "dontKeep" | "ok"}   as that alert's button does: Keep a Copy opens the copy
 ///   {"startFresh": true}                           Start fresh (the account's notes and links go)
+///   Shared folders: {"createFolder": "Recipes"}, {"showFolder": …}, {"createIn": {"folder", "text"}},
+///   {"showFolderShare": "Recipes"}, {"shareFolder": {"folder", "file", "access"}}, {"joinFolder": {"file", "folder"}},
+///   {"waitNoteIn"/"waitNoteGone": {"folder", "title", "timeout"}}, {"moveTo": {"title", "folder"}},
+///   {"leaveFolder"/"stopFolder": "Recipes"}, {"waitFolderGone": {"folder"}}, {"dumpFolders": "folders.json"},
+///   {"checkNow": true} (the membership look, now), {"attach": "/path/photo.jpg"}, {"write": "flag.txt"}
 ///   {"dump": "state.json"}                         the open note's text, its share state and saved link, who's
 ///                                                  in it, its sync line, its AI mark, and a lost-access alert
 ///   {"wait": 2}, {"quit": true}
@@ -335,6 +340,13 @@ enum CollabScript {
             let name = v["folder"] ?? ""
             try await until(90, "the folder \(name) to arrive") { joinFailed() != nil || folderNamed(name) != nil }
             if let why = joinFailed() { throw Failed(description: why) }
+        case "attach":
+            // As Attach File or Add Photos in the open note: the file copied in and put in the text.
+            guard let context, let c = editor()?.controller else { throw Failed(description: "no note open") }
+            let files = context.addAttachments([URL(fileURLWithPath: value as? String ?? "")])
+            guard !files.isEmpty else { throw Failed(description: "the file wasn't taken") }
+            c.insertFiles(files)
+            try await until(10, "the file in the note") { editorText()?.contains("pane-file:") == true }
         case "write":
             // A file the run script carries to the other device, which waits for it.
             try write("ok", to: value as? String ?? "flag.txt")
