@@ -234,7 +234,10 @@ extension CollabStore: ShareBackend {
         let found: Collab.OpenedLink?
         do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
         catch { return .failure(JoinFailure(Self.joinFailure(error))) }
-        guard let opened = found else { return .failure(JoinFailure("This link was turned off or changed. Ask for a new one.")) }
+        guard let opened = found else {
+            if let folders, let p = await folders.preview(link: id, secret: secret) { return .success(p) }
+            return .failure(JoinFailure("This link was turned off or changed. Ask for a new one."))
+        }
         let title = opened.head_ct.flatMap { ct -> String? in
             guard let text = try? NoteCrypto.open(opened.key_wrap, key: lk.key, context: "invite:\(id.lowercased())"),
                   let raw = Data(base64Encoded: text), raw.count == 32,
@@ -260,7 +263,14 @@ extension CollabStore: ShareBackend {
         let found: Collab.OpenedLink?
         do { found = try await Self.retryingOnce { try await transport.openLink(id: id, answer: lk.answer) } }
         catch { return .failed(Self.joinFailure(error)) }
-        guard let opened = found else { return .failed("This link was turned off or changed. Ask for a new one.") }
+        guard let opened = found else {
+            // Not a note's link: a folder's, maybe (one link shape for both).
+            if let folders, let folder = try? await folders.join(link: id, secret: secret) {
+                NoteOpener.shared.folderRequest = folder.id
+                return .joinedFolder(folder: folder.id, owner: folders.ownerName(of: folder))
+            }
+            return .failed("This link was turned off or changed. Ask for a new one.")
+        }
         // Already in the note on this device (your own link, or one you joined before): open it,
         // with no second join. Sessions are listed by the note's id in your library, which for
         // someone else's note isn't the shared note's id (SharedNotes.noteID): looking it up by the

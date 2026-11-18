@@ -773,6 +773,7 @@ struct SharedRemoval: Identifiable, Equatable {
         case .removed?: why = "\(who ?? "Its owner") removed you from this note."
         case .unshared?: why = "\(who ?? "Its owner") stopped sharing this note."
         case .left?: why = "You left this note on another device."
+        case .moved?: why = "It was moved out of a shared folder."
         case nil: why = "Ask \(who ?? "its owner") to share it with you again if you still need it."
         }
         guard copy != nil else { return why }

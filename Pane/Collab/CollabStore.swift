@@ -41,6 +41,10 @@ final class CollabStore {
     /// Shared notes in this device's library: storage, offline edits, catching up, leaving
     /// (SharedLibrary). Made once the store has a context.
     @ObservationIgnored private(set) var library: SharedLibrary?
+    /// Shared folders (FolderSharing): made with the library, when the transport has them.
+    private(set) var folders: FolderSharing?
+    /// Where each device keeps what it last saw of its shared folders (nil: in memory only).
+    @ObservationIgnored var folderDefaults: UserDefaults? = .standard
     @ObservationIgnored var keys: [UUID: (nk: SymmetricKey, epoch: Int)] = [:]
     /// What each note's link lets people do (Share › People with the link). No entry: the link is off.
     var linkAccess: [UUID: ShareState.Access] = [:]
@@ -168,6 +172,15 @@ final class CollabStore {
         return nil
     }
 
+    private func makeFolders() {
+        guard let context, let ft = transport as? any FolderTransport, let me else { folders = nil; return }
+        let defaults = folderDefaults
+        let state = defaults.map { FolderSyncState.load(account: me, defaults: $0) } ?? FolderSyncState()
+        folders = FolderSharing(store: self, transport: ft, context: context, state: state) { s in
+            if let defaults { FolderSyncState.save(s, account: me, defaults: defaults) }
+        }
+    }
+
     private func makeLibrary() {
         library?.closeAll()
         guard let context, let transport else { library = nil; return }
@@ -198,6 +211,7 @@ final class CollabStore {
         }
         library.install()
         self.library = library
+        makeFolders()
     }
 
     /// The account's data key, or why there isn't one here.
@@ -306,6 +320,9 @@ final class CollabStore {
             log.error("checking memberships failed: \(String(describing: error), privacy: .public)")
             return
         }
+        // Folders first: a folder you lost takes its notes with it quietly, with one line for the
+        // folder, before the notes' own check would tell you about each of them.
+        await folders?.sync()
         await followKeys(rows)
         // Memberships not yet accepted are email invitations (collab_invite), which are parked:
         // nothing asks about them. Joining is by the note's link only.

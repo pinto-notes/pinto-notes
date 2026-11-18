@@ -163,7 +163,8 @@ enum Collab {
     /// or you left it yourself, on this device or another. `by_name`: who did it, as their profile
     /// names them now.
     struct AccessEnded: Decodable, Sendable, Equatable {
-        enum Reason: String, Decodable, Sendable { case removed, unshared, left }
+        /// `moved`: someone moved it out of a shared folder (20261118120000_shared_folders.sql).
+        enum Reason: String, Decodable, Sendable { case removed, unshared, left, moved }
         let reason: Reason
         var by_name: String? = nil
     }

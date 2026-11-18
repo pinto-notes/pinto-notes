@@ -229,6 +229,35 @@ final class MemoryCollabServer {
                                                  invitedBy: l.createdBy, acceptedAt: "now", order: 0))
     }
 
+    // MARK: For shared folders (MemoryFolderServer)
+
+    /// The shared folders on this server, kept apart (MemoryFolderServer).
+    lazy var folders = MemoryFolderServer(notes: self)
+
+    func noteOwner(_ note: UUID) -> UUID? { notes[note]?.owner }
+    func hasLink(_ id: String) -> Bool { links[id] != nil }
+    func noteEpoch(_ note: UUID) -> Int? { notes[note]?.epoch }
+    func isMember(_ note: UUID, _ user: UUID) -> Bool { members[note]?[user] != nil }
+    func noteMembers(_ note: UUID) -> [UUID] { members[note].map { Array($0.keys) } ?? [] }
+
+    /// collab_folder_join_note: a folder member joins the note with its key from FK.
+    func folderJoin(_ user: UUID, note: UUID, role r: String, epoch: Int, keyWrap: String, selfWrap: String) throws {
+        guard notes[note]?.epoch == epoch else { throw Collab.Failure.staleEpoch }
+        guard members[note]?[user] == nil else { return }
+        addMember(note, user, MemberRow(role: r, epoch: epoch, keyWrap: keyWrap, wrappedBy: user, selfWrap: selfWrap, invitedBy: nil, acceptedAt: "now", order: 0))
+    }
+
+    /// A folder member's way into a note ends (moved out, removed, left, unshared).
+    func endMembership(_ note: UUID, user: UUID, _ reason: Collab.AccessEnded.Reason, by: UUID?, rekey: Bool) {
+        guard members[note]?[user] != nil else { return }
+        members[note]?[user] = nil
+        ends(note, for: user, reason, by: by)
+        if rekey, notes[note]?.rekeyAfter == nil { notes[note]?.rekeyAfter = .now }
+        for c in channels[note] ?? [] where c.user == user { c.cut() }
+    }
+
+    func setNoteRole(_ note: UUID, user: UUID, role r: String) { if members[note]?[user]?.role != "owner" { members[note]?[user]?.role = r } }
+
     func pull(_ user: UUID, note: UUID, after: Int64) throws -> Collab.Pull {
         guard role(note, user) != nil else { return Collab.Pull(snapshot: nil, updates: []) }
         let newest = snapshots[note]?.max { ($0.upto, $0.epoch) < ($1.upto, $1.epoch) }

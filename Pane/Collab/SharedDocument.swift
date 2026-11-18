@@ -167,7 +167,7 @@ enum SharedNotes {
     /// the server has done it, so a pointer can't go back up over the unshared row.
     @MainActor static var unsharing: Set<UUID> = []
 
-    private static func derived(_ s: String, key: SymmetricKey) -> UUID {
+    static func derived(_ s: String, key: SymmetricKey) -> UUID {
         var b = Array(HMAC<SHA256>.authenticationCode(for: Data(s.utf8), using: key).prefix(16))
         b[6] = (b[6] & 0x0F) | 0x50 // version 5 (name-based)
         b[8] = (b[8] & 0x3F) | 0x80 // RFC 4122 variant

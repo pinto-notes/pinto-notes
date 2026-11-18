@@ -155,6 +155,10 @@ final class JoinCenter {
             Funnel.record(.shareStep(.inviteAccepted))
             phase = .idle
             show(JoinNotice(kind: .joined, text: JoinCopy.joined(owner: owner), note: note))
+        case .joinedFolder(let folder, let owner):
+            Funnel.record(.shareStep(.inviteAccepted))
+            phase = .idle
+            show(JoinNotice(kind: .joinedFolder, text: JoinCopy.joinedFolder(owner: owner), note: folder))
         case .opened:
             phase = .idle
         case .failed(let why):
@@ -201,6 +205,8 @@ final class JoinCenter {
 enum JoinOutcome: Equatable, Sendable {
     /// You joined: the note is in your notes and open. `note` is its id in your library.
     case joined(note: UUID, owner: String?)
+    /// You joined a shared folder: it's at the top of your folders. `folder` is its id in your library.
+    case joinedFolder(folder: UUID, owner: String?)
     /// You were in it already: it just opened.
     case opened
     /// It didn't open: what to tell the person.
@@ -215,6 +221,8 @@ struct JoinPreview: Equatable, Sendable {
     var owner: String?
     var canEdit: Bool
     var alreadyIn = false
+    /// A shared folder's link, not a note's.
+    var isFolder = false
 }
 
 /// Why a link didn't open, in words for the person.
@@ -225,7 +233,7 @@ struct JoinFailure: Error, Equatable {
 
 /// The line at the foot of the window after a link joined a note: what happened, and Leave.
 struct JoinNotice: Equatable, Identifiable {
-    enum Kind: Equatable { case joined, leaving, left, failed }
+    enum Kind: Equatable { case joined, joinedFolder, leaving, left, failed }
     let id = UUID()
     var kind: Kind
     var text: String
@@ -238,6 +246,11 @@ struct JoinNotice: Equatable, Identifiable {
 enum JoinCopy {
     /// "Join “Team offsite”?", or with no title "Join the note Emil shared?".
     static func askTitle(_ p: JoinPreview) -> String {
+        if p.isFolder {
+            if let t = p.title { return "Join the folder \u{201C}\(t)\u{201D}?" }
+            if let o = p.owner { return "Join the folder \(ShareCopy.first(o)) shared?" }
+            return "Join this shared folder?"
+        }
         if let t = p.title { return "Join \u{201C}\(t)\u{201D}?" }
         if let o = p.owner { return "Join the note \(ShareCopy.first(o)) shared?" }
         return "Join this shared note?"
@@ -251,6 +264,12 @@ enum JoinCopy {
     /// "You joined Emil's note. People in it see your name and photo."
     static func joined(owner: String?) -> String {
         let whose = owner.map { "\(ShareCopy.first($0))'s note" } ?? "the note"
+        return "You joined \(whose). People in it see your name and photo."
+    }
+
+    /// "You joined Emil's folder. People in it see your name and photo."
+    static func joinedFolder(owner: String?) -> String {
+        let whose = owner.map { "\(ShareCopy.first($0))'s folder" } ?? "the folder"
         return "You joined \(whose). People in it see your name and photo."
     }
 
@@ -325,7 +344,7 @@ struct JoinedToast: View {
 
     private var kind: Toast.Kind {
         switch notice.kind {
-        case .joined, .left: .done
+        case .joined, .joinedFolder, .left: .done
         case .leaving: .working
         case .failed: .failed
         }

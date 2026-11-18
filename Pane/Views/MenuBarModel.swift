@@ -49,6 +49,8 @@ final class NoteOpener {
     static let shared = NoteOpener()
     /// The note to reveal; the notes window clears it once shown.
     var request: UUID?
+    /// The folder to show (a shared folder just joined); the notes window clears it once shown.
+    var folderRequest: UUID?
 
     /// New Note was asked for from outside the app (Control Centre, the Lock Screen, the Action
     /// button, Siri): the notes open on a new note once they show, then this goes back to false.
