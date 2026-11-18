@@ -18,7 +18,7 @@
 
 import { type FolderRow, type Note, type NoteRow, type Tx, type Call, LOCKED_TITLE, ToolError } from "./tools.ts";
 import { type FolderFile, folderFileRows, type FolderFileRow } from "./folder_files.ts";
-import { SHARED_DIR, sharedNotes } from "./shared_notes.ts";
+import { SHARED_DIR, sharedFolders, sharedNotes } from "./shared_notes.ts";
 
 export const DELETED = "Recently Deleted/";
 export { SHARED_DIR };
@@ -65,6 +65,7 @@ export class Paths {
       // Notes shared with this account: their titles are sealed with each note's own key.
       sharedNotes(tx, c),
     ]);
+    const trees = await sharedFolders(tx, c);
     const dbMs = performance.now() - t0;
     const t1 = performance.now();
     let index: Index = { v: 1, notes: {}, folders: {} };
@@ -136,13 +137,21 @@ export class Paths {
       if (!s) continue;
       Object.assign(n, { shared: s, title: s.title, locked_body: null });
       placed.add(s.id);
+      // In a shared folder and not placed by a device yet: in this account's folder for it.
+      if (!n.folder_id && !n.parent_id && s.folder?.localId) n.folder_id = s.folder.localId;
       if (s.role !== "owner" && !n.folder_id && !n.parent_id && !n.trashed_at) elsewhere.add(n.id);
     }
     for (const s of shared) {
       if (placed.has(s.id)) continue;
-      elsewhere.add(s.id);
-      notes.push({ id: s.id, head_ct: "", locked_body: null, folder_id: null, parent_id: null, is_pinned: false, created_at: s.created_at, updated_at: s.updated_at,
+      const at = s.folder?.localId ?? null;
+      if (!at) elsewhere.add(s.id);
+      notes.push({ id: s.id, head_ct: "", locked_body: null, folder_id: at, parent_id: null, is_pinned: false, created_at: s.created_at, updated_at: s.updated_at,
         trashed_at: null, version: "shared", title: s.title, ...(s.preview !== undefined ? { preview: s.preview } : {}), shared: s, virtual: true });
+    }
+    // This account's folders that are shared folders (or in one): what they are to this person.
+    for (const t of trees) {
+      const role = t.role === "owner" ? "owner" : t.role === "editor" ? "can edit" : "view only";
+      for (const f of folders) if (t.tree.has(f.id)) f.shared = role;
     }
     const created = new Map(frows.map((f) => [f.id, +new Date(f.created_at)]));
     const p = new Paths({ rows: rows.length, opened, dbMs: Math.round(dbMs), openMs: Math.round(openMs), buildMs: 0, cached });
