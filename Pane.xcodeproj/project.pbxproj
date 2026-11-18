@@ -379,6 +379,7 @@
 		34B24FC2421D8E413271A26F /* Dividers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C439A81FB96E4DE1B754647 /* Dividers.swift */; };
 		34CFBC0EAF6C6B5261CF5022 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */; };
 		34F47FFE6228C1F79DF616CF /* SharedDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239E33A6B222E8CCE6BA3C15 /* SharedDeleteTests.swift */; };
+		3507706F98AE5A0C8EC2DF82 /* FolderVectorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C4DE753D3427207AEAB451E /* FolderVectorsTests.swift */; };
 		3548897F5A2B168D95155650 /* amber.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 97C940F267EB2E717FF9D745 /* amber.module.js */; };
 		3567B1E5577407A8C866ED38 /* template-app-study-flashcards-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DD2CBA7D9B4CFF7E8589AB5D /* template-app-study-flashcards-stage-card-light.jpg */; };
 		357BFF89566D534FC69D2494 /* OfflineUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643D6098FA0EE7C18618080F /* OfflineUITests.swift */; };
@@ -2215,6 +2216,7 @@
 		8C116092B2EE46E4BDE233A5 /* FeatureUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureUsage.swift; sourceTree = "<group>"; };
 		8C3920F446BCCD44BECAD781 /* TemplateAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateAsk.swift; sourceTree = "<group>"; };
 		8C45208113CA435AB1CE94DF /* OnboardingFunnelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFunnelTests.swift; sourceTree = "<group>"; };
+		8C4DE753D3427207AEAB451E /* FolderVectorsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderVectorsTests.swift; sourceTree = "<group>"; };
 		8CA850D9ED3A3D8966BC9FF7 /* ScopeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopeTests.swift; sourceTree = "<group>"; };
 		8CDAB47A5DF18E6B8B2E26C1 /* AccessibilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityUITests.swift; sourceTree = "<group>"; };
 		8D8B1A665776978FE59249A5 /* template-cover-home-maintenance-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-home-maintenance-large.jpg"; sourceTree = "<group>"; };
@@ -3457,6 +3459,7 @@
 				7C8A65D2F56CED822826A99B /* FileOutTests.swift */,
 				C55C10553460868D451E9230 /* FolderFilesTests.swift */,
 				587FC254E885C3FDF94C1B8E /* FolderGalleryTests.swift */,
+				8C4DE753D3427207AEAB451E /* FolderVectorsTests.swift */,
 				B1E2F1F299DF8F502D2E6AD9 /* FormatPopoverTests.swift */,
 				00532C320E1D0786EBB9B8E7 /* FormerSubNotesTests.swift */,
 				0576293C73580899E39EEDE1 /* FreshCloneTests.swift */,
@@ -4771,6 +4774,7 @@
 				55F18B704C351E3EED6DE6FE /* FileRowClickTests+Shared.swift in Sources */,
 				1CE6B672D7A30D70F5913750 /* FolderFilesTests.swift in Sources */,
 				CFB5C7A919FE4DDA91A97748 /* FolderGalleryTests.swift in Sources */,
+				3507706F98AE5A0C8EC2DF82 /* FolderVectorsTests.swift in Sources */,
 				0DB07CB4B8B8AD5A02FC8406 /* FormatPopoverTests.swift in Sources */,
 				70FE7EB922EE3E7988D8EEAC /* FormerSubNotesTests.swift in Sources */,
 				FCDF65444C63EE707741E921 /* FreshCloneTests.swift in Sources */,

@@ -101,7 +101,7 @@ import Testing
         #expect(ta.contains(" at noon") && ta.contains(" (Tranan)"))
     }
 }
-private final class CollabVectorsToken {}
+final class CollabVectorsToken {}
 
 /// Remote carets: a cursor sent from one device resolves to the same insertion point on another,
 /// through concurrent edits, at line ends, in lists and tables, and with emoji and CJK (UTF-16).
