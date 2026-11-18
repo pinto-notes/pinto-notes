@@ -14,5 +14,25 @@
   "safety_code": "0474 7632 9919",
   "link_id": "UPy5hh7SfDFx7SwmyveMlg",
   "link_secret": "3d3e9aMzhgNkMMGGjGRvKw",
-  "link_sealed": "amb3r./IcqvYYB7BNK6rWUg8hUbvYavw6EpwLl5bpSeQXVIREtRA3ufzS2kT1Kmj4X0zCIwBFDEfXynlDT0Lsl/J/cCluWSVKj3O24nzWCRQh3myPytDpKdTjdYQibROgSCFVEFIFbegWda6DyHR6obNVnE2tFbIkR6I6OBLy/dm7npukAwW9QS99lKm8wVtEZS6gMd88It5SKFyOc5RpiJ+2sJLCgnH1imsDyEtOfkUynhTD6W3DCPZ2DZrQ="
+  "link_sealed": "amb3r./IcqvYYB7BNK6rWUg8hUbvYavw6EpwLl5bpSeQXVIREtRA3ufzS2kT1Kmj4X0zCIwBFDEfXynlDT0Lsl/J/cCluWSVKj3O24nzWCRQh3myPytDpKdTjdYQibROgSCFVEFIFbegWda6DyHR6obNVnE2tFbIkR6I6OBLy/dm7npukAwW9QS99lKm8wVtEZS6gMd88It5SKFyOc5RpiJ+2sJLCgnH1imsDyEtOfkUynhTD6W3DCPZ2DZrQ=",
+  "folder": {
+    "root": "3c2b1a09-8f7e-4d6c-9b5a-0f1e2d3c4b5a",
+    "subfolder": "5e4d3c2b-1a09-4f8e-8d7c-6b5a49382716",
+    "note": "6f1c1b0e-2a7d-4c55-9a43-1d2e3f405162",
+    "epoch": 2,
+    "note_epoch": 3,
+    "folder_key": "CxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eQ=",
+    "name": "Recipes · Middag",
+    "name_nonce": "AQgPFh0kKzI5QEdO",
+    "name_box": "amb3f.2.AQgPFh0kKzI5QEdOlwQIObARNSEqUs2RWj/5Cp/cGel/oRuLDK1AwMvNbjy+",
+    "wrap_nonce": "MzpBSE9WXWRrcnmA",
+    "folder_wrap": "amb3w.2.3.MzpBSE9WXWRrcnmAucRueNmOZR65POiNIFfDBtIrxwwqwVTLqVgI4Tr93EAEV1IGcT5Aj57B3XSpty8/",
+    "member_wrap": "amb3k.BKcdLvaaIBl2fnTCale0G6x1Rk7eiwwumLz3C2nA7EOYuH9op03Uj5KH53Rd5/wqplWDbtIhXsiO2fvyeoj1upA4JLb2Ge7BCmUgFhQ1KiXElQKCJ030KRiwIjoidqqpYvo7YbFcS6x3mbooirFHYimbBO0/hPLsGsk+tdw=",
+    "data_key": "ZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz4=",
+    "data_key_id": "301273b80ef1a35f",
+    "self_wrap_nonce": "W2JpcHd+hYyTmqGo",
+    "self_wrap": "amb2.301273b80ef1a35f.W2JpcHd+hYyTmqGoMJyA4oSviQ1kfMPsdDgKc5n1eKgePXGOf1jpG8a9Qf5EY2BGhDxCd7+gyUZ3RBfWCqfotVeaWet+2+Qu",
+    "shared_note_id": "8d4009cb-b768-5459-9cab-e96db20e4026",
+    "shared_folder_id": "aeb9e506-8a97-59e7-83fc-fb9fd202db17"
+  }
 }

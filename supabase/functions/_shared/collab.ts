@@ -142,3 +142,80 @@ export async function linkKeys(secret: Bytes, link: string): Promise<{ answer: s
     { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   return { answer: Array.from(answer, (x) => x.toString(16).padStart(2, "0")).join(""), key };
 }
+
+// MARK: Shared folders (docs/Technical/collaboration-design.md, section 8)
+//
+// A shared folder has a folder key (FK, 32 random bytes) per epoch, held as a note key is:
+//   to a member   amb3k, as sealNoteKey with the root's id in place of the note's
+//   self wrap     an amb2 box of base64(FK) under the member's data key, context "folderkey:<root>:<epoch>"
+//   a name        amb3f.<epoch>.<b64 nonce ‖ ct ‖ tag>, AES-256-GCM under FK, AAD "amb3f|<root>|<epoch>|<folder>"
+//   a note's key  amb3w.<epoch>.<note epoch>.<b64 nonce ‖ ct ‖ tag>, AES-256-GCM under FK,
+//                 AAD "amb3w|<root>|<epoch>|<note>|<note epoch>"
+// Ids in a member's own library (Pane/Collab/SharedDocument.swift, SharedNotes.noteID and
+// SharedFolders.folderID): HMAC-SHA256(data key, "pinto shared note <id>" or "pinto shared folder <id>"),
+// first 16 bytes, version 5 and RFC 4122 variant bits set, as a UUID (lowercase here).
+
+export const folderKeyContext = (root: string, epoch: number) => `folderkey:${lower(root)}:${epoch}`;
+
+const nameAAD = (root: string, epoch: number, folder: string) => enc.encode(`amb3f|${lower(root)}|${epoch}|${lower(folder)}`) as Bytes;
+const wrapWAAD = (root: string, epoch: number, note: string, noteEpoch: number) =>
+  enc.encode(`amb3w|${lower(root)}|${epoch}|${lower(note)}|${noteEpoch}`) as Bytes;
+
+async function gcmSeal(key: Bytes, aad: Bytes, data: Bytes, nonce?: Bytes): Promise<string> {
+  const k = await crypto.subtle.importKey("raw", key, "AES-GCM", false, ["encrypt"]);
+  const iv = nonce ?? crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: aad }, k, data));
+  const out = new Uint8Array(12 + ct.length);
+  out.set(iv);
+  out.set(ct, 12);
+  return toBase64(out);
+}
+
+async function gcmOpen(key: Bytes, aad: Bytes, b64: string, what: string): Promise<Bytes> {
+  const b = fromBase64(b64);
+  const k = await crypto.subtle.importKey("raw", key, "AES-GCM", false, ["decrypt"]);
+  try {
+    return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b.subarray(0, 12), additionalData: aad }, k, b.subarray(12)));
+  } catch {
+    throw new OpenError(`${what} doesn't open`);
+  }
+}
+
+/** A folder's (or subfolder's) name under FK. `nonce` is for test vectors only. */
+export async function sealFolderName(name: string, fk: Bytes, root: string, epoch: number, folder: string, nonce?: Bytes): Promise<string> {
+  return `amb3f.${epoch}.${await gcmSeal(fk, nameAAD(root, epoch, folder), enc.encode(name), nonce)}`;
+}
+
+export async function openFolderName(sealed: string, fk: Bytes, root: string, folder: string): Promise<string> {
+  const m = /^amb3f\.(\d+)\.([A-Za-z0-9+/]+={0,2})$/.exec(sealed);
+  if (!m) throw new OpenError("not a folder name");
+  return dec.decode(await gcmOpen(fk, nameAAD(root, Number(m[1]), folder), m[2], "folder name"));
+}
+
+/** A note's key under FK (shared_notes.folder_wrap). `nonce` is for test vectors only. */
+export async function sealFolderWrap(nk: Bytes, fk: Bytes, root: string, epoch: number, note: string, noteEpoch: number, nonce?: Bytes): Promise<string> {
+  return `amb3w.${epoch}.${noteEpoch}.${await gcmSeal(fk, wrapWAAD(root, epoch, note, noteEpoch), nk, nonce)}`;
+}
+
+/** Opens a folder_wrap: the note key and the note epoch it's for. */
+export async function openFolderWrap(sealed: string, fk: Bytes, root: string, note: string): Promise<{ nk: Bytes; epoch: number; noteEpoch: number }> {
+  const m = /^amb3w\.(\d+)\.(\d+)\.([A-Za-z0-9+/]+={0,2})$/.exec(sealed);
+  if (!m) throw new OpenError("not a folder wrap");
+  const nk = await gcmOpen(fk, wrapWAAD(root, Number(m[1]), note, Number(m[2])), m[3], "folder wrap");
+  return { nk, epoch: Number(m[1]), noteEpoch: Number(m[2]) };
+}
+
+/** The FK epoch a name or note wrap was sealed for. */
+export const folderBoxEpoch = (sealed: string) => Number(/^amb3[fw]\.(\d+)\./.exec(sealed)?.[1] ?? NaN);
+
+/** HMAC-SHA256(key, text), first 16 bytes, as a version 5 UUID: SharedNotes.derived in the app. */
+export async function derivedId(dataKey: Bytes | CryptoKey, s: string): Promise<string> {
+  const key = dataKey instanceof CryptoKey ? dataKey : await crypto.subtle.importKey("raw", dataKey, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const b = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(s))).slice(0, 16);
+  b[6] = (b[6] & 0x0f) | 0x50;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+export const sharedNoteText = (shared: string) => `pinto shared note ${lower(shared)}`;
+export const sharedFolderText = (shared: string) => `pinto shared folder ${lower(shared)}`;

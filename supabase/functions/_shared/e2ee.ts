@@ -556,7 +556,7 @@ export async function openFile(bytes: Bytes, key: CryptoKey, id: string): Promis
 
 /** An opened data key for one request. Nothing keeps it past the request. */
 export class Vault {
-  private constructor(readonly keyId: string, private readonly key: CryptoKey, readonly userId: string, private readonly shareKey: CryptoKey, private readonly tagKey: CryptoKey, private readonly blobKey: CryptoKey) {}
+  private constructor(readonly keyId: string, private readonly key: CryptoKey, readonly userId: string, private readonly shareKey: CryptoKey, private readonly tagKey: CryptoKey, private readonly blobKey: CryptoKey, private readonly idKey: CryptoKey) {}
 
   /** Imports the key and wipes the raw bytes it was given. */
   static async from(raw: Bytes, userId: string): Promise<Vault> {
@@ -573,7 +573,9 @@ export class Vault {
     const blobKey = await crypto.subtle.deriveKey(
       { name: "HKDF", hash: "SHA-256", salt: SALT, info: enc.encode("app-blob") },
       ikm, { name: "HMAC", hash: "SHA-256", length: 256 }, false, ["sign"]);
-    const v = new Vault(await keyIdOf(raw), await aesKey(raw), userId, shareKey, tagKey, blobKey);
+    // Ids of shared notes and folders in this library (SharedNotes.noteID in the app): HMAC under DK itself.
+    const idKey = await crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const v = new Vault(await keyIdOf(raw), await aesKey(raw), userId, shareKey, tagKey, blobKey, idKey);
     raw.fill(0);
     return v;
   }
@@ -626,6 +628,21 @@ export class Vault {
   /** A shared note's key at an epoch, from the member's self_wrap (collab.ts: noteKeyContext). */
   async openNoteKey(note: string, epoch: number, sealed: string): Promise<Bytes> {
     return fromBase64(await open(sealed, this.key, `notekey:${note.toLowerCase()}:${epoch}`));
+  }
+  /** A shared note's key under this account's key, as a member's self_wrap. */
+  sealNoteKey(note: string, epoch: number, nk: Bytes) { return seal(toBase64(nk), this.key, this.keyId, `notekey:${note.toLowerCase()}:${epoch}`); }
+  /** A shared folder's key (FK) at an epoch, from the member's folder self_wrap. */
+  async openFolderKey(root: string, epoch: number, sealed: string): Promise<Bytes> {
+    return fromBase64(await open(sealed, this.key, `folderkey:${root.toLowerCase()}:${epoch}`));
+  }
+  /** HMAC-SHA256 under the data key of `text`, first 16 bytes as a v5 UUID (SharedNotes.noteID,
+   *  SharedFolders.folderID in the app). */
+  async derivedId(text: string): Promise<string> {
+    const b = new Uint8Array(await crypto.subtle.sign("HMAC", this.idKey, enc.encode(text))).slice(0, 16);
+    b[6] = (b[6] & 0x0f) | 0x50;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    const h = hex(b);
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
   }
   /** The account's identity private key (its 32-byte scalar), from identity_keys.private_wrap. */
   async openIdentity(sealed: string): Promise<Bytes> {
