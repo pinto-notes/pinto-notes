@@ -287,14 +287,24 @@ Each member's pointer for a note sits in their folder for `shared_notes.folder_i
 - **Removing** someone, or their leaving, takes their folder membership and every `via_folder` note membership in one call; each note gets a new key from its owner's next device (`rekey_after`, as for a note), and the folder's owner makes a new FK, seals it to everyone left and rewraps each note's key under it (`collab_folder_rekey`).
 - **Stop sharing** (owner): everyone else loses the folder and its notes. The owner's notes become ordinary notes again; notes others made in it leave with them.
 
-### Files and photos
-
-Files in a shared note are sealed under the note's key, not the owner's data key, so everyone in the note opens them (see `SharedFiles`). A recipe folder with photos works.
-
 ### Not yet
 
 - Note apps and sub-notes in shared notes. The Share sheet and the folder say so.
 - Version history of folder moves.
+
+### Files in shared notes
+
+Built 18 November 2026 (branch `feature/shared-files`, `Pane/Collab/SharedFiles.swift`, `20261118130000_shared_note_files.sql`). A note's files were sealed under its owner's data key, so nobody else in a shared note could open them, and a note with files couldn't be shared. Now every shared note holds files, so every shared folder does too.
+
+- **Keys.** Each file in a shared note gets its own random file key. Its bytes are sealed under it once (`amb3b ‖ nonce ‖ ct ‖ tag`, AAD `amb3b|<note>|<file>`). The file key, with the file's name, type and size, is sealed under the note key: `amb3x.<epoch>.<b64 nonce ‖ ct ‖ tag>`, AAD `amb3x|<note>|<epoch>|<file>`, in `shared_note_files.key_ct`. Whoever holds NK opens it.
+- **Where.** The bytes are in the `files` bucket under the note's owner, `<owner>/shared/<note>/<blob>`, a fresh blob id per upload, so two devices adding the same file never overwrite each other; the first row wins. Storage policies decide by `collab_role`: every member reads, an owner or editor adds while the owner's storage has room (it counts toward the owner's). Start fresh and Delete Account remove them with the owner's other files.
+- **The text doesn't change.** It keeps `[name](pane-file:<id>)`. Adding a file to a shared note is adding it to the text as in any note (drop, paste, attach, camera); the device then sees a file the note doesn't have and uploads it. It stays in the adder's own files too. Everyone else gets a local `Attachment` for it with `sharedNoteID` set, which sync never sends as theirs; its bytes come on first open and stay on the device.
+- **Sharing a note that has files.** The owner's device does the same for every file the text embeds as soon as the note is shared (fetching one of its own files first if it isn't on that device).
+- **A new key** (someone removed, or left): the owner's device seals every file key again under it, right after the rotation (`rekey`); any editor's device that still has the older key catches up what's left. New files are sealed under the current key; the server refuses others. Someone removed keeps what they had fetched, like text, and can fetch nothing more.
+- **Stopping sharing** keeps the owner's files: files others added are fetched to the owner's device and become the owner's own, with new ids (a file id is unique across accounts, and the adder has theirs), and the text's links follow before it goes back into the owner's row. If one can't be fetched, sharing doesn't stop. The note's rows go with it; the owner's device then deletes the note's folder. **Keep a Copy** after losing access keeps the files on that device the same way; other places of files from a note you're no longer in are removed from the device.
+- **The AI** reads a shared note's text with its file links as they are, and the file names in `files`; it can't open or add them in a shared note yet.
+
+Not yet: renaming or replacing a file's bytes inside a shared note (the name in the text is what shows); an AI opening them; the owner's AI or an older app stopping sharing (only the app keeps others' files then); storage use in Settings doesn't count the shared copies.
 
 ## 7. Share as template
 

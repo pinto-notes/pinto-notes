@@ -538,15 +538,30 @@ const sharedLine = (s: Shared) => s.role === "owner" ? "Shared by this person wi
   : s.role === "editor" ? "Shared with this person, who can edit it: edits merge with what others type."
   : "Shared with this person as view only: it can be read here, not changed.";
 
+/** The files and photos a shared note's text shows, by the names its links give them
+ *  (`![lasagne.jpg|small](pane-file:<id>)`), each once. Their bytes are sealed under the note's key
+ *  (20261118130000_shared_note_files.sql), which the file tools don't open yet. */
+export function sharedFileNames(text: string): string[] {
+  const names: string[] = [];
+  for (const m of text.matchAll(/!?\[([^\]\n]*)\]\(pane-file:[0-9a-f-]{36}\)/gi)) {
+    const name = m[1].replace(/\|(small|fit|cover)$/i, "").trim() || "file";
+    if (!names.includes(name)) names.push(name);
+  }
+  return names;
+}
+const SHARED_FILES_LINE = "The note's files and photos are listed by name: people in the note open them in Pinto Notes. They can't be opened or changed here yet.";
+
 /** A shared note's text, from its document. */
 async function fetchShared(tx: Tx, a: Args, c: Call, s: Shared, path: string) {
   const at = await loadDoc(tx, s);
   const shown = numberedLines(at.text, a.offset, a.limit);
   await markRead(tx, c, sharedItem(s.id), await hash(c, at.text));
+  const files = sharedFileNames(at.text);
   return {
     id: path, title: s.title, text: shown.text, url: `pintonotes://note/${s.id}`,
     metadata: {
       path, lines: shown.lines, updated: iso(s.updated_at), today: today(), shared: sharedLine(s), ...(s.role === "viewer" ? { read_only: true } : {}),
+      ...(files.length ? { files, files_note: SHARED_FILES_LINE } : {}),
       ...(wikiLinks(at.text).length ? { links: wikiLinks(at.text) } : {}), ...(shown.truncated ? { truncated: shown.truncated } : {}),
     },
   };
