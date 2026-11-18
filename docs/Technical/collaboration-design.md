@@ -188,7 +188,7 @@ On the local stack (edge runtime 1.77.4) and staging (15 October 2026): imported
 - **Owner:** invites, removes, changes roles, makes and stops links, deletes the shared note for everyone. One owner; handing over ownership is later.
 - **Can edit:** reads and writes the text and the page, and their AI can too.
 - **Can view:** reads; their changes are refused by the server.
-- **Per note first.** Shared folders later: a folder key that wraps each note key in the folder, so adding someone to a folder is one wrap, and a note moved in or out is a rewrap.
+- **Notes and folders.** A note is shared on its own, or as part of a shared folder (section 8). A folder's roles are the same three, and each note in it gives its folder members the folder role.
 
 What enforces it: the server, with RLS and the triggers in the migration. A viewer holds NK (they must, to read), so cryptography alone can't stop them sealing a change; the server refuses it, and devices also drop changes whose author's role doesn't allow writing. That's the right trade for a notes app.
 
@@ -242,6 +242,59 @@ A note's page is someone's HTML and JavaScript. It never runs on ambernotes.app:
 - **Device abilities** (calendar, contacts, location) don't exist on the web; a page that asks gets nothing. What the page showed from them on the owner's device is in the copy only if the page saved it into the note.
 
 The same frame serves today's `/n` links once their copies include the page (`note_share_pages` would get a sealed or readable page column like the note text).
+
+## 8. Shared folders
+
+Built 18 November 2026 (branch `feature/shared-folders`). Apple Notes is the reference: Share Folder from the folder's menu, Can edit or Can view, a shared mark on the folder, People, Leave, Stop sharing.
+
+### The idea
+
+A shared folder is a group of shared notes, not a new kind of note. Every note in it is an ordinary shared note (section 2): its own note key, its own document, its own `note_members` rows. Older apps, the AI tools, version history, presence and removal work on it as they do on any shared note. The folder adds three things:
+
+1. **A folder key (FK)** per shared folder and epoch, 32 random bytes, held by the folder's members exactly as a note key is held by a note's members (`folder_members.key_wrap` to their identity, `self_wrap` under their data key).
+2. **The folder's tree, sealed under FK:** the folder and its subfolders (`shared_folders`, names as `amb3f` boxes), and which folder each note is in (`shared_notes.folder_id`).
+3. **Each note's key sealed under FK** (`shared_notes.folder_wrap`, `amb3w`). A folder member who isn't in a note yet opens its key with FK and joins it themselves (`collab_folder_join_note`), with a `key_wrap` sealed from their own identity to their own identity and a `self_wrap`. The server lets them because they're an accepted member of the note's folder; their `note_members` row says so (`via_folder`).
+
+So adding someone to a folder is one wrap of FK; their devices then join each note. A note moved in is one wrap of its key under FK; moved out, the folder's members leave it.
+
+### Formats
+
+| What | Format |
+|---|---|
+| Folder key to a member | `amb3k`, as a note key, with the folder's id in place of the note's |
+| Folder key under your data key | `amb2`, context `folderkey:<folder>:<epoch>` |
+| Folder or subfolder name | `amb3f.<epoch>.<b64 nonce ‖ ct ‖ tag>`, AES-256-GCM under FK, AAD `amb3f\|<root>\|<epoch>\|<folder>` |
+| A note's key under FK | `amb3w.<epoch>.<note epoch>.<b64 nonce ‖ ct ‖ tag>`, AAD `amb3w\|<root>\|<epoch>\|<note>\|<note epoch>` |
+| Folder link | `/s/<id>#<secret>`, as a note's; the id names a folder link (`folder_invite_links`); FK sealed under the link's `invite key`, context `invite:<id>` |
+
+### Ids and placement
+
+The shared folder's id is the owner's folder id; a subfolder's is the id of the folder it was made from. Each other member has folders of their own for them, `SharedFolders.folderID(shared, dataKey)` (HMAC like `SharedNotes.noteID`), the same on each of their devices, synced as ordinary folders under their data key. So an older app shows the folder, its subfolders and the notes in them, each note with "This note is shared. Update Pinto Notes to open it." or, from 1.3 on, as a shared note.
+
+Each member's pointer for a note sits in their folder for `shared_notes.folder_id`. Moving a note between folders of the same shared folder moves it for everyone (`collab_folder_note_move`).
+
+### What goes in, what comes out
+
+- **In:** a note made in a shared folder, moved into it, or written there by an AI is shared into it: shared on its own first if it isn't (`collab_share`), then `collab_folder_note_add`. A note made by an app from before shared folders stays the maker's until one of their newer devices sees it there and shares it in.
+- **Subfolders** are shared with the folder: made, renamed, moved and deleted for everyone.
+- **Out:** moved out of the shared folder, or deleted, a note leaves the folder for everyone. Whoever moved it keeps it as an ordinary note of theirs. If they made it, it's that note; otherwise their device keeps a copy and the note's maker loses it with everyone else (`collab_folder_note_remove`, access ended with reason `moved`).
+- **Notes stay with their maker.** A note's owner is whoever made it. If they leave the folder or are removed, the notes they made leave with them, as their own.
+
+### People
+
+- **Share Folder** (the folder's menu, Mac and iPhone) opens the same Share sheet as a note's: People, the link with Can edit, Can view or Off, Copy Link, Remove, Stop Sharing. Only the owner changes the link and removes people.
+- **Joining** by the folder's link makes you a member of the folder (`collab_folder_join_link`). The folder lands at the top of your folders.
+- **Removing** someone, or their leaving, takes their folder membership and every `via_folder` note membership in one call; each note gets a new key from its owner's next device (`rekey_after`, as for a note), and the folder's owner makes a new FK, seals it to everyone left and rewraps each note's key under it (`collab_folder_rekey`).
+- **Stop sharing** (owner): everyone else loses the folder and its notes. The owner's notes become ordinary notes again; notes others made in it leave with them.
+
+### Files and photos
+
+Files in a shared note are sealed under the note's key, not the owner's data key, so everyone in the note opens them (see `SharedFiles`). A recipe folder with photos works.
+
+### Not yet
+
+- Note apps and sub-notes in shared notes. The Share sheet and the folder say so.
+- Version history of folder moves.
 
 ## 7. Share as template
 
