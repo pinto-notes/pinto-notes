@@ -4,7 +4,7 @@ import { PostFigure } from "@/lib/PostParts";
 export const dynamic = "force-static";
 export const metadata = postMetadata("share-a-note-and-edit-it-together", { title: "Share a note in Pinto Notes and edit it together" });
 
-// Launch post for 1.4 (iPhone live 17 Nov 2026, Mac App Store 18 Nov; the site's Mac download stays 1.3.2 for now). Facts checked
+// Launch post for 1.4 (iPhone live 17 Nov 2026, Mac 18 Nov, from the Mac App Store and the site's download). Facts checked
 // on origin/main 6d83cf9ab, the code that shipped: Share menu, then Collaborate…, then Invite People… on iPhone
 // (Pane/Views/NoteDetailView.swift shareItems; Pane/Collab/ShareSheet.swift); Join by Link Can edit, Can view, Off and
 // the lines under it (ShareController.swift ShareCopy); a person's Access picker and Remove from Note, swipe to Remove,
@@ -74,8 +74,8 @@ export default function Page() {
 
       <h2>Get 1.4</h2>
       <p>
-        Pinto Notes 1.4 is out on iPhone and Mac. Update from the App Store on your iPhone and the Mac App Store on your Mac
-        (new to it? <a href="/blog/pinto-notes-for-iphone">here&apos;s the iPhone app</a>). Someone who doesn&apos;t have Pinto Notes yet can still open your link: it tells them how to get
+        Pinto Notes 1.4 is out on iPhone and Mac, so update the app on both. New to Pinto Notes on iPhone?
+        <a href="/blog/pinto-notes-for-iphone">Here&apos;s the iPhone app</a>. Someone who doesn&apos;t have Pinto Notes yet can still open your link: it tells them how to get
         the app and join.
       </p>
     </PostPage>
