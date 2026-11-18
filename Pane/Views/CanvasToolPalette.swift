@@ -1,10 +1,11 @@
 import SwiftUI
 
 #if os(macOS)
-/// The board's tools, floating at the top middle of the board in Excalidraw's order, with
-/// Excalidraw's keys (Emil, 17 November 2026: "normally these buttons aren't toggles, but now they
-/// are, so that is messing with my brain"). The window's toolbar keeps the actions (Share, the
-/// library, Comments, More); the tools you switch between are here, on what they draw on.
+/// The board's tools in Excalidraw's order, with Excalidraw's keys (Emil, 17 November 2026:
+/// "normally these buttons aren't toggles, but now they are, so that is messing with my brain"): in
+/// the middle of the window's title row, as Excalidraw's one row, or with no room there floating at
+/// the top middle of the board (BoardToolbar.Tools). Either way it's this palette, with its own
+/// glass, never a row of toolbar toggles.
 ///
 /// The lock, a line, the hand and the tools, a line, More. Each tool's letter sits in its corner and
 /// its keys are in its help; the tool you have is a filled chip in the accent. Under it, the hint
@@ -12,8 +13,16 @@ import SwiftUI
 /// beside and under it stays the board's.
 struct CanvasToolPalette: View {
     let canvas: CanvasController
-    /// The board's width: in a narrow one, the tools used least wait in More.
-    var width: CGFloat = 1200
+    /// What waits in More: on the board, what a narrow board has no room for; in the window's bar,
+    /// the lock, the hand, the picture and the eraser when there's no room for them there.
+    var fold: Fold = .board(1200)
+
+    enum Fold: Equatable, Sendable {
+        /// On a board this wide: the tools used least wait in More.
+        case board(CGFloat)
+        /// In the window's bar, with barFold in More or not.
+        case bar(folded: Bool)
+    }
     /// The pointer is on More (a menu's label hears no hover of its own).
     @State private var overMore = false
 
@@ -76,6 +85,11 @@ struct CanvasToolPalette: View {
         }
 
         var identifier: String { "canvas.tool.\(id)" }
+
+        /// The tool it picks, for one that is a tool.
+        var tool: CanvasTool? {
+            if case .tool(let t) = self { t } else { nil }
+        }
     }
 
     /// Excalidraw's number keys (its SHAPES table): 1 to 8 and 0; 9 is the picture.
@@ -96,6 +110,9 @@ struct CanvasToolPalette: View {
     static let moreTools: [CanvasTool] = [.frame, .laser]
     /// In a narrow board, the first of these go into More, until the palette fits.
     static let foldOrder: [Item] = [.tool(.line), .tool(.diamond), .image, .tool(.hand), .lock, .tool(.ellipse), .sticky, .tool(.eraser)]
+    /// In the window's bar with no room for every tool: these wait in More (Emil's step b, 17
+    /// November 2026), as in Excalidraw's "more tools".
+    static let barFold: [Item] = [.lock, .tool(.hand), .image, .tool(.eraser)]
 
     // Its measures: a cell for each, a little between them, a line between the groups.
     static let cell: CGFloat = 32
@@ -109,6 +126,9 @@ struct CanvasToolPalette: View {
     /// Where what goes under the palette starts on the board (the style panel, the follow banner,
     /// voting): below the palette, clear of it.
     static var below: CGFloat { top + height + 10 }
+    /// Where it starts while the tools are in the window's bar: just under the bar.
+    static let belowBar: CGFloat = 12
+    static func below(_ tools: BoardToolbar.Tools) -> CGFloat { tools.inBar ? belowBar : below }
 
     /// The palette's width with these items in these groups: a gap between two cells of a group,
     /// a rule (with a gap each side) between two groups.
@@ -118,23 +138,36 @@ struct CanvasToolPalette: View {
         return 2 * padding + n * cell + max(0, n - g) * gap + max(0, g - 1) * rule
     }
 
+    /// The groups without these, which wait in More.
+    static func groups(folding folded: [Item]) -> [[Item]] { groups.map { $0.filter { !folded.contains($0) } } }
+
     /// The groups that fit a board this wide (the rest are in More), keeping 12 pt at each side.
     static func fitted(width board: CGFloat) -> (groups: [[Item]], folded: [Item]) {
         var folded: [Item] = []
-        func groupsNow() -> [[Item]] { groups.map { $0.filter { !folded.contains($0) } } }
-        for item in foldOrder where width(groupsNow()) > board - 24 { folded.append(item) }
-        return (groupsNow(), folded)
+        for item in foldOrder where width(groups(folding: folded)) > board - 24 { folded.append(item) }
+        return (groups(folding: folded), folded)
     }
 
-    /// Shown on a board you can draw on, unless it's presenting.
-    static func shows(_ canvas: CanvasController) -> Bool { !canvas.viewOnly && canvas.state.present == nil }
+    /// What shows and what waits in More, here.
+    static func fitted(_ fold: Fold) -> (groups: [[Item]], folded: [Item]) {
+        switch fold {
+        case .board(let width): fitted(width: width)
+        case .bar(let folded): folded ? (groups(folding: barFold), barFold) : (groups, [])
+        }
+    }
+
+    /// Shown on a board you can draw on, unless it's presenting. Reads neither the tool nor the
+    /// selection, so the window's bar doesn't redo its layout as you draw.
+    static func shows(_ canvas: CanvasController) -> Bool { !canvas.viewOnly && !canvas.isPresenting }
 
     var body: some View {
-        let (groups, folded) = Self.fitted(width: width)
+        let (all, folded) = Self.fitted(fold)
+        // A group with nothing left in it has no line before the next (the lock in More).
+        let groups = all.filter { !$0.isEmpty }
         let state = canvas.state
         HStack(spacing: Self.gap) {
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
-                if index > 0, !group.isEmpty {
+                if index > 0 {
                     Rectangle()
                         .fill(Color.primary.opacity(0.14))
                         .frame(width: 1, height: Self.cell - 12)
@@ -182,12 +215,22 @@ struct CanvasToolPalette: View {
     }
 
     /// More: Excalidraw's more tools (Frame, the laser), a note as a card, and whatever a narrow
-    /// board folded into it. Picked, it shows the tool that's picked from it, filled.
+    /// board or a narrow bar folded into it. Picked, it shows the tool that's picked from it, filled
+    /// (the hand or the eraser too, while they wait in it).
     private func more(_ folded: [Item], _ s: CanvasState) -> some View {
-        let from = Self.moreTools.first { $0 == s.tool }
+        let from = Self.picked(fromMore: folded, s)
         return Menu {
             ForEach(folded) { item in
-                Button(item.help, systemImage: item.symbol) { run(item) }
+                if item == .lock {
+                    // On or off, as its cell shows it.
+                    Toggle(isOn: Binding(get: { canvas.state.locked }, set: { canvas.send(.lock($0)) })) {
+                        Label(item.help, systemImage: item.symbol)
+                    }
+                    .accessibilityIdentifier(item.identifier)
+                } else {
+                    Button(item.help, systemImage: item.symbol) { run(item) }
+                        .accessibilityIdentifier(item.identifier)
+                }
             }
             if !folded.isEmpty { Divider() }
             ForEach(Self.moreTools) { t in
@@ -209,6 +252,11 @@ struct CanvasToolPalette: View {
         .accessibilityLabel(Item.more.title)
         .accessibilityAddTraits(from != nil ? .isSelected : [])
         .accessibilityIdentifier(Item.more.identifier)
+    }
+
+    /// The tool picked from More: one of its own, or one that waits in it.
+    static func picked(fromMore folded: [Item], _ s: CanvasState) -> CanvasTool? {
+        (moreTools + folded.compactMap(\.tool)).first { $0 == s.tool }
     }
 
     private func run(_ item: Item) {
@@ -304,6 +352,9 @@ struct CanvasHint: View {
         if !words.isEmpty { out.append(.words(words)) }
         return out
     }
+
+    /// Its top while the tools are in the window's bar: just under the bar, on the board.
+    static let belowBar: CGFloat = 10
 
     /// How wide the line can be on a board this wide: clear of the style panel at the left (its
     /// whole panel or its strip, as wide on the right to stay centred), at most a long line's

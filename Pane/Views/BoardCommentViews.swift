@@ -272,7 +272,7 @@ struct BoardCommentRow: View {
     @ViewBuilder private var actions: some View {
         Button(BoardCommentUI.edit, systemImage: "pencil") { canvas.deletingComment = nil; canvas.editingComment = comment.id }
             .accessibilityIdentifier("comment.edit")
-        Button(BoardCommentUI.delete, systemImage: "trash", role: .destructive) { canvas.editingComment = nil; canvas.deletingComment = comment.id }
+        DestructiveMenuButton(BoardCommentUI.delete, systemImage: "trash") { canvas.editingComment = nil; canvas.deletingComment = comment.id }
             .accessibilityIdentifier("comment.delete")
     }
 }
@@ -626,36 +626,72 @@ struct BoardThreadRow: View {
 }
 
 /// The toolbar's one Comments button (round 12: Comment and Comments were two near-identical
-/// bubbles with Library between them; FigJam has one). A click opens the list, with New Comment at
+/// bubbles with Library between them; FigJam has one), with the count of the board's open threads.
+/// It shows only while there are some (Emil, 17 November 2026: "we dont need these options
+/// showing"); Comments in More opens the list otherwise. A click opens the list, with New Comment at
 /// its top; C picks the Comment tool; the button is tinted while it's picked. A quiet dot when
 /// someone else wrote one you haven't seen, or mentioned you. Viewers have it too: they read
 /// comments.
 struct CanvasCommentsButton: View {
     let canvas: CanvasController
 
+    /// Shown in the bar: the board has a thread nobody resolved.
+    static func shows(_ canvas: CanvasController) -> Bool { canvas.openThreads > 0 }
+
+    /// Its width in the bar with this count (BoardToolbar.Room.comments): the cell, the space after
+    /// the bubble and the number.
+    static func barWidth(_ count: Int) -> CGFloat {
+        #if os(macOS)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+        return BoardToolbar.item + spacing + ceil(("\(count)" as NSString).size(withAttributes: [.font: font]).width)
+        #else
+        return 44
+        #endif
+    }
+
+    static let spacing: CGFloat = 4
+
     var body: some View {
         let picked = canvas.state.tool == .comment
+        let count = canvas.openThreads
         Button { canvas.showingComments.toggle() } label: {
-            Label(BoardCommentUI.title, systemImage: BoardCommentUI.symbol)
-                .commentToolPicked(picked)
-                .overlay(alignment: .topTrailing) {
-                    if canvas.unseen {
-                        Circle()
-                            .fill(Color.paneAccent)
-                            .frame(width: 7, height: 7)
-                            .offset(x: 3, y: -1)
-                            .accessibilityIdentifier("canvas.comments.dot")
-                    }
+            // A Label, so the bar's item is named Comments (its overflow menu, VoiceOver); its icon
+            // is the bubble and the count.
+            Label {
+                Text(BoardCommentUI.title)
+            } icon: {
+                HStack(spacing: Self.spacing) {
+                    Image(systemName: BoardCommentUI.symbol)
+                        .overlay(alignment: .topTrailing) {
+                            if canvas.unseen {
+                                Circle()
+                                    .fill(Color.paneAccent)
+                                    .frame(width: 7, height: 7)
+                                    .offset(x: 3, y: -1)
+                                    .accessibilityIdentifier("canvas.comments.dot")
+                            }
+                        }
+                    Text("\(count)")
+                        .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                        .accessibilityHidden(true)
                 }
-                .toolbarCell()
+            }
+            .commentToolPicked(picked)
+            .toolbarCell()
         }
         #if os(macOS)
         .help(canvas.unseen ? "Comments (new)" : BoardCommentUI.help)
         #endif
-        .accessibilityValue(canvas.unseen ? "New comments" : "")
+        .accessibilityLabel(BoardCommentUI.title)
+        .accessibilityValue(Self.value(count, unseen: canvas.unseen))
         .accessibilityAddTraits(picked ? .isSelected : [])
         .accessibilityIdentifier("canvas.comments")
         .popover(isPresented: Bindable(canvas).showingComments, arrowEdge: .bottom) { BoardCommentsList(canvas: canvas) }
+    }
+
+    /// "2 open", "1 open, new comments".
+    static func value(_ count: Int, unseen: Bool) -> String {
+        "\(count) open" + (unseen ? ", new comments" : "")
     }
 }
 

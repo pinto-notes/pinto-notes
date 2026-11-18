@@ -814,20 +814,22 @@ struct SidebarView: View {
             // to the overflow menu, so New Folder is on the Folders heading (and File, ⇧⌘N).
             // Its own view reads the toggle, so a toggle doesn't work the folders out again.
             // None of them while a canvas has the window (FullScreen): back, title, share and ••• only.
-            ToolbarItem { SidebarToggleButton().buttonStyle(.barIcon) }
-            .sharedBackgroundVisibility(.hidden)
-            .hidden(columnsToolbarHidden)
-            // Today's note in one press (DailyNotes).
-            ToolbarItem { TodayButton(identifier: "sidebar.today").buttonStyle(.barIcon) }
-            .sharedBackgroundVisibility(.hidden)
-            .hidden(columnsToolbarHidden)
-            ToolbarItem {
-                // The Spotlight-like panel, which finds notes by title and text and runs commands
-                // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
-                SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp).buttonStyle(.barIcon)
+            // Left out then, not hidden: on macOS 26 hidden items keep their room, and the three
+            // pushed Back and the board's name 140 pt in from the window's buttons, its tools off
+            // the board's middle and, in a narrow window, into » (real window on air2, 17 Nov 2026).
+            if !columnsToolbarHidden {
+                ToolbarItem { SidebarToggleButton().buttonStyle(.barIcon) }
+                .sharedBackgroundVisibility(.hidden)
+                // Today's note in one press (DailyNotes).
+                ToolbarItem { TodayButton(identifier: "sidebar.today").buttonStyle(.barIcon) }
+                .sharedBackgroundVisibility(.hidden)
+                ToolbarItem {
+                    // The Spotlight-like panel, which finds notes by title and text and runs commands
+                    // (Emil, 2 November 2026; it opened the list's search field). ⌘F keeps that field.
+                    SidebarSearchButton(opens: Self.searchButtonOpens, help: Self.searchButtonHelp).buttonStyle(.barIcon)
+                }
+                .sharedBackgroundVisibility(.hidden)
             }
-            .sharedBackgroundVisibility(.hidden)
-            .hidden(columnsToolbarHidden)
             #endif
         }
     }

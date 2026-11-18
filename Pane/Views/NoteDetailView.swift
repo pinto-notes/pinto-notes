@@ -975,6 +975,10 @@ struct NoteDetailView: View {
                         #if os(iOS)
                         // A canvas runs edge to edge, under the bars (its controls float over it).
                         .ignoresSafeArea(.container, edges: showingCanvas ? .all : [])
+                        #else
+                        // A board runs under the window's bar, its tools' row, as Excalidraw's
+                        // canvas fills the page (Emil, 17 November 2026).
+                        .ignoresSafeArea(.container, edges: showingCanvas ? .top : [])
                         #endif
                         .overlay { if showingCanvas { CanvasOverlay(canvas: canvasControls, targets: askTargets, subject: { [note] in AskAI.subject(note, whiteboard: true) }) } }
                         // B: the first-open card inside the app, at its top, until Start.
@@ -1267,6 +1271,14 @@ struct NoteDetailView: View {
         case .askAI:
             // Only its name ("This Note"): the note's text read here worked out the pane again on every key.
             AskAIMenuItems(subject: .note(.init(title: "")), targets: askTargets) { asking = $0 }
+        case .canvasComments:
+            Button(BoardCommentUI.title, systemImage: BoardCommentUI.symbol) { canvasControls.showingComments = true }
+                .accessibilityIdentifier("canvas.more.comments")
+        case .canvasLibrary:
+            #if os(macOS)
+            Button(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol) { canvasControls.showingLibrary = true }
+                .accessibilityIdentifier("canvas.tool.library")
+            #endif
         case .canvasPresent:
             Button(CanvasPresentBar.startTitle, systemImage: "play.rectangle") { canvasControls.send(.present(.start)) }
                 .accessibilityIdentifier("canvas.present")
@@ -1571,13 +1583,12 @@ struct NoteDetailView: View {
             people: collab.flatMap { collab in PresenceStack.shows(collab) ? AnyView(PresenceStack(session: collab, board: showingCanvas ? canvasControls : nil) { showPeople = true }) : nil },
             peopleWidth: collab.map { PresenceStack.shows($0) ? PresenceStack.barWidth(viewOnly: $0.isViewOnly) : 0 } ?? 0,
             ask: askTargets.isEmpty ? nil : AnyView(askButton),
-            // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes.
+            // A deleted note isn't shared: More alone (Recover, Delete Now), like Notes. A board's
+            // are the same two (Emil, 17 November 2026: "why did this one get a custom share button?").
             sharing: AnyView(Group {
                 if !trashed { shareMenu }
                 moreWithAsk
             }),
-            share: trashed ? nil : AnyView(shareMenu),
-            more: AnyView(moreWithAsk),
             canvas: showingCanvas && !trashed ? canvasControls : nil,
             noteID: note.id)
     }
@@ -2038,6 +2049,8 @@ struct NoteDetailView: View {
     /// opens from here. The Mac's toolbar only (AskFromMore is the Mac's).
     private var moreWithAsk: some View {
         moreMenu.modifier(AskFromMore(asking: $asking, on: !askTargets.isEmpty) { [note, showingCanvas] in AskAI.subject(note, whiteboard: showingCanvas) })
+            // A board's library and Comments list open from More (CanvasFromMore).
+            .modifier(CanvasFromMore(canvas: showingCanvas && !trashed ? canvasControls : nil))
     }
     #endif
 
@@ -2045,7 +2058,7 @@ struct NoteDetailView: View {
         Menu {
             let groups = NoteMoreMenu.groups(locked: note.isLocked, vaultOpen: vault.isUnlocked, trashed: note.trashedAt != nil,
                                              hasApp: notePage != nil, appsEnabled: NoteApps.enabled, shared: note.isShared, inOwnWindow: inOwnWindow,
-                                             asks: !askTargets.isEmpty, canvas: showingCanvas)
+                                             asks: !askTargets.isEmpty, canvas: showingCanvas, viewOnly: canvasControls.viewOnly)
             ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Divider() }
                 ForEach(group, id: \.self) { moreItem($0) }
@@ -2119,6 +2132,8 @@ enum NoteMoreMenu {
         case canvasVote, canvasTimer
         /// The last AI change, outlined again.
         case canvasLastAIChange
+        /// The board's Comments list and its library (they were toolbar buttons until 17 November 2026).
+        case canvasComments, canvasLibrary
     }
 
     /// In groups split by lines, as Apple Notes groups a note's menu (Emil, 2 November 2026): Open
@@ -2129,8 +2144,10 @@ enum NoteMoreMenu {
     /// aren't offered (pinning, moving and deleting are each person's own).
     /// `asks`: an AI is connected and can read this note, so Ask an AI About This Note is offered,
     /// in a group of its own above Delete (round 2 of the councils).
+    /// `viewOnly`: a board shared with you to look at or comment on: no library (nothing to add).
     static func groups(locked: Bool, vaultOpen: Bool, trashed: Bool, hasApp: Bool, appsEnabled: Bool, shared: Bool = false,
-                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false, canvas: Bool = false) -> [[Item]] {
+                       phone: Bool = isPhoneOrPad, dev: Bool = isDevBuild, inOwnWindow: Bool = false, asks: Bool = false, canvas: Bool = false,
+                       viewOnly: Bool = false) -> [[Item]] {
         // A note in Recently Deleted can only come back or go for good, like Notes.
         if trashed { return [[.recover, .delete]] }
         var out: [[Item]] = []
@@ -2153,8 +2170,11 @@ enum NoteMoreMenu {
         let ask: [[Item]] = asks && !locked ? [[.askAI]] : []
         // As on the note's row (NoteRowMenu): a locked note's text isn't here to copy.
         let copy: [[Item]] = locked ? [] : [[.duplicate]]
-        // A canvas: its drawing's own items, first (what the engine's hamburger menu held).
-        let drawing: [[Item]] = canvas ? [[.canvasPresent, .canvasLaser, .canvasVote, .canvasTimer], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear]] : []
+        // A canvas: its drawing's own items, first (what the engine's hamburger menu held). Comments
+        // and the library lead on the Mac, where they left the toolbar (Emil, 17 November 2026: "we
+        // dont need these options showing"); the iPhone's are in its dock.
+        let actions: [Item] = phone ? [] : viewOnly ? [.canvasComments] : [.canvasComments, .canvasLibrary]
+        let drawing: [[Item]] = canvas ? (actions.isEmpty ? [] : [actions]) + [[.canvasPresent, .canvasLaser, .canvasVote, .canvasTimer], [.canvasLastAIChange, .canvasZoomToFit, .canvasBackground, .canvasExport, .canvasSaveTemplate, .canvasClear]] : []
         return out + drawing + [about] + copy + [rest] + ask + [[.delete]]
     }
 }
@@ -2548,14 +2568,10 @@ struct NoteToolbarParts: CustomEquatable, @unchecked Sendable {
     var peopleWidth: CGFloat = 0
     /// Ask AI, when an AI is connected: beside Share. A board's bar leaves it to More (•••).
     var ask: AnyView? = nil
-    /// Share and More.
+    /// Share and More, a note's and a board's alike.
     var sharing: AnyView
-    /// Share alone (nil: a deleted note's) and More alone, for a board's bar, where Share stands
-    /// apart, filled in the accent (BoardToolbar).
-    var share: AnyView? = nil
-    var more: AnyView? = nil
-    /// A canvas shows: its actions take the writing tools' place (BoardToolbar); its tools are
-    /// on the board (CanvasToolPalette).
+    /// A canvas shows: its tools take the writing tools' place, in the bar's middle or on the
+    /// board (BoardToolbar).
     var canvas: CanvasController? = nil
     /// The note these are for. The toolbar shows the note's place and its writing tools with its
     /// own parts, not before: the place changed a turn ahead of them, and the bar showed a note
@@ -2625,9 +2641,21 @@ struct NoteToolbarStage<Pane: View>: View {
     /// shows what fits (BoardToolbar.Fit).
     @State private var width: CGFloat = 1200
     @State private var spot: CGRect?
+    /// The window has the screen (its own full screen, ⌃⌘F): no window buttons in the bar.
+    @State private var screenFull = false
     #if DEBUG || QA
     @Environment(\.modelContext) private var context
     #endif
+
+    /// Parts handed up for the note that's open, or with no note named (a note's own window).
+    /// A pane on its way out can hand its parts up after the next note's: leaving a board, its
+    /// page lets go and it works its parts out again. On macOS 26 those came last and stayed, so
+    /// the board's palette, Share and More stood over the note opened after it until the window
+    /// next changed size (real window on air2, 17 November 2026).
+    static func takes(_ made: NoteToolbarParts, place: Note?) -> Bool {
+        guard let place, let id = made.noteID else { return true }
+        return id == place.id
+    }
 
     /// The parts on screen are for the note open now (or none came yet).
     private var current: Bool { parts == nil || parts?.noteID == nil || parts?.noteID == place?.id }
@@ -2635,20 +2663,23 @@ struct NoteToolbarStage<Pane: View>: View {
     private var shownPlace: Note? { current ? place : held?.place }
     private var shownWriting: Bool { current ? showsWriting : held?.writing ?? showsWriting }
 
-    /// What a whiteboard's toolbar shows at this width: its Fit, and the width its name gets.
-    private var boardBar: (fit: BoardToolbar.Fit, title: CGFloat) {
-        guard let parts, let canvas = parts.canvas else { return (.full, BoardToolbar.titleMax) }
+    /// What a whiteboard's toolbar shows at this width (BoardToolbar.Layout): the folder or not,
+    /// the width its name gets, and where its tools are.
+    private var boardBar: BoardToolbar.Layout {
+        guard let parts, let canvas = parts.canvas else { return BoardToolbar.Layout() }
         let focus = focusBack != nil
         let place = shownPlace
         var room = BoardToolbar.Room()
-        room.title = BoardToolbar.titleWidth(place?.title ?? "")
+        // A board's own window shows no name in its bar.
+        room.title = place.map { BoardToolbar.titleWidth($0.title) } ?? 0
         room.place = place.map { NoteBreadcrumbs.width($0) + NoteBreadcrumbs.chevronWidth } ?? 0
         room.people = parts.peopleWidth
         room.said = parts.said.map { NoticeText.barWidth($0, action: parts.saidAction?.title) } ?? 0
         room.focus = focus
-        room.library = !canvas.viewOnly
-        room.share = parts.share != nil
-        return BoardToolbar.layout(room, width: Self.boardWidth(column: width, spot: spot, besideList: !focus && !ownWindow))
+        room.comments = CanvasCommentsButton.shows(canvas) ? CanvasCommentsButton.barWidth(canvas.openThreads) : 0
+        room.tools = CanvasToolPalette.shows(canvas)
+        let at = Self.boardRoom(column: width, spot: spot, besideList: !focus && !ownWindow, windowButtons: !screenFull)
+        return BoardToolbar.layout(room, width: at.width, middle: at.middle)
     }
 
     /// The room the board's items have: from where they can start to the window's edge. Beside
@@ -2656,9 +2687,17 @@ struct NoteToolbarStage<Pane: View>: View {
     /// sidebar is hidden (Back stood at 373 pt over a list 330 pt wide); in Full Screen and a
     /// window of its own, after the window's buttons.
     static func boardWidth(column: CGFloat, spot: CGRect?, besideList: Bool) -> CGFloat {
-        guard let spot, spot.width > 0 else { return column }
-        let start = besideList ? max(spot.minX, BoardToolbar.listBarEnd - 4) : max(spot.minX, BoardToolbar.windowButtonsEnd - 4)
-        return spot.maxX - start
+        boardRoom(column: column, spot: spot, besideList: besideList).width
+    }
+
+    /// That room, and the board's middle measured from the same start (its tools stand over it).
+    /// `windowButtons`: the window's buttons are in the bar (not while the window has the screen).
+    static func boardRoom(column: CGFloat, spot: CGRect?, besideList: Bool, windowButtons: Bool = true,
+                          bar: BoardToolbar.Bar = .current) -> (width: CGFloat, middle: CGFloat) {
+        guard let spot, spot.width > 0 else { return (column, column / 2) }
+        let buttons = windowButtons ? BoardToolbar.windowButtonsEnd - 4 : 0
+        let start = besideList ? max(spot.minX, bar.listBarEnd - 4) : max(spot.minX, buttons)
+        return (spot.maxX - start, spot.midX - start)
     }
 
     var body: some View {
@@ -2668,11 +2707,17 @@ struct NoteToolbarStage<Pane: View>: View {
         #endif
         let parts = $parts, held = $held
         let place = self.place, showsWriting = self.showsWriting
+        let board = boardBar
         ZStack {
             // A turn after the pane made them. A pane that has just gone leaves the items as they
             // are: the next pane's are on their way. Native hidden items have no glass.
-            pane.onPreferenceChange(NoteToolbarKey.self) {
-                guard let made = $0 else { return }
+            pane
+                // Where the board's tools are, for what the board shows under them (CanvasOverlay),
+                // and Full Screen for its corner (CanvasCorner).
+                .environment(\.boardTools, BoardToolsPlace(tools: board.tools, shift: board.shift))
+                .environment(\.boardFullScreen, fullScreen)
+                .onPreferenceChange(NoteToolbarKey.self) {
+                guard let made = $0, Self.takes(made, place: place) else { return }
                 // A different note replaces its tools in place, without a toolbar animation: its
                 // place, its tools and its writing tools in the one change.
                 var instant = Transaction(animation: nil)
@@ -2698,9 +2743,8 @@ struct NoteToolbarStage<Pane: View>: View {
                 }
             }
             .onGeometryChange(for: CGFloat.self, of: { $0.size.width.rounded() }) { width = $0 }
-            .background { WindowSpot { spot = $0 } }
+            .background { WindowSpot(bar: self.parts?.canvas == nil ? nil : board) { spot = $0; screenFull = $1 } }
             .toolbar {
-                let board = boardBar
                 let place = shownPlace, showsWriting = shownWriting
                 if self.parts != nil, let focusBack {
                     ToolbarItem(placement: .navigation) {
@@ -2788,25 +2832,33 @@ struct NoteToolbarStage<Pane: View>: View {
                         .sharedBackgroundVisibility(.hidden)
                         .hidden(!showsItems)
                     }
-                    if let said = self.parts?.said {
+                    // On a board with its tools in the bar it gets the room they leave
+                    // (BoardToolbar.Layout.said), its words cut short past that, and with no room
+                    // at all it's left out (Undo is still ⌘Z). Left out, never hidden: on macOS 26
+                    // a hidden item stays in the bar, frozen as it was (real window, 17 Nov 2026).
+                    if let said = self.parts?.said, self.parts?.canvas == nil || (board.said ?? .infinity) >= 60 {
+                        let cap = self.parts?.canvas == nil ? nil : board.said
                         ToolbarItem {
                             HStack(spacing: 8) {
                                 NoticeText.text(said)
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(Color.ink)
                                     .lineLimit(1)
-                                    .fixedSize()
+                                    .truncationMode(.tail)
+                                    .fixedSize(horizontal: cap == nil, vertical: false)
                                     .accessibilityAddTraits(.isStaticText)
                                     .accessibilityIdentifier("note.notice")
                                 if let action = self.parts?.saidAction {
                                     Button(action.title, action: action.run)
                                         .buttonStyle(LinkButtonStyle())
+                                        .fixedSize()
                                         .accessibilityIdentifier("note.notice.action")
                                 }
                             }
                             .padding(.leading, 10)
                             .padding(.trailing, self.parts?.saidAction == nil ? 10 : 3)
                             .frame(height: 28)
+                            .frame(maxWidth: cap)
                             .background(Color.primary.opacity(0.07), in: .capsule)
                         }
                         .sharedBackgroundVisibility(.hidden)
@@ -2821,30 +2873,52 @@ struct NoteToolbarStage<Pane: View>: View {
                     .sharedBackgroundVisibility(.hidden)
                 if let shown = self.parts {
                     ToolbarSpacer(.flexible).hidden(!showsItems)
-                    ToolbarItemGroup {
-                        Group {
-                            FormatButton(controller: controller)
-                            Button("Checklist", systemImage: "checklist", action: controller.checklist)
-                                .help("Checklist (⇧⌘L)")
-                            if let menu = controller.currentTableMenu {
-                                // Same place and shape as the button it replaces, in the accent: the
-                                // bar regrouped and Aa slid 22 pt with the caret in a table (round 22).
-                                Menu { TableMenuItems(menu: menu) } label: {
-                                    Label("Table", systemImage: "tablecells").foregroundStyle(Color.amberInk)
-                                }
-                                .menuIndicator(.hidden)
-                                .help("Table")
-                            } else {
-                                Button("Table", systemImage: "tablecells", action: controller.insertTable)
-                                    .help("Table (⌥⌘T)")
-                            }
-                            shown.attachment
+                    // A board's tools in the bar's middle, over the board (BoardToolbar.Tools): one
+                    // item, the palette with its own glass, as it is on the board, never toolbar
+                    // toggles (Emil, 17 November 2026). Content under the bar gets no clicks (the
+                    // bar's own views take them), so the palette is an item of it.
+                    //
+                    // It and a note's writing tools are in the bar only while they show, never
+                    // there and hidden: on macOS 26 a hidden toolbar item stays in the bar, frozen
+                    // as it was (real window, 17 Nov 2026: the palette stayed over a note, and on a
+                    // board Aa, Checklist and Table took the room and pushed Share and ⋯ into »).
+                    if let tools = shown.canvas.flatMap({ board.tools.inBar ? $0 : nil }) {
+                        ToolbarItem {
+                            CanvasToolPalette(canvas: tools, fold: .bar(folded: board.tools == .barFolded))
+                                .padding(.leading, max(0, -board.balance))
+                                .padding(.trailing, max(0, board.balance))
+                                .disabled(!showsItems)
                         }
-                        .disabled(!showsItems || !showsWriting || shown.writingDisabled)
+                        .sharedBackgroundVisibility(.hidden)
+                        .hidden(!showsItems)
+                        ToolbarSpacer(.flexible).hidden(!showsItems)
                     }
-                    // Not on a whiteboard: they're a note's (real-window check, 17 Nov: Aa,
-                    // Checklist, Table and the paperclip showed greyed out on a board).
-                    .hidden(!showsItems || !showsWriting || shown.canvas != nil)
+                    // A note's writing tools. Not on a whiteboard (real-window check, 17 Nov: Aa,
+                    // Checklist, Table and the paperclip showed greyed out on a board) or a note app.
+                    if shown.canvas == nil, showsWriting {
+                        ToolbarItemGroup {
+                            Group {
+                                FormatButton(controller: controller)
+                                Button("Checklist", systemImage: "checklist", action: controller.checklist)
+                                    .help("Checklist (⇧⌘L)")
+                                if let menu = controller.currentTableMenu {
+                                    // Same place and shape as the button it replaces, in the accent: the
+                                    // bar regrouped and Aa slid 22 pt with the caret in a table (round 22).
+                                    Menu { TableMenuItems(menu: menu) } label: {
+                                        Label("Table", systemImage: "tablecells").foregroundStyle(Color.amberInk)
+                                    }
+                                    .menuIndicator(.hidden)
+                                    .help("Table")
+                                } else {
+                                    Button("Table", systemImage: "tablecells", action: controller.insertTable)
+                                        .help("Table (⌥⌘T)")
+                                }
+                                shown.attachment
+                            }
+                            .disabled(!showsItems || shown.writingDisabled)
+                        }
+                        .hidden(!showsItems)
+                    }
                     // Who's in the note: a section of its own, not one of the writing tools
                     // (Emil, 16 November 2026: the avatar sat between the paperclip and Share).
                     if let people = shown.people {
@@ -2852,39 +2926,31 @@ struct NoteToolbarStage<Pane: View>: View {
                         ToolbarItem { people.disabled(!showsItems) }.hidden(!showsItems)
                         ToolbarSpacer(.fixed).hidden(!showsItems)
                     }
-                    if let canvas = shown.canvas {
-                        // A board's actions, at the right edge (Emil, 17 November 2026: "sharing,
-                        // ... at the very right, while the toggles in the center"): Share, filled in
-                        // the accent, then the library, Comments and More. The tools are on the board
-                        // (CanvasToolPalette). Full Screen is the window's own (its green button,
-                        // ⇧⌘F) and Ask AI is in More.
-                        if let share = shown.share {
-                            ToolbarItem { share.disabled(!showsItems).environment(\.prominentShare, board.fit.shareInWords ? .words : .glyph) }
-                                .sharedBackgroundVisibility(.hidden)
-                                .hidden(!showsItems)
-                        }
-                        ToolbarItemGroup {
-                            // A board you can only look at or comment on: nothing to add from the library.
-                            if !canvas.viewOnly { CanvasLibraryButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected) }
-                            // Comments: viewers read them too, so it's never off for them.
-                            CanvasCommentsButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected)
-                            if let more = shown.more { more.disabled(!showsItems).environment(\.askInBar, false) }
-                        }
-                        .hidden(!showsItems)
-                    } else {
+                    // Share and More at the right edge in one group, the same items for a note and
+                    // a board (Emil, 17 November 2026: "why did this one get a custom share button?
+                    // that is pretty weird"). Before them a note has Full Screen and Ask AI; a board,
+                    // Comments with its count while it has open threads (its library and Comments
+                    // are in More, its Full Screen at its bottom right, CanvasCorner, and Ask AI in
+                    // More).
                     ToolbarItemGroup {
-                        if let fullScreen {
-                            // ⇧⌘F is View › Full Screen's (PaneCommands), for any note.
-                            Button(action: fullScreen.run) { Label(fullScreen.title, systemImage: fullScreen.symbol).toolbarCell() }
-                                .help(fullScreen.title + " (\u{21E7}\u{2318}F)")
-                                .disabled(!showsItems)
-                                .accessibilityIdentifier("note.fullScreen")
+                        if let canvas = shown.canvas {
+                            // Viewers read comments too, so it's never off for them.
+                            if CanvasCommentsButton.shows(canvas) {
+                                CanvasCommentsButton(canvas: canvas).disabled(!showsItems).allowsHitTesting(canvas.connected)
+                            }
+                        } else {
+                            if let fullScreen {
+                                // ⇧⌘F is View › Full Screen's (PaneCommands), for any note.
+                                Button(action: fullScreen.run) { Label(fullScreen.title, systemImage: fullScreen.symbol).toolbarCell() }
+                                    .help(fullScreen.title + " (\u{21E7}\u{2318}F)")
+                                    .disabled(!showsItems)
+                                    .accessibilityIdentifier("note.fullScreen")
+                            }
+                            if let ask = shown.ask { ask.disabled(!showsItems) }
                         }
-                        if let ask = shown.ask { ask.disabled(!showsItems) }
-                        shown.sharing.disabled(!showsItems)
+                        shown.sharing.disabled(!showsItems).environment(\.askInBar, shown.canvas == nil)
                     }
                     .hidden(!showsItems)
-                    }
                 }
                 // Privacy mode is on: the eye says so, and a click turns it off.
                 if PrivacyMode.shared.isOn {
@@ -3217,16 +3283,30 @@ struct NoteBreadcrumbs: View {
 /// Where a view stands in its window, reported when it moves or changes size: the board's column,
 /// for what its toolbar has room for (NoteToolbarStage.boardWidth). It takes no click.
 struct WindowSpot: NSViewRepresentable {
-    let changed: (CGRect) -> Void
+    /// What a board's bar shows for this spot: a turn after it changes, the bar is laid out again
+    /// (BoardToolbar.measureAgain).
+    var bar: BoardToolbar.Layout? = nil
+    /// Where it stands, and whether the window has the screen (its own full screen).
+    let changed: (CGRect, Bool) -> Void
     func makeNSView(context: Context) -> Probe { Probe() }
     func updateNSView(_ view: Probe, context: Context) {
         view.changed = changed
         view.report()
+        view.shows(bar)
     }
 
     final class Probe: NSView {
-        var changed: ((CGRect) -> Void)?
-        private var last: CGRect?
+        var changed: ((CGRect, Bool) -> Void)?
+        private var last: (CGRect, Bool)?
+        private var bar: BoardToolbar.Layout?
+        func shows(_ bar: BoardToolbar.Layout?) {
+            guard bar != self.bar else { return }
+            self.bar = bar
+            guard bar != nil else { return }
+            DispatchQueue.main.async { [weak self] in
+                if let window = self?.window { BoardToolbar.measureAgain(window) }
+            }
+        }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -3246,12 +3326,13 @@ struct WindowSpot: NSViewRepresentable {
         }
         /// Said a turn later, never in the middle of the window's layout.
         func report() {
-            guard window != nil else { return }
+            guard let window else { return }
             let f = convert(bounds, to: nil)
             let spot = CGRect(x: f.minX.rounded(), y: 0, width: f.width.rounded(), height: 0)
-            guard spot != last else { return }
-            last = spot
-            DispatchQueue.main.async { [weak self] in self?.changed?(spot) }
+            let screen = window.styleMask.contains(.fullScreen)
+            guard last.map({ $0.0 != spot || $0.1 != screen }) ?? true else { return }
+            last = (spot, screen)
+            DispatchQueue.main.async { [weak self] in self?.changed?(spot, screen) }
         }
     }
 }

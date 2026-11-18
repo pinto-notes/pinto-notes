@@ -32,7 +32,9 @@ import WebKit
     @Test func aBoardsLocationReadsAsANotes() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
         try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
-            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
+            // Wide enough for the folder beside the tools in the bar (narrower, it goes first:
+            // CanvasToolPaletteTests.theToolsAreInTheBarsMiddleOverTheBoard).
+            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1700, height: 1000))
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
             let crumb = try #require(await frame("note.crumb.0", in: w), "the board's folder")
@@ -57,13 +59,16 @@ import WebKit
     /// nothing).
     @Test func aToolbarButtonIsItsWholeCell() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
-        try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
-            let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
+        let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        try await AppSnapshotTests.withLastNote(c, board.title) {
+            let (w, _, canvas) = try await CanvasNativeUITests.boardWindow(c, board, dark: false)
             defer { w.close() }
+            // An open thread: Comments shows, with its count, beside Share.
+            canvas.show(comments: [BoardCommentsCanvasTests.thread("c-1", on: "box")])
             await MacWindowChromeTests.settle(w, 20)
-            // The board's own actions (its tools are on the board now: CanvasToolPaletteTests;
-            // More is a note's, a menu).
-            let ids = ["canvas.tool.library", "canvas.comments"]
+            // The board's buttons on the right: Comments and a note's Share (its tools are in the
+            // bar's middle, with their own clicks: CanvasToolPaletteTests; More is a note's menu).
+            let ids = ["canvas.comments", "editor.share"]
             var checked = 0
             for id in ids {
                 guard let f = await frame(id, in: w) else { continue }
@@ -329,15 +334,29 @@ import WebKit
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 30)
+            // The palette in the bar is found by its accessibility identifier.
+            let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+            NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+            defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
             NoteOpener.shared.request = toNote ? note.id : board.id
             var states: [String] = []
             for _ in 0..<60 {
                 w.contentView?.layoutSubtreeIfNeeded()
                 w.displayIfNeeded()
-                let labels = Set((w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }.map(\.label))
-                // A board's bar: its Comments (its tools are on the board now).
-                let writing = labels.contains("Checklist"), drawing = labels.contains(BoardCommentUI.title)
+                let shown = (w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }
+                let labels = Set(shown.map(\.label))
+                // A board's bar: its tools, in the bar's middle at this width (CanvasToolPaletteTests).
+                let writing = labels.contains("Checklist")
+                let drawing = shown.contains { i in i.view.map { MacEmptyDetailTests.element("canvas.palette", in: $0) != nil } ?? false }
                 #expect(!(writing && drawing), "a note's tools beside a board's: \(labels.sorted())")
+                // Nor in the bar and hidden: on macOS 26 a hidden item stays drawn, frozen as it
+                // was (real window on air2, 17 Nov 2026: the palette stayed over a note, and Aa,
+                // Checklist and Table pushed a board's Share and ⋯ into »). The other kind's tools
+                // leave the bar.
+                let all = w.toolbar?.items ?? []
+                let writingAtAll = all.contains { $0.label == "Checklist" }
+                let drawingAtAll = all.contains { i in i.view.map { MacEmptyDetailTests.element("canvas.palette", in: $0) != nil } ?? false }
+                #expect(!(writingAtAll && drawingAtAll), "a note's tools and a board's both in the bar, one hidden: \(all.map(\.label))")
                 let state = writing ? "note" : drawing ? "board" : "neither"
                 if states.last != state { states.append(state) }
                 try await Task.sleep(for: .milliseconds(16))
@@ -345,6 +364,27 @@ import WebKit
             let want = toNote ? ["board", "note"] : ["note", "board"]
             #expect(states == want || states == [want[1]], "the bar went \(states.joined(separator: " → "))")
         }
+    }
+
+    /// The bar takes only the open note's parts. A pane on its way out can hand its parts up after
+    /// the next note's (leaving a board, its page lets go and it works them out again), and on
+    /// macOS 26 those stayed: the board's palette, Share and More over the note opened after it
+    /// until the window next changed size (real window on air2, 17 Nov 2026). A note in a window
+    /// of its own names no note, and takes what its pane hands up.
+    @Test func theBarTakesOnlyTheOpenNotesParts() throws {
+        let c = try CanvasNativeUITests.canvasLibrary()
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>())
+        let board = try #require(notes.first { $0.title == "Publishing flow" })
+        let note = try #require(notes.first { $0.title == "Groceries" })
+        func parts(for id: UUID?) -> NoteToolbarParts {
+            NoteToolbarParts(writingDisabled: false, attachment: AnyView(EmptyView()), sharing: AnyView(EmptyView()), noteID: id)
+        }
+        typealias Stage = NoteToolbarStage<EmptyView>
+        #expect(Stage.takes(parts(for: note.id), place: note), "the open note's")
+        #expect(!Stage.takes(parts(for: board.id), place: note), "the board's, handed up after the note opened")
+        #expect(Stage.takes(parts(for: board.id), place: board), "the board's while it's open")
+        #expect(Stage.takes(parts(for: board.id), place: nil), "in a note's own window")
+        #expect(Stage.takes(parts(for: nil), place: note), "parts that name no note")
     }
 
     /// A board comes back at the view you left it at, so it takes over from its picture (taken as

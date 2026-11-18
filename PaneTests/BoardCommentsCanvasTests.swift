@@ -502,7 +502,7 @@ extension BoardCommentsCanvasTests {
         defer { ax.close() }
         await ax.settle()
         let quiet = try #require(ax.find("canvas.comments"), "\(ax.ids())")
-        #expect(quiet.text.contains(BoardCommentUI.title) && !quiet.text.contains("New comments"), "\(quiet.text)")
+        #expect(quiet.text.contains(BoardCommentUI.title) && !quiet.text.contains("new comments"), "\(quiet.text)")
         #expect(OffscreenAX.Element.string(quiet.ax, kAXHelpAttribute) == BoardCommentUI.help)
         canvas.show(comments: [Self.thread("c-1", on: "box", by: Self.sara, name: "Sara")])
         #expect(canvas.unseen)
@@ -511,7 +511,8 @@ extension BoardCommentsCanvasTests {
         #expect(canvas.state.tool == .comment)
         await ax.settle()
         let new = try #require(ax.find("canvas.comments"))
-        #expect(new.text.contains("New comments"), "the dot, with the Comment tool picked: \(new.text)")
+        #expect(new.text.contains("1 open, new comments"), "the count and the dot, with the Comment tool picked: \(new.text)")
+        #expect(CanvasCommentsButton.value(2, unseen: false) == "2 open")
     }
 
     /// Your own comment in its thread: Edit and Delete (Delete asks once, in place); a thread start

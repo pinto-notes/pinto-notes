@@ -549,38 +549,15 @@ struct ShareButton: View {
     var picture: (() -> Void)?
     var pictureRequest: (() -> NotePicture.Request?)?
 
-    /// A board's bar: Share stands apart, the app's primary button (BoardToolbar): the accent with
-    /// a white label, white with a black one in dark mode, as every primary button in the app.
-    @Environment(\.prominentShare) private var prominent
-
     var body: some View {
-        Group {
-            switch prominent {
-            case .words?:
-                // A Label, so the toolbar item is named Share too (a Text left its label empty).
-                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.titleOnly) }
-                    .buttonStyle(.amberProminent)
-            case .glyph?:
-                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly) }
-                    .buttonStyle(.amberProminent)
-            case nil:
-                Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
+        // A board's bar has this one too, the same item in the same group as a note's (Emil, 17
+        // November 2026: the filled Share pill on a board was "pretty weird").
+        Button { showing.toggle() } label: { Label("Share", systemImage: "square.and.arrow.up").toolbarCell() }
+            .help("Share")
+            .popover(isPresented: $showing, arrowEdge: .bottom) {
+                SharePopoverLive(note: note, store: store, people: people, picture: picture, pictureRequest: pictureRequest) { showing = false }
             }
-        }
-        .help("Share")
-        .popover(isPresented: $showing, arrowEdge: .bottom) {
-            SharePopoverLive(note: note, store: store, people: people, picture: picture, pictureRequest: pictureRequest) { showing = false }
-        }
     }
-}
-
-/// How a board's bar shows Share: in words, or its glyph in a narrow column; filled in the accent
-/// either way.
-enum ProminentShare: Sendable { case words, glyph }
-
-extension EnvironmentValues {
-    /// Share stands apart in a board's bar (NoteToolbarStage); nil: a note's plain Share.
-    @Entry var prominentShare: ProminentShare? = nil
 }
 
 /// The popover with a ShareController that lives as long as it's open, kept current.

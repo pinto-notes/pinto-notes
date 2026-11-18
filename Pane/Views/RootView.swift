@@ -31,6 +31,10 @@ struct RootView: View {
     @State private var canvasFocus = FullScreen()
     /// Present put the board in Full Screen (and Done takes it out again).
     @State private var presentTookWindow = false
+    /// The window's own full screen (⌃⌘F, its green button) put a board in Full Screen.
+    @State private var screenTookWindow = false
+    /// The window, for leaving its own full screen with Exit Full Screen.
+    @State private var screenWindow = WindowFullScreenWatch.Held()
     /// The note list slid in over a focused canvas, from the window's left edge.
     @State private var peeking = CanvasEdgePeekFlag.startShown
     /// The sidebar step, kept per window (SidebarToggle.next).
@@ -806,6 +810,8 @@ struct RootView: View {
                     leaveCanvasFocus()
                 }
             }
+            // The window's own full screen on a board folds the columns too (windowFullScreen).
+            .background(WindowFullScreenWatch { entering, window in windowFullScreen(entering, window) })
             #endif
             #endif
             .onChange(of: NewApp.shared.asks) { _, _ in newApp() }
@@ -1030,7 +1036,7 @@ struct RootView: View {
             // their glass without rebuilding the controls when a note opens again.
             let note = shown.flatMap { $0.deletedAt == nil ? $0 : nil }
             let focused = canvasFocused
-            let fullScreen = FullScreenAction(on: focused) { focused ? leaveCanvasFocus() : enterFullScreen() }
+            let fullScreen = FullScreenAction(on: focused) { focused ? leaveCanvasFocus(window: true) : enterFullScreen() }
             NoteToolbarStage(showsItems: note != nil,
                              showsWriting: note.map { ($0.isLocked || NoteApps.page($0.id) == nil) && $0.trashedAt == nil && !AppStart.shared.shows($0.id) } ?? false,
                              history: historyActions, controller: editor, place: note,
@@ -1156,8 +1162,39 @@ struct RootView: View {
     }
 
     /// Full Screen's button, ⇧⌘F, or Notes on the left: the columns as they were, the note still open.
-    private func leaveCanvasFocus() {
+    /// `window`: Exit Full Screen. When the window's own full screen folded them (⌃⌘F on a board),
+    /// that ends first, and they come back once it's over (windowFullScreen): AppKit undoes a
+    /// sidebar change made while the window is changing.
+    private func leaveCanvasFocus(window: Bool = false) {
+        if window, screenTookWindow, let w = screenWindow.window, w.styleMask.contains(.fullScreen) {
+            w.toggleFullScreen(nil)
+            return
+        }
+        screenTookWindow = false
         if let v = canvasFocus.leave() { setColumns(v, focus: true) }
+    }
+
+    /// The window's own full screen (its green button, ⌃⌘F) on a board: once the window has the
+    /// screen, the sidebar and the list fold away too, as Full Screen folds them (Emil, 17 November
+    /// 2026: "real Full Screen with the sidebar and list hidden"), and they come back once it's
+    /// over. Not as it starts: AppKit's split view puts back a sidebar folded while the window
+    /// changes. A note keeps its columns.
+    private func windowFullScreen(_ entering: Bool, _ window: NSWindow) {
+        screenWindow.window = window
+        if entering {
+            guard !canvasFocused, shownIsBoard else { return }
+            screenTookWindow = true
+            enterFullScreen()
+        } else if screenTookWindow {
+            screenTookWindow = false
+            if let v = canvasFocus.leave() { setColumns(v, focus: true) }
+        }
+    }
+
+    /// The open note is a whiteboard.
+    private var shownIsBoard: Bool {
+        guard let id = shownNote else { return false }
+        return CanvasNote.isCanvas(NoteApps.page(id)?.html)
     }
 
     /// Full Screen: the folders and the list fold away; only you enter it (Emil, 13 November 2026:
@@ -2164,12 +2201,50 @@ struct FullScreen: Equatable {
     mutating func userChanged() { before = nil }
 }
 
-/// The toolbar's Full Screen button.
+/// The toolbar's Full Screen button, and a board's at its bottom right (CanvasCorner).
 struct FullScreenAction {
     let on: Bool
     let run: () -> Void
     var title: String { on ? "Exit Full Screen" : "Full Screen" }
     var symbol: String { on ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right" }
+}
+
+/// Says when its window has taken the screen in its own full screen (the green button, ⌃⌘F), and
+/// once it has left it. Takes no clicks.
+struct WindowFullScreenWatch: NSViewRepresentable {
+    let changed: (_ entering: Bool, _ window: NSWindow) -> Void
+
+    /// The window, held without keeping it.
+    final class Held {
+        weak var window: NSWindow?
+    }
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) { view.changed = changed }
+
+    final class Probe: NSView {
+        var changed: ((Bool, NSWindow) -> Void)?
+        private var watching: [NSObjectProtocol] = []
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            let center = NotificationCenter.default
+            watching.forEach(center.removeObserver)
+            watching = []
+            guard let window else { return }
+            // Once each change is over: AppKit undoes a sidebar change made while the window changes.
+            for (name, entering) in [(NSWindow.didEnterFullScreenNotification, true), (NSWindow.didExitFullScreenNotification, false)] {
+                watching.append(center.addObserver(forName: name, object: window, queue: nil) { [weak self, weak window] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, let window else { return }
+                        self.changed?(entering, window)
+                    }
+                })
+            }
+        }
+    }
 }
 
 private struct SidebarVisibilityKey: FocusedValueKey {

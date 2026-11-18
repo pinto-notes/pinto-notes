@@ -632,6 +632,9 @@ final class CanvasController {
     private(set) var canUndo = false
     private(set) var canRedo = false
     private(set) var background = "#ffffff"
+    /// Presenting (`state.present`), for the window's bar: where the tools go (BoardToolbar)
+    /// without its working that out again on every move of a stroke (BoardLagTests).
+    private(set) var isPresenting = false
 
     func receive(_ message: Any) {
         guard let m = message as? [String: Any] else { return }
@@ -714,6 +717,7 @@ final class CanvasController {
         }
         if canUndo != next.canUndo { canUndo = next.canUndo }
         if canRedo != next.canRedo { canRedo = next.canRedo }
+        if isPresenting != (next.present != nil) { isPresenting = next.present != nil }
         if background != next.background { background = next.background }
         if !next.stylable, showingStyle { showingStyle = false }
     }
@@ -1124,6 +1128,8 @@ final class CanvasController {
     private(set) var comments: [BoardComment] = []
     /// The threads, oldest first.
     var threads: [BoardThread] { BoardComments.threads(comments) }
+    /// The threads nobody resolved: the toolbar's Comments shows while there are some, with their count.
+    var openThreads: Int { threads.reduce(0) { $0 + ($1.resolved ? 0 : 1) } }
     /// You can add comments here: on your own board, and on a shared one you can edit or comment
     /// on (Can comment: the drawing stays view only, `viewOnly`). A viewer reads them.
     private(set) var canComment = true

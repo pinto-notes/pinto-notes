@@ -1473,15 +1473,18 @@ extension CanvasNativeUITests {
     }
 
     /// Every tool is on the board's palette or in its More, in a narrow board too (the tools used
-    /// least fold into More first), and the window's toolbar steps down by its own rules: the
-    /// folder goes first, then Share's words, and the name gets what's left (Emil, 17 November
-    /// 2026: the tools on the board, the actions in the bar).
+    /// least fold into More first), and the window's bar steps down in Emil's order (17 November
+    /// 2026: "what if we make it shrink more depending on size?"): the tools in the bar's middle
+    /// with the folder, then without it, then with the lock, the hand, the picture and the eraser in
+    /// their More, and last the tools on the board, as before, the folder back while the name keeps
+    /// its floor. At the owner's three windows: Full Screen at 1400, the sidebar and the list beside
+    /// a board about 1100 wide, and a narrow window.
     @Test func everyToolIsOnThePaletteAndTheBarStepsDown() {
         typealias T = BoardToolbar
         typealias P = CanvasToolPalette
         #expect(!CanvasSelectionBar.inView(CGRect(x: -400, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)), "no bar for a selection out of view")
         #expect(CanvasSelectionBar.inView(CGRect(x: -100, y: 100, width: 200, height: 80), area: CGSize(width: 800, height: 600)))
-        func tools(_ items: [P.Item]) -> [CanvasTool] { items.compactMap { if case .tool(let t) = $0 { t } else { nil } } }
+        func tools(_ items: [P.Item]) -> [CanvasTool] { items.compactMap(\.tool) }
         var folds: [Int] = []
         for width in [1400.0, 1000, 760, 620, 560, 480, 420, 360] {
             let (groups, folded) = P.fitted(width: width)
@@ -1496,20 +1499,143 @@ extension CanvasNativeUITests {
         #expect(folds == folds.sorted() && folds.first == 0, "a narrower board folds more, a wide one none: \(folds)")
         // The whole palette fits a board beside the sidebar and the list at 1400 pt (809 pt).
         #expect(P.fitted(width: 809).folded.isEmpty)
+        // In the bar, folded: the four wait in More, every tool can still be reached, and it's narrower.
+        let bar = P.fitted(.bar(folded: true))
+        #expect(bar.folded == P.barFold && Set(tools(bar.groups.flatMap { $0 }) + tools(bar.folded) + P.moreTools + [.comment]) == Set(CanvasTool.allCases))
+        #expect(P.fitted(.bar(folded: false)).folded.isEmpty && T.toolsWidth(.barFolded) < T.toolsWidth(.bar))
+
         let room = T.Room(title: T.titleWidth("Publishing flow"), place: 50)
-        let widths = T.Fit.allCases.map { T.needed($0, room) }
-        #expect(widths == widths.sorted(by: >), "each step needs less: \(widths)")
-        #expect(T.layout(room, width: 809).fit == .full)
+        // The board's room, from where its items start, in each window (NoteToolbarStage.boardRoom).
+        func at(window: CGFloat, board: CGFloat, besideList: Bool) -> (width: CGFloat, middle: CGFloat) {
+            NoteToolbarStage<EmptyView>.boardRoom(column: board, spot: CGRect(x: window - board, y: 0, width: board, height: 700), besideList: besideList)
+        }
+        // Full Screen at 1400: every tool in the bar, over the board's middle.
+        var focus = room
+        focus.focus = true
+        let wide = at(window: 1400, board: 1400, besideList: false)
+        let full = T.layout(focus, width: wide.width, middle: wide.middle)
+        #expect(full.tools == .bar && abs(full.shift) < 0.5, "Full Screen at 1400: \(full)")
+        // The window's own full screen (⌃⌘F) on the Air's screen: no window buttons in the bar, and
+        // the tools over the board's middle all the same.
+        let screen = NoteToolbarStage<EmptyView>.boardRoom(column: 1710, spot: CGRect(x: 0, y: 0, width: 1710, height: 1000), besideList: false, windowButtons: false)
+        let own = T.layout(focus, width: screen.width, middle: screen.middle)
+        #expect(screen.width == 1710 && own.tools == .bar && abs(own.shift) < 0.5, "the window's own full screen: \(own)")
+        // Full Screen at 760: the folded tools would leave Share and More too little (AppKit put
+        // them in its », 17 November 2026): on the board.
+        let small = at(window: 760, board: 760, besideList: false)
+        #expect(T.layout(focus, width: small.width, middle: small.middle).tools == .board, "Full Screen at 760")
+        // The sidebar and the list beside a board 1100 wide: every tool, the folder too, in the middle.
+        let beside = at(window: 1700, board: 1100, besideList: true)
+        let roomy = T.layout(room, width: beside.width, middle: beside.middle)
+        #expect(roomy.tools == .bar && roomy.fit == .full && abs(roomy.shift) < 0.5, "a board 1100 wide: \(roomy)")
+        // Narrower, step by step: the folder goes, then the four tools, then the tools go down.
+        var steps: [String] = []
+        for board in stride(from: 1100.0, through: 300, by: -10) {
+            let l = T.layout(room, width: at(window: board + 590, board: board, besideList: true).width,
+                             middle: at(window: board + 590, board: board, besideList: true).middle)
+            let step = "\(l.tools)/\(l.fit)"
+            if steps.last != step { steps.append(step) }
+            // The bar never asks for more than it has (AppKit would put Share and More in its »).
+            let x = at(window: board + 590, board: board, besideList: true)
+            if l.tools.inBar {
+                let start = T.toolsStart(l.fit, room, title: l.title), end = x.width - T.right(room)
+                let tools = T.toolsWidth(l.tools)
+                #expect(start + T.toolsLead <= x.middle + l.shift - tools / 2 + 0.5 && x.middle + l.shift + tools / 2 <= end - T.toolsGap + 0.5, "\(board): the tools clear of the name and Share")
+                // Each flexible space beside their item keeps what AppKit needs.
+                #expect(abs(l.balance) + tools + 2 * min(T.toolsLead, T.toolsGap) <= end - start + 0.5, "\(board): their item fits")
+                #expect(end - start - tools - T.toolsLead - T.toolsGap >= T.toolsMargin - 0.5, "\(board): with room to spare")
+            }
+        }
+        #expect(steps == ["bar/full", "bar/noPlace", "barFolded/noPlace", "board/full", "board/noPlace"], "\(steps)")
+        // A narrow window (900 pt, the list beside): the tools on the board.
+        let narrow = at(window: 900, board: 570, besideList: true)
+        #expect(T.layout(room, width: narrow.width, middle: narrow.middle).tools == .board)
+        // A line said in the bar never moves the tools: it takes what's spare, then from the name,
+        // and is cut short past that.
+        var said = room
+        said.said = 150
+        for board in [1100.0, 900, 809, 760] {
+            let x = at(window: board + 590, board: board, besideList: true)
+            let quiet = T.layout(room, width: x.width, middle: x.middle), saying = T.layout(said, width: x.width, middle: x.middle)
+            #expect(quiet.tools == saying.tools && quiet.fit == saying.fit && saying.title <= quiet.title, "\(board): \(quiet) \(saying)")
+            if saying.tools.inBar {
+                let s = saying.said ?? 0
+                let start = T.toolsStart(saying.fit, { var r = room; r.said = s; return r }(), title: saying.title)
+                #expect(start + T.toolsLead <= x.middle + saying.shift - T.toolsWidth(saying.tools) / 2 + 0.5, "\(board): what's said stays clear of the tools")
+            }
+        }
+        // The faces of a shared board and the Comments count take room too.
         var people = room
         people.people = 3 * PresenceStack.barWidth(viewOnly: false)
-        #expect(T.layout(people, width: 520).fit > T.layout(room, width: 520).fit || T.layout(room, width: 520).fit == .tight, "the faces of a shared board take room")
+        people.comments = CanvasCommentsButton.barWidth(12)
+        #expect(T.layout(people, width: 640, middle: 320).tools >= T.layout(room, width: 640, middle: 320).tools)
         let long = T.Room(title: T.titleWidth(String(repeating: "Quarterly planning ", count: 4)), place: 50)
-        let (fit, title) = T.layout(long, width: 809)
-        #expect(title <= T.titleMax && title >= T.titleFloor(fit), "\(fit) \(title)")
-        // The smallest window (710 pt) beside the list: Share as its glyph, the name at its least
-        // (theBoardsToolbarNeverClips measures that it fits).
+        let l = T.layout(long, width: 809, middle: 404)
+        #expect(l.title <= T.titleMax, "\(l)")
+        // The smallest window (710 pt) beside the list: the tools on the board, no folder, the name
+        // what's left (whole, now that Share and More are the bar's only actions).
         let least = T.layout(room, width: 710 - T.listBarEnd + 4)
-        #expect(least.fit == .tight && least.title == T.titleMin, "\(least)")
+        #expect(least.tools == .board && least.fit == .noPlace && least.title >= T.titleMin, "\(least)")
+    }
+
+    /// macOS 26 spaces the bar's items out more than this Mac (real window on air2, macOS 26.3.1,
+    /// 17 November 2026): by this Mac's measures the tools stood 34 pt right of the board's middle
+    /// at 1700 pt, and at 1400 pt beside the list AppKit put them, Share and More in its ». Its own
+    /// measures put Back, the name and Share where air2 drew them, and the tools where they go with
+    /// room for AppKit's flexible spaces.
+    @Test func macOS26sBarHasItsOwnMeasures() {
+        typealias T = BoardToolbar
+        let bar = T.Bar.macOS26
+        // "Publishing flow" in the folder Notes, as the app works out its room.
+        let font = NSFont.systemFont(ofSize: ButtonSize.compact.textSize, weight: .semibold)
+        let place = ceil(("Notes" as NSString).size(withAttributes: [.font: font]).width) + ButtonSize.compact.padding * 1.5 + NoteBreadcrumbs.chevronWidth
+        let room = T.Room(title: T.titleWidth("Publishing flow"), place: place)
+        var focus = room
+        focus.focus = true
+        // What air2 drew, in the window's points: the board's column, Back (Notes in Full Screen),
+        // where the name's words start, where the tools' room starts (after the anchor's slot) and
+        // where Share starts.
+        struct Seen { var window: CGFloat, column: ClosedRange<CGFloat>, focus: Bool, back: CGFloat?, name: CGFloat, tools: CGFloat, share: CGFloat?, at: String }
+        let seen = [
+            Seen(window: 1700, column: 331...1700, focus: false, back: 417, name: 581, tools: 734, share: 1614, at: "1700, the list"),
+            Seen(window: 1700, column: 579...1700, focus: false, back: 583, name: 747, tools: 900, share: 1614, at: "1700, the sidebar and the list"),
+            Seen(window: 1400, column: 331...1400, focus: false, back: 417, name: 581, tools: 734, share: 1314, at: "1400, the list"),
+            Seen(window: 1400, column: 0...1400, focus: true, back: nil, name: 158, tools: 311, share: 1314, at: "Full Screen at 1400"),
+            Seen(window: 900, column: 0...900, focus: true, back: nil, name: 158, tools: 311, share: nil, at: "Full Screen at 900"),
+        ]
+        for s in seen {
+            let spot = CGRect(x: s.column.lowerBound, y: 0, width: s.column.upperBound - s.column.lowerBound, height: 800)
+            let at = NoteToolbarStage<EmptyView>.boardRoom(column: spot.width, spot: spot, besideList: !s.focus, bar: bar)
+            let start = s.window - at.width, r = s.focus ? focus : room
+            if let back = s.back { #expect(abs(start + T.lead - back) <= 1, "\(s.at): Back at \(start + T.lead), air2 \(back)") }
+            // The folder shows in these windows: the name's words after it, in from their field's edge.
+            let name = start + T.left(.full, r, title: 0, bar: bar) - (bar.afterName - T.anchorSlot + T.anchor) + CanvasTitleField.inset
+            #expect(abs(name - s.name) <= 2, "\(s.at): the name at \(name), air2 \(s.name)")
+            let tools = start + T.toolsStart(.full, r, title: r.title, bar: bar)
+            #expect(abs(tools - s.tools) <= 2, "\(s.at): the tools' room from \(tools), air2 \(s.tools)")
+            if let share = s.share { #expect(abs(start + at.width - T.right(r, bar: bar) - share) <= 1, "\(s.at): Share at \(start + at.width - T.right(r, bar: bar)), air2 \(share)") }
+            // The tools: in the bar wherever air2's had room, each flexible space beside their item
+            // at least what AppKit needs (it puts Share and More in its » past that), and they
+            // stand where the layout says, over the board's middle when there's room.
+            let l = T.layout(r, width: at.width, middle: at.middle, bar: bar)
+            #expect(l.tools.inBar, "\(s.at): \(l)")
+            guard l.tools.inBar else { continue }
+            let p = T.toolsWidth(l.tools), from = T.toolsStart(l.fit, r, title: l.title, bar: bar), to = at.width - T.right(r, bar: bar)
+            let flexible = (to - from - p - abs(l.balance) - bar.toolsBefore - bar.toolsAfter) / 2
+            #expect(flexible >= min(T.toolsLead, T.toolsGap) - 0.5, "\(s.at): \(flexible) pt each side of the tools: \(l)")
+            let middle = (from + to - l.balance) / 2 + (bar.toolsBefore - bar.toolsAfter) / 2
+            #expect(abs(middle - (at.middle + l.shift)) <= 0.5, "\(s.at): the tools at \(middle), the layout says \(at.middle + l.shift)")
+        }
+        // Where there's room, over the board's middle: Full Screen at 1400, and at 1700 beside the list.
+        for (window, column, r) in [(1400.0, 0.0...1400, focus), (1700, 331...1700, room)] {
+            let spot = CGRect(x: column.lowerBound, y: 0, width: column.upperBound - column.lowerBound, height: 800)
+            let at = NoteToolbarStage<EmptyView>.boardRoom(column: spot.width, spot: spot, besideList: !r.focus, bar: bar)
+            let l = T.layout(r, width: at.width, middle: at.middle, bar: bar)
+            #expect(l.tools == .bar && abs(l.shift) < 0.5, "\(window): \(l)")
+        }
+        // This Mac's measures are the ones the bar had before.
+        #expect(T.Bar.current == .macOS27 || ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 27)
+        #expect(T.Bar.macOS27.focusLeft == T.focusLeft && T.Bar.macOS27.afterName == T.anchorSlot && T.Bar.macOS27.listBarEnd == T.listBarEnd)
     }
 
     /// A sticky note: yellow, square, selected and not typed into (real-window check, 17 Nov: typing
@@ -3178,22 +3304,179 @@ extension CanvasNativeUITests {
         #expect(lib.thumbnails[item.id] == nil && lib.darkThumbnails[item.id] == nil)
     }
 
-    /// The Library button is in the toolbar, among the board's actions, at every width; the tools,
-    /// pictures and sticky notes are on the board's palette, not in the toolbar.
-    @Test func theLibraryStaysInTheToolbar() async throws {
+    /// The library and Comments are in More, not the toolbar (Emil, 17 November 2026: "we dont need
+    /// these options showing"): Comments shows in the bar, with its count, only while the board has
+    /// open threads, beside Share in its group, and goes again once they're resolved. A board you
+    /// can only look at has no library; the iPhone keeps both in its dock.
+    @Test func theLibraryAndCommentsAreInMore() async throws {
+        let groups = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, canvas: true)
+        #expect(groups.dropFirst().first == [.canvasComments, .canvasLibrary], "first on a board, after Open in New Window: \(groups)")
+        let viewing = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: false, canvas: true, viewOnly: true)
+        #expect(viewing.joined().contains(.canvasComments) && !viewing.joined().contains(.canvasLibrary), "\(viewing)")
+        let phone = NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: true, appsEnabled: true, phone: true, canvas: true)
+        #expect(!phone.joined().contains(.canvasComments) && !phone.joined().contains(.canvasLibrary), "the dock has them: \(phone)")
+        #expect(!NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, phone: false).joined().contains(.canvasLibrary), "not for a note")
+
         let c = try Self.canvasLibrary()
-        try await AppSnapshotTests.withLastNote(c, "Publishing flow") {
+        let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
+        let (w, web, canvas) = try await AppSnapshotTests.withLastNote(c, board.title) { try await Self.boardWindow(c, board, dark: false) }
+        defer { w.close() }
+        _ = try await Self.settledView(w, web)
+        for size in [CGSize(width: 1400, height: 900), CGSize(width: 1000, height: 700)] {
+            w.setContentSize(size)
+            await MacWindowChromeTests.settle(w, 20)
+            let labels = try MacWindowChromeTests.items(w).map(\.label)
+            #expect(!labels.contains(CanvasLibraryPopover.title) && !labels.contains(BoardCommentUI.title), "\(Int(size.width)): neither in the toolbar: \(labels)")
+            #expect(labels.contains("Share") && labels.contains("More"), "\(Int(size.width)): \(labels)")
+        }
+        // An open thread: Comments shows, with its count, in Share and More's group.
+        canvas.show(comments: [BoardCommentsCanvasTests.thread("c-1", on: "box"), BoardCommentsCanvasTests.thread("c-2", x: 40, y: 40)])
+        #expect(CanvasCommentsButton.shows(canvas) && canvas.openThreads == 2)
+        await MacWindowChromeTests.settle(w, 20)
+        let items = try MacWindowChromeTests.items(w)
+        let comments = try #require(items.first { $0.label == BoardCommentUI.title }, "Comments shows: \(items.map(\.label))")
+        let share = try #require(items.first { $0.label == "Share" })
+        #expect(abs(comments.frame.maxX - share.frame.minX) <= 1, "beside Share, in its group: \(comments.frame) \(share.frame)")
+        #expect(comments.frame.width >= CanvasCommentsButton.barWidth(2) - 4, "room for its count: \(comments.frame.width)")
+        let ax = try #require(await MacEmptyDetailTests.waitForElement("canvas.comments", in: w) ?? MacEmptyDetailTests.element("canvas.comments", in: w))
+        #expect((ax.value(forKey: "accessibilityValue") as? String)?.hasPrefix("2 open") == true, "says how many: \(String(describing: ax.value(forKey: "accessibilityValue")))")
+        try await Self.expectWholeToolbar(w, "with comments", comments: true)
+        // Resolved, they're done: it goes, and More has the list.
+        var done = BoardCommentsCanvasTests.thread("c-1", on: "box"), done2 = BoardCommentsCanvasTests.thread("c-2", x: 40, y: 40)
+        done.resolved = true
+        done2.resolved = true
+        canvas.show(comments: [done, done2])
+        await MacWindowChromeTests.settle(w, 20)
+        let after = try MacWindowChromeTests.items(w).map(\.label)
+        #expect(!CanvasCommentsButton.shows(canvas) && !after.contains(BoardCommentUI.title), "resolved, it goes: \(after)")
+    }
+
+    /// A board's Share is a note's (Emil, 17 November 2026: "why did this one get a custom share
+    /// button? that is pretty weird"): the same item, with the same identifier, symbol and size, a
+    /// plain button in one glass group with More, at the right edge; not the filled pill.
+    @Test func aBoardsShareIsANotesShare() async throws {
+        let c = try Self.canvasLibrary()
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>())
+        let board = try #require(notes.first { $0.title == "Publishing flow" })
+        let note = try #require(notes.first { $0.title == "Groceries" })
+        try await AppSnapshotTests.withLastNote(c, note.title) {
             let w = MacWindowChromeTests.window(c, size: CGSize(width: 1400, height: 900))
             defer { w.close() }
-            for size in [CGSize(width: 1400, height: 900), CGSize(width: 1000, height: 700)] {
-                w.setContentSize(size)
-                await MacWindowChromeTests.settle(w, 20)
-                let labels = try MacWindowChromeTests.items(w).map(\.label)
-                #expect(labels.contains(CanvasLibraryPopover.title), "\(Int(size.width)): Library in the toolbar: \(labels)")
-                #expect(!labels.contains(BoardToolbar.imageTitle) && !labels.contains("More Tools") && !labels.contains("Shapes"),
-                        "\(Int(size.width)): no tools in the toolbar: \(labels)")
+            await MacWindowChromeTests.settle(w, 30)
+            @MainActor func share() async throws -> (item: CGRect, more: CGRect, ax: CGRect, help: String?, said: [String?], filled: Double) {
+                let items = try MacWindowChromeTests.items(w)
+                let s = try #require(items.first { $0.label == "Share" }, "Share: \(items.map(\.label))")
+                let m = try #require(items.first { $0.label == "More" && $0.frame.minX >= s.frame.minX }, "More after it: \(items.map(\.label))")
+                let e = try #require(await MacEmptyDetailTests.waitForElement("editor.share", in: w) ?? MacEmptyDetailTests.element("editor.share", in: w), "editor.share")
+                let f = w.convertFromScreen(try #require((e.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue))
+                // What VoiceOver hears of it: its role, name and identifier.
+                let said = ["accessibilityRole", "accessibilityLabel", "accessibilityIdentifier"].map { e.value(forKey: $0).map { "\($0)" } }
+                // How much of its cell is in a colour, as the accent's pill was: none, as a note's.
+                let rep = try MacEmptyDetailTests.picture(w)
+                let height = try #require(w.contentView?.superview).bounds.height
+                var colored = 0, all = 0
+                for y in stride(from: s.frame.minY + 4, to: s.frame.maxY - 4, by: 1) {
+                    for x in stride(from: s.frame.minX + 4, to: s.frame.maxX - 4, by: 1) {
+                        guard let c = rep.colorAt(x: Int(x * 2), y: Int((height - y) * 2))?.usingColorSpace(.sRGB) else { continue }
+                        let v = [c.redComponent, c.greenComponent, c.blueComponent]
+                        all += 1
+                        if v.max()! - v.min()! > 0.25 { colored += 1 }
+                    }
+                }
+                return (s.frame, m.frame, f, e.value(forKey: "accessibilityHelp") as? String, said, Double(colored) / Double(max(all, 1)))
             }
+            let onNote = try await share()
+            NoteOpener.shared.request = board.id
+            for _ in 0..<100 where NotePageLive.view(board.id) == nil { await MacWindowChromeTests.settle(w, 1) }
+            await MacWindowChromeTests.settle(w, 30)
+            let onBoard = try await share()
+            #expect(abs(onBoard.item.width - onNote.item.width) <= 1 && abs(onBoard.item.height - onNote.item.height) <= 1,
+                    "the same size: \(onBoard.item.size) vs the note's \(onNote.item.size)")
+            #expect(abs(onBoard.ax.width - onNote.ax.width) <= 1, "the same button: \(onBoard.ax.size) vs \(onNote.ax.size)")
+            // One group with More, as a note's: no gap between them (the pill stood apart, 4 to 8 pt off).
+            #expect(abs(onBoard.more.minX - onBoard.item.maxX) <= 1 && abs(onNote.more.minX - onNote.item.maxX) <= 1, "Share and More in one group: \(onBoard.item) \(onBoard.more)")
+            #expect(onBoard.help == "Share" && onNote.help == "Share")
+            #expect(onBoard.more.maxX >= w.frame.width - 16, "at the right edge: \(onBoard.more)")
+            // The note's own button, not one made for boards (SwiftUI names the bar's items afresh
+            // as the bar changes, so the two items' own identifiers never match), and plain: no
+            // colour fill.
+            #expect(onBoard.said == onNote.said && onBoard.said.last == "editor.share", "the same button: \(onBoard.said) vs the note's \(onNote.said)")
+            #expect(onBoard.filled < 0.02 && onNote.filled < 0.02, "no fill: \(onBoard.filled) of the board's in a colour, \(onNote.filled) of the note's")
+            try await Self.expectWholeToolbar(w, "a board's Share")
         }
+    }
+
+    /// The real-window check on the Air opens a board from the demo library (`-uitest -demo
+    /// -demoBoard -open "Publishing flow"`, no account): a whiteboard by that name, the flowchart
+    /// on it.
+    @Test func theDemoLibraryCanHoldABoard() throws {
+        let c = try AppSnapshotTests.container()
+        let context = c.mainContext
+        DemoData.loadBoard(into: context, main: context.createFolder(named: "Notes"))
+        let board = try #require(try context.fetch(FetchDescriptor<Note>()).first { $0.title == DemoData.boardTitle }, "the board")
+        #expect(CanvasNote.has(board), "a whiteboard")
+        let scene = (NotePageDataStore.shared.doc(board.id)["values"] as? [String: Any])?["scene"] as? [String: Any]
+        let elements = scene?["elements"] as? [[String: Any]] ?? []
+        #expect(elements.count == WhiteboardTemplate.flowchart.elements.count && !elements.isEmpty, "the flowchart: \(elements.count)")
+    }
+
+    /// Full Screen is back for boards, at the end of the bottom right bar (Emil, 17 November 2026:
+    /// "what happened to going full screen, that feels like a real miss"): [map | − 100% + | Full
+    /// Screen]. It folds the sidebar and the list, as before, and is Exit Full Screen while on. The
+    /// window's own full screen (⌃⌘F, its green button) folds them on a board too, and gives them
+    /// back after; on a note it leaves them.
+    @Test func aBoardsFullScreenIsAtItsBottomRight() async throws {
+        let c = try Self.canvasLibrary()
+        let notes = try c.mainContext.fetch(FetchDescriptor<Note>())
+        let board = try #require(notes.first { $0.title == "Publishing flow" })
+        let (w, web, _) = try await AppSnapshotTests.withLastNote(c, board.title) { try await Self.boardWindow(c, board, dark: false) }
+        defer { w.close() }
+        _ = try await Self.settledView(w, web)
+        let corner = try #require(await CanvasToolPaletteTests.frame("canvas.corner", in: w), "the bar at the bottom right")
+        let full = try #require(await CanvasToolPaletteTests.frame("canvas.fullScreen", in: w), "Full Screen")
+        let zoomIn = try #require(await CanvasToolPaletteTests.frame("canvas.zoomIn", in: w))
+        let area = web.convert(web.bounds, to: nil)
+        #expect(full.minX > zoomIn.maxX && full.maxX <= corner.maxX && corner.maxX >= area.maxX - CanvasMap.right - 2, "last in the bar, at the right: \(full) \(corner)")
+        @MainActor func label() -> String? {
+            (MacEmptyDetailTests.element("canvas.fullScreen", in: w)?.value(forKey: "accessibilityLabel") as? String)
+        }
+        #expect(label() == "Full Screen")
+        try CanvasToolPaletteTests.press("canvas.fullScreen", in: w)
+        for _ in 0..<60 where try Self.collapsed(w) != [true, true] { await MacWindowChromeTests.settle(w, 1) }
+        #expect(try Self.collapsed(w) == [true, true], "the sidebar and the list fold away")
+        await MacWindowChromeTests.settle(w, 5)
+        #expect(label() == "Exit Full Screen")
+        try CanvasToolPaletteTests.press("canvas.fullScreen", in: w)
+        for _ in 0..<60 where try Self.collapsed(w) != [false, false] { await MacWindowChromeTests.settle(w, 1) }
+        #expect(try Self.collapsed(w) == [false, false], "and come back")
+        // The window's own full screen (⌃⌘F, the green button), as AppKit says it has the screen
+        // and once it's over (the window never goes to a Space here: it's off screen, and nothing
+        // calls toggleFullScreen). Folded as it starts, AppKit put the sidebar back.
+        NotificationCenter.default.post(name: NSWindow.willEnterFullScreenNotification, object: w)
+        await MacWindowChromeTests.settle(w, 10)
+        #expect(try Self.collapsed(w) == [false, false], "nothing yet as it starts")
+        NotificationCenter.default.post(name: NSWindow.didEnterFullScreenNotification, object: w)
+        for _ in 0..<60 where try Self.collapsed(w) != [true, true] { await MacWindowChromeTests.settle(w, 1) }
+        #expect(try Self.collapsed(w) == [true, true], "⌃⌘F on a board folds them too")
+        await MacWindowChromeTests.settle(w, 30)
+        #expect(try Self.collapsed(w) == [true, true], "and they stay folded")
+        #expect(label() == "Exit Full Screen")
+        NotificationCenter.default.post(name: NSWindow.willExitFullScreenNotification, object: w)
+        NotificationCenter.default.post(name: NSWindow.didExitFullScreenNotification, object: w)
+        for _ in 0..<60 where try Self.collapsed(w) != [false, false] { await MacWindowChromeTests.settle(w, 1) }
+        #expect(try Self.collapsed(w) == [false, false], "and gives them back after")
+        #expect(label() == "Full Screen")
+        // Exit Full Screen while the window has the screen ends that first: the Air's real-window
+        // check (a window off screen never takes it).
+        // On a note: the columns stay.
+        let note = try #require(notes.first { $0.title == "Groceries" })
+        NoteOpener.shared.request = note.id
+        await MacWindowChromeTests.settle(w, 30)
+        NotificationCenter.default.post(name: NSWindow.didEnterFullScreenNotification, object: w)
+        await MacWindowChromeTests.settle(w, 15)
+        #expect(try Self.collapsed(w) == [false, false], "a note keeps its columns")
+        NotificationCenter.default.post(name: NSWindow.didExitFullScreenNotification, object: w)
+        await MacWindowChromeTests.settle(w, 5)
     }
 
     /// Nothing in a board's toolbar is ever clipped (round 12: at 1400 pt the board's items pushed
@@ -3223,8 +3506,8 @@ extension CanvasNativeUITests {
                 }
             }
             // Full Screen: the board has the window; the bar starts after the window's buttons. A
-            // board's bar has no Full Screen button (the View menu's ⇧⌘F, the window's own): in
-            // as Present takes the window.
+            // board's Full Screen is at its bottom right (CanvasCorner), not in the bar: in as
+            // Present takes the window.
             CanvasRename.renamed(board, to: "Publishing flow")
             @MainActor func press(_ id: String) async throws {
                 let e = try #require(await MacEmptyDetailTests.waitForElement(id, in: w) ?? MacEmptyDetailTests.element(id, in: w), "no \(id)")
@@ -3246,7 +3529,7 @@ extension CanvasNativeUITests {
     }
 
     /// The window's toolbar, measured: see theBoardsToolbarNeverClips.
-    static func expectWholeToolbar(_ w: NSWindow, _ at: String, focus: Bool = false) async throws {
+    static func expectWholeToolbar(_ w: NSWindow, _ at: String, focus: Bool = false, comments: Bool = false) async throws {
         let items = w.toolbar?.items ?? []
         let width = w.frame.width
         var shown: [(label: String, frame: CGRect, board: Bool)] = []
@@ -3280,22 +3563,22 @@ extension CanvasNativeUITests {
         }
         let labels = Set(shown.filter(\.board).map(\.label))
         #expect(labels.contains("Share") && labels.contains("More"), "\(at): Share and More show: \(labels.sorted())")
-        #expect(labels.contains(BoardCommentUI.title), "\(at): Comments shows")
-        #expect(labels.contains(CanvasLibraryPopover.title), "\(at): the library shows")
-        // One Comments button: no Comment tool beside it (round 12, two near-identical bubbles).
+        // The library is in More, and Comments shows only while the board has open threads (Emil,
+        // 17 November 2026): one button then, never a Comment tool beside it.
+        #expect(!labels.contains(CanvasLibraryPopover.title), "\(at): the library is in More: \(labels.sorted())")
         let boardLabels = shown.filter(\.board).map(\.label)
-        #expect(boardLabels.filter { $0 == BoardCommentUI.title }.count == 1 && !boardLabels.contains(CanvasTool.comment.title) && !boardLabels.contains(BoardCommentUI.comment),
-                "\(at): one Comments button: \(boardLabels)")
-        // The actions only: the tools are on the board (CanvasToolPalette), Full Screen is the
-        // window's (⇧⌘F) and Ask AI is in More.
+        #expect(boardLabels.filter { $0 == BoardCommentUI.title }.count == (comments ? 1 : 0) && !boardLabels.contains(CanvasTool.comment.title) && !boardLabels.contains(BoardCommentUI.comment),
+                "\(at): Comments \(comments ? "once" : "not in the bar"): \(boardLabels)")
+        // No tool is a toolbar button of its own: they're the palette, one item (CanvasToolPalette),
+        // Full Screen is at the board's bottom right and Ask AI is in More.
         let tools = CanvasTool.allCases.filter { labels.contains($0.title) }
-        #expect(tools.isEmpty && !labels.contains("Shapes") && !labels.contains("Tools") && !labels.contains("More Tools"), "\(at): tools in the bar: \(boardLabels)")
+        #expect(tools.isEmpty && !labels.contains("Shapes") && !labels.contains("More Tools"), "\(at): tools in the bar: \(boardLabels)")
         #expect(!labels.contains { $0.hasSuffix("Full Screen") }, "\(at): no Full Screen button: \(boardLabels)")
         #expect(!labels.contains { $0.hasPrefix("Ask ") } && NoteMoreMenu.groups(locked: false, vaultOpen: false, trashed: false, hasApp: false, appsEnabled: true, shared: false, asks: true, canvas: true).joined().contains(.askAI),
                 "\(at): Ask AI in More: \(boardLabels)")
-        // Share, then the library, Comments and More, at the right edge.
-        let order = sorted.filter(\.board).map(\.label).filter { ["Share", CanvasLibraryPopover.title, BoardCommentUI.title, "More"].contains($0) }
-        #expect(order == ["Share", CanvasLibraryPopover.title, BoardCommentUI.title, "More"], "\(at): the actions' order: \(order)")
+        // Comments (while it shows), Share and More, at the right edge.
+        let order = sorted.filter(\.board).map(\.label).filter { ["Share", BoardCommentUI.title, "More"].contains($0) }
+        #expect(order == (comments ? [BoardCommentUI.title] : []) + ["Share", "More"], "\(at): the actions' order: \(order)")
         print("toolbar at \(at): " + sorted.map { "\($0.label.isEmpty ? "(blank)" : $0.label) \(Int($0.frame.minX))-\(Int($0.frame.maxX))" }.joined(separator: ", "))
         // The list's title is clear of its buttons (round 11: its "…" sat on "All Notes").
         if !focus, let title = await MacEmptyDetailTests.waitForElement("list.folderName", in: w),
@@ -3528,14 +3811,14 @@ extension CanvasNativeUITests {
             defer { w.close() }
             await MacWindowChromeTests.settle(w, 20)
             #expect(try Self.collapsed(w) == [false, false], "the canvas leaves the columns open")
-            // The board's actions are in the window's toolbar, at its right edge; the tools are on
-            // the board (CanvasToolPalette), and Full Screen is View › Full Screen, ⇧⌘F (Emil,
-            // 17 November 2026).
+            // The board's actions are a note's Share and More at the toolbar's right edge; its
+            // tools are the palette, its Full Screen at its bottom right, the library and Comments
+            // in More (Emil, 17 November 2026).
             let labels = try MacWindowChromeTests.items(w).map(\.label)
-            for l in ["Share", CanvasLibraryPopover.title, BoardCommentUI.title, "More"] {
+            for l in ["Share", "More"] {
                 #expect(labels.contains(l), "\(l) in the toolbar: \(labels)")
             }
-            for l in ["Select", "Pencil", "Shapes", "More Tools", "Full Screen"] {
+            for l in ["Select", "Pencil", "Shapes", "More Tools", "Full Screen", CanvasLibraryPopover.title, BoardCommentUI.title] {
                 #expect(!labels.contains(l), "\(l) not in the toolbar: \(labels)")
             }
             // Its name, as a field you can type in, beside where it is.
@@ -4868,17 +5151,20 @@ extension CanvasNativeUITests {
                     #expect(!CanvasAIHighlight.sharesRow(tag, with: h.rows), "the tag is on no row of words: \(tag) in \(h.rows)")
                 }
                 try await shot("12-ai-drew", w, web)
-                let fullScreen = await MacEmptyDetailTests.waitForElement("note.fullScreen", in: w)
-                let e = try #require(fullScreen ?? MacEmptyDetailTests.element("note.fullScreen", in: w))
-                _ = e.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+                // Full Screen, from the end of the bar at the bottom right (Emil, 17 November 2026):
+                // the sidebar and the list fold away, and its button says Exit Full Screen.
+                try CanvasToolPaletteTests.press("canvas.fullScreen", in: w)
+                for _ in 0..<60 where try Self.collapsed(w) != [true, true] { await MacWindowChromeTests.settle(w, 1) }
+                #expect(try Self.collapsed(w) == [true, true], "Full Screen folds the sidebar and the list")
                 await MacWindowChromeTests.settle(w, 15)
                 try await shot("13-fullscreen", w, web)
-                _ = e.perform(#selector(NSAccessibilityProtocol.accessibilityPerformPress))
+                try CanvasToolPaletteTests.press("canvas.fullScreen", in: w)
+                for _ in 0..<60 where try Self.collapsed(w) != [false, false] { await MacWindowChromeTests.settle(w, 1) }
                 await MacWindowChromeTests.settle(w, 15)
                 // What Export › PNG Image makes of the board.
                 if !dark, let png = await canvas.export(.png) { try png.write(to: dir.appending(path: "14-exported-board.png")) }
-                // Narrow windows, a shape selected: at 1000 pt and 760 pt every tool is in the bar
-                // or in More Tools, and Share and More stay (round 12).
+                // Narrow windows, a shape selected: at 1000 pt and 760 pt every tool is on the
+                // palette or in its More, and Share and More stay (round 12).
                 for (width, name) in [(1000.0, "15-narrow-window"), (760, "15-narrow-760")] {
                     w.setContentSize(CGSize(width: width, height: 700))
                     await MacWindowChromeTests.settle(w, 20)
@@ -5052,9 +5338,9 @@ extension CanvasNativeUITests {
                     let empty = try await Self.libraryPopoverPicture(canvas: canvas, library: CanvasLibrary(folder: nil), dark: dark)
                     try #require(empty.representation(using: .png, properties: [:])).write(to: dir.appending(path: "23-library-empty-light.png"))
                 }
-                // The popover where it opens, under the toolbar's Library button.
-                let found = await MacEmptyDetailTests.waitForElement("canvas.tool.library", in: w)
-                if let button = found ?? MacEmptyDetailTests.element("canvas.tool.library", in: w),
+                // The popover where it opens, under More, where the library is (Emil, 17 November 2026).
+                let found = await MacEmptyDetailTests.waitForElement("editor.more", in: w)
+                if let button = found ?? MacEmptyDetailTests.element("editor.more", in: w),
                    let onScreen = (button.value(forKey: "accessibilityFrame") as? NSValue)?.rectValue {
                     let frame = w.convertFromScreen(onScreen)
                     if frame.width > 0 {

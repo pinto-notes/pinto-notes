@@ -154,7 +154,7 @@ struct CanvasLibrarySheet: View {
             Button("Add to Whiteboard", systemImage: "plus") { add(item) }
             Button("Rename\u{2026}", systemImage: "pencil") { draft = item.title; renaming = item }
             Divider()
-            Button("Remove", systemImage: "trash", role: .destructive) { library.remove(item.id) }
+            DestructiveMenuButton("Remove", systemImage: "trash") { library.remove(item.id) }
         }
         .accessibilityLabel(item.title)
         .accessibilityHint("Adds it to the whiteboard")

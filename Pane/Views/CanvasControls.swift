@@ -16,6 +16,10 @@ struct CanvasOverlay: View {
     /// Worked out only when Ask opens: it reads the board's whole text (the owner's sample had it
     /// on every redraw of the note's view, 17 November 2026).
     var subject: (() -> AskAI.Subject)?
+    #if os(macOS)
+    /// Where the tools are (the window's bar works it out): under them, the hint, the style panel.
+    @Environment(\.boardTools) private var place
+    #endif
 
     /// The board, as the overlay measures it (the selection bar, and the corner's tags kept inside it).
     static let space = "canvas.overlay"
@@ -30,11 +34,12 @@ struct CanvasOverlay: View {
                 if CanvasStyleSidebar.shows(canvas.state, viewOnly: canvas.viewOnly) {
                     GeometryReader { geo in
                         CanvasStyleSidebar(canvas: canvas, layout: CanvasStyleSidebar.layout(board: geo.size.width),
-                                           height: geo.size.height - CanvasToolPalette.below - CanvasStyleSidebar.foot)
+                                           height: geo.size.height - CanvasToolPalette.below(place.tools) - CanvasStyleSidebar.foot)
                             .tint(Color(PColor.paneAccent))
-                            // Under the tools' row, as Excalidraw's properties are under its top bar.
+                            // Under the tools' row, as Excalidraw's properties are under its top bar:
+                            // under the window's bar while the tools are in it.
                             .padding(.leading, CanvasStyleSidebar.inset)
-                            .padding(.top, CanvasToolPalette.below)
+                            .padding(.top, CanvasToolPalette.below(place.tools))
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
                     .transition(.opacity)
@@ -61,30 +66,32 @@ struct CanvasOverlay: View {
                     }
                 }
                 .animation(.easeOut(duration: 0.3), value: canvas.highlight)
-                #if os(iOS)
+                // The board runs under the window's bar on the Mac too, the tools' row.
                 .ignoresSafeArea()
-                #endif
                 // A board shared with you to look at: nothing to start drawing with.
                 if CanvasStart.shows(canvas.state), !canvas.viewOnly {
                     CanvasStart(canvas: canvas, targets: targets, subject: subject)
                         .transition(.opacity)
                 }
                 #if os(macOS)
-                // The tools, at the top middle of the board, and Excalidraw's hint under them (Emil,
-                // 17 November 2026: the tools on what they draw on; the window's toolbar keeps the
-                // actions). Each takes clicks on itself only.
+                // The tools in the window's bar, over the board's middle (BoardToolbar), or with no
+                // room there at the top middle of the board; Excalidraw's hint under them, on the
+                // board, under the bar. Each takes clicks on itself only.
                 if CanvasToolPalette.shows(canvas) {
                     GeometryReader { geo in
                         VStack(spacing: 8) {
-                            CanvasToolPalette(canvas: canvas, width: geo.size.width)
+                            if !place.tools.inBar {
+                                CanvasToolPalette(canvas: canvas, fold: .board(geo.size.width))
+                            }
                             // Not over a banner of someone presenting, or voting's.
                             if let hint = canvas.state.hint, canvas.followBanner == nil, !canvas.team.running,
                                let room = CanvasHint.room(board: geo.size.width) {
                                 CanvasHint(text: hint)
                                     .frame(maxWidth: room)
+                                    .offset(x: place.tools.inBar ? place.shift : 0)
                             }
                         }
-                        .padding(.top, CanvasToolPalette.top)
+                        .padding(.top, place.tools.inBar ? CanvasHint.belowBar : CanvasToolPalette.top)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
                 }
@@ -140,6 +147,10 @@ struct CanvasOverlay: View {
                 if let p = canvas.state.present {
                     if let frame = p.frame {
                         CanvasPresentMask(frame: frame, light: canvas.background)
+                            #if os(macOS)
+                            // In the page's own measures: over the whole board, the bar's row too.
+                            .ignoresSafeArea()
+                            #endif
                             .transition(.opacity)
                     }
                     VStack {
@@ -1702,7 +1713,7 @@ struct CanvasMoreItems: View {
             Divider()
         }
         Button("Duplicate", systemImage: "plus.square.on.square") { canvas.run(.duplicate) }
-        Button("Delete", systemImage: "trash", role: .destructive) { canvas.run(.delete) }
+        DestructiveMenuButton("Delete", systemImage: "trash") { canvas.run(.delete) }
     }
 }
 
@@ -1848,11 +1859,29 @@ struct CanvasZoom: View {
     }
 }
 
-/// The board's bottom right corner: the map's switch (CanvasMap) and the zoom (−, the percent, +) in
-/// one glass bar. No Undo and Redo here: ⌘Z, ⇧⌘Z and the Edit menu (Emil, 17 November 2026).
+/// Where the board's tools are, as the window's bar worked it out (NoteToolbarStage), for what the
+/// board shows under them: the hint, the style panel, the banners.
+struct BoardToolsPlace: Equatable, Sendable {
+    var tools: BoardToolbar.Tools = .board
+    /// How far the tools' middle stands from the board's (the hint stands under them).
+    var shift: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    @Entry var boardTools = BoardToolsPlace()
+    /// Full Screen, for the open board's corner (RootView's, as the View menu has it).
+    @Entry var boardFullScreen: FullScreenAction? = nil
+}
+
+/// The board's bottom right corner: the map's switch (CanvasMap), the zoom (−, the percent, +) and
+/// Full Screen in one glass bar. No Undo and Redo here: ⌘Z, ⇧⌘Z and the Edit menu (Emil, 17
+/// November 2026).
 struct CanvasCorner: View {
     let canvas: CanvasController
     @AppStorage(CanvasMap.key) private var map = false
+    /// Full Screen at the bar's end (Emil, 17 November 2026: "what happened to going full screen,
+    /// that feels like a real miss"): the sidebar and the list fold away, as before.
+    @Environment(\.boardFullScreen) private var fullScreen
 
     /// The bar's height: a button and its padding (CanvasMap.bottom stands the map above it).
     static let height: CGFloat = CanvasDock.button + 8
@@ -1879,6 +1908,12 @@ struct CanvasCorner: View {
             .accessibilityIdentifier("canvas.zoom")
             CanvasBarButton(title: CanvasMenu.zoomIn, key: "\u{2318}+", symbol: "plus") { canvas.run(.zoomIn) }
                 .accessibilityIdentifier("canvas.zoomIn")
+            if let fullScreen {
+                rule
+                // ⇧⌘F is View › Full Screen's; the window's own full screen (⌃⌘F) does it too (RootView).
+                CanvasBarButton(title: fullScreen.title, key: "\u{21E7}\u{2318}F", symbol: fullScreen.symbol) { fullScreen.run() }
+                    .accessibilityIdentifier("canvas.fullScreen")
+            }
         }
         .padding(4)
         .glassEffect(.regular, in: .capsule)
@@ -1938,37 +1973,62 @@ enum CanvasEdgePeekFlag {
 #if os(macOS)
 // MARK: In the window's toolbar (Mac)
 
-private extension View {
-    /// The picked one in the accent; the others untouched, as the toolbar's other buttons are.
-    @ViewBuilder func picked(_ on: Bool) -> some View {
-        if on { foregroundStyle(Color.amberInk) } else { self }
-    }
-}
-
-/// A board's window toolbar (Emil, 17 November 2026: "sharing, ... at the very right, while the
-/// toggles in the center"): where the board is and its name on the left; its actions on the right,
-/// Share filled in the accent, then the library, Comments and More. The tools float on the board
-/// (CanvasToolPalette). In a narrow column the folder goes first, then Share shows its glyph
-/// alone, and the name gets what's left.
+/// A board's window toolbar, one row as Excalidraw's (Emil, 17 November 2026: "im a bit annoyed
+/// that the bar at the top there needed to go down like this... what if we make it shrink more
+/// depending on size?"): back and forward and where the board is on the left, its tools in the
+/// middle over the board (CanvasToolPalette: one item, the palette with its own glass, not a row of
+/// toolbar toggles), and on the right a note's own Share and More, with Comments and its count
+/// beside them only while the board has open threads. The board runs under the row. With no room
+/// for the tools between the name and Share, the folder goes first, then the lock, the hand, the
+/// picture and the eraser wait in the tools' More, and last the tools go down onto the board, under
+/// the bar, as before.
 enum BoardToolbar {
-    /// How much of the bar shows, fullest first.
+    /// How much of the bar's left side shows, fullest first.
     enum Fit: Int, Comparable, CaseIterable, Sendable {
-        /// The board's folder, and Share in words.
+        /// The board's folder before its name.
         case full
         /// Without the folder (the list shows it, and More's Move To).
         case noPlace
-        /// Share as its glyph, still filled.
-        case tight
 
         static func < (a: Fit, b: Fit) -> Bool { a.rawValue < b.rawValue }
         var showsPlace: Bool { self == .full }
-        var shareInWords: Bool { self <= .noPlace }
     }
 
-    /// What the bar holds beside the board's actions, for working out the Fit: the widths are as
-    /// drawn (text with its padding).
+    /// Where the board's tools are, fullest first.
+    enum Tools: Int, Comparable, CaseIterable, Sendable {
+        /// In the bar's middle, every one.
+        case bar
+        /// In the bar, with the lock, the hand, the picture and the eraser in the tools' More
+        /// (CanvasToolPalette.barFold), as Excalidraw's "more tools".
+        case barFolded
+        /// On the board under the bar: no room for them up there.
+        case board
+
+        static func < (a: Tools, b: Tools) -> Bool { a.rawValue < b.rawValue }
+        var inBar: Bool { self != .board }
+    }
+
+    /// What the bar shows at a width.
+    struct Layout: Equatable, Sendable {
+        var fit: Fit = .full
+        /// The width the board's name gets.
+        var title: CGFloat = BoardToolbar.titleMax
+        var tools: Tools = .board
+        /// Room kept beside the tools in their item, so they stand over the board's middle: on their
+        /// trailing side, or (below zero) on their leading side. The bar puts the item halfway
+        /// between the name and Share, which is rarely the board's middle.
+        var balance: CGFloat = 0
+        /// How far the tools' middle stands from the board's (they keep clear of the name first).
+        var shift: CGFloat = 0
+        /// The width a line said in the bar gets, its words cut short past it (nil: all it needs).
+        var said: CGFloat? = nil
+    }
+
+    /// What the bar holds beside the tools, for working out the Layout: the widths are as drawn
+    /// (text with its padding).
     struct Room: Equatable, Sendable {
-        /// The board's name, whole, as the title field draws it.
+        /// The board's name, whole, as the title field draws it (0: the bar shows no name, as in a
+        /// board's own window).
         var title: CGFloat = 120
         /// The board's folder (the breadcrumbs).
         var place: CGFloat = 0
@@ -1978,10 +2038,12 @@ enum BoardToolbar {
         var said: CGFloat = 0
         /// Full Screen has the window: "Notes" and the name on the left, no back and forward.
         var focus = false
-        /// The library's button (not on a board you can only look at).
-        var library = true
+        /// Comments with its count, while the board has open threads (CanvasCommentsButton).
+        var comments: CGFloat = 0
         /// Share (not for a deleted board).
         var share = true
+        /// The tools can be in the bar: a board you can draw on, not presenting.
+        var tools = true
     }
 
     // The bar's measures (Tahoe, measured offscreen in the notes window: CanvasNativeUITests,
@@ -1989,51 +2051,164 @@ enum BoardToolbar {
     // groups.
     static let item: CGFloat = 37
     static let groupGap: CGFloat = 8
-    /// Share filled in the accent, in words and as its glyph (59 and 35 pt measured, with no
-    /// glass of its own: 4 pt to the next group).
-    static let shareWords: CGFloat = 60
-    static let shareGlyph: CGFloat = 36
-    /// After the name: the toolbar's anchor item (18 pt), and the least the flexible space after
-    /// it keeps (26 pt, measured with a long name).
-    static let titleTail: CGFloat = 18 + 26
+    /// After the name: the toolbar's anchor item.
+    static let anchor: CGFloat = 18
+    /// The least a flexible space keeps (26 pt, measured with a long name).
+    static let flexMin: CGFloat = 26
     /// From the column's left edge to its first item, and from the last item to the window's edge.
-    static let edges: CGFloat = 4 + 8
+    static let lead: CGFloat = 4
+    static let trail: CGFloat = 8
     /// Kept spare, so a bar a few points off this Mac's measures still fits (the Air's back and
     /// forward stood 9 pt further apart, round 10).
     static let margin: CGFloat = 12
-    /// The name gets at least this much before the bar gives up its next thing.
-    static func titleFloor(_ fit: Fit) -> CGFloat {
-        switch fit {
-        case .full: 200
-        case .noPlace: 120
-        case .tight: 60
-        }
-    }
+    /// The least room each side of the tools in the bar: after the anchor's slot (already space)
+    /// and before Share. AppKit's flexible spaces go down to about 8 pt.
+    static let toolsLead: CGFloat = 12
+    static let toolsGap: CGFloat = 16
+    /// In the bar, the anchor item takes a 36-pt slot though its view is 1 pt (AppKit's item viewer,
+    /// measured offscreen, 17 November 2026): the tools' flexible spaces start after it.
+    static let anchorSlot: CGFloat = 36
+    /// Kept spare with the tools in the bar: past it AppKit puts Share and More in its » (Full
+    /// Screen at 760 pt, 17 November 2026, with 15 pt to spare by the old measures).
+    static let toolsMargin: CGFloat = 20
+    /// The name gets at least this much before the bar gives up the folder (the tools on the board).
+    static func titleFloor(_ fit: Fit) -> CGFloat { fit == .full ? 200 : 120 }
     static let titleMax: CGFloat = 280
     static let titleMin: CGFloat = 60
 
-    /// The width the bar needs at a step, the name aside.
-    static func needed(_ fit: Fit, _ room: Room) -> CGFloat {
-        var left = room.focus ? item : 2 * item
-        if fit.showsPlace, room.place > 0, !room.focus { left += room.place }
-        if room.said > 0 { left += room.said + groupGap }
-        left += titleTail
-        // Share on its own, then the library, Comments and More in one group.
-        var right = CGFloat(room.library ? 3 : 2) * item + room.people
-        if room.share { right += (fit.shareInWords ? shareWords : shareGlyph) + groupGap }
-        return left + right + edges + margin
+    /// Full Screen's left side before the name: Notes, 36 pt, stands 8 pt in from where the board's
+    /// items start, and its name 4 pt after it, the name's item 3 pt over its words (measured
+    /// offscreen, 17 November 2026: a lead and an item were 10 pt short, and the tools stood 4 pt
+    /// right of the board's middle).
+    static let focusLeft: CGFloat = 8 + 36 + 4 + 3
+
+    /// The bar's measures: this Mac's (macOS 27, the ones above, measured offscreen) or macOS 26's.
+    /// macOS 26 spaces the bar's items out more (real window on air2, macOS 26.3.1, 17 November
+    /// 2026): by this Mac's measures its tools stood 34 pt right of the board's middle at 1700 pt,
+    /// and at 1400 pt beside the list AppKit put them, Share and More in its ».
+    struct Bar: Equatable, Sendable {
+        /// Back and forward, each item.
+        var item: CGFloat
+        /// Share and More, each item, and from More to the window's edge.
+        var action: CGFloat
+        var trail: CGFloat
+        /// Beside the list, Back stands at `listBarEnd` at least: the list's buttons run past a narrow
+        /// list's column.
+        var listBarEnd: CGFloat
+        /// Full Screen: from where the board's items start to the name (the title field, its insets too).
+        var focusLeft: CGFloat
+        /// From Forward (or the folder) to the name: its item's padding.
+        var nameLead: CGFloat
+        /// From the name's end to the tools' room: the rest of its item and the anchor's slot.
+        var afterName: CGFloat
+        /// The tools' item's own padding, before them and after them.
+        var toolsBefore: CGFloat
+        var toolsAfter: CGFloat
+
+        static let macOS27 = Bar(item: BoardToolbar.item, action: BoardToolbar.item, trail: BoardToolbar.trail,
+                                 listBarEnd: BoardToolbar.listBarEnd, focusLeft: BoardToolbar.focusLeft,
+                                 nameLead: 0, afterName: BoardToolbar.anchorSlot, toolsBefore: 0, toolsAfter: 0)
+        /// On air2: back, forward and Notes 44 pt, Share and More 41 and 4 pt from the edge; Back
+        /// 9 pt after the list's buttons (417 pt in) or 4 pt into the board's column; the name (its
+        /// words and their 9-pt insets) 5 pt into its item and 3 pt from its end, then the anchor's
+        /// 44-pt slot; the tools' item 9 pt wider each side. Measured from the window's shots.
+        static let macOS26 = Bar(item: 44, action: 41, trail: 4, listBarEnd: 417, focusLeft: 12 + 44 + 5,
+                                 nameLead: 4, afterName: 3 + 44, toolsBefore: 9, toolsAfter: 9)
+
+        static var current: Bar {
+            if #available(macOS 27, *) { return .macOS27 }
+            return .macOS26
+        }
     }
 
-    /// The fullest step that fits beside the name at its floor, and the width the name gets.
-    static func layout(_ room: Room, width: CGFloat) -> (fit: Fit, title: CGFloat) {
-        let whole = min(max(room.title, titleMin), titleMax)
-        for fit in Fit.allCases {
-            let spare = width - needed(fit, room)
-            if spare >= min(whole, titleFloor(fit)) || fit == .tight {
-                return (fit, max(titleMin, min(whole, spare)))
+    /// The bar's left side, from where its items can start: back and forward (Notes in Full
+    /// Screen), the folder, what's said, the name at `title`, and the anchor after it.
+    static func left(_ fit: Fit, _ room: Room, title: CGFloat, bar: Bar = .current) -> CGFloat {
+        var w = room.focus ? bar.focusLeft : lead + 2 * bar.item + bar.nameLead
+        if fit.showsPlace, room.place > 0, !room.focus { w += room.place }
+        if room.said > 0 { w += room.said + groupGap }
+        return w + title + bar.afterName - anchorSlot + anchor
+    }
+
+    /// Where the tools' room starts in the bar: after the left side and the anchor's whole slot.
+    static func toolsStart(_ fit: Fit, _ room: Room, title: CGFloat, bar: Bar = .current) -> CGFloat {
+        left(fit, room, title: title, bar: bar) - anchor + anchorSlot
+    }
+
+    /// Its right side, to the window's edge: the people, Comments with its count, Share and More.
+    static func right(_ room: Room, bar: Bar = .current) -> CGFloat {
+        room.people + room.comments + CGFloat(room.share ? 2 : 1) * bar.action + bar.trail
+    }
+
+    /// The tools' width in the bar.
+    static func toolsWidth(_ tools: Tools) -> CGFloat {
+        CanvasToolPalette.width(CanvasToolPalette.groups(folding: tools == .barFolded ? CanvasToolPalette.barFold : []))
+    }
+
+    /// The fullest bar that fits, the steps in Emil's order: the tools in the bar with the folder,
+    /// then without it, then with four tools in their More; last, the tools on the board and the bar
+    /// as before (the folder while the name keeps its floor). `width`: from where the board's items
+    /// can start to the window's edge; `middle`: the board's middle, from there.
+    static func layout(_ room: Room, width: CGFloat, middle: CGFloat? = nil, bar: Bar = .current) -> Layout {
+        let whole = room.title > 0 ? min(max(room.title, titleMin), titleMax) : 0
+        let middle = middle ?? width / 2
+        if room.tools {
+            var quiet = room
+            quiet.said = 0
+            for (fit, tools) in [(Fit.full, Tools.bar), (.noPlace, .bar), (.noPlace, .barFolded)] {
+                let p = toolsWidth(tools)
+                let end = width - right(room, bar: bar)
+                // The name whole, without what's said: a line said for a few seconds never moves
+                // the tools. It takes what's spare, then the name's room down to its least, and
+                // past that its words are cut short.
+                let spare = end - toolsStart(fit, quiet, title: whole, bar: bar) - p - bar.toolsBefore - bar.toolsAfter
+                    - toolsLead - toolsGap - toolsMargin
+                guard spare >= 0 else { continue }
+                var title = whole, said: CGFloat? = nil
+                var shown = quiet
+                if room.said > 0 {
+                    let fromName = min(max(0, room.said + groupGap - spare), whole - min(whole, titleMin))
+                    title = whole - fromName
+                    let gets = max(0, min(room.said, spare + fromName - groupGap))
+                    shown.said = gets
+                    said = gets
+                }
+                let start = toolsStart(fit, shown, title: title, bar: bar)
+                // Over the board's middle, or as near it as the name and Share leave room for. The
+                // two flexible spaces round the tools' item are equal: its padding (`balance`) puts
+                // the tools where they go in it, and the item's own (macOS 26's) moves them by half
+                // the difference.
+                let x = min(max(middle, start + bar.toolsBefore + toolsLead + p / 2), end - bar.toolsAfter - toolsGap - p / 2)
+                return Layout(fit: fit, title: title, tools: tools, balance: start + end + bar.toolsBefore - bar.toolsAfter - 2 * x,
+                              shift: x - middle, said: said)
             }
         }
-        return (.tight, titleMin)
+        for fit in Fit.allCases {
+            let spare = width - left(fit, room, title: 0, bar: bar) - flexMin - right(room, bar: bar) - margin
+            if spare >= min(whole, titleFloor(fit)) || fit == .noPlace {
+                return Layout(fit: fit, title: whole > 0 ? max(titleMin, min(whole, spare)) : 0, tools: .board)
+            }
+        }
+        return Layout(fit: .noPlace, title: titleMin, tools: .board)
+    }
+
+    /// Lays the bar out again, when an item is in its » (WindowSpot, after the board's bar
+    /// changes). AppKit measures an item as it lays out the bar, and an item's view in » is out of
+    /// the window, so its constraints keep the size it had: going from 1700 to 1400 pt in one step,
+    /// the board's tools went into » at their 1700-pt width (710 pt), Share and More with them, and
+    /// stayed there though they had folded to 474 pt, until the window next changed size
+    /// (offscreen, macOS 27.2, 18 November 2026).
+    @MainActor static func measureAgain(_ window: NSWindow) {
+        guard let toolbar = window.toolbar, toolbar.isVisible else { return }
+        let out = toolbar.items.compactMap(\.view).filter { $0.window == nil }
+        guard !out.isEmpty, let shown = toolbar.items.lazy.compactMap(\.view).first(where: { $0.window === window }) else { return }
+        for view in out { view.updateConstraintsForSubtreeIfNeeded() }
+        let frame = window.contentView?.superview
+        var view = shown.superview
+        while let v = view, v !== frame {
+            v.needsLayout = true
+            view = v.superview
+        }
     }
 
     /// The board's name as the title field draws it (CanvasTitleField): its words and padding.
@@ -2070,17 +2245,21 @@ enum BoardToolbar {
     }
 }
 
-/// The library's button in a board's toolbar: its popover of what you keep to draw with.
-struct CanvasLibraryButton: View {
-    let canvas: CanvasController
+/// What a board's More opens beside its menu (Emil, 17 November 2026: the library and Comments in
+/// the toolbar, "we dont need these options showing"): the library's popover, and the Comments list
+/// while no Comments button shows (a board with no open threads). Nothing for a note.
+struct CanvasFromMore: ViewModifier {
+    let canvas: CanvasController?
 
-    var body: some View {
-        Button { canvas.showingLibrary.toggle() } label: {
-            Label(CanvasLibraryPopover.title, systemImage: CanvasLibraryPopover.symbol).picked(canvas.showingLibrary).toolbarCell()
+    func body(content: Content) -> some View {
+        if let canvas {
+            content
+                .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
+                .popover(isPresented: Binding(get: { canvas.showingComments && !CanvasCommentsButton.shows(canvas) },
+                                              set: { canvas.showingComments = $0 }), arrowEdge: .bottom) { BoardCommentsList(canvas: canvas) }
+        } else {
+            content
         }
-        .help(CanvasLibraryPopover.help)
-        .accessibilityIdentifier("canvas.tool.library")
-        .popover(isPresented: Bindable(canvas).showingLibrary, arrowEdge: .bottom) { CanvasLibraryPopover(canvas: canvas) }
     }
 }
 

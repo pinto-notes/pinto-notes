@@ -13,10 +13,11 @@ enum BoardFollowUI {
     static let font = Font.system(size: 13, weight: .semibold)
     #endif
 
-    /// Where a banner at the top of the board stands: under the Mac's tool palette while it shows.
-    @MainActor static func top(_ canvas: CanvasController) -> CGFloat {
+    /// Where a banner at the top of the board stands: under the Mac's tool palette while it's on
+    /// the board; just under the window's bar while the tools are up in it (`toolsInBar`).
+    @MainActor static func top(_ canvas: CanvasController, toolsInBar: Bool = false) -> CGFloat {
         #if os(macOS)
-        CanvasToolPalette.shows(canvas) ? CanvasToolPalette.below : 12
+        CanvasToolPalette.shows(canvas) && !toolsInBar ? CanvasToolPalette.below : 12
         #else
         12
         #endif
@@ -29,6 +30,12 @@ enum BoardFollowUI {
 struct CanvasFollowBanner: View {
     let canvas: CanvasController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    @Environment(\.boardTools) private var place
+    private var top: CGFloat { BoardFollowUI.top(canvas, toolsInBar: place.tools.inBar) }
+    #else
+    private var top: CGFloat { BoardFollowUI.top(canvas) }
+    #endif
 
     var body: some View {
         let banner = canvas.followBanner
@@ -42,7 +49,7 @@ struct CanvasFollowBanner: View {
             }
             if let banner {
                 bar(banner)
-                    .padding(.top, BoardFollowUI.top(canvas))
+                    .padding(.top, top)
                     .transition(.opacity)
             }
         }

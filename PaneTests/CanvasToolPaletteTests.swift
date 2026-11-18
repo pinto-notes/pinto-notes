@@ -153,52 +153,148 @@ import WebKit
         #expect(j.canvas.state.tool != .rectangle, "9 isn't a tool on the page")
     }
 
-    /// The palette floats at the top middle of the board, the hint under it; clicks beside it, under
-    /// it and on the hint reach the board, and a click on a tool picks it. The window's toolbar has
-    /// no tool in it, only the actions: Share, the library, Comments and More (no writing tools).
-    @Test func thePaletteFloatsOnTheBoardAndTheBarHoldsTheActions() async throws {
+    /// The tools are in the window's title row, over the board's middle, as Excalidraw's one row
+    /// (Emil, 17 November 2026: "what if we make it shrink more depending on size?"), stepping down
+    /// at the owner's three windows: Full Screen at 1400 and the sidebar and the list beside a board
+    /// 1100 wide hold every tool; the 1400-pt window beside them drops the folder and folds the lock,
+    /// the hand, the picture and the eraser into the tools' More; a narrow window puts them back on
+    /// the board, under the bar. The board runs under the row; the hint is under the tools, on the
+    /// board; the bar keeps its height; on its right are only a note's Share and More.
+    @Test func theToolsAreInTheBarsMiddleOverTheBoard() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
         let board = try #require(try c.mainContext.fetch(FetchDescriptor<Note>()).first { $0.title == "Publishing flow" })
-        let (w, web, canvas) = try await AppSnapshotTests.withLastNote(c, board.title) { try await CanvasNativeUITests.boardWindow(c, board, dark: false) }
+        let (w, web, canvas) = try await AppSnapshotTests.withLastNote(c, board.title) {
+            try await CanvasNativeUITests.boardWindow(c, board, size: CGSize(width: 1700, height: 1000), dark: false)
+        }
         defer { w.close() }
         _ = try await CanvasNativeUITests.settledView(w, web)
-        let area = web.convert(web.bounds, to: nil)
-        let palette = try #require(await Self.frame("canvas.palette", in: w), "the palette")
-        #expect(abs(palette.midX - area.midX) <= 2, "in the middle of the board: \(palette.midX) vs \(area.midX)")
-        #expect(abs(area.maxY - palette.maxY - CanvasToolPalette.top) <= 2, "at the board's top: \(area.maxY - palette.maxY)")
-        #expect(abs(palette.width - CanvasToolPalette.width(CanvasToolPalette.groups)) <= 2 && abs(palette.height - CanvasToolPalette.height) <= 2,
-                "its measures: \(palette.size)")
-        // No chin: as much glass under the tools as over them.
-        let rect = try #require(await Self.frame("canvas.tool.rectangle", in: w))
-        #expect(abs((rect.minY - palette.minY) - (palette.maxY - rect.maxY)) <= 1, "even padding: \(rect) in \(palette)")
-        // The hint under it.
-        let hint = try #require(await Self.frame("canvas.hint", in: w), "the hint")
-        #expect(hint.maxY <= palette.minY - 4 && abs(hint.midX - area.midX) <= 2, "under the palette, centred: \(hint)")
-        // Clicks.
         let root = try #require(w.contentView?.superview)
-        func lands(_ p: CGPoint) -> NSView? { root.hitTest(root.convert(p, from: nil)) }
-        func onBoard(_ p: CGPoint) -> Bool { lands(p).map { $0 === web || $0.isDescendant(of: web) } ?? false }
-        for (name, p) in [("left of it", CGPoint(x: palette.minX - 30, y: palette.midY)), ("right of it", CGPoint(x: palette.maxX + 30, y: palette.midY)),
-                          ("on the hint", CGPoint(x: hint.midX, y: hint.midY)), ("under the hint", CGPoint(x: hint.midX, y: hint.minY - 20)),
-                          ("between the palette and the hint", CGPoint(x: palette.midX, y: (palette.minY + hint.maxY) / 2))] {
+        @MainActor func lands(_ p: CGPoint) -> NSView? { root.hitTest(root.convert(p, from: nil)) }
+        @MainActor func onBoard(_ p: CGPoint) -> Bool { lands(p).map { $0 === web || $0.isDescendant(of: web) } ?? false }
+        @MainActor func inToolbarItem(_ p: CGPoint) -> Bool {
+            var v = lands(p)
+            while let x = v { if String(describing: type(of: x)).contains("NSToolbarItemViewer") { return true }; v = x.superview }
+            return false
+        }
+        @MainActor func shown(_ id: String) -> Bool {
+            let enhanced = NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface")
+            NSApp.accessibilitySetValue(true, forAttribute: enhanced)
+            defer { NSApp.accessibilitySetValue(false, forAttribute: enhanced) }
+            guard let e = MacEmptyDetailTests.element(id, in: w), let f = e.value(forKey: "accessibilityFrame") as? NSRect else { return false }
+            return f.width > 0
+        }
+        /// Checks the bar at this window: where the tools are and which show. The bar's frames are
+        /// read off its views: what SwiftUI tells accessibility of a bar item's content goes stale
+        /// as the window changes size (the palette stayed 502 pt wide there, folded to 357).
+        @MainActor func check(_ at: String, tools want: BoardToolbar.Tools, crumb: Bool?) async throws {
+            await MacWindowChromeTests.settle(w, 20)
+            // The bar follows the window a turn later: WindowSpot reports after the window's layout,
+            // and the bar is laid out again after that (BoardToolbar.measureAgain). Wait for it.
+            @MainActor func settled() -> Bool {
+                guard let p = Self.barPalette(w) else { return !want.inBar }
+                return want.inBar && abs(p.width - BoardToolbar.toolsWidth(want)) <= 1
+            }
+            for _ in 0..<60 where !settled() { await MacWindowChromeTests.settle(w, 1) }
+            let area = web.convert(web.bounds, to: nil)
+            let bar = CGRect(x: 0, y: w.contentLayoutRect.maxY, width: w.frame.width, height: w.frame.height - w.contentLayoutRect.maxY)
+            #expect(abs(bar.height - 52) <= 1, "\(at): the bar keeps its height: \(bar.height)")
+            #expect(area.maxY >= w.frame.height - 1, "\(at): the board runs under the bar: \(area)")
+            let folded = want == .barFolded
+            let up = Self.barPalette(w)
+            let palette: CGRect
+            if want.inBar {
+                palette = try #require(up, "\(at): the tools in the bar: \(Self.barDump(w))")
+                #expect(palette.minY >= bar.minY - 0.5 && palette.maxY <= bar.maxY + 0.5, "\(at): in the title row: \(palette) in \(bar)")
+                #expect(abs(palette.width - BoardToolbar.toolsWidth(want)) <= 1, "\(at): \(folded ? "four tools in More" : "every tool"): \(palette.width)")
+                // Over the board's middle, or as near it as the name leaves room for: then the
+                // least room beside it (the name's inset, the anchor's slot, the tools' lead).
+                let name = try #require(Self.barName(w, board.title), "\(at): the name")
+                let shift = palette.midX - area.midX
+                let least = CanvasTitleField.inset + BoardToolbar.anchorSlot + BoardToolbar.toolsLead
+                #expect(abs(shift) <= 3 || (shift > 0 && palette.minX - name.maxX <= least + 3),
+                        "\(at): over the board's middle: \(palette.midX) vs \(area.midX), \(palette.minX - name.maxX) after the name")
+                // Clear of the name and of Share.
+                let share = try #require(try MacWindowChromeTests.items(w).first { $0.label == "Share" }?.frame, "\(at): Share")
+                #expect(name.maxX + 8 <= palette.minX && palette.maxX + 8 <= share.minX, "\(at): \(name) \(palette) \(share)")
+                // A click on a tool is the palette's, in the bar; the board's beside it is the board's.
+                let rectangle = CGPoint(x: palette.minX + Self.cell(.tool(.rectangle), want), y: palette.midY)
+                #expect(inToolbarItem(rectangle) && !onBoard(rectangle), "\(at): a click on a tool is the palette's: \(lands(rectangle).map { String(describing: type(of: $0)) } ?? "nothing")")
+            } else {
+                #expect(up == nil, "\(at): no tools in the bar")
+                palette = try #require(await Self.frame("canvas.palette", in: w), "\(at): the tools on the board")
+                #expect(palette.maxY <= bar.minY - CanvasToolPalette.top + 2 && abs(palette.midX - area.midX) <= 2, "\(at): on the board, under the bar: \(palette)")
+            }
+            for item in CanvasToolPalette.barFold {
+                #expect(shown(item.identifier) == !folded, "\(at): \(item.title) \(folded ? "waits in More" : "shows")")
+            }
+            if let crumb { #expect(shown("note.crumb.0") == crumb, "\(at): the folder \(crumb ? "shows" : "goes first")") }
+            // The hint, under the tools, on the board.
+            if let hint = await Self.frame("canvas.hint", in: w) {
+                if want.inBar {
+                    #expect(abs((bar.minY - hint.maxY) - CanvasHint.belowBar) <= 2, "\(at): the hint just under the bar: \(hint)")
+                } else {
+                    #expect(hint.maxY <= palette.minY, "\(at): the hint under the tools: \(hint) \(palette)")
+                }
+                #expect(abs(hint.midX - palette.midX) <= 3, "\(at): the hint under the tools' middle: \(hint.midX) vs \(palette.midX)")
+                #expect(onBoard(CGPoint(x: hint.midX, y: hint.midY)), "\(at): a click on the hint is the board's")
+            } else {
+                Issue.record("\(at): no hint under the tools")
+            }
+            // The bar's right: a note's Share and More, no library, no Comments (none here), no tools.
+            let labels = try MacWindowChromeTests.items(w).map(\.label)
+            #expect(labels.contains("Share") && labels.contains("More") && !labels.contains(CanvasLibraryPopover.title) && !labels.contains(BoardCommentUI.title), "\(at): \(labels)")
+            #expect(!CanvasTool.allCases.contains { labels.contains($0.title) } && !labels.contains { $0.hasSuffix("Full Screen") }, "\(at): no tool buttons, no Full Screen: \(labels)")
+            #expect(!labels.contains { ["Format", "Checklist", "Table", "Attach"].contains($0) }, "\(at): no writing tools: \(labels)")
+            // And none in the bar but hidden: on macOS 26 a hidden item stays drawn, frozen as it
+            // was (real window on air2, 17 Nov 2026: the palette stayed over a note, and on a board
+            // Aa, Checklist and Table took the room and pushed Share and ⋯ into »), or keeps its
+            // room (in Full Screen the sidebar's three buttons, hidden, pushed Back and the name
+            // 140 pt in). What doesn't show leaves the bar.
+            let hidden = (w.toolbar?.items ?? []).filter(\.isHidden).map { $0.label.isEmpty ? $0.itemIdentifier.rawValue : $0.label }
+            #expect(hidden.isEmpty, "\(at): in the bar but hidden: \(hidden)")
+        }
+
+        canvas.pick(.selection)
+        // The sidebar and the list beside a board 1100 wide.
+        try await check("1700 pt, the sidebar and the list", tools: .bar, crumb: true)
+        #expect(try CanvasNativeUITests.collapsed(w) == [false, false])
+        // The board's own, beside and under the bar.
+        let barBottom = w.contentLayoutRect.maxY
+        let area = web.convert(web.bounds, to: nil)
+        for (name, p) in [("under the bar", CGPoint(x: area.midX - 300, y: barBottom - 30)), ("in the middle", CGPoint(x: area.midX, y: area.midY))] {
             #expect(onBoard(p), "a click \(name) reaches the board: \(lands(p).map { String(describing: type(of: $0)) } ?? "nothing")")
         }
-        #expect(!onBoard(CGPoint(x: rect.midX, y: rect.midY)), "a click on a tool is the palette's")
-        // A tool picked from the palette.
+        // Its tools work from the bar, as VoiceOver presses them (a real click: the Air's check).
         try Self.press("canvas.tool.rectangle", in: w)
-        await MacWindowChromeTests.settle(w, 5)
         for _ in 0..<60 where canvas.state.tool != .rectangle { await MacWindowChromeTests.settle(w, 1) }
         #expect(canvas.state.tool == .rectangle, "the rectangle is picked: \(canvas.state.tool)")
         try Self.press("canvas.tool.lock", in: w)
         for _ in 0..<60 where !canvas.state.locked { await MacWindowChromeTests.settle(w, 1) }
         #expect(canvas.state.locked, "the lock is on")
-        // The toolbar: the actions only.
-        let labels = try MacWindowChromeTests.items(w).map(\.label)
-        #expect(!CanvasTool.allCases.contains { labels.contains($0.title) } && !labels.contains("Shapes") && !labels.contains("More Tools"), "no tools in the bar: \(labels)")
-        #expect(labels.contains("Share") && labels.contains(CanvasLibraryPopover.title) && labels.contains(BoardCommentUI.title) && labels.contains("More"), "\(labels)")
-        #expect(!labels.contains { $0.hasSuffix("Full Screen") }, "no Full Screen button: \(labels)")
-        // A note's writing tools aren't there, not even greyed out (real-window check, 17 Nov).
-        #expect(!labels.contains { ["Format", "Checklist", "Table", "Attach"].contains($0) }, "no writing tools on a board: \(labels)")
+        canvas.send(.lock(false))
+        canvas.pick(.selection)
+        for _ in 0..<60 where canvas.state.tool != .selection || canvas.state.locked { await MacWindowChromeTests.settle(w, 1) }
+        // The 1400-pt window, the sidebar and the list beside a board 809 wide: no folder, four
+        // tools in More. In one step from 1700 pt: AppKit put the tools in » at their 1700-pt
+        // width, Share and More with them, and kept them there though they had folded to fit
+        // (18 November 2026), until the bar was laid out again.
+        w.setContentSize(CGSize(width: 1400, height: 900))
+        try await check("1400 pt, the sidebar and the list", tools: .barFolded, crumb: false)
+        // The hand, waiting in More, picked: More shows it.
+        canvas.pick(.hand)
+        for _ in 0..<60 where canvas.state.tool != .hand { await MacWindowChromeTests.settle(w, 1) }
+        #expect(CanvasToolPalette.picked(fromMore: CanvasToolPalette.barFold, canvas.state) == .hand)
+        canvas.pick(.selection)
+        // Full Screen at 1400: the board is the window, every tool over its middle.
+        try Self.press("canvas.fullScreen", in: w)
+        for _ in 0..<60 where try CanvasNativeUITests.collapsed(w) != [true, true] { await MacWindowChromeTests.settle(w, 1) }
+        try await check("Full Screen at 1400", tools: .bar, crumb: nil)
+        try Self.press("canvas.fullScreen", in: w)
+        for _ in 0..<60 where try CanvasNativeUITests.collapsed(w) != [false, false] { await MacWindowChromeTests.settle(w, 1) }
+        // A narrow window: back on the board, under the bar.
+        w.setContentSize(CGSize(width: 900, height: 800))
+        for _ in 0..<40 { await MacWindowChromeTests.settle(w, 1) }
+        try await check("900 pt", tools: .board, crumb: nil)
     }
 
     // MARK: The real-window check (17 November 2026)
@@ -316,8 +412,10 @@ import WebKit
     @Test func aBoardsBarHasNoWritingTools() async throws {
         let c = try CanvasNativeUITests.canvasLibrary()
         let writing: Set<String> = ["Format", "Checklist", "Table", "Attach"]
+        // Every item in the bar, hidden or not: on macOS 26 a hidden item stays drawn, greyed out
+        // and frozen (real window on air2, 17 Nov 2026), so a board's bar must not hold them at all.
         @MainActor func labels(_ w: NSWindow) -> Set<String> {
-            Set((w.toolbar?.items ?? []).filter { !$0.isHidden && $0.view?.window != nil }.map { $0.label })
+            Set((w.toolbar?.items ?? []).map { $0.label })
         }
         @MainActor func board(_ w: NSWindow) -> Bool { w.contentView.flatMap { MacWindowChromeTests.find(NotePageWebView.self, in: $0) } != nil }
         try await AppSnapshotTests.withLastNote(c, "Groceries") {
@@ -571,6 +669,61 @@ import WebKit
             await MacWindowChromeTests.settle(w, 10)
             try await BoardEmilFixesTests.picture(w, covering: web).write(to: dir.appending(path: "palette-narrow-\(look).png"))
         }
+    }
+
+    /// The tools' glass while they are in the window's bar, read off the views (what SwiftUI tells
+    /// accessibility of a bar item's content goes stale as the window changes size): the first view
+    /// in an item a palette tall and a few cells wide.
+    @MainActor static func barPalette(_ w: NSWindow) -> CGRect? {
+        for item in w.toolbar?.items ?? [] where !item.isHidden {
+            guard let v = item.view, v.window != nil else { continue }
+            var queue = v.subviews
+            while !queue.isEmpty {
+                let x = queue.removeFirst()
+                let f = x.convert(x.bounds, to: nil)
+                if !x.isHidden, abs(f.height - CanvasToolPalette.height) <= 1, f.width >= 8 * CanvasToolPalette.cell { return f }
+                queue += x.subviews
+            }
+        }
+        return nil
+    }
+
+    /// What's in the bar, for a failure's message: each item, and where its view is.
+    @MainActor static func barDump(_ w: NSWindow) -> String {
+        (w.toolbar?.items ?? []).map { item in
+            let place: String
+            if let v = item.view {
+                place = v.window == nil ? "not in the window" : "\(v.convert(v.bounds, to: nil).integral)"
+            } else {
+                place = "no view"
+            }
+            return "\(item.label.isEmpty ? String(item.itemIdentifier.rawValue.suffix(30)) : item.label)\(item.isHidden ? " (hidden)" : "") \(place)"
+        }.joined(separator: " | ")
+    }
+
+    /// The board's name in the bar: its title field, read off the view.
+    @MainActor static func barName(_ w: NSWindow, _ name: String) -> CGRect? {
+        for item in w.toolbar?.items ?? [] where !item.isHidden {
+            guard let v = item.view, v.window != nil,
+                  let field = MacWindowChromeTests.find(NSTextField.self, in: v, where: { $0.stringValue == name && !$0.isHidden }) else { continue }
+            return field.convert(field.bounds, to: nil)
+        }
+        return nil
+    }
+
+    /// The middle of an item's cell, from the palette's left edge, as it lays them out in the bar:
+    /// a gap between two cells, a rule between two groups.
+    static func cell(_ item: CanvasToolPalette.Item, _ tools: BoardToolbar.Tools) -> CGFloat {
+        let groups = CanvasToolPalette.groups(folding: tools == .barFolded ? CanvasToolPalette.barFold : []).filter { !$0.isEmpty }
+        var x = CanvasToolPalette.padding
+        for (g, group) in groups.enumerated() {
+            if g > 0 { x += CanvasToolPalette.rule - CanvasToolPalette.gap }
+            for each in group {
+                if each == item { return x + CanvasToolPalette.cell / 2 }
+                x += CanvasToolPalette.cell + CanvasToolPalette.gap
+            }
+        }
+        return .nan
     }
 
     /// An element's frame in the window, found by its identifier.

@@ -7,13 +7,19 @@ import SwiftUI
 struct CanvasTeamBar: View {
     let canvas: CanvasController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
+    @Environment(\.boardTools) private var place
+    private var top: CGFloat { BoardFollowUI.top(canvas, toolsInBar: place.tools.inBar) }
+    #else
+    private var top: CGFloat { BoardFollowUI.top(canvas) }
+    #endif
 
     var body: some View {
         let team = canvas.team
         VStack {
             if team.running {
                 bar(team)
-                    .padding(.top, canvas.followBanner == nil ? BoardFollowUI.top(canvas) : BoardFollowUI.top(canvas) + BoardFollowUI.height + 8)
+                    .padding(.top, canvas.followBanner == nil ? top : top + BoardFollowUI.height + 8)
                     .transition(.opacity)
             }
         }

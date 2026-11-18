@@ -87,8 +87,21 @@ enum DemoData {
         // Captures of files kept in a folder (`-demoFiles`): a "To read" folder of papers, a photo
         // and a spreadsheet next to a note.
         if ProcessInfo.processInfo.arguments.contains("-demoFiles") { loadFolderFiles(into: context) }
+        // Captures of a whiteboard (`-demoBoard`, open it with `-open "Publishing flow"`): a
+        // flowchart in Notes, the newest note there.
+        if ProcessInfo.processInfo.arguments.contains("-demoBoard") { loadBoard(into: context, main: main) }
         try? context.save()
     }
+
+    /// "Publishing flow", a whiteboard with the flowchart template on it.
+    static func loadBoard(into context: ModelContext, main: Folder) {
+        var scene = CanvasNote.emptyScene()
+        scene["elements"] = WhiteboardTemplate.flowchart.elements(titled: boardTitle)
+        let board = CanvasNote.make(in: .folder(main.id), context: context, scene: scene, named: boardTitle)
+        board.updatedAt = .now
+        board.createdAt = .now
+    }
+    static let boardTitle = "Publishing flow"
 
     /// Files in folders as Emil pictures them: Personal holds a note and an app, To Read a book.
     static func loadFolderFiles(into context: ModelContext) {
