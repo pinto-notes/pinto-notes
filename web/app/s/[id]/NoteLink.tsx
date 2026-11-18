@@ -16,6 +16,7 @@ export function appLink(id: string, hash: string): string | null {
   return /^[A-Za-z0-9_-]{22}$/.test(id) && SECRET.test(secret) ? `${appURL("s")}/${id}#${secret}` : null;
 }
 
+/// One link shape for a note and a shared folder: the app asks the server which it is.
 /// Tries Pinto Notes as the page loads; if it doesn't open within about 1.5 s, says how to get it.
 export default function NoteLink({ id }: { id: string }) {
   const [href, setHref] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export default function NoteLink({ id }: { id: string }) {
           <Mark />
           <div className={ui.group}>
             <h1 className={ui.title}>This link isn&apos;t complete</h1>
-            <p className={ui.lede}>Part of it is missing. Ask the person who shared the note to send it again.</p>
+            <p className={ui.lede}>Part of it is missing. Ask the person who shared it to send it again.</p>
           </div>
         </Card>
       </div>
@@ -50,7 +51,7 @@ export default function NoteLink({ id }: { id: string }) {
           <h1 className={ui.title}>
             <span className={s.whenTrying}>Opening Pinto Notes</span>
             <span className={s.whenOpened}>Opened in Pinto Notes</span>
-            <span className={s.whenFallback}>A note was shared with you</span>
+            <span className={s.whenFallback}>A note or folder was shared with you</span>
           </h1>
           <p className={ui.lede}>It opens in Pinto Notes, on iPhone or Mac, where you can read it or edit it with the people in it.</p>
         </div>
