@@ -132,7 +132,9 @@ const steps: Record<string, unknown[]> = {
     { waitFile: "link2.txt" },
     { joinFolder: { file: "link2.txt", folder: "Recipes" } },
     { waitNoteIn: { folder: "Recipes", title: "Pancakes", timeout: 120 } },
+    { open: "Pancakes" },
     { wait: 10 }, { checkNow: true }, { wait: 5 },
+    { dump: "jonas-back-note.json" },
     { dumpFolders: "jonas-back.json" },
     { write: "jonas-back.txt" },
     { waitFolderGone: { folder: "Recipes", timeout: 180 } },
@@ -212,7 +214,9 @@ const read = (f: string) => { try { return JSON.parse(Deno.readTextFileSync(`${o
 const folderNotes = (d: any, name: string) => (d?.folders ?? []).filter((f: any) => f.name === name).flatMap((f: any) => f.notes.map((n: any) => n.title)).sort();
 const mp = read("maja-pancakes.json"), jp = read("jonas-pancakes.json");
 check("both edits are in the note on both Macs", [mp?.text, jp?.text].every((t) => t?.includes("A pinch of salt") && t?.includes("Serve with berries")));
-if (photo) check("the photo is in the note on Jonas's Mac", jp?.text?.includes("pane-file:") === true);
+// The photo itself, not only its link in the text: a grey placeholder has the link and no file.
+const photoHere = (d: any) => (d?.files ?? []).length > 0 && d.files.every((f: any) => f.placed && f.here);
+if (photo) check("the photo opens in the note on Jonas's Mac", photoHere(jp), JSON.stringify(jp?.files ?? null));
 const mm = read("maja-after-move.json"), jm = read("jonas-after-move.json");
 check("Jonas's new note is in Maja's folder", folderNotes(mm, "Recipes").includes("Shakshuka"), folderNotes(mm, "Recipes").join(", "));
 // A check that something is gone needs the file that says so.
@@ -222,6 +226,7 @@ const jl = read("jonas-left.json");
 check("after leaving, Maja's notes are gone from Jonas's Mac", jl !== null && !folderNotes(jl, "Recipes").includes("Pancakes"), folderNotes(jl, "Recipes").join(", "));
 check("his own recipe goes back into the folder with him", folderNotes(read("jonas-back.json"), "Recipes").includes("Shakshuka"));
 check("joining again by a new link brings Maja's recipes back", folderNotes(read("jonas-back.json"), "Recipes").includes("Pancakes"), folderNotes(read("jonas-back.json"), "Recipes").join(", "));
+if (photo) check("the photo opens for Jonas again after he joins again", photoHere(read("jonas-back-note.json")), JSON.stringify(read("jonas-back-note.json")?.files ?? null));
 const je = read("jonas-end.json"), me = read("maja-end.json");
 check("stop sharing: the folder is gone from Jonas's Mac", je !== null && !folderNotes(je, "Recipes").includes("Pancakes"));
 check("stop sharing: Maja keeps her folder and notes", folderNotes(me, "Recipes").includes("Pancakes"));

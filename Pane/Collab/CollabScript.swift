@@ -53,7 +53,7 @@ import AppKit
 ///   {"leaveFolder"/"stopFolder": "Recipes"}, {"waitFolderGone": {"folder"}}, {"dumpFolders": "folders.json"},
 ///   {"checkNow": true} (the membership look, now), {"attach": "/path/photo.jpg"}, {"write": "flag.txt"},
 ///   {"windowFrame": [x, y, w, h]} (Mac: the window there, for two apps side by side)
-///   {"dump": "state.json"}                         the open note's text, its share state and saved link, who's
+///   {"dump": "state.json"}                         the open note's text, its files, its share state and saved link, who's
 ///                                                  in it, its sync line, its AI mark, and a lost-access alert
 ///   {"wait": 2}, {"quit": true}
 ///   {"keyFetchHere": true}                         the key fetch the run script makes for this account's AI is this device's own, so it asks nothing here
@@ -611,6 +611,14 @@ enum CollabScript {
                 ["by": by, "person": current.aiEditorPerson ?? NSNull(), "says": AIEdit.whose(by, person: current.aiEditorPerson), "seen": !AIEdit.isUnseen(current)]
             } ?? NSNull()
             out["folder"] = current.folder?.name ?? NSNull()
+            // The files the text shows: whether each has its place here, and its bytes (a grey
+            // placeholder has neither).
+            if let context, let files = CollabStore.shared?.library?.files {
+                out["files"] = SharedFiles.fileIDs(in: (out["text"] as? String) ?? current.body).map { id -> [String: Any] in
+                    guard let a = context.attachment(id) else { return ["placed": false, "here": false] }
+                    return ["placed": true, "here": a.sharedNoteID == nil || files.isHere(a)]
+                }
+            }
             out["deleted"] = current.deletedAt != nil
             out["inRecentlyDeleted"] = current.trashedAt != nil && current.deletedAt == nil
             if let store = CollabStore.shared {
