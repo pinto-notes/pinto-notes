@@ -146,6 +146,12 @@ fi
 
 echo "→ Sparkle signature and appcast"
 SIGN=$(ls "$DD"/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update)
+# The Keychain item can go missing (18 Nov 2026: 1.4 stopped here after notarizing): then the key
+# file in .secrets, the same key CI uses.
+if [[ -z ${SPARKLE_KEY_FILE:-} ]] && ! security find-generic-password -s "https://sparkle-project.org" -a amber-notes >/dev/null 2>&1 \
+   && [[ -f $MAIN/.secrets/sparkle-private-key.txt ]]; then
+  SPARKLE_KEY_FILE=$MAIN/.secrets/sparkle-private-key.txt
+fi
 if [[ -n ${SPARKLE_KEY_FILE:-} ]]; then
   ATTRS=$("$SIGN" --ed-key-file "$SPARKLE_KEY_FILE" "$DIST/$FILE")
 else

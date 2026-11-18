@@ -2408,8 +2408,8 @@
 		C802356D17BD239EFCE2A435 /* RowPressSlopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowPressSlopTests.swift; sourceTree = "<group>"; };
 		C960510C7E4F543FE84B35F7 /* PrivacyMode+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrivacyMode+Shared.swift"; sourceTree = "<group>"; };
 		C971B26721AA72846608E154 /* AIReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewTests.swift; sourceTree = "<group>"; };
-		CA692B2DE8DB7CD86910B630 /* AppBlobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBlobs.swift; sourceTree = "<group>"; };
 		CA56FEB9C65A7CF02607495E /* site.ts */ = {isa = PBXFileReference; path = site.ts; sourceTree = "<group>"; };
+		CA692B2DE8DB7CD86910B630 /* AppBlobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBlobs.swift; sourceTree = "<group>"; };
 		CAF5A2304A5BABB7DC001106 /* QuickOpenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickOpenTests.swift; sourceTree = "<group>"; };
 		CAFD4A4BFC0C9056F37BE154 /* SidebarAIs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarAIs.swift; sourceTree = "<group>"; };
 		CB7BCC25070DF499252B44F3 /* NotePageMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePageMacShots.swift; sourceTree = "<group>"; };
