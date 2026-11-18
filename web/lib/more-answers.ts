@@ -17,6 +17,7 @@ export const SHELVES: Shelf[] = [
       { slug: "apple-notes-ios-27", ask: "What's new in Notes on iOS 27?" },
       { slug: "apple-notes-tables", ask: "Can a table in Notes add up a column?" },
       { slug: "apple-notes-tags-smart-folders", ask: "How do tags and smart folders work?" },
+      { slug: "apple-notes-backlinks", ask: "Can I see which notes link to a note?" },
       { slug: "apple-notes-templates", ask: "Can Notes do templates?" },
       { slug: "apple-notes-budget-template", ask: "Is there a budget template for Notes?" },
       { slug: "apple-notes-habit-tracker", ask: "Can Notes track my habits?" },

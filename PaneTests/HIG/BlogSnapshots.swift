@@ -128,5 +128,67 @@ import Testing
             try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-lisbon-claude.png"))
         }
     }
+    /// For the post on backlinks in Apple Notes: a note with [[links]] as the Mac editor shows it, and
+    /// Linked From in the ••• menu of the note they link to (drawn from the menu's own items, beside
+    /// Move to… and Version History as the menu groups them). Lisbon is linked from Weekend plans and
+    /// Packing; Trip documents only says "Lisbon", so it isn't listed.
+    @Test func linkedFromForBacklinksPost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        WikiDirectory.invalidate()
+        let lisbon = ctx.createNote(in: .all, body: "Lisbon\n\nFour days of tiles, trams and pastries in May.\n\n- Alfama at sunset\n- Pastéis de Belém\n- Tram 28")
+        _ = ctx.createNote(in: .all, body: "Book club\n\nNext: Station Eleven, 4 December.")
+        let packing = ctx.createNote(in: .all, body: "Packing\n\n- [ ] Good shoes for [[Lisbon]]\n- [ ] Camera and charger\n- [ ] Rain jacket")
+        packing.updatedAt = .now.addingTimeInterval(-3600)
+        let docs = ctx.createNote(in: .all, body: "Trip documents\n\nEverything for the Lisbon trip in one place.")
+        docs.updatedAt = .now.addingTimeInterval(-7200)
+        let weekend = ctx.createNote(in: .all, body: "Weekend plans\n\n- [ ] Book flights for [[Lisbon]] on Thursday\n- [ ] Pick the next book for [[Book club]]\n- [x] Dentist at 10")
+        try ctx.save()
+        WikiDirectory.invalidate()
+
+        let size = CGSize(width: 640, height: 300)
+        let view = NavigationStack { NoteDetailView(note: weekend, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: size)
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.2))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-wiki-links-light.png"))
+
+        let menuView = Color.white.frame(width: 200, height: 100).contextMenu {
+            Button("Move to…", systemImage: "folder") {}
+            LinkedFromMenu(note: lisbon, open: { _ in }).equatable()
+            Button(NoteMoreMenu.historyTitle, systemImage: "clock.arrow.circlepath") {}
+        }
+        .modelContainer(c)
+        let mw = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: 200, height: 100), styleMask: [.borderless], backing: .buffered, defer: false)
+        mw.isReleasedWhenClosed = false
+        let host = NSHostingView(rootView: menuView)
+        host.frame = CGRect(x: 0, y: 0, width: 200, height: 100)
+        mw.contentView = host
+        defer { mw.close() }
+        try? await Task.sleep(for: .seconds(0.3))
+        host.layoutSubtreeIfNeeded()
+        // The menu a right-click made here would show (the event is handed to the views, never posted).
+        var found: NSMenu?
+        rows: for y in stride(from: 95.0, to: 5, by: -4) {
+            let p = host.convert(CGPoint(x: 100, y: y), to: nil)
+            guard let e = NSEvent.mouseEvent(with: .rightMouseDown, location: p, modifierFlags: [], timestamp: 0, windowNumber: mw.windowNumber,
+                                             context: nil, eventNumber: 0, clickCount: 1, pressure: 1),
+                  let hit = host.hitTest(host.convert(p, from: nil)) else { continue }
+            var v: NSView? = hit
+            while let view = v {
+                if let menu = view.menu(for: e), menu.items.contains(where: { $0.title == LinkedFromMenu.title }) { found = menu; break rows }
+                v = view.superview
+            }
+        }
+        let m = try #require(found)
+        let listed = try #require(m.items.first { $0.title == LinkedFromMenu.title }?.submenu).items.map(\.title)
+        #expect(listed == ["Weekend plans", "Packing"], "newest first, and Trip documents, which only says Lisbon, isn't listed: \(listed)")
+        let appearance = NSAppearance(named: .aqua)!
+        var image: NSImage?
+        appearance.performAsCurrentDrawingAppearance { image = FolderMenuShots.draw(m, dark: false, submenu: LinkedFromMenu.title) }
+        let rep = try #require(image.flatMap { NSBitmapImageRep(data: $0.tiffRepresentation ?? Data()) })
+        try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-linked-from-light.png"))
+    }
 }
 #endif

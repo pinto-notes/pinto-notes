@@ -338,6 +338,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-backlinks",
+    title: "Does Apple Notes have backlinks? No. What to do instead",
+    description: "Apple Notes links notes one way: nothing shows which notes link to a note. How to find them anyway, and a notes app that lists every backlink.",
+    excerpt: "Apple Notes can link one note to another, but never shows what links back. How to find those notes anyway, and an app that lists them.",
+    category: "Apple Notes",
+    date: "2026-11-18",
+    updated: "2026-11-18",
+    image: { src: "/blog/launch/backlinks-linked-from.webp", alt: "The note's menu in Pinto Notes with Linked From open, listing Weekend plans and Packing.", width: 960, height: 236, window: false },
+    thumb: cover("linen", "backlinks", 1600, 1000, "Three paper note cards joined by ribbons with arrows pointing both ways"),
+    draft: false,
+  },
+  {
     slug: "apple-notes-version-history",
     title: "Does Apple Notes have version history? No. What to do",
     description: "Apple Notes keeps no earlier versions of a note. What Undo, shared notes and backups can still get back, and notes apps that keep every version.",

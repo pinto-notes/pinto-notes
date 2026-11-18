@@ -107,6 +107,12 @@
   "w": 880,
   "h": 550
  },
+ "backlinks": {
+  "ground": "#e6efde",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "best-ai-notes-app": {
   "ground": "#dec9f0",
   "ink": "dark",

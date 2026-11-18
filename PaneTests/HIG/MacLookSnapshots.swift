@@ -231,11 +231,11 @@ private struct FollowingSidebar: View {
         try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-folder-menu-\(dark ? "dark" : "light").png"))
     }
 
-    /// The menu and its Move To submenu beside it, drawn from their items at 2x.
-    static func draw(_ menu: NSMenu, dark: Bool) -> NSImage {
+    /// The menu and its Move To submenu (or the one named `submenu`) beside it, drawn from their items at 2x.
+    static func draw(_ menu: NSMenu, dark: Bool, submenu: String = "Move To") -> NSImage {
         let row: CGFloat = 24, sep: CGFloat = 11, pad: CGFloat = 5, width: CGFloat = 220
         func height(_ m: NSMenu) -> CGFloat { m.items.reduce(pad * 2) { $0 + ($1.isSeparatorItem ? sep : row) } }
-        let sub = menu.items.first { $0.title == "Move To" }?.submenu
+        let sub = menu.items.first { $0.title == submenu }?.submenu
         let size = CGSize(width: 40 + width + (sub == nil ? 0 : width - 8) + 40, height: max(height(menu), (sub.map(height) ?? 0) + 80) + 60)
         let image = NSImage(size: size)
         image.lockFocusFlipped(true)
@@ -279,7 +279,7 @@ private struct FollowingSidebar: View {
         }
         panel(menu, at: CGPoint(x: 40, y: 30))
         if let sub {
-            let at = menu.items.prefix { $0.title != "Move To" }.reduce(pad) { $0 + ($1.isSeparatorItem ? sep : row) }
+            let at = menu.items.prefix { $0.title != submenu }.reduce(pad) { $0 + ($1.isSeparatorItem ? sep : row) }
             panel(sub, at: CGPoint(x: 40 + width - 8, y: 30 + at - pad))
         }
         image.unlockFocus()
