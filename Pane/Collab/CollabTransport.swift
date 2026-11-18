@@ -85,10 +85,36 @@ protocol CollabTransport: AnyObject {
 
     /// Joins the note's channel (members only). Events arrive on the main actor until `close()`.
     func join(note: UUID, onEvent: @escaping @MainActor (Collab.Event) -> Void) async throws -> CollabChannel
+
+    // MARK: Files in shared notes (20261118130000_shared_note_files.sql, SharedFiles)
+
+    /// Who owns a shared note: its files' bytes are kept in their folder.
+    func noteOwner(note: UUID) async throws -> UUID
+    /// Every file of a shared note, each with its file key sealed under the note key (`amb3x`).
+    func noteFiles(note: UUID) async throws -> [Collab.NoteFile]
+    /// Adds a file to a shared note (an owner or editor, under the note's current key). False when
+    /// the note has that file already: the first one stays.
+    func addNoteFile(_ file: Collab.NoteFile) async throws -> Bool
+    /// The note's file keys sealed again under its new key, by file id.
+    func resealNoteFiles(note: UUID, epoch: Int, keys: [UUID: String]) async throws
+    /// A file's sealed bytes, at `<owner>/shared/<note>/<blob>` in the files bucket.
+    func uploadNoteFile(owner: UUID, note: UUID, blob: UUID, data: Data) async throws
+    func downloadNoteFile(owner: UUID, note: UUID, blob: UUID) async throws -> Data
+    /// The owner, once sharing stopped: every upload in the note's folder goes.
+    func removeNoteFiles(note: UUID) async throws
 }
 
 extension CollabTransport {
     func accessEnded(note: UUID) async throws -> Collab.AccessEnded? { nil }
+
+    // A transport without files in shared notes (the screenshot gallery, older test fakes).
+    func noteOwner(note: UUID) async throws -> UUID { throw Collab.Failure.server(Collab.noFiles) }
+    func noteFiles(note: UUID) async throws -> [Collab.NoteFile] { [] }
+    func addNoteFile(_ file: Collab.NoteFile) async throws -> Bool { throw Collab.Failure.server(Collab.noFiles) }
+    func resealNoteFiles(note: UUID, epoch: Int, keys: [UUID: String]) async throws { throw Collab.Failure.server(Collab.noFiles) }
+    func uploadNoteFile(owner: UUID, note: UUID, blob: UUID, data: Data) async throws { throw Collab.Failure.server(Collab.noFiles) }
+    func downloadNoteFile(owner: UUID, note: UUID, blob: UUID) async throws -> Data { throw Collab.Failure.server(Collab.noFiles) }
+    func removeNoteFiles(note: UUID) async throws {}
 }
 
 /// An open note's live channel.
@@ -168,6 +194,19 @@ enum Collab {
         let reason: Reason
         var by_name: String? = nil
     }
+
+    /// A file in a shared note (`shared_note_files`): which upload holds its bytes, and its file
+    /// key (with its name, type and size) sealed under the note key of `epoch`.
+    struct NoteFile: Codable, Sendable, Equatable {
+        let note_id: UUID
+        let id: UUID
+        let blob: UUID
+        var epoch: Int
+        var key_ct: String
+        var added_by: UUID? = nil
+    }
+
+    static let noFiles = "Files in shared notes aren't available here."
 
     struct Wrap: Encodable, Sendable {
         let user_id: UUID

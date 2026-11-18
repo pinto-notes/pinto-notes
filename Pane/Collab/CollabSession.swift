@@ -95,6 +95,8 @@ final class CollabSession {
     private var nk: SymmetricKey { keys[epoch]! }
     /// The note key in use now (the owner's Share sheet seals links and new keys with it).
     var noteKey: SymmetricKey { nk }
+    /// Every note key this device holds for the note, by epoch (a shared note's files: SharedFiles).
+    var noteKeys: [Int: SymmetricKey] { keys }
     private let transport: any CollabTransport
     private let doc: Document
     private let body: ObjId

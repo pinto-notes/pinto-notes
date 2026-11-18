@@ -30,6 +30,10 @@ final class Attachment {
     var contentVersion: Int = 0
     /// Its bytes were edited on this device and haven't gone up yet.
     var bytesEdited: Bool = false
+    /// Someone else's file in a shared note (`shared_notes.id`), not one of the account's own: its
+    /// bytes come sealed under the note's key (SharedFiles), and sync never sends it to the
+    /// account's own files. Nil for the account's own files, including ones in its shared notes.
+    var sharedNoteID: UUID?
 
     init(id: UUID = UUID(), filename: String, contentType: String, size: Int64) {
         self.id = id
@@ -80,7 +84,10 @@ enum FileStore {
         return dir
     }
 
-    static func url(for id: UUID, filename: String) -> URL {
+    static func url(for id: UUID, filename: String) -> URL { url(for: id, filename: filename, in: root) }
+
+    /// The same, under another folder (each device in a test keeps its own).
+    static func url(for id: UUID, filename: String, in root: URL) -> URL {
         root.appending(path: id.uuidString, directoryHint: .isDirectory).appending(path: safe(filename))
     }
 

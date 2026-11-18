@@ -25,7 +25,7 @@ final class SupabaseCollabTransport: CollabTransport {
         self.me = me
     }
 
-    private static func id(_ u: UUID) -> String { u.uuidString.lowercased() }
+    nonisolated private static func id(_ u: UUID) -> String { u.uuidString.lowercased() }
 
     /// Runs a call, turning the server's hints into `Collab.Failure`.
     @discardableResult
@@ -249,6 +249,78 @@ final class SupabaseCollabTransport: CollabTransport {
         struct Row: Encodable { let note_id: String; let upto: Int64; let epoch: Int; let ct: String }
         try await call("send snapshot") {
             try await client.from("note_snapshots").insert(Row(note_id: Self.id(note), upto: upto, epoch: epoch, ct: ct), returning: .minimal).execute()
+        }
+    }
+
+    // MARK: Files in shared notes
+
+    /// Where a shared note's file bytes are: in the owner's folder, one name per upload.
+    nonisolated static func notePath(owner: UUID, note: UUID, blob: UUID) -> String {
+        "\(id(owner))/shared/\(id(note))/\(id(blob))"
+    }
+
+    func noteOwner(note: UUID) async throws -> UUID {
+        struct Row: Decodable { let owner_id: UUID }
+        return try await call("note owner") {
+            let row: Row = try await client.from("shared_notes").select("owner_id").eq("id", value: Self.id(note)).single().execute().value
+            return row.owner_id
+        }
+    }
+
+    func noteFiles(note: UUID) async throws -> [Collab.NoteFile] {
+        try await call("note files") {
+            var out: [Collab.NoteFile] = []
+            while true {
+                let rows: [Collab.NoteFile] = try await client.from("shared_note_files").select("note_id,id,blob,epoch,key_ct,added_by")
+                    .eq("note_id", value: Self.id(note)).order("id").range(from: out.count, to: out.count + Self.page - 1).execute().value
+                out += rows
+                if rows.count < Self.page { return out }
+            }
+        }
+    }
+
+    func addNoteFile(_ file: Collab.NoteFile) async throws -> Bool {
+        struct Row: Encodable { let note_id: UUID; let id: UUID; let blob: UUID; let epoch: Int; let key_ct: String }
+        return try await call("add note file") {
+            let added: [Collab.NoteFile] = try await client.from("shared_note_files")
+                .upsert(Row(note_id: file.note_id, id: file.id, blob: file.blob, epoch: file.epoch, key_ct: file.key_ct),
+                        onConflict: "note_id,id", returning: .representation, ignoreDuplicates: true)
+                .select("note_id,id,blob,epoch,key_ct,added_by").execute().value
+            return !added.isEmpty
+        }
+    }
+
+    func resealNoteFiles(note: UUID, epoch: Int, keys: [UUID: String]) async throws {
+        struct Row: Encodable { let epoch: Int; let key_ct: String }
+        try await call("reseal note files") {
+            for (file, ct) in keys {
+                try await client.from("shared_note_files").update(Row(epoch: epoch, key_ct: ct))
+                    .eq("note_id", value: Self.id(note)).eq("id", value: Self.id(file)).execute()
+            }
+        }
+    }
+
+    func uploadNoteFile(owner: UUID, note: UUID, blob: UUID, data: Data) async throws {
+        try await client.storage.from("files").upload(Self.notePath(owner: owner, note: note, blob: blob), data: data,
+                                                      options: FileOptions(contentType: "application/octet-stream", upsert: false))
+    }
+
+    func downloadNoteFile(owner: UUID, note: UUID, blob: UUID) async throws -> Data {
+        try await client.storage.from("files").download(path: Self.notePath(owner: owner, note: note, blob: blob))
+    }
+
+    func removeNoteFiles(note: UUID) async throws {
+        let folder = "\(Self.id(me))/shared/\(Self.id(note))"
+        let bucket = client.storage.from("files")
+        // A page at a time: what's removed drops out of the next listing.
+        while true {
+            let listed = try await bucket.list(path: folder, options: SearchOptions(limit: 1000))
+            let paths = listed.filter { !$0.name.isEmpty }.map { "\(folder)/\($0.name)" }
+            var gone = 0
+            for i in stride(from: 0, to: paths.count, by: 100) {
+                gone += try await bucket.remove(paths: Array(paths[i ..< min(i + 100, paths.count)])).count
+            }
+            if listed.count < 1000 || gone == 0 { return }
         }
     }
 

@@ -84,12 +84,24 @@ Deno.test("a member's AI finds a shared note under Shared with me/ and reads it"
   assertEquals(read.title, "Offsite plan");
   assertEquals(read.text, body.split("\n").map((l, i) => `${String(i + 1).padStart(6)}\t${l}`).join("\n"));
   assertStringIncludes(read.metadata.shared, "can edit");
+  assertEquals(read.metadata.files, undefined, "a note without files says nothing about them");
   // A unique title finds it too, and search reads the document.
   assertEquals((await tool(pg, sara, "fetch", { id: "Offsite plan" })).id, "Shared with me/Offsite plan.md");
   const found = await tool(pg, sara, "search", { pattern: "venue", output: "content" });
   assertEquals(found.lines, ["Shared with me/Offsite plan.md:3: - [ ] Book the venue"]);
   const ranked = await tool(pg, sara, "search", { query: "venue" });
   assertEquals(ranked.results.map((r: { id: string }) => r.id), ["Shared with me/Offsite plan.md"]);
+});
+
+Deno.test("a member's AI sees a shared note's files and photos by name, the links as they are", async () => {
+  const pg = await schemaDB();
+  const { sara, mac, body } = await shared(pg);
+  const photo = "0a000000-0000-4000-8000-0000000000f1", pdf = "0a000000-0000-4000-8000-0000000000f2";
+  await mac.type((d) => { d.body = body + `![lasagne.jpg|small](pane-file:${photo})\n[menu.pdf](pane-file:${pdf})\n![lasagne.jpg](pane-file:${photo})\n`; });
+  const read = await tool(pg, sara, "fetch", { id: "Shared with me/Offsite plan.md" });
+  assertEquals(read.metadata.files, ["lasagne.jpg", "menu.pdf"]);
+  assertStringIncludes(read.metadata.files_note, "open them in Pinto Notes");
+  assertStringIncludes(read.text, `[menu.pdf](pane-file:${pdf})`);
 });
 
 Deno.test("an AI's edit is one sealed change by the person, named for their AI, and merges with typing", async () => {

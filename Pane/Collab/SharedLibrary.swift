@@ -65,6 +65,8 @@ final class SharedLibrary {
     private var networkWatch: UUID?
     /// How many times reconcile went through the library's notes (for tests).
     private(set) var libraryScans = 0
+    /// Files and photos in the shared notes here.
+    private(set) var files: SharedFiles!
 
     enum Problem: LocalizedError {
         case locked, noDataKey, notShared, notUpToDate
@@ -86,6 +88,16 @@ final class SharedLibrary {
         nameSource = name
         self.dataKey = dataKey
         self.openKey = openKey
+        files = SharedFiles(context: context, transport: transport) { [weak self] shared in self?.noteKeys(shared) ?? [:] }
+    }
+
+    /// The note keys this device holds for a shared note, by epoch: the open session's, else the
+    /// ones its document keeps sealed under your data key.
+    func noteKeys(_ shared: UUID) -> [Int: SymmetricKey] {
+        var out: [Int: SymmetricKey] = [:]
+        if let dk = dataKey(), let record = context.sharedDocument(shared) { out = record.openKeys(dataKey: dk) }
+        if let s = sessions.values.first(where: { $0.noteID == shared && !$0.isClosed }) { out.merge(s.noteKeys) { _, b in b } }
+        return out
     }
 
     /// Hooks this library into sync: a shared note's pointer arriving from another of your
@@ -117,6 +129,7 @@ final class SharedLibrary {
             Task { await self.ensureDocument(note) }
         }
         SharedNotes.unshared = { [weak self] note in self?.forget(note) }
+        SharedFiles.download = { [weak self] a in await self?.files.download(a) ?? false }
         SharedNotes.trashed = { [weak self] note in
             guard let self else { return }
             Task { await self.trashed(note) }
@@ -376,9 +389,10 @@ final class SharedLibrary {
         // the note's own copy of the text (list, search) stopped following (persona council
         // round 7, bug 16).
         let id = note.id
-        session.onSettled = { [weak self] text in
+        session.onSettled = { [weak self, weak session] text in
             guard let self, let note = self.context.note(id) else { return }
             self.mirror(text, into: note)
+            if let session { self.files.follow(session) }
         }
         session.onKeyChanged = { [weak self, weak session] in
             guard let self, let session else { return }
@@ -403,6 +417,7 @@ final class SharedLibrary {
         }
         onOpen?(session, note)
         session.connect()
+        files.follow(session)
         return session
     }
 
@@ -428,6 +443,7 @@ final class SharedLibrary {
     func aiChanged(_ arrival: CollabSession.AIArrival, in session: CollabSession, note: Note) {
         guard note.deletedAt == nil else { return }
         mirror(session.text, into: note)
+        files.follow(session)
         let person = arrival.author == me ? nil : session.firstName(of: arrival.author) ?? AIEdit.someone
         AIEdit.arrived(note, ai: arrival.ai, person: person, previousBody: arrival.before)
         CollabScript.trace("AI change marked: \(AIEdit.whose(arrival.ai, person: person)), unseen \(AIEdit.isUnseen(note))")
@@ -490,6 +506,9 @@ final class SharedLibrary {
             guard let nk = try? await key(for: row) else { continue }
             _ = try? await adopt(shared: row.note_id, nk: nk, epoch: row.epoch, role: row.role, announce: false)
         }
+        // Files of notes you're no longer in, and the open notes' files brought up to date.
+        files.sweep()
+        for session in sessions.values where !session.isClosed { files.follow(session) }
     }
 
     /// The note has a new key: opened from your membership and taken, then what's waiting is
@@ -537,14 +556,18 @@ final class SharedLibrary {
         guard let session = await ensureDocument(note, force: true) else { throw Problem.notUpToDate }
         await session.catchUp().value
         guard session.isUpToDate else { throw Problem.notUpToDate }
-        let text = session.text
         let upto = session.lastSeen
+        // Files others put in it become yours first (fetched now if they aren't here), so none is
+        // lost when the note's own copies go.
+        let text = try await files.keepForOwner(session)
         SharedNotes.unsharing.insert(note.id)
         defer { SharedNotes.unsharing.remove(note.id) }
         let body = try Wire.seal(text, E2EE.body(note.id))
         let head = try Wire.seal(head: Wire.head(body: text, locked: false), note.id)
         try await transport.unshare(note: shared, body: body, head: head, upto: upto)
         forget(note)
+        files.forget(shared)
+        await removeNoteFolder(shared)
         note.sharedNoteID = nil
         note.body = text
         note.touch()
@@ -574,8 +597,17 @@ final class SharedLibrary {
         guard let body = try? Wire.seal("", E2EE.body(shared)), let head = try? Wire.seal(head: Wire.head(body: "", locked: false), shared) else { return }
         do {
             try await transport.unshare(note: shared, body: body, head: head, upto: .max)
+            files.forget(shared)
+            await removeNoteFolder(shared)
         } catch {
             log.error("stopping sharing a note deleted for good failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Sharing stopped: the note's own copies of its files go from your folder on the server.
+    private func removeNoteFolder(_ shared: UUID) async {
+        do { try await transport.removeNoteFiles(note: shared) } catch {
+            log.error("a shared note's files weren't removed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -807,10 +839,12 @@ final class SharedRemovals {
 
     /// Keep a Copy: the text as a note of your own, where the shared note was, or else in your
     /// first folder that isn't Shared with me (the default folder can be that one: it sorts first).
+    /// The files it shows that are on this device are kept with it, as files of your own.
     @discardableResult
-    func keep(_ removal: SharedRemoval, in context: ModelContext) -> Note? {
+    func keep(_ removal: SharedRemoval, in context: ModelContext, files root: URL = FileStore.root) -> Note? {
         shown(removal)
-        guard let text = removal.copy else { return nil }
+        guard let copy = removal.copy else { return nil }
+        let text = SharedFiles.keepCopies(in: copy, context: context, root: root)
         if let id = removal.folder, let folder = context.folder(id), folder.deletedAt == nil {
             return context.createNote(in: .folder(folder.id), body: text)
         }
