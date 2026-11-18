@@ -58,6 +58,12 @@ import AppKit
 @MainActor
 enum CollabScript {
     nonisolated static let betaBundleID = "dev.emilwagman.pane.beta"
+    /// Test builds with a data folder of their own (`dev.emilwagman.pintotest.<name>`): a Beta id maps
+    /// to the installed app's "Pane" folder (AppIdentity.dataFolder), so on a machine with Pinto Notes
+    /// installed and unsandboxed it would open that library.
+    nonisolated static let testBundlePrefix = "dev.emilwagman.pintotest."
+    /// Shows or closes a folder's Share sheet (SidebarView), by the folder's id.
+    static let showFolderShare = Notification.Name("pane.collabScriptShowFolderShare")
     /// Asks the open note's Delete question, as Delete Note in its menu does (NoteDetailView).
     static let askDelete = Notification.Name("pane.collabScriptAskDelete")
     static let reviewAI = Notification.Name("pane.collabScriptReviewAI")
@@ -67,7 +73,7 @@ enum CollabScript {
     nonisolated static func requested(arguments: [String], bundleID: String?) -> URL? {
         // The Beta, or a copy of it with an id of its own (`dev.emilwagman.pane.beta.<name>`: its own
         // container and Keychain items on a machine where the Beta is signed in to someone else).
-        guard let bundleID, bundleID == betaBundleID || bundleID.hasPrefix(betaBundleID + "."),
+        guard let bundleID, bundleID == betaBundleID || bundleID.hasPrefix(betaBundleID + ".") || bundleID.hasPrefix(testBundlePrefix),
               let i = arguments.firstIndex(of: "-collabScript"), i + 1 < arguments.count else { return nil }
         let path = arguments[i + 1]
         // A path on this machine, never an address.
@@ -289,6 +295,87 @@ enum CollabScript {
             try await AccountCrypto.shared.startFresh(confirmation: AccountCrypto.startFreshPhrase)
         case "dump":
             try write(dump(), to: value as? String ?? "state.json")
+        // Shared folders (FolderSharing): the folder's menu, its Share sheet and what happens in it.
+        case "createFolder":
+            guard let context else { throw Failed(description: "no store") }
+            let f = context.createFolder(named: value as? String ?? "Folder")
+            NoteOpener.shared.folderRequest = f.id
+        case "showFolder":
+            let f = try await folder(value as? String ?? "")
+            NoteOpener.shared.folderRequest = f.id
+        case "createIn":
+            guard let context else { throw Failed(description: "no store") }
+            let v = value as? [String: String] ?? [:]
+            let f = try await folder(v["folder"] ?? "")
+            let note = Note(body: v["text"] ?? "", folder: f)
+            context.insert(note)
+            try? context.save()
+            open(note)
+        case "showFolderShare":
+            let f = try await folder(value as? String ?? "")
+            NotificationCenter.default.post(name: showFolderShare, object: f.id)
+            try await Task.sleep(for: .seconds(1))
+        case "shareFolder":
+            // As Invite People in the folder's Share sheet: the link made (Can edit, or `access`), copied and written down.
+            let v = value as? [String: String] ?? [:]
+            let f = try await folder(v["folder"] ?? "")
+            guard let store = CollabStore.shared, let sharing = store.folders else { throw Failed(description: "sharing isn't on") }
+            let share = ShareController.current.flatMap { $0.isFolder ? $0 : nil } ?? folderController(f, sharing: sharing, store: store)
+            if v["access"] == "view" { await share.setAccess(.view) }
+            await share.shareLink()
+            guard let link = share.sharing ?? share.state.link else { throw Failed(description: share.state.problem ?? "no link") }
+            copy(link.absoluteString)
+            share.sharing = nil
+            share.shareFinished(sent: true, copied: true)
+            try write(link.absoluteString, to: v["file"] ?? "link.txt")
+        case "joinFolder":
+            // The folder's link opened: it joins, and the folder shows with its notes.
+            let v = value as? [String: String] ?? [:]
+            JoinCenter.shared.open(try link(v["file"] ?? "link.txt"))
+            let name = v["folder"] ?? ""
+            try await until(90, "the folder \(name) to arrive") { joinFailed() != nil || folderNamed(name) != nil }
+            if let why = joinFailed() { throw Failed(description: why) }
+        case "checkNow":
+            await CollabStore.shared?.checkMemberships()
+        case "waitNoteIn":
+            // Until a note with that title is in the folder here (looking every few seconds, as the app does every half minute).
+            let v = value as? [String: Any] ?? [:]
+            let name = v["folder"] as? String ?? "", title = v["title"] as? String ?? ""
+            try await waitLooking(v["timeout"] as? Double ?? 120, "\(title) in \(name)", soft: v["soft"] as? Bool == true) {
+                folderNamed(name)?.notes.contains { $0.deletedAt == nil && $0.trashedAt == nil && $0.title == title } == true
+            }
+        case "waitNoteGone":
+            let v = value as? [String: Any] ?? [:]
+            let name = v["folder"] as? String ?? "", title = v["title"] as? String ?? ""
+            try await waitLooking(v["timeout"] as? Double ?? 120, "\(title) to leave \(name)", soft: v["soft"] as? Bool == true) {
+                folderNamed(name)?.notes.contains { $0.deletedAt == nil && $0.trashedAt == nil && $0.title == title } != true
+            }
+        case "moveTo":
+            // As Move To in the note's menu: into that folder (made at the top if there isn't one).
+            guard let context else { throw Failed(description: "no store") }
+            let v = value as? [String: String] ?? [:]
+            guard let n = note(titled: v["title"] ?? "") else { throw Failed(description: "no note \(v["title"] ?? "")") }
+            let name = v["folder"] ?? ""
+            let target = folderNamed(name) ?? context.createFolder(named: name)
+            context.move(n, to: target)
+            NoteOpener.shared.folderRequest = target.id
+        case "leaveFolder", "stopFolder":
+            let f = try await folder(value as? String ?? "")
+            guard let store = CollabStore.shared, let sharing = store.folders else { throw Failed(description: "sharing isn't on") }
+            let share = ShareController.current.flatMap { $0.isFolder ? $0 : nil } ?? folderController(f, sharing: sharing, store: store)
+            if key == "leaveFolder" { share.askLeave(); await share.confirmLeave() } else { share.askStop(); await share.confirmStop() }
+            if let problem = share.state.problem { throw Failed(description: problem) }
+            NotificationCenter.default.post(name: CollabDemo.closeShare, object: nil)
+        case "waitFolderGone":
+            let v = value as? [String: Any] ?? [:]
+            let name = v["folder"] as? String ?? ""
+            try await waitLooking(v["timeout"] as? Double ?? 120, "the folder \(name) to go", soft: v["soft"] as? Bool == true) {
+                guard let f = folderNamed(name) else { return true }
+                // Kept because notes of yours are in it: no longer shared, and nobody else's notes in it.
+                return CollabStore.shared?.folders?.root(of: f) == nil && f.notes.allSatisfy { $0.deletedAt != nil || $0.sharedNoteID == nil || $0.sharedNoteID == $0.id }
+            }
+        case "dumpFolders":
+            try write(dumpFolders(), to: value as? String ?? "folders.json")
         case "quit":
             log("quit")
             #if os(macOS)
@@ -302,6 +389,50 @@ enum CollabScript {
     }
 
     // MARK: Pieces
+
+    /// A live folder by name (the first one at the top level, else any).
+    private static func folderNamed(_ name: String) -> Folder? {
+        let all = context?.allFolders().filter { $0.name == name } ?? []
+        return all.first { $0.parent == nil } ?? all.first
+    }
+
+    private static func folder(_ name: String) async throws -> Folder {
+        try await until(30, "a folder called \(name)") { folderNamed(name) != nil }
+        return folderNamed(name)!
+    }
+
+    private static func folderController(_ f: Folder, sharing: FolderSharing, store: CollabStore) -> ShareController {
+        let backend = FolderShareBackend(folder: f, sharing: sharing, store: store)
+        let c = ShareController(note: backend.standIn, backend: backend, hasApp: { false })
+        c.isFolder = true
+        c.stopSharing = { try await backend.stop() }
+        folderBackends.append(backend)
+        return c
+    }
+    private static var folderBackends: [FolderShareBackend] = []
+
+    /// Until `ok`, asking the server every few seconds rather than waiting for the half-minute look.
+    private static func waitLooking(_ seconds: Double, _ what: String, soft: Bool, _ ok: () -> Bool) async throws {
+        let end = Date.now.addingTimeInterval(seconds)
+        while !ok() {
+            guard Date.now < end else {
+                if soft { throw Missed(description: "\(what) didn't happen in \(Int(seconds)) s") }
+                throw Failed(description: "\(what) didn't happen in \(Int(seconds)) s")
+            }
+            await CollabStore.shared?.checkMemberships()
+            try await Task.sleep(for: .seconds(3))
+        }
+    }
+
+    /// Every folder here, with its notes, and which are shared folders: for the run script.
+    private static func dumpFolders() -> String {
+        let sharing = CollabStore.shared?.folders
+        let rows: [[String: Any]] = (context?.allFolders() ?? []).map { f in
+            ["name": f.name, "parent": f.parent?.name ?? "", "shared": sharing?.sharedFolderIDs.contains(f.id) == true,
+             "notes": f.notes.filter { $0.deletedAt == nil && $0.trashedAt == nil }.map { ["title": $0.title, "shared": $0.isShared] }]
+        }
+        return json(["folders": rows])
+    }
 
     private static func link(_ file: String) throws -> URL {
         let text = try String(contentsOf: dir.appending(path: file), encoding: .utf8)

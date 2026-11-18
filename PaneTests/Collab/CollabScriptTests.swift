@@ -11,6 +11,9 @@ struct CollabScriptTests {
     @Test func onlyTheBetaReadsASteps() {
         #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.beta")?.path == "/tmp/steps.json")
         #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane") == nil)
+        // A test build with a data folder of its own plays them too; Pinto Notes never does.
+        #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pintotest.maja")?.path == "/tmp/steps.json")
+        #expect(AppIdentity.dataFolder(bundleID: "dev.emilwagman.pintotest.maja") != "Pane")
         #expect(CollabScript.requested(arguments: args, bundleID: nil) == nil)
         // A copy of the Beta with its own id reads one; nothing else that starts the same way does.
         #expect(CollabScript.requested(arguments: args, bundleID: "dev.emilwagman.pane.beta.proof") != nil)

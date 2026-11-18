@@ -939,6 +939,10 @@ struct SidebarView: View {
             Text(Self.folderLimitMessage)
         }
         #endif
+        .onReceive(NotificationCenter.default.publisher(for: CollabScript.showFolderShare)) { n in
+            if let id = n.object as? UUID { sharingFolder = context.folder(id) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: CollabDemo.closeShare)) { _ in sharingFolder = nil }
         .sheet(item: $sharingFolder) { folder in
             if let store = CollabStore.shared, let sharing = store.folders {
                 ShareSheet(folder: FolderShareBackend(folder: folder, sharing: sharing, store: store))
