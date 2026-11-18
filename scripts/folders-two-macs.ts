@@ -131,7 +131,9 @@ const steps: Record<string, unknown[]> = {
     { write: "jonas-left.txt" },
     { waitFile: "link2.txt" },
     { joinFolder: { file: "link2.txt", folder: "Recipes" } },
-    { wait: 5 },
+    { waitNoteIn: { folder: "Recipes", title: "Pancakes", timeout: 120 } },
+    { wait: 10 }, { checkNow: true }, { wait: 5 },
+    { dumpFolders: "jonas-back.json" },
     { write: "jonas-back.txt" },
     { waitFolderGone: { folder: "Recipes", timeout: 180 } },
     { wait: 3 },
@@ -218,6 +220,8 @@ check("the note Jonas moved out left the folder for Maja", mm !== null && !folde
 check("Jonas keeps his copy in his own folder", folderNotes(jm, "My recipes").includes("Lentil soup"));
 const jl = read("jonas-left.json");
 check("after leaving, Maja's notes are gone from Jonas's Mac", jl !== null && !folderNotes(jl, "Recipes").includes("Pancakes"), folderNotes(jl, "Recipes").join(", "));
+check("his own recipe goes back into the folder with him", folderNotes(read("jonas-back.json"), "Recipes").includes("Shakshuka"));
+check("joining again by a new link brings Maja's recipes back", folderNotes(read("jonas-back.json"), "Recipes").includes("Pancakes"), folderNotes(read("jonas-back.json"), "Recipes").join(", "));
 const je = read("jonas-end.json"), me = read("maja-end.json");
 check("stop sharing: the folder is gone from Jonas's Mac", je !== null && !folderNotes(je, "Recipes").includes("Pancakes"));
 check("stop sharing: Maja keeps her folder and notes", folderNotes(me, "Recipes").includes("Pancakes"));

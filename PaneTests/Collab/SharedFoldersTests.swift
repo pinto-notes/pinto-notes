@@ -258,6 +258,9 @@ import Testing
         b.local(b.text + "\nA pinch of salt", selection: nil)
         a.local(a.text + "\nServe with berries", selection: nil)
         await server.eventually { a.text.contains("salt") && a.text.contains("berries") }
+        // A recipe of his own in it, so his Recipes stays when he leaves.
+        _ = note("Shakshuka\nEggs", in: try #require(folder("Recipes", on: jonas)), on: jonas)
+        await look(jonas, maja)
         let root = try #require(maja.folders.roots.keys.first)
         try await jonas.folders.leave(root)
         await look(jonas, maja)
@@ -267,6 +270,10 @@ import Testing
         _ = await jonas.store.join(try #require(maja.folders.linkURL(recipes.id)))
         await look(maja, jonas)
         #expect(folder("Recipes", on: jonas)?.notes.contains { $0.title == "Pancakes" } == true)
+        // His own recipe, still in his Recipes, goes back into the shared folder (not out of it).
+        await look(jonas, maja)
+        #expect(folder("Recipes", on: jonas)?.notes.contains { $0.title == "Shakshuka" && $0.deletedAt == nil } == true)
+        #expect(notes(in: recipes).contains("Shakshuka"))
         try await Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: maja.id)) {
             try await maja.folders.stopSharing(root)
         }

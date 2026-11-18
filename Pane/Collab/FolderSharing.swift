@@ -544,6 +544,10 @@ final class FolderSharing {
         links[id] = nil
         linkAccess[id] = nil
         guard let local = try? localID(id), let f = context.folder(local) else { forgetState(id); return }
+        // What was seen in it is forgotten: joining again, your notes still in it go back in, not out.
+        let tree = Set(([f] + descendants(of: f)).map(sharedID(of:)))
+        state.seenNotes = state.seenNotes.filter { !tree.contains($0.value) }
+        for t in tree { state.seenFolders[t] = nil }
         let isOwners = root?.isOwner == true || f.id == id
         if !isOwners {
             for sub in ([f] + descendants(of: f)).reversed() {
