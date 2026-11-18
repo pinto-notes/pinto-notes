@@ -207,6 +207,41 @@ import Testing
         #expect(try Data(contentsOf: FileStore.url(for: kept.id, filename: kept.filename, in: maja.store.library!.files.root)) == bytes)
     }
 
+    /// As on the Air: Jonas leaves (the recipe gets a new key) and comes back by a new link; the photo opens for him again.
+    @Test func aPhotoOpensAgainForSomeoneWhoLeftAndCameBack() async throws {
+        let maja = try device(server.account("Maja"), name: "Maja"), jonas = try device(server.account("Jonas"), name: "Jonas")
+        let recipes = Folder(name: "Recipes")
+        maja.context.insert(recipes)
+        let bytes = Data("pancake photo bytes".utf8)
+        let pic = Pane.Attachment(filename: "pancakes.jpg", contentType: "public.jpeg", size: Int64(bytes.count))
+        let url = FileStore.url(for: pic.id, filename: pic.filename, in: maja.store.library!.files.root)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try bytes.write(to: url)
+        maja.context.insert(pic)
+        _ = note("Pancakes\n" + pic.markdown + "\n", in: recipes, on: maja)
+        try await maja.folders.setAccess(.edit, for: recipes)
+        await maja.store.library!.files.settled()
+        _ = await jonas.store.join(try #require(maja.folders.linkURL(recipes.id)))
+        let root = try #require(maja.folders.roots.keys.first)
+        try await jonas.folders.leave(root)
+        await look(jonas, maja)
+        await look(maja)
+        await maja.store.library!.files.settled()
+        try await maja.folders.setAccess(.off, for: recipes)
+        try await maja.folders.setAccess(.edit, for: recipes)
+        _ = await jonas.store.join(try #require(maja.folders.linkURL(recipes.id)))
+        await look(maja, jonas)
+        let his = try #require(folder("Recipes", on: jonas)?.notes.first { $0.title == "Pancakes" && $0.deletedAt == nil })
+        let session = try #require(jonas.store.sessions[his.id])
+        await server.eventually {
+            if jonas.context.attachment(pic.id) == nil { jonas.store.library!.files.follow(session) }
+            return jonas.context.attachment(pic.id) != nil
+        }
+        let theirs = try #require(jonas.context.attachment(pic.id))
+        #expect(await jonas.store.library!.files.download(theirs))
+        #expect(try Data(contentsOf: FileStore.url(for: theirs.id, filename: theirs.filename, in: jonas.store.library!.files.root)) == bytes)
+    }
+
     // MARK: What comes out
 
     @Test func aNoteMovedOutLeavesTheFolderForEveryoneAndTheMoverKeepsACopy() async throws {

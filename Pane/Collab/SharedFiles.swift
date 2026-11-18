@@ -185,10 +185,16 @@ final class SharedFiles {
     func settle(_ session: CollabSession) async {
         let shared = session.noteID
         let ids = Self.fileIDs(in: session.text)
-        var known = rows[shared]
-        if known == nil || (ids.contains { known?[$0] == nil } && mayLook(shared)) { known = await look(shared) ?? known }
-        guard let known else { return }
         let keys = self.keys(shared).merging(session.noteKeys) { _, b in b }
+        var known = rows[shared]
+        // Looked at again when a file is missing from the list, or listed under a key this device
+        // doesn't have (the list from before you left and joined again; the Air's grey photo).
+        let stale = ids.contains { id in
+            guard let row = known?[id] else { return true }
+            return context.attachment(id) == nil && keys[row.epoch] == nil
+        }
+        if known == nil || (stale && mayLook(shared)) { known = await look(shared) ?? known }
+        guard let known else { return }
         let canEdit = !session.isViewOnly
         var placed = false
         for id in ids {
