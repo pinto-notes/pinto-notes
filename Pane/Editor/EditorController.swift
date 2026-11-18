@@ -28,6 +28,10 @@ final class EditorController {
     /// Room kept free under the note's last line for something laid over the bottom (iPhone
     /// tips), so the text can always scroll clear of it.
     var bottomReserve: CGFloat = 0
+    /// The shared note's session this editor shows now (nil: not a shared note). One editor
+    /// serves every note in a window, so a session opened earlier still holds hooks into it: they
+    /// do nothing unless their session is this one.
+    @ObservationIgnored var wiredSession: ObjectIdentifier?
     /// Collaboration (prototype): other people's carets in a shared note, drawn over the text.
     var remoteCarets: [RemoteCaret] = []
     /// In a shared note, Undo takes back only your own edits.

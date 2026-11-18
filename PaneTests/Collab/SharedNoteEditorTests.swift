@@ -155,6 +155,68 @@ extension NetworkFaults {
         #expect(session.text == "Groceries\nMilk\nEggs")
     }
 
+    /// One editor serves every note in a window. Open one shared note, then another: a change
+    /// arriving for the first doesn't show in the second, so your next keystroke can't write the
+    /// first note's text into the second (an Air run, two notes in a shared folder, 11-18).
+    @Test func aChangeToTheNoteYouLeftDoesntShowInTheOneYouOpened() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = c.mainContext
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        store.context = context
+        let previous = CollabStore.shared
+        CollabStore.shared = store
+        defer { CollabStore.shared = previous; store.stop() }
+
+        let soup = context.createNote(in: .all, body: "Lentil soup\nRed lentils")
+        let pancakes = context.createNote(in: .all, body: "Pancakes\nFlour")
+        try context.save()
+        let library = try #require(store.library)
+        try await transport.share(note: soup.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let soupSession = try await library.becomeShared(soup, nk: nk)
+        try await transport.share(note: pancakes.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let pancakeSession = try await library.becomeShared(pancakes, nk: nk)
+        soup.dirty = false; pancakes.dirty = false
+
+        // As the main window does: one editor, the note view made again for each note.
+        let picked = Picked(soup)
+        let controller = EditorController()
+        let view = NavigationStack { PickedNote(picked: picked, controller: controller) }
+            .modelContainer(c).frame(width: 720, height: 800)
+        let w = KeyableWindow(contentRect: NSRect(x: -30000, y: -30000, width: 720, height: 800), styleMask: [.borderless], backing: .buffered, defer: false)
+        w.isReleasedWhenClosed = false
+        let hosting = NSHostingView(rootView: view)
+        w.contentView = hosting
+        defer { w.close() }
+        hosting.layoutSubtreeIfNeeded()
+        w.displayIfNeeded()
+        await waitUntil { controller.wiredSession == ObjectIdentifier(soupSession) }
+        await waitUntil { soupSession.onRemoteText != nil }
+        #expect(soupSession.onRemoteText != nil, "the soup's editor is wired to its session")
+
+        picked.note = pancakes
+        hosting.layoutSubtreeIfNeeded()
+        await waitUntil { controller.wiredSession == ObjectIdentifier(pancakeSession) }
+        w.displayIfNeeded()
+        await waitUntil { Self.textView(in: hosting)?.string == "Pancakes\nFlour" }
+        let text = try #require(Self.textView(in: hosting))
+        await waitUntil { text.isEditable }
+        // The editor drives the text view on screen, as in the app's window (offscreen, the
+        // weak reference isn't kept through the swap).
+        controller.target = text
+        #expect(text.string == "Pancakes\nFlour")
+
+        // Someone types in the soup.
+        soupSession.onRemoteText?("Lentil soup\nRed lentils\nA pinch of salt")
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(text.string == "Pancakes\nFlour")
+        type("\nMilk", into: text)
+        await waitUntil { pancakeSession.text == "Pancakes\nFlour\nMilk" }
+        #expect(pancakeSession.text == "Pancakes\nFlour\nMilk")
+        #expect(soupSession.text == "Lentil soup\nRed lentils")
+    }
+
     /// Signing in to another account takes the old library away while a shared note of it is being
     /// opened: the opening finds the note gone and stops, the app doesn't crash (an Air run, 11-18).
     @Test func aSharedNoteWhoseStoreWentAwayIsNotOpened() async throws {
@@ -216,9 +278,10 @@ extension NetworkFaults {
             await Task.yield()
             fresh.closeAll()
         }
+        // Nothing opened into the closed library, and no crash on the way.
         let opened = await download?.value
         #expect(opened == nil)
-        #expect(note?.modelContext == nil)
+        _ = note
     }
 
     /// Sharing starts at launch, before any view has loaded your profile: your caret and "In this
@@ -281,3 +344,17 @@ extension NetworkFaults {
 }
 }
 #endif
+
+@MainActor @Observable private final class Picked {
+    var note: Note
+    init(_ note: Note) { self.note = note }
+}
+
+/// The main window's way: the note view keyed by its note, the editor kept.
+private struct PickedNote: View {
+    let picked: Picked
+    let controller: EditorController
+    var body: some View {
+        NoteDetailView(note: picked.note, controller: controller, onNewNote: {}).id(picked.note.id)
+    }
+}

@@ -12,7 +12,8 @@
 // never the installed Pinto Notes' library) and this Mac's local stack as its backend, at
 // 127.0.0.1:56421, which each Air reaches through `ssh -R`. CollabScript plays each side's steps
 // through the app's own code: no input events are posted. Each Air films its screen
-// (screencapture, in the rig's runner, which has the Screen Recording grant). Take the fleet's
+// (screencapture, in the rig's runner, which has the Screen Recording grant); the apps are told to
+// leave notes showing while the screen is recorded (privacy mode would cover them). Take the fleet's
 // screens first (fleet run airs --need screen ...). The two accounts (folders-<run>-*@example.com)
 // are deleted at the end.
 const apps = Deno.args.filter((a) => a.replace(/\/$/, "").endsWith(".app")), photo = Deno.args.find((a) => /\.(jpe?g|png|heic)$/i.test(a));
@@ -167,7 +168,7 @@ try {
   await sleep(2);
   for (const host of new Set(hosts)) recorders[host] = (await airrun(host, `rm -f ~/folders/${host}.mov; nohup screencapture -V ${filmSeconds} -x ~/folders/${host}.mov >/dev/null 2>&1 & echo $!`)).split("\n")[0].trim();
   for (const p of people) {
-    await airrun(p.host, `open -n ~/${p.dir}/PintoTest.app --args -collabScript ${p.tmp}/folders-steps.json -PintoAppearance light; sleep 3; open ~/${p.dir}/PintoTest.app; echo ok`);
+    await airrun(p.host, `open -n ~/${p.dir}/PintoTest.app --args -collabScript ${p.tmp}/folders-steps.json -PintoAppearance light -privacyMode.whenShared nothing -privacyMode.whenInCall nothing; sleep 3; open ~/${p.dir}/PintoTest.app; echo ok`);
     pids[p.name] = await ssh(p.host, `pgrep -n -f ${p.dir}/PintoTest.app/Contents/MacOS`, true);
   }
   // Carry files across and wait for both sides to finish.

@@ -2071,6 +2071,8 @@ private struct CollabWiring: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task(id: session.map { ObjectIdentifier($0) }) {
+                // Whatever shared note this editor showed before, its session's hooks stop here.
+                controller.wiredSession = nil
                 // A shared note drawn before sharing started (a cold launch, the widget's tap):
                 // CollabStore.shared isn't observed, so nothing would tell this view when its
                 // document opens. It looks again until it does (persona council round 5).
@@ -2098,10 +2100,21 @@ private struct CollabWiring: ViewModifier {
                     own.onChange = { [weak own] in if let own { OwnUndoFile.saveSoon(id, own) } }
                 }
                 controller.ownUndo = own
-                session.onRemoteText = { [weak controller] text in controller?.target?.syncDocument(text) }
+                let wired = ObjectIdentifier(session)
+                controller.wiredSession = wired
+                // Only while this editor still shows this note: after you open another, the next
+                // change here would otherwise land in that note's text (and from there in its
+                // document), an Air run with two notes in a shared folder (11-18).
+                session.onRemoteText = { [weak controller] text in
+                    guard let controller, controller.wiredSession == wired else { return }
+                    controller.target?.syncDocument(text)
+                }
                 // Carets go straight to the text view, not through SwiftUI's next update, so they move
                 // in the same frame as the text.
-                session.onCarets = { [weak controller] carets in controller?.target?.showRemoteCarets(carets) }
+                session.onCarets = { [weak controller] carets in
+                    guard let controller, controller.wiredSession == wired else { return }
+                    controller.target?.showRemoteCarets(carets)
+                }
                 // Your caret, a few times a second (it also goes with every keystroke).
                 while !Task.isCancelled {
                     // Can view: the note is shown read-only (Recently Deleted is read-only too).
