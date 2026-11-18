@@ -217,6 +217,70 @@ extension NetworkFaults {
         #expect(soupSession.text == "Lentil soup\nRed lentils")
     }
 
+    /// Stopping sharing a note that's open in the editor: it's yours again with every word. On the
+    /// Air the open note came back empty (the editor saw it shared with no document for a moment,
+    /// showed nothing, and saved that), and an empty note is cleared away.
+    @Test func stoppingSharingANoteThatsOpenKeepsItsText() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = c.mainContext
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        store.context = context
+        let previous = CollabStore.shared
+        CollabStore.shared = store
+        defer { CollabStore.shared = previous; store.stop() }
+
+        let note = context.createNote(in: .all, body: "Pancakes\nFlour")
+        try context.save()
+        try await transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let session = try await #require(store.library).becomeShared(note, nk: nk)
+        note.dirty = false
+        let controller = EditorController()
+        let (w, text) = host(note, in: c, controller: controller)
+        defer { w.close() }
+        await waitUntil { text.string == "Pancakes\nFlour" && text.isEditable }
+        type("\nServe with berries", into: text)
+        await waitUntil { session.text == "Pancakes\nFlour\nServe with berries" }
+        await session.catchUp().value
+
+        transport.slowFiles = .milliseconds(400)
+        let library = try #require(store.library)
+        let sealer = Sealer(key: .init(size: .bits256), user: me)
+        let stop = Task { try await Wire.$testSealer.withValue(sealer) { try await library.unshare(note) } }
+        // The window draws while it stops, as the app's does.
+        for _ in 0..<12 { w.displayIfNeeded(); try await Task.sleep(for: .milliseconds(50)) }
+        try await stop.value
+        for _ in 0..<10 { w.displayIfNeeded(); try await Task.sleep(for: .milliseconds(100)) }
+        #expect(note.sharedNoteID == nil)
+        #expect(note.deletedAt == nil)
+        #expect(note.body == "Pancakes\nFlour\nServe with berries")
+        #expect(text.string == "Pancakes\nFlour\nServe with berries")
+    }
+
+    /// A membership check that began while the note was shared comes back after you stopped
+    /// sharing it: the note is yours now and stays, every word (an Air run, 11-18).
+    @Test func aCheckThatEndsAfterYouStoppedSharingLeavesYourNoteBe() async throws {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = c.mainContext
+        let transport = FakeCollabTransport(server: server, me: me)
+        let key = dataKey
+        let store = CollabStore(name: "Emil", transport: transport, dataKey: { key })
+        store.context = context
+        defer { store.stop() }
+        let note = context.createNote(in: .all, body: "Pancakes\nFlour")
+        try context.save()
+        try await transport.share(note: note.id, keyWrap: "amb3k.AA==", selfWrap: "", head: "")
+        let library = try #require(store.library)
+        _ = try await library.becomeShared(note, nk: nk)
+        try await Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: me)) { try await library.unshare(note) }
+        #expect(note.sharedNoteID == nil)
+        // What the late check does with a note it found shared and the server no longer lists.
+        library.removeLocally(note)
+        #expect(note.deletedAt == nil)
+        #expect(note.body == "Pancakes\nFlour")
+    }
+
     /// Signing in to another account takes the old library away while a shared note of it is being
     /// opened: the opening finds the note gone and stops, the app doesn't crash (an Air run, 11-18).
     @Test func aSharedNoteWhoseStoreWentAwayIsNotOpened() async throws {

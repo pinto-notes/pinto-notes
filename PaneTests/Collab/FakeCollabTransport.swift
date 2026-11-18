@@ -232,6 +232,12 @@ final class FakeCollabTransport: CollabTransport {
     /// What collab_unshare was sent: the owner's text, sealed under their data key.
     private(set) var unshared: [UUID: String] = [:]
 
+    /// How long removing a note's files takes (the network): nil, at once.
+    var slowFiles: Duration?
+    func removeNoteFiles(note: UUID) async throws {
+        if let slowFiles { try? await Task.sleep(for: slowFiles) }
+    }
+
     func unshare(note: UUID, body: String, head: String, upto: Int64) async throws {
         try call("unshare")
         guard server.role(note, me) == "owner" else { throw Collab.Failure.notOwner }

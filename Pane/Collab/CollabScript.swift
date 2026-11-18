@@ -92,6 +92,16 @@ enum CollabScript {
     private static var skipIntro: (() -> Void)?
     private static var context: ModelContext?
     private static var current: Note?
+    private static var lastEditorLine = ""
+    /// The editor takes typing, and it's the open note's: just after a step opens a note, the one
+    /// shown before is still on screen for a moment (a person can't type into it as it goes).
+    private static func editorReady() -> Bool {
+        guard let view = editor(), view.isEditable else { return false }
+        #if os(macOS)
+        if let id = current?.id, let shown = view.core.folds.noteID, shown != id { return false }
+        #endif
+        return true
+    }
     /// Where the steps' files and log are: the steps file's folder, so two test apps on one Mac
     /// (one per account) keep theirs apart.
     private static var dir = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -635,20 +645,26 @@ enum CollabScript {
     private static func editorText() -> String? { editor()?.text }
     #else
     private static func editor() -> PaneTextView? {
-        func find(_ v: NSView) -> PaneTextView? {
-            if let t = v as? PaneTextView, t.window != nil, !t.isHidden { return t }
-            for s in v.subviews { if let t = find(s) { return t } }
-            return nil
+        // SwiftUI can keep the note shown before alive in the window, out of sight: the editor of
+        // the note these steps opened, else the first one on screen.
+        var found: [PaneTextView] = []
+        func find(_ v: NSView) {
+            if let t = v as? PaneTextView, t.window != nil, !t.isHiddenOrHasHiddenAncestor { found.append(t) }
+            for s in v.subviews { find(s) }
         }
-        for w in NSApp.windows where w.isVisible { if let c = w.contentView, let t = find(c) { return t } }
-        return nil
+        for w in NSApp.windows where w.isVisible { if let c = w.contentView { find(c) } }
+        let id = current?.id
+        let pick = id.flatMap { id in found.last(where: { $0.core.folds.noteID == id }) } ?? found.first
+        let line = "editor: \(found.count) found, open note \(id.map { String($0.uuidString.prefix(8)) } ?? "none"), took \(pick?.core.folds.noteID.map { String($0.uuidString.prefix(8)) } ?? "none")"
+        if line != lastEditorLine { lastEditorLine = line; log(line) }
+        return pick
     }
     private static func editorText() -> String? { editor()?.string }
     #endif
 
     /// Ticks the box of the item with `item` in it the way a tap (or a click) on its circle does.
     private static func tick(_ item: String) async throws {
-        try await until(60, "the editor to take a tick") { editor()?.isEditable == true }
+        try await until(60, "the editor to take a tick") { editorReady() }
         let view = editor()!
         #if os(iOS)
         let all = view.text as NSString
@@ -672,7 +688,7 @@ enum CollabScript {
     }
 
     private static func replace(_ words: String, with new: String) async throws {
-        try await until(60, "the editor to take typing") { editor()?.isEditable == true }
+        try await until(60, "the editor to take typing") { editorReady() }
         let view = editor()!
         #if os(iOS)
         if !view.isFirstResponder { view.becomeFirstResponder(); try await Task.sleep(for: .seconds(0.5)) }
@@ -695,7 +711,7 @@ enum CollabScript {
     /// Return asks the editor first, so lists continue.
     private static func type(_ text: String, after anchor: String?) async throws {
         // A shared note is read-only until its document has opened.
-        try await until(60, "the editor to take typing") { editor()?.isEditable == true }
+        try await until(60, "the editor to take typing") { editorReady() }
         let view = editor()!
         #if os(iOS)
         if !view.isFirstResponder { view.becomeFirstResponder(); try await Task.sleep(for: .seconds(0.5)) }

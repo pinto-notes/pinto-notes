@@ -476,7 +476,7 @@ final class SharedLibrary {
             guard let row = byNote[shared] else {
                 // Not listed: checked with the note itself before anything is taken away, so a
                 // list that came back short never empties the library.
-                if await isMember(shared) == false { removeLocally(note) }
+                if await isMember(shared) == false, note.sharedNoteID == shared { removeLocally(note) }
                 continue
             }
             if note.trashedAt != nil {
@@ -574,13 +574,16 @@ final class SharedLibrary {
         let body = try Wire.seal(text, E2EE.body(note.id))
         let head = try Wire.seal(head: Wire.head(body: text, locked: false), note.id)
         try await transport.unshare(note: shared, body: body, head: head, upto: upto)
+        // The note takes its text back in the same step as its document goes, with no wait between:
+        // an open editor never sees a shared note without a document.
         forget(note)
         files.forget(shared)
-        await removeNoteFolder(shared)
         note.sharedNoteID = nil
         note.body = text
         note.touch()
         context.saveOrReport()
+        CollabScript.trace("stopped sharing a note: \(text.count) characters kept")
+        await removeNoteFolder(shared)
     }
 
     /// A shared note you deleted for good: its document goes. Someone else's you leave (as in Apple
@@ -650,6 +653,9 @@ final class SharedLibrary {
     /// text it had. `byYou`: you left (Leave Note, or deleting it); otherwise you're told, once
     /// (`onLostAccess`).
     func removeLocally(_ note: Note, byYou: Bool = false) {
+        // Not shared (anymore): it's yours, and nothing takes it away. A check that started before
+        // you stopped sharing it can come back after (an Air run: the recipe came back empty).
+        guard note.sharedNoteID != nil else { return }
         if note.sharedNoteID == note.id {
             // The newest text this device has: the open document's, else the stored one's (the
             // note's own copy can be behind when it wasn't open).
@@ -745,12 +751,12 @@ final class SharedLibrary {
         note.sharedDocument = nil
     }
 
-    /// Closes every open session for good (signing out, or the library replaced): what's stored
-    /// stays, and opens again with the next library.
     /// A note this library can still work on: not closed (signed out, or into another account),
     /// and the note still in its store. A download that finishes after either stops there.
     private func alive(_ note: Note) -> Bool { !closed && note.modelContext != nil }
 
+    /// Closes every open session for good (signing out, or the library replaced): what's stored
+    /// stays, and opens again with the next library.
     func closeAll() {
         closed = true
         for s in sessions.values { s.close() }

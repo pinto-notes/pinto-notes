@@ -190,7 +190,15 @@ final class FolderSharing {
     private func folderFor(_ row: Collab.FolderRow, root: Root, parent: Folder?) throws -> Folder? {
         let id = try localID(row.id)
         state.sharedID[id] = row.id
-        if let f = context.folder(id) { return f }
+        if let f = context.folder(id) {
+            // Back in a folder you left or lost: the copy that went then comes back with it.
+            if f.deletedAt != nil, row.parent_id == nil, !row.deleted, state.seenFolders[row.id] == nil {
+                f.deletedAt = nil
+                f.touch()
+                state.seenFolders[row.id] = .init(name: f.name, parent: nil)
+            }
+            return f
+        }
         guard !row.deleted else { return nil }
         let name = (try? CollabCrypto.openFolderName(row.name, fk: root.fk, root: root.id, folder: row.id)) ?? "Shared folder"
         let f = Folder(name: name, parent: parent, sortIndex: row.parent_id == nil ? -0.5 : row.sort_index)
@@ -519,7 +527,11 @@ final class FolderSharing {
         if let f = context.folder(root) {
             for n in ([f] + descendants(of: f)).flatMap(\.notes) where n.sharedNoteID == n.id && n.deletedAt == nil {
                 let others = (try? await store.transport?.members(of: n.id))?.filter { $0.user_id != me } ?? []
-                if others.isEmpty { try? await store.library?.unshare(n) }
+                guard others.isEmpty else { continue }
+                do { try await store.library?.unshare(n) } catch {
+                    log.error("a note in a folder that stopped being shared stayed shared: \(String(describing: error), privacy: .public)")
+                    CollabScript.trace("stopping sharing a note in the folder failed: \(error)")
+                }
             }
         }
     }
@@ -547,6 +559,7 @@ final class FolderSharing {
 
     private func forgetState(_ root: UUID) {
         state.roots.removeAll { $0 == root }
+        state.seenFolders[root] = nil
     }
 
     private func persist() { saveState(state) }

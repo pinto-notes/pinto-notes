@@ -193,6 +193,18 @@ import Testing
         #expect(await jonas.store.library!.files.download(theirs))
         #expect(try Data(contentsOf: FileStore.url(for: theirs.id, filename: theirs.filename, in: jonas.store.library!.files.root)) == bytes)
         #expect(!server.everythingStored.contains("pancake photo"))
+
+        // Maja stops sharing: the recipe is hers again, text and photo (on the Air it came back empty).
+        let root = try #require(maja.folders.roots.keys.first)
+        try await Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: maja.id)) {
+            try await maja.folders.stopSharing(root)
+        }
+        await look(maja, jonas)
+        #expect(pancakes.deletedAt == nil)
+        #expect(pancakes.sharedNoteID == nil)
+        #expect(pancakes.body.hasPrefix("Pancakes\n![") && pancakes.body.contains("pane-file:"))
+        let kept = try #require(SharedFiles.fileIDs(in: pancakes.body).first.flatMap { maja.context.attachment($0) })
+        #expect(try Data(contentsOf: FileStore.url(for: kept.id, filename: kept.filename, in: maja.store.library!.files.root)) == bytes)
     }
 
     // MARK: What comes out
@@ -236,6 +248,37 @@ import Testing
         #expect(server.folders.memberships(jonas.id).isEmpty)
     }
 
+    /// As on the Air: Jonas writes in a recipe, leaves (a new key), comes back by a new link, and
+    /// then Maja stops sharing. Her recipes are hers again with every word.
+    @Test func stoppingAfterSomeoneLeftAndCameBackKeepsTheOwnersText() async throws {
+        let (maja, jonas, recipes, _) = try await recipes()
+        let mine = try #require(recipes.notes.first { $0.title == "Pancakes" })
+        let theirs = try #require(folder("Recipes", on: jonas)?.notes.first { $0.title == "Pancakes" })
+        let a = try #require(maja.store.sessions[mine.id]), b = try #require(jonas.store.sessions[theirs.id])
+        b.local(b.text + "\nA pinch of salt", selection: nil)
+        a.local(a.text + "\nServe with berries", selection: nil)
+        await server.eventually { a.text.contains("salt") && a.text.contains("berries") }
+        let root = try #require(maja.folders.roots.keys.first)
+        try await jonas.folders.leave(root)
+        await look(jonas, maja)
+        await look(maja)
+        try await maja.folders.setAccess(.off, for: recipes)
+        try await maja.folders.setAccess(.edit, for: recipes)
+        _ = await jonas.store.join(try #require(maja.folders.linkURL(recipes.id)))
+        await look(maja, jonas)
+        #expect(folder("Recipes", on: jonas)?.notes.contains { $0.title == "Pancakes" } == true)
+        try await Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: maja.id)) {
+            try await maja.folders.stopSharing(root)
+        }
+        await look(maja, jonas)
+        await look(maja, jonas)
+        let kept = recipes.notes.filter { $0.deletedAt == nil }
+        #expect(kept.map(\.title).sorted() == ["Lentil soup", "Pancakes"])
+        let pancakes = kept.first { $0.title == "Pancakes" }
+        #expect(pancakes?.sharedNoteID == nil)
+        #expect(pancakes?.body.contains("A pinch of salt") == true && pancakes?.body.contains("Serve with berries") == true)
+    }
+
     @Test func whoeverStaysKeepsTheFolderAfterItsNewKey() async throws {
         let (maja, jonas, recipes, _) = try await recipes()
         let ana = try device(server.account("Ana"), name: "Ana")
@@ -272,12 +315,26 @@ import Testing
 
     @Test func stoppingSharingTakesItFromEveryoneElseAndKeepsItForTheOwner() async throws {
         let (maja, jonas, recipes, _) = try await recipes()
+        // Jonas wrote in it first: that stays in Maja's note too.
+        let mine = try #require(recipes.notes.first { $0.title == "Pancakes" })
+        let theirs = try #require(folder("Recipes", on: jonas)?.notes.first { $0.title == "Pancakes" })
+        let a = try #require(maja.store.sessions[mine.id]), b = try #require(jonas.store.sessions[theirs.id])
+        b.local(b.text + "\nA pinch of salt", selection: nil)
+        await server.eventually { a.text.contains("salt") }
         let root = try #require(maja.folders.roots.keys.first)
-        try await maja.folders.stopSharing(root)
+        // Her notes' text is sealed for her own sync again (the app's account key).
+        try await Wire.$testSealer.withValue(Sealer(key: .init(size: .bits256), user: maja.id)) {
+            try await maja.folders.stopSharing(root)
+        }
         await look(maja, jonas)
         #expect(folder("Recipes", on: jonas) == nil)
         #expect(notes(in: recipes) == ["Lentil soup", "Pancakes"])
         #expect(maja.folders.roots.isEmpty)
+        // Ordinary notes again, with every word in them (on the Air, Pancakes came back empty).
+        let kept = recipes.notes.filter { $0.deletedAt == nil }
+        #expect(kept.allSatisfy { $0.sharedNoteID == nil })
+        #expect(kept.first { $0.title == "Pancakes" }?.body == "Pancakes\nFlour, milk, eggs\nA pinch of salt")
+        #expect(kept.first { $0.title == "Lentil soup" }?.body.hasPrefix("Lentil soup\n") == true)
     }
 
     @Test func aViewerCantAddNotesToTheFolder() async throws {
