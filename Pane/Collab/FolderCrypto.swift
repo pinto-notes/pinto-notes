@@ -70,6 +70,12 @@ extension CollabCrypto {
         return "amb3w.\(epoch).\(noteEpoch).\(combined.base64EncodedString())"
     }
 
+    /// The note epoch an `amb3w` box is for, read from the box without opening it.
+    static func wrapNoteEpoch(_ wrap: String) -> Int? {
+        let parts = wrap.split(separator: ".", maxSplits: 3)
+        return parts.count == 4 ? Int(parts[2]) : nil
+    }
+
     /// The note key and its epoch, from its box under FK. `epoch` is the box's FK epoch.
     static func openNoteKeyUnderFolder(_ sealed: String, fk: SymmetricKey, root: UUID, note: UUID) throws -> (nk: SymmetricKey, folderEpoch: Int, noteEpoch: Int) {
         let parts = sealed.split(separator: ".", maxSplits: 3)

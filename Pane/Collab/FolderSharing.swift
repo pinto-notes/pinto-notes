@@ -355,8 +355,10 @@ final class FolderSharing {
                 } else {
                     state.seenNotes[row.note_id] = row.folder_id
                 }
-                // A note of yours with a newer key than the folder has for it.
-                if row.owner_id == me, let k = store.keys[row.note_id], k.epoch > row.note_epoch,
+                // A note of yours with a newer key than the folder has for it. The server says the
+                // note's epoch; the epoch the folder's wrap holds is in the wrap.
+                if row.owner_id == me, let k = store.keys[row.note_id],
+                   k.epoch > (CollabCrypto.wrapNoteEpoch(row.folder_wrap) ?? row.note_epoch),
                    let wrap = try? CollabCrypto.sealNoteKeyUnderFolder(k.nk, fk: root.fk, root: root.id, epoch: root.epoch, note: row.note_id, noteEpoch: k.epoch) {
                     try? await transport.rewrapNote(root: root.id, note: row.note_id, wrap: wrap)
                 }

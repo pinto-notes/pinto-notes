@@ -90,7 +90,9 @@ final class MemoryFolderServer {
         guard role(root, user) != nil else { return [] }
         return (placed[root] ?? [:]).compactMap { note, p in
             guard let owner = notes.noteOwner(note) else { return nil }
-            return Collab.FolderNote(note_id: note, folder_id: p.folder, folder_wrap: p.wrap, owner_id: owner, note_epoch: p.noteEpoch, joined: notes.isMember(note, user))
+            return Collab.FolderNote(note_id: note, folder_id: p.folder, folder_wrap: p.wrap, owner_id: owner,
+                                     // As collab_folder_notes: the note's own epoch, not the one its folder wrap holds.
+                                     note_epoch: notes.noteEpoch(note) ?? p.noteEpoch, joined: notes.isMember(note, user))
         }
     }
 
@@ -235,14 +237,6 @@ final class MemoryFolderServer {
     }
 
     func linkKind(_ id: String) -> String? { links[id] != nil ? "folder" : nil }
-}
-
-extension CollabCrypto {
-    /// The note epoch an `amb3w` box is for.
-    static func wrapNoteEpoch(_ wrap: String) -> Int? {
-        let parts = wrap.split(separator: ".", maxSplits: 3)
-        return parts.count == 4 ? Int(parts[2]) : nil
-    }
 }
 
 extension MemoryCollabTransport: FolderTransport {
