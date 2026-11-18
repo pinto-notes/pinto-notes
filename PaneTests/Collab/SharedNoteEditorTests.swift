@@ -188,10 +188,10 @@ extension NetworkFaults {
         #expect(!note.dirty)
     }
 
-    /// A file dropped, pasted or attached into a shared note isn't taken (the others couldn't open
-    /// it, SharedNoteLimits): no file is made and the text stays as it was. Into a note of your own
-    /// the same drop is taken.
-    @Test func aSharedNoteTakesNoFiles() async throws {
+    /// A file dropped, pasted or attached into a shared note you can edit is taken, as into a note
+    /// of your own (SharedFiles then puts it in the note for everyone). One you can only view takes
+    /// none (SharedNoteLimitsTests.filesGoIntoSharedNotesYouCanEdit).
+    @Test func aSharedNoteTakesFiles() async throws {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let context = c.mainContext
         let previous = CollabStore.shared
@@ -207,17 +207,10 @@ extension NetworkFaults {
         let controller = EditorController()
         let (w, _) = host(shared, in: c, controller: controller)
         defer { w.close() }
-        #expect(controller.addFiles([file]).isEmpty)
-        #expect(controller.addData(Data("x".utf8), "x.txt", .plainText) == nil)
-        #expect(try context.fetch(FetchDescriptor<Pane.Attachment>()).isEmpty)
-        #expect(shared.body == "Packing\nSocks")
-
-        let mine = context.createNote(in: .all, body: "Mine")
-        try context.save()
-        let own = EditorController()
-        let (w2, _) = host(mine, in: c, controller: own)
-        defer { w2.close() }
-        #expect(own.addFiles([file]).count == 1)
+        let added = controller.addFiles([file])
+        #expect(added.count == 1)
+        defer { for a in added { FileStore.remove(a) } }
+        #expect(added.first?.sharedNoteID == nil, "your file stays yours")
     }
 }
 }
