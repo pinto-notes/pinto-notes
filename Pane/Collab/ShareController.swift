@@ -369,7 +369,7 @@ enum ShareCopy {
         }
     }
     /// What a shared folder doesn't share yet.
-    static let folderNotYet = "Notes with an app or sub-notes stay yours and aren't shared yet."
+    static let folderNotYet = "Notes with an app stay yours and aren't shared yet."
     static func removeFolderMessage(_ person: ShareState.Person) -> String {
         "\(first(person.name)) can't open this folder or its notes anymore. Notes they made in it leave with them. The link changes, so the old one stops working."
     }

@@ -311,7 +311,7 @@ Tests: PaneTests/Collab/SharedFoldersTests.swift (two and three people over the 
 
 ### Not yet
 
-- Note apps and sub-notes in shared notes. The Share sheet says so: notes with an app or sub-notes stay yours and aren't shared.
+- Note apps in shared notes. The folder's Share sheet says so: notes with an app stay yours and aren't shared into the folder. (Sub-notes are folders now, so they're shared as the folder's subfolders.)
 - The AI can't make subfolders in a shared folder, move a note into or out of one, or delete inside one; it says so.
 - Version history of folder moves.
 
