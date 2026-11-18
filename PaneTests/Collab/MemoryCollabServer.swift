@@ -52,8 +52,76 @@ final class MemoryCollabServer {
     /// Every row the server holds, as text: for tests that check what never reaches it.
     var everythingStored: String {
         [String(describing: identities), String(describing: notes), String(describing: members), String(describing: updates),
-         String(describing: snapshots), String(describing: links)].joined(separator: "\n")
+         String(describing: snapshots), String(describing: links), String(describing: noteFiles),
+         blobs.values.map { String(decoding: $0, as: UTF8.self) }.joined(separator: "\n")].joined(separator: "\n")
     }
+
+    // MARK: Files in shared notes (20261118130000_shared_note_files.sql)
+
+    /// `shared_note_files`, by note and file.
+    private(set) var noteFiles: [UUID: [UUID: Collab.NoteFile]] = [:]
+    /// The files bucket's shared folders: `<owner>/shared/<note>/<blob>` to sealed bytes.
+    private(set) var blobs: [String: Data] = [:]
+
+    static func path(owner: UUID, note: UUID, blob: UUID) -> String {
+        "\(owner.uuidString.lowercased())/shared/\(note.uuidString.lowercased())/\(blob.uuidString.lowercased())"
+    }
+
+    func noteOwner(_ user: UUID, note: UUID) throws -> UUID {
+        guard role(note, user) != nil, let owner = notes[note]?.owner else { throw Collab.Failure.notMember }
+        return owner
+    }
+
+    /// The guard trigger and policies: an owner or editor, under the current key, the first one stays.
+    func addNoteFile(_ user: UUID, _ f: Collab.NoteFile) throws -> Bool {
+        guard ["owner", "editor"].contains(role(f.note_id, user) ?? "") else { throw Collab.Failure.readOnly }
+        guard SharedFileCrypto.epoch(of: f.key_ct) == f.epoch else { throw Collab.Failure.server("bad_epoch") }
+        guard f.epoch == notes[f.note_id]?.epoch else { throw Collab.Failure.staleEpoch }
+        guard noteFiles[f.note_id]?[f.id] == nil else { return false }
+        var row = f
+        row.added_by = user
+        noteFiles[f.note_id, default: [:]][f.id] = row
+        return true
+    }
+
+    func listNoteFiles(_ user: UUID, note: UUID) -> [Collab.NoteFile] {
+        guard role(note, user) != nil else { return [] }
+        return noteFiles[note].map { Array($0.values) } ?? []
+    }
+
+    func resealNoteFiles(_ user: UUID, note: UUID, epoch: Int, keys: [UUID: String]) throws {
+        guard ["owner", "editor"].contains(role(note, user) ?? "") else { throw Collab.Failure.readOnly }
+        guard epoch == notes[note]?.epoch else { throw Collab.Failure.staleEpoch }
+        for (id, ct) in keys where noteFiles[note]?[id] != nil {
+            guard SharedFileCrypto.epoch(of: ct) == epoch else { throw Collab.Failure.server("bad_epoch") }
+            noteFiles[note]?[id]?.epoch = epoch
+            noteFiles[note]?[id]?.key_ct = ct
+        }
+    }
+
+    /// The storage policies: an owner or editor adds in the owner's folder for the note; every member reads.
+    func upload(_ user: UUID, owner: UUID, note: UUID, blob: UUID, data: Data) throws {
+        guard ["owner", "editor"].contains(role(note, user) ?? ""), notes[note]?.owner == owner else { throw Collab.Failure.notMember }
+        blobs[Self.path(owner: owner, note: note, blob: blob)] = data
+    }
+
+    func download(_ user: UUID, owner: UUID, note: UUID, blob: UUID) throws -> Data {
+        guard role(note, user) != nil, notes[note]?.owner == owner else { throw Collab.Failure.notMember }
+        guard let data = blobs[Self.path(owner: owner, note: note, blob: blob)] else { throw Collab.Failure.server("Object not found") }
+        return data
+    }
+
+    /// The owner's own folder: theirs to empty, shared or not.
+    func removeNoteFiles(_ user: UUID, note: UUID) {
+        let prefix = "\(user.uuidString.lowercased())/shared/\(note.uuidString.lowercased())/"
+        blobs = blobs.filter { !$0.key.hasPrefix(prefix) }
+    }
+
+    /// A note's bytes lost (for tests of a file that can't be fetched).
+    func dropBlobs(_ note: UUID) { blobs = blobs.filter { !$0.key.contains("/shared/\(note.uuidString.lowercased())/") } }
+
+    /// Files of a note in the owner's folder (for tests).
+    func blobCount(_ note: UUID) -> Int { blobs.keys.filter { $0.contains("/shared/\(note.uuidString.lowercased())/") }.count }
 
     func account(_ name: String, id: UUID = UUID()) -> UUID {
         people[id] = Person(name: name)
@@ -208,6 +276,8 @@ final class MemoryCollabServer {
         members[note] = nil
         updates[note] = nil
         snapshots[note] = nil
+        // shared_note_files goes with the note (cascade); the bytes stay in the owner's folder.
+        noteFiles[note] = nil
         links = links.filter { $0.value.note != note }
     }
 
@@ -405,4 +475,20 @@ final class MemoryCollabTransport: CollabTransport {
         try server.check("join")
         return try server.join(me, note: note, onEvent: onEvent)
     }
+    func noteOwner(note: UUID) async throws -> UUID { try server.check("note_owner"); return try server.noteOwner(me, note: note) }
+    func noteFiles(note: UUID) async throws -> [Collab.NoteFile] { try server.check("note_files"); return server.listNoteFiles(me, note: note) }
+    func addNoteFile(_ file: Collab.NoteFile) async throws -> Bool { try server.check("add_note_file"); return try server.addNoteFile(me, file) }
+    func resealNoteFiles(note: UUID, epoch: Int, keys: [UUID: String]) async throws {
+        try server.check("reseal_note_files")
+        try server.resealNoteFiles(me, note: note, epoch: epoch, keys: keys)
+    }
+    func uploadNoteFile(owner: UUID, note: UUID, blob: UUID, data: Data) async throws {
+        try server.check("upload_note_file")
+        try server.upload(me, owner: owner, note: note, blob: blob, data: data)
+    }
+    func downloadNoteFile(owner: UUID, note: UUID, blob: UUID) async throws -> Data {
+        try server.check("download_note_file")
+        return try server.download(me, owner: owner, note: note, blob: blob)
+    }
+    func removeNoteFiles(note: UUID) async throws { try server.check("remove_note_files"); server.removeNoteFiles(me, note: note) }
 }

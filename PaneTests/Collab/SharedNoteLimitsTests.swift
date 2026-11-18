@@ -4,8 +4,8 @@ import Testing
 @testable import Pane
 
 /// Sharing with people in release 1.3: on for everyone signed in, with true words, and nothing
-/// offered for a shared note that isn't proven end to end (files, apps, a lock, Version History,
-/// a public web page of everyone's text). See SharedNoteLimits.
+/// offered for a shared note that isn't proven end to end (apps, a lock, Version History, a public
+/// web page of everyone's text). Files and photos are (SharedFilesTests). See SharedNoteLimits.
 @MainActor @Suite(.serialized) struct SharedNoteLimitsTests {
     static let me = CollabGallery.emil
 
@@ -38,8 +38,8 @@ import Testing
     /// The server can hold a copy of a standard account's key, so nothing about a shared note may
     /// say "end-to-end". What it does say is true either way.
     @Test func theWordsNeverPromiseEndToEnd() {
-        var lines: [String] = [ShareCopy.privacy, ShareCopy.notSharedYet, ShareCopy.leaveMessage, SharedNoteLimits.appLine, SharedNoteLimits.filesLine,
-                               SharedNoteLimits.filesTitle, SharedNoteLimits.filesMessage, SharedNoteLimits.pageLine]
+        var lines: [String] = [ShareCopy.privacy, ShareCopy.notSharedYet, ShareCopy.leaveMessage, SharedNoteLimits.appLine, SharedNoteLimits.pageLine,
+                               SharedFiles.Problem.notHere.errorDescription ?? ""]
         lines += ShareState.Access.allCases.map { ShareCopy.link($0) }
         #if os(macOS)
         lines += ShareWays.Way.allCases.map { ShareWays.line($0, shared: false) }
@@ -53,23 +53,25 @@ import Testing
         #expect(ShareCopy.privacy.contains("Only people in this note can read it."))
     }
 
-    /// A note with files or an app isn't shared with people: Share Link and the link switch say
-    /// why and ask the server nothing. A plain note is shared as before.
-    @Test func aNoteWithFilesOrAnAppIsNotSharedWithPeople() async {
-        let photo = Note(body: "Packing\n![beach.jpg](pane-file:0a000000-0000-4000-8000-0000000000f1)\n")
-        let backend = SampleShare(Self.alone())
-        let share = ShareController(note: photo, backend: backend, hasApp: { false })
-        #expect(share.notYet == SharedNoteLimits.filesLine)
-        await share.shareLink()
-        await share.setAccess(.edit)
-        #expect(backend.calls.isEmpty)
-        #expect(share.state.problem == SharedNoteLimits.filesLine && share.sharing == nil)
-        // Turning a link off is never refused.
-        await share.setAccess(.off)
-        #expect(backend.calls.isEmpty)
-
+    /// A note with an app isn't shared with people: Share Link and the link switch say why and ask
+    /// the server nothing. A note with files or photos is shared like a plain one (its files go
+    /// with it, SharedFiles).
+    @Test func aNoteWithAnAppIsNotSharedWithPeopleButOneWithFilesIs() async {
         let app = ShareController(note: Note(body: "Habit tracker\n"), backend: SampleShare(Self.alone()), hasApp: { true })
         #expect(app.notYet == SharedNoteLimits.appLine)
+        let appBackend = SampleShare(Self.alone())
+        let appShare = ShareController(note: Note(body: "Habit tracker\n"), backend: appBackend, hasApp: { true })
+        await appShare.shareLink()
+        #expect(appBackend.calls.isEmpty && appShare.state.problem == SharedNoteLimits.appLine && appShare.sharing == nil)
+        // Turning a link off is never refused.
+        await appShare.setAccess(.off)
+        #expect(appBackend.calls.isEmpty)
+
+        let photoBackend = SampleShare(Self.alone())
+        let photo = ShareController(note: Note(body: "Lasagne\n![lasagne.jpg](pane-file:0a000000-0000-4000-8000-0000000000f1)\n"), backend: photoBackend, hasApp: { false })
+        #expect(photo.notYet == nil)
+        await photo.shareLink()
+        #expect(photoBackend.calls == ["access Can edit"] && photo.sharing != nil)
 
         let plainBackend = SampleShare(Self.alone())
         let plain = ShareController(note: Note(body: "Groceries\n- [ ] Milk\n"), backend: plainBackend, hasApp: { false })
@@ -89,14 +91,18 @@ import Testing
         #expect(!SharedNoteLimits.hasFiles("A note about pane-file: links"))
     }
 
-    /// No file or photo goes into a shared note (the others couldn't open it); a locked one takes
-    /// none either. An ordinary note does.
-    @Test func filesGoOnlyIntoNotesOfYourOwn() {
+    /// Files and photos go into a shared note you can edit, as into a note of your own; not into
+    /// one you can only view, nor a locked note.
+    @Test func filesGoIntoSharedNotesYouCanEdit() {
         let mine = Note(body: "Mine")
         let shared = Note(body: "Ours")
         shared.sharedNoteID = UUID()
         #expect(SharedNoteLimits.allowsFiles(mine))
-        #expect(!SharedNoteLimits.allowsFiles(shared))
+        #expect(SharedNoteLimits.allowsFiles(shared))
+        #expect(SharedNoteLimits.allowsFiles(shared, viewOnly: false))
+        #expect(!SharedNoteLimits.allowsFiles(shared, viewOnly: true))
+        // Your own note is never view only.
+        #expect(SharedNoteLimits.allowsFiles(mine, viewOnly: true))
     }
 
     #if os(iOS)

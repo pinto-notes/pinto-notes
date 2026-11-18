@@ -176,6 +176,9 @@ extension CollabStore: ShareBackend {
         try await transport.accept(note: id, selfWrap: try CollabCrypto.selfWrap(nk, dataKey: try dataKey(), note: id, epoch: epoch))
         keys[id] = (nk, epoch)
         session.reseal(nk: nk, epoch: epoch)
+        // The note's files: each file key sealed again under the new key, so whoever starts from
+        // it (a new member) opens them. A device that misses this has the next look (SharedFiles).
+        await library?.files.rekey(session)
         // Under the new key, or nobody who starts from the server could open the note: tried again
         // until it's in.
         await session.requireSnapshot()

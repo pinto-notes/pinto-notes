@@ -106,7 +106,6 @@ struct NoteDetailView: View {
     @State private var pictureRequest: NotePicture.Request?
     @State private var confirmingSharedDelete: [Note]?
     /// A file dropped, pasted or attached into a shared note: said, not taken.
-    @State private var refusingSharedFiles = false
     @Bindable var note: Note
     let controller: EditorController
     var autofocus = false
@@ -151,7 +150,7 @@ struct NoteDetailView: View {
             #if os(iOS)
             // What the paperclip above the keyboard (FormatBar) opens: the Mac's Attach menu.
             .confirmationDialog("Attach", isPresented: $choosingAttachment, titleVisibility: .hidden) {
-                if SharedNoteLimits.allowsFiles(note) {
+                if SharedNoteLimits.allowsFiles(note, viewOnly: collab?.isViewOnly == true) {
                     Button("Choose Photo or Video…") { pickingPhotos = true }
                         .accessibilityIdentifier("attach.photo")
                     Button("Attach File…") { importing = true }
@@ -410,9 +409,6 @@ struct NoteDetailView: View {
             }
             .modifier(CollabWiring(note: note, controller: controller, showPeople: $showPeople))
             .sharedDeleteConfirmation($confirmingSharedDelete) { notes in withAnimation(.snappy) { Usage.trashed(notes); for n in notes { context.trash(n) } } }
-            .alert(SharedNoteLimits.filesTitle, isPresented: $refusingSharedFiles) {
-                Button("OK") {}
-            } message: { Text(SharedNoteLimits.filesMessage) }
             // The two-device check (CollabScript, Amber Notes Beta only): Delete Note's question, as the menu asks it.
             .onReceive(NotificationCenter.default.publisher(for: CollabScript.askDelete)) { _ in
                 if SharedDelete.ask([note]) != nil { confirmingSharedDelete = [note] }
@@ -848,7 +844,7 @@ struct NoteDetailView: View {
     }
 
     private var vault: NoteVault { .shared }
-    private struct ImagesAsk: Equatable { var note: UUID; var pulled: Int; var files: Int }
+    private struct ImagesAsk: Equatable { var note: UUID; var pulled: Int; var files: Int; var shared = 0 }
 
     /// The editor, or for a locked note that isn't open, the lock.
     @ViewBuilder
@@ -888,7 +884,9 @@ struct NoteDetailView: View {
                     // The note's images that are on the server and not here are fetched as it opens,
                     // and again when a sync brings changes: a note's text, or file rows on their own
                     // (a picture added on another device can arrive a sync after the text that shows it).
-                    .task(id: ImagesAsk(note: note.id, pulled: sync?.remoteChangeTick ?? 0, files: sync?.filesPulledTick ?? 0)) {
+                    // A shared note's files arrive by the note (SharedFiles), not by sync.
+                    .task(id: ImagesAsk(note: note.id, pulled: sync?.remoteChangeTick ?? 0, files: sync?.filesPulledTick ?? 0,
+                                        shared: note.isShared ? CollabStore.shared?.library?.files.arrived ?? 0 : 0)) {
                         // The text is read as the fetch starts, not in the note pane's body (see `readable`).
                         guard let text = vault.text(of: note) else { return }
                         await controller.fetchMissingImages(note: note.id, body: text)
@@ -1519,8 +1517,10 @@ struct NoteDetailView: View {
         controller.suggestTitles = { [id = note.id] typed in WikiDirectory.suggestions(typed, excluding: id, in: context) }
         controller.suggestHeadings = { [note] target, typed in WikiDirectory.headingSuggestions(typed, target: target, from: note, in: context) }
         controller.download = { a in await sync?.download(a) ?? false }
-        // A shared note takes no files (SharedNoteLimits): it says so instead.
-        controller.attach = { if SharedNoteLimits.allowsFiles(note) { importing = true } else { refusingSharedFiles = note.isShared } }
+        // A note you can only view takes no files: it says so instead.
+        let canAdd = { [note] in SharedNoteLimits.allowsFiles(note, viewOnly: CollabStore.shared?.session(for: note.id)?.isViewOnly == true) }
+        let refuse = { [note, controller] in if note.isShared { controller.notice = EditorNotice(text: NoteWrites.viewOnlyMessage) } }
+        controller.attach = { if canAdd() { importing = true } else { refuse() } }
         controller.attachChoices = { choosingAttachment = true }
         // A tap in a note you can't type in: Recover only for a deleted one (persona council
         // round 4: a Can view or still-opening shared note offered to recover a "deleted" note).
@@ -1535,12 +1535,12 @@ struct NoteDetailView: View {
             }
         }
         controller.addFiles = { urls in
-            guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return [] }
+            guard canAdd() else { refuse(); return [] }
             return context.addAttachments(urls)
         }
         controller.dropAppFolder = { url in takeAppFolder(url) }
         controller.addData = { data, name, type in
-            guard SharedNoteLimits.allowsFiles(note) else { refusingSharedFiles = note.isShared; return nil }
+            guard canAdd() else { refuse(); return nil }
             guard let a = try? FileStore.importData(data, filename: name, type: type) else { return nil }
             context.insert(a)
             try? context.save()

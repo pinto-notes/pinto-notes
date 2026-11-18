@@ -139,6 +139,8 @@ final class SyncEngine {
         path.watch { [weak self] up in self?.networkChanged(up: up) }
         // Start fresh removes the account's files from Storage through here. It happens when this
         // device doesn't have the key, long before sync starts, so it's set up front.
+        // A file of yours put in a shared note that isn't on this device: fetched to seal it again.
+        SharedFiles.fetchOwnFile = { [weak self] a in await self?.download(a) ?? false }
         (crypto ?? AccountCrypto.shared).removeAccountFiles = { [weak self] user in
             guard let client = self?.backend.client else { return }
             do { try await Self.removeStoredFiles(client: client, user: user) } catch {
@@ -510,7 +512,7 @@ final class SyncEngine {
         let notes = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { $0.deletedAt == nil }
         for n in notes { n.serverVersion = 0; n.dirty = true }
         for f in context.allFoldersIncludingDeleted() where f.deletedAt == nil { f.serverVersion = 0; f.dirty = true }
-        for a in (try? context.fetch(FetchDescriptor<Attachment>())) ?? [] where a.deletedAt == nil && FileStore.exists(a) {
+        for a in (try? context.fetch(FetchDescriptor<Attachment>())) ?? [] where a.deletedAt == nil && a.sharedNoteID == nil && FileStore.exists(a) {
             a.uploaded = false
             a.dirty = true
         }
@@ -601,6 +603,16 @@ final class SyncEngine {
     nonisolated static func removeStoredFiles(client: SupabaseClient, user: UUID) async throws {
         let folder = user.uuidString.lowercased()
         let bucket = client.storage.from("files")
+        // The files of your shared notes, a folder per note under `shared/` (SharedFiles).
+        let notes = try await bucket.list(path: "\(folder)/shared", options: SearchOptions(limit: 1000))
+        for n in notes where !n.name.isEmpty {
+            try await removeFolder(bucket, "\(folder)/shared/\(n.name)")
+        }
+        try await removeFolder(bucket, folder)
+    }
+
+    /// Everything directly in a Storage folder.
+    nonisolated static func removeFolder(_ bucket: StorageFileApi, _ folder: String) async throws {
         // A page at a time: what's removed drops out of the next listing.
         while true {
             let listed = try await bucket.list(path: folder, options: SearchOptions(limit: 1000))
@@ -1025,7 +1037,8 @@ final class SyncEngine {
     private func pushFiles(_ client: SupabaseClient, sealer: Sealer, gen: Int) async throws -> Bool {
         guard let uid = backend.userID else { return false }
         let files = (try? context.fetch(FetchDescriptor<Attachment>(predicate: #Predicate { $0.dirty || !$0.uploaded }))) ?? []
-        for a in files where !isRefused(a.id, a.createdAt) {
+        // Someone else's files in your shared notes are the note's, never sent as yours.
+        for a in files where a.sharedNoteID == nil && !isRefused(a.id, a.createdAt) {
             let path = Self.storagePath(user: uid, id: a.id)
             // Deleted for good before it ever went up: nothing to tell the server.
             if a.deletedAt != nil, !a.uploaded {
@@ -1156,6 +1169,8 @@ final class SyncEngine {
 
     /// Fetches a file's bytes from Storage to this device.
     func download(_ a: Attachment) async -> Bool {
+        // Someone else's file in a shared note: from the note, opened with its key.
+        if a.sharedNoteID != nil { return await SharedFiles.download?(a) ?? false }
         guard let client = backend.client, let uid = backend.userID, let sealer = Wire.sealer else { return false }
         let gen = generation
         do {
@@ -1517,6 +1532,8 @@ final class SyncEngine {
         var filesApplied = false
         for r in fileRows where !r.unreadable || skipUnreadable(r.id, "A file") {
             let known = context.attachment(r.id)
+            // Placed here from one of your shared notes before your own row arrived: it's yours.
+            if let known, known.sharedNoteID != nil { known.sharedNoteID = nil }
             let a = known ?? {
                 let a = Attachment(id: r.id, filename: r.filename, contentType: r.content_type, size: r.size)
                 context.insert(a)
