@@ -82,11 +82,11 @@ export const posts: Post[] = [
   {
     slug: "share-a-note-and-edit-it-together",
     title: "Share a note and edit it together",
-    description: "Pinto Notes 1.4 lets you share a note with a link and write in it together, on iPhone and Mac, cursors and all. Encrypted. Out on iPhone now, Mac in days.",
+    description: "Pinto Notes 1.4 lets you share a note with a link and write in it together on iPhone and Mac, with everyone's cursor showing. Encrypted, and out now.",
     excerpt: "Send a link, and the people you share with write in the note with you. You see their changes as they type, and the note stays encrypted.",
     category: "Building Pinto Notes",
     date: "2026-11-17",
-    updated: "2026-11-17",
+    updated: "2026-11-18",
     image: { src: "/blog/launch/share-mac-carets.webp", alt: "A Team offsite note in Pinto Notes with Sara's cursor and name flag in the agenda, and someone else selecting a line in the Bring checklist.", width: 1280, height: 560, window: false },
     thumb: cover("berry", "share-together", 1040, 624, "Two cut-paper hands writing in one checklist together"),
     draft: false,

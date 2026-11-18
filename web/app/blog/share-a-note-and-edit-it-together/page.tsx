@@ -4,7 +4,7 @@ import { PostFigure } from "@/lib/PostParts";
 export const dynamic = "force-static";
 export const metadata = postMetadata("share-a-note-and-edit-it-together", { title: "Share a note in Pinto Notes and edit it together" });
 
-// Launch post for 1.4 (iPhone live 17 Nov 2026; Mac in App Review, "coming in days" per Dev Release). Facts checked
+// Launch post for 1.4 (iPhone live 17 Nov 2026, Mac App Store 18 Nov; the site's Mac download stays 1.3.2 for now). Facts checked
 // on origin/main 6d83cf9ab, the code that shipped: Share menu, then Collaborate…, then Invite People… on iPhone
 // (Pane/Views/NoteDetailView.swift shareItems; Pane/Collab/ShareSheet.swift); Join by Link Can edit, Can view, Off and
 // the lines under it (ShareController.swift ShareCopy); a person's Access picker and Remove from Note, swipe to Remove,
@@ -18,7 +18,7 @@ export default function Page() {
   return (
     <PostPage
       slug="share-a-note-and-edit-it-together"
-      intro={<>Pinto Notes 1.4 lets you share a note with people and write in it together, on iPhone and Mac. You see their changes as they type, and the note stays encrypted. It&apos;s out on iPhone today, and the Mac update follows in a few days.</>}
+      intro={<>Pinto Notes 1.4 lets you share a note with people and write in it together, on iPhone and Mac. You see their changes as they type, and the note stays encrypted.</>}
     >
       <h2>Invite people with a link</h2>
       <p>
@@ -44,7 +44,7 @@ export default function Page() {
       </p>
       <PostFigure src="/blog/launch/share-mac-carets" width={1280} height={560} maxWidth={640}
         alt="A Team offsite note in Pinto Notes with an agenda and a Bring checklist. Sara's cursor sits after Roadmap review with her name on a flag, and someone else has Printed customer quotes selected."
-        caption="Sara is typing in the agenda while someone else selects a line. This is the Mac, where 1.4 arrives in a few days." />
+        caption="Sara is typing in the agenda while someone else selects a line, on the Mac." />
 
       <h2>Your AI can help too</h2>
       <p>
@@ -74,8 +74,8 @@ export default function Page() {
 
       <h2>Get 1.4</h2>
       <p>
-        Pinto Notes 1.4 for iPhone is on the App Store now (new to it? <a href="/blog/pinto-notes-for-iphone">here&apos;s the iPhone app</a>). The Mac update is with Apple and comes in a few days; until then, open
-        shared notes on your iPhone. Someone who doesn&apos;t have Pinto Notes yet can still open your link: it tells them how to get
+        Pinto Notes 1.4 is out on iPhone and Mac. Update from the App Store on your iPhone and the Mac App Store on your Mac
+        (new to it? <a href="/blog/pinto-notes-for-iphone">here&apos;s the iPhone app</a>). Someone who doesn&apos;t have Pinto Notes yet can still open your link: it tells them how to get
         the app and join.
       </p>
     </PostPage>
