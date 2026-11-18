@@ -545,6 +545,20 @@ struct QuickOpenPanel: View {
         searchText != nil && query.trimmingCharacters(in: .whitespaces).count >= QuickOpen.textMinLength && readFor != query
     }
 
+    /// Return opens the row highlighted now, as in Spotlight. Read when Return is pressed: SwiftUI
+    /// keeps a field's submit action from the last time its text changed, so rows and an index the
+    /// action captured were the ones of the last typed letter (2026-11-18: down twice, up, Return
+    /// opened the first note; down, then typing, Return opened the second row).
+    private func submit() {
+        let rows = drawn.rows
+        let index = min(highlighted, max(rows.count - 1, 0))
+        if rows.indices.contains(index) { jumpAndChoose(rows[index]) }
+    }
+
+    /// The rows as last drawn, for Return (`submit`): the notes can arrive while the panel is open.
+    final class DrawnRows { var rows: [QuickOpen.Row] = [] }
+    @State private var drawn = DrawnRows()
+
     /// A note found by its text opens at the line (SearchJump).
     private func jumpAndChoose(_ row: QuickOpen.Row) {
         if case .text(let t) = row { SearchJump.set(t.id, query: query) }
@@ -658,6 +672,7 @@ struct QuickOpenPanel: View {
         let _ = RenderProbe.count("QuickOpenPanel", context: context)
         #endif
         let rows = rows
+        let _ = drawn.rows = rows
         let shape = RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
         let index = min(highlighted, max(rows.count - 1, 0))
         VStack(spacing: 0) {
@@ -672,7 +687,7 @@ struct QuickOpenPanel: View {
                     // note to remember what to look for, and it stays).
                     .foregroundStyle(focused ? Color.ink : Color.muted)
                     .focused($focused)
-                    .onSubmit { if rows.indices.contains(index) { jumpAndChoose(rows[index]) } }
+                    .onSubmit { submit() }
                     // Held, the arrows repeat at the system's rate, as in any Mac list (Emil, 9 November
                     // 2026: "If I hold arrow down or up, logically it should move multiple times").
                     .onKeyPress(.downArrow, phases: [.down, .repeat]) { _ in
