@@ -168,7 +168,10 @@ final class MemoryFolderServer {
         out(user, root: root, reason: .left, by: nil)
     }
 
-    func rekey(_ caller: UUID, root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap]) throws {
+    func rekey(_ caller: UUID, root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap], names: [Collab.FolderName] = []) throws {
+        for n in names where tree[root]?[n.id] != nil {
+            guard CollabCrypto.epoch(of: n.name) == epoch else { throw Collab.Failure.server("bad_name") }
+        }
         guard role(root, caller) == "owner", let current = roots[root]?.epoch else { throw Collab.Failure.notOwner }
         guard epoch == current + 1 else { throw Collab.Failure.staleEpoch }
         let stay = Set(members[root]?.filter { $0.value.acceptedAt != nil }.map(\.key) ?? [])
@@ -183,6 +186,7 @@ final class MemoryFolderServer {
             placed[root]?[w.note_id]?.wrap = w.folder_wrap
             placed[root]?[w.note_id]?.noteEpoch = CollabCrypto.wrapNoteEpoch(w.folder_wrap) ?? 1
         }
+        for n in names { tree[root]?[n.id]?.name = n.name }
         roots[root]?.epoch = epoch
         roots[root]?.rekeyAfter = nil
         links = links.filter { $0.value.root != root }
@@ -265,8 +269,8 @@ extension MemoryCollabTransport: FolderTransport {
     func setFolderRole(root: UUID, user: UUID, role: String) async throws { try server.check("folder_set_role"); try f.setRole(me, root: root, user: user, role: role) }
     func removeFromFolder(root: UUID, user: UUID) async throws { try server.check("folder_remove"); try f.removeMember(me, root: root, user: user) }
     func leaveFolder(root: UUID) async throws { try server.check("folder_leave"); try f.leave(me, root: root) }
-    func rekeyFolder(root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap]) async throws {
-        try server.check("folder_rekey"); try f.rekey(me, root: root, epoch: epoch, wraps: wraps, selfWrap: selfWrap, noteWraps: noteWraps)
+    func rekeyFolder(root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap], names: [Collab.FolderName]) async throws {
+        try server.check("folder_rekey"); try f.rekey(me, root: root, epoch: epoch, wraps: wraps, selfWrap: selfWrap, noteWraps: noteWraps, names: names)
     }
     func unshareFolder(root: UUID) async throws { try server.check("unshare_folder"); try f.unshare(me, root: root) }
     func folderAccessEnded() async throws -> [Collab.FolderAccessEnded] { try server.check("folder_access_ended"); return f.accessEnded(me) }

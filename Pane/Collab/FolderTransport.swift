@@ -21,7 +21,7 @@ protocol FolderTransport: AnyObject {
     func setFolderRole(root: UUID, user: UUID, role: String) async throws
     func removeFromFolder(root: UUID, user: UUID) async throws
     func leaveFolder(root: UUID) async throws
-    func rekeyFolder(root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap]) async throws
+    func rekeyFolder(root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap], names: [Collab.FolderName]) async throws
     func unshareFolder(root: UUID) async throws
     func folderAccessEnded() async throws -> [Collab.FolderAccessEnded]
     func createFolderLink(id: String, root: UUID, role: String, epoch: Int, answerHash: String, keyWrap: String) async throws
@@ -65,6 +65,11 @@ extension Collab {
     struct NoteWrap: Codable, Sendable, Equatable {
         let note_id: UUID
         let folder_wrap: String
+    }
+
+    struct FolderName: Codable, Sendable, Equatable {
+        let id: UUID
+        let name: String
     }
 
     struct FolderAccessEnded: Decodable, Sendable, Equatable {
@@ -161,9 +166,9 @@ extension SupabaseCollabTransport: FolderTransport {
 
     func leaveFolder(root: UUID) async throws { try await rpc("collab_folder_leave", ["p_root": Self.s(root)]) }
 
-    func rekeyFolder(root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap]) async throws {
-        struct P: Encodable, Sendable { let p_root: String; let p_epoch: Int; let p_wraps: [Collab.Wrap]; let p_self_wrap: String; let p_note_wraps: [Collab.NoteWrap] }
-        try await rpc("collab_folder_rekey", P(p_root: Self.s(root), p_epoch: epoch, p_wraps: wraps, p_self_wrap: selfWrap, p_note_wraps: noteWraps))
+    func rekeyFolder(root: UUID, epoch: Int, wraps: [Collab.Wrap], selfWrap: String, noteWraps: [Collab.NoteWrap], names: [Collab.FolderName]) async throws {
+        struct P: Encodable, Sendable { let p_root: String; let p_epoch: Int; let p_wraps: [Collab.Wrap]; let p_self_wrap: String; let p_note_wraps: [Collab.NoteWrap]; let p_names: [Collab.FolderName] }
+        try await rpc("collab_folder_rekey", P(p_root: Self.s(root), p_epoch: epoch, p_wraps: wraps, p_self_wrap: selfWrap, p_note_wraps: noteWraps, p_names: names))
     }
 
     func unshareFolder(root: UUID) async throws { try await rpc("collab_unshare_folder", ["p_root": Self.s(root)]) }

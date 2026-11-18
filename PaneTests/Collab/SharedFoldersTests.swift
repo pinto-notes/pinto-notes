@@ -203,6 +203,26 @@ import Testing
         #expect(server.folders.memberships(jonas.id).isEmpty)
     }
 
+    @Test func whoeverStaysKeepsTheFolderAfterItsNewKey() async throws {
+        let (maja, jonas, recipes, _) = try await recipes()
+        let ana = try device(server.account("Ana"), name: "Ana")
+        let url = try #require(maja.folders.linkURL(recipes.id))
+        _ = await ana.store.join(url)
+        await look(maja, jonas, ana)
+        let root = try #require(maja.folders.roots.keys.first)
+        try await jonas.folders.leave(root)
+        await look(maja, ana)
+        await look(maja, ana)
+        #expect(server.folders.memberships(ana.id).first?.epoch == 2)
+        // A new subfolder, named under the new key, reaches Ana by its name.
+        let breakfast = Folder(name: "Breakfast", parent: recipes)
+        maja.context.insert(breakfast)
+        await look(maja, ana)
+        let hers = try #require(folder("Recipes", on: ana))
+        #expect(Set(hers.liveChildren.map(\.name)) == ["Breakfast", "Desserts"])
+        #expect(notes(in: hers) == ["Lentil soup", "Pancakes"])
+    }
+
     @Test func removingSomeoneTakesTheFolderFromThemAndTellsThem() async throws {
         let (maja, jonas, _, _) = try await recipes()
         var told: [FolderRemoval] = []

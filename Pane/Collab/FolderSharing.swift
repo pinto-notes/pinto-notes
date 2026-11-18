@@ -465,17 +465,17 @@ final class FolderSharing {
                 guard let k else { continue }
                 noteWraps.append(.init(note_id: n.note_id, folder_wrap: try CollabCrypto.sealNoteKeyUnderFolder(k.0, fk: fk, root: root.id, epoch: epoch, note: n.note_id, noteEpoch: k.1)))
             }
-            try await transport.rekeyFolder(root: root.id, epoch: epoch, wraps: wraps, selfWrap: try CollabCrypto.folderSelfWrap(fk, dataKey: dk, root: root.id, epoch: epoch), noteWraps: noteWraps)
+            var names: [Collab.FolderName] = []
+            for row in (try? await transport.folderTree(root: root.id)) ?? [] where !row.deleted {
+                guard let name = try? CollabCrypto.openFolderName(row.name, fk: root.fk, root: root.id, folder: row.id) else { continue }
+                names.append(.init(id: row.id, name: try CollabCrypto.sealFolderName(name, fk: fk, root: root.id, epoch: epoch, folder: row.id)))
+            }
+            try await transport.rekeyFolder(root: root.id, epoch: epoch, wraps: wraps, selfWrap: try CollabCrypto.folderSelfWrap(fk, dataKey: dk, root: root.id, epoch: epoch),
+                                            noteWraps: noteWraps, names: names)
             var r = root
             r.epoch = epoch
             r.fk = fk
             roots[root.id] = r
-            // Names under the new key.
-            for row in (try? await transport.folderTree(root: root.id)) ?? [] where !row.deleted {
-                guard let name = try? CollabCrypto.openFolderName(row.name, fk: root.fk, root: root.id, folder: row.id) else { continue }
-                try? await transport.putFolder(root: root.id, folder: row.id, parent: row.parent_id ?? root.id,
-                                               name: try CollabCrypto.sealFolderName(name, fk: fk, root: root.id, epoch: epoch, folder: row.id), sort: row.sort_index)
-            }
             // A link made with the old key would let whoever was removed back in: a new one.
             if let access = linkAccess[root.id] {
                 links[root.id] = nil
