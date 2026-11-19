@@ -190,5 +190,19 @@ import Testing
         let rep = try #require(image.flatMap { NSBitmapImageRep(data: $0.tiffRepresentation ?? Data()) })
         try #require(rep.representation(using: .png, properties: [:])).write(to: dir.appending(path: "mac-linked-from-light.png"))
     }
+
+    /// The workout log template filled in, as a note, for the workout log post: typed columns and the bests list.
+    @Test func workoutLogForTemplatePost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let log = ctx.createNote(in: .all, body: "Workout log\n\nOne row per session. Add it yourself, or tell your AI what you did after training and it logs it.\n\n## Sessions\n<!-- pane-table: Date=date; Workout=choice Push|Pull|Legs|Run|Other; Exercise=text; Result=text; Effort (1\u{2013}10)=scale 1-10 -->\n| Date | Workout | Exercise | Result | Effort (1\u{2013}10) |\n| --- | --- | --- | --- | --- |\n| 2026-10-31 | Pull | Deadlift | 115 kg x 3 | 8 |\n| 2026-11-02 | Legs | Squat | 100 kg x 5 | 8 |\n| 2026-11-04 | Push | Bench press | 70 kg x 6 | 7 |\n| 2026-11-05 | Run | Easy run | 5 km in 29 min | 5 |\n| 2026-11-06 | Pull | Deadlift | 120 kg x 3 | 9 |\n\n## Personal bests\nYour best result for each exercise, with its date.\n- Deadlift: 120 kg x 3 (6 Nov)\n- Squat: 100 kg x 5 (2 Nov)\n- Bench press: 70 kg x 6 (4 Nov)\n- 5 km: 29 min (5 Nov)\n\n## Program\nLegs, push and pull in turn with a day between, and an easy run on a rest day.\n- Legs: squat, lunges, calves\n- Push: bench press, overhead press, dips\n- Pull: deadlift, rows, pull-ups\n")
+        try ctx.save()
+        let view = NavigationStack { NoteDetailView(note: log, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: CGSize(width: 760, height: 860))
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.5))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-workout-log-light.png"))
+    }
 }
 #endif
