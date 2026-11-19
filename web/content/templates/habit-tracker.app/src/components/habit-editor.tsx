@@ -28,8 +28,10 @@ export function HabitEditor({ editing, onClose }: { editing: Habit | "new" | nul
   const drop = async (h: Habit) => {
     const before = habits
     onClose()
-    await remove(h.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Removed ${h.name}`, () => restore(before))
+    await remove(h.id)
   }
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,9 +42,11 @@ export function HabitEditor({ editing, onClose }: { editing: Habit | "new" | nul
       days: kind === "Some days" && wds.length && wds.length < 7 ? wds.slice().sort() : undefined,
       perWeek: kind === "A week" ? Math.max(1, Math.min(7, Math.round(Number(perWeek) || 1))) : undefined,
     }
+    // Closed first, then saved: a sheet that closed when its save landed could shut the next one the
+    // person had opened by then. The save lands either way.
+    onClose()
     if (editing === "new") await add(Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)) as Omit<Habit, "id">)
     else await update(editing.id, fields)
-    onClose()
   }
 
   return (

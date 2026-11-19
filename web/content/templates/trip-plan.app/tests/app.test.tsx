@@ -150,6 +150,42 @@ describe("Packing, more", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().packing.map((x: { text: string }) => x.text)).toEqual(["Passport and ID card", "Sunglasses"]))
   })
+
+  it("offers no Undo once the app has closed, when a delete is confirmed late", async () => {
+    // The device confirms each save a moment after the app already shows it, as on a busy phone.
+    const store = amber.store as unknown as { set: (...a: unknown[]) => Promise<unknown> }
+    const set = store.set
+    store.set = (...a) => set.apply(store, a).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+    try {
+      const first = render(<App />)
+      await go("Packing")
+      await userEvent.click(await screen.findByRole("button", { name: "Delete Sunglasses" }))
+      first.unmount()
+      render(<App />)
+      await go("Packing")
+      await new Promise((r) => setTimeout(r, 600))
+      expect(screen.queryByText("Deleted Sunglasses")).toBeNull()
+    } finally { store.set = set }
+  })
+
+  it("keeps the next sheet open when a save is confirmed late", async () => {
+    render(<App />)
+    await go("Packing")
+    // The device confirms each save a moment after the app already shows it, as on a busy phone.
+    const store = amber.store as unknown as { set: (...a: unknown[]) => Promise<unknown> }
+    const set = store.set
+    store.set = (...a) => set.apply(store, a).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+    try {
+      await userEvent.click(await screen.findByRole("button", { name: "Edit Passport" }))
+      const field = await screen.findByLabelText("Item")
+      await userEvent.clear(field)
+      await userEvent.type(field, "Passport and ID card")
+      await userEvent.click(screen.getByRole("button", { name: "Save" }))
+      await userEvent.click(await screen.findByRole("button", { name: "Edit Sunglasses" }))
+      await new Promise((r) => setTimeout(r, 600))
+      expect(screen.getByRole("dialog", { name: "Edit item" })).toBeInTheDocument()
+    } finally { store.set = set }
+  })
 })
 
 describe("Bookings", () => {
@@ -241,6 +277,24 @@ describe("Days", () => {
     await waitFor(() => expect(values().days).toEqual([]))
     await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().days).toHaveLength(1))
+  })
+
+  it("keeps the next day's sheet open when a save is confirmed late", async () => {
+    const label = (n: number) => new Date(day(n) + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
+    render(<App />)
+    await go("Days")
+    // The device confirms each save a moment after the app already shows it, as on a busy phone.
+    const store = amber.store as unknown as { set: (...a: unknown[]) => Promise<unknown> }
+    const set = store.set
+    store.set = (...a) => set.apply(store, a).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+    try {
+      await userEvent.click(await screen.findByRole("button", { name: `Edit ${label(9)}` }))
+      await userEvent.type(await screen.findByLabelText("Title (optional)"), " and settle in")
+      await userEvent.click(screen.getByRole("button", { name: "Save" }))
+      await userEvent.click(await screen.findByRole("button", { name: `Edit ${label(10)}` }))
+      await new Promise((r) => setTimeout(r, 600))
+      expect(screen.getByRole("dialog", { name: "Edit day" })).toBeInTheDocument()
+    } finally { store.set = set }
   })
 
   it("shows the plan a day at a time, numbered from the start", async () => {

@@ -16,8 +16,10 @@ export default function Expenses() {
   const fmt = (n: number) => money(n, b.currency)
   const drop = async (e: Expense) => {
     const before = b.expenses
-    await b.remove(e.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Deleted ${e.what}`, () => b.restore(before))
+    await b.remove(e.id)
   }
 
   return (

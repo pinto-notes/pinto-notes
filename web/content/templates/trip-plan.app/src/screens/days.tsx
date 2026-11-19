@@ -19,8 +19,10 @@ export default function Days() {
   const drop = async (d: Day) => {
     const before = days
     setEditing(null)
-    await removeDay(d.date)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Deleted ${longDate(d.date)}`, () => restoreDays(before))
+    await removeDay(d.date)
   }
   // Every date of the trip, and any planned day outside it.
   const dates = new Set(days.map((d) => d.date))
@@ -50,7 +52,7 @@ export default function Days() {
         })}
       </div>
       <TintButton className="mb-6" onClick={() => setEditing("new")}><Plus /> Add day</TintButton>
-      <DaySheet day={editing} onClose={() => setEditing(null)} onSave={async (d, was) => { await saveDay(d, was); setEditing(null) }} onDelete={drop}
+      <DaySheet day={editing} onClose={() => setEditing(null)} onSave={(d, was) => { setEditing(null); return saveDay(d, was) }} onDelete={drop}
         share={(d) => { const n = trip ? between(trip.start, d.date) + 1 : 0; return { label: `Share ${longDate(d.date)}`, name: `${trip?.name ? trip.name + ", " : ""}${n > 0 ? `day ${n}` : longDate(d.date)}.txt`, text: () => dayText(trip, days.find((x) => x.date === d.date) ?? d, bookings, d.date) } }}
         suggest={all.find((x) => !days.some((d) => d.date === x)) ?? (all.length ? plus(all[all.length - 1], 1) : trip?.start ?? today)} />
     </>

@@ -104,7 +104,7 @@ function importMap(): string {
   imports["@/"] = `${APP_HOST}src/`;
   // run_app_tests only: Vitest and Testing Library as test-harness.js gives them.
   for (const name of ["vitest", "@testing-library/react", "@testing-library/preact", "@testing-library/user-event", "@testing-library/dom"]) imports[name] = `${LIB_HOST}test/harness.js`;
-  for (const name of ["@testing-library/jest-dom", "@testing-library/jest-dom/vitest"]) imports[name] = `${LIB_HOST}test/empty.js`;
+  for (const name of ["@testing-library/jest-dom", "@testing-library/jest-dom/vitest", "@testing-library/jest-dom/matchers"]) imports[name] = `${LIB_HOST}test/empty.js`;
   return `<script type="importmap">${JSON.stringify({ imports })}</script>`;
 }
 
@@ -212,6 +212,14 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
     } });
   }
   addEventListener("play", (e) => { if (e.target instanceof HTMLMediaElement) e.target.muted = true; }, true);
+  // A worker made from a blob: URL that the page revokes at once (v86 does, for its timer) loads in
+  // a browser. Here every request, blob: too, goes through the harness's routing, so the worker's
+  // load came after the revoke and it never ran (2026-11-17, the Linux note: a dead emulator in the
+  // tests and the smoke check). Revokes wait 10 s; a check's page lives less than a minute.
+  {
+    const revoke = URL.revokeObjectURL.bind(URL), later = setTimeout.bind(window);
+    URL.revokeObjectURL = (url) => { later(() => revoke(url), 10000); };
+  }
   // Frames the page asks for, so a check can tell whether it animates (a game that plays).
   window.__frames = 0;
   const raf = window.requestAnimationFrame.bind(window);
@@ -316,6 +324,7 @@ const bootstrap = (note: unknown, data: unknown) => `(() => {
 })();`;
 
 type DataDoc = { values: Record<string, unknown>; collections: Record<string, unknown> };
+const noData = (): DataDoc => ({ values: {}, collections: {} });
 /** Every list of records in an app's data, with a way to put a changed list back: collections,
  *  arrays in values (one level down too), and arrays kept in localStorage as JSON strings. */
 function dataLists(doc: DataDoc): { items: Record<string, unknown>[]; with: (items: unknown[]) => DataDoc; withIn: (d: DataDoc, items: unknown[]) => DataDoc }[] {
@@ -381,6 +390,8 @@ export type View = {
   bg: string; fg: string; contrast: number; bgLuminance: number;
   unnamedControls: string[]; smallTargets: number; screenshot?: string;
   smallText: string[]; smallTextCount: number; faintText: string[]; faintCount: number; headings: string[]; excerpt: string; png?: string;
+  /** Each colour pair under 4.5:1 (3:1 for large text), with the nearest colour that reads (`use`). */
+  faintColors: { color: string; background: string; ratio: number; use: string; useRatio: number; texts: string[]; className: string }[];
   titleCount: number; ghostFields: string[]; sections: number; nav: boolean; junk: string[]; under44: string[]; under44Count: number; clipped: string[]; clippedCount: number; usedWidth: number; canvases: number; svgShapes: number; gridCols: number; frames: number;
   look: { accentHue: number | null; nonAmberVivid: number; tintedBg: boolean };
 };
@@ -469,6 +480,10 @@ async function trial(open: (w: number, s: "light" | "dark") => Promise<{ page: P
       }
     }
     if (fallback) return fallback;
+    // Any other CSS selector ("ul li button", "main > section button"): text that isn't one matches nothing.
+    const css = page.locator(what);
+    const n = await css.count().catch(() => 0);
+    for (let i = 0; i < Math.min(n, 8); i++) if (await css.nth(i).isVisible().catch(() => false)) return css.nth(i);
     throw new Error(`Nothing visible matches "${what}".`);
   };
   for (const step of (opts.steps ?? []).slice(0, 30)) {
@@ -505,20 +520,31 @@ export function testRunnerProject(stored: string): string | null {
   if (!files.length) return null;
   const html = `<!doctype html><html lang="en"><body><script type="module">
 const results = [], errors = [];
-const { run } = await import("vitest");
+const { run, forget, strays } = await import("vitest");
+// A name or a package the test runner doesn't have, said so (WebKit's own words don't).
+const HAS = "The tests can import vitest, @testing-library/react, @testing-library/user-event, @testing-library/dom and @testing-library/jest-dom (the parts the app's README lists under Tests), the app's own files (@/…) and the packages the app has.";
+const why = (e) => {
+  const m = String(e && e.message || e);
+  const name = m.match(/Importing binding name '([^']+)' is not found/);
+  if (name) return name[1] + " isn't in Pinto's test runner. " + HAS;
+  const mod = m.match(/Module name, '([^']+)' does not resolve/);
+  if (mod) return "the test imports " + mod[1] + ", which isn't here. " + HAS;
+  return m;
+};
 for (const f of ${JSON.stringify(files)}) {
-  const before = results.length;
-  try { await import(f); } catch (e) { errors.push(f + ": " + String(e && e.message || e).slice(0, 400)); continue; }
+  try { await import(f); } catch (e) { forget(); errors.push(f + ": " + why(e).slice(0, 500)); continue; }
   for (const r of await run(() => window.__amberReset())) results.push({ ...r, file: f });
+  for (const e of strays()) errors.push(f + ": after its tests, an error in " + e);
 }
 window.__testResults = { results, errors };
 </script></body></html>`;
   return JSON.stringify({ amberApp: 1, files: { ...p.files, "/index.html": html }, compiled: p.compiled, binary: p.binary });
 }
 
-async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>): Promise<Render> {
+async function runTests(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>, ms = 30000): Promise<Render> {
   const { page, errors } = await open(390, "light");
-  const got = await page.waitForFunction(() => (window as any).__testResults, null, { timeout: 30000 }).then((h) => h.jsonValue() as Promise<{ results: Render["tests"]; errors: string[] }>).catch(() => ({ results: [], errors: ["The tests didn't finish in 30 s."] }));
+  const timeout = Math.min(Math.max(ms, 1000), 120000);
+  const got = await page.waitForFunction(() => (window as any).__testResults, null, { timeout }).then((h) => h.jsonValue() as Promise<{ results: Render["tests"]; errors: string[] }>).catch(() => ({ results: [], errors: [`The tests didn't finish in ${Math.round(timeout / 1000)} s.`] }));
   await page.context().close();
   return { views: [], blocked: [], updates: [], setData: 0, interaction: { tried: "none", ok: null }, probes: {}, markdownAfter: "", dataAfter: null,
     tests: got.results ?? [], testErrors: [...(got.errors ?? []), ...errors.filter((e) => !/^Failed to load resource/.test(e)).slice(0, 5)] };
@@ -589,6 +615,8 @@ export type RenderOptions = {
   steps?: Step[];
   /** run_app_tests: run the project's tests/*.test.* files instead of opening the app. */
   tests?: boolean;
+  /** How long the tests may take, in ms (30 s, as a save waits; at most 120 s). For load tests. */
+  testsTimeout?: number;
   /** The save gate's smoke check: open at 390 and 1280 and tap each visible tab and button once. */
   smoke?: boolean;
 };
@@ -694,9 +722,9 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         return { ok: false, error: (e as Error).message };
       }
     });
-    // run_app_tests: every test starts from the same data.
+    // run_app_tests: every test starts from the same data: none (below, at opts.tests).
     await page.exposeFunction("__amberReset", async () => {
-      md = markdown; store = empty(data);
+      md = markdown; store = empty(opts.tests ? noData() : data);
       await page.evaluate(([n, d]) => (window as any).amber._receive(n, d), [noteForPage(md, opts.today), store]);
     });
     if (widget) await page.addInitScript("window.__amberWidget = true;");
@@ -707,7 +735,12 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
   };
 
   if (opts.steps?.length) { md = markdown; store = empty(data); return await trial(open, () => store, opts); }
-  if (opts.tests) { md = markdown; store = empty(data); return await runTests(open); }
+  // The app's tests start with no data, each one, as the app's README says and as Vitest tests do
+  // anywhere: the starter's test checks that adding "Milk" saves ["Milk"]. Over a sample of the
+  // app's data.json (until 2026-11-17) every test of five apps passed until the app had data, then
+  // failed on every save (Habits went from 11 passing to 2), and the sample's words change each
+  // time. The smoke check below still runs over the sample, so the app's real shapes are covered.
+  if (opts.tests) { md = markdown; store = empty(noData()); return await runTests(open, opts.testsTimeout); }
   if (opts.smoke) {
     const problems: string[] = [];
     const slow: { name: string; ms: number; width: number }[] = [];
@@ -780,8 +813,12 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       const text = document.body?.innerText ?? "";
       const flat = text.replace(/\s+/g, " ").toLowerCase();
       const bodyStyle = getComputedStyle(document.body);
-      let bg = bodyStyle.backgroundColor;
-      if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = getComputedStyle(de).backgroundColor;
+      // Any CSS colour (oklch, lab, color-mix: Tailwind 4 and shadcn's starter use oklch) as rgba,
+      // drawn by the browser, so the measurements below read every colour the app can write.
+      const ink = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+      const rgbOf = (c: string) => { ink.clearRect(0, 0, 1, 1); ink.fillStyle = "#000"; ink.fillStyle = c; ink.fillRect(0, 0, 1, 1); const [r, g, b, a] = ink.getImageData(0, 0, 1, 1).data; return a === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${+(a / 255).toFixed(3)})`; };
+      let bg = rgbOf(bodyStyle.backgroundColor);
+      if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = rgbOf(getComputedStyle(de).backgroundColor);
       if (/rgba\(0, 0, 0, 0\)|transparent/.test(bg)) bg = "rgb(255, 255, 255)";
       const name = (el: Element) => {
         const a = el.getAttribute("aria-label") || "";
@@ -798,13 +835,13 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       const small = controls.filter((el) => { const r = el.getBoundingClientRect(); return r.height < 28 || r.width < 28; }).length;
       // A control's tap area: its own box, or its label's when the label wraps it.
       const tapBox = (el: Element) => { const r = el.getBoundingClientRect(); const l = (el as HTMLInputElement).labels?.[0]; if (!l) return r; const b = l.getBoundingClientRect(); return b.width * b.height > r.width * r.height ? b : r; };
-      // Fields that don't look like fields: each needs a border and a solid fill of its own.
+      // Fields you can't see: no border and no fill of their own.
       const ghostFields = [...document.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]), select, textarea")].filter(visible).filter((el) => {
         const st = getComputedStyle(el);
-        const border = ["Top", "Right", "Bottom", "Left"].some((k) => parseFloat((st as any)[`border${k}Width`]) >= 1 && !/rgba\([^)]*, 0\)$|transparent/.test((st as any)[`border${k}Color`]));
-        const v = (st.backgroundColor.match(/[\d.]+/g) ?? []).map(Number);
-        const fill = v.length >= 3 && (v[3] === undefined || v[3] > 0.5) && st.backgroundColor !== getComputedStyle(el.parentElement ?? document.body).backgroundColor;
-        return !border || !fill;
+        const border = ["Top", "Right", "Bottom", "Left"].some((k) => parseFloat((st as any)[`border${k}Width`]) >= 1 && !/rgba\([^)]*, 0\)$|transparent/.test(rgbOf((st as any)[`border${k}Color`])));
+        const v = (rgbOf(st.backgroundColor).match(/[\d.]+/g) ?? []).map(Number);
+        const fill = v.length >= 3 && (v[3] === undefined || v[3] > 0.5) && rgbOf(st.backgroundColor) !== rgbOf(getComputedStyle(el.parentElement ?? document.body).backgroundColor);
+        return !border && !fill;
       }).map((el) => (el.getAttribute("name") ?? el.id ?? el.tagName).slice(0, 30));
       const under44 = controls.filter((el) => { const r = tapBox(el); return r.height < 40 || r.width < 40; }).map((el) => (el.textContent?.trim() || el.getAttribute("aria-label") || el.tagName).trim().slice(0, 30));
       // How much of the window's width the content uses.
@@ -884,7 +921,29 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
       // Text cut off by its box (no ellipsis meant).
       const clipped = texts.filter((el) => { const s = getComputedStyle(el); return el.clientWidth > 2 && s.clip !== "rect(0px, 0px, 0px, 0px)" && !(s.position === "absolute" && el.clientWidth <= 2) && el.scrollWidth > el.clientWidth + 2 && s.overflowX !== "visible" && s.textOverflow !== "ellipsis" && s.overflowX !== "auto" && s.overflowX !== "scroll"; }).map((el) => (el.textContent ?? "").trim().slice(0, 40));
       const smallText = texts.filter((el) => parseFloat(getComputedStyle(el).fontSize) < 12).map((el) => (el.textContent ?? "").trim().slice(0, 40));
-      const faint = texts.filter((el) => { const s = getComputedStyle(el); if (parseFloat(s.opacity) < 0.3) return false; const a = lumOf(s.color), b = lumOf(behind(el)); const [x, y] = [a, b].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) < 4.5; }).map((el) => (el.textContent ?? "").trim().slice(0, 40));
+      // Text under 4.5:1 against what's behind it (3:1 for large text: 24 px, or 18.66 px bold), with
+      // translucent text laid over its background first. Each colour pair once, with the nearest colour
+      // that reads: the text's own colour moved away from the background, in 2% steps.
+      const solid = (fg: string, bk: string) => { const [r, g, b, a] = rgbaOf(fg), [r0, g0, b0] = rgbaOf(bk); return `rgb(${Math.round(r * a + r0 * (1 - a))}, ${Math.round(g * a + g0 * (1 - a))}, ${Math.round(b * a + b0 * (1 - a))})`; };
+      const ratioOf = (x: string, y: string) => { const [p, q] = [lumOf(x), lumOf(y)].sort((m, n) => n - m); return (p + 0.05) / (q + 0.05); };
+      const hexOf = (c: string) => "#" + rgbaOf(c).slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join("");
+      const readable = (fg: string, bk: string, need: number) => {
+        const [r, g, b] = rgbaOf(fg), t = lumOf(bk) > lumOf(fg) ? 0 : 255;
+        for (let k = 0.02; k < 1.001; k += 0.02) { const c = `rgb(${Math.round(r + (t - r) * k)}, ${Math.round(g + (t - g) * k)}, ${Math.round(b + (t - b) * k)})`; if (ratioOf(c, bk) >= need) return c; }
+        return t ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+      };
+      const faintPairs = new Map<string, { color: string; background: string; ratio: number; use: string; useRatio: number; texts: string[]; className: string }>();
+      const faint = texts.filter((el) => {
+        const s = getComputedStyle(el); if (parseFloat(s.opacity) < 0.3) return false;
+        const bk = behind(el), fg = solid(s.color, bk), size = parseFloat(s.fontSize);
+        const need = size >= 24 || (size >= 18.66 && parseInt(s.fontWeight) >= 700) ? 3 : 4.5, ratio = ratioOf(fg, bk);
+        if (ratio >= need) return false;
+        const key = hexOf(fg) + hexOf(bk), text = (el.textContent ?? "").trim().slice(0, 40);
+        const pair = faintPairs.get(key) ?? (() => { const use = readable(fg, bk, need); const p = { color: hexOf(fg), background: hexOf(bk), ratio: Math.round(ratio * 10) / 10, use: hexOf(use), useRatio: Math.floor(ratioOf(use, bk) * 10) / 10, texts: [] as string[], className: "" }; faintPairs.set(key, p); return p; })();
+        if (pair.texts.length < 3) pair.texts.push(text);
+        pair.className ||= (typeof (el as HTMLElement).className === "string" ? (el as HTMLElement).className : "").split(/\s+/).find((c) => /^(dark:)?text-(?!(xs|sm|base|lg|[2-9]?xl|left|right|center|justify|start|end|wrap|nowrap|balance|pretty|ellipsis|clip)$)/.test(c)) ?? "";
+        return true;
+      }).map((el) => (el.textContent ?? "").trim().slice(0, 40));
       return {
         // Values a script showed by mistake: an unawaited promise, an object, undefined, NaN.
         // Elements whose own text is exactly the note's title (headings or not).
@@ -903,7 +962,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
         junk: [...new Set((text.match(/\[object (Promise|Object)\]|\bundefined\b|\bNaN\b|Invalid Date/g) ?? []))],
         under44: under44.slice(0, 5), under44Count: under44.length, clipped: clipped.slice(0, 5), clippedCount: clipped.length, used,
         canvases, svgShapes, gridCols, frames: (window as any).__frames as number, look,
-        smallText: smallText.slice(0, 5), smallTextCount: smallText.length, faint: faint.slice(0, 5), faintCount: faint.length,
+        smallText: smallText.slice(0, 5), smallTextCount: smallText.length, faint: faint.slice(0, 5), faintCount: faint.length, faintColors: [...faintPairs.values()].slice(0, 4),
         headings: [...document.querySelectorAll("h1, h2, h3, [role=heading]")].filter(visible).map((h) => (h.textContent ?? "").trim().slice(0, 80)).slice(0, 12),
         excerpt: text.replace(/\s+/g, " ").trim().slice(0, 500),
         // amber-base.css clips sideways overflow (html, body { overflow-x: clip }), so scrollWidth no longer
@@ -916,9 +975,9 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
           return r.right;
         }, 0) - window.innerWidth)), textLength: text.trim().length,
         shown: want.filter((w) => flat.includes(w.toLowerCase().replace(/\s+/g, " ")) || (/^[\d\s.,\u00a0]+$/.test(w) && flat.replace(/[\s,\u00a0\u202f]/g, "").includes(w.replace(/[\s,\u00a0]/g, "")))).length,
-        bg, fg: bodyStyle.color, unnamed, small,
+        bg, fg: rgbOf(bodyStyle.color), unnamed, small,
       };
-    }, want).catch((e) => ({ overflow: 0, textLength: 0, shown: 0, bg: "rgb(255,255,255)", fg: "rgb(0,0,0)", unnamed: [] as string[], small: 0, smallText: [] as string[], smallTextCount: 0, faint: [] as string[], faintCount: 0, headings: [] as string[], excerpt: "", titleCount: 0, ghostFields: [] as string[], sections: 0, nav: false, junk: [] as string[], under44: [] as string[], under44Count: 0, clipped: [] as string[], clippedCount: 0, used: 0, canvases: 0, svgShapes: 0, gridCols: 0, frames: 0, look: { accentHue: null as number | null, nonAmberVivid: 0, tintedBg: false }, err: String(e) }));
+    }, want).catch((e) => ({ overflow: 0, textLength: 0, shown: 0, bg: "rgb(255,255,255)", fg: "rgb(0,0,0)", unnamed: [] as string[], small: 0, smallText: [] as string[], smallTextCount: 0, faint: [] as string[], faintCount: 0, faintColors: [] as View["faintColors"], headings: [] as string[], excerpt: "", titleCount: 0, ghostFields: [] as string[], sections: 0, nav: false, junk: [] as string[], under44: [] as string[], under44Count: 0, clipped: [] as string[], clippedCount: 0, used: 0, canvases: 0, svgShapes: 0, gridCols: 0, frames: 0, look: { accentHue: null as number | null, nonAmberVivid: 0, tintedBg: false }, err: String(e) }));
     let shot: string | undefined;
     if (opts.shots && (width < 600 || scheme === "light")) {
       shot = `${opts.shots}-${width}-${scheme}.png`;
@@ -932,7 +991,7 @@ async function renderOnce(html: string, markdown: string, data: unknown, opts: R
     }
     views.push({ name: `${widget ? "widget" : width}-${scheme}`, width, scheme, errors, overflowPx: m.overflow, textLength: m.textLength, shown: m.shown, sampled: want.length,
       bg: m.bg, fg: m.fg, contrast: contrastOf(m.bg, m.fg), bgLuminance: lum(m.bg), unnamedControls: m.unnamed, smallTargets: m.small, screenshot: shot,
-      smallText: m.smallText, smallTextCount: m.smallTextCount, faintText: m.faint, faintCount: m.faintCount, headings: m.headings, excerpt: m.excerpt,
+      smallText: m.smallText, smallTextCount: m.smallTextCount, faintText: m.faint, faintCount: m.faintCount, faintColors: m.faintColors, headings: m.headings, excerpt: m.excerpt,
       titleCount: m.titleCount, ghostFields: m.ghostFields, sections: m.sections, nav: m.nav, junk: m.junk, under44: m.under44, under44Count: m.under44Count, clipped: m.clipped, clippedCount: m.clippedCount, usedWidth: m.used, canvases: m.canvases, svgShapes: m.svgShapes, gridCols: m.gridCols, frames: m.frames, look: m.look, ...(png ? { png } : {}) });
 
     await page.context().close();

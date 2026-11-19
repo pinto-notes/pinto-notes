@@ -26,8 +26,9 @@ export default function Setup() {
   const [own, setOwn] = useState("")
   const [touched, setTouched] = useState(false)
   // The suggestions themselves changed (the person's AI wrote others) and nothing was touched here.
+  // A name typed in Add your own counts as touched: what's on screen is what Use mine brings back.
   const seed = JSON.stringify(habits)
-  useEffect(() => { if (!touched) setPicks(picksOf(habits)) }, [seed])
+  useEffect(() => { if (!touched && !own.trim()) setPicks(picksOf(habits)) }, [seed])
   useEffect(() => { draft.touched = false; draft.mine = false; draft.use = null }, [])
 
   const typed = own.trim()

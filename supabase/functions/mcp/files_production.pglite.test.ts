@@ -61,7 +61,7 @@ Deno.test("a client connecting now gets the file tools, their instructions, prom
   // The About me note: read first, kept current (persona council, 4 November 2026).
   assertStringIncludes(init.instructions, 'If the person has a note titled "About me" that isn\'t locked, read it first');
   assertEquals((await rpc("tools/list")).tools.map((t: { name: string }) => t.name), FILE_TOOLS.map((t) => t.name));
-  assertEquals((await rpc("prompts/list")).prompts.map((p: { name: string }) => p.name), ["make_app", "add_data", "change_app"]);
+  assertEquals((await rpc("prompts/list")).prompts.map((p: { name: string }) => p.name), ["make_app", "own_version", "add_data", "change_app"]);
   const prompt = await rpc("prompts/get", { name: "make_app", arguments: { note: "Groceries" } });
   assertStringIncludes(prompt.messages[0].content.text, "create (type \"app\")");
   const uris = (await rpc("resources/list")).resources.map((r: { uri: string }) => r.uri);

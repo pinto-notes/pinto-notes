@@ -1,8 +1,7 @@
 // check_app and preview_app: let an AI see what it built. See app_check.ts for the findings and
 // app_sample.ts for the sample a note's app is rendered over.
 
-import { render as renderWith, renderedFindings, staticReport, testSummary, titleReport } from "./app_check.ts";
-import { noteForPage } from "./page_input.ts";
+import { render as renderWith, renderedFindings, staticReport, testSummary } from "./app_check.ts";
 import { resolvePackage } from "./libraries.ts";
 import { sampleData, sampleNote } from "./app_sample.ts";
 import { supplier } from "./app_blobs.ts";
@@ -26,7 +25,7 @@ const REAL_OFF = "Real data isn't available for previews: they always use a samp
 export const appTools = [
   {
     name: "check_app", title: "Check a note's app",
-    description: "Checks a note's app and reports what to fix, as text: the note's title as the app's first heading (and only once), script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, a layout that leaves most of a wide window empty, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, not using the --pinto-* theme, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
+    description: "Checks a note's app and reports what to fix, as text: script errors, at 390 and 320 px (iPhone) and 1280 px (Mac): sideways scrolling, clipped text, text that is too small or low in contrast (light and dark), controls without labels or under 44 px on the phone, an edit from the app that fails, breakage with an empty or 400-row note, unescaped note text, and network hosts or API keys declared vs used vs set up. " +
       "Run it after every set_note_page or edit_note_page and fix what it finds before telling the person the app is done. It renders a sample with the note's shape, not the person's data.",
     inputSchema: { type: "object", properties: { ...noteRef } },
     annotations: read,
@@ -108,7 +107,7 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
     });
     const browser = typeof r === "string" ? null : renderedFindings(r);
     const errors = [...found.errors, ...(browser?.errors ?? [])];
-    const notes = [...found.warnings, ...(typeof r === "string" ? [] : titleReport(r, noteForPage(sampleNote(body, t), t).title)), ...(browser?.notes ?? [])];
+    const notes = [...found.warnings, ...(browser?.notes ?? [])];
     return {
       app: { id: n.id, title: n.title },
       ok: errors.length === 0 && browser !== null,
@@ -129,18 +128,39 @@ export const appHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<u
       if (!p?.app_previews_real) throw new ToolError("Trying the app with real data is off. It uses a sample with the same shape by default (data: \"sample\"). The person can allow real data in Pinto Notes › Settings › Apps in Notes.");
     }
     const t = today();
-    const r = await render(tx, c, { html, markdown: real ? body : sampleNote(body, t), data: real ? data : sampleData(data, t), today: t,
-      views: [a.start === "desktop" ? { width: 1280, scheme: "light" } : { width: 390, scheme: "light" }], steps: a.steps.slice(0, 30), probes: false });
+    // The views to use it at: widths x themes when given (see_app passes them), else one phone or
+    // Mac view. Each view runs the steps from the start (2026-11-17: see_app with steps ignored
+    // widths and themes and gave one picture).
+    const asked = Array.isArray(a.widths) && a.widths.length || Array.isArray(a.themes) && a.themes.length;
+    const widths = (Array.isArray(a.widths) && a.widths.length ? a.widths : [a.start === "desktop" ? 1280 : 390]).map(Number).filter((w) => Number.isInteger(w) && w >= 320 && w <= 1800);
+    const themes = (Array.isArray(a.themes) && a.themes.length ? a.themes : ["light"]).filter((x) => x === "light" || x === "dark") as ("light" | "dark")[];
+    const views = asked ? widths.flatMap((width) => themes.map((scheme) => ({ width, scheme }))).slice(0, 4) : [{ width: widths[0] ?? 390, scheme: "light" as const }];
+    if (!views.length) throw new ToolError("Give widths between 320 and 1800 and themes light or dark.");
+    const list = a.steps.slice(0, 30);
+    const runs = await Promise.all(views.map((v) => render(tx, c, { html, markdown: real ? body : sampleNote(body, t), data: real ? data : sampleData(data, t), today: t,
+      views: [v], steps: list, probes: false })));
+    const r = runs[0];
     if (typeof r === "string") return { app: { id: n.id, title: n.title }, tried: false, reason: r };
     const steps = r.trial ?? [];
     const which = a.screenshots ?? "last";
+    const name = (v: { width: number; scheme: string }) => `${v.width} px ${v.scheme}`;
     const report = steps.map((s, i) => ({ step: i + 1, did: s.step, ...(s.ok ? {} : { failed: s.error }), ...(s.errors.length ? { errors: s.errors } : {}), ...(s.data.length ? { data_changed: s.data } : {}), screen: s.screen }));
-    const blocks: Record<string, unknown>[] = [{ type: "text", text: JSON.stringify({ app: n.title, data: real ? "a copy of the person's data" : "a sample with the app's data shape", steps: report }, null, 2) }];
-    steps.forEach((s, i) => {
-      if (!s.png || which === "none" || (which === "last" && i !== steps.length - 1 && s.ok)) return;
-      blocks.push({ type: "text", text: `After step ${i + 1}:` });
-      blocks.push({ type: "image", data: s.png, mimeType: "image/png" });
+    const others = runs.slice(1).map((o, i) => {
+      const last = typeof o === "string" ? null : (o.trial ?? []).at(-1);
+      const failed = typeof o === "string" ? [] : (o.trial ?? []).flatMap((s, j) => s.ok ? [] : [{ step: j + 1, failed: s.error }]);
+      return { view: name(views[i + 1]), ...(typeof o === "string" ? { tried: false, reason: o } : {}), ...(failed.length ? { failed } : {}), ...(last?.errors.length ? { errors: last.errors } : {}), png: last?.png };
     });
+    const blocks: Record<string, unknown>[] = [{ type: "text", text: JSON.stringify({ app: n.title, data: real ? "a copy of the person's data" : "a sample with the app's data shape", view: name(views[0]), steps: report,
+      ...(others.length ? { other_views: others.map(({ png: _, ...o }) => o) } : {}) }, null, 2) }];
+    // After each step when asked ("all", up to 12 pictures, the last always among them), else the last and any failed step.
+    const shown = steps.map((s, i) => !!s.png && which !== "none" && (which === "all" || i === steps.length - 1 || !s.ok));
+    for (let i = 0, room = 12; i < steps.length; i++) {
+      if (!shown[i] || (room <= 1 && i !== steps.length - 1)) continue;
+      room--;
+      blocks.push({ type: "text", text: `After step ${i + 1}${views.length > 1 ? ` (${name(views[0])})` : ""}:` });
+      blocks.push({ type: "image", data: steps[i].png, mimeType: "image/png" });
+    }
+    if (which !== "none") for (const o of others) if (o.png) { blocks.push({ type: "text", text: `After the last step, at ${o.view}:` }); blocks.push({ type: "image", data: o.png, mimeType: "image/png" }); }
     return new Content(blocks, { app: { id: n.id, title: n.title }, steps: report });
   },
 

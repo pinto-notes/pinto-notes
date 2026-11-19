@@ -27,6 +27,9 @@ export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expens
     e.preventDefault()
     if (!ok) return
     const fields = { date: date || iso(new Date()), what: what.trim() || category, category: options.includes(category) ? category : names[0], amount: Math.round(value * 100) / 100 }
+    // Closed first, then saved: a sheet that closed when its save landed could shut the next one the
+    // person had opened by then. The save lands either way.
+    onClose()
     if (expense) await update(expense.id, fields)
     else if (repeats) {
       // A monthly bill: this one now, then the same day every month.
@@ -34,14 +37,15 @@ export function ExpenseSheet({ open, expense, onClose }: { open: boolean; expens
       await addBill({ id, what: fields.what, category: fields.category, amount: fields.amount, day: Number(fields.date.slice(8)), last: monthOf(fields.date) })
       await add({ ...fields, rec: id })
     } else await add(fields)
-    onClose()
   }
   const drop = async () => {
     if (!expense) return
     const before = expenses
     onClose()
-    await remove(expense.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Deleted ${expense.what}`, () => restore(before))
+    await remove(expense.id)
   }
 
   return (

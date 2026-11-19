@@ -4,7 +4,6 @@
 // scripts/page-evals/build-skill.ts), so none of them drift.
 
 import { MAX_PAGE_BYTES, MAX_PAGE_DATA_BYTES, PAGE_CONTRACT } from "./page.ts";
-import { AMBER_BASE_CSS, AMBER_TOKENS } from "./amber-base.ts";
 import { appGuide, IN_CONTROL, scaffold } from "./app_scaffold.ts";
 
 const LIBS_BY_PACKAGE = "chart.js, d3, three, tone, dayjs, marked, dompurify, animejs, canvas-confetti, topojson-client and world-atlas";
@@ -18,8 +17,12 @@ export const PAGE_INSTRUCTIONS = `Apps: a note in Pinto Notes can be an app (som
 - It runs inside a note on iPhone and Mac, light and dark, and reaches the internet like any web page.
 - See your work with preview_app and check_app before you say it's done.`;
 
+/** The person wants their own version of an app they name or link to: one create does the reading
+ *  (own_version.ts), so the AI starts there instead of browsing on its own. */
+export const OWN_VERSION_LINE = `When the person wants their own version of an app (they give a link to it, or name it: then find its website or App Store page first), start it with create, type app and original: the link, and follow its answer.`;
+
 /** What the file tools' instructions (files_tools.ts) say about apps, and the Claude skill with them. */
-export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. An app links to a note or another app with <a href="pinto:Work/Acme">, written like a [[link]]: pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. ${IN_CONTROL}`;
+export const FILE_APP_INSTRUCTIONS = `A folder ending in .app is the note's app, a small React project with its data in data.json; read its README.md first (an older app can be a single index.html: change it the same way). Its docs/ folder is that app's memory: read docs/ first, and keep it current (data shape, decisions and why, known gaps) whenever you change the app. Every feature you add gets a test in tests/ like the starter's (do what the person does, check what they see and what was saved); never weaken, skip or delete a test to make it pass: fix the app instead. Tests run on every save, and a version that fails isn't shown to the person. An app links to a note or another app with <a href="pinto:Work/Acme">, written like a [[link]]: pinto:Acme#Agenda for a heading, pinto:Work/Habits.app for an app. ${IN_CONTROL} ${OWN_VERSION_LINE}`;
 
 /** The apps guide with the file tools: what every new app's README.md says, as a document (the
  *  MCP resource and the Claude skill's reference). */
@@ -57,13 +60,9 @@ ${Object.keys(SCAFFOLD).sort().join("\n")}
 - Work on it like any codebase: list_app_files, read_app_file, write_app_file, edit_app_file, move_app_file, delete_app_file. Keep README.md current; the next AI reads it first.
 - Every save compiles the project the way Vite would (TSX/JSX/TS, the @/ alias, imports without extensions, Tailwind from the classes you use) and answers with errors (the app is broken: compile errors, imports to nothing, script errors, content wider than the screen, unreadable text) and notes (information; use your judgment). Nothing is installed: package.json is there for orientation.
 - React runs on preact/compat. Import by name: react, react-dom, react-dom/client, radix-ui (what shadcn v4 builds on), lucide-react (every icon), recharts, date-fns, zod, motion, sonner, react-day-picker, clsx, tailwind-merge, class-variance-authority, pinto-router (screens: Router, Route, route(), back()), and ${LIBS_BY_PACKAGE} (each library's global as its default export: import Chart from "chart.js").
-- src/components/ui/ has 20 shadcn/ui components and src/components/app-shell.tsx a frame with a tab bar on iPhone and a sidebar from 900 px; they're the app's own files, so add and change them freely.
+- src/components/ui/ has 20 shadcn/ui components; they're the app's own files, so add and change them freely.
 - Any other npm package: resolve_package pins an exact file with a hash; add it to <meta name="amber-libs" content="npm:…"> in index.html and it loads before your code as a global.
-- Styling: Tailwind, with shadcn's variables (--background, --primary, …) set from Amber's colours in src/index.css; change them to give the app its own look. Two stylesheets load first, in cascade layers your CSS always beats: amber-tokens.css (the --pinto-* variables: ${AMBER_TOKENS.join(", ")}) and amber-base.css:
-
-\`\`\`css
-${AMBER_BASE_CSS.trim()}
-\`\`\`
+- Styling: Tailwind, with shadcn's variables (--background, --primary, …) in src/index.css.
 
 ## Data
 

@@ -176,6 +176,19 @@ describe("Budget", () => {
     await waitFor(() => expect(values().categories).toEqual(cats))
   })
 
+  it("offers no Undo left over from before the app was closed", async () => {
+    const first = render(<App />)
+    await go("Budget")
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Groceries" }))
+    expect(await screen.findByText("Removed Groceries")).toBeInTheDocument()
+    first.unmount()
+    render(<App />)
+    await go("Budget")
+    await screen.findByRole("button", { name: "Remove Eating out" })
+    expect(screen.queryByText("Removed Groceries")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull()
+  })
+
   it("says how to start when there are no categories", async () => {
     await amber.store.set("categories", [])
     render(<App />)
@@ -266,6 +279,24 @@ describe("Monthly bills", () => {
     await waitFor(() => expect(bills()).toEqual([]))
     await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(bills()).toHaveLength(1))
+  })
+
+  it("keeps the next sheet open when a save is confirmed late", async () => {
+    render(<App />)
+    await go("Budget")
+    // The device confirms each save a moment after the app already shows it, as on a busy phone.
+    const store = amber.store as unknown as { set: (...a: unknown[]) => Promise<unknown> }
+    const set = store.set
+    store.set = (...a) => set.apply(store, a).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+    try {
+      await userEvent.click(await screen.findByRole("button", { name: "Add bill" }))
+      await userEvent.type(await screen.findByLabelText("What"), "Phone")
+      await userEvent.type(screen.getByLabelText("Amount (kr)"), "299")
+      await userEvent.click(screen.getByRole("button", { name: "Save bill" }))
+      await userEvent.click(await screen.findByRole("button", { name: "Edit Phone" }))
+      await new Promise((r) => setTimeout(r, 600))
+      expect(screen.getByRole("dialog", { name: "Edit monthly bill" })).toBeInTheDocument()
+    } finally { store.set = set }
   })
 
   it("moves a bill with its category when the category is renamed", async () => {
@@ -392,6 +423,16 @@ describe("First use", () => {
     await waitFor(() => expect(values().categories).toEqual([{ name: "Groceries", budget: 3200 }, { name: "Eating out", budget: 500 }]))
     await waitFor(() => expect(values().currency).toBe("kr"))
     await waitFor(() => expect(screen.getByTestId("left")).toHaveTextContent("3,700 kr"))
+  })
+
+  it("keeps your categories on screen when your AI writes others while you type one of your own", async () => {
+    await fresh()
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("New category"), "Pets")
+    await amber.store.set("categories", [{ name: "Food", budget: 5000 }])
+    await new Promise((r) => setTimeout(r, 150)) // time for the screen to take in what the AI wrote
+    expect(screen.getByLabelText("Groceries a month")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Food a month")).toBeNull()
   })
 
   it("says nothing more when your AI sets it up and you hadn't touched the screen", async () => {

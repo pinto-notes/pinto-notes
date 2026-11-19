@@ -270,3 +270,17 @@ Deno.test("a project importing pinto, pinto-ui and pinto-router links, and the a
   const older = { amberApp: 1 as const, compiled: {}, files: { "/src/lib/amber.ts": `export * from "amber";`, "/src/App.tsx": `import { useStore } from "@/lib/pinto";\nexport default () => null;\n` } };
   assertStringIncludes(brokenImports(older).join(), `its file is "@/lib/amber"`);
 });
+
+// 2026-11-18 (arm D): a helper in tests/ that imported @testing-library/react was refused as an
+// unknown import (a fix round), and helpers that read pinto.data got "use window.pinto directly"
+// on every save (2 of 5 agents). Files under tests/ are the tests' own; app code still gets both.
+Deno.test("a helper in tests/ may import the test libraries and read what was saved; app code may not", async () => {
+  const { styleWarnings } = await import("./app_project.ts");
+  const helper = `import { render } from "@testing-library/react"\nimport { pinto } from "pinto"\nexport const saved = () => pinto.data.values.tasks\nexport { render }\n`;
+  const p = { amberApp: 1 as const, compiled: {}, files: { "/index.html": `<script type="module" src="/src/main.tsx"></script>`, "/src/main.tsx": "export {}\n", "/tests/helpers.ts": helper, "/tests/fixtures/seed.ts": helper } };
+  assertEquals(brokenImports(p), []);
+  assertEquals(styleWarnings(p).filter((w) => /window\.pinto/.test(w)), []);
+  const app = { ...p, files: { ...p.files, "/src/lib/saved.ts": helper } };
+  assertStringIncludes(brokenImports(app).join("\n"), `/src/lib/saved.ts imports "@testing-library/react"`);
+  assertStringIncludes(styleWarnings(app).join("\n"), "/src/lib/saved.ts use window.pinto directly");
+});

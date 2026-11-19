@@ -123,6 +123,8 @@ export const STACK_NAMES = [
 /** What a test file (tests/*.test.tsx) may import besides the app's names: run_app_tests provides them. */
 export const TEST_IMPORTS = ["vitest", "@testing-library/react", "@testing-library/preact", "@testing-library/user-event", "@testing-library/dom", "@testing-library/jest-dom", "@testing-library/jest-dom/vitest"];
 export const isTest = (path: string) => /^\/tests?\/.*\.test\.(tsx|ts|jsx|js)$/.test(path) || /\/__tests__\//.test(path);
+/** A test or a file only tests use (a helper or fixture in tests/): may import the test libraries and read the bridge. */
+export const forTests = (path: string) => isTest(path) || /^\/tests?\//.test(path);
 
 /** Bare names the app's import map resolves (the host owns the map; the page never writes one). */
 export const BARE_IMPORTS = [
@@ -366,7 +368,7 @@ export function brokenImports(p: Project): string[] {
         if (/^https:\/\//.test(spec)) continue;
         if (/^http:|^\/\//.test(spec)) out.push(`${path} imports ${spec}: only https addresses load in the app.`);
         else if (spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/")) { if (!resolveImport(p, path, spec)) out.push(`${path} imports ${spec}, but there's no such file.${spec === "@/lib/pinto" && p.files["/src/lib/amber.ts"] !== undefined ? ' This app is older: its file is "@/lib/amber" (the same exports).' : ""}`); }
-        else if (!BARE_IMPORTS.includes(spec) && !spec.startsWith("@radix-ui/") && !(isTest(path) && TEST_IMPORTS.includes(spec))) out.push(`${path} imports "${spec}", which isn't available (${BARE_IMPORTS.join(", ")}). Use one of those, pin an npm file with resolve_package, or add the code as a file.`);
+        else if (!BARE_IMPORTS.includes(spec) && !spec.startsWith("@radix-ui/") && !(forTests(path) && TEST_IMPORTS.includes(spec))) out.push(`${path} imports "${spec}", which isn't available (${BARE_IMPORTS.join(", ")}). Use one of those, pin an npm file with resolve_package, or add the code as a file.`);
       }
     }
     if (path.endsWith(".html")) {
@@ -401,8 +403,8 @@ export function sourceProblems(p: Project): string[] {
 export function styleWarnings(p: Project): string[] {
   const out: string[] = [];
   const code = Object.entries(p.files).filter(([path]) => isCode(path));
-  // Tests may read the bridge to see what was saved (the starter's test does).
-  const globals = code.filter(([path]) => !isTest(path)).filter(([, t]) => /\bwindow\b[^;\n]{0,20}\.(amber|pinto)\b|(?<![\w.])(amber|pinto)\s*\.\s*(note|update|onChange|setData|store|data)\b/.test(t)).map(([path]) => path);
+  // Tests and their helpers may read the bridge to see what was saved (the starter's test does).
+  const globals = code.filter(([path]) => !forTests(path)).filter(([, t]) => /\bwindow\b[^;\n]{0,20}\.(amber|pinto)\b|(?<![\w.])(amber|pinto)\s*\.\s*(note|update|onChange|setData|store|data)\b/.test(t)).map(([path]) => path);
   if (globals.length) out.push(`${globals.slice(0, 3).join(", ")} use window.pinto directly. In a project, import what you need from "@/lib/pinto" (useStore, useCollection, useSettings, batch, fetch, device…).`);
   // The app's data is JSON in its own store; the note's text is only read once, to convert an old note.
   const noteData = code.filter(([, t]) => /\buse(Table|Checklist)\s*\(|\.tables\s*\[|\bop\s*:\s*["'](append_row|set_cell|toggle_checklist|add_checklist_item|delete_row)/.test(t)).map(([path]) => path);

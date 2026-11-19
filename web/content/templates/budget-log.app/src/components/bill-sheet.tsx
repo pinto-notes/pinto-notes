@@ -26,15 +26,19 @@ export function BillSheet({ bill, onClose }: { bill: Bill | "new" | null; onClos
     e.preventDefault()
     if (!ok || !bill) return
     const fields = { what: what.trim(), amount: Math.round(value * 100) / 100, category: options.includes(category) ? category : names[0], day: Math.max(1, Math.min(31, Math.round(Number(day) || 1))) }
-    if (bill === "new") await addBill(fields); else await updateBill(bill.id, fields)
+    // Closed first, then saved: a sheet that closed when its save landed could shut the next one the
+    // person had opened by then. The save lands either way.
     onClose()
+    if (bill === "new") await addBill(fields); else await updateBill(bill.id, fields)
   }
   const drop = async () => {
     if (!bill || bill === "new") return
     const before = bills
     onClose()
-    await removeBill(bill.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Stopped ${bill.what}`, () => restoreBills(before))
+    await removeBill(bill.id)
   }
 
   return (

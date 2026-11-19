@@ -31,8 +31,9 @@ export default function Setup() {
   const [amount, setAmount] = useState("")
   const [touched, setTouched] = useState(false)
   // The suggestions themselves changed (the person's AI wrote others) and nothing was touched here.
+  // A category typed in the last row counts as touched: what's on screen is what Use mine brings back.
   const seed = JSON.stringify([b.categories, b.currency])
-  useEffect(() => { if (!touched) { setLines(linesOf(b.categories, b.currency)); setCurrency(b.currency || guessCurrency()) } }, [seed])
+  useEffect(() => { if (!touched && !name.trim() && !amount.trim()) { setLines(linesOf(b.categories, b.currency)); setCurrency(b.currency || guessCurrency()) } }, [seed])
   useEffect(() => { draft.touched = false; draft.mine = false; draft.use = null }, [])
 
   const typed = name.trim()

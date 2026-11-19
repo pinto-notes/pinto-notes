@@ -68,7 +68,7 @@ Deno.test("the instructions, prompts and tool descriptions name a tool only if t
   for (const set of [undefined, "", "files", "classic", "pages"]) {
     const served = servedTools(set).map((t) => t.name);
     const notServed = everyName().filter((n) => !served.includes(n) && n.includes("_"));
-    const texts = [instructions(set), ...servedPrompts(set).map((p) => p.text({ note: "N", idea: "I", data: "D", change: "C" })), ...servedTools(set).map((t) => t.description)];
+    const texts = [instructions(set), ...servedPrompts(set).map((p) => p.text({ note: "N", idea: "I", data: "D", change: "C", link: "https://example.com" })), ...servedTools(set).map((t) => t.description)];
     for (const text of texts) assertEquals(notServed.filter((n) => new RegExp(`\\b${n}\\b`).test(text)), [], `AMBER_MCP_TOOLS=${set}: ${text.slice(0, 60)}`);
     if (set !== undefined && set !== "" && set !== "files") assertEquals(named(instructions(set)).filter((n) => !served.includes(n)), [], `AMBER_MCP_TOOLS=${set}`);
   }
@@ -76,8 +76,8 @@ Deno.test("the instructions, prompts and tool descriptions name a tool only if t
 
 Deno.test("with the file tools, the prompts and resources are about apps made with them, and the card lists them", async () => {
   await withToolSet(undefined, async () => {
-    assertEquals(servedPrompts().map((p) => p.name), ["make_app", "add_data", "change_app"]);
-    for (const p of servedPrompts()) assert(!/get_page_guide|create_app|update_page_data|preview_app/.test(p.text({ note: "N", idea: "I", data: "D", change: "C" })), p.name);
+    assertEquals(servedPrompts().map((p) => p.name), ["make_app", "own_version", "add_data", "change_app"]);
+    for (const p of servedPrompts()) assert(!/get_page_guide|create_app|update_page_data|preview_app/.test(p.text({ note: "N", idea: "I", data: "D", change: "C", link: "https://example.com" })), p.name);
     const resources = await servedResources();
     const guide = resources.find((r) => r.name === "apps-guide");
     assert(guide, "the apps guide");
@@ -129,6 +129,52 @@ Deno.test("every guide an AI gets for apps says the person stays in control insi
   assertStringIncludes(await pageGuide(), IN_CONTROL);
   assertStringIncludes((await scaffold("Habits"))["/README.md"], IN_CONTROL);
   assertStringIncludes(FILE_INSTRUCTIONS, IN_CONTROL);
+});
+
+// Emil, 2026-11-17: the AI-built apps all looked alike. A new app starts from shadcn's neutral
+// starter with no Pinto colours, no Pinto frame and no amber-base.css, and nothing tells the AI to
+// look like Pinto Notes; its look is the AI's call.
+Deno.test("a new app starts with no Pinto look, and no guide asks for one", async () => {
+  const files = await scaffold("Habits");
+  // The one Pinto variable it reads is the reader's text size (accessibility, not a look).
+  assertEquals([...new Set(files["/src/index.css"].match(/--(pinto|amber)-[a-z-]+/g) ?? [])], ["--pinto-root-font"]);
+  assertStringIncludes(files["/src/index.css"], "--background: oklch(1 0 0)");
+  assertStringIncludes(files["/index.html"], '<meta name="amber-base" content="none" />');
+  assertEquals(Object.keys(files).filter((p) => /app-shell|stat-card/.test(p)), []);
+  for (const [path, text] of Object.entries(files)) assert(!/AppShell|PageHeader/.test(text), `${path} uses the Pinto frame`);
+  const { PAGE_API } = await import("./page_guide.ts");
+  const { appTools } = await import("./app_tools.ts");
+  const checkApp = appTools.find((t) => t.name === "check_app")!.description;
+  for (const text of [await pageGuide(), appsGuide(), PAGE_API, PAGE_INSTRUCTIONS, FILE_INSTRUCTIONS, checkApp]) {
+    for (const rule of [/look like Pinto/i, /Use the variables instead/i, /Nothing see-through/i, /Amber's colou?rs/i, /--pinto-\* theme/, /app-shell/]) assert(!rule.test(text), `${rule} in ${text.slice(0, 60)}`);
+  }
+  // A one-file app with its own fixed colours gets no note telling it to use Pinto's variables.
+  const { pageWarnings } = await import("./page_lint.ts");
+  const own = pageWarnings(`<html lang="en"><style>body { background: #0b1d3a; color: white }</style><script>pinto.onChange(() => {})</script></html>`);
+  assertEquals(own.filter((w) => /--pinto|dark variant|background on html or body/.test(w)), []);
+});
+
+// 2026-11-18 (arm D): in arm C, three of five apps put a sidebar inside a note that already has Pinto's.
+// Nothing an AI reads with the file tools points it at a sidebar or the Training example's Shell.
+Deno.test("the apps guide asks for an app's own look and layout, and nothing points an AI at a sidebar", async () => {
+  assertStringIncludes(appsGuide(), "Design it as its own product, with a look and layout that fit what it does. It lives inside a note, which already has Pinto's own navigation around it.");
+  await withToolSet(undefined, async () => {
+    const resources = await servedResources();
+    assertEquals(resources.filter((r) => r.uri.startsWith("amber://examples/")).map((r) => r.uri), []);
+    const { servedTools } = await import("./tool_set.ts");
+    const files = await scaffold("Habits");
+    const read = [instructions(), ...servedTools().map((t) => t.description), ...resources.map((r) => r.text), ...Object.values(files)];
+    // Pinto's own sidebar (where tags are found) is fine to mention.
+    for (const text of read.map((t) => t.replace("finds every note with it in the sidebar", ""))) for (const nudge of [/sidebar/i, /\bShell\b/, /most of a wide window/, /of the window's width/]) assert(!nudge.test(text), `${nudge} in ${text.slice(0, 80)}`);
+  });
+  const { appTools } = await import("./app_tools.ts");
+  assert(!/most of a wide window/.test(appTools.find((t) => t.name === "check_app")!.description));
+});
+
+// 2026-11-18 (arm D): 4 of 5 agents guessed what the store hooks return and where they keep data.
+Deno.test("the apps guide says what the store hooks return and where each keeps its data in data.json", () => {
+  const g = appsGuide();
+  for (const part of ['{ "values": {…}, "collections": {…} }', "[value, set], kept in values[key]", "set(null) removes the key", "kept in values.settings", "update(id, patch), remove(id) }, kept in collections[name]"]) assertStringIncludes(g, part);
 });
 
 Deno.test("every tool set tells an AI to read the About me note first and keep it current", () => {

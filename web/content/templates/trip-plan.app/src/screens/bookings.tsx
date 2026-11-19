@@ -29,15 +29,19 @@ export default function Bookings() {
     e.preventDefault()
     if (!what.trim() || !editing) return
     const fields = { what: what.trim(), kind, date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined, time: /^\d{2}:\d{2}$/.test(time) ? time : undefined, when: when.trim() || undefined, ref: ref.trim() || undefined }
+    // Closed first, then saved: a sheet that closed when its save landed could shut the next one the
+    // person had opened by then. The save lands either way.
+    setEditing(null)
     if (editing === "new") await addBooking(Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)) as Omit<Booking, "id" | "paid">)
     else await updateBooking(editing.id, fields)
-    setEditing(null)
   }
   const drop = async (b: Booking) => {
     const before = bookings
     setEditing(null)
-    await removeBooking(b.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Deleted ${b.what}`, () => restoreBookings(before))
+    await removeBooking(b.id)
   }
 
   return (

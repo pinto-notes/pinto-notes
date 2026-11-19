@@ -9,14 +9,6 @@ export function pageWarnings(html: string, body?: string): string[] {
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join("\n");
   const js = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join("\n");
 
-  const themed = /var\(--(amber|pinto)-/.test(html);
-  if (!themed && !/prefers-color-scheme\s*:\s*dark/i.test(html)) out.push("The app uses neither the --pinto-* variables nor colors of its own with a dark variant (@media (prefers-color-scheme: dark)): it won't follow dark mode.");
-  else {
-    // Fixed colors in a themed page break dark mode unless they have a dark variant.
-    const fixed = [...css.matchAll(/(?:^|[;{\s])(color|background(?:-color)?)\s*:\s*(#[0-9a-f]{3,8}\b|white|black|rgb\([^)]*\))/gi)].map((m) => `${m[1]}: ${m[2]}`);
-    if (fixed.length && !/prefers-color-scheme\s*:\s*dark/i.test(html)) out.push(`Fixed colors without a dark variant (${fixed.slice(0, 3).join(", ")}): use --pinto-* variables, or add @media (prefers-color-scheme: dark).`);
-  }
-  if (/(^|[\s,}])(html|body)\s*[,{][^}]*background/i.test(css)) out.push("Don't set a background on html or body: the app gives body the note's background (--pinto-bg).");
   if (/name=["']amber-settings["']|\b(amber|pinto)\s*\.\s*(settings|openSettings)\b/.test(html)) out.push("amber-settings, amber.settings and amber.openSettings() were removed: draw the settings inside the app (a gear, a Settings tab or a section at the end) and keep them in values.settings.");
   const important = (css.match(/!\s*important/gi) ?? []).length + [...html.matchAll(/\sstyle\s*=\s*(["'])([^"']*)\1/gi)].filter((m) => /!\s*important/i.test(m[2])).length;
   if (important) out.push(`!important appears ${important} time${important > 1 ? "s" : ""}: it isn't needed. amber-base.css sits in a cascade layer, so any rule the app writes already wins over it; restyle what you want, or opt out with <meta name="amber-base" content="none">.`);

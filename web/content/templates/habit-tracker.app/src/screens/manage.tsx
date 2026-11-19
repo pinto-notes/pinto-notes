@@ -10,8 +10,10 @@ export default function Manage() {
   const [editing, setEditing] = useState<Habit | "new" | null>(null)
   const drop = async (h: Habit) => {
     const before = habits
-    await remove(h.id)
+    // Undo is offered at once, then the change saved: offered once the save was confirmed, it could
+    // come after the person had moved on and undo the wrong thing.
     offerUndo(`Removed ${h.name}`, () => restore(before))
+    await remove(h.id)
   }
 
   return (

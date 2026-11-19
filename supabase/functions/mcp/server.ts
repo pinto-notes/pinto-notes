@@ -328,9 +328,9 @@ async function respond(msg: Rpc, id: string | number | null, ctx: ToolContext): 
 }
 
 type Resource = { uri: string; name: string; title: string; description: string; mimeType: string; text: string };
-/** Read-only documents a client can attach: the guide, the default stylesheet and an example app
- *  project. Made the first time a client asks (they're big; most requests never need them). The
- *  guide is the tool set's: with the file tools, what every new app's README.md says. */
+/** Read-only documents a client can attach: the guide, the default stylesheet and, with the classic
+ *  tools, an example app project. Made the first time a client asks (they're big; most requests never
+ *  need them). The guide is the tool set's: with the file tools, what every new app's README.md says. */
 const resources: Partial<Record<"files" | "pages", Promise<Resource[]>>> = {};
 const RESOURCES = (set: "files" | "pages") => resources[set] ??= (async () => {
   const { APP_EXAMPLES } = await import("./app_examples.gen.ts");
@@ -339,7 +339,8 @@ const RESOURCES = (set: "files" | "pages") => resources[set] ??= (async () => {
       ? { uri: APPS_GUIDE_URI, name: "apps-guide", title: "Apps in Pinto Notes", description: "How a note's app runs in Pinto Notes: the project, its data (data.json), the network and the device. Every new app's README.md says the same.", mimeType: "text/markdown", text: appsGuide() }
       : { uri: GUIDE_URI, name: "note-pages-guide", title: "Building note pages", description: "How to build and edit Pinto Notes pages: the window.pinto API, data model, design rules and a starter page.", mimeType: "text/markdown", text: await pageGuide() },
     { uri: BASE_CSS_URI, name: "amber-base-css", title: "amber-base.css", description: "The default stylesheet every note's app gets, before its own styles and in a cascade layer: override any rule, or opt out with <meta name=\"amber-base\" content=\"none\">.", mimeType: "text/css", text: AMBER_BASE_CSS },
-    ...Object.entries(APP_EXAMPLES).flatMap(([name, ex]) => Object.entries(ex.files).map(([path, text]) => ({ uri: `amber://examples/${name}${path}`, name: `example-${name}${path.replace(/[/.]/g, "-")}`, title: `Example app ${name}: ${path}`, description: `A file of the ${name} example project.`, mimeType: path.endsWith(".md") ? "text/markdown" : path.endsWith(".css") ? "text/css" : path.endsWith(".html") ? "text/html" : "text/javascript", text: text as string }))),
+    // The Training example is the classic tools' app (pinto-ui, its Shell's sidebar), not how a new app starts.
+    ...Object.entries(set === "files" ? {} : APP_EXAMPLES).flatMap(([name, ex]) => Object.entries(ex.files).map(([path, text]) => ({ uri: `amber://examples/${name}${path}`, name: `example-${name}${path.replace(/[/.]/g, "-")}`, title: `Example app ${name}: ${path}`, description: `A file of the ${name} example project.`, mimeType: path.endsWith(".md") ? "text/markdown" : path.endsWith(".css") ? "text/css" : path.endsWith(".html") ? "text/html" : "text/javascript", text: text as string }))),
   ];
 })();
 

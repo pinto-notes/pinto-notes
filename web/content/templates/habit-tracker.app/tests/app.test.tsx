@@ -102,6 +102,23 @@ describe("Habits", () => {
     expect(await screen.findByRole("button", { name: "Done: Stretch" })).toBeInTheDocument()
   })
 
+  it("keeps the next sheet open when a save is confirmed late", async () => {
+    render(<App />)
+    await go("Habits")
+    // The device confirms each save a moment after the app already shows it, as on a busy phone.
+    const store = amber.store as unknown as { set: (...a: unknown[]) => Promise<unknown> }
+    const set = store.set
+    store.set = (...a) => set.apply(store, a).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+    try {
+      await userEvent.click(await screen.findByRole("button", { name: "Add" }))
+      await userEvent.type(await screen.findByLabelText("Name"), "Stretch")
+      await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
+      await userEvent.click(await screen.findByRole("button", { name: "Edit Stretch" }))
+      await new Promise((r) => setTimeout(r, 600))
+      expect(screen.getByRole("dialog", { name: "Edit habit" })).toBeInTheDocument()
+    } finally { store.set = set }
+  })
+
   it("adds a counted habit with its unit", async () => {
     render(<App />)
     await go("Habits")
@@ -136,6 +153,19 @@ describe("Habits", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Undo" }))
     await waitFor(() => expect(values().habits.map((h: { id: string }) => h.id)).toEqual(["walk", "water"]))
     expect(await screen.findByText("Walk")).toBeInTheDocument()
+  })
+
+  it("offers no Undo left over from before the app was closed", async () => {
+    await amber.store.set("habits", [walk, water])
+    route("/habits")
+    const first = render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Remove Walk" }))
+    expect(await screen.findByText("Removed Walk")).toBeInTheDocument()
+    first.unmount()
+    render(<App />)
+    await screen.findByRole("button", { name: "Remove Water" })
+    expect(screen.queryByText("Removed Walk")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull()
   })
 
   it("renames a habit and changes its goal, keeping its days", async () => {
@@ -407,6 +437,16 @@ describe("First use", () => {
     await userEvent.click(screen.getByRole("button", { name: "Use mine" }))
     await waitFor(() => expect(values().habits).toEqual([walk, water, { id: "stretch", name: "Stretch", target: 1 }]))
     expect(await screen.findByRole("button", { name: "Done: Stretch" })).toBeInTheDocument()
+  })
+
+  it("keeps your suggestions on screen when your AI writes habits while you type one of your own", async () => {
+    await fresh([walk, water])
+    render(<App />)
+    await userEvent.type(await screen.findByLabelText("Add your own"), "Stretch")
+    await amber.store.set("habits", [{ id: "run", name: "Run", target: 1 }])
+    await new Promise((r) => setTimeout(r, 150)) // time for the screen to take in what the AI wrote
+    expect(screen.getByLabelText("Name of Walk")).toBeInTheDocument()
+    expect(screen.queryByLabelText("Name of Run")).toBeNull()
   })
 
   it("says nothing more when your AI sets it up and you hadn't touched the screen", async () => {

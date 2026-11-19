@@ -417,7 +417,9 @@ const BUDGET_EXPENSES = [
 async function reactApp(title: string, files: Record<string, string>): Promise<string> {
   const { scaffold } = await import("../../supabase/functions/mcp/app_scaffold.ts");
   const { compile, linkProject, needsCompile, serialize } = await import("../../supabase/functions/mcp/app_project.ts");
-  const all = { ...(await scaffold(title)), ...files };
+  // These eval apps use the Training demo's frame, which new apps no longer start with.
+  const { STACK_FILES } = await import("../../supabase/functions/mcp/app_stack.gen.ts");
+  const all = { ...(await scaffold(title)), "/src/components/app-shell.tsx": STACK_FILES["/src/components/app-shell.tsx"], ...files };
   const p = { amberApp: 1 as const, files: all, compiled: {} as Record<string, string> };
   for (const f of Object.keys(all)) if (needsCompile(f, true)) { const r = await compile(f, all[f], "react"); if ("error" in r) throw new Error(r.error); p.compiled[f] = r.code; }
   return serialize((await linkProject(p)).project);

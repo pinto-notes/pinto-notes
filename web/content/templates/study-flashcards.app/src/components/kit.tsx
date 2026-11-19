@@ -140,7 +140,9 @@ export function offerUndo(text: string, undo: () => unknown, label = "Undo", kee
 export function UndoBar() {
   const [u, setU] = useState<Undoable | null>(null)
   // What was offered before this bar was on screen shows too (the first screen has no bar).
-  useLayoutEffect(() => { listeners.add(setU); setU(pending); return () => { listeners.delete(setU) } }, [])
+  // When the last bar goes (the app closes, or a test ends), so does its offer: an Undo left over
+  // from before would undo something the person no longer sees.
+  useLayoutEffect(() => { listeners.add(setU); setU(pending); return () => { listeners.delete(setU); if (!listeners.size) pending = null } }, [])
   useEffect(() => {
     if (!u || u.keep) return
     const t = setTimeout(() => { if (pending === u) pending = null; setU((now) => (now === u ? null : now)) }, 6000)
