@@ -79,6 +79,32 @@ enum MakeAnApp {
         return "In Pinto Notes, make me a new note that is an app: \(what). Make it with create (type app, a short title), read the app's README.md, then build it and look at it with see_app."
     }
 
+    /// New App's words for your own version of an app: the MCP server's own_version prompt, word
+    /// for word (files_tools.ts ownVersionPrompt). With no note yet the AI makes one, and create's
+    /// answer has it renamed to the app's plain name.
+    static func ownVersionPrompt(link: String, title: String? = nil) -> String {
+        let at = link.trimmingCharacters(in: .whitespacesAndNewlines)
+        let note = title.map { "my note \"\($0)\"" } ?? "a new note named for what the app does"
+        return "In Pinto Notes, make my own version of the app at \(at), as \(note). Start it with create (type \"app\", original \"\(at)\") and follow what its answer says, all the way to a tested app."
+    }
+    /// Under New App's field when it holds just a link.
+    static let ownVersionFound = "Your own version of that app: its features from its public pages, with a name and look of its own."
+    /// New App's field: an idea, or a link to an app to make your own version of (Emil chose one
+    /// field over a card of its own or a switch, 17 November 2026).
+    static let ideaPlaceholder = "Describe it, or paste a link to an app you like"
+
+    /// The link in what was typed, when what was typed is just a link ("streaks.app",
+    /// "https://apps.apple.com/…"): a web address with a dot in its name and no spaces around it.
+    static func link(in text: String) -> String? {
+        let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty, !s.contains(where: \.isWhitespace) else { return nil }
+        let full = s.lowercased().hasPrefix("http://") || s.lowercased().hasPrefix("https://") ? s : "https://\(s)"
+        guard !s.contains("@"), let u = URL(string: full), u.user() == nil, let host = u.host(), host.contains("."), !host.hasPrefix("."), !host.hasSuffix("."),
+              ["http", "https"].contains(u.scheme?.lowercased() ?? ""),
+              host.split(separator: ".").last.map({ $0.count >= 2 && $0.allSatisfy(\.isLetter) }) == true else { return nil }
+        return full.replacingOccurrences(of: "^http://", with: "https://", options: [.regularExpression, .caseInsensitive])
+    }
+
     /// Examples to start New App from: the app-shaped templates on the site.
     static let examples: [(name: String, idea: String)] = [
         ("Habit tracker", "a habit tracker with today's habits to tick, streaks, and a week at a glance"),
@@ -141,20 +167,31 @@ struct MakeAppSheet: View {
     nonisolated(unsafe) static var patienceForTests: Duration? = Capture.argument("-makeAppPatience").flatMap(Double.init).map { .seconds($0) }
     /// The small sketch of the note as an app, compared with and without (`-makeAppSketch NO`).
     nonisolated(unsafe) static var sketch = Capture.argument("-makeAppSketch") != "NO"
+    /// What's typed in New App's field, for pictures and tests (`-makeAppIdea streaks.app`).
+    nonisolated(unsafe) static var ideaForPictures: String? = Capture.argument("-makeAppIdea")
     #else
     static let stateForPictures: String? = nil
     static let patienceForTests: Duration? = nil
     static let sketch = true
+    static let ideaForPictures: String? = nil
     #endif
 
     /// Make It an App for a note.
     init(noteID: UUID, title: String, body_: String) { self.noteID = noteID; self.title = title; self.body_ = body_ }
     /// New App: one question, and the AI makes the note and its app. Nothing is made here until
     /// the app arrives, so closing the sheet or waiting in vain leaves no empty note behind.
-    init(newApp: Void) { noteID = nil; title = ""; body_ = "" }
+    init(newApp: Void) {
+        noteID = nil; title = ""; body_ = ""
+        if let typed = Self.ideaForPictures { _idea = State(initialValue: typed) }
+    }
 
     private var isNew: Bool { noteID == nil }
-    private var prompt: String { isNew ? MakeAnApp.newAppPrompt(idea) : MakeAnApp.prompt(title: title, body: body_) }
+    /// New App's field holds just a link: your own version of that app.
+    private var ownLink: String? { isNew ? MakeAnApp.link(in: idea) : nil }
+    private var prompt: String {
+        if let ownLink { return MakeAnApp.ownVersionPrompt(link: ownLink) }
+        return isNew ? MakeAnApp.newAppPrompt(idea) : MakeAnApp.prompt(title: title, body: body_)
+    }
     /// New App needs an answer before anything can be handed over.
     private var ready: Bool { !isNew || !idea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -365,10 +402,11 @@ struct MakeAppSheet: View {
         }
     }
 
-    /// New App: "What should it do?", and examples to start from (the app templates on the site).
+    /// New App: what it should do, or a link to an app to make your own version of, and examples
+    /// to start from (the app templates on the site).
     private var question: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("What should it do?", text: $idea, axis: .vertical)
+            TextField(MakeAnApp.ideaPlaceholder, text: $idea, axis: .vertical)
                 .lineLimit(2...4)
                 .font(Metrics.prompt)
                 .textFieldStyle(.plain)
@@ -378,6 +416,13 @@ struct MakeAppSheet: View {
                 .background(Color(Palette.field), in: .rect(cornerRadius: Metrics.radius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Metrics.radius, style: .continuous).strokeBorder(Color(Palette.fieldHairline), lineWidth: 1))
                 .accessibilityIdentifier("newApp.idea")
+            if ownLink != nil {
+                Label(MakeAnApp.ownVersionFound, systemImage: "link")
+                    .font(Metrics.hint)
+                    .foregroundStyle(Color.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("newApp.ownVersion")
+            }
             HStack(spacing: 6) {
                 ForEach(MakeAnApp.examples, id: \.name) { e in
                     Button { idea = e.idea } label: {
