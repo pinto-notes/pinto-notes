@@ -27,7 +27,7 @@ from PIL import Image, ImageCms, ImageDraw, ImageFilter, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
-AMBER = (0xE7, 0x7C, 0x0E)
+AMBER = (0xDF, 0x6B, 0x08)  # 11-19: deeper than the old E77C0E, for contrast with the leaf
 # Where the leaf sits, in px at 1024 from its drawn position (+x right, +y down). As drawn, its centre
 # of mass was 28 px right of and 26 px above the centre, so it looked high and to the right, most of
 # all in circle crops. This puts the centre of mass at the centre, a touch lower to balance the tip.
