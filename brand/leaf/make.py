@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Writes every copy of the leaf icon from the sources in this folder.
 
-    uv run --with pillow python3 brand/leaf/make.py web    # the website's icons, favicon and marks
-    uv run --with pillow python3 brand/leaf/make.py brand  # directory listings, the ChatGPT plugin, the README
+    uv run --with pillow python3 brand/leaf/make.py web    # the website's icons, favicon, marks and email mark
+    uv run --with pillow python3 brand/leaf/make.py brand  # directory listings, the ChatGPT and Grok plugins, the README
     uv run --with pillow python3 brand/leaf/make.py app    # the Xcode icon (.icon and asset catalog) and in-app marks
     uv run --with pillow python3 brand/leaf/make.py social # the GitHub social preview and the avatar for profiles
     uv run --with pillow python3 brand/leaf/make.py sources  # after changing leaf.png or OFFSET (needs Xcode)
@@ -122,6 +122,7 @@ def web():
     save(render, "web/public/mark-256.png", 256)
     save(render, "web/public/icon-192.png", 192)
     save(render, "web/app/icon.png", 512)
+    save(render, "web/public/email/mark.png", 56)  # the sign-in and onboarding emails
     for px in (16, 32, 48, 96):
         save(favicon(px), f"web/public/icon-{px}.png")
     save(maskable(512), "web/public/icon-maskable-512.png", opaque=True)
@@ -141,6 +142,7 @@ def brand():
     for name in ("icon", "icon-dark"):
         save(favicon(128, fill=0.84), f"{plugin}/{name}.png")
     save(render, "docs/images/icon.png", 256)
+    save(render, "plugins/grok/pinto-notes/assets/logo.png", 256)
 
 
 def app():
