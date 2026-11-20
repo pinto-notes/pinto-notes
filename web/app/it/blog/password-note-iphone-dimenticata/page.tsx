@@ -27,7 +27,7 @@ const FAQ = [
     "No. Reimpostarla ti permette di proteggere le note nuove con una password nuova. Le note che hai protetto prima tengono la vecchia password, e serve quella per aprirle.",
   ] },
   { q: "Posso aprire una nota protetta con Face ID o Touch ID?", a: [
-    "Provaci: se hai attivato Face ID o Touch ID per Note, Apple lo indica come un modo per vedere una nota protetta. Non serve per cambiare la password, che chiede sempre quella attuale.",
+    "Provaci: se hai attivato Face ID o Touch ID per Note, Apple lo indica come un modo per vedere una nota protetta. Funziona anche per Modifica password: se Face ID apre ancora le tue note, puoi impostarne una nuova senza ricordare quella vecchia.",
   ] },
   { q: "Le app che promettono di sbloccare Note funzionano?", a: [
     "Non possono decifrare una nota protetta senza la sua password. La chiave nasce dalla password, quindi il massimo che uno strumento può fare è tirare a indovinare. Diffida di chiunque ti chieda la password del tuo Apple Account per farlo.",
@@ -123,7 +123,7 @@ export default function Page() {
             <tr><th scope="col"></th><th scope="col">Apre le note protette vecchie?</th><th scope="col">Buono a sapersi</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Face ID o Touch ID</th><td>Sì, se era attivo per Note</td><td>Non cambia la password: per quello serve sempre quella attuale</td></tr>
+            <tr><th scope="row">Face ID o Touch ID</th><td>Sì, se era attivo per Note</td><td>Funziona anche per Modifica password, che passa tutte le note alla nuova</td></tr>
             <tr><th scope="row">Il suggerimento</th><td>Solo se ti rinfresca la memoria</td><td>Compare dopo un paio di tentativi sbagliati, se ne avevi impostato uno</td></tr>
             <tr><th scope="row">Codice del dispositivo</th><td>Sì, per le note protette con il codice</td><td>Un’opzione da iOS 16, con il portachiavi iCloud attivo</td></tr>
             <tr><th scope="row">Reimposta password</th><td>No</td><td>Imposta una password per le note che proteggi d’ora in poi</td></tr>
