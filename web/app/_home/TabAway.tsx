@@ -2,18 +2,17 @@
 
 import { useEffect } from "react";
 
-/// What the tab says while you're on another one. Lowercase, like a text from a friend.
+/// What the tab says while you're on another one. Sentence case, one emoji at most.
 export const AWAY_TITLES = [
-  "pls 🥺 come back",
-  "who said u could leave",
-  "ur notes miss u",
-  "u left ur notes on read",
-  "come back, it is snack time 🍿",
-  "the checklist won't check itself",
-  "i was mid-sentence",
-  "we saved ur spot 📝",
-  "hello?? 👀",
-  "ok but where did u go",
+  "Your notes miss you",
+  "This checklist won't tick itself",
+  "Your AI is still holding your place",
+  "We saved your spot 📝",
+  "Hello? 👀",
+  "The note is still open",
+  "Snack break? Fine. Come back after 🍿",
+  "Left on read, by a notes app",
+  "Still here. Still taking notes.",
 ];
 
 /// Picks a line other than the last one, so two leaves in a row never say the same thing.
