@@ -26,7 +26,7 @@ const FAQ = [
     "Non. La réinitialisation vous permet de verrouiller de nouvelles notes avec un nouveau mot de passe. Les notes verrouillées avant gardent l’ancien mot de passe, et il faut toujours celui-là pour les ouvrir.",
   ] },
   { q: "Puis-je ouvrir une note verrouillée avec Face ID ou Touch ID ?", a: [
-    "Essayez : si vous avez activé Face ID ou Touch ID pour Notes, Apple l’indique comme un moyen d’afficher une note verrouillée. Cela ne permet pas de changer le mot de passe, qui demande toujours le mot de passe actuel.",
+    "Essayez : si vous avez activé Face ID ou Touch ID pour Notes, Apple l’indique comme un moyen d’afficher une note verrouillée. Cela fonctionne aussi pour Modifier le mot de passe : si Face ID ouvre encore vos notes, vous pouvez en choisir un nouveau sans vous souvenir de l’ancien.",
   ] },
   { q: "Les apps qui promettent de déverrouiller Notes fonctionnent-elles ?", a: [
     "Elles ne peuvent pas déchiffrer une note verrouillée sans son mot de passe. La clé est tirée du mot de passe, donc un outil ne peut au mieux que deviner. Méfiez-vous de tout ce qui vous demande le mot de passe de votre compte Apple pour le faire.",
@@ -123,7 +123,7 @@ export default function Page() {
             <tr><th scope="col"></th><th scope="col">Ouvre les anciennes notes verrouillées ?</th><th scope="col">Bon à savoir</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Face ID ou Touch ID</th><td>Oui, s’il était activé pour Notes</td><td>Ne change pas le mot de passe : il faut toujours le mot de passe actuel pour ça</td></tr>
+            <tr><th scope="row">Face ID ou Touch ID</th><td>Oui, s’il était activé pour Notes</td><td>Fonctionne aussi pour Modifier le mot de passe, qui passe toutes les notes au nouveau</td></tr>
             <tr><th scope="row">L’indice</th><td>Seulement en vous rafraîchissant la mémoire</td><td>Apparaît après deux essais ratés, si vous en avez mis un</td></tr>
             <tr><th scope="row">Code de l’appareil</th><td>Oui, pour les notes verrouillées avec lui</td><td>Possible depuis iOS 16, avec le trousseau iCloud activé</td></tr>
             <tr><th scope="row">Réinitialiser le mot de passe</th><td>Non</td><td>Définit un mot de passe pour les notes que vous verrouillerez désormais</td></tr>

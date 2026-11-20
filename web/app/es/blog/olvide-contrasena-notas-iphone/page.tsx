@@ -24,7 +24,7 @@ const FAQ = [
     "No. Restablecer te deja bloquear notas nuevas con una contraseña nueva. Las notas que bloqueaste antes siguen con la contraseña antigua y la necesitan para abrirse.",
   ] },
   { q: "¿Puedo abrir una nota bloqueada con Face ID o Touch ID?", a: [
-    "Pruébalo: si activaste Face ID o Touch ID para Notas, Apple lo da como forma de ver una nota bloqueada. No sirve para cambiar la contraseña, que siempre pide la actual.",
+    "Pruébalo: si activaste Face ID o Touch ID para Notas, Apple lo da como forma de ver una nota bloqueada. También sirve para Cambiar contraseña: si Face ID todavía abre tus notas, puedes poner una contraseña nueva sin recordar la antigua.",
   ] },
   { q: "¿Funcionan las apps que prometen desbloquear Notas?", a: [
     "No pueden descifrar una nota bloqueada sin su contraseña. La clave sale de la contraseña, así que lo único que puede hacer una herramienta es adivinar. Desconfía de cualquiera que te pida la contraseña de tu Cuenta de Apple.",
@@ -119,7 +119,7 @@ export default function Page() {
             <tr><th scope="col"></th><th scope="col">¿Abre notas antiguas?</th><th scope="col">Conviene saber</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Face ID o Touch ID</th><td>Sí, si estaba activado para Notas</td><td>No cambia la contraseña; eso siempre pide la actual</td></tr>
+            <tr><th scope="row">Face ID o Touch ID</th><td>Sí, si estaba activado para Notas</td><td>También sirve para Cambiar contraseña, que pasa todas las notas a la nueva</td></tr>
             <tr><th scope="row">La indicación</th><td>Solo si te refresca la memoria</td><td>Aparece tras un par de intentos fallidos, si pusiste una</td></tr>
             <tr><th scope="row">Código del dispositivo</th><td>Sí, en las notas bloqueadas con él</td><td>Opción desde iOS 16, con el llavero de iCloud activado</td></tr>
             <tr><th scope="row">Restablecer contraseña</th><td>No</td><td>Pone una contraseña para las notas que bloquees desde ahora</td></tr>

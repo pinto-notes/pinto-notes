@@ -404,7 +404,7 @@ export const posts: Post[] = [
     excerpt: "Try these first, then reset. Resetting lets you lock new notes, but it never opens the old ones. Nobody can, and here's why.",
     category: "Apple Notes",
     date: "2026-10-01",
-    updated: "2026-10-14",
+    updated: "2026-11-20",
     image: SHOTS.notesPassword,
     thumb: cover("pearl", "forgot-password", 1600, 1000, "A notes icon with an orange padlock"),
     draft: false,

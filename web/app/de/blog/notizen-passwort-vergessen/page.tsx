@@ -28,7 +28,7 @@ const FAQ = [
     "Nein. Nach dem Zurücksetzen kannst du neue Notizen mit einem neuen Passwort sperren. Notizen, die du vorher gesperrt hast, behalten das alte Passwort und brauchen es weiterhin.",
   ] },
   { q: "Kann ich eine gesperrte Notiz mit Face ID oder Touch ID öffnen?", a: [
-    "Probier es aus: Wenn du Face ID oder Touch ID für Notizen aktiviert hast, nennt Apple das als Weg, eine gesperrte Notiz anzusehen. Das Passwort ändern kannst du damit nicht, dafür brauchst du immer das aktuelle.",
+    "Probier es aus: Wenn du Face ID oder Touch ID für Notizen aktiviert hast, nennt Apple das als Weg, eine gesperrte Notiz anzusehen. Es funktioniert auch für „Passwort ändern“: Wenn Face ID deine Notizen noch öffnet, kannst du ein neues Passwort festlegen, ohne dich an das alte zu erinnern.",
   ] },
   { q: "Funktionieren Apps, die versprechen, Notizen zu entsperren?", a: [
     "Sie können eine gesperrte Notiz ohne ihr Passwort nicht entschlüsseln. Der Schlüssel entsteht aus dem Passwort, also kann ein Tool höchstens Passwörter raten. Sei vorsichtig, wenn eine App dafür das Passwort deines Apple Accounts will.",
@@ -126,7 +126,7 @@ export default function Page() {
             <tr><th scope="col"></th><th scope="col">Öffnet alte gesperrte Notizen?</th><th scope="col">Gut zu wissen</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Face ID oder Touch ID</th><td>Ja, wenn es für Notizen aktiviert war</td><td>Ändert das Passwort nicht, dafür brauchst du immer das aktuelle</td></tr>
+            <tr><th scope="row">Face ID oder Touch ID</th><td>Ja, wenn es für Notizen aktiviert war</td><td>Funktioniert auch für „Passwort ändern“, das alle Notizen auf das neue umstellt</td></tr>
             <tr><th scope="row">Die Merkhilfe</th><td>Nur, wenn sie deinem Gedächtnis auf die Sprünge hilft</td><td>Erscheint nach zwei Fehlversuchen, falls du eine festgelegt hast</td></tr>
             <tr><th scope="row">Gerätecode</th><td>Ja, für Notizen, die damit gesperrt sind</td><td>Möglich seit iOS 16, mit aktiviertem iCloud-Schlüsselbund</td></tr>
             <tr><th scope="row">Passwort zurücksetzen</th><td>Nein</td><td>Legt ein Passwort für Notizen fest, die du ab jetzt sperrst</td></tr>

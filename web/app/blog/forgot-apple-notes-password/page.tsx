@@ -5,17 +5,27 @@ import { ResetChooser } from "@/lib/ResetChooser";
 import { SHOTS } from "@/lib/posts";
 
 export const dynamic = "force-static";
+// 20 Nov 2026, experiment B11 (top-3 push): Search Console, 28 days: 3,867 impressions at 10.2, 0.3% CTR; "how to change
+// notes password" 58 at 14.9 and "how to reset notes password" 41 at 24.9 had no section of their own. Added Change
+// Password (steps from support.apple.com/en-us/102537, published 11 Dec 2025, and the Mac guide apdb021fd5a9, macOS 27),
+// which corrects the old line that Face ID cannot change the password: Apple now lists Face ID or Touch ID for it.
 export const metadata = postMetadata("forgot-apple-notes-password", { title: "Forgot your Apple Notes password? 5 things to try first" });
 
 const FAQ = [
   { q: "Can Apple recover my locked notes if I forget the password?", a: [
-    "No. Apple says it doesn't have access to locked notes and can't help you open them if you forget your notes password. Locked notes are end-to-end encrypted with a key made from that password.",
+    "No. Apple says it doesn't have access to locked notes and can't help you open them if you forget your notes password. Locked notes are encrypted with a key made from that password.",
   ] },
   { q: "Does resetting the Notes password unlock my old notes?", a: [
     "No. Resetting lets you lock new notes with a new password. Notes you locked before keep the old password, and still need it to open.",
   ] },
   { q: "Can I open a locked note with Face ID or Touch ID?", a: [
-    "Try it: if you turned on Face ID or Touch ID for Notes, Apple lists it as a way to view a locked note. It can't be used to change the password, which always needs the current one.",
+    "Try it: if you turned on Face ID or Touch ID for Notes, Apple lists it as a way to view a locked note. It also works for Change Password, so if Face ID still opens your notes, you can set a new password without remembering the old one.",
+  ] },
+  { q: "How do I change my Notes password?", a: [
+    "On iPhone: Settings, Apps, Notes, Password, choose the account, then Change Password. Use Face ID or Touch ID or the current password, then enter a new password and a hint. On a Mac: Notes, Settings, Change Password. Every locked note moves to the new password.",
+  ] },
+  { q: "What's the difference between change and reset?", a: [
+    "Change Password needs the current password, Face ID or Touch ID, and moves every locked note to the new password. Reset Password needs your Apple Account password instead, and the new password only covers notes you lock from then on.",
   ] },
   { q: "Do apps that promise to unlock Apple Notes work?", a: [
     "They can't decrypt a locked note without its password. The key is made from the password, so the most any tool can do is guess passwords. Be wary of anything that asks for your Apple Account password to do it.",
@@ -33,6 +43,7 @@ export default function Page() {
       answer={
         <Answer jump={[
           { href: "#try-these-first", label: "Try these first" },
+          { href: "#change", label: "Change it" },
           { href: "#reset-on-iphone", label: "Reset on iPhone" },
           { href: "#reset-on-a-mac", label: "Reset on a Mac" },
           { href: "#next-time", label: "Avoid it next time" },
@@ -62,7 +73,7 @@ export default function Page() {
         alt="A locked note on iPhone: a grey padlock, the words This note is locked, and a View Note button."
         caption="A locked note on iPhone. Image: Apple." />
       <p>
-        A locked note is end-to-end encrypted with a key made from your notes password. Apple&apos;s security guide describes it: the key
+        A locked note is encrypted with a key made from your notes password. Apple&apos;s security guide describes it: the key
         is derived from your passphrase, and the note and its attachments are encrypted with it. Apple
         says <a href="https://support.apple.com/en-us/102537" rel="noopener">it doesn&apos;t have access to locked notes</a> and can&apos;t
         help if you forget the password. That&apos;s the point of locking a note, and it&apos;s also why resetting the password can&apos;t
@@ -109,7 +120,7 @@ export default function Page() {
             <tr><th scope="col"></th><th scope="col">Opens old locked notes?</th><th scope="col">Good to know</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Face ID or Touch ID</th><td>Yes, if it was on for Notes</td><td>Can&apos;t change the password; that always needs the current one</td></tr>
+            <tr><th scope="row">Face ID or Touch ID</th><td>Yes, if it was on for Notes</td><td>Also works for Change Password, which moves every note to a new password</td></tr>
             <tr><th scope="row">The hint</th><td>Only by jogging your memory</td><td>Shows after a couple of wrong tries, if you set one</td></tr>
             <tr><th scope="row">Device passcode</th><td>Yes, for notes locked with it</td><td>An option since iOS 16, with iCloud Keychain on</td></tr>
             <tr><th scope="row">Reset Password</th><td>No</td><td>Sets a password for notes you lock from now on</td></tr>
@@ -119,7 +130,30 @@ export default function Page() {
         </table>
       </div>
 
-      <h2 id="reset">Reset the password (for new notes)</h2>
+      <h2 id="change">Change your Notes password, if Face ID still works</h2>
+      <p>
+        If Face ID, Touch ID or the current password still opens your notes, don&apos;t reset. Change the password instead: every locked
+        note moves to the new one, so you never end up with two.
+      </p>
+      <p className="label" id="change-on-iphone"><strong>On iPhone</strong></p>
+      <Steps>
+        <li>Open Settings, tap Apps, then Notes, then Password.</li>
+        <li>Choose the account, then tap Change Password.</li>
+        <li>Use Face ID or Touch ID, or enter the current notes password.</li>
+        <li>Enter a new password and a hint, then tap Done.</li>
+      </Steps>
+      <p className="label" id="change-on-a-mac"><strong>On a Mac</strong></p>
+      <Steps>
+        <li>In Notes, choose Notes, Settings, then Change Password. With more than one account, choose the account first.</li>
+        <li>Use Touch ID, or click Use Password and enter the current one.</li>
+        <li>Enter the new password twice and a hint, then click Change Password.</li>
+      </Steps>
+      <p>
+        If your notes are locked with your Mac&apos;s login password, Change Password opens System Settings instead, and changing it there
+        changes your login password too.
+      </p>
+
+      <h2 id="reset">How to reset your Notes password (for new notes)</h2>
       <p>
         If none of that works, reset it so you can keep locking new notes. The old locked notes stay as they are, and still open with the
         old password if you ever remember it.
@@ -140,8 +174,7 @@ export default function Page() {
       <p>
         The steps are from Apple: <a href="https://support.apple.com/en-us/102537" rel="noopener">How to lock or unlock notes on your
         iPhone</a> and <a href="https://support.apple.com/guide/notes/apdb021fd5a9/mac" rel="noopener">Change your password for locked
-        notes</a> on Mac. If you still know the password and just want a new one, choose Change Password instead: that moves every locked
-        note to the new password, so you don&apos;t end up with two.
+        notes</a> on Mac.
       </p>
       <Capture src="/blog/macos27/notes27-reset-password-confirm" width={1148} height={1420} maxWidth={420}
         alt="Apple Notes on macOS 27 asking Reset Notes Password? This allows you to create a new password for notes you lock from now on. Notes that already have a password aren't affected. Cancel and OK."
@@ -192,7 +225,7 @@ export default function Page() {
         behind in Apple Notes.
       </p>
       <p>
-        Pinto Notes, the notes app for iPhone and Mac that I make, has locked notes too, and they work the same way: encrypted with your
+        Pinto Notes, a notes app for iPhone and Mac, has locked notes too, and they work the same way: encrypted with your
         notes password on your device, unreadable to us and to any AI you connect, and impossible to recover if you forget the password. It
         says so when you set one. Everything else in Pinto Notes is encrypted on your devices as well, and ChatGPT and Claude can still
         use your other notes once you approve them; <a href="/blog/encrypted-notes-app-for-ai">how that works</a> has the details.

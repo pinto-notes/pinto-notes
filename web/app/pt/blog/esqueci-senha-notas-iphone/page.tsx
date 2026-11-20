@@ -27,7 +27,7 @@ const FAQ = [
     "Não. Redefinir deixa você bloquear notas novas com uma senha nova. As notas que você bloqueou antes continuam com a senha antiga e precisam dela para abrir.",
   ] },
   { q: "Dá para abrir uma nota bloqueada com o Face ID ou o Touch ID?", a: [
-    "Tente: se você ativou o Face ID ou o Touch ID para o Notas, a Apple cita isso como um jeito de ver uma nota bloqueada. Não serve para alterar a senha, que sempre pede a senha atual.",
+    "Tente: se você ativou o Face ID ou o Touch ID para o Notas, a Apple cita isso como um jeito de ver uma nota bloqueada. Também serve para Alterar Senha: se o Face ID ainda abre suas notas, você pode definir uma senha nova sem lembrar a antiga.",
   ] },
   { q: "Os apps que prometem desbloquear o Notas funcionam?", a: [
     "Eles não conseguem descriptografar uma nota bloqueada sem a senha. A chave vem da senha, então o máximo que uma ferramenta pode fazer é adivinhar. Desconfie de qualquer uma que peça a senha da sua Conta Apple.",
@@ -123,7 +123,7 @@ export default function Page() {
             <tr><th scope="col"></th><th scope="col">Abre notas antigas?</th><th scope="col">Bom saber</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Face ID ou Touch ID</th><td>Sim, se estava ativado para o Notas</td><td>Não altera a senha; isso sempre pede a senha atual</td></tr>
+            <tr><th scope="row">Face ID ou Touch ID</th><td>Sim, se estava ativado para o Notas</td><td>Também serve para Alterar Senha, que passa todas as notas para a nova</td></tr>
             <tr><th scope="row">A dica</th><td>Só se refrescar a sua memória</td><td>Aparece depois de duas tentativas erradas, se você definiu uma</td></tr>
             <tr><th scope="row">Código do dispositivo</th><td>Sim, nas notas bloqueadas com ele</td><td>Opção desde o iOS 16, com as Chaves do iCloud ativadas</td></tr>
             <tr><th scope="row">Redefinir Senha</th><td>Não</td><td>Define uma senha para as notas que você bloquear daqui em diante</td></tr>
