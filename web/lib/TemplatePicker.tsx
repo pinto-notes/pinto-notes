@@ -8,9 +8,11 @@ import s from "./post-parts.module.css";
 /// (a title, headings, Notes' round checkboxes), and copy it as Markdown. Every template stays in the
 /// page's HTML, the ones not picked hidden, so search engines and AI answers can read them all.
 /// Picking one counts as blog_helper_used, and copying as blog_copy_clicked.
-export type Template = { title: string; text: string };
+/// A template with `pinto` says under it which Pinto Notes template does the same job, linked to that
+/// template's page; with `post`, the link counts as the post's blog_cta_clicked (position "template").
+export type Template = { title: string; text: string; pinto?: { slug: string; name: string; rest: string } };
 
-export function TemplatePicker({ templates, legend }: { templates: Template[]; legend: string }) {
+export function TemplatePicker({ templates, legend, post }: { templates: Template[]; legend: string; post?: string }) {
   const [picked, setPicked] = useState(0);
   return (
     <div className={s.chooser}>
@@ -25,6 +27,14 @@ export function TemplatePicker({ templates, legend }: { templates: Template[]; l
       {templates.map((t, i) => (
         <div key={t.title} className={s.verdict} hidden={picked !== i}>
           <Preview text={t.text} copy={<CopyButton text={t.text} label="Copy" className={s.copy} event="blog_copy_clicked" />} />
+          {t.pinto ? (
+            <p className={s.tplPinto}>
+              Pinto Notes has a{" "}
+              <a href={`/templates/${t.pinto.slug}`}
+                {...(post ? { "data-cta": post, "data-cta-position": "template", "data-cta-action": t.pinto.slug } : {})}>{t.pinto.name} template</a>{" "}
+              {t.pinto.rest}
+            </p>
+          ) : null}
         </div>
       ))}
     </div>

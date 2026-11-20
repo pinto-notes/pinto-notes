@@ -136,7 +136,8 @@ export default function Page() {
       </p>
       <p>
         If you keep other routines this way too, <a href="/blog/apple-notes-templates">Apple Notes templates</a> has a weekly review
-        and a Today list to paste in the same way.
+        and a Today list to paste in the same way. If one of your habits is the gym, an{" "}
+        <a href="/blog/apple-notes-workout-log-template">Apple Notes workout log</a> keeps the sets and your personal bests.
       </p>
 
       <h2 id="limits">Where a habit tracker in Notes stops</h2>

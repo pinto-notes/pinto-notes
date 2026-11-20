@@ -290,6 +290,18 @@ export const posts: Post[] = [
     draft: false,
   },
   {
+    slug: "apple-notes-workout-log-template",
+    title: "Apple Notes workout log template, with your bests",
+    description: "Apple Notes has no workout log, but one note a week can hold your sets and personal bests. A template to paste in, and a free log that keeps your bests.",
+    excerpt: "A workout log for Apple Notes, ready to paste in: your program, a checklist of sets per training day and your personal bests. How to use it in the gym, and where it stops.",
+    category: "Apple Notes",
+    date: "2026-11-19",
+    updated: "2026-11-19",
+    image: { src: "/blog/launch/workout-log-note.webp", alt: "A Workout log note in Pinto Notes on a Mac: a Sessions table with a row per session and a Personal bests list below it.", width: 1520, height: 1020, window: false, title: "Workout log" },
+    thumb: cover("dunes", "workout-log", 1600, 1000, "A paper dumbbell and a small orange stopwatch beside a checklist card with two sets ticked"),
+    draft: false,
+  },
+  {
     slug: "apple-notes-meal-planner-template",
     title: "Apple Notes meal planner template, with the grocery list",
     description: "Apple Notes has no meal planner, but one note can hold the week's dinners and the grocery list. A template to paste in, and a free plan that writes the list.",

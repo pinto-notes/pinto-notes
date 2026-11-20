@@ -7,6 +7,7 @@ import type { Template } from "./TemplatePicker";
 export const APPLE_NOTES_TEMPLATES: Template[] = [
   {
     title: "Meeting notes",
+    pinto: { slug: "meeting-notes", name: "meeting notes", rest: "where ChatGPT or Claude turns your rough notes into the decisions and who does what." },
     text: `# Meeting notes
 Date:
 People:
@@ -25,6 +26,7 @@ People:
   },
   {
     title: "Weekly review",
+    pinto: { slug: "weekly-review", name: "weekly review", rest: "where your AI asks you five questions on Sunday and writes the week up." },
     text: `# Weekly review
 Week of:
 
@@ -44,6 +46,7 @@ Week of:
   },
   {
     title: "Packing list",
+    pinto: { slug: "trip-plan", name: "trip plan", rest: "with a countdown, the days and the bookings next to the packing list." },
     text: `# Packing list
 
 ## Documents
@@ -63,6 +66,7 @@ Week of:
   },
   {
     title: "Groceries by aisle",
+    pinto: { slug: "grocery-list", name: "grocery list", rest: "where you tell your AI what you need and it files each item under its aisle." },
     text: `# Groceries
 
 ## Fruit and veg
