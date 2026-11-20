@@ -71,7 +71,9 @@ struct ShareForm: View {
                         else { NavigationLink(value: p.id) { PersonRow(person: p, removing: busy) } }
                     }
                     #if os(iOS)
-                    .swipeActions { if share.isOwner, !p.isMe { Button("Remove", role: .destructive) { share.askRemove(p) } } }
+                    // No destructive role: Remove asks first, and the role took the row out before
+                    // the answer (SharedDelete.swipeRole). Red all the same.
+                    .swipeActions { if share.isOwner, !p.isMe { Button("Remove") { share.askRemove(p) }.destructiveTint() } }
                     #endif
                     .contextMenu { if share.isOwner, !p.isMe { DestructiveMenuButton("Remove from Note", systemImage: "person.badge.minus") { share.askRemove(p) } } }
                 }

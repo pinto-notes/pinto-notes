@@ -112,6 +112,28 @@ final class SwipeDeleteAsksUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Trip documents"].firstMatch.exists)
     }
 
+    /// Share's people on the iPhone: Remove from a swipe asks first, the same way. Cancel leaves the
+    /// person in the list (with the destructive role the row went as the swipe ended).
+    func testCancellingRemoveFromASwipeKeepsThePerson() {
+        app.terminate()
+        app.launchArguments = ["-uitest", "-collabGallery", "-share"]
+        app.launch()
+        let jonas = app.staticTexts["Jonas Berg"].firstMatch
+        XCTAssertTrue(jonas.waitForExistence(timeout: 8))
+        jonas.swipeLeft()
+        let remove = app.buttons["Remove"].firstMatch
+        XCTAssertTrue(remove.waitForExistence(timeout: 2), "the swipe shows Remove")
+        remove.tap()
+        let ask = app.alerts["Remove Jonas?"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 3), "it asks first")
+        let rowStayedWhileAsking = app.staticTexts["Jonas Berg"].firstMatch.exists
+        ask.buttons["Cancel"].tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertEqual(app.state, .runningForeground, "the app is still up after cancelling Remove")
+        XCTAssertTrue(rowStayedWhileAsking, "the person stays while it asks")
+        XCTAssertTrue(app.staticTexts["Jonas Berg"].firstMatch.exists, "the person stays after Cancel")
+    }
+
     func testDeleteForeverFromASwipeInRecentlyDeleted() {
         open("folder.Travel", title: "Travel")
         let lisbon = app.staticTexts["Lisbon"].firstMatch
