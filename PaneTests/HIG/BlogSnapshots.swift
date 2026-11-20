@@ -204,5 +204,30 @@ import Testing
         try? await Task.sleep(for: .seconds(1.5))
         try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-workout-log-light.png"))
     }
+    @Test func recipeForTemplatePost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let recipe = ctx.createNote(in: .all, body: "Lentil soup with lemon\n\nServes 4, 35 minutes.\n\n- [x] 250 g red lentils\n- [x] 1 onion\n- [ ] 2 carrots\n- [ ] 2 cloves of garlic\n- [ ] 1 tsp ground cumin\n- [ ] 2 lemons\n\nFrom the cupboard: olive oil, salt.\n\n1. Soften the onion, carrots and garlic in olive oil with the cumin.\n2. Add the lentils and a litre of water. Simmer for 20 minutes.\n3. Blend half of it, then stir in the lemon juice and salt to taste.\n")
+        try ctx.save()
+        let view = NavigationStack { NoteDetailView(note: recipe, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: CGSize(width: 760, height: 760))
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.5))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-recipe-light.png"))
+    }
+
+    @Test func groceryListForTemplatePost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let list = ctx.createNote(in: .all, body: "Grocery list\n\nOne running list for the shop, sorted by aisle. Type what you need under an aisle, or tell your AI and it files each thing. Tick things off as you shop.\n\n## Fruit and veg\n- [ ] Apples\n- [ ] Spinach\n- [ ] Lemons\n- [x] Bananas\n\n## Bread and dairy\n- [ ] Oat milk\n- [ ] Sourdough\n- [ ] Eggs\n- [x] Butter\n\n## Meat and fish\n- [ ] Salmon fillets\n- [ ] Minced beef\n\n## Cupboard\n- [ ] Tinned tomatoes, 2 cans\n- [ ] Rice\n- [ ] Olive oil\n- [ ] Coffee\n\n## Frozen\n- [ ] Peas\n")
+        try ctx.save()
+        let view = NavigationStack { NoteDetailView(note: list, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: CGSize(width: 760, height: 1000))
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.5))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-grocery-list-light.png"))
+    }
 }
 #endif
