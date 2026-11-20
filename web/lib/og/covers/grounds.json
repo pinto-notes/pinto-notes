@@ -197,6 +197,12 @@
   "w": 880,
   "h": 550
  },
+ "grocery": {
+  "ground": "#a6b3bc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "habit-tracker": {
   "ground": "#f9dfbb",
   "ink": "dark",
@@ -292,6 +298,12 @@
   "ink": "light",
   "w": 880,
   "h": 495
+ },
+ "recipe": {
+  "ground": "#efb7af",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
  },
  "recover-deleted": {
   "ground": "#e5efdf",

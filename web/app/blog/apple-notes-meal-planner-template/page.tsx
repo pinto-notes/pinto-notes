@@ -157,7 +157,7 @@ export default function Page() {
       <h2 id="limits">Where a meal planner in Notes stops</h2>
       <ul>
         <li><strong>The list is by hand.</strong> Notes doesn&apos;t know a curry needs coconut milk. You read each recipe and type what it needs, every week.</li>
-        <li><strong>No sorting by aisle.</strong> You decide where lemons go. Reminders has a Groceries list that sorts items by section as you add them, but then the list lives apart from the dinners.</li>
+        <li><strong>No sorting by aisle.</strong> You decide where lemons go. Reminders has a Groceries list that sorts items by section as you add them, but then the list lives apart from the dinners. The <a href="/blog/apple-notes-grocery-list-template">grocery list template</a> has the aisles ready.</li>
         <li><strong>No memory of what you have.</strong> Notes can&apos;t tell you there&apos;s rice at home. The cupboard list helps only if you read it before you write the groceries.</li>
         <li><strong>No ideas.</strong> When nobody knows what to cook, the note waits.</li>
       </ul>
