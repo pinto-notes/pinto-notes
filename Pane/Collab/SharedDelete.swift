@@ -38,6 +38,14 @@ enum SharedDelete {
                    button: "Delete")
     }
 
+    /// A list row's swipe Delete is destructive only when it deletes at once. One that asks first
+    /// (a shared note, or Delete Forever in Recently Deleted) has no role: with it, the list takes
+    /// the row out as the swipe ends, before the question is answered, and the delete that came
+    /// after brought the app down on iPhone (1.4, 2026-11-20, SIGABRT). It's red all the same.
+    static func swipeRole(_ note: Note) -> ButtonRole? {
+        note.trashedAt != nil || note.isShared ? nil : .destructive
+    }
+
     /// "Sara", "Sara and Jonas", "Sara, Jonas and 3 others"; nil for nobody.
     static func list(_ names: [String]) -> String? {
         switch names.count {

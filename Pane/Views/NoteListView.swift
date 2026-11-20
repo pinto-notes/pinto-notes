@@ -2416,7 +2416,9 @@ private struct ListRow: View, @MainActor CustomEquatable {
                 }
             }
             .swipeActions(edge: .trailing) {
-                Button(note.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: .destructive, action: remove)
+                // No destructive role when it asks first (SharedDelete.swipeRole): the role took
+                // the row out before the answer, and crashed the list on iPhone.
+                Button(note.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: SharedDelete.swipeRole(note), action: remove)
                     .destructiveTint()
             }
     }

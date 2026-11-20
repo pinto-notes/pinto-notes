@@ -850,3 +850,16 @@ extension Capture {
         ListOrderStore.shared.setGallery(true, for: .folder(folder.id))
     }
 }
+
+/// A shared note in the demo library, for the iPhone's delete tests (`-uitest`): `-sharedNote
+/// Packing` marks the note with that title as one you shared. No server is reached: deleting it
+/// asks first and puts it in Recently Deleted, as a shared note's delete does.
+extension Capture {
+    @MainActor static func sharedNoteFromArguments(_ context: ModelContext) {
+        guard ProcessInfo.processInfo.arguments.contains("-uitest"), let title = argument("-sharedNote") else { return }
+        let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
+        guard let note = notes.first(where: { $0.title == title && $0.deletedAt == nil }) else { return }
+        note.sharedNoteID = note.id
+        try? context.save()
+    }
+}

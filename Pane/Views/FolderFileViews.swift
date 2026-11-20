@@ -160,7 +160,9 @@ struct FileListRow: View {
             }
             #endif
             .swipeActions(edge: .trailing) {
-                Button(file.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: .destructive, action: remove)
+                // Delete Forever asks first: no destructive role, which takes the row out before the
+                // answer (SharedDelete.swipeRole).
+                Button(file.trashedAt == nil ? "Delete" : "Delete Forever…", systemImage: "trash", role: file.trashedAt == nil ? .destructive : nil, action: remove)
                     .destructiveTint()
             }
     }

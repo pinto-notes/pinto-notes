@@ -38,6 +38,21 @@ import Testing
         #expect(SharedDelete.ask([trashed]) == nil)
     }
 
+    /// The iPhone's swipe Delete has the destructive role only when it deletes at once. With the
+    /// role, the list takes the row out as the swipe ends, before the question is answered, and the
+    /// real delete after it brought the app down (1.4 on the owner's phone, 2026-11-20, SIGABRT;
+    /// PaneUITests/SwipeDeleteAsksUITests on the simulator).
+    @Test func aSwipeDeleteThatAsksHasNoDestructiveRole() {
+        #expect(SharedDelete.swipeRole(Self.note("Mine", shared: nil)) == .destructive)
+        let yours = Self.note("Team offsite", shared: nil)
+        yours.sharedNoteID = yours.id
+        #expect(SharedDelete.swipeRole(yours) == nil)
+        #expect(SharedDelete.swipeRole(Self.note("Theirs", shared: UUID())) == nil)
+        let trashed = Self.note("Gone", shared: nil)
+        trashed.trashedAt = .now
+        #expect(SharedDelete.swipeRole(trashed) == nil, "Delete Forever asks too")
+    }
+
     @Test func severalWithASharedOneAskOnce() throws {
         let ask = try #require(SharedDelete.ask([Self.note("Mine", shared: nil), Self.note("Theirs", shared: UUID())]) { _ in [] })
         #expect(ask.title == "Delete 2 notes?" && ask.message.hasPrefix("Some are shared."))
