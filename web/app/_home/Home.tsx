@@ -7,6 +7,7 @@ import { Hero } from "./Hero";
 import { PhoneToFilm } from "./PhoneToFilm";
 import { PaperStill } from "./Scenes";
 import { ScrollVar } from "./ScrollVar";
+import { TabAway } from "./TabAway";
 import d from "./sections.module.css";
 import v from "./home.module.css";
 
@@ -31,6 +32,7 @@ export function Home() {
   const picks = PICKS.map((slug) => all.find((t) => t.slug === slug)).filter((t) => t !== undefined);
   return (
     <div className={`${d.main} ${v.main}`}>
+      <TabAway />
       <div className={v.top}>
         <Hero />
         <PhoneToFilm />
