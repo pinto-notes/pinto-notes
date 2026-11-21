@@ -95,6 +95,29 @@
 .ctaArt img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
 @media (max-width: 560px) { .ctaScene { grid-template-columns: 1fr; } .ctaArt { min-height: 220px; order: -1; } }
 /* Connect: the AIs join a note across the top, then the words. */
+/* The compact card under the short answer: a picture column, then the words, the button and the fine print. */
+.ctaCompact { grid-template-columns: 132px 1fr; gap: 0; padding: 0; overflow: hidden; }
+.ctaCompact .ctaBody { gap: 10px; padding: 18px 20px; }
+.ctaCompact .ctaTitle { font-size: 18px; }
+.ctaCompact .ctaBody > p:not(.ctaTitle):not(.ctaFine) { font-size: 15.5px; line-height: 1.45; }
+.ctaCompact a.ctaButton { min-height: 44px; padding: 0 18px; font-size: 15px; border-radius: 12px; }
+.ctaCompact .ctaFine { font-size: 13px; }
+.ctaThumb { position: relative; background: #f6dcae; display: grid; place-items: center; }
+.ctaThumb img { display: block; }
+.ctaThumb[data-look="scene"] img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 22% 50%; }
+.ctaChain { position: relative; display: grid; justify-items: center; gap: 14px; }
+.ctaChain::before { content: ""; position: absolute; top: 18px; bottom: 18px; left: 50%; border-left: 2px dashed rgba(200, 110, 30, 0.55); }
+.ctaChain img { position: relative; border-radius: 11px; box-shadow: 0 4px 10px -4px rgba(60, 30, 5, 0.45); }
+.ctaDot { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #fffaf3; display: grid; place-items: center; box-shadow: 0 2px 6px -2px rgba(60, 30, 5, 0.35); }
+@media (max-width: 560px) {
+  .ctaCompact { grid-template-columns: 1fr; }
+  .ctaThumb { min-height: 76px; }
+  .ctaThumb[data-look="scene"] { min-height: 96px; }
+  .ctaThumb[data-look="scene"] img { object-position: 50% 40%; }
+  .ctaChain { grid-auto-flow: column; align-items: center; gap: 18px; }
+  .ctaChain::before { top: 50%; bottom: auto; left: 18px; right: 18px; border-left: 0; border-top: 2px dashed rgba(200, 110, 30, 0.55); }
+}
+
 .ctaConnect { padding: 0; overflow: hidden; gap: 0; }
 .ctaConnect .ctaBody { padding: 22px 24px 24px; }
 .ctaConnect .ctaTitle { font-size: 24px; line-height: 1.2; font-weight: 650; letter-spacing: -0.02em; }
