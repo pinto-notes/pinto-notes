@@ -85,6 +85,29 @@
   .cta a.ctaButton { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
   .cta a.ctaButton:active { transform: scale(0.97); }
 }
+/* ── Download card looks (experiment, 21 Nov 2026) ── */
+.ctaBody { display: grid; gap: 14px; align-content: center; }
+/* Scene: the home page's own picture beside the words, like a small home hero. */
+.ctaScene { grid-template-columns: 1.15fr 0.85fr; gap: 0; padding: 0; overflow: hidden; background: var(--card); }
+.ctaScene .ctaBody { padding: 28px 26px; }
+.ctaScene .ctaTitle { font-size: 26px; line-height: 1.15; font-weight: 650; letter-spacing: -0.02em; }
+.ctaArt { position: relative; min-height: 300px; }
+.ctaArt img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
+@media (max-width: 560px) { .ctaScene { grid-template-columns: 1fr; } .ctaArt { min-height: 220px; order: -1; } }
+/* Connect: the AIs join a note across the top, then the words. */
+.ctaConnect { padding: 0; overflow: hidden; gap: 0; }
+.ctaConnect .ctaBody { padding: 22px 24px 24px; }
+.ctaConnect .ctaTitle { font-size: 24px; line-height: 1.2; font-weight: 650; letter-spacing: -0.02em; }
+/* Note: the next steps as a checklist, the download on the first step. */
+.ctaNote { background: #fffdf9; padding: 26px 26px 22px; box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.16), 0 18px 40px -26px rgba(80, 45, 10, 0.45); }
+.ctaNote { position: relative; }
+.ctaIcon { position: absolute; top: 22px; right: 22px; width: 48px; height: 48px; border-radius: 11px; }
+.ctaMarks { display: inline-flex; gap: 6px; margin-left: 4px; }
+.ctaNote .ctaTitle { padding-right: 60px; font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; }
+.ctaSteps { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 12px; }
+.ctaSteps li { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+.ctaCircle { flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #c9b49c; }
+.ctaSteps li[data-first] .ctaCircle { box-shadow: inset 0 0 0 2px var(--amber); }
 /* Other platforms' versions sit in the same card, left-aligned like the rest of it. */
 .cta :global(.pi) { justify-items: start; text-align: left; gap: 10px; }
 .cta :global(.pi-line) { max-width: none; font-size: 16px; }

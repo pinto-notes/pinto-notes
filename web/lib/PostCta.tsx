@@ -7,6 +7,8 @@ import { mailLink, sendLink } from "./platform";
 import { APP_STORE_LIVE, APP_STORE_URL, SITE_URL } from "./site";
 import type { Ui } from "./i18n/blog";
 import s from "./post-parts.module.css";
+import { AIConnect } from "./AIConnect";
+import { AIGlyph } from "./ai-glyphs";
 
 /// A post's one call to action, at the end of its "How Pinto Notes helps" section. Every link in it
 /// names the post, where in the post it sits and what it does (data-cta…), and lib/posthog.ts sends
@@ -18,19 +20,36 @@ import s from "./post-parts.module.css";
 /// so its clicks read apart from the English post's. The card then also says the app is in English.
 /// A template post names its template (`template`): the card then ends with a link that opens that
 /// template in Pinto Notes, for the readers who have the app already (experiment B16).
-export function PostCta({ slug, position, title, children, appStoreLive = APP_STORE_LIVE, ui, path, template }: {
+/// `look` (experiment B34, 21 Nov 2026, after Emil called the plain card boring): "scene" puts one of the home page's own
+/// pictures beside the words, like a small home hero; "connect" opens with ChatGPT and Claude joined to a note, for cards
+/// that are about them; "note" draws the next steps as a checklist; "plain" is the card as it was. By default a card whose
+/// title names ChatGPT, Claude or an AI gets "connect", and every other card "scene".
+export type CtaLook = "plain" | "scene" | "connect" | "note";
+const AI_TITLE = /\b(ChatGPT|Claude|Codex|Gemini|Grok|AI|KI|IA)\b/;
+export const ctaLook = (title: string): CtaLook => (AI_TITLE.test(title) ? "connect" : "scene");
+export function PostCta({ slug, position, title, children, appStoreLive = APP_STORE_LIVE, ui, path, template, look: chosen, steps }: {
   slug: string; position: string; title: string; children: React.ReactNode; appStoreLive?: boolean; ui?: Ui["cta"]; path?: string; template?: string;
+  look?: CtaLook; steps?: string[];
 }) {
   const t = ui ?? EN;
+  const look = chosen ?? ctaLook(title);
   const cta = (action: string) => ({ "data-cta": slug, "data-cta-position": position, "data-cta-action": action });
   const url = `${SITE_URL}${path ?? `/blog/${slug}`}`;
   const send = (
     <a className="pi-send" href={mailLink(url)} onClick={(e) => sendLink(navigator, e, url)} {...cta("send_link")}>{t.send}</a>
   );
-  return (
-    <div className={s.cta}>
+  const body = (
+    <>
       <p className={s.ctaTitle}>{title}</p>
-      {children}
+      {look === "note" ? (
+        <ul className={s.ctaSteps}>
+          {(steps ?? ["Download Pinto Notes, free", "Bring your notes over in one import", "Connect ChatGPT or Claude"]).map((x, i, all) => (
+            <li key={x} data-first={i === 0 || undefined}><span className={s.ctaCircle} aria-hidden="true" />{x}
+              {i === all.length - 1 && !steps ? <span className={s.ctaMarks} aria-hidden="true"><AIGlyph name="openai" size={18} color="#0d0d0d" /><AIGlyph name="claude" size={18} color="#d97757" /></span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : children}
       <DownloadLink className={`${s.ctaButton} pi-apple pi-not-ios`} {...cta("download_mac")}>{t.mac}</DownloadLink>
       <div className="pi pi-ios">
         {appStoreLive ? (
@@ -54,8 +73,22 @@ export function PostCta({ slug, position, title, children, appStoreLive = APP_ST
           <OpenInApp href={`/open/template/${template}`} app={appURL(`template/${template}`)} attrs={cta("open_template")}>{t.openTemplate ?? EN.openTemplate}</OpenInApp>
         </p>
       ) : null}
+    </>
+  );
+  if (look === "scene") return (
+    <div className={`${s.cta} ${s.ctaScene}`}>
+      <div className={s.ctaBody}>{body}</div>
+      <div className={s.ctaArt} aria-hidden="true"><img src="/home-v5/frontier/sara-cafe.webp" alt="" loading="lazy" decoding="async" /></div>
     </div>
   );
+  if (look === "connect") return (
+    <div className={`${s.cta} ${s.ctaConnect}`}>
+      <AIConnect ais={["chatgpt", "claude"]} bare />
+      <div className={s.ctaBody}>{body}</div>
+    </div>
+  );
+  if (look === "note") return <div className={`${s.cta} ${s.ctaNote}`}><img className={s.ctaIcon} src="/icon-96.png" alt="" width={48} height={48} />{body}</div>;
+  return <div className={s.cta}>{body}</div>;
 }
 
 const EN: Ui["cta"] = {

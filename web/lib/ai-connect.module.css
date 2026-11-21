@@ -17,3 +17,7 @@
 @media (max-width: 480px) { .ai { gap: 4px; } }
 /* Four AIs on a phone: smaller discs, so each name stays readable under its mark. */
 @media (max-width: 520px) { .art[data-count="3"] .disc, .art[data-count="4"] .disc { width: 40px; } .art[data-count="3"] .name, .art[data-count="4"] .name { font-size: 10px; } .art[data-count="3"] .ai, .art[data-count="4"] .ai { gap: 3px; } }
+
+/* Inside a download card: no margin, no frame of its own; the card supplies both. */
+.bare { margin: 0; }
+.bare .art { border-radius: 0; box-shadow: none; aspect-ratio: 16 / 6; }
