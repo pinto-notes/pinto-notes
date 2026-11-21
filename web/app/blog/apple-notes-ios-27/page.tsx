@@ -71,7 +71,8 @@ export default function Page() {
       ]} />
       <p>
         Any heading can now be the target of a link, in the same note or another one, so a long note can start with a little contents list.
-        A section starts at any line styled as a Heading or Subheading, so set those first.
+        A section starts at any line styled as a Heading or Subheading, so set those first. Links still only go one way, though:
+        <a href="/blog/apple-notes-backlinks">Apple Notes has no backlinks</a>, so a note never shows what links to it.
       </p>
       <p>
         On my Mac I had to type the note&apos;s title under Link To even for the same note; then the headings showed up. Turn on Use Section Title

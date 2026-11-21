@@ -46,6 +46,7 @@
 		0515E04B7FD2744F9BCA27BE /* NoteSourceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7FCC3B1CE1BD0C5DAF0E77D /* NoteSourceSheet.swift */; };
 		05551A3D3E5201054F4E6617 /* ExperimentSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53EA5409229658263CD59E0 /* ExperimentSwitch.swift */; };
 		058A920FA662ECA14254C416 /* SharedNoteLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */; };
+		0590F94BD273754D6628746A /* template-cover-weekly-planner-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BD54547CE9B0D538F86E59EA /* template-cover-weekly-planner-large.jpg */; };
 		05A9A1201B7F523F9A3E5ED8 /* ShortcutsSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2704637D02B8697D36D3F82F /* ShortcutsSheetTests.swift */; };
 		05B78ACCABC34029545D70D7 /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0968B22016B98500451306BA /* Capture.swift */; };
 		05D152F4A8063C28B318BBD5 /* RowClickLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B5618336684876E7AA8BDE /* RowClickLog.swift */; };
@@ -397,6 +398,7 @@
 		37E2300D31A93CE81615645B /* SignInFlowRecordingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBEFA52C385608D258A4886 /* SignInFlowRecordingTests.swift */; };
 		37E350F33282AA113CB2A108 /* BackendSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BD099569894B6BB98E56F2A /* BackendSessionTests.swift */; };
 		3819511324F36009FBAB475C /* sunset.webp in Resources */ = {isa = PBXBuildFile; fileRef = 233EDFD11A3301976CFE967B /* sunset.webp */; };
+		383BE84AAE3310AA36BE4241 /* template-cover-weekly-planner.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7CDFEFF90D76DD737A59976D /* template-cover-weekly-planner.jpg */; };
 		3856444DEC4FAEDB638BEDBE /* LargeLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746937C9DAE4700BDCEE8FCF /* LargeLibraryTests.swift */; };
 		387191CD998251A3682C7140 /* BlogSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338A90129ABA3668433D376B /* BlogSnapshots.swift */; };
 		3878F680D965FAC61CABEF1A /* OfflineHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA53D7CEAE7816342EA0A55 /* OfflineHTML.swift */; };
@@ -707,6 +709,7 @@
 		6C07D3EBDADDBC4860E889F3 /* NoteLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F640AF3B161AEAD5FD260995 /* NoteLock.swift */; };
 		6C0D68D980CC55FA3C391007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */; };
 		6C0F01AF41D0F9353B151F5C /* library-1.2.store in Resources */ = {isa = PBXBuildFile; fileRef = 43BB1A12E39450296EF63E97 /* library-1.2.store */; };
+		6C762CFAD149D754B136C6A1 /* template-cover-weekly-planner-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BD54547CE9B0D538F86E59EA /* template-cover-weekly-planner-large.jpg */; };
 		6D51A5D4F0DE98AD02AE6EBD /* NoteOpenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66C9398AFFB4C2850E7BD3E /* NoteOpenTests.swift */; };
 		6D597B1C5F30A6957832112C /* preact-hooks.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 52D415B84CA735B3B8845F5E /* preact-hooks.module.js */; };
 		6DA9C9017F4B1AE14A2D3582 /* AddDeviceSnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B699546160DDE730802A34 /* AddDeviceSnapshots+Shared.swift */; };
@@ -1274,6 +1277,7 @@
 		C9804415D4899CF83B36D83D /* NoteHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2BE2DFB59EFA5FB2874ED3 /* NoteHistoryTests.swift */; };
 		C9880B10F8914D32C315F269 /* DailyNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDE9BAF7491846BB39F864F /* DailyNotesTests.swift */; };
 		C98A43BCB766391E54535C24 /* AppSwipeStaysInNoteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C369F5E11163328EEDC156AF /* AppSwipeStaysInNoteUITests.swift */; };
+		C9ABBEAFB24E860C60CF07AC /* template-cover-weekly-planner.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7CDFEFF90D76DD737A59976D /* template-cover-weekly-planner.jpg */; };
 		C9BDAD3B42BDD95C25EC016F /* template-cover-bug-triage-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 41A72E715909FD4C53C28C90 /* template-cover-bug-triage-large.jpg */; };
 		C9D0E2AA403DB799EAD7F7FD /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D802554DDA691DB172FD65B2 /* SyncEngine.swift */; };
 		CA4EE1A5852FF02205756316 /* confetti.js in Resources */ = {isa = PBXBuildFile; fileRef = 96E8277205CE8467252CB1A6 /* confetti.js */; };
@@ -2144,6 +2148,7 @@
 		7C5A3BE24CB24DDD03944249 /* amber-base.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = "amber-base.css"; sourceTree = "<group>"; };
 		7C8A65D2F56CED822826A99B /* FileOutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOutTests.swift; sourceTree = "<group>"; };
 		7CA53D7CEAE7816342EA0A55 /* OfflineHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineHTML.swift; sourceTree = "<group>"; };
+		7CDFEFF90D76DD737A59976D /* template-cover-weekly-planner.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-weekly-planner.jpg"; sourceTree = "<group>"; };
 		7D124B8907A00FB061D8E03A /* SharedDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDelete.swift; sourceTree = "<group>"; };
 		7D808247B906B82B0336FF1E /* QuickIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickIntents.swift; sourceTree = "<group>"; };
 		7DE5145EFFCEE51D61F16FCD /* SyncFaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncFaultTests.swift; sourceTree = "<group>"; };
@@ -2367,6 +2372,7 @@
 		BC21DF51FFD468B83B80F5C1 /* firstopen-meal-plan.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "firstopen-meal-plan.jpg"; sourceTree = "<group>"; };
 		BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestAppsMacShots.swift; sourceTree = "<group>"; };
 		BD38656BCD103CC6D2D01B8F /* BackForwardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackForwardTests.swift; sourceTree = "<group>"; };
+		BD54547CE9B0D538F86E59EA /* template-cover-weekly-planner-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-weekly-planner-large.jpg"; sourceTree = "<group>"; };
 		BDC967E6E0078C8E1DC7378A /* template-cover-recipe-box.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-recipe-box.jpg"; sourceTree = "<group>"; };
 		BE138616AC9DDE47DC5537AD /* TableShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableShots.swift; sourceTree = "<group>"; };
 		BE58FBFB7169CFFC6987E06D /* FirstOpen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstOpen.swift; sourceTree = "<group>"; };
@@ -3149,6 +3155,8 @@
 				94729A90DC7CD498EE357536 /* template-cover-study-flashcards.jpg */,
 				588D330EB0262DE441593F82 /* template-cover-trip-plan-large.jpg */,
 				0DABAF6CFD98DF0089EDCBDD /* template-cover-trip-plan.jpg */,
+				BD54547CE9B0D538F86E59EA /* template-cover-weekly-planner-large.jpg */,
+				7CDFEFF90D76DD737A59976D /* template-cover-weekly-planner.jpg */,
 				B8B38856ADE31B6A1C069625 /* template-cover-weekly-review-large.jpg */,
 				092CBEFBB500DEB25E0434D1 /* template-cover-weekly-review.jpg */,
 				B776696664D7B796FA8D3551 /* template-cover-workout-log-large.jpg */,
@@ -4400,6 +4408,8 @@
 				CBBB50AA53ACA03C88842F8E /* template-cover-study-flashcards.jpg in Resources */,
 				3015D8B1545B643C03130949 /* template-cover-trip-plan-large.jpg in Resources */,
 				8E8AEB67B0E60D5711DDFB4F /* template-cover-trip-plan.jpg in Resources */,
+				0590F94BD273754D6628746A /* template-cover-weekly-planner-large.jpg in Resources */,
+				383BE84AAE3310AA36BE4241 /* template-cover-weekly-planner.jpg in Resources */,
 				885CA655CE0C3FC45981140F /* template-cover-weekly-review-large.jpg in Resources */,
 				871FD7ACFD253A182F3DE0AF /* template-cover-weekly-review.jpg in Resources */,
 				F96709E8F86E5B3978F7E494 /* template-cover-workout-log-large.jpg in Resources */,
@@ -4553,6 +4563,8 @@
 				423F06F0F01D7B6EA536F87F /* template-cover-study-flashcards.jpg in Resources */,
 				4E8EF60F5AFBFAEF5EDB6A6E /* template-cover-trip-plan-large.jpg in Resources */,
 				128BEA9447AE1CC8ABD6F702 /* template-cover-trip-plan.jpg in Resources */,
+				6C762CFAD149D754B136C6A1 /* template-cover-weekly-planner-large.jpg in Resources */,
+				C9ABBEAFB24E860C60CF07AC /* template-cover-weekly-planner.jpg in Resources */,
 				2EF780073AE6EAE61E47D352 /* template-cover-weekly-review-large.jpg in Resources */,
 				2BD115D44DC5E44594BBDF36 /* template-cover-weekly-review.jpg in Resources */,
 				59211FCEE187D9D68DDAB1E9 /* template-cover-workout-log-large.jpg in Resources */,

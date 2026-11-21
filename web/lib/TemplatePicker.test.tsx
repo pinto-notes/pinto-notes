@@ -56,3 +56,25 @@ describe("the Apple Notes templates post", () => {
     for (const line of text.split("\n")) if (line.startsWith("- ")) expect(line.replace(/^- (\[ \] )?/, "").trim(), line).not.toBe("");
   });
 });
+
+describe("a template's Pinto Notes line", () => {
+  it("links to the Pinto template that does the same job, counted as the post's call to action", () => {
+    const h = document.createElement("div"); document.body.append(h); const r = createRoot(h);
+    act(() => r.render(<TemplatePicker post="apple-notes-templates" legend="Pick" templates={[
+      { title: "Groceries by aisle", text: "# Groceries\n- [ ] Milk", pinto: { slug: "grocery-list", name: "grocery list", rest: "sorted by aisle." } },
+      { title: "Daily plan", text: "# Today\n- [ ] One thing" },
+    ]} />));
+    const a = h.querySelector("a")!;
+    expect(a.getAttribute("href")).toBe("/templates/grocery-list");
+    expect(a.textContent).toBe("grocery list template");
+    expect(a.getAttribute("data-cta")).toBe("apple-notes-templates");
+    expect(a.getAttribute("data-cta-position")).toBe("template");
+    expect(h.querySelectorAll("a")).toHaveLength(1);
+    act(() => r.unmount()); h.remove();
+  });
+
+  it("names a real template for every Apple Notes template that has one", async () => {
+    const { template } = await import("./templates");
+    for (const t of APPLE_NOTES_TEMPLATES) if (t.pinto) expect(template(t.pinto.slug), t.pinto.slug).toBeDefined();
+  });
+});

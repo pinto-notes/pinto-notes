@@ -93,7 +93,7 @@ export default function Page() {
             a heading for each day with times in front of the plans, and a packing checklist. Copy the template below.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-trip-planner-template" position="answer" title="Want the countdown and bookings kept for you?">
+          <PostCta slug="apple-notes-trip-planner-template" position="answer" template="trip-plan" title="Want the countdown and bookings kept for you?">
             <p>Pinto Notes works like Apple Notes and has a free trip plan template: days to go, each day as a timeline, what&apos;s left to pay and what&apos;s packed. Paste a booking email into ChatGPT or Claude and it lands in the plan.</p>
           </PostCta>
         </Answer>

@@ -95,7 +95,7 @@ export default function Page() {
             and your habits as a checklist under it, tick them as you go, and duplicate the note on Monday. Copy the template below.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-habit-tracker" position="answer" title="Want your streaks counted for you?">
+          <PostCta slug="apple-notes-habit-tracker" position="answer" template="habit-tracker" title="Want your streaks counted for you?">
             <p>Pinto Notes works like Apple Notes and has a free habit tracker template: tick a habit in one tap and see this week&apos;s ring, your streaks and the month. ChatGPT or Claude can log the day for you.</p>
           </PostCta>
         </Answer>
@@ -136,7 +136,12 @@ export default function Page() {
       </p>
       <p>
         If you keep other routines this way too, <a href="/blog/apple-notes-templates">Apple Notes templates</a> has a weekly review
-        and a Today list to paste in the same way.
+        and a Today list to paste in the same way. If one of your habits is the gym, an{" "}
+        <a href="/blog/apple-notes-workout-log-template">Apple Notes workout log</a> keeps the sets and your personal bests.
+      </p>
+
+      <p>
+        To look back on the week as a whole, the <a href="/blog/apple-notes-weekly-review-template">weekly review template</a> asks five questions every Sunday.
       </p>
 
       <h2 id="limits">Where a habit tracker in Notes stops</h2>

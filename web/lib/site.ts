@@ -53,6 +53,10 @@ type Page = {
   article?: { published: string; modified: string; author: string };
   /// The share picture (1200 × 630). Pages without their own get the site's card.
   image?: { url: string; alt: string };
+  /// hreflang: the same page in other languages, by language code (lib/i18n/blog.ts).
+  languages?: Record<string, string>;
+  /// Open Graph locale, for a page in another language than English.
+  locale?: string;
 };
 
 /// The site's own share card (app/opengraph-image.tsx), for pages without one of their own.
@@ -60,13 +64,13 @@ export const DEFAULT_SHARE_IMAGE = { url: "/opengraph-image", alt: "Pinto Notes:
 
 /// Title, description, canonical, robots, Open Graph and Twitter for one page. Next.js replaces
 /// (doesn't merge) openGraph and twitter between layouts and pages, so each page gets all of it.
-export function pageMetadata({ title, description, path, shareTitle, index = true, article, image = DEFAULT_SHARE_IMAGE }: Page): Metadata {
+export function pageMetadata({ title, description, path, shareTitle, index = true, article, image = DEFAULT_SHARE_IMAGE, languages, locale = "en_US" }: Page): Metadata {
   const images = [{ ...image, width: 1200, height: 630 }];
-  const og = { title: shareTitle ?? title, description, url: path, siteName: SITE_NAME, locale: "en_US", images };
+  const og = { title: shareTitle ?? title, description, url: path, siteName: SITE_NAME, locale, images };
   return {
     title,
     description,
-    alternates: { canonical: path, types: { "application/rss+xml": [{ url: FEED_PATH, title: `${SITE_NAME} blog` }] } },
+    alternates: { canonical: path, ...(languages ? { languages } : {}), types: { "application/rss+xml": [{ url: FEED_PATH, title: `${SITE_NAME} blog` }] } },
     robots: index ? { index: true, follow: true } : { index: false, follow: true },
     openGraph: article
       ? { ...og, type: "article", publishedTime: article.published, modifiedTime: article.modified, authors: [article.author] }

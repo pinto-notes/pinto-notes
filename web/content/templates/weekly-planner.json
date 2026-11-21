@@ -1,0 +1,119 @@
+{
+  "slug": "weekly-planner",
+  "title": "Weekly planner",
+  "category": "Home and life",
+  "audiences": [
+    "Personal",
+    "Work"
+  ],
+  "audience": "For anyone who plans the week in a note and is tired of copying unfinished to-dos forward.",
+  "description": "Your week in one note: the top three, a checklist for each day and a list for later. Tell your AI what's on and it plans the week.",
+  "tagline": "The week on one page, day by day.",
+  "folder": "Notes",
+  "note": "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n\n## Monday\n\n## Tuesday\n\n## Wednesday\n\n## Thursday\n\n## Friday\n\n## Saturday\n\n## Sunday\n\n## Later\n",
+  "prompt": {
+    "default": "Use my Pinto Notes note \"Weekly planner\". When I tell you what's on this week, even in one long message, read the note with fetch, then add each task as a checklist line under its day's heading with edit, and anything without a day under \"Later\". Keep \"Top three this week\" to the three things I say matter most. Keep tasks short, add a time only when I give one, and skip anything already there. When I ask, move the unticked items from days before today to today's heading. On Sunday, or when I say it's a new week, remove the ticked items, move what's left on the days to Monday, keep \"Later\" as it is, and ask me for next week's top three."
+  },
+  "asks": [
+    "Ask what's on this week, then plan it day by day with my top three.",
+    "Move what I didn't finish to today.",
+    "It's Sunday. Start next week."
+  ],
+  "demo": [
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Top three this week\n",
+        "new_string": "## Top three this week\n- [x] Send the Q4 budget to Jonas\n- [ ] Book flights home for Christmas\n- [ ] Run three times\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Monday\n",
+        "new_string": "## Monday\n- [x] Team meeting at 9:00\n- [x] Finish the budget draft\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Tuesday\n",
+        "new_string": "## Tuesday\n- [x] Dentist at 8:30\n- [x] Run 5 km\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Wednesday\n",
+        "new_string": "## Wednesday\n- [x] Call Mum\n- [ ] Return the parcel\n- [x] Review Emma's slides\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Thursday\n",
+        "new_string": "## Thursday\n- [x] Run 5 km before work\n- [x] Dinner with Sara at 19:00\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Friday\n",
+        "new_string": "## Friday\n- [x] Pick up the dry cleaning\n- [x] Compare flight prices\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Saturday\n",
+        "new_string": "## Saturday\n- [ ] Long run, 10 km\n- [ ] Farmers' market\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Sunday\n",
+        "new_string": "## Sunday\n- [ ] Meal prep for the week\n- [ ] Plan next week\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "## Later\n",
+        "new_string": "## Later\n- [ ] Renew my passport\n- [ ] Fix the bike light\n"
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "- [ ] Return the parcel\n",
+        "new_string": ""
+      }
+    },
+    {
+      "tool": "edit",
+      "args": {
+        "path": "Notes/Weekly planner.md",
+        "old_string": "- [ ] Farmers' market\n",
+        "new_string": "- [ ] Farmers' market\n- [ ] Return the parcel\n"
+      }
+    }
+  ],
+  "example": "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n- [x] Send the Q4 budget to Jonas\n- [ ] Book flights home for Christmas\n- [ ] Run three times\n\n## Monday\n- [x] Team meeting at 9:00\n- [x] Finish the budget draft\n\n## Tuesday\n- [x] Dentist at 8:30\n- [x] Run 5 km\n\n## Wednesday\n- [x] Call Mum\n- [x] Review Emma's slides\n\n## Thursday\n- [x] Run 5 km before work\n- [x] Dinner with Sara at 19:00\n\n## Friday\n- [x] Pick up the dry cleaning\n- [x] Compare flight prices\n\n## Saturday\n- [ ] Long run, 10 km\n- [ ] Farmers' market\n- [ ] Return the parcel\n\n## Sunday\n- [ ] Meal prep for the week\n- [ ] Plan next week\n\n## Later\n- [ ] Renew my passport\n- [ ] Fix the bike light\n",
+  "related": [
+    "weekly-review",
+    "daily-journal",
+    "meal-plan"
+  ],
+  "updated": "2026-11-21"
+}

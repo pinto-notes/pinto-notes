@@ -97,6 +97,10 @@ export default function Page() {
         whether pinto-notes is connected.
       </p>
 
+      <p>
+        Two templates come with their own Claude Code instructions: the <a href="/blog/apple-notes-daily-standup-template">daily standup template</a> drafts yesterday from your commits, and the <a href="/blog/apple-notes-bug-triage-template">bug triage template</a> files a pasted report by severity.
+      </p>
+
       <h2 id="missing">Why not just CLAUDE.md?</h2>
       <p>
         Claude Code already has memory of a kind: CLAUDE.md, which you write, and auto memory, which it writes for itself. Codex reads

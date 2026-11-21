@@ -14,7 +14,7 @@ const send = (e: SiteEvent | null) => { if (e) window.dispatchEvent(new CustomEv
 /// the window offers the Mac app and another try. `href` is the universal link, kept for a copied
 /// link and for a click without JavaScript; `app` is the app's own link, built from a checked slug.
 /// With `auto`, the page also tries the app as it loads when its address asks (?open, from an old link).
-export default function OpenInApp({ href, app, className, label, labelIos, auto = false, children }: {
+export default function OpenInApp({ href, app, className, label, labelIos, auto = false, attrs, children }: {
   href: string;
   app: string;
   className?: string;
@@ -22,6 +22,8 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
   /// The name on an iPhone or iPad, when its words differ there (templates/UseLabel.tsx).
   labelIos?: string;
   auto?: boolean;
+  /// Extra attributes for the link, such as a blog card's data-cta names (lib/PostCta.tsx).
+  attrs?: Record<string, string>;
   children: React.ReactNode;
 }) {
   const [state, setState] = useState<"idle" | "trying" | "opened" | "fallback">("idle");
@@ -70,7 +72,7 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
 
   return (
     <>
-      <a ref={link} className={className} href={href} aria-label={name} onClick={onClick} aria-busy={state === "trying" || undefined} data-opening={state === "trying" || undefined}>
+      <a ref={link} {...attrs} className={className} href={href} aria-label={name} onClick={onClick} aria-busy={state === "trying" || undefined} data-opening={state === "trying" || undefined}>
         {children}
       </a>
       {state === "fallback" && createPortal(<OpenSheet what={opensWhat(app)} onRetry={retry} onClose={close} />, document.body)}

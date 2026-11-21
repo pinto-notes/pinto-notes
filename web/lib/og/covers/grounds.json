@@ -107,6 +107,12 @@
   "w": 880,
   "h": 550
  },
+ "backlinks": {
+  "ground": "#e6efde",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "best-ai-notes-app": {
   "ground": "#dec9f0",
   "ink": "dark",
@@ -119,6 +125,12 @@
   "w": 1600,
   "h": 1000
  },
+ "book-notes": {
+  "ground": "#f0c896",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "budget-template": {
   "ground": "#e6efde",
   "ink": "dark",
@@ -127,6 +139,12 @@
  },
  "budget": {
   "ground": "#fceecc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "bug-triage": {
+  "ground": "#9aa45d",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -145,6 +163,12 @@
  },
  "chatgpt-locked-chats": {
   "ground": "#d5e8e2",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "checklist": {
+  "ground": "#fabab8",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -173,6 +197,24 @@
   "w": 880,
   "h": 550
  },
+ "content-calendar": {
+  "ground": "#f8876f",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "cornell": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "decision": {
+  "ground": "#cac6c3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "encrypted": {
   "ground": "#dae1d9",
   "ink": "dark",
@@ -185,8 +227,26 @@
   "w": 880,
   "h": 550
  },
+ "flashcards": {
+  "ground": "#c3dae1",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "forgot-password": {
   "ground": "#f4e7d4",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "gift-ideas": {
+  "ground": "#3c532e",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "grocery": {
+  "ground": "#a6b3bc",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -197,14 +257,44 @@
   "w": 880,
   "h": 550
  },
+ "home": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "ios-27": {
   "ground": "#fff3d0",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
+ "job-hunt": {
+  "ground": "#7792ae",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "journal": {
+  "ground": "#f2cb94",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "mcp-server": {
   "ground": "#e8ecef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "meal-planner": {
+  "ground": "#d75f33",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "meeting": {
+  "ground": "#f0c998",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -220,6 +310,12 @@
   "ink": "dark",
   "w": 880,
   "h": 495
+ },
+ "mood": {
+  "ground": "#d1b8d6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
  },
  "move-apple-notes": {
   "ground": "#fbefd9",
@@ -263,6 +359,12 @@
   "w": 880,
   "h": 550
  },
+ "one-on-one": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "openai-apps-in-chatgpt": {
   "ground": "#83cec1",
   "ink": "dark",
@@ -281,8 +383,50 @@
   "w": 880,
   "h": 495
  },
+ "organize": {
+  "ground": "#acbc7c",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "planner": {
+  "ground": "#c4cbef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "reading-list": {
+  "ground": "#b29aba",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "recipe": {
+  "ground": "#efb7af",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "recover-deleted": {
   "ground": "#e5efdf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "school": {
+  "ground": "#8dbcc9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "share-together": {
+  "ground": "#ae7272",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "standup": {
+  "ground": "#8cb8a9",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -313,6 +457,18 @@
  },
  "version-history": {
   "ground": "#e6f0df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "weekly-review": {
+  "ground": "#a9b489",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "workout-log": {
+  "ground": "#edc898",
   "ink": "dark",
   "w": 880,
   "h": 550

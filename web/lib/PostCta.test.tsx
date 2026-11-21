@@ -46,4 +46,15 @@ describe("a post's call to action", () => {
     expect(html).toMatch(/<p class="[^"]*pi pi-ios">Free, for iOS 26 or later.<\/p>/);
     expect(html).toMatch(/<p class="[^"]*pi-apple pi-not-ios">Free, for macOS 26 or later./);
   });
+  it("on a template post, ends with a link that opens the template in the app, counted as the card's", () => {
+    const html = renderToStaticMarkup(
+      <PostCta slug="apple-notes-recipe-template" position="answer" title="Try it" template="recipe-box"><p>Why.</p></PostCta>,
+    );
+    const tag = links(html).find((t) => attr(t, "data-cta-action") === "open_template")!;
+    expect(tag).toContain('href="/open/template/recipe-box"');
+    expect(attr(tag, "data-cta")).toBe("apple-notes-recipe-template");
+    expect(attr(tag, "data-cta-position")).toBe("answer");
+    expect(html).toContain("Have Pinto Notes already?");
+    expect(render()).not.toContain("open_template");
+  });
 });

@@ -66,7 +66,7 @@ export default function Page() {
             template below into a new note.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-budget-template" position="answer" title="Want a budget that keeps itself?">
+          <PostCta slug="apple-notes-budget-template" position="answer" template="budget-log" title="Want a budget that keeps itself?">
             <p>Pinto Notes works like Apple Notes and has a free Budget and expenses template: what&apos;s left this month, each category against its budget, and bills that repeat. Tell ChatGPT or Claude what you spent and it adds it.</p>
           </PostCta>
         </Answer>
@@ -106,6 +106,10 @@ export default function Page() {
       <p>
         One catch: it doesn&apos;t work inside a table. Math Results switches off while you&apos;re in one, so a Total cell stays as
         text. <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> goes through what tables can and can&apos;t do.
+      </p>
+
+      <p>
+        For Christmas and birthdays, the <a href="/blog/apple-notes-gift-ideas">Apple Notes gift ideas list</a> keeps each idea by person with a budget. For the jobs around the house that cost money when they&apos;re forgotten, there&apos;s a <a href="/blog/apple-notes-home-maintenance-checklist">home maintenance checklist</a>.
       </p>
 
       <h2 id="limits">Where an Apple Notes budget stops</h2>

@@ -66,6 +66,24 @@
 .ground[data-ground="harbor"] { background: linear-gradient(160deg, #e8f0f8, #bed2e9); }
 .ground[data-ground="orchid"] { background: linear-gradient(160deg, #f8ecf5, #e5c3db); }
 .ground[data-ground="cherry"] { background: linear-gradient(160deg, #fbe9ea, #f0c2c6); }
+.ground[data-ground="frost"] { background: linear-gradient(160deg, #f3f8f9, #ddebee); }
+.ground[data-ground="wisteria"] { background: linear-gradient(160deg, #f0ebf1, #d5c7d9); }
+.ground[data-ground="melon"] { background: linear-gradient(160deg, #fcf4ea, #f6e1c5); }
+.ground[data-ground="cobalt"] { background: linear-gradient(160deg, #e4e9ef, #b4c3d2); }
+.ground[data-ground="moss"] { background: linear-gradient(160deg, #eef0e7, #cfd6be); }
+.ground[data-ground="stone"] { background: linear-gradient(160deg, #f4f4f3, #e1e0de); }
+.ground[data-ground="salmon"] { background: linear-gradient(160deg, #fcf3e9, #f7dfc2); }
+.ground[data-ground="spruce"] { background: linear-gradient(160deg, #e8f1ee, #bfd8cf); }
+.ground[data-ground="khaki"] { background: linear-gradient(160deg, #ebedde, #c7cca5); }
+.ground[data-ground="straw"] { background: linear-gradient(160deg, #fcf4e9, #f7e2c4); }
+.ground[data-ground="lavender"] { background: linear-gradient(160deg, #f6f1f7, #e5d8e8); }
+.ground[data-ground="sandstone"] { background: linear-gradient(160deg, #fcf4e9, #f7e0c2); }
+.ground[data-ground="flamingo"] { background: linear-gradient(160deg, #fde7e2, #fbbdaf); }
+.ground[data-ground="pine"] { background: linear-gradient(160deg, #d8ddd5, #93a08c); }
+.ground[data-ground="meadow"] { background: linear-gradient(160deg, #eef2e5, #d1dab6); }
+.ground[data-ground="peony"] { background: linear-gradient(160deg, #fef1f1, #fcd9d7); }
+.ground[data-ground="ocean"] { background: linear-gradient(160deg, #e8f2f4, #c0dae1); }
+.ground[data-ground="bluebell"] { background: linear-gradient(160deg, #e9ecfa, #c4cbef); }
 .ground[data-ground="dunes"] { background: #f9c98a url(/blog/desk.svg) center / cover no-repeat; }
 
 /* ── A figure in a post: the capture centred on its ground ── */
@@ -131,6 +149,24 @@
 .thumb[data-ground="harbor"] { background: #dfe8f3; }
 .thumb[data-ground="orchid"] { background: #f2e1ec; }
 .thumb[data-ground="cherry"] { background: #f7dfe1; }
+.thumb[data-ground="frost"] { background: #e7f0f3; }
+.thumb[data-ground="wisteria"] { background: #e0d6e3; }
+.thumb[data-ground="melon"] { background: #f9e9d5; }
+.thumb[data-ground="cobalt"] { background: #c9d3de; }
+.thumb[data-ground="moss"] { background: #dce1cf; }
+.thumb[data-ground="stone"] { background: #e9e8e7; }
+.thumb[data-ground="salmon"] { background: #f9e8d3; }
+.thumb[data-ground="spruce"] { background: #d1e3dc; }
+.thumb[data-ground="khaki"] { background: #d6dabe; }
+.thumb[data-ground="straw"] { background: #f9ead4; }
+.thumb[data-ground="lavender"] { background: #ece3ef; }
+.thumb[data-ground="sandstone"] { background: #f9e8d3; }
+.thumb[data-ground="flamingo"] { background: #fccfc5; }
+.thumb[data-ground="pine"] { background: #b1baab; }
+.thumb[data-ground="meadow"] { background: #dde4ca; }
+.thumb[data-ground="peony"] { background: #fde3e2; }
+.thumb[data-ground="ocean"] { background: #d1e4e9; }
+.thumb[data-ground="bluebell"] { background: #e2e6f8; }
 
 /* An iPhone screen on its own, with the screen's corners. */
 .phone { width: min(100%, var(--w, 100%)); margin: 0 auto; }
