@@ -457,16 +457,3 @@ a.use:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .promptCompact .full { width: 100%; }
 .fullWorks { margin: 0; color: var(--muted); font-size: 14px; font-weight: 600; }
 .promptWorks { color: var(--muted); }
-
-/* It remembers: the chats on the left, each its own card, and the app after them on the right. */
-.remRow { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 48px; align-items: start; }
-@media (max-width: 900px) { .remRow { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
-.chats { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-.chat { display: grid; gap: 10px; padding: 16px 18px; border-radius: 18px; background: var(--soft); }
-.chatNo { margin: 0; color: var(--muted); font-size: 13px; font-weight: 700; }
-.you { margin: 0 0 0 auto; max-width: 88%; padding: 9px 13px; border-radius: 16px 16px 4px 16px; background: var(--cta-bg); color: var(--cta-ink); font-size: 15.5px; line-height: 1.4; }
-.ai { display: grid; gap: 6px; }
-.ai p { margin: 0; font-size: 15.5px; line-height: 1.45; }
-.remFig { margin: 0; display: grid; gap: 12px; position: sticky; top: 96px; }
-@media (max-width: 900px) { .remFig { position: static; } }
-.remCap { color: var(--muted); font-size: 14px; line-height: 1.45; }
