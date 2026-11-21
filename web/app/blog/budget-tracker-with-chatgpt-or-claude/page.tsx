@@ -131,6 +131,10 @@ export default function Page() {
         same budget ChatGPT filled in.
       </p>
 
+      <p>
+        To log each purchase in Apple Notes instead, the <a href="/blog/apple-notes-expense-tracker">Apple Notes expense tracker</a> keeps a table of what you spent with totals under it.
+      </p>
+
       <h2 id="limits">Limits</h2>
       <PostFigure src="/blog/drawn/bd-bank" width={1200} height={750} maxWidth={560}
         alt="A bank building and a budget card with a crossed-out line between them."

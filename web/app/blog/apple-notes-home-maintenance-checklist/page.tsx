@@ -177,6 +177,10 @@ export default function Page() {
         For a flat with five jobs, a note is plenty. For a house with thirty, keeping the dates right is the work, and it&apos;s left to you.
       </p>
 
+      <p>
+        For an everyday list of things to do, see the <a href="/blog/apple-notes-to-do-list">Apple Notes to-do list</a> post, with a template to paste in.
+      </p>
+
       <h2 id="pinto-notes">A list that knows what&apos;s due</h2>
       <p>
         Pinto Notes looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your notes from the chat you

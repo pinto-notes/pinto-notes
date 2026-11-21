@@ -147,6 +147,10 @@ export default function Page() {
         Notes has no API</a> covers the Mac-only route for Apple Notes.
       </p>
 
+      <p>
+        In Apple Notes there&apos;s no folder lock; <a href="/blog/apple-notes-lock-folder">Apple Notes lock folder</a> shows how to lock every note in one.
+      </p>
+
       <h2>Try it</h2>
       <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={420}
         alt="Pinto Notes' Import from Apple Notes sheet on a Mac, with notes listed by folder, all selected, and an Import button."
