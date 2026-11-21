@@ -7,8 +7,12 @@ import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
 export const dynamic = "force-static";
-export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes API and MCP: what works, since Apple says no" });
+// The search title is the H1 itself, without " · Pinto Notes", so it fits 60 characters and Google has one title to use.
+export const metadata = postMetadata("apple-notes-api", { title: "Apple Notes API in 2026: Apple says no. 4 ways that work" });
 
+// Care pass 21 November 2026 (blog-growth/CARE-PASS.md): title now matches the H1 and leads with the year and a
+// number; MCP table rechecked on each project's own page that day (sirmews archived, ailenshen added, Anthropic's
+// extension by its directory name); command line section from RhetTbull/macnotesapp's README; no first person.
 // Rewritten by hand on 14 October 2026 to the blog bar (amber-site/BLOG-BAR.md) and Emil's recipe. What ranks
 // for "apple notes api": Apple's developer forum (thread 813810, January 2026, where Quinn of Apple DTS answers
 // "No."), an older forum thread, and MCP server listings. None of them say plainly what each route can and can't
@@ -27,6 +31,12 @@ const FAQ = [
   ] },
   { q: "Can I read Apple Notes from Python?", a: [
     "On a Mac, yes: Python runs an AppleScript through the osascript command, and Notes answers with each note's title, dates and body as HTML. macOS asks once whether your terminal may control Notes.",
+  ] },
+  { q: "Is there an Apple Notes MCP server?", a: [
+    "Not from Apple. Anthropic's Read and Write Apple Notes extension works in the Claude desktop app, and community servers such as sweetrb's apple-notes-mcp work with Claude Code, Claude Desktop and Codex. All of them run on your Mac and drive the Notes app there.",
+  ] },
+  { q: "Is there an Apple Notes command line tool?", a: [
+    "Not from Apple, but the free, open source macnotesapp gives you a notes command on a Mac: brew install macnotesapp, then notes add, notes append and notes cat.",
   ] },
   { q: "Can ChatGPT or Claude read my Apple Notes?", a: [
     "Only Claude on a Mac, through its Apple Notes extension or a community MCP server, and only while that Mac is on. ChatGPT, and Claude on the web or your iPhone, can't reach Apple Notes at all.",
@@ -54,21 +64,22 @@ export default function Page() {
       slug="apple-notes-api"
       intro={<>
         If you searched this, you probably wanted something else to get at your notes: a script, an app, or most likely ChatGPT or
-        Claude. I went looking for the official answer and found it, straight from Apple. Here it is, every way around it that works
-        today, and the one thing none of them can do.
+        Claude. Apple has answered the question itself, in one word. Here is that answer, the four ways around it that work today,
+        with code you can copy, and the one thing none of them can do.
       </>}
       answer={
         <Answer jump={[
           { href: "#apple", label: "Apple's answer" },
-          { href: "#applescript", label: "AppleScript" },
+          { href: "#applescript", label: "AppleScript and Python" },
+          { href: "#cli", label: "Command line" },
           { href: "#shortcuts", label: "Shortcuts" },
-          { href: "#claude-mac", label: "Apple Notes MCP" },
+          { href: "#claude-mac", label: "MCP servers, compared" },
           { href: "#missing", label: "What none of them do" },
         ]}>
           <p>
-            No. Apple has no Notes API, and an Apple engineer said so in January 2026. What works runs through the Notes app on your own
-            device: AppleScript on a Mac, Notes&apos; Shortcuts actions on iPhone and Mac, and Claude&apos;s Apple Notes extension on a
-            Mac. Nothing in the cloud, so ChatGPT and Claude on your phone can&apos;t reach your notes.
+            No. Apple has no Notes API, and an Apple engineer said so in January 2026. Four things work, all through the Notes app on
+            your own device: AppleScript (or Python) on a Mac, a command line tool, Notes&apos; Shortcuts actions, and MCP servers that let
+            Claude or Codex on a Mac use your notes. Nothing works from the cloud, so ChatGPT and Claude on your phone can&apos;t reach them.
           </p>
           {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
           <PostCta slug="apple-notes-api" position="answer" title="Want ChatGPT and Claude in your notes?">
@@ -90,7 +101,7 @@ export default function Page() {
       </p>
       <p>So everything that follows goes through the Notes app itself, on a device that&apos;s switched on.</p>
 
-      <h2 id="applescript">AppleScript, on a Mac</h2>
+      <h2 id="applescript">AppleScript and Python, on a Mac</h2>
       <PostFigure src="/blog/macos27/notes27-api-script-editor-names" width={1400} height={592} maxWidth={700}
         alt="Script Editor on macOS 27 running: tell application Notes to get name of every note. The Result pane lists Reading list, Daily log, Book club picks, Packing list for Lisbon and Weekly groceries."
         caption="One line of AppleScript in Script Editor, and Notes lists every note it has. Tested on macOS 27." />
@@ -106,8 +117,17 @@ export default function Page() {
         alt="Terminal on macOS 27 running osascript with the Notes script. A dialog says: Terminal wants access to control Notes. Allowing control will provide access to documents and data in Notes, and to perform actions within that app. Don't Allow or Allow."
         caption="Run from Terminal, macOS asks once whether Terminal may control Notes." />
       <p>
-        Run from Terminal or Python, macOS asks once whether that app may control Notes, and the answer covers everything in it. In my
-        test, Script Editor didn&apos;t ask at all.
+        Run from Terminal or Python, macOS asks once whether that app may control Notes, and the answer covers everything in it. In a
+        test on macOS 27, Script Editor didn&apos;t ask at all.
+      </p>
+
+      <h2 id="cli">From the command line</h2>
+      <p>
+        If you&apos;d rather not write AppleScript, <a href="https://github.com/RhetTbull/macnotesapp" rel="noopener">macnotesapp</a> wraps
+        it in a <code>notes</code> command for Terminal, with a Python library of the same name. It&apos;s free and open source, and was last
+        released in October 2026. Install it with <code>brew install macnotesapp</code>, then <code>notes add</code> makes a note,
+        <code> notes append</code> adds to one and <code>notes cat</code> prints the ones whose name matches. It reads faster straight
+        from the Notes database if you give Terminal Full Disk Access, and every change still goes through the Notes app.
       </p>
 
       <h2 id="shortcuts">Shortcuts, on iPhone and Mac</h2>
@@ -132,27 +152,30 @@ export default function Page() {
       <p>
         An MCP server is how Claude, Claude Code or Codex gets tools for another app. Apple doesn&apos;t make one for Notes, so every Apple
         Notes MCP server is a small program on your Mac that drives the Notes app with AppleScript, or reads its database directly. These
-        are the ones worth knowing, checked on their own pages on 17 October 2026:
+        are the ones worth knowing, checked on their own pages on 21 November 2026:
       </p>
       <div className="tableWrap">
         <table>
           <thead><tr><th scope="col">Server</th><th scope="col">What the AI can do</th><th scope="col">Works with</th><th scope="col">Good to know</th></tr></thead>
           <tbody>
-            <tr><th scope="row">Claude&apos;s Apple Notes extension</th><td>Search, read and edit notes</td><td>Claude desktop app</td><td>From Anthropic; one click in Claude&apos;s extensions, no setup</td></tr>
-            <tr><th scope="row"><a href="https://github.com/sweetrb/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (sweetrb)</th><td>Read, search, create, edit and move notes; folders, tags, checklists, tables, export</td><td>Claude Code, Claude Desktop, Codex</td><td>The most complete and actively updated; installs with one <code>npx</code> command; needs Node.js</td></tr>
-            <tr><th scope="row"><a href="https://github.com/sirmews/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (sirmews)</th><td>Read and search only</td><td>Claude Desktop</td><td>Reads the Notes database; skips locked notes; can&apos;t create or edit</td></tr>
+            <tr><th scope="row"><a href="https://claude.com/connectors/read-and-write-apple-notes" rel="noopener">Read and Write Apple Notes</a></th><td>Create, read, update and list notes</td><td>Claude desktop app</td><td>From Anthropic; turn it on under Settings, Connectors, Desktop extensions; no setup</td></tr>
+            <tr><th scope="row"><a href="https://github.com/sweetrb/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (sweetrb)</th><td>Read, search, create, edit and move notes; folders, tags, checklists, tables, export</td><td>Claude Code, Claude Desktop, Codex</td><td>The most complete, updated almost daily; one <code>npx</code> command; needs Node.js 20</td></tr>
+            <tr><th scope="row"><a href="https://github.com/ailenshen/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (ailenshen)</th><td>Read and edit notes, keeping Notes&apos; own formatting; sees images and PDFs in notes</td><td>Claude Code, Claude Desktop</td><td>Changes one line without touching the rest; needs macOS 26 and Node.js 24</td></tr>
             <tr><th scope="row"><a href="https://github.com/RafalWilinski/mcp-apple-notes" rel="noopener">mcp-apple-notes</a></th><td>Search by meaning, not just words</td><td>Claude Desktop</td><td>Builds a local search index; not updated since December 2024</td></tr>
+            <tr><th scope="row"><a href="https://github.com/sirmews/apple-notes-mcp" rel="noopener">apple-notes-mcp</a> (sirmews)</th><td>Read and search only</td><td>Claude Desktop</td><td>Archived in December 2024; still listed in MCP directories</td></tr>
           </tbody>
         </table>
       </div>
       <p>
-        For Claude Code or Codex, the sweetrb server is the one I&apos;d use: <code>claude mcp add apple-notes -s user -- npx -y apple-notes-mcp</code>,
-        then allow the Automation prompt the first time it opens Notes. In the Claude app, the built-in extension is simpler.{" "}
+        For Claude Code, start with the sweetrb server: <code>claude mcp add apple-notes -s user -- npx -y apple-notes-mcp@latest</code>
+        (for Codex, <code>codex mcp add apple-notes -- npx -y apple-notes-mcp@latest</code>), then allow the Automation prompt the first
+        time it opens Notes. In the Claude app, the built-in extension is simpler.{" "}
         <a href="/blog/claude-and-apple-notes">Claude and Apple Notes</a> walks through it.
       </p>
       <p>
         They share the same limits: they run on your Mac, only while it&apos;s awake, and macOS asks for Automation (and sometimes Full Disk
-        Access) first. None of them reach your notes from Claude on your iPhone, from the web, or from ChatGPT.
+        Access) first. Out of the box, none of them reach your notes from Claude on your iPhone, from the web, or from ChatGPT. The
+        ailenshen server can, if you run your own bridge that puts it on the internet, and still only while the Mac is awake.
       </p>
 
       <h2 id="missing">What none of them can do</h2>
@@ -172,7 +195,7 @@ export default function Page() {
       <h2 id="pinto-notes">Notes your AIs can actually use</h2>
       <AIConnect ais={["chatgpt", "claude", "claude-code", "codex"]} caption="One notebook that ChatGPT, Claude, Claude Code and Codex all read and write." />
       <p>
-        That&apos;s why I made Pinto Notes. It looks and feels like Apple Notes, brings your notes over in <a href="/blog/move-from-apple-notes">one
+        That&apos;s the gap Pinto Notes fills. It looks and feels like Apple Notes, brings your notes over in <a href="/blog/move-from-apple-notes">one
         import</a>, and has the API Apple Notes doesn&apos;t: a server that ChatGPT, Claude, Claude Code and Codex connect to, with your OK in the app. Then they share one notebook. Tell Claude on Monday, and Codex can read it on Wednesday. For developers, the <a href="/blog/mcp-server">MCP server page</a> has the address, the tools and access tokens for
         scripts.
         {APP_STORE_LIVE
