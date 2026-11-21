@@ -445,4 +445,52 @@ export const de: Translation[] = [
     description: "Speichere wiederverwendbare ChatGPT-Prompts mit Beispielen in Apple Notizen oder Pinto Notes. Eine Vorlage zum Kopieren und ein Weg zum Prüfen.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-project-brief-template", lang: "de", slug: "projektsteckbrief-vorlage-apple-notizen",
+    title: "Projektsteckbrief in Apple Notizen: Vorlage",
+    description: "Kopiere einen ausgefüllten Projektsteckbrief mit Ergebnis, Umfang, Abnahmekriterien und offenen Fragen in Apple Notizen. So richtest du ihn ein.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-client-tracker-template", lang: "de", slug: "kundenkartei-vorlage-apple-notizen",
+    title: "Kundenkartei in Apple Notizen: Vorlage",
+    description: "Eine Notiz pro Kunde und eine Übersicht für Nachfragen. Kopiere die ausgefüllte Kundenkartei und verlinke Kontakte, Termine und nächste Schritte.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-moving-checklist-template", lang: "de", slug: "umzug-checkliste-vorlage-apple-notizen",
+    title: "Umzugscheckliste für Apple Notizen: Vorlage",
+    description: "Kopiere eine Umzugscheckliste mit Adressänderungen, Versorgern, Zeitplan und Kontakten. Eine Kistenliste hilft beim Auspacken am ersten Abend.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-home-inventory-template", lang: "de", slug: "hausrat-inventarliste-apple-notizen",
+    title: "Inventarliste für den Hausrat in Apple Notizen",
+    description: "Erfasse Hausrat Zimmer für Zimmer in Apple Notizen. Die Vorlage hält Seriennummern, Kaufbelege, Fotos und noch fehlende Nachweise zusammen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-wedding-planner-template", lang: "de", slug: "hochzeitsplanung-vorlage-apple-notizen",
+    title: "Hochzeitsplanung in Apple Notizen: Vorlage",
+    description: "Kopiere eine Vorlage für die Hochzeitsplanung mit Gästeliste, Antworten, Essenswünschen, Dienstleistern und Aufgaben für die nächsten Wochen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-sop-template", lang: "de", slug: "arbeitsanweisung-vorlage-apple-notizen",
+    title: "Arbeitsanweisung in Apple Notizen: Vorlage",
+    description: "Eine ausgefüllte Arbeitsanweisung für einen wöchentlichen Kundenbericht. Kopiere Ablauf, Ausnahmen, Abschlussprüfung und Änderungsprotokoll.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-find-and-replace", lang: "de", slug: "apple-notizen-suchen-und-ersetzen",
+    title: "Suchen und Ersetzen in Apple Notizen",
+    description: "So suchst du Text in einer Apple Notiz auf Mac und iPhone. Für viele Ersetzungen zeigt die Anleitung einen von Apple beschriebenen Weg über TextEdit.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-paste-without-formatting", lang: "de", slug: "apple-notizen-ohne-formatierung-einfuegen",
+    title: "Ohne Formatierung in Apple Notizen einfügen",
+    description: "Auf dem Mac Text mit dem Stil der Notiz einfügen: Menü und Tastenkürzel. Dazu Schritte für bereits eingefügten Text und das iPhone.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

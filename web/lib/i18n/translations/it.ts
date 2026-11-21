@@ -365,4 +365,52 @@ export const it: Translation[] = [
     description: "Salva un prompt per nota con istruzioni, input e risultato verificato. Copia il modello in Note di Apple oppure recuperalo con ChatGPT collegato a Pinto Notes.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-project-brief-template", lang: "it", slug: "brief-progetto-note-iphone",
+    title: "Brief di progetto in Note di iPhone: modello",
+    description: "Un brief di progetto da copiare in Note di Apple, con obiettivo, ambito, criteri di accettazione e domande aperte. Come prepararlo su Mac e iPhone.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-client-tracker-template", lang: "it", slug: "scheda-clienti-note-iphone",
+    title: "Scheda clienti in Note di iPhone: modello e indice",
+    description: "Una scheda per ogni cliente e una tabella con le date dei prossimi contatti. Copia gli esempi, collega le note e tieni aggiornati gli accordi.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-moving-checklist-template", lang: "it", slug: "checklist-trasloco-note-iphone",
+    title: "Checklist trasloco in Note di iPhone, con scatoloni",
+    description: "Copia una checklist del trasloco in Note di Apple: indirizzi, utenze, orari, contatti e tabella degli scatoloni. Come spuntare le attività.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-home-inventory-template", lang: "it", slug: "inventario-casa-note-iphone",
+    title: "Inventario di casa in Note di iPhone: modello",
+    description: "Un modello di inventario domestico per Note di Apple, una stanza per nota. Registra oggetti, numeri di serie, ricevute e foto senza perdere i dettagli.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-wedding-planner-template", lang: "it", slug: "organizzare-matrimonio-note-iphone",
+    title: "Organizzare un matrimonio in Note di iPhone",
+    description: "Un piano da copiare in Note di Apple con invitati, risposte, fornitori e prossime azioni. Come preparare le tabelle e condividere la nota.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-sop-template", lang: "it", slug: "procedura-operativa-standard-note-iphone",
+    title: "Procedura operativa standard in Note: modello",
+    description: "Copia una procedura operativa standard in Note di Apple, con responsabile, passaggi, eccezioni e controlli. Come eseguirla e rivederla.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-find-and-replace", lang: "it", slug: "trovare-sostituire-testo-note-iphone",
+    title: "Trovare e sostituire testo in Note su iPhone e Mac",
+    description: "Come trovare testo in una nota su Mac e iPhone, cosa documenta Apple sulla sostituzione e come cambiare una frase in più note con controllo.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-paste-without-formatting", lang: "it", slug: "incollare-senza-formattazione-note-mac",
+    title: "Incollare senza formattazione in Note su Mac",
+    description: "Il comando e la scorciatoia per incollare in Note sul Mac adeguando lo stile. Come correggere testo già incollato e cosa documenta Apple per iPhone.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

@@ -445,4 +445,52 @@ export const pt: Translation[] = [
     description: "Guarde um prompt por nota, com instruções, exemplo e resultado testado. Copie o modelo ou peça ao ChatGPT para buscar a nota no Pinto Notes.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-project-brief-template", lang: "pt", slug: "briefing-de-projeto-notas-iphone",
+    title: "Briefing de projeto no Notas do iPhone: modelo pronto",
+    description: "Um briefing com resultado, escopo, critérios de aceitação e questões em aberto. Copie o exemplo para o app Notas e combine o que será entregue.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-client-tracker-template", lang: "pt", slug: "controle-de-clientes-notas-iphone",
+    title: "Controle de clientes no Notas do iPhone: modelo",
+    description: "Uma nota por cliente, com histórico e próximo contato, mais um índice com datas e links. Copie os exemplos para acompanhar seu trabalho no app Notas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-moving-checklist-template", lang: "pt", slug: "checklist-mudanca-notas-iphone",
+    title: "Checklist de mudança no Notas do iPhone, com caixas",
+    description: "Avisos de endereço, contas, horários, contatos e uma tabela para encontrar cada caixa. Copie o modelo de mudança para o app Notas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-home-inventory-template", lang: "pt", slug: "inventario-da-casa-notas-iphone",
+    title: "Inventário da casa no Notas do iPhone, com fotos",
+    description: "Uma nota por cômodo, com número de série, comprovantes, fotos e tarefas pendentes. Copie o inventário preenchido para o app Notas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-wedding-planner-template", lang: "pt", slug: "checklist-casamento-notas-iphone",
+    title: "Checklist de casamento no Notas do iPhone: modelo",
+    description: "Convidados, confirmações, fornecedores e próximas tarefas numa nota só. Copie o planejamento de casamento e adapte os exemplos.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-sop-template", lang: "pt", slug: "procedimento-operacional-padrao-notas-iphone",
+    title: "Modelo de POP no Notas do iPhone: passo a passo",
+    description: "Um procedimento operacional padrão com etapas, exceções, verificações e data de revisão. Copie o exemplo de relatório semanal para o app Notas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-find-and-replace", lang: "pt", slug: "buscar-e-substituir-notas-iphone",
+    title: "Buscar e substituir no Notas do iPhone e do Mac",
+    description: "Veja como buscar dentro de uma nota no Mac e no iPhone, o que a Apple documenta sobre substituição e um caminho para trocar texto em lote.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-paste-without-formatting", lang: "pt", slug: "colar-sem-formatacao-notas-iphone",
+    title: "Colar sem formatação no Notas do iPhone e Mac",
+    description: "Use o atalho do Mac para colar com o estilo da nota, corrija trechos já colados e veja quais controles a Apple documenta para iPhone.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
