@@ -139,6 +139,7 @@ export const SHELVES: Shelf[] = [
       { slug: "notes-app-for-writers", ask: "Which notes app suits writers?" },
       { slug: "notes-app-for-developers", ask: "Which notes app suits developers?" },
       { slug: "evernote-alternative", ask: "What can replace Evernote?" },
+      { slug: "evernote-price-increase", ask: "What should I do before Evernote renews?" },
       { slug: "apple-notes-vs-evernote", ask: "Evernote or Apple Notes?" },
       { slug: "apple-notes-vs-bear", ask: "Apple Notes or Bear?" },
       { slug: "apple-notes-vs-notion", ask: "Should I use Notion or Apple Notes?" },

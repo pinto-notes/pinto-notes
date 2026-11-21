@@ -41,6 +41,8 @@ export const metadata = postMetadata("evernote-alternative", {
 // Pinto: BRIEF.md for Apple Notes feel, free download, connected ChatGPT/Claude reading and editing,
 // and every earlier version. BRIEF-compare.md for Markdown files and Mac/iPhone only, no Windows,
 // Android or web app. import-your-notes supplies the exact Evernote import wording and File menu.
+// 21 Nov 2026 price note: https://help.evernote.com/hc/en-us/articles/46317642175763 (Personal and Professional
+// move to Advanced at renewal, US$249.99 a year; Starter US$99 a year), read today via the help center API.
 // Picture reused: /blog/launch/import-file-menu from import-your-notes, no new screenshots.
 
 const FAQ = [
@@ -104,6 +106,11 @@ export default function Page() {
         Keep tags and the other attributes you need ticked. Export each notebook separately and keep the files
         as your backup. Evernote says exporting is available to free accounts, and doesn&apos;t work in Evernote Web.
         See <a href="https://help.evernote.com/hc/en-us/articles/209005557-Export-Notes-and-Notebooks-as-ENEX-or-HTML">Evernote&apos;s export guide</a>.
+      </p>
+      <p>
+        Leaving because of the new price? Evernote moves Personal and Professional subscribers to Advanced, US$249.99 a year, at
+        renewal. <a href="/blog/evernote-price-increase">Evernote&apos;s price increase</a> covers when the US$99 Starter plan is
+        enough and how to cancel without losing notes.
       </p>
 
       <h2 id="apple-notes">Apple Notes for everyday notes on Apple devices</h2>
@@ -195,8 +202,8 @@ export default function Page() {
       </ul>
       <p>
         Leaving another app as well? There are guides for moving from{" "}
-        <a href="/blog/obsidian-alternative-for-mac">Obsidian</a>, <a href="/blog/notion-alternative-for-personal-notes-on-mac">Notion</a>{" "}
-        and <a href="/blog/onenote-alternative-for-mac">OneNote</a> on a Mac.
+        <a href="/blog/obsidian-alternative-for-mac">Obsidian</a> and <a href="/blog/notion-alternative-for-personal-notes-on-mac">Notion</a>{" "}
+        on a Mac.
       </p>
     </PostPage>
   );

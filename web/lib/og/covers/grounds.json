@@ -311,6 +311,12 @@
   "w": 880,
   "h": 550
  },
+ "evernote-price": {
+  "ground": "#c8653b",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "evernote-to-notes": {
   "ground": "#c3d9b0",
   "ink": "dark",

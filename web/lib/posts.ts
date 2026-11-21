@@ -35,7 +35,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean" | "bluebell" | "seafoam" | "marigold" | "periwinkle" | "terracotta" | "amethyst" | "silver" | "jade" | "sunflower" | "aqua" | "glacier" | "iris" | "tangerine" | "cornflower" | "butterscotch" | "mulberry" | "poppy" | "granite" | "cyan" | "grass" | "spearmint" | "rosewood" | "laurel" | "azure" | "almond" | "thistle" | "papaya" | "canary" | "seaglass" | "hyacinth" | "avocado" | "rosehip" | "pewter" | "custard" | "eucalyptus" | "persimmon" | "mauve" | "ochre" | "slateblue" | "aubergine" | "icewater" | "bisque" | "juniper" | "sorbet" | "loganberry" | "lichen" | "tealwood" | "oatmeal" | "bluestone" | "blossom" | "forest" | "hydrangea" | "glade" | "summitblue" | "peachfuzz" | "ashgrey" | "tealrock" | "lilacmist" | "mintleaf" | "coralreef" | "butterlight" | "sandbar" | "duskblue" | "memdusk" | "reflectmint" | "wheatfield" | "rosequartz" | "sagecool" | "aquapale" | "butterchalk" | "lavenderlight" | "tealblue" | "mutedcoral";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean" | "bluebell" | "seafoam" | "marigold" | "periwinkle" | "terracotta" | "amethyst" | "silver" | "jade" | "sunflower" | "aqua" | "glacier" | "iris" | "tangerine" | "cornflower" | "butterscotch" | "mulberry" | "poppy" | "granite" | "cyan" | "grass" | "spearmint" | "rosewood" | "laurel" | "azure" | "almond" | "thistle" | "papaya" | "canary" | "seaglass" | "hyacinth" | "avocado" | "rosehip" | "pewter" | "custard" | "eucalyptus" | "persimmon" | "mauve" | "ochre" | "slateblue" | "aubergine" | "icewater" | "bisque" | "juniper" | "sorbet" | "loganberry" | "lichen" | "tealwood" | "oatmeal" | "bluestone" | "blossom" | "forest" | "hydrangea" | "glade" | "summitblue" | "peachfuzz" | "ashgrey" | "tealrock" | "lilacmist" | "mintleaf" | "coralreef" | "butterlight" | "sandbar" | "duskblue" | "memdusk" | "reflectmint" | "wheatfield" | "rosequartz" | "sagecool" | "aquapale" | "butterchalk" | "lavenderlight" | "tealblue" | "mutedcoral" | "renewalclay";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -695,6 +695,18 @@ export const posts: Post[] = [
     updated: "2026-11-21",
     image: { src: "/blog/launch/import-file-menu.webp", alt: "The File menu in Pinto Notes on a Mac: Import from Apple Notes, Obsidian, Bear, Evernote and Google Keep.", width: 820, height: 800, window: false, title: "File menu" },
     thumb: cover("avocado", "evernote-alt", 1600, 1000, "Paper note cards walking out of an open cardboard box toward a tidy stack"),
+    draft: false,
+  },
+  {
+    slug: "evernote-price-increase",
+    title: "Evernote price increase: what to do at renewal",
+    description: "Evernote moves Personal and Professional to Advanced at $249.99 a year. When Starter at $99 is enough, how to cancel without losing notes, and where to go.",
+    excerpt: "Evernote's new plans start at your next renewal. Check whether Starter fits, switch or cancel in time, and export your notebooks if you leave.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/launch/import-file-menu.webp", alt: "The File menu in Pinto Notes on a Mac: Import from Apple Notes, Obsidian, Bear, Evernote and Google Keep.", width: 820, height: 800, window: false, title: "File menu" },
+    thumb: cover("renewalclay", "evernote-price", 1600, 1000, "Note cards with a heavy price tag, and a path forking to a box and a folder"),
     draft: false,
   },
   {
