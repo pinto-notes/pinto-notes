@@ -87,6 +87,7 @@ export default function Page() {
       <p>
         You get two rows and two columns with the caret in the first cell. Faster still: type the rows with a tab between each column,
         select them and press the Table button. Every tab becomes a column, which is how I turned a pasted list into a table in one go.
+        Two columns is all <a href="/blog/apple-notes-cornell-notes-template">Cornell notes in Apple Notes</a> need.
       </p>
 
       <h2 id="rows-columns">Add rows and columns</h2>

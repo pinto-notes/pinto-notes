@@ -105,7 +105,8 @@ export default function Page() {
         Pinned Notes or Locked Notes. A Tags rule offers Any Tag, All Selected, Any Selected and Untagged Notes Only, and the last one is a
         quick way to find everything you never tagged. A date rule can be Today, Yesterday, a number of days, weeks, months or years back,
         or a specific range. Checklists can be Checked, Unchecked or No Checklists, which makes a Smart Folder of every list with unticked
-        items easy to build.
+        items easy to build. Add a Folders rule and it becomes every open action item in your
+        <a href="/blog/apple-notes-meeting-notes-template">meeting notes</a>.
       </p>
       <p>
         A Smart Folder can&apos;t be locked, shared or put inside another folder, though it can list shared notes.
