@@ -15,8 +15,6 @@ export const REMOVED_POSTS: Record<string, string> = {
   "chatgpt-memory-vs-notes": "/blog/connect-chatgpt-to-your-notes",
   "apple-notes-mcp": "/blog/apple-notes-api",
   "obsidian-mcp-servers-compared": "/blog/obsidian-mcp",
-  "apple-notes-vs-notion": "/blog/move-apple-notes-to-obsidian-notion-keep",
-  "apple-notes-vs-obsidian": "/blog/move-apple-notes-to-obsidian-notion-keep",
   "pinto-notes-vs-apple-notes": "/blog/move-from-apple-notes",
   "chatgpt-chat-and-work-merged": "/blog/connect-chatgpt-to-your-notes",
   "gemini-4-carbon": "/blog/mcp-server",

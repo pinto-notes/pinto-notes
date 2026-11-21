@@ -128,6 +128,10 @@ export default function Page() {
         the vault too, <a href="/blog/obsidian-mcp">Obsidian MCP servers, compared</a> covers what works.
       </p>
 
+      <p>
+        Not sure Obsidian is the right move? <a href="/blog/apple-notes-vs-obsidian">Apple Notes vs Obsidian</a> compares what each does better.
+      </p>
+
       <h2 id="notion">Apple Notes to Notion</h2>
       <PostFigure src="/blog/apple/notion-settings-import" width={2136} height={1340} maxWidth={700}
         alt="Notion's Settings window open at Import: a drop area for ZIP, CSV, PDF, text, Markdown or HTML files up to 5 GB, and tiles for each kind."
@@ -191,6 +195,10 @@ export default function Page() {
       <p>
         One thing that confuses people: if Apple Notes shows a Gmail account in its sidebar, those notes aren&apos;t in Google Keep. They
         live in your Gmail account and sync over IMAP, the same way Mail does, and Keep never shows them.
+      </p>
+
+      <p>
+        Going the other way, from Keep to Apple Notes? <a href="/blog/google-keep-to-apple-notes">Google Keep to Apple Notes</a> covers Takeout and Import to Notes.
       </p>
 
       <h2 id="what-comes-across">What comes across</h2>

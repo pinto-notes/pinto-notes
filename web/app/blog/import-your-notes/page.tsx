@@ -37,6 +37,10 @@ export default function Page() {
         <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> goes through that import in detail.
       </p>
 
+      <p>
+        Moving from Evernote to Apple Notes instead? <a href="/blog/evernote-to-apple-notes">Evernote to Apple Notes</a> shows Notes&apos; own .enex import. Not sure which account your Apple Notes are in? See <a href="/blog/where-are-apple-notes-stored">where Apple Notes are stored</a>.
+      </p>
+
       <h2>On iPhone</h2>
       <p>
         A whole library is easiest to bring in on a Mac, and it&apos;s on your iPhone a moment later. No Mac? The iPhone guide
