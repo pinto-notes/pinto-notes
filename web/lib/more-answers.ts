@@ -20,6 +20,8 @@ export const SHELVES: Shelf[] = [
       { slug: "apple-notes-organize", ask: "How should I organize my notes?" },
       { slug: "apple-notes-checklist-sort", ask: "Why do ticked items move to the bottom?" },
       { slug: "apple-notes-for-school", ask: "Is Apple Notes good for school?" },
+      { slug: "apple-notes-tips", ask: "What else can Apple Notes do?" },
+      { slug: "where-are-apple-notes-stored", ask: "Where are my Apple Notes kept?" },
       { slug: "apple-notes-not-working", ask: "Why does Notes keep crashing?" },
       { slug: "apple-notes-unable-to-start-collaboration", ask: "Why can't I share this note?" },
       { slug: "apple-notes-search-not-working", ask: "Why can't Notes find my note?" },
@@ -72,6 +74,7 @@ export const SHELVES: Shelf[] = [
       { slug: "obsidian-mcp", ask: "Can Claude use my Obsidian vault?" },
       { slug: "connect-notes-to-grok", ask: "Connect your notes to Grok" },
       { slug: "mcp-server", ask: "What can an AI do through the MCP server?" },
+      { slug: "apple-notes-ai", ask: "Does Apple Notes have AI?" },
     ],
   },
   {
@@ -80,6 +83,11 @@ export const SHELVES: Shelf[] = [
     items: [
       { slug: "best-ai-notes-app", ask: "What's the best AI notes app?" },
       { slug: "best-notes-app-for-mac", ask: "What's the best notes app for Mac?" },
+      { slug: "apple-notes-vs-obsidian", ask: "Apple Notes or Obsidian?" },
+      { slug: "apple-notes-vs-notion", ask: "Should I use Notion or Apple Notes?" },
+      { slug: "apple-notes-alternatives", ask: "What can I use instead of Apple Notes?" },
+      { slug: "evernote-to-apple-notes", ask: "Can Notes open my Evernote files?" },
+      { slug: "google-keep-to-apple-notes", ask: "Can I move Google Keep to Apple Notes?" },
     ],
   },
 ];

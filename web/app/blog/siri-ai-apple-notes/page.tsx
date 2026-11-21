@@ -135,6 +135,10 @@ export default function Page() {
         could use.
       </p>
 
+      <p>
+        For everything else Apple Intelligence does in Notes, from transcripts to recording summaries, see <a href="/blog/apple-notes-ai">Apple Notes AI</a>.
+      </p>
+
       <h2 id="missing">What&apos;s missing</h2>
       <p>
         Siri AI is the only AI that gets into Apple Notes, and it only works one note at a time, on that device, when you ask. The ChatGPT

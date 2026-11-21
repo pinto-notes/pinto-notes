@@ -167,6 +167,10 @@ export default function Page() {
         <a href="/blog/apple-notes-tags-smart-folders">Apple Notes tags and Smart Folders</a>.
       </p>
 
+      <p>
+        For more ways to use Notes, from Quick Notes to Smart Folders, see <a href="/blog/apple-notes-tips">Apple Notes tips and tricks</a>.
+      </p>
+
       <h2 id="limits">Where checklist sorting stops</h2>
       <ul>
         <li><strong>All notes or none.</strong> The setting covers every checklist on the device, so a shopping list and a recipe sort the same way.</li>

@@ -11,6 +11,12 @@
   "w": 1600,
   "h": 1000
  },
+ "alternatives": {
+  "ground": "#b9ded6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "anthropic-mcp": {
   "ground": "#da7959",
   "ink": "light",
@@ -233,6 +239,12 @@
   "w": 880,
   "h": 550
  },
+ "evernote-to-notes": {
+  "ground": "#c3d9b0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "export-markdown": {
   "ground": "#e7e4df",
   "ink": "dark",
@@ -289,6 +301,12 @@
  },
  "journal": {
   "ground": "#f2cb94",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "keep-to-notes": {
+  "ground": "#fad286",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -359,8 +377,26 @@
   "w": 880,
   "h": 550
  },
+ "notes-ai": {
+  "ground": "#bdbce5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "notes-apps-mcp": {
   "ground": "#dce3ed",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "notes-stored": {
+  "ground": "#bad6dd",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "notes-tips": {
+  "ground": "#f0c792",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -481,6 +517,18 @@
  },
  "version-history": {
   "ground": "#e6f0df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "vs-notion": {
+  "ground": "#c9c7c6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "vs-obsidian": {
+  "ground": "#d9c2e4",
   "ink": "dark",
   "w": 880,
   "h": 550

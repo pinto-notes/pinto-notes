@@ -211,6 +211,10 @@ export default function Page() {
       <p><strong>Where it falls short:</strong> heavy for quick personal notes, and your notes live on Notion&apos;s servers, so getting them out means an export.</p>
       <p><strong>Best for:</strong> teams, and people who want databases and project tracking next to their notes.</p>
 
+      <p>
+        If you&apos;re choosing between just these two, see <a href="/blog/apple-notes-vs-notion">Notion vs Apple Notes</a>.
+      </p>
+
       <h2>6. Craft: best-looking documents</h2>
       <PostFigure src="/blog/news/craft-mac-big-sur-trip" width={1200} height={1225} maxWidth={560}
         alt="Craft on a Mac: a sidebar of folders and a Big Sur Road Trip document with a cover photo, a checklist and day cards with photos."
@@ -234,6 +238,10 @@ export default function Page() {
         <li><strong>Microsoft OneNote.</strong> Free on the Mac App Store, with free-form pages you can type or draw anywhere on, and sync through OneDrive. A good pick if you live in Microsoft 365. It left our top six because it doesn&apos;t follow Mac conventions as closely as the apps above.</li>
         <li><strong>Goodnotes and Notability.</strong> The handwriting apps. Goodnotes is free for up to 3 files, then from $11.99 a year, on Apple devices, Windows, Android and the web. Notability adds audio recording and AI study tools. Both are best on an iPad with a Pencil.</li>
       </ul>
+
+      <p>
+        Need something that also runs on Windows or Android? See <a href="/blog/apple-notes-alternatives">Apple Notes alternatives for Windows and Android</a>.
+      </p>
 
       <h2 id="which-one">Which one should you pick?</h2>
       <ul>
