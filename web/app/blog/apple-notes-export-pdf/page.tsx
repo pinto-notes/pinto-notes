@@ -61,7 +61,7 @@ export default function Page() {
         ]}>
           <p>
             On a Mac, click the note and choose File, Export To, PDF (File, Export as on macOS 26). On iPhone, open the
-            note, tap the Share button, then Markup, and tap Done to save the PDF. Apple Notes exports one note at a time; Apple doesn&apos;t
+            note, tap the Share button, then <a href="/blog/apple-notes-annotate-pdf">Markup</a>, and tap Done to save the PDF. Apple Notes exports one note at a time; Apple doesn&apos;t
             describe a way to export a folder or all your notes as PDFs.
           </p>
           <PostCta slug="apple-notes-export-pdf" position="answer" title="Your notes as files, all the time.">

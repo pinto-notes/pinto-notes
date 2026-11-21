@@ -110,7 +110,7 @@ export default function Page() {
         </li>
         <li id="icloud-has-it">
           <strong>iCloud has the note</strong>
-          Open icloud.com/notes in a browser and sign in with the same Apple Account. If the note is there, the device that&apos;s missing
+          Open icloud.com/notes in a browser (<a href="/blog/apple-notes-on-windows">on a Windows PC too</a>) and sign in with the same Apple Account. If the note is there, the device that&apos;s missing
           it is the one to fix. If it isn&apos;t, the device where you wrote it hasn&apos;t uploaded it yet, so start with that one.
         </li>
         <li id="status">
