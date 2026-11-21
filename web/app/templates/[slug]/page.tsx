@@ -93,6 +93,34 @@ export default async function Page({ params }: Props) {
       </div>
     </section>
   ));
+  // Separate chats, one tracker: what a prompt in ChatGPT can't do. Real runs (lib/template-seo.ts).
+  const rem = seo?.remembers;
+  const remembersSection = rem && (
+    <section className={s.section} aria-labelledby="remembers">
+      <div className={s.sectionHead}>
+        <h2 id="remembers" className={s.h2}>It remembers between chats</h2>
+        <p className={s.sectionLede}>{rem.lede}</p>
+      </div>
+      <div className={s.remRow}>
+        <ol className={s.chats}>
+          {rem.chats.map((c, i) => (
+            <li key={c.you} className={s.chat}>
+              <p className={s.chatNo}>Chat {i + 1}</p>
+              <p className={s.you}>{c.you}</p>
+              <div className={s.ai}>{c.ai.map((a) => <p key={a}>{a}</p>)}</div>
+            </li>
+          ))}
+        </ol>
+        <figure className={s.remFig}>
+          <div className={s.window} data-scheme="light">
+            <div className={s.bar} aria-hidden="true"><span className={s.lights}><i /><i /><i /></span><span className={s.folder}>Notes</span></div>
+            <span className={s.appShot}><picture>{rem.picture.phone && <source media="(max-width: 600px)" srcSet={rem.picture.phone.src} width={rem.picture.phone.width} height={rem.picture.phone.height} />}<img src={rem.picture.src} alt={rem.picture.alt} width={rem.picture.width} height={rem.picture.height} loading="lazy" decoding="async" /></picture></span>
+          </div>
+          <figcaption className={s.remCap}>{rem.caption}</figcaption>
+        </figure>
+      </div>
+    </section>
+  );
   return (
     <div className={s.main}>
       <JsonLd graph={[
@@ -141,6 +169,8 @@ export default async function Page({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {remembersSection}
 
       {seo && appSection}
 

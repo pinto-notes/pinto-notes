@@ -52,3 +52,30 @@ describe("the app templates' search copy", () => {
     });
   }
 });
+
+describe("It remembers between chats", () => {
+  const withChats = Object.entries(TEMPLATE_SEO).filter(([, s]) => s.remembers);
+
+  it("has a real run on at least the habit tracker", () => {
+    expect(withChats.map(([slug]) => slug)).toContain("habit-tracker");
+  });
+
+  for (const [slug, seo] of withChats) {
+    const rem = seo.remembers!;
+    it(`${slug}: shows several separate chats, each with what was said and what came back`, () => {
+      expect(rem.chats.length).toBeGreaterThanOrEqual(3);
+      for (const c of rem.chats) { expect(c.you.length).toBeGreaterThan(10); expect(c.ai.length).toBeGreaterThan(0); }
+    });
+
+    it(`${slug}: its pictures are on disk at the size the page says, and the page shows the chats`, async () => {
+      for (const pic of [rem.picture, ...(rem.picture.phone ? [rem.picture.phone] : [])]) {
+        const b = readFileSync(path.join(process.cwd(), "public", pic.src));
+        // WebP VP8 lossy: width and height are 14 bits each at bytes 26 and 28.
+        expect([b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff]).toEqual([pic.width, pic.height]);
+      }
+      const html = renderToStaticMarkup(await TemplatePage(params(slug)));
+      expect(html).toContain('id="remembers"');
+      for (const c of rem.chats) expect(html).toContain(c.ai[0].replace(/'/g, "&#x27;"));
+    });
+  }
+});

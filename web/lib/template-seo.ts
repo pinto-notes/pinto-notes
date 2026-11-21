@@ -23,6 +23,11 @@ export type TemplateSeo = {
   faq: { q: string; a: string[] }[];
   /// The how-to post for "make a <thing> with ChatGPT or Claude", where there is one.
   post?: { slug: string; title: string };
+  /// What a ChatGPT prompt can't do: separate chats, each starting from nothing, and the app keeps it all.
+  /// Real runs only: the chats are what was said to the AI and the start of what it answered (cut,
+  /// never reworded), and the picture is the app drawn over the data it saved. Kept with their
+  /// transcripts in blog-growth/research/s1.
+  remembers?: { lede: string; chats: { you: string; ai: string[] }[]; picture: { src: string; width: number; height: number; alt: string; phone?: { src: string; width: number; height: number } }; caption: string };
 };
 
 const IPHONE =
@@ -49,6 +54,23 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Does it remind me?", a: ["No. Apps in Pinto Notes can't send notifications yet, so the tracker doesn't nag you. Put a reminder in your calendar if you want one."] },
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
+    // Four runs of Claude (Claude Code 2.1.330) through the Pinto Notes connector on the local stack,
+    // a fresh test account, 21 November 2026 (blog-growth/research/s1/remembers-habit-2026-11-21).
+    remembers: {
+      lede: "Four separate chats. Each one starts with no memory of the last, and the tracker keeps everything.",
+      chats: [
+        { you: "Add the Pinto Notes habit tracker template to my notes and set it up with my habits: walk 30 minutes, read 20 pages, 8 glasses of water. I started on Monday.",
+          ai: ["I added the Habit Tracker template to your notes as Notes/Habits and set it up with your three habits.", "I set the start date to Monday, November 16, so this week counts toward your streaks."] },
+        { you: "Log my habits for this week: I walked Monday, Tuesday, Thursday and Friday, not Wednesday. Read every day. 8 glasses of water every day except Wednesday, when I only had 5.",
+          ai: ["I logged Monday through Friday this week in your Habits app.", "The app shows the changes now, and you can undo them there."] },
+        { you: "Walked and read 20 pages this morning. 4 glasses of water so far.",
+          ai: ["Read: done. That's 6 days in a row, every day since you started on Monday.", "Water: 4 of 8 glasses, so you're halfway."] },
+        { you: "Which habit did I miss most this week?",
+          ai: ["Water is the habit you missed most this week. You fell short of your 8 glasses on two days.", "Wednesday was your weakest day: you didn't walk and only had 5 glasses of water."] },
+      ],
+      picture: { src: "/templates/remembers/habit-tracker.webp", width: 1280, height: 476, phone: { src: "/templates/remembers/habit-tracker-phone.webp", width: 720, height: 452 }, alt: "The habit tracker after the four chats: Saturday 21 November, 15 of 18 since Monday, Walk on a 3-day streak, Read on a 6-day streak, Water at 4 of 8 glasses, and the week's dots with Wednesday missed." },
+      caption: "Claude through the Pinto Notes connector, on a test account, 21 November 2026. Replies cut short, not reworded. The app is drawn from the data Claude saved.",
+    },
   },
   "budget-log": {
     h1: "Budget and expense tracker template",
