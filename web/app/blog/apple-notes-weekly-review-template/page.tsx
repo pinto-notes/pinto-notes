@@ -136,6 +136,11 @@ export default function Page() {
         tracker</a> fits next to it, and the <a href="/blog/apple-notes-journal-template">journal template</a> is for the days themselves.
       </p>
 
+      <p>
+        To turn next week&apos;s top three into a plan, the <a href="/blog/apple-notes-planner-template">Apple Notes planner template</a>{" "}
+        gives each day its own checklist.
+      </p>
+
       <h2 id="limits">Where a weekly review in Notes stops</h2>
       <ul>
         <li><strong>The questions don&apos;t ask themselves.</strong> On a tired Sunday, a list of questions is easy to skip.</li>

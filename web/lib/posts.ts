@@ -35,7 +35,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean" | "bluebell";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -287,6 +287,18 @@ export const posts: Post[] = [
     updated: "2026-10-14",
     image: SHOTS.notesDefaultAccount,
     thumb: cover("sky", "move-to-icloud", 1600, 1000, "A notes icon with an arrow to iCloud"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-planner-template",
+    title: "Apple Notes planner template: plan your week in one note",
+    description: "Apple Notes has no planner, but one note with a heading per day works. A weekly and a daily planner to paste in, and a free one your AI fills in.",
+    excerpt: "A weekly planner for Apple Notes, ready to paste in: your top three, a checklist for each day and a Later list. A daily version too, and how to run a week with it.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/launch/weekly-planner-note.webp", alt: "A Weekly planner note in Pinto Notes on a Mac: the top three, then each day's to-dos as a checklist, Monday to Sunday.", width: 1520, height: 2058, window: false, title: "Weekly planner" },
+    thumb: cover("bluebell", "planner", 1600, 1000, "A paper alarm clock and a pencil beside a planner card with seven rows, four of them ticked"),
     draft: false,
   },
   {

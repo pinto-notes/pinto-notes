@@ -422,5 +422,17 @@ import Testing
         try? await Task.sleep(for: .seconds(1.5))
         try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-weekly-review-light.png"))
     }
+    @Test func weeklyPlannerForTemplatePost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .all, body: "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n- [x] Send the Q4 budget to Jonas\n- [ ] Book flights home for Christmas\n- [ ] Run three times\n\n## Monday\n- [x] Team meeting at 9:00\n- [x] Finish the budget draft\n\n## Tuesday\n- [x] Dentist at 8:30\n- [x] Run 5 km\n\n## Wednesday\n- [x] Call Mum\n- [x] Review Emma's slides\n\n## Thursday\n- [x] Run 5 km before work\n- [x] Dinner with Sara at 19:00\n\n## Friday\n- [x] Pick up the dry cleaning\n- [x] Compare flight prices\n\n## Saturday\n- [ ] Long run, 10 km\n- [ ] Farmers' market\n- [ ] Return the parcel\n\n## Sunday\n- [ ] Meal prep for the week\n- [ ] Plan next week\n\n## Later\n- [ ] Renew my passport\n- [ ] Fix the bike light")
+        try ctx.save()
+        let view = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: CGSize(width: 760, height: 1080))
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.5))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-weekly-planner-light.png"))
+    }
 }
 #endif
