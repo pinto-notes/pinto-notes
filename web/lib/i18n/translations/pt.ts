@@ -157,4 +157,52 @@ export const pt: Translation[] = [
     description: "Ideias de presente por pessoa, com ocasião, orçamento e status, e os tamanhos e gostos de cada um. Um modelo para o Natal e os aniversários no app Notas.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-disappeared", lang: "pt", slug: "notas-iphone-sumiram",
+    title: "Notas do iPhone sumiram? 7 lugares para procurar, em ordem",
+    description: "Notas que sumiram foram apagadas sem querer ou dependem de um ajuste. Onde procurar no iPhone e no Mac, do iCloud à pasta Apagadas, e se o app sumiu.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-search-not-working", lang: "pt", slug: "busca-notas-iphone-nao-funciona",
+    title: "Busca do Notas do iPhone não funciona? 7 verificações",
+    description: "A busca do app Notas não acha uma nota que você sabe que existe? Notas bloqueadas, Todas as Contas, sincronização e Spotlight, em ordem.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-unable-to-start-collaboration", lang: "pt", slug: "nao-consigo-colaborar-notas-iphone",
+    title: "Não consigo colaborar no Notas do iPhone: 8 verificações",
+    description: "O Notas não inicia a colaboração ou a opção Colaborar sumiu? No iOS 27 ela se chama Compartilhar Link. As 8 verificações da Apple, em ordem.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-not-working", lang: "pt", slug: "app-notas-iphone-nao-funciona",
+    title: "App Notas não funciona ou trava? O que tentar, em ordem",
+    description: "O app Notas trava, fecha sozinho ou não abre no iPhone ou no Mac? Os passos da própria Apple, em ordem, e o que fazer se as notas não carregam.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-organize", lang: "pt", slug: "como-organizar-notas-iphone",
+    title: "Como organizar as notas do iPhone: um sistema que dura",
+    description: "Pastas, subpastas, ordem, notas fixadas, etiquetas e Pastas Inteligentes no iPhone e no Mac, uma estrutura para copiar e uma faxina semanal.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-checklist-sort", lang: "pt", slug: "ordenar-itens-marcados-notas-iphone",
+    title: "Checklist no Notas do iPhone: ordenar itens marcados",
+    description: "Mande os itens marcados para o fim da checklist, ou deixe onde estão, no iPhone e no Mac. Mais como mover itens à mão, Desmarcar Tudo e atalhos.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-for-school", lang: "pt", slug: "notas-iphone-para-estudar",
+    title: "App Notas para estudar: uma organização por matéria",
+    description: "O app Notas é bom para a escola e a faculdade? Uma pasta por matéria, uma nota por aula, apostilas escaneadas, aulas gravadas e onde ele para.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-planner-template", lang: "pt", slug: "planner-semanal-notas-iphone",
+    title: "Planner semanal no Notas do iPhone: a semana numa nota",
+    description: "O app Notas não tem planner, mas uma nota por semana resolve. Um modelo de planner semanal para colar, uma versão diária e onde ele para.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

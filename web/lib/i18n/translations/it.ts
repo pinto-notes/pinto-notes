@@ -157,4 +157,52 @@ export const it: Translation[] = [
     description: "Una lista di idee regalo da incollare in Note di Apple: idee per persona con budget e stato, taglie e gusti, e un elenco da spuntare per Natale.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-disappeared", lang: "it", slug: "note-iphone-sparite",
+    title: "Note di iPhone sparite? 7 posti dove cercare, in ordine",
+    description: "Le note di iPhone sono sparite? Per Apple sono state eliminate per errore o va cambiata un’impostazione. I 7 controlli in ordine, su iPhone e Mac.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-search-not-working", lang: "it", slug: "ricerca-note-iphone-non-funziona",
+    title: "Ricerca nelle note di iPhone non funziona? 7 controlli",
+    description: "Note non trova una nota che sai che c’è? Di solito è protetta, sta in un altro account o non è ancora arrivata. I controlli di Apple, dal più probabile.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-unable-to-start-collaboration", lang: "it", slug: "note-condivise-iphone-non-funziona",
+    title: "Note condivise di iPhone non funzionano? 8 controlli",
+    description: "Note non riesce ad avviare la collaborazione o manca Collabora? Su iOS 27 si chiama Condividi un link. Gli 8 controlli di Apple, su iPhone e Mac.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-not-working", lang: "it", slug: "app-note-iphone-non-funziona",
+    title: "L’app Note di iPhone non funziona o si chiude? Cosa provare",
+    description: "Note si blocca, si chiude da sola o non si apre? I passaggi di Apple in ordine per iPhone e Mac, e cosa fare se le note non si caricano.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-organize", lang: "it", slug: "organizzare-note-iphone",
+    title: "Come organizzare le note di iPhone: un sistema che dura",
+    description: "Cartelle, ordinamento, note in evidenza, tag e cartelle smart in Note di Apple, una struttura di cartelle da copiare e un riordino settimanale da incollare.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-checklist-sort", lang: "it", slug: "elenco-di-controllo-note-iphone",
+    title: "Elenchi di controllo in Note: elementi spuntati in fondo",
+    description: "Su iPhone e Mac una sola impostazione decide se gli elementi spuntati scendono in fondo. Dove trovarla, come spostarli a mano e come deselezionare tutto.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-for-school", lang: "it", slug: "appunti-scuola-universita-note-iphone",
+    title: "Appunti per scuola e università nelle note di iPhone",
+    description: "Note di Apple va bene per studiare? Una cartella per corso, una nota per lezione, dispense scansionate, lezioni registrate e dove si ferma per il ripasso.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-planner-template", lang: "it", slug: "planner-settimanale-note-iphone",
+    title: "Planner settimanale nelle note di iPhone: il modello",
+    description: "Note di Apple non ha un planner, ma una nota per settimana basta: le tre cose che contano, un giorno per intestazione e un elenco Più avanti. Modello e limiti.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

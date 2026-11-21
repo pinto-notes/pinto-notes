@@ -157,4 +157,52 @@ export const fr: Translation[] = [
     description: "Une liste d’idées cadeaux à coller dans Notes : un tableau par personne avec occasion, budget et statut, les tailles et les goûts, et une liste pour Noël.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-disappeared", lang: "fr", slug: "notes-iphone-disparues",
+    title: "Notes disparues sur iPhone ? 7 endroits où chercher",
+    description: "Vos notes ont disparu de l’iPhone ou du Mac ? Les vérifications d’Apple dans l’ordre : iCloud, Suppressions récentes, les autres comptes, et l’app elle-même.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-search-not-working", lang: "fr", slug: "recherche-notes-iphone-ne-fonctionne-pas",
+    title: "La recherche dans Notes ne marche pas ? 7 vérifications",
+    description: "Notes ne trouve pas une note qui existe ? Les vérifications d’Apple dans l’ordre sur iPhone et Mac : comptes, notes verrouillées, synchronisation et Spotlight.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-unable-to-start-collaboration", lang: "fr", slug: "collaboration-note-iphone-impossible",
+    title: "Collaboration impossible dans Notes ? 8 vérifications",
+    description: "Notes refuse de démarrer la collaboration ou l’option Collaborer a disparu ? Les 8 vérifications d’Apple, et comment partager une note sous iOS 27.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-not-working", lang: "fr", slug: "application-notes-iphone-ne-fonctionne-pas",
+    title: "L’app Notes ne fonctionne pas ou plante ? Quoi essayer",
+    description: "Notes se fige, se ferme ou ne s’ouvre plus ? Les étapes d’Apple dans l’ordre sur iPhone et Mac, et quoi faire quand vos notes ne s’affichent pas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-organize", lang: "fr", slug: "organiser-notes-iphone",
+    title: "Organiser ses notes sur iPhone et Mac : un système qui dure",
+    description: "Organiser ses notes avec des dossiers, le tri, l’épinglage, des tags et des dossiers intelligents. Une structure à copier et un rangement chaque semaine.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-checklist-sort", lang: "fr", slug: "trier-liste-a-cocher-notes-iphone",
+    title: "Liste à cocher dans Notes : les éléments cochés en bas",
+    description: "Faire descendre les éléments cochés d’une liste dans Notes, ou les garder en place : le réglage sur iPhone et sur Mac, le tri à la main et Tout décocher.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-for-school", lang: "fr", slug: "prise-de-notes-cours-notes-iphone",
+    title: "Prise de notes en cours avec Notes : un dossier par matière",
+    description: "Notes d’Apple pour les cours : un dossier par matière, une note par cours, les scans, l’enregistrement avec transcription, les révisions et le partage.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-planner-template", lang: "fr", slug: "planning-semaine-notes-iphone",
+    title: "Planning de la semaine dans Notes : un modèle à coller",
+    description: "Un planning de la semaine à coller dans Notes : vos trois priorités, un sous-titre par jour avec ses tâches, et Plus tard. Une version du jour, et ses limites.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

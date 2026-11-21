@@ -157,4 +157,52 @@ export const es: Translation[] = [
     description: "Una lista de ideas de regalos para Notas de Apple, por persona, con presupuesto, tallas y gustos. Una plantilla para pegar, lista para Navidad y cumpleaños.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-disappeared", lang: "es", slug: "notas-iphone-desaparecieron",
+    title: "¿Desaparecieron tus notas del iPhone? 7 comprobaciones",
+    description: "¿Han desaparecido tus notas del iPhone o iCloud? Comprueba iCloud, Recién eliminado, otras cuentas y la app Notas, en este orden.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-search-not-working", lang: "es", slug: "buscar-en-notas-iphone-no-funciona",
+    title: "¿La búsqueda de Notas no encuentra nada? 7 comprobaciones",
+    description: "¿Buscar en Notas del iPhone o el Mac no encuentra una nota? Las comprobaciones de Apple en orden: Todas las cuentas, notas bloqueadas, sincronización y más.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-unable-to-start-collaboration", lang: "es", slug: "no-puedo-colaborar-notas-iphone",
+    title: "¿No puedes colaborar en Notas del iPhone? 8 comprobaciones",
+    description: "¿Notas no puede iniciar la colaboración o no ves Colaborar? Las comprobaciones de Apple en orden, Compartir un enlace en iOS 27 y notas que no se abren.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-not-working", lang: "es", slug: "notas-iphone-no-funciona",
+    title: "¿Notas del iPhone no funciona o se cierra? Qué probar",
+    description: "¿Notas se congela, se cierra o no se abre en el iPhone o el Mac? Las soluciones de Apple en orden, y qué mirar cuando tus notas no cargan.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-organize", lang: "es", slug: "como-organizar-notas-iphone",
+    title: "Cómo organizar las notas del iPhone: un sistema que dura",
+    description: "Cómo organizar Notas en el iPhone y el Mac: carpetas y subcarpetas, orden, notas fijadas, etiquetas, una estructura de carpetas para copiar y un orden semanal.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-checklist-sort", lang: "es", slug: "ordenar-lista-notas-iphone",
+    title: "Listas en Notas del iPhone: mover los marcados al final",
+    description: "Dónde está Ordenar ítems marcados en el iPhone y el Mac, cómo activarlo o no, mover ítems a mano, desmarcar una lista entera y los atajos de teclado.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-for-school", lang: "es", slug: "notas-de-apple-para-estudiar",
+    title: "Notas de Apple para estudiar: apuntes de cada asignatura",
+    description: "¿Sirve Notas de Apple para estudiar? Una respuesta sincera y una organización por asignatura: carpetas, apuntes, escaneos, grabaciones, Cornell y tarjetas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-planner-template", lang: "es", slug: "planificador-semanal-notas-iphone",
+    title: "Planificador semanal en Notas del iPhone: plantilla",
+    description: "Notas no tiene planificador, pero una nota con un encabezado por día sirve. Un planificador semanal y uno diario para pegar, y uno gratis que llena tu IA.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
