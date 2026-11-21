@@ -60,7 +60,7 @@ export default function Page() {
   return (
     <PostPage
       slug="best-notes-app-for-mac"
-      intro={<>You open a new note on your Mac and have to decide where it lives. Pick wrong, and in a year you have two thousand notes in an app you&apos;ve outgrown. I make Pinto Notes, so I&apos;m not a neutral source. I&apos;ve tried to give every app its due, and I say where each one beats mine.</>}
+      intro={<>You open a new note on your Mac and have to decide where it lives. Pick wrong, and in a year you have two thousand notes in an app you&apos;ve outgrown. This is the Pinto Notes blog, so it isn&apos;t a neutral source. Every app gets its due here, with where each one beats Pinto.</>}
       answer={
         <Answer jump={[
           { href: "#at-a-glance", label: "At a glance" },

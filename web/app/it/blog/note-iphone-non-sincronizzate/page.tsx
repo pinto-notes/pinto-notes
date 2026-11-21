@@ -173,7 +173,7 @@ export default function Page() {
         caption="Pinto Notes mostra quando si è sincronizzato l’ultima volta, e perché quando non ci riesce." />
       <p>
         Note di Apple non mostra quando si è sincronizzato l’ultima volta, ed è per questo che servono sei controlli. Pinto Notes, l’app di
-        note per iPhone e Mac che sviluppo io, si sincronizza con un suo servizio cifrato invece che con iCloud, quindi lo spazio iCloud non
+        note per iPhone e Mac, si sincronizza con un suo servizio cifrato invece che con iCloud, quindi lo spazio iCloud non
         lo riguarda. Nelle sue impostazioni vedi lo stato della sincronizzazione, per esempio l’ora dell’ultima sincronizzazione o il
         motivo per cui adesso non riesce, accanto a un pulsante Sync Now. Se la stessa nota è cambiata su due dispositivi prima che si
         sincronizzassero, vince la modifica più recente e l’altra resta come copia in conflitto, così non perdi nessuna delle due.

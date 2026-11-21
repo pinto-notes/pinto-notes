@@ -1,6 +1,7 @@
 import { SHOTS } from "@/lib/posts";
 import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, MenuPaths, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -74,6 +75,10 @@ export default function Page() {
             since the 27.2 updates on 26 October it also speaks French, Japanese, Korean, Portuguese and Spanish. What it
             can&apos;t do is let ChatGPT, Claude or any other AI into your notes: Siri is the only one that gets in.
           </p>
+          {/* B27 (21 Nov 2026): the download in the answer, on a post that had none. */}
+          <PostCta slug="siri-ai-apple-notes" position="answer" title="Want ChatGPT or Claude in your notes?">
+            <p>Pinto Notes works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can read and edit your notes once you connect them. Your Apple Notes come over in one import on a Mac.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/apple/apple-siri-ai-app-chat" width={1306} height={1829} maxWidth={360}

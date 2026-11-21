@@ -206,7 +206,7 @@ export default function Page() {
         l’import depuis Notes de Pinto Notes : déverrouillez d’abord les notes dont vous avez besoin, sinon elles restent dans Notes.
       </p>
       <p>
-        Pinto Notes, l’app de notes pour iPhone et Mac que je fais, a aussi des notes verrouillées, et elles fonctionnent de la même façon :
+        Pinto Notes, l’app de notes pour iPhone et Mac, a aussi des notes verrouillées, et elles fonctionnent de la même façon :
         chiffrées avec le mot de passe de vos notes sur votre appareil, illisibles pour nous et pour toute IA que vous connectez, et
         impossibles à récupérer si vous oubliez le mot de passe. L’app vous le dit quand vous en créez un. Tout le reste dans Pinto Notes
         est aussi chiffré sur vos appareils, et ChatGPT et Claude peuvent quand même utiliser vos autres notes une fois que vous les

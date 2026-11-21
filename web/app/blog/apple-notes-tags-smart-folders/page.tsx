@@ -1,5 +1,6 @@
 import { SHOTS } from "@/lib/posts";
 import { Figure } from "@/lib/blog";
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -50,6 +51,10 @@ export default function Page() {
             matching its rules, such as a tag or an edit date. When a tag won&apos;t form, it&apos;s almost always a space in the tag, a
             note in Gmail or another mail account, a locked note, or Auto Convert to Tag turned off on iPhone.
           </p>
+          {/* B27 (21 Nov 2026): the download in the answer, on a post that had none. */}
+          <PostCta slug="apple-notes-tags-smart-folders" position="answer" title="Want an assistant to do the sorting?">
+            <p>Pinto Notes works like Apple Notes on iPhone and Mac. Connect ChatGPT or Claude, then ask it to find every note on a topic or move them into one folder.</p>
+          </PostCta>
         </Answer>
       }
       faq={FAQ}
@@ -200,7 +205,7 @@ export default function Page() {
       <h2>If you want an assistant to do the sorting</h2>
       <Figure shot={SHOTS.connectList} caption="Connect ChatGPT or Claude in Pinto Notes, then ask it to sort your notes." />
       <p>
-        Pinto Notes, the notes app for iPhone and Mac that I make, has no tags or Smart Folders. It has folders, sub-folders, pins and
+        Pinto Notes, a notes app for iPhone and Mac, has no tags or Smart Folders. It has folders, sub-folders, pins and
         search across every word, and you can connect ChatGPT or Claude to it after approving them on your device. Then the job a Smart Folder does,
         like &quot;find every note about the kitchen renovation&quot;, becomes a request: the assistant searches your notes and lists them,
         or moves them into one folder. {APP_STORE_LIVE ? null : <>The Mac app is out now, and the iPhone app is coming soon to the App

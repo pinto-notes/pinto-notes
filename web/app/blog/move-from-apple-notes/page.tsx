@@ -29,7 +29,7 @@ export default function Page() {
   return (
     <PostPage
       slug="move-from-apple-notes"
-      intro={<>I built Pinto Notes to feel like Apple Notes, so moving should be easy too. On your Mac, you bring every note over in one go, folders included. Nothing in Apple Notes changes, so you can take your time.</>}
+      intro={<>Pinto Notes is built to feel like Apple Notes, so moving is easy too. On your Mac, you bring every note over in one go, folders included. Nothing in Apple Notes changes, so you can take your time.</>}
       faq={FAQ}
     >
       <h2>Before you start</h2>

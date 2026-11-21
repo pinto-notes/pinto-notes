@@ -166,7 +166,7 @@ export default function Page() {
         AI notes app in 2026</a> compares the ones that do.
       </p>
       <p>
-        Pinto Notes is one. It&apos;s the notes app for iPhone and Mac that I make, with a hosted server at <code>{MCP_URL}</code> that
+        Pinto Notes is one. It&apos;s a notes app for iPhone and Mac with a hosted server at <code>{MCP_URL}</code> that
         signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it, and I&apos;ve connected it to Grok too. The steps:
       </p>
       <ol>

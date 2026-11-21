@@ -206,7 +206,7 @@ export default function Page() {
         in Note.
       </p>
       <p>
-        Pinto Notes, l’app di note per iPhone e Mac che sviluppo io, ha anche lei le note protette, e funzionano allo stesso modo:
+        Pinto Notes, l’app di note per iPhone e Mac, ha anche lei le note protette, e funzionano allo stesso modo:
         cifrate con la password delle tue note sul tuo dispositivo, illeggibili per noi e per qualsiasi IA che colleghi, e impossibili da
         recuperare se dimentichi la password. Te lo dice quando la imposti. Anche tutto il resto in Pinto Notes è cifrato sui tuoi
         dispositivi, e ChatGPT e Claude possono comunque usare le altre note quando lo approvi tu. L’app è in inglese.

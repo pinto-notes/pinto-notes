@@ -59,7 +59,7 @@ export default function Page() {
   return (
     <PostPage
       slug="best-ai-notes-app"
-      intro={<>Some notes apps come with an AI inside, on its own plan. Others let the AI you already use, like ChatGPT or Claude, work in your notes. Which kind you want decides most of this list. I make Pinto Notes, so I&apos;m not neutral, and it&apos;s first here.</>}
+      intro={<>Some notes apps come with an AI inside, on its own plan. Others let the AI you already use, like ChatGPT or Claude, work in your notes. Which kind you want decides most of this list. This is the Pinto Notes blog, so it isn&apos;t neutral, and Pinto is first here.</>}
       answer={
         <Answer jump={[
           { href: "#at-a-glance", label: "At a glance" },

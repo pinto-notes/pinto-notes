@@ -173,7 +173,7 @@ export default function Page() {
         caption="O Pinto Notes mostra quando sincronizou pela última vez e, quando não consegue, por quê." />
       <p>
         O app Notas não mostra quando sincronizou pela última vez, e é por isso que são necessárias seis verificações. O Pinto Notes, o
-        app de notas para iPhone e Mac que eu faço, sincroniza pelo próprio serviço criptografado em vez do iCloud, então o armazenamento
+        app de notas para iPhone e Mac, sincroniza pelo próprio serviço criptografado em vez do iCloud, então o armazenamento
         do iCloud não afeta. Os Ajustes dele mostram o status da sincronização, como &ldquo;last synced 9:41&rdquo; ou o motivo de não
         conseguir sincronizar agora, ao lado de um botão Sync Now. Se a mesma nota mudou em dois aparelhos antes de eles sincronizarem, a
         edição mais nova vence e a outra fica guardada como uma cópia em conflito, então nenhuma se perde.

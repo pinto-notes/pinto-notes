@@ -227,7 +227,7 @@ export default function Page() {
       <Figure shot={{ ...SHOTS.consent, alt: "Pinto Notes demande « Allow ChatGPT to use your notes? » : les notes que ChatGPT ouvre vont chez OpenAI, les notes verrouillées restent privées, un numéro à comparer, et les boutons Allow et Don't Allow." }}
         caption="Une IA n’a accès à vos notes qu’après votre accord, sur votre appareil." />
       <p>
-        Pinto Notes, l’app de notes pour iPhone et Mac que je fais, n’a ni Sur mon iPhone ni comptes de messagerie. Vous vous connectez
+        Pinto Notes, l’app de notes pour iPhone et Mac, n’a ni Sur mon iPhone ni comptes de messagerie. Vous vous connectez
         une fois, et chaque note se synchronise entre vos appareils. ChatGPT et Claude peuvent lire et modifier ces notes une fois que vous
         les avez autorisés.
       </p>

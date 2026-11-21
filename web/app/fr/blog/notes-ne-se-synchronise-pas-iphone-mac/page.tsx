@@ -178,7 +178,7 @@ export default function Page() {
         caption="Pinto Notes montre quand il s’est synchronisé pour la dernière fois, et pourquoi quand il n’y arrive pas." />
       <p>
         Notes n’affiche pas quand il s’est synchronisé pour la dernière fois, et c’est pour ça qu’il faut six vérifications. Pinto Notes,
-        l’app de notes pour iPhone et Mac que je fais, se synchronise par son propre service chiffré et pas par iCloud, donc le stockage
+        l’app de notes pour iPhone et Mac, se synchronise par son propre service chiffré et pas par iCloud, donc le stockage
         iCloud ne le concerne pas. Ses réglages affichent l’état de la synchronisation, par exemple &laquo; last synced 9:41 &raquo; ou la
         raison pour laquelle il ne peut pas se synchroniser pour l’instant, à côté d’un bouton Sync Now. Si la même note a changé sur
         deux appareils avant qu’ils se synchronisent, la modification la plus récente l’emporte et l’autre est gardée comme copie en

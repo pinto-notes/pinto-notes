@@ -176,7 +176,7 @@ export default function Page() {
         caption="Pinto Notes zeigt, wann es zuletzt synchronisiert hat, und warum nicht, wenn es gerade nicht geht." />
       <p>
         Apple Notizen zeigt nicht an, wann es zuletzt synchronisiert hat, deshalb braucht es sechs Checks. Pinto Notes, die Notizen-App
-        für iPhone und Mac, die ich entwickle, synchronisiert über einen eigenen verschlüsselten Dienst statt über iCloud, also spielt dein
+        für iPhone und Mac, synchronisiert über einen eigenen verschlüsselten Dienst statt über iCloud, also spielt dein
         iCloud-Speicher keine Rolle. In den Einstellungen steht der Sync-Status, etwa „last synced 9:41“ oder der Grund, warum gerade
         nichts synchronisiert, neben einer Taste Sync Now. Wurde dieselbe Notiz auf zwei Geräten geändert, bevor sie synchronisiert haben,
         gewinnt die neuere Änderung, und die andere bleibt als Konfliktkopie erhalten. So geht keine verloren.
