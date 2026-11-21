@@ -73,7 +73,7 @@ export default function Page() {
             avec un nom, comme Loyer = 1200, puis additionnez les noms avec un signe égal à la fin : les résultats mathématiques donnent le
             total et ce qui reste. Copiez le modèle ci-dessous dans une nouvelle note.
           </p>
-          <PostCta slug="fr/budget-notes-iphone" path="/fr/blog/budget-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="budget-log" slug="fr/budget-notes-iphone" path="/fr/blog/budget-notes-iphone" position="answer" ui={ui.cta}
             title="Un budget qui se tient tout seul ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle gratuit Budget and expenses : ce qui reste ce mois-ci, chaque catégorie face à son budget, et les factures qui reviennent. Dites à ChatGPT ou Claude ce que vous avez dépensé, et la dépense est ajoutée.</p>
           </PostCta>

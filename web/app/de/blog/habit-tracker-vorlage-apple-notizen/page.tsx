@@ -100,7 +100,7 @@ export default function Page() {
             Überschrift für jeden Tag und deinen Gewohnheiten als Checkliste darunter. Hake sie im Lauf des Tages ab und dupliziere die Notiz
             am Montag. Kopiere die Vorlage unten.
           </p>
-          <PostCta slug="de/habit-tracker-vorlage-apple-notizen" path="/de/blog/habit-tracker-vorlage-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="habit-tracker" slug="de/habit-tracker-vorlage-apple-notizen" path="/de/blog/habit-tracker-vorlage-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du, dass deine Serien für dich gezählt werden?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für einen Habit Tracker: Hake eine Gewohnheit mit einem Tippen ab und sieh den Ring dieser Woche, deine Serien und den Monat. ChatGPT oder Claude können den Tag für dich eintragen.</p>
           </PostCta>
@@ -148,6 +148,11 @@ export default function Page() {
         (auf Englisch) einen Wochenrückblick und eine Liste für heute, die du genauso einfügst. Ist eine deiner Gewohnheiten das
         Fitnessstudio, hält ein <a href="/de/blog/trainingsplan-apple-notizen">Trainingsplan in Apple Notizen</a> die Sätze und deine
         Bestwerte fest.
+      </p>
+
+      <p>
+        Um auf die ganze Woche zurückzublicken, stellt die <a href="/de/blog/wochenrueckblick-vorlage-apple-notizen">Vorlage für den
+        Wochenrückblick</a> jeden Sonntag fünf Fragen.
       </p>
 
       <h2 id="grenzen">Wo ein Habit Tracker in Notizen aufhört</h2>

@@ -82,7 +82,7 @@ export default function Page() {
             e os itens numa checklist embaixo, ative Ordenar automaticamente os itens marcados e compartilhe com quem mais faz as compras.
             Copie o modelo abaixo para começar.
           </p>
-          <PostCta slug="pt/lista-de-compras-notas-iphone" path="/pt/blog/lista-de-compras-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="grocery-list" slug="pt/lista-de-compras-notas-iphone" path="/pt/blog/lista-de-compras-notas-iphone" position="answer" ui={ui.cta}
             title="Quer cada item no lugar certo sem esforço?">
             <p>O Pinto Notes funciona como o app Notas e tem uma lista de compras grátis separada por setor. Diga ao ChatGPT ou ao Claude do que você precisa e ele coloca cada coisa no setor certo.</p>
           </PostCta>

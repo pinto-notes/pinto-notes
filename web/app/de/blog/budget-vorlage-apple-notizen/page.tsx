@@ -73,7 +73,7 @@ export default function Page() {
             eigene Zeile, etwa Miete = 1200, und addiere dann die Namen mit einem Gleichheitszeichen am Ende. Mathematische Ergebnisse
             trägt die Summe ein und was übrig bleibt. Kopiere die Vorlage unten in eine neue Notiz.
           </p>
-          <PostCta slug="de/budget-vorlage-apple-notizen" path="/de/blog/budget-vorlage-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="budget-log" slug="de/budget-vorlage-apple-notizen" path="/de/blog/budget-vorlage-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du ein Budget, das sich selbst führt?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für Budget und Ausgaben: was diesen Monat übrig ist, jede Kategorie gegen ihr Budget und Rechnungen, die jeden Monat kommen. Sag ChatGPT oder Claude, was du ausgegeben hast, und es trägt es ein.</p>
           </PostCta>
@@ -116,6 +116,12 @@ export default function Page() {
         Ein Haken: In einer Tabelle funktioniert es nicht. Mathematische Ergebnisse schaltet sich ab, solange du in einer bist, und eine
         Zelle Summe bleibt einfach Text. <a href="/blog/apple-notes-tables" hrefLang="en">Tables in Apple Notes</a> (auf Englisch) zeigt,
         was Tabellen können und was nicht.
+      </p>
+
+      <p>
+        Für Weihnachten und Geburtstage hält eine <a href="/de/blog/geschenkideen-liste-apple-notizen">Geschenkideen-Liste in Apple
+        Notizen</a> jede Idee nach Person fest, mit einem Budget. Für die Arbeiten am Haus, die Geld kosten, wenn du sie vergisst, gibt es
+        eine <a href="/de/blog/haus-wartung-checkliste-apple-notizen">Checkliste für die Hauswartung</a>.
       </p>
 
       <h2 id="grenzen">Wo ein Budget in Apple Notizen aufhört</h2>

@@ -13,7 +13,7 @@ export const metadata = postMetadata("apple-notes-gift-ideas", { title: "Apple N
 // cell adds a row, column widths can't be dragged, tables don't add up or sort (apple-notes-tables, wording copied from
 // apple-notes-cornell-notes-template); Math Results does sums you type (apple-notes-budget-template); Format, More,
 // Uncheck All and "Automatically sort checked items" (apple-notes-meal-planner-template, apple-notes-grocery-list-template);
-// search reads every word and pinning a note (apple-notes-recipe-template); locked notes with a password or Face ID
+// search reads every word and pinning a note (apple-notes-recipe-template); locked notes with a password, Face ID or Touch ID
 // (forgot-apple-notes-password). The template's budgets are in kr (Swedish example data); the Apple Notes template here
 // uses a plain Budget column. Pinto side: web/content/templates/gift-ideas.json (an Ideas table with Person, Occasion,
 // Idea, Budget as a number and Status as a choice of Idea, Bought or Given, and a Sizes and likes list; the AI adds a
@@ -56,7 +56,7 @@ const FAQ = [
     "Keep one note with a checklist of everyone you buy for and tick each name once their gift is bought. Pin the note so it's at the top when you're in a shop.",
   ] },
   { q: "Can I hide a gift list in Apple Notes?", a: [
-    "Yes. Lock the note with a password or Face ID, and its contents stay hidden until you unlock it.",
+    "Yes. Lock the note with a password, Face ID or Touch ID, and its contents stay hidden until you unlock it.",
   ] },
   { q: "Is there a gift ideas app that remembers what people like?", a: [
     "Pinto Notes looks and works like Apple Notes and has a free gift ideas template. Tell ChatGPT or Claude what someone would like and it saves it, then suggests gifts within budget before a birthday.",
@@ -127,7 +127,7 @@ export default function Page() {
           beanie&rdquo; is enough, and the details go under Sizes and likes.
         </li>
         <li>
-          <strong>Lock it if family share your Mac.</strong> A locked note opens only with your password or Face ID.
+          <strong>Lock it if family share your Mac.</strong> A locked note opens only with your password, Face ID or Touch ID.
         </li>
       </ul>
       <p>

@@ -69,7 +69,7 @@ export default function Page() {
             Notiz, eine Zeile pro Gedanke, und unter der Tabelle eine Zusammenfassung in zwei oder drei Sätzen. Nimm eine Notiz pro Vorlesung,
             und deck zum Lernen die rechte Spalte ab.
           </p>
-          <PostCta slug="de/cornell-methode-apple-notizen" path="/de/blog/cornell-methode-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="cornell-notes" slug="de/cornell-methode-apple-notizen" path="/de/blog/cornell-methode-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du die Stichworte geschrieben bekommen, und ein Quiz?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für die Cornell-Methode. Füg deine Vorlesungsnotizen in ChatGPT oder Claude ein, und es schreibt Stichworte und Zusammenfassung und fragt dich dann ab.</p>
           </PostCta>
@@ -126,6 +126,11 @@ export default function Page() {
         Weitere Notizen, die du genauso einfügst, findest du in <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
         templates</a> (auf Englisch), und um eine Lernwoche im Griff zu behalten, funktioniert der{" "}
         <a href="/de/blog/habit-tracker-vorlage-apple-notizen">Habit Tracker in Apple Notizen</a> auch für Lerneinheiten.
+      </p>
+
+      <p>
+        Willst du deine Stichworte als einzelne Karten lernen, lies <a href="/de/blog/karteikarten-apple-notizen">Karteikarten in Apple
+        Notizen</a>.
       </p>
 
       <h2 id="grenzen">Wo die Cornell-Methode in Notizen aufhört</h2>

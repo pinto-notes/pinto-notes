@@ -81,7 +81,7 @@ export default function Page() {
             décisions, et les actions en liste de pointage avec un nom sur chacune. Gardez-les dans un dossier Réunions, et un dossier
             intelligent affiche chaque action encore ouverte.
           </p>
-          <PostCta slug="fr/compte-rendu-reunion-notes-iphone" path="/fr/blog/compte-rendu-reunion-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="meeting-notes" slug="fr/compte-rendu-reunion-notes-iphone" path="/fr/blog/compte-rendu-reunion-notes-iphone" position="answer" ui={ui.cta}
             title="Les actions écrites pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle gratuit de compte rendu de réunion. Collez vos notes en vrac dans ChatGPT ou Claude : il écrit le résumé, les décisions et qui fait quoi.</p>
           </PostCta>

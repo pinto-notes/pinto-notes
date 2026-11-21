@@ -17,7 +17,8 @@ export const metadata = localPostMetadata("de", "meeting-protokoll-vorlage-apple
 // Notes' de strings (MainMenu.loctable) on macOS 27.2; the rule value Nicht markiert is SmartFolderChecklistsFilterView
 // and "allen der folgenden Filter" is FolderComposerViewController there. The template's notes heading is Mitschrift,
 // so it isn't read as the app's name, and its VAT is Mehrwertsteuer. Facts are the English post's; the picture is its
-// English one, described in German. Links go to English posts, since none of them has a German version.
+// English one, described in German. Links go to the German 1:1 and decision log posts (added 21 Nov, as the English post
+// links them) and to English posts where no German one exists.
 
 const ui = UI.de;
 
@@ -81,7 +82,7 @@ export default function Page() {
             Tagesordnung, deine Mitschrift, die Entscheidungen und die Aufgaben als Checkliste mit einem Namen an jeder. Bewahre sie in einem
             Ordner Meetings auf, und ein intelligenter Ordner zeigt jede Aufgabe, die noch offen ist.
           </p>
-          <PostCta slug="de/meeting-protokoll-vorlage-apple-notizen" path="/de/blog/meeting-protokoll-vorlage-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="meeting-notes" slug="de/meeting-protokoll-vorlage-apple-notizen" path="/de/blog/meeting-protokoll-vorlage-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du die Aufgaben für dich schreiben lassen?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für Meeting-Notizen. Füg deine groben Notizen in ChatGPT oder Claude ein, und es schreibt die Zusammenfassung, die Entscheidungen und wer was tut.</p>
           </PostCta>
@@ -139,6 +140,12 @@ export default function Page() {
         ab. Alle brauchen einen Apple Account. Für das Ende der Woche hat <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
         templates</a> (auf Englisch) einen Wochenrückblick zum Einfügen, und <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">tags
         and Smart Folders</a> (auf Englisch) geht jede Regel durch, die ein intelligenter Ordner nutzen kann.
+      </p>
+
+      <p>
+        Für 1:1-Gespräche führt die <a href="/de/blog/one-on-one-vorlage-apple-notizen">Vorlage für One-on-Ones</a> eine fortlaufende
+        Notiz pro Person, mit den offenen Punkten und jedem früheren 1:1. Für Entscheidungen, die du Monate später erklären musst, führ
+        ein <a href="/de/blog/entscheidungsprotokoll-vorlage-apple-notizen">Entscheidungsprotokoll</a> mit den Optionen und dem Warum.
       </p>
 
       <h2 id="grenzen">Wo Meeting-Protokolle in Notizen aufhören</h2>

@@ -15,7 +15,7 @@ export const metadata = postMetadata("apple-notes-journal-template", { title: "A
 // and headings, and a plain Command-V keeps the symbols (apple-notes-templates); File, Duplicate Note
 // (apple-notes-templates, apple-notes-meal-planner-template); typing #word makes a tag and a Smart Folder rule can use
 // Tags (apple-notes-tags-smart-folders); search reads every word (apple-notes-recipe-template); pin a note
-// (apple-notes-workout-log-template); locked notes open with a password or Face ID (forgot-apple-notes-password).
+// (apple-notes-workout-log-template); locked notes open with a password, Face ID or Touch ID (forgot-apple-notes-password).
 // Pinto side: web/content/templates/daily-journal.json (a Daily journal note with four Questions and Entries, newest
 // day first; the AI asks the questions one at a time and skips any you pass on, or writes the entry from your day told
 // in one go, as a ### weekday and date heading with Today, Energy, Remember and Tomorrow lines in your own words; no
@@ -61,7 +61,7 @@ const FAQ = [
     "One note is easier to keep up: it's always in the same place, and the last few days are right under the questions. When it gets long, start a new note for the next month.",
   ] },
   { q: "Can I lock my journal in Apple Notes?", a: [
-    "Yes. Apple Notes can lock a note, and a locked note opens with a password or Face ID. Lock the journal note itself, and every day in it is locked with it.",
+    "Yes. Apple Notes can lock a note, and a locked note opens with a password, Face ID or Touch ID. Lock the journal note itself, and every day in it is locked with it.",
   ] },
   { q: "How do I find an old journal entry?", a: [
     "Search reads every word in every note, so search for a name, a place or a word you remember writing. A tag like #trip on the days that matter lets a Smart Folder gather those notes.",
@@ -169,7 +169,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        A journal is private. You can lock the note with a password or Face ID, so it doesn&apos;t open for whoever picks up your phone.
+        A journal is private. You can lock the note with a password, Face ID or Touch ID, so it doesn&apos;t open for whoever picks up your phone.
       </p>
 
       <h2 id="limits">Where a journal in Notes stops</h2>

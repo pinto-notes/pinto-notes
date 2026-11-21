@@ -90,7 +90,7 @@ export default function Page() {
             sous-titre pour chaque jour et vos habitudes en liste de pointage dessous, cochez-les au fil de la journée, et dupliquez la note
             le lundi. Copiez le modèle ci-dessous.
           </p>
-          <PostCta slug="fr/suivi-des-habitudes-notes-iphone" path="/fr/blog/suivi-des-habitudes-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="habit-tracker" slug="fr/suivi-des-habitudes-notes-iphone" path="/fr/blog/suivi-des-habitudes-notes-iphone" position="answer" ui={ui.cta}
             title="Vos séries comptées pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle gratuit de suivi des habitudes : cochez une habitude d’un toucher et voyez l’anneau de la semaine, vos séries et le mois. ChatGPT ou Claude peut noter la journée pour vous.</p>
           </PostCta>

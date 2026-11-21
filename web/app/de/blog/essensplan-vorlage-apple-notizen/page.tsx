@@ -94,7 +94,7 @@ export default function Page() {
             Apple Notizen hat keinen Essensplaner, aber eine Notiz erledigt das. Schreib die Abendessen der Woche oben hin, eine Zeile pro
             Tag, und die Einkäufe darunter als Checklisten, mit einer Überschrift pro Abteilung. Kopiere die Vorlage unten.
           </p>
-          <PostCta slug="de/essensplan-vorlage-apple-notizen" path="/de/blog/essensplan-vorlage-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="meal-plan" slug="de/essensplan-vorlage-apple-notizen" path="/de/blog/essensplan-vorlage-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du die Einkaufsliste für dich schreiben lassen?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für einen Essensplan. Sag ChatGPT oder Claude, worauf du diese Woche Lust hast, und es plant die Abendessen und schreibt die Einkaufsliste nach Abteilungen, ohne das, was schon im Vorrat ist.</p>
           </PostCta>

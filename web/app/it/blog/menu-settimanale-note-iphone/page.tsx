@@ -98,7 +98,7 @@ export default function Page() {
             Note di Apple non ha un pianificatore dei pasti, ma una nota fa il lavoro. Metti in alto le cene della settimana, una riga al
             giorno, e sotto la spesa come elenchi di controllo, con un’intestazione per ogni reparto. Copia il modello qui sotto.
           </p>
-          <PostCta slug="it/menu-settimanale-note-iphone" path="/it/blog/menu-settimanale-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="meal-plan" slug="it/menu-settimanale-note-iphone" path="/it/blog/menu-settimanale-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi la lista della spesa già scritta?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello gratuito per il menu della settimana. Di’ a ChatGPT o a Claude cosa ti va questa settimana e lui pianifica le cene e scrive la lista della spesa per reparto, senza quello che hai già in dispensa.</p>
           </PostCta>

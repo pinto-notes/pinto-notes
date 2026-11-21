@@ -97,7 +97,7 @@ export default function Page() {
             ingrédients en liste de pointage, les étapes en liste numérotée. Gardez-les dans un dossier Recettes avec une note sommaire qui
             renvoie vers chacune, et copiez le modèle ci-dessous pour chaque nouvelle recette.
           </p>
-          <PostCta slug="fr/carnet-de-recettes-notes-iphone" path="/fr/blog/carnet-de-recettes-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="recipe-box" slug="fr/carnet-de-recettes-notes-iphone" path="/fr/blog/carnet-de-recettes-notes-iphone" position="answer" ui={ui.cta}
             title="Des recettes remises au propre pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a un carnet de recettes gratuit. Collez une recette dans ChatGPT ou Claude : il en enregistre une copie propre, les ingrédients en liste de pointage, et la range.</p>
           </PostCta>

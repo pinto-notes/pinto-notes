@@ -101,7 +101,7 @@ export default function Page() {
             da spuntare quando sono pagate, un’intestazione per ogni giorno con l’orario davanti a ogni cosa, e un elenco di controllo
             per la valigia. Copia il modello qui sotto.
           </p>
-          <PostCta slug="it/itinerario-viaggio-note-iphone" path="/it/blog/itinerario-viaggio-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="trip-plan" slug="it/itinerario-viaggio-note-iphone" path="/it/blog/itinerario-viaggio-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi conto alla rovescia e prenotazioni già in ordine?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello gratuito per i viaggi: i giorni che mancano, ogni giorno come una linea del tempo, cosa resta da pagare e cosa è già in valigia. Incolla l’email di una prenotazione in ChatGPT o Claude e finisce nel programma.</p>
           </PostCta>
@@ -141,7 +141,7 @@ export default function Page() {
       <h2 id="meglio">Farlo funzionare meglio</h2>
       <Paths rows={[
         { on: "Mac", steps: ["Modifica", "Aggiungi link", "Link alla sezione"], keys: "⌘K" },
-        { on: "iPhone", steps: ["Menu di modifica", "Aggiungi link", "Link alla sezione"] },
+        { on: "iPhone", steps: ["Aggiungi link", "Link alla sezione"] },
       ]} />
       <ul>
         <li>

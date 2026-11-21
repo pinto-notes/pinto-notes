@@ -97,7 +97,7 @@ export default function Page() {
             ingredienti come elenco di controllo, il procedimento come elenco numerato. Tienile in una cartella Ricette con una nota
             indice che le collega tutte, e copia il modello qui sotto per ogni ricetta nuova.
           </p>
-          <PostCta slug="it/ricette-note-iphone" path="/it/blog/ricette-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="recipe-box" slug="it/ricette-note-iphone" path="/it/blog/ricette-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi le ricette già messe in ordine?">
             <p>Pinto Notes funziona come Note di Apple e ha un ricettario gratuito. Incolla una ricetta in ChatGPT o Claude e lui salva una copia pulita, con gli ingredienti come elenco di controllo, e la mette al suo posto.</p>
           </PostCta>
@@ -131,7 +131,7 @@ export default function Page() {
       <Keep title="Indice del ricettario" text={INDEX} copyLabel={ui.copy} />
       <Paths rows={[
         { on: "Mac", steps: ["Modifica", "Aggiungi link"], keys: "⌘K" },
-        { on: "iPhone", steps: ["Menu di modifica", "Aggiungi link"] },
+        { on: "iPhone", steps: ["Aggiungi link"] },
       ]} />
       <p>
         Poi trasforma ogni nome in un link: selezionalo, scegli Aggiungi link e scegli la nota della ricetta. Toccandolo si apre la

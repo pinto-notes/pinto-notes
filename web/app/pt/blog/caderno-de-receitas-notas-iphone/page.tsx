@@ -95,7 +95,7 @@ export default function Page() {
             checklist e o modo de preparo numa lista numerada. Guarde tudo numa pasta Receitas com uma nota de índice com link para cada
             uma, e copie o modelo abaixo para cada receita nova.
           </p>
-          <PostCta slug="pt/caderno-de-receitas-notas-iphone" path="/pt/blog/caderno-de-receitas-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="recipe-box" slug="pt/caderno-de-receitas-notas-iphone" path="/pt/blog/caderno-de-receitas-notas-iphone" position="answer" ui={ui.cta}
             title="Quer as receitas passadas a limpo para você?">
             <p>O Pinto Notes funciona como o app Notas e tem um caderno de receitas grátis. Cole uma receita no ChatGPT ou no Claude e ele salva uma cópia limpa, com os ingredientes numa checklist, e guarda no lugar certo.</p>
           </PostCta>

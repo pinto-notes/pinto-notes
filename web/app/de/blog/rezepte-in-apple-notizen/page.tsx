@@ -95,7 +95,7 @@ export default function Page() {
             Checkliste, die Schritte als nummerierte Liste. Bewahre sie in einem Ordner Rezepte auf, mit einer Übersichtsnotiz, die auf jedes
             verlinkt, und kopiere die Vorlage unten für jedes neue.
           </p>
-          <PostCta slug="de/rezepte-in-apple-notizen" path="/de/blog/rezepte-in-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="recipe-box" slug="de/rezepte-in-apple-notizen" path="/de/blog/rezepte-in-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du Rezepte für dich aufräumen lassen?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Rezeptsammlung. Füg ein Rezept in ChatGPT oder Claude ein, und es speichert eine saubere Kopie, die Zutaten als Checkliste, und sortiert sie ein.</p>
           </PostCta>

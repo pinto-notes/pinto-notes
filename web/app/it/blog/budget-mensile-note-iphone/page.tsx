@@ -71,7 +71,7 @@ export default function Page() {
             come Affitto = 750, poi somma i nomi con un segno di uguale alla fine: Risultati matematici scrive il totale e quanto ti
             resta. Copia il modello qui sotto in una nota nuova.
           </p>
-          <PostCta slug="it/budget-mensile-note-iphone" path="/it/blog/budget-mensile-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="budget-log" slug="it/budget-mensile-note-iphone" path="/it/blog/budget-mensile-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi un budget che si tiene da solo?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello gratuito per budget e spese: quanto ti resta questo mese, ogni categoria rispetto al suo budget e le spese che si ripetono. Di’ a ChatGPT o a Claude cosa hai speso e la spesa viene aggiunta.</p>
           </PostCta>
@@ -114,6 +114,12 @@ export default function Page() {
         Un limite: non funziona dentro una tabella. Risultati matematici si spegne quando sei in una tabella, quindi una cella Totale
         resta testo. <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> (in inglese) spiega cosa possono fare le tabelle e
         cosa no.
+      </p>
+
+      <p>
+        Per Natale e i compleanni, la <a href="/it/blog/lista-regali-note-iphone">lista regali nelle note di iPhone</a> tiene ogni idea
+        per persona, con un budget. Per i lavori di casa che costano cari quando li dimentichi, c’è una{" "}
+        <a href="/it/blog/manutenzione-casa-note-iphone">checklist per la manutenzione della casa</a>.
       </p>
 
       <h2 id="limiti">Dove si ferma un budget in Note di Apple</h2>

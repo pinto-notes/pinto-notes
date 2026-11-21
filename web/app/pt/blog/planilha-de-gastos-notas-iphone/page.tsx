@@ -70,7 +70,7 @@ export default function Page() {
             Aluguel = 1200, depois some os nomes com um sinal de igual no final, e os Resultados de Cálculos preenchem o total e o que
             sobra. Copie o modelo abaixo para uma nota nova.
           </p>
-          <PostCta slug="pt/planilha-de-gastos-notas-iphone" path="/pt/blog/planilha-de-gastos-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="budget-log" slug="pt/planilha-de-gastos-notas-iphone" path="/pt/blog/planilha-de-gastos-notas-iphone" position="answer" ui={ui.cta}
             title="Quer um orçamento que se mantém sozinho?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de orçamento e despesas: o que sobra neste mês, cada categoria comparada com o orçamento dela e as contas que se repetem. Conte ao ChatGPT ou ao Claude o que você gastou e ele lança o gasto.</p>
           </PostCta>

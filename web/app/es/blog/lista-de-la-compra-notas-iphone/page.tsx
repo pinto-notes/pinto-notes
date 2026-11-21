@@ -87,7 +87,7 @@ export default function Page() {
             pasillo y las cosas como lista de comprobación debajo, activa Ordenar automáticamente los ítems marcados y compártela con
             quien más haga la compra. Copia la plantilla de abajo para empezar.
           </p>
-          <PostCta slug="es/lista-de-la-compra-notas-iphone" path="/es/blog/lista-de-la-compra-notas-iphone" position="answer"
+          <PostCta template="grocery-list" slug="es/lista-de-la-compra-notas-iphone" path="/es/blog/lista-de-la-compra-notas-iphone" position="answer"
             ui={ui.cta} title="¿Quieres que cada cosa vaya sola a su pasillo?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una lista de la compra por pasillos gratuita. Dile a ChatGPT o a Claude lo que necesitas y pone cada cosa en el pasillo que toca.</p>
           </PostCta>

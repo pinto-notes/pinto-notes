@@ -144,7 +144,7 @@ export default function Page() {
           to Unchecked. Every person you still owe something to is in it.
         </li>
         <li>
-          <strong>Lock it if it&apos;s private.</strong> How someone seemed is for you. A locked note opens with your password or Face ID,
+          <strong>Lock it if it&apos;s private.</strong> How someone seemed is for you. A locked note opens with your password, Face ID or Touch ID,
           though it can&apos;t be shared to edit.
         </li>
       </ul>

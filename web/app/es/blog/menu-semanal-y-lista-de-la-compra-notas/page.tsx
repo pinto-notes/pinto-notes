@@ -99,7 +99,7 @@ export default function Page() {
             Notas no tiene planificador de comidas, pero una nota sirve. Pon arriba las cenas de la semana, una línea por día, y debajo la
             compra como listas de comprobación, con un encabezado por pasillo. Copia la plantilla de abajo.
           </p>
-          <PostCta slug="es/menu-semanal-y-lista-de-la-compra-notas" path="/es/blog/menu-semanal-y-lista-de-la-compra-notas"
+          <PostCta template="meal-plan" slug="es/menu-semanal-y-lista-de-la-compra-notas" path="/es/blog/menu-semanal-y-lista-de-la-compra-notas"
             position="answer" ui={ui.cta} title="¿Quieres que la lista de la compra se escriba sola?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de menú semanal. Dile a ChatGPT o a Claude qué te apetece esta semana y planifica las cenas y escribe la lista de la compra por pasillos, sin lo que ya tienes en la despensa.</p>
           </PostCta>

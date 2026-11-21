@@ -67,7 +67,7 @@ export default function Page() {
             para cada dia e seus hábitos numa checklist embaixo, marque conforme for cumprindo e duplique a nota na segunda-feira. Copie o
             modelo abaixo.
           </p>
-          <PostCta slug="pt/habit-tracker-notas-iphone" path="/pt/blog/habit-tracker-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="habit-tracker" slug="pt/habit-tracker-notas-iphone" path="/pt/blog/habit-tracker-notas-iphone" position="answer" ui={ui.cta}
             title="Quer que alguém conte suas sequências?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de habit tracker: marque um hábito com um toque e veja o anel da semana, suas sequências e o mês. O ChatGPT ou o Claude podem registrar o dia para você.</p>
           </PostCta>

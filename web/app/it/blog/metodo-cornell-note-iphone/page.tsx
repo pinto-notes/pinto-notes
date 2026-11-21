@@ -69,7 +69,7 @@ export default function Page() {
             a destra, una riga per ogni idea, e un riassunto di due o tre frasi sotto la tabella. Usa una nota per lezione, e copri la
             colonna di destra per ripassare.
           </p>
-          <PostCta slug="it/metodo-cornell-note-iphone" path="/it/blog/metodo-cornell-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="cornell-notes" slug="it/metodo-cornell-note-iphone" path="/it/blog/metodo-cornell-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi le domande già scritte, e un’interrogazione?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello Cornell gratuito. Incolla gli appunti della lezione in ChatGPT o Claude e lui scrive le domande e il riassunto, poi ti interroga.</p>
           </PostCta>
@@ -126,6 +126,11 @@ export default function Page() {
         Per altre note da incollare allo stesso modo, c’è <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese),
         e per tenere in pista una settimana di studio, l’<a href="/it/blog/habit-tracker-note-iphone">habit tracker nelle note di
         iPhone</a> funziona anche per le sessioni di ripasso.
+      </p>
+
+      <p>
+        Per ripassare i tuoi spunti come carte a sé, guarda le <a href="/it/blog/flashcard-note-iphone">flashcard nelle note di
+        iPhone</a>.
       </p>
 
       <h2 id="limiti">Dove si ferma il metodo Cornell in Note</h2>
