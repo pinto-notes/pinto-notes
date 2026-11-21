@@ -37,9 +37,9 @@ export default function Page() {
     <PostPage
       slug="notes-in-claude-code-and-codex"
       intro={<>
-        I use Claude Code every day, and every morning it starts from zero. What we decided yesterday, the bug I parked, the standup I
-        still have to write: gone, unless I paste it back in. So I gave it my notes, the same ones I read on my phone. Here&apos;s how, in
-        Claude Code and Codex, and what it&apos;s like once it works.
+        If you use Claude Code every day, every morning it starts from zero. What you decided yesterday, the bug you parked, the standup
+        you still have to write: gone, unless you paste it back in. The fix is giving it your notes, the same ones you read on your phone.
+        Here&apos;s how, in Claude Code and Codex, and what it&apos;s like once it works.
       </>}
       answer={
         <Answer jump={[
@@ -61,7 +61,7 @@ export default function Page() {
       }
       hero={<PostFigure priority src="/blog/pinto/claude-code-standup-note" width={1250} height={540} maxWidth={625}
         alt="Standup notes in Pinto Notes on a Mac. The line Claude Code just added, Today: review the importer PR, then pair on table editing, is tinted, and a bar says Claude Code changed 1 line, with Undo."
-        caption="My standup note, just after Claude Code added today's line. The new line is tinted, with Undo." />}
+        caption="A standup note, just after Claude Code added today's line. The new line is tinted, with Undo." />}
       faq={FAQ}
     >
       <h2 id="claude-code">Claude Code</h2>

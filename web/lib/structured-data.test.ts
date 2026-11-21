@@ -61,11 +61,12 @@ describe("structured data", () => {
     expect(app("1.0").sameAs).toContain("https://github.com/pinto-notes/pinto-notes");
   });
 
-  it("describes a post as an Article with its dates, an author and a publisher", () => {
+  // Posts carry no person as author (Emil, 21 Nov 2026); Pinto Notes is both author and publisher.
+  it("describes a post as an Article with its dates, by Pinto Notes", () => {
     const a = article({ title: "T", description: "D", path: "/blog/x", date: "2026-09-29", updated: "2026-09-30", image: "/blog/x.webp" });
     expect(a).toMatchObject({
       "@type": "Article", headline: "T", url: "https://pintonotes.com/blog/x", datePublished: "2026-09-29", dateModified: "2026-09-30",
-      image: "https://pintonotes.com/blog/x.webp", author: { "@id": maker["@id"] }, publisher: { "@id": organization["@id"] },
+      image: "https://pintonotes.com/blog/x.webp", author: { "@id": organization["@id"] }, publisher: { "@id": organization["@id"] },
     });
   });
 

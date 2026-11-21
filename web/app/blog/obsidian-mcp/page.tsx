@@ -107,7 +107,7 @@ export default function Page() {
   return (
     <PostPage
       slug="obsidian-mcp"
-      intro={<>Search for an Obsidian MCP server and you get a long list of GitHub projects. I went through the main ones in September 2026 and checked each against its own README and release history. Here&apos;s how they work, what each can do, how to set up the best one in Claude, and the limits they share. This is the Pinto Notes blog, and Pinto is a different notes app, so weigh that part with that in mind.</>}
+      intro={<>Search for an Obsidian MCP server and you get a long list of GitHub projects. The main ones were checked in September 2026, each against its own README and release history. Here&apos;s how they work, what each can do, how to set up the best one in Claude, and the limits they share. This is the Pinto Notes blog, and Pinto is a different notes app, so weigh that part with that in mind.</>}
       answer={
         <Answer jump={[
           { href: "#compared", label: "The servers" },

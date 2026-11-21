@@ -28,7 +28,7 @@ const FAQ = [
     "Pinto Notes has been in ChatGPT's plugin directory since 28 October 2026, so you add it like any other plugin, without Developer mode. OpenAI decides which plans, countries and workspaces get directory plugins, and in a Business or Enterprise workspace an admin may have to allow it. If you can't find Plugins in ChatGPT, that's the place to check.",
   ] },
   { q: "Does it work in the ChatGPT app on my phone?", a: [
-    "Connect Pinto Notes once, in ChatGPT on the web. I haven't checked the ChatGPT phone apps with it myself yet, so treat phone access as unverified for now.",
+    "Connect Pinto Notes once, in ChatGPT on the web. We haven't checked the ChatGPT phone apps with it yet, so treat phone access as unverified for now.",
   ] },
   { q: "Why don't I see Create MCP App in ChatGPT?", a: [
     "You don't need it for Pinto Notes any more: it's in the plugin directory. For other custom apps, Developer mode is probably off. Turn it on in Settings, Security and login (chatgpt.com/settings/security), then go back to Plugins and choose + again. Without it, the menu only offers Create plugin and Upload plugin. That fix comes from a ChatGPT Pro user on OpenAI's community forum on 28 September 2026, not from OpenAI's docs.",
@@ -139,7 +139,7 @@ export default function Page() {
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
-      <p>Pinto Notes is in ChatGPT&apos;s plugin directory, so this takes a couple of minutes and no developer settings. I did it in ChatGPT on the web at chatgpt.com.</p>
+      <p>Pinto Notes is in ChatGPT&apos;s plugin directory, so this takes a couple of minutes and no developer settings. These steps are from ChatGPT on the web at chatgpt.com.</p>
       <PostFigure src="/blog/news/chatgpt-pinto-notes-plugin" width={1482} height={736} maxWidth={640}
         alt="The Pinto Notes plugin page in ChatGPT, with Manage and Try in chat buttons above three example requests about to-do lists and a Lisbon trip note."
         caption="The Pinto Notes plugin in ChatGPT, with examples to try. Screenshot: ChatGPT." />
@@ -185,7 +185,7 @@ export default function Page() {
         workspace&apos;s policy, so ask your admin if the toggle isn&apos;t there.
       </p>
       <p>
-        Menu labels differ between accounts while OpenAI rolls changes out. I couldn&apos;t check the Developer mode steps in a Plus account
+        Menu labels differ between accounts while OpenAI rolls changes out. We couldn&apos;t check the Developer mode steps in a Plus account
         after the September changes; they follow OpenAI&apos;s <a href="https://developers.openai.com/api/docs/guides/developer-mode" rel="noopener">Developer
         mode guide</a> and <a href="https://developers.openai.com/plugins/deploy/connect-chatgpt" rel="noopener">Connect and test your
         plugin</a>. If yours look different, the <a href="/help#connect">help page</a> is the quickest way to tell me.
@@ -277,7 +277,7 @@ export default function Page() {
         the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.
       </p>
       <p>
-        The part I like most comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
+        The best part comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
         Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat.
       </p>
       <p>

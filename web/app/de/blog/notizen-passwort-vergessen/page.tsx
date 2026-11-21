@@ -43,7 +43,7 @@ export default function Page() {
     <LocalPostPage
       lang="de"
       slug="notizen-passwort-vergessen"
-      intro={<>Du hast das Passwort für deine gesperrten Notizen vergessen? Hier steht, was sich zu probieren lohnt, in der Reihenfolge, in der ich vorgehen würde, und was du nicht als Erstes tun solltest.</>}
+      intro={<>Du hast das Passwort für deine gesperrten Notizen vergessen? Hier steht, was sich zu probieren lohnt, in der Reihenfolge, in der du es versuchen solltest, und was du nicht als Erstes tun solltest.</>}
       answer={
         <Answer label={ui.shortAnswer} jumpTo={ui.jumpTo} jump={[
           { href: "#zuerst-probieren", label: "Probier zuerst das" },
@@ -164,9 +164,9 @@ export default function Page() {
         alt="Apple Notizen unter macOS 27 fragt Reset Notes Password? und erklärt, dass das neue Passwort für Notizen gilt, die du ab jetzt sperrst, und dass Notizen mit Passwort nicht betroffen sind. Tasten Cancel und OK."
         caption="Beim Zurücksetzen unter macOS 27 sagt Apple es klar: Notizen, die schon ein Passwort haben, sind nicht betroffen." />
 
-      <h2 id="getestet">Ich habe es auf einem Test-Mac ausprobiert, damit du es nicht musst</h2>
+      <h2 id="getestet">Wir haben es auf einem Test-Mac ausprobiert, damit du es nicht musst</h2>
       <p>
-        Ich habe eine Notiz mit einem Passwort gesperrt, es zurückgesetzt und ein neues festgelegt. Dann habe ich die alte Notiz geöffnet.
+        Wir haben eine Notiz mit einem Passwort gesperrt, es zurückgesetzt und ein neues festgelegt. Dann haben wir die alte Notiz geöffnet.
         Das neue Passwort ging nicht, und die angezeigte Merkhilfe war die alte. Diese Merkhilfe ist dein bester Hinweis: Du hast sie für
         genau das Passwort geschrieben, das du vergessen hast.
       </p>

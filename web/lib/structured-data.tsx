@@ -114,7 +114,7 @@ export function faqPage(items: { q: string; a: string[] }[], path: string): Thin
   };
 }
 
-/// A blog post as an Article, written by the maker and published by Pinto Notes.
+/// A blog post as an Article, by Pinto Notes: posts carry no person as author (Emil, 21 Nov 2026).
 export function article({ title, description, path, date, updated, image, lang = "en" }: { title: string; description: string; path: string; date: string; updated: string; image?: string; lang?: string }): Thing {
   return {
     "@type": "Article",
@@ -127,7 +127,7 @@ export function article({ title, description, path, date, updated, image, lang =
     datePublished: date,
     dateModified: updated,
     image: `${SITE_URL}${image ?? "/mark.png"}`,
-    author: { "@id": PERSON_ID },
+    author: { "@id": ORG_ID },
     publisher: { "@id": ORG_ID },
     about: { "@id": APP_ID },
   };

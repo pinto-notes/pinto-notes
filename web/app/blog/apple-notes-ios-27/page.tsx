@@ -61,7 +61,7 @@ export default function Page() {
         alt="Notes on an iPhone with iOS 27: the edit menu over a note lists Paste, Delete, Select, Select All, Writing Tools, AutoFill, Add Link, Insert Divider Line and Attach File."
         caption="On iPhone, both new items are in the edit menu: Add Link and Insert Divider Line. Image: Apple." />
       <p>
-        A thin line across the note, for splitting it into parts. Click or tap where the line should go first. One thing I noticed: a <code>---</code> line
+        A thin line across the note, for splitting it into parts. Click or tap where the line should go first. One thing we noticed: a <code>---</code> line
         in pasted Markdown becomes a divider too. Apple&apos;s steps are in <a href="https://support.apple.com/guide/notes/apd1955d3b21/mac" rel="noopener">Format
         notes on Mac</a> and <a href="https://support.apple.com/guide/iphone/create-and-format-notes-iph1ac0b3a2/ios" rel="noopener">Create and format notes on iPhone</a>.
       </p>
@@ -80,7 +80,7 @@ export default function Page() {
         <a href="/blog/apple-notes-backlinks">Apple Notes has no backlinks</a>, so a note never shows what links to it.
       </p>
       <p>
-        On my Mac I had to type the note&apos;s title under Link To even for the same note; then the headings showed up. Turn on Use Section Title
+        On our Mac we had to type the note&apos;s title under Link To even for the same note; then the headings showed up. Turn on Use Section Title
         and the link renames itself when the heading changes. On iPhone, typing <code>&gt;&gt;</code>, a note&apos;s title and then <code>/</code> picks a
         section without the dialog. It&apos;s all in <a href="https://support.apple.com/guide/iphone/add-links-iph908d1558b/ios" rel="noopener">Add links in Notes on iPhone</a>.
       </p>

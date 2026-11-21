@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import b from "./blog.module.css";
-import { AUTHOR, categoryAnchor, type Ground, type Post, type Shot, type Thumb } from "./posts";
+import { categoryAnchor, type Ground, type Post, type Shot, type Thumb } from "./posts";
 
 /// The blog's shared pieces: a capture in a Mac window, the desk it sits on, the byline and the card.
 
@@ -73,10 +73,6 @@ export function ThumbArt({ thumb }: { thumb: Thumb }) {
   );
 }
 
-export function Avatar({ size = 24 }: { size?: number }) {
-  return <img className={b.avatar} src={AUTHOR.avatar} alt="" width={size} height={size} />;
-}
-
 /// One post on the index or under "More posts": its cover, its title and how long it takes to read
 /// (Emil, 16 October 2026: "just do titles"; 17 October: keep the minutes to read).
 export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" | "h3" }) {
@@ -87,7 +83,7 @@ export function PostCard({ post, heading = "h2" }: { post: Post; heading?: "h2" 
       <span className={b.cardText}>
         {post.announcement && <Announcement />}
         <H className={b.cardTitle}>{post.title}</H>
-        <span className={b.byline}><Avatar size={22} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
+        <span className={b.byline}><time dateTime={post.date}>{longDate(post.date)}</time></span>
       </span>
     </a>
   );

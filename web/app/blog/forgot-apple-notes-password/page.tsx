@@ -40,7 +40,7 @@ export default function Page() {
   return (
     <PostPage
       slug="forgot-apple-notes-password"
-      intro={<>Forgot the password for your locked notes? Here&apos;s what&apos;s worth trying, in the order I&apos;d go, and the one thing not to do first.</>}
+      intro={<>Forgot the password for your locked notes? Here&apos;s what&apos;s worth trying, in the order to try it, and the one thing not to do first.</>}
       answer={
         <Answer jump={[
           { href: "#try-these-first", label: "Try these first" },
@@ -185,9 +185,9 @@ export default function Page() {
         alt="Apple Notes on macOS 27 asking Reset Notes Password? This allows you to create a new password for notes you lock from now on. Notes that already have a password aren't affected. Cancel and OK."
         caption="Apple says it plainly when you reset on macOS 27: notes that already have a password aren't affected." />
 
-      <h2 id="tested">I reset it on a test Mac, so you don&apos;t have to</h2>
+      <h2 id="tested">We reset it on a test Mac, so you don&apos;t have to</h2>
       <p>
-        I locked a note with one password, reset it, and set a new one. Then I opened the old note. The new password didn&apos;t work, and
+        We locked a note with one password, reset it, and set a new one. Then we opened the old note. The new password didn&apos;t work, and
         the hint it showed was the old one. That hint is your best clue: it&apos;s the hint you wrote for the password you forgot.
       </p>
       <FigurePair items={[
