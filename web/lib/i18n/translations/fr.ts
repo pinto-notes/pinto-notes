@@ -317,4 +317,52 @@ export const fr: Translation[] = [
     description: "Quand Notes reste sur Dossiers ou tarde à synchroniser, vérifiez iCloud, votre compte Apple et le réseau. Distinguez aussi un message de préparation.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "bear-notes-alternative-free", lang: "fr", slug: "alternative-bear-gratuite-mac-iphone",
+    title: "Alternative gratuite à Bear sur Mac et iPhone",
+    description: "Comparez Bear gratuit, Notes d’Apple et Pinto Notes. Exportez quelques notes en Markdown et vérifiez les images, tags et liens avant de changer.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "obsidian-alternative-for-mac", lang: "fr", slug: "alternative-obsidian-mac",
+    title: "Alternative à Obsidian sur Mac : que choisir ?",
+    description: "Pinto Notes, Bear, Notes d’Apple ou Joplin : comparez les usages et les imports. Vérifiez liens, images et plugins avant de déplacer votre coffre.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "simplenote-alternative-for-iphone-and-mac", lang: "fr", slug: "alternative-simplenote-iphone-mac",
+    title: "Alternative à Simplenote sur iPhone et Mac",
+    description: "Exportez vos notes Simplenote depuis le web, puis importez les fichiers texte dans Pinto Notes sur Mac. Vérifiez tags et historique avant de changer.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notion-alternative-for-personal-notes-on-mac", lang: "fr", slug: "alternative-notion-notes-personnelles-mac",
+    title: "Alternative à Notion pour vos notes sur Mac",
+    description: "Notes d’Apple et Pinto Notes conviennent aux carnets personnels. Exportez quelques pages Notion en Markdown et gardez les bases de données utiles.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "onenote-alternative-for-mac", lang: "fr", slug: "alternative-onenote-mac",
+    title: "Alternative à OneNote sur Mac pour les notes texte",
+    description: "Pinto Notes convient aux notes rédigées sur Mac et iPhone. OneNote garde dessins et carnets partagés. Copiez le texte en gardant les originaux.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-cursor", lang: "fr", slug: "connecter-notes-cursor",
+    title: "Connecter ses notes à Cursor avec Pinto Notes",
+    description: "Ajoutez Pinto Notes à Cursor par MCP sur Mac. Lisez une note de projet écrite sur iPhone, puis enregistrez une décision dans la même note après vérification.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-gemini-cli", lang: "fr", slug: "connecter-notes-gemini-cli",
+    title: "Connecter ses notes à Gemini CLI avec MCP",
+    description: "Connectez Gemini CLI à Pinto Notes sur Mac, lisez une note créée sur iPhone et ajoutez-y le résultat d’une séance. Commandes et vérifications expliquées.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-prompt-library-in-notes", lang: "fr", slug: "bibliotheque-prompts-chatgpt-notes",
+    title: "Bibliothèque de prompts ChatGPT dans Notes",
+    description: "Créez une note par prompt avec ses consignes, un exemple et un test. Copiez le modèle dans Notes ou demandez à ChatGPT de le retrouver dans Pinto Notes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

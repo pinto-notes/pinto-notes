@@ -317,4 +317,52 @@ export const it: Translation[] = [
     description: "Se Cartelle non si apre o le note non si caricano, controlla iCloud, l'account, la sincronizzazione e la connessione. Anche Salvataggio e Preparazione.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "bear-notes-alternative-free", lang: "it", slug: "alternative-gratis-bear-note",
+    title: "Alternative gratis a Bear per iPhone e Mac",
+    description: "Confronta Bear Free, Note di Apple e Pinto Notes. Esporta qualche nota con foto e tag, importa una copia e controlla il risultato prima di cambiare app.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "obsidian-alternative-for-mac", lang: "it", slug: "alternative-obsidian-mac",
+    title: "Alternative a Obsidian per Mac: come scegliere",
+    description: "Confronta Pinto Notes, Note di Apple, Bear e Joplin. Scopri cosa succede a cartelle, immagini, link e plugin quando importi un archivio Obsidian.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "simplenote-alternative-for-iphone-and-mac", lang: "it", slug: "alternative-simplenote-iphone-mac",
+    title: "Alternative a Simplenote per iPhone e Mac",
+    description: "Esporta le note di Simplenote e prova a importare i file di testo in Pinto Notes. Cosa controllare su tag, Markdown e vecchie versioni prima di cambiare.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notion-alternative-for-personal-notes-on-mac", lang: "it", slug: "alternative-notion-note-personali-mac",
+    title: "Alternative a Notion per gli appunti personali su Mac",
+    description: "Prova Note di Apple o Pinto Notes per gli appunti personali. Esporta poche pagine Notion in Markdown e verifica cosa resta dei database e degli allegati.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "onenote-alternative-for-mac", lang: "it", slug: "alternative-onenote-mac",
+    title: "Alternative a OneNote per Mac: spostare gli appunti",
+    description: "Pinto Notes può ospitare gli appunti scritti, ma non importa i taccuini OneNote. Come salvare gli originali, copiare poche pagine e verificare il risultato.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-cursor", lang: "it", slug: "collegare-note-cursor",
+    title: "Collegare le note a Cursor con Pinto Notes MCP",
+    description: "Aggiungi Pinto Notes a Cursor tramite MCP, autorizza lettura e modifica, poi prova a leggere una nota di progetto e registrare una decisione nella stessa nota.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-gemini-cli", lang: "it", slug: "collegare-note-gemini-cli",
+    title: "Collegare le note a Gemini CLI con MCP",
+    description: "Configura Pinto Notes in Gemini CLI, accedi e autorizza il collegamento. Leggi una nota scritta su iPhone e aggiungi il risultato della sessione.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-prompt-library-in-notes", lang: "it", slug: "libreria-prompt-chatgpt-note",
+    title: "Libreria di prompt ChatGPT in Note: modello da copiare",
+    description: "Salva un prompt per nota con istruzioni, input e risultato verificato. Copia il modello in Note di Apple oppure recuperalo con ChatGPT collegato a Pinto Notes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
