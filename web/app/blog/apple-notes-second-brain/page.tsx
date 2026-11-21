@@ -145,9 +145,7 @@ export default function Page() {
         confirm. You now have one list for the project and its references, while each note stays in its original folder.
       </p>
       <p>
-        This is a saved filter, so you still add the tag yourself. Our guide to{" "}
-        <a href="/blog/apple-notes-tags-smart-folders">Apple Notes tags and Smart Folders</a> covers the rules and what to check if
-        a note doesn&apos;t appear.
+        This is a saved filter, so you still add the tag yourself. If a note doesn&apos;t appear, check that it has the tag and matches the folder&apos;s rules.
       </p>
 
       <h2 id="capture">Capture first, then review the inbox</h2>
@@ -177,7 +175,7 @@ export default function Page() {
       <h2 id="pinto-notes">Pinto Notes adds links back and AI access</h2>
       <p>
         In Pinto Notes, Linked From in a note&apos;s More menu lists the notes that link to it. You can open a reference note and find
-        the projects using it. Only actual links count. The <a href="/blog/apple-notes-backlinks">backlinks guide</a> shows how it works. For one outcome you work toward over weeks, a <a href="/blog/apple-notes-goal-template">goal note with milestones and evidence</a> keeps the proof of progress in one place.
+        the projects using it. Only actual links count. The <a href="/blog/apple-notes-backlinks">backlinks guide</a> shows how it works. For an outcome you work toward over weeks, keep the milestones and evidence in one goal note.
       </p>
       <p>
         Once you <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a>, it can read and edit your notes. For a

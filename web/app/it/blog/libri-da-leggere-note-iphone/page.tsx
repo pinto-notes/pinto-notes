@@ -151,8 +151,7 @@ export default function Page() {
         impostazioni di Note e i libri finiti scendono in fondo. Quando ne vuoi ricordare uno, spostalo sotto Letti con un voto.
       </p>
       <p>
-        Per tenere più di un voto, gli <a href="/it/blog/appunti-libri-note-iphone">appunti di lettura nelle note di iPhone</a> danno a
-        ogni libro le sue citazioni, i tuoi pensieri e l’idea centrale. Altre note da incollare sono in{" "}
+        Per tenere più di un voto, puoi tenere una nota per ogni libro con citazioni, pensieri e l’idea centrale. Altre note da incollare sono in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese).
       </p>
 

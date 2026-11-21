@@ -146,8 +146,7 @@ export default function Page() {
         finis descendent en bas. Quand vous voulez vous souvenir d’un livre, passez-le sous Lus avec une note.
       </p>
       <p>
-        Pour garder plus qu’une note sur 5, la <a href="/fr/blog/fiche-de-lecture-notes-iphone">fiche de lecture dans Notes</a> donne à
-        chaque livre ses citations, vos idées et l’idée clé. D’autres notes à coller sont dans{" "}
+        Pour garder plus qu’une note sur 5, gardez pour chaque livre ses citations, vos idées et l’idée clé dans Notes. D’autres notes à coller sont dans{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a> (en anglais).
       </p>
 

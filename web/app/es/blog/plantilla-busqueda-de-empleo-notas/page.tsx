@@ -169,8 +169,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Para las notas de las propias entrevistas, la <a href="/es/blog/plantilla-acta-de-reunion-notas">plantilla de acta de
-        reunión</a> sirve tal cual. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
+        Para las notas de las propias entrevistas, puedes usar una nota de reunión. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
         templates</a> (en inglés).
       </p>
 

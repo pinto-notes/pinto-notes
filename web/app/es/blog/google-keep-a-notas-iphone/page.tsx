@@ -36,7 +36,7 @@ export default function Page(){return <LocalPostPage lang="es" slug="google-keep
  <div className="tableWrap"><table><thead><tr><th>En Keep</th><th>Copiar y pegar</th><th>Takeout e importación</th></tr></thead><tbody>
  <tr><th>Texto</th><td>Sí</td><td>Sí</td></tr><tr><th>Listas</th><td>Pueden quedar como texto</td><td>Comprueba la prueba</td></tr><tr><th>Imágenes</th><td>Añádelas aparte</td><td>Comprueba la prueba</td></tr><tr><th>Etiquetas</th><td>No</td><td>No</td></tr><tr><th>Colores y recordatorios</th><td>No</td><td>No</td></tr>
  </tbody></table></div>
- <p>Google dice que Takeout incluye texto, elementos de listas, archivos adjuntos, colores, estado de fijación y archivo, colaboradores y etiquetas. No significa que todo eso llegue a Notas. Reordena después con carpetas y etiquetas. <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">Esta guía explica las etiquetas</a>.</p>
+ <p>Google dice que Takeout incluye texto, elementos de listas, archivos adjuntos, colores, estado de fijación y archivo, colaboradores y etiquetas. No significa que todo eso llegue a Notas. Reordena después con carpetas y etiquetas.</p>
  <h2 id="gmail">Una cuenta de Google no conecta las dos apps</h2>
  <p>En el iPhone, Ajustes (Configuración en Latinoamérica), Apps, Notas, Cuentas de Notas permite activar una cuenta Google. Esas notas se sincronizan como correo IMAP; Google Keep no las muestra. Algunas funciones de Notas faltan en cuentas de terceros. Para consultar diferencias, lee <a href="/es/blog/notas-apple-vs-google-keep">Notas frente a Keep</a>.</p>
  <h2 id="pinto">Importar Keep a Pinto Notes</h2>

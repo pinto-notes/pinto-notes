@@ -75,7 +75,7 @@ export default function Page() {
     <p>Uma pasta mostra onde você guardou a nota. Uma etiqueta reúne notas de lugares diferentes. Adicione <code>#jardim</code> ao projeto Jardim da varanda e à referência Plantas para sombra. No iPhone, insira um espaço depois da etiqueta para ativá-la. Crie só etiquetas que você pretende reutilizar.</p>
     <MenuPaths rows={[{ on: "Mac", steps: ["Arquivo", "Nova Pasta Inteligente"] }]} />
     <p>No Mac, escolha Arquivo, Nova Pasta Inteligente. Dê o nome Jardim, escolha a regra Etiquetas, selecione #jardim e confirme. No iPhone, crie uma pasta na lista de pastas e use a opção de transformá-la em Pasta Inteligente; depois escolha o filtro da etiqueta. As notas aparecem juntas sem sair das pastas originais.</p>
-    <p>O filtro não cria etiquetas por você. Veja <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">como funcionam etiquetas e Pastas Inteligentes</a> se uma nota não aparecer.</p>
+    <p>O filtro não cria etiquetas por você. Se uma nota não aparecer, confira se ela tem a etiqueta e atende às regras da pasta.</p>
 
     <h2 id="rotina">Capture agora, organize na revisão</h2>
     <p>No Mac, selecione Entrada e clique no botão de nova nota. Escreva um título que você reconhecerá no mês seguinte, como Plantas para uma varanda sem sol. Guarde o detalhe útil e o link da fonte, se houver. Deixe a organização para a revisão, a menos que o destino já esteja claro.</p>

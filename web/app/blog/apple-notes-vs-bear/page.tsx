@@ -105,8 +105,7 @@ export default function Page() {
       <p>
         If you want a Work folder and a Home folder, Apple Notes already gives you that structure. Add checklists or tables inside
         a note, pin a note you use often, and use tags when something belongs to more than one topic.
-        A Smart Folder gathers notes by rules, such as a tag or an unchecked checklist. Our guide to{" "}
-        <a href="/blog/apple-notes-tags-smart-folders">Apple Notes tags and Smart Folders</a> shows how to set those up.
+        A Smart Folder gathers notes by rules, such as a tag or an unchecked checklist.
       </p>
       <p>
         For a grocery list you edit together or a shared project note, Apple documents{" "}

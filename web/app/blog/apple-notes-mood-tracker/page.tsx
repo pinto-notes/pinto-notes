@@ -120,8 +120,7 @@ export default function Page() {
         <li><strong>Leave a missed day out.</strong> A gap is better than a score you made up three days later.</li>
       </ul>
       <p>
-        If you want words as well as numbers, the <a href="/blog/apple-notes-journal-template">Apple Notes journal template</a> asks four
-        short questions a day, and the <a href="/blog/apple-notes-habit-tracker">habit tracker</a> fits next to this note for things
+        If you want words as well as numbers, you can answer four short journal questions a day, and the <a href="/blog/apple-notes-habit-tracker">habit tracker</a> fits next to this note for things
         like a walk or no screens after ten.
       </p>
 

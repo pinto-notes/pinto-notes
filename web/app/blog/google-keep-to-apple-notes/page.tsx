@@ -184,8 +184,7 @@ export default function Page() {
       </div>
       <p>
         To bring your labels back, make a folder for each big one and move the notes in, or type the label as a tag, like #recipes,
-        in each note. A Smart Folder can then collect every note with that tag. <a href="/blog/apple-notes-tags-smart-folders">Apple
-        Notes tags and Smart Folders</a> shows how. Search reads every word in every note, so a note you can&apos;t place is still easy
+        in each note. A Smart Folder can then collect every note with that tag. Search reads every word in every note, so a note you can&apos;t place is still easy
         to find.
       </p>
 

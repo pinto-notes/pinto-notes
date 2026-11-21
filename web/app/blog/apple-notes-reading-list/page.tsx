@@ -144,7 +144,7 @@ export default function Page() {
         to remember one, move it under Finished with a rating.
       </p>
       <p>
-        To keep more than a rating, the <a href="/blog/apple-notes-book-notes-template">book notes template</a> gives each book its
+        To keep more than a rating, keep a note for each book with its
         quotes, your thoughts and the big idea. More notes to paste in are in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a>.
       </p>

@@ -84,8 +84,7 @@ export default function Page() {
         caption="A locked note stays behind in every move. Unlock it first." />
       <p>
         Locked notes are the main thing that gets left behind. Obsidian&apos;s importer skips them, and Apple Notes won&apos;t export a
-        locked note, so take the lock off the ones you want to bring. If you&apos;ve lost the password for one, <a
-        href="/blog/forgot-apple-notes-password">what to do if you forgot your Apple Notes password</a> explains what&apos;s possible.
+        locked note, so take the lock off the ones you want to bring. If you&apos;ve lost the password for one, leave it out until you can unlock it.
       </p>
       <Checklist title="Before moving out of Apple Notes" items={[
         "Unlock the locked notes you want to bring",

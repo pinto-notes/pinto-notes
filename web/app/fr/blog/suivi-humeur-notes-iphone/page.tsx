@@ -125,8 +125,7 @@ export default function Page() {
         <li><strong>Laissez un jour manqué vide.</strong> Un trou vaut mieux qu’un chiffre inventé trois jours après.</li>
       </ul>
       <p>
-        Si vous voulez des mots en plus des chiffres, le <a href="/fr/blog/journal-intime-notes-iphone">journal dans Notes</a> pose quatre
-        courtes questions par jour, et le <a href="/fr/blog/suivi-des-habitudes-notes-iphone">suivi des habitudes</a> se range à côté de
+        Si vous voulez des mots en plus des chiffres, vous pouvez répondre à quatre courtes questions par jour dans un journal Notes, et le <a href="/fr/blog/suivi-des-habitudes-notes-iphone">suivi des habitudes</a> se range à côté de
         cette note pour des choses comme une balade ou pas d’écran après 22 h.
       </p>
 

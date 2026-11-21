@@ -147,7 +147,6 @@ export default function Page() {
         <li>
           <strong>Le ricette a un tocco.</strong> Tieni ogni ricetta in una nota sua e collegala dalla sua cena con Aggiungi link. Su iOS
           27 e macOS 27 un link può puntare anche a un’intestazione, così &ldquo;Ingredienti&rdquo; si apre proprio dove ti serve.{" "}
-          <a href="/blog/apple-notes-ios-27">What’s new in Apple Notes in iOS 27</a> (in inglese) ha i dettagli.
         </li>
         <li>
           <strong>Condiviso con chi cucina.</strong> Condividi la nota e scegli Può modificare. Chi è al supermercato spunta le cose, e
@@ -163,7 +162,7 @@ export default function Page() {
       <h2 id="limiti">Dove si ferma un menu settimanale in Note</h2>
       <ul>
         <li><strong>La lista è a mano.</strong> Note non sa che un curry vuole il latte di cocco. Leggi ogni ricetta e scrivi cosa serve, ogni settimana.</li>
-        <li><strong>Niente ordine per reparto.</strong> Dove vanno i limoni lo decidi tu. Promemoria ha un elenco Spesa che divide le cose per categoria man mano che le aggiungi, ma poi la lista vive lontano dalle cene. Il <a href="/it/blog/lista-spesa-note-iphone">modello di lista della spesa</a> ha già i reparti pronti.</li>
+        <li><strong>Niente ordine per reparto.</strong> Dove vanno i limoni lo decidi tu. Promemoria ha un elenco Spesa che divide le cose per categoria man mano che le aggiungi, ma poi la lista vive lontano dalle cene. Puoi dividere la lista della spesa per reparti.</li>
         <li><strong>Nessuna memoria di cosa hai in casa.</strong> Note non può dirti che a casa c’è il riso. La lista della dispensa aiuta solo se la leggi prima di scrivere la spesa.</li>
         <li><strong>Nessuna idea.</strong> Quando nessuno sa cosa cucinare, la nota aspetta.</li>
       </ul>

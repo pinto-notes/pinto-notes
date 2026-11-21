@@ -54,7 +54,7 @@ export default function Page() {
       <h2 id="cita">El bloque de cita es para texto citado</h2>
       <p>El bloque de cita separa un pasaje con una barra. Úsalo para palabras tomadas de una documentación y deja tu explicación fuera. Para el código, elige Monoestilo.</p>
       <Paths rows={[{ on: "Mac", steps: ["Seleccionar texto", "Botón de formato", "Bloque de cita"], keys: "⌘'" }, { on: "iPhone", steps: ["Seleccionar texto", "Botón de formato", "Elegir el estilo de cita si aparece"] }]} />
-      <p>La <a href="https://support.apple.com/es-es/guide/notes/apd1955d3b21/mac">guía de formato del Mac</a> incluye el bloque de cita entre los estilos. Su guía de atajos indica Comando + apóstrofo. Para organizar el texto alrededor del fragmento, consulta los <a href="/es/blog/trucos-notas-iphone">trucos de Notas para iPhone y Mac</a>.</p>
+      <p>La <a href="https://support.apple.com/es-es/guide/notes/apd1955d3b21/mac">guía de formato del Mac</a> incluye el bloque de cita entre los estilos. Su guía de atajos indica Comando + apóstrofo.</p>
       <h2 id="limites">El resaltado de sintaxis</h2>
       <p>Las guías de formato y atajos de Apple documentan Monoestilo y el bloque de cita. No documentan un comando específico para bloques de código ni resaltado que reconozca un lenguaje de programación. Monoestilo ayuda con fragmentos breves, pero esas páginas no describen un editor de código.</p>
       <p>Notas sí permite resaltar texto a mano con un color. Eso es distinto de reconocer palabras clave y cadenas en el código. Conserva una copia ejecutable en tu proyecto y usa la nota para explicar qué hace el fragmento y por qué lo guardaste.</p>

@@ -139,7 +139,6 @@ export default function Page() {
       <p>
         Apple&apos;s <a href="https://support.apple.com/en-us/guide/notes/apd1955d3b21/mac" rel="noopener">Mac formatting guide</a> puts
         block quotes among the styles in the Format controls. Its shortcut guide lists Command-apostrophe.
-        For other ways to organize the text around a snippet, see <a href="/blog/apple-notes-tips">Apple Notes tips for iPhone and Mac</a>.
       </p>
 
       <h2 id="limits">Where it stops: syntax highlighting</h2>

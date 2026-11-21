@@ -159,8 +159,8 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        For notes from the interviews themselves, the <a href="/blog/apple-notes-meeting-notes-template">meeting notes template</a> works
-        as it is. More notes to paste in are in <a href="/blog/apple-notes-templates">Apple Notes templates</a>. Keep your job history and dated accomplishments in a <a href="/blog/apple-notes-resume-template">resume master note</a>, and pick from it for each application.
+        For notes from the interviews themselves, a meeting notes layout works
+        as it is. More notes to paste in are in <a href="/blog/apple-notes-templates">Apple Notes templates</a>. Keep your job history and dated accomplishments in one master note for your resume, and pick from it for each application.
       </p>
 
       <h2 id="limits">Where a job tracker in Notes stops</h2>

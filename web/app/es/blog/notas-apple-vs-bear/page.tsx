@@ -38,7 +38,7 @@ export default function Page() { return <LocalPostPage lang="es" slug="notas-app
   </tbody></table></div>
   <p>Bear permite guardar notas locales gratis. Bear Pro costaba 2,99 USD al mes o 29,99 USD al año en su <a href="https://bear.app/#pricing">página de precios</a> el 21 de noviembre de 2026. También añade búsqueda en imágenes y PDF, y más temas. Consulta el precio de tu región.</p>
   <h2 id="notas">Elige Notas para carpetas y colaboración</h2>
-  <p>Notas permite separar trabajo y casa en carpetas, fijar las notas frecuentes y usar tablas o listas de verificación. Las etiquetas sirven cuando un apunte pertenece a varios temas. Una carpeta inteligente reúne notas por reglas, como una etiqueta o tareas sin marcar. Consulta <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">etiquetas y carpetas inteligentes</a>.</p>
+  <p>Notas permite separar trabajo y casa en carpetas, fijar las notas frecuentes y usar tablas o listas de verificación. Las etiquetas sirven cuando un apunte pertenece a varios temas. Una carpeta inteligente reúne notas por reglas, como una etiqueta o tareas sin marcar.</p>
   <p>Para una lista compartida, <a href="https://support.apple.com/es-es/guide/notes/apd4e6e2c9a6/mac">comparte un enlace de iCloud</a> y da permiso para editar o solo ver. Cada participante necesita una Cuenta de Apple. Para ver tus propias notas en ambos dispositivos, activa Notas en iCloud con la misma cuenta.</p>
   <p>Prueba estas opciones con unas pocas notas antes de trasladar toda la biblioteca. Si necesitas ver las notas que enlazan a la actual, Bear ofrece referencias de vuelta. Si buscas tareas pendientes, quizá baste una carpeta inteligente.</p>
   <h2 id="bear">Elige Bear para Markdown y notas enlazadas</h2>

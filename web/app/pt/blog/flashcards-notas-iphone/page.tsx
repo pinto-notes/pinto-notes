@@ -121,7 +121,7 @@ export default function Page() {
         <li><strong>Ache um cartão por qualquer palavra.</strong> A busca lê cada palavra de cada nota, então &ldquo;mitocôndrias&rdquo; acha o cartão onde ele estiver.</li>
       </ul>
       <p>
-        Se você faz anotações na aula, o <a href="/pt/blog/metodo-cornell-notas-iphone">método Cornell no Notas</a> põe as perguntas
+        Se você faz anotações na aula, o método Cornell no Notas põe as perguntas
         do lado das anotações, o que já é um baralho de flashcards feito enquanto você escreve. Mais notas para colar estão no guia{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">de modelos para o app Notas</a> (em inglês).
       </p>

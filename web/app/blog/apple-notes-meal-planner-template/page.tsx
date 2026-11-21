@@ -140,8 +140,7 @@ export default function Page() {
         </li>
         <li>
           <strong>Recipes one tap away.</strong> Keep each recipe in its own note and link it from its dinner with Add Link. On iOS 27
-          and macOS 27 a link can point at a heading too, so &ldquo;Ingredients&rdquo; opens right where you need it.{" "}
-          <a href="/blog/apple-notes-ios-27">What&apos;s new in Apple Notes in iOS 27</a> has the details.
+          and macOS 27 a link can point at a heading too, so &ldquo;Ingredients&rdquo; opens right where you need it.
         </li>
         <li>
           <strong>Shared with whoever cooks.</strong> Share the note and let people make changes. Whoever is in the shop ticks things off,
@@ -157,7 +156,7 @@ export default function Page() {
       <h2 id="limits">Where a meal planner in Notes stops</h2>
       <ul>
         <li><strong>The list is by hand.</strong> Notes doesn&apos;t know a curry needs coconut milk. You read each recipe and type what it needs, every week.</li>
-        <li><strong>No sorting by aisle.</strong> You decide where lemons go. Reminders has a Groceries list that sorts items by section as you add them, but then the list lives apart from the dinners. The <a href="/blog/apple-notes-grocery-list-template">grocery list template</a> has the aisles ready.</li>
+        <li><strong>No sorting by aisle.</strong> You decide where lemons go. Reminders has a Groceries list that sorts items by section as you add them, but then the list lives apart from the dinners. You can put aisle headings in your grocery list yourself.</li>
         <li><strong>No memory of what you have.</strong> Notes can&apos;t tell you there&apos;s rice at home. The cupboard list helps only if you read it before you write the groceries.</li>
         <li><strong>No ideas.</strong> When nobody knows what to cook, the note waits.</li>
       </ul>

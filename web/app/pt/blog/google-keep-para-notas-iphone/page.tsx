@@ -47,6 +47,6 @@ export default function Page() {
 <p>O Pinto Notes lê o download completo no Mac. Etiquetas viram pastas ou etiquetas; checklists mantêm as marcações, notas fixadas e imagens vêm junto. Notas arquivadas só entram se você marcar essa opção. Cores, desenhos e lembretes não entram, e um resumo mostra quantas notas tinham esses itens. ChatGPT ou Claude podem trabalhar nas notas depois da conexão, com histórico de versões. O app não funciona no Android, Windows ou web.</p>
 
 
-<p>Leia também: <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">etiquetas e Pastas Inteligentes</a>, <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conexão com ChatGPT ou Claude</a>, <a href="/blog/import-your-notes" hrefLang="en">importação de notas</a>, <a href="/blog/move-apple-notes-to-obsidian-notion-keep" hrefLang="en">migração para outros apps</a>, e <a href="/blog/move-from-apple-notes" hrefLang="en">importação do Notas</a>.</p>
+<p>Leia também: <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conexão com ChatGPT ou Claude</a>, <a href="/blog/import-your-notes" hrefLang="en">importação de notas</a>, <a href="/blog/move-apple-notes-to-obsidian-notion-keep" hrefLang="en">migração para outros apps</a>, e <a href="/blog/move-from-apple-notes" hrefLang="en">importação do Notas</a>.</p>
   </LocalPostPage>;
 }

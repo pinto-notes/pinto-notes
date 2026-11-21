@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { PostCta } from "./PostCta";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/blog/apple-notes-api", useRouter: () => ({ push: () => {} }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/blog/apple-notes-tables", useRouter: () => ({ push: () => {} }) }));
 
 const html = (position: string, title: string) =>
   renderToStaticMarkup(<PostCta slug="apple-notes-api" position={position} title={title}><p>Why.</p></PostCta>);

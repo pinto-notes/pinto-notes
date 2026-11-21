@@ -98,7 +98,7 @@ export default function Page() {
       <Figure shot={SHOTS.notesDefaultAccount} caption="Siri's new notes go to the default account you pick here." />
       <p>
         <strong>It makes new notes.</strong> They go to the Default Account in Notes&apos; settings, so if Siri&apos;s notes land in On My
-        iPhone or an old Gmail account, <a href="/blog/move-apple-notes-to-icloud">change it there</a>.
+        iPhone or an old Gmail account, change it there.
       </p>
       <Keep title="Things to try in Notes" text={ASK} note="All five are Apple's own examples." />
       <MenuPaths rows={[
@@ -136,8 +136,7 @@ export default function Page() {
       <p>
         Siri can hand a question to ChatGPT if you turn on its extension (Settings, Siri, Set Up Extensions, ChatGPT) and ask for ChatGPT
         by name. Apple&apos;s examples send it a photo or a document. None of its pages show ChatGPT reading your notes or writing an answer
-        back into one. Claude isn&apos;t an option at all, and Apple has <a href="/blog/apple-notes-api">no Notes API</a> anything else
-        could use.
+        back into one. Claude isn&apos;t an option, and Apple has no Notes API for another service to use.
       </p>
 
       <p>
@@ -160,7 +159,6 @@ export default function Page() {
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>
           : <> It&apos;s free on the Mac today, with the iPhone app coming soon.</>}{" "}
-        For the rest of this year&apos;s Notes update, see <a href="/blog/apple-notes-ios-27">what&apos;s new in Apple Notes in iOS 27</a>.
       </p>
     </PostPage>
   );

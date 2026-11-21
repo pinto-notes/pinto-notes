@@ -98,7 +98,7 @@ export default function Page() {
       </p>
 
       <p>
-        Two templates come with their own Claude Code instructions: the <a href="/blog/apple-notes-daily-standup-template">daily standup template</a> drafts yesterday from your commits, and the <a href="/blog/apple-notes-bug-triage-template">bug triage template</a> files a pasted report by severity.
+        You can use Claude Code instructions to draft a daily standup from yesterday&apos;s commits or sort a pasted bug report by severity.
       </p>
 
       <h2 id="missing">Why not just CLAUDE.md?</h2>

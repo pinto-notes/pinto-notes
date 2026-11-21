@@ -43,7 +43,7 @@ export default function Page() {
     </tbody></table></div>
     <p>Die Funktionen wurden am 21. November 2026 auf den Herstellerseiten geprüft. Die <a href="https://evernote.com/compare-plans">Evernote-Tarifübersicht</a> nennt die aktuellen Grenzen. Für Free ist ein Gerät angegeben.</p>
     <h2 id="apple">Apple Notizen für den Alltag</h2>
-    <p>Einkaufslisten, Besprechungsnotizen und Ideen passen gut in Apple Notizen. Du kannst häufig genutzte Notizen anheften, Checklisten abhaken, Tabellen nutzen und alle Notizen durchsuchen. Mit # vor einem Wort legst du einen Tag an. Ein intelligenter Ordner sammelt passende Notizen aus mehreren Ordnern. Mehr dazu steht im <a href="/blog/apple-notes-tags-smart-folders">englischen Guide zu Tags und intelligenten Ordnern</a>.</p>
+    <p>Einkaufslisten, Besprechungsnotizen und Ideen passen gut in Apple Notizen. Du kannst häufig genutzte Notizen anheften, Checklisten abhaken, Tabellen nutzen und alle Notizen durchsuchen. Mit # vor einem Wort legst du einen Tag an. Ein intelligenter Ordner sammelt passende Notizen aus mehreren Ordnern.</p>
     <p>Zum gemeinsamen Bearbeiten brauchen alle einen Apple Account. Wenn du Notizen in iCloud aktivierst, bleiben sie auf deinen Geräten und auf <a href="https://support.apple.com/de-de/guide/icloud/mm000b55f946/icloud">iCloud.com</a> aktuell. Teste die Browserfassung auf deinem PC mit einer echten Notiz.</p>
     <h2 id="evernote">Evernote für Webrecherche und Aufgaben</h2>
     <p>Der <a href="https://evernote.com/features/webclipper">Web Clipper</a> speichert Artikel, Webseiten, PDFs und Bildschirmaufnahmen. Du kannst Aufnahmen kommentieren und beim Speichern Notizbuch und Tags wählen. Sammle zunächst ein paar deiner üblichen Quellen damit.</p>

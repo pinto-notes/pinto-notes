@@ -124,13 +124,13 @@ export default function Page() {
         <li><strong>Find a card by any word.</strong> Search reads every word in every note, so &ldquo;mitochondria&rdquo; finds the card wherever it is.</li>
       </ul>
       <p>
-        If you take notes in class, the <a href="/blog/apple-notes-cornell-notes-template">Cornell notes template</a> puts the questions
+        If you take notes in class, Cornell notes put questions
         right beside your notes, which is a flashcard deck built as you write. More notes to paste in are in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a>.
       </p>
 
       <p>
-        For the rest of a term in Notes, from scanned handouts to recorded lectures, see <a href="/blog/apple-notes-for-school">Apple Notes for school</a>.
+        You can also keep scanned handouts and recorded lectures in Notes during the term.
       </p>
 
       <h2 id="limits">Where flashcards in Notes stop</h2>

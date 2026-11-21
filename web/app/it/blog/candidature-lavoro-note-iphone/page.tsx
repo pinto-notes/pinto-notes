@@ -164,8 +164,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Per gli appunti dei colloqui stessi, gli <a href="/it/blog/appunti-riunione-note-iphone">appunti di riunione nelle note di
-        iPhone</a> funzionano così come sono. Altre note da incollare sono in{" "}
+        Per gli appunti dei colloqui stessi, puoi usare una nota di riunione su iPhone. Altre note da incollare sono in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese).
       </p>
 

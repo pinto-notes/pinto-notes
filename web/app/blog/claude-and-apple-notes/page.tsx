@@ -97,8 +97,7 @@ export default function Page() {
         Developers have built MCP servers that drive the Notes app with AppleScript. The most actively maintained one in September
         2026 is <a href="https://github.com/sweetrb/apple-notes-mcp" rel="noopener">sweetrb/apple-notes-mcp</a>, which can search,
         create and update notes. Follow its README to add it to Claude Desktop or Claude Code. Expect a macOS prompt asking whether
-        Claude may control Notes. <a href="/blog/apple-notes-api">Apple Notes has no API</a> explains
-        why every route like this one runs through a Mac.
+        Claude may control Notes. Apple Notes has no API, so routes like this one run through a Mac.
       </p>
       <PostFigure src="/blog/macos27/notes27-api-script-editor-names" width={1400} height={592} maxWidth={640}
         alt="Script Editor on a Mac getting the name of every note from Notes, with a list of note titles as the result."
@@ -126,8 +125,7 @@ export default function Page() {
         <li>Claude on iPhone can use connectors you add on claude.ai, but only ones with a server on the internet, which Apple Notes still lacks.</li>
       </ul>
       <p>
-        The rest of what&apos;s new, from divider lines to Markdown copy and paste, is in <a href="/blog/apple-notes-ios-27">Apple Notes in iOS 27
-        and macOS 27</a>.
+        iOS 27 and macOS 27 also add divider lines and Markdown copy and paste.
       </p>
 
       <h2>What none of these fix</h2>

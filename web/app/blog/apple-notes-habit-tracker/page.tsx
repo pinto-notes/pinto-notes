@@ -125,8 +125,7 @@ export default function Page() {
       </p>
       <p>
         Two settings help. Turn on Automatically sort checked items in the Notes settings, and what you&apos;ve done drops to the
-        bottom of each day. And a Smart Folder with the rule Checklists, Unchecked shows every note with something left to tick;{" "}
-        <a href="/blog/apple-notes-tags-smart-folders">tags and Smart Folders</a> shows how to make one.
+        bottom of each day. A Smart Folder with the rule Checklists, Unchecked shows every note with something left to tick.
       </p>
 
       <h2 id="every-week">Every week</h2>
@@ -141,7 +140,7 @@ export default function Page() {
       </p>
 
       <p>
-        To look back on the week as a whole, the <a href="/blog/apple-notes-weekly-review-template">weekly review template</a> asks five questions every Sunday.
+        To look back on the week as a whole, you can write a weekly review with five questions every Sunday.
       </p>
 
       <h2 id="limits">Where a habit tracker in Notes stops</h2>

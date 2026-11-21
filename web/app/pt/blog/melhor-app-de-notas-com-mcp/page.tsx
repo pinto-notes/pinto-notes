@@ -66,7 +66,7 @@ export default function Page() {
 
     <h2 id="apple">E o MCP do Notas?</h2>
     <p>O Notas continua útil para quem quer iCloud, checklists, tabelas e mídia. O <a href="https://support.apple.com/pt-br/guide/notes/get-started-apd441e46563/mac">guia da Apple</a> descreve esses recursos, mas não um servidor MCP. Não encontramos configuração MCP feita pela Apple na documentação consultada.</p>
-    <p>Um resultado de busca por “Apple Notes MCP” pode se referir a um projeto da comunidade. Esta comparação não confirma as capacidades de tais projetos. Veja <a href="/blog/apple-notes-api" hrefLang="en">os caminhos para acessar uma biblioteca do Notas</a>.</p>
+    <p>Um resultado de busca por “Apple Notes MCP” pode se referir a um projeto da comunidade. Esta comparação não confirma as capacidades de tais projetos.</p>
 
     <h2 id="pinto">Pinto Notes mantém o jeito do Notas</h2>
     <p>O Pinto Notes funciona no iPhone e no Mac. Não tem app para Windows, Android ou web. Seu servidor hospedado deixa ChatGPT e Claude usarem as notas sem manter o Mac ligado. Claude Code e Codex também podem se conectar. O <a href="/blog/mcp-server" hrefLang="en">guia do servidor MCP</a> lista as ferramentas e explica a autorização.</p>

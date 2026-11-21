@@ -142,8 +142,7 @@ export default function Page() {
         <li>
           <strong>Rezepte nur ein Tippen entfernt.</strong> Leg jedes Rezept in eine eigene Notiz und verlinke es mit Link hinzufügen von
           seinem Abendessen aus. Unter iOS 27 und macOS 27 kann ein Link auch auf eine Überschrift zeigen, so öffnet sich „Zutaten“ genau da,
-          wo du es brauchst. <a href="/blog/apple-notes-ios-27" hrefLang="en">What&apos;s new in Apple Notes in iOS 27</a> (auf Englisch) hat
-          die Details.
+          wo du es brauchst.
         </li>
         <li>
           <strong>Geteilt mit allen, die kochen.</strong> Teile die Notiz und lass andere sie bearbeiten. Wer gerade im Laden ist, hakt ab,
@@ -159,7 +158,7 @@ export default function Page() {
       <h2 id="grenzen">Wo ein Essensplan in Notizen aufhört</h2>
       <ul>
         <li><strong>Die Liste schreibst du von Hand.</strong> Notizen weiß nicht, dass ein Curry Kokosmilch braucht. Du liest jedes Rezept und tippst ab, was es braucht, jede Woche.</li>
-        <li><strong>Keine Sortierung nach Abteilungen.</strong> Wo die Zitronen hinkommen, entscheidest du. Erinnerungen hat eine Einkaufsliste, die Artikel beim Hinzufügen nach Kategorien sortiert, aber dann liegt die Liste getrennt von den Abendessen. Die <a href="/de/blog/einkaufsliste-iphone-notizen">Vorlage für die Einkaufsliste</a> hat die Abteilungen schon fertig.</li>
+        <li><strong>Keine Sortierung nach Abteilungen.</strong> Wo die Zitronen hinkommen, entscheidest du. Erinnerungen hat eine Einkaufsliste, die Artikel beim Hinzufügen nach Kategorien sortiert, aber dann liegt die Liste getrennt von den Abendessen. Du kannst deine Einkaufsliste selbst nach Abteilungen gliedern.</li>
         <li><strong>Kein Gedächtnis für das, was du hast.</strong> Notizen kann dir nicht sagen, dass zu Hause noch Reis ist. Die Vorratsliste hilft nur, wenn du sie liest, bevor du die Einkäufe aufschreibst.</li>
         <li><strong>Keine Ideen.</strong> Wenn niemand weiß, was es geben soll, wartet die Notiz.</li>
       </ul>

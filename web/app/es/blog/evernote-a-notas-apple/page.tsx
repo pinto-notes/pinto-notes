@@ -32,7 +32,7 @@ export default function Page(){return <LocalPostPage lang="es" slug="evernote-a-
  <h2 id="revisar">Qué se conserva y qué debes comprobar</h2>
  <p>Cada nota del ENEX se convierte en una nota de Apple. Desde macOS 13, Notas también puede importar sus etiquetas. Apple advierte que los adjuntos o funciones que no admita pueden quedar fuera, sin enumerarlos.</p>
  <Checklist title="Antes de dejar Evernote" items={["Importa primero un cuaderno pequeño","Comprueba listas, tablas y archivos adjuntos","Revisa las etiquetas y cuenta las notas","Conserva Evernote hasta terminar la comprobación"]} />
- <p>En Notas, puedes escribir #palabra para crear una etiqueta y reunirla con una carpeta inteligente. <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">Esta guía explica cómo</a>.</p>
+ <p>En Notas, puedes escribir #palabra para crear una etiqueta y reunirla con una carpeta inteligente.</p>
  <h2 id="elegir">¿Conviene cambiar?</h2>
  <PostFigure src="/blog/news/evernote-ai-assistant-mac" width={1720} height={785} alt="Evernote en un Mac, en inglés, con su asistente de IA moviendo una nota de cuaderno." caption="El asistente de Evernote puede mover notas. Imagen: Evernote." />
  <p>Evernote funciona también en Windows, Android y web, tiene recortador, escaneo, búsqueda avanzada, tareas y funciones propias de IA, incluida una conexión MCP. Su plan Gratis se limita a 50 notas, un cuaderno y un dispositivo. Notas ya viene en iPhone y Mac, sincroniza con iCloud y ofrece búsqueda, transcripción y resúmenes en dispositivos compatibles, pero no tiene historial de versiones ni app para Windows o Android.</p>

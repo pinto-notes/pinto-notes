@@ -151,8 +151,7 @@ export default function Page() {
         einer Bewertung unter Gelesen.
       </p>
       <p>
-        Willst du mehr festhalten als eine Bewertung, gibt die Vorlage für <a href="/de/blog/buchnotizen-vorlage-apple-notizen">Buchnotizen
-        in Apple Notizen</a> jedem Buch seine Zitate, deine Gedanken und die Kernidee. Weitere Notizen zum Einfügen findest du in{" "}
+        Willst du mehr festhalten als eine Bewertung, notiere zu jedem Buch in Apple Notizen Zitate, deine Gedanken und die Kernidee. Weitere Notizen zum Einfügen findest du in{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (auf Englisch).
       </p>
 

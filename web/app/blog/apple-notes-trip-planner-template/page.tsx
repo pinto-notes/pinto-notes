@@ -136,8 +136,7 @@ export default function Page() {
       <ul>
         <li>
           <strong>A contents line at the top.</strong> On macOS 27 and iOS 27 a link can point at a heading, so the note can start with a
-          link to each day. Type the trip&apos;s title under Link To and its headings show up.{" "}
-          <a href="/blog/apple-notes-ios-27">What&apos;s new in Apple Notes in iOS 27</a> has the details.
+          link to each day. Type the trip&apos;s title under Link To and its headings show up.
         </li>
         <li>
           <strong>Tickets in the note.</strong> On a Mac, drag the PDF of a ticket or a hotel confirmation into the note, under its
@@ -185,7 +184,7 @@ export default function Page() {
         changed.
       </p>
       <p>
-        Moving house rather than travelling? The <a href="/blog/apple-notes-moving-checklist-template">moving checklist template</a> keeps address changes, utilities and boxes in one note.
+        Moving house rather than travelling? Keep address changes, utilities and boxes in one moving checklist.
       </p>
     </PostPage>
   );

@@ -80,7 +80,7 @@ export default function Page() {
       <p>
         Choose Add Link, start typing the other note&apos;s title and pick it. Faster: type <code>&gt;&gt;</code> anywhere in a note,
         then the title, on iPhone or Mac. Keep Use Note Title on and the link renames itself when the note does. On iOS 27 and macOS
-        27 you can also pick a heading, which <a href="/blog/apple-notes-ios-27">what&apos;s new in Apple Notes</a> covers.
+        27 you can also pick a heading.
       </p>
 
       <h2 id="find">Find the notes that link to one</h2>
@@ -98,12 +98,12 @@ export default function Page() {
       <p>
         If one note matters more than the rest, a project or a person, give it a Linked from section at the bottom and add a link
         there each time you link to it from somewhere else. It&apos;s a habit, not a feature, and it goes stale the first time you
-        forget. A <a href="/blog/apple-notes-tags-smart-folders">tag and a Smart Folder</a> is the other route: tag every note about
+        forget. A tag and a Smart Folder offer another route: tag every note about
         the project and the Smart Folder lists them, links or not. <a href="/blog/apple-notes-second-brain">A simple second-brain setup</a> uses both.
       </p>
 
       <p>
-        For a whole system of folders, tags, pins and links, see <a href="/blog/apple-notes-organize">how to organize Apple Notes</a>.
+        You can also combine folders, tags, pins and links to organize your notes.
       </p>
 
       <h2 id="pinto-notes">A notes app with backlinks</h2>

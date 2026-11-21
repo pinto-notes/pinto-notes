@@ -144,7 +144,7 @@ export default function Page() {
         To keep your own log in Apple Notes, use the New Note button on Mac or iPhone and put its title on the first line.
         Apple documents this in its <a href="https://support.apple.com/guide/notes/not9474646a9/mac" rel="noopener">Mac guide</a> and{" "}
         <a href="https://support.apple.com/guide/iphone/iph1ac0b3a2/ios" rel="noopener">iPhone guide</a>.
-        The <a href="/blog/apple-notes-meeting-notes-template">meeting notes layout</a> can help you record decisions as they happen.
+        The meeting notes layout can help you record decisions as they happen.
       </p>
 
       <h2 id="prompt">A ChatGPT performance review prompt to paste</h2>

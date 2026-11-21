@@ -38,7 +38,7 @@ export default function Page() {
       </p>
 
       <p>
-        Moving from Evernote to Apple Notes instead? <a href="/blog/evernote-to-apple-notes">Evernote to Apple Notes</a> shows Notes&apos; own .enex import. Not sure which account your Apple Notes are in? See <a href="/blog/where-are-apple-notes-stored">where Apple Notes are stored</a>.
+        Moving from Evernote to Apple Notes instead? <a href="/blog/evernote-to-apple-notes">Evernote to Apple Notes</a> shows Notes&apos; own .enex import.
       </p>
 
       <p>
