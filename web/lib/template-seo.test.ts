@@ -6,6 +6,7 @@ import TemplatePage from "../app/templates/[slug]/page";
 import { post } from "./posts";
 import { TEMPLATE_SEO } from "./template-seo";
 import { templates } from "./templates";
+import { templateStory } from "./template-story";
 
 const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
 const apps = templates().filter((t) => t.app);
@@ -27,7 +28,9 @@ describe("the app templates' search copy", () => {
 
     it(`${t.slug}: shows its h1, what you can do, its questions as FAQPage data, and links its how-to post`, async () => {
       const html = renderToStaticMarkup(await TemplatePage(params(t.slug)));
-      expect(html).toContain(`>${seo.h1}</h1>`);
+      // A story page (lib/template-story.ts) has its own headline and no ask-your-AI list beside the app.
+      const story = templateStory(t.slug);
+      expect(html).toContain(`>${story?.headline ?? seo.h1}</h1>`);
       expect(seo.can.length).toBeGreaterThanOrEqual(3);
       for (const c of seo.can) expect(html).toContain(`<b>${c.name.replace(/'/g, "&#x27;")}</b>`);
       expect(seo.faq.length).toBeGreaterThanOrEqual(3);
@@ -37,8 +40,9 @@ describe("the app templates' search copy", () => {
       // change it (Emil, 14 October 2026).
       expect(html).not.toContain("What the prompt does");
       expect(html).not.toContain("Copy the prompt");
-      expect(html.indexOf(">Ask your AI to change the app.<")).toBeGreaterThan(html.indexOf('id="result"'));
       expect(seo.make.length).toBeGreaterThanOrEqual(4);
+      if (story) return;
+      expect(html.indexOf(">Ask your AI to change the app.<")).toBeGreaterThan(html.indexOf('id="result"'));
       for (const m of seo.make) expect(html).toContain(m.replace(/'/g, "&#x27;"));
     });
 

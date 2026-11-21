@@ -1,0 +1,72 @@
+/* A template page told as a story (lib/template-story.ts). The top breaks out of the page's column
+   to the full width; everything after it sits in a narrower column than the rest of the site. */
+
+/* ── The phone ── */
+.phone { position: relative; aspect-ratio: 390 / 844; border-radius: 15.5% / 7.2%; background: #0d0d0d; padding: 3.1%; box-sizing: border-box;
+  box-shadow: 0 0 0 1.5px #3a3a3a inset, 0 40px 80px -30px rgba(40, 25, 5, 0.55), 0 12px 24px -12px rgba(40, 25, 5, 0.35); container-type: inline-size; }
+.screen { position: relative; width: 100%; height: 100%; border-radius: 12.6% / 5.9%; overflow: hidden; background: #fff; }
+.screen img { position: absolute; left: 0; top: 6.4%; width: 100%; height: auto; display: block; }
+.status { position: absolute; inset: 0 0 auto 0; height: 6.4%; display: flex; align-items: center; justify-content: space-between; padding: 0 9%;
+  font: 600 6.4cqw/1 -apple-system, system-ui, sans-serif; color: #111; background: #fff; z-index: 2; }
+.bat { width: 1.9em; height: 0.95em; border: 1.5px solid #111; border-radius: 0.3em; position: relative; box-sizing: border-box; }
+.bat::after { content: ""; position: absolute; inset: 1.5px; right: 20%; background: #111; border-radius: 0.12em; }
+.island { position: absolute; top: 2.1%; left: 50%; width: 31%; height: 3.6%; transform: translateX(-50%); background: #000; border-radius: 999px; z-index: 3; }
+
+/* ── The top: art, promise, Mac and iPhone together ── */
+.hero { position: relative; width: 100vw; margin-left: calc(50% - 50vw); margin-top: -1px; overflow: hidden;
+  background: var(--ground) var(--art) center 70% / cover no-repeat; color: var(--hero-ink); }
+@media (max-width: 700px) { .hero { background-image: var(--art-phone); background-position: center bottom; background-size: 220% auto; } }
+.heroCopy { max-width: 1040px; margin: 0 auto; padding: 28px var(--gutter) 0; box-sizing: border-box; display: grid; justify-items: start; }
+.heroCopy ol { color: var(--hero-ink); opacity: 0.8; }
+.heroCopy ol a { color: inherit; }
+.h1 { margin: 14px 0 16px; font-size: clamp(54px, 7.4vw, 100px); line-height: 0.9; font-weight: 850; letter-spacing: -0.05em; max-width: 9ch; text-wrap: balance; }
+.lede { margin: 0 0 28px; font-size: clamp(19px, 2.3vw, 24px); line-height: 1.35; max-width: 27ch; opacity: 0.92; text-wrap: pretty; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.fine { margin: 14px 0 0; font-size: 15px; opacity: 0.85; }
+.fine a { color: inherit; }
+
+.devices { position: relative; max-width: 1040px; margin: 56px auto 0; padding: 0 var(--gutter); box-sizing: border-box; }
+.mac { margin: 0; width: 80%; border-radius: 14px 14px 0 0; overflow: hidden; background: #fff;
+  box-shadow: 0 0 0 0.5px rgba(30, 40, 10, 0.25), 0 50px 90px -30px rgba(25, 35, 5, 0.55); }
+.mac img { display: block; width: 100%; height: auto; }
+.bar { position: relative; height: 34px; background: #f6f3ef; box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.07); }
+.lights { position: absolute; left: 14px; top: 11px; display: flex; gap: 7px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.heroPhone { position: absolute; right: calc(var(--gutter) - 8px); top: -64px; width: 25%; }
+@media (max-width: 700px) {
+  .devices { margin-top: 64px; }
+  .mac { width: 92%; }
+  .heroPhone { width: 36%; top: -30px; right: calc(var(--gutter) - 6px); }
+}
+
+/* ── The week ── */
+.weekSection { max-width: 980px; width: 100%; margin: 40px auto 0; display: grid; }
+.h2 { margin: 0 0 12px; font-size: clamp(36px, 5.6vw, 62px); line-height: 1; letter-spacing: -0.04em; font-weight: 850; max-width: 15ch; text-wrap: balance; }
+.sub { margin: 0 0 44px; color: var(--muted); font-size: clamp(17px, 1.9vw, 20px); }
+.week { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+@media (max-width: 760px) { .week { grid-template-columns: minmax(0, 1fr); gap: 36px; } }
+.dots { display: grid; grid-template-columns: 84px repeat(var(--n), minmax(0, 1fr)); gap: 14px 10px; align-items: center; }
+@media (max-width: 520px) { .dots { grid-template-columns: 58px repeat(var(--n), minmax(0, 1fr)); gap: 10px 6px; } }
+.head { justify-self: center; min-width: 44px; min-height: 36px; border: 0; border-radius: 999px; background: none; color: var(--muted); font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+.head[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+@media (hover: hover) { .head:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--soft); } }
+.head:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.name { font-weight: 800; font-size: clamp(15px, 2vw, 21px); }
+.dot { width: 100%; max-width: 88px; aspect-ratio: 1; justify-self: center; border: 0; padding: 0; border-radius: 50%; cursor: pointer;
+  background: conic-gradient(var(--amber) var(--p), color-mix(in srgb, var(--soft) 70%, #d9c7a8) 0); transition: transform 0.18s ease-out, box-shadow 0.18s ease-out; }
+.dot[data-on] { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5.5px var(--ink); }
+@media (hover: hover) { .dot:hover { transform: scale(1.06); } }
+.talk { margin-top: 36px; min-height: 190px; }
+.day { margin: 0 0 10px; font-size: 13px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.you { display: inline-block; margin: 0 0 14px; padding: 11px 16px; border-radius: 20px 20px 20px 6px; background: var(--ink); color: var(--bg); font-size: 18px; line-height: 1.35; }
+.ai { margin: 0; font-size: 17.5px; line-height: 1.45; max-width: 46ch; }
+.ai b { display: block; font-size: 13px; color: var(--muted); }
+.weekPhone { margin: 0; display: grid; gap: 14px; justify-items: center; position: sticky; top: 24px; }
+.weekPhone .phone { width: min(320px, 100%); }
+.weekPhone figcaption { color: var(--muted); font-size: 13.5px; line-height: 1.45; max-width: 34ch; text-align: center; }
+@media (max-width: 760px) { .weekPhone { position: static; } .weekPhone .phone { width: 72%; } }
+
+/* ── After the week: a narrow column ── */
+.narrow { max-width: 760px; width: 100%; margin: 0 auto; }

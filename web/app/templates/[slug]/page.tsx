@@ -15,6 +15,9 @@ import AppWindow from "../AppWindow";
 import s from "../templates.module.css";
 import UseLabel from "../UseLabel";
 import { ClosingBand, bandButton } from "@/lib/ClosingBand";
+import { templateStory } from "@/lib/template-story";
+import { StoryHero, StoryWeek } from "../story/Story";
+import st from "../story/story.module.css";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -93,6 +96,17 @@ export default async function Page({ params }: Props) {
       </div>
     </section>
   ));
+  const story = templateStory(t.slug);
+  const crumbs = (
+    <ol className={s.crumbs} aria-label="Breadcrumb">
+      <li><a href="/templates">Templates</a></li>
+      <li><a href={`/templates?category=${anchor(t.category)}`}>{t.category}</a></li>
+    </ol>
+  );
+  const actions = APP_TEMPLATES.live
+    ? <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> <UseLabel t={t} /></OpenInApp>
+    : <PromptCopy variants={vs} className={s.primary} />;
+  const fine = <>Free. Needs <a href="/download">Pinto Notes</a> for {needsOn(t)}.</>;
   return (
     <div className={s.main}>
       <JsonLd graph={[
@@ -100,11 +114,21 @@ export default async function Page({ params }: Props) {
         templateWork(t), templateHowTo(t, steps(t)), organization, maker,
         ...(seo ? [faqPage(seo.faq, `/templates/${t.slug}`)] : []),
       ]} />
+      {story ? (
+        <>
+          <StoryHero story={story} crumbs={crumbs} actions={actions} fine={fine} />
+          <StoryWeek story={story} />
+          {seo && (
+            <section className={`${s.section} ${st.narrow}`} aria-labelledby="result">
+              <div className={s.sectionHead}><h2 id="result" className={s.h2}>What you can do in the app</h2></div>
+              <ul className={`${s.can} ${s.canTwo}`}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
+            </section>
+          )}
+        </>
+      ) : (
+      <>
       <div>
-        <ol className={s.crumbs} aria-label="Breadcrumb">
-          <li><a href="/templates">Templates</a></li>
-          <li><a href={`/templates?category=${anchor(t.category)}`}>{t.category}</a></li>
-        </ol>
+        {crumbs}
         <div className={s.top}>
           <header className={s.intro}>
             <h1 className={`${s.title} rise`} style={at(0)}>{seo?.h1 ?? t.title}</h1>
@@ -143,6 +167,8 @@ export default async function Page({ params }: Props) {
       </div>
 
       {seo && appSection}
+      </>
+      )}
 
       {!APP_TEMPLATES.live && <Instructions title={noteTitle(t)} variants={vs} asks={t.asks} />}
 
@@ -161,7 +187,7 @@ export default async function Page({ params }: Props) {
       </section>
       )}
 
-      <section className={s.section} aria-labelledby="how">
+      <section className={`${s.section} ${story ? st.narrow : ""}`} aria-labelledby="how">
         <div className={s.sectionHead}>
           <h2 id="how" className={s.h2}>How to set it up</h2>
         </div>
@@ -172,7 +198,7 @@ export default async function Page({ params }: Props) {
       </section>
 
       {seo && (
-        <section className={s.section} aria-labelledby="questions">
+        <section className={`${s.section} ${story ? st.narrow : ""}`} aria-labelledby="questions">
           <div className={s.sectionHead}>
             <h2 id="questions" className={s.h2}>Questions</h2>
             {seo.post && (
