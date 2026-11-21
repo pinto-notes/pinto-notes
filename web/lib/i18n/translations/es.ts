@@ -301,4 +301,52 @@ export const es: Translation[] = [
     description: "Lleva gastos y presupuestos en una tabla de Notas con totales sencillos. Copia la plantilla, aprende a calcular sumas y conoce sus límites.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-vs-bear", lang: "es", slug: "notas-apple-vs-bear",
+    title: "Notas de Apple vs Bear: cuál elegir para escribir",
+    description: "Compara Notas de Apple y Bear: carpetas, Markdown, enlaces, sincronización y exportación. Cómo pasar tus apuntes de una app a otra.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-vs-evernote", lang: "es", slug: "notas-apple-vs-evernote",
+    title: "Evernote vs Notas de Apple: cuál te conviene",
+    description: "Compara Notas de Apple y Evernote para apuntes, tareas, recortes web y varios dispositivos. Revisa los límites antes de trasladar tus notas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-on-windows", lang: "es", slug: "notas-iphone-en-windows",
+    title: "Cómo ver y editar las notas del iPhone en Windows",
+    description: "Abre Notas del iPhone en Windows con iCloud.com. Configura la sincronización, edita en el navegador y conoce los límites de adjuntos y notas bloqueadas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-scan-document", lang: "es", slug: "escanear-documentos-notas-iphone",
+    title: "Cómo escanear documentos con Notas del iPhone",
+    description: "Escanea varias páginas en un PDF con Notas del iPhone. También puedes insertar texto editable, escanear para una nota del Mac y reducir el tamaño del PDF.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-record-and-transcribe", lang: "es", slug: "transcribir-audio-notas-iphone",
+    title: "Cómo grabar y transcribir audio en Notas del iPhone",
+    description: "Graba audio en Notas y convierte la voz en texto en iPhone o Mac. Consulta los requisitos, copia la transcripción y encuentra las llamadas grabadas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-widget", lang: "es", slug: "widget-notas-iphone",
+    title: "Widget de Notas en iPhone y Mac: cómo añadirlo",
+    description: "Añade el widget de Notas a la pantalla de inicio del iPhone o al Mac. Revisa las opciones de la pantalla de bloqueo y los ajustes si muestra otra nota.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-font", lang: "es", slug: "cambiar-letra-notas-iphone",
+    title: "Cómo cambiar la letra de Notas en iPhone y Mac",
+    description: "Cambia el tamaño del texto de Notas en iPhone y Mac. En Mac también puedes elegir el tipo y el color de letra, o aplicar estilos y resaltado.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-annotate-pdf", lang: "es", slug: "editar-pdf-notas-iphone",
+    title: "Cómo anotar un PDF en Notas del iPhone y Mac",
+    description: "Dibuja y escribe comentarios sobre un PDF adjunto en Notas del iPhone o Mac. Descubre qué permite Marcación y cómo compartir todas las páginas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

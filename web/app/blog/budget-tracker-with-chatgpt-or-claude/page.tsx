@@ -130,6 +130,10 @@ export default function Page() {
         app does the arithmetic, so the number on the screen is never a guess. Ask Claude next week how the month went, and it reads the
         same budget ChatGPT filled in.
       </p>
+      <p>
+        Rather keep it by hand? <a href="/blog/apple-notes-budget-template">A budget template for Apple Notes</a> works with
+        Math Results for the totals.
+      </p>
 
       <p>
         To log each purchase in Apple Notes instead, the <a href="/blog/apple-notes-expense-tracker">Apple Notes expense tracker</a> keeps a table of what you spent with totals under it.

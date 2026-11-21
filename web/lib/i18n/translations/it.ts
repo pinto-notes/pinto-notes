@@ -2,6 +2,54 @@ import type { Translation } from "../blog";
 
 export const it: Translation[] = [
   {
+    of: "apple-notes-vs-bear", lang: "it", slug: "bear-vs-note-apple",
+    title: "Bear o Note di Apple: quale scegliere?",
+    description: "Confronta Bear e Note di Apple per scrittura, cartelle, tag, sincronizzazione e importazione. Scopri quando conviene usare ciascuna app.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-vs-evernote", lang: "it", slug: "evernote-vs-note-apple",
+    title: "Evernote o Note di Apple: quale scegliere?",
+    description: "Confronta Evernote e Note di Apple per dispositivi, ricerche web, attività e appunti. Controlla i limiti del piano gratuito prima di cambiare.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-on-windows", lang: "it", slug: "note-iphone-su-windows",
+    title: "Note di iPhone su Windows: come usare iCloud",
+    description: "Apri e modifica le note di iPhone su Windows tramite iCloud.com. Come attivare la sincronizzazione e cosa non funziona nel browser.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-scan-document", lang: "it", slug: "scansionare-documenti-note-iphone",
+    title: "Scansionare documenti con Note su iPhone",
+    description: "Usa Note per scansionare una o più pagine in PDF su iPhone, inserire testo dalla fotocamera e ridurre le dimensioni del file sul Mac.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-record-and-transcribe", lang: "it", slug: "trascrivere-audio-note-iphone",
+    title: "Registrare e trascrivere audio in Note su iPhone",
+    description: "Registra audio in Note, leggi la trascrizione su iPhone e Mac e copia il testo. Requisiti, riepiloghi e limiti delle chiamate in Italia.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-widget", lang: "it", slug: "widget-note-iphone",
+    title: "Widget Note su iPhone e Mac: come aggiungerlo",
+    description: "Aggiungi il widget di Note alla schermata Home o al Mac. Controlla le opzioni della schermata di blocco e le impostazioni se manca una nota.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-font", lang: "it", slug: "cambiare-font-note-iphone",
+    title: "Cambiare font e dimensione del testo in Note",
+    description: "Sul Mac puoi cambiare il font di un testo selezionato. Su iPhone puoi usare gli stili e ingrandire il testo. Ecco le impostazioni da aprire.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-annotate-pdf", lang: "it", slug: "annotare-pdf-note-iphone",
+    title: "Annotare un PDF in Note su iPhone e Mac",
+    description: "Apri un PDF in Note e aggiungi disegni, evidenziazioni o commenti. I passaggi su iPhone e Mac e la differenza tra allegato e nota esportata.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
     of: "forgot-apple-notes-password", lang: "it", slug: "password-note-iphone-dimenticata",
     title: "Password delle note di iPhone dimenticata? 5 cose da provare",
     description: "Nessuno può aprire una nota protetta senza la sua password, nemmeno Apple. Cosa provare prima su iPhone e Mac, e cosa cambia davvero se la reimposti.",

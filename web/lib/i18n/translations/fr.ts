@@ -221,4 +221,52 @@ export const fr: Translation[] = [
   { of: "apple-notes-storage-limit", lang: "fr", slug: "limite-stockage-notes-iphone", title: "Quelle est la limite de stockage de Notes ?", description: "Notes utilise l’espace iCloud de votre compte. Voyez les limites des pièces jointes, comment vérifier la place utilisée et quoi faire quand elle manque.", date: "2026-11-21", updated: "2026-11-21" },
   { of: "apple-notes-to-do-list", lang: "fr", slug: "liste-de-taches-notes-iphone", title: "Faire une liste de tâches dans Notes sur iPhone", description: "Créez une liste de pointage dans Notes, collez un modèle simple, triez les tâches cochées et voyez quand utiliser Rappels pour les échéances.", date: "2026-11-21", updated: "2026-11-21" },
   { of: "apple-notes-expense-tracker", lang: "fr", slug: "suivi-depenses-notes-iphone", title: "Suivre ses dépenses dans Notes sur iPhone", description: "Un modèle à coller pour noter chaque achat dans un tableau et calculer les totaux sous celui-ci. Voici comment l’utiliser et ses limites.", date: "2026-11-21", updated: "2026-11-21" },
+  {
+    of: "apple-notes-vs-bear", lang: "fr", slug: "notes-iphone-vs-bear",
+    title: "Notes ou Bear : lequel choisir pour écrire ?",
+    description: "Notes facilite les listes et les dossiers partagés. Bear mise sur le Markdown et les liens entre notes. Comparez la synchronisation et le transfert.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-vs-evernote", lang: "fr", slug: "notes-iphone-vs-evernote",
+    title: "Notes ou Evernote : lequel choisir ?",
+    description: "Notes suffit pour les listes sur iPhone et Mac. Evernote ajoute la capture web, les tâches datées et des apps Windows et Android. Voici les limites à connaître.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-on-windows", lang: "fr", slug: "notes-iphone-sur-windows",
+    title: "Notes iPhone sur Windows : comment y accéder",
+    description: "Ouvrez vos notes iCloud sur un PC Windows depuis le navigateur. Voici comment les modifier, retrouver les notes absentes et comprendre les limites du web.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-scan-document", lang: "fr", slug: "scanner-document-notes-iphone",
+    title: "Scanner un document dans Notes sur iPhone",
+    description: "Scannez plusieurs pages dans un PDF avec Notes, insérez du texte modifiable ou envoyez le scan sur Mac. Voici les gestes et la différence entre les deux scans.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-record-and-transcribe", lang: "fr", slug: "enregistrer-transcrire-audio-notes-iphone",
+    title: "Enregistrer et transcrire dans Notes sur iPhone",
+    description: "Enregistrez une réunion dans Notes, lisez sa transcription et copiez le texte. Vérifiez les appareils et langues compatibles, ainsi que les limites des appels.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-widget", lang: "fr", slug: "widget-notes-iphone",
+    title: "Widget Notes sur iPhone : ajout et réglages",
+    description: "Ajoutez un widget Notes sur l’écran d’accueil ou sur Mac. Vérifiez les choix de l’écran verrouillé et les réglages si le widget montre le mauvais contenu.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-font", lang: "fr", slug: "changer-police-notes-iphone",
+    title: "Changer la police et la taille du texte dans Notes",
+    description: "Choisissez une autre police pour un passage sur Mac, agrandissez le texte sur iPhone et trouvez les réglages des styles, couleurs et surlignages.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-annotate-pdf", lang: "fr", slug: "annoter-pdf-notes-iphone",
+    title: "Annoter un PDF dans Notes sur iPhone et Mac",
+    description: "Dessinez et écrivez sur un PDF joint à Notes, sur iPhone ou Mac. Découvrez les outils d’annotation et la différence entre le PDF joint et l’export de la note.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
