@@ -208,7 +208,7 @@ export default function Page() {
         Import aus Apple Notizen in Pinto Notes: Entsperre vorher die Notizen, die du brauchst, sonst bleiben sie in Notizen.
       </p>
       <p>
-        Pinto Notes, die Notizen-App für iPhone und Mac, die ich entwickle, hat auch gesperrte Notizen, und sie funktionieren genauso: mit
+        Pinto Notes, die Notizen-App für iPhone und Mac, hat auch gesperrte Notizen, und sie funktionieren genauso: mit
         deinem Passwort für Notizen auf deinem Gerät verschlüsselt, unlesbar für uns und für jede KI, die du verbindest, und nicht
         wiederherstellbar, wenn du das Passwort vergisst. Das sagt die App dir, wenn du eins festlegst. Alles andere in Pinto Notes wird
         ebenfalls auf deinen Geräten verschlüsselt, und ChatGPT und Claude können deine anderen Notizen trotzdem nutzen, sobald du es

@@ -1,4 +1,5 @@
 import { AIConnect } from "@/lib/AIConnect";
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, MenuPaths, PostFigure } from "@/lib/PostParts";
 
@@ -37,6 +38,10 @@ export default function Page() {
             Siri AI is new too, in beta and in English to start; Apple&apos;s <a href="https://www.apple.com/newsroom/2026/06/apple-introduces-siri-ai-a-profoundly-more-capable-and-personal-assistant/" rel="noopener">example</a> has
             it adding a recipe to Notes. It isn&apos;t on my test Mac, so it has no screenshot here. <a href="/blog/siri-ai-apple-notes">Siri AI and Apple Notes</a> covers it.
           </p>
+          {/* B27 (21 Nov 2026): the download in the answer, on a post that had none. */}
+          <PostCta slug="apple-notes-ios-27" position="answer" title="Want ChatGPT or Claude in your notes too?">
+            <p>Pinto Notes works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can read and edit your notes once you connect them. Your Apple Notes come over in one import on a Mac.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/macos27/notes27-garden-note" width={1400} height={993} maxWidth={700}

@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Figure } from "@/lib/blog";
 import { SHOTS } from "@/lib/posts";
@@ -42,6 +43,10 @@ export default function Page() {
             note to Markdown in one go; Apple Notes itself exports one note at a time. Turn on Time Machine as well, and unlock any locked
             note you want in the copy.
           </p>
+          {/* B27 (21 Nov 2026): the download in the answer, on a post that had none. */}
+          <PostCta slug="back-up-apple-notes" position="answer" title="Want every version of every note kept?">
+            <p>Pinto Notes works like Apple Notes on iPhone and Mac and keeps earlier versions of every note, including the ones from before an AI edited it. Your Apple Notes come over in one import, and Apple Notes isn&apos;t changed.</p>
+          </PostCta>
         </Answer>
       }
       hero={<Capture priority src="/blog/macos27/notes27-first-delete-30-days-dialog" width={1336} height={880} maxWidth={560}
@@ -112,7 +117,7 @@ export default function Page() {
       <Figure shot={SHOTS.history} caption="Version history in Pinto Notes: every earlier version, who made it, and Restore This Version." />
       <p>
         Version history is what helps on an ordinary day, when you or an app changes a note and removes the part you needed, and Apple
-        Notes has none. Pinto Notes, the notes app for iPhone and Mac that I make, keeps earlier
+        Notes has none. Pinto Notes, a notes app for iPhone and Mac, keeps earlier
         versions of every note, including the ones from before ChatGPT or Claude edited it, and File, Version History puts
         any of them back. Deleted notes stay in Recently Deleted for 30 days, as in Apple Notes. When you want your own copy, Export Your
         Notes in Settings saves every note as Markdown in its folder, with its files.

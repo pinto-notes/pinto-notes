@@ -235,7 +235,7 @@ export default function Page() {
       <Figure shot={{ ...SHOTS.consent, alt: "Pinto Notes pregunta, en inglés, \"Allow ChatGPT to use your notes?\": las notas que abre ChatGPT van a OpenAI, las notas bloqueadas siguen privadas, un número para comparar y los botones Allow y Don't Allow." }}
         caption="Una IA accede a tus notas solo después de que lo permitas en tu dispositivo." />
       <p>
-        Pinto Notes, la app de notas para iPhone y Mac que hago yo, no tiene En mi iPhone ni cuentas de correo. Inicias sesión una vez y
+        Pinto Notes, la app de notas para iPhone y Mac, no tiene En mi iPhone ni cuentas de correo. Inicias sesión una vez y
         cada nota se sincroniza entre tus dispositivos. ChatGPT y Claude pueden leer y editar esas notas después de que lo apruebes.
       </p>
       <p>

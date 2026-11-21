@@ -90,7 +90,7 @@ export default function Page() {
   return (
     <PostPage
       slug="obsidian-mcp"
-      intro={<>Search for an Obsidian MCP server and you get a long list of GitHub projects. I went through the main ones in September 2026 and checked each against its own README and release history. Here&apos;s how they work, what each can do, how to set up the best one in Claude, and the limits they share. I make Pinto Notes, a different notes app, so weigh that part with that in mind.</>}
+      intro={<>Search for an Obsidian MCP server and you get a long list of GitHub projects. I went through the main ones in September 2026 and checked each against its own README and release history. Here&apos;s how they work, what each can do, how to set up the best one in Claude, and the limits they share. This is the Pinto Notes blog, and Pinto is a different notes app, so weigh that part with that in mind.</>}
       answer={
         <Answer jump={[
           { href: "#compared", label: "The servers" },
@@ -276,7 +276,7 @@ export default function Page() {
       </p>
       <p>
         If you want ChatGPT, or Claude on your phone, to use your notes without a computer left on, the notes have to live somewhere with
-        a server on the internet. That&apos;s why I built Pinto Notes: a free, open-source notes app for iPhone and Mac with an MCP server
+        a server on the internet. That&apos;s what Pinto Notes is: a free, open-source notes app for iPhone and Mac with an MCP server
         built in, at <code>{MCP_URL}</code>. It&apos;s a different app, not an Obsidian plugin.
       </p>
       <ul>

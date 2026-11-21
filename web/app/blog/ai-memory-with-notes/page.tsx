@@ -174,7 +174,7 @@ export default function Page() {
 
       <h2 id="why">Why I ran this</h2>
       <p>
-        I make Pinto Notes so the AI you use keeps its notes somewhere you can read them and fix them. This test is the measurable part
+        Pinto Notes is built so the AI you use keeps its notes somewhere you can read them and fix them. This test is the measurable part
         of that: in a new chat, an AI that can open its notes remembers most of what you told it, and one that can&apos;t remembers
         almost nothing. You can <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT</a> or Claude, and the same
         notes work from <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex</a>. If you&apos;d rather wire it up

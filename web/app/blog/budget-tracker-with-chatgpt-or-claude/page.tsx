@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Keep, PostFigure } from "@/lib/PostParts";
 import { APP_STORE_LIVE } from "@/lib/site";
@@ -64,6 +65,10 @@ export default function Page() {
             up with an API token. A budget in Pinto Notes is built for it: you tell
             your AI what you spent, it adds the expense, and the app does the sums.
           </p>
+          {/* B27 (21 Nov 2026): the download in the answer, on a post that had none. */}
+          <PostCta slug="budget-tracker-with-chatgpt-or-claude" position="answer" title="Want a budget your AI keeps for you?" template="budget-log">
+            <p>Pinto Notes is a notes app for iPhone and Mac. Tell ChatGPT or Claude what you spent; it adds the expense, and the app does the sums.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/pinto/budget-log-main-mac-light" width={1280} height={900} maxWidth={640}
@@ -102,7 +107,7 @@ export default function Page() {
 
       <h2 id="template">A budget your AI keeps</h2>
       <p>
-        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, the notes app I make for iPhone and Mac. It&apos;s a
+        That&apos;s the <a href="/templates/budget-log">budget template</a> in Pinto Notes, a notes app for iPhone and Mac. It&apos;s a
         note with a small app in it. Choose Start budgeting, set your categories, then <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a> once.
       </p>
       <PostFigure src="/blog/pinto/budget-log-expenses-mac-light" width={1280} height={900} maxWidth={640}

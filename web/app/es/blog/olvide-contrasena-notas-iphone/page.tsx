@@ -195,7 +195,7 @@ export default function Page() {
         importación de Pinto Notes desde Notas de Apple: desbloquea antes las notas que necesites, o se quedan en Notas.
       </p>
       <p>
-        Pinto Notes, la app de notas para iPhone y Mac que hago yo, también tiene notas bloqueadas, y funcionan igual: cifradas con la
+        Pinto Notes, la app de notas para iPhone y Mac, también tiene notas bloqueadas, y funcionan igual: cifradas con la
         contraseña de tus notas en tu dispositivo, ilegibles para nosotros y para cualquier IA que conectes, e imposibles de recuperar si
         olvidas la contraseña. Te lo dice al crearla. Todo lo demás en Pinto Notes también se cifra en tus dispositivos, y ChatGPT y
         Claude pueden usar tus otras notas cuando tú lo apruebas. La app está en inglés.

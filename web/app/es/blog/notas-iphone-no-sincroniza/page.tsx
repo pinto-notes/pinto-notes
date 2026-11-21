@@ -183,7 +183,7 @@ export default function Page() {
         caption="Pinto Notes muestra cuándo se sincronizó por última vez, y por qué cuando no puede." />
       <p>
         Notas de Apple no muestra cuándo se sincronizó por última vez, y por eso hacen falta seis comprobaciones. Pinto Notes, la app de
-        notas para iPhone y Mac que hago yo, sincroniza con su propio servicio cifrado en lugar de iCloud, así que el almacenamiento de
+        notas para iPhone y Mac, sincroniza con su propio servicio cifrado en lugar de iCloud, así que el almacenamiento de
         iCloud no le afecta. Sus ajustes muestran el estado de la sincronización, como la hora de la última vez o el motivo por el que
         ahora no puede sincronizar, junto a un botón Sync Now. Si la misma nota cambió en dos dispositivos antes de sincronizarse, gana la
         edición más reciente y la otra se guarda como copia en conflicto, así que no pierdes ninguna.
