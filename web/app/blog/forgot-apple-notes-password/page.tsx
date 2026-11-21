@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, FigurePair, PostFigure, Steps } from "@/lib/PostParts";
@@ -56,6 +57,10 @@ export default function Page() {
             your device passcode first. If none of them works, reset the password: that only changes it for the notes you lock from now
             on, and the old ones keep the old password.
           </p>
+          {/* Experiment B1 ended for this post on 21 Nov (B20): the download where readers are. */}
+          <PostCta slug="forgot-apple-notes-password" position="answer" title="Want notes that keep every version?">
+            <p>Pinto Notes looks and works like Apple Notes on iPhone and Mac, keeps every earlier version of a note, and lets ChatGPT or Claude work in your notes. Its locked notes work like Apple&apos;s: only you have the password.</p>
+          </PostCta>
         </Answer>
       }
       hero={<Capture priority src="/blog/macos27/notes-locked-window" width={1520} height={984} maxWidth={760}

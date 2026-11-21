@@ -12,7 +12,8 @@ const B1 = [
 ];
 // Posts written or changed after B1 started carry the same card, outside the experiment.
 const LATER = ["apple-notes-version-history", "apple-notes-budget-template", "ai-memory-with-notes", "apple-notes-habit-tracker", "apple-notes-trip-planner-template", "apple-notes-meal-planner-template", "apple-notes-backlinks", "apple-notes-workout-log-template", "apple-notes-recipe-template", "apple-notes-grocery-list-template", "apple-notes-meeting-notes-template", "apple-notes-cornell-notes-template", "apple-notes-flashcards", "apple-notes-reading-list", "apple-notes-book-notes-template", "apple-notes-job-search-tracker", "apple-notes-weekly-review-template", "apple-notes-decision-log-template", "apple-notes-1-on-1-template", "apple-notes-daily-standup-template", "apple-notes-bug-triage-template", "apple-notes-journal-template", "apple-notes-mood-tracker", "apple-notes-home-maintenance-checklist", "apple-notes-content-calendar", "apple-notes-gift-ideas", "apple-notes-organize", "apple-notes-checklist-sort", "apple-notes-for-school"];
-const CONTROL = ["apple-notes-not-syncing", "forgot-apple-notes-password", "move-apple-notes-to-icloud", "recover-deleted-apple-notes"];
+// The Apple Notes help posts were B1's comparison until 21 Nov (B20): with the goal of 100 downloads a week, the card goes where the readers are.
+const HELP = ["apple-notes-not-syncing", "forgot-apple-notes-password", "move-apple-notes-to-icloud", "recover-deleted-apple-notes"];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
 
@@ -34,7 +35,10 @@ describe("the download in a post's short answer", () => {
     }
   });
 
-  it("stays off the Apple Notes help posts, which are the comparison", () => {
-    for (const slug of CONTROL) expect(source(slug), slug).not.toContain('position="answer"');
+  it("is in the answer of the Apple Notes help posts too, since B1 ended there (B20)", () => {
+    for (const slug of HELP) {
+      const answer = /<Answer[\s\S]*?<\/Answer>/.exec(source(slug))?.[0] ?? "";
+      expect(answer, slug).toContain(`<PostCta slug="${slug}" position="answer"`);
+    }
   });
 });
