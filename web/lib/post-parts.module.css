@@ -211,7 +211,9 @@
 /* ── B35: parts a reader sees before reading (Sorter, Facts, FolderTree) ── */
 .sorter { margin: 8px 0 28px; }
 .sortGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 600px) { .sortGrid { grid-template-columns: 1fr; } }
+.sortGrid[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sortGrid[data-n="3"] .sortTitle.sortTitle { padding-right: 0; }
+@media (max-width: 600px) { .sortGrid, .sortGrid[data-n="3"] { grid-template-columns: 1fr; } }
 .sortGroup { --tone: #e6d2b5; position: relative; padding: 18px 18px 16px; border-radius: 20px; background: color-mix(in srgb, var(--tone) 55%, var(--card)); display: grid; align-content: start; gap: 10px; }
 .sortGroup[data-tone="leaf"] { --tone: #b9d3a4; }
 .sortGroup[data-tone="sky"] { --tone: #b8d2e6; }
