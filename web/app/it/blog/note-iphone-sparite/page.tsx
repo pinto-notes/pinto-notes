@@ -88,7 +88,7 @@ export default function Page() {
       </p>
       <Steps>
         <li id="icloud-attivo">
-          <strong>Note è attivo per iCloud</strong>
+          <strong>Note è attivo per iCloud</strong>{" "}
           Se le note di iCloud non compaiono, la soluzione di Apple è controllare che Sincronizza questo iPhone sia attivo, poi guardare
           in Note. Se non si vedono ancora, riavvia l’iPhone e controlla di nuovo l’impostazione. Apple dice che a quel punto le note
           dovrebbero comparire e ricominciare a sincronizzarsi, e che quello che era già su iCloud torna al termine della sincronizzazione.
@@ -98,21 +98,21 @@ export default function Page() {
           ]} />
         </li>
         <li id="eliminate-di-recente">
-          <strong>Eliminate di recente</strong>
+          <strong>Eliminate di recente</strong>{" "}
           Una nota eliminata finisce in Eliminate di recente su iPhone, su iCloud.com e sugli altri dispositivi collegati allo stesso
           Apple Account, e ci resta 30 giorni. Su iPhone, torna all’elenco delle cartelle, tocca Eliminate di recente, scorri a sinistra
           sulla nota e tocca Sposta. La cartella compare solo quando contiene qualcosa. <a href="/blog/recover-deleted-apple-notes">How
           to recover deleted Apple Notes</a> (in inglese) ha tutte le strade, anche dopo i 30 giorni.
         </li>
         <li id="ricerca">
-          <strong>Cerca con Tutti gli account selezionato</strong>
+          <strong>Cerca con Tutti gli account selezionato</strong>{" "}
           Nell’elenco delle note, tocca la barra di ricerca e scrivi una parola o il titolo, con Tutti gli account selezionato. La ricerca
           vede solo il titolo di una nota protetta, quindi apri a mano le note protette, con la password, Face ID o Touch ID. Se la
           ricerca non trova niente, tocca l’icona indietro finché vedi l’elenco Cartelle, poi apri una cartella alla volta: una nota può
           stare dove non te l’aspetti.
         </li>
         <li id="altri-account">
-          <strong>Note è attivo per Gmail, Yahoo e gli altri account</strong>
+          <strong>Note è attivo per Gmail, Yahoo e gli altri account</strong>{" "}
           Le note di un account email si vedono solo finché Note è attivo per quell’account. Controlla ogni account. Le note eliminate lì
           non vanno in Eliminate di recente: cercale nel Cestino di quell’account nell’app Mail, poi copiale in una nota nuova.
           <Paths rows={[
@@ -121,19 +121,19 @@ export default function Page() {
           ]} />
         </li>
         <li id="stesso-account">
-          <strong>Ogni dispositivo usa lo stesso Apple Account</strong>
+          <strong>Ogni dispositivo usa lo stesso Apple Account</strong>{" "}
           Su un dispositivo che non ha fatto l’accesso al tuo Apple Account, le note di iCloud non si vedono. Il nome in cima a
           Impostazioni su iPhone, o in cima alla barra laterale di Impostazioni di Sistema sul Mac, è l’account che quel dispositivo usa.
           Per vedere cosa c’è su iCloud, accedi a icloud.com/notes da un browser con lo stesso account.
         </li>
         <li id="su-iphone">
-          <strong>Le note stavano su un solo dispositivo</strong>
+          <strong>Le note stavano su un solo dispositivo</strong>{" "}
           Le note nell’account Su iPhone compaiono solo su quell’iPhone, e quelle in Sul mio Mac solo su quel Mac. Se una nota manca
           sull’altro dispositivo, guarda l’intestazione sopra la sua cartella sul dispositivo che ce l’ha.{" "}
           <a href="/it/blog/spostare-note-iphone-su-icloud">Spostare le note su iCloud</a> le porta su tutti i dispositivi.
         </li>
         <li id="riavvia">
-          <strong>Riavvia, poi controlla di nuovo</strong>
+          <strong>Riavvia, poi controlla di nuovo</strong>{" "}
           Se dopo gli interruttori qui sopra le note mancano ancora, il passaggio successivo di Apple è riavviare e controllare di nuovo
           l’impostazione di iCloud. Se le note si vedono su un dispositivo e non sull’altro, leggi{" "}
           <a href="/it/blog/note-iphone-non-sincronizzate">note di iPhone non sincronizzate con il Mac</a>.

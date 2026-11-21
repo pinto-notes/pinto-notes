@@ -94,7 +94,7 @@ export default function Page() {
         caption="Cosa mostra Note su un Mac dove iCloud è disattivato per Note. In Note su macOS 27 non c’è nessun altro stato della sincronizzazione: ho cercato." />
       <Steps>
         <li id="icloud-attivo">
-          <strong>Note è attivo per iCloud, su entrambi i dispositivi</strong>
+          <strong>Note è attivo per iCloud, su entrambi i dispositivi</strong>{" "}
           L’interruttore si chiama Sincronizza questo iPhone o Sincronizza questo Mac. Apple dice che se le note mancano ancora dopo
           averlo attivato, devi riavviare il dispositivo e controllare di nuovo l’impostazione.
           <Paths rows={[
@@ -104,28 +104,28 @@ export default function Page() {
           ]} />
         </li>
         <li id="stesso-account">
-          <strong>I due dispositivi usano lo stesso Apple Account</strong>
+          <strong>I due dispositivi usano lo stesso Apple Account</strong>{" "}
           Il nome in cima a Impostazioni su iPhone, e in cima a Impostazioni di Sistema sul Mac, è l’account con cui quel dispositivo si
           sincronizza. Un Mac di lavoro collegato all’Apple Account dell’azienda non mostra le note del tuo iPhone personale.
         </li>
         <li id="su-icloud">
-          <strong>La nota è su iCloud</strong>
+          <strong>La nota è su iCloud</strong>{" "}
           Apri icloud.com/notes in un browser e accedi con lo stesso Apple Account. Se la nota c’è, il dispositivo da sistemare è quello
           dove manca. Se non c’è, il dispositivo dove l’hai scritta non l’ha ancora caricata: parti da quello.
         </li>
         <li id="stato">
-          <strong>Note di iCloud funziona</strong>
+          <strong>Note di iCloud funziona</strong>{" "}
           Apple elenca Note di iCloud nella sua pagina Stato del sistema, su apple.com/it/support/systemstatus. Se lì c’è un disservizio,
           nessuna impostazione dalla tua parte lo risolve. Aspetta che Apple lo segni come risolto.
         </li>
         <li id="spazio">
-          <strong>Lo spazio iCloud non è esaurito</strong>
+          <strong>Lo spazio iCloud non è esaurito</strong>{" "}
           Apple dice che quando esaurisci lo spazio su iCloud, le app di iCloud non restano aggiornate sui tuoi dispositivi, e Note è una
           di queste. Apri Impostazioni, tocca il tuo nome, poi iCloud, per vedere quanto spazio usi. Liberare un po’ di spazio o passare a
           un piano più grande fa ripartire la sincronizzazione.
         </li>
         <li id="aggiornamenti">
-          <strong>Nessuno dei due dispositivi è indietro con gli aggiornamenti</strong>
+          <strong>Nessuno dei due dispositivi è indietro con gli aggiornamenti</strong>{" "}
           Una nota creata con una versione più nuova di Note può usare funzioni che una versione più vecchia non ha. Sul Mac, Note la
           mostra allora con il messaggio &ldquo;Questa nota utilizza funzionalità non supportate. Per visualizzarla o modificarla, aggiorna
           all’ultima versione di macOS.&rdquo; La nota si è sincronizzata, ma questo Mac non riesce ad aprirla. Da quando iOS 27 è uscito, il

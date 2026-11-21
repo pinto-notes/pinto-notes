@@ -94,7 +94,7 @@ export default function Page() {
         caption="What Notes shows on a Mac where iCloud is off for Notes. There's no sync status anywhere else in macOS 27 Notes; I looked." />
       <Steps>
         <li id="icloud-on">
-          <strong>Notes is turned on for iCloud, on both devices</strong>
+          <strong>Notes is turned on for iCloud, on both devices</strong>{" "}
           The switch is called Sync this iPhone or Sync this Mac. Apple says that if notes are still missing after you turn it on,
           restart the device and check the setting again.
           <Paths rows={[
@@ -104,29 +104,29 @@ export default function Page() {
           ]} />
         </li>
         <li id="same-account">
-          <strong>Both devices use the same Apple Account</strong>
+          <strong>Both devices use the same Apple Account</strong>{" "}
           The name at the top of Settings on iPhone, and at the top of System Settings on a Mac, is the account that device syncs with.
           A work Mac signed in to a company Apple Account won&apos;t show the notes from your own iPhone.
         </li>
         <li id="icloud-has-it">
-          <strong>iCloud has the note</strong>
+          <strong>iCloud has the note</strong>{" "}
           Open icloud.com/notes in a browser (<a href="/blog/apple-notes-on-windows">on a Windows PC too</a>) and sign in with the same Apple Account. If the note is there, the device that&apos;s missing
           it is the one to fix. If it isn&apos;t, the device where you wrote it hasn&apos;t uploaded it yet, so start with that one.
         </li>
         <li id="status">
-          <strong>iCloud Notes is up</strong>
+          <strong>iCloud Notes is up</strong>{" "}
           Apple lists iCloud Notes on its System Status page, at apple.com/support/systemstatus. If it shows an outage, no setting on
-          your side will fix it. Wait until Apple marks it resolved. If Notes hangs on Folders or saving instead, see
+          your side will fix it. Wait until Apple marks it resolved. If Notes hangs on Folders or saving instead, see{" "}
           <a href="/blog/apple-notes-stuck-on-folders">Notes stuck on folders</a>.
         </li>
         <li id="storage">
-          <strong>Your iCloud storage isn&apos;t full</strong>
+          <strong>Your iCloud storage isn&apos;t full</strong>{" "}
           Apple says that when iCloud storage is full, iCloud apps don&apos;t stay up to date across your devices, and Notes is one of
           them. Open Settings, tap your name, then iCloud to see how much you&apos;re using. Freeing some space or moving to a bigger plan
           lets syncing continue.
         </li>
         <li id="update">
-          <strong>Neither device is behind on updates</strong>
+          <strong>Neither device is behind on updates</strong>{" "}
           A note made with a newer version of Notes can use features an older one doesn&apos;t have. On a Mac, Notes then shows it with
           the message &ldquo;This note uses unsupported features. To view or edit it, upgrade to the latest version of macOS.&rdquo; The
           note has synced, but this Mac can&apos;t open it. Since iOS 27 came out on 14 September, an iPhone on iOS 27 with a Mac still on

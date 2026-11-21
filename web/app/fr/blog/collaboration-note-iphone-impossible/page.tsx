@@ -88,46 +88,46 @@ export default function Page() {
       </p>
       <Steps>
         <li id="nom-de-l-option">
-          <strong>Vous choisissez la bonne option</strong>
+          <strong>Vous choisissez la bonne option</strong>{" "}
           Sous iOS 27, touchez le bouton Partager, puis le menu sous le titre de la note, et choisissez Partager un lien. Envoyer une copie
           envoie une copie que personne d’autre ne peut modifier. Sous iOS 18 à iOS 26, le même menu propose Collaborer ou Envoyer une copie.
         </li>
         <li id="dans-icloud">
-          <strong>La note est dans iCloud</strong>
+          <strong>La note est dans iCloud</strong>{" "}
           Les étapes d’Apple commencent dans le dossier Tout iCloud, et son guide Mac dit qu’il faut des notes iCloud mises à niveau pour
           collaborer. Une note sous Sur mon iPhone, Sur mon Mac ou un compte Gmail n’est pas dans iCloud.{" "}
           <a href="/fr/blog/deplacer-notes-iphone-vers-icloud">Déplacez-la d’abord dans un dossier iCloud</a>.
         </li>
         <li id="verrouillee">
-          <strong>La note n’est pas verrouillée</strong>
+          <strong>La note n’est pas verrouillée</strong>{" "}
           On ne peut pas collaborer sur une note verrouillée, ni sur un dossier qui contient une note verrouillée. Ouvrez la note et
           déverrouillez-la avec votre mot de passe, Face ID ou Touch ID, puis ouvrez le menu de la note et touchez Supprimer pour retirer
           le verrouillage.
         </li>
         <li id="icloud-active">
-          <strong>Vous êtes connecté, avec Notes activé pour iCloud</strong>
+          <strong>Vous êtes connecté, avec Notes activé pour iCloud</strong>{" "}
           Ouvrez Réglages, touchez votre nom, puis iCloud. Sous Enregistré sur iCloud, touchez Notes et vérifiez que Synchroniser cet iPhone
           est activé. Apple dit que les personnes que vous invitez en ont besoin aussi.
         </li>
         <li id="mise-a-jour">
-          <strong>Vous avez tous les deux la dernière version d’iOS</strong>
+          <strong>Vous avez tous les deux la dernière version d’iOS</strong>{" "}
           Apple demande la dernière version d’iOS sur votre iPhone et sur celui de l’autre personne. Les étapes Collaborer pour iOS 26 et
           versions antérieures demandent iOS 18 ou une version ultérieure.
         </li>
         <li id="autre-personne">
-          <strong>L’autre personne a un compte Apple</strong>
+          <strong>L’autre personne a un compte Apple</strong>{" "}
           Les participants ont besoin d’un compte Apple pour consulter et modifier une note partagée. Sous iOS 26 ou une version antérieure,
           Apple dit que vous ne pouvez collaborer qu’avec une personne connectée à son compte Apple sur un appareil Apple. Sinon, envoyez
           plutôt une copie.
         </li>
         <li id="en-attente">
-          <strong>Votre demande n’est pas restée en attente</strong>
+          <strong>Votre demande n’est pas restée en attente</strong>{" "}
           Si vous avez demandé l’accès à la note de quelqu’un sous iOS 27, votre demande est peut-être en attente. Le propriétaire la voit
           en touchant le bouton Collaborer, et Apple dit que la demande envoie aussi un e-mail à l’adresse associée au compte Apple du
           propriétaire.
         </li>
         <li id="limite">
-          <strong>La note a encore de la place</strong>
+          <strong>La note a encore de la place</strong>{" "}
           Jusqu’à 100 personnes peuvent collaborer sur une note.
         </li>
       </Steps>

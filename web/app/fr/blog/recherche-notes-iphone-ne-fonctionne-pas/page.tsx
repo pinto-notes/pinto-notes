@@ -102,32 +102,32 @@ export default function Page() {
       <h2 id="verifications">Les vérifications, dans l’ordre</h2>
       <Steps>
         <li id="tous-les-comptes">
-          <strong>Cherchez dans tous les comptes</strong>
+          <strong>Cherchez dans tous les comptes</strong>{" "}
           Sur iPhone, touchez l’icône Précédent jusqu’à voir la liste de vos notes, touchez la barre de recherche (il faut parfois faire
           défiler l’écran pour la voir) et vérifiez que Tous les comptes est sélectionné. Sur Mac, cliquez sur le bouton de recherche,
           cliquez sur le menu à côté de la loupe et choisissez Tous les comptes. Ce choix n’apparaît que si vous avez plusieurs comptes,
           par exemple iCloud et Sur mon Mac.
         </li>
         <li id="verrouillee">
-          <strong>La note est peut-être verrouillée</strong>
+          <strong>La note est peut-être verrouillée</strong>{" "}
           La recherche ne voit que le titre d’une note verrouillée. Si vous avez cherché un mot de son texte, ouvrez vos notes verrouillées
           et parcourez-les à la main. Mot de passe oublié ? Voyez{" "}
           <a href="/fr/blog/mot-de-passe-notes-iphone-oublie">mot de passe Notes oublié</a>.
         </li>
         <li id="compte-active">
-          <strong>Notes est activé pour chaque compte</strong>
+          <strong>Notes est activé pour chaque compte</strong>{" "}
           Une note dans un compte Gmail, Yahoo ou autre n’apparaît que si Notes est activé pour ce compte. Touchez le compte et vérifiez que
           Notes est activé, puis recommencez pour chaque compte.
           <Paths rows={[{ on: "iPhone", steps: ["Réglages", "Apps", "Notes", "Comptes Notes"] }]} />
         </li>
         <li id="autres-mots">
-          <strong>Essayez d’autres mots, puis cherchez à la main</strong>
+          <strong>Essayez d’autres mots, puis cherchez à la main</strong>{" "}
           Apple le dit elle-même : le mot, le groupe de mots ou le titre que vous cherchez n’est peut-être pas celui de la note. Essayez-en
           un autre, puis ouvrez chaque dossier et faites défiler. Sur Mac, vous pouvez aussi écrire comme vous le diriez, par exemple
           « notes créées la semaine dernière » ou « modifiée aujourd’hui ».
         </li>
         <li id="synchronisee">
-          <strong>La note est bien arrivée sur cet appareil</strong>
+          <strong>La note est bien arrivée sur cet appareil</strong>{" "}
           Si vous avez écrit la note sur un autre iPhone ou un autre Mac, elle doit arriver sur celui-ci avant que la recherche puisse la
           trouver. Vérifiez que Synchroniser cet iPhone ou Synchroniser ce Mac est activé pour Notes dans les réglages iCloud, sur les deux.{" "}
           <a href="/fr/blog/notes-ne-se-synchronise-pas-iphone-mac">Notes ne se synchronise pas</a> donne le reste de ces vérifications.
@@ -137,14 +137,14 @@ export default function Page() {
           ]} />
         </li>
         <li id="redemarrer">
-          <strong>Quittez et rouvrez Notes, puis redémarrez</strong>
+          <strong>Quittez et rouvrez Notes, puis redémarrez</strong>{" "}
           Sur iPhone, ouvrez le sélecteur d’app, balayez Notes vers le haut, puis rouvrez-le. Si cela ne suffit pas, Apple conseille
           d’éteindre l’iPhone et de le rallumer. Sur Mac, appuyez sur Commande + Q dans Notes et rouvrez-le ; si Notes ne répond pas,
           appuyez sur Option + Commande + Échap et cliquez sur Forcer à quitter. Si cela échoue aussi, choisissez Redémarrer dans le menu
           Pomme.
         </li>
         <li id="mise-a-jour">
-          <strong>Mettez à jour vers la dernière version</strong>
+          <strong>Mettez à jour vers la dernière version</strong>{" "}
           L’article d’Apple sur les notes introuvables commence par là : mettre à jour tous vos appareils vers la dernière version d’iOS et
           de macOS. Apple dit que les mises à jour de macOS apportent des améliorations aux apps intégrées comme Notes.
           <Paths rows={[

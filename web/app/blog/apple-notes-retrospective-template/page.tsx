@@ -181,7 +181,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Draft an experiment with ChatGPT or Claude</h2>
       <p>
-        You can use this layout in Pinto Notes, a notes app for Mac and iPhone with headings, checklists and tables.
+        You can use this layout in Pinto Notes, a notes app for Mac and iPhone with headings, checklists and tables.{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> Connect ChatGPT or Claude</a> and choose Allow in Pinto Notes.
         That grants reading and editing access. Then ask your AI to read the retrospective and propose a change to test.
       </p>

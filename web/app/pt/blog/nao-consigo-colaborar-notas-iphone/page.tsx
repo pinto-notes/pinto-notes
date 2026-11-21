@@ -83,43 +83,43 @@ export default function Page() {
       </p>
       <Steps>
         <li id="opcao-certa">
-          <strong>Você está escolhendo a opção certa</strong>
+          <strong>Você está escolhendo a opção certa</strong>{" "}
           No iOS 27, toque no botão Compartilhar, depois no menu abaixo do título da nota, e escolha Compartilhar Link. Enviar Cópia manda
           uma cópia que mais ninguém pode editar. No iOS 18 ao iOS 26, o mesmo menu mostra Colaborar ou Enviar Cópia.
         </li>
         <li id="no-icloud">
-          <strong>A nota está no iCloud</strong>
+          <strong>A nota está no iCloud</strong>{" "}
           Os passos da Apple começam na pasta Todos do iCloud, e o guia da Apple para o Mac diz que você precisa usar as notas atualizadas
           do iCloud para colaborar. Uma nota em No Meu iPhone, em Em Meu Mac ou numa conta do Gmail não está no iCloud.{" "}
           <a href="/pt/blog/passar-notas-iphone-para-icloud">Passe a nota para uma pasta do iCloud</a> primeiro.
         </li>
         <li id="bloqueada">
-          <strong>A nota não está bloqueada</strong>
+          <strong>A nota não está bloqueada</strong>{" "}
           Não dá para colaborar numa nota bloqueada, nem numa pasta que tenha uma nota bloqueada. Abra a nota e desbloqueie com a senha, o
           Face ID ou o Touch ID, depois abra o menu da nota e toque em Remover.
         </li>
         <li id="icloud-ativado">
-          <strong>Você está com a sessão iniciada e o Notas ativado no iCloud</strong>
+          <strong>Você está com a sessão iniciada e o Notas ativado no iCloud</strong>{" "}
           Abra Ajustes, toque no seu nome e depois em iCloud. Em Salvo no iCloud, toque em Notas e confira se Sincronizar este iPhone está
           ativado. A Apple diz que as pessoas que você convidar também precisam disso.
         </li>
         <li id="atualizar">
-          <strong>Os dois estão com o iOS mais recente</strong>
+          <strong>Os dois estão com o iOS mais recente</strong>{" "}
           A Apple pede a versão mais recente do iOS no seu iPhone e no da outra pessoa. Os passos de Colaborar para o iOS 26 e anteriores
           exigem o iOS 18 ou posterior.
         </li>
         <li id="outra-pessoa">
-          <strong>A outra pessoa tem uma Conta Apple</strong>
+          <strong>A outra pessoa tem uma Conta Apple</strong>{" "}
           Os participantes precisam de uma Conta Apple para ver e editar uma nota compartilhada. No iOS 26 ou anterior, a Apple diz que você
           só pode colaborar com alguém que tenha um aparelho Apple com sessão iniciada numa Conta Apple. Se não for o caso, envie uma cópia.
         </li>
         <li id="pendente">
-          <strong>Seu pedido não está esperando</strong>
+          <strong>Seu pedido não está esperando</strong>{" "}
           Se você pediu acesso à nota de alguém no iOS 27, o pedido pode estar pendente. O dono vê o pedido no botão Colaborar, e a Apple
           diz que o pedido também manda um e-mail para o endereço da Conta Apple do dono.
         </li>
         <li id="limite">
-          <strong>A nota tem espaço</strong>
+          <strong>A nota tem espaço</strong>{" "}
           Até 100 pessoas podem colaborar numa nota.
         </li>
       </Steps>

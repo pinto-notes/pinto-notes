@@ -141,7 +141,7 @@ export default function Page() {
       <Keep title="Sort a brain dump into proposed next steps" text={PROMPT} note="Use the sample capture first if you want to see how the prompt handles uncertainty." />
       <p>
         A useful proposal might be &ldquo;Find the desk lamp receipt&rdquo;, with &ldquo;Find the receipt before deciding about a replacement&rdquo;
-        as its source quote. &ldquo;Buy a new lamp&rdquo; skips that decision. Ask ChatGPT to correct it if that appears.
+        as its source quote. &ldquo;Buy a new lamp&rdquo; skips that decision. Ask ChatGPT to correct it if that appears.{" "}
         <a href="https://help.openai.com/en/articles/10032626-prompt-engineering-best-practices-for-chatgpt" rel="noopener"> OpenAI&apos;s prompting guide</a>{" "}
         recommends checking the response and refining your instructions.
       </p>
@@ -165,7 +165,7 @@ export default function Page() {
       </p>
       <p>
         On iPhone, place the cursor beneath Chosen actions, tap the Checklist button and enter each chosen action as an item.
-        Apple&apos;s <a href="https://support.apple.com/guide/notes/add-lists-apd93c815aa0/mac" rel="noopener">Mac list guide</a> and
+        Apple&apos;s <a href="https://support.apple.com/guide/notes/add-lists-apd93c815aa0/mac" rel="noopener">Mac list guide</a> and{" "}
         <a href="https://support.apple.com/en-us/guide/iphone/iph1ac0b3a2/ios" rel="noopener"> iPhone note guide</a> describe these controls.
       </p>
 
@@ -177,7 +177,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Let ChatGPT add the list to Pinto Notes</h2>
       <p>
-        Pinto Notes is an Apple Notes-style app for iPhone and Mac. Follow the
+        Pinto Notes is an Apple Notes-style app for iPhone and Mac. Follow the{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> ChatGPT connection guide</a> and choose Allow.
         That grants reading and editing access. Send the sorting prompt above, then this request with your own note&apos;s title.
       </p>

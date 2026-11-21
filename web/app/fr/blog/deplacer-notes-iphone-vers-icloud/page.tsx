@@ -141,15 +141,15 @@ export default function Page() {
       <h2 id="iphone">Déplacer des notes sur iPhone</h2>
       <Steps>
         <li>
-          <strong>Ouvrez le dossier qui contient les notes</strong>
+          <strong>Ouvrez le dossier qui contient les notes</strong>{" "}
           Par exemple Notes sous Sur mon iPhone, ou Notes sous Gmail.
         </li>
         <li>
-          <strong>Touchez le bouton Plus, puis Sélectionner les notes</strong>
+          <strong>Touchez le bouton Plus, puis Sélectionner les notes</strong>{" "}
           Touchez chaque note à déplacer.
         </li>
         <li>
-          <strong>Touchez le bouton Dossier et choisissez un dossier sous iCloud</strong>
+          <strong>Touchez le bouton Dossier et choisissez un dossier sous iCloud</strong>{" "}
           Les notes quittent l’ancien compte et apparaissent dans ce dossier.
         </li>
       </Steps>
@@ -164,11 +164,11 @@ export default function Page() {
       <h2 id="mac">Déplacer des notes sur Mac</h2>
       <Steps>
         <li>
-          <strong>Sélectionnez les notes dans la liste</strong>
+          <strong>Sélectionnez les notes dans la liste</strong>{" "}
           Elles peuvent venir de Sur mon Mac, de Gmail ou de n’importe quel autre compte de la barre latérale.
         </li>
         <li>
-          <strong>Faites-les glisser sur un dossier sous iCloud dans la barre latérale, ou faites un Contrôle-clic et choisissez Déplacer vers</strong>
+          <strong>Faites-les glisser sur un dossier sous iCloud dans la barre latérale, ou faites un Contrôle-clic et choisissez Déplacer vers</strong>{" "}
           Maintenez la touche Option au moment de déposer pour obtenir des copies et garder les originaux.
         </li>
       </Steps>

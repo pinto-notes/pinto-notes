@@ -1,5 +1,5 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Answer, Keep, Steps } from "@/lib/PostParts";
+import { Answer, Facts, FigurePair, FolderTree, Keep, More, PostFigure, Sorter, Steps } from "@/lib/PostParts";
 import { PostCta } from "@/lib/PostCta";
 
 export const dynamic = "force-static";
@@ -37,7 +37,7 @@ export const metadata = postMetadata("mem-ai-alternative-for-mac-and-iphone", {
 // fetch and edit tools. Pane/Model/NoteHistory.swift:338-365 confirms version restore.
 // This is a format-based trial, not a fresh Mem export/import test. Collection membership,
 // internal links, dates, formatting, attachments and meeting audio preservation are unverified.
-// Pictures: none. Body blog links point to published posts in lib/posts.ts.
+// Pictures (21 Nov visual pass, B35): sorter, folder tree, facts strips, Notion's import capture, Pinto's ChatGPT edit pair. Body blog links point to published posts in lib/posts.ts.
 
 // Rewritten 21 November 2026 as a comparison for Mem users who want to keep AI access.
 // All URLs below were opened and read today. Product/AI-provider documentation, not listicles.
@@ -179,10 +179,27 @@ export default function Page() {
     >
       <h2 id="compared">Mem alternatives and what their AI can do</h2>
       <p>
-        Checked against the vendors&apos; own pages on 21 November 2026. The table covers Apple Notes, Obsidian, Notion,
-        Google Docs or Drive, OneNote, Bear and Evernote from <a href="https://help.mem.ai/migration" rel="noopener">Mem&apos;s recommendations</a>,
-        plus Pinto Notes. Markdown support means a format is accepted, not that a complete Mem migration has been tested.
-        MCP connects an AI assistant to an app&apos;s tools. Reading, creating a note and editing an existing note are separate capabilities.
+        The seven apps <a href="https://help.mem.ai/migration" rel="noopener">Mem recommends</a>, plus Pinto Notes,
+        sorted by where they leave your AI. Checked against each vendor&apos;s own pages on 21 November 2026.
+      </p>
+      <Sorter groups={[
+        { tone: "leaf", ais: ["openai", "claude"], title: "ChatGPT and Claude edit your notes, from your phone too",
+          items: [{ name: "Notion", href: "#notion" }, { name: "Pinto Notes", href: "#pinto-notes" }],
+          line: "An official connection that reads and writes, after you allow it." },
+        { tone: "sky", ais: ["openai", "claude"], title: "ChatGPT and Claude, for documents",
+          items: [{ name: "Google Docs", href: "#google-docs" }],
+          line: "Official connections search and edit Google Docs. Claude edits on web or desktop." },
+        { tone: "amber", ais: ["claude"], title: "AI on a computer only",
+          items: [{ name: "Bear", href: "#bear" }, { name: "Obsidian", href: "#obsidian" }],
+          line: "Their AI tools run on the computer. An assistant on your phone can't reach them." },
+        { tone: "rose", title: "Their own AI, inside the app",
+          items: [{ name: "Evernote", href: "#evernote" }, { name: "OneNote", href: "#onenote" }, { name: "Apple Notes", href: "#apple-notes" }],
+          line: "Evernote's assistant and OneNote's Copilot. Apple Notes helps with the text you select." },
+      ]} />
+      <More summary="Every detail, with a source for each line">
+      <p>
+        Markdown support means the format is accepted, not that a full Mem move was tested.
+        MCP is how an AI assistant connects to an app.
       </p>
       <div className="tableWrap">
         <table>
@@ -196,7 +213,7 @@ export default function Page() {
             <tr>
               <th scope="row"><a href="#apple-notes">Apple Notes</a></th>
               <td><a href="https://support.apple.com/en-us/102223" rel="noopener">Yes, .md files</a> on Mac or iPhone, OS 26 or later.</td>
-              <td><a href="https://support.apple.com/guide/iphone/writing-tools-write-improve-summarize-iph6f08da1d2/27/ios/27" rel="noopener">Writing Tools</a> rewrite/summarize selected text and compose with ChatGPT. Library search/edit by ChatGPT or Claude not stated.</td>
+              <td><a href="https://support.apple.com/guide/iphone/writing-tools-write-improve-summarize-iph6f08da1d2/27/ios/27" rel="noopener">Writing Tools</a> rewrite/summarize selected text and compose with ChatGPT. Claude desktop on a Mac can use <a href="https://claude.com/connectors/read-and-write-apple-notes" rel="noopener">Anthropic&apos;s Apple Notes extension</a>.</td>
               <td>Writing Tools on compatible iPhone models; language and region limits.</td>
               <td>Mac, iPhone.</td>
               <td><a href="https://apps.apple.com/us/app/notes/id1110145109" rel="noopener">Free</a>.</td>
@@ -264,6 +281,7 @@ export default function Page() {
         Free storage or a free notes app does not include every assistant subscription.
         Where a vendor does not state a capability or price in the linked sources, the table says so.
       </p>
+      </More>
 
       <h2 id="save">Save your export first</h2>
       <p>
@@ -275,127 +293,138 @@ export default function Page() {
         <li>Choose Start new export, then My Computer and Next. Review the options and choose Start export.</li>
         <li>Return to Exports. When the copy is ready, choose Download. Keep the ZIP and an extracted copy.</li>
       </Steps>
+      <FolderTree root="Your Mem export (.zip)" items={[
+        { name: "notes/", note: "one .md file per note" },
+        { name: "collections/", note: "an index for each collection" },
+        { name: "attachments/", note: "your files" },
+        { name: "export-report.md", note: "what the export could not include (optional)", file: true },
+      ]} caption="What the download holds, from Mem's download guide." />
       <p>
-        Mem&apos;s <a href="https://help.mem.ai/migration/save-a-copy" rel="noopener">download guide</a> describes <code>notes/</code>
-        with one <code>.md</code> file per note, <code>collections/</code> with an index per collection, and <code>attachments/</code>.
-        A note in two collections appears in both indexes. An optional <code>export-report.md</code> lists items the export could not include.
-      </p>
-      <p>
-        Available transcripts are included by default. Audio recordings are optional, so select them before starting if needed.
-        Keep the folders together and work from a copy during trial imports.
+        A note in two collections appears in both indexes. Transcripts come by default; audio recordings are an option you pick
+        before starting. See Mem&apos;s <a href="https://help.mem.ai/migration/save-a-copy" rel="noopener">download guide</a>, and work from a copy.
       </p>
 
       <h2 id="notion">Notion for a workspace with connected AI</h2>
+      <Facts items={[
+        { label: "Mem import", value: "Markdown, on desktop or web" },
+        { label: "ChatGPT and Claude", value: "Read and write pages" },
+        { label: "Also on", value: "Windows, Android, web" },
+      ]} />
+      <PostFigure src="/blog/apple/notion-settings-import" width={2136} height={1340} maxWidth={700}
+        alt="Notion's Settings window open at Import: a drop area for ZIP, CSV, PDF, text, Markdown or HTML files up to 5 GB, and tiles for each kind."
+        caption="Notion's Settings, Import, where the Mem ZIP goes. Image: Notion." />
       <p>
-        Choose Notion if keeping ChatGPT or Claude able to read and write pages matters more than keeping a small notes editor.
-        Its <a href="https://www.notion.com/help/notion-mcp" rel="noopener">official MCP connection</a> supports both.
-        The free plan includes an AI trial; the pricing page puts Notion Agent in Business.
-        Import the Markdown on desktop or web, then test the pages and their links before relying on them.
+        Choose Notion if ChatGPT or Claude reading and writing pages matters more than a small notes editor.
+        Its <a href="https://www.notion.com/help/notion-mcp" rel="noopener">official MCP connection</a> does both, and{" "}
+        <a href="https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities" rel="noopener">Claude supports connectors on iPhone</a>,
+        with workspace permissions still applying.
       </p>
       <p>
-        <a href="https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities" rel="noopener">Claude supports connectors on iPhone</a>,
-        with organization and tool permissions still applying. Notion is the better pick here if the same notebook also needs Windows,
-        Android or a browser. For a smaller personal notebook, compare the <a href="/blog/notion-alternative-for-personal-notes-on-mac">personal-notes trade-offs</a>.
+        The free plan includes an AI trial; Notion Agent is in Business. Test the imported pages and their links before relying on them.
+        For a smaller personal notebook, compare the <a href="/blog/notion-alternative-for-personal-notes-on-mac">personal-notes trade-offs</a>.
       </p>
 
       <h2 id="google-docs">Google Docs or Drive for documents and sharing</h2>
+      <Facts items={[
+        { label: "Mem import", value: "As Google Docs, or .md files in Drive" },
+        { label: "ChatGPT and Claude", value: "Search, read and edit Docs" },
+        { label: "On iPhone", value: "Gemini; Claude edits on web or desktop" },
+      ]} />
       <p>
-        Google is a useful choice if the notes should become documents other people can edit.
-        <a href="https://support.google.com/docs/answer/18289341?co=GENIE.Platform%3DiOS&amp;hl=en" rel="noopener">Docs can also edit .md files on iPhone</a>
-        while keeping that file type, with an internet connection. For connected AI, test native Google Docs first;
-        Markdown editing support alone does not prove that every AI tool handles raw .md files the same way.
+        Pick Google if the notes should become documents other people edit.{" "}
+        <a href="https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt" rel="noopener">ChatGPT&apos;s official Drive app</a>{" "}
+        can search, read and update them when your plan and Google permissions allow it.{" "}
+        <a href="https://support.claude.com/en/articles/10166901-use-google-workspace-connectors" rel="noopener">Claude edits Docs through a separate connector</a>,
+        on web or desktop. On iPhone, Gemini offers <a href="https://support.google.com/drive/answer/16685111?co=GENIE.Platform%3DiOS&amp;hl=en-en" rel="noopener">Drive search</a>{" "}
+        and <a href="https://support.google.com/docs/answer/14206696?co=GENIE.Platform%3DiOS&amp;hl=en-7" rel="noopener">Docs questions</a>{" "}
+        with an eligible plan, and <a href="https://support.google.com/docs/answer/18289341?co=GENIE.Platform%3DiOS&amp;hl=en" rel="noopener">Docs can edit .md files</a>.
+        Test native Google Docs with your AI first; raw .md files may not behave the same.
       </p>
-      <p>
-        <a href="https://help.openai.com/en/articles/10929079-google-drive-app-and-setup-in-chatgpt" rel="noopener">ChatGPT&apos;s official Drive app</a>
-        can search, read and update documents when the plan, workspace and Google permissions allow it.
-        <a href="https://support.claude.com/en/articles/10166901-use-google-workspace-connectors" rel="noopener">Claude uses Drive for search and a separate Docs connector for live edits</a>
-        on web or desktop. Gemini offers <a href="https://support.google.com/drive/answer/16685111?co=GENIE.Platform%3DiOS&amp;hl=en-en" rel="noopener">Drive search</a>
-        and <a href="https://support.google.com/docs/answer/14206696?co=GENIE.Platform%3DiOS&amp;hl=en-7" rel="noopener">Docs questions and summaries on iPhone</a>
-        with an eligible plan. Check the exact phone workflow before moving the full library.
-      </p>
-
       <h2 id="evernote">Evernote for AI inside the notes app</h2>
+      <Facts items={[
+        { label: "Mem import", value: ".md, through Settings, Import" },
+        { label: "AI", value: "Built-in assistant; Claude reads and creates (paid)" },
+        { label: "Free plan", value: "50 notes, one device" },
+      ]} />
       <p>
-        Evernote is a serious option if the goal is to ask questions and change notes without opening another assistant.
-        Its <a href="https://help.evernote.com/hc/en-us/articles/46319409880211-AI-Assistant" rel="noopener">AI Assistant</a>
-        searches, creates and rewrites notes on desktop, web and mobile.
-        Import Markdown through Settings, Import on desktop; dropping a file into the note list instead can attach it rather than convert it.
+        Evernote fits if you want to ask questions and change notes without opening another assistant. Its{" "}
+        <a href="https://help.evernote.com/hc/en-us/articles/46319409880211-AI-Assistant" rel="noopener">AI Assistant</a>{" "}
+        searches, creates and rewrites notes on desktop, web and mobile. Through{" "}
+        <a href="https://help.evernote.com/hc/en-us/articles/51596325640339-Evernote-MCP-Model-Context-Protocol" rel="noopener">MCP</a>,
+        paid users can let Claude read and create notes, but edits to existing notes aren&apos;t promised. Import through Settings, Import:
+        dropping a file into the note list can attach it instead of converting it.
       </p>
-      <p>
-        The <a href="https://help.evernote.com/hc/en-us/articles/51596325640339-Evernote-MCP-Model-Context-Protocol" rel="noopener">MCP help article</a>
-        says paid users get Read and Create. It does not promise edits to existing notes through MCP.
-        The free plan&apos;s 50-note and one-device limits also matter for a Mem library.
-      </p>
-
       <h2 id="obsidian">Obsidian for a library of Markdown files</h2>
+      <Facts items={[
+        { label: "Mem import", value: "Copy the files into a vault" },
+        { label: "AI", value: "Official CLI or a community MCP, on a computer" },
+        { label: "From your phone", value: "No" },
+      ]} />
       <p>
-        Obsidian is the better pick if keeping the notes as ordinary Markdown files matters most.
-        Copy files and folders into a vault. Its official CLI can search, read, create and append text,
-        so an agent such as Claude Code can work through commands on that computer. The desktop app must be running.
+        Obsidian fits if keeping your notes as plain Markdown files matters most. Its official CLI lets an agent such as Claude Code
+        search, read and add to notes on that computer, while the app runs. The{" "}
+        <a href="https://github.com/coddingtonbear/obsidian-local-rest-api" rel="noopener">Local REST API MCP plugin</a>{" "}
+        is a community option, and it also runs locally, so an assistant on your phone can&apos;t reach the vault.
+        The <a href="/blog/obsidian-mcp">Obsidian MCP comparison</a> covers those setups. Sync is a separate paid service.
       </p>
-      <p>
-        The <a href="https://github.com/coddingtonbear/obsidian-local-rest-api" rel="noopener">Local REST API MCP plugin</a>
-        is a community route for connected reading and writing. It runs locally, so it does not by itself give an assistant on iPhone
-        access to the vault. The <a href="/blog/obsidian-mcp">Obsidian MCP comparison</a> explains those desktop setups.
-        Budget separately for sync if using Obsidian&apos;s paid Sync service.
-      </p>
-
       <h2 id="bear">Bear for writing with Claude on a Mac</h2>
+      <Facts items={[
+        { label: "Mem import", value: ".md, or Markdown Folder on a Mac" },
+        { label: "AI", value: "Claude on a Mac, Bear 2.8 or later" },
+        { label: "From your phone", value: "No" },
+      ]} />
       <p>
-        Bear is worth considering for a Markdown writing notebook with Claude at the desk.
-        Its own connector and MCP server can search, read, create and edit notes. They are official Bear tools,
-        require Bear 2.8 or later, and run only on Mac. The connector needs Claude desktop.
-        Bear on iPhone does not make those local tools available from the phone.
+        Bear fits a Markdown writing notebook with Claude at the desk. Its own Claude connector and MCP server can search, read,
+        create and edit notes, from Bear 2.8, on a Mac only; the connector needs Claude desktop.
+        On a Mac, Markdown Folder import brings in the attachments the notes point to. Bear Pro adds sync; the free plan keeps notes on the device.
       </p>
-      <p>
-        On Mac, use Markdown Folder import to include referenced attachments inside the selected folder.
-        Try a copy with its files together. Bear Pro includes sync; the free plan keeps notes locally.
-        Bear is a better fit than a workspace app if writing is the main task and Mac-only AI access is enough.
-      </p>
-
       <h2 id="onenote">OneNote for an existing Microsoft workflow</h2>
+      <Facts items={[
+        { label: "Mem import", value: "Mem's own OneNote transfer" },
+        { label: "AI", value: "Copilot, with a license" },
+        { label: "On iPhone", value: "Not stated by Microsoft" },
+      ]} />
       <p>
-        OneNote makes sense if Microsoft notebooks and Copilot already fit the work.
-        Copilot can summarize, draft and rewrite, but <a href="https://support.microsoft.com/en-us/microsoft-365-copilot/what-copilot-license-do-i-have" rel="noopener">access depends on the subscription or license</a>.
-        Microsoft&apos;s Copilot FAQ lists Windows and Mac and a web rollout; it does not establish the same AI workflow on iPhone.
+        OneNote fits if Microsoft notebooks already run your work. Copilot can summarize, draft and rewrite, but{" "}
+        <a href="https://support.microsoft.com/en-us/microsoft-365-copilot/what-copilot-license-do-i-have" rel="noopener">it depends on your license</a>,
+        and Microsoft lists Windows, Mac and web, not iPhone.{" "}
+        <a href="https://support.microsoft.com/en-us/onenote/export-and-import-onenote-notebooks" rel="noopener">Microsoft&apos;s notebook guide</a>{" "}
+        has no Markdown import, but{" "}
+        <a href="https://help.mem.ai/migration/onenote" rel="noopener">Mem offers its own OneNote export</a>.
+        Mem warns that links and attachments need checking, so save the ZIP first.
       </p>
-      <p>
-        A direct Markdown importer is not stated in <a href="https://support.microsoft.com/en-us/onenote/export-and-import-onenote-notebooks" rel="noopener">Microsoft&apos;s notebook guide</a>.
-        <a href="https://help.mem.ai/migration/onenote" rel="noopener">Mem offers a separate OneNote export</a> that creates pages,
-        including collection indexes. Mem warns that links and attachments need checking.
-        Save the local ZIP as well, before attempting that transfer.
-      </p>
-
       <h2 id="apple-notes">Apple Notes for selected-text writing help</h2>
+      <Facts items={[
+        { label: "Mem import", value: ".md files, OS 26 or later" },
+        { label: "AI", value: "Writing Tools on selected text" },
+        { label: "Price", value: "Free" },
+      ]} />
       <p>
-        Apple Notes is a reasonable free destination if a familiar notes editor matters more than chatting with the whole library.
-        On Mac, use Import Markdown. On iPhone, share a Markdown file from Files to Notes.
-        Writing Tools can summarize or rewrite selected text and compose with ChatGPT on compatible devices.
+        Apple Notes fits if a familiar free editor matters more than chatting with your whole library. On a Mac, use Import Markdown;
+        on iPhone, share a Markdown file from Files to Notes. Writing Tools work on the text you select, and can compose with ChatGPT.
+        For Claude to search the whole library, Claude desktop on a Mac has an Apple Notes extension; the{" "}
+        <a href="/blog/apple-notes-api">Apple Notes API guide</a> covers it and its limits.
       </p>
-      <p>
-        Those controls do not establish a library-wide ChatGPT or Claude connection.
-        Choose Apple Notes if working on the text in front of you is enough.
-        If the daily task is asking an assistant to find an old note and save a change to it, test a destination with a documented connector.
-      </p>
-
       <h2 id="pinto-notes">Pinto Notes for connected AI on Mac and iPhone</h2>
+      <Facts items={[
+        { label: "Mem import", value: "Markdown folder or .zip; untested with Mem" },
+        { label: "AI", value: "ChatGPT, Claude, Claude Code, Codex read and edit" },
+        { label: "From your phone", value: "Yes" },
+      ]} />
+      <FigurePair caption="ChatGPT added five items to a grocery list. The note shows what changed, with Undo, on iPhone and Mac. Image: Pinto Notes." items={[
+        { src: "/blog/amber-notes-iphone-chatgpt-edited-checklist", width: 1206, height: 2622, alt: "A grocery list in Pinto Notes on iPhone, five lines highlighted and a bar reading ChatGPT changed 5 lines, Undo." },
+        { src: "/blog/amber-notes-chatgpt-edit-undo", width: 1260, height: 1520, alt: "The same grocery list in Pinto Notes on a Mac, the five new lines highlighted, with an Undo button." },
+      ]} />
       <p>
-        Pinto Notes is free and looks and works like Apple Notes.
-        ChatGPT, Claude, Claude Code and Codex can search, read and edit the same notes after one approval per assistant in the app.
-        The remote connection works from any device, including iPhone.
-        ChatGPT uses Pinto&apos;s listing in its plugin directory, available since 28 October 2026.
-        The <a href="/blog/connect-chatgpt-to-your-notes">connection guide</a> explains setup.
+        Pinto Notes is free and looks and works like Apple Notes. ChatGPT, Claude, Claude Code and Codex can search, read and edit
+        your notes after one approval per assistant in the app, from any device, including iPhone.
+        ChatGPT finds Pinto in its plugin directory. The <a href="/blog/connect-chatgpt-to-your-notes">connection guide</a> explains setup.
       </p>
       <p>
-        Pinto keeps earlier versions of each note. That covers changes made in Pinto, not a transfer of Mem&apos;s version history.
-        It runs on Mac and iPhone only, with no Windows, Android or web app.
-        Choose Notion or Google Docs instead if browser access or other platforms are required.
-      </p>
-      <p>
-        There is no dedicated Mem importer, and a Mem import has not been tested.
-        On a Mac, Import Markdown or Text takes a folder or .zip of Markdown or text files. Each folder becomes a folder.
-        This is the generic route described in <a href="/blog/import-your-notes">Import your notes</a>.
-        Collection membership, links, dates, formatting and attachments from Mem are unverified.
+        There is no Mem importer, and a Mem import hasn&apos;t been tested. On a Mac, File, Import Markdown or Text takes a folder or
+        .zip of Markdown files, and each folder becomes a folder (see <a href="/blog/import-your-notes">Import your notes</a>).
+        Check collections, links, dates and attachments. Pinto keeps earlier versions of each note from here on, not Mem&apos;s history.
+        It runs on Mac and iPhone only; pick Notion or Google Docs if you need a browser, Windows or Android.
       </p>
       <Steps>
         <li>Duplicate the extracted Mem export. Keep a few representative notes in the working copy, along with their folders and attachments.</li>

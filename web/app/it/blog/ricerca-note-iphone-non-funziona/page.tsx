@@ -105,31 +105,31 @@ export default function Page() {
       <h2 id="controlli">I controlli, in ordine</h2>
       <Steps>
         <li id="tutti-gli-account">
-          <strong>Cerca in tutti gli account</strong>
+          <strong>Cerca in tutti gli account</strong>{" "}
           Su iPhone, tocca indietro finché vedi l’elenco delle note, tocca la barra di ricerca (potresti dover scorrere per trovarla) e
           assicurati che Tutti gli account sia selezionato. Sul Mac, fai clic sul pulsante di ricerca, poi sul menu accanto alla lente
           d’ingrandimento, e scegli Tutti gli account. La scelta compare solo se hai più di un account, per esempio iCloud e Sul mio Mac.
         </li>
         <li id="protetta">
-          <strong>La nota potrebbe essere protetta</strong>
+          <strong>La nota potrebbe essere protetta</strong>{" "}
           La ricerca vede solo il titolo di una nota protetta. Se hai cercato una parola del testo, apri le note protette con la password,
           Face ID o Touch ID e guardale a mano. Password dimenticata? Leggi{" "}
           <a href="/it/blog/password-note-iphone-dimenticata">password delle note di iPhone dimenticata</a>.
         </li>
         <li id="account-attivo">
-          <strong>Note è attivo per ogni account</strong>
+          <strong>Note è attivo per ogni account</strong>{" "}
           Una nota in un account Gmail, Yahoo o di un altro servizio compare solo finché Note è attivo per quell’account. Tocca l’account e
           controlla che Note sia attivo, poi ripeti per ogni account.
           <Paths rows={[{ on: "iPhone", steps: ["Impostazioni", "App", "Note", "Account Note"] }]} />
         </li>
         <li id="altre-parole">
-          <strong>Prova altre parole, poi cerca a mano</strong>
+          <strong>Prova altre parole, poi cerca a mano</strong>{" "}
           Il consiglio di Apple è che forse non stai usando la parola, la frase o il titolo che c’è nella nota. Provane un’altra, poi apri
           ogni cartella e scorri. Sul Mac puoi anche scrivere come parleresti, per esempio &ldquo;note create la settimana scorsa&rdquo; o
           &ldquo;modificata oggi&rdquo;.
         </li>
         <li id="sincronizzata">
-          <strong>La nota è arrivata su questo dispositivo</strong>
+          <strong>La nota è arrivata su questo dispositivo</strong>{" "}
           Se hai scritto la nota su un altro iPhone o Mac, deve arrivare su questo prima che la ricerca la trovi. Controlla che
           Sincronizza questo iPhone o Sincronizza questo Mac sia attivo per Note nelle impostazioni di iCloud, su entrambi.{" "}
           <a href="/it/blog/note-iphone-non-sincronizzate">Note di iPhone non sincronizzate con il Mac</a> ha il resto dei controlli.
@@ -139,13 +139,13 @@ export default function Page() {
           ]} />
         </li>
         <li id="riavvia">
-          <strong>Chiudi e riapri Note, poi riavvia</strong>
+          <strong>Chiudi e riapri Note, poi riavvia</strong>{" "}
           Su iPhone, apri l’elenco applicazioni, fai scorrere Note verso l’alto e aprila di nuovo. Se non basta, Apple suggerisce di
           spegnere e riaccendere l’iPhone. Sul Mac, premi Comando-Q in Note e riaprila; se Note non risponde, premi Opzione-Comando-Esc e
           fai clic su Uscita forzata. Se anche così non va, scegli Riavvia dal menu Apple.
         </li>
         <li id="aggiorna">
-          <strong>Aggiorna all’ultimo software</strong>
+          <strong>Aggiorna all’ultimo software</strong>{" "}
           L’articolo di Apple sulle note che non trovi parte da qui: aggiorna ogni dispositivo all’ultima versione di iOS e macOS. Apple
           dice che gli aggiornamenti di macOS portano miglioramenti alle app integrate come Note.
           <Paths rows={[

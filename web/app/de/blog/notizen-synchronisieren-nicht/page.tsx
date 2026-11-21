@@ -95,7 +95,7 @@ export default function Page() {
         caption="Das zeigt Notizen auf einem Mac, auf dem iCloud für Notizen aus ist. Einen anderen Sync-Status gibt es in Notizen unter macOS 27 nicht, ich habe nachgesehen." />
       <Steps>
         <li id="icloud-an">
-          <strong>Notizen ist für iCloud aktiviert, auf beiden Geräten</strong>
+          <strong>Notizen ist für iCloud aktiviert, auf beiden Geräten</strong>{" "}
           Der Schalter heißt „Dieses iPhone synchronisieren“ oder „Diesen Mac synchronisieren“. Apple sagt: Fehlen danach noch Notizen,
           starte das Gerät neu und prüf die Einstellung noch einmal.
           <Paths rows={[
@@ -105,7 +105,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="gleicher-account">
-          <strong>Beide Geräte nutzen denselben Apple Account</strong>
+          <strong>Beide Geräte nutzen denselben Apple Account</strong>{" "}
           Der Name oben in den Einstellungen auf dem iPhone und oben in den Systemeinstellungen auf dem Mac ist der Account, mit dem das
           Gerät synchronisiert. Ein Arbeits-Mac, der mit einem Apple Account der Firma angemeldet ist, zeigt die Notizen von deinem
           privaten iPhone nicht.
@@ -117,18 +117,18 @@ export default function Page() {
           dann mit diesem an.
         </li>
         <li id="status">
-          <strong>iCloud Notizen läuft</strong>
+          <strong>iCloud Notizen läuft</strong>{" "}
           Apple führt iCloud Notizen auf seiner Systemstatus-Seite, unter apple.com/de/support/systemstatus. Steht dort eine Störung,
           hilft keine Einstellung auf deiner Seite. Warte, bis Apple sie als behoben markiert.
         </li>
         <li id="speicher">
-          <strong>Dein iCloud-Speicher ist nicht voll</strong>
+          <strong>Dein iCloud-Speicher ist nicht voll</strong>{" "}
           Laut Apple bleiben iCloud-Apps auf deinen Geräten nicht mehr auf dem neuesten Stand, wenn dein iCloud-Speicher voll ist, und
           Notizen ist eine davon. Öffne Einstellungen, tippe auf deinen Namen und dann auf iCloud, um zu sehen, wie viel du nutzt. Wenn
           du Platz schaffst oder einen größeren Speicherplan nimmst, geht die Synchronisierung weiter.
         </li>
         <li id="update">
-          <strong>Kein Gerät hängt bei Updates hinterher</strong>
+          <strong>Kein Gerät hängt bei Updates hinterher</strong>{" "}
           Eine Notiz aus einer neueren Version von Notizen kann Funktionen nutzen, die eine ältere nicht kennt. Auf dem Mac zeigt Notizen
           sie dann mit der Meldung „Diese Notiz verwendet nicht unterstützte Funktionen. Aktualisiere auf die neueste Version von macOS,
           um sie anzuzeigen oder zu bearbeiten.“ Die Notiz ist synchronisiert, aber dieser Mac kann sie nicht öffnen. Seit iOS 27 am

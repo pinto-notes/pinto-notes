@@ -91,21 +91,21 @@ export default function Page() {
         caption="A custom connector is any MCP server Grok can reach on the internet." />
       <Steps>
         <li>
-          <strong>Open grok.com/connectors</strong>
+          <strong>Open grok.com/connectors</strong>{" "}
           On a computer, signed in. xAI&apos;s docs describe the custom option on the web; on the phone apps, connectors live in
           Settings, then Connectors.
         </li>
         <li>
-          <strong>Choose New Connector, then Custom</strong>
+          <strong>Choose New Connector, then Custom</strong>{" "}
           Paste the server&apos;s address. It must start with https and be reachable from the internet. Grok rejects localhost and
           private addresses such as 192.168.x.x.
         </li>
         <li>
-          <strong>Sign in when Grok asks</strong>
+          <strong>Sign in when Grok asks</strong>{" "}
           If the server uses OAuth, a sign-in page opens. Grok then looks up the server&apos;s tools by itself.
         </li>
         <li>
-          <strong>Ask for something the server can do</strong>
+          <strong>Ask for something the server can do</strong>{" "}
           Grok uses a connector&apos;s tools when your question relates to that service. Name it in your first request so you can
           tell it worked.
         </li>

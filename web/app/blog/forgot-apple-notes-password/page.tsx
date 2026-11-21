@@ -88,25 +88,25 @@ export default function Page() {
       <h2 id="try-these-first">Try these first</h2>
       <Steps>
         <li>
-          <strong>Face ID or Touch ID</strong>
+          <strong>Face ID or Touch ID</strong>{" "}
           If you turned it on for Notes, open the locked note and use it. Apple lists it as a way to view a locked note.
         </li>
         <li>
-          <strong>The hint</strong>
+          <strong>The hint</strong>{" "}
           Enter a wrong password a couple of times and Notes shows the hint you set, if you set one.
         </li>
         <li>
-          <strong>Your device passcode or Mac login password</strong>
+          <strong>Your device passcode or Mac login password</strong>{" "}
           Since iOS 16, notes can be locked with the device passcode instead of a separate password. If you chose that, use your iPhone
           passcode, or your Mac&apos;s login password on the Mac.
         </li>
         <li>
-          <strong>Older passwords</strong>
+          <strong>Older passwords</strong>{" "}
           If you ever reset your notes password, older notes keep the password they were locked with. When you enter the current one on an
           older note, Notes tells you it&apos;s wrong and shows the hint for the old one.
         </li>
         <li>
-          <strong>A password manager</strong>
+          <strong>A password manager</strong>{" "}
           If you use one, search it for &ldquo;notes&rdquo;; you may have saved the password there when you set it.
         </li>
       </Steps>

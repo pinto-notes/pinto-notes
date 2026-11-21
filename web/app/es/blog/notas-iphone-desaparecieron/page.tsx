@@ -81,7 +81,7 @@ export default function Page() {
       </p>
       <Steps>
         <li id="icloud-activado">
-          <strong>Notas está activado para iCloud</strong>
+          <strong>Notas está activado para iCloud</strong>{" "}
           Si faltan notas de iCloud, Apple recomienda comprobar que Sincronizar este iPhone esté activado. Luego abre Notas. Si las notas
           siguen sin aparecer, reinicia el iPhone y comprueba de nuevo el ajuste. El contenido que ya estaba sincronizado con iCloud debería
           aparecer cuando termine la sincronización.
@@ -92,20 +92,20 @@ export default function Page() {
           En Latinoamérica, Ajustes y Ajustes del Sistema se llaman Configuración y Configuración del Sistema.
         </li>
         <li id="recien-eliminado">
-          <strong>Recién eliminado</strong>
+          <strong>Recién eliminado</strong>{" "}
           Una nota borrada va a Recién eliminado en el iPhone, icloud.com y los otros dispositivos con la misma Cuenta de Apple. Permanece
           allí 30 días. En el iPhone, vuelve a la lista de carpetas, abre Recién eliminado, desliza la nota hacia la izquierda y toca
           Trasladar. La carpeta solo aparece si contiene alguna nota. <a href="/blog/recover-deleted-apple-notes" hrefLang="en">Cómo recuperar
           notas eliminadas</a> (en inglés) explica las demás opciones, incluso después de los 30 días.
         </li>
         <li id="buscar">
-          <strong>Busca con Todas las cuentas seleccionado</strong>
+          <strong>Busca con Todas las cuentas seleccionado</strong>{" "}
           En la lista de notas, toca la barra de búsqueda y escribe una palabra o el título, con Todas las cuentas seleccionado. Buscar
           solo ve el título de las notas bloqueadas. Abre a mano las que puedan contener lo que buscas, con su contraseña, Face ID o Touch ID.
           Si no aparece nada, vuelve a la lista de carpetas y abre cada una: la nota puede estar en otra carpeta.
         </li>
         <li id="otras-cuentas">
-          <strong>Notas está activado en Gmail, Yahoo y las otras cuentas</strong>
+          <strong>Notas está activado en Gmail, Yahoo y las otras cuentas</strong>{" "}
           Las notas guardadas en una cuenta de correo solo aparecen mientras Notas esté activado para esa cuenta. Revisa cada cuenta. Las
           notas borradas de estas cuentas no van a Recién eliminado: busca en la carpeta Papelera de esa cuenta en Mail y copia el contenido
           en una nota nueva.
@@ -115,19 +115,19 @@ export default function Page() {
           ]} />
         </li>
         <li id="misma-cuenta">
-          <strong>Todos los dispositivos usan la misma Cuenta de Apple</strong>
+          <strong>Todos los dispositivos usan la misma Cuenta de Apple</strong>{" "}
           Apple indica que no puedes ver tus notas de iCloud en un dispositivo donde no hayas iniciado sesión en tu Cuenta de Apple. En el
           iPhone, la cuenta aparece arriba en Ajustes. En el Mac, aparece arriba en la barra lateral de Ajustes del Sistema. Para ver qué
           hay guardado en iCloud, inicia sesión con esa misma cuenta en icloud.com/notes.
         </li>
         <li id="en-este-dispositivo">
-          <strong>Las notas estaban guardadas en un solo dispositivo</strong>
+          <strong>Las notas estaban guardadas en un solo dispositivo</strong>{" "}
           Las notas de En mi iPhone solo aparecen en ese iPhone, y las de En mi Mac solo en ese Mac. Si falta una nota en el otro dispositivo,
           mira bajo qué encabezado está su carpeta en el dispositivo donde sí aparece. <a href="/es/blog/pasar-notas-a-icloud">Pasar notas a
           iCloud</a> hace que aparezcan en todos tus dispositivos.
         </li>
         <li id="reiniciar">
-          <strong>Reinicia y comprueba otra vez</strong>
+          <strong>Reinicia y comprueba otra vez</strong>{" "}
           Si aún faltan notas después de revisar los ajustes, Apple recomienda reiniciar y comprobar una vez más el ajuste de iCloud.
           Si las notas están en un dispositivo pero no en otro, consulta <a href="/es/blog/notas-iphone-no-sincroniza">por qué Notas no se
           sincroniza</a>.
@@ -176,7 +176,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Otra copia, con todas las versiones</h2>
       <p>
-        Recién eliminado sirve cuando borras una nota. No recupera un párrafo cambiado dentro de una nota, porque Notas de Apple no guarda
+        Recién eliminado sirve cuando borras una nota. No recupera un párrafo cambiado dentro de una nota, porque Notas de Apple no guarda{" "}
         <a href="/blog/apple-notes-version-history" hrefLang="en"> un historial de versiones</a> (en inglés). Pinto Notes, una app de notas
         para iPhone y Mac, conserva cada versión anterior de cada nota. Así puedes recuperar un párrafo que desapareció de una nota.
       </p>

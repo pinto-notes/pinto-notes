@@ -104,19 +104,19 @@ export default function Page() {
       </p>
       <p>
         Apple Notes is another option for folders, checklists and tables. Our <a href="/blog/apple-notes-vs-google-keep">Apple Notes
-        vs Google Keep comparison</a> covers that choice. If you have already chosen Apple Notes, use the
+        vs Google Keep comparison</a> covers that choice. If you have already chosen Apple Notes, use the{" "}
         <a href="/blog/google-keep-to-apple-notes"> Google Keep to Apple Notes guide</a> for that move.
         The checks below are for Pinto&apos;s direct Keep import.
       </p>
 
       <h2 id="keep-google-keep">When staying with Google Keep makes sense</h2>
       <p>
-        Keep has an iPhone app, an Android app and browser access at keep.google.com. Google documents those routes in its
+        Keep has an iPhone app, an Android app and browser access at keep.google.com. Google documents those routes in its{" "}
         <a href="https://support.google.com/keep/answer/2888240?hl=en" rel="noopener"> Keep guide</a>.
         If you use an Android phone alongside a Mac, Pinto cannot replace Keep on both.
       </p>
       <p>
-        A shared shopping list is another reason to stay. Keep lets collaborators edit a note, as described in
+        A shared shopping list is another reason to stay. Keep lets collaborators edit a note, as described in{" "}
         <a href="https://support.google.com/keep/answer/6101196?hl=en" rel="noopener"> Google&apos;s sharing guide</a>.
         Importing a copy into Pinto does not bring that shared list&apos;s permissions with it.
         You can move your personal notes and keep a shared list in Keep until the people using it agree on a move.

@@ -85,13 +85,13 @@ export default function Page() {
           App-Mediathek auf Notizen.
         </li>
         <li id="neustart-iphone">
-          <strong>Starte dein iPhone neu</strong>
+          <strong>Starte dein iPhone neu</strong>{" "}
           Das ist Apples nächster Schritt, wenn die App weiter nicht reagiert. Ist das iPhone selbst eingefroren und lässt sich nicht
           ausschalten, erzwinge einen Neustart: Drück kurz die Taste „Lauter“, dann kurz die Taste „Leiser“, dann halte die Seitentaste
           gedrückt, bis das Apple-Logo erscheint.
         </li>
         <li id="update-iphone">
-          <strong>Aktualisiere iOS</strong>
+          <strong>Aktualisiere iOS</strong>{" "}
           Apple rät, zuerst im App Store unter „App-Updates“ nachzusehen und die Software des iPhone zu aktualisieren, wenn es für die App
           nichts gibt. Mach vorher ein Backup des iPhone, schließ es an den Strom an und verbinde es mit dem WLAN.
           <Paths rows={[
@@ -99,7 +99,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="neu-laden">
-          <strong>Notizen löschen und neu laden, als Letztes</strong>
+          <strong>Notizen löschen und neu laden, als Letztes</strong>{" "}
           Notizen ist eine der integrierten Apps, die Apple löschen lässt. Laut Apple entfernt das Löschen auch die verknüpften
           Benutzerdaten auf dem Gerät, also prüf zuerst icloud.com/notes, und lass diesen Schritt aus, wenn du Notizen in „Auf meinem
           iPhone“ hast. Um die App zurückzuholen, such im App Store nach Notizen mit dem genauen Namen und tippe auf die Taste „Neuer
@@ -115,7 +115,7 @@ export default function Page() {
       <h2 id="mac">Auf dem Mac: Notizen friert ein oder wird beendet</h2>
       <Steps>
         <li id="sofort-beenden">
-          <strong>Beende Notizen, notfalls sofort</strong>
+          <strong>Beende Notizen, notfalls sofort</strong>{" "}
           Probier zuerst Command-Q. Reagiert Notizen nicht, drück Option-Command-Esc oder wähle im Apple-Menü „Sofort beenden“, wähl
           Notizen aus und klick auf „Sofort beenden“. Apple warnt, dass nicht gesicherte Änderungen dabei verloren gehen können. Hat sich
           Notizen von selbst beendet, klick im Dialog, der dann erscheint, auf „Erneut öffnen“.
@@ -124,17 +124,17 @@ export default function Page() {
           ]} />
         </li>
         <li id="neustart-mac">
-          <strong>Starte den Mac neu</strong>
+          <strong>Starte den Mac neu</strong>{" "}
           Wähle im Apple-Menü „Neustart“. Startet der Mac nicht neu, sagt Apple: Halte den Ein-/Ausschalter bis zu 10 Sekunden gedrückt,
           bis sich der Mac ausschaltet, und drück ihn dann noch einmal, um ihn einzuschalten.
         </li>
         <li id="andere-notiz">
-          <strong>Öffne eine andere Notiz</strong>
+          <strong>Öffne eine andere Notiz</strong>{" "}
           Apples Handbuch rät, eine andere Datei zu öffnen, denn vielleicht verursacht die ursprüngliche das Problem. In Notizen ist das
           eine andere Notiz.
         </li>
         <li id="update-mac">
-          <strong>Aktualisiere macOS</strong>
+          <strong>Aktualisiere macOS</strong>{" "}
           Laut Apple ist es sinnvoll, vorher ein Backup des Mac zu machen. Lass den Mac während der Installation nicht in den Ruhezustand
           gehen und klapp ihn nicht zu, bis sie fertig ist.
           <Paths rows={[
@@ -142,7 +142,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="zubehoer">
-          <strong>Trenn Neues, entferne Zusätze</strong>
+          <strong>Trenn Neues, entferne Zusätze</strong>{" "}
           Apple rät, ein gerade angeschlossenes Gerät zu trennen, etwa einen Drucker, und Plug-ins oder Optimierungen anderer Hersteller zu
           deinstallieren, die nach einem Update der App oder von macOS vielleicht nicht mehr funktionieren.
         </li>

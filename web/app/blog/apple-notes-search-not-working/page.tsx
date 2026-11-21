@@ -100,30 +100,30 @@ export default function Page() {
       <h2 id="checks">The checks, in order</h2>
       <Steps>
         <li id="all-accounts">
-          <strong>Search all accounts</strong>
+          <strong>Search all accounts</strong>{" "}
           On iPhone, tap back until you see your notes list, tap the Search bar (you may need to scroll to find it) and make sure All
           Accounts is selected. On a Mac, click the search button, click the menu next to the magnifying glass and choose All Accounts.
           That choice only appears if you have more than one account, such as iCloud and On My Mac.
         </li>
         <li id="locked">
-          <strong>The note may be locked</strong>
+          <strong>The note may be locked</strong>{" "}
           Search sees only the title of a locked note. If you searched for a word in its text, open your locked notes and look through them
           by hand. Lost the password? See <a href="/blog/forgot-apple-notes-password">forgot your Apple Notes password</a>.
         </li>
         <li id="account-on">
-          <strong>Notes is on for every account</strong>
+          <strong>Notes is on for every account</strong>{" "}
           A note in a Gmail, Yahoo or other account only shows up while Notes is turned on for that account. Tap the account and make sure
           Notes is on, then repeat for each account.
           <MenuPaths rows={[{ on: "iPhone", steps: ["Settings", "Apps", "Notes", "Notes Accounts"] }]} />
         </li>
         <li id="other-words">
-          <strong>Try other words, then look by hand</strong>
+          <strong>Try other words, then look by hand</strong>{" "}
           Apple&apos;s own advice is that you may not be using the word, phrase or title that&apos;s in the note. Try a different one, then
           open each folder and scroll. On a Mac you can also type the way you&apos;d say it, such as &ldquo;notes created last week&rdquo; or
           &ldquo;modified today&rdquo;.
         </li>
         <li id="synced">
-          <strong>The note has reached this device</strong>
+          <strong>The note has reached this device</strong>{" "}
           If you wrote the note on another iPhone or Mac, it has to reach this one before search can find it. Check that Sync this iPhone or Sync
           this Mac is on for Notes in iCloud settings, on both. <a href="/blog/apple-notes-not-syncing">Apple Notes not syncing</a> has
           the rest of those checks.
@@ -133,13 +133,13 @@ export default function Page() {
           ]} />
         </li>
         <li id="restart">
-          <strong>Quit and reopen Notes, then restart</strong>
+          <strong>Quit and reopen Notes, then restart</strong>{" "}
           On iPhone, open the App Switcher, swipe up on Notes, and open it again. If that doesn&apos;t help, Apple suggests turning the
           iPhone off and on. On a Mac, press Command-Q in Notes and open it again; if Notes doesn&apos;t respond, press Option-Command-Esc
           and click Force Quit. If that fails too, choose Restart from the Apple menu.
         </li>
         <li id="update">
-          <strong>Update to the latest software</strong>
+          <strong>Update to the latest software</strong>{" "}
           Apple&apos;s missing notes article starts here: update every device to the latest iOS and macOS. Apple says macOS updates come
           with improvements for built-in apps such as Notes.
           <MenuPaths rows={[

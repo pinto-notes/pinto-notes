@@ -83,7 +83,7 @@ export default function Page() {
       </p>
       <Steps>
         <li id="icloud-an">
-          <strong>Notizen ist für iCloud aktiviert</strong>
+          <strong>Notizen ist für iCloud aktiviert</strong>{" "}
           Erscheinen deine iCloud-Notizen nicht, ist Apples Lösung, „Dieses iPhone synchronisieren“ zu aktivieren und dann in Notizen
           nachzusehen. Fehlen sie danach noch, starte das iPhone neu und prüf die Einstellung noch einmal. Laut Apple sollten die Notizen
           dann erscheinen und synchronisieren, und Inhalte, die vorher mit iCloud synchronisiert waren, sollten auftauchen, sobald die
@@ -94,7 +94,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="zuletzt-geloescht">
-          <strong>Zuletzt gelöscht</strong>
+          <strong>Zuletzt gelöscht</strong>{" "}
           Eine gelöschte Notiz landet im Ordner „Zuletzt gelöscht“, auf deinem iPhone, auf iCloud.com und auf deinen anderen Geräten mit
           demselben Apple Account, und bleibt dort 30 Tage. Geh auf dem iPhone zurück zur Ordnerliste, tippe auf „Zuletzt gelöscht“,
           streich auf der Notiz nach links und tippe auf „Bewegen“. Der Ordner erscheint nur, wenn etwas darin liegt.{" "}
@@ -102,14 +102,14 @@ export default function Page() {
           auch nach den 30 Tagen.
         </li>
         <li id="suche">
-          <strong>Such mit „Alle Accounts“</strong>
+          <strong>Such mit „Alle Accounts“</strong>{" "}
           Tippe in der Notizenliste auf die Suchleiste und gib ein Wort oder den Titel ein, mit „Alle Accounts“ ausgewählt. Bei einer
           gesperrten Notiz durchsucht die Suche nur den Titel, also öffne gesperrte Notizen von Hand, mit Passwort, Face ID oder Touch ID.
           Findet die Suche nichts, tippe auf das Zurück-Symbol, bis deine Ordnerliste erscheint, und öffne jeden Ordner: Eine Notiz kann in
           einem liegen, mit dem du nicht gerechnet hast.
         </li>
         <li id="andere-accounts">
-          <strong>Notizen ist für Gmail, Yahoo und andere Accounts aktiviert</strong>
+          <strong>Notizen ist für Gmail, Yahoo und andere Accounts aktiviert</strong>{" "}
           Notizen aus einem E-Mail-Account erscheinen nur, solange Notizen für diesen Account aktiviert ist. Prüf jeden Account. Ihre
           gelöschten Notizen landen nicht in „Zuletzt gelöscht“: Sieh in der Mail-App im Papierkorb dieses Accounts nach und kopiere die
           Notiz dann in eine neue.
@@ -119,20 +119,20 @@ export default function Page() {
           ]} />
         </li>
         <li id="gleicher-account">
-          <strong>Jedes Gerät nutzt denselben Apple Account</strong>
+          <strong>Jedes Gerät nutzt denselben Apple Account</strong>{" "}
           Laut Apple kannst du auf einem Gerät, auf dem du nicht mit deinem Apple Account angemeldet bist, nicht auf deine iCloud-Notizen
           zugreifen. Der Name oben in den Einstellungen auf dem iPhone oder oben in der Seitenleiste der Systemeinstellungen auf dem Mac
           ist der Account, den dieses Gerät nutzt. Was in iCloud liegt, siehst du, wenn du dich unter icloud.com/notes im Browser mit
           demselben Account anmeldest.
         </li>
         <li id="ein-geraet">
-          <strong>Die Notizen lagen nur auf einem Gerät</strong>
+          <strong>Die Notizen lagen nur auf einem Gerät</strong>{" "}
           Notizen im Account „Auf meinem iPhone“ erscheinen nur auf diesem iPhone, Notizen in „Auf meinem Mac“ nur auf diesem Mac. Fehlt
           eine Notiz auf deinem anderen Gerät, sieh auf dem Gerät, das sie hat, nach der Überschrift über ihrem Ordner.{" "}
           <a href="/de/blog/notizen-in-icloud-verschieben">Notizen in iCloud verschieben</a> bringt sie auf jedes Gerät.
         </li>
         <li id="neustart">
-          <strong>Neu starten, dann noch einmal prüfen</strong>
+          <strong>Neu starten, dann noch einmal prüfen</strong>{" "}
           Fehlen nach den Schaltern oben immer noch Notizen, ist Apples nächster Schritt ein Neustart und danach noch einmal ein Blick auf
           die iCloud-Einstellung. Erscheinen Notizen auf einem Gerät und auf dem anderen nicht, lies{" "}
           <a href="/de/blog/notizen-synchronisieren-nicht">Notizen synchronisieren nicht</a>.

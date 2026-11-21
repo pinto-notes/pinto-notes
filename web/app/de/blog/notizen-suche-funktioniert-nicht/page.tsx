@@ -96,32 +96,32 @@ export default function Page() {
       <h2 id="checks">Die Checks der Reihe nach</h2>
       <Steps>
         <li id="alle-accounts">
-          <strong>Such in allen Accounts</strong>
+          <strong>Such in allen Accounts</strong>{" "}
           Tippe auf dem iPhone auf das Zurück-Symbol, bis deine Notizenliste erscheint, tippe auf die Suchleiste (vielleicht musst du
           dafür scrollen) und stell sicher, dass „Alle Accounts“ ausgewählt ist. Klick auf dem Mac auf die Taste „Suchen“, dann auf den
           Abwärtspfeil neben der Lupe, und wähle „Alle Accounts“. Diese Auswahl gibt es nur, wenn du mehr als einen Account hast, etwa
           iCloud und „Auf meinem Mac“.
         </li>
         <li id="gesperrt">
-          <strong>Die Notiz ist vielleicht gesperrt</strong>
+          <strong>Die Notiz ist vielleicht gesperrt</strong>{" "}
           Bei einer gesperrten Notiz sieht die Suche nur den Titel. Hast du nach einem Wort aus ihrem Text gesucht, öffne deine gesperrten
           Notizen mit Passwort, Face ID oder Touch ID und sieh sie von Hand durch. Passwort vergessen? Lies{" "}
           <a href="/de/blog/notizen-passwort-vergessen">Notizen-Passwort vergessen</a>.
         </li>
         <li id="account-an">
-          <strong>Notizen ist für jeden Account aktiviert</strong>
+          <strong>Notizen ist für jeden Account aktiviert</strong>{" "}
           Eine Notiz in einem Gmail-, Yahoo- oder anderen Account erscheint nur, solange Notizen für diesen Account aktiviert ist. Tippe auf
           den Account, stell sicher, dass Notizen aktiviert ist, und wiederhole das für jeden Account.
           <Paths rows={[{ on: "iPhone", steps: ["Einstellungen", "Apps", "Notizen", "Notizen-Accounts"] }]} />
         </li>
         <li id="andere-woerter">
-          <strong>Probier andere Wörter, dann such von Hand</strong>
+          <strong>Probier andere Wörter, dann such von Hand</strong>{" "}
           Apple rät selbst: Vielleicht suchst du nach einem Wort, einer Wortfolge oder einem Titel, der so nicht in der Notiz vorkommt.
           Probier ein anderes, öffne dann jeden Ordner und scroll. Auf dem Mac kannst du auch so tippen, wie du es sagen würdest, etwa
           „letzte Woche erstellt“ oder „heute geändert“.
         </li>
         <li id="synchronisiert">
-          <strong>Die Notiz ist auf diesem Gerät angekommen</strong>
+          <strong>Die Notiz ist auf diesem Gerät angekommen</strong>{" "}
           Hast du die Notiz auf einem anderen iPhone oder Mac geschrieben, muss sie erst hier ankommen, bevor die Suche sie findet. Prüf auf
           beiden Geräten in den iCloud-Einstellungen, ob „Dieses iPhone synchronisieren“ oder „Diesen Mac synchronisieren“ für Notizen
           aktiviert ist. <a href="/de/blog/notizen-synchronisieren-nicht">Notizen synchronisieren nicht</a> hat die übrigen Checks dazu.
@@ -137,7 +137,7 @@ export default function Page() {
           drück Option-Command-Esc und klick auf „Sofort beenden“. Klappt auch das nicht, wähle im Apple-Menü „Neustart“.
         </li>
         <li id="update">
-          <strong>Aktualisiere auf die neueste Software</strong>
+          <strong>Aktualisiere auf die neueste Software</strong>{" "}
           Hier beginnt Apples Artikel zu fehlenden Notizen: Aktualisiere jedes Gerät auf das neueste iOS und macOS. Laut Apple enthalten
           macOS-Updates Verbesserungen für integrierte Apps wie Notizen.
           <Paths rows={[

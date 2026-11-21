@@ -117,7 +117,7 @@ export default function Page() {
       </p>
       <p>
         For a manual correction, return to editing the note. Double-tap a word to select it, adjust the selection
-        handles for a phrase and type the new wording. Apple explains selection in its
+        handles for a phrase and type the new wording. Apple explains selection in its{" "}
         <a href="https://support.apple.com/en-us/guide/iphone/iph1a9cae52c/ios" rel="noopener"> iPhone text editing guide</a>.
         Check the sentence around each match before changing it.
       </p>
@@ -155,7 +155,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Rename a phrase across notes with a connected AI</h2>
       <p>
-        Pinto Notes looks and works like Apple Notes on iPhone and Mac. Once
+        Pinto Notes looks and works like Apple Notes on iPhone and Mac. Once{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> ChatGPT or Claude is connected</a>, it can search your notes,
         read the matches and replace text in each note. A useful first request is to ask for the proposed changes.
       </p>
@@ -168,7 +168,7 @@ export default function Page() {
       </p>
       <p>
         After reviewing the proposed passages, tell the AI which changes to make. Read the resulting notes and check
-        any exceptions you named. Every earlier version is kept, as explained in the
+        any exceptions you named. Every earlier version is kept, as explained in the{" "}
         <a href="/blog/apple-notes-version-history"> note history guide</a>.
       </p>
       <p>

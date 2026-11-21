@@ -77,43 +77,43 @@ export default function Page() {
       </p>
       <Steps>
         <li id="option-name">
-          <strong>You&apos;re choosing the right option</strong>
+          <strong>You&apos;re choosing the right option</strong>{" "}
           On iOS 27, tap the Share button, then the menu under the note title, and choose Share a Link. Send a Copy sends a copy nobody
           else can edit. On iOS 18 to iOS 26 the same menu says Collaborate or Send Copy.
         </li>
         <li id="in-icloud">
-          <strong>The note is in iCloud</strong>
+          <strong>The note is in iCloud</strong>{" "}
           Apple&apos;s steps start in the All iCloud folder, and its Mac guide says you must use upgraded iCloud notes to collaborate.
           A note under On My iPhone, On My Mac or a Gmail account isn&apos;t in iCloud. <a href="/blog/move-apple-notes-to-icloud">Move
           it into an iCloud folder</a> first.
         </li>
         <li id="locked">
-          <strong>The note isn&apos;t locked</strong>
+          <strong>The note isn&apos;t locked</strong>{" "}
           You can&apos;t collaborate on a locked note, or on a folder that has a locked note in it. Open the note and unlock it, then
           tap the Note Actions button and tap Remove.
         </li>
         <li id="icloud-on">
-          <strong>You&apos;re signed in, with Notes on for iCloud</strong>
+          <strong>You&apos;re signed in, with Notes on for iCloud</strong>{" "}
           Open Settings, tap your name, then iCloud. Under Saved to iCloud, tap Notes and check that Sync this iPhone is on. Apple says
           the people you invite need this too.
         </li>
         <li id="update">
-          <strong>Both of you are on the latest iOS</strong>
+          <strong>Both of you are on the latest iOS</strong>{" "}
           Apple asks for the latest version of iOS on your iPhone and on the other person&apos;s. The Collaborate steps for iOS 26 and
           earlier need iOS 18 or later.
         </li>
         <li id="other-person">
-          <strong>The other person has an Apple Account</strong>
+          <strong>The other person has an Apple Account</strong>{" "}
           Participants need an Apple Account to view and edit a shared note. On iOS 26 or earlier, Apple says you can only collaborate
           with someone who has an Apple device signed in to an Apple Account. If they don&apos;t, send a copy instead.
         </li>
         <li id="pending">
-          <strong>Your request isn&apos;t still waiting</strong>
+          <strong>Your request isn&apos;t still waiting</strong>{" "}
           If you asked for access to someone&apos;s note on iOS 27, the request may be pending. The owner sees it under the Collaborate
           button, and Apple says the request also sends an email to the owner&apos;s Apple Account address.
         </li>
         <li id="limit">
-          <strong>The note has room</strong>
+          <strong>The note has room</strong>{" "}
           Up to 100 people can collaborate on a note.
         </li>
       </Steps>
@@ -195,7 +195,7 @@ export default function Page() {
       </p>
       <p>
         It has limits of its own. Everyone writes in it from Pinto Notes on iPhone or Mac; someone without the app who opens the link is
-        told how to get it and join. A note with files, photos or an app in it can&apos;t be shared yet, and a shared note can&apos;t be locked.
+        told how to get it and join. A note with files, photos or an app in it can&apos;t be shared yet, and a shared note can&apos;t be locked.{" "}
         <a href="/blog/share-a-note-and-edit-it-together"> Share a note and edit it together</a> has the details. Your Apple Notes come
         over in one import on your Mac (<a href="/blog/move-from-apple-notes">moving from Apple Notes</a>), and Apple Notes isn&apos;t
         changed.

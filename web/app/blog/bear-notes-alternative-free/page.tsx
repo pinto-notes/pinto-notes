@@ -121,7 +121,7 @@ export default function Page() {
         checked 21 November 2026, puts iCloud sync and search inside images and PDFs in Pro.
       </p>
       <p>
-        Bear also has AI access. Its <a href="https://bear.app/faq/command-line-interface/" rel="noopener">official guide</a>
+        Bear also has AI access. Its <a href="https://bear.app/faq/command-line-interface/" rel="noopener">official guide</a>{" "}
         documents a Claude desktop Connector, a local MCP server and a command-line tool in Bear 2.8 or later on a Mac.
         They can search, read, create and edit notes. Try that route if AI access is your only reason for leaving.
       </p>
@@ -138,7 +138,7 @@ export default function Page() {
         as shown in the <a href="/blog/import-your-notes">import guide</a>. Your old app stays as it is.
       </p>
       <p>
-        Choosing Apple Notes instead? Apple&apos;s <a href="https://support.apple.com/guide/notes/not201900c07/mac" rel="noopener">current Mac guide</a>
+        Choosing Apple Notes instead? Apple&apos;s <a href="https://support.apple.com/guide/notes/not201900c07/mac" rel="noopener">current Mac guide</a>{" "}
         documents File, Import Markdown on macOS 27. Select the exported Markdown files or their folder.
         You can preserve the folder structure. Check the imported copies before exporting the whole library.
       </p>

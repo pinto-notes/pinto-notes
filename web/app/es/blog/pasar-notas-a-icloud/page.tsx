@@ -142,15 +142,15 @@ export default function Page() {
       <h2 id="iphone">Trasladar notas en el iPhone</h2>
       <Steps>
         <li>
-          <strong>Abre la carpeta que contiene las notas</strong>
+          <strong>Abre la carpeta que contiene las notas</strong>{" "}
           Por ejemplo, Notas bajo En mi iPhone, o Notas bajo Gmail.
         </li>
         <li>
-          <strong>Toca el botón Más y luego Seleccionar Notas</strong>
+          <strong>Toca el botón Más y luego Seleccionar Notas</strong>{" "}
           Toca cada nota que quieras trasladar.
         </li>
         <li>
-          <strong>Toca el botón Carpeta y elige una carpeta bajo iCloud</strong>
+          <strong>Toca el botón Carpeta y elige una carpeta bajo iCloud</strong>{" "}
           Las notas salen de la cuenta antigua y aparecen en esa carpeta.
         </li>
       </Steps>
@@ -165,11 +165,11 @@ export default function Page() {
       <h2 id="mac">Trasladar notas en un Mac</h2>
       <Steps>
         <li>
-          <strong>Selecciona las notas en la lista</strong>
+          <strong>Selecciona las notas en la lista</strong>{" "}
           Pueden venir de En mi Mac, de Gmail o de cualquier otra cuenta de la barra lateral.
         </li>
         <li>
-          <strong>Arrástralas a una carpeta bajo iCloud en la barra lateral, o haz clic con la tecla Control pulsada y elige Trasladar a</strong>
+          <strong>Arrástralas a una carpeta bajo iCloud en la barra lateral, o haz clic con la tecla Control pulsada y elige Trasladar a</strong>{" "}
           Mantén pulsada la tecla Opción al soltarlas para obtener copias y conservar los originales. En Latinoamérica, Trasladar a se llama
           Transferir a.
         </li>

@@ -145,24 +145,24 @@ export default function Page() {
         caption="The Pinto Notes plugin in ChatGPT, with examples to try. Screenshot: ChatGPT." />
       <Steps>
         <li>
-          <strong>Open the Pinto Notes plugin in ChatGPT</strong>
+          <strong>Open the Pinto Notes plugin in ChatGPT</strong>{" "}
           In Pinto Notes on your Mac, choose <Path steps={["Settings", "Connect an AI", "ChatGPT", "Open Pinto Notes in ChatGPT"]} />
           Or use <a href="https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f" rel="noopener">this link</a>,
           or open Plugins in ChatGPT&apos;s sidebar and search for Pinto Notes.
         </li>
         <li>
-          <strong>Connect it</strong>
+          <strong>Connect it</strong>{" "}
           Press the connect button on the plugin&apos;s page. ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
           it&apos;s on this computer).
         </li>
         <li>
-          <strong>Choose Allow in Pinto Notes</strong>
+          <strong>Choose Allow in Pinto Notes</strong>{" "}
           Pinto Notes on your Mac asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Choose Allow, which lets
           ChatGPT read and edit your notes. If the page shows a number, type it in Pinto Notes first. The page takes you back to ChatGPT. If the app asks and you
           didn&apos;t start this, choose Don&apos;t Allow.
         </li>
         <li>
-          <strong>Try it</strong>
+          <strong>Try it</strong>{" "}
           Choose Try in chat, or start a new chat, add Pinto Notes from the tools menu, and ask &ldquo;Search my Pinto Notes and tell me what I wrote most recently.&rdquo;
         </li>
       </Steps>

@@ -82,7 +82,7 @@ export default function Page() {
       <h2 id="iphone">No iPhone: o Notas fica travando ou não abre</h2>
       <Steps>
         <li id="fechar-iphone">
-          <strong>Feche o Notas e abra de novo</strong>
+          <strong>Feche o Notas e abra de novo</strong>{" "}
           Abra o Seletor de Apps, passe o dedo até achar o Notas e passe o dedo para cima nele. Depois toque no Notas na Tela de Início ou
           na Biblioteca de Apps.
         </li>
@@ -93,7 +93,7 @@ export default function Page() {
           pressionado até o logotipo da Apple aparecer.
         </li>
         <li id="atualizar-iphone">
-          <strong>Atualize o iOS</strong>
+          <strong>Atualize o iOS</strong>{" "}
           A Apple sugere olhar primeiro Atualizações de Apps na App Store e, se não houver nada para o app, atualizar o software do iPhone.
           Antes, faça backup do iPhone, ligue na energia e conecte ao Wi-Fi.
           <Paths rows={[
@@ -101,7 +101,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="baixar-de-novo">
-          <strong>Apague o Notas e baixe de novo, por último</strong>
+          <strong>Apague o Notas e baixe de novo, por último</strong>{" "}
           O Notas é um dos apps integrados que a Apple deixa apagar. A Apple diz que apagar um deles também apaga os dados de usuário
           relacionados no aparelho, então confira icloud.com/notes antes, e pule este passo se você guarda notas em No Meu iPhone. Para
           trazer de volta, busque Notas pelo nome exato na App Store e toque em Baixar Novamente.
@@ -116,7 +116,7 @@ export default function Page() {
       <h2 id="mac">No Mac: o Notas fica travando ou fechando</h2>
       <Steps>
         <li id="forcar-encerrar">
-          <strong>Encerre o Notas, ou force o encerramento</strong>
+          <strong>Encerre o Notas, ou force o encerramento</strong>{" "}
           Tente primeiro Command + Q. Se o Notas não responder, pressione Option + Command + Esc, ou escolha Forçar Encerrar no menu Apple,
           selecione o Notas e clique em Forçar Encerrar. A Apple avisa que você pode perder alterações não salvas. Se o Notas fechou
           sozinho, clique em Reabrir na janela que aparecer.
@@ -125,24 +125,24 @@ export default function Page() {
           ]} />
         </li>
         <li id="reiniciar-mac">
-          <strong>Reinicie o Mac</strong>
+          <strong>Reinicie o Mac</strong>{" "}
           Escolha Reiniciar no menu Apple. Se o Mac não reiniciar, a Apple manda manter pressionado o botão liga/desliga por até dez
           segundos, até ele desligar, e pressionar de novo para ligar.
         </li>
         <li id="outra-nota">
-          <strong>Abra outra nota</strong>
+          <strong>Abra outra nota</strong>{" "}
           O guia da Apple sugere abrir outro documento, porque o que estava aberto pode ser a causa do problema. No Notas, isso é outra
           nota.
         </li>
         <li id="atualizar-mac">
-          <strong>Atualize o macOS</strong>
+          <strong>Atualize o macOS</strong>{" "}
           A Apple recomenda fazer backup do Mac antes. Não deixe o Mac entrar em repouso nem feche a tampa até a instalação terminar.
           <Paths rows={[
             { on: "Mac", steps: ["Ajustes do Sistema", "Geral", "Atualização de Software"] },
           ]} />
         </li>
         <li id="perifericos">
-          <strong>Desconecte o que é novo e remova complementos</strong>
+          <strong>Desconecte o que é novo e remova complementos</strong>{" "}
           A Apple sugere desconectar um aparelho que você acabou de ligar, como uma impressora, e desinstalar plug-ins ou melhorias de
           outros fabricantes, que podem parar de funcionar depois de uma atualização do app ou do macOS.
         </li>

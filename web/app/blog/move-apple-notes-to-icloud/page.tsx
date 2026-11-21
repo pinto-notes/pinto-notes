@@ -127,15 +127,15 @@ export default function Page() {
       <h2 id="iphone">Move notes on iPhone</h2>
       <Steps>
         <li>
-          <strong>Open the folder that holds the notes</strong>
+          <strong>Open the folder that holds the notes</strong>{" "}
           For example Notes under On My iPhone, or Notes under Gmail.
         </li>
         <li>
-          <strong>Tap the More button, then Select Notes</strong>
+          <strong>Tap the More button, then Select Notes</strong>{" "}
           Tap each note you want to move.
         </li>
         <li>
-          <strong>Tap the Folder button and choose a folder under iCloud</strong>
+          <strong>Tap the Folder button and choose a folder under iCloud</strong>{" "}
           The notes leave the old account and appear in that folder.
         </li>
       </Steps>
@@ -150,11 +150,11 @@ export default function Page() {
       <h2 id="mac">Move notes on a Mac</h2>
       <Steps>
         <li>
-          <strong>Select the notes in the list</strong>
+          <strong>Select the notes in the list</strong>{" "}
           They can come from On My Mac, Gmail or any other account in the sidebar.
         </li>
         <li>
-          <strong>Drag them onto a folder under iCloud in the sidebar, or Control-click and choose Move to</strong>
+          <strong>Drag them onto a folder under iCloud in the sidebar, or Control-click and choose Move to</strong>{" "}
           Hold Option as you drop to get copies and keep the originals.
         </li>
       </Steps>

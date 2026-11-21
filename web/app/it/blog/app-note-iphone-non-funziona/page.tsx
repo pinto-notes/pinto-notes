@@ -88,7 +88,7 @@ export default function Page() {
       <h2 id="iphone">Su iPhone: Note si chiude da sola o non si apre</h2>
       <Steps>
         <li id="chiudi-iphone">
-          <strong>Chiudi Note e riaprila</strong>
+          <strong>Chiudi Note e riaprila</strong>{" "}
           Apri l’elenco applicazioni, scorri fino a Note, poi falla scorrere verso l’alto. Poi tocca Note sulla schermata Home o nella
           libreria app.
         </li>
@@ -99,7 +99,7 @@ export default function Page() {
           finché compare il logo Apple.
         </li>
         <li id="aggiorna-iphone">
-          <strong>Aggiorna iOS</strong>
+          <strong>Aggiorna iOS</strong>{" "}
           Apple suggerisce di guardare prima in Aggiornamenti app nell’App Store, e di aggiornare il software dell’iPhone se per l’app non
           c’è niente. Prima fai il backup dell’iPhone, collegalo all’alimentazione e connettiti al Wi-Fi.
           <Paths rows={[
@@ -107,7 +107,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="scarica-di-nuovo">
-          <strong>Elimina Note e scaricala di nuovo, per ultimo</strong>
+          <strong>Elimina Note e scaricala di nuovo, per ultimo</strong>{" "}
           Note è una delle app integrate che Apple ti lascia eliminare. Apple dice che eliminarne una elimina anche i suoi dati sul
           dispositivo, quindi controlla prima icloud.com/notes, e salta questo passaggio se tieni note in Su iPhone. Per riaverla, cerca
           Note nell’App Store con il suo nome esatto e tocca Scarica di nuovo.
@@ -122,7 +122,7 @@ export default function Page() {
       <h2 id="mac">Sul Mac: Note si blocca o si chiude</h2>
       <Steps>
         <li id="uscita-forzata">
-          <strong>Esci da Note, o forza l’uscita</strong>
+          <strong>Esci da Note, o forza l’uscita</strong>{" "}
           Prova prima Comando-Q. Se Note non risponde, premi Opzione-Comando-Esc, oppure scegli Uscita forzata dal menu Apple, seleziona
           Note e fai clic su Uscita forzata. Apple avverte che potresti perdere le modifiche non salvate. Se Note si è chiusa da sola, fai
           clic su Riapri nella finestra che compare.
@@ -131,17 +131,17 @@ export default function Page() {
           ]} />
         </li>
         <li id="riavvia-mac">
-          <strong>Riavvia il Mac</strong>
+          <strong>Riavvia il Mac</strong>{" "}
           Scegli Riavvia dal menu Apple. Se il Mac non si riavvia, Apple dice di tenere premuto il tasto di accensione per 10 secondi, finché
           si spegne, poi premerlo di nuovo per riaccenderlo.
         </li>
         <li id="altra-nota">
-          <strong>Apri un’altra nota</strong>
+          <strong>Apri un’altra nota</strong>{" "}
           La guida di Apple suggerisce di aprire un altro file, perché il problema può essere in quello che era aperto. In Note, vuol dire
           un’altra nota.
         </li>
         <li id="aggiorna-mac">
-          <strong>Aggiorna macOS</strong>
+          <strong>Aggiorna macOS</strong>{" "}
           Apple dice che conviene fare prima il backup del Mac. Non mettere il Mac in standby e non chiudere il coperchio finché
           l’installazione non è finita.
           <Paths rows={[
@@ -149,7 +149,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="periferiche">
-          <strong>Scollega quello che è nuovo, togli i componenti aggiuntivi</strong>
+          <strong>Scollega quello che è nuovo, togli i componenti aggiuntivi</strong>{" "}
           Apple suggerisce di scollegare un dispositivo appena collegato, come una stampante, e di disinstallare componenti aggiuntivi o
           plugin di terze parti, che possono smettere di funzionare dopo un aggiornamento dell’app o di macOS.
         </li>

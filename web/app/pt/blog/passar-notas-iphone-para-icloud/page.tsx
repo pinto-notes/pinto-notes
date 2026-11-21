@@ -137,15 +137,15 @@ export default function Page() {
       <h2 id="iphone">Mover notas no iPhone</h2>
       <Steps>
         <li>
-          <strong>Abra a pasta que tem as notas</strong>
+          <strong>Abra a pasta que tem as notas</strong>{" "}
           Por exemplo, Notas em No Meu iPhone, ou Notas no Gmail.
         </li>
         <li>
-          <strong>Toque no botão Mais e depois em Selecionar Notas</strong>
+          <strong>Toque no botão Mais e depois em Selecionar Notas</strong>{" "}
           Toque em cada nota que você quer mover.
         </li>
         <li>
-          <strong>Toque no botão de pasta e escolha uma pasta do iCloud</strong>
+          <strong>Toque no botão de pasta e escolha uma pasta do iCloud</strong>{" "}
           As notas saem da conta antiga e aparecem nessa pasta.
         </li>
       </Steps>
@@ -160,11 +160,11 @@ export default function Page() {
       <h2 id="mac">Mover notas no Mac</h2>
       <Steps>
         <li>
-          <strong>Selecione as notas na lista</strong>
+          <strong>Selecione as notas na lista</strong>{" "}
           Elas podem vir de Em Meu Mac, do Gmail ou de qualquer outra conta da barra lateral.
         </li>
         <li>
-          <strong>Arraste para uma pasta do iCloud na barra lateral, ou clique com a tecla Control pressionada e escolha Mover para</strong>
+          <strong>Arraste para uma pasta do iCloud na barra lateral, ou clique com a tecla Control pressionada e escolha Mover para</strong>{" "}
           Mantenha a tecla Option pressionada ao soltar para fazer cópias e guardar os originais.
         </li>
       </Steps>
