@@ -173,6 +173,9 @@ export default function Page() {
         The notes you already keep in Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and
         Apple Notes isn&apos;t changed.
       </p>
+      <p>
+        Starting something new rather than recording a choice? A <a href="/blog/apple-notes-project-brief-template">project brief template</a> sets out the outcome, scope and checks first.
+      </p>
     </PostPage>
   );
 }

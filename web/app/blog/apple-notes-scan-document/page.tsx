@@ -153,6 +153,9 @@ export default function Page() {
         earlier version kept. Your Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and Apple
         Notes isn&apos;t changed.
       </p>
+      <p>
+        Scanning receipts for things you own? Keep them with a <a href="/blog/apple-notes-home-inventory-template">home inventory in Apple Notes</a>, one note per room.
+      </p>
     </PostPage>
   );
 }
