@@ -42,7 +42,7 @@ export default function Page() {
     <LocalPostPage
       lang="it"
       slug="password-note-iphone-dimenticata"
-      intro={<>Hai dimenticato la password delle note protette sul tuo iPhone? Ecco cosa vale la pena provare, nell’ordine in cui lo farei io, e l’unica cosa da non fare per prima.</>}
+      intro={<>Hai dimenticato la password delle note protette sul tuo iPhone? Ecco cosa vale la pena provare, nell’ordine in cui provarlo, e l’unica cosa da non fare per prima.</>}
       answer={
         <Answer label={ui.shortAnswer} jumpTo={ui.jumpTo} jump={[
           { href: "#prova-prima", label: "Prova prima questo" },
@@ -161,9 +161,9 @@ export default function Page() {
         alt="Note di Apple su macOS 27 chiede Reset Notes Password? e spiega che la nuova password vale per le note che proteggerai d’ora in poi, mentre quelle che hanno già una password non cambiano. Pulsanti Cancel e OK."
         caption="Quando reimposti su macOS 27, Apple lo dice chiaro: le note che hanno già una password non cambiano." />
 
-      <h2 id="provato">L’ho provato su un Mac di prova</h2>
+      <h2 id="provato">L’abbiamo provato su un Mac di prova</h2>
       <p>
-        Ho protetto una nota con una password, l’ho reimpostata e ne ho messa una nuova. Poi ho aperto la nota vecchia. La password nuova
+        Abbiamo protetto una nota con una password, l’abbiamo reimpostata e ne abbiamo messa una nuova. Poi abbiamo aperto la nota vecchia. La password nuova
         non funzionava, e il suggerimento che compariva era quello vecchio. Quel suggerimento è il tuo indizio migliore: l’hai scritto
         tu, per la password che hai dimenticato.
       </p>

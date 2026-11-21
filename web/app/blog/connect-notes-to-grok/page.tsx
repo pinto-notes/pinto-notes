@@ -82,7 +82,7 @@ export default function Page() {
       </p>
       <p>
         The guide says connectors are available to all Grok users. Several third-party guides say custom MCP connectors need a paid
-        plan. I couldn&apos;t confirm either from xAI, so if Custom is missing, check your plan first.
+        plan. Neither is confirmed by xAI, so if Custom is missing, check your plan first.
       </p>
 
       <h2 id="web">How to add a custom MCP connector on grok.com</h2>
@@ -131,7 +131,7 @@ export default function Page() {
         server, and says OAuth is handled automatically: a browser opens the first time Grok Build uses it.
       </p>
       <Keep title="Add a remote MCP server to Grok Build" code text={BUILD}
-        note="These are xAI's documented commands for any remote server, with the Pinto Notes address filled in. I haven't run these two in Grok Build myself." />
+        note="These are xAI's documented commands for any remote server, with the Pinto Notes address filled in. These two weren't run in Grok Build for this post." />
       <p>
         The server is added for your user, in <code>~/.grok/config.toml</code>. Add <code>--scope project</code> to keep it in the current
         project&apos;s <code>.grok/config.toml</code> instead. <code>grok mcp list</code> shows what&apos;s set up, and <code>/mcps</code> inside
@@ -150,7 +150,7 @@ export default function Page() {
       <p>
         Grok Bot is xAI&apos;s always-on agent, with its own cloud computer. Its <a href="https://docs.x.ai/grok-bot/computer-and-apps" rel="noopener">docs</a> say
         connectors are added as plugins from Connect apps in the sidebar, and they&apos;re shared by every Bot on your account. They
-        don&apos;t mention pasting your own MCP server address there, so I&apos;d use grok.com or Grok Build for a custom server
+        don&apos;t mention pasting your own MCP server address there, so use grok.com or Grok Build for a custom server
         until xAI says otherwise.
       </p>
 
@@ -167,7 +167,7 @@ export default function Page() {
       </p>
       <p>
         Pinto Notes is one. It&apos;s a notes app for iPhone and Mac with a hosted server at <code>{MCP_URL}</code> that
-        signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it, and I&apos;ve connected it to Grok too. The steps:
+        signs in with OAuth. ChatGPT, Claude, Claude Code and Codex use it, and it has been connected to Grok too. The steps:
       </p>
       <ol>
         <li>Add <code>{MCP_URL}</code> as a Custom connector on grok.com, or with the Grok Build command above.</li>

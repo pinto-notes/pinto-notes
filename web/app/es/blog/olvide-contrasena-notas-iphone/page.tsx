@@ -39,7 +39,7 @@ export default function Page() {
     <LocalPostPage
       lang="es"
       slug="olvide-contrasena-notas-iphone"
-      intro={<>¿Olvidaste la contraseña de tus notas bloqueadas? Esto es lo que vale la pena probar, en el orden en que yo lo haría, y lo único que no conviene hacer primero.</>}
+      intro={<>¿Olvidaste la contraseña de tus notas bloqueadas? Esto es lo que vale la pena probar, en el orden en que conviene probarlo, y lo único que no conviene hacer primero.</>}
       answer={
         <Answer label={ui.shortAnswer} jumpTo={ui.jumpTo} jump={[
           { href: "#prueba-primero", label: "Prueba esto primero" },
@@ -157,9 +157,9 @@ export default function Page() {
         alt="Notas de Apple en macOS 27 pregunta Reset Notes Password? y explica que la nueva contraseña es para las notas que bloquees a partir de ahora y que las que ya tienen contraseña no cambian. Botones Cancel y OK."
         caption="Al restablecer en macOS 27, Apple lo dice claro: las notas que ya tienen contraseña no cambian." />
 
-      <h2 id="probado">Lo probé en un Mac de pruebas</h2>
+      <h2 id="probado">Lo probamos en un Mac de pruebas</h2>
       <p>
-        Bloqueé una nota con una contraseña, la restablecí y puse otra nueva. Luego abrí la nota antigua. La contraseña nueva no
+        Bloqueamos una nota con una contraseña, la restablecimos y pusimos otra nueva. Luego abrimos la nota antigua. La contraseña nueva no
         funcionó, y la indicación que salió era la antigua. Esa indicación es tu mejor pista: es la que escribiste para la contraseña que
         olvidaste.
       </p>

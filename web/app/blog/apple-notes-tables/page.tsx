@@ -46,7 +46,7 @@ export default function Page() {
     <PostPage
       slug="apple-notes-tables"
       intro={<>
-        I planned a move in Apple Notes this week. Boxes, a van for half a day, a cleaner: a little table, and then the one question that
+        We planned a move in Apple Notes this week. Boxes, a van for half a day, a cleaner: a little table, and then the one question that
         matters, what does it all cost? Here&apos;s everything a table in Notes on macOS 27 can do, the trick that gets you a total anyway,
         and where it runs out.
       </>}
@@ -86,7 +86,7 @@ export default function Page() {
       ]} />
       <p>
         You get two rows and two columns with the caret in the first cell. Faster still: type the rows with a tab between each column,
-        select them and press the Table button. Every tab becomes a column, which is how I turned a pasted list into a table in one go.
+        select them and press the Table button. Every tab becomes a column, which is how we turned a pasted list into a table in one go.
         Two columns is all <a href="/blog/apple-notes-cornell-notes-template">Cornell notes in Apple Notes</a> need.
       </p>
 
@@ -109,7 +109,7 @@ export default function Page() {
         caption="In the table, the sum just sits there. Under it, Notes answers: 505." />
       <MenuPaths rows={[{ on: "Mac", steps: ["Format", "Math Results"] }]} />
       <p>
-        This is where most people get stuck. I typed 85+240+180= into the Total cell and nothing happened: a table only holds text, and
+        This is where most people get stuck. We typed 85+240+180= into the Total cell and nothing happened: a table only holds text, and
         Math Results switches off while you&apos;re in one.
       </p>
       <p>
@@ -170,7 +170,7 @@ export default function Page() {
       <h2 id="missing">What&apos;s still missing</h2>
       <p>
         By now my moving budget worked, sort of. The table held the costs, the total lived in three lines underneath, and every new cost
-        meant updating two places. And the questions I actually had, it couldn&apos;t answer: what&apos;s left if I keep it under 800? Did I
+        meant updating two places. And the questions we actually had, it couldn&apos;t answer: what&apos;s left if we keep it under 800? Did we
         already pay the deposit? Notes has the numbers. It just can&apos;t think about them.
       </p>
       <p>

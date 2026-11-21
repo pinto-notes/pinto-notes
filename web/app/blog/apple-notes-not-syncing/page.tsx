@@ -91,7 +91,7 @@ export default function Page() {
       <h2 id="checks">The checks, in order</h2>
       <PostFigure src="/blog/macos27/notes27-turn-on-icloud-prompt" width={1336} height={1080} maxWidth={560}
         alt="Apple Notes on macOS 27 without iCloud: Turn On iCloud. To access your notes from all your devices, turn on iCloud for Notes. System Settings and Cancel."
-        caption="What Notes shows on a Mac where iCloud is off for Notes. There's no sync status anywhere else in macOS 27 Notes; I looked." />
+        caption="What Notes shows on a Mac where iCloud is off for Notes. There's no sync status anywhere else in macOS 27 Notes; we looked." />
       <Steps>
         <li id="icloud-on">
           <strong>Notes is turned on for iCloud, on both devices</strong>{" "}

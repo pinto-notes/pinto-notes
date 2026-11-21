@@ -99,14 +99,14 @@ export default function Page() {
         in the App Store.
       </p>
 
-      <h2>How I picked</h2>
+      <h2>How these were picked</h2>
       <p>
-        I looked at what people ask before they switch: will it sync with my iPhone, will my notes still be mine in ten years, what does
+        From what people ask before they switch: will it sync with my iPhone, will my notes still be mine in ten years, what does
         it cost a year, and lately, can ChatGPT or Claude use it. Handwriting apps like Goodnotes do a different job, so they&apos;re at the
         end.
       </p>
       <p>
-        The pictures of Pinto Notes, Apple Notes and Obsidian are my own, taken on a Mac running macOS 27. The pictures of Bear, Notion
+        The pictures of Pinto Notes, Apple Notes and Obsidian were taken for this post, on a Mac running macOS 27. The pictures of Bear, Notion
         and Craft come from the companies that make them.
       </p>
 
@@ -121,7 +121,7 @@ export default function Page() {
       </p>
       <p>
         You approve each AI app once. When one changes a note, you see what changed, with Undo, and every earlier version stays in the
-        note&apos;s history. That&apos;s what I&apos;d want from any app before I let an AI near my notes.
+        note&apos;s history. That&apos;s worth wanting from any app before you let an AI near your notes.
       </p>
       <p>
         It <a href="/blog/move-from-apple-notes">imports your Apple Notes</a> on the Mac with their folders, and leaves Apple Notes as it
@@ -159,7 +159,7 @@ export default function Page() {
         alt="Bear 2 on a Mac and an iPhone: a sidebar of nested tags, a list of notes and a note about the North Pole with a highlight, a footnote and a table."
         caption="Bear 2 on the Mac and iPhone. Image: Bear." />
       <p>
-        Bear is a Markdown notes app for Mac, iPhone and iPad, and the one I&apos;d point a writer to. It&apos;s beautiful and fast, and
+        Bear is a Markdown notes app for Mac, iPhone and iPad, and the one to point a writer to. It&apos;s beautiful and fast, and
         organises notes with nested tags instead of folders. It has won an Apple Design Award.
       </p>
       <p>

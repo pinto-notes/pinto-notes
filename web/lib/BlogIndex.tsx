@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Announcement, Avatar, PostCard, longDate } from "./blog";
+import { Announcement, PostCard, longDate } from "./blog";
 import { ClosingBand } from "./ClosingBand";
-import { CATEGORY_COVERS, AUTHOR, categories, categoryPath, isFeatured, newestFirst, pageCount, pageOf, pagePath, published, type Category } from "./posts";
+import { CATEGORY_COVERS, categories, categoryPath, isFeatured, newestFirst, pageCount, pageOf, pagePath, published, type Category } from "./posts";
 import { shelves } from "./more-answers";
 import { pageMetadata } from "./site";
 import BlogList from "./BlogList";
@@ -159,7 +159,7 @@ function Featured({ post }: { post: ReturnType<typeof published>[number] }) {
           : <span className={s.featuredLabel}>{post.category} · Newest</span>}
         <h2 className={s.featuredTitle}>{post.title}</h2>
         <span className={s.featuredExcerpt}>{post.excerpt}</span>
-        <span className={s.featuredBy}><Avatar size={22} /><span>{AUTHOR.name}</span><span aria-hidden="true">·</span><time dateTime={post.date}>{longDate(post.date)}</time></span>
+        <span className={s.featuredBy}><time dateTime={post.date}>{longDate(post.date)}</time></span>
       </span>
     </a>
   );

@@ -41,7 +41,7 @@ export default function Page() {
     <LocalPostPage
       lang="fr"
       slug="mot-de-passe-notes-iphone-oublie"
-      intro={<>Vous avez oublié le mot de passe de vos notes verrouillées sur iPhone ou sur Mac ? Voici ce qui vaut la peine d’être essayé, dans l’ordre où je le ferais, et la seule chose à ne pas faire en premier.</>}
+      intro={<>Vous avez oublié le mot de passe de vos notes verrouillées sur iPhone ou sur Mac ? Voici ce qui vaut la peine d’être essayé, dans l’ordre où l’essayer, et la seule chose à ne pas faire en premier.</>}
       answer={
         <Answer label={ui.shortAnswer} jumpTo={ui.jumpTo} jump={[
           { href: "#essayer-d-abord", label: "À essayer d’abord" },
@@ -162,9 +162,9 @@ export default function Page() {
         alt="Notes sur macOS 27 demande Reset Notes Password? et explique que le nouveau mot de passe sert aux notes que vous verrouillerez à partir de maintenant, et que les notes qui ont déjà un mot de passe ne changent pas. Boutons Cancel et OK."
         caption="Apple le dit clairement quand vous réinitialisez sur macOS 27 : les notes qui ont déjà un mot de passe ne changent pas." />
 
-      <h2 id="test">Je l’ai réinitialisé sur un Mac de test, pour que vous n’ayez pas à le faire</h2>
+      <h2 id="test">Nous l’avons réinitialisé sur un Mac de test, pour que vous n’ayez pas à le faire</h2>
       <p>
-        J’ai verrouillé une note avec un mot de passe, je l’ai réinitialisé, puis j’en ai défini un nouveau. Ensuite, j’ai ouvert
+        Nous avons verrouillé une note avec un mot de passe, nous l’avons réinitialisé, puis nous en avons défini un nouveau. Ensuite, nous avons ouvert
         l’ancienne note. Le nouveau mot de passe n’a pas marché, et l’indice affiché était l’ancien. Cet indice est votre meilleure
         piste : c’est celui que vous avez écrit pour le mot de passe que vous avez oublié.
       </p>

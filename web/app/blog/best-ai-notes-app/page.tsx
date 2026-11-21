@@ -96,10 +96,10 @@ export default function Page() {
       </div>
       <p>Prices are the maker&apos;s own page or the US App Store, read on 7 November 2026.</p>
 
-      <h2>How I picked</h2>
+      <h2>How these were picked</h2>
       <p>
-        Everything here is a notes app first: a place where you write and keep things. I compared three things: what the AI does, what it
-        costs, and whether the AI you already use can reach your notes. I read each maker&apos;s own pages on the day I wrote this.
+        Everything here is a notes app first: a place where you write and keep things. We compared three things: what the AI does, what it
+        costs, and whether the AI you already use can reach your notes. We read each maker&apos;s own pages on the day this was written.
       </p>
       <p>
         The Pinto Notes and Obsidian screenshots are mine; the other pictures come from the companies that make the apps. Apps that only

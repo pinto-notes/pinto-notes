@@ -42,7 +42,7 @@ export default function Page() {
     <LocalPostPage
       lang="pt"
       slug="esqueci-senha-notas-iphone"
-      intro={<>Esqueceu a senha das suas notas bloqueadas? Aqui está o que vale a pena tentar, na ordem em que eu tentaria, e a única coisa que não convém fazer primeiro.</>}
+      intro={<>Esqueceu a senha das suas notas bloqueadas? Aqui está o que vale a pena tentar, na ordem em que vale tentar, e a única coisa que não convém fazer primeiro.</>}
       answer={
         <Answer label={ui.shortAnswer} jumpTo={ui.jumpTo} jump={[
           { href: "#tente-primeiro", label: "Tente isto primeiro" },
@@ -161,9 +161,9 @@ export default function Page() {
         alt="O app Notas no macOS 27 pergunta Reset Notes Password? e explica que a senha nova vale para as notas que você bloquear daqui em diante e que as notas que já têm senha não mudam. Botões Cancel e OK."
         caption="Ao redefinir no macOS 27, a Apple diz com todas as letras: as notas que já têm senha não mudam." />
 
-      <h2 id="testado">Redefini num Mac de teste para você não precisar</h2>
+      <h2 id="testado">Redefinimos num Mac de teste para você não precisar</h2>
       <p>
-        Bloqueei uma nota com uma senha, redefini e criei uma senha nova. Depois abri a nota antiga. A senha nova não funcionou, e a dica
+        Bloqueamos uma nota com uma senha, redefinimos e criamos uma senha nova. Depois abrimos a nota antiga. A senha nova não funcionou, e a dica
         que apareceu era a antiga. Essa dica é a sua melhor pista: é a dica que você escreveu para a senha que esqueceu.
       </p>
       <FigurePair items={[
