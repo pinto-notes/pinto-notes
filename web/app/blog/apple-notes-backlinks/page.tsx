@@ -102,6 +102,10 @@ export default function Page() {
         the project and the Smart Folder lists them, links or not.
       </p>
 
+      <p>
+        For a whole system of folders, tags, pins and links, see <a href="/blog/apple-notes-organize">how to organize Apple Notes</a>.
+      </p>
+
       <h2 id="pinto-notes">A notes app with backlinks</h2>
       <p>
         That&apos;s one of the reasons I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and links notes the

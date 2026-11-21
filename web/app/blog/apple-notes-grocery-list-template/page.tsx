@@ -145,6 +145,10 @@ export default function Page() {
         lets you choose the aisles and their order, where Reminders chooses its own categories.
       </p>
 
+      <p>
+        Where the setting that drops ticked items to the bottom lives on iPhone and on Mac, and how to turn it off, is in <a href="/blog/apple-notes-checklist-sort">moving checked items to the bottom</a>.
+      </p>
+
       <h2 id="limits">Where a grocery list in Notes stops</h2>
       <ul>
         <li><strong>You do the sorting.</strong> Every item goes under its aisle by hand, so a quick add on the way out lands at the bottom.</li>

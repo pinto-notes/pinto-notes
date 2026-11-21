@@ -167,6 +167,12 @@
   "w": 880,
   "h": 550
  },
+ "checklist": {
+  "ground": "#fabab8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "claude-apple-notes": {
   "ground": "#f5e3d5",
   "ink": "dark",
@@ -377,6 +383,12 @@
   "w": 880,
   "h": 495
  },
+ "organize": {
+  "ground": "#acbc7c",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "reading-list": {
   "ground": "#b29aba",
   "ink": "dark",
@@ -391,6 +403,12 @@
  },
  "recover-deleted": {
   "ground": "#e5efdf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "school": {
+  "ground": "#8dbcc9",
   "ink": "dark",
   "w": 880,
   "h": 550

@@ -35,7 +35,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -299,6 +299,42 @@ export const posts: Post[] = [
     updated: "2026-11-21",
     image: { src: "/blog/launch/meeting-notes-note.webp", alt: "A Meeting notes note in Pinto Notes on a Mac: action items with an owner and a date, then each meeting's summary.", width: 1520, height: 1110, window: false, title: "Meeting notes" },
     thumb: cover("cream", "meeting", 1600, 1000, "A paper coffee cup and two speech bubbles beside a note card with one action ticked"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-organize",
+    title: "How to organize Apple Notes: a system that lasts",
+    description: "How to organize Apple Notes on iPhone and Mac: folders and subfolders, sorting, pins, tags, a folder structure to copy and a weekly tidy.",
+    excerpt: "Folders for areas, tags for topics, the right sort for each folder, a few pins and a ten-minute weekly tidy. A folder structure to copy included.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/apple/iphone-notes-ios27-folders-list.webp", alt: "Folders and tags on a Folders list in Notes on iPhone: Quick Notes, Shared, iCloud folders and a Tags section.", width: 640, height: 1320, window: false, title: "Folders" },
+    thumb: cover("meadow", "organize", 1600, 1000, "Three paper file folders with note cards peeking out, a pushpin and two squared note cards"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-checklist-sort",
+    title: "Apple Notes checklist: move checked items to the bottom",
+    description: "Where Sort Checked Items lives on iPhone and Mac, how to turn it on or off, move items by hand, uncheck a whole list and the checklist shortcuts.",
+    excerpt: "One setting moves ticked items to the bottom of an Apple Notes checklist. Where it is on iPhone and on Mac, how to turn it off, and how to move and reset items by hand.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/news/apple-notes-mac-groceries.webp", alt: "A Groceries checklist in Apple Notes on a Mac, with Sourdough, Eggs and Spinach ticked at the bottom.", width: 1600, height: 1000, window: false, title: "Groceries" },
+    thumb: cover("peony", "checklist", 1600, 1000, "A paper checklist card with its two ticked items at the bottom, a curved arrow and a pencil"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-for-school",
+    title: "Apple Notes for school: a setup for every class",
+    description: "Is Apple Notes good for school? An honest answer, then a setup for every class: folders, lecture notes, scans, recordings, Cornell notes and flashcards.",
+    excerpt: "Is Apple Notes good for school? Yes for taking notes, less for revision. A setup for every class: folders, lecture notes, scans, recordings, sums and study groups.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: SHOTS.flashcardsApp,
+    thumb: cover("ocean", "school", 1600, 1000, "A paper backpack, a two-column note card and two books with an apple on top"),
     draft: false,
   },
   {
