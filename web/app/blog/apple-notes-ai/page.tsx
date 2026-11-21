@@ -72,7 +72,7 @@ export default function Page() {
         ]}>
           <p>
             Apple Notes gets its AI from Apple Intelligence. Writing Tools proofread, rewrite and summarize text you select, and an audio
-            recording gets a transcript and a summary. In iOS 27 and macOS 27, Siri AI (beta) can also find a note by what&apos;s in it.
+            recording gets <a href="/blog/apple-notes-record-and-transcribe">a transcript</a> and a summary. In iOS 27 and macOS 27, Siri AI (beta) can also find a note by what&apos;s in it.
             None of it lets ChatGPT or Claude read or edit your notes.
           </p>
           <PostCta slug="apple-notes-ai" position="answer" title="Want ChatGPT or Claude in your notes?">

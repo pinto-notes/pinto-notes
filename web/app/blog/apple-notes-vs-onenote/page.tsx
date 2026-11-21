@@ -189,7 +189,7 @@ export default function Page() {
 
       <h2 id="moving">Moving between them</h2>
       <p>
-        Neither app imports the other&apos;s notes directly. Notes on a Mac imports .txt, .rtf, .html, .md and Evernote&apos;s .enex
+        Neither app imports the other&apos;s notes directly. Notes on a Mac imports .txt, .rtf, .html, .md and <a href="/blog/apple-notes-vs-evernote">Evernote</a>&apos;s .enex
         files with File, Import to Notes, and OneNote isn&apos;t on Apple&apos;s list. OneNote for Mac exports one page at a time,
         as a PDF, with File, Save as PDF. So a notebook comes across page by page: copy and paste the text, or keep the PDFs.
       </p>

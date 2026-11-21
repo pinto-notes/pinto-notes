@@ -17,6 +17,12 @@
   "w": 880,
   "h": 550
  },
+ "annotate-pdf": {
+  "ground": "#96b3ab",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "anthropic-mcp": {
   "ground": "#da7959",
   "ink": "light",
@@ -269,6 +275,12 @@
   "w": 880,
   "h": 550
  },
+ "font": {
+  "ground": "#f8e87f",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "forgot-password": {
   "ground": "#f4e7d4",
   "ink": "dark",
@@ -437,6 +449,12 @@
   "w": 880,
   "h": 550
  },
+ "on-windows": {
+  "ground": "#98c7e2",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "one-on-one": {
   "ground": "#f0c691",
   "ink": "dark",
@@ -485,8 +503,20 @@
   "w": 880,
   "h": 550
  },
+ "record-transcribe": {
+  "ground": "#d5bae0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "recover-deleted": {
   "ground": "#e5efdf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "scan-document": {
+  "ground": "#efc590",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -557,6 +587,18 @@
   "w": 880,
   "h": 550
  },
+ "vs-bear": {
+  "ground": "#f4bbb2",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "vs-evernote": {
+  "ground": "#acb78b",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "vs-keep": {
   "ground": "#f1c996",
   "ink": "dark",
@@ -583,6 +625,12 @@
  },
  "weekly-review": {
   "ground": "#a9b489",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "widget": {
+  "ground": "#f1c894",
   "ink": "dark",
   "w": 880,
   "h": 550
