@@ -229,5 +229,30 @@ import Testing
         try? await Task.sleep(for: .seconds(1.5))
         try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-grocery-list-light.png"))
     }
+    @Test func meetingNotesForTemplatePost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .all, body: "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Action items\nWho does what, and by when. Ticked when done.\n- [ ] Sara: send the new pricing to sales (10 Nov)\n- [ ] Emma: check Norway's VAT rules (next week)\n- [x] Jonas: review the checkout design (6 Nov)\n\n## Meetings\nOne section per meeting: what was said in two lines, and what was decided.\n### Pricing sync, 5 November\nThree plans stay, the lifetime deal goes, and the yearly discount drops to 15%.\n\n- Decided: no lifetime plan.\n- Open: whether students get the Pro plan free.\n\n### Design review, 3 November\nThe new checkout is approved with two changes: the total shows before the card details, and the error messages are in plain words.\n\n- Decided: one page, not three steps.")
+        try ctx.save()
+        let view = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: CGSize(width: 760, height: 980))
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.5))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-meeting-notes-light.png"))
+    }
+
+    @Test func cornellNotesForTemplatePost() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let ctx = c.mainContext
+        let note = ctx.createNote(in: .all, body: "Cornell notes\n\n## Lectures\n### Supply and demand, 5 November\n| Cue | Notes |\n| --- | --- |\n| What shifts the demand curve? | Income, tastes, related prices. |\n| What moves along the curve? | Only the good's own price. |\n| What is the equilibrium price? | Where demand equals supply. |\n| What does a price ceiling cause? | A shortage, if it's below equilibrium. |\n\n**Summary:** The good's own price moves you along the demand curve; income, tastes and related prices shift it. The price settles where demand equals supply, and a ceiling below that leaves a shortage.\n\n## Cues to revisit\nThe cues you missed when quizzed, ticked once you get them right.\n- [ ] What shifts the demand curve?\n- [x] What does a price ceiling cause?")
+        try ctx.save()
+        let view = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+        let w = AIEditSnapshots.window(view, size: CGSize(width: 760, height: 820))
+        defer { w.orderOut(nil); w.close() }
+        try? await Task.sleep(for: .seconds(1.5))
+        try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-cornell-notes-light.png"))
+    }
 }
 #endif

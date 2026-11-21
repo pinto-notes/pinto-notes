@@ -179,6 +179,12 @@
   "w": 880,
   "h": 550
  },
+ "cornell": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "encrypted": {
   "ground": "#dae1d9",
   "ink": "dark",
@@ -224,6 +230,12 @@
  "meal-planner": {
   "ground": "#d75f33",
   "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "meeting": {
+  "ground": "#f0c998",
+  "ink": "dark",
   "w": 880,
   "h": 550
  },
