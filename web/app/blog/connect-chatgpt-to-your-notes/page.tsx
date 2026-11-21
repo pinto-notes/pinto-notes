@@ -280,6 +280,9 @@ export default function Page() {
         The part I like most comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
         Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat.
       </p>
+      <p>
+        Your prompts can live there too. A <a href="/blog/chatgpt-prompt-library-in-notes">prompt library kept as notes</a> gives ChatGPT one place to find them.
+      </p>
     </PostPage>
   );
 }

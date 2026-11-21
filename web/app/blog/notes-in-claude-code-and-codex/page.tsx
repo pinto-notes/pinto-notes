@@ -133,8 +133,9 @@ export default function Page() {
         with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
       </p>
       <p>
-        The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI? The{" "}
-        <a href="/blog/mcp-server#install">install steps</a> have its command.
+        The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI?{" "}
+        <a href="/blog/connect-notes-to-gemini-cli">One command connects it</a>. In Cursor,{" "}
+        <a href="/blog/connect-notes-to-cursor">one install link</a> adds your notes.
       </p>
     </PostPage>
   );
