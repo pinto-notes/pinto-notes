@@ -75,6 +75,23 @@ export function PostCta({ slug, position, title, children, appStoreLive = APP_ST
       ) : null}
     </>
   );
+  // Under the short answer the card stays a row: a small picture beside the words, so the answer, not the card, holds the
+  // first screen (Emil, 21 Nov 2026: "too much focus on Pinto Notes here, it's like half the screen on first open").
+  // Cards further down keep the big picture.
+  if (position === "answer" && (look === "scene" || look === "connect")) return (
+    <div className={`${s.cta} ${s.ctaCompact}`}>
+      <div className={s.ctaThumb} data-look={look} aria-hidden="true">
+        {look === "connect" ? (
+          <span className={s.ctaChain}>
+            <span className={s.ctaDot}><AIGlyph name="openai" size={20} color="#0d0d0d" /></span>
+            <img src="/icon-96.png" alt="" width={44} height={44} />
+            <span className={s.ctaDot}><AIGlyph name="claude" size={20} color="#d97757" /></span>
+          </span>
+        ) : <img src="/home-v5/frontier/sara-cafe.webp" alt="" loading="lazy" decoding="async" />}
+      </div>
+      <div className={s.ctaBody}>{body}</div>
+    </div>
+  );
   if (look === "scene") return (
     <div className={`${s.cta} ${s.ctaScene}`}>
       <div className={s.ctaBody}>{body}</div>
