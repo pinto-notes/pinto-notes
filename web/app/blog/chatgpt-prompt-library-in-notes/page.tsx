@@ -127,7 +127,7 @@ export default function Page() {
       <p>
         Pin a frequently used prompt with File, Pin Note. Apple supports pinning in upgraded iCloud notes and notes stored on your Mac.
         Keep one note per task so its test results stay with the right instructions.
-        The <a href="/blog/apple-notes-templates">Apple Notes templates guide</a> explains copying a base note for reuse.
+        The <a href="/blog/apple-notes-templates">Apple Notes templates guide</a> explains copying a base note for reuse. One prompt worth keeping: the <a href="/blog/chatgpt-performance-review-from-notes">performance review prompt</a> that builds an evidence table from your work notes.
       </p>
       <p>
         On a Mac, choose File, Duplicate Note to make a new prompt from your base layout.

@@ -120,7 +120,7 @@ export default function Page() {
       <p>
         Open Pinto Notes on your Mac and choose Import Markdown or Text in the File menu, shown above.
         The supported route is <q>a folder or .zip of Markdown or text files. Each folder becomes a folder.</q>{" "}
-        The <a href="/blog/import-your-notes">import guide</a> covers this route. Your old app stays as it is.
+        The <a href="/blog/import-your-notes">import guide</a> covers this route. Your old app stays as it is. Coming from Google Keep instead? The <a href="/blog/google-keep-alternative-for-iphone-and-mac">Google Keep alternative guide</a> covers Pinto&apos;s direct Takeout import.
       </p>
       <p>
         For a first check, copy a few exported text files into a separate folder and import that folder.

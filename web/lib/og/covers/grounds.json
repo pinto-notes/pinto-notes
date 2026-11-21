@@ -149,6 +149,12 @@
   "w": 880,
   "h": 550
  },
+ "brain-dump": {
+  "ground": "#f1c88f",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "budget-template": {
   "ground": "#e6efde",
   "ink": "dark",
@@ -245,6 +251,12 @@
   "w": 880,
   "h": 550
  },
+ "craft-alternative": {
+  "ground": "#efc794",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "cursor": {
   "ground": "#8ca3b6",
   "ink": "dark",
@@ -265,6 +277,12 @@
  },
  "disappeared": {
   "ground": "#badac3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "eisenhower-matrix": {
+  "ground": "#c9c6c5",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -341,6 +359,12 @@
   "w": 880,
   "h": 550
  },
+ "goal-template": {
+  "ground": "#8db2cb",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "grocery": {
   "ground": "#a6b3bc",
   "ink": "dark",
@@ -383,6 +407,12 @@
   "w": 880,
   "h": 550
  },
+ "joplin-alternative": {
+  "ground": "#829cb1",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "journal": {
   "ground": "#f2cb94",
   "ink": "dark",
@@ -391,6 +421,12 @@
  },
  "jumping": {
   "ground": "#fa896d",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "keep-alternative": {
+  "ground": "#d0b2d6",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -581,6 +617,12 @@
   "w": 880,
   "h": 550
  },
+ "performance-review": {
+  "ground": "#f88567",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "planner": {
   "ground": "#c4cbef",
   "ink": "dark",
@@ -619,6 +661,12 @@
  },
  "recover-deleted": {
   "ground": "#e5efdf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "resume-template": {
+  "ground": "#89beb0",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -713,6 +761,12 @@
   "w": 880,
   "h": 550
  },
+ "upnote-alternative": {
+  "ground": "#a9d3a9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "version-history": {
   "ground": "#e6f0df",
   "ink": "dark",
@@ -769,6 +823,12 @@
  },
  "widget": {
   "ground": "#f1c894",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "wishlist-template": {
+  "ground": "#f0c691",
   "ink": "dark",
   "w": 880,
   "h": 550

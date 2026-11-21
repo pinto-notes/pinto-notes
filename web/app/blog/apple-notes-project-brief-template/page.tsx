@@ -161,7 +161,7 @@ export default function Page() {
       <p>
         Give each unresolved question an owner and an answer date. Once answered, update the relevant part of the brief.
         Keep the reasoning in a separate <a href="/blog/apple-notes-decision-log-template">decision log</a> if you&apos;ll need to explain
-        the choice later. The brief should show the current agreement without pages of discussion.
+        the choice later. The brief should show the current agreement without pages of discussion. When the agreed work turns into a long task list, an <a href="/blog/apple-notes-eisenhower-matrix-template">Eisenhower matrix note</a> helps you choose what comes first.
       </p>
 
       <h2 id="limits">Where it stops</h2>

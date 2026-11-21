@@ -281,7 +281,7 @@ export default function Page() {
         Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat.
       </p>
       <p>
-        Your prompts can live there too. A <a href="/blog/chatgpt-prompt-library-in-notes">prompt library kept as notes</a> gives ChatGPT one place to find them.
+        Your prompts can live there too. A <a href="/blog/chatgpt-prompt-library-in-notes">prompt library kept as notes</a> gives ChatGPT one place to find them. To turn a messy capture into next steps, try the <a href="/blog/chatgpt-brain-dump-to-action-list">brain dump prompt</a>, which leaves your original note as you wrote it.
       </p>
     </PostPage>
   );
