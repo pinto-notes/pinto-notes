@@ -1,5 +1,5 @@
 import { Figure } from "@/lib/blog";
-import { Answer, PostFigure } from "@/lib/PostParts";
+import { Answer, Keep, More, PostFigure, Sorter, Steps } from "@/lib/PostParts";
 import { MCP_URL } from "@/lib/facts";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { PostCta } from "@/lib/PostCta";
@@ -86,6 +86,23 @@ const FAQ = [
   ] },
 ];
 
+const CLAUDE_CODE_ADD = `claude mcp add --transport http --scope user obsidian https://127.0.0.1:27124/mcp/ \\
+  --header "Authorization: Bearer <your-api-key>"`;
+
+const DESKTOP_CONFIG = `{
+  "mcpServers": {
+    "obsidian": {
+      "command": "npx",
+      "args": [
+        "mcp-remote@latest",
+        "https://127.0.0.1:27124/mcp/",
+        "--header",
+        "Authorization: Bearer <your-api-key>"
+      ]
+    }
+  }
+}`;
+
 export default function Page() {
   return (
     <PostPage
@@ -117,10 +134,17 @@ export default function Page() {
         users: the notes are plain files you own, any tool can read them, and plugins can add almost anything. It also means an AI app
         can reach your notes in two ways.
       </p>
-      <ul>
-        <li><strong>Through Obsidian</strong>, with a plugin. The plugin runs inside the Obsidian desktop app, so it knows about links, tags and frontmatter, and can run Obsidian commands. Obsidian has to be open.</li>
-        <li><strong>Through the files</strong>, with a server that reads and writes the Markdown in your vault folder. Obsidian can be closed, but the server doesn&apos;t see what Obsidian knows about the vault.</li>
-      </ul>
+      <Sorter groups={[
+        { tone: "amber", title: "Through Obsidian, with a plugin",
+          items: [{ name: "Local REST API with MCP" }, { name: "cyanheads" }, { name: "MarkusPfundstein" }, { name: "Semantic Notes Vault" }],
+          line: "Runs inside the desktop app, so it knows links, tags and frontmatter. Obsidian has to be open." },
+        { tone: "sky", title: "Through the files",
+          items: [{ name: "mcpvault" }, { name: "StevenStavrakis" }],
+          line: "Reads and writes the Markdown in your vault folder. Obsidian can be closed, but it sees only the files." },
+        { tone: "rose", title: "Archived",
+          items: [{ name: "obsidian-mcp-tools" }],
+          line: "No more fixes since May 2026. Move to one of the others." },
+      ]} caption="Obsidian MCP servers by how they reach your vault, checked on each project's page." />
       <p>
         MCP (Model Context Protocol) is the open standard that connects the two sides: a server gives an AI app tools such as
         &ldquo;search notes&rdquo; or &ldquo;edit a note&rdquo;, and the AI calls them when you ask. Obsidian doesn&apos;t make an MCP
@@ -137,6 +161,7 @@ export default function Page() {
       </p>
 
       <h2 id="compared">The servers compared</h2>
+      <More summary="Every server in detail: setup, AI apps and last release">
       <div className="tableWrap">
         <table>
           <thead>
@@ -152,14 +177,12 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+      </More>
 
       <p className="label"><strong>Local REST API with MCP</strong></p>
       <PostFigure src="/blog/drawn/obs-plugin" width={1200} height={750} maxWidth={560}
         alt="The Obsidian logo with the MCP mark on it, joined by a dotted line to the Claude logo."
         caption="A plugin runs the server inside Obsidian, so Obsidian has to be open." />
-      <p>
-        Choosing a notes app for this? <a href="/blog/best-notes-apps-with-mcp">Six notes apps with MCP</a> are compared side by side.
-      </p>
       <p>
         The one to use today if you keep Obsidian open. It&apos;s by the author of the Local REST API plugin, and the MCP server is part
         of the plugin, so there&apos;s nothing else to install. Its best trick is editing one part of a note: the AI can append under a
@@ -202,20 +225,22 @@ export default function Page() {
         2026, so it gets no more fixes. If you use it, move to one of the above.
       </p>
 
+      <p>
+        Choosing a notes app for this? <a href="/blog/best-notes-apps-with-mcp">Six notes apps with MCP</a> are compared side by side.
+      </p>
+
       <h2 id="claude-code">Set it up in Claude Code</h2>
       <PostFigure src="/blog/news/anthropic-claude-code-terminal" width={920} height={920} maxWidth={400}
         alt="Claude Code's welcome screen in a terminal window on an orange background, with an empty prompt waiting for input."
         caption="Claude Code, where the server is added with one command. Image: Anthropic." />
-      <ol>
+      <Steps>
         <li>In Obsidian, open Settings, then Community plugins, then Browse. Search for Local REST API with MCP, install it and turn it on.</li>
         <li>Open Settings, then Local REST API, and copy the API key.</li>
-        <li>Run this, with your key in place of <code>&lt;your-api-key&gt;</code>:</li>
-      </ol>
-      <pre><code>{`claude mcp add --transport http --scope user obsidian https://127.0.0.1:27124/mcp/ \\
-  --header "Authorization: Bearer <your-api-key>"`}</code></pre>
-      <ol start={4}>
+        <li>Run this, with your key in place of <code>&lt;your-api-key&gt;</code>:
+          <Keep title="Add the server to Claude Code" text={CLAUDE_CODE_ADD} code />
+        </li>
         <li>Start Claude Code, with Obsidian open, and ask it to find a note.</li>
-      </ol>
+      </Steps>
       <p>
         If the connection fails with a certificate error, the plugin&apos;s README gives two ways out: trust the certificate it serves at{" "}
         <code>https://127.0.0.1:27124/obsidian-local-rest-api.crt</code>, or turn on Enable HTTP server in its settings and use{" "}
@@ -230,28 +255,15 @@ export default function Page() {
       <PostFigure src="/blog/news/mcp-docs-claude-desktop-developer-settings" width={1688} height={534} maxWidth={640}
         alt="Claude Desktop's Settings window on the Developer tab, with an Edit Config button and a Get Started button."
         caption="Settings, Developer, Edit Config opens the file you add the server to. Image: Model Context Protocol." />
-      <ol>
+      <Steps>
         <li>Install and turn on the plugin, and copy its API key, as above.</li>
         <li>Open <code>claude_desktop_config.json</code>. In Claude Desktop, Settings, then Developer, then Edit Config takes you there.</li>
-        <li>Add the server, with your key, and save:</li>
-      </ol>
-      <pre><code>{`{
-  "mcpServers": {
-    "obsidian": {
-      "command": "npx",
-      "args": [
-        "mcp-remote@latest",
-        "https://127.0.0.1:27124/mcp/",
-        "--header",
-        "Authorization: Bearer <your-api-key>"
-      ]
-    }
-  }
-}`}</code></pre>
-      <ol start={4}>
+        <li>Add the server, with your key, and save:
+          <Keep title="claude_desktop_config.json" text={DESKTOP_CONFIG} code />
+        </li>
         <li>Quit Claude Desktop completely and open it again.</li>
         <li>With Obsidian open, ask Claude about a note.</li>
-      </ol>
+      </Steps>
       <p>
         The certificate fixes above apply here too. If you&apos;d rather not keep Obsidian open, use mcpvault instead: its README has a
         three-line config for Claude Desktop that takes the path to your vault.
