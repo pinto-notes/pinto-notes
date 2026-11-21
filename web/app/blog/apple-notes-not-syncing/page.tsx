@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Paths, PostFigure, Steps } from "@/lib/PostParts";
 import { SyncChooser } from "@/lib/SyncChooser";
@@ -48,6 +49,10 @@ export default function Page() {
             are signed in to the same Apple Account with Notes turned on for iCloud. Check those three things first. Full iCloud storage
             and a Mac on an older macOS than your iPhone come after.
           </p>
+          {/* Experiment B1 ended for this post on 21 Nov (B20): the download where readers are. */}
+          <PostCta slug="apple-notes-not-syncing" position="answer" title="Want a notes app that shows its sync?">
+            <p>Pinto Notes works like Apple Notes on iPhone and Mac. It syncs through its own encrypted service rather than iCloud, and shows when it last synced, or why it can&apos;t.</p>
+          </PostCta>
         </Answer>
       }
       hero={<PostFigure priority src="/blog/apple/notes-same-note-three-devices" width={814} height={412} maxWidth={600}
@@ -168,7 +173,7 @@ export default function Page() {
         caption="Pinto Notes shows when it last synced, and why when it can't." />
       <p>
         Apple Notes doesn&apos;t show when it last synced, which is why this takes six checks. Pinto Notes, the notes app for iPhone and
-        Mac that I make, syncs through its own encrypted service rather than iCloud, so iCloud storage doesn&apos;t affect it.
+        Mac, syncs through its own encrypted service rather than iCloud, so iCloud storage doesn&apos;t affect it.
         Its Settings show the sync status, such as &ldquo;last synced 9:41&rdquo; or the reason it can&apos;t sync right now, next to a
         Sync Now button. If the same note changed on two devices before they synced, the newer edit wins and the other is kept as a
         conflicted copy, so neither is lost.

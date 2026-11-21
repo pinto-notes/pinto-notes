@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Checklist, Paths, PostFigure, Steps } from "@/lib/PostParts";
@@ -50,6 +51,10 @@ export default function Page() {
             Option to copy them instead of moving them. Take the lock off locked notes first, and make iCloud the default account
             afterwards, or new notes keep landing in the old one.
           </p>
+          {/* Experiment B1 ended for this post on 21 Nov (B20): the download where readers are. */}
+          <PostCta slug="move-apple-notes-to-icloud" position="answer" title="Want every note in one place?">
+            <p>Pinto Notes works like Apple Notes, with no On My iPhone and no mail accounts. Sign in once and every note syncs between your iPhone and Mac.</p>
+          </PostCta>
         </Answer>
       }
       // Nothing above the intro. The Default account capture sits in "After the move", where it's used.
@@ -201,7 +206,7 @@ export default function Page() {
       <h2 id="pinto-notes">A notes app without accounts to sort out</h2>
       <Figure shot={SHOTS.consent} caption="An AI gets your notes only after you allow it on your device." />
       <p>
-        Pinto Notes, the notes app for iPhone and Mac that I make, has no On My iPhone and no mail accounts. You sign in once, and
+        Pinto Notes, the notes app for iPhone and Mac, has no On My iPhone and no mail accounts. You sign in once, and
         every note syncs between your devices. ChatGPT and Claude can read and edit those notes after you approve them.
       </p>
       <p>

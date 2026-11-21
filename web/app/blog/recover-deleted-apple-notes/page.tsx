@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { Figure } from "@/lib/blog";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Answer, Capture, PostFigure, Steps } from "@/lib/PostParts";
@@ -39,6 +40,10 @@ export default function Page() {
             days. After that an iCloud note is gone for good, whatever a recovery app promises; only a note that lived on one device, or in
             a mail account, may still be in a backup or that account&apos;s Trash.
           </p>
+          {/* Experiment B1 ended for this post on 21 Nov (B20): the download where readers are. */}
+          <PostCta slug="recover-deleted-apple-notes" position="answer" title="Want every version of a note kept?">
+            <p>Pinto Notes works like Apple Notes and keeps every earlier version of each note, with who changed it, so you can restore a paragraph you deleted, even after an AI edit.</p>
+          </PostCta>
         </Answer>
       }
       hero={<Capture priority src="/blog/macos27/notes-recently-deleted-window" width={1520} height={1003} maxWidth={760}
@@ -158,7 +163,7 @@ export default function Page() {
         has nothing to go back to: it keeps <a href="/blog/apple-notes-version-history">no version history</a>.
       </p>
       <p>
-        That&apos;s one of the things I built into Pinto Notes, the notes app for iPhone and Mac I make. Deleted notes stay in Recently
+        That gap is built into Pinto Notes, the notes app for iPhone and Mac. Deleted notes stay in Recently
         Deleted for 30 days, as in Apple Notes, and every note also keeps its earlier versions, with who made each change. You can restore
         one from File, Version History, including after ChatGPT or Claude edits it. It doesn&apos;t bring back notes you lost in Apple
         Notes; <a href="/blog/move-from-apple-notes">moving from Apple Notes</a> is one import on your Mac, and Apple Notes stays as it is.
