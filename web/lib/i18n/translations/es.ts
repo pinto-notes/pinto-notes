@@ -445,4 +445,52 @@ export const es: Translation[] = [
     description: "Guarda un prompt por nota, con instrucciones y un ejemplo comprobado. Copia la plantilla o pide a ChatGPT que la busque en Pinto Notes.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-project-brief-template", lang: "es", slug: "plantilla-brief-de-proyecto-notas",
+    title: "Plantilla de brief de proyecto para Notas de Apple",
+    description: "Copia un brief de proyecto en Notas de Apple con resultado, alcance, responsables y criterios de aceptación. Incluye un ejemplo y los pasos para prepararlo.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-client-tracker-template", lang: "es", slug: "plantilla-seguimiento-clientes-notas",
+    title: "Plantilla de seguimiento de clientes para Notas",
+    description: "Una ficha por cliente y un índice de próximas fechas de contacto. Copia los ejemplos en Notas de Apple y aprende a enlazar las fichas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-moving-checklist-template", lang: "es", slug: "lista-mudanza-notas-iphone",
+    title: "Lista de mudanza para Notas del iPhone: plantilla",
+    description: "Copia una lista de mudanza con responsables, fechas, suministros y contactos en Notas de Apple. Añade una tabla para encontrar cada caja.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-home-inventory-template", lang: "es", slug: "plantilla-inventario-casa-notas",
+    title: "Plantilla de inventario de casa para Notas de Apple",
+    description: "Un inventario por habitación con número de serie, recibos y fotos. Copia el ejemplo en Notas de Apple y añade una lista para los datos pendientes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-wedding-planner-template", lang: "es", slug: "plantilla-organizar-boda-notas",
+    title: "Plantilla para organizar una boda en Notas de Apple",
+    description: "Copia una nota para organizar una boda con invitados, respuestas, proveedores y tareas. Aprende a preparar las tablas y compartir el plan.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-sop-template", lang: "es", slug: "plantilla-procedimiento-operativo-notas",
+    title: "Plantilla de procedimiento operativo para Notas",
+    description: "Copia un procedimiento semanal con responsables, pasos, excepciones y comprobaciones en Notas de Apple. Incluye una fecha de revisión.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-find-and-replace", lang: "es", slug: "buscar-y-reemplazar-notas-iphone",
+    title: "Buscar y reemplazar en Notas del iPhone y Mac",
+    description: "Cómo buscar texto dentro de una nota en iPhone y Mac, qué controles documenta Apple y cómo revisar un reemplazo en una o varias notas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-paste-without-formatting", lang: "es", slug: "pegar-sin-formato-notas-iphone",
+    title: "Pegar sin formato en Notas del iPhone y Mac",
+    description: "Usa el atajo para pegar con el estilo de la nota en el Mac, corrige texto ya pegado y consulta qué opciones explica Apple para iPhone.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

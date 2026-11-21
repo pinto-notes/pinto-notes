@@ -365,4 +365,52 @@ export const fr: Translation[] = [
     description: "Créez une note par prompt avec ses consignes, un exemple et un test. Copiez le modèle dans Notes ou demandez à ChatGPT de le retrouver dans Pinto Notes.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-project-brief-template", lang: "fr", slug: "note-cadrage-projet-notes-iphone",
+    title: "Note de cadrage de projet dans Notes : modèle à copier",
+    description: "Un modèle de note de cadrage à copier dans Notes, avec résultat attendu, périmètre, critères de validation et questions ouvertes. Exemple rempli pour un café.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-client-tracker-template", lang: "fr", slug: "suivi-clients-notes-iphone",
+    title: "Suivi des clients dans Notes : fiches et relances",
+    description: "Une fiche par client et un tableau des prochaines relances dans Notes. Copiez les exemples remplis et apprenez à relier les fiches à l’index.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-moving-checklist-template", lang: "fr", slug: "checklist-demenagement-notes-iphone",
+    title: "Check-list de déménagement dans Notes : modèle à copier",
+    description: "Une check-list de déménagement à coller dans Notes : changements d’adresse, abonnements, horaires du jour et tableau pour retrouver chaque carton.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-home-inventory-template", lang: "fr", slug: "inventaire-maison-notes-iphone",
+    title: "Inventaire de la maison dans Notes : modèle avec photos",
+    description: "Un modèle d’inventaire par pièce dans Notes, avec numéros de série, factures et photos. Copiez l’exemple rempli et voyez comment joindre vos fichiers.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-wedding-planner-template", lang: "fr", slug: "organisation-mariage-notes-iphone",
+    title: "Organiser son mariage dans Notes : modèle à copier",
+    description: "Un planning de mariage à coller dans Notes, avec les réponses des invités, les prestataires et les prochaines tâches à suivre à deux.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-sop-template", lang: "fr", slug: "modele-procedure-notes-iphone",
+    title: "Modèle de procédure dans Notes pour un travail récurrent",
+    description: "Une procédure type à copier dans Notes : responsable, étapes, exceptions, vérifications et date de revue. Exemple rempli pour un rapport client hebdomadaire.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-find-and-replace", lang: "fr", slug: "rechercher-remplacer-notes-iphone",
+    title: "Rechercher et remplacer dans Notes sur Mac et iPhone",
+    description: "Comment chercher dans une note sur Mac et iPhone, corriger le texte trouvé et remplacer un long passage avec TextEdit selon les guides d’Apple.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-paste-without-formatting", lang: "fr", slug: "coller-sans-mise-en-forme-notes",
+    title: "Coller sans mise en forme dans Notes sur Mac et iPhone",
+    description: "Sur Mac, utilisez Coller et adapter le style dans Notes. Voici le raccourci, comment corriger un texte déjà collé et ce qu’Apple indique pour iPhone.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
