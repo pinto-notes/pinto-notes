@@ -402,8 +402,7 @@ export default function Page() {
       <p>
         Apple Notes fits if a familiar free editor matters more than chatting with your whole library. On a Mac, use Import Markdown;
         on iPhone, share a Markdown file from Files to Notes. Writing Tools work on the text you select, and can compose with ChatGPT.
-        For Claude to search the whole library, Claude desktop on a Mac has an Apple Notes extension; the{" "}
-        <a href="/blog/apple-notes-api">Apple Notes API guide</a> covers it and its limits.
+        For Claude to search the whole library, Claude desktop on a Mac has an Apple Notes extension; that route runs through the Mac.
       </p>
       <h2 id="pinto-notes">Pinto Notes for connected AI on Mac and iPhone</h2>
       <Facts items={[

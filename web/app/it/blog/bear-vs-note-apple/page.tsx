@@ -36,7 +36,7 @@ export default function Page() { return <LocalPostPage lang="it" slug="bear-vs-n
   </tbody></table></div>
   <p>Bear offre note locali gratis. Bear Pro costava 2,99 dollari USA al mese o 29,99 all'anno nella <a href="https://bear.app/#pricing">pagina dei prezzi</a> letta il 21 novembre 2026. Pro aggiunge anche ricerca in immagini e PDF e altri temi.</p>
   <h2 id="note">Quando scegliere Note di Apple</h2>
-  <p>Puoi tenere cartelle per casa e lavoro, fissare una nota in alto e aggiungere tabelle o elenchi di controllo. I tag riuniscono temi che attraversano più cartelle. Una cartella smart può raccogliere note con un tag o con attività non spuntate. La guida alle <a href="/blog/apple-notes-tags-smart-folders">cartelle smart</a> è in inglese.</p>
+  <p>Puoi tenere cartelle per casa e lavoro, fissare una nota in alto e aggiungere tabelle o elenchi di controllo. I tag riuniscono temi che attraversano più cartelle. Una cartella smart può raccogliere note con un tag o con attività non spuntate.</p>
   <p>Con iCloud puoi <a href="https://support.apple.com/it-it/guide/notes/apd4e6e2c9a6/mac">collaborare a note e cartelle</a>. Ogni partecipante deve avere un Apple Account; puoi consentire la modifica o la sola lettura. Per vedere le tue note su iPhone e Mac, usa lo stesso account e attiva Note in iCloud su entrambi.</p>
   <p>Se ti mancano i link di ritorno, Bear offre una funzione specifica. Se invece vuoi trovare le attività aperte, prova prima una cartella smart.</p>
   <h2 id="bear">Quando scegliere Bear</h2>

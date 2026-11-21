@@ -40,7 +40,7 @@ export default function Page() {
     </tbody></table></div>
     <p>O Bear tem uma versão grátis para notas locais. O Pro custava US$ 2,99 por mês ou US$ 29,99 por ano na <a href="https://bear.app/#pricing">página de preços do Bear</a> em 21 de novembro de 2026. Também acrescenta busca em imagens e PDFs e mais temas.</p>
     <h2 id="notas">Quando o Notas é melhor</h2>
-    <p>Pastas separam trabalho e casa. Use checklists, tabelas, notas fixadas e etiquetas. Uma Pasta Inteligente reúne notas por critérios, como uma etiqueta ou itens ainda não marcados. Veja o <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">guia de etiquetas e Pastas Inteligentes</a>.</p>
+    <p>Pastas separam trabalho e casa. Use checklists, tabelas, notas fixadas e etiquetas. Uma Pasta Inteligente reúne notas por critérios, como uma etiqueta ou itens ainda não marcados.</p>
     <p>Para editar uma lista com outra pessoa, <a href="https://support.apple.com/pt-br/guide/notes/apd4e6e2c9a6/mac">compartilhe a nota ou a pasta pelo iCloud</a>. Todos precisam de Conta Apple. Você pode permitir edição ou apenas visualização. Para ver as próprias notas no iPhone e no Mac, use a mesma conta e ative o Notas no iCloud em cada aparelho.</p>
     <p>Teste esses recursos com algumas notas antes de migrar. Se faltam links de retorno entre textos, o Bear tem essa função. Se você só precisa achar tarefas pendentes, uma Pasta Inteligente pode resolver.</p>
     <h2 id="bear">Quando o Bear é melhor</h2>

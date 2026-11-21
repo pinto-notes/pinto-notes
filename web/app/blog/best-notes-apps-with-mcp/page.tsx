@@ -162,7 +162,7 @@ export default function Page() {
       </p>
       <p>
         Keep that distinction in mind when a search result says &ldquo;Apple Notes MCP&rdquo;. This table gives no assurance about a community project&apos;s capabilities.
-        The <a href="/blog/apple-notes-api">Apple Notes API guide</a> covers the separate routes into an existing Apple Notes library.
+        Other routes into an existing Apple Notes library run through a Mac.
       </p>
 
       <h2 id="pinto-notes">Pinto Notes keeps the Apple Notes feel</h2>

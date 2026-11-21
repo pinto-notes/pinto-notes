@@ -139,8 +139,7 @@ export default function Page() {
       <ul>
         <li>
           <strong>Um índice no topo.</strong> No macOS 27 e no iOS 27, um link pode apontar para um cabeçalho, então a nota pode começar
-          com um link para cada dia. Digite o título da viagem no campo do link e os cabeçalhos dela aparecem. O post{" "}
-          <a href="/blog/apple-notes-ios-27" hrefLang="en">sobre as novidades do Notas no iOS 27</a> (em inglês) tem os detalhes.
+          com um link para cada dia. Digite o título da viagem no campo do link e os cabeçalhos dela aparecem.
         </li>
         <li>
           <strong>As passagens dentro da nota.</strong> No Mac, arraste o PDF da passagem ou da confirmação do hotel para dentro da nota,

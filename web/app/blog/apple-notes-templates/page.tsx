@@ -90,8 +90,7 @@ export default function Page() {
       </p>
       <p>
         On iPhone with iOS 27, Apple says Markdown formats itself when you paste it. On older versions, paste the text, select the
-        lines that should be a checklist and tap the checklist button. The rest of what changed for Markdown in Notes is in{" "}
-        <a href="/blog/apple-notes-ios-27">what&apos;s new in Apple Notes in iOS 27</a>.
+        lines that should be a checklist and tap the checklist button. 
       </p>
 
       <h2 id="missing">Where a template in Notes stops</h2>

@@ -42,7 +42,7 @@ export default function Page() { return <LocalPostPage lang="it" slug="spostare-
     <tr><th>Immagini</th><td>Controlla una nota di prova o aggiungile a mano</td></tr><tr><th>Etichette</th><td>Non diventano tag o cartelle</td></tr>
     <tr><th>Colori e promemoria</th><td>Non arrivano come funzioni di Note</td></tr>
   </tbody></table></div>
-  <p>Per ricreare un'etichetta, sposta le note in una cartella oppure scrivi un tag come #ricette in ognuna. Una cartella smart può raccoglierle. <a href="/blog/apple-notes-tags-smart-folders">La guida ai tag</a> è in inglese.</p>
+  <p>Per ricreare un'etichetta, sposta le note in una cartella oppure scrivi un tag come #ricette in ognuna. Una cartella smart può raccoglierle.</p>
   <h2 id="gmail">Gmail non collega Keep a Note</h2>
   <p>Note può usare un account Google per sincronizzare le proprie note tramite quell'account, ma Keep non le mostra. Anche le note di Keep restano fuori da Note. Le funzioni di Note possono essere limitate negli account diversi da iCloud o da quello locale. Se vuoi scegliere tra le due app, leggi <a href="/it/blog/google-keep-vs-note-apple">Google Keep o Note di Apple</a>.</p>
   <h2 id="pinto">Importare Keep in Pinto Notes</h2>

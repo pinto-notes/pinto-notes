@@ -163,8 +163,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Pour les notes des entretiens eux-mêmes, le <a href="/fr/blog/compte-rendu-reunion-notes-iphone">compte rendu de réunion dans
-        Notes</a> marche tel quel. D’autres notes à coller sont dans <a href="/blog/apple-notes-templates">Apple Notes templates</a> (en
+        Pour les notes des entretiens eux-mêmes, une note de réunion dans Notes convient. D’autres notes à coller sont dans <a href="/blog/apple-notes-templates">Apple Notes templates</a> (en
         anglais).
       </p>
 

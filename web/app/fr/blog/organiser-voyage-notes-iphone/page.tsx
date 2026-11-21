@@ -146,7 +146,6 @@ export default function Page() {
         <li>
           <strong>Un sommaire en haut.</strong> Sur macOS 27 et iOS 27, un lien peut pointer vers une section : la note peut donc commencer
           par un lien vers chaque jour. Tapez le titre du voyage dans Lien vers, et ses sections apparaissent.{" "}
-          <a href="/blog/apple-notes-ios-27">What’s new in Apple Notes in iOS 27</a> (en anglais) donne les détails.
         </li>
         <li>
           <strong>Les billets dans la note.</strong> Sur Mac, faites glisser le PDF d’un billet ou d’une confirmation d’hôtel dans la note,

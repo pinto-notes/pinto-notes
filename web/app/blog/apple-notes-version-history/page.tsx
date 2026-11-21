@@ -87,8 +87,7 @@ export default function Page() {
         what you just did in that note; once you&apos;ve moved on, it usually can&apos;t reach back.
       </p>
       <p>
-        If the whole note is gone rather than changed, that&apos;s a different case: it&apos;s probably in Recently Deleted for 30 days,
-        and <a href="/blog/recover-deleted-apple-notes">how to recover deleted Apple Notes</a> walks through it.
+        If the whole note is gone rather than changed, check Recently Deleted. Deleted notes usually stay there for 30 days.
       </p>
 
       <h2 id="shared">In a shared note: see who changed what</h2>
@@ -127,8 +126,7 @@ export default function Page() {
         </li>
         <li>
           <strong>An export you made earlier:</strong> if you ever exported your notes as files, the old text is in that file. This is
-          the one backup that works for a single note. <a href="/blog/back-up-apple-notes">How to back up Apple Notes</a> shows how to
-          make one.
+          a backup you can use to restore a single note. You can also <a href="/blog/export-apple-notes-to-markdown">export notes to Markdown</a>.
         </li>
       </ul>
 

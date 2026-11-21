@@ -151,8 +151,7 @@ export default function Page() {
       </ul>
       <p>
         Choosing a notes app for an agent? <a href="/blog/best-ai-notes-app">Best AI notes app in 2026</a> compares
-        seven. Coming from Apple Notes? <a href="/blog/apple-notes-api">Apple Notes has no API</a> covers what works
-        on a Mac instead, and why none of it reaches your phone. <a href="/blog/obsidian-mcp">Obsidian MCP servers compared</a> does the
+        seven. Coming from Apple Notes? It has no API. The available routes run on a Mac and cannot reach your phone. <a href="/blog/obsidian-mcp">Obsidian MCP servers compared</a> does the
         same for Obsidian vaults.
       </p>
       <p>

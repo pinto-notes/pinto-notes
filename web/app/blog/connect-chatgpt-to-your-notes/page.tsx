@@ -98,7 +98,7 @@ export default function Page() {
         caption="Apple's own answer on its developer forums. Image: Apple." />
       <p>
         Apple Notes is the one most people have, and it&apos;s the most closed: Apple has no API for it, so nothing outside your Mac can
-        get in. <a href="/blog/apple-notes-api">Apple confirmed it this year</a>.
+        get in.
       </p>
 
       <h2 id="missing">What&apos;s missing</h2>

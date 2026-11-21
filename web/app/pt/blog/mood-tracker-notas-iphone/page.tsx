@@ -120,8 +120,7 @@ export default function Page() {
         <li><strong>Deixe de fora o dia que perdeu.</strong> Um buraco é melhor do que uma nota inventada três dias depois.</li>
       </ul>
       <p>
-        Se você quer palavras além de números, o <a href="/pt/blog/diario-pessoal-notas-iphone">diário pessoal no Notas</a> faz quatro
-        perguntas curtas por dia, e o <a href="/pt/blog/habit-tracker-notas-iphone">habit tracker</a> combina com esta nota para coisas
+        Se você quer palavras além de números, você pode responder a quatro perguntas curtas por dia num diário no Notas, e o <a href="/pt/blog/habit-tracker-notas-iphone">habit tracker</a> combina com esta nota para coisas
         como uma caminhada ou nada de tela depois das dez.
       </p>
 

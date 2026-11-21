@@ -22,7 +22,6 @@ const SECTIONS = [
 ];
 const LINKS = [
   ["Notes ou Notion", "/fr/blog/notes-iphone-vs-notion"],
-  ["15 astuces Notes", "/fr/blog/astuces-notes-iphone"],
   ["Connecter ChatGPT à vos notes", "/blog/connect-chatgpt-to-your-notes"],
 ];
 const FAQ = [

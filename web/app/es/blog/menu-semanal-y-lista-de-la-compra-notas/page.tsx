@@ -148,8 +148,7 @@ export default function Page() {
         <li>
           <strong>Las recetas, a un toque.</strong> Guarda cada receta en su propia nota y enlázala desde su cena con Añadir enlace. En
           iOS 27 y macOS 27, un enlace también puede apuntar a un encabezado, así que &ldquo;Ingredientes&rdquo; se abre justo donde lo
-          necesitas. <a href="/blog/apple-notes-ios-27" hrefLang="en">What&apos;s new in Apple Notes in iOS 27</a> (en inglés) tiene
-          los detalles.
+          necesitas.
         </li>
         <li>
           <strong>Compartida con quien cocine.</strong> Comparte la nota y deja que los demás puedan hacer cambios. Quien esté en el
@@ -166,7 +165,7 @@ export default function Page() {
       <h2 id="limites">Hasta dónde llega un menú semanal en Notas</h2>
       <ul>
         <li><strong>La lista va a mano.</strong> Notas no sabe que un curry lleva leche de coco. Lees cada receta y escribes lo que necesita, todas las semanas.</li>
-        <li><strong>No ordena por pasillos.</strong> Tú decides dónde van los limones. Recordatorios tiene una lista Compra que ordena los artículos por secciones según los añades, pero entonces la lista vive lejos de las cenas. La <a href="/es/blog/lista-de-la-compra-notas-iphone">plantilla de lista de la compra</a> trae los pasillos hechos.</li>
+        <li><strong>No ordena por pasillos.</strong> Tú decides dónde van los limones. Recordatorios tiene una lista Compra que ordena los artículos por secciones según los añades, pero entonces la lista vive lejos de las cenas. Puedes organizar tu lista de la compra por pasillos.</li>
         <li><strong>No recuerda lo que tienes.</strong> Notas no puede decirte que hay arroz en casa. La lista de la despensa solo ayuda si la lees antes de escribir la compra.</li>
         <li><strong>No da ideas.</strong> Cuando nadie sabe qué cocinar, la nota espera.</li>
       </ul>

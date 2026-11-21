@@ -53,7 +53,7 @@ export default function Page() {
     <h2 id="citation">Réserver le Bloc de citation aux citations</h2>
     <p>Bloc de citation isole un passage par une barre. Servez-vous-en pour une phrase reprise d'une documentation, avec votre commentaire en dehors du bloc. Pour un extrait de code, préférez Monostyle.</p>
     <MenuPaths rows={[{ on: "Mac", steps: ["Format", "Bloc de citation"], keys: "⌘'" }]} />
-    <p>Le <a href="https://support.apple.com/fr-fr/guide/notes/apd1955d3b21/mac">guide de mise en forme sur Mac</a> classe le Bloc de citation parmi les styles. Retrouvez d'autres façons d'organiser une note dans les <a href="/fr/blog/astuces-notes-iphone">astuces pour Notes</a>.</p>
+    <p>Le <a href="https://support.apple.com/fr-fr/guide/notes/apd1955d3b21/mac">guide de mise en forme sur Mac</a> classe le Bloc de citation parmi les styles.</p>
 
     <h2 id="limites">Ce que le format ne fait pas</h2>
     <p>Les pages Apple consultées ne documentent ni commande Bloc de code ni coloration qui reconnaît les mots clés d'un langage. Le surlignage manuel de texte est une autre fonction. Gardez une copie exécutable dans votre projet et utilisez la note pour expliquer l'extrait.</p>

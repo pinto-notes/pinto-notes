@@ -107,7 +107,7 @@ export default function Page() {
       </p>
       <p>
         You can also organize a growing library. Type # and a word to add a tag, then use a Smart Folder to gather matching notes across
-        folders. <a href="/blog/apple-notes-tags-smart-folders">Tags and Smart Folders in Apple Notes</a> explains that setup.
+        folders.
         To edit a shared note together, each person needs an Apple Account.
       </p>
       <p>

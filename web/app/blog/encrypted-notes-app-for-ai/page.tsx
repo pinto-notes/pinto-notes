@@ -148,12 +148,11 @@ export default function Page() {
         answer is: only for an AI you approved on your own device, only during its requests, and never for locked notes.
       </p>
       <p>
-        <a href="/blog/best-ai-notes-app">Best AI notes app in 2026</a> compares how other apps handle AI, and <a href="/blog/apple-notes-api">Apple
-        Notes has no API</a> covers the Mac-only route for Apple Notes.
+        <a href="/blog/best-ai-notes-app">Best AI notes app in 2026</a> compares how other apps handle AI. Apple Notes has no API, so its AI routes run through a Mac.
       </p>
 
       <p>
-        In Apple Notes there&apos;s no folder lock; <a href="/blog/apple-notes-lock-folder">Apple Notes lock folder</a> shows how to lock every note in one.
+        In Apple Notes there&apos;s no folder lock; you have to lock individual notes.
       </p>
 
       <h2>Try it</h2>

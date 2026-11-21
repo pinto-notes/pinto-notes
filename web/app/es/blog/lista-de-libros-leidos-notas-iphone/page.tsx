@@ -152,9 +152,7 @@ export default function Page() {
         al final. Cuando quieras recordar uno, pásalo a Leídos con su puntuación.
       </p>
       <p>
-        Para guardar algo más que una puntuación, la plantilla para{" "}
-        <a href="/es/blog/como-tomar-notas-de-un-libro-notas">tomar notas de un libro</a> le da a cada libro sus citas, lo que piensas tú
-        y la idea principal. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (en
+        Para guardar algo más que una puntuación, guarda para cada libro sus citas, lo que piensas tú y la idea principal. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (en
         inglés).
       </p>
 

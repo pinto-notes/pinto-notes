@@ -122,8 +122,7 @@ export default function Page() {
       <p>
         Deux réglages aident. Cochez Trier automatiquement les tâches terminées dans les réglages de Notes, et ce que vous avez fait descend
         en bas de chaque jour. Et un dossier intelligent avec la règle Listes de pointage, Non coché affiche toutes les notes où il reste
-        quelque chose à cocher ; <a href="/blog/apple-notes-tags-smart-folders">tags and Smart Folders</a> (en anglais) montre comment en
-        créer un.
+        quelque chose à cocher.
       </p>
 
       <h2 id="chaque-semaine">Chaque semaine</h2>

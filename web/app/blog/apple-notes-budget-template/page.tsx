@@ -109,7 +109,7 @@ export default function Page() {
       </p>
 
       <p>
-        For Christmas and birthdays, the <a href="/blog/apple-notes-gift-ideas">Apple Notes gift ideas list</a> keeps each idea by person with a budget. For the jobs around the house that cost money when they&apos;re forgotten, there&apos;s a <a href="/blog/apple-notes-home-maintenance-checklist">home maintenance checklist</a>.
+        For Christmas and birthdays, keep a gift ideas list with a budget for each person. A home maintenance checklist can help you track jobs that cost money when they&apos;re forgotten.
       </p>
 
       <h2 id="limits">Where an Apple Notes budget stops</h2>

@@ -127,7 +127,7 @@ export default function Page() {
         <li><strong>Trouvez une carte par n’importe quel mot.</strong> La recherche lit chaque mot de chaque note : « mitochondries » trouve la carte où qu’elle soit.</li>
       </ul>
       <p>
-        Si vous prenez des notes en cours, la <a href="/fr/blog/methode-cornell-notes-iphone">méthode Cornell dans Notes</a> met les
+        Si vous prenez des notes en cours, la méthode Cornell dans Notes met les
         questions juste à côté de vos notes : un paquet de flashcards qui se construit pendant que vous écrivez. D’autres notes à coller
         sont dans <a href="/blog/apple-notes-templates">Apple Notes templates</a> (en anglais).
       </p>

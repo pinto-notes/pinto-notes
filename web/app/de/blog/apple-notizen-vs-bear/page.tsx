@@ -46,7 +46,7 @@ export default function Page() {
     </tbody></table></div>
     <p>Bear lässt sich kostenlos mit lokalen Notizen nutzen. Pro ergänzt die Suche in Bildern und PDFs sowie weitere Designs. Die <a href="https://bear.app/#pricing">Preise stehen bei Bear</a>.</p>
     <h2 id="apple">Apple Notizen für Ordner und gemeinsame Notizen</h2>
-    <p>Für Arbeit und Privates kannst du eigene Ordner anlegen. Checklisten und Tabellen stehen direkt in der Notiz. Häufig verwendete Notizen heftest du an. Ein Tag kann Notizen aus mehreren Ordnern verbinden. Intelligente Ordner sammeln sie nach Regeln, etwa nach Tag oder offener Checkliste. Mehr dazu steht im <a href="/blog/apple-notes-tags-smart-folders">englischen Guide zu Tags und intelligenten Ordnern</a>.</p>
+    <p>Für Arbeit und Privates kannst du eigene Ordner anlegen. Checklisten und Tabellen stehen direkt in der Notiz. Häufig verwendete Notizen heftest du an. Ein Tag kann Notizen aus mehreren Ordnern verbinden. Intelligente Ordner sammeln sie nach Regeln, etwa nach Tag oder offener Checkliste.</p>
     <p>Eine Einkaufsliste oder Projektnotiz lässt sich über iCloud gemeinsam bearbeiten. Alle Beteiligten brauchen einen Apple Account. Du kannst Bearbeitung oder bloßes Lesen erlauben. Für deine eigenen Geräte meldest du dich mit demselben Account an und aktivierst Notizen in iCloud.</p>
     <p>Teste diese Möglichkeiten mit echten Notizen. Wenn du wissen willst, welche anderen Notizen auf einen Text verweisen, bietet Bear Rückverweise. Für offene Aufgaben kann ein intelligenter Ordner schon reichen.</p>
     <h2 id="bear">Bear für Markdown und verknüpfte Texte</h2>

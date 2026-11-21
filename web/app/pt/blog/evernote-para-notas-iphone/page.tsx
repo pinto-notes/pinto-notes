@@ -48,6 +48,6 @@ export default function Page() {
 <p>No Mac, o Pinto Notes recebe todos os ENEX juntos. Cada caderno vira pasta; etiquetas, anexos e datas acompanham as notas. O Evernote não é alterado. Depois, ChatGPT ou Claude podem ler e editar as notas, com versões anteriores para restaurar. O app é só para iPhone e Mac. Se você já foi para o Notas, veja <a href="/blog/move-from-apple-notes" hrefLang="en">como importá-lo</a>.</p>
 
 
-<p>Leia também: <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">etiquetas e Pastas Inteligentes</a>, <a href="/blog/apple-notes-version-history" hrefLang="en">histórico no Notas</a>, <a href="/blog/best-notes-app-for-mac" hrefLang="en">apps de notas para Mac</a>, <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conexão com ChatGPT ou Claude</a>, e <a href="/blog/import-your-notes" hrefLang="en">importação de notas</a>.</p>
+<p>Leia também: <a href="/blog/apple-notes-version-history" hrefLang="en">histórico no Notas</a>, <a href="/blog/best-notes-app-for-mac" hrefLang="en">apps de notas para Mac</a>, <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conexão com ChatGPT ou Claude</a>, e <a href="/blog/import-your-notes" hrefLang="en">importação de notas</a>.</p>
   </LocalPostPage>;
 }

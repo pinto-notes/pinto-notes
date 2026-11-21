@@ -144,8 +144,7 @@ export default function Page() {
         <li>
           <strong>As receitas a um toque.</strong> Guarde cada receita numa nota própria e crie um link para ela a partir do jantar com
           Adicionar Link. No iOS 27 e no macOS 27, um link também pode apontar para um cabeçalho, então &ldquo;Ingredientes&rdquo; abre
-          bem onde você precisa. O post <a href="/blog/apple-notes-ios-27" hrefLang="en">sobre as novidades do Notas no iOS 27</a> (em
-          inglês) tem os detalhes.
+          bem onde você precisa.
         </li>
         <li>
           <strong>Compartilhado com quem cozinha.</strong> Compartilhe a nota e permita que as pessoas façam alterações. Quem estiver no
@@ -162,7 +161,7 @@ export default function Page() {
       <h2 id="limites">Onde um cardápio no Notas para</h2>
       <ul>
         <li><strong>A lista é à mão.</strong> O Notas não sabe que um curry pede leite de coco. Você lê cada receita e digita o que ela pede, toda semana.</li>
-        <li><strong>Nada de separar por setor.</strong> É você quem decide onde vão os limões. O Lembretes tem uma lista Compras que separa os itens por seção conforme você adiciona, mas aí a lista fica longe dos jantares. O <a href="/pt/blog/lista-de-compras-notas-iphone">modelo de lista de compras</a> já vem com os setores.</li>
+        <li><strong>Nada de separar por setor.</strong> É você quem decide onde vão os limões. O Lembretes tem uma lista Compras que separa os itens por seção conforme você adiciona, mas aí a lista fica longe dos jantares. Você pode organizar a lista de compras por setor.</li>
         <li><strong>Nenhuma memória do que você tem.</strong> O Notas não sabe que tem arroz em casa. A lista do armário só ajuda se você ler antes de escrever as compras.</li>
         <li><strong>Nenhuma ideia.</strong> Quando ninguém sabe o que cozinhar, a nota espera.</li>
       </ul>

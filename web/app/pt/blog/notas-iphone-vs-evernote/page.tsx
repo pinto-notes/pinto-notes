@@ -38,7 +38,7 @@ export default function Page() {
     <p>Funções conferidas nas páginas dos apps em 21 de novembro de 2026. Veja os <a href="https://evernote.com/compare-plans">limites atuais do Evernote</a> antes de migrar. O plano grátis permite um aparelho.</p>
     <h2 id="notas">Quando o Notas é melhor</h2>
     <p>Uma lista de compras, uma ata e uma pasta de ideias cabem bem no Notas. Fixe a nota que abre todo dia, use checklist para tarefas e tabela para informações lado a lado. A busca encontra palavras nas notas.</p>
-    <p>Digite # e uma palavra para criar uma etiqueta. Uma Pasta Inteligente reúne notas por critérios mesmo que estejam em pastas diferentes. Veja o <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">guia de etiquetas e Pastas Inteligentes</a>. Para editar com outra pessoa, todos precisam de Conta Apple.</p>
+    <p>Digite # e uma palavra para criar uma etiqueta. Uma Pasta Inteligente reúne notas por critérios mesmo que estejam em pastas diferentes. Para editar com outra pessoa, todos precisam de Conta Apple.</p>
     <p>Ative o Notas no iCloud para manter as notas atualizadas no iPhone, no Mac e no <a href="https://support.apple.com/pt-br/guide/icloud/mm000b55f946/icloud">iCloud.com</a>. Se usa PC de vez em quando, teste uma nota real no navegador antes de trocar de app.</p>
     <h2 id="evernote">Quando o Evernote é melhor</h2>
     <p>O <a href="https://evernote.com/features/webclipper">Web Clipper</a> salva o conteúdo de artigos, páginas, PDFs e capturas de tela. Dá para anotar a captura e escolher o caderno e as etiquetas. Teste com as fontes que você costuma consultar.</p>

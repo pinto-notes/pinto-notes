@@ -69,7 +69,7 @@ export default function Page() {
     <h2 id="tags">Réunir des sujets avec des tags</h2>
     <p>Ajoutez <code>#jardin</code> au projet Jardin du balcon et à une note sur les plantes d'ombre classée dans Références. Sur iPhone, ajoutez un espace après le tag pour l'activer. Choisissez des tags que vous réutiliserez.</p>
     <MenuPaths rows={[{ on: "Mac", steps: ["Fichier", "Nouveau dossier intelligent"] }]} />
-    <p>Sur Mac, créez un dossier intelligent Jardin et choisissez le tag comme règle. Sur iPhone, touchez « Nouveau dossier », donnez-lui le nom Jardin, puis touchez « Convertir en dossier intelligent » et choisissez le tag comme filtre. Les notes restent dans leurs dossiers d'origine. Vous devez toujours ajouter le tag vous-même. Voir aussi <a href="/blog/apple-notes-tags-smart-folders">les règles des dossiers intelligents</a>.</p>
+    <p>Sur Mac, créez un dossier intelligent Jardin et choisissez le tag comme règle. Sur iPhone, touchez « Nouveau dossier », donnez-lui le nom Jardin, puis touchez « Convertir en dossier intelligent » et choisissez le tag comme filtre. Les notes restent dans leurs dossiers d'origine. Vous devez toujours ajouter le tag vous-même.</p>
 
     <h2 id="revue">Noter d'abord, classer chaque semaine</h2>
     <p>Sur Mac, sélectionnez la boîte de réception et cliquez sur Nouvelle note. Donnez un titre reconnaissable, ajoutez les détails utiles et le lien de la source. Pendant la revue, déplacez les informations à garder dans Références et les travaux en cours dans Projets. Notez la prochaine étape et mettez Accueil à jour. Déplacez les projets finis dans Archives.</p>

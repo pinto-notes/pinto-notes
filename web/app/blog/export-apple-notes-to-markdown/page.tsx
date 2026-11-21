@@ -67,7 +67,7 @@ export default function Page() {
       <p>
         To copy only part of a note, macOS 27 and iOS 27 add Copy as Markdown: select the text, then choose Edit, Copy as Markdown on a Mac,
         or Copy as Markdown in the edit menu on iPhone. It works the other way too: paste Markdown into a note and it turns into headings and
-        lists. <a href="/blog/apple-notes-ios-27">What else is new in Apple Notes in iOS 27</a> covers the rest. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
+        lists. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
       </p>
 
       <h2 id="iphone">Export a note on iPhone</h2>
@@ -140,9 +140,6 @@ export default function Page() {
         Whichever you use, it&apos;s a copy. Apple Notes stays as it was, and a note you change tomorrow won&apos;t change in the file.
       </p>
 
-      <p>
-        Want a PDF to share or print instead? <a href="/blog/apple-notes-export-pdf">How to export Apple Notes to PDF</a> has the steps on Mac and iPhone.
-      </p>
 
       <h2>If you&apos;re moving somewhere, not making a backup</h2>
       <p>
@@ -160,8 +157,7 @@ export default function Page() {
         pasting files into a chat. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or Claude</a> takes a couple of minutes.
       </p>
       <p>
-        If you&apos;re here because you want to script Apple Notes, <a href="/blog/apple-notes-api">what exists instead of an Apple Notes
-        API</a> covers AppleScript, Shortcuts and their limits.
+        If you want to script Apple Notes, AppleScript and Shortcuts are the available routes, with their own limits.
       </p>
     </PostPage>
   );

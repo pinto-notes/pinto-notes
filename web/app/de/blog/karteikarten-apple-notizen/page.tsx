@@ -126,8 +126,8 @@ export default function Page() {
         <li><strong>Find eine Karte über jedes Wort.</strong> Die Suche liest jedes Wort in jeder Notiz, also findet „Mitochondrien“ die Karte, wo auch immer sie steht.</li>
       </ul>
       <p>
-        Wenn du in Vorlesungen mitschreibst, stellt die <a href="/de/blog/cornell-methode-apple-notizen">Cornell-Methode in Apple
-        Notizen</a> die Fragen direkt neben deine Notizen, und so entsteht ein Kartenstapel schon beim Schreiben. Weitere Notizen zum
+        Wenn du in Vorlesungen mitschreibst, stellt die Cornell-Methode in Apple
+        Notizen die Fragen direkt neben deine Notizen, und so entsteht ein Kartenstapel schon beim Schreiben. Weitere Notizen zum
         Einfügen findest du in <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (auf Englisch).
       </p>
 

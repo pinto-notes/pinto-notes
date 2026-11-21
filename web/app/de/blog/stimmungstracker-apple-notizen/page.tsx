@@ -129,8 +129,7 @@ export default function Page() {
         <li><strong>Lass einen verpassten Tag weg.</strong> Eine Lücke ist besser als ein Wert, den du dir drei Tage später ausdenkst.</li>
       </ul>
       <p>
-        Willst du Worte und nicht nur Zahlen, stellt das <a href="/de/blog/tagebuch-apple-notizen">Tagebuch in Apple Notizen</a> vier kurze
-        Fragen am Tag, und der <a href="/de/blog/habit-tracker-vorlage-apple-notizen">Habit Tracker</a> passt neben diese Notiz, für Dinge
+        Willst du Worte und nicht nur Zahlen, kannst du in Apple Notizen jeden Tag vier kurze Fragen beantworten, und der <a href="/de/blog/habit-tracker-vorlage-apple-notizen">Habit Tracker</a> passt neben diese Notiz, für Dinge
         wie einen Spaziergang oder keine Bildschirme nach zehn.
       </p>
 

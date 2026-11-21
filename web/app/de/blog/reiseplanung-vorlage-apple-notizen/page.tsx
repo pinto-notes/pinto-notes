@@ -145,7 +145,6 @@ export default function Page() {
         <li>
           <strong>Ein Inhaltsverzeichnis oben.</strong> Unter macOS 27 und iOS 27 kann ein Link auf eine Überschrift zeigen, so kann die
           Notiz mit einem Link zu jedem Tag beginnen. Gib unter „Link zu“ den Titel der Reisenotiz ein, und ihre Überschriften erscheinen.{" "}
-          <a href="/blog/apple-notes-ios-27" hrefLang="en">What&apos;s new in Apple Notes in iOS 27</a> (auf Englisch) hat die Details.
         </li>
         <li>
           <strong>Tickets in der Notiz.</strong> Zieh auf dem Mac das PDF eines Tickets oder einer Hotelbestätigung in die Notiz, unter die

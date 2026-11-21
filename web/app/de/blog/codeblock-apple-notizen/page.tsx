@@ -61,7 +61,7 @@ export default function Page() {
     <h2 id="zitatblock">Zitatblöcke sind für Zitate da</h2>
     <p>Ein Zitatblock setzt Text mit einem Balken ab. Nutze ihn für einen Auszug aus einer Dokumentation und schreibe deine Erklärung außerhalb des Zitats. Für Code ist das abgesetzte Format passender.</p>
     <MenuPaths rows={[{ on: "Mac", steps: ["Text markieren", "Formatierung", "Zitatblock"], keys: "⌘'" }]} />
-    <p>Apple führt Zitatblöcke in der <a href="https://support.apple.com/de-de/guide/notes/apd1955d3b21/mac">Mac-Formatierungsanleitung</a> auf. Die Tastenkombination steht im Kürzelverzeichnis. Weitere Möglichkeiten findest du in <a href="/de/blog/apple-notizen-tipps">Apple-Notizen-Tipps für iPhone und Mac</a>.</p>
+    <p>Apple führt Zitatblöcke in der <a href="https://support.apple.com/de-de/guide/notes/apd1955d3b21/mac">Mac-Formatierungsanleitung</a> auf. Die Tastenkombination steht im Kürzelverzeichnis.</p>
     <h2 id="grenzen">Keine dokumentierte Syntaxhervorhebung</h2>
     <p>Apples Formatierungs- und Tastenkombinationsseiten beschreiben das Textformat und Zitatblöcke. Ein eigener Codeblock-Befehl oder eine Syntaxhervorhebung, die Programmiersprachen erkennt, ist dort nicht dokumentiert. Ein kurzes Snippet passt in eine Notiz, einen Codeeditor ersetzen diese Formate nicht.</p>
     <p>Notizen kann Text auch manuell farbig hervorheben. Das erkennt weder Schlüsselwörter noch Zeichenketten im Code. Bewahre lauffähigen Code im Projekt auf und nutze die Notiz für die Erklärung.</p>

@@ -65,8 +65,7 @@ export default function Page() {
       </ul>
       <p>
         Other attachments, such as PDFs, stay in Apple Notes. So do locked notes, which the import can&apos;t read: they&apos;re listed as
-        Locked in Apple Notes (unlock them first; if you&apos;ve lost the password, see <a href="/blog/forgot-apple-notes-password">forgot your
-        Apple Notes password</a>). Recently Deleted isn&apos;t read. Your notes in Apple Notes stay exactly as they were, and importing again
+        Locked in Apple Notes (unlock them first; a lost password prevents the import). Recently Deleted isn&apos;t read. Your notes in Apple Notes stay exactly as they were, and importing again
         later brings only what isn&apos;t here yet.
       </p>
 

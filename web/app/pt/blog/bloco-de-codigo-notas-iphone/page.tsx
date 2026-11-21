@@ -54,7 +54,7 @@ export default function Page() {
     <h2 id="citacao">Citação em Bloco serve para citar texto</h2>
     <p>Esse estilo separa uma passagem com uma barra de citação. Use para um trecho retirado da documentação, deixando sua explicação fora da citação. Para código, prefira Estilo Fixo.</p>
     <MenuPaths rows={[{ on: "Mac", steps: ["selecionar texto", "botão de formatação", "Citação em Bloco"], keys: "⌘'" }]} />
-    <p>O <a href="https://support.apple.com/pt-br/guide/notes/apd1955d3b21/mac">guia de formatação do Mac</a> inclui citações nos estilos. O guia do iPhone mostra onde abrir os estilos, sem nomear Citação em Bloco na página consultada. Veja também <a href="/pt/blog/dicas-app-notas-iphone">dicas para o app Notas</a>.</p>
+    <p>O <a href="https://support.apple.com/pt-br/guide/notes/apd1955d3b21/mac">guia de formatação do Mac</a> inclui citações nos estilos. O guia do iPhone mostra onde abrir os estilos, sem nomear Citação em Bloco na página consultada.</p>
 
     <h2 id="limites">O que o estilo não faz</h2>
     <p>Os guias de formatação e atalhos da Apple não documentam um comando Bloco de Código nem destaque de sintaxe que reconheça a linguagem. Estilo Fixo ajuda a guardar trechos curtos junto das explicações.</p>

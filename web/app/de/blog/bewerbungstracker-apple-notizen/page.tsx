@@ -162,8 +162,8 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Für Notizen aus den Gesprächen selbst funktioniert das <a href="/de/blog/meeting-protokoll-vorlage-apple-notizen">Meeting-Protokoll
-        in Apple Notizen</a> so, wie es ist. Weitere Notizen zum Einfügen findest du in{" "}
+        Für Notizen aus den Gesprächen selbst funktioniert eine Gesprächsnotiz
+        in Apple Notizen so, wie es ist. Weitere Notizen zum Einfügen findest du in{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (auf Englisch).
       </p>
 

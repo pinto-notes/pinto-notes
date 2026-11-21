@@ -87,7 +87,7 @@ export default function Page() {
       <p>
         You get two rows and two columns with the caret in the first cell. Faster still: type the rows with a tab between each column,
         select them and press the Table button. Every tab becomes a column, which is how we turned a pasted list into a table in one go.
-        Two columns is all <a href="/blog/apple-notes-cornell-notes-template">Cornell notes in Apple Notes</a> need.
+        You can use two columns for Cornell notes in Apple Notes.
       </p>
 
       <h2 id="rows-columns">Add rows and columns</h2>
@@ -160,7 +160,7 @@ export default function Page() {
       <MenuPaths rows={[{ on: "Mac", steps: ["Drag across the cells", "Edit", "Copy"] }]} />
       <p>
         Drag from the first cell to the last; Select All only grabs one cell. Pasted elsewhere, the rows and columns stay intact, so this
-        is the way out when you need sorting or real formulas. (The new <a href="/blog/apple-notes-ios-27">Copy as Markdown</a> doesn&apos;t work on tables.)
+        is the way out when you need sorting or real formulas. (The new Copy as Markdown doesn&apos;t work on tables.)
       </p>
 
       <p>

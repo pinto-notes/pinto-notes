@@ -154,8 +154,7 @@ export default function Page() {
       ]} />
       <p>
         Tags are worth the trouble. In Apple Notes a tag is any #word in a note, and a Smart Folder can gather every note with one, which
-        works across all your folders. <a href="/blog/apple-notes-tags-smart-folders">Tags and Smart Folders in Apple
-        Notes</a> shows how to set them up.
+        works across all your folders.
       </p>
 
       <h2 id="evernote-vs-apple-notes">Evernote vs Apple Notes: should you switch?</h2>

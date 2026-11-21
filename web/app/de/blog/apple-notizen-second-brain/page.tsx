@@ -75,7 +75,7 @@ export default function Page() {
     <p>Ordner legen den Ablageort fest. Ein Tag sammelt Notizen aus mehreren Ordnern. Gib dem Balkonprojekt und „Pflanzen für Schatten“ das Tag <code>#garten</code>. Auf dem iPhone aktiviert ein Leerzeichen nach dem Tag dieses Tag. Verwende zunächst nur Tags, die du wieder brauchen wirst.</p>
     <MenuPaths rows={[{ on: "Mac", steps: ["Ablage", "Neuer intelligenter Ordner"] }]} />
     <p>Erstelle auf dem Mac einen intelligenten Ordner namens „Garten“ und wähle Tags als Kriterium. Wähle #garten und bestätige. Auf dem iPhone legst du in der Ordnerliste einen neuen Ordner an, wandelst ihn in einen intelligenten Ordner um und wählst den Tag-Filter. Die Notizen bleiben an ihrem ursprünglichen Ort.</p>
-    <p>Der Ordner ist ein gespeicherter Filter. Du musst das Tag weiter selbst hinzufügen. Der <a href="/blog/apple-notes-tags-smart-folders">englische Leitfaden zu Tags und intelligenten Ordnern</a> erklärt die Regeln.</p>
+    <p>Der Ordner ist ein gespeicherter Filter. Du musst das Tag weiter selbst hinzufügen.</p>
     <h2 id="alltag">Erst festhalten, dann einsortieren</h2>
     <p>Wähle auf dem Mac den Eingang und erstelle eine neue Notiz. Gib ihr einen Titel, den du nächsten Monat noch verstehst, etwa „Pflanzen für den Nordbalkon“. Notiere die nützlichen Details und gegebenenfalls die Quelle. Das Einsortieren kann bis zum Wochenrückblick warten.</p>
     <p>Öffne einmal pro Woche den Eingang. Verschiebe wiederverwendbare Informationen nach Nachschlagen, laufende Arbeit nach Projekte. Schreib für jedes Projekt den nächsten Schritt auf. Verlinke wichtige Projekte in „Start“. Verschiebe abgeschlossene Vorhaben ins Archiv und entferne ihren Link aus „Start“.</p>

@@ -117,9 +117,7 @@ export default function Page() {
       </p>
 
       <p>
-        Per Natale e i compleanni, la <a href="/it/blog/lista-regali-note-iphone">lista regali nelle note di iPhone</a> tiene ogni idea
-        per persona, con un budget. Per i lavori di casa che costano cari quando li dimentichi, c’è una{" "}
-        <a href="/it/blog/manutenzione-casa-note-iphone">checklist per la manutenzione della casa</a>.
+        Per Natale e i compleanni, puoi tenere una lista regali nelle note di iPhone, con un budget per persona. Per i lavori di casa che costano cari quando li dimentichi, puoi creare una checklist di manutenzione.
       </p>
 
       <h2 id="limiti">Dove si ferma un budget in Note di Apple</h2>

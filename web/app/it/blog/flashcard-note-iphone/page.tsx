@@ -128,7 +128,7 @@ export default function Page() {
         <li><strong>Trova una carta da qualsiasi parola.</strong> La ricerca legge ogni parola di ogni nota, quindi &ldquo;mitocondri&rdquo; trova la carta ovunque sia.</li>
       </ul>
       <p>
-        Se prendi appunti a lezione, il <a href="/it/blog/metodo-cornell-note-iphone">metodo Cornell nelle note di iPhone</a> mette le
+        Se prendi appunti a lezione, il metodo Cornell nelle note di iPhone mette le
         domande proprio accanto ai tuoi appunti, cioè un mazzo di flashcard costruito mentre scrivi. Altre note da incollare sono in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese).
       </p>

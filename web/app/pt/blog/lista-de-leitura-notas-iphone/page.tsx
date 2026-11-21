@@ -146,8 +146,7 @@ export default function Page() {
         o fim. Quando quiser lembrar de um, passe para Lidos com uma nota.
       </p>
       <p>
-        Para guardar mais do que uma nota, o modelo de <a href="/pt/blog/anotacoes-de-livros-notas-iphone">anotações de livros</a> dá a
-        cada livro suas citações, o que você pensou e a ideia principal. Mais notas para colar estão no guia{" "}
+        Para guardar mais do que uma nota, guarde para cada livro suas citações, o que você pensou e a ideia principal. Mais notas para colar estão no guia{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">de modelos para o app Notas</a> (em inglês).
       </p>
 

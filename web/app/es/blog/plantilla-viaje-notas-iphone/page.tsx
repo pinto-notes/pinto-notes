@@ -146,8 +146,7 @@ export default function Page() {
         <li>
           <strong>Un índice arriba.</strong> En macOS 27 y en iOS 27, un enlace puede apuntar a un encabezado, así que la nota puede
           empezar con un enlace a cada día. Escribe el título del viaje en Enlazar a y aparecen sus encabezados. En Latinoamérica, Añadir
-          enlace se llama Agregar enlace. <a href="/blog/apple-notes-ios-27" hrefLang="en">What&apos;s new in Apple Notes in iOS 27</a>{" "}
-          (en inglés) tiene los detalles.
+          enlace se llama Agregar enlace.
         </li>
         <li>
           <strong>Los billetes en la nota.</strong> En un Mac, arrastra el PDF de un billete o de la confirmación del hotel a la nota,
