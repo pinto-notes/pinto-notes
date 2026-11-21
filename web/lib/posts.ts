@@ -1083,9 +1083,9 @@ export const posts: Post[] = [
   },
   {
     slug: "mem-ai-alternative-for-mac-and-iphone",
-    title: "Mem AI alternative for Mac and iPhone: Pinto Notes",
-    description: "Move from Mem to Pinto Notes on Mac and iPhone. Save your export before Mem closes, try a Markdown import, and check what comes across.",
-    excerpt: "Mem closes on 15 January 2027. Save your export, then try Pinto Notes on Mac and iPhone with a small Markdown import before moving the rest.",
+    title: "Mem is shutting down: 8 alternatives that keep your AI",
+    description: "Mem closes on 15 January 2027. Compare imports, prices and AI access in Notion, Obsidian, Apple Notes, Evernote, Google Docs, OneNote, Bear and Pinto.",
+    excerpt: "Save the Mem export first, then choose where AI can still search, read and change the notes. Compare eight destinations, including their iPhone limits.",
     category: "Apple Notes",
     date: "2026-11-21",
     updated: "2026-11-21",
