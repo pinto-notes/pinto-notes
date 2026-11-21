@@ -2,7 +2,7 @@ import { Figure } from "@/lib/blog";
 import { AIConnect } from "@/lib/AIConnect";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { PostCta } from "@/lib/PostCta";
-import { Answer, Keep, PostFigure } from "@/lib/PostParts";
+import { Answer, Facts, Keep, PostFigure, Sorter } from "@/lib/PostParts";
 import { SHOTS } from "@/lib/posts";
 import { APP_STORE_LIVE } from "@/lib/site";
 
@@ -58,6 +58,17 @@ script = 'tell application "Notes" to get name of every note'
 out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
 print(out.stdout)`;
 
+const CLI = `brew install macnotesapp
+notes add      # make a note
+notes append   # add to a note
+notes cat      # print the notes whose name matches`;
+
+const MCP_ADD = `# Claude Code
+claude mcp add apple-notes -s user -- npx -y apple-notes-mcp@latest
+
+# Codex
+codex mcp add apple-notes -- npx -y apple-notes-mcp@latest`;
+
 export default function Page() {
   return (
     <PostPage
@@ -92,6 +103,18 @@ export default function Page() {
         caption="Apple's developer forum, January 2026. The accepted answer, from Apple's Developer Technical Support." />}
       faq={FAQ}
     >
+      <Sorter caption="The four ways in, by where they work. Tested on macOS 27, checked 21 November 2026." groups={[
+        { tone: "amber", title: "On a Mac that's awake",
+          items: [{ name: "AppleScript and Python", href: "#applescript" }, { name: "Command line", href: "#cli" }, { name: "MCP servers", href: "#claude-mac" }],
+          line: "They drive the Notes app. Claude and Codex on that Mac can use them." },
+        { tone: "sky", title: "On iPhone and Mac",
+          items: [{ name: "Shortcuts", href: "#shortcuts" }],
+          line: "Make, find and add to notes. No editing, and other apps can't read them." },
+        { tone: "rose", title: "From the cloud",
+          items: [{ name: "Nothing", href: "#missing" }],
+          line: "ChatGPT and Claude on your phone or the web can't reach Apple Notes." },
+      ]} />
+
       <h2 id="apple">Apple&apos;s answer: no</h2>
       <p>
         The thread is short. Someone asks whether Apple Notes has an API. Quinn, from Apple&apos;s Developer Technical Support, answers
@@ -124,13 +147,18 @@ export default function Page() {
       <h2 id="cli">From the command line</h2>
       <p>
         If you&apos;d rather not write AppleScript, <a href="https://github.com/RhetTbull/macnotesapp" rel="noopener">macnotesapp</a> wraps
-        it in a <code>notes</code> command for Terminal, with a Python library of the same name. It&apos;s free and open source, and was last
-        released in October 2026. Install it with <code>brew install macnotesapp</code>, then <code>notes add</code> makes a note,{" "}
-        <code> notes append</code> adds to one and <code>notes cat</code> prints the ones whose name matches. It reads faster straight
-        from the Notes database if you give Terminal Full Disk Access, and every change still goes through the Notes app.
+        it in a <code>notes</code> command for Terminal, with a Python library of the same name. It&apos;s free and open source, last
+        released in October 2026.
       </p>
+      <Keep title="macnotesapp in Terminal" text={CLI} code
+        note="Give Terminal Full Disk Access and it reads straight from the Notes database, faster. Every change still goes through the Notes app." />
 
       <h2 id="shortcuts">Shortcuts, on iPhone and Mac</h2>
+      <Facts items={[
+        { label: "Notes actions", value: "24 on macOS 27" },
+        { label: "Can't", value: "Edit a note; Append only adds at the end" },
+        { label: "Can't", value: "Let another app read your notes" },
+      ]} />
       <PostFigure src="/blog/apple/mac-shortcuts-notes-action" width={1960} height={1306} maxWidth={700}
         alt="Apple's press image for macOS Tahoe 26: a shortcut called Check Notes that transcribes a lecture recording, asks an Apple Intelligence model what the note is missing, and adds the answer to a note open beside it in Notes."
         caption="Apple's own example: a shortcut that adds to a note. The middle step is Apple Intelligence, not ChatGPT or Claude. Image: Apple." />
@@ -141,10 +169,9 @@ export default function Page() {
         alt="The Daily log note in Apple Notes after the shortcut ran: Mon: ran 5 km, then the new line Tue: ran 6 km at the end."
         caption="After it ran: the new line lands at the end of the note." />
       <p>
-        Notes gives Shortcuts 24 actions on macOS 27: create, find, open, pin, move and delete notes, append to one, add a checklist item,
-        tag them, and manage folders. That&apos;s enough for a button on your Home Screen that adds a line to your work log, like the one
-        above. There&apos;s no action to edit a note, though: Append to Note only adds at the end. And Shortcuts can&apos;t let another
-        app read your notes, which is the part of the API people usually want.
+        The 24 actions create, find, open, pin, move and delete notes, append to one, add a checklist item, tag notes and manage folders.
+        That&apos;s enough for a Home Screen button that adds a line to your work log, like the one above. It isn&apos;t the part of an API
+        people usually want: another app reading your notes.
       </p>
 
       <h2 id="claude-mac">Apple Notes MCP servers, compared</h2>
@@ -167,15 +194,13 @@ export default function Page() {
         </table>
       </div>
       <p>
-        For Claude Code, start with the sweetrb server: <code>claude mcp add apple-notes -s user -- npx -y apple-notes-mcp@latest</code>{" "}
-        (for Codex, <code>codex mcp add apple-notes -- npx -y apple-notes-mcp@latest</code>), then allow the Automation prompt the first
-        time it opens Notes. In the Claude app, the built-in extension is simpler.{" "}
-        <a href="/blog/claude-and-apple-notes">Claude and Apple Notes</a> walks through it.
+        In the Claude app, the built-in extension is simplest; <a href="/blog/claude-and-apple-notes">Claude and Apple Notes</a> walks
+        through it. For Claude Code or Codex, start with the sweetrb server, then allow the Automation prompt the first time it opens Notes.
       </p>
+      <Keep title="Add the sweetrb server" text={MCP_ADD} code />
       <p>
-        They share the same limits: they run on your Mac, only while it&apos;s awake, and macOS asks for Automation (and sometimes Full Disk
-        Access) first. Out of the box, none of them reach your notes from Claude on your iPhone, from the web, or from ChatGPT. The
-        ailenshen server can, if you run your own bridge that puts it on the internet, and still only while the Mac is awake.
+        All of them run on your Mac, only while it&apos;s awake, after macOS asks for Automation (sometimes Full Disk Access). None reach your
+        notes from Claude on your iPhone, the web or ChatGPT, unless you run your own bridge to the internet for the ailenshen server.
       </p>
 
       <h2 id="missing">What none of them can do</h2>

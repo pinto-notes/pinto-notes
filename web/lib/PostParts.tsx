@@ -153,7 +153,7 @@ export type SortGroup = { title: string; line: string; items: { name: string; hr
 export function Sorter({ groups, caption }: { groups: SortGroup[]; caption?: string }) {
   return (
     <figure className={s.sorter}>
-      <div className={s.sortGrid}>
+      <div className={s.sortGrid} data-n={groups.length}>
         {groups.map((g) => (
           <div key={g.title} className={s.sortGroup} data-tone={g.tone}>
             {g.ais && <span className={s.sortMarks} aria-hidden="true">{g.ais.map((a) => <span key={a} className={s.sortMark}><AIGlyph name={a} size={18} /></span>)}</span>}
