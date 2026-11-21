@@ -201,6 +201,10 @@ export default function Page() {
         href="/blog/move-apple-notes-to-obsidian-notion-keep">Move Apple Notes to Obsidian, Notion or Google Keep</a> covers it.
       </p>
 
+      <p>
+        Still deciding between the two? <a href="/blog/apple-notes-vs-google-keep">Apple Notes vs Google Keep</a> compares them feature by feature.
+      </p>
+
       <h2 id="pinto-notes">Or import Keep into Pinto Notes</h2>
       <p>
         If you&apos;re leaving Keep for something that feels like Apple Notes, Pinto Notes is another route. It looks and works like

@@ -140,6 +140,10 @@ export default function Page() {
         Whichever you use, it&apos;s a copy. Apple Notes stays as it was, and a note you change tomorrow won&apos;t change in the file.
       </p>
 
+      <p>
+        Want a PDF to share or print instead? <a href="/blog/apple-notes-export-pdf">How to export Apple Notes to PDF</a> has the steps on Mac and iPhone.
+      </p>
+
       <h2>If you&apos;re moving somewhere, not making a backup</h2>
       <p>
         An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/blog/move-apple-notes-to-obsidian-notion-keep">Moving

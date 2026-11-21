@@ -181,6 +181,10 @@ export default function Page() {
         Apple Notes</a> shows how to keep one.
       </p>
 
+      <p>
+        If Notes says a note is full or has too many attachments, see <a href="/blog/apple-notes-storage-limit">Apple Notes storage limit</a>.
+      </p>
+
       <h2 id="pinto-notes">A second home for your notes</h2>
       <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={460}
         alt="The Import from Apple Notes sheet in Pinto Notes on a Mac: Copies the notes you pick. Nothing in Apple Notes changes. Every note is listed under its Apple Notes folder, all ticked, with Import 8 Notes."

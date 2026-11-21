@@ -245,8 +245,20 @@
   "w": 880,
   "h": 550
  },
+ "expenses": {
+  "ground": "#c5ddbf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "export-markdown": {
   "ground": "#e7e4df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "export-pdf": {
+  "ground": "#f8a69e",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -293,6 +305,12 @@
   "w": 880,
   "h": 550
  },
+ "iphone-apps": {
+  "ground": "#aac5f0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "job-hunt": {
   "ground": "#7792ae",
   "ink": "dark",
@@ -307,6 +325,12 @@
  },
  "keep-to-notes": {
   "ground": "#fad286",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "lock-folder": {
+  "ground": "#cbc9ca",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -491,6 +515,12 @@
   "w": 880,
   "h": 550
  },
+ "storage": {
+  "ground": "#b3e4e8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "tables": {
   "ground": "#fbeccc",
   "ink": "dark",
@@ -509,6 +539,12 @@
   "w": 880,
   "h": 550
  },
+ "todo": {
+  "ground": "#c3da8a",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "trip-planner": {
   "ground": "#fdd8b5",
   "ink": "dark",
@@ -521,6 +557,12 @@
   "w": 880,
   "h": 550
  },
+ "vs-keep": {
+  "ground": "#f1c996",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "vs-notion": {
   "ground": "#c9c7c6",
   "ink": "dark",
@@ -529,6 +571,12 @@
  },
  "vs-obsidian": {
   "ground": "#d9c2e4",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "vs-onenote": {
+  "ground": "#ddbbcd",
   "ink": "dark",
   "w": 880,
   "h": 550
