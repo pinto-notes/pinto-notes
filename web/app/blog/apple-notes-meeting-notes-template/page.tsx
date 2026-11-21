@@ -78,7 +78,7 @@ export default function Page() {
             every item that&apos;s still open.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-meeting-notes-template" position="answer" title="Want the action items written for you?">
+          <PostCta slug="apple-notes-meeting-notes-template" position="answer" template="meeting-notes" title="Want the action items written for you?">
             <p>Pinto Notes works like Apple Notes and has a free meeting notes template. Paste your rough notes into ChatGPT or Claude and it writes the summary, the decisions and who does what.</p>
           </PostCta>
         </Answer>
@@ -134,6 +134,10 @@ export default function Page() {
         Everyone needs an Apple Account. For the end of the week, the <a href="/blog/apple-notes-templates">Apple Notes templates</a> post
         has a weekly review to paste in, and <a href="/blog/apple-notes-tags-smart-folders">tags and Smart Folders</a> goes through every
         rule a Smart Folder can use.
+      </p>
+
+      <p>
+        For 1:1s, the <a href="/blog/apple-notes-1-on-1-template">1 on 1 meeting notes template</a> keeps one running note per person, with the follow-ups and every past 1:1. For decisions you&apos;ll need to explain months later, keep a <a href="/blog/apple-notes-decision-log-template">decision log</a> with the options and the why.
       </p>
 
       <h2 id="limits">Where meeting notes in Notes stop</h2>

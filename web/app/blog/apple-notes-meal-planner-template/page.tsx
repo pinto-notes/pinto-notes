@@ -94,7 +94,7 @@ export default function Page() {
             groceries below as checklists under a heading per aisle. Copy the template below.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-meal-planner-template" position="answer" title="Want the grocery list written for you?">
+          <PostCta slug="apple-notes-meal-planner-template" position="answer" template="meal-plan" title="Want the grocery list written for you?">
             <p>Pinto Notes works like Apple Notes and has a free meal plan template. Tell ChatGPT or Claude what you feel like this week and it plans the dinners and writes the grocery list by aisle, without what&apos;s already in the cupboard.</p>
           </PostCta>
         </Answer>
