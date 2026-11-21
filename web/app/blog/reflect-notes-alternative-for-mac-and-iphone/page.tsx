@@ -86,7 +86,7 @@ export default function Page() {
     >
       <h2 id="stay-with-reflect">Who should stay with Reflect?</h2>
       <p>
-        Stay if daily notes and backlinks suit how you write and find things. Reflect&apos;s own
+        Stay if daily notes and backlinks suit how you write and find things. Reflect&apos;s own{" "}
         <a href="https://reflect.academy/moving-to-reflect-open"> guide to Reflect Open</a> describes a separate app with
         public source code and Markdown notes in a folder you own. File ownership alone is no reason to choose Pinto over it.
       </p>

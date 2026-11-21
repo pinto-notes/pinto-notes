@@ -144,7 +144,7 @@ export default function Page() {
       <p>
         For the schedule, select the seven lines from Minutes through the 36 to 40 entry, and press the Table button.
         Every tab becomes a column, so you get Minutes and Activity side by side. Or choose Format, Table for two rows and two
-        columns, then type the schedule into the cells. Tab in the last cell adds a row.
+        columns, then type the schedule into the cells. Tab in the last cell adds a row.{" "}
         <a href="/blog/apple-notes-tables"> Tables in Apple Notes</a> explains the controls.
       </p>
       <p>
@@ -154,7 +154,7 @@ export default function Page() {
         separate columns, then remove the plain schedule lines.
       </p>
       <p>
-        These controls come from Apple&apos;s <a href="https://support.apple.com/en-ca/guide/notes/apd93c815aa0/mac" rel="noopener">Mac lists guide</a> and
+        These controls come from Apple&apos;s <a href="https://support.apple.com/en-ca/guide/notes/apd93c815aa0/mac" rel="noopener">Mac lists guide</a> and{" "}
         <a href="https://support.apple.com/en-ie/guide/iphone/iph1ac0b3a2/ios" rel="noopener"> iPhone formatting guide</a>.
         For other layouts you can reuse, see <a href="/blog/apple-notes-templates">Apple Notes templates</a>.
       </p>
@@ -185,7 +185,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Draft the next lesson with ChatGPT or Claude</h2>
       <p>
-        You can use the same layout in Pinto Notes, with headings, checklists and tables. Once you
+        You can use the same layout in Pinto Notes, with headings, checklists and tables. Once you{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> connect ChatGPT or Claude</a> and choose Allow, your AI can read and edit your notes.
         Ask it to use your observations to propose a new plan.
       </p>

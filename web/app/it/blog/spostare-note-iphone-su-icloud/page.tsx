@@ -138,15 +138,15 @@ export default function Page() {
       <h2 id="iphone">Spostare le note su iPhone</h2>
       <Steps>
         <li>
-          <strong>Apri la cartella che contiene le note</strong>
+          <strong>Apri la cartella che contiene le note</strong>{" "}
           Per esempio Note sotto Su iPhone, oppure Note sotto Gmail.
         </li>
         <li>
-          <strong>Tocca il pulsante Altro, poi Seleziona note</strong>
+          <strong>Tocca il pulsante Altro, poi Seleziona note</strong>{" "}
           Tocca ogni nota che vuoi spostare.
         </li>
         <li>
-          <strong>Tocca il pulsante Cartella e scegli una cartella sotto iCloud</strong>
+          <strong>Tocca il pulsante Cartella e scegli una cartella sotto iCloud</strong>{" "}
           Le note lasciano il vecchio account e compaiono in quella cartella.
         </li>
       </Steps>
@@ -161,11 +161,11 @@ export default function Page() {
       <h2 id="mac">Spostare le note sul Mac</h2>
       <Steps>
         <li>
-          <strong>Seleziona le note nell’elenco</strong>
+          <strong>Seleziona le note nell’elenco</strong>{" "}
           Possono venire da Sul mio Mac, da Gmail o da qualsiasi altro account nella barra laterale.
         </li>
         <li>
-          <strong>Trascinale su una cartella sotto iCloud nella barra laterale, oppure fai clic tenendo premuto Ctrl e scegli Sposta in</strong>
+          <strong>Trascinale su una cartella sotto iCloud nella barra laterale, oppure fai clic tenendo premuto Ctrl e scegli Sposta in</strong>{" "}
           Tieni premuto il tasto Opzione quando le rilasci per ottenere delle copie e tenere gli originali.
         </li>
       </Steps>

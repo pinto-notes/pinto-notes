@@ -97,7 +97,7 @@ export default function Page() {
         Pinto has no Windows, Android or web app. If you need access on one of those, choose another app.
       </p>
       <p>
-        For other options alongside Craft, the <a href="/blog/best-notes-app-for-mac">Mac notes app comparison</a>
+        For other options alongside Craft, the <a href="/blog/best-notes-app-for-mac">Mac notes app comparison</a>{" "}
         covers the broader choice. Here, the useful test is whether your own personal documents work after a small move.
       </p>
 
@@ -109,7 +109,7 @@ export default function Page() {
         records or browse a visual library. Pinto&apos;s folders and linked notes do not recreate that setup.
       </p>
       <p>
-        Shared work is another reason to stay. Craft&apos;s <a href="https://www.craft.do/pricing">plan table</a>
+        Shared work is another reason to stay. Craft&apos;s <a href="https://www.craft.do/pricing">plan table</a>{" "}
         lists shared spaces on eligible plans and document publishing. If colleagues work in your Craft space,
         try moving only your private notes. Leave the shared documents where everyone can still work on them.
       </p>
@@ -165,7 +165,7 @@ export default function Page() {
         it is no promise to recover revisions from Craft.
       </p>
       <p>
-        If you want AI help, <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a>
+        If you want AI help, <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a>{" "}
         and approve the connection in Pinto Notes. Allow grants reading and editing access.
         Try asking it to read &ldquo;Hallway repairs&rdquo; and suggest a next step from the unfinished items.
         Check its suggestion, then ask it to add the step to the note. Open the note and check the edit too.

@@ -93,20 +93,20 @@ export default function Page() {
       <h2 id="export">Step 1: export each notebook from Evernote</h2>
       <Steps>
         <li>
-          <strong>Open the Evernote desktop app</strong>
+          <strong>Open the Evernote desktop app</strong>{" "}
           Select a notebook. To export only some notes, select them instead; Evernote exports up to 100 notes at a time.
         </li>
         <li>
-          <strong>Right-click and choose Export</strong>
+          <strong>Right-click and choose Export</strong>{" "}
           Pick ENEX as the file format.
         </li>
         <li>
-          <strong>Keep tags ticked</strong>
+          <strong>Keep tags ticked</strong>{" "}
           Evernote lets you choose which attributes go with the notes, such as tags and the created date. Leave tags on if you want them in
           Apple Notes.
         </li>
         <li>
-          <strong>Click Export</strong>
+          <strong>Click Export</strong>{" "}
           Evernote saves the .enex file to your desktop. Repeat for each notebook.
         </li>
       </Steps>
@@ -117,15 +117,15 @@ export default function Page() {
       <h2 id="import">Step 2: import into Notes on your Mac</h2>
       <Steps>
         <li>
-          <strong>Pick where the notes go</strong>
+          <strong>Pick where the notes go</strong>{" "}
           Open Notes and click a folder in the iCloud account (or On My Mac, if you want them on this Mac only).
         </li>
         <li>
-          <strong>Choose File, Import to Notes</strong>
+          <strong>Choose File, Import to Notes</strong>{" "}
           Select one .enex file, then click Import, and Import again to confirm.
         </li>
         <li>
-          <strong>Rename the Imported Notes folder</strong>
+          <strong>Rename the Imported Notes folder</strong>{" "}
           The notes arrive in a folder called Imported Notes. Rename it to the notebook&apos;s name, then import the next notebook.
         </li>
       </Steps>

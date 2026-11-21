@@ -110,7 +110,7 @@ export default function Page() {
         Pinned Notes or Locked Notes. A Tags rule offers Any Tag, All Selected, Any Selected and Untagged Notes Only, and the last one is a
         quick way to find everything you never tagged. A date rule can be Today, Yesterday, a number of days, weeks, months or years back,
         or a specific range. Checklists can be Checked, Unchecked or No Checklists, which makes a Smart Folder of every list with unticked
-        items easy to build. Add a Folders rule and it becomes every open action item in your
+        items easy to build. Add a Folders rule and it becomes every open action item in your{" "}
         <a href="/blog/apple-notes-meeting-notes-template">meeting notes</a>.
       </p>
       <p>
@@ -198,7 +198,7 @@ export default function Page() {
         caption="The Notes actions in Shortcuts on macOS 27." />
       <p>
         On macOS 26 the Shortcuts app has Notes actions named Add Tags to Notes, Remove Tags from Notes, Create Tag, Delete Tags and Open
-        Tag. They&apos;re useful for tagging a batch of notes at once. Tags live in the notes themselves, so keep a copy of those too:
+        Tag. They&apos;re useful for tagging a batch of notes at once. Tags live in the notes themselves, so keep a copy of those too:{" "}
         <a href="/blog/export-apple-notes-to-markdown"> how to export Apple Notes to Markdown</a> covers one note or all of them.
       </p>
 

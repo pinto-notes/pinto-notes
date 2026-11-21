@@ -129,7 +129,7 @@ export default function Page() {
         Click or tap a task&apos;s empty circle when it is complete. For a dropped task, tick it once you have decided to leave it out.
       </p>
       <p>
-        On a Mac, File, Duplicate Note copies a note when you want a separate matrix for another project.
+        On a Mac, File, Duplicate Note copies a note when you want a separate matrix for another project.{" "}
         <a href="/blog/apple-notes-templates"> Apple Notes templates</a> explains how to keep reusable layouts together.
       </p>
 

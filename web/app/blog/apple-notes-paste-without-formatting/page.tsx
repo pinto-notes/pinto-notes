@@ -125,7 +125,7 @@ export default function Page() {
       </Steps>
       <p>
         Apple lists Shift-Command-B in its <a href="https://support.apple.com/en-us/guide/notes/apd46c25187e/mac" rel="noopener">Notes
-        keyboard shortcuts</a>. For changing a typeface or text size after pasting, see the separate
+        keyboard shortcuts</a>. For changing a typeface or text size after pasting, see the separate{" "}
         <a href="/blog/apple-notes-font"> Apple Notes font guide</a>.
       </p>
 
@@ -155,7 +155,7 @@ export default function Page() {
       </p>
       <p>
         Check the result before replacing a long passage. Decide whether you want to keep its links or
-        list structure as well as its words. For snippets that need their own text style,
+        list structure as well as its words. For snippets that need their own text style,{" "}
         <a href="/blog/apple-notes-code-block"> Monostyled in Apple Notes</a> is a separate formatting choice.
       </p>
       <p>
@@ -175,7 +175,7 @@ export default function Page() {
         try Apple Notes&apos; Mac command first.
       </p>
       <p>
-        If you also want ChatGPT or Claude to read and edit your notes, Pinto supports that
+        If you also want ChatGPT or Claude to read and edit your notes, Pinto supports that{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> once connected</a>. Your Apple Notes come over in
         <a href="/blog/move-from-apple-notes"> one import on your Mac</a>, and Apple Notes isn&apos;t changed.
       </p>

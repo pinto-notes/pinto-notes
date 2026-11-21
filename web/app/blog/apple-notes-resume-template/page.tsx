@@ -155,7 +155,7 @@ export default function Page() {
       <p>
         On a Mac, paste the index, select the four lines from Accomplishment date to the last entry, and press the Table button.
         Every tab becomes a column. Or choose Format, Table for two rows and two columns, then type the entries. Tab in the last cell
-        adds a row. On iPhone, tap Add Table and enter the dates and evidence in the cells.
+        adds a row. On iPhone, tap Add Table and enter the dates and evidence in the cells.{" "}
         <a href="/blog/apple-notes-tables"> Tables in Apple Notes</a> covers the table controls.
       </p>
 
@@ -180,14 +180,14 @@ export default function Page() {
 
       <h2 id="pinto-notes">Ask your AI for a separate draft in Pinto Notes</h2>
       <p>
-        Pinto Notes looks and works like Apple Notes on iPhone and Mac. After you
+        Pinto Notes looks and works like Apple Notes on iPhone and Mac. After you{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> connect ChatGPT or Claude</a>, your AI can read and edit your notes.
         Ask it to read your master record and the job description, then save a new note with the relevant accomplishments.
         Tell it to leave the master unchanged and flag missing facts instead of inventing numbers or skills.
       </p>
       <p>
         Check the draft against your sources, especially dates and whether a result was yours or the team&apos;s. Pinto keeps every
-        earlier version of a note. You still finish the resume in a document editor. Your Apple Notes come over in
+        earlier version of a note. You still finish the resume in a document editor. Your Apple Notes come over in{" "}
         <a href="/blog/move-from-apple-notes"> one import on your Mac</a>, and Apple Notes isn&apos;t changed.
       </p>
     </PostPage>

@@ -89,7 +89,7 @@ export default function Page() {
         systems, Pinto won&apos;t cover the same devices. Pinto Notes has no Windows, Linux, Android or web app.
       </p>
       <p>
-        UpNote also has nested notebooks, collapsible sections and a web clipper for Chrome, Safari and Firefox, as described on
+        UpNote also has nested notebooks, collapsible sections and a web clipper for Chrome, Safari and Firefox, as described on{" "}
         <a href="https://getupnote.com/"> its own feature page</a>. If those tools already suit your notes, keeping them may matter
         more than trying a different app. A Markdown import is not a promise to recreate those workflows.
       </p>
@@ -136,7 +136,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Let your connected AI work with the imported notes</h2>
       <p>
-        Pinto Notes looks and works like Apple Notes on iPhone and Mac. Once you
+        Pinto Notes looks and works like Apple Notes on iPhone and Mac. Once you{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> connect ChatGPT or Claude</a> and approve the connection, it can read and edit
         your notes. Start with one imported project note and ask it to summarize the unfinished work in the chat.
       </p>

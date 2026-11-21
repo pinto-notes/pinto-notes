@@ -83,7 +83,7 @@ export default function Page() {
       </p>
       <Steps>
         <li id="icloud-ativado">
-          <strong>O Notas está ativado no iCloud</strong>
+          <strong>O Notas está ativado no iCloud</strong>{" "}
           Se as suas notas do iCloud não aparecem, a solução da Apple é conferir se Sincronizar este iPhone está ativado e depois olhar o
           app Notas. Se elas ainda não aparecerem, reinicie o iPhone e verifique o ajuste de novo. A Apple diz que as notas devem então
           aparecer e voltar a sincronizar, e que o que já tinha sido sincronizado com o iCloud aparece quando a sincronização terminar.
@@ -93,20 +93,20 @@ export default function Page() {
           ]} />
         </li>
         <li id="apagadas">
-          <strong>A pasta Apagadas</strong>
+          <strong>A pasta Apagadas</strong>{" "}
           Uma nota apagada vai para a pasta Apagadas no seu iPhone, no iCloud.com e nos outros aparelhos com a mesma Conta Apple, e fica
           lá por 30 dias. No iPhone, volte para a lista de pastas, toque em Apagadas, passe o dedo para a esquerda sobre a nota e toque em
           Mover. A pasta só aparece quando tem alguma coisa dentro. O guia <a href="/blog/recover-deleted-apple-notes" hrefLang="en">para
           recuperar notas apagadas</a> (em inglês) mostra todos os caminhos, inclusive depois dos 30 dias.
         </li>
         <li id="buscar">
-          <strong>Busque com Todas as Contas selecionado</strong>
+          <strong>Busque com Todas as Contas selecionado</strong>{" "}
           Na lista de notas, toque na barra Buscar e digite uma palavra ou o título, com Todas as Contas selecionado. A busca só vê o
           título de uma nota bloqueada, então abra as notas bloqueadas uma por uma, com a senha, o Face ID ou o Touch ID. Se a busca não
           achar nada, toque no ícone Voltar até ver a lista Pastas e abra cada pasta: a nota pode estar numa que você não esperava.
         </li>
         <li id="outras-contas">
-          <strong>O Notas está ativado no Gmail, no Yahoo e nas outras contas</strong>
+          <strong>O Notas está ativado no Gmail, no Yahoo e nas outras contas</strong>{" "}
           As notas guardadas numa conta de e-mail só aparecem enquanto o Notas estiver ativado nessa conta. Confira cada conta. As notas
           apagadas dessas contas não vão para a pasta Apagadas: procure na pasta Lixo dessa conta no app Mail e copie a nota para uma nota
           nova.
@@ -116,19 +116,19 @@ export default function Page() {
           ]} />
         </li>
         <li id="mesma-conta">
-          <strong>Todos os aparelhos usam a mesma Conta Apple</strong>
+          <strong>Todos os aparelhos usam a mesma Conta Apple</strong>{" "}
           A Apple diz que, num aparelho sem sessão iniciada na sua Conta Apple, você não consegue ver suas notas do iCloud. O nome no topo
           de Ajustes no iPhone, ou no topo da barra lateral de Ajustes do Sistema no Mac, é a conta que aquele aparelho usa. Para ver o
           que o iCloud guarda, entre em icloud.com/notes num navegador com a mesma conta.
         </li>
         <li id="no-meu-iphone">
-          <strong>As notas ficaram num aparelho só</strong>
+          <strong>As notas ficaram num aparelho só</strong>{" "}
           As notas da conta No Meu iPhone só aparecem naquele iPhone, e as de Em Meu Mac só naquele Mac. Se uma nota falta no outro
           aparelho, olhe o título acima da pasta dela no aparelho onde ela está. <a href="/pt/blog/passar-notas-iphone-para-icloud">Passar
           as notas para o iCloud</a> põe todas em todos os aparelhos.
         </li>
         <li id="reiniciar">
-          <strong>Reinicie e confira de novo</strong>
+          <strong>Reinicie e confira de novo</strong>{" "}
           Se as notas continuarem faltando depois dos ajustes acima, o próximo passo da Apple é reiniciar e verificar o ajuste do iCloud
           mais uma vez. Se as notas aparecem num aparelho e não no outro, veja <a href="/pt/blog/notas-iphone-nao-sincroniza">Notas do
           iPhone não sincroniza com o Mac</a>.

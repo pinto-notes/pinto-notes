@@ -90,15 +90,15 @@ export default function Page() {
       </p>
       <Steps>
         <li>
-          <strong>Paste the snippet into a note.</strong>
+          <strong>Paste the snippet into a note.</strong>{" "}
           Keep your explanation above or below it, so you can select just the code.
         </li>
         <li>
-          <strong>Select the code and apply Monostyled.</strong>
+          <strong>Select the code and apply Monostyled.</strong>{" "}
           Open the Format button in the toolbar and choose Monostyled, or press Shift-Command-M.
         </li>
         <li>
-          <strong>Use Body for the explanation.</strong>
+          <strong>Use Body for the explanation.</strong>{" "}
           Select the prose and press Shift-Command-B to give it the Body style.
         </li>
       </Steps>
@@ -116,7 +116,7 @@ export default function Page() {
 
       <h2 id="iphone">Use Monostyled on iPhone</h2>
       <p>
-        In your note, select the snippet, tap the Format button and choose Monostyled. Apple&apos;s
+        In your note, select the snippet, tap the Format button and choose Monostyled. Apple&apos;s{" "}
         <a href="https://support.apple.com/en-us/guide/iphone/iph1ac0b3a2/ios" rel="noopener"> iPhone formatting guide</a> describes
         the Format controls and says you can swipe over the format bar options to reach commonly used styles.
       </p>
@@ -160,7 +160,7 @@ export default function Page() {
         then choose Code Block for a snippet or Callout for a warning beside it. Both commands are in the menu on iPhone and Mac.
       </p>
       <p>
-        If you also want an AI to read and edit your notes, Claude Code and Codex can do that once connected.
+        If you also want an AI to read and edit your notes, Claude Code and Codex can do that once connected.{" "}
         <a href="/blog/notes-in-claude-code-and-codex"> Your notes in Claude Code and Codex</a> explains the connection.
       </p>
       <p>

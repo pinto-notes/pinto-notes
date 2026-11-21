@@ -151,7 +151,7 @@ export default function Page() {
       <h2 id="still-jumping">If Notes still jumps or typing still lags</h2>
       <p>
         Before removing the app or changing accounts, keep a separate copy of important notes.
-        Apple&apos;s <a href="https://support.apple.com/en-us/119876" rel="noopener">general iPhone app guide</a> warns that deleting an app can lose its stored data.
+        Apple&apos;s <a href="https://support.apple.com/en-us/119876" rel="noopener">general iPhone app guide</a> warns that deleting an app can lose its stored data.{" "}
         <a href="/blog/back-up-apple-notes">How to back up Apple Notes</a> covers keeping a copy outside the app.
       </p>
       <p>

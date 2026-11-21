@@ -86,18 +86,18 @@ export default function Page() {
       <h2 id="iphone">En el iPhone: Notas se cierra o no se abre</h2>
       <Steps>
         <li id="cerrar-iphone">
-          <strong>Cierra Notas y vuelve a abrirla</strong>
+          <strong>Cierra Notas y vuelve a abrirla</strong>{" "}
           Abre el selector de apps, desliza hasta encontrar Notas y desliza hacia arriba sobre ella. Luego toca Notas en la pantalla de
           inicio o en la biblioteca de apps.
         </li>
         <li id="reiniciar-iphone">
-          <strong>Reinicia el iPhone</strong>
+          <strong>Reinicia el iPhone</strong>{" "}
           Es el siguiente paso de Apple si la app sigue sin responder. Si es el propio iPhone el que está bloqueado y no se apaga, fuerza
           el reinicio: pulsa y suelta rápidamente el botón para subir el volumen, pulsa y suelta rápidamente el de bajar el volumen, y
           mantén pulsado el botón lateral hasta que aparezca el logotipo de Apple.
         </li>
         <li id="actualizar-iphone">
-          <strong>Actualiza iOS</strong>
+          <strong>Actualiza iOS</strong>{" "}
           Apple propone mirar primero Actualizaciones de apps en el App Store y, si no hay nada para la app, actualizar el software del
           iPhone. Antes, haz una copia de seguridad del iPhone, conéctalo a la corriente y a una red wifi.
           <Paths rows={[
@@ -106,7 +106,7 @@ export default function Page() {
           En Latinoamérica, Ajustes se llama Configuración.
         </li>
         <li id="volver-a-descargar">
-          <strong>Elimina Notas y vuelve a descargarla, como último paso</strong>
+          <strong>Elimina Notas y vuelve a descargarla, como último paso</strong>{" "}
           Notas es una de las apps integradas que Apple deja eliminar. Apple dice que al eliminar una también se eliminan sus datos de
           usuario en el dispositivo, así que comprueba antes icloud.com/notes, y sáltate este paso si guardas notas en En mi iPhone. Para
           recuperarla, busca Notas en el App Store con su nombre exacto y toca Volver a descargar.
@@ -121,7 +121,7 @@ export default function Page() {
       <h2 id="mac">En un Mac: Notas se queda congelada o se cierra</h2>
       <Steps>
         <li id="forzar-salida">
-          <strong>Sal de Notas, o fuerza la salida</strong>
+          <strong>Sal de Notas, o fuerza la salida</strong>{" "}
           Prueba primero con Comando + Q. Si Notas no responde, pulsa Opción + Comando + Esc, o elige Forzar salida en el menú Apple,
           selecciona Notas y haz clic en Forzar salida. Apple avisa de que puedes perder los cambios que no se hayan guardado. Si Notas
           se cerró sola, haz clic en Reiniciar en el cuadro de diálogo que aparece.
@@ -130,17 +130,17 @@ export default function Page() {
           ]} />
         </li>
         <li id="reiniciar-mac">
-          <strong>Reinicia el Mac</strong>
+          <strong>Reinicia el Mac</strong>{" "}
           Elige Reiniciar en el menú Apple. Si el Mac no se reinicia, Apple dice que mantengas pulsado el botón de encendido durante 10
           segundos, hasta que se apague, y que lo vuelvas a pulsar para encenderlo.
         </li>
         <li id="otra-nota">
-          <strong>Abre otra nota</strong>
+          <strong>Abre otra nota</strong>{" "}
           La guía de Apple propone abrir otro archivo, porque el que estaba abierto puede ser el que da problemas. En Notas, eso es otra
           nota.
         </li>
         <li id="actualizar-mac">
-          <strong>Actualiza macOS</strong>
+          <strong>Actualiza macOS</strong>{" "}
           Apple dice que conviene hacer antes una copia de seguridad del Mac. No dejes que el Mac entre en reposo ni cierres la tapa
           hasta que termine la instalación.
           <Paths rows={[
@@ -148,7 +148,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="perifericos">
-          <strong>Desconecta lo nuevo y quita complementos</strong>
+          <strong>Desconecta lo nuevo y quita complementos</strong>{" "}
           Apple propone desconectar un dispositivo que acabas de conectar, como una impresora, y desinstalar módulos o mejoras de otros
           fabricantes, que pueden dejar de funcionar después de actualizar una app o macOS.
         </li>

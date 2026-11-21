@@ -84,18 +84,18 @@ export default function Page() {
       </p>
       <Steps>
         <li id="option">
-          <strong>Du wählst die richtige Option</strong>
+          <strong>Du wählst die richtige Option</strong>{" "}
           Tippe in iOS 27 auf die Teilen-Taste, dann auf das Menü unter dem Notiztitel, und wähle „Link teilen“. „Kopie senden“ schickt
           eine Kopie, die sonst niemand bearbeiten kann. In iOS 18 bis iOS 26 steht im selben Menü „Zusammenarbeiten“ oder „Kopie senden“.
         </li>
         <li id="in-icloud">
-          <strong>Die Notiz liegt in iCloud</strong>
+          <strong>Die Notiz liegt in iCloud</strong>{" "}
           Apples Schritte beginnen im Ordner „Alle iCloud“, und laut Apples Mac-Handbuch brauchst du aktualisierte iCloud-Notizen, um
           zusammenzuarbeiten. Eine Notiz unter „Auf meinem iPhone“, „Auf meinem Mac“ oder in einem Gmail-Account liegt nicht in iCloud.{" "}
           <a href="/de/blog/notizen-in-icloud-verschieben">Verschieb sie zuerst in einen iCloud-Ordner</a>.
         </li>
         <li id="gesperrt">
-          <strong>Die Notiz ist nicht gesperrt</strong>
+          <strong>Die Notiz ist nicht gesperrt</strong>{" "}
           An einer gesperrten Notiz kannst du nicht zusammenarbeiten, auch nicht an einem Ordner mit einer gesperrten Notiz darin. Öffne
           die Notiz und entsperre sie mit Passwort, Face ID oder Touch ID, dann tippe auf die Taste „Notizenaktionen“ und auf „Entfernen“.
         </li>
@@ -105,24 +105,24 @@ export default function Page() {
           iPhone synchronisieren“ aktiviert ist. Laut Apple brauchen die Leute, die du einlädst, das auch.
         </li>
         <li id="update">
-          <strong>Ihr habt beide das neueste iOS</strong>
+          <strong>Ihr habt beide das neueste iOS</strong>{" "}
           Apple verlangt die neueste iOS-Version auf deinem iPhone und auf dem der anderen Person. Die Schritte mit „Zusammenarbeiten“ für
           iOS 26 und älter setzen iOS 18 oder neuer voraus.
         </li>
         <li id="andere-person">
-          <strong>Die andere Person hat einen Apple Account</strong>
+          <strong>Die andere Person hat einen Apple Account</strong>{" "}
           Teilnehmende brauchen einen Apple Account, um eine geteilte Notiz anzusehen und zu bearbeiten. Unter iOS 26 oder älter kannst du
           laut Apple nur mit Personen zusammenarbeiten, die ein Apple-Gerät haben und mit einem Apple Account angemeldet sind. Wenn nicht,
           schick stattdessen eine Kopie.
         </li>
         <li id="anfrage">
-          <strong>Deine Anfrage steht nicht mehr aus</strong>
+          <strong>Deine Anfrage steht nicht mehr aus</strong>{" "}
           Hast du in iOS 27 Zugriff auf die Notiz einer anderen Person angefordert, ist die Anfrage vielleicht noch ausstehend. Die Person,
           der die Notiz gehört, sieht sie über die Taste „Zusammenarbeiten“, und laut Apple geht mit der Anfrage auch eine E-Mail an die
           Adresse ihres Apple Account.
         </li>
         <li id="limit">
-          <strong>In der Notiz ist noch Platz</strong>
+          <strong>In der Notiz ist noch Platz</strong>{" "}
           Bis zu 100 Personen können an einer Notiz zusammenarbeiten.
         </li>
       </Steps>

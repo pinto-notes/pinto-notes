@@ -95,31 +95,31 @@ export default function Page() {
       <h2 id="verificacoes">As verificações, em ordem</h2>
       <Steps>
         <li id="todas-as-contas">
-          <strong>Busque em todas as contas</strong>
+          <strong>Busque em todas as contas</strong>{" "}
           No iPhone, toque em voltar até ver a lista de notas, toque na barra Buscar (talvez seja preciso rolar a tela para achar) e
           confira se Todas as Contas está selecionado. No Mac, clique no botão de busca, clique no menu ao lado da lupa e escolha Todas as
           Contas. Essa opção só aparece se você tiver mais de uma conta, como iCloud e Em Meu Mac.
         </li>
         <li id="bloqueada">
-          <strong>A nota pode estar bloqueada</strong>
+          <strong>A nota pode estar bloqueada</strong>{" "}
           A busca só vê o título de uma nota bloqueada. Se você buscou uma palavra do texto, abra suas notas bloqueadas com a senha, o Face
           ID ou o Touch ID e procure uma por uma. Esqueceu a senha? Veja <a href="/pt/blog/esqueci-senha-notas-iphone">esqueci a senha do
           Notas no iPhone</a>.
         </li>
         <li id="conta-ativada">
-          <strong>O Notas está ativado em todas as contas</strong>
+          <strong>O Notas está ativado em todas as contas</strong>{" "}
           Uma nota numa conta do Gmail, do Yahoo ou de outro serviço só aparece enquanto o Notas estiver ativado nessa conta. Toque na
           conta e confira se o Notas está ativado, e repita para cada conta.
           <MenuPaths rows={[{ on: "iPhone", steps: ["Ajustes", "Apps", "Notas", "Contas de Notas"] }]} />
         </li>
         <li id="outras-palavras">
-          <strong>Tente outras palavras e depois procure à mão</strong>
+          <strong>Tente outras palavras e depois procure à mão</strong>{" "}
           O próprio conselho da Apple é que talvez você não esteja usando a palavra, a frase ou o título que estão na nota. Tente outra, e
           depois abra cada pasta e role a lista. No Mac, você também pode digitar do jeito que falaria, como &ldquo;notas criadas na semana
           passada&rdquo; ou &ldquo;modificado hoje&rdquo;.
         </li>
         <li id="sincronizou">
-          <strong>A nota já chegou a este aparelho</strong>
+          <strong>A nota já chegou a este aparelho</strong>{" "}
           Se você escreveu a nota em outro iPhone ou Mac, ela precisa chegar a este antes de a busca encontrar. Confira se Sincronizar este
           iPhone ou Sincronizar este Mac está ativado para o Notas nos ajustes do iCloud, nos dois aparelhos.{" "}
           <a href="/pt/blog/notas-iphone-nao-sincroniza">Notas do iPhone não sincroniza com o Mac</a> tem o resto dessas verificações.
@@ -129,13 +129,13 @@ export default function Page() {
           ]} />
         </li>
         <li id="reiniciar">
-          <strong>Encerre e reabra o Notas, depois reinicie</strong>
+          <strong>Encerre e reabra o Notas, depois reinicie</strong>{" "}
           No iPhone, abra o Seletor de Apps, passe o dedo para cima no Notas e abra o app de novo. Se não adiantar, a Apple sugere desligar
           e ligar o iPhone. No Mac, pressione Command + Q no Notas e abra de novo; se o Notas não responder, pressione Option + Command +
           Esc e clique em Forçar Encerrar. Se nem isso funcionar, escolha Reiniciar no menu Apple.
         </li>
         <li id="atualizar">
-          <strong>Atualize para o software mais recente</strong>
+          <strong>Atualize para o software mais recente</strong>{" "}
           O artigo da Apple sobre notas que faltam começa aqui: atualize todos os aparelhos para o iOS e o macOS mais recentes. A Apple
           diz que as atualizações do macOS trazem melhorias para apps integrados como o Notas.
           <MenuPaths rows={[

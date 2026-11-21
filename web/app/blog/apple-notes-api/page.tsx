@@ -125,7 +125,7 @@ export default function Page() {
       <p>
         If you&apos;d rather not write AppleScript, <a href="https://github.com/RhetTbull/macnotesapp" rel="noopener">macnotesapp</a> wraps
         it in a <code>notes</code> command for Terminal, with a Python library of the same name. It&apos;s free and open source, and was last
-        released in October 2026. Install it with <code>brew install macnotesapp</code>, then <code>notes add</code> makes a note,
+        released in October 2026. Install it with <code>brew install macnotesapp</code>, then <code>notes add</code> makes a note,{" "}
         <code> notes append</code> adds to one and <code>notes cat</code> prints the ones whose name matches. It reads faster straight
         from the Notes database if you give Terminal Full Disk Access, and every change still goes through the Notes app.
       </p>
@@ -167,7 +167,7 @@ export default function Page() {
         </table>
       </div>
       <p>
-        For Claude Code, start with the sweetrb server: <code>claude mcp add apple-notes -s user -- npx -y apple-notes-mcp@latest</code>
+        For Claude Code, start with the sweetrb server: <code>claude mcp add apple-notes -s user -- npx -y apple-notes-mcp@latest</code>{" "}
         (for Codex, <code>codex mcp add apple-notes -- npx -y apple-notes-mcp@latest</code>), then allow the Automation prompt the first
         time it opens Notes. In the Claude app, the built-in extension is simpler.{" "}
         <a href="/blog/claude-and-apple-notes">Claude and Apple Notes</a> walks through it.

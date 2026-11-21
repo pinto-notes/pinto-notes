@@ -66,24 +66,24 @@ export default function Page() {
       <p>
         Before you try anything bigger than a restart, open icloud.com/notes in a browser and sign in with your Apple Account. If your
         notes are there, they&apos;re stored in iCloud, whatever the app on your device is doing. Apple also lists iCloud Notes on its System
-        Status page, at apple.com/support/systemstatus. If it shows an outage, wait until Apple marks it resolved. If Notes opens but a note
+        Status page, at apple.com/support/systemstatus. If it shows an outage, wait until Apple marks it resolved. If Notes opens but a note{" "}
         <a href="/blog/apple-notes-keeps-jumping-to-top">keeps jumping to the top</a> as you type, that has its own steps.
       </p>
 
       <h2 id="iphone">On iPhone: Notes keeps crashing or won&apos;t open</h2>
       <Steps>
         <li id="quit-iphone">
-          <strong>Close Notes and open it again</strong>
+          <strong>Close Notes and open it again</strong>{" "}
           Open the App Switcher, swipe to find Notes, then swipe up on it. Then tap Notes on the Home Screen or in the App Library.
         </li>
         <li id="restart-iphone">
-          <strong>Restart your iPhone</strong>
+          <strong>Restart your iPhone</strong>{" "}
           Apple&apos;s next step if the app is still unresponsive. If the iPhone itself is frozen and won&apos;t turn off, force it to
           restart: press and release volume up, press and release volume down, then press and hold the side button until the Apple logo
           appears.
         </li>
         <li id="update-iphone">
-          <strong>Update iOS</strong>
+          <strong>Update iOS</strong>{" "}
           Apple suggests checking App Updates in the App Store first, and updating the iPhone&apos;s software if there&apos;s nothing for
           the app. Back up the iPhone, plug it in and connect to Wi-Fi first.
           <Paths rows={[
@@ -91,7 +91,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="redownload">
-          <strong>Delete Notes and download it again, last</strong>
+          <strong>Delete Notes and download it again, last</strong>{" "}
           Notes is one of the built-in apps Apple lets you delete. Apple says that deleting one also deletes its related user data on
           the device, so check icloud.com/notes first, and skip this step if you keep notes in On My iPhone. To get it back, search the
           App Store for Notes by its exact name and tap Redownload.
@@ -106,7 +106,7 @@ export default function Page() {
       <h2 id="mac">On a Mac: Notes keeps freezing or quitting</h2>
       <Steps>
         <li id="force-quit">
-          <strong>Quit Notes, or force it to quit</strong>
+          <strong>Quit Notes, or force it to quit</strong>{" "}
           Try Command-Q first. If Notes doesn&apos;t respond, press Option-Command-Esc, or choose Force Quit from the Apple menu, select
           Notes and click Force Quit. Apple warns that you may lose unsaved changes. If Notes quit on its own, click Reopen in the
           dialog that appears.
@@ -115,24 +115,24 @@ export default function Page() {
           ]} />
         </li>
         <li id="restart-mac">
-          <strong>Restart the Mac</strong>
+          <strong>Restart the Mac</strong>{" "}
           Choose Restart from the Apple menu. If the Mac won&apos;t restart, Apple says to press and hold the power button for up to 10
           seconds until it turns off, then press it again to turn it on.
         </li>
         <li id="other-note">
-          <strong>Open a different note</strong>
+          <strong>Open a different note</strong>{" "}
           Apple&apos;s guide suggests opening another file, since the one that was open may be causing the problem. In Notes, that&apos;s
           another note.
         </li>
         <li id="update-mac">
-          <strong>Update macOS</strong>
+          <strong>Update macOS</strong>{" "}
           Apple says it&apos;s a good idea to back up your Mac first. Keep the Mac awake and the lid open until the install finishes.
           <Paths rows={[
             { on: "Mac", steps: ["System Settings", "General", "Software Update"] },
           ]} />
         </li>
         <li id="peripherals">
-          <strong>Unplug what&apos;s new, remove add-ons</strong>
+          <strong>Unplug what&apos;s new, remove add-ons</strong>{" "}
           Apple suggests disconnecting a device you just connected, such as a printer, and uninstalling plug-ins or enhancements from
           other makers, which may stop working after an app or macOS update.
         </li>

@@ -96,7 +96,7 @@ export default function Page() {
         caption="Ce que Notes affiche sur un Mac où iCloud est désactivé pour Notes (en français : Activer iCloud). Il n’y a aucun état de synchronisation ailleurs dans Notes sur macOS 27 ; j’ai cherché." />
       <Steps>
         <li id="icloud-active">
-          <strong>Notes est activé pour iCloud, sur les deux appareils</strong>
+          <strong>Notes est activé pour iCloud, sur les deux appareils</strong>{" "}
           Le réglage s’appelle Synchroniser cet iPhone ou Synchroniser ce Mac. <a href="https://support.apple.com/fr-fr/121669"
           rel="noopener">Apple dit</a> que si des notes manquent encore après l’avoir activé, il faut redémarrer l’appareil et vérifier à
           nouveau le réglage.
@@ -107,17 +107,17 @@ export default function Page() {
           ]} />
         </li>
         <li id="meme-compte">
-          <strong>Les deux appareils utilisent le même compte Apple</strong>
+          <strong>Les deux appareils utilisent le même compte Apple</strong>{" "}
           Le nom en haut de Réglages sur iPhone, et en haut de Réglages Système sur Mac, est le compte avec lequel cet appareil se
           synchronise. Un Mac de travail connecté au compte Apple de l’entreprise n’affichera pas les notes de votre iPhone personnel.
         </li>
         <li id="icloud-a-la-note">
-          <strong>iCloud a bien la note</strong>
+          <strong>iCloud a bien la note</strong>{" "}
           Ouvrez icloud.com/notes dans un navigateur et connectez-vous avec le même compte Apple. Si la note y est, c’est l’appareil où elle
           manque qu’il faut réparer. Si elle n’y est pas, l’appareil où vous l’avez écrite ne l’a pas encore envoyée : commencez par lui.
         </li>
         <li id="etat">
-          <strong>Notes iCloud fonctionne</strong>
+          <strong>Notes iCloud fonctionne</strong>{" "}
           Apple liste Notes iCloud sur sa page État du système, à l’adresse apple.com/fr/support/systemstatus. Si elle signale une panne,
           aucun réglage de votre côté n’y changera rien. Attendez qu’Apple la marque comme résolue.
         </li>
@@ -128,7 +128,7 @@ export default function Page() {
           peu d’espace ou passer à un forfait plus grand permet à la synchronisation de reprendre.
         </li>
         <li id="mises-a-jour">
-          <strong>Aucun des deux appareils n’est en retard sur les mises à jour</strong>
+          <strong>Aucun des deux appareils n’est en retard sur les mises à jour</strong>{" "}
           Une note créée avec une version plus récente de Notes peut utiliser des fonctionnalités qu’une version plus ancienne n’a pas. Sur
           Mac, Notes l’affiche alors avec le message &laquo; Cette note utilise des fonctionnalités non prises en charge. Pour la consulter
           ou la modifier, mettez à niveau votre appareil vers la dernière version de macOS. &raquo; La note s’est bien synchronisée, mais ce

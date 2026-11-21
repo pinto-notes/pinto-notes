@@ -82,25 +82,25 @@ export default function Page() {
       <h2 id="prueba-primero">Prueba esto primero</h2>
       <Steps>
         <li>
-          <strong>Face ID o Touch ID</strong>
+          <strong>Face ID o Touch ID</strong>{" "}
           Si lo activaste para Notas, abre la nota bloqueada, toca Ver nota y úsalo. Apple lo da como forma de ver una nota bloqueada.
         </li>
         <li>
-          <strong>La indicación</strong>
+          <strong>La indicación</strong>{" "}
           Introduce una contraseña incorrecta un par de veces y Notas muestra la indicación de contraseña que pusiste, si pusiste una.
         </li>
         <li>
-          <strong>El código del iPhone o la contraseña del Mac</strong>
+          <strong>El código del iPhone o la contraseña del Mac</strong>{" "}
           Desde iOS 16, las notas se pueden bloquear con el código del dispositivo en lugar de una contraseña aparte. Si elegiste eso, usa
           el código de tu iPhone, o la contraseña de inicio de sesión en el Mac.
         </li>
         <li>
-          <strong>Contraseñas anteriores</strong>
+          <strong>Contraseñas anteriores</strong>{" "}
           Si alguna vez restableciste la contraseña de Notas, las notas más antiguas conservan la contraseña con la que se bloquearon. Si
           escribes la actual en una nota antigua, Notas te dice que es incorrecta y te muestra la indicación de la antigua.
         </li>
         <li>
-          <strong>Un gestor de contraseñas</strong>
+          <strong>Un gestor de contraseñas</strong>{" "}
           Si usas uno, busca &ldquo;notas&rdquo;: puede que guardaras la contraseña ahí cuando la creaste.
         </li>
       </Steps>

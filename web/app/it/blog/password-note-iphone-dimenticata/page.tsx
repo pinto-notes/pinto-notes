@@ -85,26 +85,26 @@ export default function Page() {
       <h2 id="prova-prima">Prova prima questo</h2>
       <Steps>
         <li>
-          <strong>Face ID o Touch ID</strong>
+          <strong>Face ID o Touch ID</strong>{" "}
           Se l’hai attivato per Note, tocca la nota protetta, poi Visualizza nota, e usalo. Apple lo indica come un modo per vedere una
           nota protetta.
         </li>
         <li>
-          <strong>Il suggerimento</strong>
+          <strong>Il suggerimento</strong>{" "}
           Inserisci un paio di volte una password sbagliata e Note mostra il suggerimento per la password, se ne avevi impostato uno.
         </li>
         <li>
-          <strong>Il codice di iPhone o la password di login del Mac</strong>
+          <strong>Il codice di iPhone o la password di login del Mac</strong>{" "}
           Da iOS 16 puoi proteggere le note con il codice del dispositivo invece che con una password separata. Se avevi scelto così, usa
           il codice del tuo iPhone, o la password di login sul Mac.
         </li>
         <li>
-          <strong>Le password precedenti</strong>
+          <strong>Le password precedenti</strong>{" "}
           Se hai già reimpostato la password di Note in passato, le note più vecchie tengono la password con cui le avevi protette. Se
           inserisci quella attuale su una nota vecchia, Note ti dice che è sbagliata e ti mostra il suggerimento della vecchia.
         </li>
         <li>
-          <strong>Un gestore di password</strong>
+          <strong>Un gestore di password</strong>{" "}
           Se ne usi uno, cerca &ldquo;note&rdquo;: forse avevi salvato lì la password quando l’hai creata.
         </li>
       </Steps>

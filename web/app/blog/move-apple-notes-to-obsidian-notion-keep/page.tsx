@@ -104,21 +104,21 @@ export default function Page() {
         caption="Obsidian's Importer. Choose Apple Notes under File format. Image: Obsidian." />
       <Steps>
         <li>
-          <strong>Install Importer</strong>
+          <strong>Install Importer</strong>{" "}
           In Obsidian, open Settings, choose Community plugins and turn off Restricted mode if it&apos;s on. Choose Browse, find
           Importer, click Install, then Enable.
         </li>
         <li>
-          <strong>Open Importer and pick Apple Notes</strong>
+          <strong>Open Importer and pick Apple Notes</strong>{" "}
           Open it from the command palette or its icon in the ribbon, and under File format choose Apple Notes.
         </li>
         <li>
-          <strong>Give it access to your notes</strong>
+          <strong>Give it access to your notes</strong>{" "}
           Click Import. When Obsidian asks for the group.com.apple.notes folder, click Open. That folder is where Notes keeps its data
           on your Mac.
         </li>
         <li>
-          <strong>Check the preview, then import</strong>
+          <strong>Check the preview, then import</strong>{" "}
           You can change the note template and the file names before the import starts.
         </li>
       </Steps>
@@ -142,16 +142,16 @@ export default function Page() {
       </p>
       <Steps>
         <li>
-          <strong>Export your notes as Markdown</strong>
+          <strong>Export your notes as Markdown</strong>{" "}
           Use the menus below, note by note. Apple&apos;s export works one note at a time, so for many notes a free exporter is
           quicker.
         </li>
         <li>
-          <strong>Put the files in a ZIP</strong>
+          <strong>Put the files in a ZIP</strong>{" "}
           On a Mac, Control-click the folder in Finder and choose Compress. Notion keeps the folder structure from a ZIP.
         </li>
         <li>
-          <strong>Import the ZIP in Notion</strong>
+          <strong>Import the ZIP in Notion</strong>{" "}
           In the sidebar, open Settings, then Import, and choose the ZIP. The notes arrive as pages you can move anywhere afterwards.
         </li>
       </Steps>
@@ -180,11 +180,11 @@ export default function Page() {
       </p>
       <Steps>
         <li>
-          <strong>Copy the note in Apple Notes</strong>
+          <strong>Copy the note in Apple Notes</strong>{" "}
           Open it, select all the text and copy it.
         </li>
         <li>
-          <strong>Paste it into a new note in Keep</strong>
+          <strong>Paste it into a new note in Keep</strong>{" "}
           Make the first line the title, and add a label if you sort notes that way.
         </li>
       </Steps>

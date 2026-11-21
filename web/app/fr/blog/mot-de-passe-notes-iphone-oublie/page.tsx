@@ -84,27 +84,27 @@ export default function Page() {
       <h2 id="essayer-d-abord">À essayer d’abord</h2>
       <Steps>
         <li>
-          <strong>Face ID ou Touch ID</strong>
+          <strong>Face ID ou Touch ID</strong>{" "}
           Si vous l’avez activé pour Notes, ouvrez la note verrouillée, touchez Afficher la note et utilisez-le. Apple l’indique comme un
           moyen d’afficher une note verrouillée.
         </li>
         <li>
-          <strong>L’indice</strong>
+          <strong>L’indice</strong>{" "}
           Saisissez deux fois un mauvais mot de passe et Notes affiche l’indice que vous avez choisi, si vous en avez mis un.
         </li>
         <li>
-          <strong>Le code de l’iPhone ou le mot de passe de connexion du Mac</strong>
+          <strong>Le code de l’iPhone ou le mot de passe de connexion du Mac</strong>{" "}
           Depuis iOS 16, on peut verrouiller les notes avec le code de l’appareil au lieu d’un mot de passe à part. Si vous avez fait ce
           choix, utilisez le code de votre iPhone, ou le mot de passe de connexion de votre Mac sur le Mac.
         </li>
         <li>
-          <strong>Vos anciens mots de passe</strong>
+          <strong>Vos anciens mots de passe</strong>{" "}
           Si vous avez déjà réinitialisé le mot de passe de vos notes, les notes plus anciennes gardent celui avec lequel elles ont été
           verrouillées. Si vous saisissez le mot de passe actuel sur une ancienne note, Notes vous dit qu’il est erroné et affiche
           l’indice de l’ancien.
         </li>
         <li>
-          <strong>Un gestionnaire de mots de passe</strong>
+          <strong>Un gestionnaire de mots de passe</strong>{" "}
           Si vous en utilisez un, cherchez &laquo; notes &raquo; dedans : vous y avez peut-être enregistré le mot de passe quand vous l’avez créé.
         </li>
       </Steps>

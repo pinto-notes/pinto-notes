@@ -86,28 +86,28 @@ export default function Page() {
       <h2 id="zuerst-probieren">Probier zuerst das</h2>
       <Steps>
         <li>
-          <strong>Face ID oder Touch ID</strong>
+          <strong>Face ID oder Touch ID</strong>{" "}
           Wenn du es für Notizen aktiviert hast, öffne die gesperrte Notiz, tippe auf „Notiz anzeigen“ und nutze es. Apple nennt das als
           Weg, eine gesperrte Notiz anzusehen.
         </li>
         <li>
-          <strong>Die Merkhilfe</strong>
+          <strong>Die Merkhilfe</strong>{" "}
           Gib ein paar Mal ein falsches Passwort ein, dann zeigt Notizen die Merkhilfe, falls du eine festgelegt hast. Auf dem iPhone
           heißt sie Passworthinweis.
         </li>
         <li>
-          <strong>Dein Gerätecode oder das Anmeldepasswort des Mac</strong>
+          <strong>Dein Gerätecode oder das Anmeldepasswort des Mac</strong>{" "}
           Seit iOS 16 lassen sich Notizen mit dem Code des Geräts sperren statt mit einem eigenen Passwort. Wenn du das gewählt hast,
           nimm den Code deines iPhone, oder auf dem Mac dein Anmeldepasswort.
         </li>
         <li>
-          <strong>Ältere Passwörter</strong>
+          <strong>Ältere Passwörter</strong>{" "}
           Wenn du dein Passwort für Notizen schon einmal zurückgesetzt hast, behalten ältere Notizen das Passwort, mit dem sie gesperrt
           wurden. Gibst du bei einer älteren Notiz das aktuelle ein, sagt Notizen, dass es falsch ist, und zeigt die Merkhilfe für das
           alte.
         </li>
         <li>
-          <strong>Ein Passwort-Manager</strong>
+          <strong>Ein Passwort-Manager</strong>{" "}
           Wenn du einen nutzt, such darin nach „Notizen“. Vielleicht hast du das Passwort dort gespeichert, als du es festgelegt hast.
         </li>
       </Steps>

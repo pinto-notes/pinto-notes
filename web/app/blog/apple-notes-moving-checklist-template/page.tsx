@@ -155,7 +155,7 @@ export default function Page() {
       <MenuPaths rows={[{ on: "Mac", steps: ["Format", "Table"] }]} />
       <p>
         Paste the template into your moving note, select the five lines from Box to the last contents row, and press the Table button.
-        Every tab becomes a column, so you get Box, Room and Contents side by side. Tab in the last cell adds the next row.
+        Every tab becomes a column, so you get Box, Room and Contents side by side. Tab in the last cell adds the next row.{" "}
         <a href="/blog/apple-notes-tables"> Tables in Apple Notes</a> covers the table controls.
       </p>
       <p>

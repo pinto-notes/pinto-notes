@@ -84,7 +84,7 @@ export default function Page() {
       </p>
       <Steps>
         <li id="icloud-active">
-          <strong>Notes est activé pour iCloud</strong>
+          <strong>Notes est activé pour iCloud</strong>{" "}
           Si vos notes iCloud n’apparaissent pas, la solution d’Apple est de vérifier que Synchroniser cet iPhone est activé, puis de
           regarder dans Notes. Si elles n’apparaissent toujours pas, redémarrez l’iPhone et vérifiez à nouveau le réglage. Apple dit que les
           notes devraient alors apparaître et recommencer à se synchroniser, et que le contenu déjà synchronisé avec iCloud devrait
@@ -95,21 +95,21 @@ export default function Page() {
           ]} />
         </li>
         <li id="suppressions-recentes">
-          <strong>Suppressions récentes</strong>
+          <strong>Suppressions récentes</strong>{" "}
           Une note supprimée passe dans Suppressions récentes sur votre iPhone, sur iCloud.com et sur vos autres appareils connectés au même
           compte Apple, et y reste 30 jours. Sur iPhone, revenez à la liste des dossiers, touchez Suppressions récentes, balayez la note vers la gauche et touchez Déplacer. Le dossier n’apparaît que s’il contient quelque chose.{" "}
           <a href="/blog/recover-deleted-apple-notes">Recover deleted Apple Notes</a> (en anglais) donne toutes les façons de récupérer une
           note, même après les 30 jours.
         </li>
         <li id="recherche">
-          <strong>Une recherche avec Tous les comptes sélectionné</strong>
+          <strong>Une recherche avec Tous les comptes sélectionné</strong>{" "}
           Dans la liste des notes, touchez la barre de recherche et saisissez un mot ou le titre, avec l’option Tous les comptes
           sélectionnée. La recherche ne voit que le titre d’une note verrouillée, alors ouvrez vos notes verrouillées à la main. Si la
           recherche ne trouve rien, touchez l’icône Précédent jusqu’à voir la liste de vos dossiers, puis ouvrez-les un par un : une note
           peut se trouver dans un dossier inattendu.
         </li>
         <li id="autres-comptes">
-          <strong>Notes est activé pour Gmail, Yahoo et vos autres comptes</strong>
+          <strong>Notes est activé pour Gmail, Yahoo et vos autres comptes</strong>{" "}
           Les notes gardées dans un compte de messagerie ne s’affichent que si Notes est activé pour ce compte. Vérifiez chaque compte. Les
           notes supprimées de ces comptes ne vont pas dans Suppressions récentes : regardez dans la Corbeille de ce compte dans l’app Mail,
           puis copiez la note dans une nouvelle note.
@@ -119,19 +119,19 @@ export default function Page() {
           ]} />
         </li>
         <li id="meme-compte">
-          <strong>Chaque appareil utilise le même compte Apple</strong>
+          <strong>Chaque appareil utilise le même compte Apple</strong>{" "}
           Apple dit que sur un appareil qui n’est pas connecté à votre compte Apple, vous ne verrez pas vos notes iCloud. Le nom en haut de
           Réglages sur iPhone, ou en haut de la barre latérale de Réglages Système sur Mac, est le compte qu’utilise cet appareil. Pour voir
           ce qu’iCloud contient, connectez-vous à icloud.com/notes dans un navigateur avec le même compte.
         </li>
         <li id="sur-mon-iphone">
-          <strong>Les notes étaient gardées sur un seul appareil</strong>
+          <strong>Les notes étaient gardées sur un seul appareil</strong>{" "}
           Les notes du compte Sur mon iPhone n’apparaissent que sur cet iPhone, et celles de Sur mon Mac que sur ce Mac. Si une note manque
           sur votre autre appareil, regardez la rubrique au-dessus de son dossier sur l’appareil qui l’a.{" "}
           <a href="/fr/blog/deplacer-notes-iphone-vers-icloud">Déplacer ses notes vers iCloud</a> les met sur tous vos appareils.
         </li>
         <li id="redemarrer">
-          <strong>Redémarrez, puis vérifiez à nouveau</strong>
+          <strong>Redémarrez, puis vérifiez à nouveau</strong>{" "}
           S’il manque encore des notes après les réglages ci-dessus, l’étape suivante d’Apple est un redémarrage, puis une nouvelle
           vérification du réglage iCloud. Si les notes apparaissent sur un appareil et pas sur l’autre, voyez{" "}
           <a href="/fr/blog/notes-ne-se-synchronise-pas-iphone-mac">Notes ne se synchronise pas</a>.

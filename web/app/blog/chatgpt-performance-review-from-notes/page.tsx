@@ -205,7 +205,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Build the review from connected Pinto Notes</h2>
       <p>
-        Pinto Notes is for iPhone and Mac and looks and works like Apple Notes.
+        Pinto Notes is for iPhone and Mac and looks and works like Apple Notes.{" "}
         <a href="/blog/connect-chatgpt-to-your-notes"> Connect ChatGPT</a> and choose Allow in Pinto Notes.
         That permission lets ChatGPT read and edit your notes. The instructions below ask it to leave the source notes unchanged.
       </p>

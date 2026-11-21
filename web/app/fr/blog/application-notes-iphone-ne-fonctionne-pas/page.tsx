@@ -82,18 +82,18 @@ export default function Page() {
       <h2 id="iphone">Sur iPhone : Notes plante ou ne s’ouvre pas</h2>
       <Steps>
         <li id="quitter-iphone">
-          <strong>Fermez Notes et rouvrez-le</strong>
+          <strong>Fermez Notes et rouvrez-le</strong>{" "}
           Ouvrez le sélecteur d’app, balayez pour trouver Notes, puis balayez-le vers le haut. Touchez ensuite Notes sur l’écran d’accueil
           ou dans la bibliothèque d’apps.
         </li>
         <li id="redemarrer-iphone">
-          <strong>Redémarrez votre iPhone</strong>
+          <strong>Redémarrez votre iPhone</strong>{" "}
           C’est l’étape suivante d’Apple si l’app ne répond toujours pas. Si l’iPhone lui-même est figé et ne s’éteint pas, forcez son
           redémarrage : appuyez rapidement sur le bouton d’augmentation du volume, puis sur le bouton de diminution du volume, puis
           maintenez le bouton latéral enfoncé jusqu’à ce que le logo Apple apparaisse.
         </li>
         <li id="mise-a-jour-iphone">
-          <strong>Mettez iOS à jour</strong>
+          <strong>Mettez iOS à jour</strong>{" "}
           Apple conseille de regarder d’abord Mises à jour d’apps dans l’App Store, et de mettre à jour le logiciel de l’iPhone s’il n’y a
           rien pour l’app. Sauvegardez l’iPhone, branchez-le et connectez-le au Wi-Fi avant.
           <Paths rows={[
@@ -101,7 +101,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="retelecharger">
-          <strong>Supprimez Notes et téléchargez-le à nouveau, en dernier</strong>
+          <strong>Supprimez Notes et téléchargez-le à nouveau, en dernier</strong>{" "}
           Notes fait partie des apps intégrées qu’Apple permet de supprimer. Apple dit que supprimer une telle app supprime aussi ses données
           utilisateur sur l’appareil : vérifiez donc icloud.com/notes d’abord, et sautez cette étape si vous gardez des notes dans Sur mon
           iPhone. Pour le récupérer, cherchez Notes dans l’App Store en saisissant son nom exact et touchez Retélécharger.
@@ -116,7 +116,7 @@ export default function Page() {
       <h2 id="mac">Sur Mac : Notes se fige ou se ferme</h2>
       <Steps>
         <li id="forcer-a-quitter">
-          <strong>Quittez Notes, ou forcez-le à quitter</strong>
+          <strong>Quittez Notes, ou forcez-le à quitter</strong>{" "}
           Essayez d’abord Commande + Q. Si Notes ne répond pas, appuyez sur Option + Commande + Échap, ou choisissez Forcer à quitter dans le
           menu Pomme, sélectionnez Notes et cliquez sur Forcer à quitter. Apple prévient que vous risquez de perdre les modifications non
           enregistrées. Si Notes s’est fermé tout seul, cliquez sur Relancer dans la zone de dialogue qui apparaît.
@@ -125,17 +125,17 @@ export default function Page() {
           ]} />
         </li>
         <li id="redemarrer-mac">
-          <strong>Redémarrez le Mac</strong>
+          <strong>Redémarrez le Mac</strong>{" "}
           Choisissez Redémarrer dans le menu Pomme. Si le Mac ne redémarre pas, Apple dit de maintenir le bouton d’alimentation enfoncé
           jusqu’à 10 secondes pour l’éteindre, puis d’appuyer de nouveau dessus pour le rallumer.
         </li>
         <li id="autre-note">
-          <strong>Ouvrez une autre note</strong>
+          <strong>Ouvrez une autre note</strong>{" "}
           Le guide d’Apple conseille d’ouvrir un autre fichier, car celui qui était ouvert pose peut-être problème. Dans Notes, c’est une
           autre note.
         </li>
         <li id="mise-a-jour-mac">
-          <strong>Mettez macOS à jour</strong>
+          <strong>Mettez macOS à jour</strong>{" "}
           Apple conseille de sauvegarder votre Mac d’abord. Ne le mettez pas en veille et ne fermez pas son couvercle avant la fin de
           l’installation.
           <Paths rows={[
@@ -143,7 +143,7 @@ export default function Page() {
           ]} />
         </li>
         <li id="peripheriques">
-          <strong>Débranchez ce qui est nouveau, retirez les modules</strong>
+          <strong>Débranchez ce qui est nouveau, retirez les modules</strong>{" "}
           Apple conseille de déconnecter un périphérique que vous venez de brancher, comme une imprimante, et de désinstaller les extensions
           ou modules d’autres éditeurs, qui peuvent ne plus fonctionner après une mise à jour de l’app ou de macOS.
         </li>

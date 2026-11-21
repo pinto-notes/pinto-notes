@@ -105,19 +105,19 @@ export default function Page() {
       </p>
       <Steps>
         <li>
-          <strong>Copy the note in Keep</strong>
+          <strong>Copy the note in Keep</strong>{" "}
           Open it in the Keep app or at keep.google.com, select all the text and copy it.
         </li>
         <li>
-          <strong>Paste it into a new note in Apple Notes</strong>
+          <strong>Paste it into a new note in Apple Notes</strong>{" "}
           Put the Keep title on the first line. Apple Notes uses it as the note&apos;s title.
         </li>
         <li>
-          <strong>Fix the checklists</strong>
+          <strong>Fix the checklists</strong>{" "}
           If a Keep checklist arrives as plain lines, select them and tap the checklist button.
         </li>
         <li>
-          <strong>Check the pictures</strong>
+          <strong>Check the pictures</strong>{" "}
           If a picture didn&apos;t come with the text, save it from Keep and add it to the note.
         </li>
       </Steps>
@@ -130,20 +130,20 @@ export default function Page() {
       </p>
       <Steps>
         <li>
-          <strong>Ask Google for your Keep notes</strong>
+          <strong>Ask Google for your Keep notes</strong>{" "}
           Go to takeout.google.com, untick everything except Keep, and go to the next step.
         </li>
         <li>
-          <strong>Choose an emailed link and a .zip</strong>
+          <strong>Choose an emailed link and a .zip</strong>{" "}
           Google says the export takes from a few minutes to a few days; most arrive the same day. The link works for about 7 days,
           and each download can be made 5 times.
         </li>
         <li>
-          <strong>Open the download on your Mac</strong>
+          <strong>Open the download on your Mac</strong>{" "}
           Double-click the .zip. Inside is a Takeout folder with a Keep folder in it.
         </li>
         <li>
-          <strong>Import the .html files into Notes</strong>
+          <strong>Import the .html files into Notes</strong>{" "}
           In Notes, select a folder under iCloud, choose File, Import to Notes, select the .html files in the Keep folder and click
           Import, then Import again to confirm.
         </li>

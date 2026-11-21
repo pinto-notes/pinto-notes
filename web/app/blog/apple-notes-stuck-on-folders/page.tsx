@@ -84,17 +84,17 @@ export default function Page() {
       <h2 id="icloud-checks">Check iCloud before changing anything else</h2>
       <Steps>
         <li id="status">
-          <strong>Check Apple&apos;s service status</strong>
+          <strong>Check Apple&apos;s service status</strong>{" "}
           Open <a href="https://www.apple.com/support/systemstatus/" rel="noopener">Apple System Status</a> and look for iCloud Notes.
           If Apple reports an issue, check its status before changing your settings.
         </li>
         <li id="account">
-          <strong>Check the Apple Account</strong>
+          <strong>Check the Apple Account</strong>{" "}
           Make sure each device is signed in to the same Apple Account. Check your account at the top of Settings on iPhone or
           System Settings on Mac.
         </li>
         <li id="notes-switch">
-          <strong>Make sure Notes is on for iCloud</strong>
+          <strong>Make sure Notes is on for iCloud</strong>{" "}
           Turn on Sync this iPhone or Sync this Mac if it&apos;s off. On iPhone, Apple says to restart if notes still don&apos;t
           appear, then check the setting again.
           <Paths rows={[
@@ -103,12 +103,12 @@ export default function Page() {
           ]} />
         </li>
         <li id="network">
-          <strong>Check the connection</strong>
+          <strong>Check the connection</strong>{" "}
           Apple asks for a strong internet connection. If you&apos;re using an iPhone without Wi-Fi, check that Cellular or Mobile
           Data is on in Settings. Apple says iCloud may be unavailable over mobile data when that setting is off.
         </li>
         <li id="updates">
-          <strong>Check for software updates</strong>
+          <strong>Check for software updates</strong>{" "}
           Apple includes updating iOS or macOS in its iCloud troubleshooting steps. Back up your device before installing an update.
           <Paths rows={[
             { on: "iPhone", steps: ["Settings", "General", "Software Update"] },
@@ -118,9 +118,9 @@ export default function Page() {
       </Steps>
       <p>
         These checks come from Apple&apos;s <a href="https://support.apple.com/en-gb/118446" rel="noopener">iCloud connection
-        guidance</a>, <a href="https://support.apple.com/en-us/121669" rel="noopener">missing iCloud notes article</a> and
+        guidance</a>, <a href="https://support.apple.com/en-us/121669" rel="noopener">missing iCloud notes article</a> and{" "}
         <a href="https://support.apple.com/en-ca/guide/icloud/-mm8685520792/icloud" rel="noopener">Notes setup guide</a>.
-        The update paths are in Apple&apos;s <a href="https://support.apple.com/en-us/118575" rel="noopener">iPhone</a> and
+        The update paths are in Apple&apos;s <a href="https://support.apple.com/en-us/118575" rel="noopener">iPhone</a> and{" "}
         <a href="https://support.apple.com/en-us/108382" rel="noopener">Mac update guides</a>.
       </p>
 

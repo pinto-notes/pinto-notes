@@ -173,7 +173,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">Pinto Notes for notes your coding agent can edit</h2>
       <p>
-        Pinto Notes looks and works like Apple Notes on iPhone and Mac. Type <code>/</code> at the start of a line and choose
+        Pinto Notes looks and works like Apple Notes on iPhone and Mac. Type <code>/</code> at the start of a line and choose{" "}
         <strong> Code Block</strong> for a snippet. Notes are Markdown files, with paths such as <code>Work/Decision log.md</code>.
         Agents reach those files through the hosted MCP server, where they can search, read and edit them.
       </p>

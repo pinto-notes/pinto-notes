@@ -104,7 +104,7 @@ export default function Page() {
       <h2 id="missing-notes">If your iPhone notes are missing</h2>
       <p>
         Check the account first. Notes on iCloud.com shows notes stored in iCloud. It doesn&apos;t show notes stored in another account,
-        such as Google or Yahoo. On your iPhone or Mac, look for the note under the iCloud heading in the folder list.
+        such as Google or Yahoo. On your iPhone or Mac, look for the note under the iCloud heading in the folder list.{" "}
         <a href="/blog/where-are-apple-notes-stored"> Where Apple Notes are stored</a> explains the different accounts.
       </p>
       <MenuPaths rows={[

@@ -96,7 +96,7 @@ export default function Page() {
         caption="O que o Notas mostra num Mac com o iCloud desativado para o Notas (em português, Ative o iCloud). Não há status de sincronização em nenhum outro lugar do Notas no macOS 27; eu procurei." />
       <Steps>
         <li id="icloud-ativado">
-          <strong>O Notas está ativado no iCloud, nos dois aparelhos</strong>
+          <strong>O Notas está ativado no iCloud, nos dois aparelhos</strong>{" "}
           A opção se chama Sincronizar este iPhone ou Sincronizar este Mac. A Apple diz que, se as notas continuarem faltando depois de
           ativar, você deve reiniciar o aparelho e verificar o ajuste de novo.
           <Paths rows={[
@@ -106,28 +106,28 @@ export default function Page() {
           ]} />
         </li>
         <li id="mesma-conta">
-          <strong>Os dois aparelhos usam a mesma Conta Apple</strong>
+          <strong>Os dois aparelhos usam a mesma Conta Apple</strong>{" "}
           O nome no topo de Ajustes no iPhone, e no topo de Ajustes do Sistema no Mac, é a conta com que aquele aparelho sincroniza. Um
           Mac do trabalho com a Conta Apple da empresa não vai mostrar as notas do seu iPhone pessoal.
         </li>
         <li id="icloud-tem">
-          <strong>O iCloud tem a nota</strong>
+          <strong>O iCloud tem a nota</strong>{" "}
           Abra icloud.com/notes num navegador e entre com a mesma Conta Apple. Se a nota estiver lá, o problema é no aparelho onde ela
           falta. Se não estiver, o aparelho onde você escreveu ainda não enviou a nota, então comece por ele.
         </li>
         <li id="status">
-          <strong>As Notas do iCloud estão funcionando</strong>
+          <strong>As Notas do iCloud estão funcionando</strong>{" "}
           A Apple lista as Notas do iCloud na página Status do sistema, em apple.com/br/support/systemstatus. Se aparecer uma falha,
           nenhum ajuste do seu lado vai resolver. Espere até a Apple marcar como resolvido.
         </li>
         <li id="armazenamento">
-          <strong>O armazenamento do iCloud não está cheio</strong>
+          <strong>O armazenamento do iCloud não está cheio</strong>{" "}
           A Apple diz que, quando o armazenamento do iCloud fica cheio, os apps do iCloud deixam de ficar atualizados nos seus
           aparelhos, e o Notas é um deles. Abra Ajustes, toque no seu nome e depois em iCloud para ver quanto você está usando. Liberar
           espaço ou mudar para um plano maior deixa a sincronização continuar.
         </li>
         <li id="atualizacao">
-          <strong>Nenhum aparelho está com atualização atrasada</strong>
+          <strong>Nenhum aparelho está com atualização atrasada</strong>{" "}
           Uma nota feita numa versão mais nova do Notas pode usar recursos que uma versão mais antiga não tem. No Mac, o Notas mostra
           essa nota com a mensagem &ldquo;Esta nota usa recursos incompatíveis. Para visualizá-la ou editá-la, atualize para a versão
           mais recente do macOS.&rdquo; A nota sincronizou, mas este Mac não consegue abrir. Desde que o iOS 27 saiu, em 14 de

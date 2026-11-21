@@ -142,15 +142,15 @@ export default function Page() {
       <h2 id="iphone">Notizen auf dem iPhone bewegen</h2>
       <Steps>
         <li>
-          <strong>Öffne den Ordner mit den Notizen</strong>
+          <strong>Öffne den Ordner mit den Notizen</strong>{" "}
           Zum Beispiel den Ordner Notizen unter „Auf meinem iPhone“ oder unter Gmail.
         </li>
         <li>
-          <strong>Tippe auf die Mehr-Taste, dann auf „Notizen auswählen“</strong>
+          <strong>Tippe auf die Mehr-Taste, dann auf „Notizen auswählen“</strong>{" "}
           Tippe jede Notiz an, die du bewegen willst.
         </li>
         <li>
-          <strong>Tippe auf die Taste „Ordner“ und wähle einen Ordner unter iCloud</strong>
+          <strong>Tippe auf die Taste „Ordner“ und wähle einen Ordner unter iCloud</strong>{" "}
           Die Notizen verlassen den alten Account und erscheinen in diesem Ordner.
         </li>
       </Steps>
@@ -165,11 +165,11 @@ export default function Page() {
       <h2 id="mac">Notizen auf dem Mac bewegen</h2>
       <Steps>
         <li>
-          <strong>Wähle die Notizen in der Liste aus</strong>
+          <strong>Wähle die Notizen in der Liste aus</strong>{" "}
           Sie können aus „Auf meinem Mac“, Gmail oder jedem anderen Account in der Seitenleiste kommen.
         </li>
         <li>
-          <strong>Zieh sie auf einen Ordner unter iCloud in der Seitenleiste, oder klicke bei gedrückter Control-Taste und wähle „Bewegen in“</strong>
+          <strong>Zieh sie auf einen Ordner unter iCloud in der Seitenleiste, oder klicke bei gedrückter Control-Taste und wähle „Bewegen in“</strong>{" "}
           Halte beim Loslassen die Option-Taste gedrückt, dann bekommst du Kopien und behältst die Originale.
         </li>
       </Steps>

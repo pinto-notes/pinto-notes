@@ -70,7 +70,7 @@ export default function Page() {
       </p>
       <Steps>
         <li id="icloud-on">
-          <strong>Notes is turned on for iCloud</strong>
+          <strong>Notes is turned on for iCloud</strong>{" "}
           If your iCloud notes don&apos;t appear, Apple&apos;s fix is to make sure Sync this iPhone is on, then check Notes. If they still
           don&apos;t show, restart the iPhone and check the setting again. Apple says the notes should then appear and start syncing,
           and that content synced to iCloud before should appear once syncing completes.
@@ -80,20 +80,20 @@ export default function Page() {
           ]} />
         </li>
         <li id="recently-deleted">
-          <strong>Recently Deleted</strong>
+          <strong>Recently Deleted</strong>{" "}
           A deleted note moves to Recently Deleted on your iPhone, on iCloud.com and on your other devices signed in to the same Apple
           Account, and stays there for 30 days. On iPhone, go back to the folder list, tap Recently Deleted, swipe left on the note and
           tap Move. The folder only appears when it has something in it. <a href="/blog/recover-deleted-apple-notes">How to recover
           deleted Apple Notes</a> has every route, including after the 30 days.
         </li>
         <li id="search">
-          <strong>Search with All Accounts selected</strong>
+          <strong>Search with All Accounts selected</strong>{" "}
           In the notes list, tap the Search bar and type a word or the title, with All Accounts selected. Search only sees the title of a
           locked note, so open locked notes by hand. If search finds nothing, tap the back icon until you see your Folders list, then open
           each folder: a note can sit in one you didn&apos;t expect.
         </li>
         <li id="other-accounts">
-          <strong>Notes is on for Gmail, Yahoo and other accounts</strong>
+          <strong>Notes is on for Gmail, Yahoo and other accounts</strong>{" "}
           Notes kept in a mail account only show while Notes is turned on for that account. Check each account. Their deleted notes
           don&apos;t go to Recently Deleted: look in that account&apos;s Trash in the Mail app, then copy the note into a new one.
           <Paths rows={[
@@ -102,19 +102,19 @@ export default function Page() {
           ]} />
         </li>
         <li id="same-account">
-          <strong>Every device uses the same Apple Account</strong>
+          <strong>Every device uses the same Apple Account</strong>{" "}
           Apple says that on a device that isn&apos;t signed in to your Apple Account, you won&apos;t be able to see your iCloud notes. The
           name at the top of Settings on iPhone, or at the top of the System Settings sidebar on a Mac, is the account that device uses.
           To see what iCloud holds, sign in at icloud.com/notes in a browser with the same account.
         </li>
         <li id="on-my-iphone">
-          <strong>The notes were kept on one device</strong>
+          <strong>The notes were kept on one device</strong>{" "}
           Notes in the On My iPhone account appear only on that iPhone, and notes in On My Mac only on that Mac. If a note is missing on
           your other device, look at the heading above its folder on the device that has it. <a href="/blog/move-apple-notes-to-icloud">Moving
           notes into iCloud</a> puts them on every device.
         </li>
         <li id="restart">
-          <strong>Restart, then check again</strong>
+          <strong>Restart, then check again</strong>{" "}
           If notes are still missing after the switches above, Apple&apos;s next step is a restart, then checking the iCloud setting once
           more. If notes show on one device and not the other, see <a href="/blog/apple-notes-not-syncing">Apple Notes not syncing</a>.
         </li>
