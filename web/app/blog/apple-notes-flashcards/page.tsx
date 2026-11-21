@@ -129,6 +129,10 @@ export default function Page() {
         <a href="/blog/apple-notes-templates">Apple Notes templates</a>.
       </p>
 
+      <p>
+        For the rest of a term in Notes, from scanned handouts to recorded lectures, see <a href="/blog/apple-notes-for-school">Apple Notes for school</a>.
+      </p>
+
       <h2 id="limits">Where flashcards in Notes stop</h2>
       <ul>
         <li><strong>Nothing is due.</strong> Notes doesn&apos;t know when you last saw a card, so you either study every card every time or keep track yourself.</li>

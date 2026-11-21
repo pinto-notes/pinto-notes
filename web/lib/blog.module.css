@@ -80,6 +80,9 @@
 .ground[data-ground="sandstone"] { background: linear-gradient(160deg, #fcf4e9, #f7e0c2); }
 .ground[data-ground="flamingo"] { background: linear-gradient(160deg, #fde7e2, #fbbdaf); }
 .ground[data-ground="pine"] { background: linear-gradient(160deg, #d8ddd5, #93a08c); }
+.ground[data-ground="meadow"] { background: linear-gradient(160deg, #eef2e5, #d1dab6); }
+.ground[data-ground="peony"] { background: linear-gradient(160deg, #fef1f1, #fcd9d7); }
+.ground[data-ground="ocean"] { background: linear-gradient(160deg, #e8f2f4, #c0dae1); }
 .ground[data-ground="dunes"] { background: #f9c98a url(/blog/desk.svg) center / cover no-repeat; }
 
 /* ── A figure in a post: the capture centred on its ground ── */
@@ -159,6 +162,9 @@
 .thumb[data-ground="sandstone"] { background: #f9e8d3; }
 .thumb[data-ground="flamingo"] { background: #fccfc5; }
 .thumb[data-ground="pine"] { background: #b1baab; }
+.thumb[data-ground="meadow"] { background: #dde4ca; }
+.thumb[data-ground="peony"] { background: #fde3e2; }
+.thumb[data-ground="ocean"] { background: #d1e4e9; }
 
 /* An iPhone screen on its own, with the screen's corners. */
 .phone { width: min(100%, var(--w, 100%)); margin: 0 auto; }
