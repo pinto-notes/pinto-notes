@@ -349,4 +349,52 @@ export const pt: Translation[] = [
     description: "Use a Marcação para escrever num PDF anexado ao Notas. Veja os passos no iPhone e no Mac e a diferença entre anotar e exportar a nota.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "best-notes-apps-with-mcp", lang: "pt", slug: "melhor-app-de-notas-com-mcp",
+    title: "Melhor app de notas com MCP: compare seis opções",
+    description: "Pinto Notes, Notion, Bear, Obsidian, Notesnook e Notas: compare conexões MCP oficiais, locais e da comunidade antes de escolher.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "evernote-alternative", lang: "pt", slug: "alternativas-ao-evernote",
+    title: "Alternativas ao Evernote: 6 apps para Mac e iPhone",
+    description: "Compare Notas, Pinto Notes, Obsidian, Notion, Bear e Joplin. Veja como exportar cadernos do Evernote e conferir a importação.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-developers", lang: "pt", slug: "app-de-notas-para-programadores",
+    title: "App de notas para programadores: 6 opções",
+    description: "Compare blocos de código, arquivos Markdown, busca e acesso por agentes de programação em Obsidian, Notion, Joplin, Bear, Notas e Pinto Notes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-writers", lang: "pt", slug: "app-de-notas-para-escritores",
+    title: "App de notas para escritores: 6 opções",
+    description: "Compare rascunhos, contagem de palavras, versões anteriores e exportação em Notas, Pinto Notes, Bear, Obsidian, Ulysses e Scrivener.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-second-brain", lang: "pt", slug: "segundo-cerebro-no-notas-iphone",
+    title: "Segundo cérebro no Notas do iPhone: modelo simples",
+    description: "Monte um sistema com quatro pastas, uma nota Início, links, etiquetas e uma revisão semanal. Copie o modelo e adapte aos seus projetos.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-code-block", lang: "pt", slug: "bloco-de-codigo-notas-iphone",
+    title: "Bloco de código no Notas do iPhone e Mac",
+    description: "Use Estilo Fixo para guardar trechos de código no Notas. Veja o atalho no Mac, como formatar no iPhone e o que o app não faz.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-keeps-jumping-to-top", lang: "pt", slug: "notas-iphone-volta-para-o-inicio",
+    title: "O Notas do iPhone volta ao início? O que tentar",
+    description: "Se a tela sobe sozinha enquanto você escreve, siga os passos gerais da Apple, confira atualizações e teste outra forma de terminar a nota.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-stuck-on-folders", lang: "pt", slug: "notas-iphone-travado-em-pastas",
+    title: "App Notas travado em Pastas? O que conferir",
+    description: "Se o Notas não sai da tela Pastas ou demora a sincronizar, confira o iCloud, a Conta Apple, a conexão e as atualizações sem perder texto.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

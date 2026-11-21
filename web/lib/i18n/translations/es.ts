@@ -349,4 +349,52 @@ export const es: Translation[] = [
     description: "Dibuja y escribe comentarios sobre un PDF adjunto en Notas del iPhone o Mac. Descubre qué permite Marcación y cómo compartir todas las páginas.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "best-notes-apps-with-mcp", lang: "es", slug: "mejores-apps-notas-mcp",
+    title: "Mejores apps de notas con MCP: seis opciones",
+    description: "Compara Pinto Notes, Obsidian, Bear, Notesnook, Notion y Notas de Apple según sus conexiones MCP documentadas y sus límites.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "evernote-alternative", lang: "es", slug: "alternativas-evernote",
+    title: "Alternativas a Evernote para Mac y iPhone",
+    description: "Seis alternativas a Evernote para Mac y iPhone. Compara cómo importan archivos ENEX, dónde guardan tus notas y qué revisar antes de cambiar.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-developers", lang: "es", slug: "apps-notas-programadores",
+    title: "Apps de notas para programadores: seis opciones",
+    description: "Compara Obsidian, Notion, Joplin, Bear, Notas de Apple y Pinto Notes para guardar código, buscar apuntes y dar acceso a un agente.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-writers", lang: "es", slug: "apps-notas-escritores",
+    title: "Apps de notas para escritores: seis opciones",
+    description: "Compara seis apps para escribir: borradores, recuento de palabras, historial, investigación enlazada y formatos de exportación.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-second-brain", lang: "es", slug: "segundo-cerebro-notas-iphone",
+    title: "Segundo cerebro en Notas del iPhone: sistema sencillo",
+    description: "Crea un segundo cerebro en Notas de Apple con cuatro carpetas, una nota Inicio para copiar, enlaces, etiquetas y una revisión semanal.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-code-block", lang: "es", slug: "bloque-codigo-notas-iphone",
+    title: "Bloques de código en Notas del iPhone y Mac",
+    description: "Aprende a dar formato a fragmentos de código con Monoestilo en Notas de Apple, el atajo del Mac, el bloque de cita y sus límites.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-keeps-jumping-to-top", lang: "es", slug: "notas-iphone-salta-al-principio",
+    title: "¿Notas del iPhone salta al principio? Qué probar",
+    description: "Si Notas vuelve arriba mientras escribes, prueba los pasos generales de Apple y otras formas de seguir trabajando sin perder el texto.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-stuck-on-folders", lang: "es", slug: "notas-iphone-atascado-carpetas",
+    title: "¿Notas del iPhone se queda en Carpetas?",
+    description: "Comprueba iCloud, la Cuenta de Apple y la conexión si Notas no carga desde Carpetas. Qué hacer si ves Guardando o Preparando.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
