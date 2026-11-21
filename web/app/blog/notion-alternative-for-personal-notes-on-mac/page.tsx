@@ -107,7 +107,7 @@ export default function Page() {
       <p>
         Try writing a few new notes there before deciding to move old ones. If you want a table to act as
         a Notion database, check the limits first. Apple Notes tables don&apos;t sort or add up their contents.
-        Our <a href="/blog/apple-notes-vs-notion">Apple Notes vs Notion comparison</a> covers the wider choice.
+        Our <a href="/blog/apple-notes-vs-notion">Apple Notes vs Notion comparison</a> covers the wider choice. Coming from Reflect instead? See the <a href="/blog/reflect-notes-alternative-for-mac-and-iphone">Reflect Notes alternative guide</a>.
       </p>
 
       <h2 id="pinto-notes">Choose Pinto Notes for a Notes-style editor with AI access</h2>

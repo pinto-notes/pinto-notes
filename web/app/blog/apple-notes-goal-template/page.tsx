@@ -127,7 +127,7 @@ export default function Page() {
       <p>
         For the evidence table, select the three lines from Date through the 21 November entry and press the Table button.
         The tabs separate the date from the evidence. Or choose Format, Table for two rows and two columns, then enter the headings
-        and evidence yourself. Tab in the last cell adds a row. <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> has more detail.
+        and evidence yourself. Tab in the last cell adds a row. <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> has more detail. To see where your hours actually go, keep a <a href="/blog/apple-notes-time-log-template">time log</a> beside the goal.
       </p>
       <p>
         On iPhone, tap New Note and paste the text. Select each section label, tap the Format button, then Heading. For milestones,

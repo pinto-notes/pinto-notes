@@ -147,6 +147,16 @@
 .ground[data-ground="butterlight"] { background: linear-gradient(160deg, #f9e9d2, #f0c78e); }
 .ground[data-ground="sandbar"] { background: linear-gradient(160deg, #f8e8d4, #eec693); }
 .ground[data-ground="duskblue"] { background: linear-gradient(160deg, #cdd7df, #819bb0); }
+.ground[data-ground="memdusk"] { background: linear-gradient(160deg, #dfe1f2, #afb3df); }
+.ground[data-ground="reflectmint"] { background: linear-gradient(160deg, #e4efe7, #bbd6c3); }
+.ground[data-ground="wheatfield"] { background: linear-gradient(160deg, #f9e8d3, #efc690); }
+.ground[data-ground="rosequartz"] { background: linear-gradient(160deg, #f4d6d3, #e49990); }
+.ground[data-ground="sagecool"] { background: linear-gradient(160deg, #dbe0d3, #a6b191); }
+.ground[data-ground="aquapale"] { background: linear-gradient(160deg, #dff1ed, #aedbd2); }
+.ground[data-ground="butterchalk"] { background: linear-gradient(160deg, #f9e9d4, #f1c893); }
+.ground[data-ground="lavenderlight"] { background: linear-gradient(160deg, #ede5f3, #d2bee0); }
+.ground[data-ground="tealblue"] { background: linear-gradient(160deg, #c9e0de, #79b1ac); }
+.ground[data-ground="mutedcoral"] { background: linear-gradient(160deg, #f6c7bc, #e97258); }
 
 /* ── A figure in a post: the capture centred on its ground ── */
 .figure { margin: 8px 0 28px; }
@@ -291,6 +301,16 @@
 .thumb[data-ground="butterlight"] { background: #f4d5aa; }
 .thumb[data-ground="sandbar"] { background: #f2d4ae; }
 .thumb[data-ground="duskblue"] { background: #a0b4c4; }
+.thumb[data-ground="memdusk"] { background: #c3c6e7; }
+.thumb[data-ground="reflectmint"] { background: #cce0d2; }
+.thumb[data-ground="wheatfield"] { background: #f3d4ac; }
+.thumb[data-ground="rosequartz"] { background: #ebb2ac; }
+.thumb[data-ground="sagecool"] { background: #bcc4ac; }
+.thumb[data-ground="aquapale"] { background: #c2e4dd; }
+.thumb[data-ground="butterchalk"] { background: #f4d6ae; }
+.thumb[data-ground="lavenderlight"] { background: #ddcee8; }
+.thumb[data-ground="tealblue"] { background: #9ac4c1; }
+.thumb[data-ground="mutedcoral"] { background: #ee9582; }
 
 /* An iPhone screen on its own, with the screen's corners. */
 .phone { width: min(100%, var(--w, 100%)); margin: 0 auto; }

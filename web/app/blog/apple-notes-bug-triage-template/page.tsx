@@ -141,7 +141,7 @@ export default function Page() {
       </ul>
       <p>
         Notes sets the column widths itself and you can&apos;t drag them, so a long title squeezes the rest.{" "}
-        <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> covers everything a table in Notes can and can&apos;t do. If others
+        <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> covers everything a table in Notes can and can&apos;t do. To hear the problem from the people who hit it, use the <a href="/blog/apple-notes-user-interview-template">user interview template</a>. If others
         report bugs too, share the note and let them make changes; each person needs an Apple Account.
       </p>
 

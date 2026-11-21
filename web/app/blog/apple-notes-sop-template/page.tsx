@@ -140,7 +140,7 @@ export default function Page() {
         </li>
         <li>
           On iPhone, tap the Add Table button and enter the exception pairs in two columns. On a Mac, Tab in the last cell adds
-          another row. The <a href="/blog/apple-notes-tables">Apple Notes tables guide</a> covers the table controls.
+          another row. The <a href="/blog/apple-notes-tables">Apple Notes tables guide</a> covers the table controls. Before time off, a <a href="/blog/apple-notes-work-handover-template">work handover note</a> gives each open task a cover owner.
         </li>
       </ol>
       <p>

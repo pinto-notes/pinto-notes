@@ -141,7 +141,7 @@ export default function Page() {
       </p>
       <p>
         On a Mac, Format, More, Uncheck All resets that checklist for another review. For a reusable blank note alongside this filled
-        master, see <a href="/blog/apple-notes-templates">Apple Notes templates</a>.
+        master, see <a href="/blog/apple-notes-templates">Apple Notes templates</a>. Once you start the new job, the <a href="/blog/apple-notes-employee-onboarding-template">onboarding template</a> keeps your first month in one note.
       </p>
 
       <h2 id="evidence">Keep evidence you can find again</h2>
