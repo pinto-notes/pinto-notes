@@ -89,6 +89,13 @@ function Cover({ x, art }: { x: Post; art?: string }) {
 /// related posts and a link to the rest, then the dark band written for the post's category. Emits
 /// Article, BreadcrumbList and (when the post has real questions) FAQPage JSON-LD. `caption` goes
 /// under the post's own capture, for the OS it came from.
+/// Whether a post without its own `hero` gets the default Pinto Notes capture under the answer. Only posts about Pinto
+/// itself: a Pinto screenshot under an Apple Notes or Obsidian answer put "too much focus on Pinto Notes" in the first
+/// screen (Emil, 21 Nov 2026). Those posts keep their paper-cut cover at the top.
+const PINTO_TOPIC = new Set(["move-from-apple-notes", "onenote-alternative-for-mac", "connect-notes-to-gemini-cli"]);
+export const showsPintoHero = (slug: string, category: string) =>
+  category === "Building Pinto Notes" || category === "Guides" || PINTO_TOPIC.has(slug);
+
 export function PostPage({ slug, intro, answer, art, hero, caption, faq, children }: { slug: string; intro: React.ReactNode; answer?: React.ReactNode; art?: string; hero?: React.ReactNode; caption?: string; faq?: QA[]; children: React.ReactNode }) {
   const x = post(slug);
   const path = `/blog/${x.slug}`;
@@ -179,7 +186,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
         </div>
 
         <div className={`${legal.article} ${p.body} ${p.rest} rise`} style={{ "--i": 2 } as React.CSSProperties}>
-          {hero ?? (!art && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />)}
+          {hero ?? (!art && showsPintoHero(slug, x.category) && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />)}
           {children}
           {faq?.length ? (
             <>
