@@ -171,6 +171,9 @@ export default function Page() {
         Your Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>,
         and Apple Notes isn&apos;t changed.
       </p>
+      <p>
+        Pasted text bringing its own font along? Here is <a href="/blog/apple-notes-paste-without-formatting">how to paste without formatting</a>. To change a word all through a note, see <a href="/blog/apple-notes-find-and-replace">find and replace in Apple Notes</a>.
+      </p>
     </PostPage>
   );
 }

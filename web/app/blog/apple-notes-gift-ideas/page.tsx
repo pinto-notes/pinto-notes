@@ -190,6 +190,9 @@ export default function Page() {
         The lists you already keep in Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and
         Apple Notes isn&apos;t changed.
       </p>
+      <p>
+        Planning a wedding? The <a href="/blog/apple-notes-wedding-planner-template">wedding planner template</a> keeps guests, vendors and next steps in one note.
+      </p>
     </PostPage>
   );
 }

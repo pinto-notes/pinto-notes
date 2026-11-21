@@ -181,6 +181,9 @@ export default function Page() {
         you already keep in Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and Apple Notes
         isn&apos;t changed.
       </p>
+      <p>
+        For work you repeat the same way each time, write it down once as a <a href="/blog/apple-notes-sop-template">standard operating procedure</a>.
+      </p>
     </PostPage>
   );
 }

@@ -209,6 +209,12 @@
   "w": 880,
   "h": 550
  },
+ "client-tracker": {
+  "ground": "#709f96",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "code-block": {
   "ground": "#a2d7bd",
   "ink": "dark",
@@ -299,6 +305,12 @@
   "w": 880,
   "h": 550
  },
+ "find-replace": {
+  "ground": "#d1bcdc",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "flashcards": {
   "ground": "#c3dae1",
   "ink": "dark",
@@ -337,6 +349,12 @@
  },
  "habit-tracker": {
   "ground": "#f9dfbb",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "home-inventory": {
+  "ground": "#8da0ad",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -449,6 +467,12 @@
   "w": 880,
   "h": 550
  },
+ "moving-checklist": {
+  "ground": "#f1c690",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "not-syncing": {
   "ground": "#c9def5",
   "ink": "dark",
@@ -551,8 +575,20 @@
   "w": 880,
   "h": 550
  },
+ "paste-plain": {
+  "ground": "#b9dbba",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "planner": {
   "ground": "#c4cbef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "project-brief": {
+  "ground": "#abb888",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -620,6 +656,12 @@
  "simplenote-alt": {
   "ground": "#b4d7ea",
   "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "sop-template": {
+  "ground": "#576a57",
+  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -709,6 +751,12 @@
  },
  "vs-onenote": {
   "ground": "#ddbbcd",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "wedding-planner": {
+  "ground": "#f6b8ad",
   "ink": "dark",
   "w": 880,
   "h": 550

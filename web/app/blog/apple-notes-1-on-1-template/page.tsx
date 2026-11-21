@@ -185,6 +185,9 @@ export default function Page() {
         The 1:1 notes you already keep in Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and
         Apple Notes isn&apos;t changed.
       </p>
+      <p>
+        Meeting clients rather than teammates? The <a href="/blog/apple-notes-client-tracker-template">client tracker template</a> gives each client a note and keeps follow-up dates in one index.
+      </p>
     </PostPage>
   );
 }

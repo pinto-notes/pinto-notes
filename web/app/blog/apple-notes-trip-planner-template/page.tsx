@@ -184,6 +184,9 @@ export default function Page() {
         Your Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and Apple Notes isn&apos;t
         changed.
       </p>
+      <p>
+        Moving house rather than travelling? The <a href="/blog/apple-notes-moving-checklist-template">moving checklist template</a> keeps address changes, utilities and boxes in one note.
+      </p>
     </PostPage>
   );
 }
