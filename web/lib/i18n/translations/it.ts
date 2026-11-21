@@ -269,4 +269,52 @@ export const it: Translation[] = [
   { of: "apple-notes-storage-limit", lang: "it", slug: "limite-spazio-note-iphone", title: "Quanto spazio possono occupare le note di iPhone?", description: "Le note iCloud usano lo spazio disponibile nel tuo account. Cosa succede quando finisce, come vedere lo spazio usato e cosa sappiamo sui limiti degli allegati.", date: "2026-11-21", updated: "2026-11-21" },
   { of: "apple-notes-to-do-list", lang: "it", slug: "lista-cose-da-fare-note-iphone", title: "Lista delle cose da fare nelle note di iPhone", description: "Crea un elenco di controllo su iPhone o Mac, incolla un modello pronto e ordina le voci spuntate. Quando servono scadenze, usa Promemoria.", date: "2026-11-21", updated: "2026-11-21" },
   { of: "apple-notes-expense-tracker", lang: "it", slug: "registro-spese-note-iphone", title: "Registro delle spese nelle note di iPhone", description: "Una tabella per gli acquisti e somme sotto con Risultati matematici. Copia il modello, aggiorna le categorie e scopri dove Note non basta.", date: "2026-11-21", updated: "2026-11-21" },
+  {
+    of: "best-notes-apps-with-mcp", lang: "it", slug: "migliori-app-note-mcp",
+    title: "App per le note con MCP: sei opzioni a confronto",
+    description: "Pinto Notes, Notion, Bear, Obsidian, Notesnook e Note di Apple: quali collegamenti MCP documentano, dove funzionano e quali limiti hanno.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "evernote-alternative", lang: "it", slug: "alternative-evernote",
+    title: "Alternative a Evernote per Mac e iPhone: sei app",
+    description: "Note di Apple, Pinto Notes, Obsidian, Notion, Bear e Joplin a confronto. Come esportare da Evernote, importare i taccuini e controllare il risultato.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-developers", lang: "it", slug: "app-note-programmatori",
+    title: "App di note per programmatori: sei a confronto",
+    description: "Codice, Markdown, ricerca e agenti AI: confronto tra Obsidian, Notion, Joplin, Bear, Note di Apple e Pinto Notes per gli appunti di progetto.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-writers", lang: "it", slug: "app-note-scrittori",
+    title: "App di note per scrittori: sei modi di gestire le bozze",
+    description: "Note di Apple, Pinto Notes, Bear, Obsidian, Ulysses e Scrivener a confronto per bozze, versioni precedenti, conteggio parole ed esportazione.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-second-brain", lang: "it", slug: "secondo-cervello-note-iphone",
+    title: "Un secondo cervello con Note di iPhone: da copiare",
+    description: "Quattro cartelle, una nota iniziale, tag e cartelle smart per conservare idee e ritrovarle. Copia l'esempio e fai una revisione ogni settimana.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-code-block", lang: "it", slug: "blocco-codice-note-iphone",
+    title: "Blocchi di codice in Note su iPhone e Mac: Monostile",
+    description: "Come formattare un frammento di codice con Monostile in Note di Apple, usare Blocco citazione e capire i limiti della colorazione della sintassi.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-keeps-jumping-to-top", lang: "it", slug: "note-iphone-tornano-in-alto",
+    title: "Note di iPhone torna in alto da sola? Cosa provare",
+    description: "Se Note salta in cima mentre scrivi, prova i controlli generali di Apple per riavvio e aggiornamenti. Come continuare a scrivere senza perdere il testo.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-stuck-on-folders", lang: "it", slug: "note-iphone-bloccate-cartelle",
+    title: "Note di iPhone bloccata su Cartelle? Cosa controllare",
+    description: "Se Cartelle non si apre o le note non si caricano, controlla iCloud, l'account, la sincronizzazione e la connessione. Anche Salvataggio e Preparazione.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

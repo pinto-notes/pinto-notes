@@ -269,4 +269,52 @@ export const fr: Translation[] = [
     description: "Dessinez et écrivez sur un PDF joint à Notes, sur iPhone ou Mac. Découvrez les outils d’annotation et la différence entre le PDF joint et l’export de la note.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "best-notes-apps-with-mcp", lang: "fr", slug: "meilleures-applications-notes-mcp",
+    title: "Applications de notes avec MCP : 6 choix comparés",
+    description: "Comparez Pinto Notes, Notion, Bear, Obsidian, Notesnook et Notes d’Apple selon leur accès MCP, local ou hébergé, et leurs limites documentées.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "evernote-alternative", lang: "fr", slug: "alternative-evernote-iphone-mac",
+    title: "Alternative à Evernote sur iPhone et Mac : 6 choix",
+    description: "Notes, Pinto Notes, Obsidian, Notion, Bear et Joplin comparés selon l’import Evernote, la synchronisation et vos usages sur iPhone et Mac.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-developers", lang: "fr", slug: "application-notes-developpeurs",
+    title: "Applications de notes pour développeurs : 6 choix",
+    description: "Comparez le code, Markdown, la recherche et l’accès des agents à vos notes dans Obsidian, Notion, Joplin, Bear, Notes et Pinto Notes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-writers", lang: "fr", slug: "applications-notes-ecrivains",
+    title: "Applications de notes pour écrire : 6 choix",
+    description: "Notes, Pinto Notes, Bear, Obsidian, Ulysses et Scrivener comparés pour les brouillons, le nombre de mots, les versions et l’export.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-second-brain", lang: "fr", slug: "second-cerveau-notes-iphone",
+    title: "Faire de Notes son second cerveau : méthode simple",
+    description: "Quatre dossiers, une note d’accueil à copier, des liens et des tags pour retrouver vos idées dans Notes sur iPhone et Mac, avec une revue chaque semaine.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-code-block", lang: "fr", slug: "bloc-code-notes-iphone",
+    title: "Mettre un bloc de code dans Notes sur iPhone et Mac",
+    description: "Le format Monostyle aide à distinguer un extrait de code dans Notes. Voici le raccourci Mac, la mise en forme sur iPhone et les limites du format.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-keeps-jumping-to-top", lang: "fr", slug: "notes-iphone-revient-en-haut",
+    title: "Notes revient en haut sur iPhone ? Que faire",
+    description: "Si Notes remonte pendant la saisie, essayez les vérifications d’Apple, puis une autre façon de finir votre texte. Aucun correctif précis n’est documenté.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-stuck-on-folders", lang: "fr", slug: "notes-iphone-bloque-sur-dossiers",
+    title: "Notes bloqué sur Dossiers ? Les vérifications",
+    description: "Quand Notes reste sur Dossiers ou tarde à synchroniser, vérifiez iCloud, votre compte Apple et le réseau. Distinguez aussi un message de préparation.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

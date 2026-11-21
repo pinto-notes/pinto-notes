@@ -349,4 +349,52 @@ export const de: Translation[] = [
     description: "Schreibe und zeichne auf einer PDF in Apple Notizen. Die Anleitung zeigt die Werkzeuge auf iPhone und Mac und erklärt den Export der ganzen Notiz.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "best-notes-apps-with-mcp", lang: "de", slug: "notizen-app-mit-mcp",
+    title: "Notizen-App mit MCP: 6 Apps im Vergleich",
+    description: "Pinto Notes, Notion, Bear, Obsidian, Notesnook und Apple Notizen im MCP-Vergleich. Welche Verbindung offiziell ist und wo sie läuft.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "evernote-alternative", lang: "de", slug: "evernote-alternative",
+    title: "Evernote-Alternative für Mac und iPhone: 6 Apps",
+    description: "Sechs Evernote-Alternativen für Mac und iPhone im Vergleich. So exportierst du Notizbücher und prüfst den Import von .enex-Dateien.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-developers", lang: "de", slug: "notizen-app-fuer-entwickler",
+    title: "Notizen-App für Entwickler: 6 Apps im Vergleich",
+    description: "Welche Notizen-App passt zu Code, Markdown und Coding-Agenten? Sechs Optionen mit lokalen Dateien, Export, CLI oder MCP im Vergleich.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notes-app-for-writers", lang: "de", slug: "notizen-app-fuer-autoren",
+    title: "Notizen-App für Autoren: 6 Optionen für Entwürfe",
+    description: "Apple Notizen, Pinto Notes, Bear, Obsidian, Ulysses und Scrivener für Entwürfe und Recherche. Vergleiche Wortzahl, frühere Fassungen und Export.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-second-brain", lang: "de", slug: "apple-notizen-second-brain",
+    title: "Second Brain mit Apple Notizen: einfach anfangen",
+    description: "Vier Ordner, eine angeheftete Startnotiz und ein Wochenrückblick: So baust du in Apple Notizen ein System zum Sammeln und Wiederfinden auf.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-code-block", lang: "de", slug: "codeblock-apple-notizen",
+    title: "Codeblock in Apple Notizen: Format und Kürzel",
+    description: "So setzt du kurze Codeschnipsel in Apple Notizen ab. Die Mac-Tastenkombination, die Formatierung auf dem iPhone und die Grenzen bei Syntaxfarben.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-keeps-jumping-to-top", lang: "de", slug: "notizen-springt-nach-oben",
+    title: "Notizen springt nach oben? Das kannst du prüfen",
+    description: "Springt Apple Notizen beim Schreiben nach oben, prüfe Neustart und Updates. So kannst du weiterschreiben und fehlende iCloud-Notizen getrennt prüfen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-stuck-on-folders", lang: "de", slug: "notizen-haengt-bei-ordnern",
+    title: "Notizen hängt bei Ordnern? Prüfe zuerst iCloud",
+    description: "Wenn Apple Notizen in der Ordneransicht hängt oder nicht lädt, prüfe iCloud, Account und Verbindung. Dazu Schritte bei langsamem Sichern.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
