@@ -8,7 +8,7 @@ export const metadata = localPostMetadata("pt", "alternativa-ao-mem-ai-iphone-ma
 // Versão pt-BR de /blog/mem-ai-alternative-for-mac-and-iphone, 21 nov 2026.
 // Google autocomplete pt-BR, 21 nov: "alternativa ao mem ai" não trouxe sugestões;
 // "mem ai" trouxe "mem ai" e "mem ai obsidian"; "alternativas ao mem" trouxe memória RAM. Sem sugestão local para a comparação.
-// Mem: help.mem.ai/migration e /migration/save-a-copy, consultados no original em 21 nov.
+// Mem: help.mem.ai/migration e /migration/save-a-copy, consultados em 21 nov.
 // Os nomes de exportação abaixo são os da ajuda do Mem. Não há passos do app Notas da Apple neste post.
 // A rota de importação é um teste por formato, não uma migração do Mem verificada.
 const ui = UI.pt;

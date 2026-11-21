@@ -14,6 +14,7 @@ export const metadata = localPostMetadata("pt", "estudo-biblico-notas-iphone");
 // Arquivo > Duplicar Nota), /guide/iphone/iph1ac0b3a2/ios (criação de nota, Formatação,
 // Cabeçalho, criação de tabela) e /102296 (Checklist, Voltar). Sem citação bíblica:
 // não foi verificada uma tradução portuguesa em domínio público ou com licença livre.
+// O guia do iPhone não nomeia os ícones de nota nova e tabela; os passos descrevem a ação.
 const ui = UI.pt;
 const TEMPLATE = `Estudo bíblico: Tiago 1:19-25, 21 de novembro de 2026
 

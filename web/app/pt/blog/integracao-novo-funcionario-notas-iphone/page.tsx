@@ -13,6 +13,7 @@ export const metadata = localPostMetadata("pt", "integracao-novo-funcionario-not
 // (Formatação, Cabeçalho), apd93c815aa0/mac (Checklist), apd0a136b9cc/mac
 // (Tabela, Formatar > Tabela, Tab), /guide/iphone/iph1ac0b3a2/ios (criação de nota,
 // Formatação, Cabeçalho, criação de tabela) e /102296 (Checklist, Voltar).
+// O guia do iPhone não nomeia os ícones de nota nova e tabela; os passos descrevem a ação.
 const ui = UI.pt;
 const TEMPLATE = `Primeiro mês na Serra Ferramentas
 

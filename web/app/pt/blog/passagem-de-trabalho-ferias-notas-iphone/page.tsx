@@ -12,6 +12,7 @@ export const metadata = localPostMetadata("pt", "passagem-de-trabalho-ferias-not
 // (Formatação, Cabeçalho), apd0a136b9cc/mac (Tabela, Formatar > Tabela, Tab),
 // apd93c815aa0/mac (Checklist), /guide/iphone/iph1ac0b3a2/ios (criação de nota,
 // Formatação, Cabeçalho, criação de tabela) e /102296 (Checklist, Voltar).
+// O guia do iPhone não nomeia os ícones de nota nova e tabela; os passos descrevem a ação.
 const ui = UI.pt;
 const TEMPLATE = `Passagem do projeto Ipê, 30 de novembro a 4 de dezembro
 

@@ -12,6 +12,7 @@ export const metadata = localPostMetadata("pt", "controle-de-horas-notas-iphone"
 // Apple pt-BR, lida em 21 nov: support.apple.com/pt-br/guide/notes/apd0a136b9cc/mac
 // (Tabela, Formatar > Tabela, Tab), apd93c815aa0/mac (Checklist), /guide/iphone/
 // iph1ac0b3a2/ios (criação de nota, criação de tabela) e /102296 (Checklist, Voltar).
+// O guia do iPhone não nomeia os ícones de nota nova e tabela; os passos descrevem a ação.
 const ui = UI.pt;
 const TEMPLATE = `Controle de horas, 16 a 20 de novembro de 2026
 

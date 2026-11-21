@@ -13,6 +13,7 @@ export const metadata = localPostMetadata("pt", "plano-de-aula-notas-iphone");
 // (Formatação, Cabeçalho), apd93c815aa0/mac (Checklist), apd0a136b9cc/mac
 // (Tabela, Formatar > Tabela, Tab), /guide/iphone/iph1ac0b3a2/ios (criação de nota,
 // Formatação, Cabeçalho, criação de tabela) e /102296 (Checklist, Voltar).
+// O guia do iPhone não nomeia os ícones de nota nova e tabela; os passos descrevem a ação.
 const ui = UI.pt;
 const TEMPLATE = `Comparação de frações, 20 de novembro de 2026
 Aula de reforço de matemática de 40 minutos. Estudante fictício do 5º ano do ensino fundamental.

@@ -8,7 +8,7 @@ export const metadata = localPostMetadata("pt", "alternativa-ao-reflect-notes-ip
 // Versão pt-BR de /blog/reflect-notes-alternative-for-mac-and-iphone, 21 nov 2026.
 // Google autocomplete pt-BR, 21 nov: "alternativa ao reflect notes" e "reflect notes alternativa"
 // não trouxeram sugestões; "reflect notes" trouxe "reflect notes" e "reflect notes alternative". Sem sugestão local para a comparação.
-// Reflect: reflect.academy/moving-to-reflect-open e /import-export-backups, fontes do original.
+// Reflect: reflect.academy/moving-to-reflect-open e /import-export-backups, consultados em 21 nov.
 // Os comandos em inglês abaixo são os do Reflect e do Pinto, não menus do app Notas da Apple.
 // Não há instruções do Notas da Apple nem teste de migração recente neste post.
 const ui = UI.pt;
