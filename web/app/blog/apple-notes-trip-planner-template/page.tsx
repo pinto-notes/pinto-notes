@@ -169,7 +169,7 @@ export default function Page() {
       <h2 id="pinto-notes">A trip plan that keeps count</h2>
       <Figure shot={SHOTS.tripApp} caption="The trip plan template in Pinto Notes on a Mac, with example data: 9 days to go, 3 of 5 bookings paid, 5 of 14 items packed, and the first day as a timeline." />
       <p>
-        That&apos;s why I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and a note can also be a small app.
+        That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and a note can also be a small app.
         The free <a href="/templates/trip-plan">trip plan</a> template is one. You say where you&apos;re going and when, and it counts the
         days down, then shows which day of the trip it is. Each day is a timeline with its bookings in place. Bookings have a kind, a
         time and a reference, and a tick once paid, so it says what&apos;s left to pay. The packing list is grouped, one tap per item, and

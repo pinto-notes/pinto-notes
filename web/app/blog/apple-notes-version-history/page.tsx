@@ -144,7 +144,7 @@ export default function Page() {
       <h2 id="pinto-notes">A notes app that keeps every version</h2>
       <Figure shot={SHOTS.history} caption="Version history in Pinto Notes on a Mac: each earlier version, who made it, the lines that differ, and Restore This Version." />
       <p>
-        That&apos;s why I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and it keeps earlier versions of every
+        That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and it keeps earlier versions of every
         note: every version from the last 24 hours, then the last one of each hour for a week, and the last one of each day for 90
         days. Each version says who made it, you on your iPhone or Mac, or ChatGPT or Claude if you let them edit your notes, and
         the lines that differ are tinted.

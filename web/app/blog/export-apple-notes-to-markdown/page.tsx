@@ -85,7 +85,7 @@ export default function Page() {
 
       <h2 id="check">What survives the export</h2>
       <p>
-        Apple doesn&apos;t list what comes across, so I tested it on macOS 27 with one note that has everything: a checklist, a table with
+        Apple doesn&apos;t list what comes across, so it was tested on macOS 27 with one note that has everything: a checklist, a table with
         a two-line cell, a tag, a link to another note and a picture.
       </p>
       <PostFigure src="/blog/macos27/notes27-smart-folder-open-todos" width={2000} height={900} maxWidth={700}
@@ -148,7 +148,7 @@ export default function Page() {
       <p>
         An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/blog/move-apple-notes-to-obsidian-notion-keep">Moving
         Apple Notes to Obsidian, Notion or Keep</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
-        Notes, that&apos;s why I made Pinto Notes: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
+        Notes, that&apos;s what Pinto Notes is for: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
       </p>
       <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={420}
         alt="The Import from Apple Notes sheet in Pinto Notes on a Mac, with every note listed under its folder and ticked, and an Import button."

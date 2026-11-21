@@ -140,7 +140,7 @@ export default function Page() {
       </p>
       <p>
         It also kept a lot. With no limit, it wrote 8,000 to 24,000 words per pair of friends, often more than the chats themselves.
-        Part of the gain comes from that. The logs don&apos;t record how much of its notes it read for each answer, so I make no
+        Part of the gain comes from that. The logs don&apos;t record how much of its notes it read for each answer, so this makes no
         claim about that.
       </p>
 
