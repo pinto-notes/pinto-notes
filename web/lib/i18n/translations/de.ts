@@ -301,4 +301,52 @@ export const de: Translation[] = [
     description: "Schnellnotizen, Scans, Checklisten, Tabellen, Links, Suche und mehr: 15 praktische Tipps für Apple Notizen auf iPhone und Mac, mit Grenzen für KI.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-vs-bear", lang: "de", slug: "apple-notizen-vs-bear",
+    title: "Apple Notizen vs. Bear: Was passt zu dir?",
+    description: "Apple Notizen bietet Ordner und gemeinsame Listen, Bear Markdown und Rückverweise. Vergleiche Synchronisierung, Export und den Wechsel zwischen beiden Apps.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-vs-evernote", lang: "de", slug: "evernote-vs-apple-notizen",
+    title: "Evernote oder Apple Notizen? Der Vergleich",
+    description: "Apple Notizen für den Alltag auf iPhone und Mac, Evernote für Windows, Webrecherche und Aufgaben. Vergleiche Geräte, Grenzen und den Import deiner Notizen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-on-windows", lang: "de", slug: "apple-notizen-windows",
+    title: "Apple Notizen auf Windows nutzen: So geht es",
+    description: "Öffne Apple Notizen auf Windows über iCloud.com. So richtest du die Synchronisierung ein, bearbeitest Notizen im Browser und erkennst seine Grenzen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-scan-document", lang: "de", slug: "dokument-scannen-iphone-notizen",
+    title: "Dokument scannen mit iPhone-Notizen: PDF und Text",
+    description: "Scanne Dokumente in Apple Notizen als PDF oder füge gedruckten Text ein. So erfasst du mehrere Seiten und scannst mit dem iPhone direkt in eine Mac-Notiz.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-record-and-transcribe", lang: "de", slug: "audio-aufnehmen-transkribieren-apple-notizen",
+    title: "Audio in Apple Notizen aufnehmen und transkribieren",
+    description: "Nimm Audio in Apple Notizen auf und übernimm das Transkript. Hier stehen die Schritte für iPhone und Mac, die Voraussetzungen und die Grenzen bei Anrufen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-widget", lang: "de", slug: "notizen-widget-iphone-mac",
+    title: "Notizen-Widget auf iPhone und Mac einrichten",
+    description: "Füge ein Notizen-Widget auf iPhone oder Mac hinzu. Prüfe die Auswahl für den Sperrbildschirm und die Einstellungen, wenn Inhalt oder Account nicht stimmt.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-font", lang: "de", slug: "schriftart-apple-notizen-aendern",
+    title: "Schriftart in Apple Notizen ändern: iPhone und Mac",
+    description: "Ändere Schriftart und Größe in Apple Notizen auf dem Mac. Auf dem iPhone helfen Textstile und Bedienungshilfen. So findest du auch Farbe und Hervorhebung.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-annotate-pdf", lang: "de", slug: "pdf-in-apple-notizen-markieren",
+    title: "PDF in Apple Notizen markieren: iPhone und Mac",
+    description: "Schreibe und zeichne auf einer PDF in Apple Notizen. Die Anleitung zeigt die Werkzeuge auf iPhone und Mac und erklärt den Export der ganzen Notiz.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
