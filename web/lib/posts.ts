@@ -35,7 +35,7 @@ export type Post = {
 
 /// The ground a cover (and the post's first picture) sits on: the site's palette, the help page's
 /// leaf brown, the app's dark look, or the home page's dunes.
-export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean" | "bluebell";
+export type Ground = "paper" | "soft" | "tint" | "amber" | "leaf" | "dark" | "dunes" | "ink" | "peach" | "cream" | "sand" | "clay" | "mist" | "honey" | "sage" | "heather" | "blush" | "wheat" | "fog" | "dusk" | "pearl" | "linen" | "night" | "rose" | "mint" | "sky" | "lemon" | "coral" | "lagoon" | "denim" | "slate" | "olive" | "plum" | "teal" | "berry" | "rust" | "apricot" | "ice" | "lilac" | "pistachio" | "fern" | "butter" | "harbor" | "orchid" | "cherry" | "frost" | "wisteria" | "melon" | "cobalt" | "moss" | "stone" | "salmon" | "spruce" | "khaki" | "straw" | "lavender" | "sandstone" | "flamingo" | "pine" | "meadow" | "peony" | "ocean" | "bluebell" | "seafoam" | "marigold" | "periwinkle" | "terracotta";
 
 /// A card's picture: one real capture of the element the post is about, on the post's ground. The
 /// capture is cropped at 2x (3x from iPhone) to about the card's width, so it shows at full size.
@@ -335,6 +335,54 @@ export const posts: Post[] = [
     updated: "2026-11-21",
     image: { src: "/blog/news/apple-notes-mac-groceries.webp", alt: "A Groceries checklist in Apple Notes on a Mac, with Sourdough, Eggs and Spinach ticked at the bottom.", width: 1600, height: 1000, window: false, title: "Groceries" },
     thumb: cover("peony", "checklist", 1600, 1000, "A paper checklist card with its two ticked items at the bottom, a curved arrow and a pencil"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-disappeared",
+    title: "Apple Notes disappeared? 7 places to look, in order",
+    description: "Notes gone from your iPhone or Mac? Seven checks in order, with Apple's own steps, from the iCloud switch to Recently Deleted and a missing Notes app.",
+    excerpt: "Notes gone from your iPhone or Mac? Seven checks in order, from the iCloud switch and Recently Deleted to other accounts and a missing Notes app, with Apple's steps.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/macos27/notes27-turn-on-icloud-prompt.webp", alt: "Apple Notes on macOS 27 asking to turn on iCloud for Notes, with System Settings and Cancel buttons", width: 1336, height: 1080, window: false, title: "Turn On iCloud" },
+    thumb: cover("seafoam", "disappeared", 1600, 1000, "A paper magnifying glass beside a note card with faded lines and an arrow coming down from a cloud"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-search-not-working",
+    title: "Apple Notes search not working? 7 checks, in order",
+    description: "Apple Notes search not finding a note on iPhone or Mac? Apple's checks in order: All Accounts, locked notes, accounts, sync, restart, update.",
+    excerpt: "Notes search can miss a note because it's locked, in another account or not synced yet. Apple's checks for iPhone and Mac, most likely first.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/apple/iphone-notes-search-results.webp", alt: "Notes on iPhone searching for Home, with a top hit, Home renovation project, and Kitchen remodel ideas tagged #Home.", width: 760, height: 894, window: false, title: "Search" },
+    thumb: cover("marigold", "search", 1600, 1000, "A paper search bar above three note cards, one lifted and outlined in orange, beside a pencil"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-unable-to-start-collaboration",
+    title: "Apple Notes unable to start collaboration? 8 checks",
+    description: "Apple Notes won't start collaboration, or Collaborate is missing? Apple's checks in order, the iOS 27 Share a Link change, and notes that won't open.",
+    excerpt: "Notes says it's unable to start collaboration, or Collaborate is gone. On iOS 27 it's called Share a Link. Apple's eight checks in order, and what to do when a shared note won't open.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/drawn/shared-pause.webp", alt: "Two drawn notes icons, each with a person above it, joined by a dotted line with a pause sign in the middle.", width: 1200, height: 750, window: false, title: "Shared note" },
+    thumb: cover("periwinkle", "collaborate", 1600, 1000, "Two paper note cards side by side with a people badge between them and a broken dotted arc above"),
+    draft: false,
+  },
+  {
+    slug: "apple-notes-not-working",
+    title: "Apple Notes not working or crashing? What to try, in order",
+    description: "Notes freezing, quitting or not opening on iPhone or Mac? Apple's own fixes in order, and what to check when your notes don't load.",
+    excerpt: "Notes freezes, closes on its own or won't open. Apple's steps for iPhone and Mac in order, and what to check when Notes opens but your notes don't load.",
+    category: "Apple Notes",
+    date: "2026-11-21",
+    updated: "2026-11-21",
+    image: { src: "/blog/pinto/import-from-apple-notes-sheet.webp", alt: "The Import from Apple Notes sheet in Pinto Notes on a Mac: every note listed under its folder, all ticked, with Import 8 Notes.", width: 1090, height: 1260, window: false, title: "Import from Apple Notes" },
+    thumb: cover("terracotta", "not-working", 1600, 1000, "A paper phone with a loading spinner, between a wrench and a green tick"),
     draft: false,
   },
   {

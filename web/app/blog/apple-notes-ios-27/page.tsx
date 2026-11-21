@@ -116,6 +116,11 @@ export default function Page() {
         and for every note at once, see <a href="/blog/export-apple-notes-to-markdown">how to export Apple Notes to Markdown</a>.
       </p>
 
+      <p>
+        If Notes freezes or quits after the update, <a href="/blog/apple-notes-not-working">Apple Notes not working</a> has Apple&apos;s
+        steps in order. If search stops finding notes, see <a href="/blog/apple-notes-search-not-working">Apple Notes search not working</a>.
+      </p>
+
       <h2 id="ai">Want ChatGPT or Claude to edit these notes too?</h2>
       <AIConnect caption="ChatGPT and Claude, working in the same notes in Pinto Notes." />
       <p>

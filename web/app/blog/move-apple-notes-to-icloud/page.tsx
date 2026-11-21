@@ -84,6 +84,11 @@ export default function Page() {
         <a href="/blog/apple-notes-not-syncing">Apple Notes not syncing between iPhone and Mac</a> finds it.
       </p>
 
+      <p>
+        If the notes aren&apos;t in any account at all, <a href="/blog/apple-notes-disappeared">Apple Notes disappeared</a> goes through
+        every setting that hides notes, in order.
+      </p>
+
       <h2 id="before">Before you move anything: what can get lost</h2>
       <p>
         Apple&apos;s guide warns that moving notes from one account to another can permanently lose formatting and attachments. So

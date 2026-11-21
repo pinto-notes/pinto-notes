@@ -191,6 +191,12 @@
   "w": 880,
   "h": 550
  },
+ "collaborate": {
+  "ground": "#bdc5f1",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "connect-chatgpt": {
   "ground": "#e3f2ed",
   "ink": "dark",
@@ -211,6 +217,12 @@
  },
  "decision": {
   "ground": "#cac6c3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "disappeared": {
+  "ground": "#badac3",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -341,6 +353,12 @@
   "w": 880,
   "h": 550
  },
+ "not-working": {
+  "ground": "#f0a376",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "notes-apps-mcp": {
   "ground": "#dce3ed",
   "ink": "dark",
@@ -415,6 +433,12 @@
  },
  "school": {
   "ground": "#8dbcc9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "search": {
+  "ground": "#f2c994",
   "ink": "dark",
   "w": 880,
   "h": 550

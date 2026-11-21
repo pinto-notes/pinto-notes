@@ -66,6 +66,11 @@ export default function Page() {
         <a href="/privacy-security"> Privacy and security</a> has the details, including what we could and couldn&apos;t open.
       </p>
 
+      <p>
+        Sharing in Apple Notes instead, and it won&apos;t start? <a href="/blog/apple-notes-unable-to-start-collaboration">Apple Notes unable
+        to start collaboration</a> has Apple&apos;s checks in order.
+      </p>
+
       <h2>What can&apos;t be shared yet</h2>
       <p>
         A note with files, photos or an app in it can&apos;t be shared with people yet: send a copy instead. Once a note is shared, files
