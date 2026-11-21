@@ -74,6 +74,9 @@ export type Ui = {
     fineMac: string;
     fineIos: string;
     english: string;
+    /// On a template post's card: the link that opens the template in the app.
+    haveApp?: string;
+    openTemplate?: string;
   };
   closing: { title: string; text: string };
 };

@@ -67,7 +67,7 @@ export default function Page() {
             revise.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-cornell-notes-template" position="answer" title="Want the cues written, and a quiz?">
+          <PostCta slug="apple-notes-cornell-notes-template" position="answer" template="cornell-notes" title="Want the cues written, and a quiz?">
             <p>Pinto Notes works like Apple Notes and has a free Cornell notes template. Paste your lecture notes into ChatGPT or Claude and it writes the cues and summary, then quizzes you.</p>
           </PostCta>
         </Answer>
@@ -122,6 +122,10 @@ export default function Page() {
         For other notes to paste in the same way, see <a href="/blog/apple-notes-templates">Apple Notes templates</a>, and for keeping a
         week of study on track, the <a href="/blog/apple-notes-habit-tracker">Apple Notes habit tracker</a> works for revision sessions
         too.
+      </p>
+
+      <p>
+        To study your cues as cards on their own, see <a href="/blog/apple-notes-flashcards">flashcards in Apple Notes</a>.
       </p>
 
       <h2 id="limits">Where Cornell notes in Notes stop</h2>

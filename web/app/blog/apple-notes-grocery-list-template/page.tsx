@@ -82,7 +82,7 @@ export default function Page() {
             below to start.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-grocery-list-template" position="answer" title="Want each item filed for you?">
+          <PostCta slug="apple-notes-grocery-list-template" position="answer" template="grocery-list" title="Want each item filed for you?">
             <p>Pinto Notes works like Apple Notes and has a free grocery list by aisle. Tell ChatGPT or Claude what you need and it puts each thing under the right aisle.</p>
           </PostCta>
         </Answer>

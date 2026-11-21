@@ -163,6 +163,10 @@ export default function Page() {
         is the way out when you need sorting or real formulas. (The new <a href="/blog/apple-notes-ios-27">Copy as Markdown</a> doesn&apos;t work on tables.)
       </p>
 
+      <p>
+        For a table you can use straight away, the <a href="/blog/apple-notes-job-search-tracker">job search tracker template</a> is one table of company, role, stage and next step.
+      </p>
+
       <h2 id="missing">What&apos;s still missing</h2>
       <p>
         By now my moving budget worked, sort of. The table held the costs, the total lived in three lines underneath, and every new cost

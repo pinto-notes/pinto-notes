@@ -127,6 +127,10 @@ export default function Page() {
         how the lock itself works.
       </p>
 
+      <p>
+        Tags help a journal too: type #family or #trip on the days that matter, and a Smart Folder gathers them. The <a href="/blog/apple-notes-journal-template">Apple Notes journal template</a> keeps one entry a day.
+      </p>
+
       <h2 id="not-working">When tags don&apos;t work</h2>
       <h3>The # stays plain text</h3>
       <p>

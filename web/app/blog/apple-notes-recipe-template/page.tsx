@@ -96,7 +96,7 @@ export default function Page() {
             template below for every new one.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-recipe-template" position="answer" title="Want recipes cleaned up for you?">
+          <PostCta slug="apple-notes-recipe-template" position="answer" template="recipe-box" title="Want recipes cleaned up for you?">
             <p>Pinto Notes works like Apple Notes and has a free recipe box. Paste a recipe into ChatGPT or Claude and it saves a clean copy, ingredients as a checklist, and files it.</p>
           </PostCta>
         </Answer>

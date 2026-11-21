@@ -84,7 +84,7 @@ export default function Page() {
             day with the sets as a checklist, and your personal bests at the bottom. Copy the template below, and duplicate it each week.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-workout-log-template" position="answer" title="Want your bests kept for you?">
+          <PostCta slug="apple-notes-workout-log-template" position="answer" template="workout-log" title="Want your bests kept for you?">
             <p>Pinto Notes works like Apple Notes and has a free workout log template. Tell ChatGPT or Claude what you did after training and it logs the session and updates your personal bests.</p>
           </PostCta>
         </Answer>
@@ -138,6 +138,10 @@ export default function Page() {
         shows how, and what they can&apos;t do. For a log of habits rather than sets, there&apos;s an{" "}
         <a href="/blog/apple-notes-habit-tracker">Apple Notes habit tracker</a>, and more notes to paste in like this one in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a>.
+      </p>
+
+      <p>
+        To log how each day felt as well as what you trained, there&apos;s an <a href="/blog/apple-notes-mood-tracker">Apple Notes mood tracker</a> with energy and sleep.
       </p>
 
       <h2 id="limits">Where a workout log in Notes stops</h2>
