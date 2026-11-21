@@ -93,7 +93,7 @@ export default function Page() {
             con un’intestazione per ogni giorno e sotto le tue abitudini come elenco di controllo, spuntale man mano e il lunedì duplica
             la nota. Copia il modello qui sotto.
           </p>
-          <PostCta slug="it/habit-tracker-note-iphone" path="/it/blog/habit-tracker-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="habit-tracker" slug="it/habit-tracker-note-iphone" path="/it/blog/habit-tracker-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi che le serie le conti qualcun altro?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello gratuito per le abitudini: spunti un’abitudine con un tocco e vedi l’anello della settimana, le tue serie e il mese. ChatGPT o Claude possono segnare la giornata per te.</p>
           </PostCta>
@@ -140,6 +140,11 @@ export default function Page() {
         Se segui anche altre routine così, <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese) ha una revisione
         settimanale e una lista per oggi da incollare allo stesso modo. Se una delle tue abitudini è la palestra, una{" "}
         <a href="/it/blog/scheda-palestra-note-iphone">scheda palestra nelle note di iPhone</a> tiene le serie e i tuoi record.
+      </p>
+
+      <p>
+        Per guardare indietro alla settimana nel suo insieme, la <a href="/it/blog/weekly-review-note-iphone">weekly review nelle note
+        di iPhone</a> fa cinque domande ogni domenica.
       </p>
 
       <h2 id="limiti">Dove si ferma un habit tracker in Note</h2>

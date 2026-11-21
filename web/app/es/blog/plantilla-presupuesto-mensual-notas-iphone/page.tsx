@@ -73,7 +73,7 @@ export default function Page() {
             nombre, como Alquiler = 1200, y luego suma los nombres con un signo igual al final. Resultados matemáticos escribe el total y
             lo que te queda. Copia la plantilla de abajo en una nota nueva.
           </p>
-          <PostCta slug="es/plantilla-presupuesto-mensual-notas-iphone" path="/es/blog/plantilla-presupuesto-mensual-notas-iphone"
+          <PostCta template="budget-log" slug="es/plantilla-presupuesto-mensual-notas-iphone" path="/es/blog/plantilla-presupuesto-mensual-notas-iphone"
             position="answer" ui={ui.cta} title="¿Quieres un presupuesto que se lleve solo?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de presupuesto y gastos: lo que te queda este mes, cada categoría frente a su presupuesto y los recibos que se repiten. Dile a ChatGPT o a Claude lo que has gastado y lo apunta.</p>
           </PostCta>

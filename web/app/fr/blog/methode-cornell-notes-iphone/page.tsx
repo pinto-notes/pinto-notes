@@ -70,7 +70,7 @@ export default function Page() {
             un rang par idée, et un résumé de deux ou trois phrases sous le tableau. Faites une note par cours, et cachez la colonne de droite
             pour réviser.
           </p>
-          <PostCta slug="fr/methode-cornell-notes-iphone" path="/fr/blog/methode-cornell-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="cornell-notes" slug="fr/methode-cornell-notes-iphone" path="/fr/blog/methode-cornell-notes-iphone" position="answer" ui={ui.cta}
             title="Les questions écrites, et une interro ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle Cornell gratuit. Collez vos notes de cours dans ChatGPT ou Claude : il écrit les questions et le résumé, puis vous interroge.</p>
           </PostCta>

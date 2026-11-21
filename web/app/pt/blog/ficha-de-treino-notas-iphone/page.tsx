@@ -82,7 +82,7 @@ export default function Page() {
             O app Notas não tem registro de treino, mas uma nota por semana resolve. Coloque sua divisão no topo, um cabeçalho para cada dia
             de treino com as séries numa checklist e seus recordes pessoais no fim. Copie o modelo abaixo e duplique a nota toda semana.
           </p>
-          <PostCta slug="pt/ficha-de-treino-notas-iphone" path="/pt/blog/ficha-de-treino-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="workout-log" slug="pt/ficha-de-treino-notas-iphone" path="/pt/blog/ficha-de-treino-notas-iphone" position="answer" ui={ui.cta}
             title="Quer seus recordes guardados para você?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de registro de treino. Conte ao ChatGPT ou ao Claude o que você fez depois do treino e ele registra a sessão e atualiza seus recordes pessoais.</p>
           </PostCta>

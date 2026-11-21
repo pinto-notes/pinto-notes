@@ -86,7 +86,7 @@ export default function Page() {
             un’intestazione per ogni giorno di allenamento con le serie come elenco di controllo, e i tuoi record personali in fondo.
             Copia il modello qui sotto e duplicalo ogni settimana.
           </p>
-          <PostCta slug="it/scheda-palestra-note-iphone" path="/it/blog/scheda-palestra-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="workout-log" slug="it/scheda-palestra-note-iphone" path="/it/blog/scheda-palestra-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi che i record li tenga qualcun altro?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello gratuito per gli allenamenti. Dopo l’allenamento di’ a ChatGPT o a Claude cosa hai fatto, e lui registra la sessione e aggiorna i tuoi record personali.</p>
           </PostCta>
@@ -142,6 +142,11 @@ export default function Page() {
         <a href="/blog/apple-notes-tables">tables in Apple Notes</a> (in inglese) spiega come, e cosa le tabelle non sanno fare. Per
         seguire abitudini invece di serie, c’è un <a href="/it/blog/habit-tracker-note-iphone">habit tracker nelle note di iPhone</a>,
         e altre note da incollare come questa sono in <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese).
+      </p>
+
+      <p>
+        Per segnare anche come ti sei sentito ogni giorno, oltre a cosa hai allenato, c’è un{" "}
+        <a href="/it/blog/mood-tracker-note-iphone">mood tracker nelle note di iPhone</a> con energia e sonno.
       </p>
 
       <h2 id="limiti">Dove si ferma una scheda in Note</h2>

@@ -83,7 +83,7 @@ export default function Page() {
             für jede Abteilung an und schreib die Sachen als Checkliste darunter, aktiviere „Markierte Einträge automatisch sortieren“ und
             teile die Notiz mit allen, die sonst noch einkaufen. Kopiere die Vorlage unten für den Anfang.
           </p>
-          <PostCta slug="de/einkaufsliste-iphone-notizen" path="/de/blog/einkaufsliste-iphone-notizen" position="answer" ui={ui.cta}
+          <PostCta template="grocery-list" slug="de/einkaufsliste-iphone-notizen" path="/de/blog/einkaufsliste-iphone-notizen" position="answer" ui={ui.cta}
             title="Willst du jede Sache für dich einsortieren lassen?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Einkaufsliste nach Abteilungen. Sag ChatGPT oder Claude, was du brauchst, und es setzt jede Sache unter die richtige Abteilung.</p>
           </PostCta>

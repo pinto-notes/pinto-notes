@@ -68,7 +68,7 @@ export default function Page() {
             direita, uma linha por ideia e um resumo de duas ou três frases embaixo da tabela. Use uma nota por aula e cubra a coluna da
             direita para revisar.
           </p>
-          <PostCta slug="pt/metodo-cornell-notas-iphone" path="/pt/blog/metodo-cornell-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="cornell-notes" slug="pt/metodo-cornell-notas-iphone" path="/pt/blog/metodo-cornell-notas-iphone" position="answer" ui={ui.cta}
             title="Quer as perguntas prontas, e um teste?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de método Cornell. Cole suas anotações da aula no ChatGPT ou no Claude e ele escreve as perguntas e o resumo, depois testa você.</p>
           </PostCta>

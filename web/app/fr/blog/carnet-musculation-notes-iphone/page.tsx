@@ -85,7 +85,7 @@ export default function Page() {
             jour d’entraînement avec les séries en liste de pointage, et vos records en bas. Copiez le modèle ci-dessous, et dupliquez-le
             chaque semaine.
           </p>
-          <PostCta slug="fr/carnet-musculation-notes-iphone" path="/fr/blog/carnet-musculation-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="workout-log" slug="fr/carnet-musculation-notes-iphone" path="/fr/blog/carnet-musculation-notes-iphone" position="answer" ui={ui.cta}
             title="Vos records tenus pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle gratuit de carnet d’entraînement. Après la séance, dites à ChatGPT ou Claude ce que vous avez fait : il note la séance et met vos records à jour.</p>
           </PostCta>

@@ -96,7 +96,7 @@ export default function Page() {
             O app Notas não tem planejador de refeições, mas uma nota resolve. Coloque os jantares da semana no topo, uma linha por dia, e as
             compras embaixo em checklists, com um cabeçalho por setor do mercado. Copie o modelo abaixo.
           </p>
-          <PostCta slug="pt/cardapio-semanal-notas-iphone" path="/pt/blog/cardapio-semanal-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="meal-plan" slug="pt/cardapio-semanal-notas-iphone" path="/pt/blog/cardapio-semanal-notas-iphone" position="answer" ui={ui.cta}
             title="Quer a lista de compras escrita para você?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de cardápio. Diga ao ChatGPT ou ao Claude o que você está com vontade de comer na semana e ele planeja os jantares e escreve a lista de compras por setor, sem o que já tem no armário.</p>
           </PostCta>

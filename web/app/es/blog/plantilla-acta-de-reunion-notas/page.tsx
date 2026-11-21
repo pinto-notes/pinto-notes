@@ -84,7 +84,7 @@ export default function Page() {
             decisiones y las tareas como lista de comprobación, con un nombre en cada una. Guárdalas en una carpeta Reuniones, y una
             carpeta inteligente te enseña todas las tareas que siguen pendientes.
           </p>
-          <PostCta slug="es/plantilla-acta-de-reunion-notas" path="/es/blog/plantilla-acta-de-reunion-notas" position="answer"
+          <PostCta template="meeting-notes" slug="es/plantilla-acta-de-reunion-notas" path="/es/blog/plantilla-acta-de-reunion-notas" position="answer"
             ui={ui.cta} title="¿Quieres que las tareas se escriban solas?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de notas de reunión. Pega tus notas sueltas en ChatGPT o Claude y escribe el resumen, las decisiones y quién hace qué.</p>
           </PostCta>

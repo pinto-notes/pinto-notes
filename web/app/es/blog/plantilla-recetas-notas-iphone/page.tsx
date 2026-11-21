@@ -98,7 +98,7 @@ export default function Page() {
             lista de comprobación y los pasos como lista numerada. Guárdalas en una carpeta Recetas con una nota índice que enlace a cada
             una, y copia la plantilla de abajo para cada receta nueva.
           </p>
-          <PostCta slug="es/plantilla-recetas-notas-iphone" path="/es/blog/plantilla-recetas-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="recipe-box" slug="es/plantilla-recetas-notas-iphone" path="/es/blog/plantilla-recetas-notas-iphone" position="answer" ui={ui.cta}
             title="¿Quieres que alguien te limpie las recetas?">
             <p>Pinto Notes funciona como Notas de Apple y tiene un recetario gratuito. Pega una receta en ChatGPT o Claude y guarda una copia limpia, con los ingredientes como lista de comprobación, y la archiva.</p>
           </PostCta>

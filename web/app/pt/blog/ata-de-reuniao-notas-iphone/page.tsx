@@ -78,7 +78,7 @@ export default function Page() {
             decisões e as tarefas numa checklist com um nome em cada uma. Guarde as atas numa pasta Reuniões, e uma Pasta Inteligente mostra
             todas as tarefas que ainda estão em aberto.
           </p>
-          <PostCta slug="pt/ata-de-reuniao-notas-iphone" path="/pt/blog/ata-de-reuniao-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="meeting-notes" slug="pt/ata-de-reuniao-notas-iphone" path="/pt/blog/ata-de-reuniao-notas-iphone" position="answer" ui={ui.cta}
             title="Quer as tarefas escritas para você?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de ata de reunião. Cole suas anotações soltas no ChatGPT ou no Claude e ele escreve o resumo, as decisões e quem faz o quê.</p>
           </PostCta>

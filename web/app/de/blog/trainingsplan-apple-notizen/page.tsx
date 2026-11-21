@@ -86,7 +86,7 @@ export default function Page() {
             für jeden Trainingstag mit den Sätzen als Checkliste und deine Bestwerte ganz unten. Kopiere die Vorlage unten und dupliziere sie
             jede Woche.
           </p>
-          <PostCta slug="de/trainingsplan-apple-notizen" path="/de/blog/trainingsplan-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="workout-log" slug="de/trainingsplan-apple-notizen" path="/de/blog/trainingsplan-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du deine Bestwerte für dich führen lassen?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für ein Trainingstagebuch. Sag ChatGPT oder Claude nach dem Training, was du gemacht hast, und es trägt das Training ein und aktualisiert deine Bestwerte.</p>
           </PostCta>
@@ -142,6 +142,11 @@ export default function Page() {
         Für Gewohnheiten statt Sätzen gibt es einen <a href="/de/blog/habit-tracker-vorlage-apple-notizen">Habit Tracker in Apple
         Notizen</a>, und mehr Notizen zum Einfügen wie diese stehen in <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
         templates</a> (auf Englisch).
+      </p>
+
+      <p>
+        Willst du neben dem Training auch festhalten, wie sich jeder Tag angefühlt hat, gibt es einen{" "}
+        <a href="/de/blog/stimmungstracker-apple-notizen">Stimmungstracker in Apple Notizen</a> mit Energie und Schlaf.
       </p>
 
       <h2 id="grenzen">Wo ein Trainingstagebuch in Notizen aufhört</h2>

@@ -99,7 +99,7 @@ export default function Page() {
             sobald sie bezahlt sind, eine Überschrift für jeden Tag mit den Uhrzeiten vor den Plänen und eine Packliste als Checkliste. Kopiere
             die Vorlage unten.
           </p>
-          <PostCta slug="de/reiseplanung-vorlage-apple-notizen" path="/de/blog/reiseplanung-vorlage-apple-notizen" position="answer" ui={ui.cta}
+          <PostCta template="trip-plan" slug="de/reiseplanung-vorlage-apple-notizen" path="/de/blog/reiseplanung-vorlage-apple-notizen" position="answer" ui={ui.cta}
             title="Willst du Countdown und Buchungen für dich geführt?">
             <p>Pinto Notes funktioniert wie Apple Notizen und hat eine kostenlose Vorlage für Reisepläne: die Tage bis zur Abreise, jeder Tag als Zeitleiste, was noch zu bezahlen ist und was schon gepackt ist. Füg eine Buchungsmail in ChatGPT oder Claude ein, und sie landet im Plan.</p>
           </PostCta>

@@ -83,7 +83,7 @@ export default function Page() {
             tuoi appunti, le decisioni e le azioni come elenco di controllo con un nome su ognuna. Tienile in una cartella Riunioni, e
             una cartella smart ti mostra ogni azione ancora aperta.
           </p>
-          <PostCta slug="it/appunti-riunione-note-iphone" path="/it/blog/appunti-riunione-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="meeting-notes" slug="it/appunti-riunione-note-iphone" path="/it/blog/appunti-riunione-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi le azioni già scritte?">
             <p>Pinto Notes funziona come Note di Apple e ha un modello gratuito per le riunioni. Incolla i tuoi appunti veloci in ChatGPT o Claude e lui scrive il riepilogo, le decisioni e chi fa cosa.</p>
           </PostCta>
@@ -142,6 +142,12 @@ export default function Page() {
         <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese) ha una revisione settimanale da incollare, e{" "}
         <a href="/blog/apple-notes-tags-smart-folders">tags and Smart Folders</a> (in inglese) passa in rassegna ogni regola che una
         cartella smart può usare.
+      </p>
+
+      <p>
+        Per i one to one, il modello per gli <a href="/it/blog/one-to-one-note-iphone">appunti dei one to one</a> tiene una nota per
+        persona, con i follow-up e ogni incontro passato. Per le decisioni che dovrai spiegare mesi dopo, tieni un{" "}
+        <a href="/it/blog/registro-decisioni-note-iphone">registro delle decisioni</a> con le opzioni e il perché.
       </p>
 
       <h2 id="limiti">Dove si fermano gli appunti di riunione in Note</h2>

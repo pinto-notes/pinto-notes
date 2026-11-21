@@ -103,7 +103,7 @@ export default function Page() {
             encabezado para cada día y tus hábitos como lista debajo, márcalos según los haces y duplica la nota el lunes. Copia la
             plantilla de abajo.
           </p>
-          <PostCta slug="es/tracker-de-habitos-notas-iphone" path="/es/blog/tracker-de-habitos-notas-iphone" position="answer"
+          <PostCta template="habit-tracker" slug="es/tracker-de-habitos-notas-iphone" path="/es/blog/tracker-de-habitos-notas-iphone" position="answer"
             ui={ui.cta} title="¿Quieres que alguien cuente tus rachas?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de tracker de hábitos: marca un hábito con un toque y ve el anillo de la semana, tus rachas y el mes. ChatGPT o Claude pueden apuntarte el día.</p>
           </PostCta>

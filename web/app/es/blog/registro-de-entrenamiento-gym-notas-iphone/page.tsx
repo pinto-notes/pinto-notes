@@ -88,7 +88,7 @@ export default function Page() {
             de entrenamiento con las series como lista de comprobación y tus mejores marcas al final. Copia la plantilla de abajo y
             duplícala cada semana.
           </p>
-          <PostCta slug="es/registro-de-entrenamiento-gym-notas-iphone" path="/es/blog/registro-de-entrenamiento-gym-notas-iphone"
+          <PostCta template="workout-log" slug="es/registro-de-entrenamiento-gym-notas-iphone" path="/es/blog/registro-de-entrenamiento-gym-notas-iphone"
             position="answer" ui={ui.cta} title="¿Quieres que alguien lleve tus mejores marcas?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de registro de entrenamiento. Cuéntale a ChatGPT o a Claude lo que has hecho después de entrenar y apunta la sesión y actualiza tus mejores marcas.</p>
           </PostCta>

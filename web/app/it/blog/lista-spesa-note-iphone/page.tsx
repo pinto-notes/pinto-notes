@@ -85,7 +85,7 @@ export default function Page() {
             per ogni reparto e le cose come elenco di controllo sotto, attiva Ordina automaticamente gli elementi selezionati e
             condividila con chi altro fa la spesa. Copia il modello qui sotto per iniziare.
           </p>
-          <PostCta slug="it/lista-spesa-note-iphone" path="/it/blog/lista-spesa-note-iphone" position="answer" ui={ui.cta}
+          <PostCta template="grocery-list" slug="it/lista-spesa-note-iphone" path="/it/blog/lista-spesa-note-iphone" position="answer" ui={ui.cta}
             title="Vuoi che ogni cosa vada da sola al suo posto?">
             <p>Pinto Notes funziona come Note di Apple e ha una lista della spesa gratuita divisa per reparto. Di’ a ChatGPT o a Claude cosa ti serve e lui mette ogni cosa sotto il reparto giusto.</p>
           </PostCta>

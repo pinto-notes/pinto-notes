@@ -84,7 +84,7 @@ export default function Page() {
             et les articles en liste de pointage dessous, cochez Trier automatiquement les tâches terminées, et partagez-la avec ceux qui font
             aussi les courses. Copiez le modèle ci-dessous pour commencer.
           </p>
-          <PostCta slug="fr/liste-de-courses-notes-iphone" path="/fr/blog/liste-de-courses-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="grocery-list" slug="fr/liste-de-courses-notes-iphone" path="/fr/blog/liste-de-courses-notes-iphone" position="answer" ui={ui.cta}
             title="Chaque article rangé pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a une liste de courses par rayon gratuite. Dites à ChatGPT ou Claude ce qu’il vous faut, et chaque article va sous le bon rayon.</p>
           </PostCta>

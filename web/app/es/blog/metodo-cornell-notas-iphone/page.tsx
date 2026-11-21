@@ -70,7 +70,7 @@ export default function Page() {
             derecha, una fila por idea y un resumen de dos o tres frases debajo de la tabla. Usa una nota por clase y tapa la columna
             derecha para repasar.
           </p>
-          <PostCta slug="es/metodo-cornell-notas-iphone" path="/es/blog/metodo-cornell-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="cornell-notes" slug="es/metodo-cornell-notas-iphone" path="/es/blog/metodo-cornell-notas-iphone" position="answer" ui={ui.cta}
             title="¿Quieres las preguntas escritas, y un test?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de apuntes Cornell. Pega tus apuntes de clase en ChatGPT o Claude y escribe las preguntas y el resumen, y luego te pregunta.</p>
           </PostCta>

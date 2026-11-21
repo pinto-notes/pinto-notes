@@ -95,7 +95,7 @@ export default function Page() {
             Notes n’a pas de planning repas, mais une seule note fait l’affaire. Mettez les dîners de la semaine en haut, une ligne par jour,
             et les courses dessous en listes de pointage, sous un sous-titre par rayon. Copiez le modèle ci-dessous.
           </p>
-          <PostCta slug="fr/planning-repas-semaine-notes-iphone" path="/fr/blog/planning-repas-semaine-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="meal-plan" slug="fr/planning-repas-semaine-notes-iphone" path="/fr/blog/planning-repas-semaine-notes-iphone" position="answer" ui={ui.cta}
             title="La liste de courses écrite pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle gratuit de planning repas. Dites à ChatGPT ou Claude ce qui vous fait envie cette semaine : il prévoit les dîners et écrit la liste de courses par rayon, sans ce qui est déjà dans le placard.</p>
           </PostCta>

@@ -95,7 +95,7 @@ export default function Page() {
             O app Notas não tem planejador de viagem, mas uma nota resolve. Coloque uma checklist das reservas que você marca quando estão
             pagas, um cabeçalho para cada dia com o horário na frente de cada plano e uma checklist da mala. Copie o modelo abaixo.
           </p>
-          <PostCta slug="pt/roteiro-de-viagem-notas-iphone" path="/pt/blog/roteiro-de-viagem-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="trip-plan" slug="pt/roteiro-de-viagem-notas-iphone" path="/pt/blog/roteiro-de-viagem-notas-iphone" position="answer" ui={ui.cta}
             title="Quer a contagem regressiva e as reservas em dia?">
             <p>O Pinto Notes funciona como o app Notas e tem um modelo grátis de plano de viagem: quantos dias faltam, cada dia como uma linha do tempo, o que falta pagar e o que já está na mala. Cole um e-mail de reserva no ChatGPT ou no Claude e ele entra no plano.</p>
           </PostCta>

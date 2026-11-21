@@ -100,7 +100,7 @@ export default function Page() {
             cocher une fois payées, un sous-titre par jour avec l’heure devant chaque étape, et une liste de pointage pour la valise. Copiez le
             modèle ci-dessous.
           </p>
-          <PostCta slug="fr/organiser-voyage-notes-iphone" path="/fr/blog/organiser-voyage-notes-iphone" position="answer" ui={ui.cta}
+          <PostCta template="trip-plan" slug="fr/organiser-voyage-notes-iphone" path="/fr/blog/organiser-voyage-notes-iphone" position="answer" ui={ui.cta}
             title="Le compte à rebours et les réservations tenus pour vous ?">
             <p>Pinto Notes fonctionne comme Notes et a un modèle gratuit Trip plan : les jours qui restent, chaque jour en frise, ce qui reste à payer et ce qui est dans la valise. Collez l’e-mail d’une réservation dans ChatGPT ou Claude, et elle arrive dans le programme.</p>
           </PostCta>

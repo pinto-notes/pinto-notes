@@ -100,7 +100,7 @@ export default function Page() {
             Notas no tiene planificador de viajes, pero una nota sirve. Ponle una lista de reservas que marcas cuando están pagadas, un
             encabezado para cada día con la hora delante de cada plan y una lista de equipaje. Copia la plantilla de abajo.
           </p>
-          <PostCta slug="es/plantilla-viaje-notas-iphone" path="/es/blog/plantilla-viaje-notas-iphone" position="answer" ui={ui.cta}
+          <PostCta template="trip-plan" slug="es/plantilla-viaje-notas-iphone" path="/es/blog/plantilla-viaje-notas-iphone" position="answer" ui={ui.cta}
             title="¿Quieres que la cuenta atrás y las reservas se lleven solas?">
             <p>Pinto Notes funciona como Notas de Apple y tiene una plantilla gratuita de viaje: los días que faltan, cada día como una línea de tiempo, lo que queda por pagar y lo que ya está en la maleta. Pega el correo de una reserva en ChatGPT o Claude y acaba en el plan.</p>
           </PostCta>
