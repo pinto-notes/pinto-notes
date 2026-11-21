@@ -157,7 +157,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">A workout log that keeps your bests</h2>
       <p>
-        That&apos;s why I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your
+        That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your
         notes from the chat you already use. The free <a href="/templates/workout-log">workout log</a> template is one note for all
         your training: a table with a row per session, with a date, the workout, the exercise, the result and how hard it felt from
         1 to 10, and your personal bests below it.

@@ -127,7 +127,7 @@ export default function Page() {
       <h2 id="pinto-notes">A budget note that keeps itself</h2>
       <Figure shot={SHOTS.budgetApp} caption="The Budget and expenses template in Pinto Notes on a Mac, with example data: what's left this month, the last six months, bills and each category against its budget." />
       <p>
-        That&apos;s why I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and a note can also be a small app.
+        That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and a note can also be a small app.
         The free <a href="/templates/budget-log">Budget and expenses</a> template is one: you set a monthly budget per category once,
         and it shows what&apos;s left this month with a bar, each category against its budget with what rolled over, your monthly
         bills and the last six months. Add an expense with one tap, and it does the sums.

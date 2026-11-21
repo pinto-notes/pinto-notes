@@ -108,7 +108,7 @@ export default function Page() {
 
       <h2 id="pinto-notes">A notes app with backlinks</h2>
       <p>
-        That&apos;s one of the reasons I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and links notes the
+        Pinto Notes does this differently. It looks and works like Apple Notes on iPhone and Mac, and links notes the
         way Obsidian does: type <code>[[</code> and a note&apos;s title, or choose Link to Note from the / menu. The link shows as the
         title, <code>[[Lisbon#Food]]</code> goes to a heading, and <code>[[Lisbon|the trip]]</code> gives it a name of its own.
       </p>

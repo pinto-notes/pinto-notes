@@ -168,7 +168,7 @@ export default function Page() {
       <h2 id="pinto-notes">A meal plan that writes the grocery list</h2>
       <Figure shot={SHOTS.aiEdit} caption="A Groceries note in Pinto Notes on a Mac. The five lines ChatGPT just added are tinted, with Undo at the bottom." />
       <p>
-        That&apos;s why I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your
+        That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your
         notes from the chat you already use. The free <a href="/templates/meal-plan">meal plan</a> template is a note with the
         week&apos;s dinners and who cooks, the groceries by aisle, and what&apos;s always in the cupboard.
       </p>

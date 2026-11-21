@@ -155,7 +155,7 @@ export default function Page() {
       </p>
       <AIConnect caption="The AIs you already use, in one notebook." />
       <p>
-        That&apos;s why I made Pinto Notes. It works like Apple Notes, brings yours over in{" "}
+        That&apos;s what Pinto Notes is for. It works like Apple Notes, brings yours over in{" "}
         <a href="/blog/move-from-apple-notes">one import</a> on a Mac (Apple Notes stays as it was), and lets ChatGPT, Claude, Claude Code and Codex search, read and edit your notes once you approve them, with every change tinted and undoable.
         {APP_STORE_LIVE
           ? <> It&apos;s free on Mac and iPhone.</>

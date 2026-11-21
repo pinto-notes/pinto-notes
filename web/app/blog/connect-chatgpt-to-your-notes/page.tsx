@@ -51,9 +51,9 @@ export default function Page() {
     <PostPage
       slug="connect-chatgpt-to-your-notes"
       intro={<>
-        I talk to ChatGPT all day, and for a long time none of it reached my notes. I&apos;d plan a trip in a chat, then copy the
-        good parts into Apple Notes by hand, and the next chat knew nothing about it. Here&apos;s what ChatGPT can do with the notes
-        apps you probably use, where each one stops, and the setup I use now so its changes land in my notes.
+        You talk to ChatGPT all day, and none of it reaches your notes. You plan a trip in a chat, copy the good parts into
+        Apple Notes by hand, and the next chat knows nothing about it. Here&apos;s what ChatGPT can do with the notes apps you
+        probably use, where each one stops, and a setup where its changes land in your notes.
       </>}
       answer={
         <Answer jump={[

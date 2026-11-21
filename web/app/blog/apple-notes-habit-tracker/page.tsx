@@ -158,7 +158,7 @@ export default function Page() {
       <h2 id="pinto-notes">A habit tracker that counts for you</h2>
       <Figure shot={SHOTS.habitApp} caption="The habit tracker template in Pinto Notes on a Mac, with example data: this week's ring, today's habits with their streaks, and Gym at 1 of 3 this week." />
       <p>
-        That&apos;s why I made Pinto Notes. It looks and works like Apple Notes on iPhone and Mac, and a note can also be a small app.
+        That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and a note can also be a small app.
         The free <a href="/templates/habit-tracker">habit tracker</a> template is one. You pick your habits once, tick them in one tap,
         and it shows this week&apos;s ring, each habit&apos;s streak and best run, and a month you can fill in after the fact. A habit
         can be every day, some weekdays, a few times a week, or a count like glasses of water.
