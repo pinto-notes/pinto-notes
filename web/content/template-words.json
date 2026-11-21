@@ -168,5 +168,12 @@
       { "words": ["grocery", "groceries", "shopping", "shop", "supermarket", "food", "buy", "pantry"],
         "why": "One shopping list, sorted by aisle." }
     ]
+  },
+  "weekly-planner": {
+    "tailor": "Ask what my weeks usually look like and what's on this one, then plan it day by day.",
+    "fits": [
+      { "words": ["planner", "plan", "planning", "week", "weekly", "schedule", "to do", "to-do", "todo", "todos", "tasks", "agenda", "organise", "organize", "priorities", "days"],
+        "why": "Each day's to-dos in one note, with your top three." }
+    ]
   }
 }

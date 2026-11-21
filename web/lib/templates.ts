@@ -67,7 +67,7 @@ export const ORDER = [
   "mood-energy-log", "job-hunt", "trip-plan", "study-flashcards", "decision-log",
   "workout-log", "budget-log", "one-on-one-notes", "book-notes", "bug-triage",
   "weekly-review", "recipe-box", "content-calendar", "home-maintenance", "gift-ideas",
-  "cornell-notes", "daily-journal", "grocery-list",
+  "cornell-notes", "daily-journal", "grocery-list", "weekly-planner",
 ];
 
 const DIR = path.join(process.cwd(), "content/templates");
@@ -240,6 +240,7 @@ const SLICE_FROM: Record<string, string> = {
   "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 2 November",
   "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "|", "gift-ideas": "|",
   "cornell-notes": "Supply and demand, 5 November", "daily-journal": "Sunday 8 November", "grocery-list": "Fruit and veg",
+  "weekly-planner": "Top three this week",
 };
 
 /// The card's slice of the filled-in example, about `lines` lines long: from the template's chosen

@@ -1042,5 +1042,47 @@
     "why": "One shopping list, sorted by aisle."
    }
   ]
+ },
+ {
+  "slug": "weekly-planner",
+  "title": "Weekly planner",
+  "tagline": "The week on one page, day by day.",
+  "description": "Your week in one note: the top three, a checklist for each day and a list for later. Tell your AI what's on and it plans the week.",
+  "category": "Home and life",
+  "app": false,
+  "ground": "fdd934",
+  "ask": "Ask what's on this week, then plan it day by day with my top three.",
+  "example": "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n- [x] Send the Q4 budget to Jonas\n- [ ] Book flights home for Christmas\n- [ ] Run three times\n\n## Monday\n- [x] Team meeting at 9:00\n- [x] Finish the budget draft\n\n## Tuesday\n- [x] Dentist at 8:30\n- [x] Run 5 km\n\n## Wednesday\n- [x] Call Mum\n- [x] Review Emma's slides\n\n## Thursday\n- [x] Run 5 km before work\n- [x] Dinner with Sara at 19:00\n\n## Friday\n- [x] Pick up the dry cleaning\n- [x] Compare flight prices\n\n## Saturday\n- [ ] Long run, 10 km\n- [ ] Farmers' market\n- [ ] Return the parcel\n\n## Sunday\n- [ ] Meal prep for the week\n- [ ] Plan next week\n\n## Later\n- [ ] Renew my passport\n- [ ] Fix the bike light\n",
+  "note": "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n\n## Monday\n\n## Tuesday\n\n## Wednesday\n\n## Thursday\n\n## Friday\n\n## Saturday\n\n## Sunday\n\n## Later\n",
+  "folder": "Notes",
+  "related": [
+   "weekly-review",
+   "daily-journal",
+   "meal-plan"
+  ],
+  "tailor": "Ask what my weeks usually look like and what's on this one, then plan it day by day.",
+  "fits": [
+   {
+    "words": [
+     "planner",
+     "plan",
+     "planning",
+     "week",
+     "weekly",
+     "schedule",
+     "to do",
+     "to-do",
+     "todo",
+     "todos",
+     "tasks",
+     "agenda",
+     "organise",
+     "organize",
+     "priorities",
+     "days"
+    ],
+    "why": "Each day's to-dos in one note, with your top three."
+   }
+  ]
  }
 ]

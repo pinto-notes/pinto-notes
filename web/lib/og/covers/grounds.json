@@ -389,6 +389,12 @@
   "w": 880,
   "h": 550
  },
+ "planner": {
+  "ground": "#c4cbef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "reading-list": {
   "ground": "#b29aba",
   "ink": "dark",
