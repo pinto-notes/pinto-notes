@@ -113,6 +113,14 @@
 .ground[data-ground="papaya"] { background: linear-gradient(160deg, #f9e9d4, #f1c793); }
 .ground[data-ground="canary"] { background: linear-gradient(160deg, #fcf5cb, #f7e77e); }
 .ground[data-ground="seaglass"] { background: linear-gradient(160deg, #d5e0dd, #95b2aa); }
+.ground[data-ground="hyacinth"] { background: linear-gradient(160deg, #d7def3, #9cace0); }
+.ground[data-ground="avocado"] { background: linear-gradient(160deg, #d6d9c3, #98a168); }
+.ground[data-ground="rosehip"] { background: linear-gradient(160deg, #efd1ca, #d68b7a); }
+.ground[data-ground="pewter"] { background: linear-gradient(160deg, #cad0d5, #7a8995); }
+.ground[data-ground="custard"] { background: linear-gradient(160deg, #f9e8d3, #efc590); }
+.ground[data-ground="eucalyptus"] { background: linear-gradient(160deg, #d9efe4, #a1d6bc); }
+.ground[data-ground="persimmon"] { background: linear-gradient(160deg, #fdd0c4, #fa896c); }
+.ground[data-ground="mauve"] { background: linear-gradient(160deg, #e4dfe3, #bbaeb9); }
 
 /* ── A figure in a post: the capture centred on its ground ── */
 .figure { margin: 8px 0 28px; }
@@ -223,6 +231,14 @@
 .thumb[data-ground="papaya"] { background: #f4d5ae; }
 .thumb[data-ground="canary"] { background: #f9ed9e; }
 .thumb[data-ground="seaglass"] { background: #b0c5bf; }
+.thumb[data-ground="hyacinth"] { background: #b5c1e8; }
+.thumb[data-ground="avocado"] { background: #b2b88e; }
+.thumb[data-ground="rosehip"] { background: #e0a89b; }
+.thumb[data-ground="pewter"] { background: #9ba6b0; }
+.thumb[data-ground="custard"] { background: #f3d4ac; }
+.thumb[data-ground="eucalyptus"] { background: #b8e0cd; }
+.thumb[data-ground="persimmon"] { background: #fba691; }
+.thumb[data-ground="mauve"] { background: #ccc2ca; }
 
 /* An iPhone screen on its own, with the screen's corners. */
 .phone { width: min(100%, var(--w, 100%)); margin: 0 auto; }

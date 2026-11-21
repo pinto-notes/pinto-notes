@@ -158,6 +158,9 @@ export default function Page() {
         alt="The Obsidian logo with the MCP mark on it, joined by a dotted line to the Claude logo."
         caption="A plugin runs the server inside Obsidian, so Obsidian has to be open." />
       <p>
+        Choosing a notes app for this? <a href="/blog/best-notes-apps-with-mcp">Six notes apps with MCP</a> are compared side by side.
+      </p>
+      <p>
         The one to use today if you keep Obsidian open. It&apos;s by the author of the Local REST API plugin, and the MCP server is part
         of the plugin, so there&apos;s nothing else to install. Its best trick is editing one part of a note: the AI can append under a
         heading, replace a block or change a frontmatter field, and the rest of the file stays as it was. Deleted notes go to the trash.
@@ -278,7 +281,7 @@ export default function Page() {
       </p>
       <ul>
         <li>It works from ChatGPT, Claude on the web, desktop and iPhone, Claude Code and Codex, and your Mac doesn&apos;t need to be on.</li>
-        <li>You approve each AI app in Pinto Notes and choose Read Only, or Read and Edit.</li>
+        <li>You approve each AI app in Pinto Notes, and every change it makes can be undone.</li>
         <li>An AI can search, read, create and edit notes, tick checklist items, move and pin notes, and manage folders.</li>
         <li>When an AI changes a note, you see what changed, with Undo, and the previous version stays in the note&apos;s history.</li>
       </ul>

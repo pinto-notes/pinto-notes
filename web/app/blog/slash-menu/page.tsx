@@ -13,7 +13,7 @@ export default function Page() {
       <h2>Type / and pick</h2>
       <p>
         The menu opens under the caret with everything you can add to a note: headings, checklists, lists, quotes, callouts,
-        highlights, code, tables, dividers, today&apos;s date, links, links to your other notes and files. The arrow keys move
+        highlights, <a href="/blog/apple-notes-code-block">code</a>, tables, dividers, today&apos;s date, links, links to your other notes and files. The arrow keys move
         through it, Return or Tab picks one, and Escape closes it. Each command shows its keyboard shortcut, if you&apos;d rather
         learn that one.
       </p>

@@ -99,7 +99,7 @@ export default function Page() {
         If one note matters more than the rest, a project or a person, give it a Linked from section at the bottom and add a link
         there each time you link to it from somewhere else. It&apos;s a habit, not a feature, and it goes stale the first time you
         forget. A <a href="/blog/apple-notes-tags-smart-folders">tag and a Smart Folder</a> is the other route: tag every note about
-        the project and the Smart Folder lists them, links or not.
+        the project and the Smart Folder lists them, links or not. <a href="/blog/apple-notes-second-brain">A simple second-brain setup</a> uses both.
       </p>
 
       <p>

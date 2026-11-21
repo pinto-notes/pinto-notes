@@ -203,6 +203,12 @@
   "w": 880,
   "h": 550
  },
+ "code-block": {
+  "ground": "#a2d7bd",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "collaborate": {
   "ground": "#bdc5f1",
   "ink": "dark",
@@ -233,6 +239,12 @@
   "w": 880,
   "h": 550
  },
+ "developers": {
+  "ground": "#7b8996",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "disappeared": {
   "ground": "#badac3",
   "ink": "dark",
@@ -241,6 +253,12 @@
  },
  "encrypted": {
   "ground": "#dae1d9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "evernote-alt": {
+  "ground": "#98a169",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -335,6 +353,12 @@
   "w": 880,
   "h": 550
  },
+ "jumping": {
+  "ground": "#fa896d",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "keep-to-notes": {
   "ground": "#fad286",
   "ink": "dark",
@@ -343,6 +367,12 @@
  },
  "lock-folder": {
   "ground": "#cbc9ca",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "mcp-apps": {
+  "ground": "#9dade1",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -533,6 +563,12 @@
   "w": 880,
   "h": 550
  },
+ "second-brain": {
+  "ground": "#d78c7b",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "share-together": {
   "ground": "#ae7272",
   "ink": "light",
@@ -547,6 +583,12 @@
  },
  "storage": {
   "ground": "#b3e4e8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "stuck-folders": {
+  "ground": "#bcaeb9",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -637,6 +679,12 @@
  },
  "workout-log": {
   "ground": "#edc898",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "writers": {
+  "ground": "#efc691",
   "ink": "dark",
   "w": 880,
   "h": 550

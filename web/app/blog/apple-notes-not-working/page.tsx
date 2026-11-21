@@ -66,7 +66,8 @@ export default function Page() {
       <p>
         Before you try anything bigger than a restart, open icloud.com/notes in a browser and sign in with your Apple Account. If your
         notes are there, they&apos;re stored in iCloud, whatever the app on your device is doing. Apple also lists iCloud Notes on its System
-        Status page, at apple.com/support/systemstatus. If it shows an outage, wait until Apple marks it resolved.
+        Status page, at apple.com/support/systemstatus. If it shows an outage, wait until Apple marks it resolved. If Notes opens but a note
+        <a href="/blog/apple-notes-keeps-jumping-to-top">keeps jumping to the top</a> as you type, that has its own steps.
       </p>
 
       <h2 id="iphone">On iPhone: Notes keeps crashing or won&apos;t open</h2>
