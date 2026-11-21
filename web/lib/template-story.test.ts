@@ -15,13 +15,22 @@ describe("template story pages", () => {
     });
 
     it(`${slug}: every picture is on disk`, () => {
-      for (const p of [story.art.src, story.art.phone, story.mac.src, story.phone.src, ...story.week.days.map((d) => d.phone)]) expect(existsSync(pub(p)), p).toBe(true);
+      for (const p of [story.art.src, story.art.phone, story.mac.src, story.phone.src, ...story.week.days.map((d) => d.phone), ...story.change.asks.flatMap((a) => [a.before.src, a.after.src])]) expect(existsSync(pub(p)), p).toBe(true);
     });
 
     it(`${slug}: the week's rows have a value per day, between 0 and 1`, () => {
       for (const r of story.week.rows) {
         expect(r.days).toHaveLength(story.week.days.length);
         for (const v of r.days) expect(v >= 0 && v <= 1).toBe(true);
+      }
+    });
+
+    it(`${slug}: every ask starts with what the person said and ends with what came back`, () => {
+      expect(story.change.asks.length).toBeGreaterThan(0);
+      for (const a of story.change.asks) {
+        expect("you" in a.chat[0]).toBe(true);
+        expect("ai" in a.chat.at(-1)!).toBe(true);
+        expect(a.before.src).not.toBe(a.after.src);
       }
     });
 
@@ -39,14 +48,18 @@ describe("template story pages", () => {
       const last = story.week.days.at(-1)!;
       expect(html).toContain(last.phone);
       expect(html).toContain(last.you.replace(/'/g, "&#x27;"));
+      expect(html).toContain('id="change"');
+      const first = story.change.asks[0];
+      expect(html).toContain(first.after.src);
+      expect(html).toContain(("you" in first.chat[0] ? first.chat[0].you : "").replace(/'/g, "&#x27;"));
       expect(html).toContain('id="questions"');
       expect(html.match(/<h1/g)).toHaveLength(1);
     });
   }
 
   it("the week's phones are real captures at the phone size the frame expects", () => {
-    for (const story of Object.values(TEMPLATE_STORY)) for (const d of story.week.days) {
-      const b = readFileSync(pub(d.phone));
+    for (const story of Object.values(TEMPLATE_STORY)) for (const src of [...story.week.days.map((d) => d.phone), ...story.change.asks.flatMap((a) => [a.before.src, a.after.src])]) {
+      const b = readFileSync(pub(src));
       expect(b.subarray(0, 4).toString()).toBe("RIFF");
     }
   });

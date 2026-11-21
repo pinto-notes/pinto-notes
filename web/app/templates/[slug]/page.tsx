@@ -16,7 +16,7 @@ import s from "../templates.module.css";
 import UseLabel from "../UseLabel";
 import { ClosingBand, bandButton } from "@/lib/ClosingBand";
 import { templateStory } from "@/lib/template-story";
-import { StoryHero, StoryWeek } from "../story/Story";
+import { StoryChange, StoryHero, StoryWeek } from "../story/Story";
 import st from "../story/story.module.css";
 
 export const dynamic = "force-static";
@@ -118,6 +118,7 @@ export default async function Page({ params }: Props) {
         <>
           <StoryHero story={story} crumbs={crumbs} actions={actions} fine={fine} />
           <StoryWeek story={story} />
+          <StoryChange story={story} />
           {seo && (
             <section className={`${s.section} ${st.narrow}`} aria-labelledby="result">
               <div className={s.sectionHead}><h2 id="result" className={s.h2}>What you can do in the app</h2></div>

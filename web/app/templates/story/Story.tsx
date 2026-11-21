@@ -1,6 +1,7 @@
 import type { TemplateStory } from "@/lib/template-story";
 import { Phone } from "./Phone";
 import Week from "./Week";
+import Change from "./Change";
 import s from "./story.module.css";
 
 /// The top of a story page: the template's world as art, the promise, and the app on a Mac with
@@ -32,6 +33,16 @@ export function StoryWeek({ story }: { story: TemplateStory }) {
       <h2 id="week" className={s.h2}>{story.week.title}</h2>
       <p className={s.sub}>{story.week.lede}</p>
       <Week week={story.week} />
+    </section>
+  );
+}
+
+export function StoryChange({ story }: { story: TemplateStory }) {
+  return (
+    <section className={s.weekSection} aria-labelledby="change">
+      <h2 id="change" className={s.h2}>{story.change.title}</h2>
+      <p className={s.sub}>{story.change.lede}</p>
+      <Change change={story.change} />
     </section>
   );
 }
