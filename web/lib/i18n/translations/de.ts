@@ -397,4 +397,52 @@ export const de: Translation[] = [
     description: "Wenn Apple Notizen in der Ordneransicht hängt oder nicht lädt, prüfe iCloud, Account und Verbindung. Dazu Schritte bei langsamem Sichern.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "bear-notes-alternative-free", lang: "de", slug: "bear-alternative-kostenlos",
+    title: "Kostenlose Bear-Alternative für iPhone und Mac",
+    description: "Bear Free, Apple Notizen oder Pinto Notes? Vergleiche die kostenlosen Möglichkeiten und prüfe einen Bear-Import mit Markdown, Bildern und Tags.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "obsidian-alternative-for-mac", lang: "de", slug: "obsidian-alternative-mac",
+    title: "Obsidian-Alternative für Mac: So prüfst du den Umzug",
+    description: "Pinto Notes, Apple Notizen, Bear oder Joplin? So importierst du einen Obsidian-Vault und prüfst Links, Bilder, Plugins und den Export.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "simplenote-alternative-for-iphone-and-mac", lang: "de", slug: "simplenote-alternative-iphone-mac",
+    title: "Simplenote-Alternative für iPhone und Mac",
+    description: "Exportiere deine Simplenote-Notizen als Textdateien und teste den Import in Pinto Notes. Was mit Tags und alten Versionen passiert, prüfst du selbst.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notion-alternative-for-personal-notes-on-mac", lang: "de", slug: "notion-alternative-persoenliche-notizen-mac",
+    title: "Notion-Alternative für persönliche Notizen auf dem Mac",
+    description: "Apple Notizen und Pinto Notes eignen sich für persönliche Textnotizen. So exportierst du Notion-Seiten als Markdown und erkennst Grenzen bei Datenbanken.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "onenote-alternative-for-mac", lang: "de", slug: "onenote-alternative-mac",
+    title: "OneNote-Alternative für Mac: Textnotizen umziehen",
+    description: "Pinto Notes ist für Textnotizen auf Mac und iPhone geeignet. Einen direkten OneNote-Import gibt es nicht. So sicherst und prüfst du einzelne Seiten.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-cursor", lang: "de", slug: "cursor-mit-notizen-verbinden",
+    title: "Cursor mit Notizen verbinden: Pinto Notes per MCP",
+    description: "Verbinde Cursor über MCP mit Pinto Notes. Lies ein Projektkonzept vom iPhone auf dem Mac und halte eine Entscheidung in derselben Notiz fest.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-gemini-cli", lang: "de", slug: "gemini-cli-mit-notizen-verbinden",
+    title: "Gemini CLI mit Notizen verbinden: Pinto Notes MCP",
+    description: "Verbinde Gemini CLI mit Pinto Notes per MCP. Lass ein Konzept vom iPhone lesen und das tatsächliche Ergebnis der Sitzung in der Notiz ergänzen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-prompt-library-in-notes", lang: "de", slug: "chatgpt-prompt-sammlung-notizen",
+    title: "ChatGPT-Prompt-Sammlung in Notizen: Vorlage",
+    description: "Speichere wiederverwendbare ChatGPT-Prompts mit Beispielen in Apple Notizen oder Pinto Notes. Eine Vorlage zum Kopieren und ein Weg zum Prüfen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];

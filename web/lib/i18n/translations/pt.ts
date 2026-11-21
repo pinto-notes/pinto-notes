@@ -397,4 +397,52 @@ export const pt: Translation[] = [
     description: "Se o Notas não sai da tela Pastas ou demora a sincronizar, confira o iCloud, a Conta Apple, a conexão e as atualizações sem perder texto.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "bear-notes-alternative-free", lang: "pt", slug: "alternativa-gratis-ao-bear-iphone-mac",
+    title: "Alternativa grátis ao Bear para iPhone e Mac",
+    description: "Compare Bear, Notas e Pinto Notes antes de mudar. Veja como exportar algumas notas, importar o Markdown e conferir imagens, links e etiquetas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "obsidian-alternative-for-mac", lang: "pt", slug: "alternativas-ao-obsidian-para-mac",
+    title: "Alternativas ao Obsidian para Mac: como escolher",
+    description: "Compare Pinto Notes, Notas, Bear e Joplin. Saiba o que acontece com pastas, imagens, links e plugins ao importar um cofre do Obsidian.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "simplenote-alternative-for-iphone-and-mac", lang: "pt", slug: "alternativa-ao-simplenote-iphone-mac",
+    title: "Alternativa ao Simplenote para iPhone e Mac",
+    description: "Exporte suas notas do Simplenote, teste os arquivos de texto no Pinto Notes e confira o conteúdo antes de trocar de app.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "notion-alternative-for-personal-notes-on-mac", lang: "pt", slug: "alternativa-ao-notion-notas-pessoais-mac",
+    title: "Alternativa ao Notion para notas pessoais no Mac",
+    description: "Veja quando usar Notas ou Pinto Notes para anotações pessoais, como exportar páginas do Notion e o que fazer com bancos de dados.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "onenote-alternative-for-mac", lang: "pt", slug: "alternativas-ao-onenote-para-mac",
+    title: "Alternativa ao OneNote para Mac: o que dá para levar",
+    description: "O Pinto Notes atende notas digitadas, mas não importa arquivos do OneNote. Veja como guardar os originais e testar algumas páginas.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-cursor", lang: "pt", slug: "conectar-notas-ao-cursor-mcp",
+    title: "Como conectar suas notas ao Cursor com MCP",
+    description: "Conecte o Cursor ao Pinto Notes, leia um briefing escrito no iPhone e registre uma decisão na mesma nota. Inclui configuração manual.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-gemini-cli", lang: "pt", slug: "conectar-notas-ao-gemini-cli-mcp",
+    title: "Como conectar suas notas ao Gemini CLI com MCP",
+    description: "Adicione o servidor MCP do Pinto Notes ao Gemini CLI, autorize a conexão e use uma nota do iPhone para guardar o resultado da sessão.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-prompt-library-in-notes", lang: "pt", slug: "biblioteca-de-prompts-chatgpt-notas",
+    title: "Biblioteca de prompts do ChatGPT no app Notas",
+    description: "Guarde um prompt por nota, com instruções, exemplo e resultado testado. Copie o modelo ou peça ao ChatGPT para buscar a nota no Pinto Notes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
