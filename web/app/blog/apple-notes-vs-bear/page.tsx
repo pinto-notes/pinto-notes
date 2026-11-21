@@ -176,6 +176,9 @@ export default function Page() {
         Coming from Apple Notes, bring your notes over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>.
         Apple Notes isn&apos;t changed.
       </p>
+      <p>
+        Want to stop paying for Bear Pro? See the <a href="/blog/bear-notes-alternative-free">free alternatives to Bear</a> on Mac and iPhone.
+      </p>
     </PostPage>
   );
 }

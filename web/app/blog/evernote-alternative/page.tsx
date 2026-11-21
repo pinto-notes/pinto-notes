@@ -193,6 +193,11 @@ export default function Page() {
         <li>Search for a note you know, then open it on your iPhone after setting up sync.</li>
         <li>Keep the original .enex files until you are happy with the move.</li>
       </ul>
+      <p>
+        Leaving another app as well? There are guides for moving from{" "}
+        <a href="/blog/obsidian-alternative-for-mac">Obsidian</a>, <a href="/blog/notion-alternative-for-personal-notes-on-mac">Notion</a>{" "}
+        and <a href="/blog/onenote-alternative-for-mac">OneNote</a> on a Mac.
+      </p>
     </PostPage>
   );
 }

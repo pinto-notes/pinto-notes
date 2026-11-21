@@ -125,6 +125,12 @@
   "w": 880,
   "h": 550
  },
+ "bear-alt": {
+  "ground": "#d57048",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "best-ai-notes-app": {
   "ground": "#dec9f0",
   "ink": "dark",
@@ -233,6 +239,12 @@
   "w": 880,
   "h": 550
  },
+ "cursor": {
+  "ground": "#8ca3b6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "decision": {
   "ground": "#cac6c3",
   "ink": "dark",
@@ -302,6 +314,12 @@
  "forgot-password": {
   "ground": "#f4e7d4",
   "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "gemini-cli": {
+  "ground": "#275654",
+  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -467,6 +485,18 @@
   "w": 880,
   "h": 550
  },
+ "notion-alt": {
+  "ground": "#f0c4a0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "obsidian-alt": {
+  "ground": "#64576a",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "obsidian-banner": {
   "ground": "#070707",
   "ink": "light",
@@ -488,6 +518,12 @@
  "one-on-one": {
   "ground": "#f0c691",
   "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "onenote-alt": {
+  "ground": "#7d465a",
+  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -517,6 +553,12 @@
  },
  "planner": {
   "ground": "#c4cbef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "prompt-library": {
+  "ground": "#f3c88e",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -572,6 +614,12 @@
  "share-together": {
   "ground": "#ae7272",
   "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "simplenote-alt": {
+  "ground": "#b4d7ea",
+  "ink": "dark",
   "w": 880,
   "h": 550
  },

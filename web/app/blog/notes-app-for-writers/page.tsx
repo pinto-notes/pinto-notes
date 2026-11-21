@@ -195,6 +195,9 @@ export default function Page() {
         a paragraph and recover its earlier wording. Export the draft and open it where you will submit or publish it.
         Choose the app that handles those steps with the least work for the kind of writing you do.
       </p>
+      <p>
+        Writing in Simplenote now? Here is <a href="/blog/simplenote-alternative-for-iphone-and-mac">how to export your notes and move them</a>.
+      </p>
     </PostPage>
   );
 }
