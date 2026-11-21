@@ -157,4 +157,52 @@ export const de: Translation[] = [
     description: "Apple Notizen hat keine Geschenkeliste, aber eine Notiz mit Ideen pro Person, Budget und Größen reicht. Eine Vorlage für Weihnachten und jeden Geburtstag.",
     date: "2026-11-21", updated: "2026-11-21",
   },
+  {
+    of: "apple-notes-disappeared", lang: "de", slug: "notizen-verschwunden",
+    title: "Notizen verschwunden? 7 Stellen zum Suchen, der Reihe nach",
+    description: "Notizen auf iPhone oder Mac weg? Sieben Checks der Reihe nach, mit Apples Schritten, vom iCloud-Schalter bis Zuletzt gelöscht und einer fehlenden App.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-search-not-working", lang: "de", slug: "notizen-suche-funktioniert-nicht",
+    title: "Notizen-Suche funktioniert nicht? 7 Checks der Reihe nach",
+    description: "Die Suche in Apple Notizen findet nichts? Apples Checks der Reihe nach: Alle Accounts, gesperrte Notizen, Accounts, Synchronisierung, Neustart, Update.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-unable-to-start-collaboration", lang: "de", slug: "notizen-zusammenarbeit-kann-nicht-gestartet-werden",
+    title: "Notizen: Zusammenarbeit kann nicht gestartet werden",
+    description: "Zusammenarbeit startet nicht oder fehlt? Apples Checks der Reihe nach, was sich mit „Link teilen“ in iOS 27 ändert, und Notizen, die sich nicht öffnen.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-not-working", lang: "de", slug: "notizen-app-funktioniert-nicht",
+    title: "Notizen-App funktioniert nicht oder stürzt ab? Das hilft",
+    description: "Notizen friert ein, wird beendet oder öffnet nicht, auf iPhone oder Mac? Apples Lösungen der Reihe nach, und was du prüfst, wenn Notizen nicht laden.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-organize", lang: "de", slug: "apple-notizen-organisieren",
+    title: "Apple Notizen organisieren: ein System, das hält",
+    description: "Apple Notizen auf iPhone und Mac organisieren: Ordner, Unterordner, Sortieren, Anpinnen, Tags, eine Ordnerstruktur und zehn Minuten Aufräumen pro Woche.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-checklist-sort", lang: "de", slug: "notizen-checkliste-sortieren",
+    title: "Notizen-Checkliste sortieren: Abgehaktes nach unten",
+    description: "Wo du abgehakte Einträge auf iPhone und Mac nach unten sortierst, wie du es abschaltest, Einträge verschiebst, eine Liste zurücksetzt, und die Kurzbefehle.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-for-school", lang: "de", slug: "apple-notizen-schule-studium",
+    title: "Apple Notizen für Schule und Studium: ein Ordner pro Fach",
+    description: "Ist Apple Notizen gut für Schule und Uni? Eine ehrliche Antwort und ein Setup pro Fach: Ordner, Vorlesungen, Scans, Aufnahmen, Cornell und Karteikarten.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-planner-template", lang: "de", slug: "wochenplaner-vorlage-apple-notizen",
+    title: "Wochenplaner in Apple Notizen: Vorlage für die ganze Woche",
+    description: "Apple Notizen hat keinen Planer, doch eine Notiz mit einer Überschrift pro Tag reicht. Wochen- und Tagesplaner zum Einfügen, dazu einer, den deine KI füllt.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
 ];
