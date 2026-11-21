@@ -118,7 +118,7 @@ export default function Page() {
             or the daily one if you plan a day at a time.
           </p>
           {/* Experiment B1 pattern: the download where readers are. */}
-          <PostCta slug="apple-notes-planner-template" position="answer" title="Want the week planned for you?">
+          <PostCta slug="apple-notes-planner-template" position="answer" template="weekly-planner" title="Want the week planned for you?">
             <p>Pinto Notes works like Apple Notes and has a free weekly planner. Tell ChatGPT or Claude what&apos;s on and it puts each task under its day and keeps your top three.</p>
           </PostCta>
         </Answer>

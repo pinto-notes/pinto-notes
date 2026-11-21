@@ -138,8 +138,6 @@ export default function Page() {
         If you keep other routines this way too, <a href="/blog/apple-notes-templates">Apple Notes templates</a> has a weekly review
         and a Today list to paste in the same way. If one of your habits is the gym, an{" "}
         <a href="/blog/apple-notes-workout-log-template">Apple Notes workout log</a> keeps the sets and your personal bests.
-        To plan the week&apos;s to-dos the same way, the <a href="/blog/apple-notes-planner-template">Apple Notes planner
-        template</a> gives each day its own checklist.
       </p>
 
       <p>
