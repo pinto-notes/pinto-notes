@@ -150,6 +150,9 @@ export default function Page() {
         out attachments other than photos, so check which route applies to your Mac.
       </p>
       <p>
+        Choosing for long drafts? <a href="/blog/notes-app-for-writers">Notes apps for writers</a> adds Ulysses and Scrivener to the list.
+      </p>
+      <p>
         Going back, select notes in Bear and choose File, Export Notes, then Markdown. In Apple Notes on a Mac, choose File,
         Import Markdown and select the files. Apple&apos;s{" "}
         <a href="https://support.apple.com/guide/notes/not201900c07/mac" rel="noopener">import and export guide</a> also describes

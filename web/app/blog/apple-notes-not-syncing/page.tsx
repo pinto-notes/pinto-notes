@@ -116,7 +116,8 @@ export default function Page() {
         <li id="status">
           <strong>iCloud Notes is up</strong>
           Apple lists iCloud Notes on its System Status page, at apple.com/support/systemstatus. If it shows an outage, no setting on
-          your side will fix it. Wait until Apple marks it resolved.
+          your side will fix it. Wait until Apple marks it resolved. If Notes hangs on Folders or saving instead, see
+          <a href="/blog/apple-notes-stuck-on-folders">Notes stuck on folders</a>.
         </li>
         <li id="storage">
           <strong>Your iCloud storage isn&apos;t full</strong>
