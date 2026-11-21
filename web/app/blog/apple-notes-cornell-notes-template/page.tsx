@@ -109,7 +109,7 @@ export default function Page() {
       <p>
         In class, fill in only the Notes column. Write the cues and the summary the same evening, while you still remember what the
         lecture meant. <a href="/blog/apple-notes-tables">Tables in Apple Notes</a> covers everything a table in Notes can and can&apos;t
-        do.
+        do. Teaching the class instead? Use the <a href="/blog/apple-notes-lesson-plan-template">lesson plan template</a>.
       </p>
 
       <h2 id="revise">Revise with it</h2>

@@ -143,6 +143,12 @@
   "w": 1600,
   "h": 1000
  },
+ "bible-study": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "book-notes": {
   "ground": "#f0c896",
   "ink": "dark",
@@ -283,6 +289,12 @@
  },
  "eisenhower-matrix": {
   "ground": "#c9c6c5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "employee-onboarding": {
+  "ground": "#79b1ac",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -437,6 +449,12 @@
   "w": 880,
   "h": 550
  },
+ "lesson-plan": {
+  "ground": "#f2c994",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "lock-folder": {
   "ground": "#cbc9ca",
   "ink": "dark",
@@ -463,6 +481,12 @@
  },
  "meeting": {
   "ground": "#f0c998",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "mem-alternative": {
+  "ground": "#b0b3e0",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -629,6 +653,12 @@
   "w": 880,
   "h": 550
  },
+ "podcast-planner": {
+  "ground": "#ea7259",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "project-brief": {
   "ground": "#abb888",
   "ink": "dark",
@@ -665,8 +695,20 @@
   "w": 880,
   "h": 550
  },
+ "reflect-alternative": {
+  "ground": "#bcd6c3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "resume-template": {
   "ground": "#89beb0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "retrospective": {
+  "ground": "#d2bfe1",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -749,6 +791,12 @@
   "w": 880,
   "h": 550
  },
+ "time-log": {
+  "ground": "#e59991",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "todo": {
   "ground": "#c3da8a",
   "ink": "dark",
@@ -763,6 +811,12 @@
  },
  "upnote-alternative": {
   "ground": "#a9d3a9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "user-interview": {
+  "ground": "#afdcd3",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -829,6 +883,12 @@
  },
  "wishlist-template": {
   "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "work-handover": {
+  "ground": "#a7b292",
   "ink": "dark",
   "w": 880,
   "h": 550

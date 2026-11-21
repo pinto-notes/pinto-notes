@@ -107,7 +107,7 @@ export default function Page() {
         Check pictures and <code>[[links]]</code> yourself. Apple&apos;s{" "}
         <a href="https://support.apple.com/guide/notes/not201900c07/mac">import guide</a> documents folder import,
         without promising to reproduce an Obsidian vault. Our <a href="/blog/apple-notes-vs-obsidian">Apple Notes vs Obsidian comparison</a>{" "}
-        covers the wider differences.
+        covers the wider differences. Leaving Mem before it closes? The <a href="/blog/mem-ai-alternative-for-mac-and-iphone">Mem AI alternative guide</a> has its dates and a Markdown import to test.
       </p>
       <p>
         Bear&apos;s <a href="https://bear.app/faq/import-your-notes/">import guide</a> has a specific route for

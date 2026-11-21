@@ -132,7 +132,7 @@ export default function Page() {
       <p>
         Type #books under the title of each book note: that makes it a tag. A Smart Folder with the Tags rule set to books gathers every book note in one place, and
         adding the rule Checklists: Unchecked shows only the books with something you haven&apos;t tried yet.{" "}
-        <a href="/blog/apple-notes-tags-smart-folders">Tags and Smart Folders</a> shows how to set one up.
+        <a href="/blog/apple-notes-tags-smart-folders">Tags and Smart Folders</a> shows how to set one up. For passage study, the <a href="/blog/apple-notes-bible-study-template">Bible study template</a> keeps observations, questions and cross references apart.
       </p>
       <Keep title="Book index for Apple Notes" text={INDEX} />
       <MenuPaths rows={[

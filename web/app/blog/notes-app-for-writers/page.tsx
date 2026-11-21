@@ -105,7 +105,7 @@ export default function Page() {
         To make an index on a Mac, write the scene titles in one note. Select a title, choose Edit, Add Link and pick its note.
         Before a substantial rewrite, select the draft and choose File, Duplicate Note. Give the copy a date and a clear name.
         That is a manual way to preserve a draft. The <a href="/blog/apple-notes-version-history">Apple Notes version-history guide</a>{" "}
-        explains the limits of recovering earlier text.
+        explains the limits of recovering earlier text. If you write for audio, the <a href="/blog/apple-notes-podcast-planner-template">podcast planner template</a> takes an episode from guest questions to show notes.
       </p>
       <p>
         To hand a draft to another editor on a Mac, select the note, then choose File, Export To, PDF or Markdown.

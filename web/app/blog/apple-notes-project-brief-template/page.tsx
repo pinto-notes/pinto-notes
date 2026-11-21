@@ -135,7 +135,7 @@ export default function Page() {
       <p>
         Each question row has a tab between the question and its owner. On Mac, select the three lines from Question to the last
         question, and press the Table button. Every tab becomes a column. Or choose Format, Table for two rows and two columns,
-        type the entries, and press Tab in the last cell to add a row. The <a href="/blog/apple-notes-tables">Apple Notes table guide</a> has more examples.
+        type the entries, and press Tab in the last cell to add a row. The <a href="/blog/apple-notes-tables">Apple Notes table guide</a> has more examples. When the project ends, a <a href="/blog/apple-notes-retrospective-template">retrospective note</a> records what worked and one change to test.
       </p>
       <p>
         On iPhone, paste the text and select each section label, then tap the Format button and Heading. To build the acceptance
