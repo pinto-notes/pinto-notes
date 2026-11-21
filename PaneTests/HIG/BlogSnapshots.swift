@@ -421,6 +421,7 @@ import Testing
         defer { w.orderOut(nil); w.close() }
         try? await Task.sleep(for: .seconds(1.5))
         try AIEditSnapshots.snap(w, to: dir.appending(path: "mac-weekly-review-light.png"))
+    }
     @Test func weeklyPlannerForTemplatePost() async throws {
         guard let dir = AppSnapshotTests.dir else { return }
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
