@@ -177,7 +177,7 @@ export default function Page() {
       <h2 id="pinto-notes">Pinto Notes adds links back and AI access</h2>
       <p>
         In Pinto Notes, Linked From in a note&apos;s More menu lists the notes that link to it. You can open a reference note and find
-        the projects using it. Only actual links count. The <a href="/blog/apple-notes-backlinks">backlinks guide</a> shows how it works.
+        the projects using it. Only actual links count. The <a href="/blog/apple-notes-backlinks">backlinks guide</a> shows how it works. For one outcome you work toward over weeks, a <a href="/blog/apple-notes-goal-template">goal note with milestones and evidence</a> keeps the proof of progress in one place.
       </p>
       <p>
         Once you <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT or Claude</a>, it can read and edit your notes. For a

@@ -143,7 +143,7 @@ export default function Page() {
       </ul>
       <p>
         A log tells you what you spent. To set a limit for each category first and see what&apos;s left, use the{" "}
-        <a href="/blog/apple-notes-budget-template">Apple Notes budget template</a> alongside it: the plan in one note, the log in this one.
+        <a href="/blog/apple-notes-budget-template">Apple Notes budget template</a> alongside it: the plan in one note, the log in this one. For things you&apos;re thinking of buying, a <a href="/blog/apple-notes-wishlist-template">wishlist with a waiting date</a> keeps them out of the log until you decide.
       </p>
 
       <h2 id="limits">Where an Apple Notes expense log stops</h2>

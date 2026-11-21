@@ -42,7 +42,7 @@ export default function Page() {
       </p>
 
       <p>
-        Coming from OneNote? There&apos;s no OneNote import yet; <a href="/blog/apple-notes-vs-onenote">Apple Notes vs OneNote</a> covers how to move by hand.
+        Coming from OneNote? There&apos;s no OneNote import yet; <a href="/blog/apple-notes-vs-onenote">Apple Notes vs OneNote</a> covers how to move by hand. Leaving UpNote? Its Markdown export comes in this way; the <a href="/blog/upnote-alternative-for-iphone-and-mac">UpNote alternative guide</a> shows how to test a small batch first.
       </p>
 
       <h2>On iPhone</h2>

@@ -137,6 +137,16 @@
 .ground[data-ground="forest"] { background: linear-gradient(160deg, #bbc3bb, #566956); }
 .ground[data-ground="hydrangea"] { background: linear-gradient(160deg, #ece4f1, #d0bcdc); }
 .ground[data-ground="glade"] { background: linear-gradient(160deg, #e3f1e3, #b9dbb9); }
+.ground[data-ground="summitblue"] { background: linear-gradient(160deg, #d1e0ea, #8db1ca); }
+.ground[data-ground="peachfuzz"] { background: linear-gradient(160deg, #f9e8d3, #f0c590); }
+.ground[data-ground="ashgrey"] { background: linear-gradient(160deg, #e9e8e7, #c8c6c4); }
+.ground[data-ground="tealrock"] { background: linear-gradient(160deg, #cfe5df, #88beaf); }
+.ground[data-ground="lilacmist"] { background: linear-gradient(160deg, #ece0ef, #d0b2d6); }
+.ground[data-ground="mintleaf"] { background: linear-gradient(160deg, #dceddd, #a8d3a9); }
+.ground[data-ground="coralreef"] { background: linear-gradient(160deg, #fccec2, #f78566); }
+.ground[data-ground="butterlight"] { background: linear-gradient(160deg, #f9e9d2, #f0c78e); }
+.ground[data-ground="sandbar"] { background: linear-gradient(160deg, #f8e8d4, #eec693); }
+.ground[data-ground="duskblue"] { background: linear-gradient(160deg, #cdd7df, #819bb0); }
 
 /* ── A figure in a post: the capture centred on its ground ── */
 .figure { margin: 8px 0 28px; }
@@ -271,6 +281,16 @@
 .thumb[data-ground="forest"] { background: #808e80; }
 .thumb[data-ground="hydrangea"] { background: #dccde5; }
 .thumb[data-ground="glade"] { background: #cae4ca; }
+.thumb[data-ground="summitblue"] { background: #aac4d7; }
+.thumb[data-ground="peachfuzz"] { background: #f4d4ac; }
+.thumb[data-ground="ashgrey"] { background: #d6d4d3; }
+.thumb[data-ground="tealrock"] { background: #a6cec3; }
+.thumb[data-ground="lilacmist"] { background: #dcc5e0; }
+.thumb[data-ground="mintleaf"] { background: #bedebe; }
+.thumb[data-ground="coralreef"] { background: #f9a48c; }
+.thumb[data-ground="butterlight"] { background: #f4d5aa; }
+.thumb[data-ground="sandbar"] { background: #f2d4ae; }
+.thumb[data-ground="duskblue"] { background: #a0b4c4; }
 
 /* An iPhone screen on its own, with the screen's corners. */
 .phone { width: min(100%, var(--w, 100%)); margin: 0 auto; }
