@@ -297,6 +297,10 @@ export default function Page() {
         <li>An AI can search, read, create and edit notes, tick checklist items, move and pin notes, and manage folders.</li>
         <li>When an AI changes a note, you see what changed, with Undo, and the previous version stays in the note&apos;s history.</li>
       </ul>
+      <p>
+        The <a href="/templates">templates</a> give your AI ready notes to work in, like a <a href="/templates/weekly-planner">weekly planner</a> with
+        a checklist for each day.
+      </p>
       <Figure shot={SHOTS.connectList} caption="Connect an AI in Pinto Notes on a Mac: ChatGPT, Claude, Claude Code and Codex." />
       <p>
         Be clear about the trade. Notes are stored as Markdown, but in Pinto Notes&apos; sync, not as a folder of files on your disk.

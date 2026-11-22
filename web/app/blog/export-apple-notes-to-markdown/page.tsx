@@ -67,7 +67,7 @@ export default function Page() {
       <p>
         To copy only part of a note, macOS 27 and iOS 27 add Copy as Markdown: select the text, then choose Edit, Copy as Markdown on a Mac,
         or Copy as Markdown in the edit menu on iPhone. It works the other way too: paste Markdown into a note and it turns into headings and
-        lists. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
+        lists. That&apos;s also the quickest way to start a note from one of these <a href="/blog/apple-notes-templates">Apple Notes templates</a>. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
       </p>
 
       <h2 id="iphone">Export a note on iPhone</h2>
@@ -154,6 +154,7 @@ export default function Page() {
         folders, with tables and pictures. Be aware of what it leaves behind: other attachments and locked notes stay in Apple Notes. And
         once your notes are Markdown in Pinto Notes, ChatGPT or Claude can read and edit them directly, with your approval, instead of you
         pasting files into a chat. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or Claude</a> takes a couple of minutes.
+        The <a href="/templates">templates</a> give your AI a ready note to work in, like <a href="/templates/meeting-notes">meeting notes</a>.
       </p>
       <p>
         If you want to script Apple Notes, AppleScript and Shortcuts are the available routes, with their own limits.

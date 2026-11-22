@@ -178,7 +178,8 @@ export default function Page() {
         of that: in a new chat, an AI that can open its notes remembers most of what you told it, and one that can&apos;t remembers
         almost nothing. You can <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT</a> or Claude, and the same
         notes work from <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex</a>. If you&apos;d rather wire it up
-        yourself, <a href="/blog/mcp-server">the MCP server</a> has the same file tools this test used.
+        yourself, <a href="/blog/mcp-server">the MCP server</a> has the same file tools this test used. The{" "}
+        <a href="/templates/one-on-one-notes">1:1 notes template</a> has the shape the AI chose: one running note per person.
       </p>
     </PostPage>
   );

@@ -15,7 +15,8 @@ export default function Page() {
       <h2>Your notes, a second after your AI writes them</h2>
       <p>
         Ask ChatGPT or Claude to add something, and it&apos;s in the note on your phone a second later. Ask for the shopping list
-        from your laptop, and it&apos;s on your phone when you&apos;re in the shop.
+        from your laptop, and it&apos;s on your phone when you&apos;re in the shop. The{" "}
+        <a href="/templates/grocery-list">grocery list template</a> keeps that list sorted by aisle.
       </p>
       <Loop src="/blog/loops/iphone-chatgpt-adds-groceries.mp4" poster="/blog/loops/iphone-chatgpt-adds-groceries.webp" width={640} height={1280} phone
         label="Pinto Notes on iPhone: five grocery items ChatGPT just added land in the list, tinted, with ChatGPT changed 5 lines and Undo."
@@ -38,6 +39,7 @@ export default function Page() {
         <li>Lock a note with a password and Face ID</li>
         <li>Apps your AI made in a note, like a bread log or a trip split, work on your phone too</li>
       </ul>
+      <p>Ready-made ones, like the <a href="/templates/habit-tracker">habit tracker</a>, are in the <a href="/templates">templates</a>.</p>
 
       <h2>Already on the Mac?</h2>
       <p>

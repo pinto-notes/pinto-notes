@@ -117,7 +117,8 @@ export default function Page() {
       <p>
         So you can tell ChatGPT on your phone &ldquo;add the late checkout to my Lisbon note&rdquo;, and the note on your Mac changes. The new
         line shows up tinted, with Undo, and the version before it stays in the note&apos;s history. Other apps let you review their own
-        AI&apos;s edits; Pinto Notes does it for the AI apps you connect from outside.
+        AI&apos;s edits; Pinto Notes does it for the AI apps you connect from outside. The{" "}
+        <a href="/templates/trip-plan">trip plan template</a> sets up a note like that, with the days, bookings and a packing list for your AI to fill in.
       </p>
       <p>
         Pinto Notes is free and open source, and charges nothing for the connection. Your AI app&apos;s plan still applies: on Claude&apos;s
@@ -272,6 +273,10 @@ export default function Page() {
       <p>
         Mem, Notion (on Business) and Evernote record meetings too. And if you study from PDFs and articles, Google&apos;s Gemini Notebook
         (called NotebookLM until July) answers questions from your sources. It&apos;s a research tool, not a notes app.
+      </p>
+      <p>
+        Already have a transcript? The <a href="/templates/meeting-notes">meeting notes template</a> has your AI write the summary, the
+        decisions and who does what into one note.
       </p>
 
       <h2 id="which-one">Which one should you pick?</h2>

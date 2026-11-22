@@ -117,7 +117,8 @@ export default function Page() {
       <p>
         Pinto Notes is a free notes app for Mac and iPhone that works like Apple Notes: folders, pinned notes, checklists, tables, and a
         note list sorted by date. The difference is that ChatGPT, Claude, Claude Code and Codex can search, read and edit the
-        same notes, from your phone, the web or your Mac.
+        same notes, from your phone, the web or your Mac. <a href="/templates">Templates</a> give your AI a ready note to fill in, like a{" "}
+        <a href="/templates/budget-log">budget that adds itself up</a>.
       </p>
       <p>
         You approve each AI app once. When one changes a note, you see what changed, with Undo, and every earlier version stays in the
@@ -140,7 +141,8 @@ export default function Page() {
       <p>
         Apple Notes is already on your Mac, iPhone and iPad, and it&apos;s better than its reputation. You get folders, tags, Smart
         Folders, <a href="/blog/apple-notes-tables">tables</a>, checklists, scanned documents, Apple Pencil sketches on iPad, and audio
-        recordings with a live transcript. It exports notes as PDF or Markdown, and imports Markdown, text and Evernote files.
+        recordings with a live transcript. It exports notes as PDF or Markdown, and imports Markdown, text and Evernote files. It has no
+        templates of its own, but a note you copy works: <a href="/blog/apple-notes-templates">five Apple Notes templates to paste in</a>.
       </p>
       <p>
         Notes sync through iCloud. By default Apple holds the keys to your notes on its servers; turn on Advanced Data Protection and

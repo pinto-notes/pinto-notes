@@ -40,6 +40,7 @@ export default function Page() {
       <p>
         /table puts in an empty table with the keyboard in its first cell, and Tab moves to the next one. /date writes
         today&apos;s date. Link to Note lets you pick another note by its name, the same as typing two square brackets.
+        For a table ready to fill in, the <a href="/templates/reading-list">reading list template</a> has a status and a rating for each book.
       </p>
       <PostFigure src="/blog/launch/slash-menu-callout-table" width={1600} height={1000} kind="plain"
         alt="The Kitchen redo note in Pinto Notes on a Mac with an orange warning callout, Water is off on 2 and 3 March. Left: /tab typed under it, and the menu down to Table. Right: the table that came in, Quote and Price, Worktop 9,800 kr, Electrician 4,500 kr."

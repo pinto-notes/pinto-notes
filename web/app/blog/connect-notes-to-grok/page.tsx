@@ -183,6 +183,10 @@ export default function Page() {
       </p>
       <Keep title="A first request once it's connected" text={ASK}
         note="Asking which note it changed makes the edit easy to find and check." />
+      <p>
+        For a trip still being planned, the <a href="/templates/trip-plan">trip plan template</a> keeps the days, the bookings and the
+        packing list in one note your AI can work in.
+      </p>
 
       <h2 id="limits">What xAI&apos;s docs leave out</h2>
       <PostFigure src="/blog/drawn/grok-readonly" width={1200} height={750} maxWidth={560}

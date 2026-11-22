@@ -22,7 +22,8 @@ export default function Page() {
       </ul>
       <p>
         ChatGPT finds the right note and makes the change. It&apos;s in the note on your Mac and on{" "}
-        <a href="/blog/pinto-notes-for-iphone">your iPhone</a> a second later.
+        <a href="/blog/pinto-notes-for-iphone">your iPhone</a> a second later. The <a href="/templates/meeting-notes">meeting notes</a> and{" "}
+        <a href="/templates/reading-list">reading list</a> templates give your AI a ready note for requests like these.
       </p>
       <PostFigure src="/blog/launch/chatgpt-plans-lisbon" width={1600} height={1040} kind="plain"
         alt="Illustration: in ChatGPT, Plan four days in Lisbon for us and save it to my notes, Edited Lisbon in Pinto Notes; beside it the Lisbon note in Pinto Notes with a plan checklist, places, a hotel booking and a table of where to eat."

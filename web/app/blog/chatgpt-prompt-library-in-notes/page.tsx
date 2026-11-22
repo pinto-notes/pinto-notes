@@ -174,6 +174,8 @@ export default function Page() {
       </p>
       <p>
         This is a prompt library you maintain as notes. You decide when to retrieve a prompt and which revision to keep.
+        Some jobs already have a template with its prompt written, like the <a href="/templates/weekly-review">weekly review</a> and{" "}
+        <a href="/templates/meeting-notes">meeting notes</a>.
         If your library is already in Apple Notes, <a href="/blog/import-your-notes">bring it over in one import on your Mac</a>.
         Apple Notes stays unchanged.
       </p>
