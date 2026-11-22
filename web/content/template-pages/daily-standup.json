@@ -1,0 +1,50 @@
+{
+  "subtitle": "Standup notes your AI drafts from what you did yesterday.",
+  "about": "A note for yesterday, today and blockers, with one section per working day. Ask your AI to write up what you did and what's next, or use a coding agent to draft yesterday from commits.",
+  "ask": {
+    "step": "Ask for the standup",
+    "prompt": "Set up the daily standup template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Write today's standup",
+      "you": "Yesterday I fixed the sync conflict and added the importer tests. Today: the onboarding review, then PDF export.",
+      "ai": "Added Friday 6 November under Days, with yesterday and today.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Standup notes filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add a blocker",
+      "you": "I'm still waiting on the staging payment keys.",
+      "ai": "Added it under Blockers.",
+      "phone": "phone-blockers",
+      "alt": "Blockers, in Standup notes"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Standup notes as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-blockers": {
+      "of": "example",
+      "from": "Blockers"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

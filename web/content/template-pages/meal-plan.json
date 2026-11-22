@@ -1,0 +1,50 @@
+{
+  "subtitle": "A meal plan your AI fills with dinners and groceries.",
+  "about": "A note with a week of dinners, who cooks and a grocery checklist grouped by aisle. Tell your AI which nights you're cooking to plan both, or fill in the days yourself.",
+  "ask": {
+    "step": "Ask for the meal plan",
+    "prompt": "Set up the meal plan and groceries template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Plan the week",
+      "you": "Plan dinners for the week. Oskar cooks Tuesday, Thursday and Sunday. We're out on Saturday.",
+      "ai": "The week is in the Dinners table, and what it needs is under Groceries, by aisle.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Meal plan and groceries filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Tick the groceries",
+      "you": "We already have parmesan.",
+      "ai": "Ticked it on the grocery list.",
+      "phone": "phone-groceries",
+      "alt": "Groceries, in Meal plan and groceries"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Meal plan and groceries as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-groceries": {
+      "of": "example",
+      "from": "Groceries"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

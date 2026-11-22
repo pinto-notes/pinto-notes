@@ -1,0 +1,50 @@
+{
+  "subtitle": "A daily journal your AI writes from what you tell it.",
+  "about": "A note with four daily questions and dated entries, newest first. Tell your AI about your day, or answer the questions one at a time to have it write the entry.",
+  "ask": {
+    "step": "Ask for the journal",
+    "prompt": "Set up the daily journal template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Write today",
+      "you": "Quiet day. Finished the bookshelf and went for a long walk. Coffee with Jonas helped.",
+      "ai": "Wrote today's entry, Sunday 8 November, at the top.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Daily journal filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add yesterday",
+      "you": "Add yesterday: I helped Maja move. Faster than we feared, then pizza.",
+      "ai": "Added the entry for Saturday 7 November.",
+      "phone": "phone-saturday-7-november",
+      "alt": "Saturday 7 November, in Daily journal"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Daily journal as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-saturday-7-november": {
+      "of": "example",
+      "from": "Saturday 7 November"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

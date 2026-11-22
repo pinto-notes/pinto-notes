@@ -1,0 +1,50 @@
+{
+  "subtitle": "One-on-one notes your AI writes up after each meeting.",
+  "about": "A running note for meetings with one person, with topics for next time, follow-ups and past conversations. Add topics yourself during the week, then tell your AI how the meeting went to write it up.",
+  "ask": {
+    "step": "Ask for the note",
+    "prompt": "Set up the one-on-one notes template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Write up a 1:1",
+      "you": "Emma and I just had our 1:1. On-call was rough, and she wants to lead the spring launch.",
+      "ai": "Wrote it up under Past 1:1s and added what each of you promised to Follow-ups.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "1:1 notes filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add a topic",
+      "you": "Add the conference budget for next time.",
+      "ai": "Added it under Next time.",
+      "phone": "phone-next-time",
+      "alt": "Next time, in 1:1 notes"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "1:1 notes as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-next-time": {
+      "of": "example",
+      "from": "Next time"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "subtitle": "A weekly planner where your AI moves unfinished tasks along.",
+  "about": "A note with your top three, a checklist for each day and a list for later. Tell your AI what's on to plan the week, or ask it to move unfinished tasks to today.",
+  "ask": {
+    "step": "Ask for the planner",
+    "prompt": "Set up the weekly planner template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Plan the week",
+      "you": "Plan my week: the budget to Jonas, flights home, and three runs.",
+      "ai": "Your top three are at the top, and each day has its own checklist.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Weekly planner filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Move a task",
+      "you": "I didn't return the parcel. Move it to Saturday.",
+      "ai": "Moved Return the parcel from Wednesday to Saturday.",
+      "phone": "phone-saturday",
+      "alt": "Saturday, in Weekly planner"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Weekly planner as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-saturday": {
+      "of": "example",
+      "from": "Saturday"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

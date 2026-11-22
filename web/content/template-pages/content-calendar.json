@@ -1,0 +1,50 @@
+{
+  "subtitle": "A content calendar your AI plans from your saved ideas.",
+  "about": "A note with post dates, channels, progress and a list of ideas. Ask your AI to plan two weeks from those ideas, or add posts to the table yourself.",
+  "ask": {
+    "step": "Ask for the calendar",
+    "prompt": "Set up the content calendar template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Plan two weeks",
+      "you": "Plan the next two weeks: two LinkedIn posts and one newsletter.",
+      "ai": "Added them to the calendar, each with a date, a channel and a status.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Content calendar filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add an idea",
+      "you": "Post idea: a day in support, in numbers.",
+      "ai": "Added it under Ideas.",
+      "phone": "phone-ideas",
+      "alt": "Ideas, in Content calendar"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Content calendar as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-ideas": {
+      "of": "example",
+      "from": "Ideas"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

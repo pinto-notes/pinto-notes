@@ -1,0 +1,75 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { moreTemplates, picture, templatePage } from "./template-pages";
+import { templateFiles, templates } from "./templates";
+
+/// The words and pictures of each template's page (content/template-pages/<slug>.json, layout D).
+describe("a template's page data", () => {
+  it("has a page for every template, and none for a template that isn't there", () => {
+    const pages = new Set(templates().map((t) => t.slug));
+    expect(pages).toEqual(new Set(templateFiles()));
+    for (const t of templates()) expect(() => templatePage(t.slug), t.slug).not.toThrow();
+  });
+
+  for (const t of templates()) {
+    const p = templatePage(t.slug);
+    // Everything a visitor reads on the page that comes from this file.
+    const words = [p.subtitle, p.about, p.ask.prompt, p.ask.step, ...p.slides.flatMap((s) => [s.label, s.you, s.ai, s.note, s.alt, s.before?.alt])].filter((w): w is string => Boolean(w));
+
+    it(`${t.slug}: writes plainly, names neither AI, and is only about Pinto`, () => {
+      for (const w of words) {
+        // ChatGPT and Claude are named in the title and the facts line only.
+        expect(w, w).not.toMatch(/ChatGPT|Claude/);
+        expect(w, w).not.toMatch(/[–—]/);
+        expect(w, w).not.toMatch(/iPad|Apple Notes|Incredible/);
+      }
+      // About: two sentences.
+      expect(p.about.split(/(?<=\.)\s+/).length, p.about).toBe(2);
+    });
+
+    it(`${t.slug}: 2 or 3 slides of short chats (4 for the habit tracker, as approved), ending on doing it yourself`, () => {
+      expect(p.slides.length).toBeGreaterThanOrEqual(2);
+      expect(p.slides.length).toBeLessThanOrEqual(t.slug === "habit-tracker" ? 4 : 3);
+      const chats = p.slides.filter((s) => s.you);
+      expect(chats.length).toBeGreaterThanOrEqual(1);
+      for (const s of chats) {
+        expect(s.ai, s.you).toBeTruthy();
+        expect(s.you!.length + s.ai!.length, s.you).toBeLessThanOrEqual(190);
+      }
+      expect(p.slides.at(-1)!.note).toMatch(/^Or .* yourself\.$/);
+    });
+
+    it(`${t.slug}: every picture is on disk`, () => {
+      for (const s of p.slides) {
+        for (const name of [s.mac, s.phone, s.before?.mac, s.before?.phone].filter((n): n is string => Boolean(n))) {
+          expect(existsSync(path.join(process.cwd(), "public", picture(t.slug, name))), `${t.slug}/${name}`).toBe(true);
+        }
+      }
+    });
+
+    // A plain note's pictures are the template drawn by the Mac app: the example (what its demo
+    // calls make) or the note as it starts, scrolled to a heading that is really in it.
+    it.runIf(!t.app)(`${t.slug}: draws only what the template holds, and each slide shows a picture it draws`, () => {
+      expect(p.pictures).toBeTruthy();
+      for (const [name, pic] of Object.entries(p.pictures!)) {
+        const md = pic.of === "note" ? t.note : t.example;
+        if (pic.from) expect(md.split("\n").some((l) => l.replace(/^#+\s*/, "") === pic.from), `${name}: ${pic.from}`).toBe(true);
+      }
+      for (const s of p.slides) for (const n of [s.mac, s.phone].filter(Boolean)) expect(Object.keys(p.pictures!), n).toContain(n);
+      // The slide that talks about a section shows that section.
+      const second = p.slides[1];
+      const from = p.pictures![second.phone].from;
+      expect(from && t.example.includes(from), second.phone).toBeTruthy();
+    });
+  }
+
+  it("lists four more templates, never the page's own", () => {
+    for (const t of templates()) {
+      const more = moreTemplates(t);
+      expect(more).toHaveLength(4);
+      expect(more.map((m) => m.slug)).not.toContain(t.slug);
+      expect(new Set(more.map((m) => m.slug)).size).toBe(4);
+    }
+  });
+});

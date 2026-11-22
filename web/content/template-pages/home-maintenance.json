@@ -1,0 +1,50 @@
+{
+  "subtitle": "A home maintenance note your AI updates when jobs are done.",
+  "about": "A note with recurring jobs, last done and next due dates, contacts and appliance details. Tell your AI when a job is done to update its dates, or ask for this month's checklist.",
+  "ask": {
+    "step": "Ask for the note",
+    "prompt": "Set up the home maintenance template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "See what's due",
+      "you": "What's due this month?",
+      "ai": "The smoke alarms on 14 Nov, the boiler on 20 Nov and the gutters on 24 Nov.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Home maintenance filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add a contact",
+      "you": "Our plumber is Nordin & Son, 08-465 004 27.",
+      "ai": "Added them under Who to call.",
+      "phone": "phone-who-to-call",
+      "alt": "Who to call, in Home maintenance"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Home maintenance as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-who-to-call": {
+      "of": "example",
+      "from": "Who to call"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

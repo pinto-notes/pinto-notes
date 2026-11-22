@@ -1,0 +1,50 @@
+{
+  "subtitle": "Meeting notes your AI writes up from rough notes or transcripts.",
+  "about": "A note with meeting summaries, decisions and an action checklist with owners and due dates. Give your AI rough notes or a transcript to write it up, then tick off tasks yourself or in chat.",
+  "ask": {
+    "step": "Ask for the notes",
+    "prompt": "Set up the meeting notes template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Write up a meeting",
+      "you": "Here are my notes from this week's two meetings.",
+      "ai": "Both are under Meetings now, with what was decided. Three action items have a name and a date.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Meeting notes filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Tick an action",
+      "you": "Jonas reviewed the checkout design.",
+      "ai": "Ticked it off under Action items.",
+      "phone": "phone-action-items",
+      "alt": "Action items, in Meeting notes"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Meeting notes as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-action-items": {
+      "of": "example",
+      "from": "Action items"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

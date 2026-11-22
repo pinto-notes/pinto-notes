@@ -1,0 +1,32 @@
+{
+  "subtitle": "A flashcard app that brings back missed cards sooner.",
+  "about": "A small app inside a Pinto Notes note, with flashcards that come back sooner or later depending on your answers. Ask your AI to make cards from your notes, or add and study them yourself.",
+  "ask": {
+    "step": "Ask for the flashcards",
+    "prompt": "Set up the study notes and flashcards template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Make cards from notes",
+      "you": "Here are my lecture notes on photosynthesis.",
+      "ai": "Made 5 flashcards under Photosynthesis, next to your cell respiration cards.",
+      "mac": "mac-cards",
+      "phone": "phone-study",
+      "alt": "The flashcards: 12 cards in 2 topics, 6 due today"
+    },
+    {
+      "label": "Get quizzed",
+      "you": "Quiz me on photosynthesis.",
+      "ai": "First one: what does the Calvin cycle fix?",
+      "phone": "phone-question",
+      "alt": "The card: What does the Calvin cycle fix?"
+    },
+    {
+      "label": "Study yourself",
+      "note": "Or study and edit them yourself.",
+      "mac": "mac-question",
+      "phone": "phone-answer",
+      "alt": "Studying a card: the answer, then Again, Hard, Good or Easy"
+    }
+  ]
+}

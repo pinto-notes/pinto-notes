@@ -1,0 +1,50 @@
+{
+  "subtitle": "A recipe box your AI fills from recipes you paste.",
+  "about": "A note linking to recipes, each in its own note with an ingredient checklist, servings and numbered steps. Paste a recipe into your AI to file it, then tick off ingredients as you cook.",
+  "ask": {
+    "step": "Ask for the recipe box",
+    "prompt": "Set up the recipe box template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Save a recipe",
+      "you": "Save this recipe: lentil soup with lemon.",
+      "ai": "Saved it as its own note under Weeknight, with the ingredients as a checklist.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Recipe box filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add one to try",
+      "you": "Add garlic prawns to the ones I want to try.",
+      "ai": "Added it under Want to try.",
+      "phone": "phone-want-to-try",
+      "alt": "Want to try, in Recipe box"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Recipe box as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-want-to-try": {
+      "of": "example",
+      "from": "Want to try"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

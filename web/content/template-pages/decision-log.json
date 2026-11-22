@@ -1,0 +1,50 @@
+{
+  "subtitle": "A decision log your AI can search when you ask why.",
+  "about": "A note for decisions, the options considered, the reasons and when to revisit them, plus open questions. Tell your AI what you chose to log a decision, or ask why you made an earlier one.",
+  "ask": {
+    "step": "Ask for the log",
+    "prompt": "Set up the decision log template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Log a decision",
+      "you": "We're staying on Postgres with a trigram index. We looked at a search service too.",
+      "ai": "Logged it under Decisions, with the context, the options and why.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Decision log filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add an open question",
+      "you": "We still haven't decided on offline editing.",
+      "ai": "Added it under Open questions.",
+      "phone": "phone-open-questions",
+      "alt": "Open questions, in Decision log"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Decision log as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-open-questions": {
+      "of": "example",
+      "from": "Open questions"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

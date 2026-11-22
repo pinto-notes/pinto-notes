@@ -1,0 +1,50 @@
+{
+  "subtitle": "A bug triage note your AI fills from reports.",
+  "about": "A note with a bug table sorted by severity and space for steps to reproduce each bug. Paste reports into your AI to file them, or edit the rows yourself.",
+  "ask": {
+    "step": "Ask for the table",
+    "prompt": "Set up the bug triage template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "File a bug",
+      "you": "A customer says saved cards fail at checkout.",
+      "ai": "Filed it as P1 in Checkout, with the steps to reproduce under Details.",
+      "mac": "mac-example",
+      "phone": "phone-example",
+      "alt": "Bug triage filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Find the steps",
+      "you": "How do I reproduce the checkout bug?",
+      "ai": "Three steps, under Details: sign in with a saved card, go to checkout, pay with it.",
+      "phone": "phone-details",
+      "alt": "Details, in Bug triage"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Bug triage as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-example": {
+      "of": "example"
+    },
+    "phone-example": {
+      "of": "example"
+    },
+    "phone-details": {
+      "of": "example",
+      "from": "Details"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}
