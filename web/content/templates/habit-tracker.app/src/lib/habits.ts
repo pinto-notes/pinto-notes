@@ -10,9 +10,15 @@ import { useStore, setSummary } from "@/lib/amber"
 //       Start never saves it.
 //   days:  { "2026-10-13": { "walk": 1, "water": 6 } }   how much of each habit was done that day
 //   skips: { "2026-10-13": ["walk"] }   days a habit was skipped on purpose: they keep the streak
+//     since: "2026-11-21"   the day the habit was added, when that was after the tracker started:
+//       nothing before it is due for this habit. Missing: due since the tracker started.
+//     before: [{ until: "2026-11-21", target: 8 }]   earlier goals: on days before until, the habit
+//       had these values (target, days or perWeek, only the ones that changed). Changing a goal adds
+//       one, so a new goal counts from the day it's set and the days done under the old one stay done.
 //   started: "2026-10-13"   the day the person started: nothing before it is due. A tracker with no
 //     started and nothing logged opens on "Pick your habits" (src/screens/setup.tsx).
-export type Habit = { id: string; name: string; detail?: string; target: number; unit?: string; days?: number[]; perWeek?: number; pick?: boolean }
+export type Goal = { until: string; target?: number; days?: number[]; perWeek?: number }
+export type Habit = { id: string; name: string; detail?: string; target: number; unit?: string; days?: number[]; perWeek?: number; pick?: boolean; since?: string; before?: Goal[] }
 export type Days = Record<string, Record<string, number>>
 export type Skips = Record<string, string[]>
 
@@ -28,12 +34,50 @@ export const weekday = (d: Date) => (d.getDay() + 6) % 7
 export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 export const LETTERS = ["M", "T", "W", "T", "F", "S", "S"]
 
+/** The habit as it was on a day: the goal it had then (before), else its goal now. Each entry holds
+ *  what a change replaced, so the entries after the day, newest first, wind it back. */
+export function at(h: Habit, day: string): Habit {
+  const was = (h.before ?? []).filter((g) => day < g.until).sort((a, b) => (a.until < b.until ? 1 : -1))
+  let out = h
+  for (const { until: _, ...g } of was) out = { ...out, ...g }
+  return out
+}
+/** The habit's goal for a day: the count it needed then. */
+export const goal = (h: Habit, day: string) => at(h, day).target
 export const amount = (days: Days, h: Habit, day: string) => days[day]?.[h.id] ?? 0
-export const done = (days: Days, h: Habit, day: string) => amount(days, h, day) >= h.target
+export const done = (days: Days, h: Habit, day: string) => amount(days, h, day) >= goal(h, day)
 export const skipped = (skips: Skips, h: Habit, day: string) => !!skips[day]?.includes(h.id)
 const weekly = (h: Habit) => (h.perWeek ?? 0) > 0
-/** Whether the habit is for that weekday (a weekly goal is for any day). */
-export const scheduled = (h: Habit, d: Date) => weekly(h) || !h.days?.length || h.days.includes(weekday(d))
+/** Whether the day is before the habit was added (its since): nothing was due then. */
+export const notYet = (h: Habit, day: string) => !!h.since && day < h.since
+/** Whether the habit is for that day: on or after the day it was added, and on a weekday it was for
+ *  then (a weekly goal is for any day). */
+export function scheduled(h: Habit, d: Date) {
+  const k = iso(d)
+  if (notYet(h, k)) return false
+  if (weekly(h)) return true
+  const ds = at(h, k).days
+  return !ds?.length || ds.includes(weekday(d))
+}
+/** A weekly goal for the week starting on Monday w: the goal it had that week, and in the week it was
+ *  added no more than the days that were left. 0 for a week before it was added. */
+export function weekGoal(h: Habit, w: Date) {
+  const sunday = iso(addDays(w, 6))
+  if (h.since && sunday < h.since) return 0
+  const n = at(h, sunday).perWeek ?? h.perWeek ?? 0
+  return h.since && h.since > iso(w) ? Math.min(n, 7 - weekday(parse(h.since))) : n
+}
+/** What a change to a habit replaced in its goal, for its before list: the target, the weekdays (a
+ *  daily habit) or the times a week (a weekly one). Nothing when the goal stayed the same. Switching
+ *  between daily and weekly isn't kept (docs/README.md, Known gaps). */
+export function goalChange(was: Habit, now: Habit): Omit<Goal, "until"> {
+  const out: Omit<Goal, "until"> = {}
+  const all = (ds?: number[]) => (!ds?.length || ds.length === 7 ? "" : ds.slice().sort().join())
+  if (was.target !== now.target) out.target = was.target
+  if (!weekly(was) && !weekly(now) && all(was.days) !== all(now.days)) out.days = was.days?.length ? was.days : []
+  if (weekly(was) && weekly(now) && was.perWeek !== now.perWeek) out.perWeek = was.perWeek
+  return out
+}
 
 /** "Every day", "Weekdays", "Mon, Wed, Fri" or "3 times a week". */
 export function schedule(h: Habit) {
@@ -57,8 +101,9 @@ export const doneInWeek = (days: Days, h: Habit, d: Date) => {
 export function streak(days: Days, skips: Skips, h: Habit, now = today()): number {
   if (weekly(h)) {
     let w = weekStart(now), n = 0
-    if (doneInWeek(days, h, addDays(w, 6)) < h.perWeek!) w = addDays(w, -7)
-    while (n < 520 && doneInWeek(days, h, addDays(w, 6)) >= h.perWeek!) { n++; w = addDays(w, -7) }
+    const met = (w: Date) => { const g = weekGoal(h, w); return g > 0 && doneInWeek(days, h, addDays(w, 6)) >= g }
+    if (!met(w)) w = addDays(w, -7)
+    while (n < 520 && met(w)) { n++; w = addDays(w, -7) }
     return n
   }
   let d = now, n = 0
@@ -79,7 +124,9 @@ export function best(days: Days, skips: Skips, h: Habit, now = today()): number 
   if (weekly(h)) {
     let top = 0, run = 0
     for (let w = weekStart(parse(ks[0])); iso(w) <= iso(now); w = addDays(w, 7)) {
-      run = doneInWeek(days, h, addDays(w, 6)) >= h.perWeek! ? run + 1 : 0; top = Math.max(top, run)
+      const g = weekGoal(h, w)
+      if (!g) continue
+      run = doneInWeek(days, h, addDays(w, 6)) >= g ? run + 1 : 0; top = Math.max(top, run)
     }
     return top
   }
@@ -103,7 +150,7 @@ export function begin(started: string | null | undefined, days: Days, skips: Ski
 
 /** Is it still to do today? A weekly goal stops asking once the week's goal is met. */
 export const dueToday = (days: Days, h: Habit, now = today()) =>
-  weekly(h) ? doneInWeek(days, h, now) < h.perWeek! || done(days, h, iso(now)) : scheduled(h, now)
+  weekly(h) ? doneInWeek(days, h, now) < weekGoal(h, weekStart(now)) || done(days, h, iso(now)) : scheduled(h, now)
 
 /** This week so far (Monday to today, or from the day counting starts if that's later): habit-days
  *  done of habit-days due. A weekly goal counts its goal. Skipped days and days a habit isn't for
@@ -112,7 +159,7 @@ export function week(days: Days, skips: Skips, habits: Habit[], now = today(), f
   let got = 0, of = 0
   const monday = weekStart(now), first = from > iso(monday) ? (from > iso(now) ? iso(now) : from) : iso(monday)
   for (const h of habits) {
-    if (weekly(h)) { of += h.perWeek!; got += Math.min(h.perWeek!, doneInWeek(days, h, now)); continue }
+    if (weekly(h)) { const g = weekGoal(h, monday); of += g; got += Math.min(g, doneInWeek(days, h, now)); continue }
     for (let d = monday; iso(d) <= iso(now); d = addDays(d, 1)) {
       const k = iso(d)
       if (done(days, h, k)) { got++; of++ } else if (k >= first && scheduled(h, d) && !skipped(skips, h, k)) of++
@@ -131,8 +178,9 @@ export function month(days: Days, skips: Skips, h: Habit, first: Date, now = tod
     for (let w = weekStart(first); inMonth(w) || iso(w) < iso(first); w = addDays(w, 7)) {
       let n = 0
       for (let d = w, i = 0; i < 7; i++, d = addDays(d, 1)) if (inMonth(d) && iso(d) >= iso(first) && done(days, h, iso(d))) n++
-      if (iso(addDays(w, 6)) < from && !n) continue
-      got += Math.min(n, h.perWeek!); of += h.perWeek!
+      const g = weekGoal(h, w)
+      if ((iso(addDays(w, 6)) < from || !g) && !n) continue
+      got += Math.min(n, g); of += g
     }
     return { got, of }
   }
@@ -206,18 +254,31 @@ export function useHabits() {
     /** A tap on a day in a calendar: not done → done → skipped → not done. */
     cycle: async (h: Habit, on: string) => {
       if (skipped(skip, h, on)) return setSkip(h, on, false)
-      if (amount(log, h, on) >= h.target) { await set(h, 0, on); return setSkip(h, on, true) }
-      return set(h, h.target, on)
+      if (done(log, h, on)) { await set(h, 0, on); return setSkip(h, on, true) }
+      return set(h, goal(h, on), on)
     },
+    /** Adds a habit, due from today: the days before it was added aren't missed. A habit added back
+     *  under a name it had before keeps its days (Undo, or Add with the same name), so it's due from
+     *  the first of them. */
     add: (h: Omit<Habit, "id">) => {
       let id = slug(h.name), k = 2
       while (list.some((x) => x.id === id)) id = `${slug(h.name)}-${k++}`
-      return setHabits([...list, { ...h, id }])
+      const logged = Object.keys(log).filter((d) => log[d]?.[id] !== undefined).sort()[0]
+      return setHabits([...list, { ...h, id, since: logged && logged < day ? logged : day }])
     },
+    /** Changes a habit. A new goal counts from today: what it replaced is kept for the days before (in
+     *  before), so days done under the old goal stay done. Changed twice in a day, the first goal stays. */
     update: (id: string, patch: Partial<Habit>) => setHabits(list.map((h) => {
       if (h.id !== id) return h
       const next: Habit = { ...h, ...patch }
       for (const k of Object.keys(next) as (keyof Habit)[]) if (next[k] === undefined) delete next[k]
+      const was = goalChange(h, next)
+      if (Object.keys(was).length) {
+        const goals = (h.before ?? []).slice(), i = goals.findIndex((g) => g.until === day)
+        if (i >= 0) goals[i] = { ...was, ...goals[i] }
+        else goals.push({ until: day, ...was })
+        next.before = goals
+      }
       return next
     })),
     remove: (id: string) => setHabits(list.filter((h) => h.id !== id)),
