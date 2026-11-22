@@ -112,7 +112,8 @@ import Testing
             let sheet = ax.window.frame, top = (NSScreen.screens.first?.frame.maxY ?? 0) - sheet.maxY
             func y(_ r: CGRect) -> CGFloat { r.minY - top }
             func centre(_ r: CGRect) -> CGFloat { r.midX - sheet.minX }
-            #expect(abs(centre(question.frame) - size.width / 2) <= 2 && abs(centre(field.frame) - size.width / 2) <= 30, "\(name): centred")
+            let room = size.width - Self.bar
+            #expect(abs(centre(question.frame) - room / 2) <= 2 && abs(centre(field.frame) - room / 2) <= 30, "\(name): centred")
             #expect(field.frame.width >= min(TemplateFrontPage.column, size.width - 2 * TemplateLibraryView.margin(for: size)) - 80, "\(name): the field is wide, \(field.frame.width)")
             #expect(y(field.frame) - question.frame.maxY + top < 70, "\(name): the field close under the question")
             #expect(y(question.frame) >= TemplateLibraryView.topRow(for: size), "\(name): the question is under the bar")
@@ -353,6 +354,13 @@ import Testing
         #expect(try frontSource.contains("Text(\"\\u{202F}\\(Self.shownFolder(c.folder))\")"), "no break between the folder's mark and its name")
     }
 
+    /// What an always-shown scroll bar takes from the page's width: the front page is taller than
+    /// the sheet, so with a mouse (or the setting, or a Mac with no trackpad, as CI's) the bar
+    /// stands at the right and the page centres in what's left. Overlay scroll bars take nothing.
+    static var bar: CGFloat {
+        NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+    }
+
     // MARK: The sheet's frame, drawn
 
     /// The library as its sheet shows it, in a window off the screen (an ImageRenderer draws no
@@ -407,9 +415,11 @@ import Testing
                 }.count
             }
             // The field is centred: its ends are near (width - column) / 2 from each side.
-            let edge = Int((size.width - TemplateFrontPage.column) / 2) * s
+            let bar = Int(Self.bar) * s
+            let edge = Int((size.width - Self.bar - TemplateFrontPage.column) / 2) * s
             let left = try #require(((edge - 6 * s)..<(edge + 6 * s)).first { tall($0) > 0 }, "the field's left end")
-            let right = try #require(((rep.pixelsWide - edge - 6 * s)..<(rep.pixelsWide - edge + 6 * s)).reversed().first { tall($0) > 0 }, "the field's right end")
+            let end = rep.pixelsWide - bar - edge
+            let right = try #require(((end - 6 * s)..<(end + 6 * s)).reversed().first { tall($0) > 0 }, "the field's right end")
             for (name, x, inward) in [("left", left, 1), ("right", right, -1)] {
                 let a = tall(x), b = tall(x + inward), c = tall(x + 2 * inward)
                 #expect(a <= b && b <= c && a < 26 * s / 2, "\(dark ? "dark" : "light"), \(name) end: \(a), \(b), \(c) px tall from the end in")
@@ -421,19 +431,25 @@ import Testing
     /// are that far from the left and right edges, alike, and the close x that far from the top.
     @Test func oneMarginFramesTheFrontPage() async throws {
         typealias L = TemplateLibraryView
-        func bounds(_ p: Pixels) -> (left: Int, right: Int, top: Int) {
+        // A scroll bar that's always shown (a mouse, or the setting; CI's Mac has no trackpad, 22
+        // November 2026) stands at the right edge of the page under the top row: the page's right
+        // margin is from the bar, the top row's (the close x) from the sheet's edge.
+        func bounds(_ p: Pixels, top row: Int) -> (left: Int, right: Int, top: Int) {
             let ground = p.rgb(at: 2 * p.width + 2)
             func far(_ a: UInt32, _ b: UInt32) -> Int { (0..<3).map { abs(Int((a >> ($0 * 8)) & 255) - Int((b >> ($0 * 8)) & 255)) }.max() ?? 0 }
-            var x0 = p.width, x1 = -1, y0 = p.height
-            for y in 0..<p.height { for x in 0..<p.width where far(p.rgb(at: y * p.width + x), ground) > 8 { x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y) } }
-            return (x0, p.width - 1 - x1, y0)
+            var x0 = p.width, right = p.width, y0 = p.height
+            for y in 0..<p.height {
+                let width = y < row ? p.width : p.width - Int(Self.bar)
+                for x in 0..<width where far(p.rgb(at: y * p.width + x), ground) > 8 { x0 = min(x0, x); right = min(right, width - 1 - x); y0 = min(y0, y) }
+            }
+            return (x0, right, y0)
         }
         for size in [L.size, L.size(on: CGSize(width: 800, height: 560))] {
             let m = Int(L.margin(for: size))
             let name = "\(Int(size.width)) by \(Int(size.height))"
             let (ax, p) = try await Self.drawn(nil, size: size)
             defer { ax.close() }
-            let b = bounds(p)
+            let b = bounds(p, top: Int(L.topRow(for: size)))
             #expect(b.left >= m - 1 && b.left <= m + 2, "\(name): \(b.left) pt at the left")
             #expect(b.right >= m - 1 && b.right <= m + 2 && abs(b.left - b.right) <= 2, "\(name): \(b.right) pt at the right")
             #expect(b.top >= m - 1 && b.top <= m + 2, "\(name): \(b.top) pt at the top")
