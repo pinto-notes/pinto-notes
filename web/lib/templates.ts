@@ -112,6 +112,7 @@ export const APP_VERBS: Record<string, string> = {
   "meal-plan": "Plan the week",
   "workout-log": "Start logging",
   "job-hunt": "Track applications",
+  "mood-energy-log": "Start logging",
 };
 export const USE_TEMPLATE = "Use template";
 
@@ -237,7 +238,7 @@ export type SliceRow =
 /// across sections, so the card's panel is always full.
 const SLICE_FROM: Record<string, string> = {
   "habit-tracker": "Weekly check-in", "meeting-notes": "Action items", "daily-standup": "Friday 6 November", "meal-plan": "Dinners to try",
-  "reading-list": "|", "mood-energy-log": "|", "job-hunt": "What I'm looking for", "trip-plan": "Ideas", "study-flashcards": "Cell respiration",
+  "reading-list": "|", "mood-energy-log": "Patterns", "job-hunt": "What I'm looking for", "trip-plan": "Ideas", "study-flashcards": "Cell respiration",
   "decision-log": "Stay on Postgres, 4 November", "workout-log": "Training notes", "budget-log": "Month summaries", "one-on-one-notes": "Follow-ups",
   "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 2 November",
   "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "|", "gift-ideas": "|",

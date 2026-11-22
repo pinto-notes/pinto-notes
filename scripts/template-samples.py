@@ -194,6 +194,8 @@ def meals() -> None:
     v["bought"] = {d(0): ["lemon", "lime", "parsley", "basil", "cherry tomato", "spinach", "red cabbage", "potato", "pepper", "tortilla", "sourdough", "burger bun"]}
     v["extras"] = [{"id": "x1", "week": d(0), "name": "Oat milk", "qty": "2 l", "aisle": DE}, {"id": "x2", "week": d(0), "name": "Coffee", "aisle": DG}]
     write("meal-plan", v)
+
+
 def workouts() -> None:
     v = start("workout-log")
     # Set up five weeks ago with the four suggested workouts, three sessions a week, in kilograms.
@@ -239,6 +241,8 @@ def workouts() -> None:
         out.append({"id": f"s{i + 1}", "date": d(k), **s, "effort": efforts[i], **({"note": notes[i]} if i in notes else {})})
     v["sessions"] = out
     write("workout-log", v)
+
+
 def jobs() -> None:
     v = start("job-hunt")
     # Nine applications across the five stages, the way a hunt looks three weeks in: two saved, three
@@ -268,8 +272,168 @@ def jobs() -> None:
             steps=[{"id": "s6", "kind": "follow-up", "what": "Answer the offer", "date": d(4)}]),
         job("northlight", "Northlight", "UX designer", "closed", outcome="rejected", applied=d(-25), heard=d(-15)),
         job("pebble", "Pebble Works", "Designer", "closed", outcome="no-reply", applied=d(-35)),
+    ]
     v["started"] = d(-35)
     write("job-hunt", v)
+
+
+def moods() -> None:
+    v = start("mood-energy-log")
+    # Six weeks of evenings, three of them missed, today not logged yet (it's an evening check-in,
+    # so the stage shows the check-in). Written by hand to read like one person's weeks: energy
+    # follows the night before, exercise and seeing friends lift the day, work stress pulls it
+    # down, and a late Friday costs the Saturday's energy. Today is d(0); -1 is yesterday.
+    E, A, S, W = "Exercise", "Alcohol", "Social", "Work stress"
+    log = {
+        -42: (3, 3, 7, [W], "Monday inbox"), -41: (4, 4, 7.5, [E], "Run by the river"), -40: (3, 2, 6, [W], "Late call with the US team"),
+        -39: (4, 3, 7, [], None), -38: (4, 3, 6.5, [S, A], "Drinks after work"), -37: (3, 2, 6, [], "Slow Saturday"),
+        -36: (5, 4, 8.5, [E, S], "Long walk with Maja"),
+        -35: (3, 3, 7, [W], None), -34: (4, 4, 7.5, [E], "Gym before work"), -33: (2, 2, 5.5, [W], "Deadline, ate at my desk"),
+        -32: (3, 2, 6, [W], None), -30: (4, 3, 7, [S, A], "Pizza with Oskar"),
+        -29: (4, 4, 8, [E], "Swim and a nap"), -28: (3, 3, 7.5, [], "Laundry and a film"), -27: (3, 3, 7, [W], None),
+        -26: (4, 4, 7.5, [E], "Gym, felt strong"), -25: (3, 3, 6.5, [], None), -24: (2, 1, 5, [W], "Up at 4 worrying about the review"),
+        -23: (3, 2, 6, [A], "Quiet Friday"), -22: (4, 3, 8, [S], "Market with Maja"), -21: (4, 4, 8, [E], "Long run"),
+        -20: (3, 3, 7, [W], None), -19: (4, 4, 7.5, [E], "Yoga at lunch"), -18: (3, 3, 7, [], None),
+        -17: (4, 3, 7, [S], "Book club"), -16: (4, 3, 6.5, [S, A], "Work party"), -15: (3, 2, 5.5, [A], "Slept badly"),
+        -14: (4, 4, 8, [E], "Cycled to the lake"),
+        -13: (3, 3, 7, [W], None), -12: (4, 4, 7.5, [E], "Gym before work"), -11: (2, 2, 6, [W], "Back-to-back meetings"),
+        -10: (3, 2, 5.5, [W], "Deadline"), -9: (4, 3, 7, [S], "Dinner at Oskar's"), -8: (5, 4, 8.5, [E, S], "Hike with friends"),
+        -7: (4, 4, 8, [], "Lazy Sunday"),
+        -6: (3, 3, 7, [W], None), -5: (4, 4, 7.5, [E], "Swim before work"), -4: (3, 3, 7, [], None),
+        -3: (2, 2, 5.5, [W], "Project slipped again"), -2: (4, 3, 7, [S, A], "Friday drinks"), -1: (4, 3, 6.5, [E], "Short run, still tired"),
+    }
+    days = {}
+    for n, (mood, energy, sleep, tags, note) in sorted(log.items()):
+        day = {"mood": mood, "energy": energy, "sleep": sleep}
+        if tags:
+            day["tags"] = tags
+        if note:
+            day["note"] = note
+        days[d(n)] = day
+    v["days"] = days
+    write("mood-energy-log", v)
+
+
+def home() -> None:
+    v = start("home-maintenance")
+    v["currency"] = "kr"
+    # A house near Stockholm, a year in. The phone numbers are in the range set aside for fiction.
+    v["contacts"] = [
+        {"id": "c1", "name": "Värme & Rör AB", "trade": "Heating engineer", "phone": "08-465 004 51"},
+        {"id": "c2", "name": "Nordin & Son", "trade": "Plumber", "phone": "08-465 004 27"},
+        {"id": "c3", "name": "Volt Fix", "trade": "Electrician", "phone": "08-465 004 63"},
+        {"id": "c4", "name": "Sotarn i Söder", "trade": "Chimney sweep", "phone": "08-465 004 88"},
+        {"id": "c5", "name": "Däckcentralen", "trade": "Tyres", "phone": "08-465 004 19"},
+    ]
+    # (id, name, area, every, contact, usual cost, the days it was done (before ANCHOR), the cost and
+    # note of each). Two are late (the smoke alarms, the shower drain), the gutters are due this
+    # autumn, two filters come due in the next week or so, and the rest are coming up.
+    jobs = [
+        ("j1", "Test the smoke alarms", "Safety", "6 months", None, None, [(-200, 89, "New battery in the hall")]),
+        ("j2", "Clean the dishwasher filter", "Kitchen", "1 month", None, None, [(-n, None, None) for n in (25, 56, 86, 118, 149, 180, 212, 240, 272, 303, 333)]),
+        ("j3", "Clean the extractor fan filter", "Kitchen", "3 months", None, 249, [(-85, 249, None), (-176, 249, None), (-268, 249, "Bought two spares")]),
+        ("j4", "Clean the shower drain", "Bathroom", "3 months", None, None, [(-100, None, None), (-192, None, None), (-290, None, "Hair catcher fitted")]),
+        ("j5", "Clean the washing machine filter", "Bathroom", "3 months", None, None, [(-40, None, None), (-131, None, None), (-222, None, None), (-315, None, None)]),
+        ("j6", "Service the heat pump", "Heating", "1 year", "c1", 1450, [(-300, 1450, "New filter, pressure fine")]),
+        ("j7", "Bleed the radiators", "Heating", "autumn", None, None, [(-390, None, None)]),
+        ("j8", "Sweep the chimney", "Heating", "1 year", "c4", 650, [(-200, 650, None)]),
+        ("j9", "Clear the gutters", "Outside", "autumn", None, None, [(-375, None, "Two downpipes blocked")]),
+        ("j10", "Oil the deck", "Outside", "summer", None, 640, [(-120, 640, "Two coats, 3 litres")]),
+        ("j11", "Prune the apple tree", "Garden", "winter", None, None, [(-290, None, None)]),
+        ("j12", "Service the lawnmower", "Garden", "spring", None, 450, [(-215, 450, None)]),
+        ("j13", "Switch to winter tyres", "Car", "autumn", "c5", 500, [(-26, 500, None)]),
+        ("j14", "Switch to summer tyres", "Car", "spring", "c5", 500, [(-205, 500, None)]),
+        ("j15", "Service the car", "Car", "1 year", None, 3200, [(-250, 3200, "Front brake pads too")]),
+        ("j16", "Check the fire extinguisher", "Safety", "1 year", None, None, [(-330, None, None)]),
+    ]
+    v["jobs"], v["history"] = [], []
+    for jid, name, area, every, contact, cost, done in jobs:
+        j = {"id": jid, "name": name, "area": area, "every": every, "last": d(max(n for n, _, _ in done))}
+        if contact:
+            j["contact"] = contact
+        if cost is not None:
+            j["cost"] = cost
+        v["jobs"].append(j)
+        for n, c, note in done:
+            h = {"id": f"h{len(v['history']) + 1}", "job": jid, "date": d(n)}
+            if c is not None:
+                h["cost"] = c
+            if note:
+                h["note"] = note
+            v["history"].append(h)
+    v["history"].sort(key=lambda h: h["date"])
+    # The dishwasher's warranty ends in a month: the app flags it.
+    v["appliances"] = [
+        {"id": "a1", "name": "Dishwasher", "area": "Kitchen", "model": "Bosch Serie 4 SMV4HCX48E", "serial": "FD 9912 00341", "bought": d(-700), "warranty": d(30), "manual": "https://www.bosch-home.com/se/service/bruksanvisningar"},
+        {"id": "a2", "name": "Heat pump", "area": "Heating", "model": "Nibe F2120-12", "serial": "06 5432 1188", "bought": "2021-09-14", "warranty": "2027-09-14", "manual": "https://www.nibe.eu/en-eu/support/manuals"},
+        {"id": "a3", "name": "Washing machine", "area": "Bathroom", "model": "Miele WWD 320", "serial": "000 1182 7764", "bought": d(-500), "warranty": d(600)},
+        {"id": "a4", "name": "Fridge freezer", "area": "Kitchen", "model": "Electrolux LNT7ME34X2", "bought": d(-1100), "warranty": d(-370)},
+        {"id": "a5", "name": "Lawnmower", "area": "Garden", "model": "Husqvarna LC 247", "bought": "2022-05-02"},
+    ]
+    v["details"] = [
+        {"id": "i1", "name": "Water stopcock", "value": "Under the kitchen sink, turn clockwise to close"},
+        {"id": "i2", "name": "Fuse box", "value": "Hall cupboard, top shelf. Main switch on the left"},
+        {"id": "i3", "name": "Heat pump settings", "value": "Curve 5, offset -1"},
+        {"id": "i4", "name": "Living room paint", "value": "Jotun Lady 1024 Tidløs, matt"},
+        {"id": "i5", "name": "Long ladder", "value": "In the garage, behind the bikes"},
+    ]
+    write("home-maintenance", v)
+
+
+def gifts() -> None:
+    v = start("gift-ideas")
+    # Six people a family buys for, five weeks before Christmas: Oskar's birthday in nine days with
+    # his Lego bought, Christmas with four of six bought (1,549 of 4,300 kr), then the spring's
+    # birthdays and an anniversary. Birthdays are written as dates so they move with today (the app
+    # reads their day and month); past gifts carry their year. Mum's next idea is a scarf, and she
+    # was given one in 2024, which her page points out.
+    v["settings"] = {"currency": "kr", "christmas": "12-24"}
+    def occ(id, kind, budget, date=None, **f):
+        return {"id": id, "kind": kind, **({"date": d(date)} if date is not None else {}), "budget": budget, **f}
+    v["people"] = [
+        {"id": "mum", "name": "Mum", "likes": "Linen, her garden, good tea, anything from Arket", "sizes": "M, shoes 39",
+         "has": "A good teapot, the Ottolenghi books", "occasions": [occ("birthday", "birthday", 600, 60), occ("christmas", "christmas", 800)]},
+        {"id": "dad", "name": "Dad", "likes": "Hammarby, strong coffee, crime novels", "sizes": "L, shoes 44",
+         "has": "Every scarf the club sells", "occasions": [occ("birthday", "birthday", 500, 150), occ("christmas", "christmas", 800)]},
+        {"id": "sam", "name": "Sam", "likes": "Climbing, ceramics, natural wine", "sizes": "S, shoes 38, ring 52",
+         "has": "New climbing shoes (May)", "occasions": [occ("anniversary", "anniversary", 1000, 130), occ("birthday", "birthday", 1000, 230), occ("christmas", "christmas", 1500)]},
+        {"id": "oskar", "name": "Oskar", "likes": "Dinosaurs, Lego, drawing", "sizes": "Age 7, 122 cm",
+         "has": "The big T. rex Lego, every dinosaur book in the library", "occasions": [occ("birthday", "birthday", 300, 9), occ("christmas", "christmas", 400)]},
+        {"id": "maja", "name": "Maja", "likes": "Cooking, plants, weekends in Copenhagen",
+         "has": "A stand mixer, too many candles", "occasions": [occ("birthday", "birthday", 500, 200), occ("christmas", "christmas", 500)]},
+        {"id": "grandma", "name": "Grandma Inger", "likes": "Crosswords, her cat Sixten, photos of the kids",
+         "has": "Every crossword book there is", "occasions": [occ("christmas", "christmas", 300)]},
+    ]
+    def idea(id, person, title, status, price=None, shop=None, occasion=None, **f):
+        out = {"id": id, "person": person, "title": title}
+        for k, x in (("price", price), ("shop", shop), ("occasion", occasion)):
+            if x is not None:
+                out[k] = x
+        return {**out, **f, "status": status}
+    v["ideas"] = [
+        idea("scarf", "mum", "Blue wool scarf", "idea", 450, "Arket", "christmas", link="arket.example/blue-wool-scarf"),
+        idea("apron", "mum", "Linen apron", "bought", 350, "Arket", "christmas"),
+        idea("kneeler", "mum", "Garden kneeler and gloves", "idea", 280, "Plantagen", "birthday"),
+        idea("tickets", "dad", "Hammarby home match, two tickets", "wrapped", 700, "Hammarby shop", "christmas"),
+        idea("moka", "dad", "Moka pot", "idea", 390, "Cervera"),
+        idea("pottery", "sam", "Pottery course for two", "idea", 1800, "Keramikverkstan", "christmas"),
+        idea("chalk", "sam", "Chalk bag", "bought", 249, "Addnature", "christmas"),
+        idea("robyn", "sam", "Robyn concert tickets", "idea", 1100, "Ticketmaster", "anniversary"),
+        idea("raptor", "oskar", "Lego Jurassic raptor set", "bought", 299, "Lekia", "birthday"),
+        idea("pyjamas", "oskar", "Dinosaur pyjamas", "idea", 249, "Lindex", "christmas"),
+        idea("pencils", "oskar", "Watercolour pencils", "idea", 150, "Panduro"),
+        idea("knife", "maja", "A good chef's knife", "idea", 900, "Knivkompaniet", "christmas"),
+        idea("fig", "maja", "Fig tree", "idea", 350, "Plantagen"),
+        idea("calendar", "grandma", "Photo calendar of the kids", "bought", 250, "Ifolor", "christmas"),
+        idea("old-scarf", "mum", "Wool scarf", "given", 400, None, "christmas", year=2024),
+        idea("old-book", "mum", "Ottolenghi Simple", "given", 299, None, "birthday", year=2025),
+        idea("old-novels", "dad", "Crime novel box set", "given", 450, None, "christmas", year=2025),
+        idea("old-mugs", "sam", "Handmade mug set", "given", 600, None, "birthday", year=2025),
+        idea("old-rex", "oskar", "T. rex Lego", "given", 399, None, "christmas", year=2025),
+        idea("old-pasta", "maja", "Pasta machine", "given", 600, None, "birthday", year=2024),
+    ]
+    v["started"] = d(-200)
+    write("gift-ideas", v)
 
 
 habits()
@@ -279,4 +443,7 @@ trip()
 meals()
 workouts()
 jobs()
+moods()
+home()
+gifts()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))
