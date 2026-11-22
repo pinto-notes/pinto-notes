@@ -1,0 +1,369 @@
+{
+ "values": {
+  "days": {
+   "2026-09-27": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Monday inbox"
+   },
+   "2026-09-28": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Run by the river"
+   },
+   "2026-09-29": {
+    "mood": 3,
+    "energy": 2,
+    "sleep": 6,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Late call with the US team"
+   },
+   "2026-09-30": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 7
+   },
+   "2026-10-01": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 6.5,
+    "tags": [
+     "Social",
+     "Alcohol"
+    ],
+    "note": "Drinks after work"
+   },
+   "2026-10-02": {
+    "mood": 3,
+    "energy": 2,
+    "sleep": 6,
+    "note": "Slow Saturday"
+   },
+   "2026-10-03": {
+    "mood": 5,
+    "energy": 4,
+    "sleep": 8.5,
+    "tags": [
+     "Exercise",
+     "Social"
+    ],
+    "note": "Long walk with Maja"
+   },
+   "2026-10-04": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Work stress"
+    ]
+   },
+   "2026-10-05": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Gym before work"
+   },
+   "2026-10-06": {
+    "mood": 2,
+    "energy": 2,
+    "sleep": 5.5,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Deadline, ate at my desk"
+   },
+   "2026-10-07": {
+    "mood": 3,
+    "energy": 2,
+    "sleep": 6,
+    "tags": [
+     "Work stress"
+    ]
+   },
+   "2026-10-09": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Social",
+     "Alcohol"
+    ],
+    "note": "Pizza with Oskar"
+   },
+   "2026-10-10": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 8,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Swim and a nap"
+   },
+   "2026-10-11": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7.5,
+    "note": "Laundry and a film"
+   },
+   "2026-10-12": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Work stress"
+    ]
+   },
+   "2026-10-13": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Gym, felt strong"
+   },
+   "2026-10-14": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 6.5
+   },
+   "2026-10-15": {
+    "mood": 2,
+    "energy": 1,
+    "sleep": 5,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Up at 4 worrying about the review"
+   },
+   "2026-10-16": {
+    "mood": 3,
+    "energy": 2,
+    "sleep": 6,
+    "tags": [
+     "Alcohol"
+    ],
+    "note": "Quiet Friday"
+   },
+   "2026-10-17": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 8,
+    "tags": [
+     "Social"
+    ],
+    "note": "Market with Maja"
+   },
+   "2026-10-18": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 8,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Long run"
+   },
+   "2026-10-19": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Work stress"
+    ]
+   },
+   "2026-10-20": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Yoga at lunch"
+   },
+   "2026-10-21": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7
+   },
+   "2026-10-22": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Social"
+    ],
+    "note": "Book club"
+   },
+   "2026-10-23": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 6.5,
+    "tags": [
+     "Social",
+     "Alcohol"
+    ],
+    "note": "Work party"
+   },
+   "2026-10-24": {
+    "mood": 3,
+    "energy": 2,
+    "sleep": 5.5,
+    "tags": [
+     "Alcohol"
+    ],
+    "note": "Slept badly"
+   },
+   "2026-10-25": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 8,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Cycled to the lake"
+   },
+   "2026-10-26": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Work stress"
+    ]
+   },
+   "2026-10-27": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Gym before work"
+   },
+   "2026-10-28": {
+    "mood": 2,
+    "energy": 2,
+    "sleep": 6,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Back-to-back meetings"
+   },
+   "2026-10-29": {
+    "mood": 3,
+    "energy": 2,
+    "sleep": 5.5,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Deadline"
+   },
+   "2026-10-30": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Social"
+    ],
+    "note": "Dinner at Oskar's"
+   },
+   "2026-10-31": {
+    "mood": 5,
+    "energy": 4,
+    "sleep": 8.5,
+    "tags": [
+     "Exercise",
+     "Social"
+    ],
+    "note": "Hike with friends"
+   },
+   "2026-11-01": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 8,
+    "note": "Lazy Sunday"
+   },
+   "2026-11-02": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Work stress"
+    ]
+   },
+   "2026-11-03": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Swim before work"
+   },
+   "2026-11-04": {
+    "mood": 3,
+    "energy": 3,
+    "sleep": 7
+   },
+   "2026-11-05": {
+    "mood": 2,
+    "energy": 2,
+    "sleep": 5.5,
+    "tags": [
+     "Work stress"
+    ],
+    "note": "Project slipped again"
+   },
+   "2026-11-06": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 7,
+    "tags": [
+     "Social",
+     "Alcohol"
+    ],
+    "note": "Friday drinks"
+   },
+   "2026-11-07": {
+    "mood": 4,
+    "energy": 3,
+    "sleep": 6.5,
+    "tags": [
+     "Exercise"
+    ],
+    "note": "Short run, still tired"
+   },
+   "2026-11-08": {
+    "mood": 4,
+    "energy": 4,
+    "sleep": 7.5,
+    "tags": [
+     "Exercise",
+     "Social"
+    ],
+    "note": "Walk by the water with Maja"
+   }
+  },
+  "tags": [
+   "Exercise",
+   "Alcohol",
+   "Social",
+   "Work stress"
+  ],
+  "logSleep": true,
+  "sleepGoal": 8
+ },
+ "collections": {}
+}

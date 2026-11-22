@@ -1,6 +1,6 @@
 {
-  "subtitle": "A meal plan your AI fills with dinners and groceries.",
-  "about": "A note with a week of dinners, who cooks and a grocery checklist grouped by aisle. Tell your AI which nights you're cooking to plan both, or fill in the days yourself.",
+  "subtitle": "A meal planner app that writes the grocery list from your dinners.",
+  "about": "A small app inside a Pinto Notes note, with the week's dinners, who cooks, and a grocery list made from them by aisle, minus what's in the cupboard. Ask your AI to plan the week, or plan it and tick things off yourself.",
   "ask": {
     "step": "Ask for the meal plan",
     "prompt": "Set up the meal plan and groceries template in my Pinto Notes."
@@ -8,57 +8,25 @@
   "slides": [
     {
       "label": "Plan the week",
-      "you": "Plan dinners for the week. Oskar cooks Tuesday, Thursday and Sunday. We're out on Saturday.",
-      "ai": "The week is in the Dinners table, and what it needs is under Groceries, by aisle.",
-      "mac": "mac-1",
-      "phone": "phone-1",
-      "alt": "Meal plan and groceries filled in, in Pinto Notes on a Mac"
+      "you": "Plan this week's dinners. Oskar cooks Tuesday, Wednesday and Sunday, and we're out Saturday.",
+      "ai": "Planned all seven nights with what each dinner needs. The grocery list follows by aisle.",
+      "mac": "mac-week",
+      "phone": "phone-week",
+      "alt": "The week of 16 November: a dinner each night and who cooks, then 12 things left to buy"
     },
     {
-      "label": "Tick the groceries",
-      "you": "We already have parmesan.",
-      "ai": "Ticked it on the grocery list.",
-      "phone": "phone-2",
-      "alt": "Groceries, in Meal plan and groceries"
+      "label": "Add to the list",
+      "you": "Add oat milk and coffee to this week's list.",
+      "ai": "Added 2 l of oat milk under Dairy and eggs, and coffee under Dry goods.",
+      "phone": "phone-groceries",
+      "alt": "The grocery list by aisle, with Oat milk under Dairy and eggs and Coffee under Dry goods"
     },
     {
       "label": "Use it yourself",
-      "note": "Or tick and edit it yourself.",
-      "mac": "mac-start",
-      "phone": "phone-start",
-      "alt": "Meal plan and groceries as it starts, ready to fill in"
+      "note": "Or plan and tick it yourself.",
+      "mac": "mac-groceries",
+      "phone": "phone-list",
+      "alt": "The groceries by aisle, 9 of 21 bought, ticked things crossed out"
     }
-  ],
-  "pictures": {
-    "mac-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- [x] Parmesan",
-          "- [ ] Parmesan"
-        ]
-      ],
-      "from": "Dinners"
-    },
-    "phone-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- [x] Parmesan",
-          "- [ ] Parmesan"
-        ]
-      ],
-      "from": "Dinners"
-    },
-    "phone-2": {
-      "of": "example",
-      "from": "Meat and fish"
-    },
-    "mac-start": {
-      "of": "note"
-    },
-    "phone-start": {
-      "of": "note"
-    }
-  }
+  ]
 }

@@ -1,0 +1,93 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+/* A mouse or trackpad: a card's Move button can be smaller than the 44 pt a finger needs. */
+@custom-variant mouse (@media (pointer: fine));
+
+/* shadcn/ui's colours, from Amber Notes' tokens (they switch for dark mode by themselves). */
+:root {
+  --radius: 0.75rem;
+  --background: var(--amber-bg);
+  --foreground: var(--amber-text);
+  --card: var(--amber-surface);
+  --card-foreground: var(--amber-text);
+  --popover: var(--amber-bg);
+  --popover-foreground: var(--amber-text);
+  /* Three ambers, each with one job, the same three the Mac app has:
+     the accent (--amber-accent) for ticks, rings, bars and dots;
+     --link, its ink shade, for amber text, which reads at 4.5:1 on the page and on a card;
+     --primary, the primary button's fill: the accent deepened until a white label reads on it
+     (stock amber gives #BB5B05, the fill of the Mac's own buttons). In dark mode the button is
+     white with a black label, as the Mac's are: dark-mode buttons are white or black, never amber.
+     A host that knows its own button colours sets --amber-button and --amber-on-button. */
+  --primary: var(--amber-button, color-mix(in srgb, var(--amber-accent) 86%, black));
+  --primary-foreground: var(--amber-on-button, #FFFFFF);
+  --link: var(--amber-accent-text);
+  /* Letters and numbers on an accent fill (a done day's "M", a done date): the page's ink in the
+     light, where white on the accent is 3.5:1; the accent's own glyph colour in the dark. */
+  --mark-text: var(--amber-text);
+  --secondary: var(--amber-fill);
+  --secondary-foreground: var(--amber-text);
+  --muted: var(--amber-fill);
+  --muted-foreground: var(--amber-text-secondary);
+  --accent: var(--amber-fill);
+  --accent-foreground: var(--amber-text);
+  --destructive: var(--amber-danger);
+  --border: var(--amber-separator);
+  --input: var(--amber-field-border);
+  --field: var(--amber-field);
+  --ring: var(--amber-accent);
+  --chart-1: var(--amber-accent);
+  --chart-2: #3f8f6b;
+  --chart-3: #4b74c9;
+  --chart-4: #b5579a;
+  --chart-5: #8a6d3b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: var(--amber-button, #FFFFFF);
+    --primary-foreground: var(--amber-on-button, #000000);
+    --mark-text: var(--amber-on-accent);
+  }
+}
+
+@theme inline {
+  --font-sans: var(--amber-font);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-link: var(--link);
+  --color-mark-text: var(--mark-text);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-field: var(--field);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+}

@@ -8,7 +8,8 @@
 //   node web/scripts/template-page-shots.mjs convert <dir>    turns <dir>/<slug>/<name>.png into
 //                                                              web/public/templates/page/<slug>/<name>.webp
 // ONLY=slug,slug limits either step to those templates.
-// The four app templates are drawn by scripts/template-page-shots.ts instead.
+// The app templates (every template whose page has "slides" pictures of the app) are drawn by
+// scripts/template-page-shots.ts instead.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";

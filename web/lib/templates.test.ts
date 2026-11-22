@@ -205,11 +205,12 @@ describe("the instructions", () => {
   it("say in the note itself what a new chat needs to keep it right", () => {
     // A new chat sees the note, not the prompt. In real runs (2026-11-22) a new chat put content ideas
     // in the calendar table as "Idea" and left planned posts there, dropped a weekly planner's unticked
-    // items when starting a new week, and logged a past workout below newer ones.
+    // items when starting a new week, and logged a past workout below newer ones (the workout log is
+    // an app since 22 November 2026: its sessions are sorted by date, and its docs/README.md says how
+    // to log one).
     const rules: Record<string, RegExp> = {
       "content-calendar": /## Ideas\n[^\n]*one line each[^\n]*moves to the calendar as Drafting/,
       "weekly-planner": /On Sunday the ticked things go, and what's left on the days moves to Monday/,
-      "workout-log": /One row per session, oldest first/,
     };
     for (const [slug, rule] of Object.entries(rules)) expect(all.find((t) => t.slug === slug)!.note, slug).toMatch(rule);
   });

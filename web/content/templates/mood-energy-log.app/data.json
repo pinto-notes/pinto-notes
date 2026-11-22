@@ -1,0 +1,14 @@
+{
+  "values": {
+    "days": {},
+    "tags": [
+      "Exercise",
+      "Alcohol",
+      "Social",
+      "Work stress"
+    ],
+    "logSleep": true,
+    "sleepGoal": 8
+  },
+  "collections": {}
+}

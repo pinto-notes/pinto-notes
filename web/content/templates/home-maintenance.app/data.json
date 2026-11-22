@@ -1,0 +1,20 @@
+{
+  "values": {
+    "jobs": [],
+    "history": [],
+    "areas": [
+      "Kitchen",
+      "Bathroom",
+      "Heating",
+      "Outside",
+      "Garden",
+      "Car",
+      "Safety"
+    ],
+    "appliances": [],
+    "details": [],
+    "contacts": [],
+    "currency": ""
+  },
+  "collections": {}
+}

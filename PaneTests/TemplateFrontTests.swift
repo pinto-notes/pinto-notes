@@ -149,7 +149,8 @@ import Testing
         let picture = ((card - 10) * 0.51).rounded()
         #expect(TemplateArt.cardLargestType * picture / TemplateArt.cardDrawn.width < TemplateType.item)
         #expect(abs(TemplateArt.cardShape - 454.0 / 533.0) < 0.0001, "the top of the picture, without the tabs' 66 px")
-        let css = try SettingsHomeTests.source("Pane/Resources/Templates/template-stage.css")
+        // Pane/Resources/Templates/template-stage.css, copied into the test bundle by name (project.yml).
+        let css = try TestFiles.text("template-stage.css")
         #expect(css.contains(".text-\\[2rem\\], .text-\\[2\\.5rem\\], .text-\\[4rem\\] { font-size: 1.75rem !important; }"), "the largest figure a staged app draws")
         let src = try frontSource
         #expect(src.contains(".overlay(alignment: .trailing) { if over { pill().padding(.trailing, 8) } }"), "a row's button shows under the pointer or the keys")

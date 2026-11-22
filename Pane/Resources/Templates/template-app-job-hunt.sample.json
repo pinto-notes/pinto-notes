@@ -1,0 +1,203 @@
+{
+ "values": {
+  "stages": [
+   {
+    "id": "saved",
+    "name": "Saved"
+   },
+   {
+    "id": "applied",
+    "name": "Applied"
+   },
+   {
+    "id": "interview",
+    "name": "Interview"
+   },
+   {
+    "id": "offer",
+    "name": "Offer"
+   },
+   {
+    "id": "closed",
+    "name": "Closed"
+   }
+  ],
+  "jobs": [
+   {
+    "id": "finch",
+    "company": "Finch Bikes",
+    "role": "Product designer",
+    "stage": "saved",
+    "link": "finch.example/jobs/product-designer",
+    "steps": [
+     {
+      "id": "s1",
+      "kind": "deadline",
+      "date": "2026-11-10"
+     }
+    ],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "harbor",
+    "company": "Harbor Labs",
+    "role": "Design systems lead",
+    "stage": "saved",
+    "salary": "60–65k",
+    "contact": "Ines Duarte, recruiter",
+    "steps": [],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "marlow",
+    "company": "Marlow Studio",
+    "role": "Design lead",
+    "stage": "applied",
+    "applied": "2026-10-30",
+    "steps": [
+     {
+      "id": "s2",
+      "kind": "follow-up",
+      "date": "2026-11-06"
+     }
+    ],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "kestrel",
+    "company": "Kestrel Maps",
+    "role": "Senior product designer",
+    "stage": "applied",
+    "applied": "2026-11-04",
+    "salary": "55k",
+    "steps": [
+     {
+      "id": "s3",
+      "kind": "follow-up",
+      "date": "2026-11-11"
+     }
+    ],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "quill",
+    "company": "Quill and Co",
+    "role": "UX lead",
+    "stage": "applied",
+    "applied": "2026-10-27",
+    "steps": [],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "tideway",
+    "company": "Tideway",
+    "role": "Senior designer",
+    "stage": "interview",
+    "applied": "2026-10-25",
+    "heard": "2026-11-02",
+    "link": "tideway.example/careers/senior-designer",
+    "salary": "52–58k",
+    "contact": "Karin Berg, design manager",
+    "notes": "Karin cares more about plain prototypes than polish. Small team, ships weekly.",
+    "steps": [
+     {
+      "id": "s4",
+      "kind": "interview",
+      "what": "First interview",
+      "date": "2026-11-08",
+      "time": "14:00"
+     }
+    ],
+    "questions": [
+     {
+      "q": "A project you're proud of?",
+      "a": "The onboarding redesign: sign-ups up a fifth, support tickets down."
+     },
+     {
+      "q": "How do you work with engineers?",
+      "a": "Weekly reviews, plain prototypes early, ship small."
+     },
+     {
+      "q": "Why Tideway?",
+      "a": "I like untangling logistics, and the product is used every day."
+     }
+    ],
+    "ask": [
+     "How do design and support share what they hear?",
+     "What would a good first three months look like?"
+    ]
+   },
+   {
+    "id": "brightline",
+    "company": "Brightline Studio",
+    "role": "Product designer",
+    "stage": "interview",
+    "applied": "2026-10-21",
+    "heard": "2026-10-31",
+    "steps": [
+     {
+      "id": "s5",
+      "kind": "interview",
+      "what": "Second interview",
+      "date": "2026-11-11",
+      "time": "10:30"
+     }
+    ],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "lumen",
+    "company": "Lumen Health",
+    "role": "Senior designer",
+    "stage": "offer",
+    "applied": "2026-10-09",
+    "heard": "2026-10-19",
+    "salary": "58k",
+    "steps": [
+     {
+      "id": "s6",
+      "kind": "follow-up",
+      "what": "Answer the offer",
+      "date": "2026-11-12"
+     }
+    ],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "northlight",
+    "company": "Northlight",
+    "role": "UX designer",
+    "stage": "closed",
+    "outcome": "rejected",
+    "applied": "2026-10-14",
+    "heard": "2026-10-24",
+    "steps": [],
+    "questions": [],
+    "ask": []
+   },
+   {
+    "id": "pebble",
+    "company": "Pebble Works",
+    "role": "Designer",
+    "stage": "closed",
+    "outcome": "no-reply",
+    "applied": "2026-10-04",
+    "steps": [],
+    "questions": [],
+    "ask": []
+   }
+  ],
+  "settings": {
+   "followUpDays": 7
+  },
+  "started": "2026-10-04"
+ },
+ "collections": {}
+}

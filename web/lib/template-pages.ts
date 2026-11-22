@@ -9,7 +9,7 @@ import { instructions, template, templates, type Template } from "./templates";
 /// are content/template-pages/<slug>.json, so the copy can be swapped without touching the page.
 ///
 /// Truth: a slide's bubbles say what the template's tools really do (its demo calls and example, or
-/// for an app, its prompt and sample data), and its pictures are the real app: the four app templates
+/// for an app, its prompt and sample data), and its pictures are the real app: the app templates
 /// drawn by scripts/template-page-shots.ts (the render service's code), the rest by the Mac app
 /// offscreen and the iPhone app on a headless simulator (PaneTests/HIG/TemplatePageShots.swift,
 /// through web/scripts/template-page-shots.mjs), each at the step of the demo its slide is about.
