@@ -1,11 +1,22 @@
 {
   "subtitle": "A reading list your AI uses to suggest your next book.",
   "about": "A note for books you want to read, are reading or have finished, with ratings and thoughts. Tell your AI about a book to add it, or ask what to read next based on your ratings.",
+  "experimental": [
+    "covers",
+    "gallery"
+  ],
   "ask": {
     "step": "Ask for the reading list",
     "prompt": "Set up the reading list template in my Pinto Notes."
   },
   "slides": [
+    {
+      "label": "Covers and cards",
+      "note": "Give each note a cover and an icon, then see the folder as cards.",
+      "mac": "mac-covers",
+      "phone": "phone-covers",
+      "alt": "Reading list and Book notes as cards with covers, in Pinto Notes on a Mac"
+    },
     {
       "label": "Add a book",
       "you": "Finished Project Hail Mary, five stars. Book club pick. I'm reading Piranesi now, from Jonas.",
@@ -30,6 +41,29 @@
     }
   ],
   "pictures": {
+    "mac-covers": {
+      "gallery": {
+        "folder": "Reading",
+        "notes": [
+          {
+            "of": "example",
+            "icon": "📚",
+            "cover": "dusk"
+          },
+          {
+            "template": "book-notes",
+            "of": "example",
+            "icon": "📖",
+            "cover": "kraft"
+          }
+        ]
+      }
+    },
+    "phone-covers": {
+      "of": "example",
+      "icon": "📚",
+      "cover": "dusk"
+    },
     "mac-1": {
       "of": "example",
       "steps": 6

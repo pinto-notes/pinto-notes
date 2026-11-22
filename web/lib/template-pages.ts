@@ -40,6 +40,10 @@ export type TemplatePage = {
   subtitle: string;
   /// Two sentences beside the gallery.
   about: string;
+  /// The app's experiments the page shows (covers, the gallery view): the page leads with them and
+  /// says where to turn them on (experimentalLine). Emil, 22 November 2026: they stay behind
+  /// Settings › Experimental for now, and the site may show them if it says where they are.
+  experimental?: Experimental[];
   /// The third step: its title ("Ask for the tracker") and the line shown in the prompt box.
   ask: { step: string; prompt: string };
   slides: Slide[];
@@ -63,6 +67,19 @@ export function templatePage(slug: string): TemplatePage {
 export const heading = (t: Pick<Template, "title">) => `${t.title} template for ChatGPT and Claude`;
 /// The template's name in a sentence ("the habit tracker template", "the 1:1 notes template", "the Cornell notes template").
 export const named = (t: Pick<Template, "title">) => (/^[A-Z][a-z]/.test(t.title) && !/^Cornell/.test(t.title) ? t.title[0].toLowerCase() + t.title.slice(1) : t.title);
+
+/// Pinto's experiments a page can show, as the app names their switches in Settings › Experimental
+/// (Pane/Model/Experiments.swift): Covers and icons, and Gallery view.
+export type Experimental = "covers" | "gallery";
+
+/// Where to turn on what the page shows. Adding a cover and the gallery view are on the Mac only
+/// (the paperclip menu and the title's Add Cover; the list's View as Gallery); an iPhone with the
+/// switch on shows the covers.
+export function experimentalLine(shown: Experimental[]): string {
+  return shown.includes("gallery")
+    ? "Covers and the gallery view are experimental. Turn on Covers and icons and Gallery view in Settings › Experimental, on the Mac."
+    : "Covers are experimental. Turn on Covers and icons in Settings › Experimental, on the Mac.";
+}
 
 export const picture = (slug: string, name: string) => `/templates/page/${slug}/${name}.webp`;
 

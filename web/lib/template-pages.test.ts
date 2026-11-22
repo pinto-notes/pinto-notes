@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { pictureBody } from "./template-picture-body.mjs";
-import { moreTemplates, picture, templatePage } from "./template-pages";
+import { experimentalLine, moreTemplates, picture, templatePage } from "./template-pages";
 import { templateFiles, templates } from "./templates";
 
 /// The words and pictures of each template's page (content/template-pages/<slug>.json, layout D).
@@ -16,7 +16,7 @@ describe("a template's page data", () => {
   for (const t of templates()) {
     const p = templatePage(t.slug);
     // Everything a visitor reads on the page that comes from this file.
-    const words = [p.subtitle, p.about, p.ask.prompt, p.ask.step, ...p.slides.flatMap((s) => [s.label, s.you, s.ai, s.note, s.alt, s.before?.alt])].filter((w): w is string => Boolean(w));
+    const words = [p.subtitle, p.about, p.ask.prompt, p.ask.step, ...(p.experimental ? [experimentalLine(p.experimental)] : []), ...p.slides.flatMap((s) => [s.label, s.you, s.ai, s.note, s.alt, s.before?.alt])].filter((w): w is string => Boolean(w));
 
     it(`${t.slug}: writes plainly, names neither AI, and is only about Pinto`, () => {
       for (const w of words) {
@@ -29,9 +29,13 @@ describe("a template's page data", () => {
       expect(p.about.split(/(?<=\.)\s+/).length, p.about).toBe(2);
     });
 
-    it(`${t.slug}: 2 or 3 slides of short chats (4 for the habit tracker, as approved), ending on doing it yourself`, () => {
-      expect(p.slides.length).toBeGreaterThanOrEqual(2);
-      expect(p.slides.length).toBeLessThanOrEqual(t.slug === "habit-tracker" ? 4 : 3);
+    // A page that leads with covers or the gallery has that slide first, before its chats.
+    const lead = p.experimental ? 1 : 0;
+    const talk = p.slides.slice(lead);
+
+    it(`${t.slug}: 2 or 3 slides of short chats (4 for the habit tracker, as approved; one more before them for covers), ending on doing it yourself`, () => {
+      expect(talk.length).toBeGreaterThanOrEqual(2);
+      expect(talk.length).toBeLessThanOrEqual(t.slug === "habit-tracker" ? 4 : 3);
       const chats = p.slides.filter((s) => s.you);
       expect(chats.length).toBeGreaterThanOrEqual(1);
       for (const s of chats) {
@@ -64,7 +68,7 @@ describe("a template's page data", () => {
       }
       for (const s of p.slides) for (const n of [s.mac, s.phone].filter(Boolean)) expect(Object.keys(p.pictures!), n).toContain(n);
       // The slide that talks about a section shows that section (in the note that slide draws).
-      const [first, second] = p.slides;
+      const [first, second] = talk;
       const from = p.pictures![second.phone].from;
       expect(from && pictureBody(t, p.pictures![second.phone]).includes(from), second.phone).toBeTruthy();
       // A reply that says something changed shows the change: the note under it isn't the one the
@@ -91,6 +95,39 @@ describe("a template's page data", () => {
       chats.forEach((sl, k) => {
         for (const n of [sl.mac, sl.phone].filter((x): x is string => Boolean(x))) expect(p.pictures![n].saved, `${sl.label}: ${n}`).toBe(`after-chat${k + 1}`);
       });
+    });
+  }
+
+  // Covers and the gallery view (Emil, 22 November 2026): experiments in the app, shown on the site
+  // with where to turn them on. The first slide is the template's own notes drawn with covers, a
+  // folder of them in the gallery where the page says so, and no other slide uses them.
+  for (const t of templates().filter((x) => templatePage(x.slug).experimental)) {
+    const p = templatePage(t.slug);
+    it(`${t.slug}: leads with its notes drawn with covers, and says where to turn them on`, () => {
+      const [first, ...rest] = p.slides;
+      expect(first.you, "the covers slide is pictures, not a chat").toBeUndefined();
+      expect(first.mac && first.phone).toBeTruthy();
+      const mac = p.pictures![first.mac!], phone = p.pictures![first.phone];
+      const cards = mac.gallery?.notes ?? [mac];
+      expect(Boolean(mac.gallery), t.slug).toBe(p.experimental!.includes("gallery"));
+      if (mac.gallery) expect(cards.length).toBeGreaterThanOrEqual(2);
+      for (const pic of [...cards, phone]) {
+        expect(pic.cover, JSON.stringify(pic)).toBeTruthy();
+        expect(pic.icon, JSON.stringify(pic)).toMatch(/^\p{Extended_Pictographic}$/u);
+      }
+      // The cards are the template's notes (or, in a shared folder, another template's), each with its own cover.
+      for (const c of cards) {
+        const of = c.template ? templates().find((x) => x.slug === c.template)! : t;
+        expect(pictureBody(of, c).startsWith(`${c.icon} `)).toBe(true);
+        expect(pictureBody(of, { ...c, icon: undefined }).split("\n")[0], JSON.stringify(c)).toMatch(/^[A-Z]/);
+      }
+      expect(new Set(cards.map((c) => c.cover)).size).toBe(cards.length);
+      for (const s of rest) for (const n of [s.mac, s.phone].filter((x): x is string => Boolean(x))) {
+        expect(p.pictures![n].cover ?? p.pictures![n].gallery, `${s.label}: ${n}`).toBeUndefined();
+      }
+      expect(experimentalLine(p.experimental!)).toMatch(/Settings › Experimental/);
+      expect(experimentalLine(p.experimental!)).toContain("Covers and icons");
+      if (p.experimental!.includes("gallery")) expect(experimentalLine(p.experimental!)).toContain("Gallery view");
     });
   }
 

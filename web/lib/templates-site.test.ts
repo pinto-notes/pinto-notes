@@ -15,7 +15,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { COVERS, coverPath } from "./template-covers";
 import { instructions, markdownIn, noteTitle, templates } from "./templates";
-import { INSTALLS, copiedPrompt, heading, templatePage } from "./template-pages";
+import { INSTALLS, copiedPrompt, experimentalLine, heading, templatePage } from "./template-pages";
 import { CHATGPT_PLUGIN_URL, CLAUDE_DIRECTORY_URL } from "./facts";
 import { useLabel } from "./templates";
 import Card from "../app/templates/Card";
@@ -161,11 +161,19 @@ describe("a template's page", () => {
       expect(html, t.slug).toContain("Free · Mac and iPhone");
       expect(html, t.slug).toContain(">Get template</a>");
       expect(html, t.slug).toContain(INSTALLS);
+      // A page that leads with covers (covers and the gallery view) has its first chat second.
       const first = p.slides[0];
-      expect(html, t.slug).toContain(escape(first.you!));
-      expect(html, t.slug).toContain(escape(first.ai!));
+      const chat = p.experimental ? p.slides[1] : first;
+      expect(html, t.slug).toContain(escape(chat.you!));
+      expect(html, t.slug).toContain(escape(chat.ai!));
       expect(html, t.slug).toContain(`src="/templates/page/${t.slug}/${first.phone}.webp"`);
-      expect(html.indexOf(escape(first.you!)), t.slug).toBeLessThan(html.indexOf("How to get it"));
+      expect(html.indexOf(escape(chat.you!)), t.slug).toBeLessThan(html.indexOf("How to get it"));
+      if (p.experimental) {
+        expect(html, t.slug).toContain(escape(first.note!));
+        expect(html, t.slug).toContain(escape(experimentalLine(p.experimental)));
+      } else {
+        expect(html, t.slug).not.toContain("Settings › Experimental");
+      }
     }
   });
 
