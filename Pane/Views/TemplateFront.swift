@@ -235,6 +235,8 @@ struct TemplateFrontPage: View {
     @State private var frontAt = ScrollPosition(edge: .top)
     @State private var under = Under()
     @State private var offsets = Offsets()
+    /// What a scroll bar that's always shown (a mouse, or the setting) takes from the page's width.
+    @State private var scrollBar = Self.scrollBar
     @Environment(\.colorScheme) private var scheme
     @Environment(\.networkReach) private var reach
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -266,7 +268,13 @@ struct TemplateFrontPage: View {
 
     private var margin: CGFloat { TemplateLibraryView.margin(for: size) }
     private var narrow: Bool { TemplateLibraryView.narrow(size) }
-    private var width: CGFloat { size.width - margin * 2 }
+    /// The page's width inside its margins, in what the scroll view shows: an always-shown scroll bar
+    /// takes its width from the page, as in Notes, so the margins stay whole (22 November 2026).
+    private var width: CGFloat { size.width - scrollBar - margin * 2 }
+    /// The always-shown scroll bar's width; overlay scroll bars take none.
+    static var scrollBar: CGFloat {
+        NSScroller.preferredScrollerStyle == .legacy ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy) : 0
+    }
 
     /// The front page's lead (Emil, 11 November 2026: "replace the big banner with the search bar
     /// ... centered, nice, takes up space", then "too many rows"): two rows, a question and a wide
@@ -403,6 +411,7 @@ struct TemplateFrontPage: View {
             if offsets.search > 0.5 { frontAt.scrollTo(edge: .top) }
             askOpen = false
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in scrollBar = Self.scrollBar }
         // ⌘F: to the field, wherever the page is.
         .background {
             Button("") { toField() }.keyboardShortcut("f", modifiers: .command).hidden().accessibilityHidden(true)
