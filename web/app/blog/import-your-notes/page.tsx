@@ -34,7 +34,9 @@ export default function Page() {
         <li><strong>Notion, Joplin, Logseq or anything else:</strong> a folder or .zip of Markdown or text files. Each folder becomes a folder.</li>
       </ul>
       <p>
-        <a href="/blog/move-from-apple-notes">Moving from Apple Notes</a> goes through that import in detail.
+        Coming from OneNote? There&apos;s no OneNote import yet; for a few pages, copy and paste works. Leaving UpNote? Its Markdown export comes in this way. Try a small batch first. Leaving Apple
+        Notes for Obsidian or a repository instead? <a href="/blog/export-apple-notes-to-markdown">Exporting Apple Notes to
+        Markdown</a> covers that.
       </p>
 
       <h2>On iPhone</h2>

@@ -169,8 +169,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Para las notas de las propias entrevistas, la <a href="/es/blog/plantilla-acta-de-reunion-notas">plantilla de acta de
-        reunión</a> sirve tal cual. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
+        Para las notas de las propias entrevistas, puedes usar una nota de reunión. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes
         templates</a> (en inglés).
       </p>
 
@@ -202,7 +201,7 @@ export default function Page() {
         están conectados; <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conectar ChatGPT</a> (en inglés) lleva un minuto.
       </p>
       <p>
-        Las notas que ya tienes en Notas de Apple se pasan con <a href="/blog/move-from-apple-notes" hrefLang="en">una sola importación
+        Las notas que ya tienes en Notas de Apple se pasan con <a href="/blog/import-your-notes" hrefLang="en">una sola importación
         en tu Mac</a> (en inglés), y Notas de Apple no cambia. La app está en inglés.
       </p>
     </LocalPostPage>

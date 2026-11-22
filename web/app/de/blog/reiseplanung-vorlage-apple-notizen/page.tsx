@@ -145,7 +145,6 @@ export default function Page() {
         <li>
           <strong>Ein Inhaltsverzeichnis oben.</strong> Unter macOS 27 und iOS 27 kann ein Link auf eine Überschrift zeigen, so kann die
           Notiz mit einem Link zu jedem Tag beginnen. Gib unter „Link zu“ den Titel der Reisenotiz ein, und ihre Überschriften erscheinen.{" "}
-          <a href="/blog/apple-notes-ios-27" hrefLang="en">What&apos;s new in Apple Notes in iOS 27</a> (auf Englisch) hat die Details.
         </li>
         <li>
           <strong>Tickets in der Notiz.</strong> Zieh auf dem Mac das PDF eines Tickets oder einer Hotelbestätigung in die Notiz, unter die
@@ -190,7 +189,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">ChatGPT verbinden</a> (auf Englisch) dauert eine Minute.
       </p>
       <p>
-        Deine Apple Notizen kommen mit <a href="/blog/move-from-apple-notes" hrefLang="en">einem Import auf deinem Mac</a> (auf Englisch)
+        Deine Apple Notizen kommen mit <a href="/blog/import-your-notes" hrefLang="en">einem Import auf deinem Mac</a> (auf Englisch)
         mit, und Apple Notizen bleibt, wie es war. Die App ist auf Englisch.
       </p>
     </LocalPostPage>

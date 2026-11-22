@@ -162,8 +162,8 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Für Notizen aus den Gesprächen selbst funktioniert das <a href="/de/blog/meeting-protokoll-vorlage-apple-notizen">Meeting-Protokoll
-        in Apple Notizen</a> so, wie es ist. Weitere Notizen zum Einfügen findest du in{" "}
+        Für Notizen aus den Gesprächen selbst funktioniert eine Gesprächsnotiz
+        in Apple Notizen so, wie es ist. Weitere Notizen zum Einfügen findest du in{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (auf Englisch).
       </p>
 
@@ -196,7 +196,7 @@ export default function Page() {
         verbinden</a> (auf Englisch) dauert eine Minute.
       </p>
       <p>
-        Die Notizen, die du schon in Apple Notizen hast, kommen mit <a href="/blog/move-from-apple-notes" hrefLang="en">einem Import auf
+        Die Notizen, die du schon in Apple Notizen hast, kommen mit <a href="/blog/import-your-notes" hrefLang="en">einem Import auf
         deinem Mac</a> (auf Englisch) mit, und Apple Notizen bleibt, wie es war. Die App ist auf Englisch.
       </p>
     </LocalPostPage>

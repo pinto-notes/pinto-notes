@@ -6,6 +6,7 @@ import { OPEN_WAIT_MS, SITE_EVENT, openEvent, openRequested, opensWhat, validApp
 import type { SiteEvent } from "@/lib/posthog";
 import { APP_STORE_LIVE, APP_STORE_URL } from "@/lib/site";
 import { tryApp } from "./open/try-app";
+import { copyText } from "./templates/CopyButton";
 
 const send = (e: SiteEvent | null) => { if (e) window.dispatchEvent(new CustomEvent(SITE_EVENT, { detail: e })); };
 
@@ -14,7 +15,7 @@ const send = (e: SiteEvent | null) => { if (e) window.dispatchEvent(new CustomEv
 /// the window offers the Mac app and another try. `href` is the universal link, kept for a copied
 /// link and for a click without JavaScript; `app` is the app's own link, built from a checked slug.
 /// With `auto`, the page also tries the app as it loads when its address asks (?open, from an old link).
-export default function OpenInApp({ href, app, className, label, labelIos, auto = false, attrs, children }: {
+export default function OpenInApp({ href, app, className, label, labelIos, auto = false, attrs, template, children }: {
   href: string;
   app: string;
   className?: string;
@@ -24,6 +25,9 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
   auto?: boolean;
   /// Extra attributes for the link, such as a blog card's data-cta names (lib/PostCta.tsx).
   attrs?: Record<string, string>;
+  /// The template's name ("habit tracker"): the sheet names it, and offers this page's link, so a
+  /// visitor who goes off to install the app can find the template they came for again.
+  template?: string;
   children: React.ReactNode;
 }) {
   const [state, setState] = useState<"idle" | "trying" | "opened" | "fallback">("idle");
@@ -75,7 +79,7 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
       <a ref={link} {...attrs} className={className} href={href} aria-label={name} onClick={onClick} aria-busy={state === "trying" || undefined} data-opening={state === "trying" || undefined}>
         {children}
       </a>
-      {state === "fallback" && createPortal(<OpenSheet what={opensWhat(app)} onRetry={retry} onClose={close} />, document.body)}
+      {state === "fallback" && createPortal(<OpenSheet what={opensWhat(app)} template={template} onRetry={retry} onClose={close} />, document.body)}
     </>
   );
 }
@@ -84,8 +88,9 @@ export default function OpenInApp({ href, app, className, label, labelIos, auto 
 /// the page. Most people who see it just don't have the app yet, so it says what to do next rather
 /// than sounding like a failure; "Try again" is for the few who do. Escape or Close puts it away and
 /// focus goes back to the button.
-function OpenSheet({ what, onRetry, onClose }: { what: "template" | "note"; onRetry: () => void; onClose: () => void }) {
+function OpenSheet({ what, template, onRetry, onClose }: { what: "template" | "note"; template?: string; onRetry: () => void; onClose: () => void }) {
   const id = useId();
+  const [copied, setCopied] = useState(false);
   const sheet = useRef<HTMLDivElement>(null);
   useEffect(() => {
     sheet.current?.focus();
@@ -95,12 +100,18 @@ function OpenSheet({ what, onRetry, onClose }: { what: "template" | "note"; onRe
   }, [onClose]);
   return (
     <div ref={sheet} className="open-sheet" role="dialog" aria-modal="false" aria-labelledby={id} tabIndex={-1}>
-      <p className="open-sheet-title" id={id}>This {what} opens in Pinto Notes</p>
-      <p className="open-sheet-text">It&apos;s free. Get the app, then come back to this page.</p>
+      <p className="open-sheet-title" id={id}>{template ? `The ${template} template opens in Pinto Notes` : `This ${what} opens in Pinto Notes`}</p>
+      <p className="open-sheet-text">It&apos;s free. Get the app, then come back to this page{template ? " and choose Get template again" : ""}.</p>
       <div className="open-sheet-actions">
         <a className="open-sheet-get" href="/download/mac"><AppleGlyph /> Get it for Mac</a>
         {APP_STORE_LIVE && <a className="open-sheet-iphone" href={APP_STORE_URL} target="_blank" rel="noopener noreferrer"><AppleGlyph /> Get it for iPhone</a>}
       </div>
+      {template && (
+        <p className="open-sheet-again">
+          <button type="button" data-event="template_link_copied" onClick={async () => setCopied(await copyText(window.location.href.split("?")[0]))}>{copied ? "Link copied" : "Copy the link to this page"}</button>
+          {" · "}<a href="#how" onClick={onClose}>Or have your AI add it</a>
+        </p>
+      )}
       <p className="open-sheet-again">Already have it? <button type="button" onClick={onRetry}>Try again</button></p>
       <button type="button" className="open-sheet-close" aria-label="Close" onClick={onClose}>
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 3l8 8M11 3l-8 8" /></svg>

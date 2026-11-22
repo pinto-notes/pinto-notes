@@ -8,14 +8,16 @@ data.json, all under "values" (the person's AI reads and edits it directly):
 - habits: [{ id, name, detail?, target, unit?, days?, perWeek? }]. id is a lowercase slug of the name ("no-phone-in-bed"). target 1 is a yes/no habit; a target above 1 is counted (Water, target 8, unit "glasses").
   - days: the weekdays the habit is for, 0 Monday to 6 Sunday ([0,1,2,3,4] is weekdays). Missing or empty: every day.
   - perWeek: a weekly goal instead of a daily one (3 is any three days a week). Its streak counts weeks.
-- days: { "yyyy-mm-dd": { habitId: amount } }. A habit counts as done that day when amount >= its target. A day with nothing done has no key.
+  - since: "yyyy-mm-dd". The day the habit was added, when the tracker had already started. Before it the habit isn't due: not in the week's or the month's count, no dot in the week, faint on Month, and it doesn't break a streak. In the week it was added, a weekly goal asks for no more days than were left. Adding a habit in the app sets it (to the first day it was logged, if it had days before under the same name). Habits picked on the first screen don't need it: started covers them. **When you add a habit to a tracker that has started, set since to today.**
+  - before: [{ until, target?, days?, perWeek? }]. Earlier goals. On days before until (yyyy-mm-dd) the habit had these values; each entry holds only what that change replaced (days [] is every day). Missing: the goal has always been what it is now. Saving a new goal, schedule or weekly count in the edit sheet adds one (until today), so the new goal counts from the day it's set and days done under the old one stay done. Changed twice in a day, the first entry stays. **When you change a habit's target, days or perWeek, add the entry too**: { "until": today, "target": the old target }.
+- days: { "yyyy-mm-dd": { habitId: amount } }. A habit counts as done that day when amount >= its goal that day (its target, or the one in before). A day with nothing done has no key.
 - skips: { "yyyy-mm-dd": [habitId] }. Days a habit was skipped on purpose (ill, travelling). Missing is fine (data from before 1.2.27 has none).
   - pick: false marks a suggestion that starts unticked on a new tracker's first screen. Only the starting data has it; Start doesn't save it, and nothing else reads it.
 - started: "yyyy-mm-dd". The day the person started the tracker. Nothing before it is due. Missing is fine: counting then starts on the first day anything was logged.
 
 A new tracker has habits (four suggestions, one with pick: false), no started and nothing logged. **To set one up, write the person's habits to habits and set started to today's date.** Without started the app opens on Pick your habits and treats the list as suggestions.
 
-To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a counted one. To skip one, add its id to skips[date]. Keep ids as they are: renaming a habit changes name, never id.
+To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a counted one (the goal it had that day is enough to count as done). To skip one, add its id to skips[date]. Keep ids as they are: renaming a habit changes name, never id.
 
 ## Decisions
 - A short note in one column (no wider than 699 px, no taller than 640: a small phone, the smallest window; kit.tsx, SHORT) shows Today compact: a 56 px ring, no "Habits" heading, and rows without their week strip, so four habits show where one did under an empty card (council round 4). The week is still the ring.
@@ -30,6 +32,7 @@ To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a cou
 - Tapping a habit's name opens its page: streak, best run, this month's share, the month as a calendar, Skip today and Edit.
 - Month: a calendar per habit (two or three across on a wide note). A tap ticks a day, a second skips it, a third clears it.
 - From 700 px Today has two columns: the week card and a grid of every habit's week on the left, the list on the right. Between 900 and 1100 px it's one column again: the sidebar is there and two columns left a habit's name about 50 px ("No …").
+- Changing a habit never changes the past (2026-11-21, a person's own copy: raising Water from 8 to 10 glasses turned their 8-glass days into misses and reset the streak, and Stretching added on a Saturday counted Monday to Friday as missed). A new goal or schedule counts from the day it's set (before), and a new habit from the day it's added (since). The sums are in src/lib/habits.ts: at() is the habit as it was on a day, goal() its count then, weekGoal() a weekly goal for one week. Tested in tests/app.test.tsx, "Changes keep the past".
 - Counted habits get minus and plus buttons, and the plus button's ring fills toward the goal, like Activity rings.
 - The person is in control without the AI: add, rename (the pencil opens an edit sheet), reorder and remove habits on the Habits tab, and tick, skip or clear any earlier day on Month or on the habit's page. Removing shows Undo in a bar at the top of the screen; its days stay in the data, so Undo (or adding it back with the same name) brings the history back.
 - Today's week strip is a picture, not buttons: 24 pt dots are too small to tap, so earlier days are changed on Month, where each day is a 44 pt target.
@@ -39,5 +42,7 @@ To log a day, set days[date][habitId]: 1 for a yes/no habit, the count for a cou
 - No text under 12 px (0.75rem), Apple's minimum. Tests check text that changes after an action (saving and grading are async) inside waitFor, never on the first find.
 
 ## Known gaps
+- Switching a habit between daily and weekly isn't kept in before: its past is counted the new way.
+- A weekly goal changed mid-week counts the new goal for that whole week.
 - No notes per day, no habit icons or colours, no year view.
 - No reminders: Pinto Notes apps can't send notifications yet.

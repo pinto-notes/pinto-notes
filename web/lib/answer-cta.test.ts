@@ -6,14 +6,26 @@ import { describe, expect, it } from "vitest";
 // the download sat only at the end. On the posts where Pinto Notes is the answer, the download card now sits in
 // the short answer. The Apple Notes help posts stay as they were, so they can be compared.
 const B1 = [
-  "apple-notes-api", "apple-notes-templates", "connect-chatgpt-to-your-notes", "connect-notes-to-grok", "apple-notes-tables",
-  "move-apple-notes-to-obsidian-notion-keep", "export-apple-notes-to-markdown", "notes-in-claude-code-and-codex", "obsidian-mcp",
-  "move-from-apple-notes",
+  "connect-chatgpt-to-your-notes", "connect-notes-to-grok", "apple-notes-tables",
+  "export-apple-notes-to-markdown", "notes-in-claude-code-and-codex", "obsidian-mcp",
 ];
 // Posts written or changed after B1 started carry the same card, outside the experiment.
-const LATER = ["apple-notes-version-history", "apple-notes-budget-template", "ai-memory-with-notes", "apple-notes-habit-tracker", "apple-notes-trip-planner-template", "apple-notes-meal-planner-template", "apple-notes-backlinks", "apple-notes-workout-log-template", "apple-notes-recipe-template", "apple-notes-grocery-list-template", "apple-notes-meeting-notes-template", "apple-notes-cornell-notes-template", "apple-notes-flashcards", "apple-notes-reading-list", "apple-notes-book-notes-template", "apple-notes-job-search-tracker", "apple-notes-weekly-review-template", "apple-notes-decision-log-template", "apple-notes-1-on-1-template", "apple-notes-daily-standup-template", "apple-notes-bug-triage-template", "apple-notes-journal-template", "apple-notes-mood-tracker", "apple-notes-home-maintenance-checklist", "apple-notes-content-calendar", "apple-notes-gift-ideas", "apple-notes-organize", "apple-notes-checklist-sort", "apple-notes-for-school", "apple-notes-planner-template"];
-// The Apple Notes help posts were B1's comparison until 21 Nov (B20): with the goal of 100 downloads a week, the card goes where the readers are.
-const HELP = ["apple-notes-not-syncing", "forgot-apple-notes-password", "move-apple-notes-to-icloud", "recover-deleted-apple-notes"];
+const LATER = ["ai-memory-with-notes", "best-notes-apps-with-mcp", "connect-notes-to-cursor", "chatgpt-prompt-library-in-notes", "connect-notes-to-gemini-cli", "chatgpt-performance-review-from-notes", "chatgpt-brain-dump-to-action-list"];
+// The Apple Notes help posts (B20) were removed on 21 Nov 2026: 0 downloads in 28 days (blog-growth STRATEGIES.md).
+// B27 (21 Nov 2026): posts that had no download at all get one in the answer.
+const B27 = ["budget-tracker-with-chatgpt-or-claude", "encrypted-notes-app-for-ai"];
+
+// Pattern E (22 Nov 2026, Emil approved): the Apple Notes template posts open on the template, then the same template in Apple
+// Notes and in Pinto Notes side by side (lib/SideBySide.tsx), whose button goes to the Pinto template. The early download card
+// went, with the long text and the cover.
+const E = [
+  "apple-notes-budget-template", "apple-notes-expense-tracker", "apple-notes-habit-tracker", "apple-notes-job-search-tracker",
+  "apple-notes-meal-planner-template", "apple-notes-mood-tracker", "apple-notes-reading-list", "apple-notes-templates",
+  "apple-notes-time-log-template", "apple-notes-trip-planner-template", "apple-notes-workout-log-template",
+  // 22 Nov 2026: the six template posts restored at their old addresses, and the flashcards post.
+  "apple-notes-recipe-template", "apple-notes-grocery-list-template", "apple-notes-meeting-notes-template",
+  "apple-notes-journal-template", "apple-notes-planner-template", "apple-notes-cornell-notes-template", "apple-notes-flashcards",
+];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
 
@@ -23,22 +35,38 @@ describe("the download in a post's short answer", () => {
       const src = source(slug);
       expect(src, slug).toContain(`<PostCta slug="${slug}" position="answer"`);
       const answer = /<Answer[\s\S]*?<\/Answer>/.exec(src)?.[0];
-      // move-from-apple-notes has no answer box; its card follows "Before you start".
       if (answer) expect(answer, slug).toContain("<PostCta");
     }
   });
 
   it("is in the answer of the posts written since, and of the memory study", () => {
-    for (const slug of LATER) {
+    for (const slug of [...LATER, ...B27]) {
       const answer = /<Answer[\s\S]*?<\/Answer>/.exec(source(slug))?.[0] ?? "";
       expect(answer, slug).toContain(`<PostCta slug="${slug}" position="answer"`);
     }
   });
+});
 
-  it("is in the answer of the Apple Notes help posts too, since B1 ended there (B20)", () => {
-    for (const slug of HELP) {
-      const answer = /<Answer[\s\S]*?<\/Answer>/.exec(source(slug))?.[0] ?? "";
-      expect(answer, slug).toContain(`<PostCta slug="${slug}" position="answer"`);
+describe("the Apple Notes template posts (pattern E)", () => {
+  it("show the template, then the same template in Apple Notes and in Pinto Notes, with no download card above them", () => {
+    for (const slug of E) {
+      const src = source(slug);
+      expect(src, slug).toContain("cover={false}");
+      expect(src, slug).not.toContain("<PostCta");
+      const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "";
+      expect(answer, slug).toMatch(/<(Keep|TemplatePicker)\b/);
+      expect(answer, slug).toContain(`<SideBySide slug="${slug}"`);
+      // The template comes first, the side-by-side straight under it.
+      expect(answer.search(/<(Keep|TemplatePicker)\b/), slug).toBeLessThan(answer.indexOf("<SideBySide"));
+      expect(answer, slug).toMatch(/href: "\/templates(\/[a-z-]+)?"/);
+    }
+  });
+
+  it("ask the reader to type = on the sum lines, which carry none, because a pasted = gets no answer in Notes", () => {
+    for (const slug of ["apple-notes-budget-template", "apple-notes-expense-tracker"]) {
+      const template = /const TEMPLATE = `([\s\S]*?)`;/.exec(source(slug))?.[1] ?? "";
+      expect(template, slug).not.toMatch(/=\s*$/m);
+      expect(source(slug), slug).toMatch(/type = at the end of the last/i);
     }
   });
 });

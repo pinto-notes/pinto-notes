@@ -1,0 +1,45 @@
+{
+  "subtitle": "A habit tracker app you can change by asking your AI.",
+  "about": "A small app inside a Pinto Notes note, with daily ticks and a month view. Connect your AI to log habits in chat, or tick them off yourself.",
+  "ask": {
+    "step": "Ask for the tracker",
+    "prompt": "Add the Pinto Notes habit tracker template with my habits: walk, read, 8 glasses of water."
+  },
+  "slides": [
+    {
+      "label": "Log your day",
+      "you": "Walked and read 20 pages this morning. 4 glasses of water so far.",
+      "ai": "Ticked off Walk and Read. Water is at 4 of 8 for today.",
+      "mac": "mac-today",
+      "phone": "phone-today",
+      "alt": "Today: Walk and Read ticked, Water at 4 of 8"
+    },
+    {
+      "label": "Ask for a year view",
+      "you": "Can my habit tracker show a year view for each habit?",
+      "ai": "Your habit tracker now has a year view for each habit.",
+      "mac": "mac-year",
+      "phone": "phone-year",
+      "alt": "The year view the AI added",
+      "before": {
+        "mac": "mac-month",
+        "phone": "phone-month-before",
+        "alt": "The month view, before the change"
+      }
+    },
+    {
+      "label": "Add a habit",
+      "you": "Add stretching, 10 minutes, weekdays only.",
+      "ai": "I added Stretching. Today is Saturday, so it won't show as due until Monday.",
+      "phone": "phone-stretch",
+      "alt": "Stretching listed under Not today"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-month",
+      "phone": "phone-month",
+      "alt": "Month view with days ticked"
+    }
+  ]
+}

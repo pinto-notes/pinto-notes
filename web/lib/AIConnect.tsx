@@ -16,7 +16,7 @@ export type ConnectAI = keyof typeof AIS;
 /// The graphic that ends a rebuilt post: the AIs' marks on paper discs, joined by a thread to a
 /// paper-cut note in the middle. Two AIs sit one each side; three or four split left and right.
 /// Pure HTML over one picture, so it stays sharp at any width and reads at phone width.
-export function AIConnect({ ais = ["chatgpt", "claude"], caption }: { ais?: ConnectAI[]; caption?: string }) {
+export function AIConnect({ ais = ["chatgpt", "claude"], caption, bare }: { ais?: ConnectAI[]; caption?: string; bare?: boolean }) {
   const list = ais.slice(0, 4);
   const left = list.filter((_, i) => i % 2 === 0);
   const right = list.filter((_, i) => i % 2 === 1);
@@ -38,7 +38,7 @@ export function AIConnect({ ais = ["chatgpt", "claude"], caption }: { ais?: Conn
     return <path key={a} d={`M ${x1} ${y} C ${mid} ${y}, ${mid} 50, ${x2} 50`} />;
   });
   return (
-    <figure className={s.figure}>
+    <figure className={bare ? s.bare : s.figure}>
       <div className={s.art} role="img" aria-label={label} data-count={list.length}>
         <img src="/art/ai-connect.webp" alt="" width={1672} height={941} loading="lazy" decoding="async" />
         <svg className={s.threads} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

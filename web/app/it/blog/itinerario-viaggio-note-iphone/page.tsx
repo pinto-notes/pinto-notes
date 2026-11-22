@@ -147,7 +147,6 @@ export default function Page() {
         <li>
           <strong>Un indice in cima.</strong> Su macOS 27 e iOS 27 un link può puntare a un’intestazione, quindi la nota può iniziare con
           un link per ogni giorno. Scrivi il titolo del viaggio nel campo Link a e compaiono le sue intestazioni.{" "}
-          <a href="/blog/apple-notes-ios-27">What’s new in Apple Notes in iOS 27</a> (in inglese) ha i dettagli.
         </li>
         <li>
           <strong>I biglietti nella nota.</strong> Sul Mac, trascina il PDF di un biglietto o di una conferma dell’hotel nella nota, sotto
@@ -192,7 +191,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes">Collegare ChatGPT</a> (in inglese) richiede un minuto.
       </p>
       <p>
-        Le tue note di Apple arrivano con <a href="/blog/move-from-apple-notes">una sola importazione sul Mac</a>, e Note di Apple
+        Le tue note di Apple arrivano con <a href="/blog/import-your-notes">una sola importazione sul Mac</a>, e Note di Apple
         resta com’era.
       </p>
     </LocalPostPage>

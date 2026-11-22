@@ -1,5 +1,6 @@
 import CopyButton from "@/app/templates/CopyButton";
 import s from "./post-parts.module.css";
+import { AIGlyph, AI_GLYPHS } from "./ai-glyphs";
 
 /// The parts a how-to post is built from. The short answer comes first, so someone from a search
 /// result has it on the first screen; the rest is for the people who read on.
@@ -60,14 +61,25 @@ export function Banner({ src }: { src: string }) {
 /// Something to keep: a checklist, a cheat sheet, a prompt or a script, with a Copy button that copies
 /// `text` exactly. What shows is `children`, or the text itself in a code block. Copies are counted as
 /// blog_copy_clicked (lib/posthog.ts reads data-event).
-export function Keep({ title, note, text, code = false, children, copyLabel = "Copy" }: { title: string; note?: React.ReactNode; text: string; code?: boolean; children?: React.ReactNode; copyLabel?: string }) {
+/// `fold`: show only that many lines of a long template, faded, with "Show all N lines" under it, so what comes after
+/// (the Apple Notes and Pinto Notes cards) starts on the first or second screen of a phone. Copy always copies all of it.
+/// No script: the checkbox sits inside its label, and :has() opens the rest.
+export function Keep({ title, note, text, code = false, fold, children, copyLabel = "Copy" }: { title: string; note?: React.ReactNode; text: string; code?: boolean; fold?: number; children?: React.ReactNode; copyLabel?: string }) {
+  const lines = text.trimEnd().split("\n").length;
+  const folded = !children && !code && fold !== undefined && lines > fold + 2;
+  const body = children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre> : <pre className={s.plain} tabIndex={0}>{text}</pre>);
   return (
     <div className={s.keep}>
       <div className={s.keepHead}>
         <p className={s.keepTitle}>{title}</p>
         <CopyButton text={text} label={copyLabel} className={s.copy} event="blog_copy_clicked" />
       </div>
-      {children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre> : <pre className={s.plain} tabIndex={0}>{text}</pre>)}
+      {folded ? (
+        <div className={s.fold} style={{ "--fold-lines": fold } as React.CSSProperties}>
+          {body}
+          <label className={s.more}><input type="checkbox" />Show all {lines} lines</label>
+        </div>
+      ) : body}
       {note && <p className={s.keepNote}>{note}</p>}
     </div>
   );
@@ -141,6 +153,70 @@ export function FigurePair({ items, caption }: { items: (Img & { alt: string })[
     </figure>
   );
 }
+
+
+/// Experiment B35 (21 Nov 2026, after Emil called the posts "a beige boring page"): parts that let a
+/// reader see the answer before reading it. Each replaces a paragraph, never adds one.
+
+/// A comparison sorted into a few coloured groups: what the group means, in a sentence, and the
+/// options in it as big name chips. `ais` puts those AIs' marks on a group's corner.
+export type SortGroup = { title: string; line: string; items: { name: string; href?: string }[]; ais?: (keyof typeof AI_GLYPHS)[]; tone: "leaf" | "sky" | "amber" | "rose" };
+export function Sorter({ groups, caption }: { groups: SortGroup[]; caption?: string }) {
+  return (
+    <figure className={s.sorter}>
+      <div className={s.sortGrid} data-n={groups.length}>
+        {groups.map((g) => (
+          <div key={g.title} className={s.sortGroup} data-tone={g.tone}>
+            {g.ais && <span className={s.sortMarks} aria-hidden="true">{g.ais.map((a) => <span key={a} className={s.sortMark}><AIGlyph name={a} size={18} /></span>)}</span>}
+            <p className={s.sortTitle}>{g.title}</p>
+            <ul className={s.sortItems}>
+              {g.items.map((it) => <li key={it.name}>{it.href ? <a href={it.href}>{it.name}</a> : it.name}</li>)}
+            </ul>
+            <p className={s.sortLine}>{g.line}</p>
+          </div>
+        ))}
+      </div>
+      {caption && <figcaption className={s.captureCaption}>{caption}</figcaption>}
+    </figure>
+  );
+}
+
+/// Three facts about one option, at the top of its section, so the reader who skims gets them
+/// without the paragraph.
+export function Facts({ items }: { items: { label: string; value: React.ReactNode }[] }) {
+  return (
+    <dl className={s.facts}>
+      {items.map((it) => (
+        <div key={it.label} className={s.fact}><dt>{it.label}</dt><dd>{it.value}</dd></div>
+      ))}
+    </dl>
+  );
+}
+
+/// Detail most readers skip (a long sourced table), folded under one line they can open.
+export function More({ summary, children }: { summary: string; children: React.ReactNode }) {
+  return <details className={s.more}><summary>{summary}</summary><div className={s.moreBody}>{children}</div></details>;
+}
+
+/// A folder as a picture: the export a reader is about to download, with what each part holds.
+export function FolderTree({ root, items, caption }: { root: string; items: { name: string; note: string; file?: boolean }[]; caption?: string }) {
+  return (
+    <figure className={s.tree}>
+      <div className={s.treeBox}>
+        <p className={s.treeRoot}><ZipIcon />{root}</p>
+        <ul className={s.treeItems}>
+          {items.map((it) => (
+            <li key={it.name}>{it.file ? <FileIcon /> : <FolderIcon />}<code>{it.name}</code><span>{it.note}</span></li>
+          ))}
+        </ul>
+      </div>
+      {caption && <figcaption className={s.captureCaption}>{caption}</figcaption>}
+    </figure>
+  );
+}
+const FolderIcon = () => <svg className={s.treeIcon} viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.2l2 2h8.8A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" fill="#f0a640" /></svg>;
+const FileIcon = () => <svg className={s.treeIcon} viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="#fffaf3" stroke="#b8a48c" strokeWidth="1.2" /><path d="M8 11h8M8 14h8M8 17h5" stroke="#b8a48c" strokeWidth="1.2" /></svg>;
+const ZipIcon = () => <svg className={s.treeIcon} viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" fill="#7a5a3a" /><path d="M12 3v2m0 2v2m0 2v2" stroke="#f7e5cc" strokeWidth="1.6" /><rect x="10.5" y="13" width="3" height="4" rx="1" fill="#f7e5cc" /></svg>;
 
 /// The menu path of the format: "Notes › View › Show Tables" as quiet chips. Paths is the same for
 /// more than one device; both are MenuPath.

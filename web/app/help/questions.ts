@@ -11,7 +11,7 @@ export const FAQ: QA[] = [
   { id: "import", q: "How do I import my Apple Notes?", a: [
     "On your Mac, choose File → Import from Apple Notes. Import everything, or pick the notes you want. Folders, tables and pictures come along, checklists and pins too when Pinto Notes has Full Disk Access, and nothing in Apple Notes is changed.",
     "On iPhone, share a note from Apple Notes to Pinto Notes. Or import on your Mac, and everything shows up on your iPhone a second later.",
-  ], more: { href: "/blog/move-from-apple-notes", text: "How to move from Apple Notes, step by step" } },
+  ], more: { href: "/blog/import-your-notes", text: "How to move from Apple Notes, step by step" } },
   { id: "connect", q: "How do I connect ChatGPT, Claude, Claude Code or Codex?", a: [
     "Claude: Amber Notes is in Claude's connector directory. Open https://claude.ai/directory/amber-notes, choose Connect to Claude, then Allow in Pinto Notes. Do it once, on claude.ai or in the Claude desktop app, and Claude's phone apps can use it too.",
     "ChatGPT: in Pinto Notes, open Settings → Connect an AI, pick ChatGPT and follow the steps, on chatgpt.com, which is where OpenAI documents custom apps.",
@@ -24,7 +24,7 @@ export const FAQ: QA[] = [
   ], more: { href: "/blog/mcp-server#install", text: "Install Pinto Notes in your AI tool" } },
   { id: "apple-notes-ai", q: "Can ChatGPT or Claude use my notes in Apple Notes?", a: [
     "Only in a limited way, and only on a Mac: Apple Notes has no public API, so AI apps can't reach your notes in iCloud. Pinto Notes has an MCP server built in, so once you import your notes, ChatGPT and Claude can use them from any device.",
-  ], more: { href: "/blog/claude-and-apple-notes", text: "Can Claude read your Apple Notes?" } },
+  ], more: { href: "/blog/best-ai-notes-app", text: "The best AI notes apps, compared" } },
   { id: "ai-access", q: "Can my AI see all my notes?", a: [
     "Only once you connect it and approve it on your iPhone or Mac. Then it can read and edit every note except locked ones: our server opens the notes it asks for in memory, during its requests. Every change an AI makes keeps the previous version, and you can disconnect any assistant in Settings at any time.",
   ], more: { href: "/blog/mcp-server", text: "How the Pinto Notes MCP server works" } },

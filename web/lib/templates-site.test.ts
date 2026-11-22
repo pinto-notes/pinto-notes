@@ -14,7 +14,9 @@ import { themeFor, themeScript } from "./theme";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { COVERS, coverPath } from "./template-covers";
-import { instructions, templates } from "./templates";
+import { instructions, markdownIn, noteTitle, templates } from "./templates";
+import { INSTALLS, copiedPrompt, heading, templatePage } from "./template-pages";
+import { CHATGPT_PLUGIN_URL, CLAUDE_DIRECTORY_URL } from "./facts";
 import { useLabel } from "./templates";
 import Card from "../app/templates/Card";
 import { templateWork } from "./structured-data";
@@ -23,6 +25,8 @@ import { templateWork } from "./structured-data";
 vi.mock("next/navigation", async (orig) => ({ ...(await orig<typeof import("next/navigation")>()), usePathname: () => "/templates", useRouter: () => ({ push: () => {} }) }));
 
 const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
+/// Text as renderToStaticMarkup writes it.
+const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 describe("rendering a template like the app", () => {
   const md = "<!-- pane-table: Date=date; Walk=choice Yes|No; Mood=choice Good|Bad -->\n| Date | Walk | Mood |\n| --- | --- | --- |\n| 2026-09-28 | Yes | Good |\n| 2026-09-29 | No | Bad |\n";
@@ -147,23 +151,47 @@ describe("the gallery", () => {
 describe("a template's page", () => {
   const page = async (slug: string) => renderToStaticMarkup(await TemplatePage(params(slug)));
 
-  it("opens on the filled example, with the AI's lines tinted", async () => {
-    const html = await page("meeting-notes");
-    const hero = html.slice(0, html.indexOf('id="result"'));
-    expect(hero).toContain("30 September 2026");
-    expect(hero).toContain('class="changed"');
-  });
-
-  // Emil, 14 October 2026: Use template installs the note (and its app), so the prompt left the pages.
-  // It stays in the template's data (/templates/<slug>.json) for the apps and AIs that use it.
-  it.runIf(APP_TEMPLATES.live)("shows no prompt: no Copy the prompt, no Show the prompt, no paste step", async () => {
+  // Layout D (Emil, 22 November 2026): the title, the byline, one line and Get template, then the
+  // gallery, its first slide a short chat over the real app.
+  it("opens on the title, the byline, Get template, and a chat over the real app", async () => {
     for (const t of templates()) {
       const html = await page(t.slug);
-      expect(html, t.slug).not.toContain("Copy the prompt");
-      expect(html, t.slug).not.toContain("Show the prompt");
-      expect(html, t.slug).not.toContain('id="prompt"');
-      expect(html, t.slug).not.toMatch(/Paste the prompt|Give your AI the prompt/);
+      const p = templatePage(t.slug);
+      expect(html, t.slug).toContain(`>${heading(t)}</h1>`);
+      expect(html, t.slug).toContain("Free · Mac and iPhone");
+      expect(html, t.slug).toContain(">Get template</a>");
+      expect(html, t.slug).toContain(INSTALLS);
+      const first = p.slides[0];
+      expect(html, t.slug).toContain(escape(first.you!));
+      expect(html, t.slug).toContain(escape(first.ai!));
+      expect(html, t.slug).toContain(`src="/templates/page/${t.slug}/${first.phone}.webp"`);
+      expect(html.indexOf(escape(first.you!)), t.slug).toBeLessThan(html.indexOf("How to get it"));
     }
+  });
+
+  // Fix 1 of the Get template flow map (22 November 2026): without the app, the page keeps the
+  // template the visitor came for. The prompt box names it, and Copy carries the whole prompt that
+  // makes exactly this template.
+  it("asks for this exact template: the box names it, and Copy carries its full prompt", async () => {
+    for (const t of templates()) {
+      const p = templatePage(t.slug);
+      const copied = copiedPrompt(t, p);
+      expect(copied.startsWith(p.ask.prompt), t.slug).toBe(true);
+      expect(copied, t.slug).toContain(`"${noteTitle(t)}"`);
+      if (t.app) expect(copied, t.slug).toContain(`template: "${t.slug}"`);
+      else expect(markdownIn(copied), t.slug).toBe(t.note);
+      const html = await page(t.slug);
+      expect(html, t.slug).toContain(escape(p.ask.prompt));
+      expect(html, t.slug).toContain('data-event="template_prompt_copied"');
+    }
+  });
+
+  // Fix 2: connect from the page, straight to each AI's listing.
+  it("links straight to ChatGPT's plugin and Claude's directory listing", async () => {
+    const html = await page("meeting-notes");
+    expect(html).toContain(`href="${CHATGPT_PLUGIN_URL}"`);
+    expect(html).toContain(`href="${CLAUDE_DIRECTORY_URL}"`);
+    expect(html).toContain('href="/open/connect-ai"');
   });
 
   it("keeps every prompt in the template's data", async () => {
@@ -175,12 +203,11 @@ describe("a template's page", () => {
 });
 
 describe("once the app opens template links (APP_TEMPLATES)", () => {
-  it.runIf(APP_TEMPLATES.live)("leads a template's page with Use template", async () => {
+  it.runIf(APP_TEMPLATES.live)("leads a template's page with Get template, the template's own link", async () => {
     const html = renderToStaticMarkup(await TemplatePage(params("habit-tracker")));
     const use = html.indexOf('href="/open/template/habit-tracker"');
     expect(use).toBeGreaterThan(0);
-    expect(html).toContain("Start tracking</span>"); // the Mac's words; the iPhone's are beside them
-    expect(html).toContain("Use template</span></a>");
+    expect(use).toBeLessThan(html.indexOf("About this template"));
   });
 
   it("keeps template pages in search", async () => {
@@ -211,10 +238,10 @@ describe("Use template and Use this note in a browser", () => {
     expect(redirects).toContainEqual({ source: "/open/copy/:slug", destination: "/n/:slug?open=1", permanent: true });
   });
 
-  it.runIf(APP_TEMPLATES.live)("says where a template works: both for a plain one, the Mac for one with an app until its iPhone build", async () => {
+  it.runIf(APP_TEMPLATES.live)("says what Get template does: installs Pinto Notes, free on Mac and iPhone", async () => {
     const text = async (slug: string) => renderToStaticMarkup(await TemplatePage(params(slug))).replace(/<[^>]+>/g, "");
-    expect(await text("meeting-notes")).toContain("Free. Needs Pinto Notes for iPhone or Mac.");
-    expect(await text("habit-tracker")).toContain("Free. Needs Pinto Notes for Mac.");
+    expect(await text("meeting-notes")).toContain("Installs Pinto Notes, free on Mac and iPhone");
+    expect(await text("habit-tracker")).toContain("Installs Pinto Notes, free on Mac and iPhone");
   });
 
   it.runIf(APP_TEMPLATES.live)("keeps Use template the universal link, with nothing of the attempt in the page as served", async () => {

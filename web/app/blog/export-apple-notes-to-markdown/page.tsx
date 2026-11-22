@@ -67,7 +67,7 @@ export default function Page() {
       <p>
         To copy only part of a note, macOS 27 and iOS 27 add Copy as Markdown: select the text, then choose Edit, Copy as Markdown on a Mac,
         or Copy as Markdown in the edit menu on iPhone. It works the other way too: paste Markdown into a note and it turns into headings and
-        lists. <a href="/blog/apple-notes-ios-27">What else is new in Apple Notes in iOS 27</a> covers the rest. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
+        lists. The Mac steps come from Apple&apos;s guide, <a href="https://support.apple.com/guide/notes/import-export-and-print-notes-not201900c07/mac" rel="noopener">Import, export, and print notes on Mac</a>.
       </p>
 
       <h2 id="iphone">Export a note on iPhone</h2>
@@ -85,7 +85,7 @@ export default function Page() {
 
       <h2 id="check">What survives the export</h2>
       <p>
-        Apple doesn&apos;t list what comes across, so I tested it on macOS 27 with one note that has everything: a checklist, a table with
+        Apple doesn&apos;t list what comes across, so it was tested on macOS 27 with one note that has everything: a checklist, a table with
         a two-line cell, a tag, a link to another note and a picture.
       </p>
       <PostFigure src="/blog/macos27/notes27-smart-folder-open-todos" width={2000} height={900} maxWidth={700}
@@ -140,24 +140,23 @@ export default function Page() {
         Whichever you use, it&apos;s a copy. Apple Notes stays as it was, and a note you change tomorrow won&apos;t change in the file.
       </p>
 
+
       <h2>If you&apos;re moving somewhere, not making a backup</h2>
       <p>
-        An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/blog/move-apple-notes-to-obsidian-notion-keep">Moving
-        Apple Notes to Obsidian, Notion or Keep</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
-        Notes, that&apos;s why I made Pinto Notes: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
+        An export is the right tool for a backup or a one-off move into Obsidian or a repository. If what you actually want is Markdown notes that still work like Apple
+        Notes, that&apos;s what Pinto Notes is for: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
       </p>
       <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={420}
         alt="The Import from Apple Notes sheet in Pinto Notes on a Mac, with every note listed under its folder and ticked, and an Import button."
         caption="File, Import from Apple Notes in Pinto Notes. Apple Notes isn't changed." />
       <p>
-        On a Mac, <a href="/blog/move-from-apple-notes">File, Import from Apple Notes</a> brings over the notes you pick in one go, in their
+        On a Mac, <a href="/blog/import-your-notes">File, Import from Apple Notes</a> brings over the notes you pick in one go, in their
         folders, with tables and pictures. Be aware of what it leaves behind: other attachments and locked notes stay in Apple Notes. And
         once your notes are Markdown in Pinto Notes, ChatGPT or Claude can read and edit them directly, with your approval, instead of you
         pasting files into a chat. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or Claude</a> takes a couple of minutes.
       </p>
       <p>
-        If you&apos;re here because you want to script Apple Notes, <a href="/blog/apple-notes-api">what exists instead of an Apple Notes
-        API</a> covers AppleScript, Shortcuts and their limits.
+        If you want to script Apple Notes, AppleScript and Shortcuts are the available routes, with their own limits.
       </p>
     </PostPage>
   );

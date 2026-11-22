@@ -133,8 +133,7 @@ export default function Page() {
       <p>
         Zwei Einstellungen helfen. Aktiviere in den Einstellungen von Notizen „Markierte Einträge automatisch sortieren“, dann rutscht, was
         du erledigt hast, an das Ende des Tages. Und ein intelligenter Ordner mit der Regel Checklisten, Nicht markiert zeigt jede Notiz, in
-        der noch etwas abzuhaken ist. Wie du einen anlegst, steht in <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">tags and
-        Smart Folders</a> (auf Englisch).
+        der noch etwas abzuhaken ist.
       </p>
 
       <h2 id="jede-woche">Jede Woche</h2>
@@ -151,8 +150,7 @@ export default function Page() {
       </p>
 
       <p>
-        Um auf die ganze Woche zurückzublicken, stellt die <a href="/de/blog/wochenrueckblick-vorlage-apple-notizen">Vorlage für den
-        Wochenrückblick</a> jeden Sonntag fünf Fragen.
+        Um auf die ganze Woche zurückzublicken, stellt ein Wochenrückblick jeden Sonntag fünf Fragen.
       </p>
 
       <h2 id="grenzen">Wo ein Habit Tracker in Notizen aufhört</h2>
@@ -183,7 +181,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">ChatGPT verbinden</a> (auf Englisch) dauert eine Minute.
       </p>
       <p>
-        Deine Apple Notizen kommen mit <a href="/blog/move-from-apple-notes" hrefLang="en">einem Import auf deinem Mac</a> (auf Englisch)
+        Deine Apple Notizen kommen mit <a href="/blog/import-your-notes" hrefLang="en">einem Import auf deinem Mac</a> (auf Englisch)
         mit, und Apple Notizen bleibt, wie es war. Die App ist auf Englisch.
       </p>
     </LocalPostPage>

@@ -1,0 +1,52 @@
+{
+  "subtitle": "Book notes your AI turns into a summary and next steps.",
+  "about": "A note for quotes with page numbers, your thoughts and a summary of each book. Send your AI highlights as you read, then ask for the big idea and things to try.",
+  "ask": {
+    "step": "Ask for the notes",
+    "prompt": "Set up the book notes template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Send a highlight",
+      "you": "Page 31: \"The day will never arrive when you finally have everything under control.\"",
+      "ai": "Added the quote with its page under Four Thousand Weeks.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Book notes filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Wrap up a book",
+      "you": "I finished Deep Work. Wrap it up.",
+      "ai": "Added the big idea under Deep Work.",
+      "phone": "phone-2",
+      "alt": "Deep Work by Cal Newport, in Book notes"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Book notes as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "steps": 3
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 3
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Deep Work by Cal Newport"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { Check, ChevronRight, Minus, Plus } from "lucide-react"
 import { route } from "amber-router"
 import { Ring, Row, Section, SHORT, Title, TintButton, useMedia } from "@/components/kit"
 import { HabitSheet } from "@/components/habit-sheet"
-import { addDays, amount, done, doneInWeek, dueToday, iso, LETTERS, parse, scheduled, skipped, streak, today, week, weekStart, WEEKDAYS, weekday, useHabits, type Days, type Habit, type Skips } from "@/lib/habits"
+import { addDays, amount, done, doneInWeek, dueToday, iso, LETTERS, notYet, parse, scheduled, skipped, streak, today, week, weekGoal, weekStart, WEEKDAYS, weekday, useHabits, type Days, type Habit, type Skips } from "@/lib/habits"
 import { cn } from "@/lib/utils"
 
 // The app's main job: tick off today's habits in one tap, and see the week at a glance. Habits that
@@ -107,17 +107,17 @@ function WeekGrid({ habits, days, skips, from, className }: { habits: Habit[]; d
   )
 }
 
-// Days to come and days the habit isn't for are faint. A day before the tracker was started has no
-// dot at all: there was nothing to do that day (council round 3).
+// Days to come and days the habit isn't for are faint. A day before the tracker was started, or
+// before the habit was added, has no dot at all: there was nothing to do that day (council round 3).
 function Dots({ habit: h, days, skips, start, now, from }: { habit: Habit; days: Days; skips: Skips; start: Date; now: Date; from: string }) {
   return (
     <>
       <span className="truncate text-[0.9375rem] font-medium">{h.name}</span>
       {LETTERS.map((_, i) => {
-        const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = v >= h.target
+        const d = addDays(start, i), k = iso(d), v = amount(days, h, k), full = done(days, h, k)
         return <span key={i} className={cn("mx-auto size-[18px] rounded-full",
           full ? "bg-[var(--amber-accent)]" : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60"
-            : v > 0 ? "bg-[var(--amber-accent-soft)]" : k < from ? "invisible" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
+            : v > 0 ? "bg-[var(--amber-accent-soft)]" : k < from || notYet(h, k) ? "invisible" : k > iso(now) || !scheduled(h, d) ? "bg-muted/50" : "bg-muted",
           k === iso(now) && !full && "ring-[1.5px] ring-[var(--amber-accent)]")} />
       })}
     </>
@@ -134,7 +134,7 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen, compact }: { habit
   const start = weekStart(now)
   const skip = skipped(skips, h, day)
   const line = counted ? `${value} of ${h.target} ${h.unit ?? ""}`.trim()
-    : h.perWeek ? `${doneInWeek(days, h, now)} of ${h.perWeek} this week`
+    : h.perWeek ? `${doneInWeek(days, h, now)} of ${weekGoal(h, start)} this week`
     : skip ? "Skipped today" : h.detail || (isDone ? "Done" : "Not yet")
   const pop = () => setPopping(true)
   const settle = (e: React.AnimationEvent) => { if (e.animationName === "tick-ring") setPopping(false) }
@@ -152,12 +152,12 @@ function HabitRow({ habit: h, days, skips, from, set, onOpen, compact }: { habit
         {!compact && <span className="mt-2 flex gap-1.5 min-[700px]:hidden min-[900px]:flex min-[1100px]:hidden" aria-hidden="true">
           {LETTERS.map((l, i) => {
             const d = addDays(start, i), k = iso(d), got = amount(days, h, k)
-            const full = got >= h.target, part = got > 0 && !full
+            const full = done(days, h, k), part = got > 0 && !full
             return (
               <span key={i} className={cn("grid size-6 place-items-center rounded-full text-[0.75rem] font-semibold",
                 full ? "bg-[var(--amber-accent)] text-mark-text" : part ? "bg-[var(--amber-accent-soft)] text-link"
                   : skipped(skips, h, k) ? "border-[1.5px] border-dashed border-muted-foreground/60 text-muted-foreground"
-                  : k < from ? "invisible" : !scheduled(h, d) ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
+                  : k < from || notYet(h, k) ? "invisible" : !scheduled(h, d) ? "bg-muted/50 text-muted-foreground/60" : "bg-muted text-muted-foreground",
                 k === day && !full && "ring-[1.5px] ring-[var(--amber-accent)]")}>{l}</span>
             )
           })}

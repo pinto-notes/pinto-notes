@@ -1,4 +1,4 @@
-import { AUTHOR, newestFirst } from "./posts";
+import { newestFirst } from "./posts";
 import { FEED_PATH, SITE_NAME, SITE_URL } from "./site";
 
 /// The blog as an RSS 2.0 feed: every published post, newest first, with its search description.
@@ -20,7 +20,7 @@ export function feedXml(): string {
       `      <link>${url}</link>`,
       `      <guid isPermaLink="true">${url}</guid>`,
       `      <pubDate>${rfc822(p.date)}</pubDate>`,
-      `      <dc:creator>${escape(AUTHOR.name)}</dc:creator>`,
+      `      <dc:creator>Pinto Notes</dc:creator>`,
       `      <category>${escape(p.category)}</category>`,
       `      <description>${escape(p.description)}</description>`,
       "    </item>",

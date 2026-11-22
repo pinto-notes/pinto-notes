@@ -15,8 +15,8 @@ export const metadata = postMetadata("connect-chatgpt-to-your-notes");
 // (developers.openai.com), the OpenAI community thread of 28 September 2026 and TechCrunch's DevDay report
 // of 29 September; it was not rechecked in a Plus account. Pinto Notes' side checked on main on 12 October:
 // Settings, AI is titled Connect an AI (SettingsView.swift, ConnectAI.swift); the guide's button is "Copy
-// Address and Open <AI>" (ConnectGuide.swift); the ask is "Allow ChatGPT to use your notes?" with Read and
-// edit or Read only and Don't Allow (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
+// Address and Open <AI>" (ConnectGuide.swift); the ask is "Allow ChatGPT to use your notes?" with Allow
+// and Don't Allow (one Allow means read and edit since 30 Oct 2026; no read-only choice) (ConnectAI.swift, ConnectAsks.swift, NoteDetailView.swift); Add to
 // Claude Code (ConnectAI.swift); Disconnect (ConnectAI.swift); Show Version History (RootView.swift); the
 // connect page's "No device with Pinto Notes? Use your recovery key" (web/app/connect/ConnectScreens.tsx).
 // 28 October 2026: the Pinto Notes plugin was published in ChatGPT's plugin directory; the ChatGPT steps now use it
@@ -28,7 +28,7 @@ const FAQ = [
     "Pinto Notes has been in ChatGPT's plugin directory since 28 October 2026, so you add it like any other plugin, without Developer mode. OpenAI decides which plans, countries and workspaces get directory plugins, and in a Business or Enterprise workspace an admin may have to allow it. If you can't find Plugins in ChatGPT, that's the place to check.",
   ] },
   { q: "Does it work in the ChatGPT app on my phone?", a: [
-    "Connect Pinto Notes once, in ChatGPT on the web. I haven't checked the ChatGPT phone apps with it myself yet, so treat phone access as unverified for now.",
+    "Connect Pinto Notes once, in ChatGPT on the web. We haven't checked the ChatGPT phone apps with it yet, so treat phone access as unverified for now.",
   ] },
   { q: "Why don't I see Create MCP App in ChatGPT?", a: [
     "You don't need it for Pinto Notes any more: it's in the plugin directory. For other custom apps, Developer mode is probably off. Turn it on in Settings, Security and login (chatgpt.com/settings/security), then go back to Plugins and choose + again. Without it, the menu only offers Create plugin and Upload plugin. That fix comes from a ChatGPT Pro user on OpenAI's community forum on 28 September 2026, not from OpenAI's docs.",
@@ -51,9 +51,9 @@ export default function Page() {
     <PostPage
       slug="connect-chatgpt-to-your-notes"
       intro={<>
-        I talk to ChatGPT all day, and for a long time none of it reached my notes. I&apos;d plan a trip in a chat, then copy the
-        good parts into Apple Notes by hand, and the next chat knew nothing about it. Here&apos;s what ChatGPT can do with the notes
-        apps you probably use, where each one stops, and the setup I use now so its changes land in my notes.
+        You talk to ChatGPT all day, and none of it reaches your notes. You plan a trip in a chat, copy the good parts into
+        Apple Notes by hand, and the next chat knows nothing about it. Here&apos;s what ChatGPT can do with the notes apps you
+        probably use, where each one stops, and a setup where its changes land in your notes.
       </>}
       answer={
         <Answer jump={[
@@ -98,7 +98,7 @@ export default function Page() {
         caption="Apple's own answer on its developer forums. Image: Apple." />
       <p>
         Apple Notes is the one most people have, and it&apos;s the most closed: Apple has no API for it, so nothing outside your Mac can
-        get in. <a href="/blog/apple-notes-api">Apple confirmed it this year</a>.
+        get in.
       </p>
 
       <h2 id="missing">What&apos;s missing</h2>
@@ -135,41 +135,41 @@ export default function Page() {
       </div>
       <p>
         Apple Notes can&apos;t be connected this way. On a Mac, ChatGPT can look at a note you have open, but it can&apos;t search your
-        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it.
+        notes or save changes to them.
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
-      <p>Pinto Notes is in ChatGPT&apos;s plugin directory, so this takes a couple of minutes and no developer settings. I did it in ChatGPT on the web at chatgpt.com.</p>
+      <p>Pinto Notes is in ChatGPT&apos;s plugin directory, so this takes a couple of minutes and no developer settings. These steps are from ChatGPT on the web at chatgpt.com.</p>
       <PostFigure src="/blog/news/chatgpt-pinto-notes-plugin" width={1482} height={736} maxWidth={640}
         alt="The Pinto Notes plugin page in ChatGPT, with Manage and Try in chat buttons above three example requests about to-do lists and a Lisbon trip note."
         caption="The Pinto Notes plugin in ChatGPT, with examples to try. Screenshot: ChatGPT." />
       <Steps>
         <li>
-          <strong>Open the Pinto Notes plugin in ChatGPT</strong>
+          <strong>Open the Pinto Notes plugin in ChatGPT</strong>{" "}
           In Pinto Notes on your Mac, choose <Path steps={["Settings", "Connect an AI", "ChatGPT", "Open Pinto Notes in ChatGPT"]} />
           Or use <a href="https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f" rel="noopener">this link</a>,
           or open Plugins in ChatGPT&apos;s sidebar and search for Pinto Notes.
         </li>
         <li>
-          <strong>Connect it</strong>
+          <strong>Connect it</strong>{" "}
           Press the connect button on the plugin&apos;s page. ChatGPT asks Pinto Notes for permission, and a page on pintonotes.com opens. Sign in there (or choose Open Pinto Notes if
           it&apos;s on this computer).
         </li>
         <li>
-          <strong>Choose Allow in Pinto Notes</strong>
-          Pinto Notes on your Mac asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Pick Read and edit or Read only, and choose
-          Allow. If the page shows a number, type it in Pinto Notes first. The page takes you back to ChatGPT. If the app asks and you
+          <strong>Choose Allow in Pinto Notes</strong>{" "}
+          Pinto Notes on your Mac asks &ldquo;Allow ChatGPT to use your notes?&rdquo; Choose Allow, which lets
+          ChatGPT read and edit your notes. If the page shows a number, type it in Pinto Notes first. The page takes you back to ChatGPT. If the app asks and you
           didn&apos;t start this, choose Don&apos;t Allow.
         </li>
         <li>
-          <strong>Try it</strong>
+          <strong>Try it</strong>{" "}
           Choose Try in chat, or start a new chat, add Pinto Notes from the tools menu, and ask &ldquo;Search my Pinto Notes and tell me what I wrote most recently.&rdquo;
         </li>
       </Steps>
-      <Figure shot={SHOTS.consent} caption="Nothing is shared until you choose Allow, and you pick Read and edit or Read only." />
+      <Figure shot={SHOTS.consent} caption="Nothing is shared until you choose Allow." />
       <p>
         No Mac nearby? On the page, choose Use your recovery key. Enter your recovery key (Pinto Notes shows it in Settings,
-        Privacy &amp; Security), pick Read and edit or Read only, and choose Allow. The key is used on that page only and never sent
+        Privacy &amp; Security) and choose Allow. The key is used on that page only and never sent
         to us, but approving on your device is safer, so use it when you can.
       </p>
       <p>OpenAI renamed some of these pages in 2026. If you see Connectors or Apps instead of Plugins, it&apos;s the same place.</p>
@@ -185,7 +185,7 @@ export default function Page() {
         workspace&apos;s policy, so ask your admin if the toggle isn&apos;t there.
       </p>
       <p>
-        Menu labels differ between accounts while OpenAI rolls changes out. I couldn&apos;t check the Developer mode steps in a Plus account
+        Menu labels differ between accounts while OpenAI rolls changes out. We couldn&apos;t check the Developer mode steps in a Plus account
         after the September changes; they follow OpenAI&apos;s <a href="https://developers.openai.com/api/docs/guides/developer-mode" rel="noopener">Developer
         mode guide</a> and <a href="https://developers.openai.com/plugins/deploy/connect-chatgpt" rel="noopener">Connect and test your
         plugin</a>. If yours look different, the <a href="/help#connect">help page</a> is the quickest way to tell me.
@@ -253,13 +253,13 @@ export default function Page() {
       />
       <ul>
         <li>Nothing is shared until you choose Allow: in Pinto Notes on your Mac, or on pintonotes.com with your recovery key.</li>
-        <li>You choose Read only, or Read and edit, for each assistant.</li>
+        <li>You allow each assistant one at a time.</li>
         <li>When an assistant changes a note, Pinto Notes shows what changed, with Undo, and keeps the previous version in the note&apos;s history (File, Show Version History).</li>
         <li>Connect an AI lists everything that&apos;s connected. Choose Disconnect, and it loses access right away.</li>
       </ul>
       <p>
         ChatGPT says apps can come with elevated risk, and OpenAI&apos;s Developer mode guide spells it out: the model can make mistakes
-        on write actions, and a malicious server could try to take your data. That&apos;s why Pinto Notes asks you to allow each app, lets you pick Read only, and keeps every earlier version.
+        on write actions, and a malicious server could try to take your data. That&apos;s why Pinto Notes asks you to allow each app, shows every change with Undo, and keeps every earlier version.
       </p>
 
       <h2 id="ask">Things to ask once it&apos;s connected</h2>
@@ -277,8 +277,11 @@ export default function Page() {
         the <a href="/templates/habit-tracker">habit tracker</a> or <a href="/templates/meeting-notes">meeting notes</a>.
       </p>
       <p>
-        The part I like most comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
+        The best part comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
         Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat.
+      </p>
+      <p>
+        Your prompts can live there too. A <a href="/blog/chatgpt-prompt-library-in-notes">prompt library kept as notes</a> gives ChatGPT one place to find them. To turn a messy capture into next steps, try the <a href="/blog/chatgpt-brain-dump-to-action-list">brain dump prompt</a>, which leaves your original note as you wrote it.
       </p>
     </PostPage>
   );

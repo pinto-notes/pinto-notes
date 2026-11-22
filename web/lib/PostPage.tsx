@@ -3,10 +3,10 @@ import legal from "./legal.module.css";
 import p from "./post.module.css";
 import l from "./launch.module.css";
 import DownloadLink from "@/app/DownloadLink";
-import { Announcement, Avatar, Figure, PostCard, longDate, readingMinutes } from "./blog";
+import { Announcement, Figure, PostCard, longDate, readingMinutes } from "./blog";
 import { ClosingBand } from "./ClosingBand";
-import { AUTHOR, CATEGORY_COVERS, categoryPath, morePosts, post, published, type Category, type Post } from "./posts";
-import { APP_STORE_URL, MAKER_URL, SITE_URL, pageMetadata } from "./site";
+import { CATEGORY_COVERS, categoryPath, morePosts, post, published, type Category, type Post } from "./posts";
+import { APP_STORE_URL, SITE_URL, pageMetadata, SITE_NAME } from "./site";
 import { JsonLd, article, breadcrumbs, faqPage, maker, organization } from "./structured-data";
 import { languagesFor } from "./i18n/blog";
 
@@ -21,7 +21,7 @@ export function postMetadata(slug: string, { title }: { title?: string } = {}): 
     description: x.description,
     path: `/blog/${x.slug}`,
     index: !x.draft,
-    article: { published: x.date, modified: x.updated, author: AUTHOR.name },
+    article: { published: x.date, modified: x.updated, author: SITE_NAME },
     languages: x.draft ? undefined : languagesFor(x.slug),
     // Drafts have no card of their own (only published posts get one) and use the site's.
     ...(x.draft ? {} : { image: { url: `/og/blog/${x.slug}`, alt: `${x.title}, on the Pinto Notes blog` } }),
@@ -89,7 +89,16 @@ function Cover({ x, art }: { x: Post; art?: string }) {
 /// related posts and a link to the rest, then the dark band written for the post's category. Emits
 /// Article, BreadcrumbList and (when the post has real questions) FAQPage JSON-LD. `caption` goes
 /// under the post's own capture, for the OS it came from.
-export function PostPage({ slug, intro, answer, art, hero, caption, faq, children }: { slug: string; intro: React.ReactNode; answer?: React.ReactNode; art?: string; hero?: React.ReactNode; caption?: string; faq?: QA[]; children: React.ReactNode }) {
+/// Whether a post without its own `hero` gets the default Pinto Notes capture under the answer. Only posts about Pinto
+/// itself: a Pinto screenshot under an Apple Notes or Obsidian answer put "too much focus on Pinto Notes" in the first
+/// screen (Emil, 21 Nov 2026). Those posts keep their paper-cut cover at the top.
+const PINTO_TOPIC = new Set(["connect-notes-to-gemini-cli"]);
+export const showsPintoHero = (slug: string, category: string) =>
+  category === "Building Pinto Notes" || category === "Guides" || PINTO_TOPIC.has(slug);
+
+/// `cover={false}` leaves the paper-cut cover out: the Apple Notes template posts open on the template and the
+/// side-by-side (lib/SideBySide.tsx), with no decorative art (22 Nov 2026).
+export function PostPage({ slug, intro, answer, art, hero, caption, faq, cover = true, children }: { slug: string; intro: React.ReactNode; answer?: React.ReactNode; art?: string; hero?: React.ReactNode; caption?: string; faq?: QA[]; cover?: boolean; children: React.ReactNode }) {
   const x = post(slug);
   const path = `/blog/${x.slug}`;
   const minutes = readingMinutes(slug);
@@ -113,7 +122,6 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
             <time className={l.date} dateTime={x.date}>{longDate(x.date)}</time>
             <h1 className={l.title}>{x.title}</h1>
             <p className={l.deck}>{intro}</p>
-            <p className={l.by}><Avatar size={24} /><a href={MAKER_URL} rel="author">{AUTHOR.name}</a></p>
           </header>
           <div className={`${l.hero} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}>
             <img src={c.src} alt={c.alt} width={c.width} height={c.height} decoding="async" fetchPriority="high" />
@@ -149,7 +157,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
   return (
     <div className={p.main}>
       <JsonLd graph={graph} />
-      <article className={p.col}>
+      <article className={p.col} data-cover={cover ? undefined : "none"}>
         <header className={`${p.head} rise`} style={{ "--i": 0 } as React.CSSProperties}>
           <nav className={p.crumbs} aria-label="Breadcrumb">
             <ol>
@@ -159,17 +167,15 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
           </nav>
           {x.announcement && <Announcement />}
           <h1 className={p.title}>{x.title}</h1>
+          {/* No author on posts (Emil, 21 Nov 2026: "we just don't have an author on the blog posts at all, I'm not
+              really writing them anyway"). The date and the share buttons stay. */}
           <div className={p.byline}>
-            <Avatar size={32} />
-            <p>
-              <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a>
-              <span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time></span>
-            </p>
+            <p><span className={p.meta}><time dateTime={x.date}>{longDate(x.date)}</time></span></p>
             <Share x={x} />
           </div>
         </header>
 
-        <div className={`${p.coverRow} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}><Cover x={x} art={art} /></div>
+        {cover && <div className={`${p.coverRow} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}><Cover x={x} art={art} /></div>}
 
         {/* The intro and the short answer: on the first screen on every device (the cover sits beside
             the title on wide screens, and after this on phones). */}
@@ -179,7 +185,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
         </div>
 
         <div className={`${legal.article} ${p.body} ${p.rest} rise`} style={{ "--i": 2 } as React.CSSProperties}>
-          {hero ?? (!art && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />)}
+          {hero ?? (!art && showsPintoHero(slug, x.category) && <Figure shot={x.image} ground={x.thumb.ground} caption={caption} priority />)}
           {children}
           {faq?.length ? (
             <>
@@ -195,10 +201,6 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
           <p className={p.checked}>Checked against the app on <time dateTime={x.updated}>{longDate(x.updated)}</time>.</p>
         </div>
 
-        <footer className={p.signoff}>
-          <Avatar size={44} />
-          <p><b>Written by <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a></b><span>The maker of Pinto Notes.</span></p>
-        </footer>
       </article>
 
       {more.length ? (

@@ -1,0 +1,54 @@
+{
+  "subtitle": "A weekly review your AI runs one question at a time.",
+  "about": "A note with five review questions, past weeks and a checklist of your top three for next week. Answer your AI one question at a time to save the review, then tick off your priorities.",
+  "ask": {
+    "step": "Ask for the review",
+    "prompt": "Set up the weekly review template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Review your week",
+      "you": "Ask me this week's five questions.",
+      "ai": "Your answers are under Reviews, as Week of 2 November, with your top three for next week.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Weekly review filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Tick a priority",
+      "you": "I booked the dentist.",
+      "ai": "Ticked it off.",
+      "phone": "phone-2",
+      "alt": "Reviews, in Weekly review"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Weekly review as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "steps": 1,
+      "from": "Reviews"
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 1,
+      "from": "Reviews"
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Reviews"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

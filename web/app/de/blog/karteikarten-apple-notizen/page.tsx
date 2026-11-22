@@ -126,8 +126,8 @@ export default function Page() {
         <li><strong>Find eine Karte über jedes Wort.</strong> Die Suche liest jedes Wort in jeder Notiz, also findet „Mitochondrien“ die Karte, wo auch immer sie steht.</li>
       </ul>
       <p>
-        Wenn du in Vorlesungen mitschreibst, stellt die <a href="/de/blog/cornell-methode-apple-notizen">Cornell-Methode in Apple
-        Notizen</a> die Fragen direkt neben deine Notizen, und so entsteht ein Kartenstapel schon beim Schreiben. Weitere Notizen zum
+        Wenn du in Vorlesungen mitschreibst, stellt die Cornell-Methode in Apple
+        Notizen die Fragen direkt neben deine Notizen, und so entsteht ein Kartenstapel schon beim Schreiben. Weitere Notizen zum
         Einfügen findest du in <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (auf Englisch).
       </p>
 
@@ -159,7 +159,7 @@ export default function Page() {
         um zu antworten. <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">ChatGPT verbinden</a> (auf Englisch) dauert eine Minute.
       </p>
       <p>
-        Die Lernnotizen, die du schon in Apple Notizen hast, kommen mit <a href="/blog/move-from-apple-notes" hrefLang="en">einem Import auf
+        Die Lernnotizen, die du schon in Apple Notizen hast, kommen mit <a href="/blog/import-your-notes" hrefLang="en">einem Import auf
         deinem Mac</a> (auf Englisch) mit, und Apple Notizen bleibt, wie es war. Die App ist auf Englisch.
       </p>
     </LocalPostPage>

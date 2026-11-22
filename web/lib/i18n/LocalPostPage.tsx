@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import legal from "../legal.module.css";
 import p from "../post.module.css";
 import DownloadLink from "@/app/DownloadLink";
-import { Avatar } from "../blog";
 import { ClosingBand, bandButton } from "../ClosingBand";
 import { LinkedInGlyph, XGlyph } from "../PostPage";
-import { AUTHOR, post } from "../posts";
-import { APP_STORE_LIVE, APP_STORE_URL, MAKER_URL, SITE_URL, pageMetadata } from "../site";
+import { post } from "../posts";
+import { APP_STORE_LIVE, APP_STORE_URL, SITE_URL, pageMetadata, SITE_NAME } from "../site";
 import { JsonLd, article, breadcrumbs, faqPage, maker, organization } from "../structured-data";
 import { OG_LOCALE, UI, languagesFor, localDate, localPath, translation, type Lang } from "./blog";
 
@@ -22,7 +21,7 @@ export function localPostMetadata(lang: Lang, slug: string): Metadata {
     shareTitle: t.title,
     description: t.description,
     path: localPath(t),
-    article: { published: t.date, modified: t.updated, author: AUTHOR.name },
+    article: { published: t.date, modified: t.updated, author: SITE_NAME },
     image: { url: `/og/blog/${en.slug}`, alt: t.title },
     languages: languagesFor(t.of),
     locale: OG_LOCALE[lang],
@@ -67,11 +66,7 @@ export function LocalPostPage({ lang, slug, intro, answer, hero, faq, children }
           </nav>
           <h1 className={p.title}>{t.title}</h1>
           <div className={p.byline}>
-            <Avatar size={32} />
-            <p>
-              <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a>
-              <span className={p.meta}><time dateTime={t.date}>{localDate(lang, t.date)}</time></span>
-            </p>
+            <p><span className={p.meta}><time dateTime={t.date}>{localDate(lang, t.date)}</time></span></p>
             <ul className={p.share} aria-label={ui.share}>
               {shares.map((s) => (
                 <li key={s.name}><a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={ui.shareOn(s.name)} title={ui.shareOn(s.name)}>{s.glyph}</a></li>
@@ -108,10 +103,6 @@ export function LocalPostPage({ lang, slug, intro, answer, hero, faq, children }
           <p className={p.checked}>{ui.checked(localDate(lang, t.updated))} <a href={`/blog/${en.slug}`} hrefLang="en">{ui.original}</a></p>
         </div>
 
-        <footer className={p.signoff}>
-          <Avatar size={44} />
-          <p><b>{ui.writtenBy} <a className={p.author} href={MAKER_URL} rel="author">{AUTHOR.name}</a></b><span>{ui.maker}</span></p>
-        </footer>
       </article>
 
       <ClosingBand

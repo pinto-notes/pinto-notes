@@ -8,7 +8,7 @@ import History from "./history/page";
 describe("the places the onboarding emails open", () => {
   it.each([
     ["connect-ai", ConnectAI, "Connect an AI", "/blog/connect-chatgpt-to-your-notes"],
-    ["import", Import, "Import from Apple Notes", "/blog/move-from-apple-notes"],
+    ["import", Import, "Import from Apple Notes", "/blog/import-your-notes"],
     ["history", History, "Version History", null],
   ] as const)("/open/%s tries the app, then says how by hand, with Open in Pinto Notes and the download", (place, Page, step, guide) => {
     const html = renderToStaticMarkup(<Page />);

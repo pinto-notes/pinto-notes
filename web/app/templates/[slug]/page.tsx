@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { APP_TEMPLATES, pageMetadata } from "@/lib/site";
+import { CHATGPT_PLUGIN_URL, CLAUDE_DIRECTORY_URL } from "@/lib/facts";
+import { pageMetadata } from "@/lib/site";
 import { JsonLd, breadcrumbs, faqPage, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
 import { templateSeo } from "@/lib/template-seo";
 import { COVERS, coverPath } from "@/lib/template-covers";
-import { anchor, appLink, authorLink, changedCount, instructions, noteTitle, searchTitle, template, templates, usePath, type Template, needsOn } from "@/lib/templates";
-import Card from "../Card";
+import { BYLINE, INSTALLS, copiedPrompt, heading, moreTemplates, named, templatePage, updatedMonth } from "@/lib/template-pages";
+import { appLink, authorLink, searchTitle, template, templates, templatePath, usePath, type Template } from "@/lib/templates";
 import OpenInApp from "../../OpenInApp";
 import CopyButton from "../CopyButton";
-import Instructions, { AskBubbles } from "../Instructions";
-import PromptCopy from "../PromptCopy";
-import NoteWindow from "../NoteWindow";
-import AppWindow from "../AppWindow";
-import s from "../templates.module.css";
-import UseLabel from "../UseLabel";
-import { ClosingBand, bandButton } from "@/lib/ClosingBand";
+import Slides from "./Slides";
+import s from "./d.module.css";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -31,179 +27,116 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata({ title: searchTitle(t), shareTitle: `${t.title}: a template your AI fills in`, description: t.description, path: `/templates/${t.slug}`, image: { url: `/templates/${t.slug}/opengraph-image`, alt: `The ${t.title.toLowerCase()} template for Pinto Notes` } });
 }
 
-/// The steps, for the page and its HowTo data. Until the app opens template links, the AI makes the note.
-const steps = (t: Template) => APP_TEMPLATES.live
-  ? [
-      { name: "Add the template to Pinto Notes", text: `Choose Use template. Pinto Notes opens and adds the "${noteTitle(t)}" note${t.app ? " with its app" : ""} to the folder you pick.` },
-      { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, so it can fill in the note." },
-      { name: "Talk to your AI", text: "Tell it what happened, in your own words. It finds the note and fills it in, and you see every change in Pinto Notes." },
-    ]
-  : [
-      { name: "Connect your AI", text: "Connect ChatGPT, Claude or Claude Code to Pinto Notes once, so it can write the note." },
-      { name: "Paste the prompt", text: `Copy the prompt for your AI and paste it into a chat. It creates the "${noteTitle(t)}" note${t.app ? " with its app" : ""}, if you don't have it yet. Say which folder it goes in, or move it after.` },
-      { name: "Talk to your AI", text: "Tell it what happened, in your own words. It fills in the note, and you see every change in Pinto Notes." },
-    ];
 
-const at = (i: number) => ({ "--i": i }) as React.CSSProperties;
-
-/// The prompts worth telling apart: AIs that get the same words share one entry ("ChatGPT or Claude").
-function variants(t: Template) {
-  const byPrompt = new Map<string, string[]>();
-  for (const i of instructions(t)) byPrompt.set(i.prompt, [...(byPrompt.get(i.prompt) ?? []), i.name]);
-  return [...byPrompt].map(([prompt, names]) => ({ name: names.join(" or ").replace(/ or (?=.* or )/g, ", "), prompt }));
-}
-
+/// How to get it, for the page and its HowTo data.
+const steps = (t: Template) => {
+  const page = templatePage(t.slug);
+  return [
+    { name: "Get Pinto Notes", text: "Pinto Notes is free on Mac and iPhone." },
+    { name: "Connect your AI", text: "Connect ChatGPT or Claude to Pinto Notes once, from its listing in ChatGPT's plugins or Claude's connector directory." },
+    { name: page.ask.step, text: `Paste the prompt into a chat. Your AI adds the ${named(t)} template to Pinto Notes, then fills it in as you talk.` },
+  ];
+};
 
 export default async function Page({ params }: Props) {
   const t = template((await params).slug);
   if (!t) notFound();
-  const related = t.related.map((r) => template(r)).filter((r): r is Template => Boolean(r));
-  const changed = changedCount(t);
-  // The example bar names the AI the template is mostly used with.
-  const by = t.prompt.claudeCode && t.audiences.includes("Developers") ? "Claude Code" : "ChatGPT";
-  const vs = variants(t);
-  // The templates with an app also answer their search: what you can do in the app, questions, the how-to post.
+  const page = templatePage(t.slug);
   const seo = templateSeo(t.slug);
-  const appSection = t.app && (seo ? (
-    // What you can do in the app: the app itself, with its features as short labels beside it.
-    <section className={s.section} aria-labelledby="result">
-      <div className={s.sectionHead}>
-        <h2 id="result" className={s.h2}>What you can do in the app</h2>
-        <p className={s.sectionLede}><UseLabel t={t} /> adds this app with sample data, in light and dark, and it all works without your AI.</p>
-      </div>
-      <div className={s.canRow}>
-        <div className={s.canApp}><AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} /></div>
-        <div className={s.canSide}>
-          <ul className={s.can}>{seo.can.map((c) => <li key={c.name}><b>{c.name}</b><span>{c.text}</span></li>)}</ul>
-          <AskBubbles asks={seo.make} label="Ask your AI to change the app." max={4} />
-        </div>
-      </div>
-    </section>
-  ) : (
-    <section className={s.section} aria-labelledby="result">
-      <div className={s.sectionHead}>
-        <h2 id="result" className={s.h2}>The app you start with</h2>
-        <p className={s.sectionLede}>
-          <UseLabel t={t} /> adds the note with this app and its sample data in Pinto Notes on your Mac. It follows your Mac in light and dark.
-        </p>
-      </div>
-      <div className={`${s.result} ${s.appPair}`}>
-        <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} app in light mode`} />
-        <AppWindow slug={t.slug} folder={t.folder} scheme="dark" label={`The ${t.title.toLowerCase()} app in dark mode`} />
-      </div>
-    </section>
-  ));
+  const more = moreTemplates(t);
+  const how = steps(t);
+  const get = (className: string, auto = false) => (
+    <OpenInApp auto={auto} className={className} href={usePath(t.slug)} app={appLink(t.slug)} label={`Get template: ${t.title}`} template={named(t)}>Get template</OpenInApp>
+  );
   return (
-    <div className={s.main}>
+    <div className={s.page}>
       <JsonLd graph={[
         breadcrumbs([{ name: "Templates", path: "/templates" }, { name: t.title, path: `/templates/${t.slug}` }]),
-        templateWork(t), templateHowTo(t, steps(t)), organization, maker,
+        templateWork(t), templateHowTo(t, how), organization, maker,
         ...(seo ? [faqPage(seo.faq, `/templates/${t.slug}`)] : []),
       ]} />
-      <div>
-        <ol className={s.crumbs} aria-label="Breadcrumb">
-          <li><a href="/templates">Templates</a></li>
-          <li><a href={`/templates?category=${anchor(t.category)}`}>{t.category}</a></li>
-        </ol>
-        <div className={s.top}>
-          <header className={s.intro}>
-            <h1 className={`${s.title} rise`} style={at(0)}>{seo?.h1 ?? t.title}</h1>
-            <p className={`${s.lede} rise`} style={at(1)}>{t.description}</p>
-            <p className={`${s.for} rise`} style={at(1)}>
-              {t.audience}
-              {t.author && <> A community template by <a className={s.forBy} href={authorLink(t.author)}>@{t.author}</a>.</>}
-            </p>
-            <div className={`${s.ctas} rise`} style={at(2)}>
-              {APP_TEMPLATES.live && <OpenInApp className={s.primary} href={usePath(t.slug)} app={appLink(t.slug)} auto><PlusGlyph /> <UseLabel t={t} /></OpenInApp>}
-              {APP_TEMPLATES.live ? (
-                <>
-                  {!t.app && <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />}
-                </>
-              ) : (
-                <PromptCopy variants={vs} className={s.primary}>
-                  {!t.app && <CopyButton text={t.note} label="Copy the markdown" className={s.quiet} />}
-                </PromptCopy>
-              )}
-            </div>
-            <p className={`${s.fine} rise`} style={at(3)}>Free. Needs <a href="/download">Pinto Notes</a> for {needsOn(t)}.</p>
-          </header>
-          <div className={`${s.heroExample} rise-soft`} style={at(2)}>
-            {/* The filled note leads; the template's cover sits behind it as its stage, as on its card. */}
-            <div className={s.heroStage} style={{ "--ground": COVERS[t.slug].ground } as React.CSSProperties}>
-              <img className={s.heroCover} src={coverPath(t.slug)} alt="" width={800} height={800} />
-              {!t.app && <p className={s.changes} aria-hidden="true">{by} changed <span>{changed} {changed === 1 ? "line" : "lines"}</span><i>Undo</i></p>}
-              <div className={s.heroWindow}>
-                {t.app
-                  ? <AppWindow slug={t.slug} folder={t.folder} label={`The ${t.title.toLowerCase()} template's app in Pinto Notes`} />
-                  : <NoteWindow markdown={t.example} before={t.note} folder={t.folder} date="30 September 2026" label={`The ${t.title.toLowerCase()} template filled in by an AI`} />}
-              </div>
-            </div>
-          </div>
-        </div>
+      <ol className={s.crumbs} aria-label="Breadcrumb">
+        <li><a href="/templates">Templates</a></li>
+        <li aria-current="page">{t.title}</li>
+      </ol>
+      <div className={s.head}>
+        <header>
+          <h1 className={s.title}>{heading(t)}</h1>
+          <p className={s.by}>By <b>Pinto Notes</b> · {BYLINE}</p>
+          <p className={s.pitch}>{page.subtitle}</p>
+        </header>
+        <div className={s.cta}>{get(s.btn, true)}<small>{INSTALLS}</small></div>
       </div>
 
-      {seo && appSection}
+      <div className={s.main}>
+        <Slides slug={t.slug} slides={page.slides} note={!t.app} />
+        <aside className={s.side}>
+          <h2>About this template</h2>
+          <p>{page.about}</p>
+          <dl className={s.facts}>
+            <dt>Works with</dt><dd>ChatGPT, Claude</dd>
+            <dt>Runs on</dt><dd>Mac, iPhone</dd>
+            <dt>Price</dt><dd>Free</dd>
+            <dt>Updated</dt><dd>{updatedMonth(t)}</dd>
+            {t.author && <><dt>Made by</dt><dd><a href={authorLink(t.author)}>@{t.author}</a></dd></>}
+          </dl>
+        </aside>
+      </div>
 
-      {!APP_TEMPLATES.live && <Instructions title={noteTitle(t)} variants={vs} asks={t.asks} />}
-
-      {t.app ? (seo ? null : appSection) : (
-      <section className={s.section} aria-labelledby="result">
-        <div className={s.sectionHead}>
-          <h2 id="result" className={s.h2}>The note you start with</h2>
-          <p className={s.sectionLede}>
-            This is what {APP_TEMPLATES.live ? <UseLabel t={t} /> : "the prompt"} {APP_TEMPLATES.live ? "adds to" : "creates in"} Pinto Notes: an ordinary note with the headings{t.note.includes("|") ? " and the table" : ""} ready.
-            Your AI fills it in from there, and you can still edit every line yourself.
-          </p>
-        </div>
-        <div className={s.result}>
-          <NoteWindow markdown={t.note} folder={t.folder} date="Today" label={`The ${t.title.toLowerCase()} template as a note in Pinto Notes`} />
-        </div>
-      </section>
-      )}
-
-      <section className={s.section} aria-labelledby="how">
-        <div className={s.sectionHead}>
-          <h2 id="how" className={s.h2}>How to set it up</h2>
-        </div>
+      <section className={s.how} aria-labelledby="how-title" id="how">
+        <h2 id="how-title" className={s.h2}>How to get it</h2>
         <ol className={s.steps}>
-          {steps(t).map((st, i) => <li key={st.name} id={`step-${i + 1}`}><b>{st.name}</b><span>{st.text}</span></li>)}
+          <li id="step-1">
+            <b>{how[0].name}</b>
+            <span className={s.links}><a href="/download">Mac or iPhone</a></span>
+          </li>
+          <li id="step-2">
+            <b>{how[1].name}</b>
+            <span className={s.links}>
+              <a href={CHATGPT_PLUGIN_URL} target="_blank" rel="noopener">Connect ChatGPT</a>
+              <a href={CLAUDE_DIRECTORY_URL} target="_blank" rel="noopener">Connect Claude</a>
+              <a href="/open/connect-ai">How to connect</a>
+            </span>
+          </li>
+          <li id="step-3">
+            <b>{how[2].name}</b>
+            <div className={s.prompt}>
+              <p>{page.ask.prompt}</p>
+              <CopyButton className={s.copy} text={copiedPrompt(t, page)} label="Copy" event="template_prompt_copied" />
+            </div>
+            <p className={s.fine}>Copy adds the full instructions for the {named(t)} template, so your AI makes this one.</p>
+          </li>
         </ol>
-        <p className={s.connectOne}><a href="/open/connect-ai">Connect ChatGPT, Claude or Claude Code</a></p>
       </section>
 
       {seo && (
-        <section className={s.section} aria-labelledby="questions">
-          <div className={s.sectionHead}>
-            <h2 id="questions" className={s.h2}>Questions</h2>
-            {seo.post && (
-              <p className={s.sectionLede}>
-                Would you rather build your own with your AI? <a href={`/blog/${seo.post.slug}`}>{seo.post.title}</a> shows both ways, and where each one stops.
-              </p>
-            )}
-          </div>
+        <section className={s.how} aria-labelledby="questions">
+          <h2 id="questions" className={s.h2}>Questions</h2>
           <dl className={s.faq}>
             {seo.faq.map((f) => <div key={f.q}><dt>{f.q}</dt>{f.a.map((a) => <dd key={a}>{a}</dd>)}</div>)}
+            {seo.post && <div><dt>Would you rather build your own?</dt><dd><a href={`/blog/${seo.post.slug}`}>{seo.post.title}</a> shows both ways.</dd></div>}
           </dl>
         </section>
       )}
 
-      {related.length > 0 && (
-        <section className={s.section} aria-labelledby="more">
-          <h2 id="more" className={s.h2}>More templates</h2>
-          <ul className={s.grid}>{related.map((r) => <li key={r.slug}><Card t={r} heading="h3" /></li>)}</ul>
-        </section>
-      )}
+      <section className={s.more} aria-labelledby="more">
+        <h2 id="more" className={s.h2}>More templates</h2>
+        <ul className={s.cards}>
+          {more.map((m) => (
+            <li key={m.slug}>
+              <a className={s.card} href={templatePath(m.slug)}>
+                <img src={coverPath(m.slug)} alt={COVERS[m.slug].alt} width={800} height={800} loading="lazy" decoding="async" />
+                <b><span>{m.title}</span><i>Free</i></b>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      <ClosingBand
-        title={`Start your ${t.title.toLowerCase()} today.`}
-        text="Your AI keeps it, and you see every line it changes."
-        actions={APP_TEMPLATES.live
-          ? <OpenInApp className={bandButton.primary} href={usePath(t.slug)} app={appLink(t.slug)}><UseLabel t={t} /></OpenInApp>
-          : undefined}
-        fine={APP_TEMPLATES.live ? <>Free. Needs Pinto Notes for {needsOn(t)}.</> : undefined}
-      />
+      <div className={s.dock}>
+        <div><b>{t.title}</b><br /><small>Installs Pinto Notes, free</small></div>
+        {get(s.btn)}
+      </div>
     </div>
   );
 }
-
-const PlusGlyph = () => <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>;

@@ -1,0 +1,52 @@
+{
+  "subtitle": "A job application tracker your AI fills from job ads.",
+  "about": "A note with applications, stages and next steps, plus interview prep and follow-ups. Paste a job ad into your AI to add it, or ask for interview questions before you meet.",
+  "ask": {
+    "step": "Ask for the tracker",
+    "prompt": "Set up the job hunt template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Save a job ad",
+      "you": "Here's the Finch Bikes ad. I want to apply by 18 Nov.",
+      "ai": "Added Finch Bikes to Applications, for the product designer role.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Job hunt filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Prep an interview",
+      "you": "I have a first interview with Tideway on Thursday. Help me prep.",
+      "ai": "Added three likely questions with talking points under Interview prep.",
+      "phone": "phone-2",
+      "alt": "Interview prep, in Job hunt"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Job hunt as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "steps": 5
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 5
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Interview prep"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

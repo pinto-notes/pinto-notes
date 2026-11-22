@@ -164,8 +164,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Per gli appunti dei colloqui stessi, gli <a href="/it/blog/appunti-riunione-note-iphone">appunti di riunione nelle note di
-        iPhone</a> funzionano così come sono. Altre note da incollare sono in{" "}
+        Per gli appunti dei colloqui stessi, puoi usare una nota di riunione su iPhone. Altre note da incollare sono in{" "}
         <a href="/blog/apple-notes-templates">Apple Notes templates</a> (in inglese).
       </p>
 
@@ -197,7 +196,7 @@ export default function Page() {
         Claude sono collegati; <a href="/blog/connect-chatgpt-to-your-notes">Collegare ChatGPT</a> (in inglese) richiede un minuto.
       </p>
       <p>
-        Le note che tieni già in Note di Apple arrivano con <a href="/blog/move-from-apple-notes">una sola importazione sul Mac</a>, e
+        Le note che tieni già in Note di Apple arrivano con <a href="/blog/import-your-notes">una sola importazione sul Mac</a>, e
         Note di Apple resta com’era.
       </p>
     </LocalPostPage>

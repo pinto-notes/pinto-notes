@@ -129,8 +129,7 @@ export default function Page() {
         <li><strong>Si te saltas un día, déjalo vacío.</strong> Un hueco es mejor que una puntuación inventada tres días después.</li>
       </ul>
       <p>
-        Si quieres palabras además de números, el <a href="/es/blog/diario-personal-notas-iphone">diario personal en Notas</a> hace
-        cuatro preguntas cortas al día, y el <a href="/es/blog/tracker-de-habitos-notas-iphone">tracker de hábitos</a> encaja junto a esta
+        Si quieres palabras además de números, puedes responder cuatro preguntas cortas al día en un diario de Notas, y el <a href="/es/blog/tracker-de-habitos-notas-iphone">tracker de hábitos</a> encaja junto a esta
         nota para cosas como un paseo o nada de pantallas después de las diez.
       </p>
 
@@ -172,7 +171,7 @@ export default function Page() {
       </p>
       <p>
         Un registro que ya llevas en Notas de Apple se pasa con{" "}
-        <a href="/blog/move-from-apple-notes" hrefLang="en">una sola importación en tu Mac</a> (en inglés), y Notas de Apple no cambia.
+        <a href="/blog/import-your-notes" hrefLang="en">una sola importación en tu Mac</a> (en inglés), y Notas de Apple no cambia.
         La app está en inglés.
       </p>
     </LocalPostPage>

@@ -99,8 +99,7 @@ export default function Page() {
       <p>
         Dois ajustes ajudam. Ative Ordenar automaticamente os itens marcados nos ajustes do Notas, e o que você já fez desce para o fim
         de cada dia. E uma Pasta Inteligente com o filtro Checklists, configurado para os itens ainda não marcados, mostra todas as notas
-        com algo por marcar; o guia <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">de etiquetas e Pastas Inteligentes</a>{" "}
-        (em inglês) mostra como criar uma.
+        com algo por marcar.
       </p>
 
       <h2 id="toda-semana">Toda semana</h2>
@@ -143,7 +142,7 @@ export default function Page() {
       </p>
       <p>
         O app está em inglês. Suas notas do app Notas vêm junto em{" "}
-        <a href="/blog/move-from-apple-notes" hrefLang="en">uma importação no seu Mac</a> (em inglês), e o app Notas fica como estava.
+        <a href="/blog/import-your-notes" hrefLang="en">uma importação no seu Mac</a> (em inglês), e o app Notas fica como estava.
       </p>
     </LocalPostPage>
   );

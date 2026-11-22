@@ -21,6 +21,10 @@ export const OLD_MCP_URL_STAYS = `The older address, ${OLD_MCP_URL}, is the same
 /// claude.ai doesn't hand /directory links to the iPhone app, so on a phone this opens in the browser.
 export const CLAUDE_DIRECTORY_URL = "https://claude.ai/directory/amber-notes";
 
+/// Pinto Notes' plugin in ChatGPT (approved 28 October 2026; the same link as the app's
+/// ConnectWebGuide.listed). Its Connect button starts the sign-in, as Claude's directory listing does.
+export const CHATGPT_PLUGIN_URL = "https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f";
+
 /// One sentence that tells Pinto Notes apart from the other apps with a similar name.
 /// Until the iPhone app is on the App Store, the Mac is the only place to get it.
 const DEVICES = APP_STORE_LIVE ? "iPhone and Mac" : "Mac";

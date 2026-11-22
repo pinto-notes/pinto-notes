@@ -126,7 +126,7 @@ export default function Page() {
       <p>
         Due impostazioni aiutano. Attiva &ldquo;Ordina automaticamente gli elementi selezionati&rdquo; nelle impostazioni di Note, e
         quello che hai fatto scende in fondo a ogni giorno. E una cartella smart con la regola Elenchi di controllo, Non selezionati
-        mostra ogni nota in cui resta qualcosa da spuntare; <a href="/blog/apple-notes-tags-smart-folders">tags and Smart Folders</a>{" "}
+        mostra ogni nota in cui resta qualcosa da spuntare.
         (in inglese) spiega come crearne una.
       </p>
 
@@ -143,8 +143,7 @@ export default function Page() {
       </p>
 
       <p>
-        Per guardare indietro alla settimana nel suo insieme, la <a href="/it/blog/weekly-review-note-iphone">weekly review nelle note
-        di iPhone</a> fa cinque domande ogni domenica.
+        Per guardare indietro alla settimana nel suo insieme, un riepilogo settimanale fa cinque domande ogni domenica.
       </p>
 
       <h2 id="limiti">Dove si ferma un habit tracker in Note</h2>
@@ -174,7 +173,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes">Collegare ChatGPT</a> (in inglese) richiede un minuto.
       </p>
       <p>
-        Le tue note di Apple arrivano con <a href="/blog/move-from-apple-notes">una sola importazione sul Mac</a>, e Note di Apple
+        Le tue note di Apple arrivano con <a href="/blog/import-your-notes">una sola importazione sul Mac</a>, e Note di Apple
         resta com’era.
       </p>
     </LocalPostPage>

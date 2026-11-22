@@ -11,6 +11,12 @@
   "w": 1600,
   "h": 1000
  },
+ "annotate-pdf": {
+  "ground": "#96b3ab",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "anthropic-mcp": {
   "ground": "#da7959",
   "ink": "light",
@@ -53,12 +59,6 @@
   "w": 1600,
   "h": 1000
  },
- "app-move-from-apple-notes": {
-  "ground": "#8b783a",
-  "ink": "light",
-  "w": 1600,
-  "h": 1000
- },
  "app-notes-in-claude-code-and-codex": {
   "ground": "#63304c",
   "ink": "light",
@@ -95,20 +95,8 @@
   "w": 880,
   "h": 462
  },
- "apple-siri-orb": {
-  "ground": "#020202",
-  "ink": "light",
-  "w": 880,
-  "h": 550
- },
  "back-up": {
   "ground": "#dfeae4",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "backlinks": {
-  "ground": "#e6efde",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -125,8 +113,20 @@
   "w": 1600,
   "h": 1000
  },
+ "bible-study": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "book-notes": {
   "ground": "#f0c896",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "brain-dump": {
+  "ground": "#f1c88f",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -173,12 +173,6 @@
   "w": 880,
   "h": 550
  },
- "claude-apple-notes": {
-  "ground": "#f5e3d5",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "claude-code-codex": {
   "ground": "#eee6df",
   "ink": "dark",
@@ -187,6 +181,18 @@
  },
  "claude-duet": {
   "ground": "#f1eee5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "client-tracker": {
+  "ground": "#709f96",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "collaborate": {
+  "ground": "#bdc5f1",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -209,8 +215,32 @@
   "w": 880,
   "h": 550
  },
+ "cursor": {
+  "ground": "#8ca3b6",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "decision": {
   "ground": "#cac6c3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "disappeared": {
+  "ground": "#badac3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "eisenhower-matrix": {
+  "ground": "#c9c6c5",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "employee-onboarding": {
+  "ground": "#79b1ac",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -221,8 +251,26 @@
   "w": 880,
   "h": 550
  },
+ "expenses": {
+  "ground": "#c5ddbf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "export-markdown": {
   "ground": "#e7e4df",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "export-pdf": {
+  "ground": "#f8a69e",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "find-replace": {
+  "ground": "#d1bcdc",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -233,15 +281,33 @@
   "w": 880,
   "h": 550
  },
+ "font": {
+  "ground": "#f8e87f",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "forgot-password": {
   "ground": "#f4e7d4",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
+ "gemini-cli": {
+  "ground": "#275654",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "gift-ideas": {
   "ground": "#3c532e",
   "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "goal-template": {
+  "ground": "#8db2cb",
+  "ink": "dark",
   "w": 880,
   "h": 550
  },
@@ -253,6 +319,12 @@
  },
  "habit-tracker": {
   "ground": "#f9dfbb",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "home-inventory": {
+  "ground": "#8da0ad",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -277,6 +349,30 @@
  },
  "journal": {
   "ground": "#f2cb94",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "jumping": {
+  "ground": "#fa896d",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "lesson-plan": {
+  "ground": "#f2c994",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "lock-folder": {
+  "ground": "#cbc9ca",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "mcp-apps": {
+  "ground": "#9dade1",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -317,12 +413,6 @@
   "w": 880,
   "h": 550
  },
- "move-apple-notes": {
-  "ground": "#fbefd9",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "move-from-apple-notes": {
   "ground": "#fcebd7",
   "ink": "dark",
@@ -335,14 +425,38 @@
   "w": 880,
   "h": 550
  },
+ "moving-checklist": {
+  "ground": "#f1c690",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "not-syncing": {
   "ground": "#c9def5",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
+ "not-working": {
+  "ground": "#f0a376",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "notes-apps-mcp": {
   "ground": "#dce3ed",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "notes-stored": {
+  "ground": "#bad6dd",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "notes-tips": {
+  "ground": "#f0c792",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -355,6 +469,12 @@
  },
  "obsidian-mcp": {
   "ground": "#ede6f8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "on-windows": {
+  "ground": "#98c7e2",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -389,8 +509,38 @@
   "w": 880,
   "h": 550
  },
+ "paste-plain": {
+  "ground": "#b9dbba",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "performance-review": {
+  "ground": "#f88567",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "planner": {
   "ground": "#c4cbef",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "podcast-planner": {
+  "ground": "#ea7259",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
+ "project-brief": {
+  "ground": "#abb888",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "prompt-library": {
+  "ground": "#f3c88e",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -407,8 +557,32 @@
   "w": 880,
   "h": 550
  },
+ "record-transcribe": {
+  "ground": "#d5bae0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "recover-deleted": {
   "ground": "#e5efdf",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "resume-template": {
+  "ground": "#89beb0",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "retrospective": {
+  "ground": "#d2bfe1",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "scan-document": {
+  "ground": "#efc590",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -419,14 +593,38 @@
   "w": 880,
   "h": 550
  },
+ "search": {
+  "ground": "#f2c994",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "share-together": {
   "ground": "#ae7272",
   "ink": "light",
   "w": 880,
   "h": 550
  },
+ "sop-template": {
+  "ground": "#576a57",
+  "ink": "light",
+  "w": 880,
+  "h": 550
+ },
  "standup": {
   "ground": "#8cb8a9",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "storage": {
+  "ground": "#b3e4e8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "stuck-folders": {
+  "ground": "#bcaeb9",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -449,20 +647,56 @@
   "w": 880,
   "h": 550
  },
+ "time-log": {
+  "ground": "#e59991",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "todo": {
+  "ground": "#c3da8a",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "trip-planner": {
   "ground": "#fdd8b5",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
- "version-history": {
-  "ground": "#e6f0df",
+ "user-interview": {
+  "ground": "#afdcd3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "wedding-planner": {
+  "ground": "#f6b8ad",
   "ink": "dark",
   "w": 880,
   "h": 550
  },
  "weekly-review": {
   "ground": "#a9b489",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "widget": {
+  "ground": "#f1c894",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "wishlist-template": {
+  "ground": "#f0c691",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "work-handover": {
+  "ground": "#a7b292",
   "ink": "dark",
   "w": 880,
   "h": 550

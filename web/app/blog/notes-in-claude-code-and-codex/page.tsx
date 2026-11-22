@@ -37,9 +37,9 @@ export default function Page() {
     <PostPage
       slug="notes-in-claude-code-and-codex"
       intro={<>
-        I use Claude Code every day, and every morning it starts from zero. What we decided yesterday, the bug I parked, the standup I
-        still have to write: gone, unless I paste it back in. So I gave it my notes, the same ones I read on my phone. Here&apos;s how, in
-        Claude Code and Codex, and what it&apos;s like once it works.
+        If you use Claude Code every day, every morning it starts from zero. What you decided yesterday, the bug you parked, the standup
+        you still have to write: gone, unless you paste it back in. The fix is giving it your notes, the same ones you read on your phone.
+        Here&apos;s how, in Claude Code and Codex, and what it&apos;s like once it works.
       </>}
       answer={
         <Answer jump={[
@@ -61,7 +61,7 @@ export default function Page() {
       }
       hero={<PostFigure priority src="/blog/pinto/claude-code-standup-note" width={1250} height={540} maxWidth={625}
         alt="Standup notes in Pinto Notes on a Mac. The line Claude Code just added, Today: review the importer PR, then pair on table editing, is tinted, and a bar says Claude Code changed 1 line, with Undo."
-        caption="My standup note, just after Claude Code added today's line. The new line is tinted, with Undo." />}
+        caption="A standup note, just after Claude Code added today's line. The new line is tinted, with Undo." />}
       faq={FAQ}
     >
       <h2 id="claude-code">Claude Code</h2>
@@ -98,7 +98,7 @@ export default function Page() {
       </p>
 
       <p>
-        Two templates come with their own Claude Code instructions: the <a href="/blog/apple-notes-daily-standup-template">daily standup template</a> drafts yesterday from your commits, and the <a href="/blog/apple-notes-bug-triage-template">bug triage template</a> files a pasted report by severity.
+        You can use Claude Code instructions to draft a daily standup from yesterday&apos;s commits or sort a pasted bug report by severity.
       </p>
 
       <h2 id="missing">Why not just CLAUDE.md?</h2>
@@ -128,13 +128,14 @@ export default function Page() {
       <h2 id="pinto-notes">One notebook for every agent you use</h2>
       <AIConnect ais={["claude-code", "codex", "claude", "chatgpt"]} caption="Claude Code, Codex, Claude and ChatGPT, all reading and writing the same notes." />
       <p>
-        That&apos;s why I built Pinto Notes. It&apos;s a notes app for iPhone and Mac, as quick as Apple Notes, with the server built in.
+        That&apos;s what Pinto Notes is for. It&apos;s a notes app for iPhone and Mac, as quick as Apple Notes, with the server built in.
         Claude Code writes the standup, you read it on your phone, and Claude can pick it up from there. Every change shows up tinted
-        with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
+        with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. If your notes are still in Apple Notes, they <a href="/blog/import-your-notes">come over in one import</a>.
       </p>
       <p>
-        The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI? The{" "}
-        <a href="/blog/mcp-server#install">install steps</a> have its command.
+        The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI?{" "}
+        <a href="/blog/connect-notes-to-gemini-cli">One command connects it</a>. In Cursor,{" "}
+        <a href="/blog/connect-notes-to-cursor">one install link</a> adds your notes.
       </p>
     </PostPage>
   );

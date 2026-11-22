@@ -26,5 +26,6 @@ export function ownTopBar(path: string, copyIds: readonly string[] = []): boolea
 }
 
 /// Runs in <head> before first paint, so a page never flashes the wrong theme. The consent page's
-/// CSP allows it by its hash (middleware.ts), so change it only here.
-export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(open\\/)?connect(\\/|$)/.test(p)?"connect":/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/(home-[defghi]|hero-lab|home)(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;})();`;
+/// CSP allows it by its hash (middleware.ts), so change it only here. It also sets <html lang> on
+/// the translated pages (/es, /pt, /de, /fr, /it), since the root layout says "en" for every page.
+export const themeScript = `(function(){var p=location.pathname,t=/^\\/(n|s|t|report)(\\/|$)/.test(p)?null:/^\\/(open\\/)?connect(\\/|$)/.test(p)?"connect":/^\\/(changelog|support|help|privacy|terms)(\\/|$)/.test(p)?"leaf":/^\\/lab(\\/|$)/.test(p)&&!/^\\/lab\\/(home-[defghi]|hero-lab|home)(\\/|$)/.test(p)&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: dark)").matches?"leaf":"cream";if(t)document.documentElement.dataset.theme=t;var l=/^\\/(es|pt|de|fr|it)(\\/|$)/.exec(p);if(l)document.documentElement.lang=l[1];})();`;

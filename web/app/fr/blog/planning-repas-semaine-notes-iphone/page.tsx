@@ -144,7 +144,6 @@ export default function Page() {
         <li>
           <strong>Les recettes à un toucher.</strong> Gardez chaque recette dans sa propre note et reliez-la à son dîner avec Ajouter un
           lien. Sur iOS 27 et macOS 27, un lien peut aussi pointer vers une section : « Ingrédients » s’ouvre pile où il faut.{" "}
-          <a href="/blog/apple-notes-ios-27">What’s new in Apple Notes in iOS 27</a> (en anglais) donne les détails.
         </li>
         <li>
           <strong>Partagée avec qui cuisine.</strong> Partagez la note et autorisez les modifications. Celui ou celle qui est au magasin coche
@@ -161,7 +160,7 @@ export default function Page() {
       <h2 id="limites">Là où un planning repas dans Notes s’arrête</h2>
       <ul>
         <li><strong>La liste se fait à la main.</strong> Notes ne sait pas qu’un curry demande du lait de coco. Vous lisez chaque recette et tapez ce qu’il faut, chaque semaine.</li>
-        <li><strong>Pas de tri par rayon.</strong> C’est vous qui décidez où vont les citrons. Rappels a une liste Courses qui range les articles par catégorie à mesure que vous les ajoutez, mais la liste vit alors loin des dîners. La <a href="/fr/blog/liste-de-courses-notes-iphone">liste de courses par rayon</a> a les rayons déjà prêts.</li>
+        <li><strong>Pas de tri par rayon.</strong> C’est vous qui décidez où vont les citrons. Rappels a une liste Courses qui range les articles par catégorie à mesure que vous les ajoutez, mais la liste vit alors loin des dîners. Vous pouvez classer votre liste de courses par rayon.</li>
         <li><strong>Pas de mémoire de ce que vous avez.</strong> Notes ne peut pas vous dire qu’il reste du riz. La liste du placard n’aide que si vous la lisez avant d’écrire les courses.</li>
         <li><strong>Pas d’idées.</strong> Quand personne ne sait quoi cuisiner, la note attend.</li>
       </ul>
@@ -184,7 +183,7 @@ export default function Page() {
         la note est gardée. <a href="/blog/connect-chatgpt-to-your-notes">Connecter ChatGPT</a> (en anglais) prend une minute.
       </p>
       <p>
-        Vos notes Apple arrivent en <a href="/blog/move-from-apple-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
+        Vos notes Apple arrivent en <a href="/blog/import-your-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
         tel quel. L’app est en anglais.
       </p>
     </LocalPostPage>

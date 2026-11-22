@@ -37,7 +37,7 @@ export default function Page() {
   return (
     <PostPage
       slug="ai-memory-with-notes"
-      intro={<>Every new chat with ChatGPT or Claude starts blank. I wanted to know how much an AI remembers about months of past chats when it has nothing, a short list of saved facts, one notebook, or Pinto Notes to keep its notes in. So I ran the test AI memory products quote, and put the code and every answer online.</>}
+      intro={<>Every new chat with ChatGPT or Claude starts blank. We wanted to know how much an AI remembers about months of past chats when it has nothing, a short list of saved facts, one notebook, or Pinto Notes to keep its notes in. So we ran the test AI memory products quote, and put the code and every answer online.</>}
       answer={
         <Answer jump={[
           { href: "#test", label: "The test" },
@@ -101,7 +101,7 @@ export default function Page() {
         </table>
       </div>
       <p>
-        I ran the other four conditions a second time, with new notebooks and new answers, and every score landed within 2.5 points. Pinto is one run.
+        We ran the other four conditions a second time, with new notebooks and new answers, and every score landed within 2.5 points. Pinto is one run.
         Pinto scored higher than every old chat pasted in on dates and inference, and lower overall.
       </p>
       <p>
@@ -115,7 +115,7 @@ export default function Page() {
       </p>
       <p>
         OpenAI&apos;s small model shows the same thing. GPT-6 Luna went from 18.3% with no memory to 74.5% with a notebook it kept
-        itself. With saved facts it got 43.6%, and only 11.5% of the date questions. I didn&apos;t run Pinto with GPT-6 Luna.
+        itself. With saved facts it got 43.6%, and only 11.5% of the date questions. We didn&apos;t run Pinto with GPT-6 Luna.
       </p>
 
       <h2 id="what-it-wrote">What the AI kept in Pinto</h2>
@@ -140,7 +140,7 @@ export default function Page() {
       </p>
       <p>
         It also kept a lot. With no limit, it wrote 8,000 to 24,000 words per pair of friends, often more than the chats themselves.
-        Part of the gain comes from that. The logs don&apos;t record how much of its notes it read for each answer, so I make no
+        Part of the gain comes from that. The logs don&apos;t record how much of its notes it read for each answer, so this makes no
         claim about that.
       </p>
 
@@ -154,9 +154,9 @@ export default function Page() {
 
       <h2 id="memorized">Bigger models have memorized LoCoMo</h2>
       <p>
-        I also ran Claude Sonnet 5.5. With no memory at all it answered 45.7% right and 27.7% of the date questions, often word for
+        We also ran Claude Sonnet 5.5. With no memory at all it answered 45.7% right and 27.7% of the date questions, often word for
         word, like &ldquo;7 May 2023&rdquo;. A blank chat can&apos;t know that. LoCoMo has been public since 2024, and Sonnet has
-        learned it. The order of the conditions was the same, but its numbers are inflated, so I don&apos;t use them.
+        learned it. The order of the conditions was the same, but its numbers are inflated, so we don&apos;t use them.
       </p>
       <p>
         That&apos;s worth keeping in mind when you see very high LoCoMo scores. The answer key also has mistakes in it, and the usual
@@ -172,9 +172,9 @@ export default function Page() {
         so nothing touches a real account.
       </p>
 
-      <h2 id="why">Why I ran this</h2>
+      <h2 id="why">Why we ran this</h2>
       <p>
-        I make Pinto Notes so the AI you use keeps its notes somewhere you can read them and fix them. This test is the measurable part
+        Pinto Notes is built so the AI you use keeps its notes somewhere you can read them and fix them. This test is the measurable part
         of that: in a new chat, an AI that can open its notes remembers most of what you told it, and one that can&apos;t remembers
         almost nothing. You can <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT</a> or Claude, and the same
         notes work from <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex</a>. If you&apos;d rather wire it up

@@ -1,0 +1,62 @@
+{
+  "subtitle": "A gift list your AI uses to suggest ideas within budget.",
+  "about": "A note for gift ideas by person and occasion, with budgets, purchase status, sizes and likes. Tell your AI an idea to save, or ask for gifts that fit someone's likes and your budget.",
+  "ask": {
+    "step": "Ask for the list",
+    "prompt": "Set up the gift ideas template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Save an idea",
+      "you": "Gift idea for Maja's housewarming: a good chef's knife, about 900.",
+      "ai": "Added it to Ideas, for Maja's housewarming.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Gift ideas filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Note what they like",
+      "you": "Jonas wears a medium and loves anything green.",
+      "ai": "Added that under Sizes and likes.",
+      "phone": "phone-2",
+      "alt": "Sizes and likes, in Gift ideas"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Gift ideas as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- **Jonas:** medium, loves anything green.\n",
+          ""
+        ]
+      ]
+    },
+    "phone-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- **Jonas:** medium, loves anything green.\n",
+          ""
+        ]
+      ]
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Sizes and likes"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

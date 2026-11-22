@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Sheet, TintButton } from "@/components/kit"
 import { HabitEditor } from "@/components/habit-editor"
 import { MonthGrid } from "@/components/month-grid"
-import { amount, best, iso, month, schedule, skipped, streak, today, useHabits, type Habit } from "@/lib/habits"
+import { best, done, iso, month, schedule, skipped, streak, today, useHabits, type Habit } from "@/lib/habits"
 
 // A habit's own page: its streak, its best, this month as a calendar (tap a day to tick, skip or
 // clear it), Skip today, and Edit.
@@ -14,7 +14,7 @@ export function HabitSheet({ habit: h, onClose }: { habit: Habit | null; onClose
   const [first, setFirst] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1, 12))
   if (!h) return null
   const s = streak(days, skips, h, now), b = best(days, skips, h, now), m = month(days, skips, h, first, now, from)
-  const isSkipped = skipped(skips, h, day), isDone = amount(days, h, day) >= h.target
+  const isSkipped = skipped(skips, h, day), isDone = done(days, h, day)
   const unit = h.perWeek ? "week" : "day"
   const thisMonth = first.getMonth() === now.getMonth() && first.getFullYear() === now.getFullYear()
   const shift = (by: number) => setFirst(new Date(first.getFullYear(), first.getMonth() + by, 1, 12))

@@ -163,8 +163,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Pour les notes des entretiens eux-mêmes, le <a href="/fr/blog/compte-rendu-reunion-notes-iphone">compte rendu de réunion dans
-        Notes</a> marche tel quel. D’autres notes à coller sont dans <a href="/blog/apple-notes-templates">Apple Notes templates</a> (en
+        Pour les notes des entretiens eux-mêmes, une note de réunion dans Notes convient. D’autres notes à coller sont dans <a href="/blog/apple-notes-templates">Apple Notes templates</a> (en
         anglais).
       </p>
 
@@ -196,7 +195,7 @@ export default function Page() {
         ou Claude connecté ; <a href="/blog/connect-chatgpt-to-your-notes">connecter ChatGPT</a> (en anglais) prend une minute.
       </p>
       <p>
-        Les notes que vous gardez déjà dans Notes arrivent en <a href="/blog/move-from-apple-notes">un seul import sur votre Mac</a> (en
+        Les notes que vous gardez déjà dans Notes arrivent en <a href="/blog/import-your-notes">un seul import sur votre Mac</a> (en
         anglais), et Notes reste tel quel. L’app est en anglais.
       </p>
     </LocalPostPage>

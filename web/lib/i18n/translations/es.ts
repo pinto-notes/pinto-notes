@@ -2,24 +2,6 @@ import type { Translation } from "../blog";
 
 export const es: Translation[] = [
   {
-    of: "forgot-apple-notes-password", lang: "es", slug: "olvide-contrasena-notas-iphone",
-    title: "¿Olvidaste la contraseña de Notas? 5 cosas que probar",
-    description: "Nadie puede abrir una nota bloqueada sin su contraseña, ni Apple. Qué probar primero en iPhone y Mac, y qué cambia de verdad al restablecerla.",
-    date: "2026-11-17", updated: "2026-11-17",
-  },
-  {
-    of: "apple-notes-not-syncing", lang: "es", slug: "notas-iphone-no-sincroniza",
-    title: "¿Notas no sincroniza entre iPhone y Mac? 6 comprobaciones",
-    description: "¿Las notas de iCloud no se sincronizan entre iPhone y Mac? Seis comprobaciones en orden, de la Cuenta de Apple al almacenamiento lleno.",
-    date: "2026-11-17", updated: "2026-11-17",
-  },
-  {
-    of: "move-apple-notes-to-icloud", lang: "es", slug: "pasar-notas-a-icloud",
-    title: "Cómo pasar tus notas a iCloud desde En mi iPhone o Gmail",
-    description: "Cómo pasar tus notas de En mi iPhone o Gmail a iCloud en el iPhone y el Mac, qué se puede perder al moverlas y qué hacer después del traslado.",
-    date: "2026-11-17", updated: "2026-11-17",
-  },
-  {
     of: "apple-notes-budget-template", lang: "es", slug: "plantilla-presupuesto-mensual-notas-iphone",
     title: "Plantilla de presupuesto mensual para Notas que suma sola",
     description: "Una plantilla de presupuesto mensual para pegar en Notas del iPhone y el Mac que hace las cuentas sola, hasta dónde llega y qué usar después.",
@@ -50,30 +32,6 @@ export const es: Translation[] = [
     date: "2026-11-21", updated: "2026-11-21",
   },
   {
-    of: "apple-notes-recipe-template", lang: "es", slug: "plantilla-recetas-notas-iphone",
-    title: "Plantilla de recetas para Notas, con recetario",
-    description: "Notas de Apple no tiene plantilla de recetas, pero una nota por receta y un índice funcionan. Una plantilla para pegar y un recetario gratis que las ordena.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-grocery-list-template", lang: "es", slug: "lista-de-la-compra-notas-iphone",
-    title: "Lista de la compra en Notas del iPhone, por pasillos",
-    description: "Notas no ordena la lista de la compra por pasillos, pero los encabezados sí. Una plantilla para pegar, cómo compartirla y una lista que se ordena sola.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-meeting-notes-template", lang: "es", slug: "plantilla-acta-de-reunion-notas",
-    title: "Plantilla de acta de reunión para Notas, con tareas",
-    description: "Notas de Apple no tiene plantilla de acta, pero una nota por reunión sirve. Una plantilla para pegar, las tareas pendientes juntas y una que se redacta sola.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-cornell-notes-template", lang: "es", slug: "metodo-cornell-notas-iphone",
-    title: "Método Cornell en Notas de Apple: una plantilla que funciona",
-    description: "Apuntes con el método Cornell en Notas del iPhone y el Mac con una tabla de dos columnas. Una plantilla para pegar, cómo repasar con ella y hasta dónde llega.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
     of: "apple-notes-flashcards", lang: "es", slug: "flashcards-notas-iphone",
     title: "Flashcards en Notas del iPhone: plantilla para estudiar",
     description: "Notas de Apple no tiene flashcards, pero una tabla de dos columnas sirve. Una plantilla para pegar, cómo estudiar con ella y hasta dónde llega.",
@@ -86,51 +44,9 @@ export const es: Translation[] = [
     date: "2026-11-21", updated: "2026-11-21",
   },
   {
-    of: "apple-notes-book-notes-template", lang: "es", slug: "como-tomar-notas-de-un-libro-notas",
-    title: "Cómo tomar notas de un libro en Notas: plantilla",
-    description: "Una plantilla para tomar notas de un libro en Notas de Apple: citas con su página, tus ideas y la idea principal. Más un índice y hasta dónde llega Notas.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
     of: "apple-notes-job-search-tracker", lang: "es", slug: "plantilla-busqueda-de-empleo-notas",
     title: "Plantilla de búsqueda de empleo para Notas del iPhone",
     description: "Notas de Apple no tiene tracker de candidaturas, pero una tabla sirve: empresa, puesto, fase y siguiente paso. Una plantilla para pegar y cómo llevarla al día.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-weekly-review-template", lang: "es", slug: "revision-semanal-notas-iphone",
-    title: "Plantilla de revisión semanal para Notas: cinco preguntas",
-    description: "Notas de Apple no tiene plantilla de revisión semanal, pero una nota sirve. Cinco preguntas para pegar, cómo hacerlo costumbre y hasta dónde llega.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-decision-log-template", lang: "es", slug: "registro-de-decisiones-notas",
-    title: "Registro de decisiones en Notas de Apple, con el porqué",
-    description: "Notas de Apple no tiene registro de decisiones, pero una nota por proyecto sirve. Una plantilla para pegar que guarda el porqué, y hasta dónde llega.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-1-on-1-template", lang: "es", slug: "plantilla-reunion-one-to-one-notas",
-    title: "Plantilla de reunión one to one para Notas de Apple",
-    description: "Notas no tiene plantilla de one to one, pero una nota por persona sirve: temas, compromisos y reuniones anteriores. Una plantilla para pegar y sus límites.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-daily-standup-template", lang: "es", slug: "plantilla-daily-scrum-notas",
-    title: "Plantilla de daily scrum para Notas: notas del standup",
-    description: "Notas de Apple no tiene plantilla de daily, pero una nota con un encabezado por día sirve. Una plantilla para pegar, otra para el equipo y sus límites.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-bug-triage-template", lang: "es", slug: "triage-de-bugs-notas",
-    title: "Triage de bugs en Notas: plantilla con gravedad P0 a P3",
-    description: "Una plantilla de triage de bugs para pegar en Notas de Apple: una tabla con gravedad de P0 a P3, las reglas y los pasos para reproducir cada bug.",
-    date: "2026-11-21", updated: "2026-11-21",
-  },
-  {
-    of: "apple-notes-journal-template", lang: "es", slug: "diario-personal-notas-iphone",
-    title: "Diario personal en Notas del iPhone: plantilla diaria",
-    description: "Notas no tiene plantilla de diario, pero una nota con cuatro preguntas y un día bajo otro sirve. Una plantilla para pegar y cómo encontrar días antiguos.",
     date: "2026-11-21", updated: "2026-11-21",
   },
   {
@@ -140,21 +56,51 @@ export const es: Translation[] = [
     date: "2026-11-21", updated: "2026-11-21",
   },
   {
-    of: "apple-notes-home-maintenance-checklist", lang: "es", slug: "mantenimiento-del-hogar-notas-iphone",
-    title: "Mantenimiento del hogar en Notas: lista y plantilla",
-    description: "Notas de Apple no tiene plantilla de mantenimiento del hogar, pero una nota sirve: una tabla de tareas con fechas y la lista del mes. Para pegar, y sus límites.",
+    of: "apple-notes-expense-tracker", lang: "es", slug: "control-gastos-notas-iphone",
+    title: "Control de gastos en Notas del iPhone: plantilla",
+    description: "Lleva gastos y presupuestos en una tabla de Notas con totales sencillos. Copia la plantilla, aprende a calcular sumas y conoce sus límites.",
     date: "2026-11-21", updated: "2026-11-21",
   },
   {
-    of: "apple-notes-content-calendar", lang: "es", slug: "calendario-de-contenidos-notas",
-    title: "Plantilla de calendario de contenidos para Notas de Apple",
-    description: "Un calendario de contenidos para redes sociales y blog en Notas de Apple: una tabla de publicaciones, una lista de ideas y tu tono. Para pegar, y sus límites.",
+    of: "best-notes-apps-with-mcp", lang: "es", slug: "mejores-apps-notas-mcp",
+    title: "Mejores apps de notas con MCP: seis opciones",
+    description: "Compara Pinto Notes, Obsidian, Bear, Notesnook, Notion y Notas de Apple según sus conexiones MCP documentadas y sus límites.",
     date: "2026-11-21", updated: "2026-11-21",
   },
   {
-    of: "apple-notes-gift-ideas", lang: "es", slug: "lista-de-regalos-notas-iphone",
-    title: "Lista de regalos en Notas del iPhone, con ideas por persona",
-    description: "Una lista de ideas de regalos para Notas de Apple, por persona, con presupuesto, tallas y gustos. Una plantilla para pegar, lista para Navidad y cumpleaños.",
+    of: "connect-notes-to-cursor", lang: "es", slug: "conectar-notas-cursor",
+    title: "Cómo conectar tus notas a Cursor con MCP",
+    description: "Conecta Pinto Notes a Cursor, lee una nota de proyecto y guarda una decisión en ella. Incluye la configuración manual y comprobaciones.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "connect-notes-to-gemini-cli", lang: "es", slug: "conectar-notas-gemini-cli",
+    title: "Cómo conectar tus notas a Gemini CLI con MCP",
+    description: "Conecta Gemini CLI a Pinto Notes, lee un encargo guardado en el iPhone y añade el resultado de la sesión a la misma nota.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-prompt-library-in-notes", lang: "es", slug: "biblioteca-prompts-chatgpt-notas",
+    title: "Biblioteca de prompts de ChatGPT en Notas: plantilla",
+    description: "Guarda un prompt por nota, con instrucciones y un ejemplo comprobado. Copia la plantilla o pide a ChatGPT que la busque en Pinto Notes.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-performance-review-from-notes", lang: "es", slug: "chatgpt-evaluacion-desempeno-notas",
+    title: "Autoevaluación con ChatGPT a partir de tus notas",
+    description: "Prepara una autoevaluación laboral con ChatGPT. Crea una tabla de pruebas, comprueba las fuentes y redacta solo con los datos aprobados.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "chatgpt-brain-dump-to-action-list", lang: "es", slug: "chatgpt-brain-dump-lista-tareas",
+    title: "Brain dump a lista de tareas con ChatGPT",
+    description: "Un prompt para convertir ideas sueltas en posibles tareas sin perder el texto original. Elige qué hacer y guarda la lista revisada.",
+    date: "2026-11-21", updated: "2026-11-21",
+  },
+  {
+    of: "apple-notes-time-log-template", lang: "es", slug: "registro-de-horas-notas",
+    title: "Registro de horas en Notas de Apple: plantilla",
+    description: "Copia un registro de horas con sesiones, proyectos y totales diarios y semanales. Aprende a contar las interrupciones sin duplicarlas.",
     date: "2026-11-21", updated: "2026-11-21",
   },
 ];

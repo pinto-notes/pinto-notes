@@ -12,6 +12,20 @@ function scriptTheme(path: string): string | null {
   return document.documentElement.dataset.theme ?? null;
 }
 
+describe("the page language", () => {
+  function scriptLang(path: string): string {
+    const document = { documentElement: { dataset: {} as Record<string, string>, lang: "en" } };
+    new Function("location", "document", themeScript)({ pathname: path }, document);
+    return document.documentElement.lang;
+  }
+
+  it("is the page's own language on translated pages and English everywhere else", () => {
+    expect(scriptLang("/es/blog/flashcards-notas-iphone")).toBe("es");
+    for (const l of ["pt", "de", "fr", "it"]) expect(scriptLang(`/${l}/blog`), l).toBe(l);
+    for (const p of ["/", "/blog/apple-notes-tables", "/essays", "/italic", "/templates/trip-plan"]) expect(scriptLang(p), p).toBe("en");
+  });
+});
+
 describe("the page theme", () => {
   const paths = ["/", "/download", "/blog/mcp-server", "/templates/trip-plan", "/privacy", "/terms", "/privacy-security", "/connect", "/open/connect", "/open/template/trip-plan", "/open/copy/abc", "/help", "/support", "/changelog", "/n/abc", "/n/abc/def", "/report/abc", "/nothing-here", "/notes"];
 

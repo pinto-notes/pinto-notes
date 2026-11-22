@@ -151,8 +151,7 @@ export default function Page() {
         einer Bewertung unter Gelesen.
       </p>
       <p>
-        Willst du mehr festhalten als eine Bewertung, gibt die Vorlage für <a href="/de/blog/buchnotizen-vorlage-apple-notizen">Buchnotizen
-        in Apple Notizen</a> jedem Buch seine Zitate, deine Gedanken und die Kernidee. Weitere Notizen zum Einfügen findest du in{" "}
+        Willst du mehr festhalten als eine Bewertung, notiere zu jedem Buch in Apple Notizen Zitate, deine Gedanken und die Kernidee. Weitere Notizen zum Einfügen findest du in{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (auf Englisch).
       </p>
 
@@ -180,7 +179,7 @@ export default function Page() {
         Minute.
       </p>
       <p>
-        Die Bücherliste, die du schon in Apple Notizen führst, kommt mit <a href="/blog/move-from-apple-notes" hrefLang="en">einem Import auf
+        Die Bücherliste, die du schon in Apple Notizen führst, kommt mit <a href="/blog/import-your-notes" hrefLang="en">einem Import auf
         deinem Mac</a> (auf Englisch) mit, und Apple Notizen bleibt, wie es war. Die App ist auf Englisch.
       </p>
     </LocalPostPage>

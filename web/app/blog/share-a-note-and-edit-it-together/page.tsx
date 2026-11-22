@@ -62,9 +62,10 @@ export default function Page() {
 
       <h2>Encrypted, like your other notes</h2>
       <p>
-        A shared note is encrypted with a key of its own, and only the people in it can read it. Their AI reads it only when they ask.
+        A shared note is encrypted with a key of its own, and only the people in it can read it. Their AI reads it only when they ask.{" "}
         <a href="/privacy-security"> Privacy and security</a> has the details, including what we could and couldn&apos;t open.
       </p>
+
 
       <h2>What can&apos;t be shared yet</h2>
       <p>
@@ -74,7 +75,7 @@ export default function Page() {
 
       <h2>Get 1.4</h2>
       <p>
-        Pinto Notes 1.4 is out on iPhone and Mac, so update the app on both. New to Pinto Notes on iPhone?
+        Pinto Notes 1.4 is out on iPhone and Mac, so update the app on both. New to Pinto Notes on iPhone?{" "}
         <a href="/blog/pinto-notes-for-iphone">Here&apos;s the iPhone app</a>. Someone who doesn&apos;t have Pinto Notes yet can still open your link: it tells them how to get
         the app and join.
       </p>

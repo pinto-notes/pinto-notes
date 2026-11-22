@@ -146,7 +146,6 @@ export default function Page() {
         <li>
           <strong>Un sommaire en haut.</strong> Sur macOS 27 et iOS 27, un lien peut pointer vers une section : la note peut donc commencer
           par un lien vers chaque jour. Tapez le titre du voyage dans Lien vers, et ses sections apparaissent.{" "}
-          <a href="/blog/apple-notes-ios-27">What’s new in Apple Notes in iOS 27</a> (en anglais) donne les détails.
         </li>
         <li>
           <strong>Les billets dans la note.</strong> Sur Mac, faites glisser le PDF d’un billet ou d’une confirmation d’hôtel dans la note,
@@ -191,7 +190,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes">Connecter ChatGPT</a> (en anglais) prend une minute.
       </p>
       <p>
-        Vos notes Apple arrivent en <a href="/blog/move-from-apple-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
+        Vos notes Apple arrivent en <a href="/blog/import-your-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
         tel quel. L’app est en anglais.
       </p>
     </LocalPostPage>

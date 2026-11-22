@@ -119,9 +119,7 @@ export default function Page() {
       </p>
 
       <p>
-        Für Weihnachten und Geburtstage hält eine <a href="/de/blog/geschenkideen-liste-apple-notizen">Geschenkideen-Liste in Apple
-        Notizen</a> jede Idee nach Person fest, mit einem Budget. Für die Arbeiten am Haus, die Geld kosten, wenn du sie vergisst, gibt es
-        eine <a href="/de/blog/haus-wartung-checkliste-apple-notizen">Checkliste für die Hauswartung</a>.
+        Für Weihnachten und Geburtstage kannst du in Apple Notizen eine Geschenkideen-Liste mit einem Budget pro Person führen. Für Arbeiten am Haus, die Geld kosten, wenn du sie vergisst, kannst du eine Checkliste anlegen.
       </p>
 
       <h2 id="grenzen">Wo ein Budget in Apple Notizen aufhört</h2>
@@ -152,7 +150,7 @@ export default function Page() {
         you</a> (auf Englisch) zeigt, wie das funktioniert.
       </p>
       <p>
-        Deine Apple Notizen kommen mit <a href="/blog/move-from-apple-notes" hrefLang="en">einem Import auf deinem Mac</a> (auf Englisch)
+        Deine Apple Notizen kommen mit <a href="/blog/import-your-notes" hrefLang="en">einem Import auf deinem Mac</a> (auf Englisch)
         mit, und Apple Notizen bleibt, wie es war. Die App ist auf Englisch.
       </p>
     </LocalPostPage>

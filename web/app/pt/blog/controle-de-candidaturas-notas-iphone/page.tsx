@@ -158,8 +158,7 @@ export default function Page() {
         </li>
       </ul>
       <p>
-        Para anotar as próprias entrevistas, o modelo de <a href="/pt/blog/ata-de-reuniao-notas-iphone">ata de reunião</a> funciona do
-        jeito que está. Mais notas para colar estão no guia{" "}
+        Para anotar as próprias entrevistas, você pode usar uma nota de reunião. Mais notas para colar estão no guia{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">de modelos para o app Notas</a> (em inglês).
       </p>
 
@@ -193,7 +192,7 @@ export default function Page() {
       </p>
       <p>
         O app está em inglês. As notas que você já tem no app Notas vêm junto em{" "}
-        <a href="/blog/move-from-apple-notes" hrefLang="en">uma importação no seu Mac</a> (em inglês), e o app Notas fica como estava.
+        <a href="/blog/import-your-notes" hrefLang="en">uma importação no seu Mac</a> (em inglês), e o app Notas fica como estava.
       </p>
     </LocalPostPage>
   );

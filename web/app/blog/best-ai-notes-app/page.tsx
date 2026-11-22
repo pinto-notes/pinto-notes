@@ -59,7 +59,7 @@ export default function Page() {
   return (
     <PostPage
       slug="best-ai-notes-app"
-      intro={<>Some notes apps come with an AI inside, on its own plan. Others let the AI you already use, like ChatGPT or Claude, work in your notes. Which kind you want decides most of this list. I make Pinto Notes, so I&apos;m not neutral, and it&apos;s first here.</>}
+      intro={<>Some notes apps come with an AI inside, on its own plan. Others let the AI you already use, like ChatGPT or Claude, work in your notes. Which kind you want decides most of this list. This is the Pinto Notes blog, so it isn&apos;t neutral, and Pinto is first here.</>}
       answer={
         <Answer jump={[
           { href: "#at-a-glance", label: "At a glance" },
@@ -96,10 +96,10 @@ export default function Page() {
       </div>
       <p>Prices are the maker&apos;s own page or the US App Store, read on 7 November 2026.</p>
 
-      <h2>How I picked</h2>
+      <h2>How these were picked</h2>
       <p>
-        Everything here is a notes app first: a place where you write and keep things. I compared three things: what the AI does, what it
-        costs, and whether the AI you already use can reach your notes. I read each maker&apos;s own pages on the day I wrote this.
+        Everything here is a notes app first: a place where you write and keep things. We compared three things: what the AI does, what it
+        costs, and whether the AI you already use can reach your notes. We read each maker&apos;s own pages on the day this was written.
       </p>
       <p>
         The Pinto Notes and Obsidian screenshots are mine; the other pictures come from the companies that make the apps. Apps that only
@@ -121,7 +121,7 @@ export default function Page() {
       </p>
       <p>
         Pinto Notes is free and open source, and charges nothing for the connection. Your AI app&apos;s plan still applies: on Claude&apos;s
-        free plan, for example, you can add one custom connector. It <a href="/blog/move-from-apple-notes">imports your Apple Notes</a> on the
+        free plan, for example, you can add one custom connector. It <a href="/blog/import-your-notes">imports your Apple Notes</a> on the
         Mac. Notes are stored as Markdown and encrypted on your device before they sync, but Pinto Notes keeps a sealed copy of your key so
         you can sign in on a new device, so it isn&apos;t end-to-end encryption.
       </p>
@@ -203,10 +203,6 @@ export default function Page() {
         on a Mac. Siri AI is in beta, in six languages to start, and not yet on iPhone in the EU.
       </p>
       <p><strong>Best for:</strong> people who want AI help with no new app and no new bill.</p>
-      <p>
-        More in <a href="/blog/siri-ai-apple-notes">Siri AI and Apple Notes</a> and{" "}
-        <a href="/blog/claude-and-apple-notes">can Claude read your Apple Notes?</a>
-      </p>
 
       <h2>6. Reflect: best for local notes with your own AI key</h2>
       <PostFigure src="/blog/news/reflect-open-mac" width={1720} height={1058}

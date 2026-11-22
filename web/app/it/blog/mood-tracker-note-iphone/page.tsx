@@ -130,8 +130,7 @@ export default function Page() {
         <li><strong>Se salti un giorno, lascialo fuori.</strong> Un buco è meglio di un punteggio inventato tre giorni dopo.</li>
       </ul>
       <p>
-        Se vuoi anche le parole oltre ai numeri, il <a href="/it/blog/diario-note-iphone">diario nelle note di iPhone</a> fa quattro
-        domande brevi al giorno, e l’<a href="/it/blog/habit-tracker-note-iphone">habit tracker</a> sta bene accanto a questa nota per
+        Se vuoi anche le parole oltre ai numeri, puoi rispondere a quattro domande brevi al giorno in un diario su iPhone, e l’<a href="/it/blog/habit-tracker-note-iphone">habit tracker</a> sta bene accanto a questa nota per
         cose come una passeggiata o niente schermi dopo le dieci.
       </p>
 
@@ -173,7 +172,7 @@ export default function Page() {
         un minuto.
       </p>
       <p>
-        Un diario che tieni già in Note di Apple arriva con <a href="/blog/move-from-apple-notes">una sola importazione sul Mac</a>, e
+        Un diario che tieni già in Note di Apple arriva con <a href="/blog/import-your-notes">una sola importazione sul Mac</a>, e
         Note di Apple resta com’era.
       </p>
     </LocalPostPage>

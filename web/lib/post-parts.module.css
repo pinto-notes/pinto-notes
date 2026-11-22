@@ -85,6 +85,52 @@
   .cta a.ctaButton { transition: transform 0.12s ease-out, background-color 0.15s ease-out; }
   .cta a.ctaButton:active { transform: scale(0.97); }
 }
+/* ── Download card looks (experiment, 21 Nov 2026) ── */
+.ctaBody { display: grid; gap: 14px; align-content: center; }
+/* Scene: the home page's own picture beside the words, like a small home hero. */
+.ctaScene { grid-template-columns: 1.15fr 0.85fr; gap: 0; padding: 0; overflow: hidden; background: var(--card); }
+.ctaScene .ctaBody { padding: 28px 26px; }
+.ctaScene .ctaTitle { font-size: 26px; line-height: 1.15; font-weight: 650; letter-spacing: -0.02em; }
+.ctaArt { position: relative; min-height: 300px; }
+.ctaArt img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 30% 50%; }
+@media (max-width: 560px) { .ctaScene { grid-template-columns: 1fr; } .ctaArt { min-height: 220px; order: -1; } }
+/* Connect: the AIs join a note across the top, then the words. */
+/* The compact card under the short answer: a picture column, then the words, the button and the fine print. */
+.ctaCompact { grid-template-columns: 132px 1fr; gap: 0; padding: 0; overflow: hidden; }
+.ctaCompact .ctaBody { gap: 10px; padding: 18px 20px; }
+.ctaCompact .ctaTitle { font-size: 18px; }
+.ctaCompact .ctaBody > p:not(.ctaTitle):not(.ctaFine) { font-size: 15.5px; line-height: 1.45; }
+.ctaCompact a.ctaButton { min-height: 44px; padding: 0 18px; font-size: 15px; border-radius: 12px; }
+.ctaCompact .ctaFine { font-size: 13px; }
+.ctaThumb { position: relative; background: #f6dcae; display: grid; place-items: center; }
+.ctaThumb img { display: block; }
+.ctaThumb[data-look="scene"] img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 22% 50%; }
+.ctaChain { position: relative; display: grid; justify-items: center; gap: 14px; }
+.ctaChain::before { content: ""; position: absolute; top: 18px; bottom: 18px; left: 50%; border-left: 2px dashed rgba(200, 110, 30, 0.55); }
+.ctaChain img { position: relative; border-radius: 11px; box-shadow: 0 4px 10px -4px rgba(60, 30, 5, 0.45); }
+.ctaDot { position: relative; width: 38px; height: 38px; border-radius: 50%; background: #fffaf3; display: grid; place-items: center; box-shadow: 0 2px 6px -2px rgba(60, 30, 5, 0.35); }
+@media (max-width: 560px) {
+  .ctaCompact { grid-template-columns: 1fr; }
+  .ctaThumb { min-height: 76px; }
+  .ctaThumb[data-look="scene"] { min-height: 96px; }
+  .ctaThumb[data-look="scene"] img { object-position: 50% 40%; }
+  .ctaChain { grid-auto-flow: column; align-items: center; gap: 18px; }
+  .ctaChain::before { top: 50%; bottom: auto; left: 18px; right: 18px; border-left: 0; border-top: 2px dashed rgba(200, 110, 30, 0.55); }
+}
+
+.ctaConnect { padding: 0; overflow: hidden; gap: 0; }
+.ctaConnect .ctaBody { padding: 22px 24px 24px; }
+.ctaConnect .ctaTitle { font-size: 24px; line-height: 1.2; font-weight: 650; letter-spacing: -0.02em; }
+/* Note: the next steps as a checklist, the download on the first step. */
+.ctaNote { background: #fffdf9; padding: 26px 26px 22px; box-shadow: 0 0 0 0.5px rgba(80, 45, 10, 0.16), 0 18px 40px -26px rgba(80, 45, 10, 0.45); }
+.ctaNote { position: relative; }
+.ctaIcon { position: absolute; top: 22px; right: 22px; width: 48px; height: 48px; border-radius: 11px; }
+.ctaMarks { display: inline-flex; gap: 6px; margin-left: 4px; }
+.ctaNote .ctaTitle { padding-right: 60px; font-size: 26px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; }
+.ctaSteps { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 12px; }
+.ctaSteps li { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+.ctaCircle { flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 2px #c9b49c; }
+.ctaSteps li[data-first] .ctaCircle { box-shadow: inset 0 0 0 2px var(--amber); }
 /* Other platforms' versions sit in the same card, left-aligned like the rest of it. */
 .cta :global(.pi) { justify-items: start; text-align: left; gap: 10px; }
 .cta :global(.pi-line) { max-width: none; font-size: 16px; }
@@ -161,3 +207,68 @@
 .pairRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 @media (max-width: 600px) { .pairRow { grid-template-columns: minmax(0, 1fr) !important; } }
 .pair picture, .pair img { display: block; width: 100%; height: auto; }
+
+/* ── B35: parts a reader sees before reading (Sorter, Facts, FolderTree) ── */
+.sorter { margin: 8px 0 28px; }
+.sortGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sortGrid[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sortGrid[data-n="3"] .sortTitle.sortTitle { padding-right: 0; }
+@media (max-width: 600px) { .sortGrid, .sortGrid[data-n="3"] { grid-template-columns: 1fr; } }
+.sortGroup { --tone: #e6d2b5; position: relative; padding: 18px 18px 16px; border-radius: 20px; background: color-mix(in srgb, var(--tone) 55%, var(--card)); display: grid; align-content: start; gap: 10px; }
+.sortGroup[data-tone="leaf"] { --tone: #b9d3a4; }
+.sortGroup[data-tone="sky"] { --tone: #b8d2e6; }
+.sortGroup[data-tone="amber"] { --tone: #f6c784; }
+.sortGroup[data-tone="rose"] { --tone: #efc1b4; }
+.sortTitle.sortTitle { margin: 0; padding-right: 64px; font-size: 18px; line-height: 1.25; font-weight: 750; letter-spacing: -0.01em; }
+/* Doubled classes outrank the article's own list styles. */
+.sortItems.sortItems { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.sortItems.sortItems li { display: block; margin: 0; padding-left: 13px; padding: 7px 13px; border-radius: 999px; background: var(--card); font-size: 16px; font-weight: 700; box-shadow: 0 1px 0 rgba(var(--shade, 60, 30, 5), 0.08); }
+.sortItems a { color: var(--ink); text-decoration: none; }
+@media (hover: hover) { .sortItems a:hover { color: var(--link); } }
+.sortLine.sortLine { margin: 0; color: var(--ink); opacity: 0.78; font-size: 15px; line-height: 1.45; }
+.sortMarks { position: absolute; top: 14px; right: 14px; display: flex; }
+.sortMark { width: 32px; height: 32px; margin-left: -6px; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tone) 55%, var(--card)); }
+
+.facts { margin: 0 0 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+/* On a phone the three facts become one box, each label beside its value, so a section's head stays short. */
+@media (max-width: 600px) {
+  .facts { grid-template-columns: 1fr; gap: 0; padding: 6px 14px; border-radius: 14px; background: var(--soft); }
+  .fact { display: grid; grid-template-columns: 104px 1fr; gap: 10px; align-items: baseline; padding: 7px 0; border-radius: 0; background: none; }
+  .fact dt { margin: 0; }
+}
+.fact { padding: 10px 14px 11px; border-radius: 14px; background: var(--soft); }
+.fact dt { margin: 0 0 2px; color: var(--muted); font-size: 13px; font-weight: 650; }
+.fact dd { margin: 0; font-size: 15.5px; line-height: 1.35; font-weight: 650; }
+
+.tree { margin: 8px 0 26px; }
+.treeBox { padding: 18px 20px; border-radius: 20px; background: var(--soft); }
+.treeRoot.treeRoot { margin: 0 0 8px; display: flex; align-items: center; gap: 10px; font-weight: 750; }
+.treeItems.treeItems { margin: 0; padding: 0 0 0 16px; list-style: none; border-left: 2px solid var(--line); margin-left: 11px; display: grid; gap: 8px; }
+.treeItems.treeItems li { margin: 0; display: grid; grid-template-columns: 24px auto 1fr; align-items: center; gap: 4px 10px; }
+.treeItems code { background: none; padding: 0; font-weight: 700; font-size: 15px; }
+.treeItems span { color: var(--muted); font-size: 15px; }
+@media (max-width: 600px) { .treeItems li { grid-template-columns: 24px 1fr; } .treeItems span { grid-column: 2; } }
+.treeIcon { width: 24px; height: 24px; flex: none; }
+
+/* A long sourced table, folded under its summary so it doesn't stand between the reader and the sections. */
+.more { margin: 4px 0 24px; border-radius: 16px; background: var(--soft); }
+.more > summary { cursor: pointer; padding: 14px 18px; font-weight: 750; list-style: none; display: flex; align-items: center; gap: 10px; }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::before { content: ""; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s ease-out; }
+.more[open] > summary::before { transform: rotate(45deg); }
+@media (hover: hover) { .more > summary:hover { color: var(--link); } }
+.moreBody { padding: 0 12px 12px; }
+.moreBody > :last-child { margin-bottom: 0; }
+/* The article styles dl, dt and dd for glossaries; doubled classes reset them here. */
+.facts.facts { margin-left: 0; }
+.facts.facts dt, .facts.facts dd { margin: 0; padding: 0; }
+.facts.facts dt { margin-bottom: 2px; }
+@media (max-width: 600px) { .facts.facts dt { margin-bottom: 0; } .facts.facts .fact { padding: 6px 0; } }
+
+/* A long template folded to its first lines (Keep fold). */
+.fold pre { max-height: calc(var(--fold-lines) * 1.55em); overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.fold:has(input:checked) pre { max-height: none; -webkit-mask-image: none; mask-image: none; }
+.more { display: inline-block; margin-top: 8px; font-weight: 650; font-size: 15px; color: var(--link, #a85700); cursor: pointer; }
+.more input { position: absolute; opacity: 0; pointer-events: none; }
+.more:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
+.fold:has(input:checked) .more { display: none; }

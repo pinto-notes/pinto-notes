@@ -152,9 +152,7 @@ export default function Page() {
         al final. Cuando quieras recordar uno, pásalo a Leídos con su puntuación.
       </p>
       <p>
-        Para guardar algo más que una puntuación, la plantilla para{" "}
-        <a href="/es/blog/como-tomar-notas-de-un-libro-notas">tomar notas de un libro</a> le da a cada libro sus citas, lo que piensas tú
-        y la idea principal. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (en
+        Para guardar algo más que una puntuación, guarda para cada libro sus citas, lo que piensas tú y la idea principal. Más notas para pegar en <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (en
         inglés).
       </p>
 
@@ -181,7 +179,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">Conectar ChatGPT</a> (en inglés) lleva un minuto.
       </p>
       <p>
-        La lista de libros que ya tienes en Notas de Apple se pasa con <a href="/blog/move-from-apple-notes" hrefLang="en">una sola
+        La lista de libros que ya tienes en Notas de Apple se pasa con <a href="/blog/import-your-notes" hrefLang="en">una sola
         importación en tu Mac</a> (en inglés), y Notas de Apple no cambia. La app está en inglés.
       </p>
     </LocalPostPage>

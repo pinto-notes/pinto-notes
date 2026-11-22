@@ -128,7 +128,7 @@ export default function Page() {
         <li><strong>Encuentra una tarjeta por cualquier palabra.</strong> La búsqueda lee cada palabra de cada nota, así que &ldquo;mitocondrias&rdquo; encuentra la tarjeta esté donde esté.</li>
       </ul>
       <p>
-        Si tomas apuntes en clase, el <a href="/es/blog/metodo-cornell-notas-iphone">método Cornell en Notas</a> pone las preguntas justo
+        Si tomas apuntes en clase, el método Cornell en Notas pone las preguntas justo
         al lado de tus apuntes, que es un mazo de flashcards que se hace mientras escribes. Más notas para pegar en{" "}
         <a href="/blog/apple-notes-templates" hrefLang="en">Apple Notes templates</a> (en inglés).
       </p>
@@ -161,7 +161,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">Conectar ChatGPT</a> (en inglés) lleva un minuto.
       </p>
       <p>
-        Los apuntes que ya tienes en Notas de Apple se pasan con <a href="/blog/move-from-apple-notes" hrefLang="en">una sola importación
+        Los apuntes que ya tienes en Notas de Apple se pasan con <a href="/blog/import-your-notes" hrefLang="en">una sola importación
         en tu Mac</a> (en inglés), y Notas de Apple no cambia. La app está en inglés.
       </p>
     </LocalPostPage>

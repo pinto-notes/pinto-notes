@@ -146,8 +146,7 @@ export default function Page() {
         <li>
           <strong>Un índice arriba.</strong> En macOS 27 y en iOS 27, un enlace puede apuntar a un encabezado, así que la nota puede
           empezar con un enlace a cada día. Escribe el título del viaje en Enlazar a y aparecen sus encabezados. En Latinoamérica, Añadir
-          enlace se llama Agregar enlace. <a href="/blog/apple-notes-ios-27" hrefLang="en">What&apos;s new in Apple Notes in iOS 27</a>{" "}
-          (en inglés) tiene los detalles.
+          enlace se llama Agregar enlace.
         </li>
         <li>
           <strong>Los billetes en la nota.</strong> En un Mac, arrastra el PDF de un billete o de la confirmación del hotel a la nota,
@@ -192,7 +191,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">Conectar ChatGPT</a> (en inglés) lleva un minuto.
       </p>
       <p>
-        Tus notas de Apple se pasan con <a href="/blog/move-from-apple-notes" hrefLang="en">una sola importación en tu Mac</a> (en
+        Tus notas de Apple se pasan con <a href="/blog/import-your-notes" hrefLang="en">una sola importación en tu Mac</a> (en
         inglés), y Notas de Apple no cambia. La app está en inglés.
       </p>
     </LocalPostPage>

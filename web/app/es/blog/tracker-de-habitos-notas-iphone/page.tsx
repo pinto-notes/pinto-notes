@@ -136,8 +136,7 @@ export default function Page() {
       <p>
         Hay dos ajustes que ayudan. Activa Ordenar automáticamente los ítems marcados en los ajustes de Notas (Configuración en Latinoamérica), y lo que ya has hecho baja
         al final de cada día. Y una carpeta inteligente con el filtro Listas en No marcadas muestra todas las notas con algo pendiente
-        de marcar. <a href="/blog/apple-notes-tags-smart-folders" hrefLang="en">Tags and Smart Folders</a> (en inglés) explica cómo
-        crear una.
+        de marcar.
       </p>
 
       <h2 id="cada-semana">Cada semana</h2>
@@ -180,7 +179,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">Conectar ChatGPT</a> (en inglés) lleva un minuto.
       </p>
       <p>
-        Tus notas de Apple se pasan con <a href="/blog/move-from-apple-notes" hrefLang="en">una sola importación en tu Mac</a> (en
+        Tus notas de Apple se pasan con <a href="/blog/import-your-notes" hrefLang="en">una sola importación en tu Mac</a> (en
         inglés), y Notas de Apple no cambia. La app está en inglés.
       </p>
     </LocalPostPage>

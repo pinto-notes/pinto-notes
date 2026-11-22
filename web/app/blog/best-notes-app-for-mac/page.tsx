@@ -60,7 +60,7 @@ export default function Page() {
   return (
     <PostPage
       slug="best-notes-app-for-mac"
-      intro={<>You open a new note on your Mac and have to decide where it lives. Pick wrong, and in a year you have two thousand notes in an app you&apos;ve outgrown. I make Pinto Notes, so I&apos;m not a neutral source. I&apos;ve tried to give every app its due, and I say where each one beats mine.</>}
+      intro={<>You open a new note on your Mac and have to decide where it lives. Pick wrong, and in a year you have two thousand notes in an app you&apos;ve outgrown. This is the Pinto Notes blog, so it isn&apos;t a neutral source. Every app gets its due here, with where each one beats Pinto.</>}
       answer={
         <Answer jump={[
           { href: "#at-a-glance", label: "At a glance" },
@@ -99,14 +99,14 @@ export default function Page() {
         in the App Store.
       </p>
 
-      <h2>How I picked</h2>
+      <h2>How these were picked</h2>
       <p>
-        I looked at what people ask before they switch: will it sync with my iPhone, will my notes still be mine in ten years, what does
+        From what people ask before they switch: will it sync with my iPhone, will my notes still be mine in ten years, what does
         it cost a year, and lately, can ChatGPT or Claude use it. Handwriting apps like Goodnotes do a different job, so they&apos;re at the
         end.
       </p>
       <p>
-        The pictures of Pinto Notes, Apple Notes and Obsidian are my own, taken on a Mac running macOS 27. The pictures of Bear, Notion
+        The pictures of Pinto Notes, Apple Notes and Obsidian were taken for this post, on a Mac running macOS 27. The pictures of Bear, Notion
         and Craft come from the companies that make them.
       </p>
 
@@ -121,10 +121,10 @@ export default function Page() {
       </p>
       <p>
         You approve each AI app once. When one changes a note, you see what changed, with Undo, and every earlier version stays in the
-        note&apos;s history. That&apos;s what I&apos;d want from any app before I let an AI near my notes.
+        note&apos;s history. That&apos;s worth wanting from any app before you let an AI near your notes.
       </p>
       <p>
-        It <a href="/blog/move-from-apple-notes">imports your Apple Notes</a> on the Mac with their folders, and leaves Apple Notes as it
+        It <a href="/blog/import-your-notes">imports your Apple Notes</a> on the Mac with their folders, and leaves Apple Notes as it
         was. Notes are stored as markdown and encrypted on your device before they sync, and the code is open source under the MIT license.
       </p>
       <p>
@@ -149,8 +149,8 @@ export default function Page() {
       <p>
         <strong>Where it falls short:</strong> it&apos;s Apple only (on Windows and Android you get iCloud.com in a browser), your notes live
         in Apple&apos;s database rather than files, and AI help stays on one Mac. The ChatGPT Mac app can read a note you have open
-        (Work with Apps) but can&apos;t edit it, and Claude Desktop can read and add notes through Anthropic&apos;s Apple Notes extension:
-        see <a href="/blog/claude-and-apple-notes">can Claude read your Apple Notes?</a>
+        (Work with Apps) but can&apos;t edit it, and Claude Desktop can read and add notes through Anthropic&apos;s Apple Notes extension.{" "}
+        <a href="/blog/best-ai-notes-app">The best AI notes apps, compared</a> lists the apps AI can reach.
       </p>
       <p><strong>Best for:</strong> people who live on Apple devices and want something free and solid.</p>
 
@@ -159,7 +159,7 @@ export default function Page() {
         alt="Bear 2 on a Mac and an iPhone: a sidebar of nested tags, a list of notes and a note about the North Pole with a highlight, a footnote and a table."
         caption="Bear 2 on the Mac and iPhone. Image: Bear." />
       <p>
-        Bear is a Markdown notes app for Mac, iPhone and iPad, and the one I&apos;d point a writer to. It&apos;s beautiful and fast, and
+        Bear is a Markdown notes app for Mac, iPhone and iPad, and the one to point a writer to. It&apos;s beautiful and fast, and
         organises notes with nested tags instead of folders. It has won an Apple Design Award.
       </p>
       <p>
@@ -246,7 +246,7 @@ export default function Page() {
       </ul>
       <p>
         Moving later is easier than it used to be. Apple Notes, Bear and Obsidian all export Markdown, and Pinto Notes brings over your
-        Apple Notes with their folders: <a href="/blog/move-from-apple-notes">how to move from Apple Notes</a>.
+        Apple Notes with their folders: <a href="/blog/import-your-notes">how to move from Apple Notes</a>.
       </p>
       <p className="label">Sources</p>
       <p>

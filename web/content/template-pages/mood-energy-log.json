@@ -1,0 +1,52 @@
+{
+  "subtitle": "A mood and energy log your AI checks for patterns.",
+  "about": "A note with daily mood and energy scores, sleep hours and a short line about the day. Tell your AI how it went to log a row, or ask it to look back for patterns.",
+  "ask": {
+    "step": "Ask for the log",
+    "prompt": "Set up the mood and energy log template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Log your day",
+      "you": "Slept in, 8 hours. Good mood, lots of energy.",
+      "ai": "Logged 8 November: mood 4 and energy 4.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Mood and energy log filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Ask for patterns",
+      "you": "Do you see any patterns?",
+      "ai": "Energy follows sleep. I added three lines under Patterns.",
+      "phone": "phone-2",
+      "alt": "Patterns, in Mood and energy log"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Mood and energy log as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "steps": 5
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 5
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Patterns"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

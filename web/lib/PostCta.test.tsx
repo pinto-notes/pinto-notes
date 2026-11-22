@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { clickEvents } from "./posthog";
 import { PostCta } from "./PostCta";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/blog/apple-notes-api", useRouter: () => ({ push: () => {} }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/blog/apple-notes-tables", useRouter: () => ({ push: () => {} }) }));
 
 const render = (appStoreLive = false) => renderToStaticMarkup(
   <PostCta slug="apple-notes-api" position="how-amber-helps" title="Try it" appStoreLive={appStoreLive}><p>Why.</p></PostCta>,
@@ -29,8 +29,8 @@ describe("a post's call to action", () => {
     expect(tag).toContain('href="/download/mac"');
     expect(tag).toMatch(/class="[^"]*pi-apple pi-not-ios/);
     const el = { tagName: "A", getAttribute: (n: string) => attr(tag, n) };
-    const sent = clickEvents(el, new URL("https://pintonotes.com/blog/apple-notes-api"));
-    expect(sent.map((e) => [e.event, e.properties.path])).toEqual([["blog_cta_clicked", "/blog/apple-notes-api"], ["download_mac_clicked", "/blog/apple-notes-api"]]);
+    const sent = clickEvents(el, new URL("https://pintonotes.com/blog/apple-notes-tables"));
+    expect(sent.map((e) => [e.event, e.properties.path])).toEqual([["blog_cta_clicked", "/blog/apple-notes-tables"], ["download_mac_clicked", "/blog/apple-notes-tables"]]);
   });
 
   it("tells an iPhone the app is coming until it's on the App Store, and offers the link to the post", () => {
