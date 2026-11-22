@@ -33,6 +33,16 @@ describe("Trip", () => {
     expect(screen.getByText("Lunch at Time Out Market")).toBeInTheDocument()
   })
 
+  it("says nothing is booked yet rather than 0 of 0 paid", async () => {
+    // A trip an AI has just planned has days but no bookings (a real run, 2026-11-22: "0 of 0 paid").
+    await amber.store.set("bookings", [])
+    render(<App />)
+    expect(await screen.findByText("Nothing booked yet")).toBeInTheDocument()
+    expect(screen.queryByText(/0 of 0/)).toBeNull()
+    await go("Bookings")
+    await waitFor(() => expect(screen.getAllByText("Nothing booked yet")).not.toHaveLength(0))
+  })
+
   it("shows which day it is during the trip", async () => {
     await amber.store.set("trip", trip(-1, 3))
     render(<App />)
