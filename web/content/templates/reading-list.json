@@ -11,7 +11,7 @@
   "tagline": "Books to read, reading and finished.",
   "seoTitle": "Reading list template with notes for ChatGPT and Claude",
   "folder": "Reading",
-  "note": "Reading list\n\nEvery book you want to read, are reading or have finished. Add one in the table, or tell your AI about a book and it files it.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating (1–5)=scale 1-5; Why=text -->\n| Title | Author | Status | Rating (1–5) | Why |\n| --- | --- | --- | --- | --- |\n\n## Notes\nA few lines on each book once you've read it.\n",
+  "note": "Reading list\n\nEvery book you want to read, are reading or have finished. Add one in the table, or tell your AI about a book and it files it.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating (1 to 5)=scale 1-5; Why=text -->\n| Title | Author | Status | Rating (1 to 5) | Why |\n| --- | --- | --- | --- | --- |\n\n## Notes\nA few lines on each book once you've read it.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Reading list\". Read it with fetch before each change. When I mention a book, add a row to the table with edit: Title, Author, Status To read, and in Why, who recommended it or why I want it. When I start or finish a book, update its Status (and Rating from 1 to 5 when I finish). Put my thoughts on a book under \"Notes\", under a \"###\" heading with the title. When I ask what to read next, suggest from what's marked To read, based on what I rated highly."
   },
@@ -78,7 +78,7 @@
       }
     }
   ],
-  "example": "Reading list\n\nEvery book you want to read, are reading or have finished. Add one in the table, or tell your AI about a book and it files it.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating (1–5)=scale 1-5; Why=text -->\n| Title | Author | Status | Rating (1–5) | Why |\n| --- | --- | --- | --- | --- |\n| Project Hail Mary | Andy Weir | Finished | 5 | Book club |\n| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n| War and Peace | Leo Tolstoy | Dropped | 2 | Gave up, p. 90 |\n| Never Let Me Go | Kazuo Ishiguro | Finished | 4 | Holiday read |\n| The Overstory | Richard Powers | To read |   | Sara lent it |\n\n## Notes\nA few lines on each book once you've read it.\n### Project Hail Mary\nThe friendship carries the whole book. Lending my copy to Dad next.\n\n### Never Let Me Go\nQuiet and strange. I kept thinking about it for weeks after.\n",
+  "example": "Reading list\n\nEvery book you want to read, are reading or have finished. Add one in the table, or tell your AI about a book and it files it.\n\n## Books\n<!-- pane-table: Title=text; Author=text; Status=choice To read|Reading|Finished|Dropped; Rating (1 to 5)=scale 1-5; Why=text -->\n| Title | Author | Status | Rating (1 to 5) | Why |\n| --- | --- | --- | --- | --- |\n| Project Hail Mary | Andy Weir | Finished | 5 | Book club |\n| Piranesi | Susanna Clarke | Reading |   | From Jonas |\n| War and Peace | Leo Tolstoy | Dropped | 2 | Gave up, p. 90 |\n| Never Let Me Go | Kazuo Ishiguro | Finished | 4 | Holiday read |\n| The Overstory | Richard Powers | To read |   | Sara lent it |\n\n## Notes\nA few lines on each book once you've read it.\n### Project Hail Mary\nThe friendship carries the whole book. Lending my copy to Dad next.\n\n### Never Let Me Go\nQuiet and strange. I kept thinking about it for weeks after.\n",
   "related": [
     "book-notes",
     "study-flashcards",

@@ -10,7 +10,7 @@
   "tagline": "An evening check-in that shows patterns.",
   "seoTitle": "Mood and energy log template for ChatGPT and Claude",
   "folder": "Habits",
-  "note": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1–5)=scale 1-5; Energy (1–5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1–5) | Energy (1–5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n",
+  "note": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1 to 5)=scale 1-5; Energy (1 to 5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1 to 5) | Energy (1 to 5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n",
   "prompt": {
     "default": "Use my Pinto Notes note \"Mood and energy log\". Each evening I'll tell you about my day in my own words. Read the note with fetch, then add one row to the table with edit: Mood and Energy from 1 (low) to 5 (great), Sleep in hours, and one short line in Note. If you're unsure about a score, ask me instead of guessing. When I ask about patterns, add what you notice under \"Patterns\", and say how many days it rests on. Don't give medical advice."
   },
@@ -69,7 +69,7 @@
       }
     }
   ],
-  "example": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1–5)=scale 1-5; Energy (1–5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1–5) | Energy (1–5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n| 2026-11-08 | 4 | 4 | 8 | Slept in |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n- Energy follows sleep: 2 on six hours or less, 4 on seven and a half or more.\n- Mood dipped to 3 only on the day with meetings all day.\n- Five days so far. Worth another look in a month.\n",
+  "example": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1 to 5)=scale 1-5; Energy (1 to 5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1 to 5) | Energy (1 to 5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n| 2026-11-08 | 4 | 4 | 8 | Slept in |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n- Energy follows sleep: 2 on six hours or less, 4 on seven and a half or more.\n- Mood dipped to 3 only on the day with meetings all day.\n- Five days so far. Worth another look in a month.\n",
   "related": [
     "daily-journal",
     "habit-tracker",
