@@ -18,8 +18,9 @@ export const metadata = postMetadata("apple-notes-meal-planner-template", { titl
 // people, not on locked notes (Apple, "If you can't collaborate in the Notes app", support.apple.com/102462, read
 // 17 Nov); Reminders has a Groceries list type from iOS 17 that sorts items into categories as you add them (Apple,
 // "Create grocery lists in Reminders on your iPhone", support.apple.com/105086, read 17 Nov). Pinto side:
-// web/content/templates/meal-plan.json (Dinners table with who cooks, Groceries by aisle, Always in the cupboard; the
-// AI prompt asks which nights you cook, plans dinners, fills the list by aisle and skips the cupboard). Shots: the
+// web/content/templates/meal-plan.json and meal-plan.app (an app since 22 Nov: dinners with who cooks and their
+// ingredients, the grocery list made from them by aisle less the cupboard, earlier weeks kept; the AI prompt asks
+// which nights you cook, then writes the dinners and their ingredients). Shots: the
 // Apple Notes groceries note from best-notes-app-for-mac; SHOTS.aiEdit is a real Pinto Notes capture.
 
 const TEMPLATE = `# Dinners, week of 23 November
@@ -168,14 +169,15 @@ export default function Page() {
       <Figure shot={SHOTS.aiEdit} caption="A Groceries note in Pinto Notes on a Mac. The five lines ChatGPT just added are tinted, with Undo at the bottom." />
       <p>
         That&apos;s what Pinto Notes is for. It looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your
-        notes from the chat you already use. The free <a href="/templates/meal-plan">meal plan</a> template is a note with the
-        week&apos;s dinners and who cooks, the groceries by aisle, and what&apos;s always in the cupboard.
+        notes from the chat you already use. The free <a href="/templates/meal-plan">meal plan</a> template is a note with a small app in
+        it: the week&apos;s dinners and who cooks, and a grocery list made from them, by aisle, less what&apos;s always in the cupboard.
       </p>
       <p>
-        On the weekend, ask your AI to plan the week. It asks which nights you&apos;re cooking and what to skip, suggests dinners, fills
-        in the week, then writes the grocery list by aisle and leaves out what&apos;s already in the cupboard. Say &ldquo;add oat milk&rdquo;
-        on Wednesday and it lands under the right aisle. Every line it adds is tinted, with Undo, and every
-        earlier version of the note is kept. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT</a> takes a minute.
+        On the weekend, ask your AI to plan the week. It asks which nights you&apos;re cooking and what to skip, suggests dinners and
+        fills in the week with what each one needs. The grocery list follows: one line for the lemons two dinners share, under the
+        right aisle, and nothing that&apos;s already in the cupboard. Say &ldquo;add oat milk&rdquo; on Wednesday and it lands there too.
+        You tick things off in the shop, plan a dinner yourself, and every delete has Undo. Earlier weeks are kept, so last
+        week&apos;s dinners are one tap from this week. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT</a> takes a minute.
       </p>
       <p>
         Your Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>, and Apple Notes isn&apos;t

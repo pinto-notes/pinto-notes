@@ -7,42 +7,35 @@
     "Families"
   ],
   "audience": "For households tired of deciding what's for dinner at 6 pm.",
-  "description": "A week of dinners with its grocery list. Tell your AI what you feel like and it plans both.",
+  "description": "A week of dinners that writes its own grocery list, by aisle, minus what's in the cupboard. Plan it in the app, or tell your AI what you feel like.",
   "tagline": "Dinners for the week and what to buy.",
   "seoTitle": "Meal plan and grocery list template for ChatGPT",
   "folder": "Home",
-  "note": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Fill in the days, or ask your AI to plan the week.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |\n\n## Groceries\nWhat the week's dinners need, by aisle. Tick things off in the shop.\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
+  "note": "Meal plan and groceries\n\nPlan the week's dinners in the app and the grocery list builds itself: by aisle, things two dinners share on one line, and nothing you always have at home. Or tell your AI what you feel like and it plans both.\n\n## Dinners to try\nDishes you'd like to cook some week, one line each.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Meal plan and groceries\". On the weekend, ask me which nights we're cooking and anything to avoid, then suggest dinners and fill in the Dinners table with edit (read the note with fetch first). Then add what we need under \"Groceries\" as a checklist, grouped by aisle, leaving out what's under \"Always in the cupboard\". Keep weeknight dinners under 30 minutes. If I add something during the week, add it to the list."
+    "default": "Use my Pinto Notes note \"Meal plan and groceries\". It is an app; its data is \"Meal plan and groceries.app/data.json\", beside the note. Read it with fetch before each change; change it with edit. Ask which nights we cook, who cooks and what to skip. Add each dinner to values.dinners as { id, date (yyyy-mm-dd), dish, cook, ingredients: [{ name, qty, aisle }] }, aisle one of values.aisles; a recipe note's path goes in recipe, a new cook in values.cooks. The app builds the grocery list from the ingredients, less values.cupboard. Anything else to buy goes in values.extras as { id, week (its Monday), name, qty, aisle }. Keep earlier weeks."
   },
   "asks": [
-    "Ask what I feel like this week and what to skip, then plan the dinners and the grocery list.",
-    "Add oat milk and lemons to the groceries.",
-    "What's for dinner tonight?"
+    "Ask which nights we're cooking and what to skip, then plan this week's dinners and the groceries.",
+    "Plan dinners for this week, Oskar cooks Tuesday and Thursday.",
+    "Add oat milk and lemons to this week's groceries."
   ],
   "demo": [
     {
       "tool": "edit",
       "args": {
         "path": "Home/Meal plan and groceries.md",
-        "old_string": "| Monday | | |\n| Tuesday | | |\n| Wednesday | | |\n| Thursday | | |\n| Friday | | |\n| Saturday | | |\n| Sunday | | |",
-        "new_string": "| Monday | Lemon chicken with rice | Me |\n| Tuesday | Pasta with tomato and basil | Oskar |\n| Wednesday | Fish tacos | Me |\n| Thursday | Chickpea curry | Oskar |\n| Friday | Homemade pizza | Me |\n| Saturday | Out with friends |  |\n| Sunday | Roast chicken and potatoes | Oskar |"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Home/Meal plan and groceries.md",
-        "old_string": "What the week's dinners need, by aisle. Tick things off in the shop.\n",
-        "new_string": "What the week's dinners need, by aisle. Tick things off in the shop.\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Coconut milk\n- [ ] Pizza dough\n- [ ] Mozzarella\n- [x] Parmesan\n"
+        "old_string": "Dishes you'd like to cook some week, one line each.\n",
+        "new_string": "Dishes you'd like to cook some week, one line each.\n- Miso salmon with greens\n- Shakshuka for a slow Sunday\n- Maja's red lentil soup\n"
       }
     }
   ],
-  "example": "Meal plan and groceries\n\nThis week's dinners and the shopping list that goes with them. Fill in the days, or ask your AI to plan the week.\n\n## Dinners\n| Day | Dinner | Who cooks |\n| --- | --- | --- |\n| Monday | Lemon chicken with rice | Me |\n| Tuesday | Pasta with tomato and basil | Oskar |\n| Wednesday | Fish tacos | Me |\n| Thursday | Chickpea curry | Oskar |\n| Friday | Homemade pizza | Me |\n| Saturday | Out with friends |  |\n| Sunday | Roast chicken and potatoes | Oskar |\n\n## Groceries\nWhat the week's dinners need, by aisle. Tick things off in the shop.\n**Fruit and veg**\n- [ ] Lemons\n- [ ] Basil\n- [ ] Cherry tomatoes\n- [ ] Limes\n- [ ] Potatoes\n\n**Meat and fish**\n- [ ] Chicken thighs\n- [ ] White fish\n- [ ] Whole chicken\n\n**Other**\n- [ ] Tortillas\n- [ ] Chickpeas\n- [ ] Coconut milk\n- [ ] Pizza dough\n- [ ] Mozzarella\n- [x] Parmesan\n\n## Always in the cupboard\n- Olive oil, salt, pepper\n- Rice, pasta, oats\n- Onions, garlic\n",
+  "example": "Meal plan and groceries\n\nPlan the week's dinners in the app and the grocery list builds itself: by aisle, things two dinners share on one line, and nothing you always have at home. Or tell your AI what you feel like and it plans both.\n\n## Dinners to try\nDishes you'd like to cook some week, one line each.\n- Miso salmon with greens\n- Shakshuka for a slow Sunday\n- Maja's red lentil soup\n",
   "related": [
     "grocery-list",
     "recipe-box",
     "budget-log"
   ],
-  "updated": "2026-11-10"
+  "updated": "2026-11-22",
+  "app": true
 }

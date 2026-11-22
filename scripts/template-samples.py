@@ -151,8 +151,54 @@ def trip() -> None:
     write("trip-plan", v)
 
 
+def meals() -> None:
+    v = start("meal-plan")
+    FV, BA, MF, DE, DG, TJ, FR, OT = v["aisles"]
+    v["cooks"] = ["Me", "Oskar"]
+
+    def i(name: str, qty: str | None, aisle: str) -> dict:
+        return {"name": name, **({"qty": qty} if qty else {}), "aisle": aisle}
+    # (dish, cook, recipe, ingredients). Dinners on every day from six days back to six ahead, so
+    # whatever weekday the picture is drawn on, the week it shows is planned from Monday to Sunday
+    # (the dates move to the day it's drawn). Things two dinners share (lemons, basil, peppers,
+    # tortillas) make one line, and the rice, onions and garlic are in the cupboard.
+    plan = [
+        ("Lemon chicken with rice", "Me", "Recipes/Lemon chicken", [i("Chicken thighs", "600 g", MF), i("Lemons", "2", FV), i("Rice", None, DG), i("Parsley", "1 bunch", FV)]),
+        ("Fish tacos", "Oskar", None, [i("White fish", "400 g", MF), i("Limes", "2", FV), i("Tortillas", "8", BA), i("Red cabbage", "1", FV), i("Sour cream", "1 tub", DE)]),
+        ("Chickpea curry", "Oskar", "Recipes/Chickpea curry", [i("Chickpeas", "2 tins", TJ), i("Coconut milk", "1 tin", TJ), i("Spinach", "200 g", FV), i("Onions", None, FV), i("Rice", None, DG)]),
+        ("Pasta with tomato and basil", "Me", None, [i("Pasta", None, DG), i("Cherry tomatoes", "500 g", FV), i("Basil", "1 bunch", FV), i("Parmesan", None, DE)]),
+        ("Homemade pizza", "Me", "Recipes/Pizza dough", [i("Pizza dough", "2", BA), i("Mozzarella", "2", DE), i("Passata", "1 jar", TJ), i("Basil", "1 bunch", FV)]),
+        ("Out with friends", None, None, []),
+        ("Roast chicken and potatoes", "Oskar", "Recipes/Roast chicken", [i("Whole chicken", None, MF), i("Potatoes", "1 kg", FV), i("Lemon", "1", FV), i("Garlic", None, FV)]),
+        ("Miso salmon with greens", "Me", None, [i("Salmon fillets", "2", MF), i("Broccoli", "1", FV), i("Miso paste", None, TJ), i("Rice", None, DG)]),
+        ("Shakshuka", "Oskar", None, [i("Eggs", "6", DE), i("Tinned tomatoes", "2 tins", TJ), i("Peppers", "2", FV), i("Sourdough", "1 loaf", BA)]),
+        ("Red lentil soup", "Me", None, [i("Red lentils", "300 g", DG), i("Carrots", "3", FV), i("Onions", None, FV), i("Sourdough", "1 loaf", BA)]),
+        ("Halloumi wraps", "Oskar", None, [i("Halloumi", "1", DE), i("Tortillas", "8", BA), i("Peppers", "1", FV), i("Hummus", "1 tub", DE)]),
+        ("Pesto gnocchi", "Me", None, [i("Gnocchi", "500 g", OT), i("Pesto", "1 jar", TJ), i("Cherry tomatoes", "250 g", FV)]),
+        ("Burgers", "Oskar", None, [i("Beef mince", "500 g", MF), i("Burger buns", "4", BA), i("Lettuce", "1", FV), i("Cheddar", None, DE)]),
+    ]
+    earlier = [
+        ("Fish pie", "Me", None, [i("White fish", "400 g", MF), i("Potatoes", "1 kg", FV), i("Milk", "1 l", DE), i("Peas", "1 bag", FR)]),
+        ("Veggie stir fry", "Oskar", None, [i("Noodles", "2 packs", DG), i("Broccoli", "1", FV), i("Peppers", "1", FV), i("Soy sauce", None, TJ)]),
+    ]
+    v["dinners"] = []
+    for n, (dish, cook, recipe, ingredients) in [(-9, earlier[0]), (-8, earlier[1])] + list(zip(range(-6, 7), plan)):
+        din = {"id": f"d{len(v['dinners']) + 1}", "date": d(n), "dish": dish}
+        if cook:
+            din["cook"] = cook
+        if recipe:
+            din["recipe"] = recipe
+        din["ingredients"] = ingredients
+        v["dinners"].append(din)
+    # Half way round the shop: the fruit and veg and the bread are in the basket.
+    v["bought"] = {d(0): ["lemon", "lime", "parsley", "basil", "cherry tomato", "spinach", "red cabbage", "potato", "pepper", "tortilla", "sourdough", "burger bun"]}
+    v["extras"] = [{"id": "x1", "week": d(0), "name": "Oat milk", "qty": "2 l", "aisle": DE}, {"id": "x2", "week": d(0), "name": "Coffee", "aisle": DG}]
+    write("meal-plan", v)
+
+
 habits()
 budget()
 flashcards()
 trip()
+meals()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))
