@@ -151,8 +151,75 @@ def trip() -> None:
     write("trip-plan", v)
 
 
+def home() -> None:
+    v = start("home-maintenance")
+    v["currency"] = "kr"
+    # A house near Stockholm, a year in. The phone numbers are in the range set aside for fiction.
+    v["contacts"] = [
+        {"id": "c1", "name": "Värme & Rör AB", "trade": "Heating engineer", "phone": "08-465 004 51"},
+        {"id": "c2", "name": "Nordin & Son", "trade": "Plumber", "phone": "08-465 004 27"},
+        {"id": "c3", "name": "Volt Fix", "trade": "Electrician", "phone": "08-465 004 63"},
+        {"id": "c4", "name": "Sotarn i Söder", "trade": "Chimney sweep", "phone": "08-465 004 88"},
+        {"id": "c5", "name": "Däckcentralen", "trade": "Tyres", "phone": "08-465 004 19"},
+    ]
+    # (id, name, area, every, contact, usual cost, the days it was done (before ANCHOR), the cost and
+    # note of each). Two are late (the smoke alarms, the shower drain), the gutters are due this
+    # autumn, two filters come due in the next week or so, and the rest are coming up.
+    jobs = [
+        ("j1", "Test the smoke alarms", "Safety", "6 months", None, None, [(-200, 89, "New battery in the hall")]),
+        ("j2", "Clean the dishwasher filter", "Kitchen", "1 month", None, None, [(-n, None, None) for n in (25, 56, 86, 118, 149, 180, 212, 240, 272, 303, 333)]),
+        ("j3", "Clean the extractor fan filter", "Kitchen", "3 months", None, 249, [(-85, 249, None), (-176, 249, None), (-268, 249, "Bought two spares")]),
+        ("j4", "Clean the shower drain", "Bathroom", "3 months", None, None, [(-100, None, None), (-192, None, None), (-290, None, "Hair catcher fitted")]),
+        ("j5", "Clean the washing machine filter", "Bathroom", "3 months", None, None, [(-40, None, None), (-131, None, None), (-222, None, None), (-315, None, None)]),
+        ("j6", "Service the heat pump", "Heating", "1 year", "c1", 1450, [(-300, 1450, "New filter, pressure fine")]),
+        ("j7", "Bleed the radiators", "Heating", "autumn", None, None, [(-390, None, None)]),
+        ("j8", "Sweep the chimney", "Heating", "1 year", "c4", 650, [(-200, 650, None)]),
+        ("j9", "Clear the gutters", "Outside", "autumn", None, None, [(-375, None, "Two downpipes blocked")]),
+        ("j10", "Oil the deck", "Outside", "summer", None, 640, [(-120, 640, "Two coats, 3 litres")]),
+        ("j11", "Prune the apple tree", "Garden", "winter", None, None, [(-290, None, None)]),
+        ("j12", "Service the lawnmower", "Garden", "spring", None, 450, [(-215, 450, None)]),
+        ("j13", "Switch to winter tyres", "Car", "autumn", "c5", 500, [(-26, 500, None)]),
+        ("j14", "Switch to summer tyres", "Car", "spring", "c5", 500, [(-205, 500, None)]),
+        ("j15", "Service the car", "Car", "1 year", None, 3200, [(-250, 3200, "Front brake pads too")]),
+        ("j16", "Check the fire extinguisher", "Safety", "1 year", None, None, [(-330, None, None)]),
+    ]
+    v["jobs"], v["history"] = [], []
+    for jid, name, area, every, contact, cost, done in jobs:
+        j = {"id": jid, "name": name, "area": area, "every": every, "last": d(max(n for n, _, _ in done))}
+        if contact:
+            j["contact"] = contact
+        if cost is not None:
+            j["cost"] = cost
+        v["jobs"].append(j)
+        for n, c, note in done:
+            h = {"id": f"h{len(v['history']) + 1}", "job": jid, "date": d(n)}
+            if c is not None:
+                h["cost"] = c
+            if note:
+                h["note"] = note
+            v["history"].append(h)
+    v["history"].sort(key=lambda h: h["date"])
+    # The dishwasher's warranty ends in a month: the app flags it.
+    v["appliances"] = [
+        {"id": "a1", "name": "Dishwasher", "area": "Kitchen", "model": "Bosch Serie 4 SMV4HCX48E", "serial": "FD 9912 00341", "bought": d(-700), "warranty": d(30), "manual": "https://www.bosch-home.com/se/service/bruksanvisningar"},
+        {"id": "a2", "name": "Heat pump", "area": "Heating", "model": "Nibe F2120-12", "serial": "06 5432 1188", "bought": "2021-09-14", "warranty": "2027-09-14", "manual": "https://www.nibe.eu/en-eu/support/manuals"},
+        {"id": "a3", "name": "Washing machine", "area": "Bathroom", "model": "Miele WWD 320", "serial": "000 1182 7764", "bought": d(-500), "warranty": d(600)},
+        {"id": "a4", "name": "Fridge freezer", "area": "Kitchen", "model": "Electrolux LNT7ME34X2", "bought": d(-1100), "warranty": d(-370)},
+        {"id": "a5", "name": "Lawnmower", "area": "Garden", "model": "Husqvarna LC 247", "bought": "2022-05-02"},
+    ]
+    v["details"] = [
+        {"id": "i1", "name": "Water stopcock", "value": "Under the kitchen sink, turn clockwise to close"},
+        {"id": "i2", "name": "Fuse box", "value": "Hall cupboard, top shelf. Main switch on the left"},
+        {"id": "i3", "name": "Heat pump settings", "value": "Curve 5, offset -1"},
+        {"id": "i4", "name": "Living room paint", "value": "Jotun Lady 1024 Tidløs, matt"},
+        {"id": "i5", "name": "Long ladder", "value": "In the garage, behind the bikes"},
+    ]
+    write("home-maintenance", v)
+
+
 habits()
 budget()
 flashcards()
 trip()
+home()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))

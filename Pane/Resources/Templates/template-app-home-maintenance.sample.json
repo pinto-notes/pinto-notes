@@ -1,0 +1,431 @@
+{
+ "values": {
+  "jobs": [
+   {
+    "id": "j1",
+    "name": "Test the smoke alarms",
+    "area": "Safety",
+    "every": "6 months",
+    "last": "2026-04-22"
+   },
+   {
+    "id": "j2",
+    "name": "Clean the dishwasher filter",
+    "area": "Kitchen",
+    "every": "1 month",
+    "last": "2026-10-14"
+   },
+   {
+    "id": "j3",
+    "name": "Clean the extractor fan filter",
+    "area": "Kitchen",
+    "every": "3 months",
+    "last": "2026-08-15",
+    "cost": 249
+   },
+   {
+    "id": "j4",
+    "name": "Clean the shower drain",
+    "area": "Bathroom",
+    "every": "3 months",
+    "last": "2026-07-31"
+   },
+   {
+    "id": "j5",
+    "name": "Clean the washing machine filter",
+    "area": "Bathroom",
+    "every": "3 months",
+    "last": "2026-09-29"
+   },
+   {
+    "id": "j6",
+    "name": "Service the heat pump",
+    "area": "Heating",
+    "every": "1 year",
+    "last": "2026-01-12",
+    "contact": "c1",
+    "cost": 1450
+   },
+   {
+    "id": "j7",
+    "name": "Bleed the radiators",
+    "area": "Heating",
+    "every": "autumn",
+    "last": "2025-10-14"
+   },
+   {
+    "id": "j8",
+    "name": "Sweep the chimney",
+    "area": "Heating",
+    "every": "1 year",
+    "last": "2026-04-22",
+    "contact": "c4",
+    "cost": 650
+   },
+   {
+    "id": "j9",
+    "name": "Clear the gutters",
+    "area": "Outside",
+    "every": "autumn",
+    "last": "2025-10-29"
+   },
+   {
+    "id": "j10",
+    "name": "Oil the deck",
+    "area": "Outside",
+    "every": "summer",
+    "last": "2026-07-11",
+    "cost": 640
+   },
+   {
+    "id": "j11",
+    "name": "Prune the apple tree",
+    "area": "Garden",
+    "every": "winter",
+    "last": "2026-01-22"
+   },
+   {
+    "id": "j12",
+    "name": "Service the lawnmower",
+    "area": "Garden",
+    "every": "spring",
+    "last": "2026-04-07",
+    "cost": 450
+   },
+   {
+    "id": "j13",
+    "name": "Switch to winter tyres",
+    "area": "Car",
+    "every": "autumn",
+    "last": "2026-10-13",
+    "contact": "c5",
+    "cost": 500
+   },
+   {
+    "id": "j14",
+    "name": "Switch to summer tyres",
+    "area": "Car",
+    "every": "spring",
+    "last": "2026-04-17",
+    "contact": "c5",
+    "cost": 500
+   },
+   {
+    "id": "j15",
+    "name": "Service the car",
+    "area": "Car",
+    "every": "1 year",
+    "last": "2026-03-03",
+    "cost": 3200
+   },
+   {
+    "id": "j16",
+    "name": "Check the fire extinguisher",
+    "area": "Safety",
+    "every": "1 year",
+    "last": "2025-12-13"
+   }
+  ],
+  "history": [
+   {
+    "id": "h24",
+    "job": "j7",
+    "date": "2025-10-14"
+   },
+   {
+    "id": "h26",
+    "job": "j9",
+    "date": "2025-10-29",
+    "note": "Two downpipes blocked"
+   },
+   {
+    "id": "h12",
+    "job": "j2",
+    "date": "2025-12-10"
+   },
+   {
+    "id": "h33",
+    "job": "j16",
+    "date": "2025-12-13"
+   },
+   {
+    "id": "h22",
+    "job": "j5",
+    "date": "2025-12-28"
+   },
+   {
+    "id": "h11",
+    "job": "j2",
+    "date": "2026-01-09"
+   },
+   {
+    "id": "h23",
+    "job": "j6",
+    "date": "2026-01-12",
+    "cost": 1450,
+    "note": "New filter, pressure fine"
+   },
+   {
+    "id": "h18",
+    "job": "j4",
+    "date": "2026-01-22",
+    "note": "Hair catcher fitted"
+   },
+   {
+    "id": "h28",
+    "job": "j11",
+    "date": "2026-01-22"
+   },
+   {
+    "id": "h10",
+    "job": "j2",
+    "date": "2026-02-09"
+   },
+   {
+    "id": "h15",
+    "job": "j3",
+    "date": "2026-02-13",
+    "cost": 249,
+    "note": "Bought two spares"
+   },
+   {
+    "id": "h32",
+    "job": "j15",
+    "date": "2026-03-03",
+    "cost": 3200,
+    "note": "Front brake pads too"
+   },
+   {
+    "id": "h9",
+    "job": "j2",
+    "date": "2026-03-13"
+   },
+   {
+    "id": "h21",
+    "job": "j5",
+    "date": "2026-03-31"
+   },
+   {
+    "id": "h29",
+    "job": "j12",
+    "date": "2026-04-07",
+    "cost": 450
+   },
+   {
+    "id": "h8",
+    "job": "j2",
+    "date": "2026-04-10"
+   },
+   {
+    "id": "h31",
+    "job": "j14",
+    "date": "2026-04-17",
+    "cost": 500
+   },
+   {
+    "id": "h1",
+    "job": "j1",
+    "date": "2026-04-22",
+    "cost": 89,
+    "note": "New battery in the hall"
+   },
+   {
+    "id": "h25",
+    "job": "j8",
+    "date": "2026-04-22",
+    "cost": 650
+   },
+   {
+    "id": "h17",
+    "job": "j4",
+    "date": "2026-04-30"
+   },
+   {
+    "id": "h7",
+    "job": "j2",
+    "date": "2026-05-12"
+   },
+   {
+    "id": "h14",
+    "job": "j3",
+    "date": "2026-05-16",
+    "cost": 249
+   },
+   {
+    "id": "h6",
+    "job": "j2",
+    "date": "2026-06-12"
+   },
+   {
+    "id": "h20",
+    "job": "j5",
+    "date": "2026-06-30"
+   },
+   {
+    "id": "h27",
+    "job": "j10",
+    "date": "2026-07-11",
+    "cost": 640,
+    "note": "Two coats, 3 litres"
+   },
+   {
+    "id": "h5",
+    "job": "j2",
+    "date": "2026-07-13"
+   },
+   {
+    "id": "h16",
+    "job": "j4",
+    "date": "2026-07-31"
+   },
+   {
+    "id": "h4",
+    "job": "j2",
+    "date": "2026-08-14"
+   },
+   {
+    "id": "h13",
+    "job": "j3",
+    "date": "2026-08-15",
+    "cost": 249
+   },
+   {
+    "id": "h3",
+    "job": "j2",
+    "date": "2026-09-13"
+   },
+   {
+    "id": "h19",
+    "job": "j5",
+    "date": "2026-09-29"
+   },
+   {
+    "id": "h30",
+    "job": "j13",
+    "date": "2026-10-13",
+    "cost": 500
+   },
+   {
+    "id": "h2",
+    "job": "j2",
+    "date": "2026-10-14"
+   }
+  ],
+  "areas": [
+   "Kitchen",
+   "Bathroom",
+   "Heating",
+   "Outside",
+   "Garden",
+   "Car",
+   "Safety"
+  ],
+  "appliances": [
+   {
+    "id": "a1",
+    "name": "Dishwasher",
+    "area": "Kitchen",
+    "model": "Bosch Serie 4 SMV4HCX48E",
+    "serial": "FD 9912 00341",
+    "bought": "2024-12-08",
+    "warranty": "2026-12-08",
+    "manual": "https://www.bosch-home.com/se/service/bruksanvisningar"
+   },
+   {
+    "id": "a2",
+    "name": "Heat pump",
+    "area": "Heating",
+    "model": "Nibe F2120-12",
+    "serial": "06 5432 1188",
+    "bought": "2021-09-14",
+    "warranty": "2027-09-14",
+    "manual": "https://www.nibe.eu/en-eu/support/manuals"
+   },
+   {
+    "id": "a3",
+    "name": "Washing machine",
+    "area": "Bathroom",
+    "model": "Miele WWD 320",
+    "serial": "000 1182 7764",
+    "bought": "2025-06-26",
+    "warranty": "2028-06-30"
+   },
+   {
+    "id": "a4",
+    "name": "Fridge freezer",
+    "area": "Kitchen",
+    "model": "Electrolux LNT7ME34X2",
+    "bought": "2023-11-04",
+    "warranty": "2025-11-03"
+   },
+   {
+    "id": "a5",
+    "name": "Lawnmower",
+    "area": "Garden",
+    "model": "Husqvarna LC 247",
+    "bought": "2022-05-02"
+   }
+  ],
+  "details": [
+   {
+    "id": "i1",
+    "name": "Water stopcock",
+    "value": "Under the kitchen sink, turn clockwise to close"
+   },
+   {
+    "id": "i2",
+    "name": "Fuse box",
+    "value": "Hall cupboard, top shelf. Main switch on the left"
+   },
+   {
+    "id": "i3",
+    "name": "Heat pump settings",
+    "value": "Curve 5, offset -1"
+   },
+   {
+    "id": "i4",
+    "name": "Living room paint",
+    "value": "Jotun Lady 1024 Tidløs, matt"
+   },
+   {
+    "id": "i5",
+    "name": "Long ladder",
+    "value": "In the garage, behind the bikes"
+   }
+  ],
+  "contacts": [
+   {
+    "id": "c1",
+    "name": "Värme & Rör AB",
+    "trade": "Heating engineer",
+    "phone": "08-465 004 51"
+   },
+   {
+    "id": "c2",
+    "name": "Nordin & Son",
+    "trade": "Plumber",
+    "phone": "08-465 004 27"
+   },
+   {
+    "id": "c3",
+    "name": "Volt Fix",
+    "trade": "Electrician",
+    "phone": "08-465 004 63"
+   },
+   {
+    "id": "c4",
+    "name": "Sotarn i Söder",
+    "trade": "Chimney sweep",
+    "phone": "08-465 004 88"
+   },
+   {
+    "id": "c5",
+    "name": "Däckcentralen",
+    "trade": "Tyres",
+    "phone": "08-465 004 19"
+   }
+  ],
+  "currency": "kr"
+ },
+ "collections": {}
+}

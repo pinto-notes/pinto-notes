@@ -6,7 +6,8 @@
 /// Searches it aims at (checked 13 October 2026, free sources only: Google autocomplete, and
 /// RankHero's public keyword pages, whose volumes are third-party estimates): "habit tracker template"
 /// (habit tracker, ~110k a month), "budget tracker template" (budget tracker, ~15k), "trip planner"
-/// and "itinerary template" (~450k and ~50k), "flashcard maker" (flashcards, ~450k, mostly printable).
+/// and "itinerary template" (~450k and ~50k), "flashcard maker" (flashcards, ~450k, mostly printable),
+/// "home maintenance tracker" and "home maintenance checklist" (not checked).
 ///
 /// Truth: only what the template apps in content/templates/<slug>.app do (they reach the app from
 /// this site, so they change when the site deploys) and what Mac 1.2.26 does. There's no iPad app in 1.2.
@@ -87,6 +88,25 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Can ChatGPT plan my trip into this itinerary?", a: ["Yes, once Pinto Notes is connected. Ask for a five-day plan and it writes one day at a time into the app's data, three to five lines each. Paste a booking confirmation and it adds the booking with its time and reference."] },
       { q: "Can I change the itinerary myself?", a: ["Yes. Change the trip's name and dates with Edit on the Trip tab, and add, edit or delete days, bookings and packing items. A delete shows Undo. Share sends a day or the whole trip as text."] },
       { q: "Does it show maps or the weather?", a: ["No. There's no map, no weather and no cost per booking. The app has no network access unless you allow a site, and the template doesn't ask for one."] },
+      { q: "Does it work on iPhone?", a: [IPHONE] },
+    ],
+  },
+  "home-maintenance": {
+    h1: "Home maintenance tracker with its own app",
+    make: ["Add the chimney sweep, every autumn.", "Show what I spent per area last year.", "Add a photo of each appliance's label.", "Track the car's service by kilometres too."],
+    can: [
+      { name: "See what's due", text: "Overdue, this month and coming up, by date." },
+      { name: "Mark a job done in one tap", text: "It works out when the job is next." },
+      { name: "Weeks, months, years or a season", text: "Every 3 months, or every autumn." },
+      { name: "Know what you've spent", text: "Each job's history, and this year's total." },
+      { name: "Keep the boring facts", text: "Models, serials, warranties, manuals, contacts." },
+      AI_SAME_DATA,
+    ],
+    faq: [
+      { q: "Is this home maintenance tracker free?", a: ["Yes. The template and Pinto Notes are free. To tell an AI what you did, you need ChatGPT on a plan that allows custom apps, or Claude, or Claude Code."] },
+      { q: "Can ChatGPT or Claude keep it up to date?", a: ["Yes, once Pinto Notes is connected. Say \"cleaned the gutters today, cost 900 kr\" and it logs the job with its cost, and the app moves the next date on. Ask \"what's due this month?\" and it answers from the same data the app shows."] },
+      { q: "Can I keep it up myself?", a: ["Yes. Add, rename, reorder and remove jobs, areas, appliances and contacts in the app. Tap Done when you finish a job, or log one on another day with its cost and a note. A delete shows Undo."] },
+      { q: "Does it remind me when something is due?", a: ["Not with a notification. The note's summary line says what's overdue and due this month, and the Due tab lists it. Warranties ending in the next three months are flagged."] },
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
   },

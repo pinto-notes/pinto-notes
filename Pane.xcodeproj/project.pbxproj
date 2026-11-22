@@ -93,6 +93,7 @@
 		0B2A2260CD170E5A85E6CB08 /* MacRenderAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2965D35A72773FAC7DC0F7 /* MacRenderAuditTests.swift */; };
 		0B55BE9CECA0E56085150765 /* LockedSharedShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10B77C0C639B9E5915840851 /* LockedSharedShots.swift */; };
 		0B6ECA502D42CD2E9BE658D5 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */; };
+		C89B45E821BAE67F0231AFF1 /* template-app-home-maintenance-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B5FD22DD46EF967BACE627F7 /* template-app-home-maintenance-stage-narrow-dark.jpg */; };
 		0B85BFBF049C360FB88C400E /* WelcomeNoteTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = F044996156B7175A03B70281 /* WelcomeNoteTests+Shared.swift */; };
 		0BA88B107179AE56774F18B0 /* DemoHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E11FB95A2E7F9A4A70976E7 /* DemoHistory.swift */; };
 		0BBE689AA0599923F04218AA /* KeepImportTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BAB76BCB209BDBBEE16E14 /* KeepImportTests+Shared.swift */; };
@@ -137,8 +138,10 @@
 		10FC42728582EC8A60B3366F /* Experiments.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2420E650B7A0CC0A5560E8 /* Experiments.swift */; };
 		11762F8C4D3EBA91FE271470 /* WikiSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */; };
 		11EE0BA64EC791EC1300D18F /* template-app-trip-plan-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */; };
+		F0A00020660C04DCA859CBFA /* template-app-home-maintenance-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0B3FA92C5B43929EBABA6AE6 /* template-app-home-maintenance-stage-narrow-light.jpg */; };
 		11F0AB2B95A4FA46C0063B99 /* VersionHistorySnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64816024A9749AC715351868 /* VersionHistorySnapshots.swift */; };
 		11FC3EEB0BD887FA89890D4E /* template-app-trip-plan-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */; };
+		32B49917179F64C5122644BD /* template-app-home-maintenance-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 73E0A679B387C116F37AC35B /* template-app-home-maintenance-light.jpg */; };
 		12116194A4A0D7CCCB7A7C9E /* AmberButtonSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB372EDEDFC65E45ED67E97E /* AmberButtonSnapshots.swift */; };
 		1241DEA7CF52F1B8AF07ED63 /* NetworkFaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AADFFB2EFBB6DB3A1130015 /* NetworkFaults.swift */; };
 		12587D0238EB3182ED133F09 /* ToolbarGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD35A6994110D17D56D7D8D7 /* ToolbarGlyph.swift */; };
@@ -233,6 +236,7 @@
 		1E19A90801FFFD1FDEBB3653 /* EvernoteImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0FD3EFDF28989E46C2DEBCE /* EvernoteImportTests.swift */; };
 		1E19B6337684163C3FE00914 /* LinkDeviceFunnelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35376C9E24B64FCEDB9BCA2E /* LinkDeviceFunnelTests.swift */; };
 		1E389505E10D8117B72BF358 /* template-app-trip-plan.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 119D2A4674F7A0EEA13D4845 /* template-app-trip-plan.data.json */; };
+		4DD35B24C1043C8EE2944D46 /* template-app-home-maintenance.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 61643E07F5694894424BA6A8 /* template-app-home-maintenance.data.json */; };
 		1E41DDDB049C915663C9A421 /* EditorOpenStageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63F65A5C64FDA6A4699C5F19 /* EditorOpenStageTests.swift */; };
 		1E5DA23F74572E73D2542100 /* SetupCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7CE5BC38BEF617FE49447E /* SetupCards.swift */; };
 		1E61F2DC167E05A162DAAC9B /* MarkdownImportTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = E75357F3BAA4276C03F007BE /* MarkdownImportTests+Shared.swift */; };
@@ -336,11 +340,13 @@
 		2DBE5AF91D6BAE703EE24294 /* LockedSharedScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624ABDC6E08D2D3DE6A4B535 /* LockedSharedScene.swift */; };
 		2DC5514D71BE0F65B018B598 /* SidebarAIs.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFD4A4BFC0C9056F37BE154 /* SidebarAIs.swift */; };
 		2DC9C98A292A23F8AF0E945C /* template-app-trip-plan-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = AE1734A774D6383627567A72 /* template-app-trip-plan-stage-light.jpg */; };
+		CF6979D376975FC75D53C9B2 /* template-app-home-maintenance-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7B8CD1EBF78B2BD61E112524 /* template-app-home-maintenance-stage-light.jpg */; };
 		2DD6CB3865B3B81FC250F8DF /* htm.js in Resources */ = {isa = PBXBuildFile; fileRef = F9AB7B84121134A7EF8CBE69 /* htm.js */; };
 		2E53E3B9A8F06E7E718EC4EB /* FilmSlides.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FEB7015C9735D0998823A75 /* FilmSlides.swift */; };
 		2EF780073AE6EAE61E47D352 /* template-cover-weekly-review-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B8B38856ADE31B6A1C069625 /* template-cover-weekly-review-large.jpg */; };
 		2F3939BDF7AB0821A01D6029 /* template-cover-grocery-list-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C051B2C05B368B2D929BDE28 /* template-cover-grocery-list-large.jpg */; };
 		2F8ECD5AA6A47A8D5823771F /* template-app-trip-plan-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6AFD637E94A7D27750C842FA /* template-app-trip-plan-stage-dark.jpg */; };
+		1331D99155CB12E079F3ABA8 /* template-app-home-maintenance-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = F3BE1A54EA6EC5286CF60BB7 /* template-app-home-maintenance-stage-dark.jpg */; };
 		2F9C64719890C1BE63438C1F /* MenuBarPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72C1B655873A4CE5E1D4F0B3 /* MenuBarPanel.swift */; };
 		2FA68FA597287DDE2B9834A4 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEFA368EF8F56909D229B913 /* Library.swift */; };
 		2FA6F5339236141D4EC5A047 /* AttachMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3203BD32205C8FF6C76FEBEE /* AttachMenu.swift */; };
@@ -358,6 +364,7 @@
 		31E8ADEDEEB97923148B52D0 /* PrivacyModeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7755AE04925F5C9C8A6B07 /* PrivacyModeControl.swift */; };
 		31E9AF4640309AD90FB88C4D /* AppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D983BF94C11EAB2D08522A43 /* AppearanceSettings.swift */; };
 		31F892FCBC62421869484CB0 /* template-app-trip-plan.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 119D2A4674F7A0EEA13D4845 /* template-app-trip-plan.data.json */; };
+		DDCE678C691BC7EB6934032B /* template-app-home-maintenance.data.json in Resources */ = {isa = PBXBuildFile; fileRef = 61643E07F5694894424BA6A8 /* template-app-home-maintenance.data.json */; };
 		32082DA9BBA628FAB0F5D8E9 /* Funnel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F23D900BF7C689A4C8F231E /* Funnel.swift */; };
 		3239BBD122051C60F7DCC3C0 /* ENMLToMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97BBCF0A4A8EA967BB4FAE0E /* ENMLToMarkdown.swift */; };
 		324B3F561C5BEAD48420495F /* SidebarTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC929FD7F18971368EFA56F3 /* SidebarTags.swift */; };
@@ -379,11 +386,13 @@
 		34AB610A8A2D3492946C04BF /* catalog.json in Resources */ = {isa = PBXBuildFile; fileRef = DE80382398AD828DE2282562 /* catalog.json */; };
 		34B24FC2421D8E413271A26F /* Dividers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C439A81FB96E4DE1B754647 /* Dividers.swift */; };
 		34CFBC0EAF6C6B5261CF5022 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */; };
+		FF2B7D6107D192F7454EE6A4 /* template-app-home-maintenance-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B5FD22DD46EF967BACE627F7 /* template-app-home-maintenance-stage-narrow-dark.jpg */; };
 		34F47FFE6228C1F79DF616CF /* SharedDeleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239E33A6B222E8CCE6BA3C15 /* SharedDeleteTests.swift */; };
 		3548897F5A2B168D95155650 /* amber.module.js in Resources */ = {isa = PBXBuildFile; fileRef = 97C940F267EB2E717FF9D745 /* amber.module.js */; };
 		3567B1E5577407A8C866ED38 /* template-app-study-flashcards-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DD2CBA7D9B4CFF7E8589AB5D /* template-app-study-flashcards-stage-card-light.jpg */; };
 		357BFF89566D534FC69D2494 /* OfflineUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643D6098FA0EE7C18618080F /* OfflineUITests.swift */; };
 		35B2402FFFA76D9629839C23 /* template-app-trip-plan-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 591538F09A6366B5271C87F1 /* template-app-trip-plan-dark.jpg */; };
+		835D93D70D08FCDF15F87940 /* template-app-home-maintenance-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3DF12F2D81D442D40FD15C24 /* template-app-home-maintenance-dark.jpg */; };
 		35BDB660A042C3C428EA504D /* AppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D983BF94C11EAB2D08522A43 /* AppearanceSettings.swift */; };
 		35C84CFCD1BCA865A4E6FF53 /* ComposeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C6D15833CF6120B65D7384A /* ComposeButton.swift */; };
 		364A03B667A51B2D5980B341 /* MacWindowChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8821FF7177AED2473C69A324 /* MacWindowChromeTests.swift */; };
@@ -406,6 +415,7 @@
 		38AA7C49BB9C58937D725CC8 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C2F5BCCDFA4A6D60E39708 /* Platform.swift */; };
 		3936DF21DA3CACA30001C93D /* SignOutRemovalSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0F69910B21B087593045DD7 /* SignOutRemovalSyncTests.swift */; };
 		395D43DE3A57991FAEA6D03F /* template-app-trip-plan-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = AE1734A774D6383627567A72 /* template-app-trip-plan-stage-light.jpg */; };
+		B8087613CCF560DDF2449B21 /* template-app-home-maintenance-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7B8CD1EBF78B2BD61E112524 /* template-app-home-maintenance-stage-light.jpg */; };
 		3A02B0875470F6F342244643 /* CollabKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8E3D18304D08BE3BDF26DA /* CollabKeys.swift */; };
 		3A0428B9D417AD59AC69F1F7 /* CollabKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8E3D18304D08BE3BDF26DA /* CollabKeys.swift */; };
 		3A1DB095D7D92ADF47FCDD17 /* NoteLabelChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D1C99AF0ECCD48D6941CA0 /* NoteLabelChips.swift */; };
@@ -417,6 +427,7 @@
 		3AAB046F46DAEAF8F80E8719 /* DestructiveTintTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59655C520BBE50A3DDD85656 /* DestructiveTintTests.swift */; };
 		3AE5435A82DDAE91567C03C9 /* OnboardingArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 574EE2DEFC4559FC36B6B7CC /* OnboardingArt.swift */; };
 		3B1A6F83AA55B13B4740104A /* template-app-trip-plan-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6AFD637E94A7D27750C842FA /* template-app-trip-plan-stage-dark.jpg */; };
+		E33A4DED58EB6B31BF327590 /* template-app-home-maintenance-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = F3BE1A54EA6EC5286CF60BB7 /* template-app-home-maintenance-stage-dark.jpg */; };
 		3B6CA656438D04D22359B75E /* template-app-habit-tracker-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 8467A42E32C85E25C52CA019 /* template-app-habit-tracker-stage-dark.jpg */; };
 		3B7105221B24D815E7438BDD /* AppIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2916AFC1F3D0B78C58824A3 /* AppIdentity.swift */; };
 		3B7B3DFADBEBA5D26CC26A7C /* NoteLabels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA05C8B1F3073815B08116D0 /* NoteLabels.swift */; };
@@ -445,6 +456,7 @@
 		3ED9E5F43045E537D5808BEB /* OnboardingFunnelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C45208113CA435AB1CE94DF /* OnboardingFunnelTests.swift */; };
 		3F01A7892D474563CBF3DEC6 /* AddDeviceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2914F169F1D2661AA5B086B1 /* AddDeviceUITests.swift */; };
 		3F8659A56E8F48FB9C2ABE3B /* template-app-trip-plan.project.json in Resources */ = {isa = PBXBuildFile; fileRef = ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */; };
+		A9426801359E82C2327A2CFA /* template-app-home-maintenance.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 07681D2431343C4B005CB2DA /* template-app-home-maintenance.project.json */; };
 		3FAB92CAD385BFD420C6C99F /* CellUndoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEE23095E0448022CBAD4F3 /* CellUndoTests.swift */; };
 		3FAD79F9A38E6A198FD448C1 /* TableShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE138616AC9DDE47DC5537AD /* TableShots.swift */; };
 		3FADF758F5B448E9A1011541 /* PersonaAI2AfterShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28BF769DE687D1A35F8A670 /* PersonaAI2AfterShots.swift */; };
@@ -627,6 +639,7 @@
 		5D44AD21DA107E3052158E75 /* TopBarShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = D683509E3A269D745E8F9C88 /* TopBarShots.swift */; };
 		5D5312B03C7882430C67864B /* MacEmptyDetailTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91D1EA8E082F6332DD298D7 /* MacEmptyDetailTests+Shared.swift */; };
 		5DE2B5B613666CD075C3D865 /* template-app-trip-plan-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5D23A6CA640BE0AF1B67F5BD /* template-app-trip-plan-stage-card-dark.jpg */; };
+		2735E4B8A546AB22077BABA5 /* template-app-home-maintenance-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 70728658F8A1A087DE4B265F /* template-app-home-maintenance-stage-card-dark.jpg */; };
 		5DF4070A3BE600B9F2D1F641 /* DecoratedLayoutFragment.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC4C25B7D160D0B147F9EC20 /* DecoratedLayoutFragment.swift */; };
 		5E076472E39CF571568F3937 /* BestAppsMacShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC80E1068BA9CCCED6E975B6 /* BestAppsMacShots.swift */; };
 		5E153129A4B637873EE0F5A4 /* AppMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B255CC05106DC01C927C7CD /* AppMark.swift */; };
@@ -784,6 +797,7 @@
 		76B80CE97B1BBCAE648D5D04 /* ShareNotePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66516BF38B1483418D07594C /* ShareNotePopover.swift */; };
 		76EEC0F802A3E143BF60CCBE /* Tips.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEF55394E3ADF3DB9CF451B /* Tips.swift */; };
 		770238AC658B1B97524D6149 /* template-app-trip-plan-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 1F0C94EEB344CA6F51186713 /* template-app-trip-plan-stage-card-light.jpg */; };
+		3D06619CF36F8C30C91DC778 /* template-app-home-maintenance-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 8828C35D2B3AE5F9169E0F06 /* template-app-home-maintenance-stage-card-light.jpg */; };
 		77150E16C095CB1A108E5FB2 /* ProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412407ADE0BC387AF7A6D189 /* ProfileTests.swift */; };
 		775D63D6F1202F5821D528CE /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64B3C5141EE3AF3984622FC /* Palette.swift */; };
 		7787C605AEF964F597ED6307 /* HeardFrom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025496AD1008785E931A6425 /* HeardFrom.swift */; };
@@ -937,6 +951,7 @@
 		8FF3BEDDC432BCC426C2499D /* template-app-habit-tracker-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 97BDCCEA687FACCD9BE03538 /* template-app-habit-tracker-stage-narrow-dark.jpg */; };
 		901131A181463954A80C697B /* TypedTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB0FAF5FA660EBD5F3003ED /* TypedTableTests.swift */; };
 		903695C074EF0CB2DF2AD50A /* template-app-trip-plan-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */; };
+		055FC599B7A4A00E623145A2 /* template-app-home-maintenance-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0B3FA92C5B43929EBABA6AE6 /* template-app-home-maintenance-stage-narrow-light.jpg */; };
 		903B64219EF55BDD44E49277 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5565EB367045469002EA399A /* PrivacyInfo.xcprivacy */; };
 		90656A986F74AC24DAA55E04 /* SecurityPageSnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E85939D6A7B34B5A9D6342 /* SecurityPageSnapshots+Shared.swift */; };
 		90693503969E4C155C035AD2 /* Pane-ios-personal.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = 305F456D9D626643C161FE8F /* Pane-ios-personal.entitlements */; };
@@ -1053,6 +1068,7 @@
 		A64402B495E861CBD1843D84 /* SharedNoteLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8F6C19EBFAD7F83BD61892 /* SharedNoteLimits.swift */; };
 		A64D7D4950EFCE103608A867 /* AccountGoneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111E9C358E5C2A6E9AB85F10 /* AccountGoneTests.swift */; };
 		A67D4B828B91319CE55B1758 /* template-app-trip-plan.project.json in Resources */ = {isa = PBXBuildFile; fileRef = ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */; };
+		C7DFDB60291806E2B4A35609 /* template-app-home-maintenance.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 07681D2431343C4B005CB2DA /* template-app-home-maintenance.project.json */; };
 		A67ED0E1A27CF550DFE7257D /* ScreenShareDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE3B3C9B6D1C49C82286B27 /* ScreenShareDetection.swift */; };
 		A690A22885B7065A037CA32D /* QuietChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 283475786FE6E925FD76C3FC /* QuietChromeTests.swift */; };
 		A69C708456FD48416A38AB25 /* amber-base.ts in Resources */ = {isa = PBXBuildFile; fileRef = B4F477A1E4497D29C03E3092 /* amber-base.ts */; };
@@ -1105,6 +1121,7 @@
 		ADFF81DEAD24E3AC27577116 /* ShareController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E507A2DD6F9C9E5EFB6281E /* ShareController.swift */; };
 		AE0A5ACAA53EB13E8281F0A6 /* AIChanges.swift in Sources */ = {isa = PBXBuildFile; fileRef = E69565802EB312CF1CA65A52 /* AIChanges.swift */; };
 		AE2B4ACDF69416B5E9037285 /* template-app-trip-plan.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = AFE90C19DAF4A389518F165B /* template-app-trip-plan.sample.json */; };
+		FFD069242F6F741ECDFD9205 /* template-app-home-maintenance.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = 91E9726FFB1D296CE27EFB00 /* template-app-home-maintenance.sample.json */; };
 		AE379C70D2E9B0AFE1D75197 /* template-stage-pictures.ts in Resources */ = {isa = PBXBuildFile; fileRef = 0BD4995D82D300105EF09832 /* template-stage-pictures.ts */; };
 		AE3E9550A667025AE2A6FA6F /* CallDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DEFC7818469D5AACA3B711C /* CallDetection.swift */; };
 		AE3FF3E403181E37E11CEB64 /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C2F5BCCDFA4A6D60E39708 /* Platform.swift */; };
@@ -1177,6 +1194,7 @@
 		BA5EBB2CB956D7B9D0594A07 /* CollabSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3136DA96503DF8954D6202 /* CollabSession.swift */; };
 		BA66524A312BEA9767F3FE8B /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29275F9A6205F10924E14DE2 /* WelcomeView.swift */; };
 		BA7146E874BEDAB20DCE7A1F /* template-app-trip-plan-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 591538F09A6366B5271C87F1 /* template-app-trip-plan-dark.jpg */; };
+		F142D51A9016F38D88114AC1 /* template-app-home-maintenance-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3DF12F2D81D442D40FD15C24 /* template-app-home-maintenance-dark.jpg */; };
 		BABD15AB84CC4A437789F4CC /* ConnectAsks.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FFA510B01DACFC168BE214 /* ConnectAsks.swift */; };
 		BAD9BBF7CA0194FBE787C6B4 /* Recipes.enex in Resources */ = {isa = PBXBuildFile; fileRef = 351EB8D113A762C5B0DBCE7A /* Recipes.enex */; };
 		BAE97BB9EB43488ADAA7D894 /* TagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6E9A10CDE70FA2816A45F1 /* TagsTests.swift */; };
@@ -1257,6 +1275,7 @@
 		C64BB88F3B4F32F5DA2B5050 /* FilmSlideSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C1B322369A9BEB1A379463 /* FilmSlideSound.swift */; };
 		C67F73D849AF2E836059063E /* htm.js in Resources */ = {isa = PBXBuildFile; fileRef = F9AB7B84121134A7EF8CBE69 /* htm.js */; };
 		C6C7BCD3CFABD48733B100ED /* template-app-trip-plan-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */; };
+		F9468469B46A8BA56B4CB7E5 /* template-app-home-maintenance-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 73E0A679B387C116F37AC35B /* template-app-home-maintenance-light.jpg */; };
 		C6CC70E5569CA96C16D313AC /* Setup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E7A911BC92B36CB4123A6B0 /* Setup.swift */; };
 		C6DAF15F4C2E375F46D2778C /* ShareControllerTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F6B1609BE6855AD741C2B84 /* ShareControllerTests+Shared.swift */; };
 		C6F20CE22E3EBAB131F761C7 /* PersonaAI2Shots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416B12D602EDB1D576AC5470 /* PersonaAI2Shots.swift */; };
@@ -1311,6 +1330,7 @@
 		D0B10CCF4167D29E4467B478 /* purify.js in Resources */ = {isa = PBXBuildFile; fileRef = FA63BA9CC98D699F71D53B85 /* purify.js */; };
 		D0D9DEB51EB8764B3FFA6A0D /* WelcomeNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73124348FB5312C93E0184F /* WelcomeNoteView.swift */; };
 		D0E802D5680E8845A15BED64 /* template-app-trip-plan.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = AFE90C19DAF4A389518F165B /* template-app-trip-plan.sample.json */; };
+		42FDBF5CA6782B8056E7912A /* template-app-home-maintenance.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = 91E9726FFB1D296CE27EFB00 /* template-app-home-maintenance.sample.json */; };
 		D118D41AB6CE012339DEF386 /* TableInteractionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B3FEBC5E8B405D61B40897 /* TableInteractionTests.swift */; };
 		D19021EE64638B80271C2275 /* DateFoldMacTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2420C2E740EDE053613ADC0 /* DateFoldMacTests.swift */; };
 		D1EAD2E91AECBFFFB710DAD2 /* 20260929230000_tip_events.sql in Resources */ = {isa = PBXBuildFile; fileRef = B0A3603BC7557BE3B17B39B6 /* 20260929230000_tip_events.sql */; };
@@ -1391,6 +1411,7 @@
 		DE9535A124D745998C35A4FA /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508D7FDAAB7702C132913D85 /* SignInView.swift */; };
 		DEB1E0B58D538C11C0D71587 /* NoteCoverShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAD4FA95EEE5E25C3C8B220 /* NoteCoverShots.swift */; };
 		DEDACA22BD6ABB87C0308833 /* template-app-trip-plan-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 1F0C94EEB344CA6F51186713 /* template-app-trip-plan-stage-card-light.jpg */; };
+		ACC4E22711824BA3E045178F /* template-app-home-maintenance-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 8828C35D2B3AE5F9169E0F06 /* template-app-home-maintenance-stage-card-light.jpg */; };
 		DF6392495DB324990EFAEF2D /* Hover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4267A4FCD098BA1E2B52B13F /* Hover.swift */; };
 		DF7FD66D38B146DE91BFCC3B /* PersonaShowcaseRecordings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39303B1E1E695530C141BC1F /* PersonaShowcaseRecordings.swift */; };
 		DF9F9E1C9BB444B9E20CA579 /* TelemetryEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAD911A07A941123F09D16 /* TelemetryEvent.swift */; };
@@ -1452,6 +1473,7 @@
 		E92AC6AF1FE507EBE1778496 /* NotePageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B99DE5320A61F5F5F0A9B8 /* NotePageData.swift */; };
 		E95298EA66307261760D7182 /* template-cover-one-on-one-notes-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 629DDEB9BA26213D9A88AF88 /* template-cover-one-on-one-notes-large.jpg */; };
 		EA29B8CB6BA3328CC95FB793 /* template-app-trip-plan-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5D23A6CA640BE0AF1B67F5BD /* template-app-trip-plan-stage-card-dark.jpg */; };
+		966C139956DD837B5E56C640 /* template-app-home-maintenance-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 70728658F8A1A087DE4B265F /* template-app-home-maintenance-stage-card-dark.jpg */; };
 		EA70BEDD2F3F4EC520FF466C /* BundleRenameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2965B65AD833118261881C /* BundleRenameTests.swift */; };
 		EA7866E909A5869AFC4A1198 /* AdvancedProtectionHiddenTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA4930086FA74FB0B5A2F3 /* AdvancedProtectionHiddenTests+Shared.swift */; };
 		EAB87CE00ACD15BD840A9B73 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3891EC4D2DC7BF10221F3CBC /* SettingsView.swift */; };
@@ -1715,6 +1737,7 @@
 		111E9C358E5C2A6E9AB85F10 /* AccountGoneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountGoneTests.swift; sourceTree = "<group>"; };
 		11387270ED34F4ADB824E87F /* FileRowClickTests+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileRowClickTests+Shared.swift"; sourceTree = "<group>"; };
 		119D2A4674F7A0EEA13D4845 /* template-app-trip-plan.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-trip-plan.data.json"; sourceTree = "<group>"; };
+		61643E07F5694894424BA6A8 /* template-app-home-maintenance.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-home-maintenance.data.json"; sourceTree = "<group>"; };
 		11A1F6137134DA48ADFF5C7A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1297F517F452FB8C62EF93C4 /* ChecklistAccessibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistAccessibilityTests.swift; sourceTree = "<group>"; };
 		12C0667A3D4E9B69B7502D0B /* CodeBoxesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeBoxesUITests.swift; sourceTree = "<group>"; };
@@ -1763,6 +1786,7 @@
 		1E986333ADF78B16A0249D6D /* FilmScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmScenes.swift; sourceTree = "<group>"; };
 		1EE4B05B29C95279C1F45CE8 /* QuoteBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuoteBarTests.swift; sourceTree = "<group>"; };
 		1F0C94EEB344CA6F51186713 /* template-app-trip-plan-stage-card-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-card-light.jpg"; sourceTree = "<group>"; };
+		8828C35D2B3AE5F9169E0F06 /* template-app-home-maintenance-stage-card-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-stage-card-light.jpg"; sourceTree = "<group>"; };
 		1F653B9FD402A31DD6E0FAE8 /* LegalLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalLinksTests.swift; sourceTree = "<group>"; };
 		1F681E50A4928CF4DD0F5564 /* template-cover-reading-list-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-reading-list-large.jpg"; sourceTree = "<group>"; };
 		1FEB7015C9735D0998823A75 /* FilmSlides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmSlides.swift; sourceTree = "<group>"; };
@@ -2013,6 +2037,7 @@
 		588D330EB0262DE441593F82 /* template-cover-trip-plan-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-trip-plan-large.jpg"; sourceTree = "<group>"; };
 		58E462452EB0E75152BD5846 /* CollabDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabDemo.swift; sourceTree = "<group>"; };
 		591538F09A6366B5271C87F1 /* template-app-trip-plan-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-dark.jpg"; sourceTree = "<group>"; };
+		3DF12F2D81D442D40FD15C24 /* template-app-home-maintenance-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-dark.jpg"; sourceTree = "<group>"; };
 		5925707D930BD8F327B10B6E /* NoteBlockLookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteBlockLookTests.swift; sourceTree = "<group>"; };
 		595E5A8C83080CCBC79192C4 /* AccountRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountRowTests.swift; sourceTree = "<group>"; };
 		59655C520BBE50A3DDD85656 /* DestructiveTintTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestructiveTintTests.swift; sourceTree = "<group>"; };
@@ -2029,6 +2054,7 @@
 		5C7531A2015FDCBFA16D9DFF /* NotionDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionDatabase.swift; sourceTree = "<group>"; };
 		5CA33091AD5F4D520494C20F /* ConnectGuideSnapshots+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConnectGuideSnapshots+Shared.swift"; sourceTree = "<group>"; };
 		5D23A6CA640BE0AF1B67F5BD /* template-app-trip-plan-stage-card-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-card-dark.jpg"; sourceTree = "<group>"; };
+		70728658F8A1A087DE4B265F /* template-app-home-maintenance-stage-card-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-stage-card-dark.jpg"; sourceTree = "<group>"; };
 		5D94335681A191B7DF159080 /* DeleteAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccount.swift; sourceTree = "<group>"; };
 		5E3EB336EA939DEF21FB1324 /* template-cover-habit-tracker-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-habit-tracker-large.jpg"; sourceTree = "<group>"; };
 		5F8A7B3764A579BE5457612D /* MultiSelectUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiSelectUITests.swift; sourceTree = "<group>"; };
@@ -2080,6 +2106,7 @@
 		6A9EC2E111AD0E4ED32EBE6A /* MacLookSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLookSnapshots.swift; sourceTree = "<group>"; };
 		6ACA8D5B7797EDE74894433D /* DeleteAccountTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccountTests.swift; sourceTree = "<group>"; };
 		6AFD637E94A7D27750C842FA /* template-app-trip-plan-stage-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-dark.jpg"; sourceTree = "<group>"; };
+		F3BE1A54EA6EC5286CF60BB7 /* template-app-home-maintenance-stage-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-stage-dark.jpg"; sourceTree = "<group>"; };
 		6BBAD3D7E5ED5CA9C34129EE /* MacImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacImportTests.swift; sourceTree = "<group>"; };
 		6BD1216B6D4DCB8FA429A9E9 /* FolderFilesMacShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderFilesMacShots.swift; sourceTree = "<group>"; };
 		6C3F4C2D086DA117C8C1F8AB /* MacSignOutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSignOutTests.swift; sourceTree = "<group>"; };
@@ -2095,6 +2122,7 @@
 		6E32CE7B0FE6BDE69EF8CAF4 /* template-app-habit-tracker-stage-narrow-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-habit-tracker-stage-narrow-light.jpg"; sourceTree = "<group>"; };
 		6E3704EE1E2CC4A06C3D1E32 /* FileUploadEditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUploadEditTests.swift; sourceTree = "<group>"; };
 		6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-narrow-dark.jpg"; sourceTree = "<group>"; };
+		B5FD22DD46EF967BACE627F7 /* template-app-home-maintenance-stage-narrow-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-stage-narrow-dark.jpg"; sourceTree = "<group>"; };
 		6E7E10B519DA24BDFE5025EF /* template-app-study-flashcards.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-study-flashcards.data.json"; sourceTree = "<group>"; };
 		6F02A8CE43D7031D271CA25B /* RichTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextTests.swift; sourceTree = "<group>"; };
 		6F2EF7158F35250A395D354A /* SharedLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedLibrary.swift; sourceTree = "<group>"; };
@@ -2135,6 +2163,7 @@
 		79A778DD3EDAA0624680CB3D /* AttachmentInteractionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentInteractionTests.swift; sourceTree = "<group>"; };
 		79BB6E16D644B368ADE2FE15 /* guide-bear-export.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "guide-bear-export.png"; sourceTree = "<group>"; };
 		79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-narrow-light.jpg"; sourceTree = "<group>"; };
+		0B3FA92C5B43929EBABA6AE6 /* template-app-home-maintenance-stage-narrow-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-stage-narrow-light.jpg"; sourceTree = "<group>"; };
 		7B6CFEFC21164DC4BF35FD88 /* template-cover-budget-log-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-budget-log-large.jpg"; sourceTree = "<group>"; };
 		7B9A71A0661D6C254392D6E3 /* AddDeviceLiveTests+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AddDeviceLiveTests+Shared.swift"; sourceTree = "<group>"; };
 		7BB55891265F2BE9A6AA8A0B /* NewNoteRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewNoteRowTests.swift; sourceTree = "<group>"; };
@@ -2321,10 +2350,12 @@
 		AD85277F3CDC38C49076FC74 /* AppPlaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPlaceTests.swift; sourceTree = "<group>"; };
 		ADE746DF5EC2FAE02F068197 /* NotePreloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePreloadTests.swift; sourceTree = "<group>"; };
 		AE1734A774D6383627567A72 /* template-app-trip-plan-stage-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-stage-light.jpg"; sourceTree = "<group>"; };
+		7B8CD1EBF78B2BD61E112524 /* template-app-home-maintenance-stage-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-stage-light.jpg"; sourceTree = "<group>"; };
 		AE451C95D74DA3569B6F557A /* ShareModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareModel.swift; sourceTree = "<group>"; };
 		AF617FC2BCA1C1A89CE29D77 /* ImportPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPipeline.swift; sourceTree = "<group>"; };
 		AF6774AB59DBE4E8CF90BC1F /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
 		AFE90C19DAF4A389518F165B /* template-app-trip-plan.sample.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-trip-plan.sample.json"; sourceTree = "<group>"; };
+		91E9726FFB1D296CE27EFB00 /* template-app-home-maintenance.sample.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-home-maintenance.sample.json"; sourceTree = "<group>"; };
 		B024032C42A0D20A5F0B3CC7 /* EditorAccessibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorAccessibility.swift; sourceTree = "<group>"; };
 		B05E11F2F0BFF1B7B2F3AF2D /* MoveToPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveToPickerTests.swift; sourceTree = "<group>"; };
 		B05E610D5DA3DFA9470DC13E /* KeyDevicesTests+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeyDevicesTests+Shared.swift"; sourceTree = "<group>"; };
@@ -2490,6 +2521,7 @@
 		DFCA13DCB9435718E4F5BF8C /* ChecklistSortTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistSortTests.swift; sourceTree = "<group>"; };
 		DFF88F74CEAE28123B39E3CB /* template-app-budget-log.project.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-budget-log.project.json"; sourceTree = "<group>"; };
 		DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-trip-plan-light.jpg"; sourceTree = "<group>"; };
+		73E0A679B387C116F37AC35B /* template-app-home-maintenance-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-light.jpg"; sourceTree = "<group>"; };
 		E03711D9DFC91CE824CD5986 /* NoteListSeparatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListSeparatorTests.swift; sourceTree = "<group>"; };
 		E09ABCBAE639D023BB3C8C60 /* TemplateFrontTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateFrontTests.swift; sourceTree = "<group>"; };
 		E0C106B1F9776D0E452FE8BA /* HarnessSanityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessSanityTests.swift; sourceTree = "<group>"; };
@@ -2547,6 +2579,7 @@
 		EC929FD7F18971368EFA56F3 /* SidebarTags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTags.swift; sourceTree = "<group>"; };
 		ECF2B96DE946B4DD68695612 /* PerfProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfProbe.swift; sourceTree = "<group>"; };
 		ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-trip-plan.project.json"; sourceTree = "<group>"; };
+		07681D2431343C4B005CB2DA /* template-app-home-maintenance.project.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-home-maintenance.project.json"; sourceTree = "<group>"; };
 		ED450707209CA52772670C64 /* CollabCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabCrypto.swift; sourceTree = "<group>"; };
 		ED6E9A10CDE70FA2816A45F1 /* TagsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagsTests.swift; sourceTree = "<group>"; };
 		ED7F107D0DDA0B69E2BCE603 /* AccountNotices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountNotices.swift; sourceTree = "<group>"; };
@@ -3093,16 +3126,27 @@
 				98086AC5C15AF19299166868 /* template-app-study-flashcards.project.json */,
 				E350790AE240670B5417A53D /* template-app-study-flashcards.sample.json */,
 				591538F09A6366B5271C87F1 /* template-app-trip-plan-dark.jpg */,
+				3DF12F2D81D442D40FD15C24 /* template-app-home-maintenance-dark.jpg */,
 				DFFC49BCF62DBB16BFC2CF8D /* template-app-trip-plan-light.jpg */,
+				73E0A679B387C116F37AC35B /* template-app-home-maintenance-light.jpg */,
 				5D23A6CA640BE0AF1B67F5BD /* template-app-trip-plan-stage-card-dark.jpg */,
+				70728658F8A1A087DE4B265F /* template-app-home-maintenance-stage-card-dark.jpg */,
 				1F0C94EEB344CA6F51186713 /* template-app-trip-plan-stage-card-light.jpg */,
+				8828C35D2B3AE5F9169E0F06 /* template-app-home-maintenance-stage-card-light.jpg */,
 				6AFD637E94A7D27750C842FA /* template-app-trip-plan-stage-dark.jpg */,
+				F3BE1A54EA6EC5286CF60BB7 /* template-app-home-maintenance-stage-dark.jpg */,
 				AE1734A774D6383627567A72 /* template-app-trip-plan-stage-light.jpg */,
+				7B8CD1EBF78B2BD61E112524 /* template-app-home-maintenance-stage-light.jpg */,
 				6E425B2B3B4E957325733F57 /* template-app-trip-plan-stage-narrow-dark.jpg */,
+				B5FD22DD46EF967BACE627F7 /* template-app-home-maintenance-stage-narrow-dark.jpg */,
 				79E62F9DF2BDC22757479066 /* template-app-trip-plan-stage-narrow-light.jpg */,
+				0B3FA92C5B43929EBABA6AE6 /* template-app-home-maintenance-stage-narrow-light.jpg */,
 				119D2A4674F7A0EEA13D4845 /* template-app-trip-plan.data.json */,
+				61643E07F5694894424BA6A8 /* template-app-home-maintenance.data.json */,
 				ED4414876743DEDD0A6D7728 /* template-app-trip-plan.project.json */,
+				07681D2431343C4B005CB2DA /* template-app-home-maintenance.project.json */,
 				AFE90C19DAF4A389518F165B /* template-app-trip-plan.sample.json */,
+				91E9726FFB1D296CE27EFB00 /* template-app-home-maintenance.sample.json */,
 				2DF1E34DE17A0AAA15F3E1CD /* template-cover-book-notes-large.jpg */,
 				2384CF69E9CEA3C3F988A33D /* template-cover-book-notes.jpg */,
 				7B6CFEFC21164DC4BF35FD88 /* template-cover-budget-log-large.jpg */,
@@ -4341,16 +4385,27 @@
 				E721143BCF1CD9D3DE548522 /* template-app-study-flashcards.project.json in Resources */,
 				3E4982C18A2C2775C54BFDE8 /* template-app-study-flashcards.sample.json in Resources */,
 				BA7146E874BEDAB20DCE7A1F /* template-app-trip-plan-dark.jpg in Resources */,
+				F142D51A9016F38D88114AC1 /* template-app-home-maintenance-dark.jpg in Resources */,
 				11FC3EEB0BD887FA89890D4E /* template-app-trip-plan-light.jpg in Resources */,
+				32B49917179F64C5122644BD /* template-app-home-maintenance-light.jpg in Resources */,
 				5DE2B5B613666CD075C3D865 /* template-app-trip-plan-stage-card-dark.jpg in Resources */,
+				2735E4B8A546AB22077BABA5 /* template-app-home-maintenance-stage-card-dark.jpg in Resources */,
 				DEDACA22BD6ABB87C0308833 /* template-app-trip-plan-stage-card-light.jpg in Resources */,
+				ACC4E22711824BA3E045178F /* template-app-home-maintenance-stage-card-light.jpg in Resources */,
 				3B1A6F83AA55B13B4740104A /* template-app-trip-plan-stage-dark.jpg in Resources */,
+				E33A4DED58EB6B31BF327590 /* template-app-home-maintenance-stage-dark.jpg in Resources */,
 				2DC9C98A292A23F8AF0E945C /* template-app-trip-plan-stage-light.jpg in Resources */,
+				CF6979D376975FC75D53C9B2 /* template-app-home-maintenance-stage-light.jpg in Resources */,
 				34CFBC0EAF6C6B5261CF5022 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */,
+				FF2B7D6107D192F7454EE6A4 /* template-app-home-maintenance-stage-narrow-dark.jpg in Resources */,
 				11EE0BA64EC791EC1300D18F /* template-app-trip-plan-stage-narrow-light.jpg in Resources */,
+				F0A00020660C04DCA859CBFA /* template-app-home-maintenance-stage-narrow-light.jpg in Resources */,
 				31F892FCBC62421869484CB0 /* template-app-trip-plan.data.json in Resources */,
+				DDCE678C691BC7EB6934032B /* template-app-home-maintenance.data.json in Resources */,
 				A67D4B828B91319CE55B1758 /* template-app-trip-plan.project.json in Resources */,
+				C7DFDB60291806E2B4A35609 /* template-app-home-maintenance.project.json in Resources */,
 				AE2B4ACDF69416B5E9037285 /* template-app-trip-plan.sample.json in Resources */,
+				FFD069242F6F741ECDFD9205 /* template-app-home-maintenance.sample.json in Resources */,
 				9F8C637973DCAB2FAEB00ECE /* template-cover-book-notes-large.jpg in Resources */,
 				B7F3DF3E2F7FE451D813EC9A /* template-cover-book-notes.jpg in Resources */,
 				45AA290C9BC084C0B0761A01 /* template-cover-budget-log-large.jpg in Resources */,
@@ -4496,16 +4551,27 @@
 				E33C8B310F9878AB27C04122 /* template-app-study-flashcards.project.json in Resources */,
 				4BAFD837619DE53F5120F470 /* template-app-study-flashcards.sample.json in Resources */,
 				35B2402FFFA76D9629839C23 /* template-app-trip-plan-dark.jpg in Resources */,
+				835D93D70D08FCDF15F87940 /* template-app-home-maintenance-dark.jpg in Resources */,
 				C6C7BCD3CFABD48733B100ED /* template-app-trip-plan-light.jpg in Resources */,
+				F9468469B46A8BA56B4CB7E5 /* template-app-home-maintenance-light.jpg in Resources */,
 				EA29B8CB6BA3328CC95FB793 /* template-app-trip-plan-stage-card-dark.jpg in Resources */,
+				966C139956DD837B5E56C640 /* template-app-home-maintenance-stage-card-dark.jpg in Resources */,
 				770238AC658B1B97524D6149 /* template-app-trip-plan-stage-card-light.jpg in Resources */,
+				3D06619CF36F8C30C91DC778 /* template-app-home-maintenance-stage-card-light.jpg in Resources */,
 				2F8ECD5AA6A47A8D5823771F /* template-app-trip-plan-stage-dark.jpg in Resources */,
+				1331D99155CB12E079F3ABA8 /* template-app-home-maintenance-stage-dark.jpg in Resources */,
 				395D43DE3A57991FAEA6D03F /* template-app-trip-plan-stage-light.jpg in Resources */,
+				B8087613CCF560DDF2449B21 /* template-app-home-maintenance-stage-light.jpg in Resources */,
 				0B6ECA502D42CD2E9BE658D5 /* template-app-trip-plan-stage-narrow-dark.jpg in Resources */,
+				C89B45E821BAE67F0231AFF1 /* template-app-home-maintenance-stage-narrow-dark.jpg in Resources */,
 				903695C074EF0CB2DF2AD50A /* template-app-trip-plan-stage-narrow-light.jpg in Resources */,
+				055FC599B7A4A00E623145A2 /* template-app-home-maintenance-stage-narrow-light.jpg in Resources */,
 				1E389505E10D8117B72BF358 /* template-app-trip-plan.data.json in Resources */,
+				4DD35B24C1043C8EE2944D46 /* template-app-home-maintenance.data.json in Resources */,
 				3F8659A56E8F48FB9C2ABE3B /* template-app-trip-plan.project.json in Resources */,
+				A9426801359E82C2327A2CFA /* template-app-home-maintenance.project.json in Resources */,
 				D0E802D5680E8845A15BED64 /* template-app-trip-plan.sample.json in Resources */,
+				42FDBF5CA6782B8056E7912A /* template-app-home-maintenance.sample.json in Resources */,
 				F54ABD043B8077BC75D7D27C /* template-cover-book-notes-large.jpg in Resources */,
 				188B017B3D41FC0A8E880B06 /* template-cover-book-notes.jpg in Resources */,
 				85872379D5A5CBB58CF3911A /* template-cover-budget-log-large.jpg in Resources */,
