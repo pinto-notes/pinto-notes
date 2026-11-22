@@ -1383,6 +1383,7 @@ import Vision
             case "study-flashcards": #expect(((values["cards"] as? [Any])?.count ?? 0) > ((e.appData["values"] as? [String: Any])?["cards"] as? [Any])?.count ?? 0, "cards in two topics")
             case "trip-plan": #expect(values["trip"] is [String: Any] && ((values["days"] as? [Any])?.count ?? 0) == 5, "a planned trip")
             case "workout-log": #expect(((values["sessions"] as? [Any])?.count ?? 0) >= 12, "five weeks of sessions")
+            case "job-hunt": #expect(((values["jobs"] as? [Any])?.count ?? 0) >= 8, "applications in every stage")
             default: Issue.record("an app with no sample: \(e.slug)")
             }
             let draft = try #require(e.draft(apps: true))
@@ -1899,6 +1900,7 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
         #expect(Self.all.count == 23)
         #expect(Set(Self.all.map(\.slug)).count == Self.all.count, "no slug twice")
         #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "study-flashcards", "trip-plan", "workout-log"])
+        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "job-hunt", "study-flashcards", "trip-plan"])
         let placed = TemplateFront.shipped.shelves(for: .shipped).flatMap(\.entries)
         #expect(placed.count == Self.all.count && Set(placed.map(\.slug)) == Set(Self.all.map(\.slug)), "every template is on exactly one shelf of the front page")
     }

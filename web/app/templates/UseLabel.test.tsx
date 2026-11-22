@@ -19,6 +19,7 @@ describe("the template button's words", () => {
   it("gives every app template its verb on a Mac, and Use template on an iPhone", () => {
     expect(APP_VERBS).toEqual({ "habit-tracker": "Start tracking", "budget-log": "Start budgeting", "trip-plan": "Plan the trip", "study-flashcards": "Study now", "meal-plan": "Plan the week" });
     expect(APP_VERBS).toEqual({ "habit-tracker": "Start tracking", "budget-log": "Start budgeting", "trip-plan": "Plan the trip", "study-flashcards": "Study now", "workout-log": "Start logging" });
+    expect(APP_VERBS).toEqual({ "habit-tracker": "Start tracking", "budget-log": "Start budgeting", "trip-plan": "Plan the trip", "study-flashcards": "Study now", "job-hunt": "Track applications" });
     for (const t of templates().filter((t) => t.app)) {
       expect(useLabel(t, "desktop"), t.slug).toBe(APP_VERBS[t.slug]);
       expect(useLabel(t, "ios"), t.slug).toBe("Use template");

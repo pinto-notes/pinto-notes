@@ -47,6 +47,7 @@ describe("an app template's card", () => {
     }
     expect(templates().filter((t) => t.app).map((t) => t.slug).sort()).toEqual(["budget-log", "habit-tracker", "meal-plan", "study-flashcards", "trip-plan"]);
     expect(templates().filter((t) => t.app).map((t) => t.slug).sort()).toEqual(["budget-log", "habit-tracker", "study-flashcards", "trip-plan", "workout-log"]);
+    expect(templates().filter((t) => t.app).map((t) => t.slug).sort()).toEqual(["budget-log", "habit-tracker", "job-hunt", "study-flashcards", "trip-plan"]);
   });
 
   it("keeps the app's height from the start, so the swap moves nothing", () => {

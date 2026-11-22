@@ -148,6 +148,19 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
     ],
     post: { slug: "apple-notes-workout-log-template", title: "Apple Notes workout log template, with your bests" },
   },
+  "job-hunt": {
+    h1: "Job application tracker template",
+    make: ["Add a Phone screen stage after Applied.", "Follow up five days after I apply.", "Prep me for the Tideway interview.", "Show how many I applied to each week."],
+      { name: "See every application by stage", text: "A board from Saved to Offer." },
+      { name: "Move a card along", text: "Drag it, or use its Move button." },
+      { name: "See what's due today", text: "Follow-ups and interviews, late ones first." },
+      { name: "Know your response rate", text: "How many of the jobs you applied to answered." },
+      { name: "Prep each interview", text: "Questions, your answers, and what to ask." },
+      { q: "Is this job application tracker free?", a: ["Yes. The template and Pinto Notes are free. To have an AI add jobs from ads you paste, you need ChatGPT on a plan that allows custom apps, or Claude, or Claude Code."] },
+      { q: "Can ChatGPT or Claude add a job ad to the tracker?", a: ["Yes, once Pinto Notes is connected. Paste the ad or its link and it adds a card in Saved with the company, the role, the link, and the salary and contact when the ad gives them. Say you heard back and it moves the card and adds the interview with its date and time."] },
+      { q: "Can I change the stages?", a: ["Yes. In Settings you add, rename, reorder and remove stages, and set how many days after applying a follow-up is due. A removed stage's applications move to the stage before it, and Undo puts them back."] },
+      { q: "Does it remind me to follow up?", a: ["Not with a notification. Pinto Notes apps can't send them yet. Follow-ups and interviews show under Due on their day, and the board shows each card's next date."] },
+  },
 };
 
 export const templateSeo = (slug: string): TemplateSeo | undefined => TEMPLATE_SEO[slug];
