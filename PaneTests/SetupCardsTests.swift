@@ -1130,7 +1130,7 @@ import Vision
         }
         #expect(subnotes == ["Lentil soup with lemon", "Sesame noodles", "Tomato and white bean stew", "Slow-roast lamb", "Sunday pancakes", "Cardamom buns"], "sub-notes show as rows, not links: \(subnotes)")
         #expect(NotePreview.subnote("A line with [a link](https://example.com) in it") == nil)
-        #expect(try entry("gift-ideas").example.contains("| Budget (kr) |") && entry("budget-log").example.contains(" kr "), "one currency style")
+        #expect(try entry("gift-ideas").example.contains("400 kr.") && entry("budget-log").example.contains(" kr "), "one currency style")
         let meals = TemplateLibraryView.staged(try entry("meal-plan").example)
         #expect(meals.contains(.heading(2, "Groceries")), "the meal plan shows its groceries too")
         // An app's note holds only what its app doesn't: no table the app never reads.
@@ -1385,6 +1385,7 @@ import Vision
             case "workout-log": #expect(((values["sessions"] as? [Any])?.count ?? 0) >= 12, "five weeks of sessions")
             case "job-hunt": #expect(((values["jobs"] as? [Any])?.count ?? 0) >= 8, "applications in every stage")
             case "home-maintenance": #expect(((values["history"] as? [Any])?.count ?? 0) >= 20 && ((values["jobs"] as? [Any])?.count ?? 0) >= 10, "a year of jobs done")
+            case "gift-ideas": #expect(((values["people"] as? [Any])?.count ?? 0) >= 5 && ((values["ideas"] as? [Any])?.count ?? 0) >= 10, "people with ideas")
             default: Issue.record("an app with no sample: \(e.slug)")
             }
             let draft = try #require(e.draft(apps: true))
@@ -1900,9 +1901,7 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
     @Test func theCatalogHasEveryTemplate() {
         #expect(Self.all.count == 23)
         #expect(Set(Self.all.map(\.slug)).count == Self.all.count, "no slug twice")
-        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "study-flashcards", "trip-plan", "workout-log"])
-        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "job-hunt", "study-flashcards", "trip-plan"])
-        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "home-maintenance", "study-flashcards", "trip-plan"])
+        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "gift-ideas", "habit-tracker", "home-maintenance", "job-hunt", "meal-plan", "mood-energy-log", "study-flashcards", "trip-plan", "workout-log"])
         let placed = TemplateFront.shipped.shelves(for: .shipped).flatMap(\.entries)
         #expect(placed.count == Self.all.count && Set(placed.map(\.slug)) == Set(Self.all.map(\.slug)), "every template is on exactly one shelf of the front page")
     }
