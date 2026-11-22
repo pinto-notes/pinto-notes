@@ -55,7 +55,7 @@ export default function Page() {
       cover={false}
       intro={<>Log what you spend in a table. The lines under it add up the month.</>}
       answer={<>
-        <Keep title="Expense tracker for Apple Notes" text={TEMPLATE}
+        <Keep title="Expense tracker for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the seven lines from Date to 8 Nov and press the Table button. Then type = at the end of the last line. Notes offers the total. Press Return to keep it." />
         <SideBySide slug="apple-notes-expense-tracker"
           apple={{ src: "/blog/side-by-side/expense-tracker-apple-notes", width: 1584, height: 858, line: "Adds up the month. Each amount is typed twice, in the table and on its category line.",

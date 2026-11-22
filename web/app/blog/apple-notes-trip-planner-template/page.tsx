@@ -72,7 +72,7 @@ export default function Page() {
       cover={false}
       intro={<>One note for the trip: bookings to tick when paid, a heading for each day, and the packing list.</>}
       answer={<>
-        <Keep title="Trip planner for Apple Notes" text={TEMPLATE}
+        <Keep title="Trip planner for Apple Notes" text={TEMPLATE} fold={10}
           note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
         <SideBySide slug="apple-notes-trip-planner-template"
           apple={{ src: "/blog/side-by-side/trip-planner-template-apple-notes", width: 781, height: 1529, line: "Holds the plan. Counting the days and what's left to pay is up to you.",

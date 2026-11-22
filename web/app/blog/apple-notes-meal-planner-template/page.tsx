@@ -70,12 +70,12 @@ export default function Page() {
       cover={false}
       intro={<>The week&apos;s dinners at the top, and the groceries they need by aisle under them.</>}
       answer={<>
-        <Keep title="Meal planner for Apple Notes" text={TEMPLATE}
+        <Keep title="Meal planner for Apple Notes" text={TEMPLATE} fold={10}
           note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
         <SideBySide slug="apple-notes-meal-planner-template"
           apple={{ src: "/blog/side-by-side/meal-planner-template-apple-notes", width: 822, height: 1465, line: "Holds the plan and the list. You write the list from the recipes yourself.",
             alt: "The meal planner template in Apple Notes on macOS 27: seven dinners as a list, then groceries by aisle as checklists, with Lemons, Basil, Chicken thighs and Tortillas ticked." }}
-          pinto={{ title: "The same week in Pinto Notes", line: "Ask your AI to plan the week and it writes the list by aisle, leaving out what's in the cupboard.",
+          pinto={{ frame: false, title: "The same week in Pinto Notes", line: "Ask your AI to plan the week and it writes the list by aisle, leaving out what's in the cupboard.",
             alt: "The same dinners in the Pinto Notes meal plan template, as a table with who cooks each night, and the same grocery list with four things ticked.",
             phone: { src: "/blog/side-by-side/meal-plan-pinto-phone", width: 780, height: 1600 },
             desk: { src: "/blog/side-by-side/meal-plan-pinto-mac", width: 1520, height: 1208 },

@@ -6,13 +6,15 @@ import s from "./side-by-side.module.css";
 /// the Pinto Notes card is the matching Pinto template, really rendered from the same data, with one button to its
 /// template page. On a phone they stack and the Pinto card is warmer and larger, a phone screen in a frame; from 900 px
 /// they sit side by side and the Pinto card shows a crop of the Mac app, large enough to read.
+/// `frame: false` for pictures of the Mac app (the plain-note templates, drawn at phone width): no phone frame, so they
+/// don't pass for the iPhone app.
 /// Pictures are AVIF with a WebP fallback; `width` and `height` are the file's pixels (2x).
 type Img = { src: string; width: number; height: number };
 
 export function SideBySide({ slug, apple, pinto }: {
   slug: string;
   apple: Img & { alt: string; line: string };
-  pinto: { title: string; line: string; alt: string; phone: Img; desk: Img; href: string; button: string };
+  pinto: { title: string; line: string; alt: string; phone: Img; desk: Img; href: string; button: string; frame?: boolean };
 }) {
   return (
     <section className={s.vs} aria-label="The same template in Apple Notes and in Pinto Notes">
@@ -28,7 +30,7 @@ export function SideBySide({ slug, apple, pinto }: {
       </figure>
       <figure className={`${s.card} ${s.pinto}`}>
         <p className={s.label}>{pinto.title}</p>
-        <div className={s.screen}>
+        <div className={s.screen} data-frame={pinto.frame === false ? "none" : undefined}>
           <picture>
             <source media="(min-width: 900px)" type="image/avif" srcSet={`${pinto.desk.src}.avif`} width={pinto.desk.width} height={pinto.desk.height} />
             <source media="(min-width: 900px)" type="image/webp" srcSet={`${pinto.desk.src}.webp`} width={pinto.desk.width} height={pinto.desk.height} />

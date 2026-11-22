@@ -51,7 +51,7 @@ export default function Page() {
       cover={false}
       intro={<>Paste it into a note, put in your numbers, and Notes does the sums.</>}
       answer={<>
-        <Keep title="Monthly budget for Apple Notes" text={TEMPLATE}
+        <Keep title="Monthly budget for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, type = at the end of the last two lines. Notes offers the total. Press Return to keep it." />
         <SideBySide slug="apple-notes-budget-template"
           apple={{ src: "/blog/side-by-side/budget-template-apple-notes", width: 906, height: 577, line: "Adds up the plan. You type every change.",

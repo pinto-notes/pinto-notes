@@ -264,3 +264,11 @@
 .facts.facts dt, .facts.facts dd { margin: 0; padding: 0; }
 .facts.facts dt { margin-bottom: 2px; }
 @media (max-width: 600px) { .facts.facts dt { margin-bottom: 0; } .facts.facts .fact { padding: 6px 0; } }
+
+/* A long template folded to its first lines (Keep fold). */
+.fold pre { max-height: calc(var(--fold-lines) * 1.55em); overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+.fold:has(input:checked) pre { max-height: none; -webkit-mask-image: none; mask-image: none; }
+.more { display: inline-block; margin-top: 8px; font-weight: 650; font-size: 15px; color: var(--link, #a85700); cursor: pointer; }
+.more input { position: absolute; opacity: 0; pointer-events: none; }
+.more:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
+.fold:has(input:checked) .more { display: none; }

@@ -59,12 +59,12 @@ export default function Page() {
       cover={false}
       intro={<>One table of books: title, author, status, a rating out of 5 and why you wanted it.</>}
       answer={<>
-        <Keep title="Reading list for Apple Notes" text={TEMPLATE}
+        <Keep title="Reading list for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the six lines from Title to The Overstory and press the Table button." />
         <SideBySide slug="apple-notes-reading-list"
           apple={{ src: "/blog/side-by-side/reading-list-apple-notes", width: 1894, height: 672, line: "Holds the list. Status and rating are words you type.",
             alt: "The reading list template in Apple Notes on macOS 27: a table of five books with title, author, status, rating and why, and notes on two books under it." }}
-          pinto={{ title: "The same books in Pinto Notes", line: "Status and rating are picked, not typed. Tell your AI about a book and it adds the row.",
+          pinto={{ frame: false, title: "The same books in Pinto Notes", line: "Status and rating are picked, not typed. Tell your AI about a book and it adds the row.",
             alt: "The same five books in the Pinto Notes reading list template, from Project Hail Mary, finished with a 5, to The Overstory, to read, with the notes under the table.",
             phone: { src: "/blog/side-by-side/reading-list-pinto-phone", width: 780, height: 1100 },
             desk: { src: "/blog/side-by-side/reading-list-pinto-mac", width: 1520, height: 991 },
@@ -79,7 +79,7 @@ export default function Page() {
         <li>Keep the cells short; Notes sets the column widths itself. Longer thoughts go under Notes.</li>
       </Steps>
       <p>Rather have a checklist? Paste this one with Edit, Paste as Markdown, and tick a book when you finish it.</p>
-      <Keep title="Reading checklist for Apple Notes" text={SIMPLE} />
+      <Keep title="Reading checklist for Apple Notes" text={SIMPLE} fold={10} />
       <p>More for Apple Notes: <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );

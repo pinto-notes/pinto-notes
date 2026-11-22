@@ -76,7 +76,7 @@ export default function Page() {
       cover={false}
       intro={<>One note a week: a heading for each day and your habits as a checklist under it.</>}
       answer={<>
-        <Keep title="Weekly habit tracker for Apple Notes" text={TEMPLATE}
+        <Keep title="Weekly habit tracker for Apple Notes" text={TEMPLATE} fold={10}
           note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
         <SideBySide slug="apple-notes-habit-tracker"
           apple={{ src: "/blog/side-by-side/habit-tracker-apple-notes", width: 694, height: 1763, line: "Ticks the day. Streaks you count yourself, one note per week.",

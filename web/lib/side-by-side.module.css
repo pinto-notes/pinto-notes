@@ -41,3 +41,7 @@
 }
 /* From 960 px the text column sits on the title's left edge (lib/post.module.css), so the cards grow to the right. */
 @media (min-width: 1100px) { .vs { margin-right: -280px; } }
+
+/* The Mac app drawn at phone width: a plain card, not a phone. */
+.screen[data-frame="none"] { width: 100%; border: 0; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px var(--line, rgba(60, 40, 10, 0.1)), 0 24px 40px -24px rgba(60, 25, 0, 0.45); }
+.screen[data-frame="none"] img { border-radius: 0; }

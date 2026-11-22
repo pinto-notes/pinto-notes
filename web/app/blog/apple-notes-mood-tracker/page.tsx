@@ -46,12 +46,12 @@ export default function Page() {
       cover={false}
       intro={<>A row each evening: mood, energy, sleep and one line about the day.</>}
       answer={<>
-        <Keep title="Mood and energy log for Apple Notes" text={TEMPLATE}
+        <Keep title="Mood and energy log for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the six lines from Date to 8 Nov and press the Table button." />
         <SideBySide slug="apple-notes-mood-tracker"
           apple={{ src: "/blog/side-by-side/mood-tracker-apple-notes", width: 1894, height: 600, line: "Keeps the rows. Finding the patterns is up to you.",
             alt: "The mood template in Apple Notes on macOS 27: a table of five evenings from 4 to 8 November with mood, energy, sleep and a note, and an empty Patterns line." }}
-          pinto={{ title: "The same log in Pinto Notes", line: "Tell your AI about your day and it logs the row. Ask, and it writes down the patterns.",
+          pinto={{ frame: false, title: "The same log in Pinto Notes", line: "Tell your AI about your day and it logs the row. Ask, and it writes down the patterns.",
             alt: "The same five evenings in the Pinto Notes mood and energy log, with three patterns written under the table.",
             phone: { src: "/blog/side-by-side/mood-energy-log-pinto-phone", width: 780, height: 1100 },
             desk: { src: "/blog/side-by-side/mood-energy-log-pinto-mac", width: 1520, height: 895 },

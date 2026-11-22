@@ -60,14 +60,14 @@ export default function Page() {
       cover={false}
       intro={<>One note: a table of your applications, with your prep and follow-ups under it.</>}
       answer={<>
-        <Keep title="Job applications table for Apple Notes" text={TABLE}
+        <Keep title="Job applications table for Apple Notes" text={TABLE} fold={10}
           note="After pasting, select the five lines from Company to Northlight and press the Table button." />
-        <Keep title="Prep and follow-ups for Apple Notes" text={REST}
+        <Keep title="Prep and follow-ups for Apple Notes" text={REST} fold={10}
           note="On a Mac, click under the table and paste it with Edit, Paste as Markdown." />
         <SideBySide slug="apple-notes-job-search-tracker"
           apple={{ src: "/blog/side-by-side/job-search-tracker-apple-notes", width: 1584, height: 1000, line: "Holds the table. You type every job and keep each row up to date.",
             alt: "The job search template in Apple Notes on macOS 27: a table of four applications, interview prep for Tideway, This week with one follow-up ticked, and a note about Karin." }}
-          pinto={{ title: "The same job hunt in Pinto Notes", line: "Stage is a choice, not a word you type. Paste a job ad into your AI and it adds the row.",
+          pinto={{ frame: false, title: "The same job hunt in Pinto Notes", line: "Stage is a choice, not a word you type. Paste a job ad into your AI and it adds the row.",
             alt: "The same four applications in the Pinto Notes job hunt template, with the interview prep, This week's follow-ups and the note about Karin.",
             phone: { src: "/blog/side-by-side/job-hunt-pinto-phone", width: 780, height: 1588 },
             desk: { src: "/blog/side-by-side/job-hunt-pinto-mac", width: 1520, height: 1208 },

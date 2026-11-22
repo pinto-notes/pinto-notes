@@ -63,12 +63,12 @@ export default function Page() {
       cover={false}
       intro={<>One note a week: your program, each day&apos;s sets as a checklist, and your bests.</>}
       answer={<>
-        <Keep title="Workout log for Apple Notes" text={TEMPLATE}
+        <Keep title="Workout log for Apple Notes" text={TEMPLATE} fold={10}
           note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
         <SideBySide slug="apple-notes-workout-log-template"
           apple={{ src: "/blog/side-by-side/workout-log-template-apple-notes", width: 800, height: 1186, line: "Ticks the sets. Spotting a new best is up to you.",
             alt: "The workout template in Apple Notes on macOS 27: the program, Monday's three sets and Wednesday's bench press ticked, Friday's sets open, and four personal bests." }}
-          pinto={{ title: "The same week in Pinto Notes", line: "One log for every week. Tell your AI what you lifted and it adds the row and updates your bests.",
+          pinto={{ frame: false, title: "The same week in Pinto Notes", line: "One log for every week. Tell your AI what you lifted and it adds the row and updates your bests.",
             alt: "The same week in the Pinto Notes workout log: a row for each set done on Monday and Wednesday, then the same personal bests and program.",
             phone: { src: "/blog/side-by-side/workout-log-pinto-phone", width: 780, height: 1157 },
             desk: { src: "/blog/side-by-side/workout-log-pinto-mac", width: 1520, height: 1077 },
