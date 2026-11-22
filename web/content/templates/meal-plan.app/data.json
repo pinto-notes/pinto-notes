@@ -1,0 +1,31 @@
+{
+  "values": {
+    "dinners": [],
+    "extras": [],
+    "bought": {},
+    "cooks": [
+      "Me"
+    ],
+    "aisles": [
+      "Fruit and veg",
+      "Bakery",
+      "Meat and fish",
+      "Dairy and eggs",
+      "Dry goods",
+      "Tins and jars",
+      "Frozen",
+      "Other"
+    ],
+    "cupboard": [
+      "Olive oil",
+      "Salt",
+      "Pepper",
+      "Rice",
+      "Pasta",
+      "Oats",
+      "Onions",
+      "Garlic"
+    ]
+  },
+  "collections": {}
+}

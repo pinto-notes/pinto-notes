@@ -90,6 +90,25 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
   },
+  "meal-plan": {
+    h1: "Meal planner and grocery list template",
+    make: ["Add a Spices aisle before Dry goods.", "Show how many people each dinner serves.", "Let me share the grocery list as text.", "Plan lunches too, not only dinners."],
+    can: [
+      { name: "Plan the week's dinners", text: "A dinner a day, who cooks, its recipe." },
+      { name: "Get the grocery list made for you", text: "From the dinners, by aisle, merged." },
+      { name: "Skip what's in the cupboard", text: "Staples never land on the list." },
+      { name: "Tick things off in the shop", text: "In the order you walk the aisles." },
+      { name: "Look back at earlier weeks", text: "Copy last week's dinners in one tap." },
+      AI_SAME_DATA,
+    ],
+    faq: [
+      { q: "Is this meal planner free?", a: ["Yes. The template and Pinto Notes are free. To let an AI plan the week, you need ChatGPT on a plan that allows custom apps, or Claude, or Claude Code."] },
+      { q: "Can ChatGPT or Claude plan my meals into it?", a: ["Yes, once Pinto Notes is connected. Say \"plan dinners for this week, Oskar cooks Tuesday and Thursday\" and it adds the dinners with what each one needs. The grocery list follows by itself, by aisle, without what's always in the cupboard."] },
+      { q: "Can I plan the week myself?", a: ["Yes. Tap a day to add its dinner, who cooks and what it needs, or start from a dinner you've had before. Rename, move and remove things on the list, and change the aisles and the cupboard in Settings. A delete shows Undo."] },
+      { q: "Does it know recipes or nutrition?", a: ["No. It has no recipe database, no calories and no servings. A dinner can link to your own recipe note, and your AI can suggest dinners."] },
+      { q: "Does it work on iPhone?", a: [IPHONE] },
+    ],
+  },
   "study-flashcards": {
     h1: "Flashcard maker and study app",
     make: ["Add ten cards on Spanish verbs.", "Add a reverse mode, answer to question.", "Cap new cards at 20 a day.", "Let me type the answer before it shows."],

@@ -117,3 +117,7 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
   screen, which is the wrong picture of the app. After changing an app or its sample, in this
   order: `template-apps.ts`, `template-catalog.py`, `template-samples.py`, then
   `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies.
+- The site's template cards turn into the app on iPhone (`web/app/templates/AppSwap.tsx`):
+  `web/public/templates/apps/phone/<slug>-light.webp` and `-dark.webp`, 600 by 662, the top of the
+  app on its sample at 320 pt wide and 2x (a full-height phone, so no tab bar), cropped to 640 by 706
+  and scaled down. No script draws them yet; `web/app/templates/AppSwap.test.tsx` checks they exist.
