@@ -1,0 +1,841 @@
+{
+ "values": {
+  "exercises": [
+   {
+    "id": "squat",
+    "name": "Squat",
+    "kind": "weight"
+   },
+   {
+    "id": "lunges",
+    "name": "Lunges",
+    "kind": "weight"
+   },
+   {
+    "id": "calf-raises",
+    "name": "Calf raises",
+    "kind": "weight"
+   },
+   {
+    "id": "bench-press",
+    "name": "Bench press",
+    "kind": "weight"
+   },
+   {
+    "id": "overhead-press",
+    "name": "Overhead press",
+    "kind": "weight"
+   },
+   {
+    "id": "dips",
+    "name": "Dips",
+    "kind": "weight"
+   },
+   {
+    "id": "deadlift",
+    "name": "Deadlift",
+    "kind": "weight"
+   },
+   {
+    "id": "rows",
+    "name": "Rows",
+    "kind": "weight"
+   },
+   {
+    "id": "pull-ups",
+    "name": "Pull-ups",
+    "kind": "weight"
+   },
+   {
+    "id": "run",
+    "name": "Run",
+    "kind": "cardio"
+   }
+  ],
+  "plan": [
+   {
+    "id": "legs",
+    "name": "Legs",
+    "exercises": [
+     "squat",
+     "lunges",
+     "calf-raises"
+    ]
+   },
+   {
+    "id": "push",
+    "name": "Push",
+    "exercises": [
+     "bench-press",
+     "overhead-press",
+     "dips"
+    ]
+   },
+   {
+    "id": "pull",
+    "name": "Pull",
+    "exercises": [
+     "deadlift",
+     "rows",
+     "pull-ups"
+    ]
+   },
+   {
+    "id": "run",
+    "name": "Easy run",
+    "exercises": [
+     "run"
+    ]
+   }
+  ],
+  "goal": 3,
+  "sessions": [
+   {
+    "id": "s1",
+    "date": "2026-10-04",
+    "name": "Legs",
+    "workout": "legs",
+    "items": [
+     {
+      "exercise": "squat",
+      "sets": [
+       {
+        "reps": 5,
+        "kg": 90
+       },
+       {
+        "reps": 5,
+        "kg": 90
+       },
+       {
+        "reps": 5,
+        "kg": 90
+       }
+      ]
+     },
+     {
+      "exercise": "lunges",
+      "sets": [
+       {
+        "reps": 10,
+        "kg": 20
+       },
+       {
+        "reps": 10,
+        "kg": 20
+       },
+       {
+        "reps": 10,
+        "kg": 20
+       }
+      ]
+     },
+     {
+      "exercise": "calf-raises",
+      "sets": [
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       }
+      ]
+     }
+    ],
+    "effort": 7
+   },
+   {
+    "id": "s2",
+    "date": "2026-10-06",
+    "name": "Push",
+    "workout": "push",
+    "items": [
+     {
+      "exercise": "bench-press",
+      "sets": [
+       {
+        "reps": 6,
+        "kg": 60
+       },
+       {
+        "reps": 6,
+        "kg": 60
+       },
+       {
+        "reps": 6,
+        "kg": 60
+       }
+      ]
+     },
+     {
+      "exercise": "overhead-press",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 40
+       },
+       {
+        "reps": 8,
+        "kg": 40
+       },
+       {
+        "reps": 8,
+        "kg": 40
+       }
+      ]
+     },
+     {
+      "exercise": "dips",
+      "sets": [
+       {
+        "reps": 8
+       },
+       {
+        "reps": 6
+       }
+      ]
+     }
+    ],
+    "effort": 6
+   },
+   {
+    "id": "s3",
+    "date": "2026-10-08",
+    "name": "Pull",
+    "workout": "pull",
+    "items": [
+     {
+      "exercise": "deadlift",
+      "sets": [
+       {
+        "reps": 3,
+        "kg": 110
+       },
+       {
+        "reps": 3,
+        "kg": 110
+       }
+      ]
+     },
+     {
+      "exercise": "rows",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 50
+       },
+       {
+        "reps": 8,
+        "kg": 50
+       },
+       {
+        "reps": 8,
+        "kg": 50
+       }
+      ]
+     },
+     {
+      "exercise": "pull-ups",
+      "sets": [
+       {
+        "reps": 6
+       },
+       {
+        "reps": 5
+       },
+       {
+        "reps": 4
+       }
+      ]
+     }
+    ],
+    "effort": 8
+   },
+   {
+    "id": "s4",
+    "date": "2026-10-11",
+    "name": "Easy run",
+    "workout": "run",
+    "items": [
+     {
+      "exercise": "run",
+      "sets": [
+       {
+        "km": 5,
+        "min": 31
+       }
+      ]
+     }
+    ],
+    "effort": 5
+   },
+   {
+    "id": "s5",
+    "date": "2026-10-13",
+    "name": "Legs",
+    "workout": "legs",
+    "items": [
+     {
+      "exercise": "squat",
+      "sets": [
+       {
+        "reps": 5,
+        "kg": 92.5
+       },
+       {
+        "reps": 5,
+        "kg": 92.5
+       },
+       {
+        "reps": 5,
+        "kg": 92.5
+       }
+      ]
+     },
+     {
+      "exercise": "lunges",
+      "sets": [
+       {
+        "reps": 10,
+        "kg": 20
+       },
+       {
+        "reps": 10,
+        "kg": 20
+       },
+       {
+        "reps": 10,
+        "kg": 20
+       }
+      ]
+     },
+     {
+      "exercise": "calf-raises",
+      "sets": [
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       }
+      ]
+     }
+    ],
+    "effort": 7
+   },
+   {
+    "id": "s6",
+    "date": "2026-10-15",
+    "name": "Push",
+    "workout": "push",
+    "items": [
+     {
+      "exercise": "bench-press",
+      "sets": [
+       {
+        "reps": 6,
+        "kg": 62.5
+       },
+       {
+        "reps": 6,
+        "kg": 62.5
+       },
+       {
+        "reps": 6,
+        "kg": 62.5
+       }
+      ]
+     },
+     {
+      "exercise": "overhead-press",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 40
+       },
+       {
+        "reps": 8,
+        "kg": 40
+       },
+       {
+        "reps": 8,
+        "kg": 40
+       }
+      ]
+     },
+     {
+      "exercise": "dips",
+      "sets": [
+       {
+        "reps": 10
+       },
+       {
+        "reps": 8
+       }
+      ]
+     }
+    ],
+    "effort": 7,
+    "note": "Felt strong"
+   },
+   {
+    "id": "s7",
+    "date": "2026-10-18",
+    "name": "Pull",
+    "workout": "pull",
+    "items": [
+     {
+      "exercise": "deadlift",
+      "sets": [
+       {
+        "reps": 3,
+        "kg": 115
+       },
+       {
+        "reps": 3,
+        "kg": 115
+       }
+      ]
+     },
+     {
+      "exercise": "rows",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 52.5
+       },
+       {
+        "reps": 8,
+        "kg": 52.5
+       },
+       {
+        "reps": 8,
+        "kg": 52.5
+       }
+      ]
+     },
+     {
+      "exercise": "pull-ups",
+      "sets": [
+       {
+        "reps": 7
+       },
+       {
+        "reps": 6
+       },
+       {
+        "reps": 5
+       }
+      ]
+     }
+    ],
+    "effort": 8
+   },
+   {
+    "id": "s8",
+    "date": "2026-10-20",
+    "name": "Easy run",
+    "workout": "run",
+    "items": [
+     {
+      "exercise": "run",
+      "sets": [
+       {
+        "km": 5,
+        "min": 30.17
+       }
+      ]
+     }
+    ],
+    "effort": 6
+   },
+   {
+    "id": "s9",
+    "date": "2026-10-22",
+    "name": "Legs",
+    "workout": "legs",
+    "items": [
+     {
+      "exercise": "squat",
+      "sets": [
+       {
+        "reps": 5,
+        "kg": 95
+       },
+       {
+        "reps": 5,
+        "kg": 95
+       },
+       {
+        "reps": 5,
+        "kg": 95
+       }
+      ]
+     },
+     {
+      "exercise": "lunges",
+      "sets": [
+       {
+        "reps": 10,
+        "kg": 22.5
+       },
+       {
+        "reps": 10,
+        "kg": 22.5
+       },
+       {
+        "reps": 10,
+        "kg": 22.5
+       }
+      ]
+     },
+     {
+      "exercise": "calf-raises",
+      "sets": [
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       }
+      ]
+     }
+    ],
+    "effort": 8
+   },
+   {
+    "id": "s10",
+    "date": "2026-10-25",
+    "name": "Push",
+    "workout": "push",
+    "items": [
+     {
+      "exercise": "bench-press",
+      "sets": [
+       {
+        "reps": 6,
+        "kg": 65
+       },
+       {
+        "reps": 6,
+        "kg": 65
+       },
+       {
+        "reps": 6,
+        "kg": 65
+       }
+      ]
+     },
+     {
+      "exercise": "overhead-press",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 42.5
+       },
+       {
+        "reps": 8,
+        "kg": 42.5
+       },
+       {
+        "reps": 8,
+        "kg": 42.5
+       }
+      ]
+     },
+     {
+      "exercise": "dips",
+      "sets": [
+       {
+        "reps": 12
+       },
+       {
+        "reps": 10
+       }
+      ]
+     }
+    ],
+    "effort": 6
+   },
+   {
+    "id": "s11",
+    "date": "2026-10-27",
+    "name": "Pull",
+    "workout": "pull",
+    "items": [
+     {
+      "exercise": "deadlift",
+      "sets": [
+       {
+        "reps": 3,
+        "kg": 120
+       },
+       {
+        "reps": 3,
+        "kg": 120
+       }
+      ]
+     },
+     {
+      "exercise": "rows",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 55
+       },
+       {
+        "reps": 8,
+        "kg": 55
+       },
+       {
+        "reps": 8,
+        "kg": 55
+       }
+      ]
+     },
+     {
+      "exercise": "pull-ups",
+      "sets": [
+       {
+        "reps": 8
+       },
+       {
+        "reps": 7
+       },
+       {
+        "reps": 6
+       }
+      ]
+     }
+    ],
+    "effort": 9
+   },
+   {
+    "id": "s12",
+    "date": "2026-10-29",
+    "name": "Easy run",
+    "workout": "run",
+    "items": [
+     {
+      "exercise": "run",
+      "sets": [
+       {
+        "km": 6,
+        "min": 36.5
+       }
+      ]
+     }
+    ],
+    "effort": 5
+   },
+   {
+    "id": "s13",
+    "date": "2026-11-01",
+    "name": "Legs",
+    "workout": "legs",
+    "items": [
+     {
+      "exercise": "squat",
+      "sets": [
+       {
+        "reps": 5,
+        "kg": 100
+       },
+       {
+        "reps": 5,
+        "kg": 100
+       },
+       {
+        "reps": 5,
+        "kg": 100
+       }
+      ]
+     },
+     {
+      "exercise": "lunges",
+      "sets": [
+       {
+        "reps": 10,
+        "kg": 22.5
+       },
+       {
+        "reps": 10,
+        "kg": 22.5
+       },
+       {
+        "reps": 10,
+        "kg": 22.5
+       }
+      ]
+     },
+     {
+      "exercise": "calf-raises",
+      "sets": [
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       },
+       {
+        "reps": 12,
+        "kg": 40
+       }
+      ]
+     }
+    ],
+    "effort": 8,
+    "note": "Left knee a bit sore on the last set"
+   },
+   {
+    "id": "s14",
+    "date": "2026-11-03",
+    "name": "Push",
+    "workout": "push",
+    "items": [
+     {
+      "exercise": "bench-press",
+      "sets": [
+       {
+        "reps": 6,
+        "kg": 65
+       },
+       {
+        "reps": 6,
+        "kg": 65
+       },
+       {
+        "reps": 6,
+        "kg": 65
+       }
+      ]
+     },
+     {
+      "exercise": "overhead-press",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 42.5
+       },
+       {
+        "reps": 8,
+        "kg": 42.5
+       },
+       {
+        "reps": 8,
+        "kg": 42.5
+       }
+      ]
+     },
+     {
+      "exercise": "dips",
+      "sets": [
+       {
+        "reps": 10
+       },
+       {
+        "reps": 8
+       }
+      ]
+     }
+    ],
+    "effort": 7
+   },
+   {
+    "id": "s15",
+    "date": "2026-11-05",
+    "name": "Pull",
+    "workout": "pull",
+    "items": [
+     {
+      "exercise": "deadlift",
+      "sets": [
+       {
+        "reps": 3,
+        "kg": 125
+       },
+       {
+        "reps": 3,
+        "kg": 125
+       }
+      ]
+     },
+     {
+      "exercise": "rows",
+      "sets": [
+       {
+        "reps": 8,
+        "kg": 55
+       },
+       {
+        "reps": 8,
+        "kg": 55
+       },
+       {
+        "reps": 8,
+        "kg": 55
+       }
+      ]
+     },
+     {
+      "exercise": "pull-ups",
+      "sets": [
+       {
+        "reps": 8
+       },
+       {
+        "reps": 7
+       },
+       {
+        "reps": 6
+       }
+      ]
+     }
+    ],
+    "effort": 9
+   },
+   {
+    "id": "s16",
+    "date": "2026-11-07",
+    "name": "Easy run",
+    "workout": "run",
+    "items": [
+     {
+      "exercise": "run",
+      "sets": [
+       {
+        "km": 5,
+        "min": 28.67
+       }
+      ]
+     }
+    ],
+    "effort": 6,
+    "note": "Fastest 5 km yet"
+   }
+  ],
+  "units": "kg",
+  "started": "2026-10-03"
+ },
+ "collections": {}
+}

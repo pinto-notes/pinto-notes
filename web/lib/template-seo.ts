@@ -6,7 +6,8 @@
 /// Searches it aims at (checked 13 October 2026, free sources only: Google autocomplete, and
 /// RankHero's public keyword pages, whose volumes are third-party estimates): "habit tracker template"
 /// (habit tracker, ~110k a month), "budget tracker template" (budget tracker, ~15k), "trip planner"
-/// and "itinerary template" (~450k and ~50k), "flashcard maker" (flashcards, ~450k, mostly printable).
+/// and "itinerary template" (~450k and ~50k), "flashcard maker" (flashcards, ~450k, mostly printable),
+/// "workout log template" (not checked).
 ///
 /// Truth: only what the template apps in content/templates/<slug>.app do (they reach the app from
 /// this site, so they change when the site deploys) and what Mac 1.2.26 does. There's no iPad app in 1.2.
@@ -107,6 +108,26 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Can I type my answers?", a: ["No. You say to yourself whether you knew it, and tap Again, Hard, Good or Easy. There's no typed answer, multiple choice or picture on a card yet."] },
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
+  },
+  "workout-log": {
+    h1: "Workout log template with its own app",
+    make: ["Add a rest timer between sets.", "Show my total volume per week.", "Add a 12-week strength program.", "Let me log a session from a photo of my notes."],
+    can: [
+      { name: "Log a session in one go", text: "Next up in your plan, with last time's sets." },
+      { name: "See your personal bests", text: "Per exercise, with the date, updated as you log." },
+      { name: "Watch an exercise improve", text: "Est. 1RM or heaviest set, per session." },
+      { name: "Keep a weekly goal", text: "This week's sessions against your goal." },
+      { name: "Weights and cardio", text: "Reps and weight, or distance and time, in kg or lb." },
+      AI_SAME_DATA,
+    ],
+    faq: [
+      { q: "Is this workout log free?", a: ["Yes. The template and Pinto Notes are free. To log sessions by telling an AI, you need ChatGPT on a plan that allows custom apps, or Claude, or Claude Code."] },
+      { q: "Can ChatGPT or Claude log my workouts?", a: ["Yes, once Pinto Notes is connected. Say \"did 3x5 squats at 100 kg and a 5 km run\" and it adds the session to the app's data, then tells you whether it beat your best. Ask \"am I getting stronger on bench?\" and it reads the same sessions the app charts."] },
+      { q: "How does it work out a personal best?", a: ["For weights, by the estimated one-rep max of your best set: weight times one plus reps over 30, so 100 kg for 5 beats 110 kg for 1. Bodyweight exercises count reps. For runs it keeps the longest distance and the fastest pace."] },
+      { q: "What doesn't it do yet?", a: ["It has no rest timer, no plate maths and no programs that add weight for you, and it doesn't read a watch or Apple Health. Your AI can add some of these to the app."] },
+      { q: "Does it work on iPhone?", a: [IPHONE] },
+    ],
+    post: { slug: "apple-notes-workout-log-template", title: "Apple Notes workout log template, with your bests" },
   },
 };
 

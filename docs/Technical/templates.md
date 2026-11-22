@@ -116,4 +116,8 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
   its dates moved to today), not over `data.json`. A new habit tracker or budget opens on its first
   screen, which is the wrong picture of the app. After changing an app or its sample, in this
   order: `template-apps.ts`, `template-catalog.py`, `template-samples.py`, then
-  `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies.
+  `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies, then
+  `scripts/template-stage-pictures.ts <slug>` for the Mac library's stage.
+- The site's card turns into the app on iPhone: `web/public/templates/apps/phone/<slug>-light.webp`
+  and `-dark.webp`, 600 x 662, the top of Today drawn 375 pt wide at 2x over the sample and scaled
+  to 80% (`web/app/templates/AppSwap.test.tsx` checks both are there).

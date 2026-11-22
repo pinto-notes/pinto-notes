@@ -45,7 +45,7 @@ describe("an app template's card", () => {
       expect(html.includes("/templates/apps/phone/"), t.slug).toBe(!!t.app);
       if (t.app) for (const m of ["light", "dark"]) expect(existsSync(resolve(__dirname, `../../public/templates/apps/phone/${t.slug}-${m}.webp`)), `${t.slug} ${m}`).toBe(true);
     }
-    expect(templates().filter((t) => t.app).map((t) => t.slug).sort()).toEqual(["budget-log", "habit-tracker", "study-flashcards", "trip-plan"]);
+    expect(templates().filter((t) => t.app).map((t) => t.slug).sort()).toEqual(["budget-log", "habit-tracker", "study-flashcards", "trip-plan", "workout-log"]);
   });
 
   it("keeps the app's height from the start, so the swap moves nothing", () => {
