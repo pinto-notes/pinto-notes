@@ -215,6 +215,21 @@ describe("the instructions", () => {
     for (const [slug, rule] of Object.entries(rules)) expect(all.find((t) => t.slug === slug)!.note, slug).toMatch(rule);
   });
 
+  it("show the form of a dated heading, as the example writes it", () => {
+    // Told only "a ### heading with the name and the date", real runs (local stack, 2026-11-22) wrote
+    // "### Pricing sync — 2026-11-19" and "### Supply and demand (Econ) — 2026-11-17": a dash and a
+    // machine date, where the template's example has "### Pricing sync, 5 November".
+    for (const t of all) {
+      for (const [k, p] of Object.entries(t.prompt)) {
+        if (!/"###[^"]*" heading with [^.]*date/.test(p)) continue;
+        const form = p.match(/date, like "(### [^"]+)"/)?.[1];
+        expect(form, `${t.slug} (${k})`).toBeTruthy();
+        expect(form!, `${t.slug} (${k})`).toMatch(/\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December)$/);
+        expect(form!, `${t.slug} (${k})`).not.toMatch(/[–—]/);
+      }
+    }
+  });
+
   it("keep a trip's booking names short, as the app shows them", () => {
     // A real run put a whole hotel confirmation (address, check-out, price) in a booking's name.
     const trip = all.find((t) => t.slug === "trip-plan")!;

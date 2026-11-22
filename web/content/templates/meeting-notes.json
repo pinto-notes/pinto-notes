@@ -12,7 +12,7 @@
   "folder": "Work",
   "note": "Meeting notes\n\nAfter a meeting, paste your rough notes or the transcript into your AI. The summary and action items land here, newest meeting first.\n\n## Action items\nWho does what, and by when. Ticked when done.\n\n## Meetings\nOne section per meeting: what was said in two lines, and what was decided.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Meeting notes\". After a meeting I'll paste my rough notes or a transcript. Read the note with fetch, then add a section at the start of \"Meetings\" with edit: a \"###\" heading with the meeting name and date, a two-line summary, and the decisions as bullets. Add each action item under \"Action items\" as a checklist line like \"- [ ] Owner: task (due date)\". If something is unclear, ask me before writing it. When I say an item is done, tick it (\"- [x]\")."
+    "default": "Use my Pinto Notes note \"Meeting notes\". After a meeting I'll paste my rough notes or a transcript. Read the note with fetch, then add a section at the start of \"Meetings\" with edit: a \"###\" heading with the meeting name and date, like \"### Pricing sync, 5 November\", a two-line summary, and the decisions as bullets. Add each action item under \"Action items\" as a checklist line like \"- [ ] Sara: send the new pricing to sales (10 Nov)\". If something is unclear, ask me before writing it. When I say an item is done, tick it (\"- [x]\")."
   },
   "asks": [
     "Ask me for my meeting notes or transcript, then add the summary and action items.",

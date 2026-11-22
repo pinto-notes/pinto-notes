@@ -2,6 +2,15 @@
 // demo calls (content/templates/<slug>.json "demo", the calls that turn "note" into "example"), so
 // a slide's picture is the note before or after the change its chat talks about. Used by
 // web/scripts/template-page-shots.mjs, which hands the result to the app to draw, and by the tests.
+// A page about talking to your AI draws the note as a real chat left it instead (`saved`).
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+/// Notes as real chats left them: content/template-pages/saved/<slug>/<name>.md, each the note pulled
+/// from the local stack after a chat with Claude through the Pinto MCP (the transcripts are kept with
+/// the report that made them).
+export const SAVED = path.join(path.dirname(fileURLToPath(import.meta.url)), "../content/template-pages/saved");
 
 /**
  * A picture's recipe, from content/template-pages/<slug>.json "pictures":
@@ -10,8 +19,9 @@
  * - edits: [old, new] pairs applied after the calls, each found exactly once (a line ticked or
  *   not yet added, where one demo call adds several things at once).
  * - created: instead of the template's note, the note demo call <created> makes (a "create").
+ * - saved: instead, the note as a real chat left it (SAVED/<slug>/<saved>.md).
  * - from: the heading the picture is scrolled to.
- * @typedef {{ of: "example" | "note", steps?: number | number[], edits?: [string, string][], created?: number, from?: string }} PictureRecipe
+ * @typedef {{ of?: "example" | "note", steps?: number | number[], edits?: [string, string][], created?: number, saved?: string, from?: string }} PictureRecipe
  * @typedef {{ tool: string, args: { old_string?: string, new_string?: string, content?: string, id?: string } }} DemoCall
  */
 
@@ -21,6 +31,7 @@
  * @returns {string}
  */
 export function pictureBody(t, pic) {
+  if (pic.saved !== undefined) return readFileSync(path.join(SAVED, t.slug, `${pic.saved}.md`), "utf8");
   if (pic.created !== undefined) {
     const call = t.demo[pic.created];
     if (call?.tool !== "create" || !call.args.content) throw new Error(`${t.slug}: demo call ${pic.created} creates no note`);

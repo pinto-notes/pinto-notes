@@ -7,19 +7,19 @@
   },
   "slides": [
     {
-      "label": "Write today",
-      "you": "Quiet day. Finished the bookshelf and went for a long walk. Coffee with Jonas helped.",
-      "ai": "Wrote today's entry, Sunday 8 November, at the top.",
+      "label": "Write Wednesday",
+      "you": "Journal for Wednesday: big pitch to the board on Friday and I'm nervous. A long walk with Jonas helped.",
+      "ai": "Added Wednesday 18 November at the top of Entries.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Daily journal filled in, in Pinto Notes on a Mac"
+      "alt": "Wednesday's entry in the journal"
     },
     {
-      "label": "Add yesterday",
-      "you": "Add yesterday: I helped Maja move. Faster than we feared, then pizza.",
-      "ai": "Added the entry for Saturday 7 November.",
+      "label": "Sunday, it asks",
+      "you": "I want to journal.",
+      "ai": "Your last entry was Wednesday, when you were nervous about Friday's pitch to the board. How did it go?",
       "phone": "phone-2",
-      "alt": "Saturday 7 November, in Daily journal"
+      "alt": "Wednesday's entry, which the question comes from"
     },
     {
       "label": "Use it yourself",
@@ -31,20 +31,14 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "steps": [
-        1
-      ]
+      "saved": "after-chat1"
     },
     "phone-1": {
-      "of": "example",
-      "steps": [
-        1
-      ]
+      "saved": "after-chat1"
     },
     "phone-2": {
-      "of": "example",
-      "from": "Saturday 7 November"
+      "saved": "after-chat2",
+      "from": "Wednesday 18 November"
     },
     "mac-start": {
       "of": "note"

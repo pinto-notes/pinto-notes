@@ -11,7 +11,7 @@
   "folder": "Journal",
   "note": "Daily journal\n\nA few lines a day. Tell your AI about your day, or let it ask the questions below, and the entry lands here, newest day first.\n\n## Questions\n1. What happened today?\n2. What took energy, and what gave it back?\n3. What do I want to remember?\n4. What's one thing for tomorrow?\n\n## Entries\nNewest day first.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Read the note with fetch, then add the day at the start of \"Entries\" with edit: a \"###\" heading with the weekday and date, then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, answer from my entries."
+    "default": "Use my Pinto Notes note \"Daily journal\". When I say I want to journal, ask me the questions under \"Questions\" one at a time, and skip any I pass on. If I tell you about my day in one go instead, write the entry from that without asking. Read the note with fetch, then add the day at the start of \"Entries\" with edit: a \"###\" heading with the weekday and date, like \"### Sunday 8 November\", then my answers as short lines in my own words, each starting with a bold label (Today, Energy, Remember, Tomorrow). Don't add advice unless I ask for it. When I ask what's been on my mind lately, answer from my entries."
   },
   "asks": [
     "Ask me today's four questions one at a time, then write up the entry.",

@@ -7,6 +7,7 @@
 //   scripts/template-page-shots-iphone.sh <dir>
 //   node web/scripts/template-page-shots.mjs convert <dir>    turns <dir>/<slug>/<name>.png into
 //                                                              web/public/templates/page/<slug>/<name>.webp
+// ONLY=slug,slug limits either step to those templates.
 // The app templates (every template whose page has "slides" pictures of the app) are drawn by
 // scripts/template-page-shots.ts instead.
 import { execFileSync } from "node:child_process";
@@ -25,7 +26,8 @@ if (!dir || !["manifest", "convert"].includes(mode)) throw new Error("usage: tem
 
 const plain = readdirSync(PAGES).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""))
   .map((slug) => ({ slug, page: JSON.parse(readFileSync(path.join(PAGES, `${slug}.json`), "utf8")) }))
-  .filter(({ page }) => page.pictures);
+  .filter(({ page }) => page.pictures)
+  .filter(({ slug }) => !process.env.ONLY || process.env.ONLY.split(",").includes(slug));
 
 if (mode === "manifest") {
   const shots = plain.flatMap(({ slug, page }) => {
