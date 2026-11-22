@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { amber } from "amber"
 import { route } from "amber-router"
 import App from "@/App"
-import { iso, plus } from "@/lib/cards"
+import { iso, monthHeads, plus } from "@/lib/cards"
 
 // Each test does what the person does, then checks what they see and what was saved in data.json.
 const values = () => amber.data.values ?? {}
@@ -347,6 +347,17 @@ describe("The calendar", () => {
     const month = new Date(today + "T12:00:00").toLocaleDateString("en-GB", { month: "short" })
     expect(screen.getAllByText(month).length).toBeGreaterThan(0)
     expect(screen.getByTestId("streak")).toHaveTextContent("1-day streak")
+  })
+
+  it("never puts two month names side by side, where they print over each other", () => {
+    // 12 weeks from Monday 31 August 2026 (today the 22nd of November): the first column is August's
+    // last week and the second September's first, 11 px apart ("AuSep" in a real run, 2026-11-22).
+    const days = Array.from({ length: 84 }, (_, i) => plus("2026-08-31", i))
+    const heads = monthHeads(days, 12)
+    expect(heads.filter(Boolean)).toEqual(["Sep", "Oct", "Nov"])
+    heads.forEach((h, w) => { if (h) expect(heads[w + 1] ?? "").toBe("") })
+    // From a Monday well inside a month, the first column keeps its name.
+    expect(monthHeads(Array.from({ length: 84 }, (_, i) => plus("2026-08-17", i)), 12)[0]).toBe("Aug")
   })
 })
 
