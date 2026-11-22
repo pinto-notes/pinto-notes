@@ -1,11 +1,22 @@
 {
   "subtitle": "A recipe box your AI fills from recipes you paste.",
   "about": "A note linking to recipes, each in its own note with an ingredient checklist, servings and numbered steps. Paste a recipe into your AI to file it, then tick off ingredients as you cook.",
+  "experimental": [
+    "covers",
+    "gallery"
+  ],
   "ask": {
     "step": "Ask for the recipe box",
     "prompt": "Set up the recipe box template in my Pinto Notes."
   },
   "slides": [
+    {
+      "label": "Covers and cards",
+      "note": "Give each recipe a cover and an icon, then see them all as cards.",
+      "mac": "mac-covers",
+      "phone": "phone-covers",
+      "alt": "Recipe box as a gallery of cards, each recipe with a cover, in Pinto Notes on a Mac"
+    },
     {
       "label": "Save a recipe",
       "you": "Save this recipe: lentil soup with lemon.",
@@ -30,6 +41,52 @@
     }
   ],
   "pictures": {
+    "mac-covers": {
+      "gallery": {
+        "folder": "Recipe box",
+        "notes": [
+          {
+            "created": 0,
+            "icon": "🍲",
+            "cover": "redGingham"
+          },
+          {
+            "created": 2,
+            "icon": "🍜",
+            "cover": "ticking"
+          },
+          {
+            "created": 4,
+            "icon": "🍅",
+            "cover": "sunset"
+          },
+          {
+            "created": 6,
+            "icon": "🍖",
+            "cover": "kraft"
+          },
+          {
+            "created": 8,
+            "icon": "🥞",
+            "cover": "polka"
+          },
+          {
+            "created": 10,
+            "icon": "🥐",
+            "cover": "greenGingham"
+          }
+        ]
+      },
+      "size": [
+        800,
+        500
+      ]
+    },
+    "phone-covers": {
+      "created": 0,
+      "icon": "🍲",
+      "cover": "redGingham"
+    },
     "mac-1": {
       "of": "example",
       "edits": [

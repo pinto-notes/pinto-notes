@@ -17,10 +17,20 @@ import UIKit
 ///   Mac: `TEST_RUNNER_TEMPLATE_PAGE_SHOTS=/path scripts/qa-test.sh PaneTests/TemplatePageShots`
 ///   iPhone: `scripts/template-page-shots-iphone.sh /path` (a headless simulator of its own).
 /// Offscreen on the Mac: a borderless window at -20000, never ordered front or made key.
+/// A picture with a cover, or of a folder in the gallery, is drawn with Covers and icons and Gallery
+/// view on for the run only (Settings › Experimental), and the cover pictures are removed after.
 @MainActor @Suite(.serialized) struct TemplatePageShots {
     static var dir: URL? { ProcessInfo.processInfo.environment["TEMPLATE_PAGE_SHOTS"].map { URL(fileURLWithPath: $0) } }
 
-    struct Shot: Decodable { let slug: String; let name: String; let body: String; let width: Double; let height: Double; let from: String? }
+    struct Shot: Decodable {
+        let slug: String; let name: String; let body: String; let width: Double; let height: Double; let from: String?
+        /// A ready-made cover (CoverPattern's raw value) for the note, drawn with Covers and icons on.
+        let cover: String?
+        /// Instead of one note: a folder of them as the gallery shows it (FolderGallery), Mac only.
+        let gallery: Gallery?
+    }
+    struct Gallery: Decodable { let folder: String; let notes: [Card] }
+    struct Card: Decodable { let body: String; let cover: String? }
 
     static func shots(_ prefix: String) throws -> [Shot]? {
         guard let dir else { return nil }
@@ -29,11 +39,47 @@ import UIKit
         return all.filter { $0.name.hasPrefix(prefix) && (only?.contains($0.slug) ?? true) }
     }
 
-    static func note(_ body: String) throws -> (ModelContainer, Note) {
+    static func note(_ body: String, cover: String? = nil) throws -> (ModelContainer, Note, [Pane.Attachment]) {
         let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let note = c.mainContext.createNote(in: .all, body: body)
+        var files: [Pane.Attachment] = []
+        let note = c.mainContext.createNote(in: .all, body: try Self.covered(body, cover, in: c.mainContext, files: &files))
         try c.mainContext.save()
-        return (c, note)
+        return (c, note, files)
+    }
+
+    /// The body with a ready-made cover set as Add Cover sets one (the pattern drawn to a picture
+    /// and kept like any other), or as it is without one. The picture goes in `files`, to remove after.
+    static func covered(_ body: String, _ cover: String?, in context: ModelContext, files: inout [Pane.Attachment]) throws -> String {
+        guard let cover else { return body }
+        let pattern = try #require(CoverPattern(rawValue: cover), "\(cover) isn't a ready-made cover")
+        let png = try #require(pattern.render())
+        defer { try? FileManager.default.removeItem(at: png.deletingLastPathComponent()) }
+        let file = try FileStore.importFile(at: png)
+        context.insert(file)
+        files.append(file)
+        return NoteCover.setting(NoteCover.line(id: file.id, filename: file.filename), in: body)
+    }
+
+    /// A folder of notes, the first the newest, as the gallery lists them.
+    static func folder(_ gallery: Gallery) throws -> (ModelContainer, Folder, [Pane.Attachment]) {
+        let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let folder = c.mainContext.createFolder(named: gallery.folder)
+        var files: [Pane.Attachment] = []
+        for (i, card) in gallery.notes.enumerated() {
+            let note = c.mainContext.createNote(in: .folder(folder.id), body: try Self.covered(card.body, card.cover, in: c.mainContext, files: &files))
+            note.updatedAt = .now.addingTimeInterval(Double(-i) * 3600)
+        }
+        try c.mainContext.save()
+        return (c, folder, files)
+    }
+
+    /// Covers and icons, and the gallery, on while the pictures are drawn, then back as they were
+    /// (the test host shares the app's settings).
+    static func experimentsOn() -> () -> Void {
+        let d = UserDefaults.standard
+        let kept = [Experiment.covers, .gallery].map { ($0, d.object(forKey: $0.key)) }
+        for (e, _) in kept { d.set(true, forKey: e.key) }
+        return { for (e, v) in kept { if let v { d.set(v, forKey: e.key) } else { d.removeObject(forKey: e.key) } } }
     }
 
     static func file(_ shot: Shot, in dir: URL) throws -> URL {
@@ -71,10 +117,26 @@ import UIKit
         // No toolbar in a borderless window: without its fade the note's title shows, as it does under one.
         NoteDetailView.captureWithoutToolbar = true
         defer { NoteDetailView.captureWithoutToolbar = false }
+        let restore = Self.experimentsOn()
+        defer { restore() }
         for shot in shots {
-            let (c, note) = try Self.note(shot.body)
             let size = CGSize(width: shot.width, height: shot.height)
-            let view = NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c)
+            let c: ModelContainer, files: [Pane.Attachment], view: AnyView
+            if let gallery = shot.gallery {
+                let (gc, folder, gf) = try Self.folder(gallery)
+                (c, files) = (gc, gf)
+                let scope = Scope.folder(folder.id)
+                ListOrderStore.shared.setGallery(true, for: scope)
+                view = AnyView(NavigationStack { FolderGallery(scope: scope, library: LibraryNotes(), open: { _ in }, newNote: {}) }.modelContainer(c))
+            } else {
+                let (nc, note, nf) = try Self.note(shot.body, cover: shot.cover)
+                (c, files) = (nc, nf)
+                view = AnyView(NavigationStack { NoteDetailView(note: note, controller: EditorController(), onNewNote: {}) }.modelContainer(c))
+            }
+            defer {
+                files.forEach(FileStore.remove)
+                if let folder = try? c.mainContext.fetch(FetchDescriptor<Folder>()).first { ListOrderStore.shared.setGallery(false, for: .folder(folder.id)) }
+            }
             let window = NSWindow(contentRect: CGRect(x: -20000, y: -20000, width: size.width, height: size.height), styleMask: [.borderless], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.appearance = NSAppearance(named: .aqua)
@@ -82,7 +144,8 @@ import UIKit
             host.appearance = window.appearance
             host.frame = CGRect(origin: .zero, size: size)
             window.contentView = host
-            try? await Task.sleep(for: .seconds(1.4))
+            // The gallery waits for its photos to be decoded before it shows its cards.
+            try? await Task.sleep(for: .seconds(shot.gallery == nil ? 1.4 : 2.5))
             let short = try shot.from.map { try Self.scroll(host, to: $0) } ?? 0
             try? await Task.sleep(for: .seconds(0.5))
             host.layoutSubtreeIfNeeded()
@@ -149,8 +212,11 @@ import UIKit
     @Test func plainTemplatesOnIPhone() async throws {
         guard let dir = Self.dir, let shots = try Self.shots("phone-") else { return }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let restore = Self.experimentsOn()
+        defer { restore() }
         for shot in shots {
-            let (c, note) = try Self.note(shot.body)
+            let (c, note, files) = try Self.note(shot.body, cover: shot.cover)
+            defer { files.forEach(FileStore.remove) }
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(origin: .zero, size: scene.screen.bounds.size)
             window.overrideUserInterfaceStyle = .light

@@ -21,7 +21,15 @@ export const SAVED = path.join(path.dirname(fileURLToPath(import.meta.url)), "..
  * - created: instead of the template's note, the note demo call <created> makes (a "create").
  * - saved: instead, the note as a real chat left it (SAVED/<slug>/<saved>.md).
  * - from: the heading the picture is scrolled to.
- * @typedef {{ of?: "example" | "note", steps?: number | number[], edits?: [string, string][], created?: number, saved?: string, from?: string }} PictureRecipe
+ * - icon: an emoji put before the title, as Add Icon does (the app draws it large as the note's icon).
+ * - cover: a ready-made cover (the app's CoverPattern, by its raw value), set by the app as Add
+ *   Cover sets one, so the note is drawn with a banner above its title.
+ * - gallery: instead of one note, a folder of notes as the Mac's gallery view shows it, each card a
+ *   recipe of its own (`template` takes the note from another template, as "Reading" holds both).
+ * - size: the window's size in points, in place of the usual one (a wider gallery shows more cards).
+ * Covers and the gallery are experiments (Settings › Experimental in the app): only the picture is
+ * drawn with them on.
+ * @typedef {{ of?: "example" | "note", steps?: number | number[], edits?: [string, string][], created?: number, saved?: string, from?: string, icon?: string, cover?: string, template?: string, size?: [number, number], gallery?: { folder: string, notes: PictureRecipe[] } }} PictureRecipe
  * @typedef {{ tool: string, args: { old_string?: string, new_string?: string, content?: string, id?: string } }} DemoCall
  */
 
@@ -31,6 +39,16 @@ export const SAVED = path.join(path.dirname(fileURLToPath(import.meta.url)), "..
  * @returns {string}
  */
 export function pictureBody(t, pic) {
+  const body = noteBody(t, pic);
+  return pic.icon ? `${pic.icon} ${body}` : body;
+}
+
+/**
+ * @param {{ slug: string, note: string, demo: DemoCall[] }} t
+ * @param {PictureRecipe} pic
+ * @returns {string}
+ */
+function noteBody(t, pic) {
   if (pic.saved !== undefined) return readFileSync(path.join(SAVED, t.slug, `${pic.saved}.md`), "utf8");
   if (pic.created !== undefined) {
     const call = t.demo[pic.created];

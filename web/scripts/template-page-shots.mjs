@@ -1,7 +1,8 @@
 // The template pages' pictures of the plain-note templates (web/content/template-pages/<slug>.json,
 // "pictures"): the real apps draw them (PaneTests/HIG/TemplatePageShots.swift), the Mac ones ("mac-…")
 // offscreen on the Mac, the iPhone ones ("phone-…") on a headless simulator. Each is the note at the
-// step its slide is about (lib/template-picture-body.mjs).
+// step its slide is about (lib/template-picture-body.mjs), with a cover or as a folder in the gallery
+// where the recipe asks (the test turns those experiments on for the pictures only).
 //   node web/scripts/template-page-shots.mjs manifest <dir>   writes <dir>/manifest.json for the tests
 //   TEST_RUNNER_TEMPLATE_PAGE_SHOTS=<dir> scripts/qa-test.sh PaneTests/TemplatePageShots
 //   scripts/template-page-shots-iphone.sh <dir>
@@ -31,10 +32,16 @@ const plain = readdirSync(PAGES).filter((f) => f.endsWith(".json")).map((f) => f
 
 if (mode === "manifest") {
   const shots = plain.flatMap(({ slug, page }) => {
-    const t = JSON.parse(readFileSync(path.join(WEB, "content/templates", `${slug}.json`), "utf8"));
+    const tmpl = (s) => ({ ...JSON.parse(readFileSync(path.join(WEB, "content/templates", `${s}.json`), "utf8")), slug: s });
+    const t = tmpl(slug);
     return Object.entries(page.pictures).map(([name, p]) => {
-      const [width, height] = SIZES[name.split("-")[0]];
-      return { slug, name, body: pictureBody({ ...t, slug }, p), width, height, ...(p.from ? { from: p.from } : {}) };
+      const [width, height] = p.size ?? SIZES[name.split("-")[0]];
+      // A folder in the gallery: each card's note (from this template or the one it names) and cover.
+      const gallery = p.gallery && {
+        folder: p.gallery.folder,
+        notes: p.gallery.notes.map((n) => ({ body: pictureBody(n.template ? tmpl(n.template) : t, n), ...(n.cover ? { cover: n.cover } : {}) })),
+      };
+      return { slug, name, body: gallery ? "" : pictureBody(t, p), width, height, ...(p.from ? { from: p.from } : {}), ...(p.cover ? { cover: p.cover } : {}), ...(gallery ? { gallery } : {}) };
     });
   });
   mkdirSync(dir, { recursive: true });

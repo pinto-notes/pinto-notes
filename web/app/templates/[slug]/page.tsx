@@ -5,7 +5,7 @@ import { pageMetadata } from "@/lib/site";
 import { JsonLd, breadcrumbs, faqPage, maker, organization, templateHowTo, templateWork } from "@/lib/structured-data";
 import { templateSeo } from "@/lib/template-seo";
 import { COVERS, coverPath } from "@/lib/template-covers";
-import { BYLINE, INSTALLS, copiedPrompt, heading, moreTemplates, named, templatePage, updatedMonth } from "@/lib/template-pages";
+import { BYLINE, INSTALLS, copiedPrompt, experimentalLine, heading, moreTemplates, named, templatePage, updatedMonth } from "@/lib/template-pages";
 import { appLink, authorLink, searchTitle, template, templates, templatePath, usePath, type Template } from "@/lib/templates";
 import OpenInApp from "../../OpenInApp";
 import CopyButton from "../CopyButton";
@@ -73,6 +73,7 @@ export default async function Page({ params }: Props) {
         <aside className={s.side}>
           <h2>About this template</h2>
           <p>{page.about}</p>
+          {page.experimental && <p className={s.where}>{experimentalLine(page.experimental)}</p>}
           <dl className={s.facts}>
             <dt>Works with</dt><dd>ChatGPT, Claude</dd>
             <dt>Runs on</dt><dd>Mac, iPhone</dd>
