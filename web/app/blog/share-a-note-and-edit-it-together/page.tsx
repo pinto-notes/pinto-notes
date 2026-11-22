@@ -24,6 +24,7 @@ export default function Page() {
       <p>
         Open a note, tap Share at the top, then Collaborate, then Invite People. Pinto Notes makes a link, and you send it the way
         you like: Messages, Mail, WhatsApp, a text to your partner. Whoever opens it joins the note in Pinto Notes and can start writing.
+        A <a href="/templates/grocery-list">grocery list</a> is a good first one to share: one list for the shop, sorted by aisle.
       </p>
       <PostFigure src="/blog/launch/share-iphone-can-edit" width={1206} height={1820} maxWidth={360}
         alt="The Share sheet in Pinto Notes on iPhone: Emil as owner, Sara who can edit and Jonas who can view, an Invite People button, and Join by Link set to Can edit."

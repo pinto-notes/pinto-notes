@@ -278,7 +278,8 @@ export default function Page() {
       </p>
       <p>
         The best part comes later. Connect Claude too, and both work in the same notebook: tell ChatGPT about your trip on
-        Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat.
+        Monday, and on Wednesday Claude already knows where you wrote it down. You stop explaining yourself to every chat. The{" "}
+        <a href="/templates/trip-plan">trip plan template</a> gives a trip its own note, with the days, the bookings and a packing list.
       </p>
       <p>
         Your prompts can live there too. A <a href="/blog/chatgpt-prompt-library-in-notes">prompt library kept as notes</a> gives ChatGPT one place to find them. To turn a messy capture into next steps, try the <a href="/blog/chatgpt-brain-dump-to-action-list">brain dump prompt</a>, which leaves your original note as you wrote it.

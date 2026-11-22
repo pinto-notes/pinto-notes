@@ -162,6 +162,7 @@ export default function Page() {
       <p>
         Pinto Notes looks and works like Apple Notes on iPhone and Mac.
         You can write the brief yourself, let an approved AI edit it, and return to an earlier version when you need to.
+        For more than one fix, the <a href="/templates/bug-triage">bug triage template</a> keeps every bug in one table, with its severity.
       </p>
       <p>
         If your notes are in Apple Notes, <a href="/blog/import-your-notes">bring them over in one import on your Mac</a>.

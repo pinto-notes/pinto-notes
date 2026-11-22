@@ -156,6 +156,7 @@ export default function Page() {
       <p>
         Use the same note for the request you captured on your phone and the decisions you make while coding.
         Ask Cursor to update it when something changes. This example needs an explicit request to write back.
+        For decisions that outlive one brief, the <a href="/templates/decision-log">decision log template</a> keeps what you chose and why.
       </p>
       <p>
         If you also use other coding agents, the <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex setup guide</a>{" "}

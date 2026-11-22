@@ -99,6 +99,7 @@ export default function Page() {
       <p>
         A note can also hold an app: a small React project at a path like <code>Work/Habits.app/</code>, with its data in{" "}
         <code>data.json</code>. The same tools read and change it, and <code>see_app</code> shows what it looks like.
+        The <a href="/templates">templates</a> include ready ones, like the <a href="/templates/habit-tracker">habit tracker</a>, and each page has the prompt that sets one up.
       </p>
       <PostFigure src="/blog/amber-notes-allow-chatgpt-access" width={880} height={986} maxWidth={400}
         alt="Pinto Notes asking whether ChatGPT may use your notes, naming OpenAI as where the notes go, with Allow and Don't Allow buttons."

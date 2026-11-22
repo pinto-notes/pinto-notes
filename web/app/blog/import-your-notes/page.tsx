@@ -44,7 +44,8 @@ export default function Page() {
         A whole library is easiest to bring in on a Mac, and it&apos;s on your iPhone a moment later. No Mac? The iPhone guide
         shows how to bring notes in one at a time. Get the Mac app from the <a href="/download">download page</a> and the iPhone
         app from the <a href={APP_STORE_URL} rel="noopener">App Store</a>. Then <a href="/blog/connect-chatgpt-to-your-notes">connect
-        ChatGPT or Claude</a>, and your AI can work with notes you&apos;ve had for years.
+        ChatGPT or Claude</a>, and your AI can work with notes you&apos;ve had for years. For something new, the <a href="/templates">templates</a> have ready
+        notes for it to fill in, like a <a href="/templates/meal-plan">meal plan</a>.
       </p>
     </PostPage>
   );

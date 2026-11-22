@@ -162,6 +162,7 @@ export default function Page() {
         Copy only the reviewed section from the chat and paste it below Raw capture in your note.
         On a Mac, select the two lines under Chosen actions and click the Checklist button. Apple supports checklists in iCloud notes
         and notes stored on your Mac. Leave Questions and Parked ideas as text.
+        To give each action a day, the <a href="/blog/apple-notes-planner-template">Apple Notes planner template</a> has a heading per day.
       </p>
       <p>
         On iPhone, place the cursor beneath Chosen actions, tap the Checklist button and enter each chosen action as an item.
@@ -188,7 +189,8 @@ export default function Page() {
       </p>
       <p>
         On a later visit, ask ChatGPT to read this note again before proposing any changes. The note keeps your chosen actions beside
-        the thoughts they came from. Save the sorting instructions in a <a href="/blog/chatgpt-prompt-library-in-notes">prompt library</a>{" "}
+        the thoughts they came from. To put the actions on days, the{" "}
+        <a href="/templates/weekly-planner">weekly planner template</a> has a checklist for each day. Save the sorting instructions in a <a href="/blog/chatgpt-prompt-library-in-notes">prompt library</a>{" "}
         if you want to reuse them with another capture.
       </p>
       <p>

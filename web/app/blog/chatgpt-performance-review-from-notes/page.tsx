@@ -144,7 +144,7 @@ export default function Page() {
         To keep your own log in Apple Notes, use the New Note button on Mac or iPhone and put its title on the first line.
         Apple documents this in its <a href="https://support.apple.com/guide/notes/not9474646a9/mac" rel="noopener">Mac guide</a> and{" "}
         <a href="https://support.apple.com/guide/iphone/iph1ac0b3a2/ios" rel="noopener">iPhone guide</a>.
-        The meeting notes layout can help you record decisions as they happen.
+        The <a href="/blog/apple-notes-meeting-notes-template">meeting notes layout</a> can help you record decisions as they happen.
       </p>
 
       <h2 id="prompt">A ChatGPT performance review prompt to paste</h2>
@@ -223,6 +223,8 @@ export default function Page() {
       </p>
       <p>
         This is a workflow you run with your own notes. There is no ready-made Pinto performance review template for it.
+        To collect material as the months go, the <a href="/templates/one-on-one-notes">1:1 notes</a> and{" "}
+        <a href="/templates/decision-log">decision log</a> templates keep it newest first.
         Your existing Apple Notes come over in <a href="/blog/import-your-notes">one import on your Mac</a>,
         and Apple Notes stays unchanged.
       </p>
