@@ -12,7 +12,7 @@
   "folder": "Work",
   "note": "1:1 notes\n\nOne running note for your 1:1s with one person. Add topics during the week so nothing waits until you've forgotten it.\n\n## Next time\nWhat to bring up, added during the week.\n\n## Follow-ups\nWhat each of you promised, ticked when done.\n\n## Past 1:1s\nNewest first: what you talked about and how they seemed.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"1:1 notes\". Read it with fetch before each change. The first time, ask who the 1:1 is with and put their name in the note's first line with edit. During the week, when I mention something to bring up, add it under \"Next time\" as a bullet. After the 1:1, I'll tell you how it went. Add a section at the start of \"Past 1:1s\": a \"###\" heading with their name and the date, what we talked about, and how they seemed. Add anything either of us promised under \"Follow-ups\" as a checklist line, then remove the topics we covered from \"Next time\"."
+    "default": "Use my Pinto Notes note \"1:1 notes\". Read it with fetch before each change. The first time, ask who the 1:1 is with and put their name in the note's first line with edit. During the week, when I mention something to bring up, add it under \"Next time\" as a bullet. After the 1:1, I'll tell you how it went. Add a section at the start of \"Past 1:1s\": a \"###\" heading with their name and the date, like \"### 1:1 with Emma, 5 November\", what we talked about, and how they seemed. Add anything either of us promised under \"Follow-ups\" as a checklist line, then remove the topics we covered from \"Next time\"."
   },
   "asks": [
     "Ask who my one-on-one is with and what I want to raise, then add it under Next time.",

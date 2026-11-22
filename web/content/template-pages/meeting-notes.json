@@ -8,18 +8,18 @@
   "slides": [
     {
       "label": "Write up a meeting",
-      "you": "Here are my notes from this week's two meetings.",
-      "ai": "Both are under Meetings now, with what was decided. Three action items have a name and a date.",
+      "you": "Thursday's pricing sync: keep the three plans, drop the lifetime deal, yearly discount to 15%. Sara sends prices to sales by Wednesday.",
+      "ai": "Added Pricing sync, 19 November, and two action items.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Meeting notes filled in, in Pinto Notes on a Mac"
+      "alt": "The pricing sync written up, with action items"
     },
     {
-      "label": "Tick an action",
-      "you": "Jonas reviewed the checkout design.",
-      "ai": "Ticked it off under Action items.",
+      "label": "Days later, ask",
+      "you": "What did we agree with Sara on Thursday?",
+      "ai": "Keep the three plans, drop the lifetime deal, yearly discount to 15%. Sara sends the new prices to sales by 25 Nov.",
       "phone": "phone-2",
-      "alt": "Action items, in Meeting notes"
+      "alt": "Action items and the pricing sync, in Meeting notes"
     },
     {
       "label": "Use it yourself",
@@ -31,15 +31,13 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "steps": 3
+      "saved": "after-chat1"
     },
     "phone-1": {
-      "of": "example",
-      "steps": 3
+      "saved": "after-chat1"
     },
     "phone-2": {
-      "of": "example",
+      "saved": "after-chat2",
       "from": "Action items"
     },
     "mac-start": {
