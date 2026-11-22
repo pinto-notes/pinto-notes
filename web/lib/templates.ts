@@ -113,6 +113,7 @@ export const APP_VERBS: Record<string, string> = {
   "workout-log": "Start logging",
   "job-hunt": "Track applications",
   "mood-energy-log": "Start logging",
+  "home-maintenance": "Track your home",
 };
 export const USE_TEMPLATE = "Use template";
 
@@ -241,7 +242,7 @@ const SLICE_FROM: Record<string, string> = {
   "reading-list": "|", "mood-energy-log": "Patterns", "job-hunt": "What I'm looking for", "trip-plan": "Ideas", "study-flashcards": "Cell respiration",
   "decision-log": "Stay on Postgres, 4 November", "workout-log": "Training notes", "budget-log": "Month summaries", "one-on-one-notes": "Follow-ups",
   "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 2 November",
-  "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "|", "gift-ideas": "|",
+  "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "To fix someday", "gift-ideas": "|",
   "cornell-notes": "Supply and demand, 5 November", "daily-journal": "Sunday 8 November", "grocery-list": "Fruit and veg",
   "weekly-planner": "Top three this week",
 };
