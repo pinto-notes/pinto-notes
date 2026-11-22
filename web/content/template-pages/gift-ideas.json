@@ -1,6 +1,6 @@
 {
-  "subtitle": "A gift list your AI uses to suggest ideas within budget.",
-  "about": "A note for gift ideas by person and occasion, with budgets, purchase status, sizes and likes. Tell your AI an idea to save, or ask for gifts that fit someone's likes and your budget.",
+  "subtitle": "A gift ideas app that keeps every idea, budget and date.",
+  "about": "A small app inside a Pinto Notes note, with ideas by person, budgets for each occasion, and what's bought or wrapped. Tell your AI an idea to save, or ask for one that fits someone and your budget.",
   "ask": {
     "step": "Ask for the list",
     "prompt": "Set up the gift ideas template in my Pinto Notes."
@@ -8,55 +8,25 @@
   "slides": [
     {
       "label": "Save an idea",
-      "you": "Gift idea for Maja's housewarming: a good chef's knife, about 900.",
-      "ai": "Added it to Ideas, for Maja's housewarming.",
-      "mac": "mac-1",
-      "phone": "phone-1",
-      "alt": "Gift ideas filled in, in Pinto Notes on a Mac"
+      "you": "Mum would love that blue scarf from Arket, 450 kr.",
+      "ai": "Saved it under Mum's ideas for Christmas, 450 kr from Arket.",
+      "mac": "mac-mum",
+      "phone": "phone-mum",
+      "alt": "Mum's page: the blue wool scarf, 450 kr from Arket, for Christmas"
     },
     {
-      "label": "Note what they like",
-      "you": "Jonas wears a medium and loves anything green.",
-      "ai": "Added that under Sizes and likes.",
-      "phone": "phone-2",
-      "alt": "Sizes and likes, in Gift ideas"
+      "label": "Ask for a gift",
+      "you": "What should I get Oskar for Christmas, under 300?",
+      "ai": "The dinosaur pyjamas from Lindex, 249 kr, are on his list. The watercolour pencils, 150 kr, fit too.",
+      "phone": "phone-oskar",
+      "alt": "Oskar's ideas: the Lego raptor set bought, dinosaur pyjamas and watercolour pencils"
     },
     {
       "label": "Use it yourself",
-      "note": "Or fill it in yourself.",
-      "mac": "mac-start",
-      "phone": "phone-start",
-      "alt": "Gift ideas as it starts, ready to fill in"
+      "note": "Or add and tick gifts yourself.",
+      "mac": "mac-upcoming",
+      "phone": "phone-upcoming",
+      "alt": "Upcoming: Christmas with 4 of 6 bought, and each birthday with its budget"
     }
-  ],
-  "pictures": {
-    "mac-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- **Jonas:** medium, loves anything green.\n",
-          ""
-        ]
-      ]
-    },
-    "phone-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- **Jonas:** medium, loves anything green.\n",
-          ""
-        ]
-      ]
-    },
-    "phone-2": {
-      "of": "example",
-      "from": "Sizes and likes"
-    },
-    "mac-start": {
-      "of": "note"
-    },
-    "phone-start": {
-      "of": "note"
-    }
-  }
+  ]
 }

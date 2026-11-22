@@ -116,13 +116,12 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
   its dates moved to today), not over `data.json`. A new habit tracker or budget opens on its first
   screen, which is the wrong picture of the app. After changing an app or its sample, in this
   order: `template-apps.ts`, `template-catalog.py`, `template-samples.py`, then
-  `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies.
-- The site's template cards turn into the app on iPhone (`web/app/templates/AppSwap.tsx`):
-  `web/public/templates/apps/phone/<slug>-light.webp` and `-dark.webp`, 600 by 662, the top of the
-  app on its sample at 320 pt wide and 2x (a full-height phone, so no tab bar), cropped to 640 by 706
-  and scaled down. No script draws them yet; `web/app/templates/AppSwap.test.tsx` checks they exist.
   `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies, then
-  `scripts/template-stage-pictures.ts <slug>` for the Mac library's stage.
-- The site's card turns into the app on iPhone: `web/public/templates/apps/phone/<slug>-light.webp`
-  and `-dark.webp`, 600 x 662, the top of Today drawn 375 pt wide at 2x over the sample and scaled
-  to 80% (`web/app/templates/AppSwap.test.tsx` checks both are there).
+  `scripts/template-stage-pictures.ts <slug>` for the Mac library's stage and
+  `scripts/template-phone-pictures.ts <slug>` for the site's iPhone card.
+- The site's template cards turn into the app on iPhone (`web/app/templates/AppSwap.tsx`):
+  `web/public/templates/apps/phone/<slug>-light.webp` and `-dark.webp`, 600 by 662, drawn by
+  `deno run -A scripts/template-phone-pictures.ts [<slug>…]`: the app's first screen over its sample
+  (dates moved to today, or `--day`), 320 pt wide at 2x on a full-height phone (844 pt, so its tabs
+  are below the crop), its top 640 by 706 px scaled down. Every app's card is drawn the same way, so
+  the type is one size across the cards. `web/app/templates/AppSwap.test.tsx` checks both are there.

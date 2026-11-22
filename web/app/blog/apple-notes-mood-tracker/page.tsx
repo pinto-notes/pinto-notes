@@ -9,8 +9,10 @@ export const metadata = postMetadata("apple-notes-mood-tracker", { title: "Apple
 // Apple Notes: blog-growth/research/apple-notes-captures-2026-11-22 (macOS 27.0). Plain paste, the six lines from Date to
 // 8 Nov made a table with the Table button: five columns, six rows, Patterns under it. Typing 4+3+4+4+4= under the table got
 // the suggestion 19.
-// Pinto Notes: the mood and energy log template's note (content/templates/mood-energy-log.json) with the same five evenings
-// and three patterns written under them, drawn by the Mac app offscreen (PaneTests/HIG/BlogSnapshots.swift).
+// Pinto Notes: the mood and energy log app (content/templates/mood-energy-log.app, an app since 22 November 2026) with the
+// same five evenings, 4 to 8 November (mood, energy, sleep and the note, tagged Exercise, Work stress and Social where the
+// note says so), seen on Sunday 8 November. Drawn by scripts/blog-side-by-side-apps.ts (mood-energy-log) with the render
+// service's code.
 
 const TEMPLATE = `Mood and energy log
 
@@ -35,7 +37,7 @@ const FAQ = [
     "No. A table in Notes doesn't sort, add up or draw a chart. You read the columns yourself, or copy the rows into a spreadsheet when you want a graph.",
   ] },
   { q: "Is there a mood tracker that spots patterns for me?", a: [
-    "Pinto Notes has a free mood and energy log template. Tell ChatGPT or Claude about your day and it logs the scores, and when you ask, it writes down what it notices and how many days that rests on.",
+    "Pinto Notes has a free mood and energy log template, a small app in a note. It charts mood, energy and sleep, and its Trends screen compares your mood and energy on days with and without each tag, and after short nights and long ones. Tell ChatGPT or Claude about your day and it logs it, and when you ask, it says what it notices and how many days that rests on.",
   ] },
 ];
 
@@ -51,10 +53,10 @@ export default function Page() {
         <SideBySide slug="apple-notes-mood-tracker"
           apple={{ src: "/blog/side-by-side/mood-tracker-apple-notes", width: 1894, height: 600, line: "Keeps the rows. Finding the patterns is up to you.",
             alt: "The mood template in Apple Notes on macOS 27: a table of five evenings from 4 to 8 November with mood, energy, sleep and a note, and an empty Patterns line." }}
-          pinto={{ frame: false, title: "The same log in Pinto Notes", line: "Tell your AI about your day and it logs the row. Ask, and it writes down the patterns.",
-            alt: "The same five evenings in the Pinto Notes mood and energy log, with three patterns written under the table.",
-            phone: { src: "/blog/side-by-side/mood-energy-log-pinto-phone", width: 780, height: 1100 },
-            desk: { src: "/blog/side-by-side/mood-energy-log-pinto-mac", width: 1520, height: 895 },
+          pinto={{ title: "The same log in Pinto Notes", line: "Logs each evening in a few taps and charts mood, energy and sleep. Or tell your AI about your day.",
+            alt: "The same five evenings in the Pinto Notes mood and energy app on 8 November: today's mood 4, energy 4 and 8 hours slept, the week as coloured days, and the chart.",
+            phone: { src: "/blog/side-by-side/mood-energy-log-pinto-phone", width: 780, height: 1688 },
+            desk: { src: "/blog/side-by-side/mood-energy-log-pinto-mac", width: 1526, height: 1280 },
             href: "/templates/mood-energy-log", button: "Get the mood log template" }} />
       </>}
       faq={FAQ}

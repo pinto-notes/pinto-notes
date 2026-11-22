@@ -221,6 +221,44 @@ describe("Weeks", () => {
     expect(await screen.findByRole("button", { name: "Monday: Lemon chicken with rice" })).toBeInTheDocument()
   })
 
+  // Planned at the weekend for the week ahead: on Sunday 22 November 2026 the app opened on the
+  // week that was ending, and the dinners an AI had just planned for the next one were a tap away.
+  it("opens on next week on a Saturday or Sunday once it's planned, and on this week otherwise", async () => {
+    // The clock at a given moment (this runner has no fake timers): new Date() and Date.now() only.
+    const Real = Date
+    const at = (when: string) => {
+      const off = new Real(when).getTime() - Real.now()
+      globalThis.Date = class extends Real { constructor(...a: []) { if (a.length) super(...a); else super(Real.now() + off) } static now() { return Real.now() + off } } as DateConstructor
+    }
+    try {
+      const soup = { id: "d9", date: "2026-11-23", dish: "Lentil soup", cook: "Oskar", ingredients: [{ name: "Red lentils", qty: "250 g", aisle: "Dry goods" }] }
+      const pasta = { ...fishTacos, id: "d8", date: "2026-11-17", dish: "Pasta with pesto" }
+      await amber.store.set("dinners", [pasta, soup])
+      at("2026-11-22T18:00:00")
+      const { unmount } = render(<App />)
+      expect(await screen.findByRole("heading", { name: "Next week" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Monday: Lentil soup" })).toBeInTheDocument()
+      await go("Groceries")
+      expect(await screen.findByRole("button", { name: "Red lentils" })).toHaveTextContent("Red lentils · 250 g")
+      await userEvent.click(screen.getByRole("button", { name: "Back to this week" }))
+      expect(await screen.findByRole("button", { name: "White fish" })).toBeInTheDocument()
+      unmount()
+      // Saturday too. A weekday, a weekend with nothing planned ahead, or one with a dinner still to
+      // come this week (tonight's), opens on this week.
+      for (const [when, dinners, name] of [["2026-11-21T09:00:00", [pasta, soup], "Next week"], ["2026-11-19T18:00:00", [pasta, soup], "This week"], ["2026-11-22T18:00:00", [pasta], "This week"],
+        ["2026-11-22T18:00:00", [pasta, { ...pasta, id: "d7", date: "2026-11-22", dish: "Tonight's stew" }, soup], "This week"]] as const) {
+        at(when)
+        await amber.store.set("dinners", [...dinners])
+        route("/")
+        const r = render(<App />)
+        expect(await screen.findByRole("heading", { name })).toBeInTheDocument()
+        r.unmount()
+      }
+    } finally {
+      globalThis.Date = Real
+    }
+  })
+
   it("keeps earlier weeks, and opens one from the list or with the arrow", async () => {
     await amber.store.set("dinners", [roast, lemonChicken, fishTacos])
     render(<App />)

@@ -10,8 +10,11 @@ export const metadata = postMetadata("apple-notes-job-search-tracker", { title: 
 // Company to Northlight made a table with the Table button (four columns, five rows). REST: clicked under the table, then
 // Edit, Paste as Markdown: headings, the prep as a numbered list, This week as a checklist, People as a dashed list.
 // "Send the portfolio link to Tideway" ticked (sorting on, so it dropped below the other).
-// Pinto Notes: the job hunt template's note (content/templates/job-hunt.json) with the same rows and the same tick, drawn by
-// the Mac app offscreen (PaneTests/HIG/BlogSnapshots.swift, appleNotesSideBySide).
+// Pinto Notes: the job hunt app (content/templates/job-hunt.app, an app since 22 November 2026) with the same four
+// applications on its board (Finch Bikes to apply to by 18 Nov, Marlow Studio's follow-up on 16 Nov, Tideway's first
+// interview on 12 Nov with the same three questions and answers and the question to ask, Northlight closed, Karin as the
+// Tideway contact), seen on Wednesday 11 November. Drawn by scripts/blog-side-by-side-apps.ts (job-hunt) with the render
+// service's code.
 
 const TABLE = `Job hunt
 
@@ -49,7 +52,7 @@ const FAQ = [
     "A spreadsheet sorts and filters, which helps past a few dozen applications. A note keeps the table next to your interview prep and the people you've talked to, on your phone between interviews.",
   ] },
   { q: "Is there a job tracker that fills itself in?", a: [
-    "Pinto Notes has a free job hunt template. Paste a job ad into ChatGPT or Claude and it adds the row, then keeps the stage and next step up to date as you tell it what happened.",
+    "Pinto Notes has a free job hunt template, a small app in a note with a board from Saved to Offer. Paste a job ad into ChatGPT or Claude and it adds the card, then moves it along and adds the next date as you tell it what happened.",
   ] },
 ];
 
@@ -67,10 +70,10 @@ export default function Page() {
         <SideBySide slug="apple-notes-job-search-tracker"
           apple={{ src: "/blog/side-by-side/job-search-tracker-apple-notes", width: 1584, height: 1000, line: "Holds the table. You type every job and keep each row up to date.",
             alt: "The job search template in Apple Notes on macOS 27: a table of four applications, interview prep for Tideway, This week with one follow-up ticked, and a note about Karin." }}
-          pinto={{ frame: false, title: "The same job hunt in Pinto Notes", line: "Stage is a choice, not a word you type. Paste a job ad into your AI and it adds the row.",
-            alt: "The same four applications in the Pinto Notes job hunt template, with the interview prep, This week's follow-ups and the note about Karin.",
-            phone: { src: "/blog/side-by-side/job-hunt-pinto-phone", width: 780, height: 1588 },
-            desk: { src: "/blog/side-by-side/job-hunt-pinto-mac", width: 1520, height: 1208 },
+          pinto={{ title: "The same job hunt in Pinto Notes", line: "A board from Saved to Offer that shows what's due. Paste a job ad into your AI and it adds the card.",
+            alt: "The same four applications on the Pinto Notes job hunt app's board: Finch Bikes saved, Marlow Studio applied with a follow-up on 16 November, Tideway at interview tomorrow, Northlight closed.",
+            phone: { src: "/blog/side-by-side/job-hunt-pinto-phone", width: 780, height: 1688 },
+            desk: { src: "/blog/side-by-side/job-hunt-pinto-mac", width: 1526, height: 1280 },
             href: "/templates/job-hunt", button: "Get the job hunt template" }} />
       </>}
       faq={FAQ}

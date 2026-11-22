@@ -372,6 +372,9 @@ targets:
         buildPhase: resources
       - path: scripts/template-stage-pictures.ts
         buildPhase: resources
+      # The staged app's CSS, read by TemplateFrontTests (anAppsPictureIsQuieterThanItsName).
+      - path: Pane/Resources/Templates/template-stage.css
+        buildPhase: resources
       # The Mac download's Info.plist, for its update settings (UpdaterTests).
       - path: Pane/Resources/Info-Direct.plist
         buildPhase: resources

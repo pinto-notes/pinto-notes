@@ -35,13 +35,13 @@ export default function Today() {
       <div className="min-[700px]:grid min-[700px]:grid-cols-2 min-[900px]:block min-[1100px]:grid min-[1100px]:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] min-[700px]:items-start min-[700px]:gap-6">
         <div>
           <Section>
-            <div className="flex items-center gap-5 p-5">
+            <div className="flex items-center gap-4 p-4 min-[360px]:gap-5 min-[360px]:p-5">
               <Ring value={week.count / goal} size={96} stroke={11} label={`This week ${week.count} of ${goal}`}>
                 {left <= 0 ? <Check className="size-9 text-link" strokeWidth={3} /> : <span className="text-xl font-bold tabular-nums">{week.count}/{goal}</span>}
               </Ring>
               <div className="min-w-0 flex-1">
                 <p className="text-[0.8125rem] font-semibold uppercase tracking-wide text-muted-foreground">This week</p>
-                <p className="whitespace-nowrap text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{week.count} of {goal} sessions</p>
+                <p className="text-[1.375rem] font-bold leading-snug tabular-nums" data-testid="week-count">{week.count} of {goal} sessions</p>
                 <p className="text-[0.9375rem] text-muted-foreground" data-testid="week-left">{left > 0 ? `${left} to go` : left === 0 ? "Goal met" : `Goal met, ${-left} extra`}</p>
                 <div className="mt-2 flex gap-1.5" role="img" aria-label={week.days.length ? `Trained on ${week.days.map((i) => WEEKDAYS[i]).join(", ")}` : "Nothing yet this week"}>
                   {LETTERS.map((l, i) => {

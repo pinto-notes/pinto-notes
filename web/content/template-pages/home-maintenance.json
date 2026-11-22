@@ -1,63 +1,32 @@
 {
-  "subtitle": "A home maintenance note your AI updates when jobs are done.",
-  "about": "A note with recurring jobs, last done and next due dates, contacts and appliance details. Tell your AI when a job is done to update its dates, or ask for this month's checklist.",
+  "subtitle": "A home maintenance app that tells you what's due.",
+  "about": "A small app inside a Pinto Notes note, with recurring jobs, what's due or late, what each job cost, and your appliances and contacts. Tell your AI when a job is done, or tick it off yourself.",
   "ask": {
-    "step": "Ask for the note",
+    "step": "Ask for the tracker",
     "prompt": "Set up the home maintenance template in my Pinto Notes."
   },
   "slides": [
     {
       "label": "See what's due",
       "you": "What's due this month?",
-      "ai": "The smoke alarms on 14 Nov, the boiler on 20 Nov and the gutters on 24 Nov.",
-      "mac": "mac-1",
-      "phone": "phone-1",
-      "alt": "Home maintenance filled in, in Pinto Notes on a Mac"
+      "ai": "Two jobs are late: the smoke alarms and the shower drain. Four more are due this month, the gutters among them.",
+      "mac": "mac-due",
+      "phone": "phone-due",
+      "alt": "Due: 2 overdue, 4 this month, 8,226 kr spent in 2026"
     },
     {
-      "label": "Add a contact",
-      "you": "Our plumber is Nordin & Son, 08-465 004 27.",
-      "ai": "Added them under Who to call.",
-      "phone": "phone-2",
-      "alt": "Who to call, in Home maintenance"
+      "label": "Mark a job done",
+      "you": "Cleared the gutters today, 900 kr.",
+      "ai": "Marked it done for 900 kr and added it to History. It's due again next autumn.",
+      "phone": "phone-history",
+      "alt": "History: Clear the gutters on 22 November, 900 kr, and 9,126 kr spent this year"
     },
     {
       "label": "Use it yourself",
-      "note": "Or tick and edit it yourself.",
-      "mac": "mac-start",
-      "phone": "phone-start",
-      "alt": "Home maintenance as it starts, ready to fill in"
+      "note": "Or tick and add jobs yourself.",
+      "mac": "mac-jobs",
+      "phone": "phone-jobs",
+      "alt": "Jobs by area, each with how often and when it's next due"
     }
-  ],
-  "pictures": {
-    "mac-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- Plumber: Nordin & Son, 08-465 004 27",
-          "- Plumber:"
-        ]
-      ]
-    },
-    "phone-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- Plumber: Nordin & Son, 08-465 004 27",
-          "- Plumber:"
-        ]
-      ],
-      "from": "This month"
-    },
-    "phone-2": {
-      "of": "example",
-      "from": "Who to call"
-    },
-    "mac-start": {
-      "of": "note"
-    },
-    "phone-start": {
-      "of": "note"
-    }
-  }
+  ]
 }

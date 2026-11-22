@@ -279,8 +279,9 @@ def jobs() -> None:
 
 def moods() -> None:
     v = start("mood-energy-log")
-    # Six weeks of evenings, three of them missed, today not logged yet (it's an evening check-in,
-    # so the stage shows the check-in). Written by hand to read like one person's weeks: energy
+    # Six weeks of evenings, three of them missed, today logged too: with today's check-in still
+    # open, the site's 1280 by 900 picture ended half way down the 30-day chart (22 November 2026),
+    # and logged, Today shows the day, the chart whole and the week beside them. Written by hand to read like one person's weeks: energy
     # follows the night before, exercise and seeing friends lift the day, work stress pulls it
     # down, and a late Friday costs the Saturday's energy. Today is d(0); -1 is yesterday.
     E, A, S, W = "Exercise", "Alcohol", "Social", "Work stress"
@@ -301,6 +302,7 @@ def moods() -> None:
         -7: (4, 4, 8, [], "Lazy Sunday"),
         -6: (3, 3, 7, [W], None), -5: (4, 4, 7.5, [E], "Swim before work"), -4: (3, 3, 7, [], None),
         -3: (2, 2, 5.5, [W], "Project slipped again"), -2: (4, 3, 7, [S, A], "Friday drinks"), -1: (4, 3, 6.5, [E], "Short run, still tired"),
+        0: (4, 4, 7.5, [E, S], "Walk by the water with Maja"),
     }
     days = {}
     for n, (mood, energy, sleep, tags, note) in sorted(log.items()):

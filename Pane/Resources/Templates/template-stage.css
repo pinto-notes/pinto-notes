@@ -101,3 +101,9 @@ main > div:first-child { padding-left: 35px !important; padding-right: 35px !imp
 @media (min-width: 600px) {
   main header:first-child, main > * > header { padding-bottom: 0.75rem !important; }
 }
+/* The workout log on its front-page card (drawn 533 by 520, the stage-card picture): the plan's
+   workout chips go, so Next up shows the next workout and what each exercise was last time (22
+   November 2026: the card ended on the chips alone, cut from the card under them). */
+@media (max-width: 560px) and (max-height: 560px) {
+  main [role="radiogroup"][aria-label="Choose a workout"] { display: none !important; }
+}

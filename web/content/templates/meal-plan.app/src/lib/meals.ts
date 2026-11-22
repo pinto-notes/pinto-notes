@@ -123,13 +123,26 @@ export const shownAisles = (aisles: string[]) => (aisles.includes(OTHER) ? aisle
 
 let selected: string | null = null
 const subs = new Set<(w: string | null) => void>()
-/** Back to this week: the app opens on it. */
+/** Back to the week the app opens on (openingWeek). */
 export function resetWeek() { selected = null; subs.forEach((f) => f(null)) }
+/** The week the app opens on: this week, or on a Saturday or Sunday the next one when it has a
+ *  dinner and this week has none left from today on (tonight's dinner keeps this week). A
+ *  household plans at the weekend for the week ahead (22 November 2026: on a Sunday the app
+ *  opened on the week that was ending, empty, and the dinners an AI had just planned for the
+ *  next one, and their grocery list, were a tap away). */
+export function openingWeek(dinners: { date: string }[], now = today()) {
+  const week = weekOf(now), next = plus(week, 7)
+  if (noon(now).getDay() % 6 !== 0) return week
+  const all = dinners ?? []
+  const left = all.some((d) => inWeekOf(d.date, week) && d.date >= now)
+  return !left && all.some((d) => inWeekOf(d.date, next)) ? next : week
+}
 export function useWeek(): [string, (w: string) => void] {
   const [w, setW] = useState(selected)
+  const [dinners] = useStore<Dinner[]>("dinners", [])
   useLayoutEffect(() => { subs.add(setW); setW(selected); return () => { subs.delete(setW) } }, [])
-  const now = weekOf(today())
-  return [w ?? now, (next: string) => { selected = next === now ? null : next; subs.forEach((f) => f(selected)) }]
+  const opening = openingWeek(dinners)
+  return [w ?? opening, (next: string) => { selected = next === opening ? null : next; subs.forEach((f) => f(selected)) }]
 }
 
 // MARK: the data

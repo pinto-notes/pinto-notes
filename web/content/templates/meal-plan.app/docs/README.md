@@ -22,6 +22,8 @@ A new meal plan has no dinners, cooks ["Me"], the eight aisles and eight cupboar
 
 ## The list (src/lib/meals.ts, groceryList)
 - A week runs Monday to Sunday. Its list is every ingredient of the dinners dated in it, then its extras.
+- The app opens on this week. On a Saturday or Sunday it opens on next week instead when next week has a dinner and this week has none left from today on, so dinners planned at the weekend (by the person or their AI) and their list are what shows; tonight's dinner keeps this week. "Back to this week" goes to the week that's ending.
+- To plan "this week" on a Saturday or Sunday, plan the week from the coming Monday, and say so.
 - One line per thing: names are matched by itemKey (case, spaces and a plural s or es don't matter: "Lemons", "lemon" and "Lemon " are one). The line keeps the first name written.
 - Amounts are added up when they share a unit ("2" and "1" are 3; "400 g" and "200 g" are 600 g; "1 tin" and "2 tins" are 3 tins; "1 bunch" twice is 2 bunches). Amounts that don't add up are both kept: "1 bunch + a handful".
 - The line's aisle is the first one given for it; one that isn't on aisles goes under Other.
@@ -45,7 +47,6 @@ A new meal plan has no dinners, cooks ["Me"], the eight aisles and eight cupboar
 - Tests check text that changes after an action inside waitFor or a find, never on the first get; an Undo is clicked after its own message is on screen.
 
 ## Known gaps
-- On a Saturday or Sunday the app still opens on the week that's ending; the next week is one tap on the arrow.
 - No servings: amounts are what the dinner needs as written.
 - Matching is by name only: "Chicken thighs" and "Chicken" are two lines, and "Tomatoes" and "Cherry tomatoes" are two lines.
 - No sharing of the list yet (share() could send it as text), and no shared ticking between two phones beyond sync.

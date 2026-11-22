@@ -84,6 +84,8 @@ describe("Today", () => {
     await amber.store.set("sessions", [session("s1", day, "Legs", [{ exercise: "squat", sets: fives(100) }])])
     render(<App />)
     await waitFor(() => expect(screen.getByTestId("week-count")).toHaveTextContent("1 of 3 sessions"))
+    // It wraps on a narrow phone (320 pt): kept on one line, "3 of 3 sessions" ran out of its card.
+    expect(screen.getByTestId("week-count").className).not.toContain("whitespace-nowrap")
     expect(screen.getByTestId("week-left")).toHaveTextContent("2 to go")
     expect(screen.getByRole("img", { name: "This week 1 of 3" })).toBeInTheDocument()
     await go("Plan")

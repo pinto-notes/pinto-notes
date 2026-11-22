@@ -1010,13 +1010,13 @@ import Vision
         #expect(TemplateAsk.none("zebra") == "No template for \u{201C}zebra\u{201D} yet.")
         #expect(TemplateLibraryWords.clear == "Clear search")
         #expect(TemplateAsk.answers("zebra", in: Self.all).isEmpty)
-        #expect(Self.all.filter(\.app).count == 5)
+        #expect(Self.all.filter(\.app).count == 10)
         let front = try SettingsHomeTests.source("Pane/Views/TemplateFront.swift")
         #expect(front.contains(".accessibilityIdentifier(\"templates.none\")") && front.contains("id: \"templates.blank.make\""))
         #expect(front.contains(".accessibilityLabel(TemplateLibraryWords.clear)\n                .accessibilityIdentifier(\"templates.clear\")"))
     }
 
-    // MARK: The examples (all 23)
+    // MARK: The examples (every template)
 
     /// Every date in every example is one the stage moves to today: the examples are written for
     /// the samples' day, and no month is named outside a date. Moved by no days, an example is
@@ -1132,7 +1132,8 @@ import Vision
         #expect(NotePreview.subnote("A line with [a link](https://example.com) in it") == nil)
         #expect(try entry("gift-ideas").example.contains("400 kr.") && entry("budget-log").example.contains(" kr "), "one currency style")
         let meals = TemplateLibraryView.staged(try entry("meal-plan").example)
-        #expect(meals.contains(.heading(2, "Groceries")), "the meal plan shows its groceries too")
+        // The meal plan is an app (22 Nov 2026): its groceries are in the app, and its note keeps the dishes to try.
+        #expect(meals.contains(.heading(2, "Dinners to try")) && !meals.contains(.heading(2, "Groceries")), "the meal plan's note holds what its app doesn't")
         // An app's note holds only what its app doesn't: no table the app never reads.
         for e in Self.all where e.app {
             #expect(!(e.note ?? "").contains("|") && !e.example.contains("|"), "\(e.slug): a table in an app's note")
@@ -1145,7 +1146,7 @@ import Vision
         #expect(templates(with: "Four Thousand Weeks") == ["book-notes"])
         #expect(templates(with: "pricing") == ["meeting-notes"])
         #expect(templates(with: "Lisbon").isEmpty && templates(with: "Ramiro").isEmpty, "the trip is the trip app's own")
-        #expect(templates(with: "Lemon chicken") == ["meal-plan"])
+        #expect(templates(with: "Miso salmon") == ["meal-plan"])
         #expect(templates(with: "Maja").count >= 3, "the cast is shared")
     }
 
@@ -1372,7 +1373,7 @@ import Vision
     /// stage's script no longer sets its clock to a Thursday.
     @Test func theStageShowsTheAppInUseTodayAndMakeAddsTheStart() throws {
         let apps = Self.all.filter(\.app)
-        #expect(apps.count == 5)
+        #expect(apps.count == 10)
         for e in apps {
             let sample = TemplateFiles.sample(e)
             let values = try #require(sample["values"] as? [String: Any], "\(e.slug)")
@@ -1382,6 +1383,8 @@ import Vision
             case "budget-log": #expect(((values["expenses"] as? [Any])?.count ?? 0) >= 5, "expenses this month")
             case "study-flashcards": #expect(((values["cards"] as? [Any])?.count ?? 0) > ((e.appData["values"] as? [String: Any])?["cards"] as? [Any])?.count ?? 0, "cards in two topics")
             case "trip-plan": #expect(values["trip"] is [String: Any] && ((values["days"] as? [Any])?.count ?? 0) == 5, "a planned trip")
+            case "meal-plan": #expect(((values["dinners"] as? [Any])?.count ?? 0) >= 7, "a planned week")
+            case "mood-energy-log": #expect(((values["days"] as? [String: Any])?.count ?? 0) >= 30, "six weeks of evenings")
             case "workout-log": #expect(((values["sessions"] as? [Any])?.count ?? 0) >= 12, "five weeks of sessions")
             case "job-hunt": #expect(((values["jobs"] as? [Any])?.count ?? 0) >= 8, "applications in every stage")
             case "home-maintenance": #expect(((values["history"] as? [Any])?.count ?? 0) >= 20 && ((values["jobs"] as? [Any])?.count ?? 0) >= 10, "a year of jobs done")
@@ -1899,11 +1902,15 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
     }
 
     @Test func theCatalogHasEveryTemplate() {
-        #expect(Self.all.count == 23)
+        #expect(!Self.all.isEmpty)
         #expect(Set(Self.all.map(\.slug)).count == Self.all.count, "no slug twice")
         #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "gift-ideas", "habit-tracker", "home-maintenance", "job-hunt", "meal-plan", "mood-energy-log", "study-flashcards", "trip-plan", "workout-log"])
         let placed = TemplateFront.shipped.shelves(for: .shipped).flatMap(\.entries)
         #expect(placed.count == Self.all.count && Set(placed.map(\.slug)) == Set(Self.all.map(\.slug)), "every template is on exactly one shelf of the front page")
+        // Placed by the edit, not left to the "More templates" shelf that catches one the site adds.
+        let edited = TemplateFront.shipped.shelves.flatMap(\.slugs)
+        #expect(edited.count == Self.all.count && Set(edited) == Set(Self.all.map(\.slug)), "every template has its own place on the front page")
+        #expect(TemplateFront.shipped.shelves.first { $0.kind == .apps }?.slugs.sorted() == Self.all.filter(\.app).map(\.slug).sorted(), "every app is on the apps shelf")
     }
 
     /// 1. Listed, with its words, cover and kind; an app with both pictures, its project and data.

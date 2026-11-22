@@ -1,52 +1,32 @@
 {
-  "subtitle": "A mood and energy log your AI checks for patterns.",
-  "about": "A note with daily mood and energy scores, sleep hours and a short line about the day. Tell your AI how it went to log a row, or ask it to look back for patterns.",
+  "subtitle": "A mood and energy log app that shows what lifts your days.",
+  "about": "A small app inside a Pinto Notes note, with mood and energy from 1 to 5, sleep, tags and a line a day, and the patterns in them. Tell your AI how the day went to log it, or log it in a few taps yourself.",
   "ask": {
     "step": "Ask for the log",
     "prompt": "Set up the mood and energy log template in my Pinto Notes."
   },
   "slides": [
     {
-      "label": "Log your day",
-      "you": "Slept in, 8 hours. Good mood, lots of energy.",
-      "ai": "Logged 8 November: mood 4 and energy 4.",
-      "mac": "mac-1",
-      "phone": "phone-1",
-      "alt": "Mood and energy log filled in, in Pinto Notes on a Mac"
+      "label": "Log the day",
+      "you": "Walked by the water with Maja. Mood 4, energy 4, slept seven and a half hours.",
+      "ai": "Logged today with Exercise and Social. This week your mood is 3.4 on average.",
+      "mac": "mac-today",
+      "phone": "phone-today",
+      "alt": "Today: mood 4, energy 4, 7.5 hours slept, Exercise and Social, and the last 30 days"
     },
     {
-      "label": "Ask for patterns",
-      "you": "Do you see any patterns?",
-      "ai": "Energy follows sleep. I added three lines under Patterns.",
-      "phone": "phone-2",
-      "alt": "Patterns, in Mood and energy log"
+      "label": "Ask about patterns",
+      "you": "Does sleep change my energy?",
+      "ai": "It looks like it. After nights under 6 hours your energy is 1.8 (4 days), after 8 hours or more 3.8 (6 days).",
+      "phone": "phone-trends",
+      "alt": "Trends: mood with and without each tag, and energy after short and long nights"
     },
     {
       "label": "Use it yourself",
-      "note": "Or fill it in yourself.",
-      "mac": "mac-start",
-      "phone": "phone-start",
-      "alt": "Mood and energy log as it starts, ready to fill in"
+      "note": "Or log and change days yourself.",
+      "mac": "mac-month",
+      "phone": "phone-month",
+      "alt": "November as a calendar coloured by mood, with energy dots under each day"
     }
-  ],
-  "pictures": {
-    "mac-1": {
-      "of": "example",
-      "steps": 5
-    },
-    "phone-1": {
-      "of": "example",
-      "steps": 5
-    },
-    "phone-2": {
-      "of": "example",
-      "from": "Patterns"
-    },
-    "mac-start": {
-      "of": "note"
-    },
-    "phone-start": {
-      "of": "note"
-    }
-  }
+  ]
 }

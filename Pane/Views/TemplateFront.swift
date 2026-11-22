@@ -46,17 +46,16 @@ struct TemplateFront: Sendable {
 
     static let shipped = TemplateFront(shelves: [
         Shelf(title: "Start here", line: "Three notes that are useful from the first day.", kind: .covers,
-              slugs: ["meeting-notes", "reading-list", "meal-plan"]),
+              slugs: ["meeting-notes", "reading-list", "grocery-list"]),
         Shelf(title: "Small apps that live in a note", line: "Open the note and the app is there. Tick, add and change things yourself, or ask your AI to.", kind: .apps,
-              slugs: ["habit-tracker", "budget-log", "trip-plan", "study-flashcards"]),
+              slugs: ["habit-tracker", "budget-log", "meal-plan", "workout-log", "mood-energy-log", "trip-plan",
+                      "job-hunt", "home-maintenance", "study-flashcards", "gift-ideas"]),
         Shelf(title: "For work", line: "Meetings, decisions and bugs, written up and kept in order.", kind: .rows,
-              slugs: ["daily-standup", "one-on-one-notes", "decision-log", "bug-triage", "content-calendar", "job-hunt"]),
-        Shelf(title: "For the week", line: "A few lines each day, then five questions on Sunday.", kind: .covers,
-              slugs: ["daily-journal", "weekly-review", "mood-energy-log"]),
-        Shelf(title: "For home and health", line: "Lists and logs for the things that come round again.", kind: .rows,
-              slugs: ["grocery-list", "recipe-box", "home-maintenance", "gift-ideas", "workout-log"]),
-        Shelf(title: "For reading and study", line: "Keep what a book or a lecture taught you.", kind: .rows,
-              slugs: ["book-notes", "cornell-notes"]),
+              slugs: ["daily-standup", "one-on-one-notes", "decision-log", "bug-triage", "content-calendar"]),
+        Shelf(title: "For the week", line: "A few lines each day, a plan on Monday, five questions on Sunday.", kind: .covers,
+              slugs: ["daily-journal", "weekly-planner", "weekly-review"]),
+        Shelf(title: "For cooking, reading and study", line: "Recipes kept in one place, and what a book or a lecture taught you.", kind: .rows,
+              slugs: ["recipe-box", "book-notes", "cornell-notes"]),
     ])
 
     /// The shelves as the page shows them for a catalog: each with the templates it names that

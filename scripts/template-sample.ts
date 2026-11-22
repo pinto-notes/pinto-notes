@@ -36,3 +36,15 @@ export async function sampleFor(slug: string, today = localToday()): Promise<unk
   try { text = await Deno.readTextFile(file); } catch { return null; }
   return moved(JSON.parse(text), Math.round((Date.parse(today) - Date.parse(ANCHOR)) / 86_400_000));
 }
+
+/** The stored project with the app's clock set to day (at 18:00 local time, its hours running on
+ *  from there), so a picture of a sample moved to day shows that day as today whenever it is drawn.
+ *  The render service's `today` reaches the note, not the app's own Date. */
+export function atDay(stored: string, day: string): string {
+  const p = JSON.parse(stored) as { files: Record<string, string> };
+  const page = p.files["/index.html"];
+  if (!page?.includes("<head>")) return stored;
+  const pin = `<script>(()=>{const R=Date,off=new R("${day}T18:00:00").getTime()-R.now();class D extends R{constructor(...a){a.length?super(...a):super(R.now()+off)}static now(){return R.now()+off}}globalThis.Date=D})()</script>`;
+  p.files["/index.html"] = page.replace("<head>", () => `<head>${pin}`);
+  return JSON.stringify(p);
+}
