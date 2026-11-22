@@ -193,6 +193,15 @@ describe("the instructions", () => {
     }
   });
 
+  it("mention the table's type line only when the note has one", () => {
+    // Told to keep a <!-- pane-table --> line the markdown didn't have, Claude told the person their
+    // prompt was wrong, in all 12 templates without one (real runs on the local stack, 2026-11-22).
+    for (const t of all.filter((t) => !t.app)) {
+      const typed = t.note.includes("<!-- pane-table:");
+      for (const i of instructions(t)) expect(i.prompt.slice(0, i.prompt.indexOf("```")).includes("pane-table"), `${t.slug} (${i.name})`).toBe(typed);
+    }
+  });
+
   it("never name a fixed folder: the note goes where the person says", () => {
     // The app's Make adds a template to the folder the person is in; the site's prompt used to say
     // "Habits/Habit tracker.md" and "Home/Budget and expenses.app/data.json".
