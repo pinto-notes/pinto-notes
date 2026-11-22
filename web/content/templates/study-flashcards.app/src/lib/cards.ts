@@ -20,6 +20,15 @@ export const GRADES: { grade: Grade; label: string; key: string }[] = [
 export const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 export const plus = (day: string, n: number) => { const d = new Date(day + "T12:00:00"); d.setDate(d.getDate() + n); return iso(d) }
 export const intervalOf = (c: Card) => (c.interval ?? (c.seen ? GAP[Math.min(5, Math.max(1, c.box || 1))] : 0))
+/** The month names over a calendar's week columns (each column 7 days from days[w * 7]): a name over
+ *  the first week of a month, and over the first column. A column is about 11 px wide, so a name
+ *  whose next one is in the column beside it is left out, or they print over each other ("AuSep"):
+ *  the newer month keeps its name. */
+export function monthHeads(days: string[], weeks: number) {
+  const month = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { month: "short" })
+  const heads = Array.from({ length: weeks }, (_, w) => (w === 0 || month(days[w * 7]) !== month(days[(w - 1) * 7]) ? month(days[w * 7]) : ""))
+  return heads.map((h, w) => (h && heads[w + 1] ? "" : h))
+}
 export const dueOn = (c: Card) => (c.seen ? plus(c.seen, intervalOf(c)) : "")
 export const isDue = (c: Card, today = iso(new Date())) => !c.seen || dueOn(c) <= today
 export const boxFor = (interval: number) => (interval <= 1 ? 1 : interval <= 3 ? 2 : interval <= 7 ? 3 : interval <= 21 ? 4 : 5)

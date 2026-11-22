@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { Pills, PrimaryButton, Section, Title, Bar } from "@/components/kit"
-import { dueOn, GRADES, intervalOf, iso, level, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
+import { dueOn, GRADES, intervalOf, iso, level, monthHeads, next, plus, short, span, streak, useCards, type Card, type Grade } from "@/lib/cards"
 import { cn } from "@/lib/utils"
 
 type Session = { ids: string[]; at: number; shown: boolean; counts: Record<Grade, number>; again: string[] }
@@ -106,13 +106,12 @@ function Heatmap({ studied, today }: { studied: Record<string, number>; today: s
   const days = Array.from({ length: 84 }, (_, i) => plus(first, i))
   const top = Math.max(1, ...days.map((d) => studied[d] ?? 0))
   const total = days.filter((d) => (studied[d] ?? 0) > 0 && d <= today).length
-  const month = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { month: "short" })
-  // A month's name over the first week that starts in it (and over the first column).
-  const heads = Array.from({ length: 12 }, (_, w) => { const d = days[w * 7]; return w === 0 || month(d) !== month(days[(w - 1) * 7]) ? month(d) : "" })
+  // A month's name over the first week that starts in it (and over the first column), never two side by side.
+  const heads = monthHeads(days, 12)
   return (
     <div className="w-[165px] shrink-0" role="img" aria-label={`Studied on ${total} of the last 12 weeks' days`}>
       <div className="mb-1 grid grid-cols-12 gap-[3px]" aria-hidden="true">
-        {heads.map((h, w) => <span key={w} className="overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground">{h}</span>)}
+        {heads.map((h, w) => <span key={w} className={cn("overflow-visible whitespace-nowrap text-[0.75rem] leading-none text-muted-foreground", w === heads.length - 1 && "justify-self-end")}>{h}</span>)}
       </div>
       <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
         {days.map((d) => {
