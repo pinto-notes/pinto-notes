@@ -59,7 +59,7 @@ export default function Overview() {
                     the gap, so when the second piece takes its own line the dot is cut off, not left
                     dangling ("next to / pay: Pena Palace tickets", and before that "tickets" alone). */}
                 <p className="flex flex-wrap gap-x-3 overflow-hidden text-[0.875rem] text-muted-foreground tabular-nums">
-                  {paid} of {bookings.length} paid
+                  {bookings.length ? `${paid} of ${bookings.length} paid` : "Nothing booked yet"}
                   {unpaid.length > 0 && <span className="relative"><span aria-hidden="true" className="absolute -left-2">{" · "}</span><span>next to pay: {unpaid[0].what}</span></span>}
                 </p>
               </div>

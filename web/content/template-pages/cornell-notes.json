@@ -1,0 +1,52 @@
+{
+  "subtitle": "Cornell notes your AI can turn into a quiz.",
+  "about": "A note with questions beside your lecture notes, short summaries and a checklist of missed questions. Give your AI notes to arrange and quiz you on, or cover the answers and test yourself.",
+  "ask": {
+    "step": "Ask for the notes",
+    "prompt": "Set up the Cornell notes template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Make Cornell notes",
+      "you": "Here are my notes from today's lecture on supply and demand.",
+      "ai": "Made Cornell notes: a cue beside each note, and a short summary.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Cornell notes filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Get quizzed",
+      "you": "Quiz me on supply and demand.",
+      "ai": "You missed what shifts the demand curve, so it's under Cues to revisit.",
+      "phone": "phone-2",
+      "alt": "Cues to revisit, in Cornell notes"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Cornell notes as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "steps": 1
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 1
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Cues to revisit"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

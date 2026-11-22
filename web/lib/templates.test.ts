@@ -193,6 +193,34 @@ describe("the instructions", () => {
     }
   });
 
+  it("mention the table's type line only when the note has one", () => {
+    // Told to keep a <!-- pane-table --> line the markdown didn't have, Claude told the person their
+    // prompt was wrong, in all 12 templates without one (real runs on the local stack, 2026-11-22).
+    for (const t of all.filter((t) => !t.app)) {
+      const typed = t.note.includes("<!-- pane-table:");
+      for (const i of instructions(t)) expect(i.prompt.slice(0, i.prompt.indexOf("```")).includes("pane-table"), `${t.slug} (${i.name})`).toBe(typed);
+    }
+  });
+
+  it("say in the note itself what a new chat needs to keep it right", () => {
+    // A new chat sees the note, not the prompt. In real runs (2026-11-22) a new chat put content ideas
+    // in the calendar table as "Idea" and left planned posts there, dropped a weekly planner's unticked
+    // items when starting a new week, and logged a past workout below newer ones.
+    const rules: Record<string, RegExp> = {
+      "content-calendar": /## Ideas\n[^\n]*one line each[^\n]*moves to the calendar as Drafting/,
+      "weekly-planner": /On Sunday the ticked things go, and what's left on the days moves to Monday/,
+      "workout-log": /One row per session, oldest first/,
+    };
+    for (const [slug, rule] of Object.entries(rules)) expect(all.find((t) => t.slug === slug)!.note, slug).toMatch(rule);
+  });
+
+  it("keep a trip's booking names short, as the app shows them", () => {
+    // A real run put a whole hotel confirmation (address, check-out, price) in a booking's name.
+    const trip = all.find((t) => t.slug === "trip-plan")!;
+    expect(trip.prompt.default).toContain('what: a short name like "Hotel Lumiares"');
+    expect(readFileSync(path.resolve(__dirname, "../content/templates/trip-plan.app/docs/README.md"), "utf8")).toMatch(/what is the booking's name[^\n]*keep it short/);
+  });
+
   it("never name a fixed folder: the note goes where the person says", () => {
     // The app's Make adds a template to the folder the person is in; the site's prompt used to say
     // "Habits/Habit tracker.md" and "Home/Budget and expenses.app/data.json".
@@ -290,6 +318,8 @@ describe("the public data the app reads", () => {
 
 describe("template copy", () => {
   it("uses no em dashes", () => { for (const t of all) for (const s of texts(t)) expect(s, t.slug).not.toContain("—"); });
+  // "Effort (1–10)" and "Rating (1–5)" were in four notes' tables (found in the audit of 2026-11-22).
+  it("uses no en dashes either", () => { for (const t of all) for (const s of texts(t)) expect(s, t.slug).not.toContain("–"); });
   it("names only the devices the app runs on", () => { for (const t of all) for (const s of texts(t)) expect(s, t.slug).not.toMatch(/ipad/i); });
   it("writes titles in sentence case", () => {
     for (const t of all) {

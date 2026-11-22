@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CLAUDE_DIRECTORY_URL } from "@/lib/facts";
+import { CHATGPT_PLUGIN_URL, CLAUDE_DIRECTORY_URL } from "@/lib/facts";
 import PlaceCard from "../PlaceCard";
 import { appURL } from "@/lib/app-scheme";
 
@@ -22,6 +22,7 @@ export default function Page() {
       ]}
       links={[
         { href: "/blog/connect-chatgpt-to-your-notes", label: "The full guide, with pictures" },
+        { href: CHATGPT_PLUGIN_URL, label: "Connect ChatGPT from its plugin page" },
         { href: CLAUDE_DIRECTORY_URL, label: "Add it from Claude's directory" },
       ]}
     />

@@ -119,10 +119,6 @@ export function useLabel(t: Pick<Template, "slug" | "app">, on: "desktop" | "ios
   return on === "ios" && !APP_TEMPLATE_VERBS_IPHONE ? USE_TEMPLATE : verb;
 }
 
-/// Where the template works, for "Free. Needs Pinto Notes for ...". A template with an app waits for
-/// the same iPhone build as its button's words; every other template opens on both.
-export const needsOn = (t: Pick<Template, "app">) => (t.app && !APP_TEMPLATE_VERBS_IPHONE ? "Mac" : "iPhone or Mac");
-
 /// The universal link the app opens (https://ambernotes.app/open/template/<slug>).
 export const useLink = (slug: string) => `${APP_LINK_URL}/open/template/${slug}`;
 /// The same, as the site's own buttons link it: a path, so a preview or local build stays on itself.
@@ -148,7 +144,10 @@ export const appFiles = (slug: string) => ({
 /// say "Habits/Habit tracker.md", and made a Habits folder nobody asked for.)
 export function createStep(t: Template): string {
   if (t.app) return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create { type: "app", path: "${noteTitle(t)}.md", template: "${t.slug}" }, with a folder before the name if I've said where it goes: that adds the note with its app and the app's starting data.`;
-  return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create at "${noteTitle(t)}.md", or inside a folder if I've said where it goes, using exactly the markdown at the end of this message, the <!-- pane-table --> line included (it gives the table's columns their types).`;
+  // The type line is named only when the note has one: told to keep a line that isn't there, Claude
+  // told the person their prompt was wrong (a real run on all 12 such templates, 2026-11-22).
+  const typed = t.note.includes("<!-- pane-table:") ? ", the <!-- pane-table --> line included (it gives the table's columns their types)" : "";
+  return `First, look for a note called "${noteTitle(t)}" in my Pinto Notes with search. If there isn't one, make it with create at "${noteTitle(t)}.md", or inside a folder if I've said where it goes, using exactly the markdown at the end of this message${typed}.`;
 }
 
 /// The template's markdown, fenced, for the end of the prompt.

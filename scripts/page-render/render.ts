@@ -418,9 +418,11 @@ function jsonDiff(a: unknown, b: unknown, path = "", out: string[] = []): string
 
 /** try_app: one page, steps done like a person would, and after each a screenshot, the errors, what
  *  the screen shows and what changed in the data. Data changes stay in this throwaway copy. */
-async function trial(open: (w: number, s: "light" | "dark") => Promise<{ page: Page; errors: string[] }>, store: () => unknown, opts: RenderOptions): Promise<Render> {
+async function trial(open: (w: number, s: "light" | "dark", widget?: boolean, height?: number, scale?: number) => Promise<{ page: Page; errors: string[] }>, store: () => unknown, opts: RenderOptions): Promise<Render> {
   const first = opts.views?.[0] ?? { width: 390, scheme: "light" as const };
-  let { page, errors } = await open(first.width, first.scheme);
+  // A view's height and scale hold for the walk too (the template pages' pictures: scripts/template-page-shots.ts).
+  const { height, scale } = first as { height?: number; scale?: number };
+  let { page, errors } = await open(first.width, first.scheme, false, height, scale);
   const out: TrialStep[] = [];
   const screen = () => page.evaluate(() => {
     const seen = (el: Element) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight && s.visibility !== "hidden" && s.display !== "none"; };
@@ -482,7 +484,7 @@ async function trial(open: (w: number, s: "light" | "dark") => Promise<{ page: P
       // An optional step (the evals': "open the list, if there is one") may find nothing.
       if (!(step as { optional?: boolean }).optional) { ok = false; error = String((e as Error).message ?? e).split("\n")[0].slice(0, 200); }
     }
-    const png = await page.screenshot({ type: "png", scale: "css" }).then((b) => btoa(Array.from(b, (x) => String.fromCharCode(x)).join(""))).catch(() => undefined);
+    const png = await page.screenshot({ type: "png", scale: scale ? "device" : "css" }).then((b) => btoa(Array.from(b, (x) => String.fromCharCode(x)).join(""))).catch(() => undefined);
     out.push({ step, ok, ...(error ? { error } : {}), png, errors: errors.slice(errs), screen: await screen(), data: jsonDiff(before, store()) });
   }
   await page.context().close();

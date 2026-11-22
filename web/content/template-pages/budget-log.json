@@ -1,0 +1,32 @@
+{
+  "subtitle": "A budget app you can update by saying what you spent.",
+  "about": "A small app inside a Pinto Notes note, with monthly budgets and spending by category. Tell your AI what you spent, or add expenses yourself and see what's left.",
+  "ask": {
+    "step": "Ask for the budget",
+    "prompt": "Set up the budget and expenses template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Log what you spent",
+      "you": "Coffee and a bun, 68 kr.",
+      "ai": "Added it to Eating out. You have 2,541 kr left this month.",
+      "mac": "mac-month",
+      "phone": "phone-expenses",
+      "alt": "November in the budget: 2,541 kr left, with each category against its budget"
+    },
+    {
+      "label": "Ask how it's going",
+      "you": "How am I doing this month?",
+      "ai": "2,541 kr left of 6,300 kr. Transport is nearly used up, with 10 kr left.",
+      "phone": "phone-month",
+      "alt": "The month on iPhone: 2,541 kr left, Transport at 790 of 800 kr"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or add and edit it yourself.",
+      "mac": "mac-budget",
+      "phone": "phone-budget",
+      "alt": "The budget per category, ready to change"
+    }
+  ]
+}

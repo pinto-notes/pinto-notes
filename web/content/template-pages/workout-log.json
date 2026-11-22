@@ -1,0 +1,50 @@
+{
+  "subtitle": "A workout log your AI updates with sessions and personal bests.",
+  "about": "A note with a session table for exercises, results and effort, plus personal bests and a training plan. Tell your AI what you did to log it and update your bests, or add rows yourself.",
+  "ask": {
+    "step": "Ask for the log",
+    "prompt": "Set up the workout log template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Log a session",
+      "you": "Deadlift today, 120 kg for 3. Hard, about a 9.",
+      "ai": "Logged it in Sessions and updated your deadlift best to 120 kg x 3.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Workout log filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "See your bests",
+      "you": "What are my bests?",
+      "ai": "They're under Personal bests: deadlift 120 kg x 3, squat 100 kg x 5, bench 70 kg x 6.",
+      "phone": "phone-2",
+      "alt": "Personal bests, in Workout log"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Workout log as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example"
+    },
+    "phone-1": {
+      "of": "example"
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Personal bests"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "subtitle": "A reading list your AI uses to suggest your next book.",
+  "about": "A note for books you want to read, are reading or have finished, with ratings and thoughts. Tell your AI about a book to add it, or ask what to read next based on your ratings.",
+  "ask": {
+    "step": "Ask for the reading list",
+    "prompt": "Set up the reading list template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Add a book",
+      "you": "Finished Project Hail Mary, five stars. Book club pick. I'm reading Piranesi now, from Jonas.",
+      "ai": "Both are in the Books table now, with their authors.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Reading list filled in, in Pinto Notes on a Mac"
+    },
+    {
+      "label": "Add your thoughts",
+      "you": "The friendship carries the whole book. I'm lending my copy to Dad.",
+      "ai": "Added that under Notes, under Project Hail Mary.",
+      "phone": "phone-2",
+      "alt": "Notes, in Reading list"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or fill it in yourself.",
+      "mac": "mac-start",
+      "phone": "phone-start",
+      "alt": "Reading list as it starts, ready to fill in"
+    }
+  ],
+  "pictures": {
+    "mac-1": {
+      "of": "example",
+      "steps": 6
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 6
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Notes"
+    },
+    "mac-start": {
+      "of": "note"
+    },
+    "phone-start": {
+      "of": "note"
+    }
+  }
+}

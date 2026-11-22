@@ -1,0 +1,32 @@
+{
+  "subtitle": "A trip planner app your AI fills in around your dates.",
+  "about": "A small app inside a Pinto Notes note, with a countdown, daily plans, bookings and a packing list. Ask your AI to plan around your dates and interests, or fill it in yourself.",
+  "ask": {
+    "step": "Ask for the trip plan",
+    "prompt": "Set up the trip plan template in my Pinto Notes."
+  },
+  "slides": [
+    {
+      "label": "Plan the trip",
+      "you": "Plan 5 days in Lisbon from 6 December. I like food and views.",
+      "ai": "Your trip plan has a day for each of the 5 days, each with times.",
+      "mac": "mac-trip",
+      "phone": "phone-days",
+      "alt": "Lisbon in the trip plan: 14 days to go, the bookings and the first day"
+    },
+    {
+      "label": "Add a booking",
+      "you": "Here's my flat in Alfama, already paid: 4 nights, check in 16:00 on 6 December.",
+      "ai": "Added it to Bookings and ticked it paid. 3 of 4 are paid now.",
+      "phone": "phone-bookings",
+      "alt": "Bookings: the flat in Alfama ticked paid, 3 of 4 paid"
+    },
+    {
+      "label": "Use it yourself",
+      "note": "Or tick and edit it yourself.",
+      "mac": "mac-packing",
+      "phone": "phone-packing",
+      "alt": "The packing list, 4 of 10 packed"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { amber } from "amber"
 import { route } from "amber-router"
 import App from "@/App"
-import { addDays, iso, today } from "@/lib/habits"
+import { addDays, iso, parse, streak, today, week, weekGoal, type Habit } from "@/lib/habits"
 
 // Each test does what the person does, then checks what they see and what was saved in data.json.
 const values = () => amber.data.values ?? {}
@@ -97,7 +97,7 @@ describe("Habits", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Add" }))
     await userEvent.type(await screen.findByLabelText("Name"), "Stretch")
     await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
-    await waitFor(() => expect(values().habits).toEqual([{ id: "stretch", name: "Stretch", target: 1 }]))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "stretch", name: "Stretch", target: 1, since: day }]))
     await go("Today")
     expect(await screen.findByRole("button", { name: "Done: Stretch" })).toBeInTheDocument()
   })
@@ -111,7 +111,7 @@ describe("Habits", () => {
     await userEvent.type(screen.getByLabelText("Times a day"), "20")
     await userEvent.type(screen.getByLabelText("Unit (optional)"), "reps")
     await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
-    await waitFor(() => expect(values().habits).toEqual([{ id: "push-ups", name: "Push-ups", target: 20, unit: "reps" }]))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "push-ups", name: "Push-ups", target: 20, unit: "reps", since: day }]))
     expect(await screen.findByText("Every day · 20 reps a day")).toBeInTheDocument()
   })
 
@@ -199,6 +199,129 @@ describe("Any day", () => {
   })
 })
 
+describe("Changes keep the past", () => {
+  // Walk done every day of this week before today: Monday to yesterday.
+  const thisWeek = () => {
+    const log: Record<string, Record<string, number>> = {}
+    for (let d = addDays(today(), -((today().getDay() + 6) % 7)); iso(d) < day; d = addDays(d, 1)) log[iso(d)] = { walk: 1 }
+    return log
+  }
+
+  it("doesn't count a habit added today as missed on the days before", async () => {
+    const log = thisWeek(), before = Object.keys(log).length
+    await amber.store.set("habits", [walk])
+    await amber.store.set("days", log)
+    render(<App />)
+    await go("Habits")
+    await userEvent.click(await screen.findByRole("button", { name: "Add" }))
+    await userEvent.type(await screen.findByLabelText("Name"), "Stretch")
+    await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
+    await waitFor(() => expect(values().habits[1]).toEqual({ id: "stretch", name: "Stretch", target: 1, since: day }))
+    await go("Today")
+    // Walk's days so far, and today for each habit: nothing for Stretch before today.
+    await waitFor(() => expect(screen.getByTestId("week-count")).toHaveTextContent(`${before} of ${before + 2}`))
+  })
+
+  it("doesn't count a habit your AI added with since as missed before it either", async () => {
+    const log = thisWeek(), before = Object.keys(log).length
+    await amber.store.set("habits", [walk, { id: "stretch", name: "Stretch", target: 1, since: day }])
+    await amber.store.set("days", log)
+    const { container } = render(<App />)
+    await waitFor(() => expect(screen.getByTestId("week-count")).toHaveTextContent(`${before} of ${before + 2}`))
+    // Stretch has no dot for the days before it was added, in its row and in the week grid.
+    await waitFor(() => expect(container.querySelectorAll("span.invisible")).toHaveLength(before * 2))
+  })
+
+  it("a new goal counts from today: days done under the old goal stay done", async () => {
+    const d1 = iso(addDays(today(), -1))
+    await amber.store.set("habits", [water])
+    await amber.store.set("days", { [d1]: { water: 8 }, [day]: { water: 8 } })
+    route("/habits")
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Edit Water" }))
+    await userEvent.clear(await screen.findByLabelText("Times a day"))
+    await userEvent.type(screen.getByLabelText("Times a day"), "10")
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(values().habits).toEqual([{ ...water, target: 10, before: [{ until: day, target: 8 }] }]))
+    await go("Today")
+    // Today asks for 10 now; yesterday's 8 still counts, so the streak holds.
+    expect(await screen.findByText(/^8 of 10 glasses/)).toBeInTheDocument()
+    expect(await screen.findByText("1-day streak")).toBeInTheDocument()
+    // Changed again the same day, the goal from before today stays the one kept.
+    await go("Habits")
+    await userEvent.click(await screen.findByRole("button", { name: "Edit Water" }))
+    await userEvent.clear(await screen.findByLabelText("Times a day"))
+    await userEvent.type(screen.getByLabelText("Times a day"), "12")
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(values().habits).toEqual([{ ...water, target: 12, before: [{ until: day, target: 8 }] }]))
+  })
+
+  it("ticks an earlier day against the goal it had then", async () => {
+    const back = new Date(today().getFullYear(), today().getMonth() - 1, 3, 12)
+    await amber.store.set("habits", [{ ...water, target: 10, before: [{ until: day, target: 8 }] }])
+    route("/month")
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Previous month" }))
+    const name = `Water, ${back.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}`
+    await userEvent.click(await screen.findByRole("button", { name }))
+    await waitFor(() => expect(values().days?.[iso(back)]?.water).toBe(8))
+    await waitFor(() => expect(screen.getByRole("button", { name })).toHaveAttribute("data-state", "done"))
+  })
+
+  it("a new schedule counts from today: a day the habit wasn't for stays that way", async () => {
+    // Walk wasn't for yesterday's weekday, and was done the two days before: a 2-day streak.
+    const off = (addDays(today(), -1).getDay() + 6) % 7, days = [0, 1, 2, 3, 4, 5, 6].filter((d) => d !== off)
+    await amber.store.set("habits", [{ ...walk, days }])
+    await amber.store.set("days", { [iso(addDays(today(), -2))]: { walk: 1 }, [iso(addDays(today(), -3))]: { walk: 1 } })
+    render(<App />)
+    expect(await screen.findByText("2-day streak")).toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Open Walk" }))
+    await userEvent.click(await screen.findByRole("button", { name: "Edit habit" }))
+    await userEvent.click(await screen.findByRole("radio", { name: "Every day" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    await waitFor(() => expect(values().habits).toEqual([{ ...walk, before: [{ until: day, days }] }]))
+    // Saving closes the habit's page too. Every day from today on; yesterday still wasn't a walking day, so the streak holds.
+    expect(await screen.findByText("2-day streak")).toBeInTheDocument()
+  })
+
+  it("brings a habit's days back when it's added again under its old name", async () => {
+    const d3 = iso(addDays(today(), -3))
+    await amber.store.set("habits", [])
+    await amber.store.set("days", { [d3]: { walk: 1 }, [iso(addDays(today(), -1))]: { walk: 1 } })
+    route("/habits")
+    render(<App />)
+    await userEvent.click(await screen.findByRole("button", { name: "Add" }))
+    await userEvent.type(await screen.findByLabelText("Name"), "Walk")
+    await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "walk", name: "Walk", target: 1, since: d3 }]))
+  })
+
+  // The sums themselves, on fixed dates: Saturday 21 November 2026, its week starting Monday the 16th.
+  const sat = parse("2026-11-21"), monday = parse("2026-11-16")
+
+  it("a weekly goal added mid-week asks for no more days than are left that week", () => {
+    const gym: Habit = { id: "gym", name: "Gym", target: 1, perWeek: 3, since: "2026-11-21" }
+    expect(weekGoal(gym, monday)).toBe(2)
+    expect(weekGoal(gym, parse("2026-11-09"))).toBe(0)
+    expect(weekGoal(gym, parse("2026-11-23"))).toBe(3)
+    const w = week({ "2026-11-21": { gym: 1 } }, {}, [gym], sat, "2026-01-05")
+    expect([w.got, w.of]).toEqual([1, 2])
+  })
+
+  it("a weekly goal raised this week keeps last week's weeks met under the old goal", () => {
+    const gym: Habit = { id: "gym", name: "Gym", target: 1, perWeek: 4, before: [{ until: "2026-11-16", perWeek: 3 }] }
+    const log = { "2026-11-09": { gym: 1 }, "2026-11-11": { gym: 1 }, "2026-11-13": { gym: 1 } }
+    expect(streak(log, {}, gym, sat)).toBe(1)
+    expect(streak(log, {}, { ...gym, before: undefined }, sat)).toBe(0)
+  })
+
+  it("a daily habit added on Thursday is due from Thursday", () => {
+    const read: Habit = { id: "read", name: "Read", target: 1, since: "2026-11-19" }
+    const w = week({ "2026-11-19": { read: 1 } }, {}, [read], sat, "2026-01-05")
+    expect([w.got, w.of]).toEqual([1, 3])
+  })
+})
+
 describe("Month", () => {
   it("shows how often each habit was done, its streak and its best", async () => {
     await amber.store.set("habits", [walk])
@@ -222,7 +345,7 @@ describe("Schedules", () => {
     await userEvent.click(screen.getByRole("button", { name: "Friday" }))
     await waitFor(() => expect(screen.getByRole("button", { name: "Friday" })).toHaveAttribute("aria-pressed", "false"))
     await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
-    await waitFor(() => expect(values().habits).toEqual([{ id: "spanish", name: "Spanish", target: 1, days: [0, 1, 2, 3] }]))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "spanish", name: "Spanish", target: 1, days: [0, 1, 2, 3], since: day }]))
     expect(await screen.findByText("Mon, Tue, Wed, Thu")).toBeInTheDocument()
   })
 
@@ -235,11 +358,14 @@ describe("Schedules", () => {
     await userEvent.clear(screen.getByLabelText("Times a week"))
     await userEvent.type(screen.getByLabelText("Times a week"), "3")
     await userEvent.click(screen.getByRole("button", { name: "Add habit" }))
-    await waitFor(() => expect(values().habits).toEqual([{ id: "gym", name: "Gym", target: 1, perWeek: 3 }]))
+    await waitFor(() => expect(values().habits).toEqual([{ id: "gym", name: "Gym", target: 1, perWeek: 3, since: day }]))
     await go("Today")
-    expect(await screen.findByText("0 of 3 this week")).toBeInTheDocument()
+    // Added today, so this week it asks for no more days than are left (Sunday: one).
+    const left = Math.min(3, 7 - ((today().getDay() + 6) % 7))
+    expect(await screen.findByText(`0 of ${left} this week`)).toBeInTheDocument()
     await userEvent.click(screen.getByRole("button", { name: "Done: Gym" }))
-    expect(await screen.findByText("1 of 3 this week")).toBeInTheDocument()
+    // With the week's goal met, the streak joins the line ("1 of 1 this week · 1-week streak").
+    expect(await screen.findByText(new RegExp(`^1 of ${left} this week`))).toBeInTheDocument()
   })
 
   it("puts a habit that isn't for today under Not today, and leaves it out of today's count", async () => {

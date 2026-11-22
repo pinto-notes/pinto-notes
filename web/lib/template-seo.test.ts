@@ -6,6 +6,7 @@ import TemplatePage from "../app/templates/[slug]/page";
 import { post } from "./posts";
 import { TEMPLATE_SEO } from "./template-seo";
 import { templates } from "./templates";
+import { heading } from "./template-pages";
 
 const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
 const apps = templates().filter((t) => t.app);
@@ -25,21 +26,15 @@ describe("the app templates' search copy", () => {
   for (const t of apps) {
     const seo = TEMPLATE_SEO[t.slug];
 
-    it(`${t.slug}: shows its h1, what you can do, its questions as FAQPage data, and links its how-to post`, async () => {
+    // Layout D keeps the h1 people search for (lib/template-pages.ts heading) and the questions,
+    // shown on the page and as FAQPage data, with the how-to post (22 November 2026).
+    it(`${t.slug}: shows its heading, its questions as FAQPage data, and links its how-to post`, async () => {
       const html = renderToStaticMarkup(await TemplatePage(params(t.slug)));
-      expect(html).toContain(`>${seo.h1}</h1>`);
-      expect(seo.can.length).toBeGreaterThanOrEqual(3);
-      for (const c of seo.can) expect(html).toContain(`<b>${c.name.replace(/'/g, "&#x27;")}</b>`);
+      expect(html).toContain(`>${heading(t)}</h1>`);
       expect(seo.faq.length).toBeGreaterThanOrEqual(3);
       expect(html).toContain('"@type":"FAQPage"');
+      for (const f of seo.faq) expect(html).toContain(`<dt>${f.q.replace(/'/g, "&#x27;").replace(/"/g, "&quot;")}</dt>`);
       if (seo.post) expect(html).toContain(`href="/blog/${seo.post.slug}"`);
-      // Use installs the app; the page shows no prompt, and beside the app, things to ask your AI to
-      // change it (Emil, 14 October 2026).
-      expect(html).not.toContain("What the prompt does");
-      expect(html).not.toContain("Copy the prompt");
-      expect(html.indexOf(">Ask your AI to change the app.<")).toBeGreaterThan(html.indexOf('id="result"'));
-      expect(seo.make.length).toBeGreaterThanOrEqual(4);
-      for (const m of seo.make) expect(html).toContain(m.replace(/'/g, "&#x27;"));
     });
 
     it.runIf(seo.post)(`${t.slug}: its how-to post is published and links back to the template`, () => {

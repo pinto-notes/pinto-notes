@@ -1,10 +1,10 @@
+import { CHATGPT_PLUGIN_URL as PLUGIN_URL } from "@/lib/facts";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { PostFigure, Steps } from "@/lib/PostParts";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("pinto-notes-in-chatgpt", { title: "Pinto Notes is now in ChatGPT" });
 
-const PLUGIN_URL = "https://chatgpt.com/plugins/plugin_asdk_app_6ace2593e6008191bdbc937f56ece80f";
 
 export default function Page() {
   return (
