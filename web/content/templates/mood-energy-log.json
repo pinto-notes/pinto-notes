@@ -6,74 +6,35 @@
     "Personal"
   ],
   "audience": "For anyone who wants to see what lifts them and what drains them.",
-  "description": "An evening mood and energy log. Tell your AI about your day in your own words and it scores and logs it in Pinto Notes.",
+  "description": "An evening check-in that colours your month by mood and shows what lifts you and what drains you. Log it in the app, or tell your AI about your day.",
   "tagline": "An evening check-in that shows patterns.",
   "seoTitle": "Mood and energy log template for ChatGPT and Claude",
   "folder": "Habits",
-  "note": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1 to 5)=scale 1-5; Energy (1 to 5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1 to 5) | Energy (1 to 5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n",
+  "note": "Mood and energy log\n\nLog each evening in the app: mood and energy from 1 to 5, hours slept, a tag or two and a line about the day. The month shows as a calendar, and Trends shows what goes with your better days. Or tell your AI about your day and it logs it.\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Mood and energy log\". Each evening I'll tell you about my day in my own words. Read the note with fetch, then add one row to the table with edit: Mood and Energy from 1 (low) to 5 (great), Sleep in hours, and one short line in Note. If you're unsure about a score, ask me instead of guessing. When I ask about patterns, add what you notice under \"Patterns\", and say how many days it rests on. Don't give medical advice."
+    "default": "Use my Pinto Notes note \"Mood and energy log\". It is an app; its data is \"Mood and energy log.app/data.json\", beside the note. Read it with fetch before each change; change it with edit. When I tell you about my day, set values.days[date] (yyyy-mm-dd, today unless I say otherwise) to { mood, energy, sleep, tags, note }: mood and energy from 1 (low) to 5 (great), sleep in hours the night before, tags from values.tags (add a new one there too), note one short line in my words. If a score is unclear, ask me; don't guess. Keep earlier days. When I ask about patterns, answer from values.days with averages and the days each rests on; add what you notice under \"Patterns\" in the note. Don't give medical advice."
   },
   "asks": [
-    "Ask how my day went and how I slept, then log my mood and energy for today.",
-    "What do my best days have in common?",
-    "Does a short night change my energy the next day?"
+    "Ask how my day went and how I slept, then log today.",
+    "Slept 6 hours, mood 3, energy 2, long day at work.",
+    "How has my energy been on days I exercise?"
   ],
   "demo": [
     {
       "tool": "edit",
       "args": {
         "path": "Habits/Mood and energy log.md",
-        "old_string": "| --- | --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- | --- |\n| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n",
-        "new_string": "| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n",
-        "new_string": "| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n",
-        "new_string": "| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
-        "old_string": "| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n",
-        "new_string": "| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n| 2026-11-08 | 4 | 4 | 8 | Slept in |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Habits/Mood and energy log.md",
         "old_string": "What your AI notices when you ask it to look back.\n",
-        "new_string": "What your AI notices when you ask it to look back.\n- Energy follows sleep: 2 on six hours or less, 4 on seven and a half or more.\n- Mood dipped to 3 only on the day with meetings all day.\n- Five days so far. Worth another look in a month.\n"
+        "new_string": "What your AI notices when you ask it to look back.\n- Energy follows sleep: 1.8 on average after nights under 6 hours (5 days), 3.4 after 7 hours or more (27 days).\n- Mood is 4.2 on the 12 days you exercised and 3.2 on the 29 without.\n- Work stress days: mood 2.7 (13 days), against 3.8 on the rest. Worth another look in a month.\n"
       }
     }
   ],
-  "example": "Mood and energy log\n\nA short check-in each evening: add a row, or tell your AI about your day and it logs it. After a few weeks, ask it what the patterns are.\n\n## Check-ins\n<!-- pane-table: Date=date; Mood (1 to 5)=scale 1-5; Energy (1 to 5)=scale 1-5; Sleep (hours)=number; Note=text -->\n| Date | Mood (1 to 5) | Energy (1 to 5) | Sleep (hours) | Note |\n| --- | --- | --- | --- | --- |\n| 2026-11-04 | 4 | 4 | 7.5 | Gym before work |\n| 2026-11-05 | 3 | 2 | 6 | Meetings all day |\n| 2026-11-06 | 4 | 3 | 6.5 | Lunch with Maja |\n| 2026-11-07 | 4 | 2 | 5.5 | Maja's moving day |\n| 2026-11-08 | 4 | 4 | 8 | Slept in |\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n- Energy follows sleep: 2 on six hours or less, 4 on seven and a half or more.\n- Mood dipped to 3 only on the day with meetings all day.\n- Five days so far. Worth another look in a month.\n",
+  "example": "Mood and energy log\n\nLog each evening in the app: mood and energy from 1 to 5, hours slept, a tag or two and a line about the day. The month shows as a calendar, and Trends shows what goes with your better days. Or tell your AI about your day and it logs it.\n\n## Patterns\nWhat your AI notices when you ask it to look back.\n- Energy follows sleep: 1.8 on average after nights under 6 hours (5 days), 3.4 after 7 hours or more (27 days).\n- Mood is 4.2 on the 12 days you exercised and 3.2 on the 29 without.\n- Work stress days: mood 2.7 (13 days), against 3.8 on the rest. Worth another look in a month.\n",
   "related": [
     "daily-journal",
     "habit-tracker",
     "weekly-review"
   ],
-  "updated": "2026-11-10"
+  "updated": "2026-11-22",
+  "app": true
 }

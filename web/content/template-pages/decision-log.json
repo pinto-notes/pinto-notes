@@ -8,18 +8,18 @@
   "slides": [
     {
       "label": "Log a decision",
-      "you": "We're staying on Postgres with a trigram index. We looked at a search service too.",
-      "ai": "Logged it under Decisions, with the context, the options and why.",
+      "you": "On Tuesday we picked Stripe over Paddle. Paddle's fees were higher and it can't do usage billing, which the AI plan needs.",
+      "ai": "Logged it as Stripe for payments, 17 November.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Decision log filled in, in Pinto Notes on a Mac"
+      "alt": "The Stripe decision in the log"
     },
     {
-      "label": "Add an open question",
-      "you": "We still haven't decided on offline editing.",
-      "ai": "Added it under Open questions.",
+      "label": "Later, ask why",
+      "you": "Why did we pick Stripe?",
+      "ai": "Your log says two reasons: Paddle cost more, and it can't do the usage billing the AI plan needs.",
       "phone": "phone-2",
-      "alt": "Open questions, in Decision log"
+      "alt": "The Stripe entry the answer quotes"
     },
     {
       "label": "Use it yourself",
@@ -31,26 +31,14 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- Do we support offline editing in the first release?\n",
-          ""
-        ]
-      ]
+      "saved": "after-chat1"
     },
     "phone-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- Do we support offline editing in the first release?\n",
-          ""
-        ]
-      ]
+      "saved": "after-chat1"
     },
     "phone-2": {
-      "of": "example",
-      "from": "Open questions"
+      "saved": "after-chat2",
+      "from": "Stripe for payments, 17 November"
     },
     "mac-start": {
       "of": "note"

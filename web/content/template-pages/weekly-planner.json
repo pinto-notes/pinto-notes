@@ -8,18 +8,18 @@
   "slides": [
     {
       "label": "Plan the week",
-      "you": "Plan my week: the budget to Jonas, flights home, and three runs.",
-      "ai": "Your top three are at the top, and each day has its own checklist.",
+      "you": "Plan next week: parcel Monday, budget by Tuesday, dentist Wednesday at 9, flights, three runs. Top three: budget, flights, runs.",
+      "ai": "Planned it. Flights and runs have no day, so they go in Later.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Weekly planner filled in, in Pinto Notes on a Mac"
+      "alt": "Next week planned day by day, with the top three"
     },
     {
-      "label": "Move a task",
-      "you": "I didn't return the parcel. Move it to Saturday.",
-      "ai": "Moved Return the parcel from Wednesday to Saturday.",
+      "label": "Midweek, move a task",
+      "you": "It's Wednesday. I did everything on Monday and Tuesday except the parcel. Move it to today.",
+      "ai": "Moved Return the parcel to Wednesday and ticked off the budget.",
       "phone": "phone-2",
-      "alt": "Saturday, in Weekly planner"
+      "alt": "The parcel moved to Wednesday, the budget ticked"
     },
     {
       "label": "Use it yourself",
@@ -31,16 +31,15 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "steps": 9
+      "saved": "after-chat1"
     },
     "phone-1": {
-      "of": "example",
-      "steps": 9
+      "saved": "after-chat1",
+      "from": "Monday"
     },
     "phone-2": {
-      "of": "example",
-      "from": "Friday"
+      "saved": "after-chat2",
+      "from": "Monday"
     },
     "mac-start": {
       "of": "note"

@@ -7,19 +7,19 @@
   },
   "slides": [
     {
-      "label": "Plan two weeks",
-      "you": "Plan the next two weeks: two LinkedIn posts and one newsletter.",
-      "ai": "Added them to the calendar, each on its own date.",
+      "label": "Add ideas",
+      "you": "Post ideas: a day in support, in numbers. Why we dropped the lifetime plan. A map of our first 100 users.",
+      "ai": "Added all three under Ideas.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Content calendar filled in, in Pinto Notes on a Mac"
+      "alt": "Three post ideas under Ideas"
     },
     {
-      "label": "Add an idea",
-      "you": "Post idea: a day in support, in numbers.",
-      "ai": "Added it under Ideas.",
+      "label": "Later, plan from them",
+      "you": "Plan the next two weeks: two LinkedIn posts and one newsletter.",
+      "ai": "Your three ideas are on the calendar, from Tue 24 Nov to Thu 3 Dec. The Ideas list is empty now.",
       "phone": "phone-2",
-      "alt": "Ideas, in Content calendar"
+      "alt": "The three ideas planned in the calendar"
     },
     {
       "label": "Use it yourself",
@@ -31,26 +31,16 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- A day in support, in numbers\n",
-          ""
-        ]
-      ]
+      "saved": "after-chat1",
+      "from": "Ideas"
     },
     "phone-1": {
-      "of": "example",
-      "edits": [
-        [
-          "- A day in support, in numbers\n",
-          ""
-        ]
-      ]
+      "saved": "after-chat1",
+      "from": "Ideas"
     },
     "phone-2": {
-      "of": "example",
-      "from": "Ideas"
+      "saved": "after-chat2",
+      "from": "Calendar"
     },
     "mac-start": {
       "of": "note"

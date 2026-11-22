@@ -8,18 +8,18 @@
   "slides": [
     {
       "label": "Make Cornell notes",
-      "you": "Here are my notes from today's lecture on supply and demand.",
-      "ai": "Made Cornell notes: a cue beside each note, and a short summary.",
+      "you": "Notes from Tuesday's econ lecture: demand slopes down, supply slopes up, equilibrium where they cross.",
+      "ai": "Added Supply and demand, 17 November: a cue beside each note, and a summary.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Cornell notes filled in, in Pinto Notes on a Mac"
+      "alt": "Cornell notes for the lecture, with cues"
     },
     {
-      "label": "Get quizzed",
-      "you": "Quiz me on supply and demand.",
-      "ai": "You missed what shifts the demand curve, so it's under Cues to revisit.",
+      "label": "Days later, a quiz",
+      "you": "Quiz me on Tuesday's lecture.",
+      "ai": "Supply and demand has 6 questions. Question 1 of 6: which way does the demand curve slope, and why?",
       "phone": "phone-2",
-      "alt": "Cues to revisit, in Cornell notes"
+      "alt": "The cues the quiz asks from"
     },
     {
       "label": "Use it yourself",
@@ -31,16 +31,14 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "steps": 1
+      "saved": "after-chat1"
     },
     "phone-1": {
-      "of": "example",
-      "steps": 1
+      "saved": "after-chat1"
     },
     "phone-2": {
-      "of": "example",
-      "from": "Cues to revisit"
+      "saved": "after-chat2",
+      "from": "Supply and demand, 17 November"
     },
     "mac-start": {
       "of": "note"

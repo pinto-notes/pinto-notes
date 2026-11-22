@@ -1,0 +1,95 @@
+{
+  "values": {
+    "exercises": [
+      {
+        "id": "squat",
+        "name": "Squat",
+        "kind": "weight"
+      },
+      {
+        "id": "lunges",
+        "name": "Lunges",
+        "kind": "weight"
+      },
+      {
+        "id": "calf-raises",
+        "name": "Calf raises",
+        "kind": "weight"
+      },
+      {
+        "id": "bench-press",
+        "name": "Bench press",
+        "kind": "weight"
+      },
+      {
+        "id": "overhead-press",
+        "name": "Overhead press",
+        "kind": "weight"
+      },
+      {
+        "id": "dips",
+        "name": "Dips",
+        "kind": "weight"
+      },
+      {
+        "id": "deadlift",
+        "name": "Deadlift",
+        "kind": "weight"
+      },
+      {
+        "id": "rows",
+        "name": "Rows",
+        "kind": "weight"
+      },
+      {
+        "id": "pull-ups",
+        "name": "Pull-ups",
+        "kind": "weight"
+      },
+      {
+        "id": "run",
+        "name": "Run",
+        "kind": "cardio"
+      }
+    ],
+    "plan": [
+      {
+        "id": "legs",
+        "name": "Legs",
+        "exercises": [
+          "squat",
+          "lunges",
+          "calf-raises"
+        ]
+      },
+      {
+        "id": "push",
+        "name": "Push",
+        "exercises": [
+          "bench-press",
+          "overhead-press",
+          "dips"
+        ]
+      },
+      {
+        "id": "pull",
+        "name": "Pull",
+        "exercises": [
+          "deadlift",
+          "rows",
+          "pull-ups"
+        ]
+      },
+      {
+        "id": "run",
+        "name": "Easy run",
+        "exercises": [
+          "run"
+        ]
+      }
+    ],
+    "goal": 3,
+    "sessions": []
+  },
+  "collections": {}
+}

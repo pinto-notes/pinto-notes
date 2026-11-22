@@ -9,8 +9,10 @@ export const metadata = postMetadata("apple-notes-meal-planner-template", { titl
 // Apple Notes: blog-growth/research/apple-notes-captures-2026-11-22 (macOS 27.0, Edit, Paste as Markdown, sorting on): the
 // dinners stay a dashed list, the groceries become checklists under their aisle headings; Lemons, Basil, Chicken thighs and
 // Tortillas ticked, each dropped to the bottom of its aisle. Sharing a note to edit: Apple's guide, as the post said before.
-// Pinto Notes: the meal plan template's note (content/templates/meal-plan.json) with the same dinners, the same groceries and
-// the same four ticks, drawn by the Mac app offscreen (PaneTests/HIG/BlogSnapshots.swift, appleNotesSideBySide).
+// Pinto Notes: the meal plan app (content/templates/meal-plan.app, an app since 22 November 2026) with the same seven dinners
+// in the week of 23 November, Oskar cooking Tuesday and Thursday, each dinner's ingredients making the same 13 groceries
+// (rice, pasta, onions and garlic left off as cupboard staples) and the same four ticks, seen on Monday 23 November. Drawn
+// by scripts/blog-side-by-side-apps.ts (meal-plan) with the render service's code.
 
 const TEMPLATE = `# Dinners, week of 23 November
 
@@ -59,7 +61,7 @@ const FAQ = [
     "Reminders has a Groceries list type, from iOS 17, that sorts items by section as you add them. Notes keeps the list next to the dinners it came from. If you plan the week first, keeping both in one note saves copying.",
   ] },
   { q: "Is there a meal planner that writes the grocery list for you?", a: [
-    "Pinto Notes has a free meal plan template: the week's dinners, who cooks, and the groceries by aisle. ChatGPT or Claude can plan the week in it and write the list, leaving out what's always in the cupboard.",
+    "Pinto Notes has a free meal plan template, a small app in a note: the week's dinners, who cooks, and a grocery list it makes from them, by aisle, leaving out what's always in the cupboard. Ask ChatGPT or Claude to plan the week, or plan it yourself.",
   ] },
 ];
 
@@ -75,10 +77,10 @@ export default function Page() {
         <SideBySide slug="apple-notes-meal-planner-template"
           apple={{ src: "/blog/side-by-side/meal-planner-template-apple-notes", width: 822, height: 1465, line: "Holds the plan and the list. You write the list from the recipes yourself.",
             alt: "The meal planner template in Apple Notes on macOS 27: seven dinners as a list, then groceries by aisle as checklists, with Lemons, Basil, Chicken thighs and Tortillas ticked." }}
-          pinto={{ frame: false, title: "The same week in Pinto Notes", line: "Ask your AI to plan the week and it writes the list by aisle, leaving out what's in the cupboard.",
-            alt: "The same dinners in the Pinto Notes meal plan template, as a table with who cooks each night, and the same grocery list with four things ticked.",
-            phone: { src: "/blog/side-by-side/meal-plan-pinto-phone", width: 780, height: 1600 },
-            desk: { src: "/blog/side-by-side/meal-plan-pinto-mac", width: 1520, height: 1208 },
+          pinto={{ title: "The same week in Pinto Notes", line: "Plan the dinners and the app writes the grocery list by aisle, without what's in the cupboard.",
+            alt: "The same week in the Pinto Notes meal plan app: the groceries made from the seven dinners, by aisle, each saying which dinner it's for, with Lemons, Basil, Chicken thighs and Tortillas ticked.",
+            phone: { src: "/blog/side-by-side/meal-plan-pinto-phone", width: 780, height: 1688 },
+            desk: { src: "/blog/side-by-side/meal-plan-pinto-mac", width: 1526, height: 1280 },
             href: "/templates/meal-plan", button: "Get the meal plan template" }} />
       </>}
       faq={FAQ}

@@ -63,16 +63,34 @@ describe("a template's page data", () => {
         if (pic.from) expect(md.split("\n").some((l) => heading(l) === pic.from), `${name}: ${pic.from}`).toBe(true);
       }
       for (const s of p.slides) for (const n of [s.mac, s.phone].filter(Boolean)) expect(Object.keys(p.pictures!), n).toContain(n);
-      // The slide that talks about a section shows that section.
+      // The slide that talks about a section shows that section (in the note that slide draws).
       const [first, second] = p.slides;
       const from = p.pictures![second.phone].from;
-      expect(from && t.example.includes(from), second.phone).toBeTruthy();
+      expect(from && pictureBody(t, p.pictures![second.phone]).includes(from), second.phone).toBeTruthy();
       // A reply that says something changed shows the change: the note under it isn't the one the
-      // slide before showed (a question changes nothing, so both can show the same note).
-      if (!second.you!.trim().endsWith("?")) {
+      // slide before showed (a question changes nothing, so both can show the same note; nor does a
+      // reply that only asks, as when "Quiz me" is answered with the first cue).
+      if (!second.you!.trim().endsWith("?") && !second.ai!.trim().endsWith("?")) {
         expect(pictureBody(t, p.pictures![second.phone]), `${t.slug}: slide 2 shows the change`).not.toBe(pictureBody(t, p.pictures![first.mac!]));
         expect(pictureBody(t, p.pictures![second.phone]), `${t.slug}: slide 2 shows the change`).not.toBe(pictureBody(t, p.pictures![first.phone]));
       }
+    });
+
+    // A page about talking to your AI draws the note as each real chat left it (saved from the
+    // local stack): still the template's note, every section of it there, and filled in by the chat.
+    const saved = Object.entries(p.pictures ?? {}).filter(([, pic]) => pic.saved);
+    it.runIf(saved.length > 0)(`${t.slug}: a saved picture is the template's note as a chat left it`, () => {
+      const sections = t.note.split("\n").filter((l) => /^## /.test(l));
+      for (const [name, pic] of saved) {
+        const md = pictureBody(t, pic);
+        for (const h of sections) expect(md.split("\n"), `${name}: ${h}`).toContain(h);
+        expect(md.trim(), name).not.toBe(t.note.trim());
+      }
+      // Each chat slide draws the note after its own chat: the first chat's note, then a later one.
+      const chats = p.slides.filter((sl) => sl.you);
+      chats.forEach((sl, k) => {
+        for (const n of [sl.mac, sl.phone].filter((x): x is string => Boolean(x))) expect(p.pictures![n].saved, `${sl.label}: ${n}`).toBe(`after-chat${k + 1}`);
+      });
     });
   }
 

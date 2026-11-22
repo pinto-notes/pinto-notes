@@ -1,0 +1,457 @@
+{
+ "values": {
+  "dinners": [
+   {
+    "id": "d1",
+    "date": "2026-10-30",
+    "dish": "Fish pie",
+    "cook": "Me",
+    "ingredients": [
+     {
+      "name": "White fish",
+      "qty": "400 g",
+      "aisle": "Meat and fish"
+     },
+     {
+      "name": "Potatoes",
+      "qty": "1 kg",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Milk",
+      "qty": "1 l",
+      "aisle": "Dairy and eggs"
+     },
+     {
+      "name": "Peas",
+      "qty": "1 bag",
+      "aisle": "Frozen"
+     }
+    ]
+   },
+   {
+    "id": "d2",
+    "date": "2026-10-31",
+    "dish": "Veggie stir fry",
+    "cook": "Oskar",
+    "ingredients": [
+     {
+      "name": "Noodles",
+      "qty": "2 packs",
+      "aisle": "Dry goods"
+     },
+     {
+      "name": "Broccoli",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Peppers",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Soy sauce",
+      "aisle": "Tins and jars"
+     }
+    ]
+   },
+   {
+    "id": "d3",
+    "date": "2026-11-02",
+    "dish": "Lemon chicken with rice",
+    "cook": "Me",
+    "recipe": "Recipes/Lemon chicken",
+    "ingredients": [
+     {
+      "name": "Chicken thighs",
+      "qty": "600 g",
+      "aisle": "Meat and fish"
+     },
+     {
+      "name": "Lemons",
+      "qty": "2",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Rice",
+      "aisle": "Dry goods"
+     },
+     {
+      "name": "Parsley",
+      "qty": "1 bunch",
+      "aisle": "Fruit and veg"
+     }
+    ]
+   },
+   {
+    "id": "d4",
+    "date": "2026-11-03",
+    "dish": "Fish tacos",
+    "cook": "Oskar",
+    "ingredients": [
+     {
+      "name": "White fish",
+      "qty": "400 g",
+      "aisle": "Meat and fish"
+     },
+     {
+      "name": "Limes",
+      "qty": "2",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Tortillas",
+      "qty": "8",
+      "aisle": "Bakery"
+     },
+     {
+      "name": "Red cabbage",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Sour cream",
+      "qty": "1 tub",
+      "aisle": "Dairy and eggs"
+     }
+    ]
+   },
+   {
+    "id": "d5",
+    "date": "2026-11-04",
+    "dish": "Chickpea curry",
+    "cook": "Oskar",
+    "recipe": "Recipes/Chickpea curry",
+    "ingredients": [
+     {
+      "name": "Chickpeas",
+      "qty": "2 tins",
+      "aisle": "Tins and jars"
+     },
+     {
+      "name": "Coconut milk",
+      "qty": "1 tin",
+      "aisle": "Tins and jars"
+     },
+     {
+      "name": "Spinach",
+      "qty": "200 g",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Onions",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Rice",
+      "aisle": "Dry goods"
+     }
+    ]
+   },
+   {
+    "id": "d6",
+    "date": "2026-11-05",
+    "dish": "Pasta with tomato and basil",
+    "cook": "Me",
+    "ingredients": [
+     {
+      "name": "Pasta",
+      "aisle": "Dry goods"
+     },
+     {
+      "name": "Cherry tomatoes",
+      "qty": "500 g",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Basil",
+      "qty": "1 bunch",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Parmesan",
+      "aisle": "Dairy and eggs"
+     }
+    ]
+   },
+   {
+    "id": "d7",
+    "date": "2026-11-06",
+    "dish": "Homemade pizza",
+    "cook": "Me",
+    "recipe": "Recipes/Pizza dough",
+    "ingredients": [
+     {
+      "name": "Pizza dough",
+      "qty": "2",
+      "aisle": "Bakery"
+     },
+     {
+      "name": "Mozzarella",
+      "qty": "2",
+      "aisle": "Dairy and eggs"
+     },
+     {
+      "name": "Passata",
+      "qty": "1 jar",
+      "aisle": "Tins and jars"
+     },
+     {
+      "name": "Basil",
+      "qty": "1 bunch",
+      "aisle": "Fruit and veg"
+     }
+    ]
+   },
+   {
+    "id": "d8",
+    "date": "2026-11-07",
+    "dish": "Out with friends",
+    "ingredients": []
+   },
+   {
+    "id": "d9",
+    "date": "2026-11-08",
+    "dish": "Roast chicken and potatoes",
+    "cook": "Oskar",
+    "recipe": "Recipes/Roast chicken",
+    "ingredients": [
+     {
+      "name": "Whole chicken",
+      "aisle": "Meat and fish"
+     },
+     {
+      "name": "Potatoes",
+      "qty": "1 kg",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Lemon",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Garlic",
+      "aisle": "Fruit and veg"
+     }
+    ]
+   },
+   {
+    "id": "d10",
+    "date": "2026-11-09",
+    "dish": "Miso salmon with greens",
+    "cook": "Me",
+    "ingredients": [
+     {
+      "name": "Salmon fillets",
+      "qty": "2",
+      "aisle": "Meat and fish"
+     },
+     {
+      "name": "Broccoli",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Miso paste",
+      "aisle": "Tins and jars"
+     },
+     {
+      "name": "Rice",
+      "aisle": "Dry goods"
+     }
+    ]
+   },
+   {
+    "id": "d11",
+    "date": "2026-11-10",
+    "dish": "Shakshuka",
+    "cook": "Oskar",
+    "ingredients": [
+     {
+      "name": "Eggs",
+      "qty": "6",
+      "aisle": "Dairy and eggs"
+     },
+     {
+      "name": "Tinned tomatoes",
+      "qty": "2 tins",
+      "aisle": "Tins and jars"
+     },
+     {
+      "name": "Peppers",
+      "qty": "2",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Sourdough",
+      "qty": "1 loaf",
+      "aisle": "Bakery"
+     }
+    ]
+   },
+   {
+    "id": "d12",
+    "date": "2026-11-11",
+    "dish": "Red lentil soup",
+    "cook": "Me",
+    "ingredients": [
+     {
+      "name": "Red lentils",
+      "qty": "300 g",
+      "aisle": "Dry goods"
+     },
+     {
+      "name": "Carrots",
+      "qty": "3",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Onions",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Sourdough",
+      "qty": "1 loaf",
+      "aisle": "Bakery"
+     }
+    ]
+   },
+   {
+    "id": "d13",
+    "date": "2026-11-12",
+    "dish": "Halloumi wraps",
+    "cook": "Oskar",
+    "ingredients": [
+     {
+      "name": "Halloumi",
+      "qty": "1",
+      "aisle": "Dairy and eggs"
+     },
+     {
+      "name": "Tortillas",
+      "qty": "8",
+      "aisle": "Bakery"
+     },
+     {
+      "name": "Peppers",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Hummus",
+      "qty": "1 tub",
+      "aisle": "Dairy and eggs"
+     }
+    ]
+   },
+   {
+    "id": "d14",
+    "date": "2026-11-13",
+    "dish": "Pesto gnocchi",
+    "cook": "Me",
+    "ingredients": [
+     {
+      "name": "Gnocchi",
+      "qty": "500 g",
+      "aisle": "Other"
+     },
+     {
+      "name": "Pesto",
+      "qty": "1 jar",
+      "aisle": "Tins and jars"
+     },
+     {
+      "name": "Cherry tomatoes",
+      "qty": "250 g",
+      "aisle": "Fruit and veg"
+     }
+    ]
+   },
+   {
+    "id": "d15",
+    "date": "2026-11-14",
+    "dish": "Burgers",
+    "cook": "Oskar",
+    "ingredients": [
+     {
+      "name": "Beef mince",
+      "qty": "500 g",
+      "aisle": "Meat and fish"
+     },
+     {
+      "name": "Burger buns",
+      "qty": "4",
+      "aisle": "Bakery"
+     },
+     {
+      "name": "Lettuce",
+      "qty": "1",
+      "aisle": "Fruit and veg"
+     },
+     {
+      "name": "Cheddar",
+      "aisle": "Dairy and eggs"
+     }
+    ]
+   }
+  ],
+  "extras": [
+   {
+    "id": "x1",
+    "week": "2026-11-08",
+    "name": "Oat milk",
+    "qty": "2 l",
+    "aisle": "Dairy and eggs"
+   },
+   {
+    "id": "x2",
+    "week": "2026-11-08",
+    "name": "Coffee",
+    "aisle": "Dry goods"
+   }
+  ],
+  "bought": {
+   "2026-11-08": [
+    "lemon",
+    "lime",
+    "parsley",
+    "basil",
+    "cherry tomato",
+    "spinach",
+    "red cabbage",
+    "potato",
+    "pepper",
+    "tortilla",
+    "sourdough",
+    "burger bun"
+   ]
+  },
+  "cooks": [
+   "Me",
+   "Oskar"
+  ],
+  "aisles": [
+   "Fruit and veg",
+   "Bakery",
+   "Meat and fish",
+   "Dairy and eggs",
+   "Dry goods",
+   "Tins and jars",
+   "Frozen",
+   "Other"
+  ],
+  "cupboard": [
+   "Olive oil",
+   "Salt",
+   "Pepper",
+   "Rice",
+   "Pasta",
+   "Oats",
+   "Onions",
+   "Garlic"
+  ]
+ },
+ "collections": {}
+}

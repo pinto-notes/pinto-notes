@@ -205,13 +205,29 @@ describe("the instructions", () => {
   it("say in the note itself what a new chat needs to keep it right", () => {
     // A new chat sees the note, not the prompt. In real runs (2026-11-22) a new chat put content ideas
     // in the calendar table as "Idea" and left planned posts there, dropped a weekly planner's unticked
-    // items when starting a new week, and logged a past workout below newer ones.
+    // items when starting a new week, and logged a past workout below newer ones (the workout log is
+    // an app since 22 November 2026: its sessions are sorted by date, and its docs/README.md says how
+    // to log one).
     const rules: Record<string, RegExp> = {
       "content-calendar": /## Ideas\n[^\n]*one line each[^\n]*moves to the calendar as Drafting/,
       "weekly-planner": /On Sunday the ticked things go, and what's left on the days moves to Monday/,
-      "workout-log": /One row per session, oldest first/,
     };
     for (const [slug, rule] of Object.entries(rules)) expect(all.find((t) => t.slug === slug)!.note, slug).toMatch(rule);
+  });
+
+  it("show the form of a dated heading, as the example writes it", () => {
+    // Told only "a ### heading with the name and the date", real runs (local stack, 2026-11-22) wrote
+    // "### Pricing sync — 2026-11-19" and "### Supply and demand (Econ) — 2026-11-17": a dash and a
+    // machine date, where the template's example has "### Pricing sync, 5 November".
+    for (const t of all) {
+      for (const [k, p] of Object.entries(t.prompt)) {
+        if (!/"###[^"]*" heading with [^.]*date/.test(p)) continue;
+        const form = p.match(/date, like "(### [^"]+)"/)?.[1];
+        expect(form, `${t.slug} (${k})`).toBeTruthy();
+        expect(form!, `${t.slug} (${k})`).toMatch(/\d{1,2} (January|February|March|April|May|June|July|August|September|October|November|December)$/);
+        expect(form!, `${t.slug} (${k})`).not.toMatch(/[–—]/);
+      }
+    }
   });
 
   it("keep a trip's booking names short, as the app shows them", () => {

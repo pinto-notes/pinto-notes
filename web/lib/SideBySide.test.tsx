@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -48,5 +48,27 @@ describe("the Apple Notes and Pinto Notes side by side", () => {
       .concat(["budget-template", "expense-tracker", "habit-tracker", "job-search-tracker", "meal-planner-template", "mood-tracker", "reading-list",
         "templates", "time-log-template", "trip-planner-template", "workout-log-template"].map((s) => `${s}-apple-notes`));
     for (const p of pics) for (const ext of ["webp", "avif"]) expect(existsSync(join(process.cwd(), "public/blog/side-by-side", `${p}.${ext}`)), `${p}.${ext}`).toBe(true);
+  });
+
+  // The app posts' Pinto side turned from a note into the app on 22 Nov 2026, drawn at new sizes: the
+  // width and height each post gives must be the picture's own, or the card is drawn stretched.
+  it("gives each picture its own size", () => {
+    const size = (file: string) => {
+      const b = readFileSync(file);
+      const kind = b.toString("ascii", 12, 16);
+      if (kind === "VP8X") return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+      if (kind === "VP8L") { const n = b.readUInt32LE(21); return [1 + (n & 0x3fff), 1 + ((n >> 14) & 0x3fff)]; }
+      return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    };
+    const blog = join(process.cwd(), "app/blog");
+    let checked = 0;
+    for (const post of readdirSync(blog).filter((d) => d.startsWith("apple-notes-") && existsSync(join(blog, d, "page.tsx")))) {
+      const page = readFileSync(join(blog, post, "page.tsx"), "utf8");
+      for (const m of page.matchAll(/src: "\/blog\/side-by-side\/([a-z0-9-]+)", width: (\d+), height: (\d+)/g)) {
+        expect(size(join(process.cwd(), "public/blog/side-by-side", `${m[1]}.webp`)), `${post}: ${m[1]}`).toEqual([Number(m[2]), Number(m[3])]);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(20);
   });
 });

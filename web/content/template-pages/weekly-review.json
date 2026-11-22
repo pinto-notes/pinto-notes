@@ -8,18 +8,18 @@
   "slides": [
     {
       "label": "Review your week",
-      "you": "Ask me this week's five questions.",
-      "ai": "Your answers are under Reviews, as Week of 2 November, with your top three for next week.",
+      "you": "Weekly review. Went well: shipped the importer. Didn't: skipped two runs. Top three next week: dentist, budget, run three times.",
+      "ai": "Added Week of 16 November, with your top three as a checklist.",
       "mac": "mac-1",
       "phone": "phone-1",
-      "alt": "Weekly review filled in, in Pinto Notes on a Mac"
+      "alt": "The week's review, with the top three"
     },
     {
-      "label": "Tick a priority",
-      "you": "I booked the dentist.",
-      "ai": "Ticked it off.",
+      "label": "Midweek, check in",
+      "you": "Booked the dentist. What's left of my top three?",
+      "ai": "Ticked off Book the dentist. Left: finish the budget and run three times.",
       "phone": "phone-2",
-      "alt": "Reviews, in Weekly review"
+      "alt": "Book the dentist ticked in the top three"
     },
     {
       "label": "Use it yourself",
@@ -31,18 +31,14 @@
   ],
   "pictures": {
     "mac-1": {
-      "of": "example",
-      "steps": 1,
-      "from": "Reviews"
+      "saved": "after-chat1"
     },
     "phone-1": {
-      "of": "example",
-      "steps": 1,
-      "from": "Reviews"
+      "saved": "after-chat1"
     },
     "phone-2": {
-      "of": "example",
-      "from": "Reviews"
+      "saved": "after-chat2",
+      "from": "Top three for next week"
     },
     "mac-start": {
       "of": "note"

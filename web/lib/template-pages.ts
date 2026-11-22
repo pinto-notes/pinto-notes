@@ -9,10 +9,15 @@ import { instructions, template, templates, type Template } from "./templates";
 /// are content/template-pages/<slug>.json, so the copy can be swapped without touching the page.
 ///
 /// Truth: a slide's bubbles say what the template's tools really do (its demo calls and example, or
-/// for an app, its prompt and sample data), and its pictures are the real app: the four app templates
+/// for an app, its prompt and sample data), and its pictures are the real app: the app templates
 /// drawn by scripts/template-page-shots.ts (the render service's code), the rest by the Mac app
 /// offscreen and the iPhone app on a headless simulator (PaneTests/HIG/TemplatePageShots.swift,
 /// through web/scripts/template-page-shots.mjs), each at the step of the demo its slide is about.
+/// The pages about talking to your AI (meeting notes, the journal, the planner and seven more) show
+/// real chats instead: each slide is one exchange with Claude through the Pinto MCP on the local
+/// stack, in a fresh chat after the first, shortened; under it is the note as that chat left it
+/// (content/template-pages/saved/<slug>/after-chat<n>.md), so a later slide shows the AI answering
+/// from the note alone.
 
 export type Slide = {
   /// The thumbnail's words under the gallery.
