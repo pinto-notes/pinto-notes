@@ -168,7 +168,7 @@ export default function Page() {
         anglais) prend une minute.
       </p>
       <p>
-        Un suivi que vous tenez déjà dans Notes arrive en <a href="/blog/move-from-apple-notes">un seul import sur votre Mac</a> (en
+        Un suivi que vous tenez déjà dans Notes arrive en <a href="/blog/import-your-notes">un seul import sur votre Mac</a> (en
         anglais), et Notes reste tel quel. L’app est en anglais.
       </p>
     </LocalPostPage>

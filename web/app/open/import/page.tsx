@@ -20,7 +20,7 @@ export default function Page() {
         <>Every note in every folder is picked. Import them all, or untick some.</>,
         <>On your iPhone they show up a second later.</>,
       ]}
-      links={[{ href: "/blog/move-from-apple-notes", label: "Moving from Apple Notes, step by step" }]}
+      links={[{ href: "/blog/import-your-notes", label: "Moving from Apple Notes, step by step" }]}
     />
   );
 }

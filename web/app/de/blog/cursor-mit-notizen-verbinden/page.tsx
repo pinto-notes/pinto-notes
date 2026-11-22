@@ -92,6 +92,6 @@ export default function Page() {
 
     <h2 id="pinto">Entscheidungen beim ursprünglichen Konzept behalten</h2>
     <p>Nutze dieselbe Notiz für die Anforderung vom iPhone und die Entscheidungen beim Programmieren. Bitte Cursor ausdrücklich, Änderungen zurückzuschreiben.</p>
-    <p>Die <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">Anleitung für Claude Code und Codex</a> verbindet weitere Agenten mit Pinto Notes. Liegen deine Konzepte in Apple Notizen, kannst du sie <a href="/blog/move-from-apple-notes" hrefLang="en">auf dem Mac importieren</a>. Apple Notizen bleibt unverändert.</p>
+    <p>Die <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">Anleitung für Claude Code und Codex</a> verbindet weitere Agenten mit Pinto Notes. Liegen deine Konzepte in Apple Notizen, kannst du sie <a href="/blog/import-your-notes" hrefLang="en">auf dem Mac importieren</a>. Apple Notizen bleibt unverändert.</p>
   </LocalPostPage>;
 }

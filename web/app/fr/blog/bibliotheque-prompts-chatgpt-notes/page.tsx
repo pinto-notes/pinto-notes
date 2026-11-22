@@ -73,6 +73,6 @@ export default function Page() {
     <p>Utilisez la même structure dans Pinto Notes, une app proche de Notes sur iPhone et Mac. Suivez le <a href="/blog/connect-chatgpt-to-your-notes">guide de connexion à ChatGPT</a> et choisissez Allow dans Pinto Notes. Ce choix donne à ChatGPT le droit de lire et modifier vos notes.</p>
     <Keep title="Demander un prompt enregistré" text={RETRIEVE} note="Connectez d'abord Pinto Notes. Cette demande lit les consignes et réclame les nouvelles données." />
     <p>Vérifiez que ChatGPT a trouvé la bonne note avant de donner les détails de la semaine. Après avoir validé une meilleure version, demandez-lui d'enregistrer les consignes et l'exemple vérifié. Pinto conserve les versions antérieures.</p>
-    <p>Vous décidez quand chercher le prompt et quelle version garder. Si votre bibliothèque est déjà dans Notes d'Apple, <a href="/blog/move-from-apple-notes">importez-la sur Mac</a>. Les originaux restent inchangés.</p>
+    <p>Vous décidez quand chercher le prompt et quelle version garder. Si votre bibliothèque est déjà dans Notes d'Apple, <a href="/blog/import-your-notes">importez-la sur Mac</a>. Les originaux restent inchangés.</p>
   </LocalPostPage>;
 }

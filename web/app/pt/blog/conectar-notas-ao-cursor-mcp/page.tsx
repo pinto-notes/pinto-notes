@@ -69,6 +69,6 @@ export default function Page() {
     <p>Repita primeiro o pedido de leitura. Se houver notas com nomes parecidos, use o título exato e peça que mostre a nota encontrada antes de editar.</p>
     <h2 id="pinto">Guarde as decisões com o briefing</h2>
     <p>Use a mesma nota para o pedido registrado no iPhone e as decisões tomadas durante o código. Peça ao Cursor para atualizá-la quando algo mudar. O exemplo exige um pedido explícito para gravar.</p>
-    <p>O <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">guia de Claude Code e Codex</a> mostra outras conexões. Se seus briefings estão no Notas da Apple, <a href="/blog/move-from-apple-notes" hrefLang="en">importe no Mac</a>. O Notas não muda.</p>
+    <p>O <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">guia de Claude Code e Codex</a> mostra outras conexões. Se seus briefings estão no Notas da Apple, <a href="/blog/import-your-notes" hrefLang="en">importe no Mac</a>. O Notas não muda.</p>
   </LocalPostPage>;
 }

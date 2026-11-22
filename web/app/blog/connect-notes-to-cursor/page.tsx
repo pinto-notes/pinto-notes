@@ -160,7 +160,7 @@ export default function Page() {
       <p>
         If you also use other coding agents, the <a href="/blog/notes-in-claude-code-and-codex">Claude Code and Codex setup guide</a>{" "}
         connects them to your Pinto Notes too. If your briefs are in Apple Notes, you can{" "}
-        <a href="/blog/move-from-apple-notes">import them on your Mac</a>. Apple Notes stays unchanged.
+        <a href="/blog/import-your-notes">import them on your Mac</a>. Apple Notes stays unchanged.
       </p>
     </PostPage>
   );

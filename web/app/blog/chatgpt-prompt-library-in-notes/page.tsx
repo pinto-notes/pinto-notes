@@ -174,7 +174,7 @@ export default function Page() {
       </p>
       <p>
         This is a prompt library you maintain as notes. You decide when to retrieve a prompt and which revision to keep.
-        If your library is already in Apple Notes, <a href="/blog/move-from-apple-notes">bring it over in one import on your Mac</a>.
+        If your library is already in Apple Notes, <a href="/blog/import-your-notes">bring it over in one import on your Mac</a>.
         Apple Notes stays unchanged.
       </p>
     </PostPage>

@@ -11,12 +11,6 @@
   "w": 1600,
   "h": 1000
  },
- "alternatives": {
-  "ground": "#b9ded6",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "annotate-pdf": {
   "ground": "#96b3ab",
   "ink": "dark",
@@ -65,12 +59,6 @@
   "w": 1600,
   "h": 1000
  },
- "app-move-from-apple-notes": {
-  "ground": "#8b783a",
-  "ink": "light",
-  "w": 1600,
-  "h": 1000
- },
  "app-notes-in-claude-code-and-codex": {
   "ground": "#63304c",
   "ink": "light",
@@ -107,27 +95,9 @@
   "w": 880,
   "h": 462
  },
- "apple-siri-orb": {
-  "ground": "#020202",
-  "ink": "light",
-  "w": 880,
-  "h": 550
- },
  "back-up": {
   "ground": "#dfeae4",
   "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "backlinks": {
-  "ground": "#e6efde",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "bear-alt": {
-  "ground": "#d57048",
-  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -203,12 +173,6 @@
   "w": 880,
   "h": 550
  },
- "claude-apple-notes": {
-  "ground": "#f5e3d5",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "claude-code-codex": {
   "ground": "#eee6df",
   "ink": "dark",
@@ -223,12 +187,6 @@
  },
  "client-tracker": {
   "ground": "#709f96",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "code-block": {
-  "ground": "#a2d7bd",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -257,12 +215,6 @@
   "w": 880,
   "h": 550
  },
- "craft-alternative": {
-  "ground": "#efc794",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "cursor": {
   "ground": "#8ca3b6",
   "ink": "dark",
@@ -272,12 +224,6 @@
  "decision": {
   "ground": "#cac6c3",
   "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "developers": {
-  "ground": "#7b8996",
-  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -301,24 +247,6 @@
  },
  "encrypted": {
   "ground": "#dae1d9",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "evernote-alt": {
-  "ground": "#98a169",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "evernote-price": {
-  "ground": "#c8653b",
-  "ink": "light",
-  "w": 880,
-  "h": 550
- },
- "evernote-to-notes": {
-  "ground": "#c3d9b0",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -413,20 +341,8 @@
   "w": 880,
   "h": 550
  },
- "iphone-apps": {
-  "ground": "#aac5f0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "job-hunt": {
   "ground": "#7792ae",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "joplin-alternative": {
-  "ground": "#829cb1",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -439,18 +355,6 @@
  },
  "jumping": {
   "ground": "#fa896d",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "keep-alternative": {
-  "ground": "#d0b2d6",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "keep-to-notes": {
-  "ground": "#fad286",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -491,12 +395,6 @@
   "w": 880,
   "h": 550
  },
- "mem-alternative": {
-  "ground": "#b0b3e0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "memory-study": {
   "ground": "#5d2d47",
   "ink": "light",
@@ -511,12 +409,6 @@
  },
  "mood": {
   "ground": "#d1b8d6",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "move-apple-notes": {
-  "ground": "#fbefd9",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -551,12 +443,6 @@
   "w": 880,
   "h": 550
  },
- "notes-ai": {
-  "ground": "#bdbce5",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "notes-apps-mcp": {
   "ground": "#dce3ed",
   "ink": "dark",
@@ -572,18 +458,6 @@
  "notes-tips": {
   "ground": "#f0c792",
   "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "notion-alt": {
-  "ground": "#f0c4a0",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "obsidian-alt": {
-  "ground": "#64576a",
-  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -608,12 +482,6 @@
  "one-on-one": {
   "ground": "#f0c691",
   "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "onenote-alt": {
-  "ground": "#7d465a",
-  "ink": "light",
   "w": 880,
   "h": 550
  },
@@ -701,12 +569,6 @@
   "w": 880,
   "h": 550
  },
- "reflect-alternative": {
-  "ground": "#bcd6c3",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "resume-template": {
   "ground": "#89beb0",
   "ink": "dark",
@@ -737,21 +599,9 @@
   "w": 880,
   "h": 550
  },
- "second-brain": {
-  "ground": "#d78c7b",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "share-together": {
   "ground": "#ae7272",
   "ink": "light",
-  "w": 880,
-  "h": 550
- },
- "simplenote-alt": {
-  "ground": "#b4d7ea",
-  "ink": "dark",
   "w": 880,
   "h": 550
  },
@@ -815,56 +665,8 @@
   "w": 880,
   "h": 550
  },
- "upnote-alternative": {
-  "ground": "#a9d3a9",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
  "user-interview": {
   "ground": "#afdcd3",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "version-history": {
-  "ground": "#e6f0df",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "vs-bear": {
-  "ground": "#f4bbb2",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "vs-evernote": {
-  "ground": "#acb78b",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "vs-keep": {
-  "ground": "#f1c996",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "vs-notion": {
-  "ground": "#c9c7c6",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "vs-obsidian": {
-  "ground": "#d9c2e4",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "vs-onenote": {
-  "ground": "#ddbbcd",
   "ink": "dark",
   "w": 880,
   "h": 550
@@ -901,12 +703,6 @@
  },
  "workout-log": {
   "ground": "#edc898",
-  "ink": "dark",
-  "w": 880,
-  "h": 550
- },
- "writers": {
-  "ground": "#efc691",
   "ink": "dark",
   "w": 880,
   "h": 550

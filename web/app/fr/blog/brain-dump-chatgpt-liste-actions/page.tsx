@@ -91,6 +91,6 @@ export default function Page() {
     <h2 id="pinto">Ajouter la liste dans Pinto avec ChatGPT</h2>
     <p><a href="/blog/connect-chatgpt-to-your-notes">Connectez ChatGPT</a> à Pinto Notes et choisissez Allow, ce qui autorise la lecture et la modification. Envoyez le prompt de tri, puis la demande suivante avec le vrai titre de votre note.</p>
     <Keep title="Lire la note, puis enregistrer mon choix" text={CONNECTED} note="Connectez Pinto d'abord et gardez le prompt de tri dans la même conversation." />
-    <p>Ouvrez la note enregistrée et comparez les Notes brutes à l'original. Vérifiez les actions choisies. L'instruction de conserver le texte n'est pas une garantie. Pinto garde les versions antérieures. Pour réutiliser ces consignes, rangez-les dans une <a href="/fr/blog/bibliotheque-prompts-chatgpt-notes">bibliothèque de prompts</a>. Les notes déjà dans Apple arrivent par <a href="/blog/move-from-apple-notes">un import sur Mac</a> qui ne change pas les originaux.</p>
+    <p>Ouvrez la note enregistrée et comparez les Notes brutes à l'original. Vérifiez les actions choisies. L'instruction de conserver le texte n'est pas une garantie. Pinto garde les versions antérieures. Pour réutiliser ces consignes, rangez-les dans une <a href="/fr/blog/bibliotheque-prompts-chatgpt-notes">bibliothèque de prompts</a>. Les notes déjà dans Apple arrivent par <a href="/blog/import-your-notes">un import sur Mac</a> qui ne change pas les originaux.</p>
   </LocalPostPage>;
 }

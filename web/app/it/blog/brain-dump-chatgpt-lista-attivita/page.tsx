@@ -92,5 +92,5 @@ export default function Page() { return <LocalPostPage lang="it" slug="brain-dum
   <p><a href="/blog/connect-chatgpt-to-your-notes">Collega ChatGPT</a> a Pinto Notes e scegli Allow. Può leggere e modificare le note. Dopo il prompt di ordinamento, invia questa richiesta con il titolo della tua nota.</p>
   <Keep title="Leggi gli appunti e salva ciò che scelgo" text={CONNECTED} note="Tieni entrambi i prompt nella stessa chat e collega prima Pinto Notes." />
   <p>Apri la nota salvata. Confronta Appunti grezzi con l'originale e verifica le azioni approvate. Chiedere all'AI di conservare il testo non è una garanzia. Pinto conserva le versioni precedenti delle note.</p>
-  <p>Per riusare le istruzioni, salvale in una <a href="/it/blog/libreria-prompt-chatgpt-note">libreria di prompt</a>. Puoi <a href="/blog/move-from-apple-notes">importare le note di Apple sul Mac</a> senza modificarle nell'app originale.</p>
+  <p>Per riusare le istruzioni, salvale in una <a href="/it/blog/libreria-prompt-chatgpt-note">libreria di prompt</a>. Puoi <a href="/blog/import-your-notes">importare le note di Apple sul Mac</a> senza modificarle nell'app originale.</p>
   </LocalPostPage>; }

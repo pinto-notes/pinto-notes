@@ -68,6 +68,6 @@ export default function Page() {
     <p>Réessayez d'abord la demande de lecture. Si plusieurs notes portent un titre proche, donnez le titre exact et demandez à Cursor de montrer la note trouvée avant toute modification.</p>
     <h2 id="pinto">Garder les décisions avec la note de départ</h2>
     <p>Utilisez la même note pour la demande écrite sur iPhone et les décisions prises en codant. Dans cet exemple, Cursor ne réécrit la note que si vous le lui demandez.</p>
-    <p>Le <a href="/blog/notes-in-claude-code-and-codex">guide Claude Code et Codex</a> explique la connexion d'autres agents. Vous pouvez aussi <a href="/blog/move-from-apple-notes">importer vos notes Apple sur Mac</a> ; Notes reste inchangé.</p>
+    <p>Le <a href="/blog/notes-in-claude-code-and-codex">guide Claude Code et Codex</a> explique la connexion d'autres agents. Vous pouvez aussi <a href="/blog/import-your-notes">importer vos notes Apple sur Mac</a> ; Notes reste inchangé.</p>
   </LocalPostPage>;
 }

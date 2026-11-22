@@ -144,7 +144,7 @@ export default function Page() {
         <a href="/blog/budget-tracker-with-chatgpt-or-claude">A budget your AI can keep for you</a> (en anglais) montre comment.
       </p>
       <p>
-        Vos notes Apple arrivent en <a href="/blog/move-from-apple-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
+        Vos notes Apple arrivent en <a href="/blog/import-your-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
         tel quel. L’app est en anglais.
       </p>
     </LocalPostPage>

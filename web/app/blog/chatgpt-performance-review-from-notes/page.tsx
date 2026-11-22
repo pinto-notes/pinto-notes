@@ -223,7 +223,7 @@ export default function Page() {
       </p>
       <p>
         This is a workflow you run with your own notes. There is no ready-made Pinto performance review template for it.
-        Your existing Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>,
+        Your existing Apple Notes come over in <a href="/blog/import-your-notes">one import on your Mac</a>,
         and Apple Notes stays unchanged.
       </p>
     </PostPage>

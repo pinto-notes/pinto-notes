@@ -172,7 +172,7 @@ export default function Page() {
         un minuto.
       </p>
       <p>
-        Un diario che tieni già in Note di Apple arriva con <a href="/blog/move-from-apple-notes">una sola importazione sul Mac</a>, e
+        Un diario che tieni già in Note di Apple arriva con <a href="/blog/import-your-notes">una sola importazione sul Mac</a>, e
         Note di Apple resta com’era.
       </p>
     </LocalPostPage>

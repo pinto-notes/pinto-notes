@@ -7,14 +7,13 @@ import { describe, expect, it } from "vitest";
 // the short answer. The Apple Notes help posts stay as they were, so they can be compared.
 const B1 = [
   "connect-chatgpt-to-your-notes", "connect-notes-to-grok", "apple-notes-tables",
-  "move-apple-notes-to-obsidian-notion-keep", "export-apple-notes-to-markdown", "notes-in-claude-code-and-codex", "obsidian-mcp",
-  "move-from-apple-notes",
+  "export-apple-notes-to-markdown", "notes-in-claude-code-and-codex", "obsidian-mcp",
 ];
 // Posts written or changed after B1 started carry the same card, outside the experiment.
-const LATER = ["apple-notes-version-history", "ai-memory-with-notes", "apple-notes-backlinks", "apple-notes-vs-obsidian", "apple-notes-vs-notion", "evernote-to-apple-notes", "google-keep-to-apple-notes", "apple-notes-alternatives", "apple-notes-ai", "best-note-taking-app-for-iphone", "apple-notes-vs-google-keep", "apple-notes-vs-onenote", "apple-notes-vs-bear", "apple-notes-vs-evernote", "best-notes-apps-with-mcp", "evernote-alternative", "evernote-price-increase", "apple-notes-second-brain", "notes-app-for-developers", "notes-app-for-writers", "apple-notes-code-block", "bear-notes-alternative-free", "connect-notes-to-cursor", "obsidian-alternative-for-mac", "simplenote-alternative-for-iphone-and-mac", "chatgpt-prompt-library-in-notes", "connect-notes-to-gemini-cli", "notion-alternative-for-personal-notes-on-mac", "onenote-alternative-for-mac", "google-keep-alternative-for-iphone-and-mac", "upnote-alternative-for-iphone-and-mac", "chatgpt-performance-review-from-notes", "chatgpt-brain-dump-to-action-list", "craft-alternative-for-personal-notes", "joplin-alternative-for-mac", "mem-ai-alternative-for-mac-and-iphone", "reflect-notes-alternative-for-mac-and-iphone"];
+const LATER = ["ai-memory-with-notes", "best-notes-apps-with-mcp", "connect-notes-to-cursor", "chatgpt-prompt-library-in-notes", "connect-notes-to-gemini-cli", "chatgpt-performance-review-from-notes", "chatgpt-brain-dump-to-action-list"];
 // The Apple Notes help posts (B20) were removed on 21 Nov 2026: 0 downloads in 28 days (blog-growth STRATEGIES.md).
 // B27 (21 Nov 2026): posts that had no download at all get one in the answer.
-const B27 = ["siri-ai-apple-notes", "budget-tracker-with-chatgpt-or-claude", "encrypted-notes-app-for-ai"];
+const B27 = ["budget-tracker-with-chatgpt-or-claude", "encrypted-notes-app-for-ai"];
 
 // Pattern E (22 Nov 2026, Emil approved): the Apple Notes template posts open on the template, then the same template in Apple
 // Notes and in Pinto Notes side by side (lib/SideBySide.tsx), whose button goes to the Pinto template. The early download card
@@ -36,7 +35,6 @@ describe("the download in a post's short answer", () => {
       const src = source(slug);
       expect(src, slug).toContain(`<PostCta slug="${slug}" position="answer"`);
       const answer = /<Answer[\s\S]*?<\/Answer>/.exec(src)?.[0];
-      // move-from-apple-notes has no answer box; its card follows "Before you start".
       if (answer) expect(answer, slug).toContain("<PostCta");
     }
   });

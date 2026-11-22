@@ -75,6 +75,6 @@ export default function Page() {
     <p>La <a href="/blog/mcp-server" hrefLang="en">guía del servidor MCP de Pinto Notes</a> enumera sus herramientas. La <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">guía de Claude Code y Codex</a> contiene los comandos para esos agentes.</p>
     <h2 id="pinto">Guarda juntos el encargo y el resultado</h2>
     <p>Pinto Notes se parece a Notas de Apple en iPhone y Mac. Puedes escribir el encargo tú, dejar que una IA autorizada lo edite y volver a una versión anterior.</p>
-    <p>Si tus notas están en Notas de Apple, puedes <a href="/blog/move-from-apple-notes" hrefLang="en">importarlas desde un Mac</a>. Los originales no cambian.</p>
+    <p>Si tus notas están en Notas de Apple, puedes <a href="/blog/import-your-notes" hrefLang="en">importarlas desde un Mac</a>. Los originales no cambian.</p>
   </LocalPostPage>;
 }
