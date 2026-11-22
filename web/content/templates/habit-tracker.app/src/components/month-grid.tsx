@@ -1,11 +1,11 @@
-import { addDays, amount, iso, LETTERS, scheduled, skipped, today, weekday, type Days, type Habit, type Skips } from "@/lib/habits"
+import { addDays, amount, done, iso, LETTERS, scheduled, skipped, today, weekday, type Days, type Habit, type Skips } from "@/lib/habits"
 import { cn } from "@/lib/utils"
 
 const long = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
 
 // A habit's month as a calendar, a day a circle (44 pt targets). Filled: done; a soft fill: part of
 // a count; a dashed ring: skipped on purpose; faint: a day the habit isn't for, or one before the
-// tracker was started. Tap a day to tick
+// tracker was started or the habit was added. Tap a day to tick
 // it, again to skip it, again to clear it. Days to come can't be tapped. With a mouse a week is
 // 28 pt tall, so a month of six weeks fits a Mac note with its tabs under it (council round 4: the
 // last week sat half under the tab bar); under a finger it stays 44.
@@ -19,7 +19,7 @@ export function MonthGrid({ habit: h, days, skips, first, from = "", onTap, clas
       {LETTERS.map((l, i) => <span key={"h" + i} className="pb-1 text-center text-[0.75rem] font-semibold text-muted-foreground">{l}</span>)}
       {cells.map((d, i) => {
         if (!d) return <span key={"x" + i} />
-        const k = iso(d), v = amount(days, h, k), full = v >= h.target, skip = skipped(skips, h, k)
+        const k = iso(d), v = amount(days, h, k), full = done(days, h, k), skip = skipped(skips, h, k)
         // A day before the tracker was started is drawn like a day the habit isn't for: nothing was due.
         const off = !!h.perWeek || !scheduled(h, d) || k < from, future = k > now
         return (
