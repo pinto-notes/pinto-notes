@@ -82,7 +82,7 @@ export default function Page() {
         <li>Add a job with Tab in the last cell. Use the same stage words every time: Saved, Applied, Interview, Offer, Rejected.</li>
         <li>Change the row the day something happens, and put a date in every next step.</li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-meeting-notes-template">notes for each interview</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }

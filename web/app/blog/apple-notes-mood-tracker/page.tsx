@@ -67,7 +67,7 @@ export default function Page() {
         <li>Once a week, read down the columns and write what you notice under Patterns. For a quick total, type 4+3+4+4+4= under the table and Notes offers 19.</li>
       </Steps>
       <p>This is a diary of how you felt, not a health tool. If low days keep piling up, talk to a doctor.</p>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a> and <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-journal-template">a daily journal</a> and <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a>.</p>
     </PostPage>
   );
 }

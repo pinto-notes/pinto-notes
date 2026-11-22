@@ -90,7 +90,7 @@ export default function Page() {
         <li>Turn on Automatically sort checked items in the Notes settings. In the shop, each thing you tick drops to the bottom of its aisle.</li>
         <li>Next week, duplicate the note and untick each aisle: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-trip-planner-template">a trip planner</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-grocery-list-template">a grocery list by aisle</a>, <a href="/blog/apple-notes-recipe-template">a recipe template</a>, <a href="/blog/apple-notes-trip-planner-template">a trip planner</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }

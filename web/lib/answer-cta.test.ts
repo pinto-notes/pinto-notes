@@ -11,7 +11,7 @@ const B1 = [
   "move-from-apple-notes",
 ];
 // Posts written or changed after B1 started carry the same card, outside the experiment.
-const LATER = ["apple-notes-version-history", "ai-memory-with-notes", "apple-notes-backlinks", "apple-notes-flashcards", "apple-notes-vs-obsidian", "apple-notes-vs-notion", "evernote-to-apple-notes", "google-keep-to-apple-notes", "apple-notes-alternatives", "apple-notes-ai", "best-note-taking-app-for-iphone", "apple-notes-vs-google-keep", "apple-notes-vs-onenote", "apple-notes-vs-bear", "apple-notes-vs-evernote", "best-notes-apps-with-mcp", "evernote-alternative", "evernote-price-increase", "apple-notes-second-brain", "notes-app-for-developers", "notes-app-for-writers", "apple-notes-code-block", "bear-notes-alternative-free", "connect-notes-to-cursor", "obsidian-alternative-for-mac", "simplenote-alternative-for-iphone-and-mac", "chatgpt-prompt-library-in-notes", "connect-notes-to-gemini-cli", "notion-alternative-for-personal-notes-on-mac", "onenote-alternative-for-mac", "google-keep-alternative-for-iphone-and-mac", "upnote-alternative-for-iphone-and-mac", "chatgpt-performance-review-from-notes", "chatgpt-brain-dump-to-action-list", "craft-alternative-for-personal-notes", "joplin-alternative-for-mac", "mem-ai-alternative-for-mac-and-iphone", "reflect-notes-alternative-for-mac-and-iphone"];
+const LATER = ["apple-notes-version-history", "ai-memory-with-notes", "apple-notes-backlinks", "apple-notes-vs-obsidian", "apple-notes-vs-notion", "evernote-to-apple-notes", "google-keep-to-apple-notes", "apple-notes-alternatives", "apple-notes-ai", "best-note-taking-app-for-iphone", "apple-notes-vs-google-keep", "apple-notes-vs-onenote", "apple-notes-vs-bear", "apple-notes-vs-evernote", "best-notes-apps-with-mcp", "evernote-alternative", "evernote-price-increase", "apple-notes-second-brain", "notes-app-for-developers", "notes-app-for-writers", "apple-notes-code-block", "bear-notes-alternative-free", "connect-notes-to-cursor", "obsidian-alternative-for-mac", "simplenote-alternative-for-iphone-and-mac", "chatgpt-prompt-library-in-notes", "connect-notes-to-gemini-cli", "notion-alternative-for-personal-notes-on-mac", "onenote-alternative-for-mac", "google-keep-alternative-for-iphone-and-mac", "upnote-alternative-for-iphone-and-mac", "chatgpt-performance-review-from-notes", "chatgpt-brain-dump-to-action-list", "craft-alternative-for-personal-notes", "joplin-alternative-for-mac", "mem-ai-alternative-for-mac-and-iphone", "reflect-notes-alternative-for-mac-and-iphone"];
 // The Apple Notes help posts (B20) were removed on 21 Nov 2026: 0 downloads in 28 days (blog-growth STRATEGIES.md).
 // B27 (21 Nov 2026): posts that had no download at all get one in the answer.
 const B27 = ["siri-ai-apple-notes", "budget-tracker-with-chatgpt-or-claude", "encrypted-notes-app-for-ai"];
@@ -23,6 +23,9 @@ const E = [
   "apple-notes-budget-template", "apple-notes-expense-tracker", "apple-notes-habit-tracker", "apple-notes-job-search-tracker",
   "apple-notes-meal-planner-template", "apple-notes-mood-tracker", "apple-notes-reading-list", "apple-notes-templates",
   "apple-notes-time-log-template", "apple-notes-trip-planner-template", "apple-notes-workout-log-template",
+  // 22 Nov 2026: the six template posts restored at their old addresses, and the flashcards post.
+  "apple-notes-recipe-template", "apple-notes-grocery-list-template", "apple-notes-meeting-notes-template",
+  "apple-notes-journal-template", "apple-notes-planner-template", "apple-notes-cornell-notes-template", "apple-notes-flashcards",
 ];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
