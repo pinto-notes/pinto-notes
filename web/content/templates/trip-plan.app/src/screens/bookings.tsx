@@ -42,7 +42,7 @@ export default function Bookings() {
 
   return (
     <>
-      <Title title="Bookings" subtitle={`${paid} of ${bookings.length} paid`} action={<TintButton onClick={() => setEditing("new")}><Plus /> Add</TintButton>} />
+      <Title title="Bookings" subtitle={bookings.length ? `${paid} of ${bookings.length} paid` : "Nothing booked yet"} action={<TintButton onClick={() => setEditing("new")}><Plus /> Add</TintButton>} />
       <Section footer="Tick a booking once it's paid. Choose it to change it.">
         {!bookings.length && <p className="px-4 py-6 text-center text-muted-foreground">No bookings yet. Use Add for the first one, or paste a confirmation to your AI.</p>}
         {bookings.map((b) => (

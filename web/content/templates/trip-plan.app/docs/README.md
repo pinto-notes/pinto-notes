@@ -7,7 +7,7 @@ One trip, before and during it: how long until you go, the plan for each day, th
 data.json, all under "values" (the person's AI reads and edits it directly):
 - trip: { name, place, start: "yyyy-mm-dd", end: "yyyy-mm-dd" }. The countdown and the day numbers come from start and end.
 - days: [{ date: "yyyy-mm-dd", title, items: [text] }]. One per day, three to five items each, in plain sentences. An item that starts with a time ("09:30 Tram 28") is placed at that time on the timeline; one without stays after the line before it.
-- bookings: [{ id, what, kind?, date?, time?, ref?, paid, when? }]. kind is flight, train, stay, food, activity or other; date "yyyy-mm-dd" and time "hh:mm" put it on that day's timeline. when is free text from before bookings had a date ("23 Oct, 20:00"): still shown, and editable as "When (as written)".
+- bookings: [{ id, what, kind?, date?, time?, ref?, paid, when? }]. what is the booking's name as the person would say it ("Hotel Lumiares", "Flight to Lisbon"): it's the line in bold on the timeline and the Bookings tab, so keep it short. There's no field yet for an address, a check-out time or a price: leave them out (a real run put a whole confirmation in what, five bold lines). kind is flight, train, stay, food, activity or other; date "yyyy-mm-dd" and time "hh:mm" put it on that day's timeline. when is free text from before bookings had a date ("23 Oct, 20:00"): still shown, and editable as "When (as written)".
 - packing: [{ id, text, group?, packed }]. group is Documents, Clothes, Toiletries, Tech or Other. A list where no item has a group shows as one list (lists from 1.2.26).
 - past: [{ name, place, start, end }]. Trips before this one, from Start a new trip. Missing is fine.
 - ids are any unique text ("b6", "p15").
