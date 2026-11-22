@@ -1010,7 +1010,7 @@ import Vision
         #expect(TemplateAsk.none("zebra") == "No template for \u{201C}zebra\u{201D} yet.")
         #expect(TemplateLibraryWords.clear == "Clear search")
         #expect(TemplateAsk.answers("zebra", in: Self.all).isEmpty)
-        #expect(Self.all.filter(\.app).count == 4)
+        #expect(Self.all.filter(\.app).count == 5)
         let front = try SettingsHomeTests.source("Pane/Views/TemplateFront.swift")
         #expect(front.contains(".accessibilityIdentifier(\"templates.none\")") && front.contains("id: \"templates.blank.make\""))
         #expect(front.contains(".accessibilityLabel(TemplateLibraryWords.clear)\n                .accessibilityIdentifier(\"templates.clear\")"))
@@ -1372,7 +1372,7 @@ import Vision
     /// stage's script no longer sets its clock to a Thursday.
     @Test func theStageShowsTheAppInUseTodayAndMakeAddsTheStart() throws {
         let apps = Self.all.filter(\.app)
-        #expect(apps.count == 4)
+        #expect(apps.count == 5)
         for e in apps {
             let sample = TemplateFiles.sample(e)
             let values = try #require(sample["values"] as? [String: Any], "\(e.slug)")
@@ -1382,6 +1382,7 @@ import Vision
             case "budget-log": #expect(((values["expenses"] as? [Any])?.count ?? 0) >= 5, "expenses this month")
             case "study-flashcards": #expect(((values["cards"] as? [Any])?.count ?? 0) > ((e.appData["values"] as? [String: Any])?["cards"] as? [Any])?.count ?? 0, "cards in two topics")
             case "trip-plan": #expect(values["trip"] is [String: Any] && ((values["days"] as? [Any])?.count ?? 0) == 5, "a planned trip")
+            case "workout-log": #expect(((values["sessions"] as? [Any])?.count ?? 0) >= 12, "five weeks of sessions")
             default: Issue.record("an app with no sample: \(e.slug)")
             }
             let draft = try #require(e.draft(apps: true))
@@ -1897,7 +1898,7 @@ extension TemplateCatalog.Entry: CustomTestStringConvertible {
     @Test func theCatalogHasEveryTemplate() {
         #expect(Self.all.count == 23)
         #expect(Set(Self.all.map(\.slug)).count == Self.all.count, "no slug twice")
-        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "study-flashcards", "trip-plan"])
+        #expect(Self.all.filter(\.app).map(\.slug).sorted() == ["budget-log", "habit-tracker", "study-flashcards", "trip-plan", "workout-log"])
         let placed = TemplateFront.shipped.shelves(for: .shipped).flatMap(\.entries)
         #expect(placed.count == Self.all.count && Set(placed.map(\.slug)) == Set(Self.all.map(\.slug)), "every template is on exactly one shelf of the front page")
     }

@@ -194,6 +194,51 @@ def meals() -> None:
     v["bought"] = {d(0): ["lemon", "lime", "parsley", "basil", "cherry tomato", "spinach", "red cabbage", "potato", "pepper", "tortilla", "sourdough", "burger bun"]}
     v["extras"] = [{"id": "x1", "week": d(0), "name": "Oat milk", "qty": "2 l", "aisle": DE}, {"id": "x2", "week": d(0), "name": "Coffee", "aisle": DG}]
     write("meal-plan", v)
+def workouts() -> None:
+    v = start("workout-log")
+    # Set up five weeks ago with the four suggested workouts, three sessions a week, in kilograms.
+    for w in v["plan"]:
+        w.pop("pick", None)
+    v["units"] = "kg"
+    v["started"] = d(-36)
+    # Sixteen sessions in turn (Legs, Push, Pull, Easy run), the last a run yesterday, so Today shows
+    # Legs next with what each exercise was last time. The weights creep up and stall here and there,
+    # as they do: squat and deadlift set new bests, the last Push day sets none, the last run is the
+    # fastest.
+    days = [-35, -33, -31, -28, -26, -24, -21, -19, -17, -14, -12, -10, -7, -5, -3, -1]
+    legs = [(90, 20), (92.5, 20), (95, 22.5), (100, 22.5)]
+    push = [(60, 40, 8), (62.5, 40, 10), (65, 42.5, 12), (65, 42.5, 10)]
+    pull = [(110, 50, 6), (115, 52.5, 7), (120, 55, 8), (125, 55, 8)]
+    runs = [(5, 31), (5, 30.17), (6, 36.5), (5, 28.67)]
+    efforts = [7, 6, 8, 5, 7, 7, 8, 6, 8, 6, 9, 5, 8, 7, 9, 6]
+    notes = {5: "Felt strong", 12: "Left knee a bit sore on the last set", 15: "Fastest 5 km yet"}
+    out = []
+    for i, k in enumerate(days):
+        r, n = i % 4, i // 4
+        if r == 0:
+            sq, lu = legs[n]
+            s = {"name": "Legs", "workout": "legs", "items": [
+                {"exercise": "squat", "sets": [{"reps": 5, "kg": sq}] * 3},
+                {"exercise": "lunges", "sets": [{"reps": 10, "kg": lu}] * 3},
+                {"exercise": "calf-raises", "sets": [{"reps": 12, "kg": 40}] * 3}]}
+        elif r == 1:
+            be, oh, di = push[n]
+            s = {"name": "Push", "workout": "push", "items": [
+                {"exercise": "bench-press", "sets": [{"reps": 6, "kg": be}] * 3},
+                {"exercise": "overhead-press", "sets": [{"reps": 8, "kg": oh}] * 3},
+                {"exercise": "dips", "sets": [{"reps": di}, {"reps": di - 2}]}]}
+        elif r == 2:
+            de, ro, pu = pull[n]
+            s = {"name": "Pull", "workout": "pull", "items": [
+                {"exercise": "deadlift", "sets": [{"reps": 3, "kg": de}] * 2},
+                {"exercise": "rows", "sets": [{"reps": 8, "kg": ro}] * 3},
+                {"exercise": "pull-ups", "sets": [{"reps": pu}, {"reps": pu - 1}, {"reps": pu - 2}]}]}
+        else:
+            km, mins = runs[n]
+            s = {"name": "Easy run", "workout": "run", "items": [{"exercise": "run", "sets": [{"km": km, "min": mins}]}]}
+        out.append({"id": f"s{i + 1}", "date": d(k), **s, "effort": efforts[i], **({"note": notes[i]} if i in notes else {})})
+    v["sessions"] = out
+    write("workout-log", v)
 
 
 habits()
@@ -201,4 +246,5 @@ budget()
 flashcards()
 trip()
 meals()
+workouts()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))

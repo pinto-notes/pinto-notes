@@ -121,3 +121,8 @@ same paths and the same text, and `read "<Note>.app/data.json"` the same data. T
   `web/public/templates/apps/phone/<slug>-light.webp` and `-dark.webp`, 600 by 662, the top of the
   app on its sample at 320 pt wide and 2x (a full-height phone, so no tab bar), cropped to 640 by 706
   and scaled down. No script draws them yet; `web/app/templates/AppSwap.test.tsx` checks they exist.
+  `template-apps.ts --pictures` and `template-catalog.py` again for the Mac's copies, then
+  `scripts/template-stage-pictures.ts <slug>` for the Mac library's stage.
+- The site's card turns into the app on iPhone: `web/public/templates/apps/phone/<slug>-light.webp`
+  and `-dark.webp`, 600 x 662, the top of Today drawn 375 pt wide at 2x over the sample and scaled
+  to 80% (`web/app/templates/AppSwap.test.tsx` checks both are there).
