@@ -1,0 +1,310 @@
+{
+ "values": {
+  "people": [
+   {
+    "id": "mum",
+    "name": "Mum",
+    "likes": "Linen, her garden, good tea, anything from Arket",
+    "sizes": "M, shoes 39",
+    "has": "A good teapot, the Ottolenghi books",
+    "occasions": [
+     {
+      "id": "birthday",
+      "kind": "birthday",
+      "date": "2027-01-07",
+      "budget": 600
+     },
+     {
+      "id": "christmas",
+      "kind": "christmas",
+      "budget": 800
+     }
+    ]
+   },
+   {
+    "id": "dad",
+    "name": "Dad",
+    "likes": "Hammarby, strong coffee, crime novels",
+    "sizes": "L, shoes 44",
+    "has": "Every scarf the club sells",
+    "occasions": [
+     {
+      "id": "birthday",
+      "kind": "birthday",
+      "date": "2027-04-07",
+      "budget": 500
+     },
+     {
+      "id": "christmas",
+      "kind": "christmas",
+      "budget": 800
+     }
+    ]
+   },
+   {
+    "id": "sam",
+    "name": "Sam",
+    "likes": "Climbing, ceramics, natural wine",
+    "sizes": "S, shoes 38, ring 52",
+    "has": "New climbing shoes (May)",
+    "occasions": [
+     {
+      "id": "anniversary",
+      "kind": "anniversary",
+      "date": "2027-03-18",
+      "budget": 1000
+     },
+     {
+      "id": "birthday",
+      "kind": "birthday",
+      "date": "2027-06-26",
+      "budget": 1000
+     },
+     {
+      "id": "christmas",
+      "kind": "christmas",
+      "budget": 1500
+     }
+    ]
+   },
+   {
+    "id": "oskar",
+    "name": "Oskar",
+    "likes": "Dinosaurs, Lego, drawing",
+    "sizes": "Age 7, 122 cm",
+    "has": "The big T. rex Lego, every dinosaur book in the library",
+    "occasions": [
+     {
+      "id": "birthday",
+      "kind": "birthday",
+      "date": "2026-11-17",
+      "budget": 300
+     },
+     {
+      "id": "christmas",
+      "kind": "christmas",
+      "budget": 400
+     }
+    ]
+   },
+   {
+    "id": "maja",
+    "name": "Maja",
+    "likes": "Cooking, plants, weekends in Copenhagen",
+    "has": "A stand mixer, too many candles",
+    "occasions": [
+     {
+      "id": "birthday",
+      "kind": "birthday",
+      "date": "2027-05-27",
+      "budget": 500
+     },
+     {
+      "id": "christmas",
+      "kind": "christmas",
+      "budget": 500
+     }
+    ]
+   },
+   {
+    "id": "grandma",
+    "name": "Grandma Inger",
+    "likes": "Crosswords, her cat Sixten, photos of the kids",
+    "has": "Every crossword book there is",
+    "occasions": [
+     {
+      "id": "christmas",
+      "kind": "christmas",
+      "budget": 300
+     }
+    ]
+   }
+  ],
+  "ideas": [
+   {
+    "id": "scarf",
+    "person": "mum",
+    "title": "Blue wool scarf",
+    "price": 450,
+    "shop": "Arket",
+    "occasion": "christmas",
+    "link": "arket.example/blue-wool-scarf",
+    "status": "idea"
+   },
+   {
+    "id": "apron",
+    "person": "mum",
+    "title": "Linen apron",
+    "price": 350,
+    "shop": "Arket",
+    "occasion": "christmas",
+    "status": "bought"
+   },
+   {
+    "id": "kneeler",
+    "person": "mum",
+    "title": "Garden kneeler and gloves",
+    "price": 280,
+    "shop": "Plantagen",
+    "occasion": "birthday",
+    "status": "idea"
+   },
+   {
+    "id": "tickets",
+    "person": "dad",
+    "title": "Hammarby home match, two tickets",
+    "price": 700,
+    "shop": "Hammarby shop",
+    "occasion": "christmas",
+    "status": "wrapped"
+   },
+   {
+    "id": "moka",
+    "person": "dad",
+    "title": "Moka pot",
+    "price": 390,
+    "shop": "Cervera",
+    "status": "idea"
+   },
+   {
+    "id": "pottery",
+    "person": "sam",
+    "title": "Pottery course for two",
+    "price": 1800,
+    "shop": "Keramikverkstan",
+    "occasion": "christmas",
+    "status": "idea"
+   },
+   {
+    "id": "chalk",
+    "person": "sam",
+    "title": "Chalk bag",
+    "price": 249,
+    "shop": "Addnature",
+    "occasion": "christmas",
+    "status": "bought"
+   },
+   {
+    "id": "robyn",
+    "person": "sam",
+    "title": "Robyn concert tickets",
+    "price": 1100,
+    "shop": "Ticketmaster",
+    "occasion": "anniversary",
+    "status": "idea"
+   },
+   {
+    "id": "raptor",
+    "person": "oskar",
+    "title": "Lego Jurassic raptor set",
+    "price": 299,
+    "shop": "Lekia",
+    "occasion": "birthday",
+    "status": "bought"
+   },
+   {
+    "id": "pyjamas",
+    "person": "oskar",
+    "title": "Dinosaur pyjamas",
+    "price": 249,
+    "shop": "Lindex",
+    "occasion": "christmas",
+    "status": "idea"
+   },
+   {
+    "id": "pencils",
+    "person": "oskar",
+    "title": "Watercolour pencils",
+    "price": 150,
+    "shop": "Panduro",
+    "status": "idea"
+   },
+   {
+    "id": "knife",
+    "person": "maja",
+    "title": "A good chef's knife",
+    "price": 900,
+    "shop": "Knivkompaniet",
+    "occasion": "christmas",
+    "status": "idea"
+   },
+   {
+    "id": "fig",
+    "person": "maja",
+    "title": "Fig tree",
+    "price": 350,
+    "shop": "Plantagen",
+    "status": "idea"
+   },
+   {
+    "id": "calendar",
+    "person": "grandma",
+    "title": "Photo calendar of the kids",
+    "price": 250,
+    "shop": "Ifolor",
+    "occasion": "christmas",
+    "status": "bought"
+   },
+   {
+    "id": "old-scarf",
+    "person": "mum",
+    "title": "Wool scarf",
+    "price": 400,
+    "occasion": "christmas",
+    "year": 2024,
+    "status": "given"
+   },
+   {
+    "id": "old-book",
+    "person": "mum",
+    "title": "Ottolenghi Simple",
+    "price": 299,
+    "occasion": "birthday",
+    "year": 2025,
+    "status": "given"
+   },
+   {
+    "id": "old-novels",
+    "person": "dad",
+    "title": "Crime novel box set",
+    "price": 450,
+    "occasion": "christmas",
+    "year": 2025,
+    "status": "given"
+   },
+   {
+    "id": "old-mugs",
+    "person": "sam",
+    "title": "Handmade mug set",
+    "price": 600,
+    "occasion": "birthday",
+    "year": 2025,
+    "status": "given"
+   },
+   {
+    "id": "old-rex",
+    "person": "oskar",
+    "title": "T. rex Lego",
+    "price": 399,
+    "occasion": "christmas",
+    "year": 2025,
+    "status": "given"
+   },
+   {
+    "id": "old-pasta",
+    "person": "maja",
+    "title": "Pasta machine",
+    "price": 600,
+    "occasion": "birthday",
+    "year": 2024,
+    "status": "given"
+   }
+  ],
+  "settings": {
+   "currency": "kr",
+   "christmas": "12-24"
+  },
+  "started": "2026-04-22"
+ },
+ "collections": {}
+}

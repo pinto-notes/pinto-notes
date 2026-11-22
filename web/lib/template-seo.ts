@@ -90,6 +90,25 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
   },
+  "gift-ideas": {
+    h1: "Gift list template with its own app",
+    make: ["Add Mother's Day for Mum, 300 kr.", "Show what I spent on gifts this year.", "Add a Secret Santa draw for Christmas.", "Let me add a photo to each idea."],
+    can: [
+      { name: "See what's coming up", text: "The next birthdays and Christmas, with days left." },
+      { name: "Know what's bought", text: "Idea, bought, wrapped, given: one tap each." },
+      { name: "Keep to a budget", text: "Spent against budget, per person and occasion." },
+      { name: "See Christmas for everyone", text: "One total across everyone you buy for." },
+      { name: "Never give the same gift twice", text: "Past gifts kept per person, by year." },
+      AI_SAME_DATA,
+    ],
+    faq: [
+      { q: "Is this gift list template free?", a: ["Yes. The template and Pinto Notes are free. To have an AI save ideas when you hear them, you need ChatGPT on a plan that allows custom apps, or Claude, or Claude Code."] },
+      { q: "Can ChatGPT or Claude keep my gift list?", a: ["Yes, once Pinto Notes is connected. Say \"Mum would love that blue scarf from Arket, 450 kr\" and it saves the idea under Mum with its shop and price. Ask \"what should I get Oskar for under 300?\" and it answers from his likes, his budget and what he was given before."] },
+      { q: "Can I set a budget for Christmas?", a: ["Yes. Each person has a budget for each occasion, and Christmas shows one total across everyone: what's spent, what's left and how many gifts are bought. Bought, wrapped and given gifts count; ideas don't."] },
+      { q: "Does it remind me before a birthday?", a: ["Not with a notification. Pinto Notes apps can't send them yet. Upcoming lists the next birthdays and holidays with the days left and whether a gift is bought."] },
+      { q: "Does it work on iPhone?", a: [IPHONE] },
+    ],
+  },
   "study-flashcards": {
     h1: "Flashcard maker and study app",
     make: ["Add ten cards on Spanish verbs.", "Add a reverse mode, answer to question.", "Cap new cards at 20 a day.", "Let me type the answer before it shows."],

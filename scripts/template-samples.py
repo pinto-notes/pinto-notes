@@ -151,8 +151,65 @@ def trip() -> None:
     write("trip-plan", v)
 
 
+def gifts() -> None:
+    v = start("gift-ideas")
+    # Six people a family buys for, five weeks before Christmas: Oskar's birthday in nine days with
+    # his Lego bought, Christmas with four of six bought (1,549 of 4,300 kr), then the spring's
+    # birthdays and an anniversary. Birthdays are written as dates so they move with today (the app
+    # reads their day and month); past gifts carry their year. Mum's next idea is a scarf, and she
+    # was given one in 2024, which her page points out.
+    v["settings"] = {"currency": "kr", "christmas": "12-24"}
+    def occ(id, kind, budget, date=None, **f):
+        return {"id": id, "kind": kind, **({"date": d(date)} if date is not None else {}), "budget": budget, **f}
+    v["people"] = [
+        {"id": "mum", "name": "Mum", "likes": "Linen, her garden, good tea, anything from Arket", "sizes": "M, shoes 39",
+         "has": "A good teapot, the Ottolenghi books", "occasions": [occ("birthday", "birthday", 600, 60), occ("christmas", "christmas", 800)]},
+        {"id": "dad", "name": "Dad", "likes": "Hammarby, strong coffee, crime novels", "sizes": "L, shoes 44",
+         "has": "Every scarf the club sells", "occasions": [occ("birthday", "birthday", 500, 150), occ("christmas", "christmas", 800)]},
+        {"id": "sam", "name": "Sam", "likes": "Climbing, ceramics, natural wine", "sizes": "S, shoes 38, ring 52",
+         "has": "New climbing shoes (May)", "occasions": [occ("anniversary", "anniversary", 1000, 130), occ("birthday", "birthday", 1000, 230), occ("christmas", "christmas", 1500)]},
+        {"id": "oskar", "name": "Oskar", "likes": "Dinosaurs, Lego, drawing", "sizes": "Age 7, 122 cm",
+         "has": "The big T. rex Lego, every dinosaur book in the library", "occasions": [occ("birthday", "birthday", 300, 9), occ("christmas", "christmas", 400)]},
+        {"id": "maja", "name": "Maja", "likes": "Cooking, plants, weekends in Copenhagen",
+         "has": "A stand mixer, too many candles", "occasions": [occ("birthday", "birthday", 500, 200), occ("christmas", "christmas", 500)]},
+        {"id": "grandma", "name": "Grandma Inger", "likes": "Crosswords, her cat Sixten, photos of the kids",
+         "has": "Every crossword book there is", "occasions": [occ("christmas", "christmas", 300)]},
+    ]
+    def idea(id, person, title, status, price=None, shop=None, occasion=None, **f):
+        out = {"id": id, "person": person, "title": title}
+        for k, x in (("price", price), ("shop", shop), ("occasion", occasion)):
+            if x is not None:
+                out[k] = x
+        return {**out, **f, "status": status}
+    v["ideas"] = [
+        idea("scarf", "mum", "Blue wool scarf", "idea", 450, "Arket", "christmas", link="arket.example/blue-wool-scarf"),
+        idea("apron", "mum", "Linen apron", "bought", 350, "Arket", "christmas"),
+        idea("kneeler", "mum", "Garden kneeler and gloves", "idea", 280, "Plantagen", "birthday"),
+        idea("tickets", "dad", "Hammarby home match, two tickets", "wrapped", 700, "Hammarby shop", "christmas"),
+        idea("moka", "dad", "Moka pot", "idea", 390, "Cervera"),
+        idea("pottery", "sam", "Pottery course for two", "idea", 1800, "Keramikverkstan", "christmas"),
+        idea("chalk", "sam", "Chalk bag", "bought", 249, "Addnature", "christmas"),
+        idea("robyn", "sam", "Robyn concert tickets", "idea", 1100, "Ticketmaster", "anniversary"),
+        idea("raptor", "oskar", "Lego Jurassic raptor set", "bought", 299, "Lekia", "birthday"),
+        idea("pyjamas", "oskar", "Dinosaur pyjamas", "idea", 249, "Lindex", "christmas"),
+        idea("pencils", "oskar", "Watercolour pencils", "idea", 150, "Panduro"),
+        idea("knife", "maja", "A good chef's knife", "idea", 900, "Knivkompaniet", "christmas"),
+        idea("fig", "maja", "Fig tree", "idea", 350, "Plantagen"),
+        idea("calendar", "grandma", "Photo calendar of the kids", "bought", 250, "Ifolor", "christmas"),
+        idea("old-scarf", "mum", "Wool scarf", "given", 400, None, "christmas", year=2024),
+        idea("old-book", "mum", "Ottolenghi Simple", "given", 299, None, "birthday", year=2025),
+        idea("old-novels", "dad", "Crime novel box set", "given", 450, None, "christmas", year=2025),
+        idea("old-mugs", "sam", "Handmade mug set", "given", 600, None, "birthday", year=2025),
+        idea("old-rex", "oskar", "T. rex Lego", "given", 399, None, "christmas", year=2025),
+        idea("old-pasta", "maja", "Pasta machine", "given", 600, None, "birthday", year=2024),
+    ]
+    v["started"] = d(-200)
+    write("gift-ideas", v)
+
+
 habits()
 budget()
 flashcards()
 trip()
+gifts()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))

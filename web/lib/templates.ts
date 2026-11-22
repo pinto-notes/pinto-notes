@@ -108,7 +108,7 @@ export const templatePath = (slug: string) => `/templates/${slug}`;
 export const APP_TEMPLATE_VERBS_LIVE = true;
 export const APP_TEMPLATE_VERBS_IPHONE = false;
 export const APP_VERBS: Record<string, string> = {
-  "habit-tracker": "Start tracking", "budget-log": "Start budgeting", "trip-plan": "Plan the trip", "study-flashcards": "Study now",
+  "habit-tracker": "Start tracking", "budget-log": "Start budgeting", "trip-plan": "Plan the trip", "study-flashcards": "Study now", "gift-ideas": "Start your list",
 };
 export const USE_TEMPLATE = "Use template";
 
@@ -241,7 +241,7 @@ const SLICE_FROM: Record<string, string> = {
   "reading-list": "|", "mood-energy-log": "|", "job-hunt": "|", "trip-plan": "Ideas", "study-flashcards": "Cell respiration",
   "decision-log": "Stay on Postgres, 4 November", "workout-log": "|", "budget-log": "Month summaries", "one-on-one-notes": "Follow-ups",
   "book-notes": "Four Thousand Weeks by Oliver Burkeman", "bug-triage": "|", "weekly-review": "Week of 2 November",
-  "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "|", "gift-ideas": "|",
+  "recipe-box": "Weeknight", "content-calendar": "|", "home-maintenance": "|", "gift-ideas": "How we do gifts",
   "cornell-notes": "Supply and demand, 5 November", "daily-journal": "Sunday 8 November", "grocery-list": "Fruit and veg",
   "weekly-planner": "Top three this week",
 };

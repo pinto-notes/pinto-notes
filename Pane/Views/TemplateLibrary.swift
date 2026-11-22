@@ -240,6 +240,7 @@ enum TemplateLibraryWords {
         "habit-tracker": "Ask which habits I did today and which I skipped, then tick them in my tracker.",
         "budget-log": "Ask what I spent today and on what, then log it in my budget.",
         "trip-plan": "Ask what has changed in my trip, then update the days and bookings.",
+        "gift-ideas": "Ask what gift ideas I've heard lately and for whom, then save them in my gift list.",
     ]
     static func everydayAsk(_ e: TemplateCatalog.Entry) -> String { everyday[e.slug] ?? e.ask }
 
@@ -279,7 +280,7 @@ enum TemplateLibraryWords {
         "recipe-box": "Recipes, cleaned up and filed",
         "content-calendar": "What goes out, and when",
         "home-maintenance": "Chores and repairs, when due",
-        "gift-ideas": "By person, with sizes and likes",
+        "gift-ideas": "Ideas, budgets, what's next",
         "cornell-notes": "Notes, questions, summary",
         "daily-journal": "Four questions, every day",
         "grocery-list": "One list, sorted by aisle",
