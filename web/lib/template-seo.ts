@@ -90,6 +90,25 @@ export const TEMPLATE_SEO: Record<string, TemplateSeo> = {
       { q: "Does it work on iPhone?", a: [IPHONE] },
     ],
   },
+  "mood-energy-log": {
+    h1: "Mood tracker template with its own app",
+    make: ["Add a tag for coffee after 2 pm.", "Show a year of moods as small squares.", "Let me log a morning and an evening check-in.", "Show my mood by day of the week."],
+    can: [
+      { name: "Log a day in a few taps", text: "Mood, energy, sleep, tags and a line." },
+      { name: "See the month by mood", text: "A calendar coloured by mood, energy too." },
+      { name: "Look at 30 or 90 days", text: "Mood, energy and sleep on one screen." },
+      { name: "Find your own patterns", text: "Mood with and without each tag." },
+      { name: "Keep your own tags", text: "Add, rename and remove them, with Undo." },
+      AI_SAME_DATA,
+    ],
+    faq: [
+      { q: "Is this mood tracker free?", a: ["Yes. The template and Pinto Notes are free. To let an AI log your days, you need ChatGPT on a plan that allows custom apps, or Claude, or Claude Code."] },
+      { q: "Can ChatGPT or Claude log my mood for me?", a: ["Yes, once Pinto Notes is connected. Say \"slept 6 hours, mood 3, energy 2, long day at work\" and it logs today. Ask \"how has my energy been on days I exercise?\" and it answers from your own days, with how many days that rests on."] },
+      { q: "Can I log days myself?", a: ["Yes. Tap a mood and an energy from 1 to 5, add your hours of sleep, a tag or two and a line. Change or delete any day from the calendar; a delete shows Undo. Your tags and sleep goal are in Settings."] },
+      { q: "Does it give health advice?", a: ["No. It shows averages from your own log and how many days each rests on. It doesn't diagnose anything or say what causes what."] },
+      { q: "Does it work on iPhone?", a: [IPHONE] },
+    ],
+  },
   "study-flashcards": {
     h1: "Flashcard maker and study app",
     make: ["Add ten cards on Spanish verbs.", "Add a reverse mode, answer to question.", "Cap new cards at 20 a day.", "Let me type the answer before it shows."],

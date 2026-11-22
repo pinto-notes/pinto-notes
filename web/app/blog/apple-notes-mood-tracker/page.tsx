@@ -13,11 +13,12 @@ export const metadata = postMetadata("apple-notes-mood-tracker", { title: "Apple
 // widths can't be dragged; tables don't add up or sort. Paste as Markdown is NOT used for the table: only headings,
 // lists and checklists were verified for it. Also: pin a note (apple-notes-workout-log-template), search reads every
 // word (apple-notes-recipe-template), Math Results does sums you type (apple-notes-budget-template). No medical advice
-// anywhere, as the template's own prompt says. Pinto side: web/content/templates/mood-energy-log.json (a Check-ins table
-// with typed columns Date, Mood 1 to 5 and Energy 1 to 5 as scales, Sleep in hours as a number and a Note; the AI logs
-// a row from your day told in your own words and asks when it's unsure of a score; Patterns says how many days it rests
-// on; the asks "What do my best days have in common?" and "Does a short night change my energy the next day?"). The
-// picture is BlogSnapshots.moodEnergyLogForTemplatePost: the template's own example, drawn offscreen by NoteDetailView.
+// anywhere, as the template's own prompt says. Pinto side: web/content/templates/mood-energy-log.json and
+// mood-energy-log.app (an app since 22 Nov: mood and energy 1 to 5, hours slept, tags and a line a day; the month as a
+// calendar coloured by mood; 30 and 90 days of mood, energy and sleep; mood with and without each tag and energy after
+// short and long nights, with day counts; the AI logs a day from your words into its data.json and asks when it's
+// unsure of a score). The picture is BlogSnapshots.moodEnergyLogForTemplatePost: the template's old note example (a
+// Check-ins table), drawn offscreen by NoteDetailView; not redrawn for the app yet.
 
 // Tabs between the columns: select those lines in Notes and press the Table button.
 const TEMPLATE = `Mood and energy log
@@ -149,15 +150,16 @@ export default function Page() {
       <h2 id="pinto-notes">A mood log that spots patterns</h2>
       <p>
         Pinto Notes looks and works like Apple Notes on iPhone and Mac, and ChatGPT or Claude can work in your notes from the chat you
-        already use. The free <a href="/templates/mood-energy-log">mood and energy log</a> template is one note with a Check-ins table:
-        a date, mood and energy as 1 to 5 scales, sleep in hours and a note, with Patterns below it.
+        already use. The free <a href="/templates/mood-energy-log">mood and energy log</a> template is a note with a small app in it:
+        mood and energy from 1 to 5, hours slept, a tag or two and a line a day, the month as a calendar coloured by mood, and 30 or
+        90 days of mood, energy and sleep side by side.
       </p>
       <p>
-        Each evening, tell your AI about your day in your own words. It adds the row, with mood and energy from 1 (low) to 5 (great), your
-        sleep and one short line. When it isn&apos;t sure about a score, it asks you instead of guessing. After a few weeks, ask &ldquo;what do my
-        best days have in common?&rdquo; or &ldquo;does a short night change my energy the next day?&rdquo; and it writes what it notices
-        under Patterns, with how many days that rests on. It doesn&apos;t give medical advice. You can still add and edit every row
-        yourself, and every earlier version of the note is kept. This works once ChatGPT or Claude is connected;{" "}
+        Each evening, log the day in a few taps, or tell your AI about it in your own words: &ldquo;slept 6 hours, mood 3, energy 2, long day at
+        work&rdquo;. When it isn&apos;t sure about a score, it asks you instead of guessing. After a few weeks the app shows your mood on days
+        with and without each tag, and your energy after short and long nights, each with how many days it rests on. Ask &ldquo;how has my
+        energy been on days I exercise?&rdquo; and your AI answers from the same days. Neither gives medical advice. You change or delete any
+        day yourself, and a delete has Undo. This works once ChatGPT or Claude is connected;{" "}
         <a href="/blog/connect-chatgpt-to-your-notes">connecting ChatGPT</a> takes a minute.
       </p>
       <p>

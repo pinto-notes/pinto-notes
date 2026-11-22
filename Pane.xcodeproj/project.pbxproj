@@ -19,6 +19,7 @@
 		016781ED6B6F2ED79DBF1DA8 /* NSTableView+HeadingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60BA3CF48582F674498EDB1E /* NSTableView+HeadingRow.swift */; };
 		016E259DD125A6C6D3155296 /* template-cover-reading-list.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 472B57B000C78170B499D31C /* template-cover-reading-list.jpg */; };
 		01891F80CD240BC93A3A2EB4 /* AddDeviceSnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B699546160DDE730802A34 /* AddDeviceSnapshots+Shared.swift */; };
+		019FC99B5B0CF7CF32505A51 /* template-app-mood-energy-log-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6556C289073488B617632F2E /* template-app-mood-energy-log-stage-card-dark.jpg */; };
 		019FDEC3E2D465E2B390EA9B /* AIReviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEDC7354927F391C2ED487C /* AIReviewCard.swift */; };
 		01BBD72B019633C81C202696 /* template-cover-daily-standup-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 4BFF623FC2B5D2EEF3C21C32 /* template-cover-daily-standup-large.jpg */; };
 		01F8A032F59404B7F22B1A3F /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43C8835EE05529FC6C66B17 /* LegalLinks.swift */; };
@@ -41,9 +42,11 @@
 		04B64CA3EC60DB2D81D31265 /* AppleNotesImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D74F650F22A22CCD8A020271 /* AppleNotesImportTests.swift */; };
 		04C3A9A03F88D696176FDA96 /* NoteMoreMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A57B1C31988997DD4107396A /* NoteMoreMenuTests.swift */; };
 		04C6364F047760FB69733E5E /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48747C5886233D2964A2F51F /* ShareSheet.swift */; };
+		04D9273EF4F537FAE9E57638 /* template-app-mood-energy-log.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = 6FE557FD362D3DDBFAB6454E /* template-app-mood-energy-log.sample.json */; };
 		04FC966818E6F8900E582931 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C64499562C13F619BE7D7AB6 /* PrivacyInfo.xcprivacy */; };
 		0513BFAC26DC678D24BCF836 /* ImportGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43463B81A1A55A1FFE6B583 /* ImportGuide.swift */; };
 		0515E04B7FD2744F9BCA27BE /* NoteSourceSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7FCC3B1CE1BD0C5DAF0E77D /* NoteSourceSheet.swift */; };
+		05476DF7C22C165C62C910D2 /* template-app-mood-energy-log-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C865CE060A4A133D9693A45B /* template-app-mood-energy-log-stage-light.jpg */; };
 		05551A3D3E5201054F4E6617 /* ExperimentSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D53EA5409229658263CD59E0 /* ExperimentSwitch.swift */; };
 		058A920FA662ECA14254C416 /* SharedNoteLimitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136D44143CF1D9F784F68C69 /* SharedNoteLimitsTests.swift */; };
 		0590F94BD273754D6628746A /* template-cover-weekly-planner-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BD54547CE9B0D538F86E59EA /* template-cover-weekly-planner-large.jpg */; };
@@ -149,6 +152,7 @@
 		12CF8C86890468A343D9C7C7 /* NoteListGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 088C3E4F5EB9C0F6C0037D85 /* NoteListGeometryTests.swift */; };
 		12E367577B5CAECEC45CCB31 /* Hover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4267A4FCD098BA1E2B52B13F /* Hover.swift */; };
 		130696FA863787DF9DDE1ADE /* FormatState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D409054F68F5C36372E319 /* FormatState.swift */; };
+		1310958455774CD6D12B2901 /* template-app-mood-energy-log-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 26DDA70414FB8809DB6E684B /* template-app-mood-energy-log-stage-dark.jpg */; };
 		134A86093FD44478D798D100 /* ShareAskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D03E7A49F61302F141D7D8 /* ShareAskView.swift */; };
 		13517336EAED99CD82EEF612 /* ChangeHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */; };
 		13718C7F4D326A24112B7670 /* ListTitleCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7AD3385DEE2C732944E43D9 /* ListTitleCountTests.swift */; };
@@ -242,6 +246,7 @@
 		1F3516F6CDE364E32B22932B /* A11yPicksShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C9D631B8FFC610AD16C920 /* A11yPicksShots.swift */; };
 		1F3920D5C81239B5851606C5 /* habit-tracker.json in Resources */ = {isa = PBXBuildFile; fileRef = DEDD1370565EF6AB3859F03B /* habit-tracker.json */; };
 		1F39F04E22693BC372D9277E /* CollabLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C107AD7821265E04B828E68 /* CollabLiveTests.swift */; };
+		1F4E7687579EC01BE97FB320 /* template-app-mood-energy-log.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 0A8C0A61218E6E4415E25474 /* template-app-mood-energy-log.project.json */; };
 		1F5D963CC8E14DFBC65B906D /* sunset.webp in Resources */ = {isa = PBXBuildFile; fileRef = 233EDFD11A3301976CFE967B /* sunset.webp */; };
 		1F64CBC13E4B5B9791B34A55 /* TelemetryDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D0EF12121044139ED543 /* TelemetryDiagnostics.swift */; };
 		1F6B824701CE535CA576F3DA /* ComposeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C6D15833CF6120B65D7384A /* ComposeButton.swift */; };
@@ -271,6 +276,7 @@
 		238F04FBBB428E8794754CF1 /* NotePageNetLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 209BA8BD7E2B2E18130FE1F6 /* NotePageNetLogTests.swift */; };
 		2391E10DDD008F470265DF7F /* ListOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E45D9F4A1C01EDA2629F7A /* ListOrder.swift */; };
 		23968ED15CCDE44F1B4335E3 /* SharedNoteEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A89888BA134B0D17719F024 /* SharedNoteEditorTests.swift */; };
+		239DA5D25C7474EB5D69AF2D /* template-app-mood-energy-log.data.json in Resources */ = {isa = PBXBuildFile; fileRef = A3B3D0A251468CF33DC8862E /* template-app-mood-energy-log.data.json */; };
 		23C4F4D3148DE01C86E96346 /* ChecklistWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B15BAE937AA38FE2E0983D /* ChecklistWidgetView.swift */; };
 		23C51C81E1F1A07BDF892635 /* EmailSignInFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C135694A380C4DFF429CB79 /* EmailSignInFlowTests.swift */; };
 		23C6E6E629898D6FD305E47E /* TestDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54785B843656F68AE620E39F /* TestDefaults.swift */; };
@@ -298,6 +304,7 @@
 		26A50B747924DB4DCBD7DAD4 /* firstopen-trip-plan.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CE1C02753FF5148177EAD29D /* firstopen-trip-plan.jpg */; };
 		2768A6713C06A98265D52D38 /* SlashMenuEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA1A83BA9CAD853BAA92603 /* SlashMenuEditorTests.swift */; };
 		27774A450E431B6254BBC66F /* NotePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8202889E526383AF7BD0F449 /* NotePage.swift */; };
+		278B38D725CD22C3FA44C4C7 /* template-app-mood-energy-log-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 75B7DDAA48F320EEF424B389 /* template-app-mood-energy-log-stage-card-light.jpg */; };
 		27BF89E3E5F784861EE58524 /* amber-base.css in Resources */ = {isa = PBXBuildFile; fileRef = 7C5A3BE24CB24DDD03944249 /* amber-base.css */; };
 		27E6F9CA0F11F5681D66F088 /* AIReviewTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7F165D60C90FBEEAD61B61 /* AIReviewTests+Shared.swift */; };
 		27EA719D42082E06340E1093 /* OffscreenAX.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D818CC354495A4859F2CFC4 /* OffscreenAX.swift */; };
@@ -557,6 +564,7 @@
 		50E4C8C00F7773AD85C7D7D1 /* EditorInitialStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48AA1013D2678B0BC092DFE4 /* EditorInitialStyleTests.swift */; };
 		50EEC0C14E3E1F9EB2A3142F /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D802554DDA691DB172FD65B2 /* SyncEngine.swift */; };
 		50FE1DAB68AC298BD9412253 /* EmbedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C26CCB578DED7A0AE1BD8B5 /* EmbedViews.swift */; };
+		510A9B6A5DD686D210293927 /* template-app-mood-energy-log-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3DC4AF2D3EA512134DAEF04C /* template-app-mood-energy-log-light.jpg */; };
 		5133A59BCA717182624304EE /* DemoHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E11FB95A2E7F9A4A70976E7 /* DemoHistory.swift */; };
 		519784AF828861ADDC7EA1B2 /* WindowFrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B4C9E01692839A12003BD7 /* WindowFrameTests.swift */; };
 		5230527AA240745E532494E4 /* PrivacyViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A76B5E57E52F92176E935CB8 /* PrivacyViews.swift */; };
@@ -584,6 +592,7 @@
 		56295473CED9A7D6C9828F25 /* template-app-study-flashcards-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7FFCC88CB19BF7AB1F88EB91 /* template-app-study-flashcards-light.jpg */; };
 		563A6EA348703923FFB358FD /* VersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CC0B378983D3F5A7E49012 /* VersionHistoryView.swift */; };
 		56566B1DB22C1AAF1A9A294A /* SupabaseCollabTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54F683F906477EE42A239EF0 /* SupabaseCollabTransport.swift */; };
+		56B2C604EB1C23840377093E /* template-app-mood-energy-log.data.json in Resources */ = {isa = PBXBuildFile; fileRef = A3B3D0A251468CF33DC8862E /* template-app-mood-energy-log.data.json */; };
 		570AA2F86176A0053FEF2342 /* NotionDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F1A1BEC6FA147A37CF316E /* NotionDatabaseTests.swift */; };
 		572C44ADAC1E936195E8C2FE /* PerfBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C324750077F3620EA53301 /* PerfBudget.swift */; };
 		5733F290318368BA75A0E692 /* LinkedFromMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208CE096254355D087558FA7 /* LinkedFromMenuTests.swift */; };
@@ -656,6 +665,7 @@
 		6280E775B1AFF2B8F8DC4F8F /* TypedTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D3C041048DAAB22B2FC870 /* TypedTable.swift */; };
 		6284014246CEEDA833F134B8 /* SecurityPageSnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E85939D6A7B34B5A9D6342 /* SecurityPageSnapshots+Shared.swift */; };
 		628D4E2E8BFC2619A9DB2CF2 /* Experiments.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2420E650B7A0CC0A5560E8 /* Experiments.swift */; };
+		631507967036038F45128572 /* template-app-mood-energy-log.project.json in Resources */ = {isa = PBXBuildFile; fileRef = 0A8C0A61218E6E4415E25474 /* template-app-mood-energy-log.project.json */; };
 		63275A4C35ED4EFF7754101F /* d3.js in Resources */ = {isa = PBXBuildFile; fileRef = F9539637FC0845A1B6AD2C29 /* d3.js */; };
 		635EB0854859743AEBF90BC5 /* anime.js in Resources */ = {isa = PBXBuildFile; fileRef = CFFEC0432D36C47F49C28AEB /* anime.js */; };
 		637B62F72EAF63CEBE29212D /* ListEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE4742CB403A340CF931A03 /* ListEditing.swift */; };
@@ -717,6 +727,7 @@
 		6DA9C9017F4B1AE14A2D3582 /* AddDeviceSnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B699546160DDE730802A34 /* AddDeviceSnapshots+Shared.swift */; };
 		6DBF7F5E8923AE55B773F12D /* template-cover-gift-ideas-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DEA5E39CBC6ACEC4607E1BC5 /* template-cover-gift-ideas-large.jpg */; };
 		6DD09CC86FAF7B9E5D841692 /* ImportGuideFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C98109111422D10C0858EF /* ImportGuideFlow.swift */; };
+		6DF035174BEC0B6A44D777EF /* template-app-mood-energy-log-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 23D8486731DA444D15E1DB77 /* template-app-mood-energy-log-dark.jpg */; };
 		6DFA9AC58A4EFBB43F75F903 /* template-app-habit-tracker-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E32CE7B0FE6BDE69EF8CAF4 /* template-app-habit-tracker-stage-narrow-light.jpg */; };
 		6E0B37276241523DD3B14277 /* NewNoteControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD4E097B71209E324717A58 /* NewNoteControl.swift */; };
 		6E29F068F16E00837036566C /* TypoSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C5AD2EA7EABA515E193729F /* TypoSearch.swift */; };
@@ -740,6 +751,7 @@
 		704FE59D2919C58AD52FA01B /* template-app-habit-tracker-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 97BDCCEA687FACCD9BE03538 /* template-app-habit-tracker-stage-narrow-dark.jpg */; };
 		7055FF7B1A3AAC5BD7603C3E /* ChecklistShelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88F1B99F935635F64B00833B /* ChecklistShelf.swift */; };
 		7062C601297098D0DB06CF00 /* AIChangesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15190FE695CC65B9B6F8E540 /* AIChangesTests.swift */; };
+		708F7897F0B6C5DA02769FFD /* template-app-mood-energy-log-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 47FC61D7C7A01B4B01007E27 /* template-app-mood-energy-log-stage-narrow-light.jpg */; };
 		70B9072A9074709C3DE149FF /* template-cover-workout-log.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E1F43E437956C5516C5FDD33 /* template-cover-workout-log.jpg */; };
 		70BDD1111E98AD13F92C5A04 /* template-app-habit-tracker.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = 0EAF976EFD8B4852D7ACBE5D /* template-app-habit-tracker.sample.json */; };
 		70D6F22AE875D9975C01CF0A /* NoteExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2C3828F02A46D62F6896F82 /* NoteExportTests.swift */; };
@@ -749,6 +761,7 @@
 		71047B91A69C9E3426F0A4D5 /* ConnectGuideSnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CA33091AD5F4D520494C20F /* ConnectGuideSnapshots+Shared.swift */; };
 		712C8D17DE4C09218318116E /* ZipTimes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C267659519178984827810 /* ZipTimes.swift */; };
 		71483BBB227DB12096545F5F /* AppleNoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83DEA036A9A2462F2C9E4C72 /* AppleNoteStore.swift */; };
+		71621F584FDF2E0D1589F42E /* template-app-mood-energy-log-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6556C289073488B617632F2E /* template-app-mood-energy-log-stage-card-dark.jpg */; };
 		71CC3F7DBC2830A2C7B98AB5 /* CoverPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657C88FD6641FF62FAD51160 /* CoverPicker.swift */; };
 		7206852EDF250F2D4A72E0B9 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 409280D87901FB1375A2EBEC /* AppIcon.icon */; };
 		7226CFB7F82E3F3908242B3A /* OffscreenAX.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D818CC354495A4859F2CFC4 /* OffscreenAX.swift */; };
@@ -835,6 +848,7 @@
 		805D568F40767100893727CF /* NoteSourceSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD726A31977089E6A04413DC /* NoteSourceSnapshots.swift */; };
 		8074971A34AC94F5B9F9E20F /* MacDogfoodTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84812729F33EB0AD525982F /* MacDogfoodTests.swift */; };
 		80C0C8851370998D5A907AA7 /* template-cover-bug-triage.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B66EAF3BC6F9D0D4D82A3FD3 /* template-cover-bug-triage.jpg */; };
+		80C68856A03F506AF0755647 /* template-app-mood-energy-log-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C865CE060A4A133D9693A45B /* template-app-mood-energy-log-stage-light.jpg */; };
 		80D0A92091BF13EEE33CC436 /* template-app-study-flashcards-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 09D6E40969A2EF20BBF83518 /* template-app-study-flashcards-stage-narrow-light.jpg */; };
 		80E5F1164751A401C881FC04 /* preact.js in Resources */ = {isa = PBXBuildFile; fileRef = 19D80BDF04976B1F5E2449A1 /* preact.js */; };
 		80FB9C344AFA09885E0DBCE4 /* KeyboardBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E2ED2A4AF8812202F92B945 /* KeyboardBarUITests.swift */; };
@@ -1045,6 +1059,7 @@
 		A41DD540210F48C06FDE979D /* CollabMacShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C13E00C01A59783D2FD1B04 /* CollabMacShots.swift */; };
 		A440C5DAC4FC62A0328ACBCC /* AccountKeysSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 569EB1430761546DBD046F80 /* AccountKeysSync.swift */; };
 		A484A9924B9989233D90F35C /* ClosedWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9100BAB793E8F43D9BABDDA8 /* ClosedWindows.swift */; };
+		A490661C200FCAE6CB3F8604 /* template-app-mood-energy-log-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3DC4AF2D3EA512134DAEF04C /* template-app-mood-energy-log-light.jpg */; };
 		A4C68911479F117417B9D237 /* CodeBoxes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30BFBB10DA2DD2468EE9BE2 /* CodeBoxes.swift */; };
 		A4E5F8D6483FDF064391E9F8 /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43C8835EE05529FC6C66B17 /* LegalLinks.swift */; };
 		A57F38039DCFD1089D606728 /* WikiSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */; };
@@ -1088,6 +1103,7 @@
 		AAEEF706B53C7F9082F6C35F /* purify.js in Resources */ = {isa = PBXBuildFile; fileRef = FA63BA9CC98D699F71D53B85 /* purify.js */; };
 		AB08AC06EBA4212A8192CA35 /* FilePanelLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016D40351BAEA54A487293AF /* FilePanelLabelTests.swift */; };
 		AB0E32A93E74120CFFAAE15B /* stack.json in Resources */ = {isa = PBXBuildFile; fileRef = 1936CFFEE4A4126D37AE43CB /* stack.json */; };
+		AB23B7CC3F81C034CC71BECD /* template-app-mood-energy-log-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 23D8486731DA444D15E1DB77 /* template-app-mood-energy-log-dark.jpg */; };
 		AB2DF4733B0A11010AF861A2 /* KeyDevicesTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05E610D5DA3DFA9470DC13E /* KeyDevicesTests+Shared.swift */; };
 		AB9C2FD717B8F86DBA6CA71B /* ShareLinkMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB712C0AD9C55B685303BA9 /* ShareLinkMenu.swift */; };
 		AB9EE0FB2CD8886233AE0465 /* PerfBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C324750077F3620EA53301 /* PerfBudget.swift */; };
@@ -1124,6 +1140,7 @@
 		AFDC56EB454FDDDC2D7D0D8F /* Telemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65EEB5FD3156BCA4D843A68C /* Telemetry.swift */; };
 		AFDFBCB7E53C94E109A21B60 /* FirstOpen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE58FBFB7169CFFC6987E06D /* FirstOpen.swift */; };
 		B06D6628B6C16EA8D9797B96 /* project.yml in Resources */ = {isa = PBXBuildFile; fileRef = D8557D9F309C0E08A9FC9B02 /* project.yml */; };
+		B0802509325A7F04AD2EC754 /* template-app-mood-energy-log-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 75B7DDAA48F320EEF424B389 /* template-app-mood-energy-log-stage-card-light.jpg */; };
 		B09B1D94FAEF75CF5F9EE61F /* SharedItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0CA0A157AFFD73FB9DEA75 /* SharedItem.swift */; };
 		B0F2373C3B51AED1EC8A2C5F /* template-app-budget-log-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 825435523A38ECD0B5F070A5 /* template-app-budget-log-stage-dark.jpg */; };
 		B124163B0087DCF720540757 /* CodexConnectSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04902FC432C162C34F9F9439 /* CodexConnectSnapshots.swift */; };
@@ -1186,6 +1203,7 @@
 		BB4C11D0A97A352EA9FB4AA8 /* RowPressSlopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C802356D17BD239EFCE2A435 /* RowPressSlopTests.swift */; };
 		BB625FCC7A233F54F9FCA88E /* ChecklistShelfSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33A4164E097B32FC526A9143 /* ChecklistShelfSync.swift */; };
 		BB65FAFC7DCE3C2F20B22EAB /* Sync in Resources */ = {isa = PBXBuildFile; fileRef = D95167E06D5ECDFDE2B86394 /* Sync */; };
+		BB7C6003C0E17415758CA839 /* template-app-mood-energy-log.sample.json in Resources */ = {isa = PBXBuildFile; fileRef = 6FE557FD362D3DDBFAB6454E /* template-app-mood-energy-log.sample.json */; };
 		BB80FE0018667E18A44C8C8C /* AdvancedProtectionHiddenTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA4930086FA74FB0B5A2F3 /* AdvancedProtectionHiddenTests+Shared.swift */; };
 		BBA6796F083C64BB8DFF14AC /* SignInLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CB314330255850EA06044C /* SignInLayoutUITests.swift */; };
 		BBB2BE93E2FA8E5D40924FCD /* template-cover-meeting-notes-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 26AC249D2BF6BFE0BDC173B2 /* template-cover-meeting-notes-large.jpg */; };
@@ -1221,6 +1239,7 @@
 		C06502949F74C462152378D6 /* FilmSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17DAC9068DD7470D1DC64AB7 /* FilmSound.swift */; };
 		C077BF3F66D05C50B471A026 /* SessionFault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5065525FC29F25AE64A5EA51 /* SessionFault.swift */; };
 		C0BC213933FD6CA49FF6DF79 /* template-cover-content-calendar.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 8B978EDC9CC0E45E97CE9ADC /* template-cover-content-calendar.jpg */; };
+		C0C65605B7B3A71FAE1C1BFF /* template-app-mood-energy-log-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 26DDA70414FB8809DB6E684B /* template-app-mood-energy-log-stage-dark.jpg */; };
 		C0FDFF8D4DAB713441734ABB /* FileViewerSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2AACF92D630BFBA10B051 /* FileViewerSnapshots.swift */; };
 		C10903C776DA9CCD90B47DC8 /* OnboardingSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3290486DF1E77796E513D27 /* OnboardingSnapshots.swift */; };
 		C1395A340C1CA2701C0E4616 /* SlashCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B1E13D24097F1FAFE6885DA /* SlashCommands.swift */; };
@@ -1368,6 +1387,7 @@
 		DA1A03A007EA831C793F04A9 /* SharedNoteLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8F6C19EBFAD7F83BD61892 /* SharedNoteLimits.swift */; };
 		DA64E54D6FBC775650262423 /* WelcomeEmailSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = E440B115A2C508EE38B556EA /* WelcomeEmailSignIn.swift */; };
 		DA72C1EDB78E9365335D08F0 /* ChangeHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE699D273DBCBF0FBF3A885A /* ChangeHighlight.swift */; };
+		DA8B907C8422ECE50D1A9455 /* template-app-mood-energy-log-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DDDA3032DF91C7DF26C3E06C /* template-app-mood-energy-log-stage-narrow-dark.jpg */; };
 		DAA6C5FD735304CFAD5F392A /* PhoneFolderTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E4AB2E8D7AF9CAD1680B3C /* PhoneFolderTapTests.swift */; };
 		DAB0267195EE1C4070BC68F2 /* PrivacyMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6522E7474E25896CF15566F3 /* PrivacyMode.swift */; };
 		DAB07BAF36EE1DB9016C32DE /* DiagnosticsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3ED99431A52143032D92B9 /* DiagnosticsSection.swift */; };
@@ -1451,6 +1471,7 @@
 		E919027807E1DEA72B51E0FC /* NotePageLibraries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 999D65FF932EF270CB1D17B4 /* NotePageLibraries.swift */; };
 		E92AC6AF1FE507EBE1778496 /* NotePageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B99DE5320A61F5F5F0A9B8 /* NotePageData.swift */; };
 		E95298EA66307261760D7182 /* template-cover-one-on-one-notes-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 629DDEB9BA26213D9A88AF88 /* template-cover-one-on-one-notes-large.jpg */; };
+		E95A550A22ABDF3BDEAF5CCB /* template-app-mood-energy-log-stage-narrow-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DDDA3032DF91C7DF26C3E06C /* template-app-mood-energy-log-stage-narrow-dark.jpg */; };
 		EA29B8CB6BA3328CC95FB793 /* template-app-trip-plan-stage-card-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5D23A6CA640BE0AF1B67F5BD /* template-app-trip-plan-stage-card-dark.jpg */; };
 		EA70BEDD2F3F4EC520FF466C /* BundleRenameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B2965B65AD833118261881C /* BundleRenameTests.swift */; };
 		EA7866E909A5869AFC4A1198 /* AdvancedProtectionHiddenTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA4930086FA74FB0B5A2F3 /* AdvancedProtectionHiddenTests+Shared.swift */; };
@@ -1461,6 +1482,7 @@
 		EB72815EF0591089238CFB26 /* e2ee-vectors.json in Resources */ = {isa = PBXBuildFile; fileRef = D5DFD991B7F6D9071008215D /* e2ee-vectors.json */; };
 		EB7995AD3D5484D8624C346F /* KeyCopyTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEEBEBA9B6E126278869D32D /* KeyCopyTests+Shared.swift */; };
 		EB8CBF022379631E20016627 /* SidebarSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B4AE125014BFD9A75425E8 /* SidebarSetup.swift */; };
+		EB97EC78435E74DF4719A114 /* template-app-mood-energy-log-stage-narrow-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 47FC61D7C7A01B4B01007E27 /* template-app-mood-energy-log-stage-narrow-light.jpg */; };
 		EBA52C007B952E15C5C98BED /* AppPlace.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66F73D19D6FC8E877D5EDCA /* AppPlace.swift */; };
 		EBAE6D1B02CDBB0C07719021 /* TagEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA5CB8A63512E17A129AEDDF /* TagEditorTests.swift */; };
 		EC0C3129E06F57974BFCDEF6 /* template-cover-bug-triage.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B66EAF3BC6F9D0D4D82A3FD3 /* template-cover-bug-triage.jpg */; };
@@ -1684,6 +1706,7 @@
 		0A0657AEF1BB5D63F2BA5B16 /* ListHeaderClickTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListHeaderClickTests.swift; sourceTree = "<group>"; };
 		0A15E4969D426B8BB8ADCE87 /* MenuLookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuLookTests.swift; sourceTree = "<group>"; };
 		0A3E8C508286ED65BD00189A /* SearchBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchBarUITests.swift; sourceTree = "<group>"; };
+		0A8C0A61218E6E4415E25474 /* template-app-mood-energy-log.project.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-mood-energy-log.project.json"; sourceTree = "<group>"; };
 		0B2965B65AD833118261881C /* BundleRenameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundleRenameTests.swift; sourceTree = "<group>"; };
 		0BC98D85A82BA1ECBFDE6ABB /* WelcomeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeTests.swift; sourceTree = "<group>"; };
 		0BD099569894B6BB98E56F2A /* BackendSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendSessionTests.swift; sourceTree = "<group>"; };
@@ -1786,6 +1809,7 @@
 		23695A7EC43DBC92AAF79655 /* SidebarAILine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarAILine.swift; sourceTree = "<group>"; };
 		2384CF69E9CEA3C3F988A33D /* template-cover-book-notes.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-book-notes.jpg"; sourceTree = "<group>"; };
 		239E33A6B222E8CCE6BA3C15 /* SharedDeleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDeleteTests.swift; sourceTree = "<group>"; };
+		23D8486731DA444D15E1DB77 /* template-app-mood-energy-log-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-dark.jpg"; sourceTree = "<group>"; };
 		243A4C1306BA7D9DB76C50D3 /* AIChangesTests+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AIChangesTests+Shared.swift"; sourceTree = "<group>"; };
 		24B79ECE631EFE9C39379331 /* DestructiveTint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestructiveTint.swift; sourceTree = "<group>"; };
 		24D8355994666F6DBB272BC0 /* amber-ui.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "amber-ui.json"; sourceTree = "<group>"; };
@@ -1797,6 +1821,7 @@
 		267ED1D538B0D6F7DA0D6C4F /* PersonaEditorShots+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PersonaEditorShots+Shared.swift"; sourceTree = "<group>"; };
 		26AC249D2BF6BFE0BDC173B2 /* template-cover-meeting-notes-large.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-cover-meeting-notes-large.jpg"; sourceTree = "<group>"; };
 		26D3986F04C97755027F49A8 /* CollapseShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapseShots.swift; sourceTree = "<group>"; };
+		26DDA70414FB8809DB6E684B /* template-app-mood-energy-log-stage-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-dark.jpg"; sourceTree = "<group>"; };
 		2704637D02B8697D36D3F82F /* ShortcutsSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsSheetTests.swift; sourceTree = "<group>"; };
 		272C6F5EA1562BD7EA619A8E /* TableMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableMenuTests.swift; sourceTree = "<group>"; };
 		27341730693C9C5F11516EAE /* PaneShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaneShare.entitlements; sourceTree = "<group>"; };
@@ -1898,6 +1923,7 @@
 		3DA346A4AC288B31B07A05AB /* WikiLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiLinks.swift; sourceTree = "<group>"; };
 		3DB3498A8DE2D5E442CCEA2D /* template-app-budget-log-stage-card-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-budget-log-stage-card-light.jpg"; sourceTree = "<group>"; };
 		3DB566CE0015F20D04505051 /* ThemeShots+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ThemeShots+Shared.swift"; sourceTree = "<group>"; };
+		3DC4AF2D3EA512134DAEF04C /* template-app-mood-energy-log-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-light.jpg"; sourceTree = "<group>"; };
 		3DC4CEF2C420B54959D6CCD6 /* MenuLookTests+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MenuLookTests+Shared.swift"; sourceTree = "<group>"; };
 		3DCC46BAF9DF564799127E10 /* ShareAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareAsk.swift; sourceTree = "<group>"; };
 		3DFAA356C8EA6422D73B1A4F /* LayoutHangTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutHangTests.swift; sourceTree = "<group>"; };
@@ -1939,6 +1965,7 @@
 		477ACA457C7563F360F21E9B /* TableEditingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableEditingUITests.swift; sourceTree = "<group>"; };
 		4799EC29645C9FCD2077FBB1 /* HeadingFolds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeadingFolds.swift; sourceTree = "<group>"; };
 		47C2F5BCCDFA4A6D60E39708 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		47FC61D7C7A01B4B01007E27 /* template-app-mood-energy-log-stage-narrow-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-narrow-light.jpg"; sourceTree = "<group>"; };
 		483CA88017A03E92EEC52DFD /* AppleNotesImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleNotesImport.swift; sourceTree = "<group>"; };
 		48747C5886233D2964A2F51F /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		48AA1013D2678B0BC092DFE4 /* EditorInitialStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorInitialStyleTests.swift; sourceTree = "<group>"; };
@@ -2056,6 +2083,7 @@
 		6522E7474E25896CF15566F3 /* PrivacyMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyMode.swift; sourceTree = "<group>"; };
 		65292B8EBC120078BAD72028 /* SlashBarShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashBarShots.swift; sourceTree = "<group>"; };
 		654C29C51D2CD1085C670BF1 /* NotePicture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePicture.swift; sourceTree = "<group>"; };
+		6556C289073488B617632F2E /* template-app-mood-energy-log-stage-card-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-card-dark.jpg"; sourceTree = "<group>"; };
 		657C88FD6641FF62FAD51160 /* CoverPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPicker.swift; sourceTree = "<group>"; };
 		657E60AF949C5827C12BCE1B /* LinkVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkVault.swift; sourceTree = "<group>"; };
 		65B140DD3577791185D0152B /* CalloutTypePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalloutTypePicker.swift; sourceTree = "<group>"; };
@@ -2100,6 +2128,7 @@
 		6F2EF7158F35250A395D354A /* SharedLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedLibrary.swift; sourceTree = "<group>"; };
 		6F8701118C10B4EFFA4C5DBC /* CollabShareSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabShareSnapshots.swift; sourceTree = "<group>"; };
 		6FAE7E8415A51A990023DC19 /* IconPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconPicker.swift; sourceTree = "<group>"; };
+		6FE557FD362D3DDBFAB6454E /* template-app-mood-energy-log.sample.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-mood-energy-log.sample.json"; sourceTree = "<group>"; };
 		707C97A919FABB193CC47F4D /* RichPasteSourcesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichPasteSourcesTests.swift; sourceTree = "<group>"; };
 		70C6DF1DB45684EF379D2E7E /* PersonaEditorShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaEditorShots.swift; sourceTree = "<group>"; };
 		70C81699767C1F45A63D1DD3 /* NotebookFilmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookFilmTests.swift; sourceTree = "<group>"; };
@@ -2119,6 +2148,7 @@
 		75759167CE7F0B24B4814F25 /* keycopy-vectors.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "keycopy-vectors.json"; sourceTree = "<group>"; };
 		758321D9F9783C849CA65451 /* SecurityPageShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityPageShots.swift; sourceTree = "<group>"; };
 		758740FA2EB633CCAAF752F1 /* SharedHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedHistoryTests.swift; sourceTree = "<group>"; };
+		75B7DDAA48F320EEF424B389 /* template-app-mood-energy-log-stage-card-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-card-light.jpg"; sourceTree = "<group>"; };
 		7637BBECC7048C6C96F739D2 /* CellText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellText.swift; sourceTree = "<group>"; };
 		767EFC73DF3FB181F63A6458 /* CoverControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverControls.swift; sourceTree = "<group>"; };
 		7693F09926468E8130148F1D /* ImportSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSources.swift; sourceTree = "<group>"; };
@@ -2286,6 +2316,7 @@
 		A0C267659519178984827810 /* ZipTimes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipTimes.swift; sourceTree = "<group>"; };
 		A25D9D1F15495FE305C31DC0 /* ActionSpeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSpeedTests.swift; sourceTree = "<group>"; };
 		A2B368A33CBCE4C0634FF8A2 /* KeyProtectionAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyProtectionAsk.swift; sourceTree = "<group>"; };
+		A3B3D0A251468CF33DC8862E /* template-app-mood-energy-log.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-mood-energy-log.data.json"; sourceTree = "<group>"; };
 		A40FBDDB40A6791A4C81086B /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		A44218A9E5FBE7C82E8F7C95 /* AIChangesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChangesView.swift; sourceTree = "<group>"; };
 		A4EA5FE823F674D4965762BA /* CollabShareSnapshots+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CollabShareSnapshots+Shared.swift"; sourceTree = "<group>"; };
@@ -2405,6 +2436,7 @@
 		C7B67058B15A94F6CDA9881A /* OfflineCalmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCalmTests.swift; sourceTree = "<group>"; };
 		C7D3C041048DAAB22B2FC870 /* TypedTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedTable.swift; sourceTree = "<group>"; };
 		C802356D17BD239EFCE2A435 /* RowPressSlopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowPressSlopTests.swift; sourceTree = "<group>"; };
+		C865CE060A4A133D9693A45B /* template-app-mood-energy-log-stage-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-light.jpg"; sourceTree = "<group>"; };
 		C960510C7E4F543FE84B35F7 /* PrivacyMode+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrivacyMode+Shared.swift"; sourceTree = "<group>"; };
 		C971B26721AA72846608E154 /* AIReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewTests.swift; sourceTree = "<group>"; };
 		CA56FEB9C65A7CF02607495E /* site.ts */ = {isa = PBXFileReference; path = site.ts; sourceTree = "<group>"; };
@@ -2479,6 +2511,7 @@
 		DD2CBA7D9B4CFF7E8589AB5D /* template-app-study-flashcards-stage-card-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-study-flashcards-stage-card-light.jpg"; sourceTree = "<group>"; };
 		DD3E85445C5520F24FAA2DD1 /* Pane.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Pane.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDD8BF7D9C77E06DFA9BE70C /* GoogleSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignIn.swift; sourceTree = "<group>"; };
+		DDDA3032DF91C7DF26C3E06C /* template-app-mood-energy-log-stage-narrow-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-narrow-dark.jpg"; sourceTree = "<group>"; };
 		DE23F9691285F7E666E3698E /* PersonaR7Shots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaR7Shots.swift; sourceTree = "<group>"; };
 		DE2DD0C18C845F8C0E3FB2CA /* SettingsPagesLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPagesLoadTests.swift; sourceTree = "<group>"; };
 		DE80382398AD828DE2282562 /* catalog.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = catalog.json; sourceTree = "<group>"; };
@@ -3081,6 +3114,17 @@
 				BFD0E9BB40489A8CB8356B19 /* template-app-habit-tracker.data.json */,
 				7F99F9FABF79933DBD9B01F4 /* template-app-habit-tracker.project.json */,
 				0EAF976EFD8B4852D7ACBE5D /* template-app-habit-tracker.sample.json */,
+				23D8486731DA444D15E1DB77 /* template-app-mood-energy-log-dark.jpg */,
+				3DC4AF2D3EA512134DAEF04C /* template-app-mood-energy-log-light.jpg */,
+				6556C289073488B617632F2E /* template-app-mood-energy-log-stage-card-dark.jpg */,
+				75B7DDAA48F320EEF424B389 /* template-app-mood-energy-log-stage-card-light.jpg */,
+				26DDA70414FB8809DB6E684B /* template-app-mood-energy-log-stage-dark.jpg */,
+				C865CE060A4A133D9693A45B /* template-app-mood-energy-log-stage-light.jpg */,
+				DDDA3032DF91C7DF26C3E06C /* template-app-mood-energy-log-stage-narrow-dark.jpg */,
+				47FC61D7C7A01B4B01007E27 /* template-app-mood-energy-log-stage-narrow-light.jpg */,
+				A3B3D0A251468CF33DC8862E /* template-app-mood-energy-log.data.json */,
+				0A8C0A61218E6E4415E25474 /* template-app-mood-energy-log.project.json */,
+				6FE557FD362D3DDBFAB6454E /* template-app-mood-energy-log.sample.json */,
 				6511DF6067471C42808C09B2 /* template-app-study-flashcards-dark.jpg */,
 				7FFCC88CB19BF7AB1F88EB91 /* template-app-study-flashcards-light.jpg */,
 				2820D937F2648EF0519C1471 /* template-app-study-flashcards-stage-card-dark.jpg */,
@@ -4329,6 +4373,17 @@
 				AA74F5CD71C34BC389663098 /* template-app-habit-tracker.data.json in Resources */,
 				0C853FA3D9C362807B42251D /* template-app-habit-tracker.project.json in Resources */,
 				70BDD1111E98AD13F92C5A04 /* template-app-habit-tracker.sample.json in Resources */,
+				6DF035174BEC0B6A44D777EF /* template-app-mood-energy-log-dark.jpg in Resources */,
+				510A9B6A5DD686D210293927 /* template-app-mood-energy-log-light.jpg in Resources */,
+				71621F584FDF2E0D1589F42E /* template-app-mood-energy-log-stage-card-dark.jpg in Resources */,
+				B0802509325A7F04AD2EC754 /* template-app-mood-energy-log-stage-card-light.jpg in Resources */,
+				1310958455774CD6D12B2901 /* template-app-mood-energy-log-stage-dark.jpg in Resources */,
+				80C68856A03F506AF0755647 /* template-app-mood-energy-log-stage-light.jpg in Resources */,
+				DA8B907C8422ECE50D1A9455 /* template-app-mood-energy-log-stage-narrow-dark.jpg in Resources */,
+				EB97EC78435E74DF4719A114 /* template-app-mood-energy-log-stage-narrow-light.jpg in Resources */,
+				56B2C604EB1C23840377093E /* template-app-mood-energy-log.data.json in Resources */,
+				631507967036038F45128572 /* template-app-mood-energy-log.project.json in Resources */,
+				BB7C6003C0E17415758CA839 /* template-app-mood-energy-log.sample.json in Resources */,
 				8D4EAD8172075B522D59EEFF /* template-app-study-flashcards-dark.jpg in Resources */,
 				1B6693232BAAB8384122A494 /* template-app-study-flashcards-light.jpg in Resources */,
 				0C85ECB66B80158EBEDDF434 /* template-app-study-flashcards-stage-card-dark.jpg in Resources */,
@@ -4484,6 +4539,17 @@
 				C042175827E521CA9FD51DAD /* template-app-habit-tracker.data.json in Resources */,
 				FFD2036BD626E2CF49BCB214 /* template-app-habit-tracker.project.json in Resources */,
 				8C22AA42665A9B967A9DC0EC /* template-app-habit-tracker.sample.json in Resources */,
+				AB23B7CC3F81C034CC71BECD /* template-app-mood-energy-log-dark.jpg in Resources */,
+				A490661C200FCAE6CB3F8604 /* template-app-mood-energy-log-light.jpg in Resources */,
+				019FC99B5B0CF7CF32505A51 /* template-app-mood-energy-log-stage-card-dark.jpg in Resources */,
+				278B38D725CD22C3FA44C4C7 /* template-app-mood-energy-log-stage-card-light.jpg in Resources */,
+				C0C65605B7B3A71FAE1C1BFF /* template-app-mood-energy-log-stage-dark.jpg in Resources */,
+				05476DF7C22C165C62C910D2 /* template-app-mood-energy-log-stage-light.jpg in Resources */,
+				E95A550A22ABDF3BDEAF5CCB /* template-app-mood-energy-log-stage-narrow-dark.jpg in Resources */,
+				708F7897F0B6C5DA02769FFD /* template-app-mood-energy-log-stage-narrow-light.jpg in Resources */,
+				239DA5D25C7474EB5D69AF2D /* template-app-mood-energy-log.data.json in Resources */,
+				1F4E7687579EC01BE97FB320 /* template-app-mood-energy-log.project.json in Resources */,
+				04D9273EF4F537FAE9E57638 /* template-app-mood-energy-log.sample.json in Resources */,
 				06FEF690E383AEBBBF084B81 /* template-app-study-flashcards-dark.jpg in Resources */,
 				56295473CED9A7D6C9828F25 /* template-app-study-flashcards-light.jpg in Resources */,
 				5950BB0A44AFC45F750B952B /* template-app-study-flashcards-stage-card-dark.jpg in Resources */,

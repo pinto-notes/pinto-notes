@@ -151,8 +151,46 @@ def trip() -> None:
     write("trip-plan", v)
 
 
+def moods() -> None:
+    v = start("mood-energy-log")
+    # Six weeks of evenings, three of them missed, today not logged yet (it's an evening check-in,
+    # so the stage shows the check-in). Written by hand to read like one person's weeks: energy
+    # follows the night before, exercise and seeing friends lift the day, work stress pulls it
+    # down, and a late Friday costs the Saturday's energy. Today is d(0); -1 is yesterday.
+    E, A, S, W = "Exercise", "Alcohol", "Social", "Work stress"
+    log = {
+        -42: (3, 3, 7, [W], "Monday inbox"), -41: (4, 4, 7.5, [E], "Run by the river"), -40: (3, 2, 6, [W], "Late call with the US team"),
+        -39: (4, 3, 7, [], None), -38: (4, 3, 6.5, [S, A], "Drinks after work"), -37: (3, 2, 6, [], "Slow Saturday"),
+        -36: (5, 4, 8.5, [E, S], "Long walk with Maja"),
+        -35: (3, 3, 7, [W], None), -34: (4, 4, 7.5, [E], "Gym before work"), -33: (2, 2, 5.5, [W], "Deadline, ate at my desk"),
+        -32: (3, 2, 6, [W], None), -30: (4, 3, 7, [S, A], "Pizza with Oskar"),
+        -29: (4, 4, 8, [E], "Swim and a nap"), -28: (3, 3, 7.5, [], "Laundry and a film"), -27: (3, 3, 7, [W], None),
+        -26: (4, 4, 7.5, [E], "Gym, felt strong"), -25: (3, 3, 6.5, [], None), -24: (2, 1, 5, [W], "Up at 4 worrying about the review"),
+        -23: (3, 2, 6, [A], "Quiet Friday"), -22: (4, 3, 8, [S], "Market with Maja"), -21: (4, 4, 8, [E], "Long run"),
+        -20: (3, 3, 7, [W], None), -19: (4, 4, 7.5, [E], "Yoga at lunch"), -18: (3, 3, 7, [], None),
+        -17: (4, 3, 7, [S], "Book club"), -16: (4, 3, 6.5, [S, A], "Work party"), -15: (3, 2, 5.5, [A], "Slept badly"),
+        -14: (4, 4, 8, [E], "Cycled to the lake"),
+        -13: (3, 3, 7, [W], None), -12: (4, 4, 7.5, [E], "Gym before work"), -11: (2, 2, 6, [W], "Back-to-back meetings"),
+        -10: (3, 2, 5.5, [W], "Deadline"), -9: (4, 3, 7, [S], "Dinner at Oskar's"), -8: (5, 4, 8.5, [E, S], "Hike with friends"),
+        -7: (4, 4, 8, [], "Lazy Sunday"),
+        -6: (3, 3, 7, [W], None), -5: (4, 4, 7.5, [E], "Swim before work"), -4: (3, 3, 7, [], None),
+        -3: (2, 2, 5.5, [W], "Project slipped again"), -2: (4, 3, 7, [S, A], "Friday drinks"), -1: (4, 3, 6.5, [E], "Short run, still tired"),
+    }
+    days = {}
+    for n, (mood, energy, sleep, tags, note) in sorted(log.items()):
+        day = {"mood": mood, "energy": energy, "sleep": sleep}
+        if tags:
+            day["tags"] = tags
+        if note:
+            day["note"] = note
+        days[d(n)] = day
+    v["days"] = days
+    write("mood-energy-log", v)
+
+
 habits()
 budget()
 flashcards()
 trip()
+moods()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))
