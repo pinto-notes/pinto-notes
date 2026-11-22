@@ -9,16 +9,16 @@
     {
       "label": "Add a book",
       "you": "Finished Project Hail Mary, five stars. Book club pick. I'm reading Piranesi now, from Jonas.",
-      "ai": "Both are in the table: Project Hail Mary as Finished with 5, Piranesi as Reading.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "ai": "Both are in the Books table now, with their authors.",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Reading list filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add your thoughts",
       "you": "The friendship carries the whole book. I'm lending my copy to Dad.",
       "ai": "Added that under Notes, under Project Hail Mary.",
-      "phone": "phone-notes",
+      "phone": "phone-2",
       "alt": "Notes, in Reading list"
     },
     {
@@ -30,13 +30,15 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 6
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 6
     },
-    "phone-notes": {
+    "phone-2": {
       "of": "example",
       "from": "Notes"
     },

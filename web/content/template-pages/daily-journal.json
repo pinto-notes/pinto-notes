@@ -10,15 +10,15 @@
       "label": "Write today",
       "you": "Quiet day. Finished the bookshelf and went for a long walk. Coffee with Jonas helped.",
       "ai": "Wrote today's entry, Sunday 8 November, at the top.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Daily journal filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add yesterday",
       "you": "Add yesterday: I helped Maja move. Faster than we feared, then pizza.",
       "ai": "Added the entry for Saturday 7 November.",
-      "phone": "phone-saturday-7-november",
+      "phone": "phone-2",
       "alt": "Saturday 7 November, in Daily journal"
     },
     {
@@ -30,13 +30,19 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": [
+        1
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": [
+        1
+      ]
     },
-    "phone-saturday-7-november": {
+    "phone-2": {
       "of": "example",
       "from": "Saturday 7 November"
     },

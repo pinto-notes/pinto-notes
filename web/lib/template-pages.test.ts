@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { pictureBody } from "./template-picture-body.mjs";
 import { moreTemplates, picture, templatePage } from "./template-pages";
 import { templateFiles, templates } from "./templates";
 
@@ -48,19 +49,30 @@ describe("a template's page data", () => {
       }
     });
 
-    // A plain note's pictures are the template drawn by the Mac app: the example (what its demo
-    // calls make) or the note as it starts, scrolled to a heading that is really in it.
+    // A plain note's pictures are the template drawn by the apps, at a step of its demo calls (or
+    // as it starts), scrolled to a heading that is really in the note drawn.
     it.runIf(!t.app)(`${t.slug}: draws only what the template holds, and each slide shows a picture it draws`, () => {
       expect(p.pictures).toBeTruthy();
+      // All the demo calls make the example, so a picture at a step is the note on its way there.
+      expect(pictureBody(t, { of: "example" }).trim()).toBe(t.example.trim());
       for (const [name, pic] of Object.entries(p.pictures!)) {
-        const md = pic.of === "note" ? t.note : t.example;
-        if (pic.from) expect(md.split("\n").some((l) => l.replace(/^#+\s*/, "") === pic.from), `${name}: ${pic.from}`).toBe(true);
+        expect(name, name).toMatch(/^(mac|phone)-/);
+        const md = pictureBody(t, pic);
+        // A heading, or a bold label on a line of its own.
+        const heading = (l: string) => l.replace(/^#+\s*/, "").replace(/^\*\*(.*)\*\*$/, "$1");
+        if (pic.from) expect(md.split("\n").some((l) => heading(l) === pic.from), `${name}: ${pic.from}`).toBe(true);
       }
       for (const s of p.slides) for (const n of [s.mac, s.phone].filter(Boolean)) expect(Object.keys(p.pictures!), n).toContain(n);
       // The slide that talks about a section shows that section.
-      const second = p.slides[1];
+      const [first, second] = p.slides;
       const from = p.pictures![second.phone].from;
       expect(from && t.example.includes(from), second.phone).toBeTruthy();
+      // A reply that says something changed shows the change: the note under it isn't the one the
+      // slide before showed (a question changes nothing, so both can show the same note).
+      if (!second.you!.trim().endsWith("?")) {
+        expect(pictureBody(t, p.pictures![second.phone]), `${t.slug}: slide 2 shows the change`).not.toBe(pictureBody(t, p.pictures![first.mac!]));
+        expect(pictureBody(t, p.pictures![second.phone]), `${t.slug}: slide 2 shows the change`).not.toBe(pictureBody(t, p.pictures![first.phone]));
+      }
     });
   }
 

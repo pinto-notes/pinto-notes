@@ -10,15 +10,15 @@
       "label": "See what's due",
       "you": "What's due this month?",
       "ai": "The smoke alarms on 14 Nov, the boiler on 20 Nov and the gutters on 24 Nov.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Home maintenance filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add a contact",
       "you": "Our plumber is Nordin & Son, 08-465 004 27.",
       "ai": "Added them under Who to call.",
-      "phone": "phone-who-to-call",
+      "phone": "phone-2",
       "alt": "Who to call, in Home maintenance"
     },
     {
@@ -30,13 +30,26 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- Plumber: Nordin & Son, 08-465 004 27",
+          "- Plumber:"
+        ]
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- Plumber: Nordin & Son, 08-465 004 27",
+          "- Plumber:"
+        ]
+      ],
+      "from": "This month"
     },
-    "phone-who-to-call": {
+    "phone-2": {
       "of": "example",
       "from": "Who to call"
     },

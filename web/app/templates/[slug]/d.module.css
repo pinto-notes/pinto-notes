@@ -54,6 +54,11 @@
 .status { position: absolute; inset: 0 0 auto 0; height: 6.4%; display: flex; align-items: center; justify-content: space-between; padding: 0 9%; font: 600 6.4cqw/1 -apple-system, system-ui, sans-serif; color: #111; background: #fff; z-index: 2; }
 .island { position: absolute; top: 2.1%; left: 50%; width: 31%; height: 3.6%; transform: translateX(-50%); background: #000; border-radius: 999px; z-index: 3; }
 
+/* A plain note's slides: the iPhone app's note screen, at a size its 17 pt text reads at (about
+   12 px). Alone on a slide, the phone runs past the slide's foot, as the Mac window does. */
+.stage[data-note] .shot:not([data-duo]) { overflow: hidden; }
+.stage[data-note] .shot:not([data-duo]) .phone { height: auto; width: 310px; }
+
 .flip { position: absolute; top: 12px; right: 12px; display: flex; background: rgba(255, 255, 255, 0.92); border-radius: 999px; padding: 3px; box-shadow: 0 2px 10px rgba(60, 40, 10, 0.12); z-index: 4; }
 .flip button { border: 0; background: none; font: 600 13px system-ui, sans-serif; padding: 6px 12px; border-radius: 999px; color: var(--muted); cursor: pointer; }
 .flip button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
@@ -127,6 +132,8 @@
   .mac { display: none; }
   .shot[data-duo] .phone { position: relative; right: auto; bottom: auto; height: 100%; width: auto; }
   .flip { top: auto; bottom: 12px; right: 50%; transform: translateX(50%); }
+  .stage[data-note] .shot, .stage[data-note] .shot[data-duo] { height: auto; overflow: visible; }
+  .stage[data-note] .phone, .stage[data-note] .shot[data-duo] .phone { height: auto; width: min(100%, 310px); }
   .dock {
     display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; align-items: center; justify-content: space-between; gap: 12px;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--bg) 94%, transparent);

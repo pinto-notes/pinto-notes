@@ -9,16 +9,16 @@
     {
       "label": "Plan two weeks",
       "you": "Plan the next two weeks: two LinkedIn posts and one newsletter.",
-      "ai": "Added them to the calendar, each with a date, a channel and a status.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "ai": "Added them to the calendar, each on its own date.",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Content calendar filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add an idea",
       "you": "Post idea: a day in support, in numbers.",
       "ai": "Added it under Ideas.",
-      "phone": "phone-ideas",
+      "phone": "phone-2",
       "alt": "Ideas, in Content calendar"
     },
     {
@@ -30,13 +30,25 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- A day in support, in numbers\n",
+          ""
+        ]
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- A day in support, in numbers\n",
+          ""
+        ]
+      ]
     },
-    "phone-ideas": {
+    "phone-2": {
       "of": "example",
       "from": "Ideas"
     },

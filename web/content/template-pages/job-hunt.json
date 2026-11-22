@@ -9,16 +9,16 @@
     {
       "label": "Save a job ad",
       "you": "Here's the Finch Bikes ad. I want to apply by 18 Nov.",
-      "ai": "Added Finch Bikes as Saved, with Apply by 18 Nov as the next step.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "ai": "Added Finch Bikes to Applications, for the product designer role.",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Job hunt filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Prep an interview",
       "you": "I have a first interview with Tideway on Thursday. Help me prep.",
       "ai": "Added three likely questions with talking points under Interview prep.",
-      "phone": "phone-interview-prep",
+      "phone": "phone-2",
       "alt": "Interview prep, in Job hunt"
     },
     {
@@ -30,13 +30,15 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 5
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 5
     },
-    "phone-interview-prep": {
+    "phone-2": {
       "of": "example",
       "from": "Interview prep"
     },

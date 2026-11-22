@@ -10,15 +10,15 @@
       "label": "Send a highlight",
       "you": "Page 31: \"The day will never arrive when you finally have everything under control.\"",
       "ai": "Added the quote with its page under Four Thousand Weeks.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Book notes filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Wrap up a book",
       "you": "I finished Deep Work. Wrap it up.",
       "ai": "Added the big idea under Deep Work.",
-      "phone": "phone-deep-work-by-cal-newport",
+      "phone": "phone-2",
       "alt": "Deep Work by Cal Newport, in Book notes"
     },
     {
@@ -30,13 +30,15 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 3
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 3
     },
-    "phone-deep-work-by-cal-newport": {
+    "phone-2": {
       "of": "example",
       "from": "Deep Work by Cal Newport"
     },

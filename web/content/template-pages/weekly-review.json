@@ -10,15 +10,15 @@
       "label": "Review your week",
       "you": "Ask me this week's five questions.",
       "ai": "Your answers are under Reviews, as Week of 2 November, with your top three for next week.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Weekly review filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Tick a priority",
       "you": "I booked the dentist.",
       "ai": "Ticked it off.",
-      "phone": "phone-reviews",
+      "phone": "phone-2",
       "alt": "Reviews, in Weekly review"
     },
     {
@@ -30,13 +30,17 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 1,
+      "from": "Reviews"
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 1,
+      "from": "Reviews"
     },
-    "phone-reviews": {
+    "phone-2": {
       "of": "example",
       "from": "Reviews"
     },

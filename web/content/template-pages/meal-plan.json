@@ -10,15 +10,15 @@
       "label": "Plan the week",
       "you": "Plan dinners for the week. Oskar cooks Tuesday, Thursday and Sunday. We're out on Saturday.",
       "ai": "The week is in the Dinners table, and what it needs is under Groceries, by aisle.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Meal plan and groceries filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Tick the groceries",
       "you": "We already have parmesan.",
       "ai": "Ticked it on the grocery list.",
-      "phone": "phone-groceries",
+      "phone": "phone-2",
       "alt": "Groceries, in Meal plan and groceries"
     },
     {
@@ -30,15 +30,29 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
-    },
-    "phone-example": {
-      "of": "example"
-    },
-    "phone-groceries": {
+    "mac-1": {
       "of": "example",
-      "from": "Groceries"
+      "edits": [
+        [
+          "- [x] Parmesan",
+          "- [ ] Parmesan"
+        ]
+      ],
+      "from": "Dinners"
+    },
+    "phone-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- [x] Parmesan",
+          "- [ ] Parmesan"
+        ]
+      ],
+      "from": "Dinners"
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Meat and fish"
     },
     "mac-start": {
       "of": "note"

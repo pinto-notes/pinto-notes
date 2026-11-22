@@ -9,16 +9,16 @@
     {
       "label": "Save an idea",
       "you": "Gift idea for Maja's housewarming: a good chef's knife, about 900.",
-      "ai": "Added it to Ideas for Maja, as an idea.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "ai": "Added it to Ideas, for Maja's housewarming.",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Gift ideas filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Note what they like",
       "you": "Jonas wears a medium and loves anything green.",
       "ai": "Added that under Sizes and likes.",
-      "phone": "phone-sizes-and-likes",
+      "phone": "phone-2",
       "alt": "Sizes and likes, in Gift ideas"
     },
     {
@@ -30,13 +30,25 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- **Jonas:** medium, loves anything green.\n",
+          ""
+        ]
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- **Jonas:** medium, loves anything green.\n",
+          ""
+        ]
+      ]
     },
-    "phone-sizes-and-likes": {
+    "phone-2": {
       "of": "example",
       "from": "Sizes and likes"
     },

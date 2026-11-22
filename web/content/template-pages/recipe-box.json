@@ -9,16 +9,16 @@
     {
       "label": "Save a recipe",
       "you": "Save this recipe: lentil soup with lemon.",
-      "ai": "Saved it as its own note under Weeknight, with the ingredients as a checklist.",
-      "mac": "mac-example",
-      "phone": "phone-example",
-      "alt": "Recipe box filled in, in Pinto Notes on a Mac"
+      "ai": "Saved it as its own note, with the ingredients as a checklist.",
+      "mac": "mac-1",
+      "phone": "phone-1",
+      "alt": "Lentil soup with lemon saved in Recipe box, in Pinto Notes on a Mac"
     },
     {
       "label": "Add one to try",
       "you": "Add garlic prawns to the ones I want to try.",
       "ai": "Added it under Want to try.",
-      "phone": "phone-want-to-try",
+      "phone": "phone-2",
       "alt": "Want to try, in Recipe box"
     },
     {
@@ -30,13 +30,20 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- Garlic prawns\n",
+          ""
+        ]
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "created": 0
     },
-    "phone-want-to-try": {
+    "phone-2": {
       "of": "example",
       "from": "Want to try"
     },

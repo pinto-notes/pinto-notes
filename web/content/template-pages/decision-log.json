@@ -10,15 +10,15 @@
       "label": "Log a decision",
       "you": "We're staying on Postgres with a trigram index. We looked at a search service too.",
       "ai": "Logged it under Decisions, with the context, the options and why.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Decision log filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add an open question",
       "you": "We still haven't decided on offline editing.",
       "ai": "Added it under Open questions.",
-      "phone": "phone-open-questions",
+      "phone": "phone-2",
       "alt": "Open questions, in Decision log"
     },
     {
@@ -30,13 +30,25 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- Do we support offline editing in the first release?\n",
+          ""
+        ]
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "edits": [
+        [
+          "- Do we support offline editing in the first release?\n",
+          ""
+        ]
+      ]
     },
-    "phone-open-questions": {
+    "phone-2": {
       "of": "example",
       "from": "Open questions"
     },

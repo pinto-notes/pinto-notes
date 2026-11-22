@@ -9,16 +9,16 @@
     {
       "label": "Log your day",
       "you": "Slept in, 8 hours. Good mood, lots of energy.",
-      "ai": "Logged 8 November: mood 4, energy 4, 8 hours of sleep.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "ai": "Logged 8 November: mood 4 and energy 4.",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Mood and energy log filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Ask for patterns",
       "you": "Do you see any patterns?",
       "ai": "Energy follows sleep. I added three lines under Patterns.",
-      "phone": "phone-patterns",
+      "phone": "phone-2",
       "alt": "Patterns, in Mood and energy log"
     },
     {
@@ -30,13 +30,15 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 5
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 5
     },
-    "phone-patterns": {
+    "phone-2": {
       "of": "example",
       "from": "Patterns"
     },

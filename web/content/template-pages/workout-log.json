@@ -10,15 +10,15 @@
       "label": "Log a session",
       "you": "Deadlift today, 120 kg for 3. Hard, about a 9.",
       "ai": "Logged it in Sessions and updated your deadlift best to 120 kg x 3.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Workout log filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "See your bests",
       "you": "What are my bests?",
       "ai": "They're under Personal bests: deadlift 120 kg x 3, squat 100 kg x 5, bench 70 kg x 6.",
-      "phone": "phone-personal-bests",
+      "phone": "phone-2",
       "alt": "Personal bests, in Workout log"
     },
     {
@@ -30,13 +30,13 @@
     }
   ],
   "pictures": {
-    "mac-example": {
+    "mac-1": {
       "of": "example"
     },
-    "phone-example": {
+    "phone-1": {
       "of": "example"
     },
-    "phone-personal-bests": {
+    "phone-2": {
       "of": "example",
       "from": "Personal bests"
     },

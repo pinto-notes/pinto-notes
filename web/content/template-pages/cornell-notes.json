@@ -10,15 +10,15 @@
       "label": "Make Cornell notes",
       "you": "Here are my notes from today's lecture on supply and demand.",
       "ai": "Made Cornell notes: a cue beside each note, and a short summary.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Cornell notes filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Get quizzed",
       "you": "Quiz me on supply and demand.",
       "ai": "You missed what shifts the demand curve, so it's under Cues to revisit.",
-      "phone": "phone-cues-to-revisit",
+      "phone": "phone-2",
       "alt": "Cues to revisit, in Cornell notes"
     },
     {
@@ -30,13 +30,15 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 1
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 1
     },
-    "phone-cues-to-revisit": {
+    "phone-2": {
       "of": "example",
       "from": "Cues to revisit"
     },

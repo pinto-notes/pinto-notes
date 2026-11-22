@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import type { PictureRecipe } from "./template-picture-body.mjs";
 import { instructions, template, templates, type Template } from "./templates";
 
 /// A template's page in layout D (Emil, 22 November 2026; modelled on how Notion's gallery lists a
@@ -10,7 +11,8 @@ import { instructions, template, templates, type Template } from "./templates";
 /// Truth: a slide's bubbles say what the template's tools really do (its demo calls and example, or
 /// for an app, its prompt and sample data), and its pictures are the real app: the four app templates
 /// drawn by scripts/template-page-shots.ts (the render service's code), the rest by the Mac app
-/// offscreen (PaneTests/HIG/TemplatePageShots.swift, through web/scripts/template-page-shots.mjs).
+/// offscreen and the iPhone app on a headless simulator (PaneTests/HIG/TemplatePageShots.swift,
+/// through web/scripts/template-page-shots.mjs), each at the step of the demo its slide is about.
 
 export type Slide = {
   /// The thumbnail's words under the gallery.
@@ -36,9 +38,11 @@ export type TemplatePage = {
   /// The third step: its title ("Ask for the tracker") and the line shown in the prompt box.
   ask: { step: string; prompt: string };
   slides: Slide[];
-  /// A plain-note template's pictures, for the test that draws them: the note filled in ("example")
-  /// or as it starts ("note"), scrolled to a heading with `from`.
-  pictures?: Record<string, { of: "example" | "note"; from?: string }>;
+  /// A plain-note template's pictures, for the tests that draw them ("mac-…" on the Mac, "phone-…" on
+  /// the iPhone): the note as it starts ("note") or after the demo calls ("example"; only some of
+  /// them with `steps`, then `edits`), or the note a demo call creates (`created`), scrolled to a
+  /// heading with `from`. lib/template-picture-body.mjs makes the note from these.
+  pictures?: Record<string, PictureRecipe>;
 };
 
 const DIR = path.join(process.cwd(), "content/template-pages");

@@ -10,15 +10,15 @@
       "label": "Plan the week",
       "you": "Plan my week: the budget to Jonas, flights home, and three runs.",
       "ai": "Your top three are at the top, and each day has its own checklist.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Weekly planner filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Move a task",
       "you": "I didn't return the parcel. Move it to Saturday.",
       "ai": "Moved Return the parcel from Wednesday to Saturday.",
-      "phone": "phone-saturday",
+      "phone": "phone-2",
       "alt": "Saturday, in Weekly planner"
     },
     {
@@ -30,15 +30,17 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
-    },
-    "phone-example": {
-      "of": "example"
-    },
-    "phone-saturday": {
+    "mac-1": {
       "of": "example",
-      "from": "Saturday"
+      "steps": 9
+    },
+    "phone-1": {
+      "of": "example",
+      "steps": 9
+    },
+    "phone-2": {
+      "of": "example",
+      "from": "Friday"
     },
     "mac-start": {
       "of": "note"

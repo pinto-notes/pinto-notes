@@ -10,15 +10,15 @@
       "label": "Add what you need",
       "you": "We need apples, spinach, oat milk, salmon and bin bags.",
       "ai": "Filed each one under its aisle.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Grocery list filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add to an aisle",
       "you": "Add rice, coffee and two cans of tomatoes.",
       "ai": "Added them under Cupboard.",
-      "phone": "phone-cupboard",
+      "phone": "phone-2",
       "alt": "Cupboard, in Grocery list"
     },
     {
@@ -30,13 +30,27 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ]
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ]
     },
-    "phone-cupboard": {
+    "phone-2": {
       "of": "example",
       "from": "Cupboard"
     },

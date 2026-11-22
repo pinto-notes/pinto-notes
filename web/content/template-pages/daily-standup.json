@@ -10,15 +10,15 @@
       "label": "Write today's standup",
       "you": "Yesterday I fixed the sync conflict and added the importer tests. Today: the onboarding review, then PDF export.",
       "ai": "Added Friday 6 November under Days, with yesterday and today.",
-      "mac": "mac-example",
-      "phone": "phone-example",
+      "mac": "mac-1",
+      "phone": "phone-1",
       "alt": "Standup notes filled in, in Pinto Notes on a Mac"
     },
     {
       "label": "Add a blocker",
       "you": "I'm still waiting on the staging payment keys.",
       "ai": "Added it under Blockers.",
-      "phone": "phone-blockers",
+      "phone": "phone-2",
       "alt": "Blockers, in Standup notes"
     },
     {
@@ -30,13 +30,15 @@
     }
   ],
   "pictures": {
-    "mac-example": {
-      "of": "example"
+    "mac-1": {
+      "of": "example",
+      "steps": 2
     },
-    "phone-example": {
-      "of": "example"
+    "phone-1": {
+      "of": "example",
+      "steps": 2
     },
-    "phone-blockers": {
+    "phone-2": {
       "of": "example",
       "from": "Blockers"
     },

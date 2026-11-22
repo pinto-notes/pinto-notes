@@ -69,7 +69,7 @@ export default async function Page({ params }: Props) {
       </div>
 
       <div className={s.main}>
-        <Slides slug={t.slug} slides={page.slides} />
+        <Slides slug={t.slug} slides={page.slides} note={!t.app} />
         <aside className={s.side}>
           <h2>About this template</h2>
           <p>{page.about}</p>

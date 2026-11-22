@@ -7,15 +7,16 @@ import s from "./d.module.css";
 /// The gallery of a template's page: one slide at a time, each a short chat over the real app (a Mac
 /// window with the phone over it, or the phone alone), and a row of thumbnails to pick one. Every
 /// slide is in the page as served, so its words are there without JavaScript; the first one shows.
-/// A slide with a before picture has a Before and After switch.
-export default function Slides({ slug, slides }: { slug: string; slides: Slide[] }) {
+/// A slide with a before picture has a Before and After switch. A plain note's phone is drawn bigger
+/// (`note`): its pictures are the iPhone app's note screen, whose text reads only at that size.
+export default function Slides({ slug, slides, note }: { slug: string; slides: Slide[]; note?: boolean }) {
   const [on, setOn] = useState(0);
   const [after, setAfter] = useState(true);
   // As lib/template-pages.ts picture(), which this client part can't import (it reads files).
   const src = (name: string) => `/templates/page/${slug}/${name}.webp`;
   return (
     <div>
-      <div className={s.stage}>
+      <div className={s.stage} data-note={note || undefined}>
         {slides.map((sl, k) => {
           const shown = sl.before && !after ? sl.before : { mac: sl.mac, phone: sl.phone, alt: sl.alt };
           return (
