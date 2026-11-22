@@ -151,8 +151,43 @@ def trip() -> None:
     write("trip-plan", v)
 
 
+def jobs() -> None:
+    v = start("job-hunt")
+    # Nine applications across the five stages, the way a hunt looks three weeks in: two saved, three
+    # waiting, two interviewing, an offer and two closed. Due today: an interview at 14:00 and a
+    # follow-up two days late. Eight sent, four heard back: 50%.
+    def job(id, company, role, stage, **f):
+        return {"id": id, "company": company, "role": role, "stage": stage, **f, "steps": f.get("steps", []), "questions": f.get("questions", []), "ask": f.get("ask", [])}
+    v["jobs"] = [
+        job("finch", "Finch Bikes", "Product designer", "saved", link="finch.example/jobs/product-designer", steps=[{"id": "s1", "kind": "deadline", "date": d(2)}]),
+        job("harbor", "Harbor Labs", "Design systems lead", "saved", salary="60–65k", contact="Ines Duarte, recruiter"),
+        job("marlow", "Marlow Studio", "Design lead", "applied", applied=d(-9), steps=[{"id": "s2", "kind": "follow-up", "date": d(-2)}]),
+        job("kestrel", "Kestrel Maps", "Senior product designer", "applied", applied=d(-4), salary="55k", steps=[{"id": "s3", "kind": "follow-up", "date": d(3)}]),
+        job("quill", "Quill and Co", "UX lead", "applied", applied=d(-12)),
+        job("tideway", "Tideway", "Senior designer", "interview", applied=d(-14), heard=d(-6), link="tideway.example/careers/senior-designer",
+            salary="52–58k", contact="Karin Berg, design manager",
+            notes="Karin cares more about plain prototypes than polish. Small team, ships weekly.",
+            steps=[{"id": "s4", "kind": "interview", "what": "First interview", "date": d(0), "time": "14:00"}],
+            questions=[
+                {"q": "A project you're proud of?", "a": "The onboarding redesign: sign-ups up a fifth, support tickets down."},
+                {"q": "How do you work with engineers?", "a": "Weekly reviews, plain prototypes early, ship small."},
+                {"q": "Why Tideway?", "a": "I like untangling logistics, and the product is used every day."},
+            ],
+            ask=["How do design and support share what they hear?", "What would a good first three months look like?"]),
+        job("brightline", "Brightline Studio", "Product designer", "interview", applied=d(-18), heard=d(-8),
+            steps=[{"id": "s5", "kind": "interview", "what": "Second interview", "date": d(3), "time": "10:30"}]),
+        job("lumen", "Lumen Health", "Senior designer", "offer", applied=d(-30), heard=d(-20), salary="58k",
+            steps=[{"id": "s6", "kind": "follow-up", "what": "Answer the offer", "date": d(4)}]),
+        job("northlight", "Northlight", "UX designer", "closed", outcome="rejected", applied=d(-25), heard=d(-15)),
+        job("pebble", "Pebble Works", "Designer", "closed", outcome="no-reply", applied=d(-35)),
+    ]
+    v["started"] = d(-35)
+    write("job-hunt", v)
+
+
 habits()
 budget()
 flashcards()
 trip()
+jobs()
 print("wrote", ", ".join(sorted(p.name for p in OUT.glob("*.sample.json"))))

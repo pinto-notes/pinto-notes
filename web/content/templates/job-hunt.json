@@ -7,82 +7,43 @@
     "Work"
   ],
   "audience": "For anyone applying to more than a handful of jobs at once.",
-  "description": "Where each application stands and what happens next, plus interview prep. Tell your AI what changed.",
-  "tagline": "Every application and what happens next.",
-  "seoTitle": "Job hunt pipeline template for ChatGPT and Claude",
+  "description": "Every application on a board by stage, what's due today, and your interview prep. Paste a job ad into your AI and it adds the card.",
+  "tagline": "Every application, by stage, and what's due.",
+  "seoTitle": "Job hunt tracker template and app for ChatGPT and Claude",
   "folder": "Personal",
-  "note": "Job hunt\n\nEvery application, where it stands, and what happens next. Add a job in the table, or paste a job ad into your AI and it files it.\n\n## Applications\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text -->\n| Company | Role | Stage | Next step |\n| --- | --- | --- | --- |\n\n## Interview prep\nLikely questions and your talking points, one section per company.\n\n## This week\nThe follow-ups to do, ticked when done.\n\n## People I've talked to\nWho they are and what they said.\n",
+  "note": "Job hunt\n\nYour applications live in the app: a board by stage, what's due today and your interview prep. Paste a job ad into your AI and it adds the card; tell it when you hear back and it moves it.\n\n## What I'm looking for\nThe roles, places and pay you want. Your AI checks each ad against this.\n\n## How it's going\nAsk your AI how the search is going, and its lines land here.\n",
   "prompt": {
-    "default": "Use my Pinto Notes note \"Job hunt\". Read it with fetch before each change. When I paste a job ad or a link, add a row to the table with edit: Company, Role (as a link to the ad if I gave one), Stage Saved, and the Next step. When I tell you I applied or heard back, update that row's Stage and Next step. Before an interview, add five likely questions and my talking points under \"Interview prep\", under a \"###\" heading with the company name. When I ask what's next, list the follow-ups under \"This week\" as a checklist."
+    "default": "Use my Pinto Notes note \"Job hunt\". It is an app, with its data in \"Job hunt.app/data.json\". Read it with fetch before each change; change it with edit. When I paste a job ad or link, add { id, company, role, link, salary, contact, stage: \"saved\", steps: [] } to values.jobs, leaving out what the ad doesn't say; an apply-by date goes in steps as { id, kind: \"deadline\", date }. When I apply or hear back, set stage to an id from values.stages and applied or heard (yyyy-mm-dd); add an interview as { id, kind: \"interview\", date, time: \"hh:mm\" }. A no is stage \"closed\", outcome \"rejected\". To prep me, add questions as { q, a } with my talking points, and ask: what to ask them."
   },
   "asks": [
-    "Ask me for the job ad I want to save, then add it to the table with its next step.",
-    "I have a first interview with Tideway on Thursday. Help me prep.",
-    "What should I follow up on this week?"
+    "Ask me for the job ad I want to save, then add it to my board.",
+    "I heard back from Tideway: first interview Thursday at 14:00. Help me prep.",
+    "How is my search going?"
   ],
   "demo": [
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Job hunt.md",
-        "old_string": "| --- | --- | --- | --- |\n",
-        "new_string": "| --- | --- | --- | --- |\n| Tideway | Senior designer | Interview | First interview, 12 Nov |\n"
+        "old_string": "The roles, places and pay you want. Your AI checks each ad against this.\n",
+        "new_string": "The roles, places and pay you want. Your AI checks each ad against this.\n- Senior or lead product designer\n- Stockholm or remote in Europe\n- 55k or more, and a team that ships every week\n"
       }
     },
     {
       "tool": "edit",
       "args": {
         "path": "Personal/Job hunt.md",
-        "old_string": "| Tideway | Senior designer | Interview | First interview, 12 Nov |\n",
-        "new_string": "| Tideway | Senior designer | Interview | First interview, 12 Nov |\n| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Personal/Job hunt.md",
-        "old_string": "| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |\n",
-        "new_string": "| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |\n| Finch Bikes | Product designer | Saved | Apply by 18 Nov |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Personal/Job hunt.md",
-        "old_string": "| Finch Bikes | Product designer | Saved | Apply by 18 Nov |\n",
-        "new_string": "| Finch Bikes | Product designer | Saved | Apply by 18 Nov |\n| Northlight | UX designer | Rejected | Asked for feedback |\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Personal/Job hunt.md",
-        "old_string": "The follow-ups to do, ticked when done.\n",
-        "new_string": "The follow-ups to do, ticked when done.\n- [ ] Send the portfolio link to Tideway\n- [x] Add the onboarding project to the CV\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Personal/Job hunt.md",
-        "old_string": "Likely questions and your talking points, one section per company.\n",
-        "new_string": "Likely questions and your talking points, one section per company.\n### Tideway, first interview 12 Nov\n1. A project you're proud of? *The onboarding redesign.*\n2. How do you work with engineers? *Weekly reviews, ship small.*\n3. Why Tideway? *I like untangling logistics.*\n\nTo ask them: how do design and support share what they hear?\n"
-      }
-    },
-    {
-      "tool": "edit",
-      "args": {
-        "path": "Personal/Job hunt.md",
-        "old_string": "Who they are and what they said.\n",
-        "new_string": "Who they are and what they said.\n- Karin, design manager at Tideway: cares more about plain prototypes than polish.\n"
+        "old_string": "Ask your AI how the search is going, and its lines land here.\n",
+        "new_string": "Ask your AI how the search is going, and its lines land here.\n**Week of 9 November:** six applications out and two replies, a 33% response rate. Tideway's first interview is Thursday at 14:00; the Marlow Studio follow-up is two days late. Next: send Marlow a short note and apply to Finch Bikes before the 18th.\n"
       }
     }
   ],
-  "example": "Job hunt\n\nEvery application, where it stands, and what happens next. Add a job in the table, or paste a job ad into your AI and it files it.\n\n## Applications\n<!-- pane-table: Company=text; Role=text; Stage=choice Saved|Applied|Interview|Offer|Rejected|Withdrawn; Next step=text -->\n| Company | Role | Stage | Next step |\n| --- | --- | --- | --- |\n| Tideway | Senior designer | Interview | First interview, 12 Nov |\n| Marlow Studio | Design lead | Applied | Follow up, 16 Nov |\n| Finch Bikes | Product designer | Saved | Apply by 18 Nov |\n| Northlight | UX designer | Rejected | Asked for feedback |\n\n## Interview prep\nLikely questions and your talking points, one section per company.\n### Tideway, first interview 12 Nov\n1. A project you're proud of? *The onboarding redesign.*\n2. How do you work with engineers? *Weekly reviews, ship small.*\n3. Why Tideway? *I like untangling logistics.*\n\nTo ask them: how do design and support share what they hear?\n\n## This week\nThe follow-ups to do, ticked when done.\n- [ ] Send the portfolio link to Tideway\n- [x] Add the onboarding project to the CV\n\n## People I've talked to\nWho they are and what they said.\n- Karin, design manager at Tideway: cares more about plain prototypes than polish.\n",
+  "example": "Job hunt\n\nYour applications live in the app: a board by stage, what's due today and your interview prep. Paste a job ad into your AI and it adds the card; tell it when you hear back and it moves it.\n\n## What I'm looking for\nThe roles, places and pay you want. Your AI checks each ad against this.\n- Senior or lead product designer\n- Stockholm or remote in Europe\n- 55k or more, and a team that ships every week\n\n## How it's going\nAsk your AI how the search is going, and its lines land here.\n**Week of 9 November:** six applications out and two replies, a 33% response rate. Tideway's first interview is Thursday at 14:00; the Marlow Studio follow-up is two days late. Next: send Marlow a short note and apply to Finch Bikes before the 18th.\n",
   "related": [
     "decision-log",
     "weekly-review",
     "meeting-notes"
   ],
-  "updated": "2026-11-10"
+  "updated": "2026-11-22",
+  "app": true
 }
