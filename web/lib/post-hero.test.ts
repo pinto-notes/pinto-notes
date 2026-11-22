@@ -6,7 +6,7 @@ describe("the default Pinto picture under a post's answer", () => {
   it("shows on posts about Pinto Notes", () => {
     expect(showsPintoHero("slash-menu", "Building Pinto Notes")).toBe(true);
     expect(showsPintoHero("connect-chatgpt-to-your-notes", "Guides")).toBe(true);
-    expect(showsPintoHero("move-from-apple-notes", "Apple Notes")).toBe(true);
+    expect(showsPintoHero("connect-notes-to-gemini-cli", "Apple Notes")).toBe(true);
   });
   it("doesn't on Apple Notes help or comparisons", () => {
     expect(showsPintoHero("apple-notes-not-working", "Apple Notes")).toBe(false);

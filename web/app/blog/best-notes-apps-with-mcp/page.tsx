@@ -174,7 +174,7 @@ export default function Page() {
       <Figure shot={SHOTS.aiEdit} caption="ChatGPT added five lines to a Groceries note in Pinto Notes on a Mac. The changes are tinted, with Undo." />
       <p>
         An AI can search and read notes, create one, or edit an existing note. You see what it changed, can undo it, and can return to an earlier version.
-        To bring an existing library over, <a href="/blog/move-from-apple-notes">import Apple Notes on your Mac</a>. Apple Notes stays unchanged.
+        To bring an existing library over, <a href="/blog/import-your-notes">import Apple Notes on your Mac</a>. Apple Notes stays unchanged.
       </p>
     </PostPage>
   );

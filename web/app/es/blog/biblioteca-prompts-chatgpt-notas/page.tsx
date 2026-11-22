@@ -89,6 +89,6 @@ export default function Page() {
     <p>Usa la misma estructura en una nota de Pinto Notes para iPhone y Mac. Sigue la <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">guía para conectar ChatGPT</a> y elige Allow. Ese permiso le deja leer y editar tus notas.</p>
     <Keep title="Pide un prompt guardado" text={RETRIEVE} copyLabel={ui.copy} note="Conecta Pinto Notes primero. Esta petición recupera las instrucciones y solicita datos nuevos." />
     <p>Comprueba que ChatGPT encontró la nota correcta antes de darle los detalles de esta semana. Si apruebas un prompt mejorado, pídele que guarde las instrucciones nuevas y el ejemplo revisado en esa nota. Pinto conserva las versiones anteriores.</p>
-    <p>Esta biblioteca vive en notas que mantienes tú. Tú decides cuándo recuperar un prompt y qué versión conservar. Si ya está en Notas de Apple, puedes <a href="/blog/move-from-apple-notes" hrefLang="en">importarla desde un Mac</a> sin cambiar los originales.</p>
+    <p>Esta biblioteca vive en notas que mantienes tú. Tú decides cuándo recuperar un prompt y qué versión conservar. Si ya está en Notas de Apple, puedes <a href="/blog/import-your-notes" hrefLang="en">importarla desde un Mac</a> sin cambiar los originales.</p>
   </LocalPostPage>;
 }

@@ -121,7 +121,7 @@ export default function Page() {
       </p>
       <p>
         Pinto Notes is free and open source, and charges nothing for the connection. Your AI app&apos;s plan still applies: on Claude&apos;s
-        free plan, for example, you can add one custom connector. It <a href="/blog/move-from-apple-notes">imports your Apple Notes</a> on the
+        free plan, for example, you can add one custom connector. It <a href="/blog/import-your-notes">imports your Apple Notes</a> on the
         Mac. Notes are stored as Markdown and encrypted on your device before they sync, but Pinto Notes keeps a sealed copy of your key so
         you can sign in on a new device, so it isn&apos;t end-to-end encryption.
       </p>
@@ -203,10 +203,6 @@ export default function Page() {
         on a Mac. Siri AI is in beta, in six languages to start, and not yet on iPhone in the EU.
       </p>
       <p><strong>Best for:</strong> people who want AI help with no new app and no new bill.</p>
-      <p>
-        More in <a href="/blog/siri-ai-apple-notes">Siri AI and Apple Notes</a> and{" "}
-        <a href="/blog/claude-and-apple-notes">can Claude read your Apple Notes?</a>
-      </p>
 
       <h2>6. Reflect: best for local notes with your own AI key</h2>
       <PostFigure src="/blog/news/reflect-open-mac" width={1720} height={1058}

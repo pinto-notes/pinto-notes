@@ -92,11 +92,13 @@ function Cover({ x, art }: { x: Post; art?: string }) {
 /// Whether a post without its own `hero` gets the default Pinto Notes capture under the answer. Only posts about Pinto
 /// itself: a Pinto screenshot under an Apple Notes or Obsidian answer put "too much focus on Pinto Notes" in the first
 /// screen (Emil, 21 Nov 2026). Those posts keep their paper-cut cover at the top.
-const PINTO_TOPIC = new Set(["move-from-apple-notes", "onenote-alternative-for-mac", "connect-notes-to-gemini-cli"]);
+const PINTO_TOPIC = new Set(["connect-notes-to-gemini-cli"]);
 export const showsPintoHero = (slug: string, category: string) =>
   category === "Building Pinto Notes" || category === "Guides" || PINTO_TOPIC.has(slug);
 
-export function PostPage({ slug, intro, answer, art, hero, caption, faq, children }: { slug: string; intro: React.ReactNode; answer?: React.ReactNode; art?: string; hero?: React.ReactNode; caption?: string; faq?: QA[]; children: React.ReactNode }) {
+/// `cover={false}` leaves the paper-cut cover out: the Apple Notes template posts open on the template and the
+/// side-by-side (lib/SideBySide.tsx), with no decorative art (22 Nov 2026).
+export function PostPage({ slug, intro, answer, art, hero, caption, faq, cover = true, children }: { slug: string; intro: React.ReactNode; answer?: React.ReactNode; art?: string; hero?: React.ReactNode; caption?: string; faq?: QA[]; cover?: boolean; children: React.ReactNode }) {
   const x = post(slug);
   const path = `/blog/${x.slug}`;
   const minutes = readingMinutes(slug);
@@ -155,7 +157,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
   return (
     <div className={p.main}>
       <JsonLd graph={graph} />
-      <article className={p.col}>
+      <article className={p.col} data-cover={cover ? undefined : "none"}>
         <header className={`${p.head} rise`} style={{ "--i": 0 } as React.CSSProperties}>
           <nav className={p.crumbs} aria-label="Breadcrumb">
             <ol>
@@ -173,7 +175,7 @@ export function PostPage({ slug, intro, answer, art, hero, caption, faq, childre
           </div>
         </header>
 
-        <div className={`${p.coverRow} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}><Cover x={x} art={art} /></div>
+        {cover && <div className={`${p.coverRow} rise-soft`} style={{ "--i": 1 } as React.CSSProperties}><Cover x={x} art={art} /></div>}
 
         {/* The intro and the short answer: on the first screen on every device (the cover sits beside
             the title on wide screens, and after this on phones). */}

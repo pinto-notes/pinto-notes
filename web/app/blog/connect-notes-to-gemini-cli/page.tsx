@@ -164,7 +164,7 @@ export default function Page() {
         You can write the brief yourself, let an approved AI edit it, and return to an earlier version when you need to.
       </p>
       <p>
-        If your notes are in Apple Notes, <a href="/blog/move-from-apple-notes">bring them over in one import on your Mac</a>.
+        If your notes are in Apple Notes, <a href="/blog/import-your-notes">bring them over in one import on your Mac</a>.
         Apple Notes stays unchanged.
       </p>
     </PostPage>

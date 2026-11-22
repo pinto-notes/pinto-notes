@@ -67,6 +67,6 @@ export default function Page() {
     <p>O <a href="/blog/mcp-server" hrefLang="en">guia do servidor MCP</a> lista as ferramentas. O <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">guia de Claude Code e Codex</a> mostra comandos para outros agentes.</p>
     <h2 id="pinto">Guarde o briefing e o resultado juntos</h2>
     <p>O Pinto Notes se parece com o Notas no iPhone e no Mac. Você pode escrever o briefing, permitir que uma IA autorizada o edite e voltar a uma versão anterior.</p>
-    <p>Se suas notas estão no app Notas, <a href="/blog/move-from-apple-notes" hrefLang="en">importe no Mac</a>. O original permanece como estava.</p>
+    <p>Se suas notas estão no app Notas, <a href="/blog/import-your-notes" hrefLang="en">importe no Mac</a>. O original permanece como estava.</p>
   </LocalPostPage>;
 }

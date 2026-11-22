@@ -94,6 +94,6 @@ export default function Page() {
     <p><a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">Conecte ChatGPT</a> e escolha Allow no Pinto Notes. Isso permite ler e editar notas. O pedido abaixo manda preservar as fontes.</p>
     <Keep title="Encontre as notas antes da tabela" text={RETRIEVE} copyLabel={ui.copy} note="Ajuste a pasta e os termos ao seu trabalho e período." />
     <p>Escolha as fontes, rode o prompt e confira a tabela. A busca do Pinto pode filtrar pela data de modificação, que não é a data do acontecimento. Depois da sua aprovação, peça uma nota separada chamada "Autoavaliação, janeiro a junho de 2026", com tabela e links abaixo do texto. Abra-a e confira. O Pinto guarda versões anteriores e permite restaurá-las.</p>
-    <p>É um fluxo que você executa com suas notas, não um modelo pronto do Pinto. As notas da Apple podem ser <a href="/blog/move-from-apple-notes" hrefLang="en">importadas no Mac</a> sem alteração das originais.</p>
+    <p>É um fluxo que você executa com suas notas, não um modelo pronto do Pinto. As notas da Apple podem ser <a href="/blog/import-your-notes" hrefLang="en">importadas no Mac</a> sem alteração das originais.</p>
   </LocalPostPage>;
 }

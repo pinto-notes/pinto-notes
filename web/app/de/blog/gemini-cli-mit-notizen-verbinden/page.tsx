@@ -82,6 +82,6 @@ export default function Page() {
 
     <h2 id="pinto">Konzept und Ergebnis zusammenhalten</h2>
     <p>Pinto Notes sieht auf iPhone und Mac aus wie Apple Notizen und funktioniert ähnlich. Du kannst selbst schreiben, eine bestätigte KI Änderungen vornehmen lassen und bei Bedarf zu einer früheren Version zurückkehren.</p>
-    <p>Wenn deine Notizen in Apple Notizen liegen, kannst du sie <a href="/blog/move-from-apple-notes" hrefLang="en">auf dem Mac importieren</a>. Apple Notizen bleibt unverändert.</p>
+    <p>Wenn deine Notizen in Apple Notizen liegen, kannst du sie <a href="/blog/import-your-notes" hrefLang="en">auf dem Mac importieren</a>. Apple Notizen bleibt unverändert.</p>
   </LocalPostPage>;
 }

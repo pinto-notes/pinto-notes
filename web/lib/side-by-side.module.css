@@ -1,0 +1,47 @@
+/* lib/SideBySide.tsx: Apple Notes and Pinto Notes, the same template, two cards. Phone first (8 of 10 readers):
+   stacked, the Apple Notes card plain and small, the Pinto card warm and larger with the phone screen in a frame.
+   From 900 px side by side, the Pinto card wider, growing past the 720 px text column to 1000 px. */
+.vs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 4px 0 40px; }
+.card { margin: 0; border-radius: 20px; padding: 16px; display: grid; align-content: start; gap: 12px; min-width: 0; }
+.apple { background: var(--card); box-shadow: 0 0 0 1px var(--line); }
+.pinto { padding: 18px 16px 20px; background: var(--soft); }
+.label.label { margin: 0; font-size: 13px; line-height: 1.3; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+
+/* The Apple Notes capture: a white note, kept white in dark mode too, since that's how it looked. */
+.shot { border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+/* A long note (a week of habits) is cut at a height that keeps the Pinto card near, and fades out at the cut. */
+.shot[data-tall] { max-height: 440px; -webkit-mask-image: linear-gradient(#000 calc(100% - 56px), transparent); mask-image: linear-gradient(#000 calc(100% - 56px), transparent); }
+.shot img { display: block; width: 100%; height: auto; }
+
+/* The Pinto screen: a phone in a dark frame on a phone, a crop of the Mac app from 900 px. */
+.screen {
+  width: min(100%, 300px); justify-self: center; margin-top: 4px; border-radius: 40px; overflow: hidden; border: 8px solid #1b1b1d; background: #1b1b1d;
+  box-shadow: 0 2px 6px rgba(60, 25, 0, 0.14), 0 30px 50px -26px rgba(60, 25, 0, 0.5);
+}
+.screen img { display: block; width: 100%; height: auto; border-radius: 32px; }
+
+.line.line { margin: 2px 0 0; font-size: 16px; line-height: 1.45; color: var(--ink); text-wrap: pretty; }
+.button.button {
+  justify-self: start; display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border-radius: 14px;
+  background: var(--cta-bg); color: var(--cta-ink); font-size: 16px; font-weight: 700; line-height: 1.2; text-decoration: none;
+}
+.button.button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+@media (hover: hover) { .button.button:hover { background: color-mix(in srgb, var(--cta-bg) 86%, var(--amber)); } }
+@media (prefers-reduced-motion: no-preference) {
+  .button { transition: background-color 0.15s ease-out, transform 0.12s ease-out; }
+  .button:active { transform: scale(0.97); }
+}
+
+@media (min-width: 900px) {
+  .vs { grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr); align-items: start; gap: 20px; }
+  .card { padding: 20px; }
+  .shot[data-tall] { max-height: 560px; }
+  .screen { width: 100%; margin-top: 0; border: 0; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line), 0 24px 40px -24px rgba(60, 25, 0, 0.45); }
+  .screen img { border-radius: 0; }
+}
+/* From 960 px the text column sits on the title's left edge (lib/post.module.css), so the cards grow to the right. */
+@media (min-width: 1100px) { .vs { margin-right: -280px; } }
+
+/* The Mac app drawn at phone width: a plain card, not a phone. */
+.screen[data-frame="none"] { width: 100%; border: 0; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px var(--line, rgba(60, 40, 10, 0.1)), 0 24px 40px -24px rgba(60, 25, 0, 0.45); }
+.screen[data-frame="none"] img { border-radius: 0; }

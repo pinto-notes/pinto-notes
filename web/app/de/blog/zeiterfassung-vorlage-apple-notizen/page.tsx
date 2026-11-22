@@ -98,6 +98,6 @@ export default function Page() {
       <p>Du kannst diese Vorlage mit Tabelle und Prüfliste auch in Pinto Notes nutzen. Nach dem <a href="/blog/connect-chatgpt-to-your-notes">Verbinden von ChatGPT oder Claude</a> und Allow darf die KI Notizen lesen und bearbeiten. Nenne ihr einen tatsächlichen Arbeitsblock und lass ihn anhängen.</p>
       <Keep title="Auftrag an die verbundene KI" text={PROMPT} copyLabel={ui.copy} note="Nutze das ausgefüllte Beispiel oder ersetze Titel und Angaben durch deine eigenen." />
       <p>Prüfe, ob genau ein Block mit 35 Minuten hinzugekommen ist und die alten Zeilen unverändert sind. Im Beispiel steigen Freitag auf 125 Minuten, Website auf 365 Minuten und die Wochensumme auf 485 Minuten, also 8 Stunden 5 Minuten. Prüfe selbst, bevor du die gespeicherten Summen ändern lässt. Die ungeklärte Zeit bleibt ausgenommen.</p>
-      <p>Deine Apple Notizen kommen mit <a href="/blog/move-from-apple-notes">einem Import auf dem Mac</a> nach Pinto. In Apple Notizen ändert sich nichts.</p>
+      <p>Deine Apple Notizen kommen mit <a href="/blog/import-your-notes">einem Import auf dem Mac</a> nach Pinto. In Apple Notizen ändert sich nichts.</p>
     </LocalPostPage>;
 }

@@ -20,7 +20,7 @@ describe("the page language", () => {
   }
 
   it("is the page's own language on translated pages and English everywhere else", () => {
-    expect(scriptLang("/es/blog/alternativas-evernote")).toBe("es");
+    expect(scriptLang("/es/blog/flashcards-notas-iphone")).toBe("es");
     for (const l of ["pt", "de", "fr", "it"]) expect(scriptLang(`/${l}/blog`), l).toBe(l);
     for (const p of ["/", "/blog/apple-notes-tables", "/essays", "/italic", "/templates/trip-plan"]) expect(scriptLang(p), p).toBe("en");
   });

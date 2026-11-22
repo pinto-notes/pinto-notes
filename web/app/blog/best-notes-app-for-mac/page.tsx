@@ -124,7 +124,7 @@ export default function Page() {
         note&apos;s history. That&apos;s worth wanting from any app before you let an AI near your notes.
       </p>
       <p>
-        It <a href="/blog/move-from-apple-notes">imports your Apple Notes</a> on the Mac with their folders, and leaves Apple Notes as it
+        It <a href="/blog/import-your-notes">imports your Apple Notes</a> on the Mac with their folders, and leaves Apple Notes as it
         was. Notes are stored as markdown and encrypted on your device before they sync, and the code is open source under the MIT license.
       </p>
       <p>
@@ -149,8 +149,8 @@ export default function Page() {
       <p>
         <strong>Where it falls short:</strong> it&apos;s Apple only (on Windows and Android you get iCloud.com in a browser), your notes live
         in Apple&apos;s database rather than files, and AI help stays on one Mac. The ChatGPT Mac app can read a note you have open
-        (Work with Apps) but can&apos;t edit it, and Claude Desktop can read and add notes through Anthropic&apos;s Apple Notes extension:
-        see <a href="/blog/claude-and-apple-notes">can Claude read your Apple Notes?</a>
+        (Work with Apps) but can&apos;t edit it, and Claude Desktop can read and add notes through Anthropic&apos;s Apple Notes extension.{" "}
+        <a href="/blog/best-ai-notes-app">The best AI notes apps, compared</a> lists the apps AI can reach.
       </p>
       <p><strong>Best for:</strong> people who live on Apple devices and want something free and solid.</p>
 
@@ -211,10 +211,6 @@ export default function Page() {
       <p><strong>Where it falls short:</strong> heavy for quick personal notes, and your notes live on Notion&apos;s servers, so getting them out means an export.</p>
       <p><strong>Best for:</strong> teams, and people who want databases and project tracking next to their notes.</p>
 
-      <p>
-        If you&apos;re choosing between just these two, see <a href="/blog/apple-notes-vs-notion">Notion vs Apple Notes</a>.
-      </p>
-
       <h2>6. Craft: best-looking documents</h2>
       <PostFigure src="/blog/news/craft-mac-big-sur-trip" width={1200} height={1225} maxWidth={560}
         alt="Craft on a Mac: a sidebar of folders and a Big Sur Road Trip document with a cover photo, a checklist and day cards with photos."
@@ -239,10 +235,6 @@ export default function Page() {
         <li><strong>Goodnotes and Notability.</strong> The handwriting apps. Goodnotes is free for up to 3 files, then from $11.99 a year, on Apple devices, Windows, Android and the web. Notability adds audio recording and AI study tools. Both are best on an iPad with a Pencil.</li>
       </ul>
 
-      <p>
-        Need something that also runs on Windows or Android? See <a href="/blog/apple-notes-alternatives">Apple Notes alternatives for Windows and Android</a>.
-      </p>
-
       <h2 id="which-one">Which one should you pick?</h2>
       <ul>
         <li>You use ChatGPT or Claude every week: <strong>Pinto Notes</strong>.</li>
@@ -254,7 +246,7 @@ export default function Page() {
       </ul>
       <p>
         Moving later is easier than it used to be. Apple Notes, Bear and Obsidian all export Markdown, and Pinto Notes brings over your
-        Apple Notes with their folders: <a href="/blog/move-from-apple-notes">how to move from Apple Notes</a>.
+        Apple Notes with their folders: <a href="/blog/import-your-notes">how to move from Apple Notes</a>.
       </p>
       <p className="label">Sources</p>
       <p>

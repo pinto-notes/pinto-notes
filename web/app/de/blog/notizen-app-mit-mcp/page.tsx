@@ -66,6 +66,6 @@ export default function Page() {
     <h2 id="pinto">Pinto Notes behält das Apple-Notizen-Gefühl</h2>
     <p>Pinto Notes läuft auf iPhone und Mac, nicht unter Windows, Android oder im Web. Über den gehosteten Server können ChatGPT und Claude auf Notizen zugreifen, ohne dass dein Mac eingeschaltet bleibt. Claude Code und Codex können sich ebenfalls verbinden. Der <a href="/blog/mcp-server">englische MCP-Leitfaden</a> erklärt Werkzeuge und Erlaubnis.</p>
     <Figure shot={SHOTS.aiEdit} caption="ChatGPT ergänzte fünf Zeilen in einer Einkaufsliste in Pinto Notes auf dem Mac. Die Änderungen sind markiert und lassen sich rückgängig machen." />
-    <p>Eine KI kann Notizen suchen und lesen, neue erstellen und bestehende bearbeiten. Du siehst ihre Änderungen, kannst sie rückgängig machen und eine frühere Version wiederherstellen. <a href="/blog/move-from-apple-notes">Importiere Apple Notizen auf dem Mac</a>, wenn du deine Sammlung mitnehmen willst. Apple Notizen bleibt unverändert.</p>
+    <p>Eine KI kann Notizen suchen und lesen, neue erstellen und bestehende bearbeiten. Du siehst ihre Änderungen, kannst sie rückgängig machen und eine frühere Version wiederherstellen. <a href="/blog/import-your-notes">Importiere Apple Notizen auf dem Mac</a>, wenn du deine Sammlung mitnehmen willst. Apple Notizen bleibt unverändert.</p>
   </LocalPostPage>;
 }

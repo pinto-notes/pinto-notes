@@ -61,14 +61,25 @@ export function Banner({ src }: { src: string }) {
 /// Something to keep: a checklist, a cheat sheet, a prompt or a script, with a Copy button that copies
 /// `text` exactly. What shows is `children`, or the text itself in a code block. Copies are counted as
 /// blog_copy_clicked (lib/posthog.ts reads data-event).
-export function Keep({ title, note, text, code = false, children, copyLabel = "Copy" }: { title: string; note?: React.ReactNode; text: string; code?: boolean; children?: React.ReactNode; copyLabel?: string }) {
+/// `fold`: show only that many lines of a long template, faded, with "Show all N lines" under it, so what comes after
+/// (the Apple Notes and Pinto Notes cards) starts on the first or second screen of a phone. Copy always copies all of it.
+/// No script: the checkbox sits inside its label, and :has() opens the rest.
+export function Keep({ title, note, text, code = false, fold, children, copyLabel = "Copy" }: { title: string; note?: React.ReactNode; text: string; code?: boolean; fold?: number; children?: React.ReactNode; copyLabel?: string }) {
+  const lines = text.trimEnd().split("\n").length;
+  const folded = !children && !code && fold !== undefined && lines > fold + 2;
+  const body = children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre> : <pre className={s.plain} tabIndex={0}>{text}</pre>);
   return (
     <div className={s.keep}>
       <div className={s.keepHead}>
         <p className={s.keepTitle}>{title}</p>
         <CopyButton text={text} label={copyLabel} className={s.copy} event="blog_copy_clicked" />
       </div>
-      {children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre> : <pre className={s.plain} tabIndex={0}>{text}</pre>)}
+      {folded ? (
+        <div className={s.fold} style={{ "--fold-lines": fold } as React.CSSProperties}>
+          {body}
+          <label className={s.more}><input type="checkbox" />Show all {lines} lines</label>
+        </div>
+      ) : body}
       {note && <p className={s.keepNote}>{note}</p>}
     </div>
   );

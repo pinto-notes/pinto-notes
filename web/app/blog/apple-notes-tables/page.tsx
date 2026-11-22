@@ -183,7 +183,7 @@ export default function Page() {
         alt="The Budget and expenses app inside a note in Pinto Notes on a Mac: 8,205 kr left this month with a progress bar, spending by category, a six-month chart and the bills for the month."
         caption="A budget in Pinto Notes that adds itself up, with example data. You edit it, or your AI does." />
       <p>
-        That&apos;s what Pinto Notes is for. It feels like Apple Notes and brings your notes over in <a href="/blog/move-from-apple-notes">one import</a>, tables included. The
+        That&apos;s what Pinto Notes is for. It feels like Apple Notes and brings your notes over in <a href="/blog/import-your-notes">one import</a>, tables included. The
         difference is who else can work in it: <a href="/blog/connect-chatgpt-to-your-notes">connect ChatGPT</a> or Claude, and they read your table, add the row you mention and do the
         sum when you ask. And if a table should really be a little app, the <a href="/templates/budget-log">budget template</a> is one:
         it keeps the total, what&apos;s left and each category for you, and you can still change every line yourself.

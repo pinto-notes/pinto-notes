@@ -95,7 +95,7 @@ export default function Page() {
  <p>Consulta la <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">guía para conectar ChatGPT</a> (en inglés) y elige Allow. Esa autorización permite leer y editar. Envía el prompt anterior y luego esta petición con el título de tu nota.</p>
  <Keep title="Lee las ideas y guarda lo que elija" text={CONNECTED} copyLabel={ui.copy} note="Conecta Pinto Notes primero y mantén ambas instrucciones en el mismo chat." />
  <p>Abre la nota guardada. Compara las ideas originales y las acciones con lo aprobado. Pedir que se conserve el texto no garantiza que se haya conservado. Pinto guarda las versiones anteriores.</p>
- <p>Si repites el proceso, pide a ChatGPT que vuelva a leer la nota antes de proponer cambios. Puedes guardar las instrucciones en una <a href="/es/blog/biblioteca-prompts-chatgpt-notas">biblioteca de prompts</a>. Las notas de Apple se traen con <a href="/blog/move-from-apple-notes" hrefLang="en">una importación en Mac</a> (en inglés) sin cambiarlas. La app está en inglés.</p>
+ <p>Si repites el proceso, pide a ChatGPT que vuelva a leer la nota antes de proponer cambios. Puedes guardar las instrucciones en una <a href="/es/blog/biblioteca-prompts-chatgpt-notas">biblioteca de prompts</a>. Las notas de Apple se traen con <a href="/blog/import-your-notes" hrefLang="en">una importación en Mac</a> (en inglés) sin cambiarlas. La app está en inglés.</p>
  </LocalPostPage>;
 }
 

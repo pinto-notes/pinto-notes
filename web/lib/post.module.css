@@ -23,6 +23,8 @@
   .col > * { grid-column: 1 / -1; justify-self: start; }
   .col > .head { grid-column: 1; grid-row: 1; align-self: center; max-width: none; }
   .col > .coverRow { grid-column: 2; grid-row: 1; order: 0; align-self: center; max-width: none; }
+  /* No cover: the header keeps the text's measure and the column's left edge. */
+  .col[data-cover="none"] > .head { grid-column: 1 / -1; max-width: 720px; }
 }
 .head { display: grid; gap: 18px; }
 .crumbs ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--muted); }

@@ -78,6 +78,6 @@ export default function Page() {
     <p>Repite primero la petición de lectura. Si hay varias notas con nombres parecidos, da el título exacto y pide que te muestre cuál encontró antes de editarla.</p>
     <h2 id="pinto">Guarda las decisiones junto al encargo</h2>
     <p>Usa la misma nota para la petición escrita en el teléfono y para las decisiones que tomes al programar. Pide expresamente a Cursor que la actualice cuando algo cambie.</p>
-    <p>La <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">guía de Claude Code y Codex</a> explica cómo conectar esos agentes. Si los encargos están en Notas de Apple, puedes <a href="/blog/move-from-apple-notes" hrefLang="en">importarlos desde un Mac</a> sin cambiar los originales.</p>
+    <p>La <a href="/blog/notes-in-claude-code-and-codex" hrefLang="en">guía de Claude Code y Codex</a> explica cómo conectar esos agentes. Si los encargos están en Notas de Apple, puedes <a href="/blog/import-your-notes" hrefLang="en">importarlos desde un Mac</a> sin cambiar los originales.</p>
   </LocalPostPage>;
 }

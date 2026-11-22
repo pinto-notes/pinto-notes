@@ -1,11 +1,20 @@
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { PostCta } from "@/lib/PostCta";
-import { Answer, Capture, PostFigure, Steps } from "@/lib/PostParts";
+import { MenuPath, Steps } from "@/lib/PostParts";
+import { SideBySide } from "@/lib/SideBySide";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
 import { TemplatePicker } from "@/lib/TemplatePicker";
 
 export const dynamic = "force-static";
 export const metadata = postMetadata("apple-notes-templates", { title: "Apple Notes templates: make your own, plus five to copy" });
+
+// Rebuilt 22 November 2026 in pattern E (lib/SideBySide.tsx): the five templates, then the Packing list in Apple Notes and in
+// Pinto Notes, then the steps and the questions.
+// Apple Notes: blog-growth/research/apple-notes-captures-2026-11-22 (macOS 27.0): all five pasted with Edit, Paste as Markdown,
+// every heading, checklist and list item came through; nothing ticked, as templates stay blank. The capture shown is the
+// Packing list, the note the post's own Templates-folder picture had open. Duplicate Note (Command-D): macOS 27 File menu.
+// Pinto Notes: the Packing list belongs to the trip plan template (TemplatePicker sends it there). content/templates/trip-plan.app
+// rendered with scripts/page-render with the same nine things in the same three groups, none packed
+// (public/blog/side-by-side/packing-pinto-*). A new trip keeps the list and unpacks it (trip-plan.app/docs/README.md).
 
 const FAQ = [
   { q: "Does Apple Notes have templates?", a: [
@@ -29,93 +38,29 @@ export default function Page() {
   return (
     <PostPage
       slug="apple-notes-templates"
-      intro={<>Apple Notes has no templates button, but a folder of notes does the same job. Here&apos;s how to set one up, and five templates to copy that paste in with real headings and checklists.</>}
-      answer={
-        <Answer jump={[
-          { href: "#set-it-up", label: "Set it up once" },
-          { href: "#templates", label: "Five templates" },
-          { href: "#paste", label: "Paste formatted" },
-        ]}>
-          <p>
-            Apple Notes has no templates. Make a Templates folder with one note per template. When you need one, duplicate it on a Mac
-            (File, Duplicate Note) or copy it into a new note on iPhone. On macOS 27, the templates below paste in with Edit, Paste as
-            Markdown, headings and checklists included.
-          </p>
-          {/* Experiment B1 (13 Nov 2026): the download where readers are, not only at the end. */}
-          <PostCta slug="apple-notes-templates" position="answer" title="Templates, built in.">
-            <p>Pinto Notes works like Apple Notes and comes with a free template library, including a habit tracker that keeps your streaks for you. Your Apple Notes come over in one import.</p>
-          </PostCta>
-        </Answer>
-      }
-      hero={<Capture priority src="/blog/macos27/notes-templates-window" width={1538} height={984} maxWidth={760}
-        phone={{ src: "/blog/macos27/notes-templates", width: 620, height: 730 }}
-        alt="Apple Notes on macOS 27 with a Templates folder of five notes: Meeting notes, Weekly review, Packing list, Groceries and Today. Packing list is open, with Documents, Clothes and Bag headings, each over a checklist of three items."
-        caption="A Templates folder in Notes on macOS 27. Each note was pasted in from this page with Edit, Paste as Markdown." />}
+      cover={false}
+      intro={<>Apple Notes has no templates button, but a folder of notes does the job. Here are five to copy.</>}
+      answer={<>
+        <TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" post="apple-notes-templates" start={2} />
+        <SideBySide slug="apple-notes-templates"
+          apple={{ src: "/blog/side-by-side/templates-apple-notes", width: 477, height: 797, line: "A blank copy for each trip. You untick it yourself.",
+            alt: "The Packing list template in Apple Notes on macOS 27: Documents, Clothes and Bag headings, each over a checklist of three things." }}
+          pinto={{ title: "The same packing list in Pinto Notes", line: "Part of a trip plan, next to the days and bookings. The list stays for your next trip.",
+            alt: "The same nine things in the Pinto Notes trip plan's packing list, grouped under Documents, Clothes and Bag, with 0 of 9 packed.",
+            phone: { src: "/blog/side-by-side/packing-pinto-phone", width: 780, height: 1688 },
+            desk: { src: "/blog/side-by-side/packing-pinto-mac", width: 1526, height: 1280 },
+            href: "/templates/trip-plan", button: "Get the trip plan template" }} />
+      </>}
       faq={FAQ}
     >
-      <h2 id="set-it-up">Set it up once</h2>
+      <h2 id="how">How to use them</h2>
       <Steps>
-        <li>In Notes, make a new folder and call it Templates.</li>
-        <li>Add one note per template: paste one of <a href="#templates">the five below</a>, or write your own.</li>
-        <li>Leave the templates blank. Fill in the copies, so a template never carries last week&apos;s answers.</li>
+        <li>In Notes, make a folder called Templates, with one note per template.</li>
+        <li>On a Mac, start a new note and paste with <MenuPath steps={["Edit", "Paste as Markdown"]} /> Headings and checklists come through. On iPhone with iOS 27, Apple says Markdown formats itself when you paste it.</li>
+        <li>Leave the templates blank and fill in the copies.</li>
+        <li>To use one on a Mac, select it and press Command-D: <MenuPath steps={["File", "Duplicate Note"]} /> On iPhone, copy everything in the template and paste it into a new note.</li>
       </Steps>
-      <p className="label"><strong>Using one on a Mac</strong></p>
-      <p>
-        Select the template and choose File, Duplicate Note, or press Command-D. The copy appears in the Templates folder with its
-        checklists intact; drag it to the folder where it belongs.
-      </p>
-      <Capture src="/blog/macos27/notes-file-duplicate-note" width={554} height={296} maxWidth={277}
-        alt="The lower part of the File menu in Notes on macOS 27: Export To, Pin Note, Lock Note, Duplicate Note with Command-D, highlighted, and Print."
-        caption="File, Duplicate Note in Notes on macOS 27." />
-      <p className="label"><strong>Using one on iPhone</strong></p>
-      <p>
-        Open the template, select everything in it and copy it, then start a new note in the folder where it belongs and paste.
-        Checklists and headings come along, because you&apos;re copying from one note to another.
-      </p>
-
-      <h2 id="templates">Five templates to copy</h2>
-      <p>Each is written in Markdown, so it arrives formatted when you <a href="#paste">paste it as Markdown</a>. Every item has a word in it, on purpose: an empty checklist item doesn&apos;t survive the paste.</p>
-      {/* Experiment B9 (19 Nov 2026): each template names the Pinto Notes template that does the same job, linked to its page. */}
-      <TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" post="apple-notes-templates" />
-      <p>For a whole trip, with the bookings and the days as well as the packing, there&apos;s an <a href="/blog/apple-notes-trip-planner-template">Apple Notes trip planner template</a>.</p>
-      <p>For the week&apos;s dinners and the grocery list that goes with them, there&apos;s an <a href="/blog/apple-notes-meal-planner-template">Apple Notes meal planner template</a>.</p>
-
-      <h2 id="paste">Paste them in formatted</h2>
-      <PostFigure src="/blog/macos27/notes27-paste-as-markdown" width={1328} height={400} maxWidth={640}
-        alt="The same Markdown pasted twice in Apple Notes on macOS 27: with Command-V the symbols stay as text, and with Edit, Paste as Markdown it becomes a heading, a list and bold text."
-        caption="Plain paste on the left, Paste as Markdown on the right." />
-      <p>
-        On a Mac with macOS 27, start a new note and choose Edit, Paste as Markdown. The # line becomes the title, ## lines become
-        headings, and - [ ] lines become a checklist. A plain Command-V keeps the symbols as text.
-      </p>
-      <p>
-        On iPhone with iOS 27, Apple says Markdown formats itself when you paste it. On older versions, paste the text, select the
-        lines that should be a checklist and tap the checklist button. 
-      </p>
-
-      <h2 id="missing">Where a template in Notes stops</h2>
-      <PostFigure src="/blog/drawn/template-copies" width={1200} height={750} maxWidth={560}
-        alt="Three drawn checklist cards fanned out, with tally marks beside them."
-        caption="Every copy starts blank. Counting across them is up to you." />
-      <p>
-        A template in Apple Notes is a blank form. It&apos;s great for the first day. By the third week of a <a href="/blog/apple-notes-habit-tracker">habit list</a> you&apos;re
-        scrolling through copies of the same checklist, counting ticks by hand to see whether you kept your streak, and nothing ever adds
-        up on its own. And whatever you told ChatGPT about your week stays in the chat; it can&apos;t reach the note. (Sums are the
-        exception: a <a href="/blog/apple-notes-budget-template">budget note</a> can total itself with Math Results.)
-      </p>
-
-      <h2 id="amber-notes">Templates that fill themselves in</h2>
-      <PostFigure src="/blog/pinto/habit-tracker-main-mac-light" width={1280} height={900} maxWidth={640}
-        alt="A habit tracker app in a Pinto Notes note on a Mac: Today, 2 of 6 habits done with a 62 percent ring for the week, a dot grid for this week, and each habit with its streak, including Water at 5 of 8 glasses."
-        caption="The habit tracker template in Pinto Notes: streaks and the week add themselves up. Example data." />
-      <p>
-        That&apos;s what Pinto Notes is for: a notes app for iPhone and Mac that ChatGPT and Claude can read and write. Its free{" "}
-        <a href="/templates">template library</a> goes further than a blank note: some templates are little apps, like the{" "}
-        <a href="/templates/habit-tracker">habit tracker</a> above, which keeps your streaks and the week&apos;s total for you. You tick
-        things off yourself, or tell ChatGPT or Claude what you did and it updates the note. You can still add, rename and remove every
-        habit in the app. <a href="/blog/move-from-apple-notes">Your Apple Notes come over</a> in one import, and Apple Notes isn&apos;t
-        changed.
-      </p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-trip-planner-template">a trip planner</a>, <a href="/blog/apple-notes-meal-planner-template">a meal planner</a>, <a href="/blog/apple-notes-planner-template">a weekly planner</a>, <a href="/blog/apple-notes-recipe-template">a recipe template</a> and <a href="/blog/apple-notes-budget-template">a budget that adds itself up</a>.</p>
     </PostPage>
   );
 }

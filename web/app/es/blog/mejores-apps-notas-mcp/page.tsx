@@ -62,6 +62,6 @@ export default function Page() {
       <h2 id="pinto">Pinto Notes conserva el estilo de Notas de Apple</h2>
       <p>Pinto Notes funciona en iPhone y Mac. No tiene app para Windows, Android ni web. Su servidor alojado permite a ChatGPT y Claude usar tus notas sin dejar el Mac encendido. Claude Code y Codex también pueden conectarse. La <a href="/blog/mcp-server" hrefLang="en">guía del servidor MCP</a> (en inglés) enumera las herramientas y explica la aprobación.</p>
       <Figure shot={SHOTS.aiEdit} caption="ChatGPT añadió cinco líneas a una nota de la compra en Pinto Notes para Mac. Los cambios aparecen resaltados, con Deshacer. Captura en inglés." />
-      <p>Una IA puede buscar y leer notas, crear una o editar otra. Ves lo que cambió, puedes deshacerlo y volver a una versión anterior. Para traer tu biblioteca, <a href="/blog/move-from-apple-notes" hrefLang="en">importa Notas de Apple en el Mac</a> (guía en inglés). Las originales no cambian.</p>
+      <p>Una IA puede buscar y leer notas, crear una o editar otra. Ves lo que cambió, puedes deshacerlo y volver a una versión anterior. Para traer tu biblioteca, <a href="/blog/import-your-notes" hrefLang="en">importa Notas de Apple en el Mac</a> (guía en inglés). Las originales no cambian.</p>
     </LocalPostPage>;
 }

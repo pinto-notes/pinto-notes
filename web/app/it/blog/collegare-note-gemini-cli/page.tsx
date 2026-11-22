@@ -65,5 +65,5 @@ export default function Page() { return <LocalPostPage lang="it" slug="collegare
   <p>La <a href="/blog/mcp-server">guida al server MCP</a> elenca gli strumenti. La <a href="/blog/notes-in-claude-code-and-codex">guida per Claude Code e Codex</a> dà i comandi per altri agenti. Sono in inglese.</p>
   <h2 id="pinto">Tieni insieme nota e risultato</h2>
   <p>Pinto Notes somiglia a Note di Apple su iPhone e Mac. Puoi scrivere la nota, farla modificare a un'AI autorizzata e tornare a una versione precedente.</p>
-  <p>Se le note sono in Note di Apple, puoi <a href="/blog/move-from-apple-notes">importarle sul Mac</a> in un unico passaggio. Gli originali restano invariati. La guida è in inglese.</p>
+  <p>Se le note sono in Note di Apple, puoi <a href="/blog/import-your-notes">importarle sul Mac</a> in un unico passaggio. Gli originali restano invariati. La guida è in inglese.</p>
   </LocalPostPage>; }

@@ -82,5 +82,5 @@ export default function Page() { return <LocalPostPage lang="es" slug="registro-
  <h2 id="ia">Pide a ChatGPT o Claude que añada una sesión</h2>
  <p>Pinto admite tablas y listas. Al <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conectar ChatGPT o Claude</a> y pulsar Allow, puede leer y editar tus notas. Dale los datos reales de la sesión.</p>
  <Keep title="Petición para tu IA conectada" text={PROMPT} copyLabel={ui.copy} note="Úsala con el ejemplo o cambia título y sesión por los tuyos." />
- <p>Comprueba que añadió una sola sesión de 35 minutos y conservó las anteriores. El viernes debe quedar en 125 minutos, Web en 365 y la semana en 485 minutos, u 8 horas y 5 minutos. Confírmalo antes de pedir que cambie los totales guardados. El tiempo desconocido sigue excluido. Puedes <a href="/blog/move-from-apple-notes" hrefLang="en">importar tus notas de Apple</a> en el Mac sin cambiar los originales.</p>
+ <p>Comprueba que añadió una sola sesión de 35 minutos y conservó las anteriores. El viernes debe quedar en 125 minutos, Web en 365 y la semana en 485 minutos, u 8 horas y 5 minutos. Confírmalo antes de pedir que cambie los totales guardados. El tiempo desconocido sigue excluido. Puedes <a href="/blog/import-your-notes" hrefLang="en">importar tus notas de Apple</a> en el Mac sin cambiar los originales.</p>
  </LocalPostPage>; }

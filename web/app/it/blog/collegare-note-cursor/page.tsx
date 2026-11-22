@@ -67,5 +67,5 @@ export default function Page() { return <LocalPostPage lang="it" slug="collegare
   <p>Ripeti prima la richiesta di lettura. Se più note hanno titoli simili, indica il titolo esatto e chiedi a Cursor di mostrare la nota trovata. Non usare un riepilogo inventato come requisito del progetto.</p>
   <h2 id="pinto">Tieni le decisioni accanto alla richiesta</h2>
   <p>Usa la stessa nota per la richiesta raccolta sul telefono e le decisioni prese mentre programmi. Chiedi esplicitamente a Cursor di aggiornarla quando cambia qualcosa.</p>
-  <p>Se usi altri agenti, la <a href="/blog/notes-in-claude-code-and-codex">guida per Claude Code e Codex</a> spiega come collegarli. Puoi anche <a href="/blog/move-from-apple-notes">importare Note di Apple</a> sul Mac senza cambiarle. Le guide sono in inglese.</p>
+  <p>Se usi altri agenti, la <a href="/blog/notes-in-claude-code-and-codex">guida per Claude Code e Codex</a> spiega come collegarli. Puoi anche <a href="/blog/import-your-notes">importare Note di Apple</a> sul Mac senza cambiarle. Le guide sono in inglese.</p>
   </LocalPostPage>; }

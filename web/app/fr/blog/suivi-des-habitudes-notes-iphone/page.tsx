@@ -164,7 +164,7 @@ export default function Page() {
         <a href="/blog/connect-chatgpt-to-your-notes">Connecter ChatGPT</a> (en anglais) prend une minute.
       </p>
       <p>
-        Vos notes Apple arrivent en <a href="/blog/move-from-apple-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
+        Vos notes Apple arrivent en <a href="/blog/import-your-notes">un seul import sur votre Mac</a> (en anglais), et Notes reste
         tel quel. L’app est en anglais.
       </p>
     </LocalPostPage>

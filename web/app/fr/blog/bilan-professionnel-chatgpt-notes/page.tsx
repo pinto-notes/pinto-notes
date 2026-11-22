@@ -93,6 +93,6 @@ export default function Page() {
     <p><a href="/blog/connect-chatgpt-to-your-notes">Connectez ChatGPT</a> et choisissez Allow dans Pinto. Ce choix autorise la lecture et la modification ; le prompt lui demande de laisser les sources intactes.</p>
     <Keep title="Trouver les sources avant le tableau" text={RETRIEVE} note="Connectez Pinto d'abord. Adaptez Travail et les mots de recherche à votre dossier et à votre période." />
     <p>Choisissez les sources, lancez le prompt du tableau et vérifiez chaque ligne. Demandez des liens vers les notes. La recherche Pinto peut filtrer par date de modification, mais celle-ci n'est pas la date du travail accompli.</p>
-    <p>Après validation du brouillon, demandez à ChatGPT une note distincte « Bilan professionnel, janvier à juin 2026 » avec le tableau et ses liens. Ouvrez-la et contrôlez le texte. Pinto garde les versions antérieures, que vous pouvez restaurer. Il ne s'agit pas d'un modèle de bilan fourni dans l'app. Vos notes Apple arrivent par <a href="/blog/move-from-apple-notes">un import sur Mac</a>, sans changer les originaux.</p>
+    <p>Après validation du brouillon, demandez à ChatGPT une note distincte « Bilan professionnel, janvier à juin 2026 » avec le tableau et ses liens. Ouvrez-la et contrôlez le texte. Pinto garde les versions antérieures, que vous pouvez restaurer. Il ne s'agit pas d'un modèle de bilan fourni dans l'app. Vos notes Apple arrivent par <a href="/blog/import-your-notes">un import sur Mac</a>, sans changer les originaux.</p>
   </LocalPostPage>;
 }

@@ -130,7 +130,7 @@ export default function Page() {
       <p>
         That&apos;s what Pinto Notes is for. It&apos;s a notes app for iPhone and Mac, as quick as Apple Notes, with the server built in.
         Claude Code writes the standup, you read it on your phone, and Claude can pick it up from there. Every change shows up tinted
-        with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. If your notes are still in Apple Notes, they <a href="/blog/move-from-apple-notes">come over in one import</a>.
+        with Undo, and the version before is kept, with the agent named, so a bad edit is one click from gone. If your notes are still in Apple Notes, they <a href="/blog/import-your-notes">come over in one import</a>.
       </p>
       <p>
         The <a href="/blog/mcp-server">MCP server page</a> lists every tool the agent can call. Using Gemini CLI?{" "}

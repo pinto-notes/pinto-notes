@@ -186,7 +186,7 @@ export default function Page() {
         richiede un minuto.
       </p>
       <p>
-        Le tue note di Apple arrivano con <a href="/blog/move-from-apple-notes">una sola importazione sul Mac</a>, e Note di Apple
+        Le tue note di Apple arrivano con <a href="/blog/import-your-notes">una sola importazione sul Mac</a>, e Note di Apple
         resta com’era.
       </p>
     </LocalPostPage>
