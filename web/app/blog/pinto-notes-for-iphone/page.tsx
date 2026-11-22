@@ -39,10 +39,6 @@ export default function Page() {
         <li>Apps your AI made in a note, like a bread log or a trip split, work on your phone too</li>
       </ul>
 
-      <p>
-        Comparing apps for your phone? See <a href="/blog/best-note-taking-app-for-iphone">the best note-taking app for iPhone</a>.
-      </p>
-
       <h2>Already on the Mac?</h2>
       <p>
         Sign in on your iPhone with the same account and your notes are there. New to Pinto Notes? <a href="/blog/import-your-notes">Bring

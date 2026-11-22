@@ -171,7 +171,7 @@ export default function Page() {
       </p>
       <p>
         Un registro que ya llevas en Notas de Apple se pasa con{" "}
-        <a href="/blog/move-from-apple-notes" hrefLang="en">una sola importación en tu Mac</a> (en inglés), y Notas de Apple no cambia.
+        <a href="/blog/import-your-notes" hrefLang="en">una sola importación en tu Mac</a> (en inglés), y Notas de Apple no cambia.
         La app está en inglés.
       </p>
     </LocalPostPage>

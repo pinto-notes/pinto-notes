@@ -161,7 +161,7 @@ export default function Page() {
         risponderti. <a href="/blog/connect-chatgpt-to-your-notes">Collegare ChatGPT</a> (in inglese) richiede un minuto.
       </p>
       <p>
-        Gli appunti di studio che tieni già in Note di Apple arrivano con <a href="/blog/move-from-apple-notes">una sola importazione
+        Gli appunti di studio che tieni già in Note di Apple arrivano con <a href="/blog/import-your-notes">una sola importazione
         sul Mac</a>, e Note di Apple resta com’era.
       </p>
     </LocalPostPage>

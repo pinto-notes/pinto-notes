@@ -192,7 +192,7 @@ export default function Page() {
         if you want to reuse them with another capture.
       </p>
       <p>
-        Captures already in Apple Notes come over in <a href="/blog/move-from-apple-notes">one import on your Mac</a>.
+        Captures already in Apple Notes come over in <a href="/blog/import-your-notes">one import on your Mac</a>.
         Apple Notes stays unchanged.
       </p>
     </PostPage>

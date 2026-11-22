@@ -100,6 +100,6 @@ export default function Page() {
     <p>O mesmo formato funciona como nota no Pinto Notes, com tabela e checklist. Ao <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conectar ChatGPT ou Claude</a> (guia em inglês) e escolher Allow, a IA pode ler e editar notas. Informe os dados reais da sessão e peça uma nova linha.</p>
     <Keep title="Pedido para a IA conectada" text={PROMPT} copyLabel={ui.copy} note="Use com o exemplo acima ou troque título e horários pelos seus." />
     <p>Confira se a nota ganhou só uma sessão de 35 minutos. Neste exemplo, sexta-feira passa a 125 minutos, Site a 365 e a semana a 485 minutos, ou 8 horas e 5 minutos. Verifique antes de substituir os totais salvos. O intervalo desconhecido continua de fora.</p>
-    <p>Suas notas do app Notas entram por <a href="/blog/move-from-apple-notes" hrefLang="en">uma importação no Mac</a> (guia em inglês), sem alterar os originais.</p>
+    <p>Suas notas do app Notas entram por <a href="/blog/import-your-notes" hrefLang="en">uma importação no Mac</a> (guia em inglês), sem alterar os originais.</p>
   </LocalPostPage>;
 }

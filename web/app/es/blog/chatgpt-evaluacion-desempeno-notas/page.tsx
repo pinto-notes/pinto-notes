@@ -99,7 +99,7 @@ export default function Page() {
  <Keep title="Busca las notas antes de hacer la tabla" text={RETRIEVE} copyLabel={ui.copy} note="Conecta Pinto primero. Cambia Trabajo y los temas por tus carpetas y tu período." />
  <p>Selecciona las fuentes, ejecuta el prompt de la tabla y pide enlaces en cada fila. La búsqueda de Pinto admite filtros por fecha de modificación, que no equivale a la fecha del trabajo. Lee las entradas fechadas.</p>
  <p>Tras aprobar el borrador, pide a ChatGPT una nota aparte titulada "Autoevaluación, enero a junio de 2026", con la tabla y los enlaces debajo. Ábrela y comprueba texto y enlaces. Pinto conserva versiones anteriores que puedes restaurar.</p>
- <p>Es un proceso para tus propias notas, sin plantilla de evaluación ya preparada en Pinto. Puedes traer las notas de Apple con <a href="/blog/move-from-apple-notes" hrefLang="en">una importación en Mac</a> (en inglés) sin cambiarlas. La app está en inglés.</p>
+ <p>Es un proceso para tus propias notas, sin plantilla de evaluación ya preparada en Pinto. Puedes traer las notas de Apple con <a href="/blog/import-your-notes" hrefLang="en">una importación en Mac</a> (en inglés) sin cambiarlas. La app está en inglés.</p>
  </LocalPostPage>;
 }
 

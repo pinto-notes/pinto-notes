@@ -67,6 +67,6 @@ export default function Page() {
 <p>O modelo grátis <a href="/templates/budget-log">Orçamento e gastos</a> do Pinto Notes define um limite por categoria, registra compras, contas mensais e mostra quanto resta no mês e nos últimos seis meses. Você digita cada valor uma vez. Depois de conectar ChatGPT ou Claude, pode contar uma compra na conversa e pedir um resumo do mês. O app não se conecta ao banco. Cada edição pode ser desfeita e as notas do Apple Notes podem ser importadas no Mac sem alterar o original.</p>
 
 
-<p>Leia também: <a href="/blog/budget-tracker-with-chatgpt-or-claude" hrefLang="en">orçamento com IA</a>, <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conexão com ChatGPT ou Claude</a>, e <a href="/blog/move-from-apple-notes" hrefLang="en">importação do Notas</a>.</p>
+<p>Leia também: <a href="/blog/budget-tracker-with-chatgpt-or-claude" hrefLang="en">orçamento com IA</a>, <a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">conexão com ChatGPT ou Claude</a>, e <a href="/blog/import-your-notes" hrefLang="en">importação do Notas</a>.</p>
   </LocalPostPage>;
 }

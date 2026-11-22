@@ -80,5 +80,5 @@ export default function Page() { return <LocalPostPage lang="fr" slug="modele-su
   <h2 id="pinto">Ajouter une séance avec ChatGPT ou Claude</h2>
   <p>Après avoir <a href="/blog/connect-chatgpt-to-your-notes">connecté ChatGPT ou Claude</a> et choisi Allow, l'IA peut lire et modifier cette note dans Pinto. Donnez-lui les heures réelles.</p>
   <Keep title="Demande pour une IA connectée" text={PROMPT} note="Remplacez le titre et la séance par vos données." />
-  <p>Vérifiez qu'une seule ligne de 35 minutes a été ajoutée. Le vendredi passe à 125 minutes, Site web à 365 et la semaine à 485 minutes, soit 8 h 05. Contrôlez avant de modifier les totaux enregistrés. Sur Mac, Pinto importe vos <a href="/blog/move-from-apple-notes">notes Apple</a> en une fois sans changer les originaux.</p>
+  <p>Vérifiez qu'une seule ligne de 35 minutes a été ajoutée. Le vendredi passe à 125 minutes, Site web à 365 et la semaine à 485 minutes, soit 8 h 05. Contrôlez avant de modifier les totaux enregistrés. Sur Mac, Pinto importe vos <a href="/blog/import-your-notes">notes Apple</a> en une fois sans changer les originaux.</p>
 </LocalPostPage>; }

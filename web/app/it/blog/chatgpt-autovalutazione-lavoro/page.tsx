@@ -94,5 +94,5 @@ export default function Page() { return <LocalPostPage lang="it" slug="chatgpt-a
   <p><a href="/blog/connect-chatgpt-to-your-notes">Collega ChatGPT</a> a Pinto Notes e scegli Allow. Può leggere e modificare le note. Il prompt seguente chiede di non toccare le fonti.</p>
   <Keep title="Trova le note prima della tabella" text={RETRIEVE} note="Sostituisci cartella, argomenti e periodo con i tuoi." />
   <p>Seleziona le fonti e controlla la tabella. Il filtro di ricerca per data di modifica non coincide con la data del lavoro. Dopo aver approvato la bozza, chiedi una nota separata con tabella e link. Aprila e prova i link. Pinto conserva le versioni precedenti e permette di ripristinarle.</p>
-  <p>Questo è un metodo da usare con le tue note, non un modello pronto nell'app. Puoi <a href="/blog/move-from-apple-notes">importare le note di Apple sul Mac</a> senza modificarle nell'app originale.</p>
+  <p>Questo è un metodo da usare con le tue note, non un modello pronto nell'app. Puoi <a href="/blog/import-your-notes">importare le note di Apple sul Mac</a> senza modificarle nell'app originale.</p>
   </LocalPostPage>; }

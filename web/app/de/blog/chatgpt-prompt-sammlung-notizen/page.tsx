@@ -101,6 +101,6 @@ export default function Page() {
     <Keep title="Gespeicherten Prompt anfordern" text={RETRIEVE}
       note="Verbinde Pinto Notes zuerst. Diese Bitte holt die Anweisungen und fragt nach aktuellen Angaben." />
     <p>Prüfe, ob ChatGPT die richtige Notiz gefunden hat. Wenn du eine bessere Fassung bestätigst, lass die Anweisungen und das geprüfte Beispiel in derselben Notiz speichern. Pinto Notes behält frühere Versionen, falls die Änderung weniger nützlich ist.</p>
-    <p>Du pflegst diese Sammlung selbst und entscheidest, wann du einen Prompt abrufst. Liegt sie schon in Apple Notizen, kannst du sie <a href="/blog/move-from-apple-notes" hrefLang="en">auf dem Mac importieren</a>. Apple Notizen bleibt unverändert.</p>
+    <p>Du pflegst diese Sammlung selbst und entscheidest, wann du einen Prompt abrufst. Liegt sie schon in Apple Notizen, kannst du sie <a href="/blog/import-your-notes" hrefLang="en">auf dem Mac importieren</a>. Apple Notizen bleibt unverändert.</p>
   </LocalPostPage>;
 }

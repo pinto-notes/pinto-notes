@@ -54,8 +54,8 @@ export default function Page() {
 
       <h2>When a different notes app makes sense</h2>
       <p>
-        Claude has the same limits; <a href="/blog/claude-and-apple-notes">can Claude read your Apple Notes?</a> goes through them, and{" "}
-        <a href="/blog/best-ai-notes-app">the best AI notes apps, compared</a> lists the apps AI can reach. The ways into Apple Notes all run on your Mac, so ChatGPT
+        Claude has the same limits.{" "}
+        <a href="/blog/best-ai-notes-app">The best AI notes apps, compared</a> lists the apps AI can reach. The ways into Apple Notes all run on your Mac, so ChatGPT
         can&apos;t use them.
       </p>
       <p>
@@ -68,7 +68,7 @@ export default function Page() {
         chatgpt.com. You approve it in Pinto Notes, and every change it makes can be undone.
       </p>
       <p>
-        <a href="/blog/move-from-apple-notes">How to move from Apple Notes</a> and{" "}
+        <a href="/blog/import-your-notes">How to move from Apple Notes</a> and{" "}
         <a href="/blog/connect-chatgpt-to-your-notes">how to connect ChatGPT</a>. Adding your own app in ChatGPT needs a paid plan
         (Plus or higher).
       </p>

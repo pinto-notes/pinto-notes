@@ -143,15 +143,14 @@ export default function Page() {
 
       <h2>If you&apos;re moving somewhere, not making a backup</h2>
       <p>
-        An export is the right tool for a backup or a one-off move into Obsidian or a repository. <a href="/blog/move-apple-notes-to-obsidian-notion-keep">Moving
-        Apple Notes to Obsidian, Notion or Keep</a> covers what you gain and give up there. If what you actually want is Markdown notes that still work like Apple
+        An export is the right tool for a backup or a one-off move into Obsidian or a repository. If what you actually want is Markdown notes that still work like Apple
         Notes, that&apos;s what Pinto Notes is for: it looks and works like Apple Notes on iPhone and Mac, and every note is Markdown underneath.
       </p>
       <PostFigure src="/blog/pinto/import-from-apple-notes-sheet" width={1090} height={1260} maxWidth={420}
         alt="The Import from Apple Notes sheet in Pinto Notes on a Mac, with every note listed under its folder and ticked, and an Import button."
         caption="File, Import from Apple Notes in Pinto Notes. Apple Notes isn't changed." />
       <p>
-        On a Mac, <a href="/blog/move-from-apple-notes">File, Import from Apple Notes</a> brings over the notes you pick in one go, in their
+        On a Mac, <a href="/blog/import-your-notes">File, Import from Apple Notes</a> brings over the notes you pick in one go, in their
         folders, with tables and pictures. Be aware of what it leaves behind: other attachments and locked notes stay in Apple Notes. And
         once your notes are Markdown in Pinto Notes, ChatGPT or Claude can read and edit them directly, with your approval, instead of you
         pasting files into a chat. <a href="/blog/connect-chatgpt-to-your-notes">Connecting ChatGPT or Claude</a> takes a couple of minutes.

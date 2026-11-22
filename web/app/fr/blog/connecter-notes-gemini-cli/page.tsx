@@ -66,6 +66,6 @@ export default function Page() {
     <p>Le <a href="/blog/mcp-server">guide MCP de Pinto Notes</a> décrit les outils. Le <a href="/blog/notes-in-claude-code-and-codex">guide Claude Code et Codex</a> donne les commandes pour ces agents.</p>
     <h2 id="pinto">Garder la note et son résultat ensemble</h2>
     <p>Pinto Notes ressemble à Notes d'Apple sur iPhone et Mac. Vous écrivez la note, une IA autorisée peut la modifier et vous pouvez revenir à une version antérieure.</p>
-    <p>Si vos notes sont dans Notes d'Apple, <a href="/blog/move-from-apple-notes">importez-les sur Mac</a>. Les originaux restent inchangés.</p>
+    <p>Si vos notes sont dans Notes d'Apple, <a href="/blog/import-your-notes">importez-les sur Mac</a>. Les originaux restent inchangés.</p>
   </LocalPostPage>;
 }

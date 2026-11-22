@@ -12,8 +12,9 @@ import s from "./post-parts.module.css";
 /// template's page; with `post`, the link counts as the post's blog_cta_clicked (position "template").
 export type Template = { title: string; text: string; pinto?: { slug: string; name: string; rest: string } };
 
-export function TemplatePicker({ templates, legend, post }: { templates: Template[]; legend: string; post?: string }) {
-  const [picked, setPicked] = useState(0);
+/// `start` is the template shown first (the templates post opens on the Packing list its side-by-side shows).
+export function TemplatePicker({ templates, legend, post, start = 0 }: { templates: Template[]; legend: string; post?: string; start?: number }) {
+  const [picked, setPicked] = useState(start);
   return (
     <div className={s.chooser}>
       <fieldset>

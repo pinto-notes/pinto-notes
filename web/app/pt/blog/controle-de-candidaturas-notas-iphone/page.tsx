@@ -192,7 +192,7 @@ export default function Page() {
       </p>
       <p>
         O app está em inglês. As notas que você já tem no app Notas vêm junto em{" "}
-        <a href="/blog/move-from-apple-notes" hrefLang="en">uma importação no seu Mac</a> (em inglês), e o app Notas fica como estava.
+        <a href="/blog/import-your-notes" hrefLang="en">uma importação no seu Mac</a> (em inglês), e o app Notas fica como estava.
       </p>
     </LocalPostPage>
   );

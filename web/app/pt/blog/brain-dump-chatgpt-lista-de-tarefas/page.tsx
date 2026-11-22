@@ -91,6 +91,6 @@ export default function Page() {
     <h2 id="pinto">Peça ao ChatGPT para acrescentar a lista</h2>
     <p><a href="/blog/connect-chatgpt-to-your-notes" hrefLang="en">Conecte ChatGPT</a> ao Pinto Notes e escolha Allow. Isso dá acesso de leitura e edição. Envie o prompt de organização e, na mesma conversa, o pedido abaixo com o título da sua nota.</p>
     <Keep title="Leia a anotação e salve minhas escolhas" text={CONNECTED} copyLabel={ui.copy} note="Conecte o Pinto primeiro e mantenha os dois prompts na mesma conversa." />
-    <p>Abra a nota salva e compare a anotação bruta com a original. Confira se as ações são as aprovadas. Pedir que o ChatGPT preserve o texto não garante o resultado. O Pinto guarda versões anteriores. Numa próxima revisão, peça que leia a nota outra vez. Você pode guardar o prompt numa <a href="/pt/blog/biblioteca-de-prompts-chatgpt-notas">biblioteca de prompts</a>. Notas da Apple podem ser <a href="/blog/move-from-apple-notes" hrefLang="en">importadas no Mac</a> sem alteração das originais.</p>
+    <p>Abra a nota salva e compare a anotação bruta com a original. Confira se as ações são as aprovadas. Pedir que o ChatGPT preserve o texto não garante o resultado. O Pinto guarda versões anteriores. Numa próxima revisão, peça que leia a nota outra vez. Você pode guardar o prompt numa <a href="/pt/blog/biblioteca-de-prompts-chatgpt-notas">biblioteca de prompts</a>. Notas da Apple podem ser <a href="/blog/import-your-notes" hrefLang="en">importadas no Mac</a> sem alteração das originais.</p>
   </LocalPostPage>;
 }

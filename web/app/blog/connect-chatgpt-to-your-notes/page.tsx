@@ -135,7 +135,7 @@ export default function Page() {
       </div>
       <p>
         Apple Notes can&apos;t be connected this way. On a Mac, ChatGPT can look at a note you have open, but it can&apos;t search your
-        notes or save changes to them. <a href="/blog/claude-and-apple-notes">Why AI apps can&apos;t reach Apple Notes</a> explains it.
+        notes or save changes to them.
       </p>
 
       <h2 id="chatgpt">Connect ChatGPT</h2>
