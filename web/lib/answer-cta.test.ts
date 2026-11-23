@@ -25,6 +25,8 @@ const E = [
   // 22 Nov 2026: the six template posts restored at their old addresses, and the flashcards post.
   "apple-notes-recipe-template", "apple-notes-grocery-list-template", "apple-notes-meeting-notes-template",
   "apple-notes-journal-template", "apple-notes-planner-template", "apple-notes-cornell-notes-template", "apple-notes-flashcards",
+  // 23 Nov 2026: the to-do list and packing list posts.
+  "apple-notes-to-do-list-template", "apple-notes-packing-list-template",
 ];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");

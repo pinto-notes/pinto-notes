@@ -509,6 +509,12 @@
   "w": 880,
   "h": 550
  },
+ "packing-list": {
+  "ground": "#bfcef7",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "paste-plain": {
   "ground": "#b9dbba",
   "ink": "dark",
@@ -649,6 +655,12 @@
  },
  "time-log": {
   "ground": "#e59991",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "to-do-list": {
+  "ground": "#bbdbb8",
   "ink": "dark",
   "w": 880,
   "h": 550
