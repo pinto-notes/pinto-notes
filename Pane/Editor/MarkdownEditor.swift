@@ -3473,6 +3473,12 @@ final class PaneTextView: NSTextView, NSTextViewDelegate, EditorTarget {
         } else if item.action == #selector(undo(_:)) || item.action == #selector(redo(_:)) {
             return (item.action == #selector(undo(_:)) ? undoManager?.canUndo : undoManager?.canRedo) ?? false
         }
+        // A plain-text view only turns Paste on for text, but `paste` takes images and files too: a
+        // screenshot copied to the clipboard (Shottr, Cmd-Ctrl-Shift-4) carries nothing else.
+        if item.action == #selector(paste(_:)), isEditable,
+           NSPasteboard.general.availableType(from: [.png, .tiff, NSPasteboard.PasteboardType("public.jpeg"), .fileURL]) != nil {
+            return true
+        }
         return super.validateUserInterfaceItem(item)
     }
 
