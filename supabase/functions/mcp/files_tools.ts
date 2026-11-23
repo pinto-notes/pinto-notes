@@ -81,7 +81,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "create", title: "Create",
-    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed; with no folder it goes in the first folder, usually Notes) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Creates a note, a folder or an app. A note: path \"Work/Acme.md\" (its name is its title; folders are made as needed; with no folder it goes in the first folder, usually Notes) and content, its markdown. In a note's folder (\"Work/Acme/Agenda.md\") it becomes that note's sub-note. A folder: path \"Work/Clients/\". An app: path is the note that becomes the app (existing, or new like \"Work/Habits.md\"); it starts as a React + TypeScript + Tailwind + shadcn/ui project whose README.md says how apps run here, or, with template, as that pintonotes.com template's app, its data and its note. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], a picture is a file in the note's folder (write it there with content_url; an ![](address) shows as text), and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -112,7 +112,7 @@ export const FILE_TOOLS: Tool[] = ([
   },
   {
     name: "write", title: "Write",
-    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
+    description: "Writes a whole note, app file, data.json or file: creates it, or replaces all of it (an existing item must have been read in this session). The old version stays in history. A new note goes in the folder its path names; one with no folder goes in the first folder, usually Notes. A file (\"To read/Summary.txt\", \"To read/Paper.pdf\") takes content for text, or content_base64 with mime_type for anything else (a PDF, a picture, a spreadsheet), up to 10 MB. Answers with checks: what the change broke in a note, or the app's compile, render and test results. Notes are markdown: checklists \"- [ ] item\", links to notes [[Title]], a picture is a file in the note's folder (write it there with content_url; an ![](address) shows as text), and a tracker is a table with a line like <!-- pane-table: Date=date; Mood=scale 1-5; Walk=choice Yes|No --> above it (keep values in range).",
     inputSchema: {
       type: "object",
       properties: {
@@ -716,7 +716,11 @@ async function newNote(tx: Tx, c: Call, path: string, content: string, pinned = 
     if (lockedHere(parts.join("/") + "/")) throw new ToolError("A locked note already has this name. Pick another name, or ask the person to unlock it.");
   }
   let body = content.replace(/^\s*\n/, "");
+  const first = body.split("\n", 1)[0];
   if (!body.trim()) body = `${name}\n`;
+  // A text that opens with a # heading already has its title there: the note's name takes its
+  // place, so there's one title, not the name above the AI's own heading (Emil with ChatGPT, 23 Nov).
+  else if (/^#[ \t]+\S/.test(first)) body = `# ${name}${body.slice(first.length)}`;
   else if (titleOf(body) !== name) body = `${name}\n\n${body}`;
   checkSize(body);
   const where = await placeFor(tx, c, P, parts.join("/"));

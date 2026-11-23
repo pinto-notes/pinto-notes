@@ -23,6 +23,18 @@ function strayRows(body: string): string[] {
   return out;
 }
 
+/** Pictures that aren't one of the note's files (`![](pane-file:…)`): the app shows those as text. */
+function strayImages(body: string): string[] {
+  let code = false;
+  const out: string[] = [];
+  for (const l of body.split("\n")) {
+    if (/^\s*(```|~~~)/.test(l)) { code = !code; continue; }
+    if (code) continue;
+    for (const m of l.matchAll(/!\[[^\]\n]*\]\(([^)\n]*)\)/g)) if (!/^<?pane-file:/i.test(m[1].trim())) out.push(m[0]);
+  }
+  return out;
+}
+
 /** Rows whose cell count differs from their table's header. */
 function raggedRows(body: string): string[] {
   const lines = body.split("\n");
@@ -62,5 +74,8 @@ export function noteChecks(before: string, after: string, today: string): string
     ...fresh(strayRows(after), strayRows(before)).map((l) => `"${l.slice(0, 80)}" looks like a table row but isn't in a table any more (a table needs its header and a | --- | line right under it, with no blank lines between rows).`),
     ...fresh(near(after), near(before)).map((l) => `"${l.slice(0, 80)}" won't show as a checklist item: write "- [ ] text" (or "- [x] text").`),
     ...fresh(badTrackerValues(after, today), badTrackerValues(before, today)).map((m) => `Tracker value: ${m}`),
+    ...fresh(strayImages(after), strayImages(before)).map((i) => /\]\(\s*\)$/.test(i)
+      ? `"${i.slice(0, 120)}" is an empty picture and shows as text: remove it.`
+      : `"${i.slice(0, 120)}" shows as text, not a picture: a picture in a note is a file in the note's folder. Add it with write (path "<the note's folder>/<name>.jpg" and content_url with its https address, or content_base64 with mime_type); it's added at the end of the note, so move that line with edit. Then remove this one.`),
   ];
 }
