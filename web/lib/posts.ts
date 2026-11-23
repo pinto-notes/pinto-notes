@@ -405,7 +405,7 @@ export const posts: Post[] = [
     category: "Apple Notes",
     date: "2026-11-23",
     updated: "2026-11-23",
-    image: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-mac.webp", alt: "A Weekly planner note in Pinto Notes on a Mac: the week's top three, Monday's to-dos with two ticked last, then the other days.", width: 1520, height: 1208, window: false, title: "Weekly planner" },
+    image: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-mac.webp", alt: "A Weekly planner note in Pinto Notes on a Mac: the week's top three, Monday's to-dos with two ticked last, and Later.", width: 1520, height: 1053, window: false, title: "Weekly planner" },
     thumb: cover("mint", "to-do-list", 1600, 1000, "A paper to-do card with two rows ticked, a push pin, an envelope and a birthday card"),
     draft: false,
   },

@@ -224,12 +224,12 @@ import Testing
 
     /// The to-do list post (23 Nov 2026): the weekly planner template's note with the to-do list's items and ticks from the
     /// Apple Notes capture (blog-growth/research/apple-notes-todo-packing-2026-11-23.md). Today's to-dos sit under Monday, the
-    /// week's under the top three, and Later stays Later; the ticked ones are last, as both apps sort them.
+    /// week's under the top three, and Later stays Later; the ticked ones are last, as both apps sort them. The days with
+    /// nothing on them (Tuesday to Sunday) are left out of the note, so the picture shows only filled sections.
     @Test func appleNotesSideBySideToDo() async throws {
         guard let dir = AppSnapshotTests.dir else { return }
-        let days = ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map { "## \($0)\n\n" }.joined()
         let notes: [(String, String)] = [
-        ("to-do-weekly-planner", "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n- [ ] Book flights home for Christmas\n- [ ] Return the parcel\n- [ ] Renew the car insurance\n\n## Monday\n- [ ] Call the dentist about Tuesday\n- [ ] Buy a birthday card for Mum\n- [x] Reply to Sara about Saturday\n- [x] Pay the electricity bill\n\n" + days + "## Later\n- [ ] Fix the bike light\n- [ ] Sort the summer photos\n- [ ] Clear out the garage\n"),
+        ("to-do-weekly-planner", "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Top three this week\n- [ ] Book flights home for Christmas\n- [ ] Return the parcel\n- [ ] Renew the car insurance\n\n## Monday\n- [ ] Call the dentist about Tuesday\n- [ ] Buy a birthday card for Mum\n- [x] Reply to Sara about Saturday\n- [x] Pay the electricity bill\n\n## Later\n- [ ] Fix the bike light\n- [ ] Sort the summer photos\n- [ ] Clear out the garage\n"),
         ]
         try await Self.sideBySide(notes, to: dir)
     }

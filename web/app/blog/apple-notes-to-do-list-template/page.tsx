@@ -15,7 +15,8 @@ export const metadata = postMetadata("apple-notes-to-do-list-template", { title:
 // checked items, Control-Command-Up/Down Arrow (support.apple.com/guide/notes/apd93c815aa0/mac); pin on iPhone by swiping right
 // (support.apple.com/118442).
 // Pinto Notes: the weekly planner template's note (content/templates/weekly-planner.json) with the same items and ticks:
-// Today's under Monday (the capture day), This week's as the top three, Later as Later, the ticked ones last. Drawn by the Mac
+// Today's under Monday (the capture day), This week's as the top three, Later as Later, the ticked ones last; the days with
+// nothing on them are left out of the note, so it shows only filled sections. Drawn by the Mac
 // app offscreen (PaneTests/HIG/BlogSnapshots.swift, appleNotesSideBySideToDo). Ticked items sink by default
 // (Pane/Editor/EditorController.swift, ChecklistSorting); the AI's moves are the template's prompt.
 
@@ -70,8 +71,8 @@ export default function Page() {
             alt: "The to-do list template in Apple Notes on macOS 27: Today, This week and Later as checklists, with two of Today's tasks ticked at the bottom." }}
           pinto={{ frame: false, title: "The same to-dos in Pinto Notes", line: "Tell your AI what's on and it puts each task under its day. Ask it, and it moves what you didn't finish to today.",
             alt: "The same to-dos in the Pinto Notes weekly planner: the week's three tasks as the top three, today's four under Monday with two ticked last, and Later.",
-            phone: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-phone", width: 780, height: 1616 },
-            desk: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-mac", width: 1520, height: 1208 },
+            phone: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-phone", width: 780, height: 1091 },
+            desk: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-mac", width: 1520, height: 1053 },
             href: "/templates/weekly-planner", button: "Get the weekly planner template" }} />
       </>}
       faq={FAQ}
