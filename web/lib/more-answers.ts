@@ -28,6 +28,8 @@ export const SHELVES: Shelf[] = [
       { slug: "apple-notes-meeting-notes-template", ask: "Can Notes track meeting actions?" },
       { slug: "apple-notes-journal-template", ask: "Can Notes keep my journal?" },
       { slug: "apple-notes-planner-template", ask: "Can I plan my week in Notes?" },
+      { slug: "apple-notes-to-do-list-template", ask: "Can Notes sort my to-do list?" },
+      { slug: "apple-notes-packing-list-template", ask: "Can Notes keep a packing list?" },
       { slug: "apple-notes-cornell-notes-template", ask: "Can I do Cornell notes in Notes?" },
       { slug: "export-apple-notes-to-markdown", ask: "How do I get my notes out as Markdown?" },
     ],
