@@ -358,3 +358,39 @@ Deno.test("a new note with no folder never goes in Shared with me, which the app
   const packing = await tool(pg, a, "write", { path: "Packing.md", content: "Packing" });
   assertEquals(packing.written ?? packing.created, "Notes/Packing.md");
 });
+
+/** Every note's stored text, by title. */
+async function bodies(pg: PGlite, a: Account): Promise<Map<string, string>> {
+  const ids = (await pg.query<{ id: string }>(`select id from public.notes`)).rows.map((r) => r.id);
+  const out = new Map<string, string>();
+  for (const id of ids) { const o = await opened(pg, a, id); out.set(o.head.title, o.body ?? ""); }
+  return out;
+}
+
+Deno.test("a new note whose text starts with a heading has one title, not two (Emil with ChatGPT, 23 Nov)", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  // ChatGPT names the note and also opens its text with a heading of its own wording.
+  const made = await tool(pg, a, "create", { path: "Travel/Lisbon trip.md", content: "# Lisbon Trip Plan\n\n- [ ] Book the hotel\n" });
+  assertEquals(made.created, "Travel/Lisbon trip.md");
+  assertEquals((await bodies(pg, a)).get("Lisbon trip"), "# Lisbon trip\n\n- [ ] Book the hotel\n");
+  // The same through write, and with a heading that only differs in case.
+  await tool(pg, a, "write", { path: "Travel/Packing.md", content: "# PACKING\n\n- [ ] Passport" });
+  assertEquals((await bodies(pg, a)).get("Packing"), "# Packing\n\n- [ ] Passport");
+  // A section heading first is not a title: the name goes above it.
+  await tool(pg, a, "create", { path: "Travel/Days.md", content: "## Day 1\nAlfama" });
+  assertEquals((await bodies(pg, a)).get("Days"), "Days\n\n## Day 1\nAlfama");
+});
+
+Deno.test("a picture that isn't one of the note's files is reported, with how to add it (Emil with ChatGPT, 23 Nov)", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  const made = await tool(pg, a, "create", { path: "Food/Pasta.md", content: "Pasta\n\n![Carbonara](https://example.com/carbonara.jpg)\n\n![]()\n\nStir well." });
+  const said = (made.checks ?? []).join("\n");
+  assertStringIncludes(said, "![Carbonara](https://example.com/carbonara.jpg)");
+  assertStringIncludes(said, "content_url");
+  assertStringIncludes(said, "![]()");
+  // Pictures that are the note's files, and ones inside code, say nothing.
+  const ok = await tool(pg, a, "create", { path: "Food/Code.md", content: "Code\n\n```\n![x](y.png)\n```\n" });
+  assertEquals(ok.checks ?? [], []);
+});
