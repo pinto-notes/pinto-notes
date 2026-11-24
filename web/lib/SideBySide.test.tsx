@@ -1,8 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SideBySide } from "./SideBySide";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/blog/apple-notes-budget-template", useRouter: () => ({ push: () => {} }) }));
 
 const props = {
   slug: "apple-notes-budget-template",
@@ -11,7 +13,7 @@ const props = {
     title: "The same budget in Pinto Notes", line: "Tracks the month as you spend.", alt: "The same budget in Pinto Notes.",
     phone: { src: "/blog/side-by-side/budget-pinto-phone", width: 780, height: 1688 },
     desk: { src: "/blog/side-by-side/budget-pinto-mac", width: 1526, height: 1280 },
-    href: "/templates/budget-log", button: "Get the budget template",
+    template: "budget-log",
   },
 };
 
@@ -31,9 +33,27 @@ describe("the Apple Notes and Pinto Notes side by side", () => {
     expect(html).toMatch(/<img src="\/blog\/side-by-side\/budget-template-apple-notes.webp" alt="The budget in Apple Notes."/);
   });
 
-  it("has one button, to the Pinto template, counted as the post's call to action", () => {
-    expect(html.match(/<a /g)).toHaveLength(1);
-    expect(html).toMatch(/<a [^>]*href="\/templates\/budget-log" data-cta="apple-notes-budget-template" data-cta-position="side-by-side" data-cta-action="template_page">Get the budget template<\/a>/);
+  // Experiment B39: the button downloads Pinto Notes, as the post's download card does; one shows per platform.
+  it("has one download button per platform, counted as the post's call to action with its template", () => {
+    expect(html.match(/<a /g)).toHaveLength(3);
+    expect(html.match(/>Get Pinto Notes, free<\/a>/g)).toHaveLength(3);
+    const a = (cls: string) => new RegExp(`<a [^>]*class="[^"]*${cls}[^"]*"[^>]*>`).exec(html)?.[0] ?? "";
+    expect(a("pi-not-ios")).toContain('href="/download/mac"');
+    expect(a("pi-not-ios")).toContain('data-cta-action="download_mac"');
+    expect(a("pi-ios-only")).toMatch(/href="https:\/\/apps\.apple\.com\/app\/id\d+"/);
+    expect(a("pi-ios-only")).toContain('data-cta-action="app_store"');
+    expect(a("pi-other-only")).toContain('href="/download"');
+    for (const cls of ["pi-not-ios", "pi-ios-only", "pi-other-only"]) {
+      expect(a(cls)).toContain('data-cta="apple-notes-budget-template"');
+      expect(a(cls)).toContain('data-cta-position="side-by-side"');
+      expect(a(cls)).toContain('data-cta-template="budget-log"');
+    }
+    expect(html).not.toContain('href="/templates');
+  });
+
+  it("leaves the template out of the tracking when the post has no Pinto template", () => {
+    const none = renderToStaticMarkup(<SideBySide {...props} pinto={{ ...props.pinto, template: undefined }} />);
+    expect(none).not.toContain("data-cta-template");
   });
 
   it("cuts only a tall Apple Notes note", () => {

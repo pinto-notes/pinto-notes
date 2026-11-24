@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -66,7 +67,11 @@ export default function Page() {
       intro={<>One list with a heading per aisle, so you walk the shop once.</>}
       answer={<>
         <Keep title="Grocery list for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-grocery-list-template" position="answer" title="Want a grocery list that sorts itself by aisle?">
+          <p>Tell your AI what you need, in one sentence, and Pinto Notes&apos; free grocery list puts each thing under its aisle.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-grocery-list-template"
           apple={{ src: "/blog/side-by-side/grocery-list-template-apple-notes", width: 489, height: 1283, line: "Holds the list. You put each thing under its aisle.",
             alt: "The grocery list template in Apple Notes on macOS 27: six aisles as headings with a checklist under each, Bananas and Butter ticked." }}
@@ -74,7 +79,7 @@ export default function Page() {
             alt: "The same grocery list in the Pinto Notes grocery list template: the same six aisles and items, with Bananas and Butter ticked.",
             phone: { src: "/blog/side-by-side/grocery-list-pinto-phone", width: 780, height: 1593 },
             desk: { src: "/blog/side-by-side/grocery-list-pinto-mac", width: 1520, height: 1208 },
-            href: "/templates/grocery-list", button: "Get the grocery list template" }} />
+            template: "grocery-list" }} />
       </>}
       faq={FAQ}
     >

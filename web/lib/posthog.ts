@@ -283,13 +283,15 @@ export function clickEvent(el: { tagName: string; getAttribute(name: string): st
 /// A click on a blog post's call to action (lib/PostCta.tsx), named by the attributes the post puts
 /// on each of its links: which post, where in it, and which link. Sent as well as the click's own
 /// event, so a download from a post is a blog_cta_clicked and a download_mac_clicked with the post's
-/// path. Nothing is stored on the device for it.
+/// path. Nothing is stored on the device for it. A link that names the template it stands for
+/// (data-cta-template, the side-by-side's download since experiment B39) sends that as `template`.
 export function ctaEvent(el: { getAttribute(name: string): string | null }, here: URL): SiteEvent | null {
   const slug = el.getAttribute("data-cta");
   if (!slug) return null;
+  const template = el.getAttribute("data-cta-template");
   return {
     event: "blog_cta_clicked",
-    properties: { path: here.pathname, slug, position: el.getAttribute("data-cta-position") ?? "", action: el.getAttribute("data-cta-action") ?? "" },
+    properties: { path: here.pathname, slug, position: el.getAttribute("data-cta-position") ?? "", action: el.getAttribute("data-cta-action") ?? "", ...(template ? { template } : {}) },
     leaves: false,
   };
 }

@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -53,6 +54,10 @@ export default function Page() {
       answer={<>
         <Keep title="Monthly budget for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, type = at the end of the last two lines. Notes offers the total. Press Return to keep it." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-budget-template" position="answer" title="Want a budget that keeps itself?">
+          <p>Pinto Notes works like Apple Notes. Its free budget template shows what&apos;s left this month as you spend, each category against its budget.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-budget-template"
           apple={{ src: "/blog/side-by-side/budget-template-apple-notes", width: 906, height: 577, line: "Adds up the plan. You type every change.",
             alt: "The budget template pasted into Apple Notes on macOS 27: Income 3200, six named amounts, and the two sums answered 2,450 and 750." }}
@@ -60,7 +65,7 @@ export default function Page() {
             alt: "The same budget in the Pinto Notes Budget and expenses template on 21 November: 336 left this month, 2,114 spent of 2,450, and each category against its budget.",
             phone: { src: "/blog/side-by-side/budget-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/budget-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/budget-log", button: "Get the budget template" }} />
+            template: "budget-log" }} />
       </>}
       faq={FAQ}
     >

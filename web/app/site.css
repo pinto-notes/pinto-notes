@@ -366,6 +366,12 @@ html.fs-at-ground { background: var(--ground); }
 :root[data-platform="ios"] .pi-not-ios { display: none; }
 :root:is([data-platform="windows"], [data-platform="android"], [data-platform="linux"]) .pi-other,
 :root[data-platform="ios"] .pi-ios { display: grid; }
+/* One element per platform, keeping the element's own display (experiment B39: the template posts' side-by-side
+   download and their paste steps). .pi-ios-only is for an iPhone only, .pi-other-only for Windows, Android and Linux,
+   and .pi-not-mac goes on a Mac. */
+:root:not([data-platform="ios"]) .pi-ios-only,
+:root:not(:is([data-platform="windows"], [data-platform="android"], [data-platform="linux"])) .pi-other-only,
+:root[data-platform="mac"] .pi-not-mac { display: none; }
 
 .pi { --pi-ink: var(--ink); --pi-muted: var(--muted); --pi-bg: var(--cta-bg); --pi-on: var(--cta-ink); --pi-soft: var(--soft); --pi-ring: transparent; justify-items: center; gap: 14px; text-align: center; }
 /* The closing band is leaf brown on every theme. */

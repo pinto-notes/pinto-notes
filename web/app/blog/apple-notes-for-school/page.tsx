@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { MenuPath, Steps } from "@/lib/PostParts";
+import { MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 import { TemplatePicker, type Template } from "@/lib/TemplatePicker";
 
@@ -109,7 +110,11 @@ export default function Page() {
       cover={false}
       intro={<>Apple Notes is good for class notes, assignment lists and simple tables, and it comes on every iPhone and Mac. It can&apos;t quiz you, hide an answer or tell you which flashcards are due, so revising is up to you.</>}
       answer={<>
-        <TemplatePicker templates={TEMPLATES} legend="Pick a template" post="apple-notes-for-school" />
+        <TemplatePicker templates={TEMPLATES} legend="Pick a template" post="apple-notes-for-school" note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-for-school" position="answer" title="Want class notes that quiz you before the exam?">
+          <p>Paste your notes into your AI. Pinto Notes&apos; free Cornell notes template gets the cues and the summary, and your AI quizzes you on them.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-for-school"
           apple={{ src: "/blog/side-by-side/school-class-notes-apple-notes", width: 983, height: 687, line: "Holds the lecture. You write the questions and the summary yourself.",
             alt: "The class notes template in Apple Notes on macOS 27: Biology, 24 November, with four notes on photosynthesis as a dashed list, one question under To ask and a one-line summary." }}
@@ -117,7 +122,7 @@ export default function Page() {
             alt: "The same lecture in the Pinto Notes Cornell notes template: four cues with short notes in a table, the same summary, and What are the stages? under Cues to revisit.",
             phone: { src: "/blog/side-by-side/school-cornell-notes-pinto-phone", width: 880, height: 1263 },
             desk: { src: "/blog/side-by-side/school-cornell-notes-pinto-mac", width: 1520, height: 1149 },
-            href: "/templates/cornell-notes", button: "Get the Cornell notes template" }} />
+            template: "cornell-notes" }} />
       </>}
       faq={FAQ}
     >

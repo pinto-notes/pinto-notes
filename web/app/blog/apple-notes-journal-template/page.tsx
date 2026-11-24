@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -60,7 +61,11 @@ export default function Page() {
       intro={<>Four short questions and a few lines a day, newest day first.</>}
       answer={<>
         <Keep title="Daily journal for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-journal-template" position="answer" title="Want a journal that asks you the questions?">
+          <p>Tell your AI about your day, or let it ask. Pinto Notes&apos; free daily journal gets the entry in your words, newest day first.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-journal-template"
           apple={{ src: "/blog/side-by-side/journal-template-apple-notes", width: 990, height: 813, line: "Holds the journal. You write each day by hand.",
             alt: "The journal template in Apple Notes on macOS 27: four questions, then Sunday 22 and Saturday 21 November with four lines each." }}
@@ -68,7 +73,7 @@ export default function Page() {
             alt: "The same two days in the Pinto Notes daily journal template, under the same four questions, newest day first.",
             phone: { src: "/blog/side-by-side/daily-journal-pinto-phone", width: 780, height: 1373 },
             desk: { src: "/blog/side-by-side/daily-journal-pinto-mac", width: 1520, height: 1123 },
-            href: "/templates/daily-journal", button: "Get the daily journal template" }} />
+            template: "daily-journal" }} />
       </>}
       faq={FAQ}
     >

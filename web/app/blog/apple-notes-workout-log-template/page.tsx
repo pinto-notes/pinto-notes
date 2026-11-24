@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -66,7 +67,11 @@ export default function Page() {
       intro={<>One note a week: your program, each day&apos;s sets as a checklist, and your bests.</>}
       answer={<>
         <Keep title="Workout log for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-workout-log-template" position="answer" title="Want your bests spotted for you?">
+          <p>Pinto Notes&apos; free workout log works out your personal bests from every session. Tell your AI what you lifted and it logs it.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-workout-log-template"
           apple={{ src: "/blog/side-by-side/workout-log-template-apple-notes", width: 800, height: 1186, line: "Ticks the sets. Spotting a new best is up to you.",
             alt: "The workout template in Apple Notes on macOS 27: the program, Monday's three sets and Wednesday's bench press ticked, Friday's sets open, and four personal bests." }}
@@ -74,7 +79,7 @@ export default function Page() {
             alt: "The same week in the Pinto Notes workout log app on Wednesday 25 November: 2 of 3 sessions done, Pull next with last time's weights, and the same personal bests.",
             phone: { src: "/blog/side-by-side/workout-log-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/workout-log-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/workout-log", button: "Get the workout log template" }} />
+            template: "workout-log" }} />
       </>}
       faq={FAQ}
     >
@@ -85,7 +90,7 @@ export default function Page() {
         <li>Tick each set as you finish it. If the weight was different, change the line there and then.</li>
         <li>When a set beats a line in Personal bests, change that line and its date. On Sunday, duplicate the note and untick each day: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a> and <a href="/blog/apple-notes-mood-tracker">a mood tracker</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a> and <a href="/blog/apple-notes-mood-tracker">a mood tracker</a>. Pinto Notes has a free <a href="/templates/workout-log">workout log template</a>.</p>
     </PostPage>
   );
 }

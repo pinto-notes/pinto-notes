@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -50,6 +51,10 @@ export default function Page() {
       answer={<>
         <Keep title="Mood and energy log for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the six lines from Date to 8 Nov and press the Table button." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-mood-tracker" position="answer" title="Want to see what lifts you and what drains you?">
+          <p>Pinto Notes&apos; free mood log takes a few taps each evening and charts your mood, energy and sleep.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-mood-tracker"
           apple={{ src: "/blog/side-by-side/mood-tracker-apple-notes", width: 1894, height: 600, line: "Keeps the rows. Finding the patterns is up to you.",
             alt: "The mood template in Apple Notes on macOS 27: a table of five evenings from 4 to 8 November with mood, energy, sleep and a note, and an empty Patterns line." }}
@@ -57,7 +62,7 @@ export default function Page() {
             alt: "The same five evenings in the Pinto Notes mood and energy app on 8 November: today's mood 4, energy 4 and 8 hours slept, the week as coloured days, and the chart.",
             phone: { src: "/blog/side-by-side/mood-energy-log-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/mood-energy-log-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/mood-energy-log", button: "Get the mood log template" }} />
+            template: "mood-energy-log" }} />
       </>}
       faq={FAQ}
     >

@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -54,7 +55,11 @@ export default function Page() {
       intro={<>One note per meeting: who was there, what was said, what was decided and who does what.</>}
       answer={<>
         <Keep title="Meeting notes for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-meeting-notes-template" position="answer" title="Want the action items written for you?">
+          <p>Paste your rough notes into your AI. Pinto Notes&apos; free meeting notes template gets the summary, the decisions and who does what.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-meeting-notes-template"
           apple={{ src: "/blog/side-by-side/meeting-notes-template-apple-notes", width: 807, height: 737, line: "Holds the meeting. You write the decisions and action items yourself.",
             alt: "The meeting notes template in Apple Notes on macOS 27: Pricing sync, 24 November, with notes, two decisions and three action items, Emma's ticked." }}
@@ -62,7 +67,7 @@ export default function Page() {
             alt: "The same meeting in the Pinto Notes meeting notes template: the three action items at the top with Emma's ticked, then the pricing sync in two lines and its two decisions.",
             phone: { src: "/blog/side-by-side/meeting-notes-pinto-phone", width: 780, height: 1083 },
             desk: { src: "/blog/side-by-side/meeting-notes-pinto-mac", width: 1520, height: 947 },
-            href: "/templates/meeting-notes", button: "Get the meeting notes template" }} />
+            template: "meeting-notes" }} />
       </>}
       faq={FAQ}
     >

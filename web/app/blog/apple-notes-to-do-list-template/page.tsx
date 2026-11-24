@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -65,7 +66,11 @@ export default function Page() {
       intro={<>Today&apos;s tasks, this week&apos;s and the ones that can wait, in one note.</>}
       answer={<>
         <Keep title="To-do list for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-to-do-list-template" position="answer" title="Want a to-do list that plans your week?">
+          <p>In Pinto Notes&apos; free weekly planner, tell your AI what&apos;s on and it puts each task under its day. Ask, and it moves what&apos;s left to today.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-to-do-list-template"
           apple={{ src: "/blog/side-by-side/to-do-list-template-apple-notes", width: 578, height: 841, line: "Holds the list. Done tasks sort to the bottom, and you move the rest to the next day yourself.",
             alt: "The to-do list template in Apple Notes on macOS 27: Today, This week and Later as checklists, with two of Today's tasks ticked at the bottom." }}
@@ -73,7 +78,7 @@ export default function Page() {
             alt: "The same to-dos in the Pinto Notes weekly planner: the week's three tasks as the top three, today's four under Monday with two ticked last, and Later.",
             phone: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-phone", width: 780, height: 1091 },
             desk: { src: "/blog/side-by-side/to-do-weekly-planner-pinto-mac", width: 1520, height: 1053 },
-            href: "/templates/weekly-planner", button: "Get the weekly planner template" }} />
+            template: "weekly-planner" }} />
       </>}
       faq={FAQ}
     >

@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -57,6 +58,10 @@ export default function Page() {
       answer={<>
         <Keep title="Expense tracker for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the seven lines from Date to 8 Nov and press the Table button. Then type = at the end of the last line. Notes offers the total. Press Return to keep it." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-expense-tracker" position="answer" title="Want expenses that add themselves up?">
+          <p>In Pinto Notes&apos; free budget template you type each amount once, and the month and every category add up on their own.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-expense-tracker"
           apple={{ src: "/blog/side-by-side/expense-tracker-apple-notes", width: 1584, height: 858, line: "Adds up the month. Each amount is typed twice, in the table and on its category line.",
             alt: "The expense template in Apple Notes on macOS 27: a table of six purchases, a line per category, and the total 1,179." }}
@@ -64,7 +69,7 @@ export default function Page() {
             alt: "The same six expenses in the Pinto Notes Budget and expenses template, listed by day under November's total of 1,179.",
             phone: { src: "/blog/side-by-side/expense-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/expense-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/budget-log", button: "Get the budget template" }} />
+            template: "budget-log" }} />
       </>}
       faq={FAQ}
     >

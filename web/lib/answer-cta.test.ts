@@ -52,17 +52,54 @@ describe("the download in a post's short answer", () => {
 });
 
 describe("the Apple Notes template posts (pattern E)", () => {
-  it("show the template, then the same template in Apple Notes and in Pinto Notes, with no download card above them", () => {
+  // Experiment B39 (24 Nov 2026): the download card is back on the first screen, under the template. Before 22 Nov it got
+  // 6 downloads from 25 single-template visitors; pattern E without it, 0 from 16 (blog-growth EXPERIMENTS.md).
+  it("show the template, the download card, then the same template in Apple Notes and in Pinto Notes", () => {
     for (const slug of E) {
       const src = source(slug);
       expect(src, slug).toContain("cover={false}");
-      expect(src, slug).not.toContain("<PostCta");
       const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "";
       expect(answer, slug).toMatch(/<(Keep|TemplatePicker)\b/);
       expect(answer, slug).toContain(`<SideBySide slug="${slug}"`);
-      // The template comes first, the side-by-side straight under it.
-      expect(answer.search(/<(Keep|TemplatePicker)\b/), slug).toBeLessThan(answer.indexOf("<SideBySide"));
-      expect(answer, slug).toMatch(/href: "\/templates(\/[a-z-]+)?"/);
+      expect(src.match(/<PostCta /g), slug).toHaveLength(1);
+      expect(answer, slug).toMatch(new RegExp(`<PostCta slug="${slug}" position="answer" title="[^"]+[?.]"`));
+      // The template comes first, the card straight under it, then the side-by-side.
+      const template = answer.search(/<(Keep|TemplatePicker)\b/);
+      expect(template, slug).toBeLessThan(answer.indexOf("<PostCta"));
+      expect(answer.indexOf("<PostCta"), slug).toBeLessThan(answer.indexOf("<SideBySide"));
+      // No "Have Pinto Notes already? Open this template" line: Use template fails without the app.
+      expect(answer, slug).not.toMatch(/<PostCta[^>]*template=/);
+    }
+  });
+
+  it("each card has its own headline, and none names an AI (that look is for the AI posts)", () => {
+    const titles = E.map((slug) => /<PostCta [^>]*title="([^"]+)"/.exec(source(slug))?.[1] ?? "");
+    expect(new Set(titles).size).toBe(E.length);
+    for (const t of titles) expect(t).not.toMatch(/\b(ChatGPT|Claude|AI)\b/);
+  });
+
+  it("send the side-by-side's button to the download, naming the template, never the template page", () => {
+    for (const slug of E) {
+      const src = source(slug);
+      expect(src, slug).not.toMatch(/href: "\/templates/);
+      expect(src, slug).not.toMatch(/button: "/);
+    }
+  });
+
+  it("give the paste steps for the device in hand wherever the template is Markdown", () => {
+    for (const slug of E) {
+      const src = source(slug);
+      expect(src, slug).not.toContain('note="On a Mac, paste it into a new note with Edit, Paste as Markdown."');
+      expect(src, slug).not.toMatch(/Apple says Markdown formats itself/);
+      if (/Paste as Markdown/.test(/answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "")) expect(src, slug).toContain("<PasteSteps");
+    }
+  });
+
+  it("keep the copy plain: no dashes, no first person, no iPad", () => {
+    for (const slug of E) {
+      const card = /<PostCta [\s\S]*?<\/PostCta>/.exec(source(slug))?.[0] ?? "";
+      expect(card, slug).not.toMatch(/[\u2013\u2014]|\bI\b|iPad|Incredible/);
+      expect(card.replace(/title="[^"]*"/, ""), slug).not.toMatch(/ChatGPT|Claude/);
     }
   });
 

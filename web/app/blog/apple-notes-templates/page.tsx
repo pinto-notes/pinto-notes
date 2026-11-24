@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { MenuPath, Steps } from "@/lib/PostParts";
+import { MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
 import { TemplatePicker } from "@/lib/TemplatePicker";
@@ -41,7 +42,11 @@ export default function Page() {
       cover={false}
       intro={<>Apple Notes has no templates button, but a folder of notes does the job. Here are five to copy.</>}
       answer={<>
-        <TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" post="apple-notes-templates" start={2} />
+        <TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" post="apple-notes-templates" start={2} note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-templates" position="answer" title="Want templates built in?">
+          <p>Pinto Notes works like Apple Notes and comes with free templates: a trip plan, a budget, a habit tracker and more.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-templates"
           apple={{ src: "/blog/side-by-side/templates-apple-notes", width: 477, height: 797, line: "A blank copy for each trip. You untick it yourself.",
             alt: "The Packing list template in Apple Notes on macOS 27: Documents, Clothes and Bag headings, each over a checklist of three things." }}
@@ -49,14 +54,14 @@ export default function Page() {
             alt: "The same nine things in the Pinto Notes trip plan's packing list, grouped under Documents, Clothes and Bag, with 0 of 9 packed.",
             phone: { src: "/blog/side-by-side/packing-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/packing-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/trip-plan", button: "Get the trip plan template" }} />
+            template: "trip-plan" }} />
       </>}
       faq={FAQ}
     >
       <h2 id="how">How to use them</h2>
       <Steps>
         <li>In Notes, make a folder called Templates, with one note per template.</li>
-        <li>On a Mac, start a new note and paste with <MenuPath steps={["Edit", "Paste as Markdown"]} /> Headings and checklists come through. On iPhone with iOS 27, Apple says Markdown formats itself when you paste it.</li>
+        <li>On a Mac, start a new note and paste with <MenuPath steps={["Edit", "Paste as Markdown"]} /> Headings and checklists come through. On iPhone, Notes pastes it as plain text, so paste it on a Mac and let it sync, or type it and tap the checklist button.</li>
         <li>Leave the templates blank and fill in the copies.</li>
         <li>To use one on a Mac, select it and press Command-D: <MenuPath steps={["File", "Duplicate Note"]} /> On iPhone, copy everything in the template and paste it into a new note.</li>
       </Steps>

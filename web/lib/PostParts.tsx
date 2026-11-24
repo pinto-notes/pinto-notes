@@ -1,5 +1,6 @@
 import CopyButton from "@/app/templates/CopyButton";
 import s from "./post-parts.module.css";
+import { NoteBlocks } from "./TemplatePicker";
 import { AIGlyph, AI_GLYPHS } from "./ai-glyphs";
 
 /// The parts a how-to post is built from. The short answer comes first, so someone from a search
@@ -64,10 +65,18 @@ export function Banner({ src }: { src: string }) {
 /// `fold`: show only that many lines of a long template, faded, with "Show all N lines" under it, so what comes after
 /// (the Apple Notes and Pinto Notes cards) starts on the first or second screen of a phone. Copy always copies all of it.
 /// No script: the checkbox sits inside its label, and :has() opens the rest.
+/// A Markdown template (a # title, ## headings or - [ ] items) shows as Markdown from 601 px and, on a phone, the way it
+/// looks as a note: a title, headings and round checkboxes (experiment B39; on a phone the Markdown read as code). Copy
+/// copies the same Markdown on both.
+export const isMarkdownTemplate = (text: string) => /^(#{1,2} |- \[ \] )/m.test(text);
+
 export function Keep({ title, note, text, code = false, fold, children, copyLabel = "Copy" }: { title: string; note?: React.ReactNode; text: string; code?: boolean; fold?: number; children?: React.ReactNode; copyLabel?: string }) {
   const lines = text.trimEnd().split("\n").length;
   const folded = !children && !code && fold !== undefined && lines > fold + 2;
-  const body = children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre> : <pre className={s.plain} tabIndex={0}>{text}</pre>);
+  const md = !children && !code && isMarkdownTemplate(text);
+  const body = children ?? (code ? <pre tabIndex={0}><code>{text}</code></pre>
+    : md ? <><pre className={`${s.plain} ${s.asMarkdown}`} tabIndex={0}>{text}</pre><NoteBlocks text={text} className={s.asNote} /></>
+    : <pre className={s.plain} tabIndex={0}>{text}</pre>);
   return (
     <div className={s.keep}>
       <div className={s.keepHead}>
@@ -82,6 +91,19 @@ export function Keep({ title, note, text, code = false, fold, children, copyLabe
       ) : body}
       {note && <p className={s.keepNote}>{note}</p>}
     </div>
+  );
+}
+
+/// How to paste a Markdown template into Apple Notes, for the device in hand (experiment B39): the Mac steps on a Mac,
+/// the iPhone steps on an iPhone, both anywhere else. iOS 27.2 Notes, read in the simulator on 24 Nov 2026, turns a paste
+/// into checklists and headings only when the copied text is marked as Markdown, which a web page's Copy can't do, and
+/// its edit menu has no Paste as Markdown (blog-growth EXPERIMENTS.md, B39). `mac` replaces the start of the Mac line.
+export function PasteSteps({ mac = "On a Mac, paste it into a new note with Edit, Paste as Markdown." }: { mac?: string }) {
+  return (
+    <>
+      <span className={`${s.pasteStep} pi-not-ios`}>{mac} The headings and checklists come through, and the note syncs to your iPhone.</span>
+      <span className={`${s.pasteStep} pi-not-mac`}>On iPhone, Notes pastes it as plain text, with the # and - [ ] marks and no checkboxes. For the checklists, paste it on a Mac and let it sync, or type the lines, select them and tap the checklist button.</span>
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -64,7 +65,11 @@ export default function Page() {
       intro={<>Your top three, the day&apos;s schedule and what&apos;s next, in one note you reset each morning.</>}
       answer={<>
         <Keep title="Daily planner for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-daily-planner-template" position="answer" title="Want one note for the whole week, not one a day?">
+          <p>Pinto Notes&apos; free weekly planner gives each day its own checklist. Tell your AI what&apos;s on and it puts each task under its day.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-daily-planner-template"
           apple={{ src: "/blog/side-by-side/daily-planner-template-apple-notes", width: 565, height: 915, line: "Holds the day. Done tasks sort to the bottom, and you move tomorrow's up yourself.",
             alt: "The daily planner template in Apple Notes on macOS 27: Top three, Schedule, Also today and Tomorrow as checklists, with one task ticked at the bottom of each of the first three." }}
@@ -72,7 +77,7 @@ export default function Page() {
             alt: "The same day in the Pinto Notes weekly planner: the nine tasks under Tuesday, with Lunch with Sara at 12:30, Dentist at 16:00 and the three ticked ones last, and Book the car service under Wednesday.",
             phone: { src: "/blog/side-by-side/daily-planner-pinto-phone", width: 880, height: 997 },
             desk: { src: "/blog/side-by-side/daily-planner-pinto-mac", width: 1520, height: 959 },
-            href: "/templates/weekly-planner", button: "Get the weekly planner template" }} />
+            template: "weekly-planner" }} />
       </>}
       faq={FAQ}
     >

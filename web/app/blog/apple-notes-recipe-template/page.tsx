@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -71,7 +72,11 @@ export default function Page() {
       intro={<>One note per recipe: the servings, the ingredients to tick off and the steps.</>}
       answer={<>
         <Keep title="Recipe for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-recipe-template" position="answer" title="Want recipes that tidy themselves?">
+          <p>Paste a recipe into your AI and Pinto Notes&apos; free recipe box saves a clean copy, with the ingredients as a checklist.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-recipe-template"
           apple={{ src: "/blog/side-by-side/recipe-template-apple-notes", width: 937, height: 833, line: "Holds the recipe. You type it out and tidy it yourself.",
             alt: "The recipe template in Apple Notes on macOS 27: Lentil soup with lemon, six ingredients as a checklist with the lentils and onion ticked, and three numbered steps." }}
@@ -79,7 +84,7 @@ export default function Page() {
             alt: "The same lentil soup in Pinto Notes, as the recipe box saves it: serves 4, the six ingredients with two ticked, the cupboard line and the three steps.",
             phone: { src: "/blog/side-by-side/recipe-pinto-phone", width: 780, height: 912 },
             desk: { src: "/blog/side-by-side/recipe-pinto-mac", width: 1520, height: 818 },
-            href: "/templates/recipe-box", button: "Get the recipe box template" }} />
+            template: "recipe-box" }} />
       </>}
       faq={FAQ}
     >

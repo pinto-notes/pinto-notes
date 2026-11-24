@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -77,7 +78,11 @@ export default function Page() {
       intro={<>One note a week: a heading for each day and your habits as a checklist under it.</>}
       answer={<>
         <Keep title="Weekly habit tracker for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-habit-tracker" position="answer" title="Want habits that start fresh every day?">
+          <p>Pinto Notes&apos; free habit tracker shows today&apos;s habits to tick, and counts the week and your streaks for you.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-habit-tracker"
           apple={{ src: "/blog/side-by-side/habit-tracker-apple-notes", width: 694, height: 1763, line: "Ticks the day. Streaks you count yourself, one note per week.",
             alt: "The habit template in Apple Notes on macOS 27: a heading per day with three habits as a checklist, Monday all ticked, Tuesday two and Wednesday one." }}
@@ -85,7 +90,7 @@ export default function Page() {
             alt: "The same three habits in the Pinto Notes habit tracker on Wednesday 18 November: 6 of 9 since Monday, and a 10-day streak for Walk 20 minutes.",
             phone: { src: "/blog/side-by-side/habit-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/habit-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/habit-tracker", button: "Get the habit tracker" }} />
+            template: "habit-tracker" }} />
       </>}
       faq={FAQ}
     >

@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -76,7 +77,11 @@ export default function Page() {
       intro={<>A checklist with a heading for each kind of thing, to keep and use again on every trip.</>}
       answer={<>
         <Keep title="Packing list for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-packing-list-template" position="answer" title="Want a packing list that resets for every trip?">
+          <p>In Pinto Notes&apos; free trip plan, start a new trip and the packing list comes back unticked, next to the days and bookings.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-packing-list-template"
           apple={{ src: "/blog/side-by-side/packing-list-template-apple-notes", width: 520, height: 1429, line: "Holds the list. You untick it yourself before the next trip.",
             alt: "The packing list template in Apple Notes on macOS 27: Documents, Clothes, Toiletries, Tech and Other as checklists, with one thing ticked in four of them." }}
@@ -84,7 +89,7 @@ export default function Page() {
             alt: "The same 20 things in the Pinto Notes trip plan's packing list, in the same five groups, with 4 of 20 packed and an Unpack all button.",
             phone: { src: "/blog/side-by-side/packing-list-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/packing-list-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/trip-plan", button: "Get the trip plan template" }} />
+            template: "trip-plan" }} />
       </>}
       faq={FAQ}
     >
