@@ -285,3 +285,6 @@
 .more input { position: absolute; opacity: 0; pointer-events: none; }
 .more:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
 .fold:has(input:checked) .more { display: none; }
+
+/* B39: on a phone the template posts' card is words and a button, no picture (lib/post.module.css puts it first). */
+@media (max-width: 600px) { :global(article[data-cover="none"]) .ctaCompact .ctaThumb { display: none; } }

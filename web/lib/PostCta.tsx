@@ -79,7 +79,7 @@ export function PostCta({ slug, position, title, children, appStoreLive = APP_ST
   // first screen (Emil, 21 Nov 2026: "too much focus on Pinto Notes here, it's like half the screen on first open").
   // Cards further down keep the big picture.
   if (position === "answer" && (look === "scene" || look === "connect")) return (
-    <div className={`${s.cta} ${s.ctaCompact}`}>
+    <div className={`${s.cta} ${s.ctaCompact} post-answer-cta`}>
       <div className={s.ctaThumb} data-look={look} aria-hidden="true">
         {look === "connect" ? (
           <span className={s.ctaChain}>

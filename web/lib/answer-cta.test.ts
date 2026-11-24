@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -93,6 +93,24 @@ describe("the Apple Notes template posts (pattern E)", () => {
       expect(src, slug).not.toMatch(/Apple says Markdown formats itself/);
       if (/Paste as Markdown/.test(/answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "")) expect(src, slug).toContain("<PasteSteps");
     }
+  });
+
+  // B39 follow-up: every download from these posts came before a scroll, so on a phone the card's button must be on the
+  // first screen at 375 x 667. The card goes first under the intro there, as words and a button (measured in headless
+  // Chrome: bottom edge 567 to 617 px; research/template-posts-first-screen-2026-11-24).
+  it("put the card first on a phone, as words and a button, on every post without a cover", () => {
+    const post = readFileSync(join(process.cwd(), "lib", "post.module.css"), "utf8");
+    const phone = /@media \(max-width: 600px\) \{[^@]*\.col\[data-cover="none"\] > \.top \{ display: flex; flex-direction: column; \}[^@]*\}/.exec(post)?.[0] ?? "";
+    expect(phone).toMatch(/\.top > \* \{ order: 2; \}/);
+    expect(phone).toMatch(/\.top > \.intro \{ order: 0;/);
+    expect(phone).toMatch(/\.top > :global\(\.post-answer-cta\) \{ order: 1;/);
+    const parts = readFileSync(join(process.cwd(), "lib", "post-parts.module.css"), "utf8");
+    expect(parts).toMatch(/@media \(max-width: 600px\) \{ :global\(article\[data-cover="none"\]\) \.ctaCompact \.ctaThumb \{ display: none; \} \}/);
+    expect(readFileSync(join(process.cwd(), "lib", "PostCta.tsx"), "utf8")).toContain("${s.ctaCompact} post-answer-cta");
+    // Only the template posts have no cover, so no other post's answer is reordered.
+    const blog = join(process.cwd(), "app", "blog");
+    const coverless = readdirSync(blog).filter((d) => existsSync(join(blog, d, "page.tsx")) && source(d).includes("cover={false}"));
+    expect(coverless.sort()).toEqual([...E].sort());
   });
 
   it("keep the copy plain: no dashes, no first person, no iPad", () => {
