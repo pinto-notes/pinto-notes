@@ -221,6 +221,12 @@
   "w": 880,
   "h": 550
  },
+ "daily-planner": {
+  "ground": "#fdd87b",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "decision": {
   "ground": "#cac6c3",
   "ink": "dark",
@@ -283,6 +289,12 @@
  },
  "font": {
   "ground": "#f8e87f",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "for-school": {
+  "ground": "#c2ccf5",
   "ink": "dark",
   "w": 880,
   "h": 550

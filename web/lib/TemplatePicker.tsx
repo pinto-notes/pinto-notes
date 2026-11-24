@@ -42,12 +42,21 @@ export function TemplatePicker({ templates, legend, post, start = 0 }: { templat
   );
 }
 
-/// The Markdown drawn the way Notes shows it after Paste as Markdown.
-type Block = { kind: "title" | "heading" | "line"; text: string } | { kind: "tick" | "dash"; items: string[] };
+/// The Markdown drawn the way Notes shows it after Paste as Markdown. A Markdown table (| between the cells) pastes as a
+/// real Notes table on macOS 27 (tried 24 Nov 2026), its first row a plain row; the | --- | line is dropped.
+type Block = { kind: "title" | "heading" | "line"; text: string } | { kind: "tick" | "dash"; items: string[] } | { kind: "table"; rows: string[][] };
 
 export function blocksOf(text: string): Block[] {
   const blocks: Block[] = [];
   for (const line of text.split("\n")) {
+    if (/^\|.*\|\s*$/.test(line)) {
+      const cells = line.trim().slice(1, -1).split("|").map((c) => c.trim());
+      if (cells.every((c) => /^:?-{3,}:?$/.test(c))) continue;
+      const last = blocks.at(-1);
+      if (last?.kind === "table") last.rows.push(cells);
+      else blocks.push({ kind: "table", rows: [cells] });
+      continue;
+    }
     const tick = /^- \[ \] (.+)$/.exec(line)?.[1];
     const dash = tick === undefined ? /^- (.+)$/.exec(line)?.[1] : undefined;
     const item = tick ?? dash;
@@ -72,7 +81,9 @@ function Preview({ text, copy }: { text: string; copy: React.ReactNode }) {
   return (
     <div className={s.tpl}>
       <div className={s.keepHead}>{title && <p className={s.tplTitle}>{title}</p>}{copy}</div>
-      {(title ? rest : [first, ...rest]).map((b, i) => "items" in b
+      {(title ? rest : [first, ...rest]).map((b, i) => b.kind === "table"
+        ? <table key={i} className={s.tplTable}><tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{c}</td>)}</tr>)}</tbody></table>
+        : "items" in b
         ? <ul key={i} className={b.kind === "tick" ? s.ticks : s.dashes}>{b.items.map((it) => <li key={it}>{it}</li>)}</ul>
         : <p key={i} className={CLASS[b.kind]}>{b.text}</p>)}
     </div>

@@ -69,7 +69,7 @@ export default function Page() {
         <li>To study, cover the right column and answer each card out loud. Add the ones you miss under Missed this time.</li>
         <li>Next time, start with the misses. Tick each one you get right, and reset the list when they&apos;re all done: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-cornell-notes-template">Cornell notes</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-for-school">all the templates for school</a>, <a href="/blog/apple-notes-cornell-notes-template">Cornell notes</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }

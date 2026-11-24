@@ -72,7 +72,7 @@ export default function Page() {
         <li>After class, write a short question for each note on the left, and two or three sentences under the table.</li>
         <li>To revise, cover the right column and answer each cue. Put the ones you missed under Cues to revisit.</li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-flashcards">flashcards to study with</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-for-school">all the templates for school</a>, <a href="/blog/apple-notes-flashcards">flashcards to study with</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }

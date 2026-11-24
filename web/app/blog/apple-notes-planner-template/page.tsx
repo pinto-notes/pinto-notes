@@ -110,7 +110,7 @@ export default function Page() {
         <li>Pin this week&apos;s note so it&apos;s on top. Tick each task as you go.</li>
         <li>On Sunday, copy the note for next week, move what&apos;s left and untick the rest: <MenuPath steps={["File", "Duplicate Note"]} /></li>
       </Steps>
-      <p>Rather plan one day at a time? Paste this one the same way.</p>
+      <p>Rather plan one day at a time? Paste this one the same way, or use the <a href="/blog/apple-notes-daily-planner-template">fuller daily planner</a>.</p>
       <Keep title="Daily planner for Apple Notes" text={DAILY} fold={10} />
       <p>More for Apple Notes: <a href="/blog/apple-notes-to-do-list-template">a simple to-do list</a>, <a href="/blog/apple-notes-meeting-notes-template">meeting notes with action items</a>, <a href="/blog/apple-notes-habit-tracker">a habit tracker</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
