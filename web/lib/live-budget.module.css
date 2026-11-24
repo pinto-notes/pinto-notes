@@ -1,0 +1,88 @@
+/* The live budget (lib/LiveBudget.tsx) in the app's own look: the note's colours as Pinto Notes sets
+   them for a template app (Pane/Resources/Templates/template-stage.css, light; the blog's cream pages
+   have no dark mode), and the app's sizes from its Tailwind classes (src/components/kit.tsx,
+   src/screens/setup.tsx, src/screens/month.tsx). Doubled classes outrank the article's own p and a
+   styles (legal.module.css). */
+.live {
+  --lb-bg: #FFFEFD; --lb-surface: #F4F1EE; --lb-fill: #EBE6E1; --lb-text: #2A1D10; --lb-muted: #74604C;
+  --lb-sep: rgba(138, 74, 28, 0.14); --lb-accent: #D96A06; --lb-accent-text: #A85700; --lb-accent-soft: #FFF1DC;
+  --lb-danger: #C62828; --lb-field: #FFFFFF; --lb-field-border: #9A8673;
+  --lb-primary: color-mix(in srgb, var(--lb-accent) 86%, black);
+  margin: 8px 0 28px; border-radius: 18px; overflow: hidden; background: var(--lb-bg); color: var(--lb-text);
+  font: 17px/1.35 -apple-system, system-ui, sans-serif;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.10), 0 14px 32px -18px rgba(60, 30, 5, 0.45);
+}
+.live.live p { margin: 0; }
+
+/* The note's title bar: which template this is. */
+.bar { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; background: var(--lb-surface); border-bottom: 1px solid var(--lb-sep); }
+.bar img { width: 22px; height: 22px; border-radius: 6px; flex: none; }
+.barTitle.barTitle { margin: 0; font-size: 15px; font-weight: 650; }
+.barTag.barTag { margin: 0 0 0 auto; font-size: 13px; color: var(--lb-muted); white-space: nowrap; }
+
+.app { padding: 16px 16px 4px; }
+.summary, .form { min-width: 0; }
+@media (min-width: 701px) {
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; padding: 20px 22px 6px; }
+  .summary .keep { margin-bottom: 20px; }
+}
+
+/* Month's summary card. */
+.card { border-radius: 16px; background: var(--lb-surface); padding: 16px 18px; }
+.label.label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: var(--lb-muted); }
+.big.big { margin-top: 2px; font-size: 40px; line-height: 1.15; font-weight: 700; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+.big[data-over] { color: var(--lb-danger); }
+.track { margin-top: 10px; height: 10px; border-radius: 999px; background: var(--lb-fill); overflow: hidden; }
+.fill { height: 100%; border-radius: 999px; background: var(--lb-accent); transition: width 0.5s ease-out; }
+.fill[data-over] { background: var(--lb-danger); }
+@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+.line.line { margin-top: 10px; font-size: 15px; color: var(--lb-muted); font-variant-numeric: tabular-nums; }
+
+/* Keep it: the app's primary button, then a quiet line. */
+.keep { display: grid; gap: 10px; margin: 12px 0 22px; }
+.primary.primary {
+  display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 48px; box-sizing: border-box; padding: 0 20px;
+  border-radius: 16px; background: var(--lb-primary); color: #FFFFFF; font-size: 17px; font-weight: 650; text-decoration: none;
+}
+.primary.primary:active { opacity: 0.8; }
+.primary.primary:focus-visible, .tint.tint:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+.pi.pi { justify-items: stretch; gap: 10px; text-align: left; }
+.fine.fine { font-size: 14px; line-height: 1.45; color: var(--lb-muted); }
+.fine.fine strong { color: var(--lb-text); }
+.fine.fine a { color: var(--lb-accent-text); font-weight: 600; text-decoration: none; }
+.fine.fine a:hover { text-decoration: underline; }
+.tint.tint {
+  display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 16px; border-radius: 16px;
+  background: var(--lb-accent-soft); color: var(--lb-accent-text); font-weight: 600; text-decoration: none;
+}
+
+/* Sections of rows, as the app's Section and Row draw them. */
+.section { margin-bottom: 20px; }
+.secHead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 0 4px 8px; }
+.secTitle.secTitle { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: var(--lb-muted); }
+.section > .secTitle { padding: 0 4px 8px; }
+.group { border-radius: 16px; background: var(--lb-surface); overflow: hidden; }
+.row { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 4px 6px 16px; border-top: 1px solid var(--lb-sep); }
+.row:first-child { border-top: 0; }
+.rowName { flex: 1; min-width: 0; font-weight: 500; }
+.name, .field, .amount, .currencyInput {
+  box-sizing: border-box; height: 40px; border-radius: 12px; font: inherit; font-size: 17px; color: var(--lb-text);
+}
+.name { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; font-weight: 500; }
+.name:focus { padding: 0 8px; background: var(--lb-field); outline: 2px solid var(--lb-accent); }
+.field, .amount, .currencyInput { border: 1px solid var(--lb-field-border); background: var(--lb-field); padding: 0 12px; }
+.field { flex: 1; min-width: 0; }
+.amount { flex: none; width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
+/* The income amount lines up with the amounts that have a remove button beside them. */
+label.row .amount { margin-right: 52px; }
+.field:focus, .amount:focus, .currencyInput:focus { outline: 2px solid var(--lb-accent); outline-offset: 0; }
+.field::placeholder, .amount::placeholder, .currencyInput::placeholder { color: var(--lb-muted); }
+.remove, .add {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 999px;
+  background: transparent; color: var(--lb-muted); cursor: pointer;
+}
+.add { width: 40px; height: 40px; margin-right: 4px; border-radius: 12px; background: var(--lb-accent-soft); color: var(--lb-accent-text); }
+.add:disabled { opacity: 0.4; cursor: default; }
+.remove:focus-visible, .add:focus-visible { outline: 2px solid var(--lb-accent); }
+.currency { display: flex; align-items: center; gap: 8px; margin: -4px 0; font-size: 13px; font-weight: 500; color: var(--lb-muted); }
+.currencyInput { width: 80px; height: 36px; text-align: center; font-size: 15px; }

@@ -1,5 +1,6 @@
 import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
+import { LiveBudget } from "@/lib/LiveBudget";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
@@ -14,6 +15,10 @@ export const metadata = postMetadata("apple-notes-budget-template", { title: "Ap
 // types it. Math Results is greyed out inside a table (apple-notes-tables, macOS 27).
 // Pinto Notes: content/templates/budget-log.app rendered with scripts/page-render from the same six categories and amounts,
 // with October and November spending to the 21st (public/blog/side-by-side/budget-pinto-*; data in the side-by-side report).
+// 24 November 2026, live budget pilot (lib/LiveBudget.tsx; blog-growth/research/template-posts-diagnosis-2026-11-24.md):
+// Google's AI summary already prints a copy-paste budget for this search, searchers ask for totals that add up, and
+// every download from this post came in the first seconds, from the first screen. So the first thing under the intro
+// is the Pinto template itself, live, with the Apple Notes text's own numbers; the text and its Copy button follow.
 
 const TEMPLATE = `Budget, November
 
@@ -50,8 +55,9 @@ export default function Page() {
     <PostPage
       slug="apple-notes-budget-template"
       cover={false}
-      intro={<>Paste it into a note, put in your numbers, and Notes does the sums.</>}
+      intro={<>Type your income and amounts to see what&apos;s left. The Apple Notes version to copy is right under it.</>}
       answer={<>
+        <LiveBudget slug="apple-notes-budget-template" />
         <Keep title="Monthly budget for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, type = at the end of the last two lines. Notes offers the total. Press Return to keep it." />
         {/* Experiment B39: the download card back on the first screen, under the template. */}
