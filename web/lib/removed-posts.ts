@@ -56,7 +56,6 @@ export const REMOVED_POSTS: Record<string, string> = {
   "apple-notes-export-pdf": "/blog",
   "apple-notes-find-and-replace": "/blog",
   "apple-notes-font": "/blog",
-  "apple-notes-for-school": "/blog",
   "apple-notes-gift-ideas": "/templates/gift-ideas",
   "apple-notes-goal-template": "/templates",
   "apple-notes-home-inventory-template": "/templates",

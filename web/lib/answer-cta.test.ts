@@ -27,6 +27,8 @@ const E = [
   "apple-notes-journal-template", "apple-notes-planner-template", "apple-notes-cornell-notes-template", "apple-notes-flashcards",
   // 23 Nov 2026: the to-do list and packing list posts.
   "apple-notes-to-do-list-template", "apple-notes-packing-list-template",
+  // 24 Nov 2026: the daily planner post, and the school post (a picker of four templates, as on apple-notes-templates).
+  "apple-notes-daily-planner-template", "apple-notes-for-school",
 ];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");

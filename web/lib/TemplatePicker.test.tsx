@@ -50,6 +50,26 @@ describe("drawing a template the way Notes pastes it", () => {
   });
 });
 
+describe("drawing a Markdown table the way Notes pastes it", () => {
+  // Paste as Markdown in Notes on macOS 27 makes a real table of it (24 Nov 2026): the header row as a plain first row.
+  it("makes one table of the | rows, drops the --- line and keeps the text around it", () => {
+    const text = "# Spanish flashcards\n\n| Spanish | English |\n| --- | --- |\n| la tarea | the homework |\n\n## Missed this time\n- [ ] la tarea";
+    expect(blocksOf(text)).toEqual([
+      { kind: "title", text: "Spanish flashcards" },
+      { kind: "table", rows: [["Spanish", "English"], ["la tarea", "the homework"]] },
+      { kind: "heading", text: "Missed this time" },
+      { kind: "tick", items: ["la tarea"] },
+    ]);
+  });
+
+  it("draws the table's cells in the picker", () => {
+    const h = document.createElement("div"); document.body.append(h); const r = createRoot(h);
+    act(() => r.render(<TemplatePicker legend="Pick" templates={[{ title: "Cards", text: "# Cards\n| Q | A |\n| --- | --- |\n| one | two |" }]} />));
+    expect([...h.querySelectorAll("td")].map((td) => td.textContent)).toEqual(["Q", "A", "one", "two"]);
+    act(() => r.unmount()); h.remove();
+  });
+});
+
 describe("the Apple Notes templates post", () => {
   // In Notes on macOS 27, Paste as Markdown turns an empty "- [ ]" into the text [ ] and drops an empty "- ".
   it.each(APPLE_NOTES_TEMPLATES.map((t) => [t.title, t.text]))("%s has words in every list item", (_, text) => {

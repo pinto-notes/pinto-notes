@@ -234,9 +234,24 @@ import Testing
         try await Self.sideBySide(notes, to: dir)
     }
 
-    /// Draws each (name, body) note at a phone's width (390 x 844) and a narrow Mac window's (760 x 640), offscreen,
-    /// to side-by-side/<name>-phone.png and -desk.png.
-    static func sideBySide(_ notes: [(String, String)], to dir: URL) async throws {
+    /// The daily planner and school posts (24 Nov 2026), with the items, ticks and lecture from their Apple Notes captures
+    /// (blog-growth/research/apple-notes-daily-school-2026-11-24.md). Daily planner: the weekly planner template's note with the
+    /// day's to-dos under Tuesday (the capture day) and tomorrow's under Wednesday, times as the template's prompt writes them,
+    /// ticked ones last; the empty headings are left out, so it shows only filled sections. School: the Cornell notes template's
+    /// note with the class notes' four points as cues and notes and the same summary.
+    @Test func appleNotesSideBySideDailySchool() async throws {
+        guard let dir = AppSnapshotTests.dir else { return }
+        let notes: [(String, String)] = [
+        ("daily-planner-weekly-planner", "Weekly planner\n\nThe week on one page: your top three, each day's to-dos and the rest for later. Tell your AI what's on and it plans the week, or type it in and tick things off.\n\n## Tuesday\n- [ ] Finish the report draft\n- [ ] Run 5 km\n- [ ] Lunch with Sara at 12:30\n- [ ] Dentist at 16:00\n- [ ] Reply to Jonas about Saturday\n- [ ] Water the plants\n- [x] Call the bank about my card\n- [x] Team meeting at 9:00\n- [x] Buy milk and bread\n\n## Wednesday\n- [ ] Book the car service\n"),
+        ("school-cornell-notes", "Cornell notes\n\nPaste your lecture or reading notes into your AI. Your notes go on the right, a question each one answers on the left, and a short summary closes the section. To revise, cover the right column and answer the cues.\n\n## Lectures\nOne section per lecture or chapter.\n### Biology, 24 November\n| Cue | Notes |\n| --- | --- |\n| What does it make? | Glucose and oxygen |\n| Where does it happen? | In the chloroplasts |\n| What makes leaves green? | Chlorophyll |\n| What are the stages? | Light, then Calvin cycle |\n\n**Summary:** Plants use light to turn water and carbon dioxide into glucose and oxygen, in the chloroplasts, in two stages.\n\n## Cues to revisit\nThe cues you missed when quizzed, ticked once you get them right.\n- [ ] What are the stages?\n"),
+        ]
+        // At 390 pt the Cornell table's Notes column ran past the edge; 440 shows it whole (the picture has no phone frame).
+        try await Self.sideBySide(notes, to: dir, phoneWidth: 440)
+    }
+
+    /// Draws each (name, body) note at a phone's width (390 x 844, or `phoneWidth`) and a narrow Mac window's (760 x 640),
+    /// offscreen, to side-by-side/<name>-phone.png and -desk.png.
+    static func sideBySide(_ notes: [(String, String)], to dir: URL, phoneWidth: CGFloat = 390) async throws {
         // The "Type / for formatting" hint is for someone who hasn't learned the / menu; offscreen it was drawn mid-note.
         let saved = SlashRecents.defaults
         let learned = try #require(UserDefaults(suiteName: "side-by-side-shots"))
@@ -244,7 +259,7 @@ import Testing
         SlashRecents.defaults = learned
         defer { SlashRecents.defaults = saved; learned.removePersistentDomain(forName: "side-by-side-shots") }
         for (name, body) in notes {
-            for (kind, size) in [("phone", CGSize(width: 390, height: 844)), ("desk", CGSize(width: 760, height: 640))] {
+            for (kind, size) in [("phone", CGSize(width: phoneWidth, height: 844)), ("desk", CGSize(width: 760, height: 640))] {
                 let c = try ModelContainer(for: Folder.self, Note.self, Pane.Attachment.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
                 let note = c.mainContext.createNote(in: .all, body: body)
                 try c.mainContext.save()

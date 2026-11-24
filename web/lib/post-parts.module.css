@@ -189,6 +189,9 @@
 .tplPinto.tplPinto { margin: 18px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
 .dashes.dashes { list-style: none; margin: 0; padding: 0 2px; display: grid; gap: 6px; }
 .dashes > li { position: relative; padding-left: 32px; line-height: 1.45; }
+/* A table drawn like Notes draws one: thin grey rules round every cell, the first row plain. */
+.tplTable.tplTable { width: 100%; margin: 6px 0 4px; border-collapse: collapse; font-size: 15px; line-height: 1.4; }
+.tplTable td { padding: 6px 8px; border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent); vertical-align: top; }
 .dashes > li::before { content: ""; position: absolute; left: 6px; top: 0.72em; width: 8px; height: 1.5px; background: var(--muted); }
 
 /* ── A post's figure (lib/PostParts.tsx PostFigure): the screenshot as the hero of its section ── */

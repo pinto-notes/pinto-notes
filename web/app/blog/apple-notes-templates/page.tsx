@@ -60,7 +60,7 @@ export default function Page() {
         <li>Leave the templates blank and fill in the copies.</li>
         <li>To use one on a Mac, select it and press Command-D: <MenuPath steps={["File", "Duplicate Note"]} /> On iPhone, copy everything in the template and paste it into a new note.</li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-packing-list-template">a fuller packing list</a>, <a href="/blog/apple-notes-trip-planner-template">a trip planner</a>, <a href="/blog/apple-notes-planner-template">a weekly planner</a>, <a href="/blog/apple-notes-habit-tracker">a habit tracker</a> and <a href="/blog/apple-notes-budget-template">a budget that adds itself up</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-daily-planner-template">a daily planner</a>, <a href="/blog/apple-notes-trip-planner-template">a trip planner</a>, <a href="/blog/apple-notes-planner-template">a weekly planner</a>, <a href="/blog/apple-notes-for-school">four for school</a> and <a href="/blog/apple-notes-budget-template">a budget that adds itself up</a>.</p>
     </PostPage>
   );
 }
