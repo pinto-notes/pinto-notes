@@ -42,7 +42,7 @@ Plants use light to turn water and carbon dioxide into glucose and oxygen, in th
 
 ## Due this week
 - [ ] History essay draft, Thursday
-- [ ] Maths problem set 6, Friday
+- [ ] Math problem set 6, Friday
 - [ ] Read chapter 7 for English, Friday
 
 ## Next week
