@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -51,6 +52,10 @@ export default function Page() {
       answer={<>
         <Keep title="Flashcards for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the five lines from Question to the last answer and press the Table button. Then select the line under Missed this time and press the Checklist button." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-flashcards" position="answer" title="Want flashcards that come back when they're due?">
+          <p>Pinto Notes&apos; free flashcards show the cards due today, one at a time. A card you miss comes back sooner.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-flashcards"
           apple={{ src: "/blog/side-by-side/flashcards-apple-notes", width: 890, height: 729, line: "Holds the cards. The answers are always showing, and you track the misses yourself.",
             alt: "The flashcard template in Apple Notes on macOS 27: a Question and Answer table of four cards, and Which stage makes most of the ATP? under Missed this time." }}
@@ -58,7 +63,7 @@ export default function Page() {
             alt: "The same four cards in the Pinto Notes flashcards app on 25 November: 2 cards due today, Study now, a 5-day streak and the newest card.",
             phone: { src: "/blog/side-by-side/flashcards-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/flashcards-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/study-flashcards", button: "Get the flashcards template" }} />
+            template: "study-flashcards" }} />
       </>}
       faq={FAQ}
     >

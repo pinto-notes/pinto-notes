@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -73,7 +74,11 @@ export default function Page() {
       intro={<>One note for the trip: bookings to tick when paid, a heading for each day, and the packing list.</>}
       answer={<>
         <Keep title="Trip planner for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-trip-planner-template" position="answer" title="Want a trip plan that counts down to the day?">
+          <p>Pinto Notes&apos; free trip plan keeps the countdown, the days, the bookings and the packing list in one place, with a tick for each booking you&apos;ve paid.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-trip-planner-template"
           apple={{ src: "/blog/side-by-side/trip-planner-template-apple-notes", width: 781, height: 1529, line: "Holds the plan. Counting the days and what's left to pay is up to you.",
             alt: "The trip template in Apple Notes on macOS 27: four bookings with two ticked, a heading for each day with times, a packing checklist with three ticked, and ideas." }}
@@ -81,7 +86,7 @@ export default function Page() {
             alt: "The same Lisbon trip in the Pinto Notes trip plan, nine days before: 2 of 4 bookings paid, 3 of 8 packed, and the first day as a timeline.",
             phone: { src: "/blog/side-by-side/trip-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/trip-pinto-mac", width: 1526, height: 1008 },
-            href: "/templates/trip-plan", button: "Get the trip plan template" }} />
+            template: "trip-plan" }} />
       </>}
       faq={FAQ}
     >

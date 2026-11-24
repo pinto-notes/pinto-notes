@@ -271,7 +271,20 @@
 /* A long template folded to its first lines (Keep fold). */
 .fold pre { max-height: calc(var(--fold-lines) * 1.55em); overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
 .fold:has(input:checked) pre { max-height: none; -webkit-mask-image: none; mask-image: none; }
+/* A Markdown template: Markdown from 601 px, a note on a phone (PostParts Keep). */
+.asNote.asNote { display: none; }
+@media (max-width: 600px) {
+  .asMarkdown.asMarkdown { display: none; }
+  .asNote.asNote { display: block; }
+  .fold .asNote { max-height: calc(var(--fold-lines) * 1.4em); overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+  .fold:has(input:checked) .asNote { max-height: none; -webkit-mask-image: none; mask-image: none; }
+}
+.pasteStep { display: block; }
+.pasteStep + .pasteStep { margin-top: 6px; }
 .more { display: inline-block; margin-top: 8px; font-weight: 650; font-size: 15px; color: var(--link, #a85700); cursor: pointer; }
 .more input { position: absolute; opacity: 0; pointer-events: none; }
 .more:has(input:focus-visible) { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
 .fold:has(input:checked) .more { display: none; }
+
+/* B39: on a phone the template posts' card is words and a button, no picture (lib/post.module.css puts it first). */
+@media (max-width: 600px) { :global(article[data-cover="none"]) .ctaCompact .ctaThumb { display: none; } }

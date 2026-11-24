@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -66,7 +67,11 @@ export default function Page() {
         <Keep title="Job applications table for Apple Notes" text={TABLE} fold={10}
           note="After pasting, select the five lines from Company to Northlight and press the Table button." />
         <Keep title="Prep and follow-ups for Apple Notes" text={REST} fold={10}
-          note="On a Mac, click under the table and paste it with Edit, Paste as Markdown." />
+          note={<PasteSteps mac="On a Mac, click under the table and paste it with Edit, Paste as Markdown." />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-job-search-tracker" position="answer" title="Want a job hunt that shows what's due?">
+          <p>Pinto Notes&apos; free job hunt template puts every application on a board by stage. Paste a job ad into your AI and it adds the card.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-job-search-tracker"
           apple={{ src: "/blog/side-by-side/job-search-tracker-apple-notes", width: 1584, height: 1000, line: "Holds the table. You type every job and keep each row up to date.",
             alt: "The job search template in Apple Notes on macOS 27: a table of four applications, interview prep for Tideway, This week with one follow-up ticked, and a note about Karin." }}
@@ -74,7 +79,7 @@ export default function Page() {
             alt: "The same four applications on the Pinto Notes job hunt app's board: Finch Bikes saved, Marlow Studio applied with a follow-up on 16 November, Tideway at interview tomorrow, Northlight closed.",
             phone: { src: "/blog/side-by-side/job-hunt-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/job-hunt-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/job-hunt", button: "Get the job hunt template" }} />
+            template: "job-hunt" }} />
       </>}
       faq={FAQ}
     >

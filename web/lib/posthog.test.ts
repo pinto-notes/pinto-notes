@@ -94,6 +94,13 @@ describe("website PostHog", () => {
     expect(clickEvents(link("/blog"), here)).toEqual([]);
   });
 
+  it("names the template a side-by-side download stands for", () => {
+    const cta = { "data-cta": "apple-notes-budget-template", "data-cta-position": "side-by-side", "data-cta-action": "app_store", "data-cta-template": "budget-log" };
+    expect(ctaEvent(link("https://apps.apple.com/app/id1", cta), here)?.properties).toEqual({
+      path: "/blog/best-ai-notes-app", slug: "apple-notes-budget-template", position: "side-by-side", action: "app_store", template: "budget-log",
+    });
+  });
+
   it("names Use template and Copy the prompt", () => {
     expect(clickEvent(link("/open/template/standup"), here)).toMatchObject({ event: "use_template_clicked", properties: { template: "standup" } });
     const button = { tagName: "BUTTON", getAttribute: (n: string) => (n === "data-event" ? "copy_prompt_clicked" : null) };

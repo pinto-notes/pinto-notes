@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -73,7 +74,11 @@ export default function Page() {
       intro={<>The week&apos;s dinners at the top, and the groceries they need by aisle under them.</>}
       answer={<>
         <Keep title="Meal planner for Apple Notes" text={TEMPLATE} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-meal-planner-template" position="answer" title="Pick the dinners. The grocery list writes itself.">
+          <p>Pinto Notes&apos; free meal plan builds the list by aisle and leaves out what you always have at home.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-meal-planner-template"
           apple={{ src: "/blog/side-by-side/meal-planner-template-apple-notes", width: 822, height: 1465, line: "Holds the plan and the list. You write the list from the recipes yourself.",
             alt: "The meal planner template in Apple Notes on macOS 27: seven dinners as a list, then groceries by aisle as checklists, with Lemons, Basil, Chicken thighs and Tortillas ticked." }}
@@ -81,7 +86,7 @@ export default function Page() {
             alt: "The same week in the Pinto Notes meal plan app: the groceries made from the seven dinners, by aisle, each saying which dinner it's for, with Lemons, Basil, Chicken thighs and Tortillas ticked.",
             phone: { src: "/blog/side-by-side/meal-plan-pinto-phone", width: 780, height: 1688 },
             desk: { src: "/blog/side-by-side/meal-plan-pinto-mac", width: 1526, height: 1280 },
-            href: "/templates/meal-plan", button: "Get the meal plan template" }} />
+            template: "meal-plan" }} />
       </>}
       faq={FAQ}
     >

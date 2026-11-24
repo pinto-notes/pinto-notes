@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -77,14 +78,17 @@ export default function Page() {
       answer={<>
         <Keep title="Time log for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the eleven lines from Date to the last session and press the Table button. Replace the example sessions and totals with yours." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-time-log-template" position="answer" title="Want totals that work themselves out?">
+          <p>In Pinto Notes your AI can open your time log. Tell it about a session and it adds the row and works out the new totals.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-time-log-template"
           apple={{ src: "/blog/side-by-side/time-log-template-apple-notes", width: 1894, height: 1685, line: "Holds the log. You add up the minutes and check the totals by hand.",
             alt: "The time log template in Apple Notes on macOS 27: a table of ten sessions from 16 to 20 November, the daily and project totals, the unknown time and two ticked checks." }}
           pinto={{ frame: false, title: "The same log in Pinto Notes", line: "The same log as a note your AI can open. Tell it about a session and it adds the row and works out the new totals.",
             alt: "The same ten sessions in Pinto Notes as a table, with the totals under it.",
             phone: { src: "/blog/side-by-side/time-log-pinto-phone", width: 780, height: 1600 },
-            desk: { src: "/blog/side-by-side/time-log-pinto-mac", width: 1520, height: 1208 },
-            href: "/templates", button: "See the free templates" }} />
+            desk: { src: "/blog/side-by-side/time-log-pinto-mac", width: 1520, height: 1208 } }} />
       </>}
       faq={FAQ}
     >

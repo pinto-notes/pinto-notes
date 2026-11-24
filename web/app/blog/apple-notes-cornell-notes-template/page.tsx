@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -54,6 +55,10 @@ export default function Page() {
       answer={<>
         <Keep title="Cornell notes for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the five lines from Cue to the last cue and press the Table button. Then select the two lines under Cues to revisit and press the Checklist button." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-cornell-notes-template" position="answer" title="Want notes that quiz you?">
+          <p>Paste your notes into your AI. Pinto Notes&apos; free Cornell notes template gets the cues and the summary, and your AI quizzes you on them.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-cornell-notes-template"
           apple={{ src: "/blog/side-by-side/cornell-notes-template-apple-notes", width: 1116, height: 909, line: "Holds the notes. You write every cue and the summary yourself.",
             alt: "The Cornell notes template in Apple Notes on macOS 27: a Cue and Notes table of four rows, the summary under it and two cues to revisit, one ticked." }}
@@ -61,7 +66,7 @@ export default function Page() {
             alt: "The same lecture in the Pinto Notes Cornell notes template: the same four cues and notes in a table, the summary and the same two cues to revisit, one ticked.",
             phone: { src: "/blog/side-by-side/cornell-notes-pinto-phone", width: 780, height: 1408 },
             desk: { src: "/blog/side-by-side/cornell-notes-pinto-mac", width: 1520, height: 1196 },
-            href: "/templates/cornell-notes", button: "Get the Cornell notes template" }} />
+            template: "cornell-notes" }} />
       </>}
       faq={FAQ}
     >

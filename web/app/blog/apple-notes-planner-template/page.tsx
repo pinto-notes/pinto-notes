@@ -1,5 +1,6 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -91,7 +92,11 @@ export default function Page() {
       intro={<>The week in one note: your top three, each day&apos;s to-dos and a list for later.</>}
       answer={<>
         <Keep title="Weekly planner for Apple Notes" text={WEEKLY} fold={10}
-          note="On a Mac, paste it into a new note with Edit, Paste as Markdown." />
+          note={<PasteSteps />} />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-planner-template" position="answer" title="Want a week that plans itself?">
+          <p>Tell your AI what&apos;s on and Pinto Notes&apos; free weekly planner puts each task under its day. On Sunday it moves what&apos;s left to Monday.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-planner-template"
           apple={{ src: "/blog/side-by-side/planner-template-apple-notes", width: 578, height: 1591, line: "Holds the week. You move what's left to next week by hand.",
             alt: "The weekly planner template in Apple Notes on macOS 27: top three, Monday to Sunday and Later as checklists, with four tasks ticked." }}
@@ -99,7 +104,7 @@ export default function Page() {
             alt: "The same week in the Pinto Notes weekly planner template: the same top three and tasks under the same days, with the same four ticked.",
             phone: { src: "/blog/side-by-side/weekly-planner-pinto-phone", width: 780, height: 1600 },
             desk: { src: "/blog/side-by-side/weekly-planner-pinto-mac", width: 1520, height: 1208 },
-            href: "/templates/weekly-planner", button: "Get the weekly planner template" }} />
+            template: "weekly-planner" }} />
       </>}
       faq={FAQ}
     >

@@ -13,7 +13,8 @@ import s from "./post-parts.module.css";
 export type Template = { title: string; text: string; pinto?: { slug: string; name: string; rest: string } };
 
 /// `start` is the template shown first (the templates post opens on the Packing list its side-by-side shows).
-export function TemplatePicker({ templates, legend, post, start = 0 }: { templates: Template[]; legend: string; post?: string; start?: number }) {
+/// `note` sits under the picked template, like Keep's (the paste steps).
+export function TemplatePicker({ templates, legend, post, start = 0, note }: { templates: Template[]; legend: string; post?: string; start?: number; note?: React.ReactNode }) {
   const [picked, setPicked] = useState(start);
   return (
     <div className={s.chooser}>
@@ -38,6 +39,7 @@ export function TemplatePicker({ templates, legend, post, start = 0 }: { templat
           ) : null}
         </div>
       ))}
+      {note ? <p className={s.keepNote}>{note}</p> : null}
     </div>
   );
 }
@@ -74,6 +76,20 @@ export function blocksOf(text: string): Block[] {
 
 const CLASS = { title: s.tplTitle, heading: s.tplHeading, line: s.tplLine };
 
+/// One block as Notes draws it.
+function NoteBlock({ b }: { b: Block }) {
+  return b.kind === "table"
+    ? <table className={s.tplTable}><tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{c}</td>)}</tr>)}</tbody></table>
+    : "items" in b
+    ? <ul className={b.kind === "tick" ? s.ticks : s.dashes}>{b.items.map((it) => <li key={it}>{it}</li>)}</ul>
+    : <p className={CLASS[b.kind]}>{b.text}</p>;
+}
+
+/// A whole template drawn as a note, title included (Keep shows a Markdown template this way on phones).
+export function NoteBlocks({ text, className }: { text: string; className?: string }) {
+  return <div className={`${s.tpl} ${className ?? ""}`.trim()}>{blocksOf(text).map((b, i) => <NoteBlock key={i} b={b} />)}</div>;
+}
+
 /// The note's title shares a row with the Copy button.
 function Preview({ text, copy }: { text: string; copy: React.ReactNode }) {
   const [first, ...rest] = blocksOf(text);
@@ -81,11 +97,7 @@ function Preview({ text, copy }: { text: string; copy: React.ReactNode }) {
   return (
     <div className={s.tpl}>
       <div className={s.keepHead}>{title && <p className={s.tplTitle}>{title}</p>}{copy}</div>
-      {(title ? rest : [first, ...rest]).map((b, i) => b.kind === "table"
-        ? <table key={i} className={s.tplTable}><tbody>{b.rows.map((r, j) => <tr key={j}>{r.map((c, k) => <td key={k}>{c}</td>)}</tr>)}</tbody></table>
-        : "items" in b
-        ? <ul key={i} className={b.kind === "tick" ? s.ticks : s.dashes}>{b.items.map((it) => <li key={it}>{it}</li>)}</ul>
-        : <p key={i} className={CLASS[b.kind]}>{b.text}</p>)}
+      {(title ? rest : [first, ...rest]).map((b, i) => <NoteBlock key={i} b={b} />)}
     </div>
   );
 }

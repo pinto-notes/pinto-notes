@@ -41,8 +41,8 @@ describe("the app templates' search copy", () => {
       const p = post(seo.post!.slug);
       expect(p.draft).toBe(false);
       const src = readFileSync(path.join(process.cwd(), "app/blog", p.slug, "page.tsx"), "utf8");
-      // A link in the text, or the side-by-side card's button (its href prop) since 22 November 2026.
-      expect(src).toMatch(new RegExp(`href(="|: ")/templates/${t.slug}"`));
+      // A link in the text (the side-by-side's button downloads the app since experiment B39, 24 November 2026).
+      expect(src).toMatch(new RegExp(`href="/templates/${t.slug}"`));
       expect(src).not.toMatch(/[–—]/);
       expect(src).not.toMatch(/iPad/);
     });

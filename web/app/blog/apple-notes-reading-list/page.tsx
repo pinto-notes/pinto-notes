@@ -1,3 +1,4 @@
+import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -61,6 +62,10 @@ export default function Page() {
       answer={<>
         <Keep title="Reading list for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the six lines from Title to The Overstory and press the Table button." />
+        {/* Experiment B39: the download card back on the first screen, under the template. */}
+        <PostCta slug="apple-notes-reading-list" position="answer" title="Want a reading list that fills itself in?">
+          <p>Tell your AI about a book and Pinto Notes&apos; free reading list adds the row. Status and rating are picked, not typed.</p>
+        </PostCta>
         <SideBySide slug="apple-notes-reading-list"
           apple={{ src: "/blog/side-by-side/reading-list-apple-notes", width: 1894, height: 672, line: "Holds the list. Status and rating are words you type.",
             alt: "The reading list template in Apple Notes on macOS 27: a table of five books with title, author, status, rating and why, and notes on two books under it." }}
@@ -68,7 +73,7 @@ export default function Page() {
             alt: "The same five books in the Pinto Notes reading list template, from Project Hail Mary, finished with a 5, to The Overstory, to read, with the notes under the table.",
             phone: { src: "/blog/side-by-side/reading-list-pinto-phone", width: 780, height: 1100 },
             desk: { src: "/blog/side-by-side/reading-list-pinto-mac", width: 1520, height: 991 },
-            href: "/templates/reading-list", button: "Get the reading list template" }} />
+            template: "reading-list" }} />
       </>}
       faq={FAQ}
     >

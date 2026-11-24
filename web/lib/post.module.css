@@ -101,3 +101,15 @@
 .more { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
 @media (max-width: 900px) { .more { grid-template-columns: minmax(0, 1fr); max-width: 560px; } }
 .more > li { display: grid; }
+
+/* Experiment B39 (24 Nov 2026): on a phone, the Apple Notes template posts (no cover) put the download card first,
+   under the intro, so its button is on the first screen at 375 x 667; every download from these posts came 1.5 to 16 s
+   after landing, before a scroll. The space above it is tighter, and the template follows the card. */
+@media (max-width: 600px) {
+  .col[data-cover="none"] { gap: 22px; }
+  .col[data-cover="none"] > .head { gap: 12px; }
+  .col[data-cover="none"] > .top { display: flex; flex-direction: column; }
+  .col[data-cover="none"] > .top > * { order: 2; }
+  .col[data-cover="none"] > .top > .intro { order: 0; margin-bottom: 16px; }
+  .col[data-cover="none"] > .top > :global(.post-answer-cta) { order: 1; margin: 0 0 20px; }
+}
