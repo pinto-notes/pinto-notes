@@ -96,7 +96,7 @@ describe("the live budget in the budget post", () => {
 
   it("counts every Keep it link as the post's call to action at position live", () => {
     const links = [...host.querySelectorAll("a")];
-    expect(links.map((a) => a.dataset.ctaAction).sort()).toEqual(["app_store", "download_mac", "open_template", "send_link"]);
+    expect(links.map((a) => a.dataset.ctaAction).sort()).toEqual(["app_store", "download_mac", "send_link"]);
     for (const a of links) {
       expect(a.dataset.cta).toBe(SLUG);
       expect(a.dataset.ctaPosition).toBe("live");

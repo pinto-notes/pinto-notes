@@ -31,6 +31,11 @@ const E = [
   "apple-notes-daily-planner-template", "apple-notes-for-school",
 ];
 
+// Experiment B40 (24 Nov 2026): on the budget post the Pinto budget template runs live under the intro (lib/LiveBudget.tsx),
+// with its own Keep it, in place of B39's card, so the reader has one first-screen action.
+const LIVE = ["apple-notes-budget-template"];
+const CARD = E.filter((slug) => !LIVE.includes(slug));
+
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
 
 describe("the download in a post's short answer", () => {
@@ -55,7 +60,7 @@ describe("the Apple Notes template posts (pattern E)", () => {
   // Experiment B39 (24 Nov 2026): the download card is back on the first screen, under the template. Before 22 Nov it got
   // 6 downloads from 25 single-template visitors; pattern E without it, 0 from 16 (blog-growth EXPERIMENTS.md).
   it("show the template, the download card, then the same template in Apple Notes and in Pinto Notes", () => {
-    for (const slug of E) {
+    for (const slug of CARD) {
       const src = source(slug);
       expect(src, slug).toContain("cover={false}");
       const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "";
@@ -72,9 +77,20 @@ describe("the Apple Notes template posts (pattern E)", () => {
     }
   });
 
+  it("open the budget post on the live budget and its Keep it, with no card, then the template and the side-by-side (B40)", () => {
+    for (const slug of LIVE) {
+      const src = source(slug);
+      const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "";
+      expect(src, slug).not.toContain("<PostCta");
+      expect(answer.trimStart().replace(/^answer=\{<>\s*/, ""), slug).toMatch(new RegExp(`^<LiveBudget slug="${slug}" />`));
+      expect(answer.indexOf("<LiveBudget"), slug).toBeLessThan(answer.indexOf("<Keep"));
+      expect(answer.indexOf("<Keep"), slug).toBeLessThan(answer.indexOf(`<SideBySide slug="${slug}"`));
+    }
+  });
+
   it("each card has its own headline, and none names an AI (that look is for the AI posts)", () => {
-    const titles = E.map((slug) => /<PostCta [^>]*title="([^"]+)"/.exec(source(slug))?.[1] ?? "");
-    expect(new Set(titles).size).toBe(E.length);
+    const titles = CARD.map((slug) => /<PostCta [^>]*title="([^"]+)"/.exec(source(slug))?.[1] ?? "");
+    expect(new Set(titles).size).toBe(CARD.length);
     for (const t of titles) expect(t).not.toMatch(/\b(ChatGPT|Claude|AI)\b/);
   });
 

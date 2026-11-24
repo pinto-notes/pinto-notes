@@ -1,4 +1,3 @@
-import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { LiveBudget } from "@/lib/LiveBudget";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
@@ -60,10 +59,7 @@ export default function Page() {
         <LiveBudget slug="apple-notes-budget-template" />
         <Keep title="Monthly budget for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, type = at the end of the last two lines. Notes offers the total. Press Return to keep it." />
-        {/* Experiment B39: the download card back on the first screen, under the template. */}
-        <PostCta slug="apple-notes-budget-template" position="answer" title="Want a budget that keeps itself?">
-          <p>Pinto Notes works like Apple Notes. Its free budget template shows what&apos;s left this month as you spend, each category against its budget.</p>
-        </PostCta>
+        {/* No B39 download card here: the live budget above is this post's one first-screen action (B40). */}
         <SideBySide slug="apple-notes-budget-template"
           apple={{ src: "/blog/side-by-side/budget-template-apple-notes", width: 906, height: 577, line: "Adds up the plan. You type every change.",
             alt: "The budget template pasted into Apple Notes on macOS 27: Income 3200, six named amounts, and the two sums answered 2,450 and 750." }}

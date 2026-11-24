@@ -2,9 +2,7 @@
 
 import { useRef, useState } from "react";
 import DownloadLink from "@/app/DownloadLink";
-import OpenInApp from "@/app/OpenInApp";
-import { appURL } from "./app-scheme";
-import { LIVE_TEMPLATE, START_INCOME, START_LINES, editedEvent, money, plan, type Line } from "./live-budget";
+import { START_INCOME, START_LINES, editedEvent, money, plan, type Line } from "./live-budget";
 import { SITE_EVENT } from "./open-in-app";
 import { mailLink, sendLink } from "./platform";
 import { APP_STORE_URL, SITE_URL } from "./site";
@@ -81,8 +79,7 @@ export function LiveBudget({ slug }: { slug: string }) {
               <a className={s.tint} href={mailLink(url)} onClick={(e) => sendLink(navigator, e, url)} {...cta("send_link")}>Send myself the link</a>
             </div>
             <p className={s.fine}>
-              Free. Your numbers stay on this page and aren&apos;t sent anywhere, so in the app you type them in once.{" "}
-              <OpenInApp href={`/open/template/${LIVE_TEMPLATE}`} app={appURL(`template/${LIVE_TEMPLATE}`)} template="budget" attrs={cta("open_template")}>Have it already? Open the template</OpenInApp>
+              Free. Your numbers stay on this page and aren&apos;t sent anywhere, so in the app you type them in once.
             </p>
           </div>
         </div>
