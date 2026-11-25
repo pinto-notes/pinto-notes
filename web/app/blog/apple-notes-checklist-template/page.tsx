@@ -1,6 +1,6 @@
 import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
-import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
+import { Keep, MenuPath, MenuPaths, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
 
 export const dynamic = "force-static";
@@ -12,10 +12,15 @@ export const metadata = postMetadata("apple-notes-checklist-template", { title: 
 // (research/template-posts-diagnosis-2026-11-24.md), which Notes doesn't do.
 // Apple Notes: blog-growth/research/apple-notes-checklist-wishlist-2026-11-25.md (macOS 27.0 VM, Edit, Paste as Markdown):
 // the # line the title, the ## lines headings, every item a checklist; the three morning items ticked and sorted down.
-// Apple's pages: support.apple.com/102296 (iPhone Checklist button, Sort Checked Items, "uncheck all items to start over",
-// no Uncheck All on iPhone documented); the Notes User Guide for Mac, Add lists (Format, More, Uncheck All; Command-click
-// ticks or unticks all; checklists need iCloud notes or notes on the Mac, "Some features aren't available when using
-// accounts from other providers").
+// Apple's pages: support.apple.com/102296 (iPhone Checklist button, Sort Checked Items, "uncheck all items to start over");
+// the Notes User Guide for Mac, Add lists (Format, More, Uncheck All; Command-click ticks or unticks all; checklists need
+// iCloud notes or notes on the Mac, "Some features aren't available when using accounts from other providers").
+// Uncheck All on iPhone: iphonelife.com/content/how-to-check-all-items-apple-notes-checklist (double-tap the text of an
+// item, not the circle; tap the arrow in the pop-up menu, then Checklist, then Uncheck All). Checked on iOS 27.2 (24B8117)
+// headless in a simulator, 25 Nov: the simulator has no Notes app (MobileNotes.app is a stub), so the menu wasn't seen on
+// screen. Its Notes frameworks have it: ICNoteEditorViewController and ICNoteEditorFormattingController implement
+// uncheckAll: and canPerformTodoUncheckAll, NotesShared has the "Uncheck All" and "Checklist" strings, and ICEditingTextView
+// builds the edit menu. So the post gives iPhone Life's path, short: double-tap an item, then Checklist, Uncheck All.
 // Pinto Notes: content/templates/habit-tracker.app rendered with scripts/page-render with the same six things as habits on
 // Wednesday 25 November, started 9 November (public/blog/side-by-side/checklist-pinto-*). Each day starts unticked and the
 // streaks carry on (habit-tracker.app/docs/README.md).
@@ -38,7 +43,7 @@ const FAQ = [
     "No. Apple Notes has no templates feature, so a checklist template is a note you keep and use again. Paste this one on a Mac, change the items and untick them each morning.",
   ] },
   { q: "Can I clear all the checkmarks without deleting the items?", a: [
-    "On a Mac, choose Format, More, Uncheck All. Command-click also works: it ticks or unticks every item at once, so Command-click until the list is clear. Apple documents no Uncheck All on iPhone, so tap each ticked item, or untick on a Mac and let the note sync.",
+    "On a Mac, choose Format, More, Uncheck All. Command-click also works: it ticks or unticks every item at once, so Command-click until the list is clear. On iPhone, double-tap an item, then tap Checklist, Uncheck All. Notes never clears the list by itself, so you do it each morning.",
   ] },
   { q: "Why is the Checklist button grayed out?", a: [
     "Checklists need iCloud notes or notes stored on your device. Notes in an account from another provider, such as Gmail, can't have them. Use a note in iCloud, or one stored on your iPhone or Mac.",
@@ -80,7 +85,11 @@ export default function Page() {
         <li>Change the items to your morning and evening. Keep a word in every line: an empty checklist item doesn&apos;t survive the paste.</li>
         <li>On a Mac, make a new note and paste with <MenuPath steps={["Edit", "Paste as Markdown"]} /> On iPhone, tap the Checklist button and type the items. Each Return adds another one.</li>
         <li>Turn on sorting, so ticked items drop to the bottom of their list. On iPhone it&apos;s Settings, Apps, Notes, Sort Checked Items. On a Mac, Notes asks the first time you tick something.</li>
-        <li>Keep the note, and untick everything each morning: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
+        <li>Keep the note, and untick everything each morning. Notes never does it for you.
+          <MenuPaths rows={[
+            { on: "Mac", steps: ["Format", "More", "Uncheck All"] },
+            { on: "iPhone", steps: ["Double-tap an item", "Checklist", "Uncheck All"] },
+          ]} /></li>
       </Steps>
       <p>More for Apple Notes: <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-packing-list-template">a packing list</a> and <a href="/blog/apple-notes-wishlist-template">a family wishlist</a>.</p>
     </PostPage>

@@ -16,6 +16,8 @@ export const metadata = postMetadata("apple-notes-wishlist-template", { title: "
 // Pinto Notes: content/templates/gift-ideas.app rendered with scripts/page-render: the same three people with a Christmas
 // budget each and the same seven ideas, two bought, seen on 25 November, on the Christmas 2026 page
 // (public/blog/side-by-side/wishlist-pinto-*). Totals, "Still to buy for" and private-to-you: gift-ideas.app/docs/README.md.
+// The two bought ideas are saved short there ("Flower kit", "Wool socks"; Dad's size is in his sizes): the Everyone list
+// truncates its status line, and "Bought: Pressed flower kit" is cut even at 440 pt. Phone rendered at 440 pt, every line whole.
 
 const TEMPLATE = `# Family wishlist, Christmas 2026
 
@@ -68,8 +70,8 @@ export default function Page() {
           apple={{ src: "/blog/side-by-side/wishlist-template-apple-notes", width: 747, height: 709, line: "Everyone adds wishes and sees every tick. Adding up what you've spent is up to you.",
             alt: "The family wishlist in Apple Notes on macOS 27: wishes with prices under Emma, Dad and Grandma as checklists, with Pressed flower kit and Wool socks, size 10 ticked at the bottom of their lists." }}
           pinto={{ title: "The same Christmas in Pinto Notes", line: "Private to you. Each person's budget and what's bought, added up, and who's still to buy for.",
-            alt: "Christmas 2026 in the Pinto Notes gift ideas template, in 30 days: $59 of $210 spent, 2 of 3 bought, $151 left and still to buy for Grandma; Emma $35 of $80 with the pressed flower kit bought, Dad $24 of $70 with the wool socks bought, Grandma $0 of $60.",
-            phone: { src: "/blog/side-by-side/wishlist-pinto-phone", width: 780, height: 1400 },
+            alt: "Christmas 2026 in the Pinto Notes gift ideas template, in 30 days: $59 of $210 spent, 2 of 3 bought, $151 left and still to buy for Grandma; Emma $35 of $80 with the flower kit bought, Dad $24 of $70 with the wool socks bought, Grandma $0 of $60.",
+            phone: { src: "/blog/side-by-side/wishlist-pinto-phone", width: 880, height: 1400 },
             desk: { src: "/blog/side-by-side/wishlist-pinto-mac", width: 1536, height: 1280 },
             template: "gift-ideas" }} />
       </>}
