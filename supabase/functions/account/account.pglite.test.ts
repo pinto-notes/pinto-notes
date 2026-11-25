@@ -85,6 +85,7 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.account_recoveries (user_id) values ($1)`, [me]);
   // The server's copy of the key (functions/key): the kind of account, the sealed copy, what happened to it.
   await pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, 'standard')`, [me]);
+  await pg.query(`insert into public.advanced_protection_invites (user_id) values ($1)`, [me]);
   await pg.query(`insert into public.account_key_copies (user_id, key_id, sealed, secret_version) values ($1, $2, 'amb2k.1.c2VhbGVkLWNvcHk=', 1)`, [me, a.keyId]);
   await pg.query(`insert into public.key_copy_events (user_id, what, platform) values ($1, 'stored', 'ios')`, [me]);
   // The Welcome note was claimed (claim_welcome_note).
@@ -222,6 +223,7 @@ Deno.test("the export has everything the server can read, no note text or names,
   assertEquals([data.usage.key_devices.length, data.usage.key_devices[0].how, data.usage.key_devices[0].name_ct], [1, "added", undefined], "the devices that hold the key, without their sealed names");
   assertEquals([data.usage.key_copy.protection, data.usage.key_copy.kept, data.usage.key_copy.events.length, data.usage.key_copy.events[0].what], ["standard", true, 1, "stored"],
     "whether we keep a copy of the key, and what happened to it; never the copy");
+  assert(data.usage.key_copy.invited_at, "when the account was invited to Advanced protection");
   assertEquals([data.onboarding_emails.sent.length, data.onboarding_emails.sent[0].kind, data.onboarding_emails.unsubscribed.source], [1, "connect", "link"]);
   assertEquals(data.sign_ins[0].ip, "203.0.113.9");
   assert(data.notes.find((n: { id: string }) => n.id === as.locked).locked, "locked notes are marked");

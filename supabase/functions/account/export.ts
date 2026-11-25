@@ -71,6 +71,8 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
   // Whether we keep a copy of the key (functions/key) and what happened to it, never the sealed copy.
   const [key_protection] = await sql<Row[]>`select mode, chosen_at from public.account_key_protection where user_id = ${uid}`;
   const [key_copy] = await sql<Row[]>`select stored_at, opened_at from public.account_key_copies where user_id = ${uid}`;
+  // Whether the account is invited to Advanced protection (20261125120000_advanced_protection_invites.sql).
+  const [invite] = await sql<Row[]>`select invited_at from public.advanced_protection_invites where user_id = ${uid}`;
   const key_copy_events = await sql<Row[]>`select what, why, platform, at from public.key_copy_events where user_id = ${uid} order by at`;
   const [share_ask] = await sql<Row[]>`select choice, decided_at from public.pane_share_ask where user_id = ${uid}`;
   const features = await sql<Row[]>`select feature, first_at from public.pane_feature_use where user_id = ${uid}`;
@@ -107,7 +109,7 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
     apps: { apps, versions: app_versions, load_failures: app_load_failures, api_keys },
     locked_notes: lock ?? null,
     usage: { totals: totals ?? null, setup: setup ?? null, ai_edits_per_day: ai_edits, tips, active_days: days.map((d) => d.day), devices, key_devices,
-      key_copy: { protection: key_protection?.mode ?? null, chosen_at: key_protection?.chosen_at ?? null, kept: !!key_copy, stored_at: key_copy?.stored_at ?? null, last_opened_at: key_copy?.opened_at ?? null, events: key_copy_events },
+      key_copy: { protection: key_protection?.mode ?? null, chosen_at: key_protection?.chosen_at ?? null, kept: !!key_copy, stored_at: key_copy?.stored_at ?? null, last_opened_at: key_copy?.opened_at ?? null, events: key_copy_events, invited_at: invite?.invited_at ?? null },
       share_ask: share_ask ?? null, features_used: features, heard_from: heard_from ?? null },
     onboarding_emails: { sent: emails, unsubscribed: unsubscribed ?? null },
     sign_ins: sessions,
