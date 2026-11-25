@@ -78,7 +78,7 @@ export default function Page() {
         <li>Type = at the end of the last two lines and press Return to keep each total. On a Mac, Math Results must be on: <MenuPath steps={["Format", "Math Results"]} /></li>
         <li>Change an amount later and both totals follow. Keep one note per month.</li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-expense-tracker">an expense log that adds itself up</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a> and <a href="/blog/budget-tracker-with-chatgpt-or-claude">a budget your AI keeps for you</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-expense-tracker">an expense log that adds itself up</a>, <a href="/blog/apple-notes-tables">what tables in Notes can and can&apos;t do</a>, <a href="/blog/budget-tracker-with-chatgpt-or-claude">a budget your AI keeps for you</a> and <a href="/blog/apple-notes-wishlist-template">a Christmas wishlist with prices</a>.</p>
     </PostPage>
   );
 }

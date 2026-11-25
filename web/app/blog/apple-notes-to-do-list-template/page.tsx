@@ -89,7 +89,7 @@ export default function Page() {
         <li>Turn on sorting so done tasks drop to the bottom. On iPhone it&apos;s Settings, Apps, Notes, Sort Checked Items. On a Mac, Notes asks the first time you tick something.</li>
         <li>Pin the note so it stays on top of the list. On iPhone, swipe right on it and tap the pin. On a Mac: <MenuPath steps={["File", "Pin Note"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-planner-template">a weekly planner</a>, <a href="/blog/apple-notes-packing-list-template">a packing list</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-planner-template">a weekly planner</a>, <a href="/blog/apple-notes-packing-list-template">a packing list</a>, <a href="/blog/apple-notes-checklist-template">a daily checklist</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }
