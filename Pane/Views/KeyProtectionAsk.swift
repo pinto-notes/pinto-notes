@@ -3,13 +3,15 @@ import SwiftUI
 /// Asked once of an account from before Pinto Notes kept copies of keys (KeyCopy), on a device
 /// that has its key, before any copy is made: signing in opens your notes from now on. Nothing is
 /// stored until Continue. Keeping the key on your devices only (Advanced protection) is offered
-/// here only while AdvancedProtection.offered. Laid out like the share ask: a short sheet on
-/// iPhone, a small one on the Mac.
+/// here only to an account the server says is invited (AdvancedProtection). Laid out like the
+/// share ask: a short sheet on iPhone, a small one on the Mac.
 struct KeyProtectionAsk: View {
     let crypto: AccountCrypto
     var devices: KeyDevices = .shared
-    /// Whether "Keep my key on my devices only" is offered (parked: AdvancedProtection).
-    var offersStrict = AdvancedProtection.offered
+    /// Whether "Keep my key on my devices only" is offered: the account is invited
+    /// (AdvancedProtection). Nil: as the server last said.
+    var invited: Bool? = nil
+    var offersStrict: Bool { invited ?? crypto.protectionInvited }
     @State private var working = false
     @State private var problem: String?
     /// Strict was refused: nothing else can open the notes yet, so a recovery key is saved first.

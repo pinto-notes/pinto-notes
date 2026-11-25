@@ -36,6 +36,10 @@ import Testing
         var handsOut: StoredKey?
         /// keep_key_on_devices is satisfied: a recovery key was saved or another device holds the key.
         var anotherWayBack = false
+        /// advanced_protection_invites: the account is invited to Advanced protection.
+        var invited = false
+        /// The server enforces invitations (20261125120000_advanced_protection_invites.sql).
+        var invitesOnly = false
         private(set) var stores: [Bool] = []
         private(set) var fetches = 0
         private(set) var asked = 0
@@ -43,7 +47,7 @@ import Testing
         func fetch() async throws -> ServerKeyState {
             if offline { throw URLError(.notConnectedToInternet) }
             return ServerKeyState(key: row, generation: generation, protection: protection, copy: copy != nil && copy?.keyID == row?.key_id,
-                                  strictPausedUntil: copy != nil ? strictPausedUntil : nil)
+                                  strictPausedUntil: copy != nil ? strictPausedUntil : nil, invited: invited)
         }
 
         func create(_ key: ServerKey, generation: Int) async throws -> (key: ServerKey, created: Bool) {
@@ -104,6 +108,7 @@ import Testing
 
         func keepOnDevices(device: UUID) async throws {
             if offline { throw KeyCopyError.offline }
+            if invitesOnly, !invited, protection != .strict { throw KeyCopyError.notOffered }
             guard anotherWayBack else { throw KeyCopyError.needsRecoveryKey }
             protection = .strict
             copy = nil

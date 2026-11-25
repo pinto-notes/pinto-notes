@@ -36,6 +36,8 @@ enum KeyCopyError: Error, Equatable {
     case needsRecoveryKey
     /// Strict can't be turned on for 72 hours after a password reset, until `until`.
     case strictPaused(until: Date?)
+    /// Advanced protection is by invitation, and this account isn't invited.
+    case notOffered
     case signIn
     /// The session's sign-in is too old for this: sign in again.
     case reauth
@@ -111,16 +113,16 @@ enum KeyCopyBox {
     }
 }
 
-/// Advanced protection (the key on the person's devices only) was retired on 2026-10-28: Pinto
-/// Notes keeps a copy of every key. The feature is parked, not removed. Only an account that
-/// already has it on sees it, in Settings › Security and its search, so it can turn it off; then it
-/// goes away. Nobody is offered it while it's off.
+/// Advanced protection (the key on the person's devices only) was retired on 2026-10-28 and comes
+/// back by invitation (2026-11-25): the server says which accounts are invited
+/// (`account_key_state().protection_invited`, advanced_protection_invites), and refuses to turn it
+/// on for anyone else. Nobody is invited by default. An account that has it on sees it in Settings
+/// › Security and its search, invited or not, so it can turn it off; an account that isn't
+/// invited doesn't see it again after that.
 enum AdvancedProtection {
-    /// Whether it can be turned on. Off: no switch while it's off, and no "keep my key on my devices
-    /// only" in the question an account from before is asked.
-    static let offered = false
-    /// Whether Settings shows the switch for an account kept this way (nil: it hasn't chosen).
-    static func shown(_ protection: KeyProtection?, offered: Bool = offered) -> Bool {
+    /// Whether Settings shows the switch (nil protection: the account hasn't chosen). `offered`:
+    /// the server says this account is invited.
+    static func shown(_ protection: KeyProtection?, offered: Bool) -> Bool {
         protection == .strict || (offered && protection != nil)
     }
 }
@@ -138,7 +140,11 @@ enum KeyCopyWords {
     static let turnOnMessage = "We delete our copy of your key now. After that we can\u{2019}t open your notes, and we can\u{2019}t help you if you lose your devices. A new device has to be added from one that has your notes, or opened with your recovery key."
     static let turnOn = "Turn On Advanced Protection"
     static let turnOffTitle = "Turn off Advanced protection?"
-    static let turnOffMessage = "\(copyLine) Advanced protection is no longer offered, so you can\u{2019}t turn it on again."
+    /// `invited`: the account can turn it on again later, so nothing says it can't.
+    static func turnOffMessage(invited: Bool) -> String {
+        invited ? copyLine : "\(copyLine) Advanced protection is no longer offered, so you can\u{2019}t turn it on again."
+    }
+    static let notOffered = "Advanced protection isn\u{2019}t available for this account."
     static let turnOff = "Turn Off Advanced Protection"
     static let needsRecoveryKey = "Save your recovery key first, or add another device. Without one of them your notes could not be opened again."
     static let saveFirstTitle = "Save your recovery key first"
@@ -157,7 +163,7 @@ enum KeyCopyWords {
     static let askTitle = "Signing in now opens your notes"
     static let askMessage = "Until now only your devices held the key to your notes, and a new device had to be added from one of them. From now on Pinto Notes keeps a copy of your key, so signing in is enough and you can\u{2019}t lock yourself out.\n\nThat means we could open your notes if we had to."
     static let askContinue = "Continue"
-    /// Parked: offered only while AdvancedProtection.offered.
+    /// Offered only to an invited account (AdvancedProtection).
     static let askStrict = "Keep My Key on My Devices Only"
     /// Offered only when the answer couldn't be sent: the question comes back at the next launch.
     static let askNotNow = "Not Now"
@@ -200,6 +206,7 @@ enum KeyCopyWords {
         case .needsRecoveryKey: needsRecoveryKey
         case .strictPaused(let until): strictPaused(until: until)
         case .reauth: reauthStrict
+        case .notOffered: notOffered
         case .offline: "Can\u{2019}t reach Pinto Notes. Connect to the internet and try again."
         case .tooMany: "Too many tries. Wait a little and try again."
         case .paused(let until): heldMessage(until: until)

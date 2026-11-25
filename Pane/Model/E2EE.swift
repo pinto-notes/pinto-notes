@@ -517,6 +517,8 @@ struct ServerKeyState: Equatable, Sendable {
     var copy = false
     /// Until when Advanced protection can't be turned on, because the password was just reset.
     var strictPausedUntil: Date?
+    /// The account is invited to Advanced protection (advanced_protection_invites).
+    var invited = false
 }
 
 /// The account's key on the server. Every call throws when the server can't be reached.
@@ -895,6 +897,9 @@ final class AccountCrypto {
     /// Until when Advanced protection can't be turned on because the password was just reset, as
     /// the server last said. Nil when nothing holds it.
     private(set) var strictPausedUntil: Date?
+    /// The server says this account is invited to Advanced protection, as last seen
+    /// (AdvancedProtection). False until it says so.
+    private(set) var protectionInvited = false
     /// The server keeps a copy this device may get, and the person is asked first: the account was
     /// known here with Advanced protection on (`askWhy == .wasStrict`), or this device holds a key
     /// that isn't the one the server names (`.otherKey`). Nothing is fetched until they say so.
@@ -1137,6 +1142,7 @@ final class AccountCrypto {
         protection = state.protection
         serverCopy = state.copy && state.protection == .standard
         strictPausedUntil = state.strictPausedUntil
+        protectionInvited = state.invited
         if let account, state.protection == .strict { defaults.set(true, forKey: Self.wasStrictKey(account)) }
     }
 
@@ -1317,6 +1323,7 @@ final class AccountCrypto {
         asksBeforeFetch = nil
         needsSignIn = false
         strictPausedUntil = nil
+        protectionInvited = false
         copiesOffered = false
         copiesOn = false
     }
@@ -1571,6 +1578,10 @@ final class AccountCrypto {
             if deleted {
                 // Every device hears of it (account_notices); this one did it, so it doesn't say so.
                 defaults.set(true, forKey: Self.startedFreshHereKey(account))
+                // With Advanced protection on, the new key's recovery key, never saved, is the only
+                // way back besides this device (the server keeps no copy, and the other devices
+                // held the old key): said once here, as on the other devices, until it's saved.
+                if protection == .strict { defaults.set(true, forKey: Self.recoveryChangedKey(account)) }
                 // What this device holds goes up again under the new key (SyncEngine.adoptKeyIfChanged).
                 defaults.set(true, forKey: SyncEngine.uploadAgainKey(account))
                 // Shared notes went on the server with the keys: here too, now, and their links.

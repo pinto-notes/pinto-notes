@@ -1687,7 +1687,7 @@ private struct NoticeAlerts: ViewModifier {
             .alert(PrivacyCopy.recoveryChangedTitle, isPresented: recoveryChanged(over: notice)) {
                 Button("OK", role: .cancel) { crypto.recoveryKeyChangeShown() }
             } message: {
-                Text(PrivacyCopy.recoveryChangedAlert)
+                Text(PrivacyCopy.recoveryChangedAlert(strict: crypto.protection == .strict))
             }
             .alert(PrivacyCopy.notSavedTitle, isPresented: keyNotSaved(over: notice)) {
                 Button("OK", role: .cancel) { crypto.keyNotSavedShown() }

@@ -32,9 +32,14 @@ type World = { pg: PGlite; deps: Deps; mailed: string[]; env: Record<string, str
 /** The claims of a session signed in to `ago` seconds ago, for functions that ask for a recent sign-in. */
 const signedIn = (uid: string, ago = 0) => ({ "request.jwt.claims": JSON.stringify({ sub: uid, role: "authenticated",
   amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) - ago }] }) });
-/** Advanced protection turned on, by a session that just signed in. */
-const strictOn = (pg: PGlite, uid: string, device: string = crypto.randomUUID(), ago = 0) =>
-  asUser(pg, uid, `select public.keep_key_on_devices($1)`, [device], signedIn(uid, ago));
+/** The account is invited to Advanced protection (20261125120000_advanced_protection_invites.sql). */
+const invite = (pg: PGlite, uid: string) =>
+  pg.query(`insert into public.advanced_protection_invites (user_id) values ($1) on conflict do nothing`, [uid]);
+/** Advanced protection turned on, by a session that just signed in, for an invited account. */
+const strictOn = async (pg: PGlite, uid: string, device: string = crypto.randomUUID(), ago = 0) => {
+  await invite(pg, uid);
+  return await asUser(pg, uid, `select public.keep_key_on_devices($1)`, [device], signedIn(uid, ago));
+};
 
 /** The function with the database, where a token is the account's id ("token:<id>"). */
 function world(pg: PGlite, vars: Record<string, string> = ON): World {
@@ -469,6 +474,7 @@ Deno.test("turning Advanced protection on needs a sign-in from the last 10 minut
   await store(w, a);
   // A session from long ago (a stolen token): it can say a recovery key was saved, and still can't remove the copy.
   await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
+  await invite(pg, a.id);
   await assertRejects(() => asUser(pg, a.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()]), Error, "Sign in again");
   await assertRejects(() => strictOn(pg, a.id, crypto.randomUUID(), 11 * 60), Error, "Sign in again");
   assertEquals([(await copies(pg, a.id)).length, (await state(pg, a.id)).protection], [1, "standard"]);
@@ -476,9 +482,10 @@ Deno.test("turning Advanced protection on needs a sign-in from the last 10 minut
   assertEquals(await copies(pg, a.id), []);
 });
 
-Deno.test("an account with no copy can always answer keep my key on my devices only", async () => {
+Deno.test("an invited account with no copy can always answer keep my key on my devices only", async () => {
   const pg = await schemaDB();
   const a = await account(pg);
+  await invite(pg, a.id);
   // From before: no copy, no recovery key saved, no other device, an old session, and the password was just reset.
   await pg.query(`update auth.users set encrypted_password = 'new' where id = $1`, [a.id]);
   assertEquals((await state(pg, a.id)).protection_paused_until, null, "nothing is held for an account with no copy");
@@ -750,4 +757,147 @@ Deno.test("a key the web makes counts with stores: ten an hour per account", asy
   for (let i = 0; i < LIMITS.storePerHour; i++) await pg.query(`insert into public.key_copy_events (user_id, what, why) values ($1, 'refused', 'wrong_key')`, [a.id]);
   assertEquals((await create(w, a)).body.hint, "rate");
   assertEquals((await state(pg, a.id)).key, null);
+});
+
+// MARK: Advanced protection across the account's life (tested 2026-11-25, before it is offered again)
+
+/** Start fresh as the person's own session, signed in just now. */
+async function startFresh(pg: PGlite, a: Account): Promise<boolean> {
+  return await pg.transaction(async (tx) => {
+    await tx.query(`select set_config('request.jwt.claims', $1, true)`, [signedIn(a.id)["request.jwt.claims"]]);
+    await tx.exec(`set local role authenticated`);
+    return (await tx.query<{ start_fresh: boolean }>(`select public.start_fresh($1)`, [a.keyId])).rows[0].start_fresh;
+  });
+}
+
+/** The key a device makes after Start fresh, for reset generation `g`. */
+async function nextKey(pg: PGlite, a: Account, g = 1): Promise<Account> {
+  const key = { dataKey: newDataKey(), recovery: crypto.getRandomValues(new Uint8Array(16)) };
+  const keyId = await keyIdOf(key.dataKey);
+  await asUser(pg, a.id, `select * from public.create_account_key($1, $2, $3, $4)`,
+    [keyId, await verifierOf(key.dataKey, a.id), await wrap(key.dataKey, await recoveryKEK(key.recovery, a.id), "recovery", a.id), g]);
+  return { id: a.id, key, keyId };
+}
+
+Deno.test("a strict account that starts fresh stays strict: its new key gets no copy until the person turns it off", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  await store(w, a);
+  await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
+  await strictOn(pg, a.id);
+  assertEquals(await startFresh(pg, a), true);
+  const s = await state(pg, a.id);
+  assertEquals([s.key, s.copy, s.protection, s.generation], [null, false, "strict", 1]);
+  const b = await nextKey(pg, a);
+  // The first device of the new key renews nothing and the next device is asked to link, as before.
+  assertEquals((await store(w, b, { choose: false })).body.hint, "strict");
+  assertEquals((await fetchKey(w, a.id)).body.hint, "strict");
+  assertEquals(await copies(pg, a.id), []);
+  // A new key has no saved recovery key and no other device yet; it holds no copy either, so
+  // turning strict on again (or answering it) is never refused for want of one.
+  assertEquals((await state(pg, a.id)).key.recovery_saved_at, null);
+  await strictOn(pg, a.id);
+  // Turned off by the person on a device with the new key: the copy is of the new key.
+  assertEquals((await store(w, b, { choose: true, from: "strict" })).body, { stored: true });
+  const got = await fetchKey(w, a.id);
+  assertEquals([got.status, got.body.key_id, got.body.generation], [200, b.keyId, 1]);
+});
+
+Deno.test("during the 72 hours after a password reset, Advanced protection can be turned off but not on, and a strict account's new device still links", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  await store(w, a);
+  await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
+  await strictOn(pg, a.id);
+  await pg.query(`update auth.users set encrypted_password = 'new' where id = $1`, [a.id]);
+  // No copy to take away: nothing to hold, and the key state says no pause.
+  assertEquals((await state(pg, a.id)).protection_paused_until, null);
+  // Whoever reset the password gets no key from the server, however the hold is set.
+  w.env.KEY_COPY_HOLD_HOURS = "72";
+  assertEquals((await fetchKey(w, a.id)).body.hint, "strict");
+  // Start fresh waits, as for any account.
+  await assertRejects(() => startFresh(pg, a), Error, "72 hours");
+  // A device holding the key may give the server its copy again: that adds a way back, takes none.
+  assertEquals((await store(w, a, { choose: true, from: "strict" })).body, { stored: true });
+  assertEquals((await state(pg, a.id)).protection, "standard");
+  // Now there is a copy, so it can't be taken away again until the pause is over...
+  await assertRejects(() => strictOn(pg, a.id), Error, "72 hours after a password reset");
+  // ...and a new device waits for it like any standard account's.
+  assertEquals((await fetchKey(w, a.id)).body.hint, "paused_after_reset");
+  await pg.query(`update public.account_recoveries set at = now() - interval '73 hours' where user_id = $1`, [a.id]);
+  assertEquals((await fetchKey(w, a.id)).status, 200);
+  await strictOn(pg, a.id);
+  assertEquals((await state(pg, a.id)).protection, "strict");
+});
+
+Deno.test("deleting a strict account leaves nothing of its key behind", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  await store(w, a);
+  await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
+  await strictOn(pg, a.id);
+  await pg.query(`delete from auth.users where id = $1`, [a.id]);
+  for (const t of ["account_keys", "account_key_copies", "account_key_protection", "key_copy_events", "key_copy_tickets", "account_key_resets"]) {
+    assertEquals((await pg.query(`select 1 from public.${t} where user_id = $1`, [a.id])).rows, [], t);
+  }
+});
+
+// MARK: By invitation (20261125120000_advanced_protection_invites.sql)
+
+Deno.test("Advanced protection is offered by invitation only: nobody by default, and the server refuses everyone else", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  await store(w, a);
+  await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
+  // Nobody is invited by default, and the key state says so.
+  assertEquals((await state(pg, a.id)).protection_invited, false);
+  assertEquals((await pg.query(`select 1 from public.advanced_protection_invites`)).rows, []);
+  // Not invited: refused, with every other condition met, and the copy stays.
+  const refusal = await assertRejects(() => asUser(pg, a.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()], signedIn(a.id))) as { hint?: string };
+  assertEquals(refusal.hint, "not_offered");
+  assertEquals((await copies(pg, a.id)).length, 1);
+  assertEquals((await state(pg, a.id)).protection, "standard");
+  // An account from before (no copy, hasn't chosen) can't answer "my devices only" uninvited either.
+  const b = await account(pg);
+  await assertRejects(() => asUser(pg, b.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()], signedIn(b.id)), Error, "isn't offered");
+  assertEquals((await state(pg, b.id)).protection, null);
+
+  // Invited: the key state says so, only to this account, and the usual rules apply.
+  await invite(pg, a.id);
+  assertEquals((await state(pg, a.id)).protection_invited, true);
+  assertEquals((await state(pg, b.id)).protection_invited, false);
+  await asUser(pg, a.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()], signedIn(a.id));
+  assertEquals((await state(pg, a.id)).protection, "strict");
+  assertEquals(await copies(pg, a.id), []);
+});
+
+Deno.test("an account that has Advanced protection on keeps it without an invitation, and can turn it off; then it isn't offered again", async () => {
+  const pg = await schemaDB();
+  const w = world(pg), a = await account(pg);
+  await store(w, a);
+  await asUser(pg, a.id, `select public.mark_recovery_key_saved()`);
+  // On from before the invitations (or invited, then the invitation taken back).
+  await strictOn(pg, a.id);
+  await pg.query(`delete from public.advanced_protection_invites where user_id = $1`, [a.id]);
+  const s = await state(pg, a.id);
+  assertEquals([s.protection, s.protection_invited], ["strict", false]);
+  // Already strict: asking again changes nothing and is not refused.
+  await asUser(pg, a.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()], signedIn(a.id));
+  // Turned off by the person: a copy, standard, and the switch isn't offered again.
+  assertEquals((await store(w, a, { choose: true, from: "strict" })).body, { stored: true });
+  assertEquals((await state(pg, a.id)).protection, "standard");
+  await assertRejects(() => asUser(pg, a.id, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()], signedIn(a.id)), Error, "isn't offered");
+  assertEquals((await copies(pg, a.id)).length, 1);
+});
+
+Deno.test("nobody but the server reads or writes the invitations, and they go with the account", async () => {
+  const pg = await schemaDB();
+  const a = await account(pg);
+  await invite(pg, a.id);
+  await assertRejects(() => asUser(pg, a.id, `select * from public.advanced_protection_invites`), Error, "permission denied");
+  const other = await account(pg);
+  await assertRejects(() => asUser(pg, other.id, `insert into public.advanced_protection_invites (user_id) values ($1)`, [other.id]), Error, "permission denied");
+  await assertRejects(() => asUser(pg, a.id, `select public.pane_protection_invited($1)`, [a.id]), Error, "permission denied");
+  await pg.query(`delete from auth.users where id = $1`, [a.id]);
+  assertEquals((await pg.query(`select 1 from public.advanced_protection_invites`)).rows, []);
 });

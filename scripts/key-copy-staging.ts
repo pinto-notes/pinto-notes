@@ -217,6 +217,11 @@ try {
   check("no API role reads the table, the service role included", viaService.status >= 400 && viaUser.status >= 400, { service: viaService.status, user: viaUser.status });
 
   // 5. Advanced protection (keep my key only on my devices): the copy goes, and device B is asked to link.
+  // It's by invitation (advanced_protection_invites): not invited, it's refused; invited, the rules below.
+  const uninvited = await rpc(a.token, "keep_key_on_devices", { p_device: crypto.randomUUID() });
+  const invited = await fetch(`${BASE}/rest/v1/advanced_protection_invites`, { method: "POST", headers: { apikey: SERVICE, authorization: `Bearer ${SERVICE}`, "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({ user_id: a.id }) });
+  await invited.body?.cancel();
+  check("Advanced protection is refused to an account that isn't invited", invited.status === 404 || uninvited.body?.hint === "not_offered", { status: uninvited.status, hint: uninvited.body?.hint });
   const early = await rpc(a.token, "keep_key_on_devices", { p_device: crypto.randomUUID() });
   check("strict is refused while nothing else could open the notes", early.status >= 400 && early.body?.hint === "needs_recovery_key", { status: early.status });
   await rpc(a.token, "mark_recovery_key_saved");

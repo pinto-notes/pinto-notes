@@ -419,3 +419,46 @@ Deno.test("opening a link shows who shared which note before joining, and only t
   await app(pg, sara.id, `select public.collab_join_link($1, $2, $3, $4)`, [link, answer, toSelf, await selfWrap(sara, nk, note, 1)]);
   assertEquals((await app(pg, emil.id, `select * from public.collab_members($1)`, [note])).length, 2);
 });
+
+// Advanced protection (the account key on the person's devices only) changes nothing about sharing:
+// note keys travel between identity keys, never through the server's copy of an account key
+// (tested 2026-11-25, before Advanced protection is offered again).
+Deno.test("a strict and a standard account share, edit, revoke and share back, switching in between", async () => {
+  const pg = await schemaDB();
+  const emil = await person(pg, "Emil"), sara = await person(pg, "Sara");
+  const mode = (p: Person, m: "standard" | "strict") => pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, $2)
+    on conflict (user_id) do update set mode = excluded.mode`, [p.id, m]);
+  await mode(emil, "strict");
+  await mode(sara, "standard");
+
+  // Strict owner, standard member: invite, accept, both edit.
+  const { note, nk } = await share(pg, emil);
+  await invite(pg, emil, "sara@example.com", note, nk);
+  assertEquals(hex(await accept(pg, sara, note)), hex(nk));
+  const fromSara = await push(pg, sara, note, nk, 1, "sara types");
+  const fromEmil = await push(pg, emil, note, nk, 1, "emil types");
+  const seen = await app(pg, sara.id, `select id, author_id, ct from public.note_updates order by id`);
+  assertEquals(seen.map((u: any) => u.id), [fromSara, fromEmil]);
+  assertEquals(text(await open3("u", seen[1].ct, nk, note, emil.id)), "emil types");
+
+  // The owner turns Advanced protection off and the member turns it on: nothing about the note moves.
+  await mode(emil, "standard");
+  await mode(sara, "strict");
+  await push(pg, sara, note, nk, 1, "still here");
+
+  // Revoke: a new key for the owner only, and the member reads and writes nothing new.
+  const nk2 = newDataKey();
+  const wraps = [{ user_id: emil.id, key_wrap: await sealNoteKey(nk2, emil.identity, emil.identity.publicRaw, { note, epoch: 2, from: emil.id, to: emil.id }) }];
+  await app(pg, emil.id, `select public.collab_remove($1, $2, 2, $3)`, [note, sara.id, JSON.stringify(wraps)]);
+  await refused(push(pg, sara, note, nk, 1, "removed"), "");
+  await push(pg, emil, note, nk2, 2, "after");
+  assertEquals(await app(pg, sara.id, `select * from public.note_updates`), []);
+
+  // Now strict, Sara shares a note of her own with Emil.
+  const back = await share(pg, sara);
+  await invite(pg, sara, "emil@example.com", back.note, back.nk, "viewer");
+  assertEquals(hex(await accept(pg, emil, back.note)), hex(back.nk));
+  await push(pg, sara, back.note, back.nk, 1, "a list");
+  assertEquals((await app(pg, emil.id, `select 1 from public.note_updates where note_id = $1`, [back.note])).length, 1);
+  await refused(push(pg, emil, back.note, back.nk, 1, "a viewer writes"), "");
+});

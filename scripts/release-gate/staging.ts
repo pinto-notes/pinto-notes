@@ -159,6 +159,10 @@ async function ensure(n: number) {
   // Whether the server may keep a copy of the key is answered: an account from before copies is
   // asked once at launch, in a sheet over the notes. The bench accounts keep their key on their
   // devices (their key rows predate the key ids the copy checks, so a copy is refused as the wrong key).
+  // That answer is by invitation since 25 November 2026 (advanced_protection_invites): the bench
+  // account is invited first. A project from before the invitations has no table; that's fine.
+  const invited = await fetch(`${URL_}/rest/v1/advanced_protection_invites`, { method: "POST", headers: { apikey: service, authorization: `Bearer ${service}`, "content-type": "application/json", prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify({ user_id: s.user }) });
+  await invited.body?.cancel();
   const kept = await rest(s, "POST", "rpc/keep_key_on_devices", { p_device: crypto.randomUUID() }, "return=minimal");
   if (kept.status >= 300) throw new Error(`answering the key protection ask: ${kept.status} ${JSON.stringify(kept.body).slice(0, 120)}`);
   // "How did you hear about us?" comes up once the card is gone: skipped, as most people do.

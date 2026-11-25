@@ -61,6 +61,8 @@ struct SupabaseKeyCopy: KeyCopyServer {
             throw KeyCopyError.needsRecoveryKey
         } catch let e as PostgrestError where e.hint == "reauth" {
             throw KeyCopyError.reauth
+        } catch let e as PostgrestError where e.hint == "not_offered" {
+            throw KeyCopyError.notOffered
         } catch let e as PostgrestError where e.hint == "paused_after_reset" {
             throw KeyCopyError.strictPaused(until: e.detail.flatMap(Backend.pauseDate))
         } catch {

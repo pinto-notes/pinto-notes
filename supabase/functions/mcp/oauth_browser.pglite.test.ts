@@ -73,7 +73,7 @@ globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
 
 // MARK: Accounts
 
-type Account = { id: string; dk: Bytes };
+type Account = { id: string; dk: Bytes; recovery: Uint8Array<ArrayBuffer> };
 
 /// An account as its first device makes it, and (unless `copy` is false) with the copy of its key
 /// the `key` function keeps, sealed under the function's secret.
@@ -89,7 +89,7 @@ async function account(pg: PGlite, copy = true): Promise<Account> {
     await pg.query(`insert into public.account_key_copies (user_id, key_id, sealed, secret_version) values ($1, $2, $3, $4)`, [id, at.keyId, at.sealed, at.version]);
     await pg.query(`insert into public.account_key_protection (user_id, mode) values ($1, 'standard')`, [id]);
   }
-  return { id, dk };
+  return { id, dk, recovery };
 }
 
 // MARK: Requests
@@ -515,4 +515,69 @@ browserTest("Connect in the app makes no pre-approval from a browser, for Advanc
   Deno.env.delete("CONNECT_IN_BROWSER");
   assertEquals((await preapprove(sql, session(me.id))).status, 503);
   assertEquals((await pg.query(`select 1 from public.connect_preapprovals`)).rows.length, 0);
+});
+
+// MARK: Advanced protection turned on and off around connections (tested 2026-11-25)
+
+/// Turns Advanced protection on as the app does: a saved recovery key, a sign-in just now.
+async function strictOn(pg: PGlite, user: string) {
+  await pg.query(`insert into public.advanced_protection_invites (user_id) values ($1)`, [user]);
+  await asUser(pg, user, `select public.mark_recovery_key_saved()`);
+  await asUser(pg, user, `select public.keep_key_on_devices($1)`, [crypto.randomUUID()], {
+    "request.jwt.claims": JSON.stringify({ sub: user, role: "authenticated", amr: [{ method: "otp", timestamp: Math.floor(Date.now() / 1000) }] }),
+  });
+}
+
+/// Turns it off as a device holding the key does through the `key` function: a copy, then standard.
+async function strictOff(pg: PGlite, me: Account) {
+  const at = await sealAtRest({ dataKey: me.dk.slice(), recovery: me.recovery }, secrets({ get: (n) => Deno.env.get(n) })!, me.id);
+  await pg.query(`insert into public.account_key_copies (user_id, key_id, sealed, secret_version) values ($1, $2, $3, $4)`, [me.id, at.keyId, at.sealed, at.version]);
+  await pg.query(`update public.account_key_protection set mode = 'standard' where user_id = $1`, [me.id]);
+}
+
+async function refreshWith(sql: Sql, token: string) {
+  const res = await call(sql, new Request(`${FUNCTION}/token`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "cf-connecting-ip": "203.0.113.9" },
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: token }),
+  }));
+  return { status: res.status, body: await res.json() };
+}
+
+browserTest("an AI connected on the web keeps working through Advanced protection; new ones go to the app until it is turned off", async () => {
+  const { pg, sql } = await db();
+  const me = await account(pg);
+  const first = await start(sql);
+  const allowed = await allow(sql, first.id, session(me.id));
+  assertEquals(allowed.status, 200);
+  const tokens = await exchange(sql, first.clientId, new URL(allowed.body.redirect).searchParams.get("code")!, first.verifier);
+  assertEquals(tokens.status, 200);
+  // Connect pressed in the app just before the switch: its pre-approval is waiting in a browser.
+  const { key } = await connectPressed(sql, me.id);
+
+  await strictOn(pg, me.id);
+  assertEquals((await pg.query(`select 1 from public.account_key_copies where user_id = $1`, [me.id])).rows.length, 0);
+
+  // The connection holds its own wrap of the key (Security's "While connected"): it still reads,
+  // and refreshing it needs no copy.
+  const grant = await resolveAccessToken(sql, tokens.body.access_token, new Request(FUNCTION));
+  assertEquals(await unwrap(grant!.dk_wrap!, await tokenKey(tokens.body.access_token, "access"), "access", me.id), me.dk);
+  const renewed = await refreshWith(sql, tokens.body.refresh_token);
+  assertEquals(renewed.status, 200, JSON.stringify(renewed.body));
+  const regrant = await resolveAccessToken(sql, renewed.body.access_token, new Request(FUNCTION));
+  assertEquals(await unwrap(regrant!.dk_wrap!, await tokenKey(renewed.body.access_token, "access"), "access", me.id), me.dk);
+
+  // A new AI: the page sends it to the app, and the waiting pre-approval opens nothing.
+  const second = await start(sql);
+  const described = await (await call(sql, fromPage(`/connect/request?id=${second.id}`, session(me.id)))).json();
+  assertEquals([described.allow_here, described.allow_here_why], [false, "strict"]);
+  assertEquals((await allowPre(sql, second.id, key)).body.hint, "strict");
+  assertEquals((await allow(sql, second.id, session(me.id))).body.hint, "strict");
+  assertEquals((await preapprove(sql, session(me.id))).body.hint, "strict");
+  const [open] = (await pg.query<{ decided_at: Date | null }>(`select decided_at from public.oauth_requests where id = $1`, [second.id])).rows;
+  assertEquals(open.decided_at, null, "the app can still answer it");
+
+  // Turned off on a device that holds the key: the page answers again.
+  await strictOff(pg, me);
+  assertEquals((await allow(sql, second.id, session(me.id))).status, 200);
+  assertEquals((await preapprove(sql, session(me.id))).status, 200);
 });

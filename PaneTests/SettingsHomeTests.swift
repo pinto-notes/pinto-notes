@@ -141,15 +141,17 @@ extension SettingsHomeTests {
         #expect(SettingsIndex.matches("storage", available: [.account, .general]).isEmpty, "signed out there's no Storage page")
     }
 
-    /// Advanced protection is retired (AdvancedProtection): search finds it only for an account
-    /// that has it on, whose Security page shows its switch.
+    /// Advanced protection is by invitation (AdvancedProtection): search finds it for an account
+    /// that has it on or is invited, whose Security page shows its switch.
     @Test func searchFindsAdvancedProtectionOnlyWhenItIsOn() {
         let all = Set(SettingsPage.allCases)
         for word in ["advanced", "Advanced protection", "PROTECTION"] {
             #expect(SettingsIndex.matches(word, available: all).isEmpty, "\(word): not found while it's off")
-            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.standard)).isEmpty)
-            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.strict)).map(\.label) == ["Advanced protection"],
+            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.standard, offered: false)).isEmpty)
+            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.strict, offered: false)).map(\.label) == ["Advanced protection"],
                     "\(word): found while it's on")
+            #expect(SettingsIndex.matches(word, available: all, advancedProtection: AdvancedProtection.shown(.standard, offered: true)).map(\.label) == ["Advanced protection"],
+                    "\(word): found for an invited account")
         }
         #expect(SettingsIndex.matches("security", available: all).allSatisfy { $0.label != "Advanced protection" })
         // One AI's page needs an AI

@@ -370,6 +370,36 @@ extension KeyCopyTests {
         _ = third
     }
 
+    /// Tested 2026-11-25: a strict account that starts fresh has one device and a new recovery key
+    /// nobody saved, the state turning strict on refuses. The person is told, once, to save it.
+    @Test func aStrictAccountThatStartsFreshIsAskedToSaveItsNewRecoveryKey() async throws {
+        let (first, keychain) = device()
+        await attach(first)
+        try await first.markRecoveryKeySaved()
+        try await first.keepOnDevicesOnly(device: UUID())
+        let old = try #require(keychain.synced[user])
+        try await first.startFresh(confirmation: AccountCrypto.startFreshPhrase)
+        #expect(first.phase == .ready && first.keyID != old.keyID)
+        // Still strict, and the new key gets no copy.
+        #expect(first.protection == .strict && server.copy == nil && server.stores == [true])
+        #expect(server.row?.recovery_saved_at == nil, "the new recovery key isn't saved anywhere yet")
+        #expect(first.offersRecoveryKey && first.recoveryKeyChangeNeedsSaying, "said once, on this device too")
+        #expect(PrivacyCopy.recoveryChangedAlert(strict: true).contains("Advanced protection"))
+        first.recoveryKeyChangeShown()
+        #expect(!first.recoveryKeyChangeNeedsSaying && first.recoveryKeyChanged, "and stays on Security until it's saved")
+        try await first.markRecoveryKeySaved()
+        #expect(!first.recoveryKeyChanged)
+    }
+
+    /// A standard account that starts fresh opens by signing in: nothing to save, nothing said.
+    @Test func aStandardAccountThatStartsFreshIsNotAskedForARecoveryKey() async throws {
+        let (first, _) = device()
+        await attach(first)
+        try await first.startFresh(confirmation: AccountCrypto.startFreshPhrase)
+        #expect(first.phase == .ready && first.protection == .standard && server.copy != nil)
+        #expect(!first.offersRecoveryKey && !first.recoveryKeyChangeNeedsSaying)
+    }
+
     @Test func aStandardAccountsMissingCopyIsStoredAgainSilently() async throws {
         let (first, keychain) = device()
         await attach(first)
@@ -638,9 +668,11 @@ extension KeyCopyTests {
         // Off, the default: said candidly, in one plain line, who else could open the notes.
         #expect(W.copyLine == "Pinto Notes keeps a copy of your key so signing in opens your notes on a new device, which means we could open your notes if we had to.")
         #expect(W.strictFooterOff.contains("encrypted on your devices before they sync") && W.strictFooterOff.contains(W.copyLine))
-        for text in [W.strictFooterOff, W.copyDetail, W.turnOffMessage, W.askMessage] { #expect(!text.contains("locked copy"), "\(text)") }
-        // Turned off, it can't come back: it's retired (AdvancedProtection).
-        #expect(W.turnOffMessage.contains("no longer offered"))
+        for text in [W.strictFooterOff, W.copyDetail, W.turnOffMessage(invited: false), W.turnOffMessage(invited: true), W.askMessage] { #expect(!text.contains("locked copy"), "\(text)") }
+        // Turned off, it can't come back unless the account is invited (AdvancedProtection).
+        #expect(W.turnOffMessage(invited: false).contains("no longer offered"))
+        #expect(W.turnOffMessage(invited: true) == W.copyLine)
+        #expect(W.error(.notOffered) == "Advanced protection isn\u{2019}t available for this account.")
         #expect(!W.strictFooterOff.contains("end-to-end"))
         #expect(W.strictFooterOn.contains("end-to-end encrypted") && W.strictFooterOn.contains("can\u{2019}t help you back in"))
         #expect(W.askTitle == "Signing in now opens your notes" && W.askContinue == "Continue" && W.askStrict == "Keep My Key on My Devices Only")
@@ -653,7 +685,7 @@ extension KeyCopyTests {
         #expect(W.error(.strictPaused(until: nil)) == "You can turn this on in 3 days, because the password was just reset.")
         #expect(W.error(.needsRecoveryKey) == W.needsRecoveryKey)
         // Nothing a person reads has a dash that isn't a hyphen.
-        let all = [W.strictTitle, W.strictSubtitle, W.strictFooterOff, W.strictFooterOn, W.turnOnTitle, W.turnOnMessage, W.turnOn, W.turnOffTitle, W.turnOffMessage, W.turnOff,
+        let all = [W.strictTitle, W.strictSubtitle, W.strictFooterOff, W.strictFooterOn, W.turnOnTitle, W.turnOnMessage, W.turnOn, W.turnOffTitle, W.turnOffMessage(invited: false), W.turnOff, W.notOffered,
                    W.needsRecoveryKey, W.saveFirstTitle, W.saveFirstMessage, W.saveFirst, W.copyDetail, W.safeBySignIn, W.askTitle, W.askMessage, W.askStrict, W.heldTitle,
                    W.heldMessage(until: until), W.waitForOther, W.strictPaused(until: until), AccountNotice(id: 1, kind: .keyFetched, created_at: until).text().message]
         for text in all { #expect(!text.contains("\u{2013}") && !text.contains("\u{2014}"), "\(text)") }

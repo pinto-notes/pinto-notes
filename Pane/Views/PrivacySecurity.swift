@@ -121,8 +121,11 @@ enum PrivacyCopy {
     static let saveReason = "Save your recovery key"
     static let fileName = "Pinto Notes Recovery Key"
     static let recoveryChangedTitle = "Your recovery key changed"
-    static let recoveryChanged = "Your account started fresh on another device, so a recovery key you saved before no longer opens your notes. The new one is here."
-    static let recoveryChangedAlert = "Your account started fresh on another device, so it has a new recovery key. If you keep one, the new one is in \(settingsPath)."
+    static let recoveryChanged = "Your account started fresh, so a recovery key you saved before no longer opens your notes. The new one is here."
+    static let recoveryChangedAlert = "Your account started fresh, so it has a new recovery key. If you keep one, the new one is in \(settingsPath)."
+    /// With Advanced protection on, the recovery key is the way back if the devices are lost.
+    static let recoveryChangedAlertStrict = "Your account started fresh, so it has a new recovery key. With Advanced protection on, it\u{2019}s how you get back to your notes if you lose your devices. Save it in \(settingsPath)."
+    static func recoveryChangedAlert(strict: Bool) -> String { strict ? recoveryChangedAlertStrict : recoveryChangedAlert }
     static let exportFooter = "Every note as a Markdown file, with its files, made on this device."
     static let exportFooterLocal = "Every note on this device as a Markdown file in its folder, with its files."
 }
@@ -212,7 +215,7 @@ struct SecurityContent: CustomEquatable {
     static func isEqual(_ a: Self, _ b: Self) -> Bool { a.openers == b.openers && a.recovery == b.recovery && a.showsProtection == b.showsProtection && a.serverCopy == b.serverCopy }
 
     init(serverCopy: Bool, protection: KeyProtection?, recoverySaved: Bool, backedUp: Bool, others: [KeyDevice],
-         connections: [Connection], platform: String = InstallID.platform, now: Date = .now) {
+         connections: [Connection], invited: Bool = false, platform: String = InstallID.platform, now: Date = .now) {
         self.serverCopy = serverCopy
         advanced = protection == .strict
         let this = Opener(kind: .thisDevice, name: PrivacyCopy.thisDevice, detail: PrivacyCopy.inUseNow, short: PrivacyCopy.inUseNow,
@@ -231,7 +234,7 @@ struct SecurityContent: CustomEquatable {
                    symbol: SecurityContent.aiMark(c.mark, title: c.title) == nil ? c.symbol : nil, ai: SecurityContent.aiMark(c.mark, title: c.title))
         }
         recovery = RecoveryKeyOffer.shown(serverCopy: serverCopy, protection: protection) ? (recoverySaved ? .saved : .notSaved) : nil
-        showsProtection = AdvancedProtection.shown(protection)
+        showsProtection = AdvancedProtection.shown(protection, offered: invited)
         addsDevices = !serverCopy
         keychain = backedUp || others.contains { $0.backedUp && !$0.removing && $0.isRecent(now: now) }
         onlyThisDevice = !serverCopy && KeyDeviceList.safety(thisBackedUp: backedUp, others: others, recoverySaved: recoverySaved, now: now) == .onlyThisDevice
@@ -239,7 +242,7 @@ struct SecurityContent: CustomEquatable {
 
     @MainActor init(crypto: AccountCrypto, devices: KeyDevices, connections: [Connection]) {
         self.init(serverCopy: crypto.serverCopy, protection: crypto.protection, recoverySaved: crypto.recoveryKeySaved,
-                  backedUp: crypto.backedUp, others: devices.others, connections: connections)
+                  backedUp: crypto.backedUp, others: devices.others, connections: connections, invited: crypto.protectionInvited)
     }
 
     /// "Seen today", "Seen 18 Sep", "Not seen since 18 Sep", or that it's being removed.
@@ -485,9 +488,9 @@ struct PrivacySecuritySection: View {
 
     // MARK: Advanced protection
 
-    /// Whether the Advanced protection switch is on the page. Retired (AdvancedProtection): only
-    /// for an account that has it on, so it can turn it off.
-    static func showsProtection(_ crypto: AccountCrypto) -> Bool { AdvancedProtection.shown(crypto.protection) }
+    /// Whether the Advanced protection switch is on the page: for an invited account, and for one
+    /// that has it on, so it can turn it off (AdvancedProtection).
+    static func showsProtection(_ crypto: AccountCrypto) -> Bool { AdvancedProtection.shown(crypto.protection, offered: crypto.protectionInvited) }
 
     /// Under the switch while it's off (shown then only if it's offered again). On, the switch's
     /// own line and the page above it say it already.
@@ -524,7 +527,7 @@ struct PrivacySecuritySection: View {
                         .accessibilityIdentifier("privacy.confirmStandard")
                 }
             } message: {
-                Text(turning == .strict ? KeyCopyWords.turnOnMessage : KeyCopyWords.turnOffMessage)
+                Text(turning == .strict ? KeyCopyWords.turnOnMessage : KeyCopyWords.turnOffMessage(invited: crypto.protectionInvited))
             }
             // Nothing else could open the notes yet: the recovery key is shown and saved
             // first, and the switch turns on when it has been.

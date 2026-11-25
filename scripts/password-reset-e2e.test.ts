@@ -191,11 +191,13 @@ Deno.test({ name: "password reset end to end", sanitizeResources: false, sanitiz
 
     await t.step("a magic-link sign-in starts the pause too; asking for one doesn't", async () => {
       const other = `link-${tag}@example.com`;
+      // Confirmed a day ago: a first sign-in minutes after the address was confirmed is the sign-up's
+      // own code, which starts no pause (20261009233000_sign_up_code_is_not_a_reset.sql).
       const [{ id: otherId }] = await db`
         insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at,
                                 confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current, reauthentication_token,
                                 raw_app_meta_data, raw_user_meta_data)
-        values (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', ${other}, crypt(${OLD}, gen_salt('bf')), now(), now(), now(),
+        values (gen_random_uuid(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', ${other}, crypt(${OLD}, gen_salt('bf')), now() - interval '1 day', now() - interval '1 day', now(),
                 '', '', '', '', '', '', '{"provider":"email","providers":["email"]}', '{}')
         returning id`;
       try {

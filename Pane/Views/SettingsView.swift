@@ -35,7 +35,7 @@ struct SettingsView: View {
         #if os(macOS)
         // A big card over the notes, its pages in a sidebar of its own (SettingsCard).
         SettingsCard(backend: backend, available: available, page: { AnyView(page($0)) },
-                     advancedProtection: AdvancedProtection.shown(crypto.protection),
+                     advancedProtection: AdvancedProtection.shown(crypto.protection, offered: crypto.protectionInvited),
                      recoveryKey: crypto.offersRecoveryKey, route: route, start: start, close: close, search: search)
         .environment(\.networkReach, reach)
         // Allowing an AI shows over Settings.
