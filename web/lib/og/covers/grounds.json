@@ -173,6 +173,12 @@
   "w": 880,
   "h": 550
  },
+ "checklist-template": {
+  "ground": "#b7d7b8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "claude-code-codex": {
   "ground": "#eee6df",
   "ink": "dark",
@@ -714,8 +720,8 @@
   "h": 550
  },
  "wishlist-template": {
-  "ground": "#f0c691",
-  "ink": "dark",
+  "ground": "#d85445",
+  "ink": "light",
   "w": 880,
   "h": 550
  },
