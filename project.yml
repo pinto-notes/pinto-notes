@@ -393,6 +393,10 @@ targets:
       - path: Pane/Telemetry
         type: folder
         buildPhase: resources
+      # Sharing's code too, for TelemetryGuardTests (nothing reaches telemetry around the gate).
+      - path: Pane/Collab
+        type: folder
+        buildPhase: resources
       - path: PaneShare
         type: folder
         buildPhase: resources

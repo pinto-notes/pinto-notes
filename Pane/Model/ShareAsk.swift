@@ -219,13 +219,13 @@ struct SupabaseShareAsk: ShareAskService {
         try await client.rpc("pane_share_ask_state").execute().value
     }
     func addDays(_ days: [String]) async throws {
-        try await client.rpc("pane_active_days_add", params: ["days": days]).execute()
+        try await ServerUsage.send(.activeDays(days), client)
     }
     func decide(_ choice: ShareAsk.Choice) async throws {
         try await client.rpc("pane_share_ask_decide", params: ["choice": choice.rawValue]).execute()
     }
     func count(_ event: String) async {
-        _ = try? await client.rpc("pane_tip_event", params: ["tip": "shareAsk", "event": event]).execute()
+        await ServerUsage.sendQuietly(.tipEvent(tip: "shareAsk", event: event), client)
     }
 }
 

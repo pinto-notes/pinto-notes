@@ -171,12 +171,13 @@ export function resend(key: string, fetcher: typeof fetch = fetch): Send {
   };
 }
 
-/// Records a click from pintonotes.com/go: which email and the link's host and path. Returns false
-/// for an email row that doesn't exist (an account deleted since).
+/// Records a click from pintonotes.com/go: which email and the link's host and path, through the
+/// telemetry gate (record_email_click, 20261125120000_telemetry_choice.sql): kept only when the
+/// account shares diagnostics and usage. Returns false for an email row that doesn't exist (an
+/// account deleted since).
 export async function recordClick(sql: Sql, sendId: number, url: string): Promise<boolean> {
-  const rows = await sql`insert into public.email_clicks (send_id, link)
-    select id, ${linkName(url)} from public.email_sends where id = ${sendId} returning id`;
-  return rows.length > 0;
+  const [row] = await sql<{ ok: boolean }[]>`select public.record_email_click(${sendId}, ${linkName(url)}) as ok`;
+  return row?.ok === true;
 }
 
 export type Stats = { kind: Kind; variant: number; sent: number; clicked: number; done: number }[];

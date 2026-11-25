@@ -137,7 +137,7 @@ enum InstallID {
 
     /// Once per launch, after sign-in.
     static func report(_ client: SupabaseClient) async {
-        _ = try? await client.rpc("pane_seen_device", params: ["device": value.uuidString.lowercased(), "platform": platform]).execute()
+        await ServerUsage.sendQuietly(.seenDevice(value, platform: platform), client)
     }
 }
 

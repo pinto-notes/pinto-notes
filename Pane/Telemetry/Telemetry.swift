@@ -4,6 +4,14 @@ import Foundation
 /// (docs/Technical/app-telemetry.md). The released app only, and only while Settings › Share
 /// diagnostics and usage is on: off, nothing is queued or sent.
 ///
+/// THE CHOKEPOINT (docs/Technical/telemetry-inventory.md): `allowed(_:)` is the one gate. Every
+/// event, feature use, funnel step, failure, crash or hang report, settings snapshot and speed
+/// passes it before anything is kept, and every send passes it again; the usage the app writes to
+/// the server goes through `ServerUsage`, which asks it too. The switch follows the account
+/// (`TelemetryChoiceSync`), and this device's copy of it decides when signed out.
+/// TelemetryGuardTests fails when code outside Pane/Telemetry reaches the transport, PostHog,
+/// MetricKit or a usage RPC.
+///
 /// It takes a `TelemetryEvent` and nothing else, so what leaves the device is what that enum can
 /// say. Events wait in a small file (at most `cap`; more are dropped) and go out in batches: soon
 /// after an error, when the app goes to the background, and at the next launch for whatever a
@@ -14,6 +22,12 @@ final class Telemetry: @unchecked Sendable {
 
     /// Settings › Share diagnostics and usage. On unless it was turned off.
     static let consentKey = "shareDiagnostics"
+    /// When the switch was last set (here, or from the account): the latest choice wins between
+    /// devices (TelemetryChoiceSync).
+    static let consentAtKey = "shareDiagnosticsAt"
+    /// The account whose choice this device last learned. Signing in to another one holds sending
+    /// until that account's choice is known.
+    static let choiceAccountKey = "telemetry.choiceAccount"
     static let onceKey = "telemetry.once"
     /// The app version the last `settings_state` was sent for (SettingsUsage). Dropped when Share
     /// diagnostics is turned off, so turning it back on says the settings again.
@@ -53,8 +67,19 @@ final class Telemetry: @unchecked Sendable {
     private var pendingAt = Date.distantFuture
     private var launchedAt: Date?
     private var openedDay: Int?
+    /// Whether a newly signed-in account's choice is awaited before anything is sent (the app's
+    /// own; tests opt in).
+    var waitsForAccountChoice = false
+    /// Signed in to an account whose choice isn't known here yet: events are kept but not sent.
+    private var awaitingAccountChoice = false
 
     init() {}
+
+    /// Tests: one that never sends (no config), with the switch in `defaults`.
+    convenience init(defaults: UserDefaults) {
+        self.init()
+        self.defaults = defaults
+    }
 
     /// Tests: one that sends through `transport`, and only when `flush` is called.
     convenience init(config: TelemetryConfig, transport: TelemetryTransport, store: TelemetryQueueStore = MemoryTelemetryQueue(),
@@ -74,8 +99,26 @@ final class Telemetry: @unchecked Sendable {
             self.defaults = defaults
             self.now = now
             for key in Self.retiredKeys { defaults.removeObject(forKey: key) }
-            queue = consents ? Array(store.load().suffix(Self.cap)) : []
-            if !consents { store.save([]) }
+            queue = passes(.posthog) ? Array(store.load().suffix(Self.cap)) : []
+            if !passes(.posthog) { store.save([]) }
+        }
+    }
+
+    // MARK: The gate
+
+    /// Where telemetry goes: PostHog (only from a build that sends), or the usage the app writes to
+    /// Pinto's own server (ServerUsage: tips, days of use, the install's hello, the heard-from answer).
+    enum Route: Sendable { case posthog, server }
+
+    /// THE GATE. Whether anything may be recorded or sent by `route` now. Nothing in the app records
+    /// or sends telemetry without passing here.
+    func allowed(_ route: Route) -> Bool { lock.withLock { passes(route) } }
+
+    /// The gate, lock held.
+    private func passes(_ route: Route) -> Bool {
+        switch route {
+        case .posthog: config != nil && consents
+        case .server: consents
         }
     }
 
@@ -92,26 +135,53 @@ final class Telemetry: @unchecked Sendable {
     /// Written outside the lock: a write tells SettingsUsage at once, which may record.
     var consent: Bool {
         get { lock.withLock { consents } }
-        set {
-            let defaults = lock.withLock { self.defaults }
-            if !newValue { defaults.removeObject(forKey: Self.settingsSnapshotKey) }
-            defaults.set(newValue, forKey: Self.consentKey)
-            if !newValue { lock.withLock { empty() } }
-        }
+        set { setConsent(newValue, at: lock.withLock { now() }) }
     }
+
+    /// The switch, as chosen at `at` (here, or on another device of the account).
+    func setConsent(_ on: Bool, at: Date?) {
+        let defaults = lock.withLock { self.defaults }
+        if !on { defaults.removeObject(forKey: Self.settingsSnapshotKey) }
+        defaults.set(on, forKey: Self.consentKey)
+        if let at { defaults.set(at, forKey: Self.consentAtKey) } else { defaults.removeObject(forKey: Self.consentAtKey) }
+        if !on { lock.withLock { empty() } }
+    }
+
+    /// When this device's switch was last set, if ever.
+    var consentAt: Date? { lock.withLock { defaults.object(forKey: Self.consentAtKey) as? Date } }
 
     /// Whether this build sends at all (TelemetryGate), whatever the switch says.
     var sends: Bool { lock.withLock { config != nil } }
 
     /// Whether anything is recorded at all: a build that sends, with the switch on.
-    var isOn: Bool { lock.withLock { config != nil && consents } }
+    var isOn: Bool { allowed(.posthog) }
+
+    /// Whether sending waits for a newly signed-in account's choice.
+    var holding: Bool { lock.withLock { awaitingAccountChoice } }
+
+    /// The account's choice is known on this device (TelemetryChoiceSync applied it): what waited
+    /// goes out, if the switch is still on.
+    func accountChoiceKnown(_ account: UUID) {
+        let release: Bool = lock.withLock {
+            defaults.set(account.uuidString.lowercased(), forKey: Self.choiceAccountKey)
+            defer { awaitingAccountChoice = false }
+            return awaitingAccountChoice && passes(.posthog) && !queue.isEmpty
+        }
+        if release { lock.withLock { schedule(after: 2) } }
+    }
 
     // MARK: Who
 
     /// The account, once signed in: its events say which account, so "this account is stuck on the
     /// key screen" can be answered. Before that, a random identifier made for this launch (`launchID`).
     func identify(_ account: UUID) {
-        lock.withLock { self.account = account }
+        lock.withLock {
+            if waitsForAccountChoice, self.account != account,
+               defaults.string(forKey: Self.choiceAccountKey) != account.uuidString.lowercased() {
+                awaitingAccountChoice = true
+            }
+            self.account = account
+        }
     }
 
     /// Signed out: what follows goes under a new random identifier, not the account's and not the
@@ -157,7 +227,7 @@ final class Telemetry: @unchecked Sendable {
 
     func record(_ event: TelemetryEvent) {
         lock.withLock {
-            guard let config, consents else { return }
+            guard passes(.posthog), let config else { return }
             if event.oncePerLaunch, !saidThisLaunch.insert(String(describing: event)).inserted { return }
             if event.oncePerInstall {
                 var said = defaults.stringArray(forKey: Self.onceKey) ?? []
@@ -192,7 +262,7 @@ final class Telemetry: @unchecked Sendable {
     /// A note was typed in: one `feature_used` the first time for each note this launch, not one
     /// a keystroke.
     func edited(_ note: UUID) {
-        let first = lock.withLock { config != nil && consents && editedNotes.insert(note).inserted }
+        let first = lock.withLock { passes(.posthog) && editedNotes.insert(note).inserted }
         if first { record(.featureUsed(.notesEdited)) }
     }
 
@@ -202,7 +272,7 @@ final class Telemetry: @unchecked Sendable {
     /// `SpeedTimings.enough`, and when the app quits.
     func speed(_ kind: SpeedKind, seconds: TimeInterval) {
         let full: SpeedTimings? = lock.withLock {
-            guard config != nil, consents else { return nil }
+            guard passes(.posthog) else { return nil }
             var t = speeds[kind] ?? SpeedTimings()
             t.add(seconds: seconds)
             guard t.count >= SpeedTimings.enough else { speeds[kind] = t; return nil }
@@ -232,7 +302,7 @@ final class Telemetry: @unchecked Sendable {
     /// One sync finished: counted, and sent as one event when the app goes to the background.
     func syncFinished(seconds: TimeInterval, ok: Bool) {
         lock.withLock {
-            guard config != nil, consents else { return }
+            guard passes(.posthog) else { return }
             timings.add(seconds: seconds, ok: ok)
         }
     }
@@ -308,7 +378,7 @@ final class Telemetry: @unchecked Sendable {
     func flush() async {
         while true {
             let work: (body: Data, count: Int, epoch: Int, url: URL, transport: TelemetryTransport)? = lock.withLock {
-                guard !flushing, let config, let transport, consents, !queue.isEmpty else { return nil }
+                guard passes(.posthog), !awaitingAccountChoice, !flushing, let config, let transport, !queue.isEmpty else { return nil }
                 flushing = true
                 let batch = Array(queue.prefix(Self.batch))
                 return (TelemetryBody.batch(batch, key: config.key), batch.count, epoch, config.host.appending(path: "batch/"), transport)
@@ -493,6 +563,7 @@ enum TelemetryGate {
         guard let key, sends(key: key, channel: channel, simulator: isSimulator, arguments: ProcessInfo.processInfo.arguments,
                              environment: ProcessInfo.processInfo.environment) else { return }
         let config = TelemetryConfig(key: key, host: host(info.object(forInfoDictionaryKey: "PanePostHogHost") as? String), context: .current)
+        Telemetry.shared.waitsForAccountChoice = true
         Telemetry.shared.start(config, transport: URLSessionTelemetryTransport(), store: FileTelemetryQueue())
     }
 }

@@ -20,7 +20,12 @@ in the app reported it, and it went unnoticed for more than a week.
   repository variable `POSTHOG_KEY`; while that variable is not set, they send nothing. Debug and QA builds, unit and UI tests, capture runs, `-local`
   launches and the Simulator never send (`TelemetryGate`).
 - **The switch:** Settings › General › Share diagnostics and usage, on by default. Off, nothing is
-  kept or sent, and what was waiting is dropped, with the speeds not yet sent.
+  kept or sent, and what was waiting is dropped, with the speeds not yet sent. It follows the
+  account: the server keeps the choice (`telemetry_choice`), the latest choice made on any device
+  wins, and a device signing in holds what it would send until it knows the account's choice
+  (`TelemetryChoiceSync`). Signed out, the device's own copy decides. Off also stops what the
+  server counts about the account (below). Every path passes one gate, `Telemetry.allowed`:
+  `telemetry-inventory.md` lists them all, and the guard tests that keep it so.
 - **Who an event is from:** the account's id once signed in, so "this account is stuck on the key
   screen" can be answered. Before sign-in, a random id made when the app starts and kept in
   memory only: no identifier is stored on the device, so two launches before sign-in can't be
@@ -230,6 +235,9 @@ the `account` server function would need to ask PostHog for it with a private ke
 The apps can't see what a connected AI does, so the MCP server counts it
 (`supabase/functions/mcp/ai_use.ts`, migration `20261107170000_ai_use_daily.sql`). It sends
 nothing to PostHog: the edge functions have no PostHog key, and the counts stay in the database.
+Nothing is counted for an account with Share diagnostics and usage off: `count_ai_use` passes the
+server's gate, `public.telemetry_allowed` (`20261125120000_telemetry_choice.sql`), like every other
+usage writer on the server.
 
 `public.ai_use_daily` holds one row per account, UTC day, kind of AI, kind of tool and outcome,
 with a count. Nothing else: no tool arguments, no note or file, no connection name, no host.
@@ -244,7 +252,7 @@ with a count. Nothing else: no tool arguments, no note or file, no connection na
 | `count` | How many calls |
 
 - **When:** after each tool call, once per HTTP request (`count_ai_use`, run after the answer
-  where the edge runtime allows it). Only tool calls count: not `initialize`, `tools/list`, or
+  where the edge runtime allows it), while the account shares diagnostics and usage. Only tool calls count: not `initialize`, `tools/list`, or
   a tool the server doesn't serve. A request without a valid connection counts nothing.
 - **Whose:** the account and kind come from the connection the request was authenticated with
   (the `mcp_tokens` row), never from the request, so one account can't add to another's counts.

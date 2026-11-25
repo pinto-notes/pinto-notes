@@ -30,7 +30,7 @@ describe("website PostHog", () => {
   });
 
   it("stays cookieless until the visitor accepts, and records nobody", () => {
-    const o = posthogOptions(POSTHOG_DEFAULT_HOST);
+    const o = posthogOptions(POSTHOG_DEFAULT_HOST, () => true);
     // No answer counts as a rejection, and a rejection is cookieless.
     expect(o.cookieless_mode).toBe("on_reject");
     expect(o.opt_out_capturing_by_default).toBe(true);
@@ -215,7 +215,7 @@ describe("session replay", () => {
   });
 
   it("starts off, masks every field, and records no console, network or canvas", () => {
-    const o = posthogOptions(POSTHOG_DEFAULT_HOST);
+    const o = posthogOptions(POSTHOG_DEFAULT_HOST, () => true);
     expect(o.disable_session_recording).toBe(true);
     expect(o.enable_recording_console_log).toBe(false);
     expect(o.capture_performance).toBe(false);

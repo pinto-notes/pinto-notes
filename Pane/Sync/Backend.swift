@@ -255,12 +255,14 @@ final class Backend {
         accountCreated = session.user.createdAt
         userID = session.user.id
         Telemetry.shared.identify(session.user.id)
+        if let client { TelemetryChoiceSync.signedIn(session.user.id, service: SupabaseTelemetryChoice(client: client)) }
         state = .signedIn(email: session.user.email ?? "")
     }
 
     /// The session ended (signed out here, or the server refused its refresh).
     private func signedOut() {
         if userID != nil { Telemetry.shared.signedOut() }
+        TelemetryChoiceSync.signedOut()
         accountCreated = nil
         userID = nil
         state = .signedOut

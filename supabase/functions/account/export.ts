@@ -76,6 +76,9 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
   const features = await sql<Row[]>`select feature, first_at from public.pane_feature_use where user_id = ${uid}`;
   // "How did you hear about Pinto Notes?", if it was answered.
   const [heard_from] = await sql<Row[]>`select source, detail, answered_at from public.pane_heard_from where user_id = ${uid}`;
+  // AI use per day (ai_use_daily) and the Share diagnostics and usage choice (telemetry_choice).
+  const ai_use = await sql<Row[]>`select day, ai, category, outcome, count from public.ai_use_daily where user_id = ${uid} order by day, ai, category, outcome`;
+  const [telemetry_choice] = await sql<Row[]>`select share, updated_at from public.telemetry_choice where user_id = ${uid}`;
   // The onboarding emails (supabase/functions/lifecycle): which went out, and whether you said stop.
   const emails = await sql<Row[]>`select s.kind, s.status, s.created_at, s.sent_at, (select count(*)::int from public.email_clicks c where c.send_id = s.id) as clicks
     from public.email_sends s where s.user_id = ${uid} order by s.created_at`;
@@ -108,7 +111,8 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
     locked_notes: lock ?? null,
     usage: { totals: totals ?? null, setup: setup ?? null, ai_edits_per_day: ai_edits, tips, active_days: days.map((d) => d.day), devices, key_devices,
       key_copy: { protection: key_protection?.mode ?? null, chosen_at: key_protection?.chosen_at ?? null, kept: !!key_copy, stored_at: key_copy?.stored_at ?? null, last_opened_at: key_copy?.opened_at ?? null, events: key_copy_events },
-      share_ask: share_ask ?? null, features_used: features, heard_from: heard_from ?? null },
+      share_ask: share_ask ?? null, features_used: features, heard_from: heard_from ?? null,
+      ai_use_per_day: ai_use, share_diagnostics: telemetry_choice ?? null },
     onboarding_emails: { sent: emails, unsubscribed: unsubscribed ?? null },
     sign_ins: sessions,
   };

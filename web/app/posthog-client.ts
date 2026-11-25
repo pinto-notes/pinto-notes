@@ -1,6 +1,10 @@
-import type { PostHog } from "posthog-js";
+import type { CaptureOptions, PostHog, Properties } from "posthog-js";
 import { CONSENT_KEY, type ConsentChoice } from "@/lib/consent";
 import { posthogOptions, REPLAY_REMOTE_CONFIG, replayAllowed, visitorOptedOut } from "@/lib/posthog";
+import { browserTelemetryAllowed, rememberChoiceForServer } from "@/lib/telemetry-gate";
+
+// The only file that loads PostHog or calls its capture (lib/telemetry-guard.test.ts). Everything
+// goes through the website's telemetry gate (lib/telemetry-gate.ts).
 
 let loading: Promise<PostHog | null> | undefined;
 
@@ -10,15 +14,16 @@ export function browserOptedOut(): boolean {
 }
 
 /// PostHog is fetched and started once, the first time a public page asks for it, and not at all
-/// for a visitor who sends Do Not Track or Global Privacy Control.
+/// for a visitor who rejected, or sends Do Not Track or Global Privacy Control (the gate).
 export function startPostHog(key: string, host: string): Promise<PostHog | null> {
+  if (!loading && !browserTelemetryAllowed()) return Promise.resolve(null);
   loading ??= browserOptedOut()
     ? Promise.resolve(null)
     // Dead clicks are a PostHog extension it would otherwise fetch from its own servers; it comes
     // with the site instead, so the page still talks to the capture endpoint only.
     : import("posthog-js/dist/dead-clicks-autocapture")
       .then(() => import("posthog-js"))
-      .then(({ default: posthog }) => posthog.init(key, posthogOptions(host)) ?? posthog)
+      .then(({ default: posthog }) => posthog.init(key, posthogOptions(host, browserTelemetryAllowed)) ?? posthog)
       .then((posthog) => {
         // Replay failing to start never stops the rest.
         syncReplay(posthog, window.location.pathname).catch(() => undefined);
@@ -47,25 +52,35 @@ export function replayOnPage(path: string): void {
   void loading?.then((posthog) => posthog && syncReplay(posthog, path)).catch(() => undefined);
 }
 
-/// The visitor's answer from the banner. Accepting switches PostHog from cookieless to its cookie;
-/// rejecting switches it back and removes the cookie. Without PostHog (it failed to load) the
-/// answer is still kept, the way PostHog would keep it.
+/// One of the site's own events: only through the gate.
+export function track(posthog: PostHog | null, event: string, properties?: Properties, options?: CaptureOptions): void {
+  if (!posthog || !browserTelemetryAllowed()) return;
+  posthog.capture(event, properties, options);
+}
+
+/// The visitor's answer from the banner, kept first so the gate knows it at once. Accepting lets
+/// PostHog keep its cookie. Rejecting stops everything: no event of any kind is sent after it (not
+/// even one saying so), replay stops, PostHog's cookie and window marker go, and the server routes
+/// are told by a cookie of our own.
 export async function recordChoice(key: string, host: string, choice: ConsentChoice): Promise<void> {
-  const posthog = await startPostHog(key, host);
-  if (posthog && choice === "accepted") {
+  try { localStorage.setItem(CONSENT_KEY, choice === "accepted" ? "1" : "0"); } catch { /* storage blocked: asked again next visit */ }
+  rememberChoiceForServer(choice);
+  if (choice === "accepted") {
+    const posthog = await startPostHog(key, host);
+    if (!posthog) return;
     posthog.opt_in_capturing({ captureEventName: "cookies_accepted" });
     await syncReplay(posthog, window.location.pathname).catch(() => undefined);
-  } else if (posthog) {
+    return;
+  }
+  const posthog = loading ? await loading : null;
+  if (posthog) {
     posthog.stopSessionRecording();
     posthog.opt_out_capturing();
-    posthog.capture("cookies_rejected");
-    // PostHog removes its cookie, but leaves the tab's window marker in sessionStorage.
-    try {
-      for (const k of Object.keys(sessionStorage)) if (k.startsWith("ph_")) sessionStorage.removeItem(k);
-    } catch { /* storage blocked: nothing there */ }
-  } else {
-    try { localStorage.setItem(CONSENT_KEY, choice === "accepted" ? "1" : "0"); } catch { /* storage blocked: asked again next visit */ }
   }
+  // PostHog removes its cookie, but leaves the tab's window marker in sessionStorage.
+  try {
+    for (const k of Object.keys(sessionStorage)) if (k.startsWith("ph_")) sessionStorage.removeItem(k);
+  } catch { /* storage blocked: nothing there */ }
 }
 
 /// The stored answer's raw value, or null when there is none or storage is blocked.

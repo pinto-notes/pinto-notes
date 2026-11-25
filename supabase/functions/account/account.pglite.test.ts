@@ -101,6 +101,8 @@ async function seed(pg: PGlite, me: string) {
   await pg.query(`insert into public.connect_preapprovals (user_id, ai, ticket_hash) values ($1, 'Claude', md5(random()::text) || md5(random()::text))`, [me]);
   // A day's AI use (ai_use_daily, 20261107170000_ai_use_daily.sql): goes with the account.
   await pg.query(`insert into public.ai_use_daily (user_id, day, ai, category, outcome, count) values ($1, current_date, 'claude', 'read', 'ok', 3)`, [me]);
+  // The account's Share diagnostics and usage choice (20261125120000_telemetry_choice.sql): goes with it.
+  await pg.query(`insert into public.telemetry_choice (user_id, share) values ($1, false)`, [me]);
   await pg.query(`insert into public.pane_setup (user_id, imported_at) values ($1, now())`, [me]);
   await pg.query(`insert into public.pane_activity (user_id, day, kind, n) values ($1, current_date, 'ai_edit', 3) on conflict do nothing`, [me]);
   await pg.query(`insert into public.pane_tip_activity (user_id, day, tip, event, n) values ($1, current_date, 'shareLink', 'shown', 1)`, [me]);

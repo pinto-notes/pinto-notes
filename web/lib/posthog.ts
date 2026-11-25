@@ -65,7 +65,9 @@ export function visitorOptedOut(nav: { doNotTrack?: string | null; globalPrivacy
   return dnt === "1" || dnt === "yes" || nav?.globalPrivacyControl === true;
 }
 
-export function posthogOptions(host: string): Partial<PostHogConfig> {
+/// `allowed` is the website's telemetry gate (lib/telemetry-gate.ts browserTelemetryAllowed): every
+/// event PostHog would send, its automatic ones included, is dropped when it says no.
+export function posthogOptions(host: string, allowed: () => boolean): Partial<PostHogConfig> {
   return {
     api_host: host,
     // Until the visitor accepts the cookie banner, nothing is stored on their device: PostHog's
@@ -122,7 +124,7 @@ export function posthogOptions(host: string): Partial<PostHogConfig> {
     disable_external_dependency_loading: true,
     // Ad click ids (gclid, fbclid and the like) are masked in the page address.
     mask_personal_data_properties: true,
-    before_send: sanitizeEvent,
+    before_send: (event) => (allowed() ? sanitizeEvent(event) : null),
   };
 }
 

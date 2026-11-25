@@ -218,6 +218,18 @@ print("\n".join(sorted(suites)))' > "$DD/ran.txt"
   else
     print -- "→ No test file touched: no tests run."
   fi
+
+  # The telemetry chokepoint (docs/Technical/telemetry-inventory.md), whatever the change touches: a
+  # new usage table, writer, PostHog call or count that goes around the switch fails here. The app's
+  # half is TelemetryGuardTests above (scripts/ci/always-tests.txt). About 3 s.
+  if ! (cd supabase/functions && deno test --allow-all _shared/telemetry_guard.test.ts _shared/telemetry_gate.pglite.test.ts > "$DD/telemetry-server.log" 2>&1); then
+    tail -40 "$DD/telemetry-server.log"; print -- "✗ The server's telemetry guard failed (supabase/functions/_shared/telemetry.ts). Not ready to push."; exit 1
+  fi
+  [[ -d web/node_modules ]] || (cd web && pnpm install --frozen-lockfile > "$DD/web-install.log" 2>&1) || { tail -20 "$DD/web-install.log"; print -- "✗ Couldn't install the site's packages for its telemetry guard."; exit 1; }
+  if ! (cd web && npx vitest run lib/telemetry-guard.test.ts app/go/route.test.ts app/download/mac/route.test.ts > "$DD/telemetry-web.log" 2>&1); then
+    tail -40 "$DD/telemetry-web.log"; print -- "✗ The website's telemetry guard failed (web/lib/telemetry-gate.ts). Not ready to push."; exit 1
+  fi
+  print -- "✓ Telemetry guards: server and website"
 fi
 
 # The templates live in web/content/templates and ship in the app too (catalog.json): their site tests

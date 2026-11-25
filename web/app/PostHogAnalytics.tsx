@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import type { PostHog } from "posthog-js";
 import { SITE_EVENT } from "@/lib/open-in-app";
 import { clickEvents, newScrollMarks, posthogAllowed, scrolledPercent, type SiteEvent } from "@/lib/posthog";
-import { startPostHog } from "./posthog-client";
+import { startPostHog, track } from "./posthog-client";
 
 /// Website usage with PostHog (lib/posthog.ts). SiteAnalytics renders this only on public pages,
 /// and only when the build has a key. Named clicks and scroll depth are sent from here; page views,
@@ -20,12 +20,12 @@ export default function PostHogAnalytics({ apiKey, host, path }: { apiKey: strin
       const el = e.target instanceof Element ? e.target.closest("a, button") : null;
       if (!posthog || !el || !posthogAllowed(window.location.pathname)) return;
       for (const named of clickEvents(el, new URL(window.location.href))) {
-        posthog.capture(named.event, named.properties, named.leaves ? { transport: "sendBeacon" } : { send_instantly: true });
+        track(posthog, named.event, named.properties, named.leaves ? { transport: "sendBeacon" } : { send_instantly: true });
       }
     };
     // Kept until PostHog has loaded: an old link's attempt is sent as the page loads.
     const early: SiteEvent[] = [];
-    const capture = (named: SiteEvent) => posthog?.capture(named.event, named.properties, { send_instantly: true });
+    const capture = (named: SiteEvent) => track(posthog, named.event, named.properties, { send_instantly: true });
     const onSiteEvent = (e: Event) => {
       const named = (e as CustomEvent<SiteEvent>).detail;
       if (!named || !posthogAllowed(window.location.pathname)) return;
@@ -38,7 +38,7 @@ export default function PostHogAnalytics({ apiKey, host, path }: { apiKey: strin
       const doc = document.documentElement;
       for (const mark of newScrollMarks(scrolledPercent(window.scrollY, window.innerHeight, doc.scrollHeight), sent)) {
         sent.add(mark);
-        posthog.capture("scroll_depth", { percent: mark, path });
+        track(posthog, "scroll_depth", { percent: mark, path });
       }
     };
 

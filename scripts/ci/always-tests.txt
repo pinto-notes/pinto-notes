@@ -4,5 +4,6 @@
 # new button and a new telemetry value broke them, and no local check had run them.
 AmberButtonTests          # every primary button in Pane/Views uses the amber style
 TelemetryPrivacyTests     # docs/Technical/app-telemetry.md lists every value the app can send
+TelemetryGuardTests       # every telemetry path goes through the one gate (docs/Technical/telemetry-inventory.md)
 OldNameTests              # no string a person reads says the old name
 FormerSubNotesTests       # nothing in either app makes a sub-note any more (removed 2026-10-28)

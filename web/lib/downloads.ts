@@ -3,6 +3,8 @@
 // redirects to the DMG. Only a daily total per product is stored: no address, browser, cookie or
 // anything else about who downloaded. Sparkle's appcast points at the versioned DMG directly, so
 // updates are never counted.
+import { requestTelemetryAllowed } from "./telemetry-gate";
+
 export const MAC_DOWNLOAD_PATH = "/download/mac";
 /// The DMG's stable name since 1.2, when the Mac app became Pinto Notes.app. The names from before
 /// (Amber-Notes.dmg, Amber-Notes-<version>.dmg) are still answered: see OLD_DMG_NAMES.
@@ -19,9 +21,11 @@ export const OLD_DMG_NAMES = [
 
 export type Product = "mac";
 
-/// Adds one to today's total. Never throws and gives up after `timeoutMs`: a count is never worth
-/// a slower or failed download.
-export async function countDownload(product: Product, env: { url?: string; key?: string } = supabaseEnv(), timeoutMs = 1500): Promise<boolean> {
+/// Adds one to today's total, unless the visitor said no (the website's telemetry gate,
+/// lib/telemetry-gate.ts, from the request's headers). Never throws and gives up after `timeoutMs`:
+/// a count is never worth a slower or failed download.
+export async function countDownload(product: Product, headers: Headers, env: { url?: string; key?: string } = supabaseEnv(), timeoutMs = 1500): Promise<boolean> {
+  if (!requestTelemetryAllowed(headers)) return false;
   if (!env.url || !env.key) return false;
   try {
     const res = await fetch(`${env.url}/rest/v1/rpc/count_download`, {

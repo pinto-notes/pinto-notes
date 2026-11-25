@@ -103,7 +103,7 @@ private func props(_ e: [String: Any]?) -> [String: Any] { e?["properties"] as? 
         let before = Set(d.dictionaryRepresentation().keys)
         t.consent = false
         t.used(.checklistTicked)
-        #expect(Set(d.dictionaryRepresentation().keys).subtracting(before).subtracting([Telemetry.consentKey]).isEmpty, "nothing kept on the device")
+        #expect(Set(d.dictionaryRepresentation().keys).subtracting(before).subtracting([Telemetry.consentKey, Telemetry.consentAtKey]).isEmpty, "nothing kept on the device")
     }
 
     @Test func theOldDailyCountsAreRemovedAtStart() {

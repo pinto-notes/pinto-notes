@@ -4,8 +4,8 @@ import { macDmg } from "@/lib/public-release";
 // Counts a Mac download, then sends the browser to the DMG (lib/downloads.ts).
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
-  await countDownload("mac");
+export async function GET(req: Request): Promise<Response> {
+  await countDownload("mac", req.headers);
   return toFile(macDmg());
 }
 

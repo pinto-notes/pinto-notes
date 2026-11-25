@@ -63,7 +63,7 @@ struct SupabaseHeardFrom: HeardFromService {
     }
 
     func answer(_ source: HeardFrom.Source, detail: String?) async throws {
-        try await client.rpc("pane_heard_from_answer", params: ["source": source.rawValue, "detail": detail ?? ""]).execute()
+        try await ServerUsage.send(.heardFrom(source: source.rawValue, detail: detail ?? ""), client)
     }
 }
 

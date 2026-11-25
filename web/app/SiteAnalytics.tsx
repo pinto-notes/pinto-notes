@@ -5,10 +5,14 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import PostHogAnalytics from "./PostHogAnalytics";
 import ConsentBanner from "./ConsentBanner";
-import { analyticsAllowed, analyticsEvent } from "@/lib/analytics";
+import { analyticsAllowed } from "@/lib/analytics";
+import { vercelEvent } from "@/lib/telemetry-gate";
 import { posthogAllowed, posthogSettings, rememberInternal } from "@/lib/posthog";
 import { replayOnPage } from "./posthog-client";
 
+/// Everything here asks the website's telemetry gate (lib/telemetry-gate.ts): a visitor who rejected,
+/// or sends Do Not Track or Global Privacy Control, is sent nowhere.
+///
 /// Page views and referring sites, with Vercel Web Analytics: no cookies, nothing stored on the
 /// visitor's device, nobody identified. lib/analytics.ts decides what's sent. Shared notes, the
 /// connect pages, universal links and report pages don't load it at all, not even its loader script.
@@ -33,7 +37,7 @@ export default function SiteAnalytics() {
   }, [path]);
   return (
     <>
-      {analyticsAllowed(path) && <Analytics beforeSend={analyticsEvent} />}
+      {analyticsAllowed(path) && <Analytics beforeSend={vercelEvent} />}
       {posthog && posthogAllowed(path) && <PostHogAnalytics apiKey={posthog.key} host={posthog.host} path={path} />}
       {posthog && posthogAllowed(path) && <ConsentBanner apiKey={posthog.key} host={posthog.host} />}
     </>

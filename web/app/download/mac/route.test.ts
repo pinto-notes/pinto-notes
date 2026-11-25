@@ -3,6 +3,8 @@ import { GET, HEAD } from "./route";
 import robots from "../../robots";
 import { MAC_DOWNLOAD_PATH } from "@/lib/downloads";
 
+const req = (headers: Record<string, string> = {}) => new Request("https://pintonotes.com/download/mac", { headers });
+
 const env = { SUPABASE_URL: "https://project.supabase.co", SUPABASE_ANON_KEY: "anon-key" };
 
 function stubFetch(impl: (url: string, init: RequestInit) => Promise<Response>) {
@@ -20,7 +22,7 @@ describe("/download/mac", () => {
   it("adds one to today's Mac total, then redirects to the DMG", async () => {
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
     const fetch = stubFetch(async () => new Response(null, { status: 204 }));
-    const res = await GET();
+    const res = await GET(req());
     expect(fetch).toHaveBeenCalledTimes(1);
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("https://project.supabase.co/rest/v1/rpc/count_download");
@@ -34,7 +36,7 @@ describe("/download/mac", () => {
   it("sends nothing about the person downloading", async () => {
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
     const fetch = stubFetch(async () => new Response(null, { status: 204 }));
-    await GET();
+    await GET(req());
     const [, init] = fetch.mock.calls[0];
     expect(Object.keys(init.headers as Record<string, string>).sort()).toEqual(["apikey", "authorization", "content-type"]);
     expect(Object.keys(JSON.parse(String(init.body)))).toEqual(["p_product"]);
@@ -47,7 +49,7 @@ describe("/download/mac", () => {
       async () => { throw new TypeError("network down"); },
     ]) {
       stubFetch(failing);
-      const res = await GET();
+      const res = await GET(req());
       expect(res.status).toBe(302);
       expect(res.headers.get("location")).toBe("/downloads/Pinto-Notes.dmg");
     }
@@ -57,7 +59,7 @@ describe("/download/mac", () => {
     for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
     stubFetch((_url, init) => new Promise((_, reject) => init.signal?.addEventListener("abort", () => reject(init.signal?.reason))));
     const started = Date.now();
-    const res = await GET();
+    const res = await GET(req());
     expect(Date.now() - started).toBeLessThan(3000);
     expect(res.headers.get("location")).toBe("/downloads/Pinto-Notes.dmg");
   });
@@ -68,9 +70,19 @@ describe("/download/mac", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
     const fetch = stubFetch(async () => new Response(null, { status: 204 }));
-    const res = await GET();
+    const res = await GET(req());
     expect(fetch).not.toHaveBeenCalled();
     expect(res.headers.get("location")).toBe("/downloads/Pinto-Notes.dmg");
+  });
+
+  it("doesn't count a visitor who rejected, or sends Global Privacy Control or Do Not Track, and still redirects", async () => {
+    for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
+    const fetch = stubFetch(async () => new Response(null, { status: 204 }));
+    for (const headers of [{ cookie: "pinto_no_analytics=1" }, { "sec-gpc": "1" }, { dnt: "1" }] as Record<string, string>[]) {
+      const res = await GET(req(headers));
+      expect(res.headers.get("location")).toBe("/downloads/Pinto-Notes.dmg");
+    }
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("doesn't count a HEAD request", async () => {

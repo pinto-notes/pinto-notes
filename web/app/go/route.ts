@@ -3,6 +3,7 @@
 // path, nothing else), then sends the reader on. Never waits long on the count, and never goes
 // anywhere but the few places these emails link to.
 import { goTarget } from "@/lib/go";
+import { requestTelemetryAllowed } from "@/lib/telemetry-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ export async function GET(req: Request): Promise<Response> {
   const to = goTarget(url.searchParams.get("to"));
   const s = url.searchParams.get("s"), t = url.searchParams.get("t");
   const base = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "");
-  if (to && s && t && base) {
+  // The count asks the website's telemetry gate first; the server asks the account's choice again.
+  if (to && s && t && base && requestTelemetryAllowed(req.headers)) {
     try {
       const res = await fetch(`${base}/functions/v1/lifecycle/click?${new URLSearchParams({ s, to, t })}`, { method: "POST", cache: "no-store", signal: AbortSignal.timeout(1500) });
       await res.body?.cancel();

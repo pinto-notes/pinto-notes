@@ -465,7 +465,7 @@ enum FeatureUse {
         let before = defaults.stringArray(forKey: key) ?? []
         if !before.contains(feature.rawValue) { defaults.set(before + [feature.rawValue], forKey: key) }
         guard let client else { return }
-        Task { _ = try? await client.rpc("pane_feature_used", params: ["feature": feature.rawValue]).execute() }
+        Task { await ServerUsage.sendQuietly(.featureUsed(feature.rawValue), client) }
     }
 
     /// You used `feature`: its tip goes for good, here and on your other devices.
@@ -474,7 +474,7 @@ enum FeatureUse {
         if !before.contains(feature.rawValue) { defaults.set(before + [feature.rawValue], forKey: key) }
         TipLog.used(feature.tip)
         guard let client else { return }
-        Task { _ = try? await client.rpc("pane_feature_used", params: ["feature": feature.rawValue]).execute() }
+        Task { await ServerUsage.sendQuietly(.featureUsed(feature.rawValue), client) }
     }
 
     /// Signed out or without a server: this device's knowledge is all there is.
@@ -492,7 +492,7 @@ enum FeatureUse {
             let server = Set(names.compactMap(Feature.init))
             let here = local
             for f in here.subtracting(server) {
-                _ = try? await client.rpc("pane_feature_used", params: ["feature": f.rawValue]).execute()
+                await ServerUsage.sendQuietly(.featureUsed(f.rawValue), client)
             }
             apply(server.union(here))
             PaneTips.featureUseKnown = true
@@ -540,7 +540,7 @@ enum TipLog {
         defaults.set(true, forKey: key(tip, event))
         sent.append((tip, event))
         guard let client else { return }
-        Task { _ = try? await client.rpc("pane_tip_event", params: ["tip": tip, "event": event]).execute() }
+        Task { await ServerUsage.sendQuietly(.tipEvent(tip: tip, event: event), client) }
     }
 }
 
