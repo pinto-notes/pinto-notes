@@ -71,7 +71,7 @@ export async function collect(sql: Sql, uid: string, now = new Date()): Promise<
   // Whether we keep a copy of the key (functions/key) and what happened to it, never the sealed copy.
   const [key_protection] = await sql<Row[]>`select mode, chosen_at from public.account_key_protection where user_id = ${uid}`;
   const [key_copy] = await sql<Row[]>`select stored_at, opened_at from public.account_key_copies where user_id = ${uid}`;
-  // Whether the account is invited to Advanced protection (20261125120000_advanced_protection_invites.sql).
+  // Whether the account is invited to Advanced protection (20261125130000_advanced_protection_invites.sql).
   const [invite] = await sql<Row[]>`select invited_at from public.advanced_protection_invites where user_id = ${uid}`;
   const key_copy_events = await sql<Row[]>`select what, why, platform, at from public.key_copy_events where user_id = ${uid} order by at`;
   const [share_ask] = await sql<Row[]>`select choice, decided_at from public.pane_share_ask where user_id = ${uid}`;

@@ -38,7 +38,7 @@ import Testing
         var anotherWayBack = false
         /// advanced_protection_invites: the account is invited to Advanced protection.
         var invited = false
-        /// The server enforces invitations (20261125120000_advanced_protection_invites.sql).
+        /// The server enforces invitations (20261125130000_advanced_protection_invites.sql).
         var invitesOnly = false
         private(set) var stores: [Bool] = []
         private(set) var fetches = 0

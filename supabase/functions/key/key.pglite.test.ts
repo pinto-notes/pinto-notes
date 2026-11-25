@@ -32,7 +32,7 @@ type World = { pg: PGlite; deps: Deps; mailed: string[]; env: Record<string, str
 /** The claims of a session signed in to `ago` seconds ago, for functions that ask for a recent sign-in. */
 const signedIn = (uid: string, ago = 0) => ({ "request.jwt.claims": JSON.stringify({ sub: uid, role: "authenticated",
   amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) - ago }] }) });
-/** The account is invited to Advanced protection (20261125120000_advanced_protection_invites.sql). */
+/** The account is invited to Advanced protection (20261125130000_advanced_protection_invites.sql). */
 const invite = (pg: PGlite, uid: string) =>
   pg.query(`insert into public.advanced_protection_invites (user_id) values ($1) on conflict do nothing`, [uid]);
 /** Advanced protection turned on, by a session that just signed in, for an invited account. */
@@ -842,7 +842,7 @@ Deno.test("deleting a strict account leaves nothing of its key behind", async ()
   }
 });
 
-// MARK: By invitation (20261125120000_advanced_protection_invites.sql)
+// MARK: By invitation (20261125130000_advanced_protection_invites.sql)
 
 Deno.test("Advanced protection is offered by invitation only: nobody by default, and the server refuses everyone else", async () => {
   const pg = await schemaDB();

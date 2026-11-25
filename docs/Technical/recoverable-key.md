@@ -106,7 +106,7 @@ Since 14 November 2026 a person can sign up on pintonotes.com/connect (email cod
 
 ### Who is offered it
 
-Advanced protection was hidden in the app on 1 November 2026 and kept on the server. Since 25 November it is offered by invitation (`20261125120000_advanced_protection_invites.sql`):
+Advanced protection was hidden in the app on 1 November 2026 and kept on the server. Since 25 November it is offered by invitation (`20261125130000_advanced_protection_invites.sql`):
 
 - `advanced_protection_invites` has one row per invited account. Nobody is invited by default. Only the service role and SQL read or write it. To invite someone: `insert into public.advanced_protection_invites (user_id) select id from auth.users where email = '…'`. To take it back, delete the row.
 - `account_key_state()` returns `protection_invited`. The app shows the switch in Settings › Security (and finds it in search) for an invited account, and for any account that has it on, so it can turn it off. An invited account from before copies also gets "Keep My Key on My Devices Only" in the question it is asked once.
