@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import CopyButton from "@/app/templates/CopyButton";
+import { PintoTwin, type Twin } from "./PintoTwin";
 import s from "./post-parts.module.css";
 
 /// A few templates to copy, one shown at a time: pick one, see it the way Notes shows it once pasted
@@ -10,7 +11,9 @@ import s from "./post-parts.module.css";
 /// Picking one counts as blog_helper_used, and copying as blog_copy_clicked.
 /// A template with `pinto` says under it which Pinto Notes template does the same job, linked to that
 /// template's page; with `post`, the link counts as the post's blog_cta_clicked (position "template").
-export type Template = { title: string; text: string; pinto?: { slug: string; name: string; rest: string } };
+/// A `pinto` with a `twin` (and a `post`) shows that Pinto template instead, as a picture with a download, under the paste
+/// steps, and follows the pick (lib/PintoTwin.tsx, experiment B42): no link to a template page.
+export type Template = { title: string; text: string; pinto?: { slug: string; name: string; rest: string; twin?: Twin } };
 
 /// `start` is the template shown first (the templates post opens on the Packing list its side-by-side shows).
 /// `note` sits under the picked template, like Keep's (the paste steps).
@@ -29,7 +32,7 @@ export function TemplatePicker({ templates, legend, post, start = 0, note }: { t
       {templates.map((t, i) => (
         <div key={t.title} className={s.verdict} hidden={picked !== i}>
           <Preview text={t.text} copy={<CopyButton text={t.text} label="Copy" className={s.copy} event="blog_copy_clicked" />} />
-          {t.pinto ? (
+          {t.pinto && !(post && t.pinto.twin) ? (
             <p className={s.tplPinto}>
               Pinto Notes has a{" "}
               <a href={`/templates/${t.pinto.slug}`}
@@ -40,6 +43,9 @@ export function TemplatePicker({ templates, legend, post, start = 0, note }: { t
         </div>
       ))}
       {note ? <p className={s.keepNote}>{note}</p> : null}
+      {post ? templates.map((t, i) => t.pinto?.twin
+        ? <PintoTwin key={t.title} slug={post} template={t.pinto.slug} twin={t.pinto.twin} hidden={picked !== i} />
+        : null) : null}
     </div>
   );
 }

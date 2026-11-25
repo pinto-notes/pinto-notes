@@ -45,3 +45,11 @@
 /* The Mac app drawn at phone width: a plain card, not a phone. */
 .screen[data-frame="none"] { width: 100%; border: 0; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px var(--line, rgba(60, 40, 10, 0.1)), 0 24px 40px -24px rgba(60, 25, 0, 0.45); }
 .screen[data-frame="none"] img { border-radius: 0; }
+
+/* lib/PintoTwin.tsx: the Pinto card alone, under the template a picker shows. Inside the picker's soft box it takes the page's
+   own ground, and on a phone the screen is cut at a height that keeps the button close, fading out at the cut. */
+.twin { margin-top: 14px; background: var(--bg); }
+.twin .screen { max-height: 400px; -webkit-mask-image: linear-gradient(#000 calc(100% - 48px), transparent); mask-image: linear-gradient(#000 calc(100% - 48px), transparent); }
+.twin[hidden] { display: none; }
+.notes.notes { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; text-wrap: pretty; }
+@media (min-width: 900px) { .twin .screen { max-height: 460px; } }

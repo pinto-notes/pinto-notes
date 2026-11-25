@@ -35,6 +35,9 @@ const E = [
 // with its own Keep it, in place of B39's card, so the reader has one first-screen action.
 const LIVE = ["apple-notes-budget-template"];
 const CARD = E.filter((slug) => !LIVE.includes(slug));
+// Experiment B42 (25 Nov 2026): on the templates post the side-by-side moved into the picker and follows the pick, each
+// template with its own Pinto twin (lib/apple-notes-templates.ts, lib/PintoTwin.tsx), so there's no separate side-by-side.
+const TWINS = ["apple-notes-templates"];
 
 const source = (slug: string) => readFileSync(join(process.cwd(), "app", "blog", slug, "page.tsx"), "utf8");
 
@@ -65,15 +68,23 @@ describe("the Apple Notes template posts (pattern E)", () => {
       expect(src, slug).toContain("cover={false}");
       const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "";
       expect(answer, slug).toMatch(/<(Keep|TemplatePicker)\b/);
-      expect(answer, slug).toContain(`<SideBySide slug="${slug}"`);
+      if (!TWINS.includes(slug)) expect(answer, slug).toContain(`<SideBySide slug="${slug}"`);
       expect(src.match(/<PostCta /g), slug).toHaveLength(1);
       expect(answer, slug).toMatch(new RegExp(`<PostCta slug="${slug}" position="answer" title="[^"]+[?.]"`));
       // The template comes first, the card straight under it, then the side-by-side.
       const template = answer.search(/<(Keep|TemplatePicker)\b/);
       expect(template, slug).toBeLessThan(answer.indexOf("<PostCta"));
-      expect(answer.indexOf("<PostCta"), slug).toBeLessThan(answer.indexOf("<SideBySide"));
+      if (!TWINS.includes(slug)) expect(answer.indexOf("<PostCta"), slug).toBeLessThan(answer.indexOf("<SideBySide"));
       // No "Have Pinto Notes already? Open this template" line: Use template fails without the app.
       expect(answer, slug).not.toMatch(/<PostCta[^>]*template=/);
+    }
+  });
+
+  it("show each template's Pinto twin in the picker on the templates post, and no separate side-by-side (B42)", () => {
+    for (const slug of TWINS) {
+      const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(source(slug))?.[0] ?? "";
+      expect(answer, slug).toContain(`<TemplatePicker templates={APPLE_NOTES_TEMPLATES} legend="Pick a template" post="${slug}"`);
+      expect(answer, slug).not.toContain("<SideBySide");
     }
   });
 

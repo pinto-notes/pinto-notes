@@ -1,9 +1,13 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { APPLE_NOTES_TEMPLATES } from "./apple-notes-templates";
 import { blocksOf, TemplatePicker } from "./TemplatePicker";
+import { MAC_DOWNLOAD_PATH } from "./downloads";
+import { APP_STORE_URL } from "./site";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/blog/apple-notes-templates", useRouter: () => ({ push: () => {} }) }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -96,5 +100,79 @@ describe("a template's Pinto Notes line", () => {
   it("names a real template for every Apple Notes template that has one", async () => {
     const { template } = await import("./templates");
     for (const t of APPLE_NOTES_TEMPLATES) if (t.pinto) expect(template(t.pinto.slug), t.pinto.slug).toBeDefined();
+  });
+});
+
+// Experiment B42 (25 Nov 2026): on the templates post the Pinto side follows the pick. Each template's twin sits under the
+// paste steps with a download, and nothing in the picker leads to a template page, whose Use template fails without the app
+// (4 of the 6 readers who went on to /templates from this post got "not found", 1 to 24 Nov).
+describe("a template's Pinto Notes twin", () => {
+  const twin = (label: string, template: string) => ({ label, line: `${label} line.`, apple: "Holds it.", alt: `${label} picture.`,
+    phone: { src: `/blog/side-by-side/${template}-pinto-phone`, width: 780, height: 1600 }, desk: { src: `/blog/side-by-side/${template}-pinto-mac`, width: 1520, height: 1200 } });
+  const withTwins = [
+    { title: "Groceries by aisle", text: "# Groceries\n- [ ] Milk", pinto: { slug: "grocery-list", name: "grocery list", rest: "sorted.", twin: twin("The grocery list template in Pinto Notes", "grocery-list") } },
+    { title: "Packing list", text: "# Packing list\n- [ ] Passport", pinto: { slug: "trip-plan", name: "trip plan", rest: "with days.", twin: twin("The same packing list in Pinto Notes", "packing") } },
+  ];
+
+  it("shows the picked template's twin only, and follows the pick", () => {
+    const h = document.createElement("div"); document.body.append(h); const r = createRoot(h);
+    act(() => r.render(<TemplatePicker post="apple-notes-templates" legend="Pick" templates={withTwins} start={1} />));
+    const figures = () => [...h.querySelectorAll("figure")];
+    const visible = () => figures().filter((f) => !f.hidden).map((f) => f.getAttribute("aria-label"));
+    expect(figures()).toHaveLength(2);
+    expect(visible()).toEqual(["The same packing list in Pinto Notes"]);
+    act(() => { h.querySelector<HTMLButtonElement>("fieldset button")!.click(); });
+    expect(visible()).toEqual(["The grocery list template in Pinto Notes"]);
+    act(() => r.unmount()); h.remove();
+  });
+
+  it("downloads Pinto Notes, counted as the post's picker click naming the template, and never opens a template page", () => {
+    const h = document.createElement("div"); document.body.append(h); const r = createRoot(h);
+    act(() => r.render(<TemplatePicker post="apple-notes-templates" legend="Pick" templates={withTwins} />));
+    const links = [...h.querySelectorAll("a")];
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([MAC_DOWNLOAD_PATH, APP_STORE_URL, "/download", MAC_DOWNLOAD_PATH, APP_STORE_URL, "/download"]);
+    for (const a of links) {
+      expect(a.getAttribute("href")).not.toMatch(/^\/templates|^\/open\//);
+      expect(a.getAttribute("data-cta")).toBe("apple-notes-templates");
+      expect(a.getAttribute("data-cta-position")).toBe("picker");
+      expect(a.textContent).toBe("Get Pinto Notes, free");
+    }
+    expect(links.slice(0, 3).map((a) => a.getAttribute("data-cta-template"))).toEqual(["grocery-list", "grocery-list", "grocery-list"]);
+    expect(links.slice(0, 3).map((a) => a.getAttribute("data-cta-action"))).toEqual(["download_mac", "app_store", "download_page"]);
+    expect(h.textContent).toContain("In Apple Notes: Holds it.");
+    act(() => r.unmount()); h.remove();
+  });
+
+  it("keeps the plain link where a post gives no twin", () => {
+    const h = document.createElement("div"); document.body.append(h); const r = createRoot(h);
+    act(() => r.render(<TemplatePicker legend="Pick" templates={withTwins} />));
+    expect(h.querySelectorAll("figure")).toHaveLength(0);
+    act(() => r.unmount()); h.remove();
+  });
+
+  it("gives every template on the templates post a twin of a real Pinto template, with its pictures at their own sizes", async () => {
+    const { template } = await import("./templates");
+    const { existsSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const size = (file: string) => {
+      const b = readFileSync(file);
+      const kind = b.toString("ascii", 12, 16);
+      if (kind === "VP8X") return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+      if (kind === "VP8L") { const n = b.readUInt32LE(21); return [1 + (n & 0x3fff), 1 + ((n >> 14) & 0x3fff)]; }
+      return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    };
+    for (const t of APPLE_NOTES_TEMPLATES) {
+      const tw = t.pinto?.twin;
+      expect(tw, t.title).toBeDefined();
+      expect(template(t.pinto!.slug), t.pinto!.slug).toBeDefined();
+      for (const img of [tw!.phone, tw!.desk]) {
+        for (const ext of ["webp", "avif"]) expect(existsSync(join(process.cwd(), "public", `${img.src}.${ext}`)), `${img.src}.${ext}`).toBe(true);
+        expect(size(join(process.cwd(), "public", `${img.src}.webp`)), img.src).toEqual([img.width, img.height]);
+      }
+      // House rules for the words: no dashes, ChatGPT and Claude named only in headings, no "I".
+      for (const words of [tw!.label, tw!.line, tw!.apple, tw!.alt]) {
+        expect(words, t.title).not.toMatch(/[–—]|\b(ChatGPT|Claude|iPad)\b|\bI\b/);
+      }
+    }
   });
 });

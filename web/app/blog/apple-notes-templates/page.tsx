@@ -1,7 +1,6 @@
 import { PostCta } from "@/lib/PostCta";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
-import { SideBySide } from "@/lib/SideBySide";
 import { APPLE_NOTES_TEMPLATES } from "@/lib/apple-notes-templates";
 import { TemplatePicker } from "@/lib/TemplatePicker";
 
@@ -16,6 +15,11 @@ export const metadata = postMetadata("apple-notes-templates", { title: "Apple No
 // Pinto Notes: the Packing list belongs to the trip plan template (TemplatePicker sends it there). content/templates/trip-plan.app
 // rendered with scripts/page-render with the same nine things in the same three groups, none packed
 // (public/blog/side-by-side/packing-pinto-*). A new trip keeps the list and unpacks it (trip-plan.app/docs/README.md).
+// 25 November 2026, experiment B42 (blog-growth/research/templates-hub-deep-pass-2026-11-25.md): the side-by-side moved into
+// the picker and follows the pick. Each template's Pinto twin (lib/apple-notes-templates.ts, lib/PintoTwin.tsx) sits under the
+// paste steps with a download; the Packing list keeps its Pinto picture. From 1 to 24 Nov, 31 people started here, 23 read past half
+// the page, one tapped the Packing list side-by-side, and the next page they chose most was /templates (6), where 4 got
+// "not found" from Use template. The two who downloaded had looked through several templates first.
 
 const FAQ = [
   { q: "Does Apple Notes have templates?", a: [
@@ -47,14 +51,6 @@ export default function Page() {
         <PostCta slug="apple-notes-templates" position="answer" title="Want templates built in?">
           <p>Pinto Notes works like Apple Notes and comes with free templates: a trip plan, a budget, a habit tracker and more.</p>
         </PostCta>
-        <SideBySide slug="apple-notes-templates"
-          apple={{ src: "/blog/side-by-side/templates-apple-notes", width: 477, height: 797, line: "A blank copy for each trip. You untick it yourself.",
-            alt: "The Packing list template in Apple Notes on macOS 27: Documents, Clothes and Bag headings, each over a checklist of three things." }}
-          pinto={{ title: "The same packing list in Pinto Notes", line: "Part of a trip plan, next to the days and bookings. The list stays for your next trip.",
-            alt: "The same nine things in the Pinto Notes trip plan's packing list, grouped under Documents, Clothes and Bag, with 0 of 9 packed.",
-            phone: { src: "/blog/side-by-side/packing-pinto-phone", width: 780, height: 1688 },
-            desk: { src: "/blog/side-by-side/packing-pinto-mac", width: 1526, height: 1280 },
-            template: "trip-plan" }} />
       </>}
       faq={FAQ}
     >
