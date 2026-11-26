@@ -1,0 +1,91 @@
+/* The live meal plan (lib/LiveMealPlan.tsx) in the app's own look, as the live budget draws it
+   (live-budget.module.css): the note's colours as Pinto Notes sets them for a template app, light,
+   and the app's sizes from its Tailwind classes (content/templates/meal-plan.app, src/components/kit.tsx
+   and src/screens/groceries.tsx). Doubled classes outrank the article's own p, ul and button styles. */
+.live {
+  --lb-bg: #FFFEFD; --lb-surface: #F4F1EE; --lb-fill: #EBE6E1; --lb-text: #2A1D10; --lb-muted: #74604C;
+  --lb-sep: rgba(138, 74, 28, 0.14); --lb-accent: #D96A06; --lb-accent-text: #A85700; --lb-accent-soft: #FFF1DC;
+  --lb-primary: color-mix(in srgb, var(--lb-accent) 86%, black);
+  margin: 8px 0 28px; border-radius: 18px; overflow: hidden; background: var(--lb-bg); color: var(--lb-text);
+  font: 17px/1.35 -apple-system, system-ui, sans-serif;
+  box-shadow: 0 0 0 1px rgba(80, 45, 10, 0.10), 0 14px 32px -18px rgba(60, 30, 5, 0.45);
+}
+.live.live p, .live.live ul { margin: 0; padding: 0; }
+.live.live li { margin: 0; list-style: none; }
+
+.bar { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; background: var(--lb-surface); border-bottom: 1px solid var(--lb-sep); }
+.bar img { width: 22px; height: 22px; border-radius: 6px; flex: none; }
+.barTitle.barTitle { margin: 0; font-size: 15px; font-weight: 650; white-space: nowrap; }
+.barTag.barTag { margin: 0 0 0 auto; font-size: 13px; color: var(--lb-muted); white-space: nowrap; }
+@media (max-width: 400px) { .barTag.barTag { font-size: 12px; } .bar { gap: 6px; padding: 0 12px; } }
+
+/* One column on a phone: the dinners, Keep it (on the first screen, where this post's downloads came from), the list,
+   then the copy for Apple Notes. From 701 px the dinners, Keep it and the copy sit beside the list. */
+.app { padding: 14px 14px 2px; }
+@media (min-width: 701px) {
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; align-items: start; padding: 20px 22px 6px; }
+  .app > :nth-child(1) { grid-column: 1; grid-row: 1; }
+  .app > .keep { grid-column: 1; grid-row: 2; }
+  .app > :nth-child(3) { grid-column: 2; grid-row: 1 / span 3; }
+  .app > .copyArea { grid-column: 1; grid-row: 3; }
+}
+
+.section { margin-bottom: 14px; min-width: 0; }
+.secHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px 8px; }
+.secTitle.secTitle, .count.count { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: var(--lb-muted); }
+.count.count { font-variant-numeric: tabular-nums; }
+.hint.hint { padding: 0 4px 8px; font-size: 15px; color: var(--lb-muted); }
+.full.full { padding: 10px 4px 0; font-size: 15px; color: var(--lb-accent-text); font-weight: 600; }
+
+/* The dinners: a pill each, with its day once it's on the week. */
+.dishes.dishes { display: flex; flex-wrap: wrap; gap: 6px; }
+.dish.dish {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 5px; border: 1px solid var(--lb-sep);
+  border-radius: 999px; background: var(--lb-surface); color: var(--lb-text); font: inherit; font-size: 15px; font-weight: 550; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dish.dish[aria-pressed="true"] { background: var(--lb-accent-soft); border-color: color-mix(in srgb, var(--lb-accent) 45%, transparent); }
+.dish.dish:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+.day {
+  display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 3px; box-sizing: border-box; border-radius: 999px;
+  background: var(--lb-fill); color: var(--lb-muted); font-size: 12px; font-weight: 650;
+}
+.dish[aria-pressed="true"] .day { background: var(--lb-primary); color: #FFFFFF; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The list, by aisle, as the app's Groceries screen groups it. */
+.group { border-radius: 16px; background: var(--lb-surface); padding: 2px 14px; }
+.aisle { padding: 8px 0; border-top: 1px solid var(--lb-sep); }
+.aisle:first-child { border-top: 0; }
+.aisleName.aisleName { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: var(--lb-muted); margin-bottom: 2px; }
+/* Each aisle's things wrap on as few lines as they fit, so a week's list stays short on a phone. */
+.items.items { display: flex; flex-wrap: wrap; gap: 2px 16px; }
+.item { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; font-size: 16px; }
+.box { flex: none; width: 16px; height: 16px; box-sizing: border-box; border: 1.5px solid var(--lb-muted); border-radius: 999px; }
+.for { color: var(--lb-muted); font-size: 14px; white-space: nowrap; }
+.empty.empty { padding: 14px 0; font-size: 15px; color: var(--lb-muted); }
+.leftOut.leftOut { padding: 8px 4px 0; font-size: 14px; line-height: 1.45; color: var(--lb-muted); }
+
+/* Keep it; and after the list, the copy for Apple Notes and a quiet line. */
+.keep { display: grid; gap: 10px; margin: 2px 0 16px; min-width: 0; }
+.copyArea { display: grid; gap: 10px; margin: 0 0 18px; min-width: 0; }
+.primary.primary {
+  display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 48px; box-sizing: border-box; padding: 0 20px;
+  border-radius: 16px; background: var(--lb-primary); color: #FFFFFF; font-size: 17px; font-weight: 650; text-decoration: none;
+}
+.primary.primary:active, .copy.copy:active { opacity: 0.8; }
+.primary.primary:focus-visible, .tint.tint:focus-visible, .copy.copy:focus-visible { outline: 2px solid var(--lb-accent); outline-offset: 2px; }
+.pi.pi { justify-items: stretch; gap: 10px; text-align: left; }
+.copy.copy {
+  width: 100%; height: 48px; border: 0; border-radius: 16px; background: var(--lb-accent-soft); color: var(--lb-accent-text);
+  font: inherit; font-size: 17px; font-weight: 650; cursor: pointer;
+}
+.copy.copy:disabled { opacity: 0.45; cursor: default; }
+.after.after { font-size: 15px; font-weight: 600; color: var(--lb-text); }
+.after.after:empty { display: none; }
+.fine.fine { font-size: 14px; line-height: 1.45; color: var(--lb-muted); }
+.fine.fine strong { color: var(--lb-text); }
+.tint.tint {
+  display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 16px; border-radius: 16px;
+  background: var(--lb-accent-soft); color: var(--lb-accent-text); font-weight: 600; text-decoration: none;
+}

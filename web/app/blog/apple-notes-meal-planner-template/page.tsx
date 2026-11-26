@@ -1,4 +1,4 @@
-import { PostCta } from "@/lib/PostCta";
+import { LiveMealPlan } from "@/lib/LiveMealPlan";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, PasteSteps, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -14,6 +14,11 @@ export const metadata = postMetadata("apple-notes-meal-planner-template", { titl
 // in the week of 23 November, Oskar cooking Tuesday and Thursday, each dinner's ingredients making the same 13 groceries
 // (rice, pasta, onions and garlic left off as cupboard staples) and the same four ticks, seen on Monday 23 November. Drawn
 // by scripts/blog-side-by-side-apps.ts (meal-plan) with the render service's code.
+// 26 November 2026, live meal plan (B44, lib/LiveMealPlan.tsx; blog-growth/research/meal-planner-deep-pass-2026-11-26.md):
+// 5 of the page's 6 searchers were on iOS (4 on an iPhone), where the template pastes as plain text with its # and - [ ] marks,
+// and Google's AI answer already prints a meal plan to copy. So the first thing under the intro is the Pinto template itself,
+// live: tap dinners and the grocery list builds itself by aisle, then copy the week for Apple Notes (plain lines on iPhone)
+// or keep it in Pinto Notes. It replaces B39's card here, as the live budget does on the budget post (B40).
 
 const TEMPLATE = `# Dinners, week of 23 November
 
@@ -62,7 +67,7 @@ const FAQ = [
     "Reminders has a Groceries list type, from iOS 17, that sorts items by section as you add them. Notes keeps the list next to the dinners it came from. If you plan the week first, keeping both in one note saves copying.",
   ] },
   { q: "Is there a meal planner that writes the grocery list for you?", a: [
-    "Pinto Notes has a free meal plan template, a small app in a note: the week's dinners, who cooks, and a grocery list it makes from them, by aisle, leaving out what's always in the cupboard. Ask ChatGPT or Claude to plan the week, or plan it yourself.",
+    "Pinto Notes has a free meal plan template. It builds your grocery list by aisle from your week's dinners and leaves out what's always in your cupboard. Try it at the top of this page, or ask your AI to plan the week in Pinto Notes.",
   ] },
 ];
 
@@ -71,14 +76,12 @@ export default function Page() {
     <PostPage
       slug="apple-notes-meal-planner-template"
       cover={false}
-      intro={<>The week&apos;s dinners at the top, and the groceries they need by aisle under them.</>}
+      intro={<>Tap dinners to build your week and grocery list. The Apple Notes version to copy is below.</>}
       answer={<>
+        <LiveMealPlan slug="apple-notes-meal-planner-template" />
         <Keep title="Meal planner for Apple Notes" text={TEMPLATE} fold={10}
           note={<PasteSteps />} />
-        {/* Experiment B39: the download card back on the first screen, under the template. */}
-        <PostCta slug="apple-notes-meal-planner-template" position="answer" title="Pick the dinners. The grocery list writes itself.">
-          <p>Pinto Notes&apos; free meal plan builds the list by aisle and leaves out what you always have at home.</p>
-        </PostCta>
+        {/* No B39 download card here: the live meal plan above is this post's one first-screen action (B44). */}
         <SideBySide slug="apple-notes-meal-planner-template"
           apple={{ src: "/blog/side-by-side/meal-planner-template-apple-notes", width: 822, height: 1465, line: "Holds the plan and the list. You write the list from the recipes yourself.",
             alt: "The meal planner template in Apple Notes on macOS 27: seven dinners as a list, then groceries by aisle as checklists, with Lemons, Basil, Chicken thighs and Tortillas ticked." }}
