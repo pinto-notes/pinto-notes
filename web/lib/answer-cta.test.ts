@@ -34,9 +34,10 @@ const E = [
 ];
 
 // Experiment B40 (24 Nov 2026): on the budget post the Pinto budget template runs live under the intro (lib/LiveBudget.tsx),
-// with its own Keep it, in place of B39's card, so the reader has one first-screen action.
-const LIVE = ["apple-notes-budget-template"];
-const CARD = E.filter((slug) => !LIVE.includes(slug));
+// with its own Keep it, in place of B39's card, so the reader has one first-screen action. Experiment B44 (26 Nov 2026): the
+// meal planner post does the same with the Pinto meal plan template (lib/LiveMealPlan.tsx).
+const LIVE: Record<string, string> = { "apple-notes-budget-template": "LiveBudget", "apple-notes-meal-planner-template": "LiveMealPlan" };
+const CARD = E.filter((slug) => !(slug in LIVE));
 // Experiment B42 (25 Nov 2026): on the templates post the side-by-side moved into the picker and follows the pick, each
 // template with its own Pinto twin (lib/apple-notes-templates.ts, lib/PintoTwin.tsx), so there's no separate side-by-side.
 const TWINS = ["apple-notes-templates"];
@@ -90,13 +91,13 @@ describe("the Apple Notes template posts (pattern E)", () => {
     }
   });
 
-  it("open the budget post on the live budget and its Keep it, with no card, then the template and the side-by-side (B40)", () => {
-    for (const slug of LIVE) {
+  it("open the budget and meal planner posts on their live template and its Keep it, with no card, then the template and the side-by-side (B40, B44)", () => {
+    for (const [slug, live] of Object.entries(LIVE)) {
       const src = source(slug);
       const answer = /answer=\{<>[\s\S]*?<\/>\}/.exec(src)?.[0] ?? "";
       expect(src, slug).not.toContain("<PostCta");
-      expect(answer.trimStart().replace(/^answer=\{<>\s*/, ""), slug).toMatch(new RegExp(`^<LiveBudget slug="${slug}" />`));
-      expect(answer.indexOf("<LiveBudget"), slug).toBeLessThan(answer.indexOf("<Keep"));
+      expect(answer.trimStart().replace(/^answer=\{<>\s*/, ""), slug).toMatch(new RegExp(`^<${live} slug="${slug}" />`));
+      expect(answer.indexOf(`<${live}`), slug).toBeLessThan(answer.indexOf("<Keep"));
       expect(answer.indexOf("<Keep"), slug).toBeLessThan(answer.indexOf(`<SideBySide slug="${slug}"`));
     }
   });
