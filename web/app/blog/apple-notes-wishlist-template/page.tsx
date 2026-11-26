@@ -84,7 +84,7 @@ export default function Page() {
         <li>Share the note so the family can add their wishes. Everyone needs an Apple Account. Tap the Share button, then Collaborate.</li>
         <li>Keep track of what you buy somewhere the person can&apos;t see. A tick in a shared note shows to everyone, so ticking a wish tells them it&apos;s bought.</li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-checklist-template">a daily checklist</a>, <a href="/blog/apple-notes-budget-template">a budget</a> and <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-checklist-template">a daily checklist</a>, <a href="/blog/apple-notes-budget-template">a budget</a>, <a href="/blog/iphone-notes-christmas-list">your own Christmas shopping list</a> and <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>.</p>
     </PostPage>
   );
 }
