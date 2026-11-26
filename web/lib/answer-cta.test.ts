@@ -31,6 +31,8 @@ const E = [
   "apple-notes-daily-planner-template", "apple-notes-for-school",
   // 25 Nov 2026: the checklist and wishlist posts (B41).
   "apple-notes-checklist-template", "apple-notes-wishlist-template",
+  // 26 Nov 2026: the 75 Hard and Christmas list posts (B43).
+  "apple-notes-75-hard-template", "iphone-notes-christmas-list",
 ];
 
 // Experiment B40 (24 Nov 2026): on the budget post the Pinto budget template runs live under the intro (lib/LiveBudget.tsx),

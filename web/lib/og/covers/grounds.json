@@ -1,4 +1,10 @@
 {
+ "75-hard-template": {
+  "ground": "#a1c3f4",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "ai-feature-tracker": {
   "ground": "#eee4d8",
   "ink": "dark",
@@ -175,6 +181,12 @@
  },
  "checklist-template": {
   "ground": "#b7d7b8",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "christmas-list-template": {
+  "ground": "#b0bc8c",
   "ink": "dark",
   "w": 880,
   "h": 550

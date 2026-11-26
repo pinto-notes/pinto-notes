@@ -101,7 +101,7 @@ export default function Page() {
         <li>Turn on Automatically sort checked items in the Notes settings, so what you&apos;ve done drops to the bottom of each day.</li>
         <li>On Monday, duplicate last week&apos;s note, change the date and untick each day: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-workout-log-template">a workout log</a>, <a href="/blog/apple-notes-mood-tracker">a mood tracker</a>, <a href="/blog/apple-notes-checklist-template">a daily checklist</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-workout-log-template">a workout log</a>, <a href="/blog/apple-notes-mood-tracker">a mood tracker</a>, <a href="/blog/apple-notes-checklist-template">a daily checklist</a>, <a href="/blog/apple-notes-75-hard-template">a 75 Hard checklist</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }
