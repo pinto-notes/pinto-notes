@@ -15,6 +15,7 @@ import { parseStored } from "./app_project.ts";
 import { fileHandlers, fileTools } from "./app_files.ts";
 import { PAGE_REWRITE, pageDataProblems, type PageData } from "./page.ts";
 import { bodyOf, findNote, save, ToolError, type Call, type Tx } from "./tools.ts";
+import { dataBreaksApp, dataRefusal } from "./app_data_check.ts";
 
 type Args = Record<string, unknown>;
 
@@ -386,6 +387,9 @@ export const dataHandlers: Record<string, (tx: Tx, a: Args, c: Call) => Promise<
       const missing = bad.length ? bad : refs.filter((r) => !found.some((x) => x.id === r));
       if (missing.length) throw new ToolError(`No file with id ${missing.slice(0, 3).join(", ")}. Use list_files for existing files, or { "$new_file": { name, type, text | base64 } } to add one.`);
     }
+    // Data the app can't open with isn't saved (app_data_check.ts).
+    const broken = await dataBreaksApp(tx, c, n, await pageDataOf(tx, c, n.id), store);
+    if (broken.length) throw new ToolError(dataRefusal("the app's docs/README.md", broken));
     const { bytes } = await storePageData(tx, c, n.id, store);
     const small = bytes <= 20_000;
     return { note: { id: n.id, title: n.title }, changes, ...(Object.keys(added).length ? { added_ids: Object.fromEntries(Object.entries(added).map(([k, v]) => [k, v.length > 50 ? { count: v.length, first: v.slice(0, 5) } : v])) } : {}),

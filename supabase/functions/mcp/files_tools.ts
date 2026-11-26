@@ -13,6 +13,7 @@ import { binaryRange, putBinary, putPiece, refOf } from "./app_blobs.ts";
 import { scaffold } from "./app_scaffold.ts";
 import { fileList, projectOf, saveProject, withBinary, withFile, withFiles, without } from "./app_files.ts";
 import { pageDataOf, storePageData } from "./data_tools.ts";
+import { dataBreaksApp, dataRefusal } from "./app_data_check.ts";
 import { dataShape } from "./data_ops.ts";
 import { fetchTemplateApp, type TemplateApp } from "./template_apps.ts";
 import { appHandlers, realPreviewsServed } from "./app_tools.ts";
@@ -673,12 +674,18 @@ async function appProject(tx: Tx, c: Call, n: Note): Promise<Project> {
 
 /** data.json as the AI sees it: the app's JSON, localStorage parsed. */
 const dataText = (d: PageData) => JSON.stringify(d, null, 2);
-async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData, text: string) {
+/** Saves data.json. Data the live app can't open with is refused (app_data_check.ts), unless the
+ *  app's code changes in the same write (`withCode`): that version's own checks run over it. */
+async function saveData(tx: Tx, c: Call, n: Note, base: string, before: PageData, text: string, withCode = false) {
   let next: PageData;
   try { next = JSON.parse(text); } catch (e) { throw new ToolError(`data.json isn't valid JSON after the change: ${(e as Error).message}. Nothing was saved.`); }
   if (!next || typeof next !== "object" || Array.isArray(next)) throw new ToolError("data.json must be an object: { \"values\": { … }, \"collections\": { … } }.");
   next = { ...next, values: next.values ?? {}, collections: next.collections ?? {} };
   if (JSON.stringify(next) === JSON.stringify(before)) return { path: `${base}/data.json`, unchanged: true };
+  if (!withCode) {
+    const broken = await dataBreaksApp(tx, c, n, before, next);
+    if (broken.length) throw new ToolError(dataRefusal(`${base}/docs/README.md`, broken));
+  }
   await storePageData(tx, c, n.id, next);
   await markRead(tx, c, dataItem(n.id), await hash(c, dataText(await pageDataOf(tx, c, n.id))));
   return { saved: `${base}/data.json`, note: "One change: the open app shows it at once, and the person can undo it." };
@@ -1898,7 +1905,7 @@ async function writeAppFiles(tx: Tx, a: Args, c: Call) {
   if (newData !== undefined) {
     const before = await pageDataOf(tx, c, r.note.id);
     await mustHaveRead(tx, c, dataItem(r.note.id), await hash(c, dataText(before)), `${r.base}/data.json`);
-    const out = await saveData(tx, c, r.note, r.base, before, newData) as { unchanged?: boolean };
+    const out = await saveData(tx, c, r.note, r.base, before, newData, done.some((d) => d.did !== "unchanged")) as { unchanged?: boolean };
     data = { path: `${r.base}/data.json`, did: out.unchanged ? "unchanged" : "saved (the app's data)" };
   }
   if (done.every((d) => d.did === "unchanged")) {

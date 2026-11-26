@@ -21,9 +21,15 @@ function fake(v: string, labels: Map<string, string>, prefix: string, today: str
   const t = v.trim();
   if (!t || TICK.test(t)) return v;
   if (DATE.test(t)) {
-    // Same distance from today's month, a different day of it.
-    const day = 1 + Math.floor(hash(t) * 27);
-    return t.slice(0, 8).replace(/^\d{4}-\d{2}-/, (m) => m) + String(day).padStart(2, "0") + t.slice(10);
+    // The same week (Monday to Sunday) and month, a different day: an app that shows this week or
+    // this month still has these rows in it. Any day of the month once dates went to a random day
+    // of their month, so a meal plan's sample had no dinners this week, and its check passed data
+    // the app couldn't open with on the person's phone (2026-11-26, app_data_check.ts).
+    const d = new Date(t.slice(0, 10) + "T12:00:00Z");
+    if (Number.isNaN(d.getTime())) return t.slice(0, 8) + String(1 + Math.floor(hash(t) * 27)).padStart(2, "0") + t.slice(10);
+    const monday = d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000;
+    const days = Array.from({ length: 7 }, (_, i) => new Date(monday + i * 86_400_000)).filter((x) => x.getUTCMonth() === d.getUTCMonth());
+    return days[Math.floor(hash(t) * days.length)].toISOString().slice(0, 10) + t.slice(10);
   }
   if (NUM.test(t)) {
     const digits = t.replace(/[^\d]/g, "").length || 1;
