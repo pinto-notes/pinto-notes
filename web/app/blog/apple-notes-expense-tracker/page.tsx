@@ -1,4 +1,4 @@
-import { PostCta } from "@/lib/PostCta";
+import { LiveExpenses } from "@/lib/LiveExpenses";
 import { PostPage, postMetadata } from "@/lib/PostPage";
 import { Keep, MenuPath, Steps } from "@/lib/PostParts";
 import { SideBySide } from "@/lib/SideBySide";
@@ -13,6 +13,11 @@ export const metadata = postMetadata("apple-notes-expense-tracker", { title: "Ap
 // total line ends without "=" and the reader types it. Math Results is greyed out inside a table (apple-notes-tables).
 // Pinto Notes: content/templates/budget-log.app rendered with scripts/page-render from the same six expenses (and a budget for
 // each category), on 9 November, Expenses tab (public/blog/side-by-side/expense-pinto-*).
+// 27 November 2026, experiment B45 (lib/LiveExpenses.tsx; blog-growth/research/expense-tracker-deep-pass-2026-11-27.md):
+// Google's page 1 for this search is mostly App Store expense apps, and the AI summary already tells readers to log a
+// line per purchase; this post's own method types each amount twice. So the first thing under the intro is the Pinto
+// template logging expenses live, each amount typed once, with Keep it on a phone's first screen and a copy of the
+// reader's own log for Apple Notes. It replaces B39's card here, so the reader has one first-screen action.
 
 // Tabs between the columns: select those lines in Notes and press the Table button.
 const TEMPLATE = `Expenses, November
@@ -54,14 +59,12 @@ export default function Page() {
     <PostPage
       slug="apple-notes-expense-tracker"
       cover={false}
-      intro={<>Log what you spend in a table. The lines under it add up the month.</>}
+      intro={<>Add expenses here to see them add up. The version to copy into Apple Notes is below.</>}
       answer={<>
+        <LiveExpenses slug="apple-notes-expense-tracker" />
         <Keep title="Expense tracker for Apple Notes" text={TEMPLATE} fold={10}
           note="After pasting, select the seven lines from Date to 8 Nov and press the Table button. Then type = at the end of the last line. Notes offers the total. Press Return to keep it." />
-        {/* Experiment B39: the download card back on the first screen, under the template. */}
-        <PostCta slug="apple-notes-expense-tracker" position="answer" title="Want expenses that add themselves up?">
-          <p>In Pinto Notes&apos; free budget template you type each amount once, and the month and every category add up on their own.</p>
-        </PostCta>
+        {/* No B39 download card here: the live expense log above is this post's one first-screen action (B45). */}
         <SideBySide slug="apple-notes-expense-tracker"
           apple={{ src: "/blog/side-by-side/expense-tracker-apple-notes", width: 1584, height: 858, line: "Adds up the month. Each amount is typed twice, in the table and on its category line.",
             alt: "The expense template in Apple Notes on macOS 27: a table of six purchases, a line per category, and the total 1,179." }}
