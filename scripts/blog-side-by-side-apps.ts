@@ -17,7 +17,9 @@ const MAC = { width: 763, height: 1000, scale: 2, crop: 640 };
 
 // deno-lint-ignore no-explicit-any
 type Values = Record<string, any>;
-type Post = { post: string; slug: string; today: string; values: (start: Values) => Values; phone?: Step[]; mac?: Step[] };
+type Size = { width: number; height: number; scale: number; crop?: number };
+// macSize: a wider Mac view for an app whose lines would be cut at 763 pt.
+type Post = { post: string; slug: string; today: string; values: (start: Values) => Values; phone?: Step[]; mac?: Step[]; macSize?: Size };
 
 const weights = (reps: number, kg?: number, n = 3) => Array.from({ length: n }, () => (kg === undefined ? { reps } : { reps, kg }));
 
@@ -70,6 +72,54 @@ const POSTS: Record<string, Post> = {
     },
     phone: [{ tap: "Progress" }],
   },
+  // iphone-notes-gym-template: Friday 27 November, Pull next. The same split and the same last weights
+  // as the post's note: push on Wednesday (bench 72.5 kg x 6, overhead press 40 kg x 8), legs on Monday
+  // (squat 102.5 kg x 5, lunges 16 kg x 10), pull a week ago (deadlift 125 kg x 3, rows 60 kg x 8).
+  "gym-template": {
+    post: "iphone-notes-gym-template", slug: "workout-log", today: "2026-11-27",
+    values: (v) => {
+      v.plan = v.plan.filter((p: { id: string }) => p.id !== "run").map(({ pick: _, ...p }: Values) => p);
+      v.units = "kg";
+      v.goal = 3;
+      v.started = "2026-11-16";
+      const legs = (squat: number) => [{ exercise: "squat", sets: weights(5, squat) }, { exercise: "lunges", sets: weights(10, 16) }, { exercise: "calf-raises", sets: weights(15) }];
+      const push = (bench: number, ohp: number) => [{ exercise: "bench-press", sets: weights(6, bench) }, { exercise: "overhead-press", sets: weights(8, ohp) }, { exercise: "dips", sets: weights(10) }];
+      v.sessions = [
+        { id: "s1", date: "2026-11-16", name: "Legs", workout: "legs", items: legs(100) },
+        { id: "s2", date: "2026-11-18", name: "Push", workout: "push", items: push(70, 37.5) },
+        { id: "s3", date: "2026-11-20", name: "Pull", workout: "pull", items: [{ exercise: "deadlift", sets: weights(3, 125) }, { exercise: "rows", sets: weights(8, 60) }, { exercise: "pull-ups", sets: weights(6) }] },
+        { id: "s4", date: "2026-11-23", name: "Legs", workout: "legs", items: legs(102.5) },
+        { id: "s5", date: "2026-11-25", name: "Push", workout: "push", items: push(72.5, 40) },
+      ];
+      return v;
+    },
+    macSize: { width: 1500, height: 1000, scale: 2, crop: 664 },
+  },
+  // iphone-notes-travel-itinerary-template: Chicago, 3 to 6 December, seen on Friday 4 December (day 2
+  // of 4). The post's note's lines: the times with a ref are bookings, the rest are the days' plans.
+  "travel-itinerary": {
+    post: "iphone-notes-travel-itinerary-template", slug: "trip-plan", today: "2026-12-04",
+    values: (v) => {
+      v.trip = { name: "Chicago", place: "Chicago", start: "2026-12-03", end: "2026-12-06" };
+      v.days = [
+        { date: "2026-12-03", title: "", items: ["14:00 Millennium Park", "19:30 Dinner at Marlow's, table for 2"] },
+        { date: "2026-12-04", title: "", items: ["13:00 Lunch in the West Loop", "16:00 Walk the Riverwalk"] },
+        { date: "2026-12-05", title: "", items: ["09:30 Brunch near the hotel", "11:00 Field Museum", "Afternoon free"] },
+        { date: "2026-12-06", title: "", items: ["11:00 Check out"] },
+      ];
+      v.bookings = [
+        { id: "b1", what: "Flight to Chicago", kind: "flight", date: "2026-12-03", time: "08:15", ref: "QX4T7B", paid: true },
+        { id: "b2", what: "Hotel Lakeview", kind: "stay", date: "2026-12-03", time: "12:30", ref: "77310452", paid: true },
+        { id: "b4", what: "Art Institute", kind: "activity", date: "2026-12-04", time: "10:00", ref: "AIC5521", paid: true },
+        { id: "b5", what: "Blues show", kind: "activity", date: "2026-12-04", time: "20:00", ref: "BL0412", paid: true },
+        { id: "b6", what: "Flight home", kind: "flight", date: "2026-12-06", time: "16:45", ref: "QX4T7B", paid: true },
+      ];
+      v.packing = v.packing.map((p: Values) => ({ ...p, packed: true }));
+      return v;
+    },
+    mac: [{ tap: "Days" }],
+    macSize: { width: 1100, height: 1000, scale: 2, crop: 760 },
+  },
   // apple-notes-job-search-tracker: Wednesday 11 November. Tideway's first interview tomorrow with
   // three questions prepared and one to ask, Marlow Studio's follow-up on the 16th, Finch Bikes to
   // apply to by the 18th, Northlight closed (asked for feedback), Karin at Tideway.
@@ -118,7 +168,7 @@ const args = Deno.args.filter((a, i) => !a.startsWith("--") && Deno.args[i - 1] 
 const rawAt = Deno.args.indexOf("--raw");
 const raw = rawAt >= 0 ? Deno.args[rawAt + 1] : null;
 
-async function encode(png: string, name: string, size: { width: number; scale: number; crop?: number }) {
+async function encode(png: string, name: string, size: Size) {
   const tmp = await Deno.makeTempFile({ suffix: ".png" });
   await Deno.writeFile(tmp, Uint8Array.from(atob(png), (c) => c.charCodeAt(0)));
   if (size.crop) {
@@ -142,7 +192,7 @@ for (const name of args.length ? args : Object.keys(POSTS)) {
   const t = JSON.parse(await Deno.readTextFile(new URL(`content/templates/${p.slug}.json`, ROOT)));
   const start = JSON.parse(await Deno.readTextFile(new URL(`public/templates/apps/${p.slug}.data.json`, ROOT)));
   const data = { ...start, values: p.values(structuredClone(start.values)) };
-  for (const [kind, size, steps] of [["phone", PHONE, p.phone], ["mac", MAC, p.mac]] as const) {
+  for (const [kind, size, steps] of [["phone", PHONE, p.phone], ["mac", p.macSize ?? MAC, p.mac]] as const) {
     const r = await renderPage(stored, t.note ?? "", data, {
       today: p.today, probes: false, capture: true, views: [{ width: size.width, height: size.height, scale: size.scale, scheme: "light" }], steps: [{ wait: 600 }, ...(steps ?? []), { wait: 500 }],
     });

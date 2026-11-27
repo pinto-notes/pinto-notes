@@ -97,7 +97,7 @@ export default function Page() {
         <li>Tick a booking once it&apos;s paid, so the unticked ones are what you still owe.</li>
         <li>For the next trip, duplicate the note and untick the packing list: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-packing-list-template">a longer packing list</a>, <a href="/blog/apple-notes-meal-planner-template">a meal planner</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-packing-list-template">a longer packing list</a>, <a href="/blog/iphone-notes-travel-itinerary-template">a day-by-day itinerary for the trip</a>, <a href="/blog/apple-notes-meal-planner-template">a meal planner</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }

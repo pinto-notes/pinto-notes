@@ -36,6 +36,8 @@ export const SHELVES: Shelf[] = [
       { slug: "apple-notes-wishlist-template", ask: "Can Notes keep a family wishlist?" },
       { slug: "apple-notes-75-hard-template", ask: "Can Notes keep a 75 Hard checklist?" },
       { slug: "iphone-notes-christmas-list", ask: "Can Notes add up my Christmas budget?" },
+      { slug: "iphone-notes-gym-template", ask: "Can Notes keep my gym split?" },
+      { slug: "iphone-notes-travel-itinerary-template", ask: "Can Notes hold a trip itinerary?" },
       { slug: "apple-notes-cornell-notes-template", ask: "Can I do Cornell notes in Notes?" },
       { slug: "export-apple-notes-to-markdown", ask: "How do I get my notes out as Markdown?" },
     ],

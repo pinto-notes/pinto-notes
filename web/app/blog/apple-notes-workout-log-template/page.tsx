@@ -90,7 +90,7 @@ export default function Page() {
         <li>Tick each set as you finish it. If the weight was different, change the line there and then.</li>
         <li>When a set beats a line in Personal bests, change that line and its date. On Sunday, duplicate the note and untick each day: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-mood-tracker">a mood tracker</a> and <a href="/blog/apple-notes-75-hard-template">a 75 Hard checklist</a>. Pinto Notes has a free <a href="/templates/workout-log">workout log template</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-mood-tracker">a mood tracker</a>, <a href="/blog/apple-notes-75-hard-template">a 75 Hard checklist</a> and <a href="/blog/iphone-notes-gym-template">a gym split for your iPhone</a>. Pinto Notes has a free <a href="/templates/workout-log">workout log template</a>.</p>
     </PostPage>
   );
 }
