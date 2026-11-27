@@ -29,6 +29,8 @@ if [[ ${1:-} != --serve ]]; then
   # From the main checkout: it holds Config/Backend.local.xcconfig, which a worktree doesn't.
   main=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
   REF=$(git rev-parse HEAD) "$main/scripts/install-mac.sh"
+  # The iPhone builds from here, and needs the same backend settings.
+  [[ -f Config/Backend.local.xcconfig ]] || cp "$main/Config/Backend.local.xcconfig" Config/
   [[ ${1:-} == --mac ]] || scripts/install-phone.sh
 fi
 
