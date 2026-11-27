@@ -26,7 +26,9 @@ if [[ ${1:-} != --serve ]]; then
   if [[ -n $(git status --porcelain -- Pane web-editor project.yml) ]]; then
     echo "Commit first: the Mac install builds this branch's last commit." >&2; exit 1
   fi
-  REF=$(git rev-parse HEAD) scripts/install-mac.sh
+  # From the main checkout: it holds Config/Backend.local.xcconfig, which a worktree doesn't.
+  main=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+  REF=$(git rev-parse HEAD) "$main/scripts/install-mac.sh"
   [[ ${1:-} == --mac ]] || scripts/install-phone.sh
 fi
 
