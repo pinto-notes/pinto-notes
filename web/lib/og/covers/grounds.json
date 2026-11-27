@@ -347,6 +347,12 @@
   "w": 880,
   "h": 550
  },
+ "gym-template": {
+  "ground": "#eb8f64",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "habit-tracker": {
   "ground": "#f9dfbb",
   "ink": "dark",
@@ -697,6 +703,12 @@
  },
  "todo": {
   "ground": "#c3da8a",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "travel-itinerary-template": {
+  "ground": "#9fdaf1",
   "ink": "dark",
   "w": 880,
   "h": 550

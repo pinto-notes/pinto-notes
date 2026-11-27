@@ -100,7 +100,7 @@ export default function Page() {
         <li>Turn on sorting, so each thing you tick drops to the bottom of its group. On iPhone it&apos;s Settings, Apps, Notes, Sort Checked Items. On a Mac, Notes asks the first time you tick something.</li>
         <li>Keep the note. Before the next trip, untick everything at once: <MenuPath steps={["Format", "More", "Uncheck All"]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-trip-planner-template">a trip planner</a>, <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-checklist-template">a daily checklist</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-trip-planner-template">a trip planner</a>, <a href="/blog/iphone-notes-travel-itinerary-template">a travel itinerary</a>, <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-checklist-template">a daily checklist</a> and <a href="/blog/apple-notes-templates">five more templates</a>.</p>
     </PostPage>
   );
 }
