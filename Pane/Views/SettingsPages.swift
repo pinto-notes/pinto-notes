@@ -2181,9 +2181,10 @@ struct ExperimentalSettingsPage: View {
     @AppStorage(Experiment.covers.key) private var coversOn = false
     @AppStorage(Experiment.gallery.key) private var galleryOn = false
     @AppStorage(Experiment.tags.key) private var tagsOn = false
+    @AppStorage(Experiment.webEditor.key) private var webEditorOn = false
 
     var body: some View {
-        let _ = (coversOn, galleryOn, tagsOn)
+        let _ = (coversOn, galleryOn, tagsOn, webEditorOn)
         SettingsPageForm {
             Section {
                 ForEach(Experiment.allCases) { e in

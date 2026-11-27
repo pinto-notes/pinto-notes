@@ -12,6 +12,9 @@ enum Experiment: String, CaseIterable, Identifiable {
     case gallery
     /// Labels on notes from their right-click, in colours, and the colours of #tags.
     case tags
+    /// Notes in a web editor (WebNoteEditor), to feel it against the native one on real notes
+    /// (Emil, 27 November 2026: "I need 2 app UIs I can test. side by side. not imitation").
+    case webEditor
 
     var id: String { rawValue }
     /// Its switch's UserDefaults key (also an `-experimentCovers YES` launch argument for tests).
@@ -24,6 +27,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         case .covers: "Covers and icons"
         case .gallery: "Gallery view"
         case .tags: "Tags"
+        case .webEditor: "Web editor"
         }
     }
 
@@ -32,6 +36,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         case .covers: "Give a note a cover photo and an icon, from the buttons by its title."
         case .gallery: "Show a folder as cards with each note\u{2019}s cover or first picture, from the list\u{2019}s menu."
         case .tags: "Put coloured labels on notes from their right-click. Tags show their colours in notes and the sidebar."
+        case .webEditor: "Edit notes in a web editor, to compare it with the native one. A switch at the foot of each note picks Native, Web or, on the Mac, both side by side."
         }
     }
 
@@ -40,6 +45,7 @@ enum Experiment: String, CaseIterable, Identifiable {
         case .covers: "photo.artframe"
         case .gallery: "square.grid.2x2"
         case .tags: "tag"
+        case .webEditor: "globe"
         }
     }
 }

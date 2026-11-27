@@ -1,0 +1,18 @@
+{
+  "name": "pinto-web-editor",
+  "private": true,
+  "type": "module",
+  "description": "The web note editor behind Settings > Experimental > Web editor. Builds into Pane/Resources/WebEditor/web-editor.html.",
+  "scripts": { "build": "node build.mjs", "dev": "node build.mjs --serve", "test": "node --test test" },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "@tiptap/core": "2.27.3", "@tiptap/pm": "2.27.3",
+    "@tiptap/extension-document": "2.27.3", "@tiptap/extension-paragraph": "2.27.3", "@tiptap/extension-text": "2.27.3",
+    "@tiptap/extension-heading": "2.27.3", "@tiptap/extension-bold": "2.27.3", "@tiptap/extension-italic": "2.27.3",
+    "@tiptap/extension-strike": "2.27.3", "@tiptap/extension-code": "2.27.3", "@tiptap/extension-highlight": "2.27.3",
+    "@tiptap/extension-link": "2.27.3", "@tiptap/extension-history": "2.27.3", "@tiptap/extension-code-block": "2.27.3",
+    "@tiptap/extension-table": "2.27.3", "@tiptap/extension-table-row": "2.27.3", "@tiptap/extension-table-cell": "2.27.3",
+    "@tiptap/extension-table-header": "2.27.3", "@tiptap/extension-dropcursor": "2.27.3", "@tiptap/extension-gapcursor": "2.27.3",
+    "@tiptap/extension-hard-break": "2.27.3"
+  }
+}

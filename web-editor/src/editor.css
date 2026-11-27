@@ -1,0 +1,58 @@
+/* A Pinto note in a web view. Sizes and colours come from the app (PintoEditor.load). */
+:root {
+  --body: 13px; --title: 24px; --label: 11px; --line-gap: 3px;
+  --face: -apple-system, system-ui, sans-serif;
+  --ink: #2A1D10; --muted: #74604C; --accent: #D96A06; --accent-ink: #A85700; --line: #E6DCD2; --soft: #F2EAE1; --selection: #FFE3BF;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) { :root { --ink: #F6EFE7; --muted: #BCB0A3; --accent: #F4AD33; --accent-ink: #F4AD33; --line: #3A3633; --soft: #36322E; --selection: #5A4520 } }
+html, body { margin: 0; background: transparent; color: var(--ink); -webkit-text-size-adjust: 100%; }
+body { font: var(--body)/1 var(--face); -webkit-font-smoothing: antialiased; }
+.page { padding: 18px 32px 45vh; max-width: 760px; margin: 0 auto; }
+[data-platform="ios"] .page { padding: 8px 16px 40vh; }
+#date { color: var(--muted); font-size: calc(var(--body) * 0.85); text-align: center; margin-bottom: 10px; min-height: 1em; }
+[data-platform="ios"] #date { text-align: left; }
+#guard { background: var(--soft); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: calc(var(--body) * 0.92); color: var(--muted); }
+.note { outline: none; line-height: calc(1em + var(--line-gap) * 2); caret-color: var(--accent); word-wrap: break-word; white-space: pre-wrap; }
+.note ::selection { background: var(--selection); }
+.note > * { margin: 0; }
+.note > p:first-child { font-size: var(--title); font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
+.note p:empty::before, .note p > br.ProseMirror-trailingBreak:only-child { content: ""; }
+.note h1 { font-size: var(--title); font-weight: 700; line-height: 1.25; }
+.note h2 { font-size: calc(var(--body) * 1.25); font-weight: 700; line-height: 1.3; }
+.note h3 { font-size: calc(var(--body) * 1.1); font-weight: 600; }
+.note h4, .note h5, .note h6 { font-size: var(--body); font-weight: 600; }
+.note .item { display: flex; align-items: baseline; padding-left: calc(var(--depth) * 1.6em); }
+.note .item > .mk { flex: none; width: 1.6em; color: var(--muted); user-select: none; -webkit-user-select: none; text-align: left; font-variant-numeric: tabular-nums; }
+.note .item.ordered > .mk { width: auto; min-width: 1.6em; padding-right: .35em; }
+.note .item > .tx { flex: 1; min-width: 0; }
+.note .item.task > .mk { width: 1.15em; height: 1.15em; margin-right: .5em; border-radius: 50%; border: 1.5px solid var(--muted); box-sizing: border-box; align-self: center; cursor: pointer; position: relative; opacity: .85; }
+.note .item.task.done > .mk { background: var(--accent); border-color: var(--accent); opacity: 1; }
+.note .item.task.done > .mk::after { content: ""; position: absolute; left: 34%; top: 16%; width: 26%; height: 48%; border: solid #fff; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg); }
+.note .item.task.done > .tx { color: var(--muted); }
+.note .quote { border-left: 3px solid var(--line); padding-left: 10px; color: var(--muted); }
+.note .divider { height: 1px; background: var(--line); margin: calc(var(--body) * .7) 0; }
+.note .hidden-line { display: none; }
+.note .embed { display: inline-block; padding: 8px 12px; border-radius: 10px; background: var(--soft); cursor: pointer; font-weight: 600; margin: 2px 0; }
+.note .picture img { max-width: 100%; max-height: 60vh; border-radius: 8px; display: block; margin: 4px 0; }
+.note .picture.missing { color: var(--muted); font-style: italic; }
+.note a, .note a.wiki { color: var(--accent-ink); text-decoration: none; }
+.note a.wiki { font-weight: 500; }
+.note .tag { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 4px; padding: 0 3px; }
+.note code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em; background: var(--soft); border-radius: 4px; padding: 1px 4px; }
+.note pre { background: var(--soft); border-radius: 8px; padding: 8px 12px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em; line-height: 1.45; overflow-x: auto; }
+.note pre code { background: none; padding: 0; }
+.note mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: inherit; border-radius: 2px; }
+.note table { border-collapse: collapse; margin: 4px 0; table-layout: auto; min-width: 50%; }
+.note td p, .note th p { margin: 0; line-height: 1.4; }
+.note th, .note td { border: 1px solid var(--line); padding: 4px 9px; text-align: left; vertical-align: top; min-width: 3em; }
+.note th { font-weight: 600; background: var(--soft); }
+.note .selectedCell { background: var(--selection); }
+.note .ProseMirror-selectednode { outline: 2px solid var(--accent); border-radius: 6px; }
+.ProseMirror-gapcursor { display: none; pointer-events: none; position: absolute; }
+.ProseMirror-gapcursor:after { content: ""; display: block; position: absolute; top: -2px; width: 20px; border-top: 1px solid var(--ink); animation: gc 1.1s steps(2, start) infinite; }
+.ProseMirror-focused .ProseMirror-gapcursor { display: block; }
+@keyframes gc { to { visibility: hidden; } }
+.ProseMirror { position: relative; }
+.ProseMirror [contenteditable="false"] { white-space: normal; }
+.tableWrapper { overflow-x: auto; }

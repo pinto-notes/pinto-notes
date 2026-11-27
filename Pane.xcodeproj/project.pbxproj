@@ -878,6 +878,7 @@
 		7B12D560FE4B97D3DCC04C56 /* NoteIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667042B618528FF4943E6948 /* NoteIntents.swift */; };
 		7B1E97DC2CD6F2716187E790 /* LockLeakProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2C6D6DA42D4F544B0E7737 /* LockLeakProbeTests.swift */; };
 		7B61EDF9A2A661BD1B44EA09 /* template-cover-job-hunt-large.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FA3436EF76101BFE67FB4CD8 /* template-cover-job-hunt-large.jpg */; };
+		7B89BD93B560F1D6168E1290 /* WebNoteEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19787B3C86061961ED00FF24 /* WebNoteEditor.swift */; };
 		7C2508A0D38FBAC9C63D2DC4 /* RichPasteSourcesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 707C97A919FABB193CC47F4D /* RichPasteSourcesTests.swift */; };
 		7C58A2EDAED6F031DE85001C /* template-app-home-maintenance-stage-card-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 85556F96913F502E8296A6D8 /* template-app-home-maintenance-stage-card-light.jpg */; };
 		7CC4DF95D94EF2E43AA764CE /* PersonaR7Shots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A8C015495E51F8B5B81F3A /* PersonaR7Shots+Shared.swift */; };
@@ -1000,6 +1001,8 @@
 		8D2BCBED4BB232A41D979EB3 /* WarmGreySnapshots+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B31DC6FB48849DBCA14CD4A /* WarmGreySnapshots+Shared.swift */; };
 		8D4EAD8172075B522D59EEFF /* template-app-study-flashcards-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6511DF6067471C42808C09B2 /* template-app-study-flashcards-dark.jpg */; };
 		8D4ED1927815FE0FAD30ABE0 /* EditorTapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FD361601B933FFDEC0E3A17 /* EditorTapUITests.swift */; };
+		8D853C82EE7EEE72B6980C23 /* web-editor.html in Resources */ = {isa = PBXBuildFile; fileRef = C82BE239B4D32AFC138F4611 /* web-editor.html */; };
+		8DC8712EE124A44E3055D3EC /* web-editor.html in Resources */ = {isa = PBXBuildFile; fileRef = C82BE239B4D32AFC138F4611 /* web-editor.html */; };
 		8DDE0113A044E767BA32C8CE /* guide-obsidian-files.png in Resources */ = {isa = PBXBuildFile; fileRef = AC2974209CC95A34F20C0CD5 /* guide-obsidian-files.png */; };
 		8DECEC26D23538850E24676A /* SetupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828936EE95CD99013161C1CA /* SetupTests.swift */; };
 		8E1B8A85188A0222A8215D69 /* template-app-home-maintenance-stage-dark.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5A9E9C164C129A0190A3F82D /* template-app-home-maintenance-stage-dark.jpg */; };
@@ -1236,6 +1239,7 @@
 		B2FA24707134CBA124851D41 /* PhoneRenderTests+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 297A8D5C0D6571D39EBBA5BF /* PhoneRenderTests+Shared.swift */; };
 		B333717CEDA6A81DC8B20E72 /* amber-ui.json in Resources */ = {isa = PBXBuildFile; fileRef = 24D8355994666F6DBB272BC0 /* amber-ui.json */; };
 		B354439E976FD34CF3636F74 /* Callouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002FCBD927EFCE23CCDAB4A8 /* Callouts.swift */; };
+		B38001F4634A1E1136E676E5 /* WebNoteEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19787B3C86061961ED00FF24 /* WebNoteEditor.swift */; };
 		B3A35F855326D7C579373AF0 /* FolderFileViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE5233DC533CE9F350228FC /* FolderFileViews.swift */; };
 		B3A8C95D540E2EF6DB96DB88 /* AIEditSnapshots+Connect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224680A69652924B754F5CC1 /* AIEditSnapshots+Connect.swift */; };
 		B405872E5470EE9546C41019 /* ConnectChoices.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63BCA6A4FFD0CF3D4A3011E /* ConnectChoices.swift */; };
@@ -1370,6 +1374,7 @@
 		C80BCA1F32579882EBC97813 /* DailyNotesEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE513B4359CF9208ED64848E /* DailyNotesEditorTests.swift */; };
 		C851A85D32E6587E34CD557F /* NoteListSeparatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03711D9DFC91CE824CD5986 /* NoteListSeparatorTests.swift */; };
 		C8778AA4121BAA6ECC92965B /* PerfFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51737AD7C24E16E1B7E02488 /* PerfFixtures.swift */; };
+		C8C74E3915D3F7BAEE2CCF60 /* WebNoteEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17F74BD7D279DAB0F3BB645 /* WebNoteEditorTests.swift */; };
 		C8EFAB173EDB9CE7F8718420 /* TemplatePageShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7A018928B0EA6114E4F2F6 /* TemplatePageShots.swift */; };
 		C902C834C532CA5D2D7CED53 /* template-app-habit-tracker-stage-light.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 72E307C8F4611E8AF62DB470 /* template-app-habit-tracker-stage-light.jpg */; };
 		C90C767E1A516642EEDE805B /* template-app-gift-ideas.project.json in Resources */ = {isa = PBXBuildFile; fileRef = E9B1A7FD275E72784FCF2777 /* template-app-gift-ideas.project.json */; };
@@ -1885,6 +1890,7 @@
 		190465CA13210E4EB1D0F036 /* AppearanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceMode.swift; sourceTree = "<group>"; };
 		191532B6C05CC04A487951F6 /* NoteRowStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRowStatusTests.swift; sourceTree = "<group>"; };
 		1936CFFEE4A4126D37AE43CB /* stack.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stack.json; sourceTree = "<group>"; };
+		19787B3C86061961ED00FF24 /* WebNoteEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebNoteEditor.swift; sourceTree = "<group>"; };
 		19A3CFE92D58ADD46C8269EB /* AmberButtonDynamicTypeSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AmberButtonDynamicTypeSnapshots.swift; sourceTree = "<group>"; };
 		19D80BDF04976B1F5E2449A1 /* preact.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = preact.js; sourceTree = "<group>"; };
 		19F18EFC180D18F05B904827 /* CollabScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollabScript.swift; sourceTree = "<group>"; };
@@ -2470,6 +2476,7 @@
 		A0C267659519178984827810 /* ZipTimes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipTimes.swift; sourceTree = "<group>"; };
 		A0CC9D9B12C475056F6832FA /* template-app-meal-plan-stage-card-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-meal-plan-stage-card-dark.jpg"; sourceTree = "<group>"; };
 		A14F42DE741A41187FC6987F /* template-app-home-maintenance-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-home-maintenance-dark.jpg"; sourceTree = "<group>"; };
+		A17F74BD7D279DAB0F3BB645 /* WebNoteEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebNoteEditorTests.swift; sourceTree = "<group>"; };
 		A25D9D1F15495FE305C31DC0 /* ActionSpeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionSpeedTests.swift; sourceTree = "<group>"; };
 		A2B368A33CBCE4C0634FF8A2 /* KeyProtectionAsk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyProtectionAsk.swift; sourceTree = "<group>"; };
 		A3B3D0A251468CF33DC8862E /* template-app-mood-energy-log.data.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "template-app-mood-energy-log.data.json"; sourceTree = "<group>"; };
@@ -2602,6 +2609,7 @@
 		C7B67058B15A94F6CDA9881A /* OfflineCalmTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineCalmTests.swift; sourceTree = "<group>"; };
 		C7D3C041048DAAB22B2FC870 /* TypedTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypedTable.swift; sourceTree = "<group>"; };
 		C802356D17BD239EFCE2A435 /* RowPressSlopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RowPressSlopTests.swift; sourceTree = "<group>"; };
+		C82BE239B4D32AFC138F4611 /* web-editor.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "web-editor.html"; sourceTree = "<group>"; };
 		C865CE060A4A133D9693A45B /* template-app-mood-energy-log-stage-light.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "template-app-mood-energy-log-stage-light.jpg"; sourceTree = "<group>"; };
 		C960510C7E4F543FE84B35F7 /* PrivacyMode+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrivacyMode+Shared.swift"; sourceTree = "<group>"; };
 		C971B26721AA72846608E154 /* AIReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIReviewTests.swift; sourceTree = "<group>"; };
@@ -3101,6 +3109,7 @@
 				B41290A032586DD4F8DDAAB5 /* ImportGuides */,
 				633BDC39D1684643595A3AED /* SampleApps */,
 				4FDA598E830A4A47D9820EA9 /* Templates */,
+				E1AD87388202759E24B3365F /* WebEditor */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -3823,6 +3832,7 @@
 				6D751DDB1D83689C033D17EA /* TypoSearchTests.swift */,
 				D17CB8FD610675468F2C8D0A /* UpdaterTests.swift */,
 				158E191E0A9E3A46FEF74289 /* UsageTelemetryTests.swift */,
+				A17F74BD7D279DAB0F3BB645 /* WebNoteEditorTests.swift */,
 				56AB4B9F8C73ED99036E5A05 /* WelcomeEmailTests.swift */,
 				393568B67D8EEBF493C50F93 /* WelcomeNoteTests.swift */,
 				0BC98D85A82BA1ECBFDE6ABB /* WelcomeTests.swift */,
@@ -3964,6 +3974,7 @@
 				A7329AFAFDF70725C833E38C /* TextDiff.swift */,
 				978F8AC668B82A7AC132A11E /* Theme.swift */,
 				32C37BFE60FE99C9B27E17B3 /* VersionTextView.swift */,
+				19787B3C86061961ED00FF24 /* WebNoteEditor.swift */,
 				6437AEF31BCCDC5E8092B053 /* WikiSuggestions.swift */,
 			);
 			path = Editor;
@@ -4208,6 +4219,14 @@
 				35649101F1DCFA7BD1618B78 /* WelcomeSnapshots.swift */,
 			);
 			path = HIG;
+			sourceTree = "<group>";
+		};
+		E1AD87388202759E24B3365F /* WebEditor */ = {
+			isa = PBXGroup;
+			children = (
+				C82BE239B4D32AFC138F4611 /* web-editor.html */,
+			);
+			path = WebEditor;
 			sourceTree = "<group>";
 		};
 		E9DA249F83E6A85377D4815C /* Config */ = {
@@ -4756,6 +4775,7 @@
 				427F7CEE573ED4A1CEE3CADD /* three.js in Resources */,
 				8B8A2E2CBE4BF9A3224735F4 /* tone.js in Resources */,
 				FC8C67F0982505EE55E55C73 /* topojson.js in Resources */,
+				8D853C82EE7EEE72B6980C23 /* web-editor.html in Resources */,
 				6BE87D1DA9653F3C578D49C4 /* world.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -4977,6 +4997,7 @@
 				5619E67CFC231B9156BA0844 /* three.js in Resources */,
 				2B55D6E03EAB0E2ED1472F4A /* tone.js in Resources */,
 				504F9E95EFAF31EC15B202D2 /* topojson.js in Resources */,
+				8DC8712EE124A44E3055D3EC /* web-editor.html in Resources */,
 				595DC63A9C80788BAA7A2127 /* world.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -5307,6 +5328,7 @@
 				9ADA5025801916A3ACE90957 /* UsageTelemetryTests.swift in Sources */,
 				D20192ADEDBDD8DAF78BD216 /* VersionHistorySnapshots+Shared.swift in Sources */,
 				258351949E3B496F2B87930C /* WarmGreySnapshots+Shared.swift in Sources */,
+				C8C74E3915D3F7BAEE2CCF60 /* WebNoteEditorTests.swift in Sources */,
 				C41C82F7E3008945B26207FA /* WelcomeEmailTests.swift in Sources */,
 				65AAEF4B260AFF8160627B44 /* WelcomeNoteTests+Shared.swift in Sources */,
 				2303CD3870336F60D24602F1 /* WelcomeNoteTests.swift in Sources */,
@@ -5597,6 +5619,7 @@
 				70FD7776A93DA08BA735BF8F /* VersionHistoryView.swift in Sources */,
 				4B5697845D621DC2E6E8DCBF /* VersionTextView.swift in Sources */,
 				46BFEF129C92C8BA646178A5 /* WebAuthSession.swift in Sources */,
+				B38001F4634A1E1136E676E5 /* WebNoteEditor.swift in Sources */,
 				DA64E54D6FBC775650262423 /* WelcomeEmailSignIn.swift in Sources */,
 				945FB61904A24C748E6D1AB2 /* WelcomeNote.swift in Sources */,
 				D0D9DEB51EB8764B3FFA6A0D /* WelcomeNoteView.swift in Sources */,
@@ -6380,6 +6403,7 @@
 				563A6EA348703923FFB358FD /* VersionHistoryView.swift in Sources */,
 				CCA46476EB8A1E84186D96DD /* VersionTextView.swift in Sources */,
 				B1838349B2E160ED73FE1808 /* WebAuthSession.swift in Sources */,
+				7B89BD93B560F1D6168E1290 /* WebNoteEditor.swift in Sources */,
 				324D8A95A47F94CAB8DDC168 /* WelcomeEmailSignIn.swift in Sources */,
 				18539A4905E42F2AEF61354A /* WelcomeNote.swift in Sources */,
 				4C5E4105DA77CC36CE4029A9 /* WelcomeNoteView.swift in Sources */,

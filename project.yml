@@ -98,6 +98,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        # The live web editor page for trying changes without a build (WebEditorSource.live); empty in releases.
+        PintoWebEditorDevURL: $(PINTO_WEB_EDITOR_DEV_URL)
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true

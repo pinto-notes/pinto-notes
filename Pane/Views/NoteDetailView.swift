@@ -1960,9 +1960,44 @@ private struct NoteEditorText: View {
             // Read so a rename elsewhere (refreshLinks) still colours the links again.
             let _ = controller.wiki
             let wiki = note.modelContext.map { WikiDirectory.scope(for: note, in: $0) }
-            MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
-                           followsInitialText: followsInitialText, dateShown: handoff, foldsID: note.id, wiki: wiki, onChange: onChange)
+            let native = MarkdownEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus,
+                                        followsInitialText: followsInitialText, dateShown: handoff, foldsID: note.id, wiki: wiki, onChange: onChange)
+            // Settings › Experimental › Web editor: the same note in the web editor, or both.
+            // A shared note stays native (its text arrives merged through the controller).
+            let _ = (webEditorOn, choice)
+            switch followsInitialText ? EditorChoice.current() : .native {
+            case .native:
+                native.overlay(alignment: .bottomTrailing) { if webEditorOn { EditorChoiceSwitch().padding(14) } }
+            case .web:
+                web(text).overlay(alignment: .bottomTrailing) { EditorChoiceSwitch().padding(14) }
+            case .both:
+                HStack(spacing: 0) {
+                    native.overlay(alignment: .bottomLeading) { side("Native") }
+                    web(text).overlay(alignment: .bottomLeading) { side("Web") }
+                }
+                .overlay(alignment: .bottomTrailing) { EditorChoiceSwitch().padding(14) }
+            }
         }
+    }
+
+    @AppStorage(Experiment.webEditor.key) private var webEditorOn = false
+    @AppStorage(EditorChoice.key) private var choice = EditorChoice.web.rawValue
+
+    private func web(_ text: String) -> some View {
+        WebNoteEditor(initialText: text, header: DateBucket.header(note.updatedAt), controller: controller, autofocus: autofocus, onChange: onChange)
+            #if os(macOS)
+            // The native editor runs under the toolbar (its text inset by it); the page starts below it.
+            .padding(.top, 52)
+            #endif
+            .id(note.id)
+    }
+
+    private func side(_ name: String) -> some View {
+        Text(name).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(.regularMaterial, in: Capsule())
+            .padding(14)
+            .allowsHitTesting(false)
     }
 }
 

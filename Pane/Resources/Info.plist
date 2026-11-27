@@ -88,16 +88,18 @@
 	<string>$(PANE_POSTHOG_HOST)</string>
 	<key>PanePostHogKey</key>
 	<string>$(PANE_POSTHOG_KEY)</string>
-	<key>PaneTeamBuild</key>
-	<string>$(PANE_TEAM_BUILD)</string>
 	<key>PaneShareURL</key>
 	<string>$(PANE_SHARE_URL)</string>
 	<key>PaneSupabaseKey</key>
 	<string>$(PANE_SUPABASE_KEY)</string>
 	<key>PaneSupabaseURL</key>
 	<string>$(PANE_SUPABASE_URL)</string>
+	<key>PaneTeamBuild</key>
+	<string>$(PANE_TEAM_BUILD)</string>
 	<key>PaneURLScheme</key>
 	<string>$(PANE_URL_SCHEME)</string>
+	<key>PintoWebEditorDevURL</key>
+	<string>$(PINTO_WEB_EDITOR_DEV_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
