@@ -91,7 +91,7 @@ export default function Page() {
             { on: "iPhone", steps: ["Double-tap an item", "Checklist", "Uncheck All"] },
           ]} /></li>
       </Steps>
-      <p>More for Apple Notes: <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-packing-list-template">a packing list</a> and <a href="/blog/apple-notes-wishlist-template">a family wishlist</a>.</p>
+      <p>More for Apple Notes: <a href="/blog/apple-notes-to-do-list-template">a to-do list</a>, <a href="/blog/apple-notes-habit-tracker">a habit tracker</a>, <a href="/blog/apple-notes-packing-list-template">a packing list</a>, <a href="/blog/apple-notes-new-year-resolution-template">new year resolutions</a> and <a href="/blog/apple-notes-wishlist-template">a family wishlist</a>.</p>
     </PostPage>
   );
 }

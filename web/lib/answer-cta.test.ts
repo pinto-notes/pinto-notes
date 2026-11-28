@@ -35,6 +35,8 @@ const E = [
   "apple-notes-75-hard-template", "iphone-notes-christmas-list",
   // 27 Nov 2026: the gym template and travel itinerary posts (B46).
   "iphone-notes-gym-template", "iphone-notes-travel-itinerary-template",
+  // 28 Nov 2026: the new year resolution and goals posts (B48).
+  "apple-notes-new-year-resolution-template", "iphone-notes-goals-template",
 ];
 
 // Experiment B40 (24 Nov 2026): on the budget post the Pinto budget template runs live under the intro (lib/LiveBudget.tsx),

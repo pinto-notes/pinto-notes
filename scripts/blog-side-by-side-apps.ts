@@ -6,7 +6,7 @@
 // tabs at the foot are left out: the card's crop of the app on a Mac). Needs cwebp, avifenc and magick.
 // No network, nothing on screen.
 //   deno run -A scripts/blog-side-by-side-apps.ts [<name>…] [--raw <dir>]
-// The habit tracker's and the budget's were drawn before this script; they aren't listed here.
+// The habit tracker post's and the budget's were drawn before this script; they aren't listed here.
 import { closeBrowser, renderPage, type Step } from "./page-render/render.ts";
 import { atDay } from "./template-sample.ts";
 
@@ -18,12 +18,85 @@ const MAC = { width: 763, height: 1000, scale: 2, crop: 640 };
 // deno-lint-ignore no-explicit-any
 type Values = Record<string, any>;
 type Size = { width: number; height: number; scale: number; crop?: number };
-// macSize: a wider Mac view for an app whose lines would be cut at 763 pt.
-type Post = { post: string; slug: string; today: string; values: (start: Values) => Values; phone?: Step[]; mac?: Step[]; macSize?: Size };
+// macSize: a wider Mac view for an app whose lines would be cut at 763 pt. phoneSize: a taller phone view, so a
+// list the post's note shows in full isn't cut off by the tab bar.
+type Post = { post: string; slug: string; today: string; values: (start: Values) => Values; phone?: Step[]; mac?: Step[]; macSize?: Size; phoneSize?: Size };
 
 const weights = (reps: number, kg?: number, n = 3) => Array.from({ length: n }, () => (kg === undefined ? { reps } : { reps, kg }));
 
 const POSTS: Record<string, Post> = {
+  // apple-notes-new-year-resolution-template: Thursday 14 January 2027, the tracker started on Friday 1 January.
+  // The post's six resolutions as habits: three every day, two a set number of days a week, one on Sundays.
+  // Today Read and Spanish are done, as ticked in the post's note. One Spanish day was skipped (a trip).
+  "resolutions": {
+    post: "apple-notes-new-year-resolution-template", slug: "habit-tracker", today: "2027-01-14",
+    values: (v) => {
+      v.habits = [
+        { id: "read", name: "Read", detail: "20 pages", target: 1 },
+        { id: "no-phone-in-bed", name: "No phone in bed", target: 1 },
+        { id: "spanish", name: "Spanish", detail: "10 minutes", target: 1 },
+        { id: "walk", name: "Walk", detail: "30 minutes", target: 1, perWeek: 3 },
+        { id: "cook-at-home", name: "Cook at home", target: 1, perWeek: 4 },
+        { id: "call-grandma", name: "Call Grandma", target: 1, days: [6] },
+      ];
+      v.started = "2027-01-01";
+      const days: Values = {};
+      const on = (d: string, ...ids: string[]) => { days[d] = Object.fromEntries(ids.map((id) => [id, 1])); };
+      on("2027-01-01", "read", "no-phone-in-bed", "spanish", "walk");
+      on("2027-01-02", "read", "no-phone-in-bed", "spanish", "walk", "cook-at-home");
+      on("2027-01-03", "read", "no-phone-in-bed", "spanish", "cook-at-home", "call-grandma");
+      on("2027-01-04", "read", "no-phone-in-bed", "spanish", "walk", "cook-at-home");
+      on("2027-01-05", "read", "spanish", "cook-at-home");
+      on("2027-01-06", "read", "no-phone-in-bed", "spanish", "walk");
+      on("2027-01-07", "read", "no-phone-in-bed", "cook-at-home");
+      on("2027-01-08", "read", "no-phone-in-bed", "walk", "cook-at-home");
+      on("2027-01-09", "read", "no-phone-in-bed", "spanish");
+      on("2027-01-10", "read", "no-phone-in-bed", "spanish", "call-grandma");
+      on("2027-01-11", "read", "no-phone-in-bed", "spanish", "walk", "cook-at-home");
+      on("2027-01-12", "read", "no-phone-in-bed", "spanish", "cook-at-home");
+      on("2027-01-13", "read", "no-phone-in-bed", "spanish", "walk", "cook-at-home");
+      on("2027-01-14", "read", "spanish");
+      v.days = days;
+      v.skips = { "2027-01-07": ["spanish"] };
+      return v;
+    },
+    phoneSize: { width: 390, height: 1110, scale: 2 },
+    macSize: { width: 763, height: 1000, scale: 2, crop: 664 },
+  },
+  // iphone-notes-goals-template: Wednesday 20 January 2027, the tracker started on Monday 4 January. The
+  // post's three goals, each as its weekly step: run 3 days a week, save once a week, write 4 days a week.
+  // Both earlier weeks met; this week two runs (one today) and two writing days so far, as ticked in the
+  // post's note.
+  "goals": {
+    post: "iphone-notes-goals-template", slug: "habit-tracker", today: "2027-01-20",
+    values: (v) => {
+      v.habits = [
+        { id: "run-for-the-10k", name: "Run for the 10K", target: 1, perWeek: 3 },
+        { id: "save-60-for-japan", name: "Save $60 for Japan", target: 1, perWeek: 1 },
+        { id: "write-500-words", name: "Write 500 words", target: 1, perWeek: 4 },
+      ];
+      v.started = "2027-01-04";
+      const days: Values = {};
+      const on = (d: string, ...ids: string[]) => { days[d] = Object.fromEntries(ids.map((id) => [id, 1])); };
+      on("2027-01-04", "run-for-the-10k", "write-500-words");
+      on("2027-01-05", "write-500-words", "save-60-for-japan");
+      on("2027-01-06", "run-for-the-10k");
+      on("2027-01-07", "write-500-words");
+      on("2027-01-09", "run-for-the-10k", "write-500-words");
+      on("2027-01-11", "run-for-the-10k", "write-500-words");
+      on("2027-01-12", "write-500-words");
+      on("2027-01-13", "run-for-the-10k", "save-60-for-japan");
+      on("2027-01-14", "write-500-words");
+      on("2027-01-16", "run-for-the-10k", "write-500-words");
+      on("2027-01-18", "run-for-the-10k", "write-500-words");
+      on("2027-01-19", "write-500-words");
+      on("2027-01-20", "run-for-the-10k");
+      v.days = days;
+      return v;
+    },
+    phoneSize: { width: 390, height: 720, scale: 2 },
+    macSize: { width: 763, height: 1000, scale: 2, crop: 470 },
+  },
   // apple-notes-meal-planner-template: the week of 23 November, Oskar cooking Tuesday and Thursday,
   // and Lemons, Basil, Chicken thighs and Tortillas ticked. The groceries are the dinners'
   // ingredients; rice, pasta, onions and garlic are in the cupboard, as in the post's note.
@@ -192,7 +265,7 @@ for (const name of args.length ? args : Object.keys(POSTS)) {
   const t = JSON.parse(await Deno.readTextFile(new URL(`content/templates/${p.slug}.json`, ROOT)));
   const start = JSON.parse(await Deno.readTextFile(new URL(`public/templates/apps/${p.slug}.data.json`, ROOT)));
   const data = { ...start, values: p.values(structuredClone(start.values)) };
-  for (const [kind, size, steps] of [["phone", PHONE, p.phone], ["mac", p.macSize ?? MAC, p.mac]] as const) {
+  for (const [kind, size, steps] of [["phone", p.phoneSize ?? PHONE, p.phone], ["mac", p.macSize ?? MAC, p.mac]] as const) {
     const r = await renderPage(stored, t.note ?? "", data, {
       today: p.today, probes: false, capture: true, views: [{ width: size.width, height: size.height, scale: size.scale, scheme: "light" }], steps: [{ wait: 600 }, ...(steps ?? []), { wait: 500 }],
     });

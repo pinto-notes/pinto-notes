@@ -341,6 +341,12 @@
   "w": 880,
   "h": 550
  },
+ "goals-template": {
+  "ground": "#b5c5a3",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
  "grocery": {
   "ground": "#a6b3bc",
   "ink": "dark",
@@ -463,6 +469,12 @@
  },
  "moving-checklist": {
   "ground": "#f1c690",
+  "ink": "dark",
+  "w": 880,
+  "h": 550
+ },
+ "new-year-resolution-template": {
+  "ground": "#fed96f",
   "ink": "dark",
   "w": 880,
   "h": 550
