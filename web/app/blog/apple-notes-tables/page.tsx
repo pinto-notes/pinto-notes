@@ -19,6 +19,11 @@ export const metadata = postMetadata("apple-notes-tables", { title: "Apple Notes
 // through the MCP tools (read_table, log_table_row in supabase/functions/mcp/tools.ts); the Budget and expenses
 // template's app (web/content/templates/budget-log.app) adds itself up. Its picture is the app on a Mac, from the
 // apps-v2 captures with example data.
+// 28 Nov 2026 (research/tables-deep-pass-2026-11-28.md): checked against Apple's guides. The Mac guide adds Return in the last
+// cell and dragging a selected row or column; the iPhone guide's only table step is "Tap the Add Table button". The paste box's
+// last line carries no "=": a pasted "=" gets no answer in Notes until it's typed (the 22 Nov captures), as on the budget post.
+// Apple Notes import keeps tables (Pane/Model/RichTextToMarkdown.swift); your AI reads and adds rows through read_table and
+// log_table_row and does the sum itself. Pinto tables don't sum or sort, so no card says they do.
 
 const FAQ = [
   { q: "Can Apple Notes add up a column in a table?", a: [
@@ -38,7 +43,7 @@ const FAQ = [
 const TOTAL = `Boxes = 85
 Van = 240
 Cleaning = 180
-Boxes + Van + Cleaning =
+Boxes + Van + Cleaning
 `;
 
 export default function Page() {
@@ -82,7 +87,7 @@ export default function Page() {
         caption="Format, Table. The moving budget is already behind the menu." />
       <MenuPaths rows={[
         { on: "Mac", steps: ["Format", "Table"], keys: "⌥⌘T" },
-        { on: "iPhone", steps: ["Table button"] },
+        { on: "iPhone", steps: ["Add Table button"] },
       ]} />
       <p>
         You get two rows and two columns with the caret in the first cell. Faster still: type the rows with a tab between each column,
@@ -98,9 +103,9 @@ export default function Page() {
         { on: "Mac", steps: ["Click a cell", "Row or column handle", "Arrow"] },
       ]} />
       <p>
-        Tab in the last cell adds a row at the bottom, which is all a growing list needs. For anywhere else, click the small handle beside a
-        row or above a column, then its arrow. Apple&apos;s <a href="https://support.apple.com/guide/notes/add-a-table-apd0a136b9cc/mac" rel="noopener">guide to tables</a> has
-        the iPhone taps.
+        On Mac, Tab or Return in the last cell adds a row at the bottom. To add a row or column elsewhere, click the small handle beside a
+        row or above a column, then its arrow. Apple&apos;s <a href="https://support.apple.com/guide/notes/add-a-table-apd0a136b9cc/mac" rel="noopener">guide to tables</a> covers
+        these Mac controls, including dragging a selected row or column to move it.
       </p>
 
       <h2 id="sum">Add it up: the trick for totals</h2>
@@ -122,7 +127,13 @@ export default function Page() {
         alt="A note called Sequoia Group Expenses on iPhone: each cost named on its own line, the names added up to $475, and $475 divided by 5 to $95 each."
         caption="Apple's own example of the same trick, on iPhone: name each cost, then add up the names. Image: Apple." />
       <Keep title="Paste this under your table" text={TOTAL}
-        note="Notes offers the answer after the last equals sign; press Return to keep it." />
+        note="After pasting, type = at the end of the last line. Notes offers the total. Press Return to keep it." />
+      {/* Experiment B47 (28 Nov 2026): the answer card's offer again where the sum trick ends. Both App Store clicks
+          (18 and 26 Nov, iPhone) came after the reader had scrolled down to the sums and gone back up to the answer
+          card; 7 readers went past this point and clicked nothing. Read by position: answer against sum. */}
+      <PostCta slug="apple-notes-tables" position="sum" title="Want the total without typing each number twice?">
+        <p>Import your Apple Notes tables into Pinto Notes. Connect your AI to read the table, add the row you mention and give you the total when you ask.</p>
+      </PostCta>
 
       <h2 id="sort">Sort a table</h2>
       <PostFigure src="/blog/macos27/notes27-table-format-in-table" width={1280} height={1126} maxWidth={640}
@@ -171,12 +182,12 @@ export default function Page() {
 
       <h2 id="missing">What&apos;s still missing</h2>
       <p>
-        By now my moving budget worked, sort of. The table held the costs, the total lived in three lines underneath, and every new cost
-        meant updating two places. And the questions we actually had, it couldn&apos;t answer: what&apos;s left if we keep it under 800? Did we
-        already pay the deposit? Notes has the numbers. It just can&apos;t think about them.
+        By now the moving budget worked, sort of. The table held the costs, the total sat underneath, and every new cost meant updating two
+        places. But it couldn&apos;t answer the questions we actually had. What&apos;s left if we keep it under 800? Did we already pay the
+        deposit? Notes has the numbers. It just can&apos;t think about them.
       </p>
       <p>
-        What I wanted was a table I could talk to. Tell it &ldquo;the cleaner said 120&rdquo; from my phone and have the row appear. Ask
+        What we wanted was a table we could talk to. Say &ldquo;the cleaner said 120&rdquo; from a phone and have the row appear. Ask
         &ldquo;what&apos;s the move costing so far?&rdquo; and get a number, not a menu.
       </p>
 
